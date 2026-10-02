@@ -695,14 +695,14 @@ export class PoolBuilder {
     // already held.
     const claimsRequested = dish.slots.includes(requestedSlot);
     const claimed = claimsRequested ? dish.slots : [requestedSlot];
-    let slots = fitSlots({ ingredients: dish.ingredients, slots: claimed }, context.catalogue, context.dietaryPatterns);
+    let slots = fitSlots({ ...dish, slots: claimed }, context.catalogue, context.dietaryPatterns);
 
     if (!claimsRequested && slots.length === 0) {
-      slots = fitSlots({ ingredients: dish.ingredients, slots: dish.slots }, context.catalogue, context.dietaryPatterns);
+      slots = fitSlots(dish, context.catalogue, context.dietaryPatterns);
     }
 
     if (slots.length === 0) {
-      this.logger.warn(`Dish "${dish.name}" rejected: none of ${dish.slots.join(', ')} is a meal all of its ingredients belong to`);
+      this.logger.warn(`Dish "${dish.name}" rejected: none of ${dish.slots.join(', ')} is a meal all of its ingredients belong to, for its cuisine`);
 
       return { reason: 'wrong_meal' };
     }

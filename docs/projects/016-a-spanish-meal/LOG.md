@@ -85,3 +85,54 @@
   - Phase 2 is accompaniments in the domain, behind a flag.
   - Base for the evaluator: `016-p1.json`.
   - The owner's rotation-only run (6/14) is the number A must lift.
+
+## Phase 2 — Design: cuisine families, meal fit by cuisine, accompaniments by cuisine (2026-10-02)
+
+- **Executor**: `architect` (opus · high) as `architect-016`. It drafted the tables with sources it read and measured them read-only on the dev database, behind `guard.mjs`.
+- **Result**: done. The owner approved all nine answers. Decision [`0079`](../../decisions/0079-meals-fit-by-cuisine-and-accompaniments-by-cuisine.md) is accepted.
+- **Evidence** (dev, excluding 906 end-to-end leftover recipes):
+  - Dinners servable: 310 → 198 (omnivore), 199 → 129 (`traditional_spanish`), 74 → 57 (vegan, keeping the `0062` §4 pulse exception).
+  - Worst profile (traditional_spanish, coeliac, no milk): 81 dinners.
+  - No slot is pushed below the 19 a fortnight needs.
+- **Decisions**:
+  - **Six families.** A null or unmapped cuisine is read as Spanish, the strictest, so a mislabel can only lose a meal.
+  - **Five food groups**, recognised by slug and dry grams (40 g by `0078`'s yields). "Fried" and "heavy sauce" were dropped as unrecognisable from the data.
+  - **The table widens as well as narrows.**
+  - **The dish's family sets the accompaniments.** Cheese and nuts are breakfast-only, and season is a hard filter for accompaniments.
+  - **No BEDCA** (owner): sources and macros are USDA FoodData Central. The 14 BEDCA-sourced catalogue rows are re-sourced in a queued task (`000-workspace` LOG). `queso-de-burgos` (breakfast only) is the one accompaniment still on such a row.
+- **Notes for the next phase**:
+  - Phase 3 implements 0079 tables 1–3 literally. Phase 7's step 1 is superseded.
+  - Dev holds 906 end-to-end leftover recipes that inflate library counts: a cleanup for dev data, not this project.
+
+## Phase 3 — Meal fit by cuisine, and accompaniments in the domain behind a flag (2026-10-02)
+
+- **Executor**: run as `/team`.
+  - `backend-high` (opus) as `backend-a`. The machine restarted and lost the team, so `backend-a2` resumed its uncommitted fixes from the worktree.
+  - `frontend-low` (sonnet) as `frontend-a`.
+  - `invariant-reviewer` (opus · high), twice.
+- **Result**: done.
+- **Evidence**:
+  - **What was built.**
+    - `0079` tables 1–2 in core: the family normaliser, and meal fit by family and food group, widening and narrowing, always on.
+    - `core/domain/Accompaniment`: `0079` table 3, filtered per person through `dishSafety`, exclusions (`traditional_spanish`, dislikes, free-from), unresolved labels (ingredients and the side's own name), season (hard), slot and family. Kosher is checked on the dish plus the whole set (`setsBeside`).
+    - Sets are chosen inside `balancedDay` at K = 6 above 700 kcal of share, with a soft cost outside 0.75–1.5 servings.
+    - `ScheduledMeal.accompaniments`, with macros and ingredients covering the whole meal.
+    - The `accompaniments` flag, admin-only and off. With it off, plans are byte-identical, pinned by hashes.
+    - `mealSizeSuggestion` and the web note naming the change ("Si añades un desayuno, tu comida bajaría a unas 745 kcal").
+  - **Gate:** core 3,535 tests and api 1,392, lint at max-warnings 0. The web flag label comes from `frontend-a`.
+  - **Evaluator, flag off** vs `016-p1`: 13/13 profiles the same, 14/14 days, no allergen.
+  - **Evaluator, flag on** vs off:
+    - 13/13 profiles 14/14 days, no allergen.
+    - Mains within 0.75–1.5 servings rise on every profile; `imc-alto-2-comidas` goes 17 → 27 of 28.
+    - That profile's plate falls from 821 to 733 g max, with lunch and dinner means of 563 and 515 g. Meals with their sides average 716 and 706 g.
+    - 89% of its mains carry a side. Sides average 20.9% of the meal's energy, with a maximum of 34.4% on this profile but up to 54% on others; phase 4 caps it at 35%.
+    - Time per profile is 1.6–13.1 s, the worst being five meals with a high target.
+  - **Invariant review of 9cac67bf:** no P0 or P1. P2-1 (kosher on the whole set), P2-2 (side names against unresolved typed allergies) and the P3 comment were fixed in f0a043fb. P2-3 (phase 4 wiring) is a TODO in phase 4's steps.
+- **Deviations**:
+  - Fit by cuisine is always on, not behind the flag, as `0079` intended.
+  - The flag is an admin setting.
+- **Notes for the next phase**:
+  - Persist and show the sides.
+  - Cap their share at 35%.
+  - Wire the larder from the generation context.
+  - Return the gram ceiling to a flat 750 g when the flag turns on.

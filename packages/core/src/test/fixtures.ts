@@ -219,3 +219,45 @@ export const TARGETS: NutritionTargets = { carbsG: 200, fatG: 60, fiberG: 25, kc
 
 /** The floor of the person `TARGETS` is for — what every scheduling call is handed, as the API hands it. */
 export const MINIMUM_KCAL = minimumDailyKcal('female');
+
+/** Per 100 g for an accompaniment row, by what it is — near enough to the catalogue for a plate to be sized around it. */
+const ACCOMPANIMENT_MACROS: readonly [RegExp, Partial<CatalogueIngredient>][] = [
+  [/^pan-|^tortilla-de-maiz$/, { carbsPer100g: 49, category: 'bakery', fatPer100g: 3.2, kcalPer100g: 265, proteinPer100g: 9 }],
+  [
+    /^yogur|^queso|^requeson$/,
+    { carbsPer100g: 4, category: 'dairy', classes: ['animal', 'dairy'], fatPer100g: 2, kcalPer100g: 70, proteinPer100g: 10 }
+  ],
+  [/^nueces$|^almendras$|^sesamo$/, { carbsPer100g: 14, category: 'pantry', fatPer100g: 60, kcalPer100g: 650, proteinPer100g: 15 }],
+  [/^aceite/, { carbsPer100g: 0, category: 'pantry', fatPer100g: 100, kcalPer100g: 884, proteinPer100g: 0 }],
+  [/^arroz|^bulgur/, { carbsPer100g: 78, category: 'pantry', fatPer100g: 0.7, kcalPer100g: 360, proteinPer100g: 7 }],
+  [/^alubias|^hummus$|^tofu|^miso$/, { carbsPer100g: 15, category: 'protein', fatPer100g: 5, kcalPer100g: 130, proteinPer100g: 8 }]
+];
+
+/**
+ * A catalogue row for every food an accompaniment uses (`ACCOMPANIMENTS`),
+ * id `i-<slug>`, all year and at every meal, with `overrides` by slug — an
+ * allergen, a season. Plain vegetables and fruit otherwise.
+ */
+export function makeAccompanimentRows(
+  slugs: readonly string[],
+  overrides: Readonly<Record<string, Partial<CatalogueIngredient>>> = {}
+): CatalogueIngredient[] {
+  return slugs.map(slug =>
+    makeCatalogueIngredient({
+      id: `i-${slug}`,
+      carbsPer100g: 7,
+      category: 'produce',
+      classes: [],
+      fatPer100g: 0.3,
+      fiberPer100g: 2,
+      kcalPer100g: 35,
+      mealSlots: [],
+      name: slug,
+      proteinPer100g: 1,
+      seasonMonths: [],
+      slug,
+      ...ACCOMPANIMENT_MACROS.find(([pattern]) => pattern.test(slug))?.[1],
+      ...overrides[slug]
+    })
+  );
+}

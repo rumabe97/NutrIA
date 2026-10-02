@@ -100,11 +100,29 @@ export const candidateDishSchema = z.object({
 
 export type CandidateDish = z.infer<typeof candidateDishSchema>;
 
+/** One accompaniment beside a plate (`0079` Table 3): its key, its rows at their grams, and its macros. */
+export type ScheduledAccompaniment = {
+  readonly ingredients: readonly { readonly grams: number; readonly slug: string }[];
+  readonly key: string;
+  readonly macros: Macros;
+};
+
 /** One dish placed in one slot on one day, with its scaled quantities and macros. */
 export type ScheduledMeal = {
+  /**
+   * What goes beside the plate, when the scheduler was given accompaniments
+   * (project 016, behind the `accompaniments` flag); absent otherwise, so a
+   * plan made with the flag off is the plan it always was. Empty is a meal
+   * with nothing beside it.
+   */
+  readonly accompaniments?: readonly ScheduledAccompaniment[];
   readonly dish: CandidateDish;
-  /** Scaled to `servings`; what the shopping list and the meal detail both read. */
+  /**
+   * Scaled to `servings`, then every accompaniment's rows; what the shopping
+   * list, the allergy gate and the meal detail all read — the whole meal.
+   */
   readonly ingredients: readonly { readonly grams: number; readonly slug: string }[];
+  /** The whole meal: the plate at `servings`, and its accompaniments. */
   readonly macros: Macros;
   readonly servings: number;
   readonly slot: MealSlot;

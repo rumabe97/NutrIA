@@ -4,7 +4,7 @@ import { requireProfileConsent } from './ProfileConsentController';
 import { ageInYears, resolveTargets } from 'core/domain/Nutrition';
 import { FALLBACK_LOCALE } from '#repositories/Recipe';
 import { isEnforceableDislike } from 'core/domain/Preference';
-import { DEFAULT_MEAL_SHAPE, mainMealSize } from 'core/domain/MealShape';
+import { DEFAULT_MEAL_SHAPE, mainMealSize, mealSizeSuggestion } from 'core/domain/MealShape';
 import { ProfileRepository } from '#repositories/Profile';
 import { ProgressRepository } from '#repositories/Progress';
 import { SafetyRepository } from '#repositories/Safety';
@@ -12,6 +12,8 @@ import type { Goal, Preferences, Profile, UpdateGoal, UpdatePreferences, UpdateP
 import type { ResolvedTargets, TargetInput, TargetViolation } from 'core/domain/Nutrition';
 import type { UpdateTargetOverride } from 'core/entities/Nutrition';
 import type { ProfessionalSetter } from '#repositories/Profile';
+import type { MealSizeChange } from 'core/domain/MealShape';
+import type { MealSlot } from 'core/entities/Plan';
 
 // --- Presenters ---------------------------------------------------------------
 
@@ -43,9 +45,16 @@ export type PreferencesView = Omit<Preferences, 'createdAt' | 'updatedAt' | 'use
  * How big this person's largest main meal is, for the note that offers one
  * meal more before a plan is generated (project 016). `largestMainKcal` is the
  * largest of breakfast, lunch and dinner as the scheduler sizes them;
- * `largeMeals` is whether it is past `LARGE_MEAL_KCAL`.
+ * `largeMeals` is whether it is past `LARGE_MEAL_KCAL`. `suggestion` is the one
+ * change to the shape that would bring it to `LARGE_MEAL_KCAL` or below
+ * (`mealSizeSuggestion`), or null when the meals are not large or no single
+ * change gets there — the note then offers only to carry on.
  */
-export type MealSizeView = { largeMeals: boolean; largestMainKcal: number };
+export type MealSizeView = {
+  largeMeals: boolean;
+  largestMainKcal: number;
+  suggestion: { change: MealSizeChange; largestMainKcal: number; slot?: MealSlot } | null;
+};
 
 export interface FullProfileView {
   allergies: readonly { allergenId: string; allergenLabel: string; crossContaminationSensitive: boolean; severity: string }[];
@@ -189,7 +198,9 @@ function explain(violation: TargetViolation): string {
 
 /** The note's figures from the shape the generation reads (`PlanGeneration`) and the targets in effect. */
 function mealSizeOf(preferences: Preferences | undefined, targets: ResolvedTargets): MealSizeView {
-  return mainMealSize(preferences?.mealShape ?? DEFAULT_MEAL_SHAPE, targets.effective);
+  const shape = preferences?.mealShape ?? DEFAULT_MEAL_SHAPE;
+
+  return { ...mainMealSize(shape, targets.effective), suggestion: mealSizeSuggestion(shape, targets.effective) };
 }
 
 /** The targets exactly as `getFullProfile` resolves them, and the preferences they were resolved with. */

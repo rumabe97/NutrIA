@@ -16,6 +16,7 @@ export const esES = {
   activity: { athlete: 'Deportista', high: 'Alto', light: 'Ligero', moderate: 'Moderado', sedentary: 'Sedentario' },
 
   admin: {
+    accompanimentsLabel: 'Acompañamientos (pan, ensalada, fruta)',
     automaticActivation: 'Activación automática',
     automaticHint: 'Quien confirma su correo entra directamente. Tú no tienes que hacer nada.',
     events: { app_used: 'Usaron la app', session_started: 'Entradas', swap_requested: 'Cambios de comida pedidos' },
@@ -1761,11 +1762,16 @@ export const esES = {
   },
 
   mealSize: {
-    add: 'Añadir una comida',
-    body: 'Con {count} comidas al día, la más grande lleva unas {kcal} kcal. Es la única forma de repartir tus macros; por eso los platos salen abundantes. Si añades una comida (un desayuno o una merienda), cada plato será más pequeño.',
+    body: 'Con {count} comidas al día, la más grande lleva unas {kcal} kcal. Es la única forma de repartir tus macros; por eso los platos salen abundantes.',
     dismissed: 'Aviso ocultado',
     keep: 'Seguir así',
     keepName: 'Seguir así y generar mi plan',
+    suggestions: {
+      add_afternoon_snack: { action: 'Añadir una merienda', body: 'Si añades una merienda, tu comida principal bajaría a unas {kcal} kcal.' },
+      add_breakfast: { action: 'Añadir un desayuno', body: 'Si añades un desayuno, tu comida principal bajaría a unas {kcal} kcal.' },
+      none: 'Con más comidas de este tipo no bajaría de ahí: son tus macros los que la hacen grande.',
+      snack_to_normal: { action: 'Cambiar la {slot}', body: 'Si pasas la {slot} de ligera a normal, tu comida principal bajaría a unas {kcal} kcal.' }
+    },
     title: 'Tus comidas serán grandes',
     understood: 'Entendido'
   },

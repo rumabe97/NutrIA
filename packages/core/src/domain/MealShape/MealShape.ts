@@ -1,4 +1,4 @@
-import { MEAL_SLOTS } from 'core/entities/Plan';
+import { MEAL_SLOTS, SNACK_SLOTS } from 'core/entities/Plan';
 
 import type { MealShape, MealSize } from 'core/entities/Profile';
 import type { MealSlot } from 'core/entities/Plan';
@@ -92,6 +92,56 @@ export function mainMealSize(shape: MealShape, targets: Pick<NutritionTargets, '
   const largestMainKcal = Math.round(Math.max(0, ...FULL_MEALS.map(slot => shares.get(slot) ?? 0)));
 
   return { largeMeals: largestMainKcal > LARGE_MEAL_KCAL, largestMainKcal };
+}
+
+/** The one change to the shape the large-meals note may name (project 016, phase 3). */
+export type MealSizeChange = 'add_afternoon_snack' | 'add_breakfast' | 'snack_to_normal';
+
+export type MealSizeSuggestion = {
+  readonly change: MealSizeChange;
+  /** The largest main meal once the change is made, in whole kcal — what the note quotes ("bajaría a unas 745 kcal"). */
+  readonly largestMainKcal: number;
+  /** Which snack turns normal; only for `snack_to_normal`. */
+  readonly slot?: MealSlot;
+};
+
+/**
+ * The change that would bring this person's largest main meal to
+ * `LARGE_MEAL_KCAL` or below, or null when their meals are not large or no
+ * single change gets there (owner, 2026-10-02).
+ *
+ * "Add a meal" told somebody who already eats four times, two of them light
+ * snacks, to do what they do. So the changes are tried in the order a
+ * dietitian would offer them — a normal breakfast where there is none, a light
+ * snack made normal (the morning's first), an afternoon snack where there is
+ * none — and the first that works is the one named. Each is priced with
+ * `mainMealSize`, so the figure the note quotes is the one the scheduler would
+ * size to.
+ */
+export function mealSizeSuggestion(shape: MealShape, targets: Pick<NutritionTargets, 'kcal'>): MealSizeSuggestion | null {
+  if (!mainMealSize(shape, targets).largeMeals) {
+    return null;
+  }
+
+  const changes: { readonly change: MealSizeChange; readonly shape: MealShape; readonly slot?: MealSlot }[] = [
+    ...(shape.breakfast === 'off' ? [{ change: 'add_breakfast' as const, shape: { ...shape, breakfast: 'normal' as const } }] : []),
+    ...SNACK_SLOTS.filter(slot => shape[slot] === 'light').map(slot => ({
+      change: 'snack_to_normal' as const,
+      shape: { ...shape, [slot]: 'normal' as const },
+      slot
+    })),
+    ...(shape.afternoon_snack === 'off' ? [{ change: 'add_afternoon_snack' as const, shape: { ...shape, afternoon_snack: 'normal' as const } }] : [])
+  ];
+
+  for (const { change, shape: changed, slot } of changes) {
+    const { largeMeals, largestMainKcal } = mainMealSize(changed, targets);
+
+    if (!largeMeals) {
+      return slot === undefined ? { change, largestMainKcal } : { change, largestMainKcal, slot };
+    }
+  }
+
+  return null;
 }
 
 /**

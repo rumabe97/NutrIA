@@ -4,6 +4,8 @@ import { ConflictError, InputParseError, NotFoundError, ProfileConsentRequiredEr
 
 import { PlanController, PlanJobController } from './PlanController';
 
+import type { MealSizeView } from 'core/controllers/Profile';
+
 type Job = { id: string; error: string | null; errorDetail: string | null; planId: string | null; status: string; step: string | null };
 type ChainRow = { id: string; endDate: string; opens?: boolean; redo: boolean; replacedRedos: number; status: string; version: number };
 type Row = { id: string; endDate: string; startDate: string; status: string; version: number };
@@ -23,7 +25,7 @@ const findChain = vi.fn<(userId: string, withPending?: boolean) => Promise<reado
 const findHistory = vi.fn<(userId: string, limit: number, offset: number) => Promise<readonly Row[]>>();
 const release = vi.fn<(jobId: string) => Promise<void>>();
 const requireProfileConsent = vi.fn<(userId: string) => Promise<void>>(async () => undefined);
-const mealSize = vi.fn<(userId: string) => Promise<{ largeMeals: boolean; largestMainKcal: number } | null>>(async () => null);
+const mealSize = vi.fn<(userId: string) => Promise<MealSizeView | null>>(async () => null);
 const setMealStatus = vi.fn<(userId: string, mealId: string, status: string) => Promise<'closed' | 'done' | 'missing'>>();
 
 vi.mock('#repositories/Plan', () => ({
@@ -400,7 +402,7 @@ describe('PlanController.allowances — a pending plan is the fortnight under wa
 
   it('carries the size of the largest main meal, for the note before generating (016)', async () => {
     findChain.mockResolvedValue([active]);
-    mealSize.mockResolvedValue({ largeMeals: true, largestMainKcal: 1100 });
+    mealSize.mockResolvedValue({ largeMeals: true, largestMainKcal: 1100, suggestion: { change: 'add_breakfast', largestMainKcal: 812 } });
 
     await expect(PlanController.allowances('usr-1')).resolves.toMatchObject({ mealSize: { largeMeals: true, largestMainKcal: 1100 } });
     expect(mealSize).toHaveBeenCalledWith('usr-1');

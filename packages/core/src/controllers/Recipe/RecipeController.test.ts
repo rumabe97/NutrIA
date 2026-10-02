@@ -355,13 +355,30 @@ describe('RecipeController.reusablePool — a dish is served only at the meals i
     });
   });
 
-  it('changes nothing when every list is empty', async () => {
+  it('changes nothing when every list is empty, but the stewed pulses, which Table 2 places by cuisine (0079)', async () => {
     findReusable.mockResolvedValue(library);
 
     const empty = [lentils, onion, oil, energyDrink].map(ingredient => ({ ...ingredient, mealSlots: [] }));
     const pool = await RecipeController.reusablePool(['breakfast', 'lunch', 'dinner'], contextFor([], empty));
 
-    expect(slotsOf(pool)).toEqual(Object.fromEntries(library.map(item => [item.slug, item.mealSlots])));
+    // No cuisine is judged as Spanish: lentils are a lunch, whatever the list says.
+    expect(slotsOf(pool)).toEqual({
+      'cebolla-asada': ['breakfast', 'lunch', 'dinner'],
+      'cena-energetica': ['dinner'],
+      'lentejas-estofadas': ['lunch']
+    });
+  });
+
+  it('serves the same stew at dinner when its cuisine is Italian (0079, option B)', async () => {
+    findReusable.mockResolvedValue(library.map(item => ({ ...item, cuisine: 'italiana' })));
+
+    const pool = await RecipeController.reusablePool(['breakfast', 'lunch', 'dinner'], contextFor([]));
+
+    expect(slotsOf(pool)).toEqual({
+      'cebolla-asada': ['breakfast', 'lunch', 'dinner'],
+      'lentejas-de-cena': ['dinner'],
+      'lentejas-estofadas': ['lunch', 'dinner']
+    });
   });
 
   it('narrows before the rotation, so the dinners it picks are dinners that can be served', async () => {

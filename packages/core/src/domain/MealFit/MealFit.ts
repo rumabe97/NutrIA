@@ -1,3 +1,4 @@
+import { cuisineFamily, dishGroups, foodGroupOf, groupFits } from './Cuisine';
 import { DISHES_NEEDED_PER_SLOT, seededShuffle } from 'core/domain/Variety';
 
 import type { Catalogue, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
@@ -58,12 +59,24 @@ export function belongsTo(ingredient: CatalogueIngredient, slot: MealSlot, dieta
 
 /**
  * The meals a dish may be served at: its own `slots`, kept only where every one
- * of its ingredients belongs (`0062` § 5).
+ * of its ingredients belongs (`0062` § 5) and where its cuisine serves the food
+ * groups it is built on (`0079`, Table 2).
  *
  * Narrowed, never widened and never rewritten — the result is always a subset
  * of `dish.slots`, in the dish's own order. A lentil stew that called itself a
  * lunch and a dinner stays a lunch. An empty result means the dish is served
  * nowhere, and the caller drops it.
+ *
+ * For the rows of Table 2's five groups (rice, pasta, the other grains,
+ * potato, stewed pulses) the ingredient lists are not read: the table decides,
+ * by the dish's family (owner's answer 1, option B) — rice at a Spanish dinner
+ * never, at an Asian one yes. A row of a group below its threshold
+ * (`FOOD_GROUP_GRAMS`) restricts nothing. Two things outrank the table: a row
+ * in no meal at all (`['none']`, `0063` § 3), and the plant-based exception —
+ * for somebody vegan or vegetarian a stewed pulse is a plant protein at every
+ * meal (`0062` § 4), so it puts the dish in no group. A dish with no cuisine,
+ * or one nobody mapped, is judged as Spanish. Without `grams` a group row
+ * counts as the whole group: the table only narrows for not knowing.
  *
  * An ingredient the catalogue does not know narrows nothing here: whether a
  * dish may use it at all is the unknown-ingredient gate's question
@@ -71,16 +84,38 @@ export function belongsTo(ingredient: CatalogueIngredient, slot: MealSlot, dieta
  * here would hide a model inventing slugs behind a meal rule.
  */
 export function fitSlots(
-  dish: { readonly ingredients: readonly { readonly slug: string }[]; readonly slots: readonly MealSlot[] },
+  dish: {
+    readonly cuisine?: string | null;
+    readonly ingredients: readonly { readonly grams?: number; readonly slug: string }[];
+    readonly servings?: number;
+    readonly slots: readonly MealSlot[];
+  },
   catalogue: Catalogue,
   dietaryPatterns: readonly string[]
 ): MealSlot[] {
-  return dish.slots.filter(slot =>
-    dish.ingredients.every(item => {
-      const ingredient = catalogue.get(item.slug);
+  const family = cuisineFamily(dish.cuisine);
+  const plantBased = dietaryPatterns.some(pattern => PLANT_BASED_PATTERNS.has(pattern));
+  const groups = dishGroups(dish, slug => {
+    const ingredient = catalogue.get(slug);
 
-      return ingredient === undefined || belongsTo(ingredient, slot, dietaryPatterns);
-    })
+    return plantBased && ingredient !== undefined && foodGroupOf(slug) === 'pulses' && isPlantProtein(ingredient);
+  });
+
+  return dish.slots.filter(
+    slot =>
+      dish.ingredients.every(item => {
+        const ingredient = catalogue.get(item.slug);
+
+        if (ingredient === undefined) {
+          return true;
+        }
+
+        if (foodGroupOf(item.slug) !== null) {
+          return !ingredient.mealSlots.includes('none');
+        }
+
+        return belongsTo(ingredient, slot, dietaryPatterns);
+      }) && [...groups].every(group => groupFits(family, group, slot))
   );
 }
 
@@ -151,7 +186,13 @@ export const CATALOGUE_SAMPLE_SIZE = 30;
 const USAGE_MIN_DISHES = DISHES_NEEDED_PER_SLOT;
 
 /** A library recipe as its usage is read: where it is served as stored, and what it is made of. */
-export type LibraryRecipe = { readonly ingredients: readonly { readonly id: string; readonly slug: string }[]; readonly slots: readonly MealSlot[] };
+export type LibraryRecipe = {
+  /** The stated cuisine, which decides where its rice, pasta, grains, potato and pulses fit (`0079`). */
+  readonly cuisine?: string | null;
+  readonly ingredients: readonly { readonly id: string; readonly grams?: number; readonly slug: string }[];
+  readonly servings?: number;
+  readonly slots: readonly MealSlot[];
+};
 
 /** Per meal, the ids of the ingredients the library cooks it from. A meal it says too little about is absent. */
 export type LibraryUsage = ReadonlyMap<MealSlot, ReadonlySet<string>>;
