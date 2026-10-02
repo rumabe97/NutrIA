@@ -8,7 +8,19 @@ import { RecipeController } from 'core/controllers/Recipe';
 import { SettingsController } from 'core/controllers/Settings';
 import { toCatalogue } from 'core/entities/Plan';
 
-import { MealSwapService } from './MealSwap.service.js';
+import type * as Scheduler from 'core/domain/Scheduler';
+
+/*
+ * `pickReplacement` is a named import of a CommonJS export, fixed at link
+ * time: mocked at the module seam, wrapping the real one, so a case can hand
+ * the swap a replacement its own gate must refuse.
+ */
+const scheduler = jest.requireActual<typeof Scheduler>('core/domain/Scheduler');
+const pickReplacement = jest.fn<typeof scheduler.pickReplacement>(scheduler.pickReplacement);
+
+jest.unstable_mockModule('core/domain/Scheduler', () => ({ ...scheduler, pickReplacement }));
+
+const { MealSwapService } = await import('./MealSwap.service.js');
 
 import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
 import type { MealCompositionView } from 'core/controllers/Plan';
@@ -472,6 +484,11 @@ describe('MealSwapService', () => {
    * replaces the old plate's sides with it.
    */
   describe('accompaniments (016)', () => {
+    afterEach(() => {
+      pickReplacement.mockReset();
+      pickReplacement.mockImplementation(scheduler.pickReplacement);
+    });
+
     const GLUTEN = 'allergen-gluten';
     const bread = (slug: string, gluten: boolean): CatalogueIngredient => ({
       ...ingredient(slug, 265, 9),
@@ -524,6 +541,28 @@ describe('MealSwapService', () => {
       expect(keys).toContain('pan-sin-gluten');
       expect(keys).not.toContain('pan-blanco');
       expect(items.some(item => item.ingredientId === 'i-pan-sin-gluten')).toBe(true);
+    });
+
+    it('refuses a replacement whose side the swap\'s own gate rejects, and writes nothing', async () => {
+      // As if the larder had been bypassed: a coeliac's new plate comes back
+      // with wheat bread beside it. The gate reads plate and sides together.
+      pickReplacement.mockImplementation(input => {
+        const replacement = scheduler.pickReplacement(input);
+
+        if (!replacement) {
+          return replacement;
+        }
+
+        const side = { ingredients: [{ grams: 60, slug: 'pan-blanco' }], key: 'pan-blanco', macros: replacement.macros };
+
+        return { ...replacement, accompaniments: [side], ingredients: [...replacement.ingredients, ...side.ingredients] };
+      });
+
+      const { service, swapMeal } = harness({ accompaniments: true, allergenIds: new Set([GLUTEN]), catalogue: WITH_BREAD, composition, library });
+
+      await expect(service.swap('user-1', MEAL, 'es-ES')).rejects.toBeInstanceOf(ConflictError);
+      expect(pickReplacement).toHaveBeenCalled();
+      expect(swapMeal).not.toHaveBeenCalled();
     });
   });
 });
