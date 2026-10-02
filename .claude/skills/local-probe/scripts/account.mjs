@@ -41,7 +41,7 @@ import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
-import { assertNotProduction, readEnv, ROOT } from './guard.mjs';
+import { assertNotProduction, isLocalPg, readEnv, ROOT } from './guard.mjs';
 
 const API = 'http://localhost:3001/api/v1';
 const WEB = 'http://localhost:3000';
@@ -80,7 +80,8 @@ assertNotProduction({ strict: action === 'link' || action === 'compromise' || ac
 // `core` reads the database from the environment, the same one the local API was given —
 // and only that one: the guard above checked apps/api/.env, so a DATABASE_URL already
 // exported in this shell, pointing anywhere else, is refused rather than used unchecked.
-for (const key of ['DATABASE_URL', 'DIRECT_DATABASE_URL']) {
+// Under NUTRIA_LOCAL_PG=1 `core` connects to the local Postgres whatever these say.
+for (const key of isLocalPg() ? [] : ['DATABASE_URL', 'DIRECT_DATABASE_URL']) {
   const checked = readEnv(`${ROOT}apps/api/.env`, key);
 
   if (process.env[key] !== undefined && process.env[key] !== checked) {

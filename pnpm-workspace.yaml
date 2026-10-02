@@ -12,6 +12,10 @@ packages:
 # Anything not listed stays unbuilt, which is the point: a new transitive
 # dependency cannot run code at install time without a deliberate edit here.
 allowBuilds:
+  # The local Postgres behind `pnpm db:local`. Denied: its postinstall only links the ICU
+  # libraries (`libicu*.so.60 -> .so.60.2`), and scripts/local-pg.mjs makes the same links
+  # from the package's own manifest on `start`.
+  '@embedded-postgres/linux-x64': false
   # Native file watcher for `nest start --watch`; falls back to polling without it.
   '@parcel/watcher': true
   # Analytics beacon pulled in transitively. Denied — nothing needs it to run.

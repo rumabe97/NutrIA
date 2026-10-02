@@ -4,6 +4,7 @@
   "scripts": {
     "build": "turbo run build",
     "check:leaks": "sh scripts/check-leaks.sh",
+    "db:local": "node scripts/local-pg.mjs",
     "deadcode": "knip --tags=-knipignore --production",
     "dev": "turbo run dev stripe:listen",
     "stripe:listen": "sh scripts/stripe-listen.sh",
@@ -21,6 +22,7 @@
     "up:latest": "pnpm up --latest --recursive && pnpm add -D eslint@9.39.2 --filter=eslint-configuration"
   },
   "devDependencies": {
+    "embedded-postgres": "18.4.0-beta.17",
     "knip": "^6.38.0",
     "prettier-configuration": "workspace:*",
     "turbo": "^2.11.4",

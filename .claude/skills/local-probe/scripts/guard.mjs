@@ -27,8 +27,28 @@ function hostOf(url) {
   }
 }
 
+/**
+ * What `NUTRIA_LOCAL_PG=1` connects to: the Postgres `pnpm db:local` runs. The same
+ * constant as `LOCAL_DATABASE_URL` in packages/database/src/env.ts and
+ * scripts/local-pg.mjs — this file cannot import a TypeScript package.
+ */
+export const LOCAL_DATABASE_URL = 'postgres://postgres:postgres@127.0.0.1:54329/nutria_local';
+
+/** Only `1` is on; any other value is refused rather than read as off. */
+export function isLocalPg() {
+  const value = process.env.NUTRIA_LOCAL_PG;
+
+  if (value === undefined || value === '' || value === '0') return false;
+  if (value !== '1') throw new Error(`NUTRIA_LOCAL_PG must be 1 or unset, not "${value}"`);
+
+  return true;
+}
+
 export function assertNotProduction({ strict = false } = {}) {
-  const local = hostOf(readEnv(`${ROOT}apps/api/.env`, 'DATABASE_URL'));
+  const switched = isLocalPg();
+  // Under the switch every client connects to the constant, so that is what is checked —
+  // and apps/api/.env need not exist at all.
+  const local = switched ? hostOf(LOCAL_DATABASE_URL) : hostOf(readEnv(`${ROOT}apps/api/.env`, 'DATABASE_URL'));
   const production = hostOf(readEnv(`${ROOT}packages/database/.env`, 'DATABASE_URL_PRO'));
 
   if (!local) {
@@ -37,6 +57,15 @@ export function assertNotProduction({ strict = false } = {}) {
 
   if (readEnv(`${ROOT}apps/api/.env`, 'NODE_ENV') === 'production') {
     throw new Error('apps/api/.env says NODE_ENV=production');
+  }
+
+  if (switched) {
+    if (local !== '127.0.0.1' || (production && local === production)) {
+      throw new Error('NUTRIA_LOCAL_PG=1 but the local URL is not loopback — refusing');
+    }
+
+    // Loopback on this machine is never production, so a write needs no comparison.
+    return 'database: local Postgres on 127.0.0.1:54329 (NUTRIA_LOCAL_PG=1)';
   }
 
   // Pooled and direct endpoints of one branch differ only by a "-pooler" suffix.
