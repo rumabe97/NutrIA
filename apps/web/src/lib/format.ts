@@ -85,3 +85,12 @@ export function formatQuantity(quantity: number, unit: string, locale: Locale, d
 
 /** Re-exported so a component needs one import for "text with a value in it". */
 export { interpolate };
+
+/**
+ * The calendar day as `YYYY-MM-DD` for a person: in the given time zone, or in
+ * the browser's own when none is given. Never `toISOString()`, which is the UTC
+ * day and is yesterday for a couple of hours after midnight in Spain.
+ */
+export function localIsoDate(now: Date = new Date(), timeZone?: string): string {
+  return new Intl.DateTimeFormat('en-CA', { day: '2-digit', month: '2-digit', timeZone, year: 'numeric' }).format(now);
+}

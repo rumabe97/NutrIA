@@ -43,16 +43,18 @@ interface PlanBrowserProps {
   midPlan?: EventStanding | null;
   plan: PlanView;
   redo: PlanRedoStanding | null;
+  /** A plan that has not started (project 015): its days to read and swap, with nothing to mark yet. */
+  upcoming?: boolean;
 }
 
-export function PlanBrowser({ events = [], history = null, midPlan = null, plan, redo }: PlanBrowserProps) {
+export function PlanBrowser({ events = [], history = null, midPlan = null, plan, redo, upcoming = false }: PlanBrowserProps) {
   const dictionary = useDictionary();
   const locale = useLocale();
   const shortDate = (date: string) => formatDate(date, locale, { day: 'numeric', month: 'short' });
-  const today = history ? undefined : plan.days.find(day => day.date === new Date().toISOString().slice(0, 10))?.dayIndex;
+  const today = history || upcoming ? undefined : plan.days.find(day => day.date === new Date().toISOString().slice(0, 10))?.dayIndex;
   const [selected, setSelected] = useState(today ?? 1);
   const day = plan.days.find(candidate => candidate.dayIndex === selected) ?? plan.days[0];
-  const canAddMidPlan = midPlan !== null && history === null;
+  const canAddMidPlan = midPlan !== null && history === null && !upcoming;
 
   return (
     <Fragment>
@@ -61,8 +63,13 @@ export function PlanBrowser({ events = [], history = null, midPlan = null, plan,
           {dictionary.plan.historyBack}
         </Link>
       ) : null}
+      {upcoming ? (
+        <Link className={styles.back} href="/plan">
+          {dictionary.plan.upcomingBack}
+        </Link>
+      ) : null}
       <div className={styles.header}>
-        <h1 className={styles.title}>{history ? dictionary.plan.historyOne : dictionary.plan.title}</h1>
+        <h1 className={styles.title}>{history ? dictionary.plan.historyOne : upcoming ? dictionary.plan.upcomingTitle : dictionary.plan.title}</h1>
         <Text size="sm" tone="tertiary">
           {interpolate(dictionary.plan.range, { end: shortDate(plan.endDate), start: shortDate(plan.startDate) })}
           {history ? ` · ${history.replaced ? dictionary.plan.historyReplaced : dictionary.plan.historyFinished}` : ''}
@@ -70,7 +77,7 @@ export function PlanBrowser({ events = [], history = null, midPlan = null, plan,
         {/* Always shown, even on a first plan: the list holds this one too, and a
             door that appears only once there is something behind it is a door
             nobody learns exists. */}
-        {history ? null : (
+        {history || upcoming ? null : (
           <Link className={styles.historyLink} href="/plan/historial">
             {dictionary.plan.historyLink}
           </Link>
@@ -78,7 +85,7 @@ export function PlanBrowser({ events = [], history = null, midPlan = null, plan,
         {/* What the fortnight still allows, said before the person goes looking
             for a button that will refuse them. A redo is a whole new plan for the
             same days; the next fortnight is never rationed. */}
-        {redo?.kind === 'redo' ? (
+        {redo?.kind === 'redo' && !upcoming ? (
           <div className={styles.redo}>
             {redo.allowed ? (
               <Fragment>
@@ -150,7 +157,7 @@ export function PlanBrowser({ events = [], history = null, midPlan = null, plan,
                   key={meal.id}
                   name={meal.name}
                   proteinG={meal.proteinG}
-                  readOnly={history !== null}
+                  readOnly={history !== null || upcoming}
                   slot={meal.slot}
                   status={meal.status}
                 />

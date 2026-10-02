@@ -1,0 +1,13 @@
+.title {
+  font-size: var(--font-size-05);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-title);
+  margin: 0 0 var(--gap-heading);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+  margin-top: var(--gap-block);
+}

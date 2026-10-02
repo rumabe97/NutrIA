@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatUsd } from './format';
+import { formatUsd, localIsoDate } from './format';
 
 // Intl separates the amount from the symbol with a no-break space; compare on plain ones.
 function plain(text: string): string {
@@ -20,5 +20,14 @@ describe('formatUsd', () => {
 
   it('shows nothing spent as zero with cents', () => {
     expect(plain(formatUsd(0, 'es-ES'))).toBe('0,00 $');
+  });
+});
+
+describe('localIsoDate', () => {
+  it('is the day in the given time zone, not the UTC one', () => {
+    const justAfterMidnightInSpain = new Date('2026-10-01T22:30:00Z');
+
+    expect(localIsoDate(justAfterMidnightInSpain, 'Europe/Madrid')).toBe('2026-10-02');
+    expect(localIsoDate(justAfterMidnightInSpain, 'UTC')).toBe('2026-10-01');
   });
 });
