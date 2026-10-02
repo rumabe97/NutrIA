@@ -655,7 +655,8 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
   }
 
   const spread = spreadAcrossDays(built, input.placed ?? [], proteins, kinds, seasonal, input.minimumKcal, sidesOn);
-  const distinct = enforceDistinctDays(spread, input, input.placed ?? [], proteins, cap, kinds, seasonal, sidesOn);
+  const repaired = repairOutOfBand(spread, input, input.placed ?? [], perServing, { cap, kinds, proteins, seasonal }, sidesOn);
+  const distinct = enforceDistinctDays(repaired, input, input.placed ?? [], proteins, cap, kinds, seasonal, sidesOn);
 
   const assignedDays: PlanDayAssignment[] = distinct.map(day => {
     const meals: ScheduledMeal[] = day.picks.map(pick => {
@@ -2188,6 +2189,15 @@ function totalsOf(picks: readonly Pick[]): Macros {
   );
 }
 
+/**
+ * A day's macros as the plan will carry them: each meal's scaled and rounded
+ * to a tenth (`scaleMacros`), what is beside it added (`addMacros`), and the
+ * meals summed as `sumMacros` sums them — what `validatePlan` is given.
+ */
+function deliveredTotals(picks: readonly Pick[]): Macros {
+  return sumMacros(picks.map(pick => (pick.set ? addMacros(scaleMacros(pick.base, pick.servings), pick.set.macros) : scaleMacros(pick.base, pick.servings))));
+}
+
 /** The day's totals measured against the day's targets. */
 function dayFitCost(picks: readonly Pick[], targets: NutritionTargets): number {
   return fitCost(totalsOf(picks), { carbsG: targets.carbsG, fatG: targets.fatG, kcal: targets.kcal, proteinG: targets.proteinG });
@@ -2484,6 +2494,151 @@ function spreadAcrossDays(
     if (!exchanged) {
       break;
     }
+  }
+
+  return current;
+}
+
+/**
+ * How many swaps `repairOutOfBand` sizes to the bands per round, after the same
+ * cheap screen `improveDay` uses. Four times `SWAP_SHORTLIST`, because only a
+ * day still outside pays for it: on the reference library (017 phase 3) the
+ * twenty-four best on the screen left a day 6.1% over its carbohydrate, and
+ * forty-eight or more brought it inside.
+ */
+const REPAIR_SHORTLIST = 96;
+
+/**
+ * The last repair for a day still outside its bands once the spread pass is
+ * done: a swap with any dish of the pool, its portions sized to the bands
+ * (`balancedDay`, banded), the way the spread pass sizes an exchange (017
+ * phase 3).
+ *
+ * Neither earlier pass could make it. `improveDay` swaps from the pool but
+ * sizes unbanded, so a swap that lands only once its portions are fitted to the
+ * bands looks no better there than the day it would replace; the spread pass
+ * sizes to the bands but only trades meals the plan already has. A small target
+ * at the energy floor showed the gap: a day 5.1% over its fat at 1,213 kcal,
+ * where any quarter serving less was under the floor, so only another dish
+ * could shed the fat.
+ *
+ * Only a day outside is touched, so a plan already in band is the plan it was.
+ * A swap is made only when it leaves the day fewer macros outside, or outside
+ * by less, and it is held to everything the spread pass holds an exchange to:
+ * the floor, the order of the meals, the day's energy. Among swaps equally
+ * inside, the variety rules' prices decide, as in `improveDay` — priced, never
+ * a reason to keep a day off its macros (owner, 017: the macros win). `canPlace`
+ * holds against the whole plan, so no swap breaks variety.
+ */
+function repairOutOfBand(
+  days: readonly BuiltDay[],
+  input: SchedulerInput,
+  fixed: readonly Placement[],
+  perServing: ReadonlyMap<string, PerServing>,
+  rules: { readonly cap: number; readonly kinds: KindRules; readonly proteins: ProteinIndex; readonly seasonal: Seasonal },
+  sidesOn?: (dayIndex: number) => Sides
+): readonly BuiltDay[] {
+  const { cap, kinds, proteins, seasonal } = rules;
+  const current = [...days];
+  // On the macros as the plan will carry them, each meal rounded to a tenth
+  // (`deliveredTotals`), which is what validation judges: a day the search held
+  // at 38.84 g of fat against a band ending at 38.85 was delivered at 38.9.
+  const missOf = (picks: readonly Pick[], day: BuiltDay): number =>
+    bandMiss(deliveredTotals(picks), day.targets) + floorMiss(deliveredKcal(picks), input.minimumKcal);
+
+  for (const [position, start] of current.entries()) {
+    if (missOf(start.picks, start) <= SPREAD_EPSILON) {
+      continue;
+    }
+
+    const others: Placement[] = [
+      ...fixed,
+      ...current.flatMap((day, at) =>
+        at === position ? [] : day.picks.map(pick => ({ dayIndex: day.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }))
+      )
+    ];
+    const elsewhere = proteinCounts(others, proteins);
+    const week = planWeek(start.dayIndex);
+    const sides = sidesOn?.(start.dayIndex);
+    // What the day pays the variety rules, priced as `improveDay` prices them.
+    const priceOf = (picks: readonly Pick[]): number => {
+      const placements = picks.map(pick => ({ dayIndex: start.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }));
+      const repeats = proteinExcess(
+        picks.map(pick => ({ protein: proteins.get(pick.dish.slug) ?? null, slot: pick.slot })),
+        elsewhere,
+        cap,
+        week
+      );
+
+      return (repeats + kindsExcess([...others, ...placements], kinds.checks, kinds.days)) * PROTEIN_SWAP_WEIGHT + dayReuseCost(picks, start.dayIndex, others);
+    };
+
+    let day = start;
+
+    for (let round = 0; round < MAX_SWAP_ROUNDS && missOf(day.picks, day) > SPREAD_EPSILON; round += 1) {
+      const screened: { readonly quick: number; readonly swapped: Pick[] }[] = [];
+
+      for (const [index, pick] of day.picks.entries()) {
+        const budget = day.budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
+        const placed = [
+          ...others,
+          ...day.picks.filter((_entry, at) => at !== index).map(entry => ({ dayIndex: day.dayIndex, dishSlug: entry.dish.slug, slot: entry.slot }))
+        ];
+
+        for (const candidate of input.pool) {
+          const base = perServing.get(candidate.slug);
+
+          if (
+            !base ||
+            candidate.slug === pick.dish.slug ||
+            !candidate.slots.includes(pick.slot) ||
+            !fitsPlate(base, budget, pick.slot) ||
+            !seasonal(candidate.slug, day.dayIndex) ||
+            !canPlace(candidate.slug, pick.slot, day.dayIndex, placed)
+          ) {
+            continue;
+          }
+
+          const swapped = day.picks.map((entry, at) =>
+            at === index ? { ...entry, base, dish: candidate, servings: servingsFor(base, budget, pick.slot), set: undefined } : entry
+          );
+
+          screened.push({ quick: bandMiss(totalsOf(swapped), day.targets) * BAND_MISS_WEIGHT + dayFitCost(swapped, day.targets), swapped });
+        }
+      }
+
+      let best: { readonly cost: number; readonly miss: number; readonly picks: readonly Pick[] } | undefined;
+      const before = missOf(day.picks, day);
+
+      // Stable: a tie on the screen keeps pool order, the user's own rotation (`0009`).
+      for (const entry of screened.sort((a, b) => a.quick - b.quick).slice(0, REPAIR_SHORTLIST)) {
+        const sized = balancedDay(entry.swapped, day.targets, day.budgets, input.minimumKcal, true, sides);
+        const miss = missOf(sized.picks, day);
+
+        if (
+          miss >= before - SPREAD_EPSILON ||
+          inversionsOf(sized.picks, day.budgets) > inversionsOf(day.picks, day.budgets) + SPREAD_EPSILON ||
+          floorMiss(deliveredKcal(sized.picks), input.minimumKcal) > floorMiss(deliveredKcal(day.picks), input.minimumKcal) + SPREAD_EPSILON ||
+          energyMiss(sized.picks, day.targets) > energyMiss(day.picks, day.targets) + SPREAD_EPSILON
+        ) {
+          continue;
+        }
+
+        const cost = dayFitCost(sized.picks, day.targets) + priceOf(sized.picks);
+
+        if (!best || miss < best.miss - BAND_TIE || (miss <= best.miss + BAND_TIE && cost < best.cost)) {
+          best = { cost, miss, picks: sized.picks };
+        }
+      }
+
+      if (!best) {
+        break;
+      }
+
+      day = { ...day, picks: best.picks };
+    }
+
+    current[position] = day;
   }
 
   return current;
