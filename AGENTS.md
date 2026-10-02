@@ -58,7 +58,8 @@ Postgres service.
 ```bash
 pnpm db:local start      # first time: initialises ~/.local/share/nutria-pg/data; then starts it, detached
 pnpm db:local reset      # drop, migrate, seed, load docs/local/nutria-seed-500.sql, re-run 0056
-pnpm db:local status     # running? migrations, ingredients and recipes counted
+pnpm db:local reset --reference   # the same, then docs/local/reference-ai-recipes.sql on top, 0056 again (0080)
+pnpm db:local status     # running? migrations, ingredients and recipes counted, recipes by source and slot
 NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs --flag accompaniments
 ```
 
