@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
-import { ACCOMPANIED_FROM_KCAL, pickReplacement, PLATE_GRAMS_MAX, schedulePlan } from 'core/domain/Scheduler';
+import { ACCOMPANIED_FROM_KCAL, ACCOMPANIMENT_MAX_SHARE, pickReplacement, PLATE_GRAMS_MAX, plateGramsMax, schedulePlan } from 'core/domain/Scheduler';
 import { ACCOMPANIMENTS, larderFor } from 'core/domain/Accompaniment';
 import { addMacros, composePerServing, scaleMacros } from 'core/domain/Composition';
 import { mealShareKcal, shapeFor, weightsFor } from 'core/domain/MealShape';
@@ -308,5 +308,145 @@ describe('the scheduler with accompaniments on', () => {
     expect(replacement).toBeDefined();
     expect(replacement?.ingredients.slice(replacement.dish.ingredients.length)).toEqual(sideList.flatMap(side => side.ingredients));
     expect(Math.abs((replacement?.macros.kcal ?? 0) - 1050) / 1050).toBeLessThan(0.15);
+  });
+});
+
+// --- Phase 4: the sides' share, kosher over the whole set, and the ceiling -----
+
+describe('the scheduler with accompaniments on — phase 4', () => {
+  it(`never lets the sides carry more than ${ACCOMPANIMENT_MAX_SHARE * 100}% of a meal's energy, in a plan or a swap`, () => {
+    const meals = planWithSides(TWO_MEALS, 1.3).days.flatMap(day => day.meals);
+    const sided = meals.filter(meal => (meal.accompaniments ?? []).length > 0);
+
+    expect(sided.length).toBeGreaterThan(0);
+
+    for (const meal of sided) {
+      const besideKcal = (meal.accompaniments ?? []).reduce((sum, side) => sum + side.macros.kcal, 0);
+
+      expect(besideKcal / meal.macros.kcal).toBeLessThanOrEqual(ACCOMPANIMENT_MAX_SHARE + 1e-3);
+    }
+
+    for (const kcal of [800, 1050, 1300]) {
+      const replacement = pickReplacement({
+        accompaniments: { larder: larderFor(diner()), month: 10 },
+        budget: { carbsG: (kcal * 0.5) / 4, fatG: (kcal * 0.3) / 9, kcal, proteinG: (kcal * 0.2) / 4 },
+        catalogue: withSides,
+        dayIndex: 3,
+        placed: [],
+        plateMinimumKcal: 0,
+        pool: pool(['lunch']),
+        slot: 'lunch'
+      });
+      const besideKcal = (replacement?.accompaniments ?? []).reduce((sum, side) => sum + side.macros.kcal, 0);
+
+      expect(replacement).toBeDefined();
+      expect(besideKcal / (replacement?.macros.kcal ?? 1)).toBeLessThanOrEqual(ACCOMPANIMENT_MAX_SHARE + 1e-3);
+    }
+  });
+
+  // A side that is meat and one that is dairy each pass beside a plain plate;
+  // together they break the rule. Only the set's own check (`setsBeside`) sees it.
+  const meatyBread: Catalogue = toCatalogue([
+    ...plates,
+    ...makeAccompanimentRows(
+      SIDE_SLUGS,
+      Object.fromEntries(SIDE_SLUGS.filter(slug => slug.startsWith('pan-')).map(slug => [slug, { classes: ['animal', 'meat'] }]))
+    )
+  ]);
+  const kosher = { ...NO_PREFERENCE_EXCLUSIONS, keepsMeatFromDairy: true };
+  const keeper: AccompanimentDiner = { catalogue: meatyBread, preferences: kosher, safety: toSafetyProfile([], []) };
+  const plain = (slots: readonly MealSlot[]): CandidateDish[] =>
+    pool(slots).filter(dish => dish.ingredients.every(item => item.slug !== 'pollo' && item.slug !== 'yogur'));
+
+  const both = (ingredients: readonly { readonly slug: string }[]): boolean => {
+    const classes = new Set(ingredients.flatMap(item => meatyBread.get(item.slug)?.classes ?? []));
+
+    return classes.has('meat') && classes.has('dairy');
+  };
+
+  it('keeps meat and dairy apart over the whole set, through schedulePlan', () => {
+    const weights = weightsFor(TWO_MEALS);
+    const result = schedulePlan({
+      accompaniments: { larder: larderFor(keeper), monthOf: () => 10 },
+      catalogue: meatyBread,
+      minimumKcal: MINIMUM_KCAL,
+      pool: plain([...weights.keys()]),
+      targets: scaled(1.3),
+      weights
+    });
+    const meals = result.ok ? result.assignment.days.flatMap(day => day.meals) : [];
+
+    expect(result.ok).toBe(true);
+    // Meat bread and yoghurt are both on offer, each on its own.
+    expect(meals.some(meal => (meal.accompaniments ?? []).some(side => side.key.startsWith('pan-')))).toBe(true);
+    expect(meals.some(meal => (meal.accompaniments ?? []).some(side => side.key.startsWith('yogur')))).toBe(true);
+
+    for (const meal of meals) {
+      expect(both(meal.ingredients)).toBe(false);
+    }
+  });
+
+  it('keeps meat and dairy apart over the whole set, through pickReplacement', () => {
+    for (const kcal of [800, 1050, 1300]) {
+      for (const dish of plain(['lunch'])) {
+        const replacement = pickReplacement({
+          accompaniments: { larder: larderFor(keeper), month: 10 },
+          budget: { carbsG: (kcal * 0.5) / 4, fatG: (kcal * 0.3) / 9, kcal, proteinG: (kcal * 0.2) / 4 },
+          catalogue: meatyBread,
+          dayIndex: 3,
+          placed: [],
+          plateMinimumKcal: 0,
+          pool: [dish],
+          slot: 'lunch'
+        });
+
+        expect(both(replacement?.ingredients ?? [])).toBe(false);
+      }
+    }
+  });
+
+  // One dish of 400 g a serving at 464 kcal: a 1,100-kcal lunch wants it at 2.25 servings, 900 g.
+  const heavy: CandidateDish = { ...(pool(['lunch'])[0] as CandidateDish), ingredients: [{ grams: 400, slug: 'lenteja' }], slug: 'heavy' };
+  const heavyLunch = { carbsG: 135, fatG: 30, kcal: 1100, proteinG: 70 };
+  const plateGramsOf = (replacement: ReturnType<typeof pickReplacement>): number =>
+    (replacement?.ingredients ?? []).slice(0, replacement?.dish.ingredients.length ?? 0).reduce((sum, item) => sum + item.grams, 0);
+
+  it('lets a big lunch weigh more than the flat ceiling while the flag is off (phase 1, scaled)', () => {
+    const replacement = pickReplacement({
+      budget: heavyLunch,
+      catalogue,
+      dayIndex: 3,
+      placed: [],
+      plateMinimumKcal: 0,
+      pool: [heavy],
+      slot: 'lunch'
+    });
+
+    expect(plateGramsOf(replacement)).toBeGreaterThan(PLATE_GRAMS_MAX.lunch);
+    expect(plateGramsOf(replacement)).toBeLessThanOrEqual(plateGramsMax('lunch', heavyLunch.kcal) + 0.5);
+  });
+
+  it('holds every plate to the flat 750 / 250 g once the flag is on', () => {
+    const replacement = pickReplacement({
+      accompaniments: { larder: larderFor(diner()), month: 10 },
+      budget: heavyLunch,
+      catalogue: withSides,
+      dayIndex: 3,
+      placed: [],
+      plateMinimumKcal: 0,
+      pool: [heavy],
+      slot: 'lunch'
+    });
+
+    expect(replacement).toBeDefined();
+    expect(plateGramsOf(replacement)).toBeLessThanOrEqual(PLATE_GRAMS_MAX.lunch + 0.5);
+
+    const meals = planWithSides(shapeFor(5, true), 1.3).days.flatMap(day => day.meals);
+
+    for (const meal of meals) {
+      const plateGrams = meal.ingredients.slice(0, meal.dish.ingredients.length).reduce((sum, item) => sum + item.grams, 0);
+
+      expect(plateGrams).toBeLessThanOrEqual(PLATE_GRAMS_MAX[meal.slot] + 0.5);
+    }
   });
 });
