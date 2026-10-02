@@ -330,13 +330,18 @@ export const PlanRepository = {
         );
 
         if (mealRows.length > 0) {
-          const inserted = await tx.insert(meals).values(mealRows).returning({ id: meals.id, planDayId: meals.planDayId, slot: meals.slot });
-          const mealIdBySlot = new Map(inserted.map(row => [`${row.planDayId}|${row.slot}`, row.id]));
+          const inserted = await tx
+            .insert(meals)
+            .values(mealRows)
+            .returning({ id: meals.id, planDayId: meals.planDayId, recipeId: meals.recipeId, servings: meals.servings, slot: meals.slot });
+          const mealBySlot = new Map(inserted.map(row => [`${row.planDayId}|${row.slot}`, row]));
           // What goes beside each plate (project 016), in the same transaction as the meals it belongs to.
           const sides = draft.days.flatMap(day =>
-            day.meals.flatMap(meal =>
-              accompanimentValues(mealIdBySlot.get(`${dayIdByIndex.get(day.dayIndex) as string}|${meal.slot}`) as string, meal.accompaniments)
-            )
+            day.meals.flatMap(meal => {
+              const row = mealBySlot.get(`${dayIdByIndex.get(day.dayIndex) as string}|${meal.slot}`);
+
+              return row ? accompanimentValues(row, meal.accompaniments) : [];
+            })
           );
 
           if (sides.length > 0) {
@@ -995,7 +1000,7 @@ export const PlanRepository = {
                 updatedAt: new Date()
               })
               .where(and(eq(meals.planDayId, planDayId), eq(meals.slot, meal.slot)))
-              .returning({ id: meals.id });
+              .returning({ id: meals.id, recipeId: meals.recipeId, servings: meals.servings });
 
             // A slot the day does not have would leave the old meal standing
             // beside the new ones — a day half rebuilt. Roll the lot back.
@@ -1003,7 +1008,8 @@ export const PlanRepository = {
               throw new DatabaseOperationError(`Rebuild references ${meal.slot} on day ${day.dayIndex}, which that day does not eat`);
             }
 
-            await replaceAccompaniments(tx, (updated[0] as { id: string }).id, meal.accompaniments);
+            // In the same transaction as the plate it goes beside.
+            await replaceAccompaniments(tx, updated[0] as PlateRow, meal.accompaniments);
           }
         }
 
@@ -1206,7 +1212,7 @@ export const PlanRepository = {
           throw new DatabaseOperationError(`Swap references a recipe that does not exist: ${change.recipeSlug}`);
         }
 
-        await tx
+        const [swapped] = await tx
           .update(meals)
           .set({
             carbsG: String(change.macros.carbsG),
@@ -1218,10 +1224,12 @@ export const PlanRepository = {
             servings: String(change.servings),
             updatedAt: new Date()
           })
-          .where(eq(meals.id, mealId));
+          .where(eq(meals.id, mealId))
+          .returning({ id: meals.id, recipeId: meals.recipeId, servings: meals.servings });
 
-        // The old plate's sides go with it, whatever the new one carries — none included.
-        await replaceAccompaniments(tx, mealId, change.accompaniments);
+        // The old plate's sides go with it, whatever the new one carries — none
+        // included — in the same transaction as the plate.
+        await replaceAccompaniments(tx, swapped as PlateRow, change.accompaniments);
 
         await tx
           .insert(mealSwaps)
@@ -1240,8 +1248,15 @@ export const PlanRepository = {
   }
 };
 
-/** A meal's accompaniment rows as `meal_accompaniments` stores them. */
-function accompanimentValues(mealId: string, rows: readonly MealAccompanimentDraft[] | undefined) {
+/** The plate a meal's sides are set beside, as the meal row holds it once written. */
+type PlateRow = { readonly id: string; readonly recipeId: string; readonly servings: string };
+
+/**
+ * A meal's accompaniment rows as `meal_accompaniments` stores them, each with
+ * the plate it was set beside (`recipeId`, `servings`) — what lets a read tell
+ * a row from a plate a previous API swapped in place from a live one.
+ */
+function accompanimentValues(plate: PlateRow, rows: readonly MealAccompanimentDraft[] | undefined) {
   return (rows ?? []).map(row => ({
     accompanimentKey: row.accompanimentKey,
     carbsG: String(row.carbsG),
@@ -1249,8 +1264,10 @@ function accompanimentValues(mealId: string, rows: readonly MealAccompanimentDra
     grams: String(row.grams),
     ingredientId: row.ingredientId,
     kcal: String(row.kcal),
-    mealId,
+    mealId: plate.id,
     proteinG: String(row.proteinG),
+    recipeId: plate.recipeId,
+    servings: plate.servings,
     sortOrder: row.sortOrder
   }));
 }
@@ -1260,10 +1277,10 @@ function accompanimentValues(mealId: string, rows: readonly MealAccompanimentDra
  * event rebuild change the plate, so its sides are deleted and the new ones
  * put in, inside the caller's transaction. No rows is a meal with nothing beside it.
  */
-async function replaceAccompaniments(tx: Transaction, mealId: string, rows: readonly MealAccompanimentDraft[] | undefined): Promise<void> {
-  await tx.delete(mealAccompaniments).where(eq(mealAccompaniments.mealId, mealId));
+async function replaceAccompaniments(tx: Transaction, plate: PlateRow, rows: readonly MealAccompanimentDraft[] | undefined): Promise<void> {
+  await tx.delete(mealAccompaniments).where(eq(mealAccompaniments.mealId, plate.id));
 
-  const values = accompanimentValues(mealId, rows);
+  const values = accompanimentValues(plate, rows);
 
   if (values.length > 0) {
     await tx.insert(mealAccompaniments).values(values);
@@ -1274,6 +1291,10 @@ async function replaceAccompaniments(tx: Transaction, mealId: string, rows: read
  * What goes beside each of these meals, in the reader's language, in serving
  * order (project 016). Every meal id here has already been reached through an
  * owner-scoped read; this only fills it in. One query for all of them.
+ *
+ * Only rows set beside the plate the meal holds now — same dish, same
+ * servings. A previous API, after a rollback, swaps or rebuilds a meal in
+ * place without knowing this table; the rows it left are not shown.
  */
 async function findAccompaniments(
   db: ReturnType<typeof database>,
@@ -1297,6 +1318,10 @@ async function findAccompaniments(
       slug: ingredients.slug
     })
     .from(mealAccompaniments)
+    .innerJoin(
+      meals,
+      and(eq(meals.id, mealAccompaniments.mealId), eq(meals.recipeId, mealAccompaniments.recipeId), eq(meals.servings, mealAccompaniments.servings))
+    )
     .innerJoin(ingredients, eq(ingredients.id, mealAccompaniments.ingredientId))
     .leftJoin(requested, and(eq(requested.ingredientId, ingredients.id), eq(requested.locale, locale)))
     .leftJoin(fallback, and(eq(fallback.ingredientId, ingredients.id), eq(fallback.locale, FALLBACK_LOCALE)))

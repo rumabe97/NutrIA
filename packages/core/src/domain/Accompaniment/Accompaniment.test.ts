@@ -368,3 +368,18 @@ describe('what is stored and shown of an accompaniment (016 phase 4)', () => {
     ).toThrow();
   });
 });
+
+/* The e2e milk and coeliac cases can only fail if an unrestricted person is offered both (016 phase 4). */
+describe('larderFor — somebody with no restriction', () => {
+  it('is offered a dairy side and a wheat bread', () => {
+    const catalogue = toCatalogue(makeAccompanimentRows(SLUGS, ALLERGENS));
+    const keys = new Set(
+      larderFor({ catalogue, preferences: NO_PREFERENCE_EXCLUSIONS, safety: toSafetyProfile([], []) }).portions.map(
+        portion => portion.accompaniment.key
+      )
+    );
+
+    expect(['yogur-natural-desnatado', 'yogur-griego-natural', 'queso-de-burgos', 'requeson'].some(key => keys.has(key))).toBe(true);
+    expect(['pan-blanco', 'pan-integral', 'pan-de-centeno', 'pan-de-masa-madre'].some(key => keys.has(key))).toBe(true);
+  });
+});
