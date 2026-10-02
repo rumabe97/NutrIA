@@ -35,9 +35,10 @@
  * same filter the API will hand the scheduler) is offered beside lunch and
  * dinner. Any other name is refused.
  *
- * `--start` is the fortnight's first day (default 2026-10-05): with
- * accompaniments, season is a hard filter on the month each day falls in, so
- * the figures depend on it. It is printed and recorded in the JSON.
+ * `--start` is the fortnight's first day (default 2026-10-05): season is a
+ * hard filter on the month each day falls in — on a dish's fresh fruit since
+ * 017 phase 2, and with accompaniments on what goes beside it — so the figures
+ * depend on it. It is printed and recorded in the JSON.
  *
  * Exit codes:
  *   0  every profile measured; no plate carried a declared allergen
@@ -55,7 +56,7 @@ import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts
 import { RecipeController } from 'core/controllers/Recipe';
 import { larderFor } from 'core/domain/Accompaniment';
 import { SafetyController } from 'core/controllers/Safety';
-import { cuisineFamily, dishGroups, groupFits } from 'core/domain/MealFit';
+import { cuisineFamily, dishGroups, groupFits, outOfSeasonFruit } from 'core/domain/MealFit';
 import { DEFAULT_MEAL_SHAPE, shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { loadedTargets } from 'core/domain/Event';
 import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
@@ -434,6 +435,7 @@ async function measureProfile(profile, shared, options) {
     catalogue: context.catalogue,
     dayTargets,
     minimumKcal: minimumDailyKcal(profile.target.sex),
+    monthOf,
     pool,
     targets,
     weights
@@ -581,7 +583,7 @@ async function measureProfile(profile, shared, options) {
     unsafe,
     spanish: spanishMetrics(scheduled.assignment.days, context.catalogue),
     starch: starchMetrics(scheduled.assignment.days),
-    kinds: kindMetrics(scheduled.assignment.days, context.catalogue),
+    kinds: kindMetrics(scheduled.assignment.days, context.catalogue, monthOf),
     // How varied the plan actually is, not just whether it broke a rule —
     // distinct dishes maximised, no two days the same, a repeat as far apart
     // as the pool allows (owner, 2026-09-26; `0065`).
@@ -693,12 +695,19 @@ function starchMetrics(days) {
  * lunch and dinner (`mainProtein`), over the fortnight and in its busiest week;
  * each legume at any meal (`legumeKind`), with the days it ran on or doubled.
  */
-function kindMetrics(days, catalogue) {
+function kindMetrics(days, catalogue, monthOf) {
   const proteins = {};
   const legumeDays = new Map();
+  const outOfSeason = [];
 
   for (const day of days) {
     for (const meal of day.meals) {
+      const fruit = outOfSeasonFruit(meal.dish, catalogue, monthOf(day.dayIndex));
+
+      if (fruit) {
+        outOfSeason.push({ dayIndex: day.dayIndex, dish: meal.dish.name, fruit, slot: meal.slot });
+      }
+
       const legume = legumeKind(meal.dish);
 
       if (legume) {
@@ -737,6 +746,7 @@ function kindMetrics(days, catalogue) {
     legumeMax: legumeTop ? { kind: legumeTop[0], total: legumeTop[1] } : null,
     legumeRuns,
     legumes,
+    outOfSeason,
     proteinMax: top[0] ? { kind: top[0][0], total: top[0][1].total } : null,
     proteinMaxWeek: Math.max(0, ...top.map(([, entry]) => Math.max(...entry.weeks))),
     proteins: Object.fromEntries(top.map(([kind, entry]) => [kind, entry.total]))
@@ -1475,7 +1485,11 @@ function printProfile(profile, result) {
         .join(', ')}; most ${proteinMax ? `${proteinMax.kind} ${proteinMax.total}` : 'none'}, busiest week ${proteinMaxWeek}`
     );
 
-    const { legumeRuns = [], legumes = {} } = result.kinds;
+    const { legumeRuns = [], legumes = {}, outOfSeason = [] } = result.kinds;
+
+    console.log(
+      `  plates with fresh fruit out of season that day (017 p2, must be 0): ${outOfSeason.length}${outOfSeason.length > 0 ? ` (${outOfSeason.map(item => `day ${item.dayIndex} ${item.slot}: "${item.dish}", ${item.fruit}`).join('; ')})` : ''}`
+    );
 
     console.log(
       `  legumes by kind, every meal (017 p2, 3 a fortnight each, never on days running): ${

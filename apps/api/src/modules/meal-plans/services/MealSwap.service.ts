@@ -168,6 +168,8 @@ export class MealSwapService {
       dayIndex: current.dayIndex,
       filter,
       leaning,
+      // The day's month decides which fruit is in season on the new plate (017 phase 2).
+      month: Number(anchor.day.date.slice(5, 7)),
       placed,
       plateMinimumKcal,
       slot: current.slot

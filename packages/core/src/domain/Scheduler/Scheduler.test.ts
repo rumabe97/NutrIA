@@ -1266,6 +1266,83 @@ describe('schedulePlan — the fortnight is repaired as a whole (0048)', () => {
   });
 });
 
+describe('schedulePlan — fruit in season on the plate (017 phase 2)', () => {
+  // A nectarine snack and a caqui snack fit alike; the fortnight runs from 25
+  // September into October, when nectarines are over (Spain's calendar, `0062`).
+  const catalogue = makeCatalogue([
+    makeCatalogueIngredient({ id: 'base', slug: 'base' }),
+    makeCatalogueIngredient({ id: 'nectarina', category: 'produce', seasonMonths: [5, 6, 7, 8, 9], slug: 'nectarina' }),
+    makeCatalogueIngredient({ id: 'caqui', category: 'produce', seasonMonths: [10, 11, 12], slug: 'caqui' })
+  ]);
+  const SHARE = { breakfast: 0.28, dinner: 0.34, lunch: 0.37 } as const;
+  const pool = (['breakfast', 'lunch', 'dinner'] as const).flatMap(slot =>
+    Array.from({ length: 8 }, (_none, n) => {
+      const fruit = slot === 'breakfast' ? (n % 2 === 0 ? 'nectarina' : 'caqui') : null;
+      const grams = Math.round((TARGETS.kcal * SHARE[slot]) / 2) + n * 5;
+
+      return makeDish({
+        ingredients: fruit
+          ? [
+              { grams: grams - 50, slug: 'base' },
+              { grams: 50, slug: fruit }
+            ]
+          : [{ grams, slug: 'base' }],
+        slots: [slot],
+        slug: `${slot}-${fruit ?? 'base'}-${n}`
+      });
+    })
+  );
+  // Day 1 is 25 September: days 1–6 are September, 7–14 October.
+  const monthOf = (dayIndex: number): number => (dayIndex <= 6 ? 9 : 10);
+  const run = (withMonths: boolean) =>
+    schedulePlan({
+      catalogue,
+      minimumKcal: MINIMUM_KCAL,
+      ...(withMonths ? { monthOf } : {}),
+      pool,
+      targets: TARGETS,
+      weights: weightsFor(shapeFor(3, false))
+    });
+
+  it('serves no nectarine on an October day, and still serves it in September', () => {
+    const result = run(true);
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const nectarines = result.assignment.days.flatMap(day =>
+      day.meals.filter(meal => meal.ingredients.some(item => item.slug === 'nectarina')).map(() => day.dayIndex)
+    );
+
+    expect(nectarines.filter(dayIndex => monthOf(dayIndex) === 10)).toEqual([]);
+    expect(nectarines.length).toBeGreaterThan(0);
+  });
+
+  it('judges no season when it is not told the months', () => {
+    const result = run(false);
+
+    expect(
+      result.ok &&
+        result.assignment.days.some(day => day.dayIndex > 6 && day.meals.some(meal => meal.ingredients.some(item => item.slug === 'nectarina')))
+    ).toBe(true);
+  });
+
+  it('keeps a plan when the only dish for a meal is out of season', () => {
+    const only = pool.map(dish => ({
+      ...dish,
+      ingredients: dish.ingredients.map(item => (item.slug === 'caqui' ? { ...item, slug: 'nectarina' } : item))
+    }));
+
+    expect(
+      schedulePlan({ catalogue, minimumKcal: MINIMUM_KCAL, monthOf: () => 10, pool: only, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) })
+        .ok
+    ).toBe(true);
+  });
+});
+
 describe('pickReplacement', () => {
   const catalogue = makeCatalogue([
     makeCatalogueIngredient({ id: 'i-rice', kcalPer100g: 130, proteinPer100g: 2.7, slug: 'rice' }),
@@ -1304,6 +1381,23 @@ describe('pickReplacement', () => {
     expect(picked?.dish.slug).toBe('chicken-rice');
     expect(picked?.servings).toBeGreaterThan(0);
     expect(Math.abs((picked?.macros.kcal ?? 0) - budget.kcal) / budget.kcal).toBeLessThan(0.2);
+  });
+
+  it('offers no dish whose fresh fruit is out of season in the day’s month (017 phase 2)', () => {
+    const seasonal = makeCatalogue([
+      ...catalogue.values(),
+      makeCatalogueIngredient({ id: 'i-nectarina', category: 'produce', seasonMonths: [5, 6, 7, 8, 9], slug: 'nectarina' })
+    ]);
+    const withNectarine = lunch('chicken-rice-nectarine', [
+      { grams: 200, slug: 'chicken' },
+      { grams: 250, slug: 'rice' },
+      { grams: 1, slug: 'nectarina' }
+    ]);
+    const pick = { budget, catalogue: seasonal, dayIndex: 3, placed: [], plateMinimumKcal: 0, pool: [withNectarine], slot: 'lunch' as const };
+
+    expect(pickReplacement({ ...pick, month: 10 })).toBeUndefined();
+    expect(pickReplacement({ ...pick, month: 7 })?.dish.slug).toBe('chicken-rice-nectarine');
+    expect(pickReplacement(pick)?.dish.slug).toBe('chicken-rice-nectarine');
   });
 
   it('keeps the variety rules: a dish already used too often in the plan is not offered', () => {

@@ -20,6 +20,7 @@ import {
   starchCheck,
   starchIndex
 } from 'core/domain/Variety';
+import { outOfSeasonFruit } from 'core/domain/MealFit';
 import { PLAN_TOLERANCE } from 'core/domain/PlanValidation';
 import { plateFoodMax, plateFoods } from 'core/domain/PlateFood';
 import type { AccompanimentSet, Larder } from 'core/domain/Accompaniment';
@@ -518,6 +519,14 @@ export type SchedulerInput = {
    */
   readonly minimumKcal: number;
   /**
+   * The month (1–12) each day falls in. Given, a dish whose fresh fruit is out
+   * of season that month is not served that day (`outOfSeasonFruit`, 017
+   * phase 2) — unless nothing else in the pool can fill the meal, because a
+   * plan with a nectarine in October is still a plan and none is not.
+   * Absent, every dish is in season, as before.
+   */
+  readonly monthOf?: (dayIndex: number) => number;
+  /**
    * What is already on the plate and is *not* being laid out again.
    *
    * The variety rules are enforced against these exactly as against the days
@@ -574,6 +583,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
   const placed: Placement[] = [...(input.placed ?? [])];
   const built: BuiltDay[] = [];
   const sidesOn = sidesFor(input.accompaniments, new Map());
+  const seasonal = seasonFor(input);
 
   for (const dayIndex of indexes) {
     // Per day rather than once: a day that eats for an event has its own targets
@@ -589,16 +599,18 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
         .filter(dish => dish.slots.includes(slot))
         .filter(dish => perServing.has(dish.slug))
         .filter(dish => canPlace(dish.slug, slot, dayIndex, placed));
+      const inSeason = eligible.filter(dish => seasonal(dish.slug, dayIndex));
+      const servable = inSeason.length > 0 ? inSeason : eligible;
       // Only dishes that can be sized inside `PLATE_LIMIT` (`0076`) and under
       // `PLATE_GRAMS_MAX` (`0078`) and `PLATE_FOOD_MAX` (016). When the pool
       // holds none for this slot, the day is still built from what there is —
       // a target no dish fits is validation's to refuse, not a reason to
       // deliver nothing — and the later passes never swap a fitting plate out.
-      const fitting = eligible.filter(dish => fitsPlate(perServing.get(dish.slug) as PerServing, budget, slot));
+      const fitting = servable.filter(dish => fitsPlate(perServing.get(dish.slug) as PerServing, budget, slot));
 
       const kindsPlaced = kinds.checks.map(check => kindMeals(placed, check));
       const chosen = pickBest(
-        fitting.length > 0 ? fitting : eligible,
+        fitting.length > 0 ? fitting : servable,
         budget,
         perServing,
         placed,
@@ -620,7 +632,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
       placed.push({ dayIndex, dishSlug: chosen.slug, slot });
     }
 
-    const improved = improveDay(picks, input, perServing, dayIndex, placed, budgets, { cap, kinds, proteins }, sidesOn?.(dayIndex));
+    const improved = improveDay(picks, input, perServing, dayIndex, placed, budgets, { cap, kinds, proteins, seasonal }, sidesOn?.(dayIndex));
 
     // Swapping changed what this day holds, so the placement record must follow or
     // later days would enforce variety against dishes that are no longer served.
@@ -635,8 +647,8 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
     built.push({ budgets, dayIndex, picks: balanceDay(improved, targets, budgets, input.minimumKcal, sidesOn?.(dayIndex)), targets });
   }
 
-  const spread = spreadAcrossDays(built, input.placed ?? [], proteins, kinds, input.minimumKcal, sidesOn);
-  const distinct = enforceDistinctDays(spread, input, input.placed ?? [], proteins, cap, kinds, sidesOn);
+  const spread = spreadAcrossDays(built, input.placed ?? [], proteins, kinds, seasonal, input.minimumKcal, sidesOn);
+  const distinct = enforceDistinctDays(spread, input, input.placed ?? [], proteins, cap, kinds, seasonal, sidesOn);
 
   const assignedDays: PlanDayAssignment[] = distinct.map(day => {
     const meals: ScheduledMeal[] = day.picks.map(pick => {
@@ -726,6 +738,12 @@ export function pickReplacement(input: {
   readonly filter?: (dish: CandidateDish, perServing: Macros) => boolean;
   /** What they lean towards: dishes by name, kitchens, foods they like (0026). */
   readonly leaning?: Leaning;
+  /**
+   * The month (1–12) of the day being swapped. Given, a dish whose fresh fruit
+   * is out of season then is not a candidate (`outOfSeasonFruit`, 017 phase 2):
+   * the model, asked next, is told the month.
+   */
+  readonly month?: number;
   readonly placed: readonly Placement[];
   /**
    * The least energy this plate may carry: the person's floor, less what the
@@ -754,6 +772,7 @@ export function pickReplacement(input: {
 
     return (
       base !== undefined &&
+      (input.month === undefined || outOfSeasonFruit(dish, input.catalogue, input.month) === null) &&
       fitsPlate(base, budget, input.slot) &&
       plateKcal(base, SERVING_BOUNDS.max) >= input.plateMinimumKcal &&
       (input.filter?.(dish, base) ?? true)
@@ -1106,6 +1125,34 @@ type KindRules = { readonly checks: readonly KindCheck[]; readonly days: number 
 
 function kindRules(pool: readonly CandidateDish[], days: number): KindRules {
   return { checks: [starchCheck(starchIndex(pool)), legumeCheck(legumeIndex(pool))], days };
+}
+
+/** Whether a pool dish may be served on a day: its fresh fruit in that day's month (`SchedulerInput.monthOf`). */
+type Seasonal = (slug: string, dayIndex: number) => boolean;
+
+function seasonFor(input: SchedulerInput): Seasonal {
+  const { monthOf } = input;
+
+  if (!monthOf) {
+    return () => true;
+  }
+
+  const dishes = new Map(input.pool.map(dish => [dish.slug, dish]));
+  const known = new Map<string, boolean>();
+
+  return (slug, dayIndex) => {
+    const key = `${slug}|${monthOf(dayIndex)}`;
+    let fits = known.get(key);
+
+    if (fits === undefined) {
+      const dish = dishes.get(slug);
+
+      fits = dish === undefined || outOfSeasonFruit(dish, input.catalogue, monthOf(dayIndex)) === null;
+      known.set(key, fits);
+    }
+
+    return fits;
+  };
 }
 
 /** Whether a dish at a slot has any kind the rules count — only a swap that brings one in or takes one out can move their cost. */
@@ -1966,7 +2013,7 @@ function improveDay(
   dayIndex: number,
   placed: readonly Placement[],
   budgets: ReadonlyMap<MealSlot, SlotBudget>,
-  protein: { readonly cap: number; readonly kinds: KindRules; readonly proteins: ProteinIndex },
+  protein: { readonly cap: number; readonly kinds: KindRules; readonly proteins: ProteinIndex; readonly seasonal: Seasonal },
   sides?: Sides
 ): readonly Pick[] {
   const others = placed.filter(placement => placement.dayIndex !== dayIndex);
@@ -2024,7 +2071,12 @@ function improveDay(
 
         const base = perServing.get(candidate.slug);
 
-        if (!base || !fitsPlate(base, budget, pick.slot) || !canPlace(candidate.slug, pick.slot, dayIndex, [...others, ...siblings])) {
+        if (
+          !base ||
+          !fitsPlate(base, budget, pick.slot) ||
+          !protein.seasonal(candidate.slug, dayIndex) ||
+          !canPlace(candidate.slug, pick.slot, dayIndex, [...others, ...siblings])
+        ) {
           continue;
         }
 
@@ -2173,6 +2225,7 @@ function spreadAcrossDays(
   fixed: readonly Placement[],
   proteins: ProteinIndex,
   kinds: KindRules,
+  seasonal: Seasonal,
   minimumKcal: number,
   sidesOn?: (dayIndex: number) => Sides
 ): readonly BuiltDay[] {
@@ -2287,7 +2340,13 @@ function spreadAcrossDays(
             placement => placement.slot !== mine.slot || (placement.dayIndex !== worst.dayIndex && placement.dayIndex !== other.dayIndex)
           );
 
-          if (!canPlace(theirs.dish.slug, mine.slot, worst.dayIndex, rest) || !canPlace(mine.dish.slug, mine.slot, other.dayIndex, rest)) {
+          if (
+            !canPlace(theirs.dish.slug, mine.slot, worst.dayIndex, rest) ||
+            !canPlace(mine.dish.slug, mine.slot, other.dayIndex, rest) ||
+            // A day's month decides its fruit: an exchange across a month's end may not carry one out of season.
+            !seasonal(theirs.dish.slug, worst.dayIndex) ||
+            !seasonal(mine.dish.slug, other.dayIndex)
+          ) {
             continue;
           }
 
@@ -2399,6 +2458,7 @@ function enforceDistinctDays(
   proteins: ProteinIndex,
   cap: number,
   kinds: KindRules,
+  seasonal: Seasonal,
   sidesOn?: (dayIndex: number) => Sides
 ): readonly BuiltDay[] {
   const perServing = perServingIndex(input.pool, input.catalogue);
@@ -2453,6 +2513,7 @@ function enforceDistinctDays(
         if (
           !base ||
           !fitsPlate(base, budget, pick.slot) ||
+          !seasonal(candidate.slug, day.dayIndex) ||
           crowded(candidate.slug, { dayIndex: day.dayIndex, slot: pick.slot }, placedElsewhere, proteins, cap) ||
           kindsCrowded(candidate.slug, pick.slot, day.dayIndex, kindsElsewhere, kinds.checks, kinds.days) > 0
         ) {

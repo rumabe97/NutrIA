@@ -5,7 +5,17 @@ import { makeCatalogueIngredient } from '#test/fixtures';
 
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
-import { belongsTo, CATALOGUE_SAMPLE_SIZE, fitSlots, inSeason, libraryUsage, mealCatalogue, offersPulses } from './MealFit';
+import {
+  belongsTo,
+  CATALOGUE_SAMPLE_SIZE,
+  fitSlots,
+  FRESH_FRUIT_SLUGS,
+  inSeason,
+  libraryUsage,
+  mealCatalogue,
+  offersPulses,
+  outOfSeasonFruit
+} from './MealFit';
 
 import type { CatalogueIngredient, MealSlot } from 'core/entities/Plan';
 import type { LibraryRecipe } from './MealFit';
@@ -330,5 +340,29 @@ describe('mealCatalogue — the rows one meal’s request is shown', () => {
 
     expect(shown.every(row => many.includes(row))).toBe(true);
     expect(shown).toEqual(many.filter(row => shown.includes(row)));
+  });
+});
+
+describe('outOfSeasonFruit — a dish’s fresh fruit in its month (017 phase 2)', () => {
+  const catalogue = toCatalogue([
+    makeCatalogueIngredient({ id: 'i-nectarina', category: 'produce', seasonMonths: [5, 6, 7, 8, 9], slug: 'nectarina' }),
+    makeCatalogueIngredient({ id: 'i-caqui', category: 'produce', seasonMonths: [10, 11, 12], slug: 'caqui' }),
+    makeCatalogueIngredient({ id: 'i-platano', category: 'produce', slug: 'platano' }),
+    makeCatalogueIngredient({ id: 'i-tomate', category: 'produce', seasonMonths: [6, 7, 8, 9], slug: 'tomate' }),
+    makeCatalogueIngredient({ id: 'i-requeson', category: 'dairy', slug: 'requeson' })
+  ]);
+  const biscotes = { ingredients: [{ slug: 'requeson' }, { slug: 'nectarina' }] };
+
+  it('names the fruit out of season: a real plan served a nectarine in October', () => {
+    expect(outOfSeasonFruit(biscotes, catalogue, 10)).toBe('nectarina');
+    expect(outOfSeasonFruit(biscotes, catalogue, 7)).toBeNull();
+    expect(outOfSeasonFruit({ ingredients: [{ slug: 'caqui' }] }, catalogue, 10)).toBeNull();
+  });
+
+  it('never judges a vegetable, nor a fruit with no season', () => {
+    expect(outOfSeasonFruit({ ingredients: [{ slug: 'tomate' }] }, catalogue, 1)).toBeNull();
+    expect(outOfSeasonFruit({ ingredients: [{ slug: 'platano' }] }, catalogue, 1)).toBeNull();
+    expect(FRESH_FRUIT_SLUGS.has('tomate')).toBe(false);
+    expect(FRESH_FRUIT_SLUGS.has('aguacate')).toBe(false);
   });
 });
