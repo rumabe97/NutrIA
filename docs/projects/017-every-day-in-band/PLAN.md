@@ -32,7 +32,7 @@ Every measurement runs on the local Postgres: `pnpm db:local`, `NUTRIA_LOCAL_PG=
 
 ### Phase 1 — A production-like library, a per-family starch report, a baseline
 
-- [ ] pending
+- [x] done (2026-10-02) — see LOG.md
 - **Dispatch**: opus @ medium — `/execute-project 017 phase 1` — owner-gated: none. The lead runs the read-only production export itself; the owner approved it, decision 0080.
 - **Covers**: PRD criteria 1 and 2.
 - **Steps**:
