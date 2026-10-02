@@ -71,7 +71,7 @@ import {
 } from 'core/domain/Preference';
 import { PLAN_DAYS, PLATE_GRAMS_MAX, PLATE_LIMIT, plateGramsMax, schedulePlan, SERVING_PREFERENCE } from 'core/domain/Scheduler';
 import { bestEffortExclusions, dishSafety, normaliseForMatching, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
-import { DISHES_NEEDED_PER_SLOT, MAIN_SLOTS, STARCH_RULES, starchBase, starchCap } from 'core/domain/Variety';
+import { DISHES_NEEDED_PER_SLOT, isCappedStarch, MAIN_SLOTS, STARCH_RULES, starchBase, starchCap } from 'core/domain/Variety';
 import { plateFoodMax, plateFoods } from 'core/domain/PlateFood';
 
 // ---------------------------------------------------------------------------
@@ -181,6 +181,9 @@ const PROFILES = [
 ];
 
 const KNOWN_FLAGS = new Set(['accompaniments']);
+
+/** Gnocchi's catalogue row: counted on its own line until the starch rule knows it (project 017). */
+const GNOCCHI_SLUG = 'noquis';
 
 const BAND_KINDS = new Set(['carbs_out_of_band', 'fat_out_of_band', 'kcal_out_of_band', 'protein_above_target', 'protein_below_target']);
 
@@ -570,12 +573,21 @@ async function measureProfile(profile, shared, options) {
  * how many of each base, how many dinners are pasta or rice, and every pair of
  * days running — or meals on one day — that share pasta or rice, which
  * `STARCH_RULES` keeps apart. The dish's own base, never what is beside it.
+ *
+ * Project 017 phase 1 adds, without changing the rest: each lunch and dinner by
+ * slot, cuisine family (`cuisineFamily`) and base; the dinners of pasta or rice
+ * outside the Asian family, where `0079` Table 2 says rice and pasta are not a
+ * dinner; and every lunch or dinner with gnocchi (`GNOCCHI_SLUG`), a base the
+ * rule does not know yet.
  */
 function starchMetrics(days) {
   const mains = {};
   const dinners = {};
   const byDay = new Map(STARCH_RULES.capped.map(base => [base, new Map()]));
   const total = Object.fromEntries(STARCH_RULES.capped.map(base => [base, 0]));
+  const byFamily = {};
+  const gnocchi = [];
+  let dinnerPastaOrRiceOutsideAsian = 0;
 
   for (const day of days) {
     for (const meal of day.meals) {
@@ -588,6 +600,20 @@ function starchMetrics(days) {
 
       if (MAIN_SLOTS.has(meal.slot)) {
         mains[base] = (mains[base] ?? 0) + 1;
+
+        const family = cuisineFamily(meal.dish.cuisine);
+        const slot = (byFamily[meal.slot] ??= {});
+        const bases = (slot[family] ??= {});
+
+        bases[base] = (bases[base] ?? 0) + 1;
+
+        if (meal.slot === 'dinner' && isCappedStarch(base) && family !== 'asian') {
+          dinnerPastaOrRiceOutsideAsian += 1;
+        }
+
+        if (meal.dish.ingredients.some(item => item.slug === GNOCCHI_SLUG)) {
+          gnocchi.push({ base, dayIndex: day.dayIndex, dish: meal.dish.name, family, slot: meal.slot });
+        }
       }
 
       if (meal.slot === 'dinner') {
@@ -610,7 +636,17 @@ function starchMetrics(days) {
     }
   }
 
-  return { cap: starchCap(days.length), consecutive: repeats, dinnerPastaOrRice: (dinners.pasta ?? 0) + (dinners.rice ?? 0), dinners, mains, total };
+  return {
+    byFamily,
+    cap: starchCap(days.length),
+    consecutive: repeats,
+    dinnerPastaOrRice: (dinners.pasta ?? 0) + (dinners.rice ?? 0),
+    dinnerPastaOrRiceOutsideAsian,
+    dinners,
+    gnocchi,
+    mains,
+    total
+  };
 }
 
 /**
@@ -1050,6 +1086,53 @@ function foodGroupGrams(days, catalogue, dayTargets, targets, weights) {
   );
 }
 
+/**
+ * What the library this run planned from is made of (project 017, decision
+ * `0080`): the locale's recipes by source, by source and slot, and by slot and
+ * cuisine family. A recipe offered at two slots counts at both. Read in the
+ * run's own read-only transaction, so it describes exactly what was measured.
+ */
+async function libraryComposition(tx, locale) {
+  const rows = await tx.execute(`select source, cuisine, meal_slots from recipes where locale = '${locale.replaceAll("'", "''")}'`);
+  const bySource = {};
+  const bySourceAndSlot = {};
+  const bySlotAndFamily = {};
+
+  for (const row of rows) {
+    bySource[row.source] = (bySource[row.source] ?? 0) + 1;
+
+    const family = cuisineFamily(row.cuisine);
+
+    for (const slot of row.meal_slots) {
+      const slots = (bySourceAndSlot[row.source] ??= {});
+      const families = (bySlotAndFamily[slot] ??= {});
+
+      slots[slot] = (slots[slot] ?? 0) + 1;
+      families[family] = (families[family] ?? 0) + 1;
+    }
+  }
+
+  return { bySlotAndFamily, bySource, bySourceAndSlot, recipes: rows.length };
+}
+
+function printLibrary(library) {
+  const list = counts =>
+    Object.entries(counts)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([key, count]) => `${key} ${count}`)
+      .join(', ');
+
+  console.log(`Library: ${library.recipes} recipes (${list(library.bySource)})`);
+
+  for (const [source, slots] of Object.entries(library.bySourceAndSlot).sort((a, b) => a[0].localeCompare(b[0]))) {
+    console.log(`  ${source} by slot: ${list(slots)}`);
+  }
+
+  for (const [slot, families] of Object.entries(library.bySlotAndFamily).sort((a, b) => a[0].localeCompare(b[0]))) {
+    console.log(`  ${slot} by family: ${list(families)}`);
+  }
+}
+
 function printProfile(profile, result) {
   console.log(`\n${profile.slug} — ${profile.description}`);
 
@@ -1248,6 +1331,29 @@ function printProfile(profile, result) {
           ', '
         )}; all meals pasta ${total.pasta}, rice ${total.rice} (cap ${cap}); dinners with pasta or rice ${dinnerPastaOrRice}; days running ${consecutive.length}${consecutive.length > 0 ? ` (${consecutive.join(', ')})` : ''}`
     );
+
+    const { byFamily = {}, dinnerPastaOrRiceOutsideAsian, gnocchi = [] } = result.starch;
+
+    for (const slot of ['lunch', 'dinner']) {
+      const families = Object.entries(byFamily[slot] ?? {}).sort((a, b) => a[0].localeCompare(b[0]));
+
+      console.log(
+        `  starch by family (017 p1), ${slot}: ${families
+          .map(
+            ([family, bases]) =>
+              `${family} [${Object.entries(bases)
+                .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+                .map(([base, count]) => `${base} ${count}`)
+                .join(', ')}]`
+          )
+          .join('; ')}`
+      );
+    }
+
+    console.log(`  dinners with pasta or rice outside the Asian family: ${dinnerPastaOrRiceOutsideAsian}`);
+    console.log(
+      `  gnocchi: ${gnocchi.length}${gnocchi.length > 0 ? ` (${gnocchi.map(item => `day ${item.dayIndex} ${item.slot}: "${item.dish}", ${item.family}, read as ${item.base}`).join('; ')})` : ''}`
+    );
   }
 
   if (result.unsafe.length > 0) {
@@ -1418,6 +1524,7 @@ async function main() {
   const originalDatabase = databaseModule.database;
   const pooled = originalDatabase();
 
+  let library;
   let results;
 
   try {
@@ -1428,6 +1535,7 @@ async function main() {
         try {
           const shared = await baseContext(options.locale);
 
+          library = await libraryComposition(tx, options.locale);
           results = [];
 
           for (const profile of PROFILES.filter(entry => !options.only || entry.slug === options.only)) {
@@ -1453,6 +1561,7 @@ async function main() {
   console.log(`Flags: ${options.flags.length > 0 ? options.flags.join(', ') : 'none'}`);
   console.log(`Fortnight starts: ${options.start}`);
   console.log(`Profiles (fixed, reuse for the next run): ${PROFILES.map(profile => profile.slug).join(', ')}`);
+  printLibrary(library);
 
   for (const profile of PROFILES.filter(entry => !options.only || entry.slug === options.only)) {
     printProfile(
@@ -1467,6 +1576,7 @@ async function main() {
       JSON.stringify(
         {
           flags: options.flags,
+          library,
           locale: options.locale,
           start: options.start,
           profiles: PROFILES.map(profile => ({ description: profile.description, slug: profile.slug })),
