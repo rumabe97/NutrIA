@@ -84,6 +84,12 @@ export function MealAccompaniments({ dictionary, locale, mealKcal, sides }: Meal
                   ))}
                 </ul>
               )}
+              {/* How a composed side is made, from the API in the reader's language; a food served as it comes has none. */}
+              {side.preparation ? (
+                <Text className={styles.preparation} tone="secondary">
+                  {side.preparation}
+                </Text>
+              ) : null}
             </li>
           );
         })}

@@ -7,6 +7,7 @@ import { makeAccompanimentRows, makeCatalogueIngredient } from '#test/fixtures';
 
 import {
   accompanimentName,
+  accompanimentPreparation,
   accompanimentRows,
   ACCOMPANIMENTS,
   isComposed,
@@ -343,6 +344,52 @@ describe('what is stored and shown of an accompaniment (016 phase 4)', () => {
     expect(accompanimentName('ensalada-verde', 'en-GB', undefined)).toBe('Green salad');
     expect(accompanimentName('pan-blanco', 'es-ES', 'Pan blanco')).toBe('Pan blanco');
     expect(accompanimentName('naranja', 'en-GB', 'Orange')).toBe('Orange');
+  });
+
+  /** 016 phase 6: one line of how it is made, fixed here, for every composed side and no simple one. */
+  it('tells how every composed accompaniment is made in both languages, and gives a simple one no line', () => {
+    const composed = ACCOMPANIMENTS.filter(isComposed);
+
+    expect(composed).toHaveLength(18);
+
+    for (const accompaniment of composed) {
+      for (const locale of ['es-ES', 'en-GB']) {
+        const line = accompanimentPreparation(accompaniment.key, locale);
+
+        expect(line?.trim().length, `${accompaniment.key} ${locale}`).toBeGreaterThan(0);
+        // One sentence: a full stop at the end and nowhere before it.
+        expect(line?.endsWith('.'), `${accompaniment.key} ${locale}`).toBe(true);
+        expect(line?.slice(0, -1).includes('. '), `${accompaniment.key} ${locale}`).toBe(false);
+      }
+    }
+
+    for (const accompaniment of ACCOMPANIMENTS.filter(entry => !isComposed(entry))) {
+      expect(accompanimentPreparation(accompaniment.key, 'es-ES')).toBeUndefined();
+    }
+
+    expect(accompanimentPreparation('ensalada-verde', 'en-GB')).toMatch(/^Wash and tear the lettuce/);
+    expect(accompanimentPreparation('ensalada-verde', 'fr-FR')).toMatch(/^Lava y trocea la lechuga/);
+  });
+
+  /** The oil a line names is the oil the portion lists: a teaspoon is 5 g, two are 10 g, none is none. */
+  it('names exactly the oil each composed portion carries', () => {
+    for (const accompaniment of ACCOMPANIMENTS.filter(isComposed)) {
+      const oil = (accompaniment.portions[0] ?? [])
+        .filter(item => item.slug === 'aceite-de-oliva-virgen-extra')
+        .reduce((sum, item) => sum + item.grams, 0);
+      const es = accompanimentPreparation(accompaniment.key, 'es-ES') ?? '';
+      const en = accompanimentPreparation(accompaniment.key, 'en-GB') ?? '';
+      const expected =
+        oil === 0 ? null : oil === 5 ? ['una cucharadita de aceite', 'a teaspoon of oil'] : ['dos cucharaditas de aceite', 'two teaspoons of oil'];
+
+      if (expected) {
+        expect(es, accompaniment.key).toContain(expected[0]);
+        expect(en, accompaniment.key).toContain(expected[1]);
+      } else {
+        expect(es, accompaniment.key).not.toContain('aceite');
+        expect(en, accompaniment.key).not.toContain(' oil');
+      }
+    }
   });
 
   it("stores a composed accompaniment as one row per food, in serving order, its macros the catalogue's", () => {

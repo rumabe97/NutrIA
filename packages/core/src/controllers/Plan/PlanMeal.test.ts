@@ -163,7 +163,7 @@ describe('PlanController.getMeal — dry weights (0078)', () => {
 describe('PlanController.getMeal — accompaniments (016)', () => {
   const side = (accompanimentKey: string, slug: string, name: string, grams: number, kcal: number) => ({ accompanimentKey, grams, kcal, name, slug });
 
-  it("groups the rows by accompaniment, in serving order, named in the reader's language", async () => {
+  it("groups the rows by accompaniment, in serving order, named and explained in the reader's language", async () => {
     findMealDetail.mockResolvedValue(
       detail({ pictureStatus: 'ready', pictureUrl: 'https://blob/x.jpg' }, [item('lentejas-cocidas', 'Lentejas cocidas', 200)], '1', [
         side('pan-blanco', 'pan-blanco', 'Pan blanco', 60, 159),
@@ -188,7 +188,10 @@ describe('PlanController.getMeal — accompaniments (016)', () => {
         ],
         kcal: 62.2,
         key: 'ensalada-verde',
-        name: 'Ensalada verde'
+        name: 'Ensalada verde',
+        // How a composed side is made; the bread, served as it comes, has no line.
+        preparation:
+          'Lava y trocea la lechuga, añade la cebolla en juliana fina y aliña con una cucharadita de aceite, el vinagre y una pizca de sal.'
       }
     ]);
   });
