@@ -486,3 +486,16 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   - Drop "BEDCA" from the web nutrition note (es-ES and en-GB `note`) and from the seed comments.
   - Re-run the evaluator.
 - **Status:** queued after project 015 phase 2. Owner decision of 2026-10-02.
+
+## 2026-10-02 — Project (queued): 017, more accompaniments
+
+- **Why:** project 016 ships 46 accompaniments in code (10 starch, 15 vegetable, 21 dessert; 18 composed, each with a fixed preparation line). The owner wants more variety beside meals.
+- **Method (owner chose two of three options):**
+  - Batches in code. An `architect` drafts by cuisine family from public sources (USDA, never BEDCA); the owner approves; `backend` adds them; the evaluator checks 14/14 days in band and variety.
+  - A model may draft candidates offline, but every entry is reviewed by a person before it goes in.
+  - Missing ingredients come in through a reviewed data migration.
+  - Not chosen for now: a database table with an `/admin` editor. To revisit when the dietitian workspace is in real use.
+- **First batch:** about 40.
+  - First the Spanish sides that are missing: vegetable creams, caldo, roasted peppers, menestra, mushrooms, wholemeal bread, picos.
+  - Then the families with 2–3 options each (Asian, Mexican, Middle Eastern), and breakfast.
+- **Status:** queued after project 016 closes. Owner decision of 2026-10-02.
