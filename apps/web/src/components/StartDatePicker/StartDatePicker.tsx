@@ -44,12 +44,7 @@ export function StartDatePicker({ onChange, options, redoNextAt, value }: StartD
           describedBy: option.allowed || !redoNextAt ? undefined : reasonId,
           detail: !option.allowed ? t.noRedo : option.kind === 'redo' ? t.usesRedo : t.free,
           disabled: !option.allowed,
-          label:
-            offset === 0
-              ? t.today
-              : offset === 1
-                ? t.tomorrow
-                : formatDate(option.date, locale, { day: 'numeric', month: 'short', weekday: 'short' }),
+          label: offset === 0 ? `${t.today}, ${day(option.date)}` : offset === 1 ? `${t.tomorrow}, ${day(option.date)}` : day(option.date),
           value: option.date
         }))}
         single={{ choice: value, onChoose: onChange }}

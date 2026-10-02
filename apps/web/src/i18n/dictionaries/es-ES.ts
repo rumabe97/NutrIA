@@ -1024,7 +1024,12 @@ export const esES = {
     cronEmpty: 'Sin tareas.',
     cronNever: 'Nunca',
     cronNote: 'Atrasada si lleva más de {hours} h sin terminar.',
-    crons: { reminders: 'Avisos de check-in', rewrite: 'Reescritura de los pasos', verifications: 'Borrado de enlaces caducados' },
+    crons: {
+      activations: 'Activación de planes',
+      reminders: 'Avisos de check-in',
+      rewrite: 'Reescritura de los pasos',
+      verifications: 'Borrado de enlaces caducados'
+    },
     cronState: { ok: 'Al día', stale: 'Atrasada' },
     cronTitle: 'Tareas programadas',
     howCounted: [
