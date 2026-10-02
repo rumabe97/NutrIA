@@ -109,6 +109,9 @@ export const FOOD_GROUP_SLUGS: Readonly<Record<FoodGroup, ReadonlySet<string>>> 
     'macarrones-secos',
     'noodles-de-trigo',
     'noodles-udon',
+    // Gnocchi: potato and flour, served and judged as a pasta. Read as stored —
+    // they have no dry form — so 70 g is already more than a garnish.
+    'noquis',
     'pasta-cocida',
     'pasta-de-garbanzos',
     'pasta-de-lentejas',
@@ -176,12 +179,19 @@ export function foodGroupOf(slug: string): FoodGroup | null {
 }
 
 /**
- * Grams per serving from which a dish belongs to a group (Table 2): two thirds
- * of a plate of rice or pasta, dry (AESAN 60–80 g); 100 g of potato; any
- * amount of a stewed pulse, as `0062` already judged them. Below it the group
- * is an ingredient, not the dish — the spoonful of rice in a soup.
+ * Grams per serving from which a dish belongs to a group (Table 2): 20 g of
+ * rice, pasta or another grain, dry; 100 g of potato; any amount of a stewed
+ * pulse, as `0062` already judged them. Below it the group is an ingredient,
+ * not the dish — the spoonful of rice in a soup (50 g cooked, 17 g dry).
+ *
+ * 20 g, not the 40 g it first was (`0079`'s threshold amendment, 2026-10-02):
+ * AESAN's plate is 60–80 g dry, a side 30–40 g, and since the 650 kcal serving
+ * cap (prompt 4.6.0) dishes are drawn smaller — a real fortnight put a whole-
+ * wheat pasta of 80 g cooked (36 g dry) and a couscous of 70 g cooked (28 g)
+ * at dinner, both read as no pasta and no grain at all. 20 g is a third of the
+ * smallest AESAN plate: every side counts, a garnish or a soup's handful does not.
  */
-export const FOOD_GROUP_GRAMS: Readonly<Record<FoodGroup, number>> = { grains: 40, pasta: 40, potato: 100, pulses: 0, rice: 40 };
+export const FOOD_GROUP_GRAMS: Readonly<Record<FoodGroup, number>> = { grains: 20, pasta: 20, potato: 100, pulses: 0, rice: 20 };
 
 /**
  * The groups a dish belongs to, per serving. A cooked grain reads dry through

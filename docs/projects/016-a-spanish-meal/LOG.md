@@ -176,3 +176,12 @@
   - whether the starch cap becomes hard;
   - the e2e suite speed-up waiting on that work (`agent/sides-speed/tests-g` at 724e3870).
 - Next by owner decision: project 017, more accompaniments.
+
+## Phase 7 — fix: pasta, couscous and gnocchi went unrecognised (2026-10-02)
+
+- **Executor**: `backend-p7fix` (opus) in `/team`.
+- **Result**: done in code; not measured on the library.
+- **Why**: the owner's production plan v15 served pasta 6 times in 14 days, two of them running, and pasta, couscous and gnocchi at dinner. At 40 g dry the smaller dishes of prompt 4.6.0 (80 g cooked whole-wheat pasta, about 36 g dry; 70 g cooked couscous, about 28 g) were not pasta or grains, and `noquis` was in no group.
+- **Change**: `FOOD_GROUP_GRAMS` for rice, pasta and grains 40 → 20 g dry; `noquis` in the pasta group (`0079`, "Amendment — threshold"). Meal fit and `STARCH_RULES` read the same recognition, so both follow.
+- **Evidence**: unit tests built from the four production dishes (recognised, lunch only for Spanish and Mediterranean and, the pastas, Italian; counted by the starch rule, days running included). Mutation check: back at 40 g, 7 tests fail. No pinned scheduler spec moved.
+- **Not done**: the evaluator, because the dev database was over its Neon quota. It should be run on the real library before the next scheduler change: dinners per profile, and the 14/14 days with the flag on.

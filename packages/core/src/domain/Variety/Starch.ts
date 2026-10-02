@@ -63,7 +63,7 @@ export const BREAD_SLUGS: ReadonlySet<string> = new Set([
   'wrap-integral'
 ]);
 
-/** Grams of bread a serving from which a dish is a bread: a roll, two slices — the grains' own 40 g. */
+/** Grams of bread a serving from which a dish is a bread: a roll, two slices. Bread is not capped, so it kept the 40 g the grains had before `0079`'s amendment. */
 export const BREAD_GRAMS = 40;
 
 type Dish = { readonly ingredients: readonly { readonly grams?: number; readonly slug: string }[]; readonly servings?: number };
