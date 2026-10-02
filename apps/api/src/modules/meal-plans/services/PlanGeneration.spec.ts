@@ -697,6 +697,35 @@ describe('PlanGenerationService', () => {
     expect(draft.cutShoppingItems?.items[0]?.totalGrams).toBe(250);
   });
 
+  it('leaves the cut plan’s list as it stands when a food it keeps is not in today’s catalogue — never a shorter list', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const { persist, service } = build({ start: addDays(today, 2) });
+
+    jest.spyOn(PlanController, 'cutComposition').mockResolvedValue({
+      meals: [
+        {
+          id: 'kept-1',
+          date: today,
+          dayIndex: 1,
+          ingredients: [
+            { grams: 100, slug: 'arroz' },
+            { grams: 80, slug: 'no-longer-in-the-catalogue' }
+          ],
+          macros: { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 },
+          recipeSlug: 'arroz-1',
+          servings: 1,
+          slot: 'lunch',
+          sortOrder: 0
+        }
+      ],
+      planId: 'plan-a'
+    });
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    expect(persist.mock.calls[0]?.[1]).not.toHaveProperty('cutShoppingItems');
+  });
+
   it('asks for no cut when the plan starts today: the plan under way is completed, as always', async () => {
     const { persist, service } = build();
     const cut = jest.spyOn(PlanController, 'cutComposition');

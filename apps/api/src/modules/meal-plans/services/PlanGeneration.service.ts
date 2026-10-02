@@ -411,10 +411,7 @@ export class PlanGenerationService {
     const shopping = buildShoppingList(scheduled.assignment, context.catalogue, context.locale);
     // A plan that waits for its day may cut the one under way (project 015):
     // that plan's list is rebuilt from the days it keeps, saved with the cut.
-    const cut = dates.start > dates.today ? await PlanController.cutComposition(userId, dates.start) : null;
-    const cutShoppingItems = cut
-      ? { items: toShoppingItems(buildShoppingList({ days: byDay(cut.meals) }, context.catalogue, context.locale)), planId: cut.planId }
-      : undefined;
+    const cutShoppingItems = dates.start > dates.today ? await this.cutListFor(userId, dates.start, context) : undefined;
 
     // Past its job's deadline this generation has already been reported as
     // failed; saving now would hand somebody a plan after telling them to retry.
@@ -444,6 +441,35 @@ export class PlanGenerationService {
       },
       byProfessional
     );
+  }
+
+  /**
+   * The list the plan under way keeps when this one cuts it (project 015):
+   * built from the days it keeps, for its id — or none, when nothing is cut.
+   *
+   * Checked as a generation checks its own plan: `buildShoppingList` skips a
+   * food the catalogue does not hold, and this catalogue is today's, which may
+   * be narrower than the one the old plan was built from. A list missing a line
+   * for food the person still cooks is worse than one still listing the days
+   * that were cut, so then the list is left as it stands, and that is logged.
+   */
+  private async cutListFor(userId: string, start: string, context: GenerationContext): Promise<PlanDraft['cutShoppingItems']> {
+    const cut = await PlanController.cutComposition(userId, start);
+
+    if (!cut) {
+      return undefined;
+    }
+
+    const kept = { days: byDay(cut.meals) };
+    const missing = unresolvedSlugs(kept, context.catalogue);
+
+    if (missing.length > 0) {
+      this.logger.warn(`Plan ${cut.planId} cut short; its list is left as it stands: ${missing.length} of its foods are not in today's catalogue`);
+
+      return undefined;
+    }
+
+    return { items: toShoppingItems(buildShoppingList(kept, context.catalogue, context.locale)), planId: cut.planId };
   }
 
   /**
