@@ -168,7 +168,25 @@ export type RecipeDraft = {
   readonly stepsVersion: string;
 };
 
+/**
+ * One stored row of what goes beside a meal (`meal_accompaniments`, project
+ * 016): one food of one accompaniment, with its own snapshot. Built by
+ * `core/domain/Accompaniment`'s `accompanimentRows`.
+ */
+export type MealAccompanimentDraft = {
+  readonly accompanimentKey: string;
+  readonly carbsG: number;
+  readonly fatG: number;
+  readonly grams: number;
+  readonly ingredientId: string;
+  readonly kcal: number;
+  readonly proteinG: number;
+  readonly sortOrder: number;
+};
+
 export type MealDraft = {
+  /** What goes beside the plate, one row per food; absent or empty is nothing. The macros above are the whole meal's. */
+  readonly accompaniments?: readonly MealAccompanimentDraft[];
   readonly carbsG: number;
   readonly fatG: number;
   readonly fiberG: number;

@@ -2,6 +2,7 @@ import { date, index, integer, jsonb, numeric, pgTable, smallint, text, timestam
 import { sql } from 'drizzle-orm';
 
 import { jobStatus, macroDirection, mealSlot, mealStatus, planStatus } from './_enums';
+import { ingredients } from './food.schema';
 import { recipes } from './recipe.schema';
 import { user } from './auth.schema';
 import { timestamps } from './_columns';
@@ -144,6 +145,56 @@ export const meals = pgTable(
     // sequential scan of every meal ever stored without this.
     index('meals_recipe_idx').on(table.recipeId)
   ]
+);
+
+/**
+ * What goes beside a meal's plate — bread, a salad, a piece of fruit (project
+ * 016, `0079` Table 3, design A of architect report `0008`): one row per
+ * ingredient of each accompaniment, so a composed one (a salad) is its rows
+ * under one `accompanimentKey`.
+ *
+ * A child of the meal, never a recipe: what goes beside a plate is the
+ * person's, and a recipe is shared. The meal's own `kcal` and macros are the
+ * whole meal, these rows included; each row snapshots its own, for the same
+ * reason the meal does — history keeps the numbers that were eaten. A swap
+ * and an event rebuild delete and reinsert a meal's rows in their own
+ * transaction. Account deletion reaches them through the meal's cascade.
+ *
+ * `recipeId` and `servings` snapshot the plate the rows were set beside. An
+ * API from before this table swaps or rebuilds a meal in place and knows
+ * nothing of it, so after a rollback a meal may point at another dish while
+ * its old sides stay; the reads keep only rows whose plate is still the
+ * meal's, and a cleanup can find the rest with one join. Rows are only ever
+ * inserted and deleted, so they carry `createdAt` and no `updatedAt`.
+ */
+export const mealAccompaniments = pgTable(
+  'meal_accompaniments',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    /** `core/domain/Accompaniment`'s key: stable, what the screen names it by. */
+    accompanimentKey: text().notNull(),
+    carbsG: numeric({ precision: 7, scale: 2 }).notNull(),
+    createdAt: timestamps.createdAt,
+    fatG: numeric({ precision: 7, scale: 2 }).notNull(),
+    grams: numeric({ precision: 7, scale: 2 }).notNull(),
+    ingredientId: uuid()
+      .notNull()
+      .references(() => ingredients.id, { onDelete: 'restrict' }),
+    kcal: numeric({ precision: 7, scale: 2 }).notNull(),
+    mealId: uuid()
+      .notNull()
+      .references(() => meals.id, { onDelete: 'cascade' }),
+    proteinG: numeric({ precision: 7, scale: 2 }).notNull(),
+    /** The meal's dish when these rows were written — see above. */
+    recipeId: uuid()
+      .notNull()
+      .references(() => recipes.id, { onDelete: 'restrict' }),
+    /** The meal's servings when these rows were written — see above. */
+    servings: numeric({ precision: 4, scale: 2 }).notNull(),
+    sortOrder: smallint().notNull().default(0)
+  },
+  // Led by `meal_id`, so it is also the index every read of a meal's rows uses.
+  table => [unique('meal_accompaniments_unique').on(table.mealId, table.accompanimentKey, table.ingredientId)]
 );
 
 /** The adherence signal. One row per user action, so it is auditable and undoable. */

@@ -98,6 +98,16 @@
   font-size: var(--font-size-03);
 }
 
+/* Beside the plate, after its name and in the secondary tone: the dish stays the
+   subject. Each is one piece that wraps whole, so a line breaks before a "+", never
+   inside "pan (60 g)". */
+.side {
+  color: var(--foreground-02);
+  display: inline-block;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+}
+
 .meta {
   color: var(--foreground-02);
   font-size: var(--font-size-02);

@@ -5,7 +5,17 @@ import { NO_PREFERENCE_EXCLUSIONS, PATTERN_EXCLUDED_SLUGS, resolvePreferences } 
 import { dishSafety, toSafetyProfile } from 'core/domain/Safety';
 import { makeAccompanimentRows, makeCatalogueIngredient } from '#test/fixtures';
 
-import { ACCOMPANIMENTS, larderFor, NO_ACCOMPANIMENT, portionsBeside, setsBeside, setsOf } from './Accompaniment';
+import {
+  accompanimentName,
+  accompanimentRows,
+  ACCOMPANIMENTS,
+  isComposed,
+  larderFor,
+  NO_ACCOMPANIMENT,
+  portionsBeside,
+  setsBeside,
+  setsOf
+} from './Accompaniment';
 
 import type { AccompanimentDiner, AccompanimentPortion } from './Accompaniment';
 import type { CatalogueIngredient, MealSlot } from 'core/entities/Plan';
@@ -317,5 +327,59 @@ describe('the meals of Table 3', () => {
     ['gazpacho', ['lunch', 'dinner']]
   ] as const)('%s at %j', (key, slots) => {
     expect(at(key)).toEqual(slots);
+  });
+});
+
+describe('what is stored and shown of an accompaniment (016 phase 4)', () => {
+  const catalogue = toCatalogue(makeAccompanimentRows(SLUGS));
+
+  it('names every composed accompaniment in both languages, and a simple one by its food', () => {
+    for (const accompaniment of ACCOMPANIMENTS.filter(isComposed)) {
+      expect(accompanimentName(accompaniment.key, 'es-ES', undefined)).not.toBe(accompaniment.key);
+      expect(accompanimentName(accompaniment.key, 'en-GB', undefined)).not.toBe(accompaniment.key);
+    }
+
+    expect(accompanimentName('ensalada-verde', 'es-ES', undefined)).toBe('Ensalada verde');
+    expect(accompanimentName('ensalada-verde', 'en-GB', undefined)).toBe('Green salad');
+    expect(accompanimentName('pan-blanco', 'es-ES', 'Pan blanco')).toBe('Pan blanco');
+    expect(accompanimentName('naranja', 'en-GB', 'Orange')).toBe('Orange');
+  });
+
+  it("stores a composed accompaniment as one row per food, in serving order, its macros the catalogue's", () => {
+    const portions = larderFor({ catalogue, preferences: NO_PREFERENCE_EXCLUSIONS, safety: toSafetyProfile([], []) }).portions;
+    const salad = portions.find(portion => portion.accompaniment.key === 'ensalada-verde') as AccompanimentPortion;
+    const bread = portions.find(portion => portion.accompaniment.key === 'pan-blanco') as AccompanimentPortion;
+    const rows = accompanimentRows(
+      [salad, bread].map(portion => ({ ingredients: portion.items, key: portion.accompaniment.key, macros: portion.macros })),
+      catalogue
+    );
+
+    expect(rows.map(row => [row.accompanimentKey, row.ingredientId, row.grams, row.sortOrder])).toEqual([
+      ...salad.items.map((item, index) => ['ensalada-verde', `i-${item.slug}`, item.grams, index]),
+      ['pan-blanco', 'i-pan-blanco', bread.items[0]?.grams, salad.items.length]
+    ]);
+
+    const saladKcal = rows.filter(row => row.accompanimentKey === 'ensalada-verde').reduce((sum, row) => sum + row.kcal, 0);
+
+    expect(saladKcal).toBeCloseTo(salad.macros.kcal, 0);
+    expect(accompanimentRows(undefined, catalogue)).toEqual([]);
+    expect(() =>
+      accompanimentRows([{ ingredients: [{ grams: 10, slug: 'nada' }], key: 'nada', macros: NO_ACCOMPANIMENT.macros }], catalogue)
+    ).toThrow();
+  });
+});
+
+/* The e2e milk and coeliac cases can only fail if an unrestricted person is offered both (016 phase 4). */
+describe('larderFor — somebody with no restriction', () => {
+  it('is offered a dairy side and a wheat bread', () => {
+    const catalogue = toCatalogue(makeAccompanimentRows(SLUGS, ALLERGENS));
+    const keys = new Set(
+      larderFor({ catalogue, preferences: NO_PREFERENCE_EXCLUSIONS, safety: toSafetyProfile([], []) }).portions.map(
+        portion => portion.accompaniment.key
+      )
+    );
+
+    expect(['yogur-natural-desnatado', 'yogur-griego-natural', 'queso-de-burgos', 'requeson'].some(key => keys.has(key))).toBe(true);
+    expect(['pan-blanco', 'pan-integral', 'pan-de-centeno', 'pan-de-masa-madre'].some(key => keys.has(key))).toBe(true);
   });
 });

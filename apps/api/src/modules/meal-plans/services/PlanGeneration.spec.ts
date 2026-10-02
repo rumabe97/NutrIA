@@ -8,6 +8,7 @@ import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController, PlanJobController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
+import { SettingsController } from 'core/controllers/Settings';
 
 import { ageInYears, resolveTargets } from 'core/domain/Nutrition';
 import { loadedDates, loadedTargets } from 'core/domain/Event';
@@ -17,7 +18,8 @@ import { VARIETY_RULES } from 'core/domain/Variety';
 
 import { shapeFor } from 'core/domain/MealShape';
 
-import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
+import type { CandidateDish, Catalogue, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
+import type { PreferenceExclusions } from 'core/domain/Preference';
 import type { EventView } from 'core/controllers/Event';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PlanQuality } from 'core/domain/PlanValidation';
@@ -144,9 +146,14 @@ const PROFILE = {
 };
 
 type Mocks = {
+  /** The `accompaniments` flag (project 016); off when absent. */
+  accompaniments: boolean;
+  catalogue: Catalogue;
   events: readonly EventView[];
   onboarding: unknown;
   persist: jest.Mock;
+  /** What the context's way of eating and free-from foods rule out, as `buildContext` merges them. */
+  preferences: PreferenceExclusions;
   profile: unknown;
   reusable: CandidateDish[];
   safety: Set<string>;
@@ -191,10 +198,10 @@ function build(overrides: Partial<Mocks> = {}) {
   jest
     .spyOn(RecipeController, 'generationContext')
     .mockResolvedValue({
-      catalogue: CATALOGUE,
+      catalogue: overrides.catalogue ?? CATALOGUE,
       dietaryPatterns: [],
       locale: 'es-ES',
-      preferences: NO_PREFERENCE_EXCLUSIONS,
+      preferences: overrides.preferences ?? NO_PREFERENCE_EXCLUSIONS,
       safety: {
         allergenIds: safety,
         crossContaminationAllergenIds: new Set(),
@@ -209,6 +216,8 @@ function build(overrides: Partial<Mocks> = {}) {
   jest.spyOn(RecipeController, 'reusablePool').mockResolvedValue(reusable);
   jest.spyOn(RecipeController, 'libraryUsage').mockResolvedValue(USAGE);
   jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [], liked: [] });
+  // The accompaniments flag, off unless a test turns it on (project 016).
+  jest.spyOn(SettingsController, 'accompaniments').mockResolvedValue(overrides.accompaniments ?? false);
   jest.spyOn(CheckInController, 'latestForGeneration').mockResolvedValue(null);
   jest.spyOn(EventController, 'list').mockResolvedValue(overrides.events ?? []);
   jest.spyOn(PlanJobController, 'persist').mockImplementation(persist as never);
@@ -895,5 +904,129 @@ describe('PlanGenerationService', () => {
     expect(draft.days.every(day => day.targets.kcal === draft.strategy.kcal)).toBe(true);
     expect(draft.generationMetadata.advisories.join(' ')).toContain('kcal_above_ceiling');
     expect(draft.generationMetadata.quality).toMatchObject({ eventDays: 0, eventDaysInBand: 0, loadsRefused: 2 });
+  });
+
+  /*
+   * Project 016 phase 4: what goes beside a big lunch or dinner comes from the
+   * person's larder, built from the very context generation reads — its merged
+   * preferences (free-from foods only for whoever needs them) and its safety.
+   */
+  describe('accompaniments (016)', () => {
+    const bread = (slug: string, gluten: boolean): CatalogueIngredient => ({
+      ...ingredient(slug, gluten ? [{ allergenId: GLUTEN, presence: 'contains' }] : []),
+      category: 'bakery'
+    });
+    const WITH_BREAD = toCatalogue([...CATALOGUE.values(), bread('pan-blanco', true), bread('pan-integral', true), bread('pan-sin-gluten', false)]);
+    // Two big meals, so lunch and dinner are each well past 700 kcal.
+    const TWO_MEALS = { preferences: { activityLevel: 'moderate' as const, mealShape: { ...shapeFor(3, false), breakfast: 'off' as const } } };
+    const twoMealPool = (): CandidateDish[] => pool().filter(dish => dish.slots.includes('lunch') || dish.slots.includes('dinner'));
+    type SidedDraft = { days: { meals: { accompaniments?: { accompanimentKey: string; ingredientId: string; kcal: number }[]; kcal: number }[] }[] };
+    const sideKeys = (persist: jest.Mock): string[] =>
+      (persist.mock.calls[0]?.[1] as SidedDraft).days.flatMap(day =>
+        day.meals.flatMap(meal => (meal.accompaniments ?? []).map(row => row.accompanimentKey))
+      );
+
+    it('stores nothing beside the plate while the flag is off', async () => {
+      const { persist, service } = build({ catalogue: WITH_BREAD, profile: TWO_MEALS, reusable: twoMealPool() });
+
+      await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+      const draft = persist.mock.calls[0]?.[1] as SidedDraft;
+
+      expect(draft.days.flatMap(day => day.meals).some(meal => 'accompaniments' in meal)).toBe(false);
+    });
+
+    it('never gives gluten-free bread to somebody who does not need it', async () => {
+      // The context's free-from exclusion is all that stands between them and
+      // it: the only bread the catalogue holds is the gluten-free one, which a
+      // coeliac below is given.
+      const freeFrom = new Set(['ing-pan-sin-gluten']);
+      const onlyGlutenFree = toCatalogue([...CATALOGUE.values(), bread('pan-sin-gluten', false)]);
+      const { persist, service } = build({
+        accompaniments: true,
+        catalogue: onlyGlutenFree,
+        preferences: { ...NO_PREFERENCE_EXCLUSIONS, excludedIngredientIds: freeFrom },
+        profile: TWO_MEALS,
+        reusable: twoMealPool()
+      });
+
+      await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+      expect(sideKeys(persist)).not.toContain('pan-sin-gluten');
+    });
+
+    it('gives a coeliac gluten-free bread and no other', async () => {
+      const { persist, service } = build({
+        accompaniments: true,
+        catalogue: WITH_BREAD,
+        profile: TWO_MEALS,
+        reusable: twoMealPool(),
+        safety: new Set([GLUTEN])
+      });
+
+      await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+      const keys = sideKeys(persist);
+
+      expect(keys).toContain('pan-sin-gluten');
+      expect(keys.filter(key => key.startsWith('pan-') && key !== 'pan-sin-gluten')).toEqual([]);
+    });
+
+    it("stores the sides as rows, the meal's kcal the whole meal's", async () => {
+      const { persist, service } = build({ accompaniments: true, catalogue: WITH_BREAD, profile: TWO_MEALS, reusable: twoMealPool() });
+
+      await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+      const scheduled = schedulePlan.mock.results.at(-1)?.value as ReturnType<typeof scheduler.schedulePlan>;
+      const draft = persist.mock.calls[0]?.[1] as SidedDraft;
+      const meals = scheduled.ok ? scheduled.assignment.days.flatMap(day => day.meals) : [];
+      const stored = draft.days.flatMap(day => day.meals);
+
+      expect(stored).toHaveLength(meals.length);
+
+      for (const [index, meal] of meals.entries()) {
+        const rows = stored[index]?.accompaniments ?? [];
+
+        expect(stored[index]?.kcal).toBe(meal.macros.kcal);
+        expect(rows.map(row => row.ingredientId)).toEqual(
+          (meal.accompaniments ?? []).flatMap(side => side.ingredients.map(item => `ing-${item.slug}`))
+        );
+      }
+    });
+
+    it('blocks a meal whose side the final gate refuses, and writes nothing', async () => {
+      // As if the larder had been bypassed: the scheduler hands back a coeliac's
+      // lunch with wheat bread beside it. The gate reads the meal, sides included.
+      schedulePlan.mockImplementationOnce(input => {
+        const result = scheduler.schedulePlan(input);
+
+        if (!result.ok) {
+          return result;
+        }
+
+        const [first, ...rest] = result.assignment.days;
+        const [meal, ...others] = first?.meals ?? [];
+
+        if (!first || !meal) {
+          return result;
+        }
+
+        const side = { ingredients: [{ grams: 60, slug: 'pan-blanco' }], key: 'pan-blanco', macros: meal.macros };
+        const sided = { ...meal, accompaniments: [side], ingredients: [...meal.ingredients, ...side.ingredients] };
+
+        return { ...result, assignment: { days: [{ ...first, meals: [sided, ...others] }, ...rest] } };
+      });
+
+      const { persist, service } = build({
+        accompaniments: true,
+        catalogue: WITH_BREAD,
+        profile: TWO_MEALS,
+        reusable: twoMealPool(),
+        safety: new Set([GLUTEN])
+      });
+
+      await expect(service.generate('usr-1', 'job-1', async () => Promise.resolve())).rejects.toMatchObject({ code: 'GENERATION_UNSAFE_CONTENT' });
+      expect(persist).not.toHaveBeenCalled();
+    });
   });
 });

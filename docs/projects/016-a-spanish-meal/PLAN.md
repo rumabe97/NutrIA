@@ -120,6 +120,7 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
 - **Steps**:
   1. Add the `meal_accompaniments` migration (additive) and the repository.
   2. Generation, swap and rebuild delete and reinsert in their own transaction. The views gain accompaniments, and `composition` and the shopping list include them.
+     - *Amended 2026-10-02 (lead):* a meal's views show the sides it has stored, whatever the `accompaniments` flag says, because the meal's stored kcal and macros already include them. The flag only decides whether new sides are composed: by generation, a swap or an event rebuild. A swap or rebuild done with the flag off deletes that meal's sides. A side row whose recipe_id or servings no longer match its meal (left by a previous API after a rollback) is never shown.
   3. Web: `MealRow` reads "Plato + pan (60 g) + una naranja", the meal page gets an "Acompaña con" section, and the offline copy carries the new field.
   4. e2e: a meal with accompaniments, a swap, a rebuild, a professional review, and allergies and patterns respected.
   5. Turn the flag on after deploy, and with it return `PLATE_GRAMS_MAX` to the flat 750 g (phase 1's scaling ends).
