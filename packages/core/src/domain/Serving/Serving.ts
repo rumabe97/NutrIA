@@ -11,11 +11,12 @@ import type { CandidateDish, Catalogue, MealSlot } from 'core/entities/Plan';
  * 55 g of oil as one plate, `servings: 1`, into the library every other person
  * is served from. Four plates declared as one.
  *
- * The figures are the validated seed library's own ceiling, where 500 dishes
- * were designed and tuned by hand to what a person recognises as one plate:
- * lunch and dinner never pass 1,000 kcal there and 95% sit under ~870; breakfast
- * tops out at ~810 (95% under ~700); no snack passes ~450 (95% under ~400).
- * Measured on the dev library, 2026-09-29.
+ * Breakfast's and the snacks' figures are the validated seed library's own
+ * ceiling, where 500 dishes were designed and tuned by hand to what a person
+ * recognises as one plate: breakfast tops out at ~810 (95% under ~700); no
+ * snack passes ~450 (95% under ~400). Lunch and dinner were set the same way
+ * at 900 (the seed's never pass 1,000 and 95% sit under ~870), until 4.6.0
+ * below. Measured on the dev library, 2026-09-29.
  *
  * A person who eats more is served more servings, not a bigger one: the
  * scheduler scales a portion up to `SERVING_BOUNDS.max` (4), so 650 kcal lunches
