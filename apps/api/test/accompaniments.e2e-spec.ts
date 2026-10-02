@@ -131,7 +131,11 @@ const MILK_FREE_BREAKFASTS = [
 
 type Side = {
   readonly grams: number;
-  readonly ingredients: readonly { readonly dry?: { readonly grams: number; readonly name: string }; readonly grams: number; readonly name: string }[];
+  readonly ingredients: readonly {
+    readonly dry?: { readonly grams: number; readonly name: string };
+    readonly grams: number;
+    readonly name: string;
+  }[];
   readonly kcal: number;
   readonly key: string;
   readonly name: string;
@@ -286,7 +290,12 @@ describe('accompaniments, end to end', () => {
       }
 
       if (JSON.stringify(rows.map(row => row.key).sort()) !== JSON.stringify(shown)) {
-        broken.push(`${meal.name}: stored ${rows.map(row => row.key).sort().join(',')}, shown ${shown.join(',')}`);
+        broken.push(
+          `${meal.name}: stored ${rows
+            .map(row => row.key)
+            .sort()
+            .join(',')}, shown ${shown.join(',')}`
+        );
       }
     }
 
@@ -478,7 +487,11 @@ describe('accompaniments, end to end', () => {
       // A person whose main meals are over 700 kcal: if this fails the premise is gone, not the rule.
       expect(sided.length).toBeGreaterThan(0);
       expect(sided.every(meal => meal.slot === 'lunch' || meal.slot === 'dinner')).toBe(true);
-      expect(mealsOf(plan).filter(meal => meal.slot === 'breakfast').flatMap(meal => meal.accompaniments)).toEqual([]);
+      expect(
+        mealsOf(plan)
+          .filter(meal => meal.slot === 'breakfast')
+          .flatMap(meal => meal.accompaniments)
+      ).toEqual([]);
     });
 
     it('counts the sides in the meal: its energy is the dish plus the sides, the sides at most 35% of it, and every day adds up', async () => {
@@ -500,7 +513,10 @@ describe('accompaniments, end to end', () => {
     it('does not show one person another’s sides: a stranger asking for the meal gets a 404', async () => {
       const meal = sidedMeals(plan)[0];
 
-      await request(server()).get(`/${PREFIX}/meal-plans/meals/${meal?.id ?? ''}`).set('Cookie', milk.cookie).expect(404);
+      await request(server())
+        .get(`/${PREFIX}/meal-plans/meals/${meal?.id ?? ''}`)
+        .set('Cookie', milk.cookie)
+        .expect(404);
     });
 
     // --- (b) The shopping list ------------------------------------------------
@@ -532,7 +548,11 @@ describe('accompaniments, end to end', () => {
         await expectStoredSidesAre(after, [target.id]);
         expect((await detailOf(main, target.id)).accompaniments).toEqual(replaced?.accompaniments);
         // Every other meal is exactly as it was.
-        expect(mealsOf(after).filter(meal => meal.id !== target.id)).toEqual(mealsOf(plan).filter(meal => meal.id !== target.id).map(meal => meal));
+        expect(mealsOf(after).filter(meal => meal.id !== target.id)).toEqual(
+          mealsOf(plan)
+            .filter(meal => meal.id !== target.id)
+            .map(meal => meal)
+        );
         plan = after;
       }
 
@@ -620,7 +640,12 @@ describe('accompaniments, end to end', () => {
 
       while (Date.now() < deadline && job?.status !== 'succeeded' && job?.status !== 'failed') {
         await new Promise(resolve => setTimeout(resolve, 250));
-        job = (await request(server()).get(clientPath(`/plan/jobs/${jobId}`)).set('Cookie', pro.cookie).expect(200)).body as JobView;
+        job = (
+          await request(server())
+            .get(clientPath(`/plan/jobs/${jobId}`))
+            .set('Cookie', pro.cookie)
+            .expect(200)
+        ).body as JobView;
       }
 
       expect(job?.status).toBe('succeeded');
@@ -633,12 +658,22 @@ describe('accompaniments, end to end', () => {
       // The professional swaps a sided meal: its sides follow the new dish.
       const target = sidedMeals(waiting)[0];
 
-      await request(server()).post(clientPath(`/plan/meals/${target?.id ?? ''}/swap`)).set('Cookie', pro.cookie).send({}).expect(201);
+      await request(server())
+        .post(clientPath(`/plan/meals/${target?.id ?? ''}/swap`))
+        .set('Cookie', pro.cookie)
+        .send({})
+        .expect(201);
       waiting = await pendingPlan();
       await expectConsistent(waiting);
 
       // The client sees none of it until it is published.
-      expect((await request(server()).get(`/${PREFIX}/meal-plans/meals/${target?.id ?? ''}`).set('Cookie', client.cookie)).status).toBe(404);
+      expect(
+        (
+          await request(server())
+            .get(`/${PREFIX}/meal-plans/meals/${target?.id ?? ''}`)
+            .set('Cookie', client.cookie)
+        ).status
+      ).toBe(404);
 
       await request(server()).post(clientPath('/plan/publish')).set('Cookie', pro.cookie).expect(200);
 
@@ -671,7 +706,11 @@ describe('accompaniments, end to end', () => {
       // Nor through a swap.
       const target = sidedMeals(plan)[0];
 
-      await request(server()).post(`/${PREFIX}/meal-plans/meals/${target?.id ?? ''}/swap`).set('Cookie', milk.cookie).send({}).expect(201);
+      await request(server())
+        .post(`/${PREFIX}/meal-plans/meals/${target?.id ?? ''}/swap`)
+        .set('Cookie', milk.cookie)
+        .send({})
+        .expect(201);
 
       const swapped = await activePlan(milk);
 
@@ -690,7 +729,11 @@ describe('accompaniments, end to end', () => {
 
       const target = sidedMeals(plan)[0];
 
-      await request(server()).post(`/${PREFIX}/meal-plans/meals/${target?.id ?? ''}/swap`).set('Cookie', coeliac.cookie).send({}).expect(201);
+      await request(server())
+        .post(`/${PREFIX}/meal-plans/meals/${target?.id ?? ''}/swap`)
+        .set('Cookie', coeliac.cookie)
+        .send({})
+        .expect(201);
       expect(sidesBreaking(await activePlan(coeliac), WHEAT_SIDES, WHEAT_WORDS)).toEqual([]);
     }, 300_000);
 
@@ -722,7 +765,11 @@ describe('accompaniments, end to end', () => {
 
     const target = sidedMeals(plan).find(meal => meal.slot === 'lunch') ?? sidedMeals(plan)[0];
 
-    await request(server()).post(`/${PREFIX}/meal-plans/meals/${target?.id ?? ''}/swap`).set('Cookie', main.cookie).send({}).expect(201);
+    await request(server())
+      .post(`/${PREFIX}/meal-plans/meals/${target?.id ?? ''}/swap`)
+      .set('Cookie', main.cookie)
+      .send({})
+      .expect(201);
 
     const after = await activePlan(main);
     const swapped = mealsOf(after).find(meal => meal.id === target?.id);
