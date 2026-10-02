@@ -8,6 +8,9 @@
 //   pnpm db:local status
 //   pnpm db:local reset    drop and recreate the database, migrate, seed, load the seed
 //                          library (docs/local/nutria-seed-500.sql) if present, re-run 0056
+//   pnpm db:local reset --reference
+//                          the same, then production's model-made recipes on top
+//                          (docs/local/reference-ai-recipes.sql, decision 0080), and 0056 again
 //
 // Then run anything with NUTRIA_LOCAL_PG=1: the database package, the API and the probe's
 // guard all connect to LOCAL_DATABASE_URL instead of what a `.env` says.
@@ -40,6 +43,8 @@ const LOG = join(HOME, 'postgres.log');
 /** Migration 0056 is data only and was written before the seed library is loaded; re-run after it. */
 const SPLIT_MIGRATION = 'packages/database/src/migrations/0056_a_lunch_is_one_plate.sql';
 const SEED_LIBRARY = 'docs/local/nutria-seed-500.sql';
+/** Production's model-made recipes, from scripts/export-reference-library.mjs (decision 0080). */
+const REFERENCE_LIBRARY = 'docs/local/reference-ai-recipes.sql';
 
 /** `embedded-postgres` and the binaries of this platform's package, resolved through it. */
 async function engine() {
@@ -182,6 +187,22 @@ async function status() {
   ]);
 
   console.log(`[db:local] ${DATABASE}: postgres ${version}, ${migrations} migrations, ${ingredients} ingredients, ${recipes} recipes`);
+
+  const list = async sql => {
+    try {
+      return (await query(Client, DATABASE, sql)).rows.map(row => `${row.k} ${row.n}`).join(', ');
+    } catch {
+      return 'none';
+    }
+  };
+
+  const [bySource, bySlot] = await Promise.all([
+    list('select source as k, count(*)::int as n from recipes group by source order by n desc, k'),
+    list(`select source || ' ' || slot as k, count(*)::int as n from recipes, unnest(meal_slots) as slot group by source, slot order by source, n desc, slot`)
+  ]);
+
+  console.log(`[db:local] recipes by source: ${bySource || 'none'}`);
+  console.log(`[db:local] recipes by source and slot: ${bySlot || 'none'}`);
 }
 
 /** The main checkout: `docs/local/` is gitignored, so a worktree has no copy of its own. */
@@ -200,7 +221,23 @@ function pnpm(args) {
   }
 }
 
-async function reset() {
+/** A gitignored file under docs/local/, from this checkout or, failing that, the main one. */
+function localFile(path) {
+  return [ROOT, mainCheckout()]
+    .filter(Boolean)
+    .map(at => join(at, path))
+    .find(existsSync);
+}
+
+async function reset({ reference = false } = {}) {
+  const referenceLibrary = reference ? localFile(REFERENCE_LIBRARY) : undefined;
+
+  // Before anything is dropped: a baseline taken on the seed alone, believing it the reference, is worse than none.
+  if (reference && !referenceLibrary) {
+    console.error(`[db:local] --reference: no ${REFERENCE_LIBRARY} here or in the main checkout — run scripts/export-reference-library.mjs first`);
+    process.exit(1);
+  }
+
   const Client = await start();
 
   // `with (force)` ends whatever still holds a connection: an API left running, a stuck test.
@@ -210,7 +247,7 @@ async function reset() {
   pnpm(['--filter', 'database', 'migrate']);
   pnpm(['--filter', 'database', 'seed']);
 
-  const library = [ROOT, mainCheckout()].filter(Boolean).map(at => join(at, SEED_LIBRARY)).find(existsSync);
+  const library = localFile(SEED_LIBRARY);
 
   if (library) {
     await query(Client, DATABASE, readFileSync(library, 'utf8'));
@@ -221,6 +258,13 @@ async function reset() {
     console.log(`[db:local] no ${SEED_LIBRARY} here or in the main checkout — the library is empty`);
   }
 
+  if (referenceLibrary) {
+    await query(Client, DATABASE, readFileSync(referenceLibrary, 'utf8'));
+    console.log(`[db:local] loaded ${referenceLibrary}`);
+    await query(Client, DATABASE, readFileSync(join(ROOT, SPLIT_MIGRATION), 'utf8'));
+    console.log('[db:local] re-ran 0056 over the reference library');
+  }
+
   await status();
 }
 
@@ -229,9 +273,17 @@ const command = commands[process.argv[2]];
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (!command) {
-    console.error('usage: pnpm db:local start | stop | status | reset');
+    console.error('usage: pnpm db:local start | stop | status | reset [--reference]');
     process.exit(2);
   }
 
-  await command();
+  const flags = process.argv.slice(3);
+  const unknown = flags.filter(flag => !(command === reset && flag === '--reference'));
+
+  if (unknown.length > 0) {
+    console.error(`[db:local] unknown argument ${unknown.join(' ')}`);
+    process.exit(2);
+  }
+
+  await command({ reference: flags.includes('--reference') });
 }
