@@ -17,7 +17,19 @@ import { shapeFor } from 'core/domain/MealShape';
 import { toCatalogue } from 'core/entities/Plan';
 import { VARIETY_RULES, varietyViolations } from 'core/domain/Variety';
 
-import { PlanLoadRebuildService } from './PlanLoadRebuild.service.js';
+import type * as Scheduler from 'core/domain/Scheduler';
+
+/*
+ * `schedulePlan` is a named import of a CommonJS export, fixed at link time:
+ * mocked at the module seam, wrapping the real one, so a case can hand the
+ * rebuild a day its own gate must refuse.
+ */
+const scheduler = jest.requireActual<typeof Scheduler>('core/domain/Scheduler');
+const schedulePlan = jest.fn<typeof scheduler.schedulePlan>(scheduler.schedulePlan);
+
+jest.unstable_mockModule('core/domain/Scheduler', () => ({ ...scheduler, schedulePlan }));
+
+const { PlanLoadRebuildService } = await import('./PlanLoadRebuild.service.js');
 
 import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
 import type { EventView } from 'core/controllers/Event';
@@ -399,6 +411,41 @@ describe('PlanLoadRebuildService — a fortnight rebuilt for an event (0044)', (
 
       await expect(service.forEvent('usr-1', race(), TODAY)).resolves.toEqual(['2026-09-11']);
       expect(sideKeys(rebuild)).not.toContain('pan-sin-gluten');
+    });
+
+    it('refuses to write a day whose side the allergy gate rejects', async () => {
+      // As if the larder had been bypassed: a coeliac's rebuilt lunch comes back
+      // with wheat bread beside a safe plate. The gate reads plate and sides together.
+      schedulePlan.mockImplementationOnce(input => {
+        const result = scheduler.schedulePlan(input);
+
+        if (!result.ok) {
+          return result;
+        }
+
+        const [first, ...rest] = result.assignment.days;
+        const [meal, ...others] = first?.meals ?? [];
+
+        if (!first || !meal) {
+          return result;
+        }
+
+        const side = { ingredients: [{ grams: 60, slug: 'pan-blanco' }], key: 'pan-blanco', macros: meal.macros };
+        const sided = { ...meal, accompaniments: [side], ingredients: [...meal.ingredients, ...side.ingredients] };
+
+        return { ...result, assignment: { days: [{ ...first, meals: [sided, ...others] }, ...rest] } };
+      });
+
+      const { rebuild, service } = build({
+        accompaniments: true,
+        // The plates' rice made safe for them, so only the side is in question.
+        catalogue: toCatalogue([ingredient('arroz'), bread('pan-blanco', true), bread('pan-sin-gluten', false)]),
+        safety: new Set([GLUTEN])
+      });
+
+      await expect(service.forEvent('usr-1', race(), TODAY)).resolves.toEqual([]);
+      expect(schedulePlan).toHaveBeenCalled();
+      expect(rebuild).not.toHaveBeenCalled();
     });
   });
 });
