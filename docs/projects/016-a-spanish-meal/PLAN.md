@@ -92,7 +92,8 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
   - With no suggestion, it offers only "Seguir así".
   - Owners: `backend-high` (core and view) and `frontend` (the copy). Unit tests cover the owner's four-meal shape.
 - **Steps**:
-  1. Add `core/domain/Accompaniment`, with the list, the discrete portions and the per-person filter (safety, exclusions, season, meal, kosher on the whole meal).
+  0. Implement `0079` tables 1 and 2 in core: the cuisine-family normaliser, and meal fit by family and food group, which widens and narrows. It is wired into `MealFit` for the library's reuse and into the pool builder's slot fit. It applies regardless of the accompaniments flag, and the evaluator guards it.
+  1. Add `core/domain/Accompaniment`, implementing `0079` table 3 literally (simple and composed, by the dish's family), with the discrete portions and the per-person filter (safety, exclusions, season as a hard filter, meal, kosher on the whole meal).
   2. Scheduler: sets in `balancedDay`, the soft serving cost, and `ScheduledMeal.accompaniments`, with macros and ingredients covering the whole meal.
   3. `pickReplacement` composes sets too.
   4. Tests, including the risks named in `0008`:
