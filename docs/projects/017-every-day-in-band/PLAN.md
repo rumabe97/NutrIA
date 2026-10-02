@@ -63,7 +63,7 @@ Every measurement runs on the local Postgres: `pnpm db:local`, `NUTRIA_LOCAL_PG=
 
 - [ ] pending
 - **Dispatch**: opus @ medium — `/execute-project 017 phase 2`. `plan-evaluator` (opus @ high) measures.
-- **Covers**: PRD criterion 3.
+- **Covers**: PRD criterion 3 (read as "outside what `0079` allows": rice at an Asian or Latin dinner is allowed), and the owner's amendments of 2026-10-02 (grains capped, legumes varied).
 - **Steps**:
   1. Bring in 603fc977 (`FOOD_GROUP_GRAMS` for rice, pasta and grains at 20 g dry; `noquis` in pasta; specs from the four production dishes). Rebase it on `main` and keep its specs.
   2. Evaluate off and on against the phase 1 baseline. Report per profile:
@@ -71,6 +71,13 @@ Every measurement runs on the local Postgres: `pnpm db:local`, `NUTRIA_LOCAL_PG=
      - pasta/rice dinners outside Asian, which must be 0;
      - the starch totals.
   3. Find each day that moves out of band and record its cause, but do not fix it here: phase 3 does.
+  4. *Amended 2026-10-02 (owner, from a second production plan).* Couscous and the other grains get the same fortnightly treatment as pasta and rice: a cap of 4 and never on consecutive days, priced in `STARCH_RULES`. A real plan served couscous 7 times, 5 of them at dinner.
+  5. *Amended 2026-10-02 (owner): legumes vary.* The AESAN guidance of legumes at least 3–4 times a week stays a floor, not a ceiling: the total is not capped. What varies is the kind.
+     - The same legume (chickpeas, lentils, white beans, other beans and so on, read from the dish's pulse ingredients) appears at most 3 times a fortnight and never on consecutive days.
+     - The same dish appears at most twice a fortnight, as today.
+     - This uses the same pricing as the starch rule.
+     - The evaluator reports legumes by kind per profile.
+     - A real plan served chickpeas at 6 of 14 lunches, twice on consecutive days.
 - **Stop if**: an allergen reaches a plate, or a dinner pool falls under `DISHES_NEEDED_PER_SLOT`.
 - **Verification**:
   - `docs/local/017-p2-{off,on}.json`;
@@ -81,7 +88,7 @@ Every measurement runs on the local Postgres: `pnpm db:local`, `NUTRIA_LOCAL_PG=
 
 - [ ] pending
 - **Dispatch**: opus @ high — `/execute-project 017 phase 3`. `plan-evaluator` (opus @ high). Deviation from `tiered`'s medium: the fix is a design choice in the scheduler's search, not a specified change.
-- **Covers**: PRD criteria 4 and 6.
+- **Covers**: PRD criteria 4 and 6, and the owner's amendments of 2026-10-02 (snack dishes at dinner, the new profile).
 - **Steps**:
   1. For every day out of band on the phase 2 runs, off and on, read the day: which macro, which meal and serving size, which accompaniment set, and which rule priced the better day away (starch, protein, per-food ceiling, plate limit, energy floor).
   2. Fix by cause, the cheapest sound fix first:
@@ -91,6 +98,12 @@ Every measurement runs on the local Postgres: `pnpm db:local`, `NUTRIA_LOCAL_PG=
      A rule may not be loosened in a way that lets an allergen, a per-food ceiling or the 35% side share through.
   3. Re-run until 14/14 everywhere. Scheduler hash-pinned specs may move only with a comment naming the cause.
   4. Time: the evaluator's `ms` per profile against #198's figures, within +10%.
+  5. *Amended 2026-10-02 (owner): a dinner is a meal.*
+     - A dish that is a snack or a breakfast by its own slots never fills lunch or dinner.
+     - No dish is served above 2 servings at a main meal unless it was designed as a main.
+     - A real plan served "Copa de yogur proteico con pistachos y mandarina" ×3 as dinner.
+     - Add a spec, and an evaluator count of main meals filled by snack or breakfast dishes, which must be 0.
+  6. *Amended 2026-10-02 (owner): add an evaluator profile like that real plan's person.* Three meals (morning snack, lunch, dinner), 2,079 kcal, protein 138 g. Its protein ran −3% to −15% on most days, so it joins the 14/14 target.
 - **Stop if**: a fix needs a rule change the owner has not decided, or 14/14 is unreachable on a profile. In that case, write down why and which macro, and stop.
 - **Verification**:
   - `docs/local/017-p3-{off,on}.json` at 182/182;

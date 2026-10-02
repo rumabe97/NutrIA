@@ -109,3 +109,16 @@ The one gnocchi plate is imc-alto-2-comidas, on, day 5 dinner: "Ñoquis salteado
 - **Notes for the next phase**:
   - The new baseline is 181/182 off and 182/182 on, not the seed library's figures. Phase 2 compares against these two files.
   - Every non-Asian pasta or rice dinner here is Latin rice. Check whether Table 2 allows rice at a Latin dinner before counting those against criterion 3.
+
+## Plan amended (2026-10-02, owner)
+
+A second production plan was reviewed with the owner: v3 of a 3-meal account, 2,079 kcal.
+- **In band:** 12/14 days, both misses on protein (−15.1%, −5.9%).
+- **Couscous:** 7 times, 5 of them at dinner, and a pasta dinner. That is the threshold leak phase 2 fixes.
+- **Chickpeas:** at 6 of 14 lunches, twice on consecutive days.
+- **A snack dish as dinner:** a yoghurt cup at 3 servings.
+
+Added:
+- Phase 2: grains capped like pasta and rice, and legumes varied by kind.
+- Phase 3: a dinner is never a snack or breakfast dish, no more than 2 servings unless the dish is a main, and a new evaluator profile shaped like that account.
+- Criterion 3 is read as "outside what `0079` allows": rice at a Latin dinner is allowed.
