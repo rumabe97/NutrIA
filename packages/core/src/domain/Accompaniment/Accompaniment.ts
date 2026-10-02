@@ -53,14 +53,7 @@ const DRESSING: readonly AccompanimentItem[] = [
 ];
 
 function bread(slug: string): Accompaniment {
-  return {
-    families: 'all',
-    key: slug,
-    months: 'all',
-    portions: [[{ grams: 30, slug }], [{ grams: 60, slug }]],
-    role: 'starch',
-    slots: BLD
-  };
+  return { families: 'all', key: slug, months: 'all', portions: [[{ grams: 30, slug }], [{ grams: 60, slug }]], role: 'starch', slots: BLD };
 }
 
 function fruit(slug: string, grams: number): Accompaniment {
@@ -108,12 +101,47 @@ export const ACCOMPANIMENTS: readonly Accompaniment[] = [
   fruit('melon', 200),
   fruit('sandia', 200),
   fruit('pina', 150),
-  { families: 'all', key: 'yogur-natural-desnatado', months: 'all', portions: [[{ grams: 125, slug: 'yogur-natural-desnatado' }]], role: 'dessert', slots: BLD },
-  { families: 'all', key: 'yogur-griego-natural', months: 'all', portions: [[{ grams: 125, slug: 'yogur-griego-natural' }]], role: 'dessert', slots: BLD },
+  {
+    families: 'all',
+    key: 'yogur-natural-desnatado',
+    months: 'all',
+    portions: [[{ grams: 125, slug: 'yogur-natural-desnatado' }]],
+    role: 'dessert',
+    slots: BLD
+  },
+  {
+    families: 'all',
+    key: 'yogur-griego-natural',
+    months: 'all',
+    portions: [[{ grams: 125, slug: 'yogur-griego-natural' }]],
+    role: 'dessert',
+    slots: BLD
+  },
   // Nuts and cheese: breakfast only (owner's answer 7). In the third place beside the plate.
-  { families: 'all', key: 'nueces', months: 'all', portions: [[{ grams: 20, slug: 'nueces' }], [{ grams: 30, slug: 'nueces' }]], role: 'dessert', slots: ['breakfast'] },
-  { families: 'all', key: 'almendras', months: 'all', portions: [[{ grams: 20, slug: 'almendras' }], [{ grams: 30, slug: 'almendras' }]], role: 'dessert', slots: ['breakfast'] },
-  { families: 'all', key: 'queso-de-burgos', months: 'all', portions: [[{ grams: 60, slug: 'queso-de-burgos' }]], role: 'dessert', slots: ['breakfast'] },
+  {
+    families: 'all',
+    key: 'nueces',
+    months: 'all',
+    portions: [[{ grams: 20, slug: 'nueces' }], [{ grams: 30, slug: 'nueces' }]],
+    role: 'dessert',
+    slots: ['breakfast']
+  },
+  {
+    families: 'all',
+    key: 'almendras',
+    months: 'all',
+    portions: [[{ grams: 20, slug: 'almendras' }], [{ grams: 30, slug: 'almendras' }]],
+    role: 'dessert',
+    slots: ['breakfast']
+  },
+  {
+    families: 'all',
+    key: 'queso-de-burgos',
+    months: 'all',
+    portions: [[{ grams: 60, slug: 'queso-de-burgos' }]],
+    role: 'dessert',
+    slots: ['breakfast']
+  },
   { families: 'all', key: 'requeson', months: 'all', portions: [[{ grams: 60, slug: 'requeson' }]], role: 'dessert', slots: ['breakfast'] },
   {
     families: ['latin'],
@@ -124,7 +152,14 @@ export const ACCOMPANIMENTS: readonly Accompaniment[] = [
     slots: BLD
   },
   { families: ['arab'], key: 'pan-de-pita', months: 'all', portions: [[{ grams: 60, slug: 'pan-de-pita' }]], role: 'starch', slots: BLD },
-  { families: ['arab'], key: 'hummus', months: 'all', portions: [[{ grams: 30, slug: 'hummus' }], [{ grams: 60, slug: 'hummus' }]], role: 'vegetable', slots: LD },
+  {
+    families: ['arab'],
+    key: 'hummus',
+    months: 'all',
+    portions: [[{ grams: 30, slug: 'hummus' }], [{ grams: 60, slug: 'hummus' }]],
+    role: 'vegetable',
+    slots: LD
+  },
   // 3b — composed, g per person.
   composed('ensalada-verde', 'vegetable', [...SPANISH, 'italian', 'latin', 'arab'], 'all', [
     { grams: 80, slug: 'lechuga' },
@@ -137,12 +172,13 @@ export const ACCOMPANIMENTS: readonly Accompaniment[] = [
     { grams: 15, slug: 'cebolla' },
     ...DRESSING
   ]),
-  composed('ensalada-de-invierno', 'vegetable', SPANISH, [11, 12, 1, 2, 3], [
-    { grams: 40, slug: 'canonigos' },
-    { grams: 80, slug: 'naranja' },
-    { grams: 40, slug: 'zanahoria' },
-    ...DRESSING
-  ]),
+  composed(
+    'ensalada-de-invierno',
+    'vegetable',
+    SPANISH,
+    [11, 12, 1, 2, 3],
+    [{ grams: 40, slug: 'canonigos' }, { grams: 80, slug: 'naranja' }, { grams: 40, slug: 'zanahoria' }, ...DRESSING]
+  ),
   composed('gazpacho', 'vegetable', SPANISH, SUMMER, [
     { grams: 180, slug: 'tomate' },
     { grams: 30, slug: 'pepino' },
@@ -159,18 +195,30 @@ export const ACCOMPANIMENTS: readonly Accompaniment[] = [
     { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
     { grams: 0.5, slug: 'sal' }
   ]),
-  composed('brocoli-salteado', 'vegetable', SPANISH, [10, 11, 12, 1, 2, 3, 4, 5, 6], [
-    { grams: 150, slug: 'brocoli' },
-    { grams: 3, slug: 'ajo' },
-    { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
-    { grams: 0.5, slug: 'sal' }
-  ]),
-  composed('judias-verdes-rehogadas', 'vegetable', SPANISH, [8, 9, 10], [
-    { grams: 150, slug: 'judia-verde' },
-    { grams: 3, slug: 'ajo' },
-    { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
-    { grams: 0.5, slug: 'sal' }
-  ]),
+  composed(
+    'brocoli-salteado',
+    'vegetable',
+    SPANISH,
+    [10, 11, 12, 1, 2, 3, 4, 5, 6],
+    [
+      { grams: 150, slug: 'brocoli' },
+      { grams: 3, slug: 'ajo' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'judias-verdes-rehogadas',
+    'vegetable',
+    SPANISH,
+    [8, 9, 10],
+    [
+      { grams: 150, slug: 'judia-verde' },
+      { grams: 3, slug: 'ajo' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
   composed('insalata-mista', 'vegetable', ['italian'], SUMMER, [
     { grams: 60, slug: 'lechuga' },
     { grams: 60, slug: 'tomate-cherry' },
@@ -256,10 +304,16 @@ export const ACCOMPANIMENTS: readonly Accompaniment[] = [
     ],
     ['lunch']
   ),
-  composed('naranja-con-canela', 'dessert', ['arab'], [11, 12, 1, 2, 3, 4, 5], [
-    { grams: 130, slug: 'naranja' },
-    { grams: 1, slug: 'canela-molida' }
-  ])
+  composed(
+    'naranja-con-canela',
+    'dessert',
+    ['arab'],
+    [11, 12, 1, 2, 3, 4, 5],
+    [
+      { grams: 130, slug: 'naranja' },
+      { grams: 1, slug: 'canela-molida' }
+    ]
+  )
 ];
 
 /** One accompaniment at one portion, with what it carries. */
@@ -485,7 +539,9 @@ export function setsBeside(
 ): readonly AccompanimentSet[] {
   const { catalogue, preferences } = larder.diner;
 
-  return setsOf(portionsBeside(larder, dish, slot, month)).filter(set => !breaksDishRule([...dish.ingredients, ...set.items], catalogue, preferences));
+  return setsOf(portionsBeside(larder, dish, slot, month)).filter(
+    set => !breaksDishRule([...dish.ingredients, ...set.items], catalogue, preferences)
+  );
 }
 
 function toSet(portions: readonly AccompanimentPortion[]): AccompanimentSet {

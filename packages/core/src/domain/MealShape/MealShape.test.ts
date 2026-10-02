@@ -147,7 +147,14 @@ describe('the change the large-meals note names (016 phase 3)', () => {
   });
 
   it('adds an afternoon snack when nothing earlier in the order is open', () => {
-    const noSnacks: MealShape = { afternoon_snack: 'off', breakfast: 'normal', dinner: 'normal', lunch: 'normal', morning_snack: 'off', supper: 'off' };
+    const noSnacks: MealShape = {
+      afternoon_snack: 'off',
+      breakfast: 'normal',
+      dinner: 'normal',
+      lunch: 'normal',
+      morning_snack: 'off',
+      supper: 'off'
+    };
     const kcal = 2700;
 
     // 2,700 × 0.33 ÷ 0.88 = 1,013; with a normal afternoon snack 2,700 × 0.33 ÷ 0.97 = 919 — still large.
@@ -163,10 +170,21 @@ describe('the change the large-meals note names (016 phase 3)', () => {
 
   it('skips a change that does not get there and names the next that does', () => {
     // Breakfast is already eaten, so the light snack is the first change tried.
-    const lightBreakfastNoSnacks: MealShape = { afternoon_snack: 'off', breakfast: 'light', dinner: 'normal', lunch: 'normal', morning_snack: 'light', supper: 'off' };
+    const lightBreakfastNoSnacks: MealShape = {
+      afternoon_snack: 'off',
+      breakfast: 'light',
+      dinner: 'normal',
+      lunch: 'normal',
+      morning_snack: 'light',
+      supper: 'off'
+    };
 
     // 0.125 + 0.04 + 0.33 + 0.30 = 0.795: lunch 2,100 × 0.33 ÷ 0.795 = 872. A normal morning snack: 0.835 → 830.
-    expect(mealSizeSuggestion(lightBreakfastNoSnacks, { kcal: 2100 })).toEqual({ change: 'snack_to_normal', largestMainKcal: 830, slot: 'morning_snack' });
+    expect(mealSizeSuggestion(lightBreakfastNoSnacks, { kcal: 2100 })).toEqual({
+      change: 'snack_to_normal',
+      largestMainKcal: 830,
+      slot: 'morning_snack'
+    });
     // At 2,200 that is 869, still large; the afternoon snack is added instead: 0.885 → 820.
     expect(mealSizeSuggestion(lightBreakfastNoSnacks, { kcal: 2200 })).toEqual({ change: 'add_afternoon_snack', largestMainKcal: 820 });
   });

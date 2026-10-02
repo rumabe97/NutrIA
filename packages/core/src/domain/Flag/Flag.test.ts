@@ -4,7 +4,14 @@ import { fallbackFlags, FLAG_NAMES, FLAGS, flagsFor, flagsFrom } from 'core/doma
 
 describe('flagsFrom', () => {
   it('gives every flag its declared fallback when the table is empty', () => {
-    expect(flagsFrom([])).toEqual({ accompaniments: false, automaticActivation: true, checkInReminders: false, dishPictures: false, premium: false, professional: false });
+    expect(flagsFrom([])).toEqual({
+      accompaniments: false,
+      automaticActivation: true,
+      checkInReminders: false,
+      dishPictures: false,
+      premium: false,
+      professional: false
+    });
   });
 
   it('lets a stored row override the fallback, in both directions', () => {
@@ -26,7 +33,14 @@ describe('flagsFrom', () => {
         { enabled: true, key: 'premium' },
         { enabled: false, key: 'automatic_activation' }
       ])
-    ).toEqual({ accompaniments: false, automaticActivation: false, checkInReminders: false, dishPictures: false, premium: true, professional: false });
+    ).toEqual({
+      accompaniments: false,
+      automaticActivation: false,
+      checkInReminders: false,
+      dishPictures: false,
+      premium: true,
+      professional: false
+    });
   });
 });
 

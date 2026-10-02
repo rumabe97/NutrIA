@@ -362,7 +362,11 @@ describe('RecipeController.reusablePool — a dish is served only at the meals i
     const pool = await RecipeController.reusablePool(['breakfast', 'lunch', 'dinner'], contextFor([], empty));
 
     // No cuisine is judged as Spanish: lentils are a lunch, whatever the list says.
-    expect(slotsOf(pool)).toEqual({ 'cebolla-asada': ['breakfast', 'lunch', 'dinner'], 'cena-energetica': ['dinner'], 'lentejas-estofadas': ['lunch'] });
+    expect(slotsOf(pool)).toEqual({
+      'cebolla-asada': ['breakfast', 'lunch', 'dinner'],
+      'cena-energetica': ['dinner'],
+      'lentejas-estofadas': ['lunch']
+    });
   });
 
   it('serves the same stew at dinner when its cuisine is Italian (0079, option B)', async () => {

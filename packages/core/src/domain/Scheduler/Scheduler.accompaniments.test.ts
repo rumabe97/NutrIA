@@ -43,17 +43,17 @@ const FOODS = [
 ];
 
 const plates = FOODS.map((food, index) =>
-    makeCatalogueIngredient({
-      id: `ing-${index}`,
-      carbsPer100g: food.carbs,
-      fatPer100g: food.fat,
-      fiberPer100g: 1,
-      kcalPer100g: food.kcal,
-      name: food.slug,
-      proteinPer100g: food.protein,
-      slug: food.slug,
-      ...(food.slug === 'pollo' ? { classes: ['animal', 'meat'] as const } : food.slug === 'yogur' ? { classes: ['animal', 'dairy'] as const } : {})
-    })
+  makeCatalogueIngredient({
+    id: `ing-${index}`,
+    carbsPer100g: food.carbs,
+    fatPer100g: food.fat,
+    fiberPer100g: 1,
+    kcalPer100g: food.kcal,
+    name: food.slug,
+    proteinPer100g: food.protein,
+    slug: food.slug,
+    ...(food.slug === 'pollo' ? { classes: ['animal', 'meat'] as const } : food.slug === 'yogur' ? { classes: ['animal', 'dairy'] as const } : {})
+  })
 );
 const catalogue = makeCatalogue(plates);
 
@@ -161,7 +161,9 @@ describe('the scheduler with accompaniments off — the plans it always made', (
       slot: 'lunch'
     });
 
-    expect(createHash('sha256').update(JSON.stringify(replacement)).digest('hex')).toBe('a904b080b51a87150c83263c70337856a2035cf290bd8c5cda0f0d59778fba45');
+    expect(createHash('sha256').update(JSON.stringify(replacement)).digest('hex')).toBe(
+      'a904b080b51a87150c83263c70337856a2035cf290bd8c5cda0f0d59778fba45'
+    );
   });
 });
 

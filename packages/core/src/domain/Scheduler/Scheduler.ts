@@ -226,9 +226,7 @@ export type AccompanimentOffer = {
 };
 
 /** The offer, bound to one day: the sets a pick of that day may take, or null for a meal that takes none. */
-type Sides = {
-  readonly setsOf: (pick: Pick, budget: SlotBudget) => readonly AccompanimentSet[] | null;
-};
+type Sides = { readonly setsOf: (pick: Pick, budget: SlotBudget) => readonly AccompanimentSet[] | null };
 
 function sidesFor(offer: AccompanimentOffer | undefined, cache: Map<string, readonly AccompanimentSet[]>): ((dayIndex: number) => Sides) | undefined {
   if (!offer) {
@@ -604,10 +602,9 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
  * and the macros of both — so the day's totals, `validatePlan`, the allergy
  * gate and the shopping list all see what the person eats, not only the plate.
  */
-function withAccompaniments<T extends { readonly ingredients: readonly { readonly grams: number; readonly slug: string }[]; readonly macros: Macros }>(
-  plate: T,
-  set: AccompanimentSet
-): T & { readonly accompaniments: ScheduledMeal['accompaniments'] } {
+function withAccompaniments<
+  T extends { readonly ingredients: readonly { readonly grams: number; readonly slug: string }[]; readonly macros: Macros }
+>(plate: T, set: AccompanimentSet): T & { readonly accompaniments: ScheduledMeal['accompaniments'] } {
   return {
     ...plate,
     accompaniments: set.portions.map(portion => ({ ingredients: portion.items, key: portion.accompaniment.key, macros: portion.macros })),
@@ -734,7 +731,10 @@ export function pickReplacement(input: {
       .map((candidate, index) => ({ cost: setCost(candidate, base, budget, input.slot), index, set: candidate }))
       .sort((a, b) => a.cost - b.cost || a.index - b.index)
       .at(0)?.set ?? NO_ACCOMPANIMENT;
-  let servings = set === NO_ACCOMPANIMENT ? servingsFor(base, budget, input.slot) : (servingsBeside(set, base, budget, input.slot) ?? servingsFor(base, budget, input.slot));
+  let servings =
+    set === NO_ACCOMPANIMENT
+      ? servingsFor(base, budget, input.slot)
+      : (servingsBeside(set, base, budget, input.slot) ?? servingsFor(base, budget, input.slot));
 
   // Ends: `passes` kept only dishes that reach it at the largest size. The one
   // place a plate may pass `PLATE_LIMIT.max` or `PLATE_GRAMS_MAX`, and only as
@@ -1259,7 +1259,9 @@ function balancedDay(
   const noBudget = { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
   // Per pick, the sets the search may give it: its own (none, or the one it
   // carries) unless it takes accompaniments.
-  const offered: readonly (readonly (AccompanimentSet | undefined)[])[] = picks.map(pick => sides?.setsOf(pick, budgets.get(pick.slot) ?? noBudget) ?? [pick.set]);
+  const offered: readonly (readonly (AccompanimentSet | undefined)[])[] = picks.map(
+    pick => sides?.setsOf(pick, budgets.get(pick.slot) ?? noBudget) ?? [pick.set]
+  );
 
   // What does not change between combinations, worked out once: each meal's
   // share, and the pairs whose order the person set (`SHARE_ORDER_GAP`), in the
@@ -1506,7 +1508,8 @@ function improveDay(
     const repeatsOf = (day: readonly ProteinMeal[]): number => proteinExcess(day, elsewhere, protein.cap) * PROTEIN_REPEAT_WEIGHT;
     // Priced the same way the candidates will be, or a swap could "win" against
     // a day that was never sized.
-    let bestCost = balancedDay(current, targets, budgets, input.minimumKcal, false, sides).cost + repeatsOf(today) + dayReuseCost(current, dayIndex, others);
+    let bestCost =
+      balancedDay(current, targets, budgets, input.minimumKcal, false, sides).cost + repeatsOf(today) + dayReuseCost(current, dayIndex, others);
     let bestDay: readonly Pick[] | undefined;
     const shortlist: { readonly cost: number; readonly extra: number; readonly swapped: readonly Pick[] }[] = [];
 
@@ -1546,7 +1549,10 @@ function improveDay(
     const priced = shortlist
       .sort((a, b) => a.cost - b.cost)
       .slice(0, SWAP_SHORTLIST)
-      .map(entry => ({ cost: balancedDay(entry.swapped, targets, budgets, input.minimumKcal, false, sides).cost + entry.extra, swapped: entry.swapped }));
+      .map(entry => ({
+        cost: balancedDay(entry.swapped, targets, budgets, input.minimumKcal, false, sides).cost + entry.extra,
+        swapped: entry.swapped
+      }));
 
     for (const entry of priced) {
       if (entry.cost < bestCost) {

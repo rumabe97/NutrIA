@@ -149,7 +149,10 @@ describe('fitSlots — which of its own meals a dish may be served at', () => {
   it('changes nothing when every list is empty', () => {
     const empty = toCatalogue([...catalogue.values()].map(ingredient => ({ ...ingredient, mealSlots: [] })));
 
-    for (const slugs of [['pollo', 'chorizo'], ['bebida-energetica', 'huevo']]) {
+    for (const slugs of [
+      ['pollo', 'chorizo'],
+      ['bebida-energetica', 'huevo']
+    ]) {
       expect(fitSlots(dish([...EVERY_SLOT], ...slugs), empty, OMNIVORE)).toEqual(EVERY_SLOT);
     }
 

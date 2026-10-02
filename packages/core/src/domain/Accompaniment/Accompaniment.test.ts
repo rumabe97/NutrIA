@@ -138,11 +138,26 @@ describe('larderFor — what one person may ever be offered (0079 § 3d)', () =>
   });
 
   it('takes out for traditional Spanish every row 0077 excludes, and with it each foreign accompaniment', () => {
-    const preferences = resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: ['traditional_spanish'], dislikedLabels: [], ingredients: rows });
+    const preferences = resolvePreferences({
+      allergenIdsByKey: new Map(),
+      dietaryPatterns: ['traditional_spanish'],
+      dislikedLabels: [],
+      ingredients: rows
+    });
     const larder = larderFor(diner(NOBODY, preferences));
     const keys = keysOf(larder.portions);
 
-    for (const key of ['tortilla-de-maiz', 'pan-de-pita', 'hummus', 'sopa-de-miso', 'ensalada-de-pepino', 'pak-choi-salteado', 'pico-de-gallo', 'frijoles', 'tabule']) {
+    for (const key of [
+      'tortilla-de-maiz',
+      'pan-de-pita',
+      'hummus',
+      'sopa-de-miso',
+      'ensalada-de-pepino',
+      'pak-choi-salteado',
+      'pico-de-gallo',
+      'frijoles',
+      'tabule'
+    ]) {
       expect(keys.has(key)).toBe(false);
     }
 
@@ -236,7 +251,9 @@ describe('portionsBeside — what may go beside one plate, at one meal, in one m
     expect([...keysOf(portionsBeside(kosherLarder, meat, 'lunch', OCTOBER))].some(key => key.startsWith('yogur'))).toBe(false);
     expect(keysOf(portionsBeside(kosherLarder, SPANISH_STEW, 'lunch', OCTOBER)).has('yogur-griego-natural')).toBe(true);
     // The same meat plate for somebody who does not keep them apart.
-    expect(keysOf(portionsBeside(larderFor({ ...diner(), catalogue: meatCatalogue }), meat, 'lunch', OCTOBER)).has('yogur-griego-natural')).toBe(true);
+    expect(keysOf(portionsBeside(larderFor({ ...diner(), catalogue: meatCatalogue }), meat, 'lunch', OCTOBER)).has('yogur-griego-natural')).toBe(
+      true
+    );
   });
 });
 

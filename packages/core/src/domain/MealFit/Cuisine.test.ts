@@ -16,7 +16,22 @@ describe('cuisineFamily — Table 1 of 0079', () => {
     asian: ['Asiática', 'asian', 'Oriental', 'China', 'Japonesa', 'Coreana', 'Tailandesa', 'Vietnamita', 'India', 'indio', 'indian', 'Hawaiana'],
     italian: ['Italiana', 'italian'],
     latin: ['Mexicana', 'mexican', 'Latina', 'Peruana', 'Venezolana', 'Colombiana', 'Argentina', 'Cubana', 'Caribeña'],
-    other: ['Internacional', 'Fusión', 'moderna', 'sana', 'continental', 'europea', 'centroeuropea', 'Francesa', 'Americana', 'estadounidense', 'Nórdica', 'escandinava', 'tropical', 'klingon'],
+    other: [
+      'Internacional',
+      'Fusión',
+      'moderna',
+      'sana',
+      'continental',
+      'europea',
+      'centroeuropea',
+      'Francesa',
+      'Americana',
+      'estadounidense',
+      'Nórdica',
+      'escandinava',
+      'tropical',
+      'klingon'
+    ],
     spanish: [
       'Mediterránea',
       'mediterranean',
@@ -48,9 +63,12 @@ describe('cuisineFamily — Table 1 of 0079', () => {
     ]
   };
 
-  it.each(Object.entries(TABLE_1).flatMap(([family, values]) => values.map(value => [value, family] as const)))('reads "%s" as %s', (value, family) => {
-    expect(cuisineFamily(value)).toBe(family);
-  });
+  it.each(Object.entries(TABLE_1).flatMap(([family, values]) => values.map(value => [value, family] as const)))(
+    'reads "%s" as %s',
+    (value, family) => {
+      expect(cuisineFamily(value)).toBe(family);
+    }
+  );
 
   it('judges no cuisine as other, which takes the Spanish table', () => {
     expect(cuisineFamily(null)).toBe('other');
@@ -61,7 +79,16 @@ describe('cuisineFamily — Table 1 of 0079', () => {
 
 describe('the food groups of Table 2', () => {
   it('keeps the rows Table 2 says are not rice out of rice', () => {
-    for (const slug of ['tortitas-de-arroz', 'arroz-con-leche', 'arroz-hinchado', 'harina-de-arroz', 'bebida-de-arroz', 'papel-de-arroz', 'quinoa-hinchada', 'pasta-de-curry-rojo']) {
+    for (const slug of [
+      'tortitas-de-arroz',
+      'arroz-con-leche',
+      'arroz-hinchado',
+      'harina-de-arroz',
+      'bebida-de-arroz',
+      'papel-de-arroz',
+      'quinoa-hinchada',
+      'pasta-de-curry-rojo'
+    ]) {
       expect(foodGroupOf(slug)).toBeNull();
     }
   });

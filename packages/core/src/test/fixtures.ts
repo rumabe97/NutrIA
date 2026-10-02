@@ -223,7 +223,10 @@ export const MINIMUM_KCAL = minimumDailyKcal('female');
 /** Per 100 g for an accompaniment row, by what it is — near enough to the catalogue for a plate to be sized around it. */
 const ACCOMPANIMENT_MACROS: readonly [RegExp, Partial<CatalogueIngredient>][] = [
   [/^pan-|^tortilla-de-maiz$/, { carbsPer100g: 49, category: 'bakery', fatPer100g: 3.2, kcalPer100g: 265, proteinPer100g: 9 }],
-  [/^yogur|^queso|^requeson$/, { carbsPer100g: 4, category: 'dairy', classes: ['animal', 'dairy'], fatPer100g: 2, kcalPer100g: 70, proteinPer100g: 10 }],
+  [
+    /^yogur|^queso|^requeson$/,
+    { carbsPer100g: 4, category: 'dairy', classes: ['animal', 'dairy'], fatPer100g: 2, kcalPer100g: 70, proteinPer100g: 10 }
+  ],
   [/^nueces$|^almendras$|^sesamo$/, { carbsPer100g: 14, category: 'pantry', fatPer100g: 60, kcalPer100g: 650, proteinPer100g: 15 }],
   [/^aceite/, { carbsPer100g: 0, category: 'pantry', fatPer100g: 100, kcalPer100g: 884, proteinPer100g: 0 }],
   [/^arroz|^bulgur/, { carbsPer100g: 78, category: 'pantry', fatPer100g: 0.7, kcalPer100g: 360, proteinPer100g: 7 }],
