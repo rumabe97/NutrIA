@@ -115,7 +115,7 @@ export class MealSwapService {
     // is out, so its own dish may not come straight back into the same slot.
     const placed: Placement[] = meals
       .filter(meal => meal.id !== mealId)
-      .map(meal => ({ dayIndex: meal.dayIndex, dishSlug: meal.recipeSlug, slot: meal.slot }));
+      .map(meal => ({ dayIndex: meal.dayIndex, dishSlug: meal.recipeSlug, slot: meal.slot, starch: meal.starch }));
     const inPlan = new Set(meals.map(meal => meal.recipeSlug));
     const disliked = new Set(verdicts.disliked.map(dish => dish.slug));
     // The meal's own planned figures are the budget: the day's totals stay where

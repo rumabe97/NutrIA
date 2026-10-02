@@ -99,7 +99,8 @@ function meal(id: string, dayIndex: number, slot: MealSlot, dish: CandidateDish)
     recipeSlug: dish.slug,
     servings: 1,
     slot,
-    sortOrder: 0
+    sortOrder: 0,
+    starch: null
   };
 }
 

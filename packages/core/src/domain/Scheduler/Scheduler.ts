@@ -1,10 +1,24 @@
 import { NO_ACCOMPANIMENT, setsBeside } from 'core/domain/Accompaniment';
 import { addMacros, composePerServing, scaleIngredients, scaleMacros, sumMacros } from 'core/domain/Composition';
-import { canPlace, isPreferredDish, MAIN_SLOTS, mainProtein, nearestGap, PREFERRED_MAIN_GAP, PROTEIN_RULES, proteinCap } from 'core/domain/Variety';
+import {
+  canPlace,
+  isCappedStarch,
+  isPreferredDish,
+  MAIN_SLOTS,
+  mainProtein,
+  nearestGap,
+  PREFERRED_MAIN_GAP,
+  PROTEIN_RULES,
+  proteinCap,
+  starchCrowded,
+  starchExcess,
+  starchIndex,
+  starchMeals
+} from 'core/domain/Variety';
 import { PLAN_TOLERANCE } from 'core/domain/PlanValidation';
 import { plateFoodMax, plateFoods } from 'core/domain/PlateFood';
 import type { AccompanimentSet, Larder } from 'core/domain/Accompaniment';
-import type { Leaning, Placement } from 'core/domain/Variety';
+import type { Leaning, Placement, StarchIndex } from 'core/domain/Variety';
 import type { PlateFood } from 'core/domain/PlateFood';
 import type { CandidateDish, Catalogue, Macros, MealSlot, PlanAssignment, PlanDayAssignment, ScheduledMeal, SwapAxis } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
@@ -530,6 +544,8 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
   const proteins = proteinIndex(input.pool, input.catalogue);
   // Over the whole fortnight, even when only some of its days are laid out here.
   const cap = proteinCap(slots.length * days);
+  // Pasta and rice, priced at the protein rule's weight wherever it is (`STARCH_RULES`).
+  const starch: StarchRule = { days, index: starchIndex(input.pool) };
   const indexes = input.dayIndexes ?? Array.from({ length: days }, (_none, offset) => offset + 1);
 
   // The days that are not being laid out go in first, so every `canPlace` below
@@ -559,8 +575,17 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
       // deliver nothing — and the later passes never swap a fitting plate out.
       const fitting = eligible.filter(dish => fitsPlate(perServing.get(dish.slug) as PerServing, budget, slot));
 
-      const chosen = pickBest(fitting.length > 0 ? fitting : eligible, budget, perServing, placed, dayIndex, slot, slug =>
-        crowded(slug, { dayIndex, slot }, placed, proteins, cap)
+      const starchPlaced = starchMeals(placed, starch.index);
+      const chosen = pickBest(
+        fitting.length > 0 ? fitting : eligible,
+        budget,
+        perServing,
+        placed,
+        dayIndex,
+        slot,
+        slug =>
+          Number(crowded(slug, { dayIndex, slot }, placed, proteins, cap)) +
+          Number(starchCrowded(starch.index.get(slug) ?? null, dayIndex, starchPlaced, days))
       );
 
       if (!chosen) {
@@ -576,7 +601,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
       placed.push({ dayIndex, dishSlug: chosen.slug, slot });
     }
 
-    const improved = improveDay(picks, input, dayIndex, placed, budgets, { cap, proteins }, sidesOn?.(dayIndex));
+    const improved = improveDay(picks, input, dayIndex, placed, budgets, { cap, proteins, starch }, sidesOn?.(dayIndex));
 
     // Swapping changed what this day holds, so the placement record must follow or
     // later days would enforce variety against dishes that are no longer served.
@@ -591,8 +616,8 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
     built.push({ budgets, dayIndex, picks: balanceDay(improved, targets, budgets, input.minimumKcal, sidesOn?.(dayIndex)), targets });
   }
 
-  const spread = spreadAcrossDays(built, input.placed ?? [], proteins, input.minimumKcal, sidesOn);
-  const distinct = enforceDistinctDays(spread, input, input.placed ?? [], proteins, cap, sidesOn);
+  const spread = spreadAcrossDays(built, input.placed ?? [], proteins, starch, input.minimumKcal, sidesOn);
+  const distinct = enforceDistinctDays(spread, input, input.placed ?? [], proteins, cap, starch, sidesOn);
 
   const assignedDays: PlanDayAssignment[] = distinct.map(day => {
     const meals: ScheduledMeal[] = day.picks.map(pick => {
@@ -724,12 +749,19 @@ export function pickReplacement(input: {
 
   const rank = (dish: CandidateDish): number =>
     input.leaning !== undefined && isPreferredDish(dish, input.leaning) && costOf(dish.slug) <= PREFERRED_FIT_TOLERANCE ? 0 : 1;
+  // Pasta or rice the plan already has that day, the day either side or four
+  // times (`STARCH_RULES`), priced as the scheduler prices it. The plan's own
+  // meals are never in a swap's pool, so their bases come from `placed`.
+  const starches = starchIndex(input.pool);
+  const starchPlaced = starchMeals(input.placed, starches);
+  const starchCost = (dish: CandidateDish): number =>
+    starchCrowded(starches.get(dish.slug) ?? null, input.dayIndex, starchPlaced, PLAN_DAYS) ? PROTEIN_REPEAT_WEIGHT : 0;
 
   const dish = input.pool
     .filter(
       candidate => candidate.slots.includes(input.slot) && passes(candidate) && canPlace(candidate.slug, input.slot, input.dayIndex, input.placed)
     )
-    .sort((a, b) => rank(a) - rank(b) || costOf(a.slug) - costOf(b.slug) || a.slug.localeCompare(b.slug))
+    .sort((a, b) => rank(a) - rank(b) || costOf(a.slug) + starchCost(a) - (costOf(b.slug) + starchCost(b)) || a.slug.localeCompare(b.slug))
     .at(0);
   const base = dish ? perServing.get(dish.slug) : undefined;
 
@@ -1004,6 +1036,9 @@ function perServingIndex(pool: readonly CandidateDish[], catalogue: Catalogue): 
 /** Each pool dish's main protein, by slug — see `mainProtein`. */
 type ProteinIndex = ReadonlyMap<string, string | null>;
 
+/** Pasta and rice (`STARCH_RULES`): each pool dish's base, and the plan's length its cap is scaled to. */
+type StarchRule = { readonly days: number; readonly index: StarchIndex };
+
 function proteinIndex(pool: readonly CandidateDish[], catalogue: Catalogue): ProteinIndex {
   return new Map(pool.map(dish => [dish.slug, mainProtein(dish, catalogue)]));
 }
@@ -1110,17 +1145,17 @@ function pickBest(
   placed: readonly Placement[],
   dayIndex: number,
   slot: MealSlot,
-  crowds: (slug: string) => boolean
+  crowds: (slug: string) => number
 ): CandidateDish | undefined {
-  // A dish that would repeat a main protein is priced as fitting that much
-  // worse (`PROTEIN_REPEAT_WEIGHT`): another dish wins if it fits nearly as
+  // A dish that would repeat a main protein, or pasta or rice, is priced as
+  // fitting that much worse per rule (`PROTEIN_REPEAT_WEIGHT`): another dish wins if it fits nearly as
   // well, and the repeat is served when nothing does. A dish already served
   // elsewhere in the plan carries the same kind of cost (`DISH_REPEAT_WEIGHT`)
   // — usage already sorts a first-served dish ahead of a repeat, so this only
   // ever breaks a tie between two dishes at the same usage count, one of
   // which sits closer to `PREFERRED_MAIN_GAP` than the other.
   const repeatCost = new Map(
-    eligible.map(dish => [dish.slug, (crowds(dish.slug) ? PROTEIN_REPEAT_WEIGHT : 0) + reuseCost(dish.slug, slot, dayIndex, placed)])
+    eligible.map(dish => [dish.slug, crowds(dish.slug) * PROTEIN_REPEAT_WEIGHT + reuseCost(dish.slug, slot, dayIndex, placed)])
   );
   const usage = new Map<string, number>();
   // Where each dish sat in the pool handed to the scheduler, which is the order
@@ -1525,13 +1560,27 @@ function improveDay(
   dayIndex: number,
   placed: readonly Placement[],
   budgets: ReadonlyMap<MealSlot, SlotBudget>,
-  protein: { readonly cap: number; readonly proteins: ProteinIndex },
+  protein: { readonly cap: number; readonly proteins: ProteinIndex; readonly starch: StarchRule },
   sides?: Sides
 ): readonly Pick[] {
   const perServing = perServingIndex(input.pool, input.catalogue);
   const others = placed.filter(placement => placement.dayIndex !== dayIndex);
   const elsewhere = proteinCounts(others, protein.proteins);
   const proteinOf = (slug: string): string | null => protein.proteins.get(slug) ?? null;
+  // Pasta and rice against the rest of the plan, at the protein rule's weight.
+  const { starch } = protein;
+  const starchElsewhere = starchMeals(others, starch.index);
+  const starchOf = (day: readonly Pick[]): number =>
+    starchExcess(
+      [
+        ...starchElsewhere,
+        ...starchMeals(
+          day.map(entry => ({ dayIndex, dishSlug: entry.dish.slug, slot: entry.slot })),
+          starch.index
+        )
+      ],
+      starch.days
+    ) * PROTEIN_REPEAT_WEIGHT;
 
   const targets = targetsOn(input, dayIndex);
   let current = [...picks];
@@ -1547,8 +1596,12 @@ function improveDay(
     const repeatsOf = (day: readonly ProteinMeal[]): number => proteinExcess(day, elsewhere, protein.cap) * PROTEIN_REPEAT_WEIGHT;
     // Priced the same way the candidates will be, or a swap could "win" against
     // a day that was never sized.
+    const starchNow = starchOf(current);
     let bestCost =
-      balancedDay(current, targets, budgets, input.minimumKcal, false, sides).cost + repeatsOf(today) + dayReuseCost(current, dayIndex, others);
+      balancedDay(current, targets, budgets, input.minimumKcal, false, sides).cost +
+      repeatsOf(today) +
+      dayReuseCost(current, dayIndex, others) +
+      starchNow;
     let bestDay: readonly Pick[] | undefined;
     const shortlist: { readonly cost: number; readonly extra: number; readonly swapped: readonly Pick[] }[] = [];
 
@@ -1577,7 +1630,10 @@ function improveDay(
         const swapped = current.map((entry, position) =>
           position === index ? { base, dish: candidate, servings, slot: entry.slot, sortOrder: entry.sortOrder } : entry
         );
-        const extra = repeats + dayReuseCost(swapped, dayIndex, others);
+        // Only a swap that brings pasta or rice in, or takes it out, can move the starch cost.
+        const starchCost =
+          isCappedStarch(starch.index.get(candidate.slug)) || isCappedStarch(starch.index.get(pick.dish.slug)) ? starchOf(swapped) : starchNow;
+        const extra = repeats + dayReuseCost(swapped, dayIndex, others) + starchCost;
 
         shortlist.push({ cost: dayFitCost(swapped, targets) + extra, extra, swapped });
       }
@@ -1711,6 +1767,7 @@ function spreadAcrossDays(
   days: readonly BuiltDay[],
   fixed: readonly Placement[],
   proteins: ProteinIndex,
+  starch: StarchRule,
   minimumKcal: number,
   sidesOn?: (dayIndex: number) => Sides
 ): readonly BuiltDay[] {
@@ -1779,7 +1836,18 @@ function spreadAcrossDays(
         ...fixed,
         ...current.flatMap(day => day.picks.map(pick => ({ dayIndex: day.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot })))
       ];
-      const screened: { before: number; otherAt: number; quick: number; toOther: Pick[]; toWorst: Pick[] }[] = [];
+      const starchBefore = starchExcess(starchMeals(placements, starch.index), starch.days);
+      // An exchange keeps the fortnight's pasta and rice, but may bring two onto days running.
+      const starchAdded = (other: BuiltDay, toWorst: readonly Pick[], toOther: readonly Pick[]): number => {
+        const moved = [
+          ...placements.filter(placement => placement.dayIndex !== worst.dayIndex && placement.dayIndex !== other.dayIndex),
+          ...toWorst.map(pick => ({ dayIndex: worst.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot })),
+          ...toOther.map(pick => ({ dayIndex: other.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }))
+        ];
+
+        return Math.max(0, starchExcess(starchMeals(moved, starch.index), starch.days) - starchBefore);
+      };
+      const screened: { before: number; otherAt: number; quick: number; starch: boolean; toOther: Pick[]; toWorst: Pick[] }[] = [];
 
       for (const [otherAt, other] of current.entries()) {
         if (otherAt === worstAt) {
@@ -1816,7 +1884,14 @@ function spreadAcrossDays(
           const toWorst = resized(worst, worstIndex, theirs);
           const toOther = resized(other, otherIndex, mine);
 
-          screened.push({ before, otherAt, quick: missOf(toWorst, worst) + missOf(toOther, other) - before, toOther, toWorst });
+          screened.push({
+            before,
+            otherAt,
+            quick: missOf(toWorst, worst) + missOf(toOther, other) - before,
+            starch: starch.index.get(mine.dish.slug) !== starch.index.get(theirs.dish.slug),
+            toOther,
+            toWorst
+          });
         }
       }
 
@@ -1827,7 +1902,10 @@ function spreadAcrossDays(
         const other = current[entry.otherAt] as BuiltDay;
         const toWorst = balancedDay(entry.toWorst, worst.targets, worst.budgets, minimumKcal, true, sidesOn?.(worst.dayIndex)).picks;
         const toOther = balancedDay(entry.toOther, other.targets, other.budgets, minimumKcal, true, sidesOn?.(other.dayIndex)).picks;
-        const added = Math.max(0, repeatsIn(toWorst) - repeatsIn(worst.picks)) + Math.max(0, repeatsIn(toOther) - repeatsIn(other.picks));
+        const added =
+          Math.max(0, repeatsIn(toWorst) - repeatsIn(worst.picks)) +
+          Math.max(0, repeatsIn(toOther) - repeatsIn(other.picks)) +
+          (entry.starch ? starchAdded(other, toWorst, toOther) : 0);
         const gain = entry.before - missOf(toWorst, worst) - missOf(toOther, other) - added * SPREAD_REPEAT_WEIGHT;
 
         if (!keepsOrder(toWorst, worst) || !keepsOrder(toOther, other) || !keepsFloor(toWorst, worst) || !keepsFloor(toOther, other)) {
@@ -1908,6 +1986,7 @@ function enforceDistinctDays(
   fixed: readonly Placement[],
   proteins: ProteinIndex,
   cap: number,
+  starch: StarchRule,
   sidesOn?: (dayIndex: number) => Sides
 ): readonly BuiltDay[] {
   const perServing = perServingIndex(input.pool, input.catalogue);
@@ -1950,6 +2029,7 @@ function enforceDistinctDays(
         .filter((_entry, at) => at !== position)
         .map(entry => ({ dayIndex: day.dayIndex, dishSlug: entry.dish.slug, slot: entry.slot }));
       const placedElsewhere = [...fixed, ...elsewhere, ...siblings];
+      const starchElsewhere = starchMeals(placedElsewhere, starch.index);
 
       for (const candidate of input.pool) {
         if (!candidate.slots.includes(pick.slot) || candidate.slug === pick.dish.slug) {
@@ -1961,7 +2041,8 @@ function enforceDistinctDays(
         if (
           !base ||
           !fitsPlate(base, budget, pick.slot) ||
-          crowded(candidate.slug, { dayIndex: day.dayIndex, slot: pick.slot }, placedElsewhere, proteins, cap)
+          crowded(candidate.slug, { dayIndex: day.dayIndex, slot: pick.slot }, placedElsewhere, proteins, cap) ||
+          starchCrowded(starch.index.get(candidate.slug) ?? null, day.dayIndex, starchElsewhere, starch.days)
         ) {
           continue;
         }

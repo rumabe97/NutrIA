@@ -118,7 +118,8 @@ const COMPOSITION: readonly MealCompositionView[] = Array.from({ length: 14 }, (
       recipeSlug: dish.slug,
       servings: 1,
       slot,
-      sortOrder
+      sortOrder,
+      starch: null
     };
   })
 );
