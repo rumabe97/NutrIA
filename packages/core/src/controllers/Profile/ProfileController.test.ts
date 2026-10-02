@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { InputParseError, NotFoundError, ProfileConsentRequiredError, UnderMinimumAgeError } from 'core/entities/Error';
 import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
-import { mainMealSize } from 'core/domain/MealShape';
+import { mainMealSize, mealSizeSuggestion } from 'core/domain/MealShape';
 import { makeGoal, makePreferences, makeProfile } from '#test/fixtures';
 
 import { ProfileController } from './ProfileController';
@@ -126,7 +126,10 @@ describe('ProfileController.mealSize — the note before generating (016)', () =
     const targets = await ProfileController.targets(CLIENT_ID);
 
     expect(targets).not.toBeNull();
-    expect(await ProfileController.mealSize(CLIENT_ID)).toEqual(mainMealSize(TWO_MEALS, targets?.effective ?? { kcal: 0 }));
+    expect(await ProfileController.mealSize(CLIENT_ID)).toEqual({
+      ...mainMealSize(TWO_MEALS, targets?.effective ?? { kcal: 0 }),
+      suggestion: mealSizeSuggestion(TWO_MEALS, targets?.effective ?? { kcal: 0 })
+    });
   });
 
   it('is null while there are no targets to size from', async () => {

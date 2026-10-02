@@ -588,10 +588,10 @@ function score(record, request, catalogue) {
     // for is among what the dish actually fits, whichever try produced it.
     const claimsRequested = dish.slots.includes(request.slot);
     const claimed = claimsRequested ? dish.slots : [request.slot];
-    let fitted = fitSlots({ ingredients: dish.ingredients, slots: claimed }, catalogue, request.dietaryPatterns);
+    let fitted = fitSlots({ ...dish, slots: claimed }, catalogue, request.dietaryPatterns);
 
     if (!claimsRequested && fitted.length === 0) {
-      fitted = fitSlots({ ingredients: dish.ingredients, slots: dish.slots }, catalogue, request.dietaryPatterns);
+      fitted = fitSlots(dish, catalogue, request.dietaryPatterns);
     }
 
     const wrongMeal = !fitted.includes(request.slot);

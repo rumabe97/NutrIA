@@ -461,7 +461,7 @@ export const RecipeRepository = {
    * One query, not one per recipe: a join of `recipe_ingredients` to its
    * recipe and its ingredient, filtered by the stored meals, which a narrowing
    * can only take away from. On the dev library (2026-09-25, 1,002 recipes)
-   * that is under 6,000 rows of four short columns, about 0.6 s from this
+   * that is under 6,000 rows of a few short columns, about 0.6 s from this
    * machine to Neon; once per generation, beside the two library reads it
    * already makes, and once per swap that reaches the model.
    * A plain read with no lock: the library only grows, and a recipe added
@@ -479,7 +479,15 @@ export const RecipeRepository = {
 
     try {
       const rows = await database()
-        .select({ ingredientId: ingredients.id, mealSlots: recipes.mealSlots, recipeId: recipes.id, slug: ingredients.slug })
+        .select({
+          cuisine: recipes.cuisine,
+          grams: recipeIngredients.grams,
+          ingredientId: ingredients.id,
+          mealSlots: recipes.mealSlots,
+          recipeId: recipes.id,
+          servings: recipes.servings,
+          slug: ingredients.slug
+        })
         .from(recipeIngredients)
         .innerJoin(recipes, eq(recipes.id, recipeIngredients.recipeId))
         .innerJoin(ingredients, eq(ingredients.id, recipeIngredients.ingredientId))
@@ -490,12 +498,20 @@ export const RecipeRepository = {
           )
         );
 
-      const byRecipe = new Map<string, { ingredients: { id: string; slug: string }[]; slots: readonly MealSlot[] }>();
+      const byRecipe = new Map<
+        string,
+        { cuisine: string | null; ingredients: { id: string; grams: number; slug: string }[]; servings: number; slots: readonly MealSlot[] }
+      >();
 
       for (const row of rows) {
-        const recipe = byRecipe.get(row.recipeId) ?? { ingredients: [], slots: row.mealSlots as readonly MealSlot[] };
+        const recipe = byRecipe.get(row.recipeId) ?? {
+          cuisine: row.cuisine,
+          ingredients: [],
+          servings: row.servings,
+          slots: row.mealSlots as readonly MealSlot[]
+        };
 
-        recipe.ingredients.push({ id: row.ingredientId, slug: row.slug });
+        recipe.ingredients.push({ id: row.ingredientId, grams: Number(row.grams), slug: row.slug });
         byRecipe.set(row.recipeId, recipe);
       }
 
