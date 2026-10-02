@@ -95,6 +95,15 @@ export default async function AdminSettingsPage() {
               onHint={t.picturesHint}
             />
           </li>
+          <li className={styles.row} id="acompanamientos">
+            <FlagSwitch
+              enabled={flags.accompaniments ?? false}
+              flag="accompaniments"
+              label={t.accompanimentsLabel}
+              offHint={t.accompanimentsOffHint}
+              onHint={t.accompanimentsHint}
+            />
+          </li>
         </Card>
       </section>
 

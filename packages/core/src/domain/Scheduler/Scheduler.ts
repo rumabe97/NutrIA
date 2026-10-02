@@ -2,8 +2,10 @@ import { NO_ACCOMPANIMENT, setsBeside } from 'core/domain/Accompaniment';
 import { addMacros, composePerServing, scaleIngredients, scaleMacros, sumMacros } from 'core/domain/Composition';
 import { canPlace, isPreferredDish, MAIN_SLOTS, mainProtein, nearestGap, PREFERRED_MAIN_GAP, PROTEIN_RULES, proteinCap } from 'core/domain/Variety';
 import { PLAN_TOLERANCE } from 'core/domain/PlanValidation';
+import { plateFoodMax, plateFoods } from 'core/domain/PlateFood';
 import type { AccompanimentSet, Larder } from 'core/domain/Accompaniment';
 import type { Leaning, Placement } from 'core/domain/Variety';
+import type { PlateFood } from 'core/domain/PlateFood';
 import type { CandidateDish, Catalogue, Macros, MealSlot, PlanAssignment, PlanDayAssignment, ScheduledMeal, SwapAxis } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 
@@ -551,7 +553,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
         .filter(dish => perServing.has(dish.slug))
         .filter(dish => canPlace(dish.slug, slot, dayIndex, placed));
       // Only dishes that can be sized inside `PLATE_LIMIT` (`0076`) and under
-      // `PLATE_GRAMS_MAX` (`0078`). When the pool
+      // `PLATE_GRAMS_MAX` (`0078`) and `PLATE_FOOD_MAX` (016). When the pool
       // holds none for this slot, the day is still built from what there is —
       // a target no dish fits is validation's to refuse, not a reason to
       // deliver nothing — and the later passes never swap a fitting plate out.
@@ -752,7 +754,7 @@ export function pickReplacement(input: {
       : (servingsBeside(set, base, budget, input.slot) ?? servingsFor(base, budget, input.slot));
 
   // Ends: `passes` kept only dishes that reach it at the largest size. The one
-  // place a plate may pass `PLATE_LIMIT.max` or `PLATE_GRAMS_MAX`, and only as
+  // place a plate may pass `PLATE_LIMIT.max`, `PLATE_GRAMS_MAX` or `PLATE_FOOD_MAX`, and only as
   // far as the floor needs.
   while (plateKcal(base, servings) + set.macros.kcal < input.plateMinimumKcal && servings < SERVING_BOUNDS.max) {
     servings = roundServings(servings + SERVING_STEP);
@@ -885,9 +887,10 @@ function servingsFor(perServing: PerServing, budget: SlotBudget, slot: MealSlot)
 }
 
 /**
- * Whether this many servings keep the plate inside `PLATE_LIMIT` of its share
- * and under `plateGramsMax` for its slot and share. The weight is checked even where
- * the share cannot be — a budget or a dish of no energy.
+ * Whether this many servings keep the plate inside `PLATE_LIMIT` of its share,
+ * under `plateGramsMax` for its slot and share, and under `PLATE_FOOD_MAX` of
+ * every capped food (`plateFoodMax`). The weights are checked even where the
+ * share cannot be — a budget or a dish of no energy.
  *
  * `besideKcal` is what the meal's accompaniments carry: the share is the whole
  * meal's, since the share is what the meal is sized to, and the grams are the
@@ -897,6 +900,7 @@ function servingsFor(perServing: PerServing, budget: SlotBudget, slot: MealSlot)
 function withinPlateLimit(perServing: PerServing, servings: number, budget: SlotBudget, slot: MealSlot, besideKcal = 0): boolean {
   const light =
     perServing.grams * servings <= (budget.gramsMax ?? plateGramsMax(slot, budget.kcal)) + PLATE_EPSILON &&
+    withinFoodMax(perServing, servings, budget, slot) &&
     sidesWithinShare(perServing, servings, besideKcal);
 
   if (budget.kcal <= 0 || perServing.kcal <= 0) {
@@ -908,7 +912,18 @@ function withinPlateLimit(perServing: PerServing, servings: number, budget: Slot
   return light && share >= PLATE_LIMIT.min - PLATE_EPSILON && share <= PLATE_LIMIT.max + PLATE_EPSILON;
 }
 
-/** Every quarter size inside `SERVING_BOUNDS`, `PLATE_LIMIT` and `PLATE_GRAMS_MAX`, smallest first. Empty when there is none. */
+/**
+ * Whether no capped food on a plate of this size passes its ceiling. The share
+ * scaling it is the meal's, accompaniments included, as for `plateGramsMax`;
+ * the grams are the plate's alone — nothing beside it is a capped food.
+ */
+function withinFoodMax(perServing: PerServing, servings: number, budget: SlotBudget, slot: MealSlot): boolean {
+  return Object.entries(perServing.foods).every(
+    ([food, grams]) => grams * servings <= plateFoodMax(food as PlateFood, slot, budget.kcal) + PLATE_EPSILON
+  );
+}
+
+/** Every quarter size inside `SERVING_BOUNDS`, `PLATE_LIMIT`, `PLATE_GRAMS_MAX` and `PLATE_FOOD_MAX`, smallest first. Empty when there is none. */
 function plateServings(perServing: PerServing, budget: SlotBudget, slot: MealSlot, besideKcal = 0): readonly number[] {
   const sizes: number[] = [];
 
@@ -921,7 +936,7 @@ function plateServings(perServing: PerServing, budget: SlotBudget, slot: MealSlo
   return sizes;
 }
 
-/** Whether a dish can be served in this slot at all without breaking `PLATE_LIMIT` or `PLATE_GRAMS_MAX`. */
+/** Whether a dish can be served in this slot at all without breaking `PLATE_LIMIT`, `PLATE_GRAMS_MAX` or `PLATE_FOOD_MAX`. */
 function fitsPlate(perServing: PerServing, budget: SlotBudget, slot: MealSlot): boolean {
   return plateServings(perServing, budget, slot).length > 0;
 }
@@ -956,8 +971,11 @@ function fitCost(macros: Macros, budget: SlotBudget): number {
   return energy * 1.5 + protein + carbs * 0.75 + fat * 0.75;
 }
 
-/** One serving of a dish: its macros, and what it weighs on the plate — cooked, as the recipe stores it. */
-type PerServing = Macros & { readonly grams: number };
+/**
+ * One serving of a dish: its macros, what it weighs on the plate — cooked, as
+ * the recipe stores it — and the grams of each `PLATE_FOOD_MAX` food in it.
+ */
+type PerServing = Macros & { readonly foods: Readonly<Partial<Record<PlateFood, number>>>; readonly grams: number };
 
 /**
  * Per-serving macros and grams for every dish whose ingredients all resolve. A
@@ -972,9 +990,11 @@ function perServingIndex(pool: readonly CandidateDish[], catalogue: Catalogue): 
     const composed = composePerServing(dish, catalogue);
 
     if (composed.ok) {
-      const grams = dish.ingredients.reduce((sum, item) => sum + item.grams, 0) / (dish.servings || 1);
+      const servings = dish.servings || 1;
+      const grams = dish.ingredients.reduce((sum, item) => sum + item.grams, 0) / servings;
+      const foods = Object.fromEntries(Object.entries(plateFoods(dish.ingredients, catalogue)).map(([food, total]) => [food, total / servings]));
 
-      index.set(dish.slug, { ...composed.macros, grams });
+      index.set(dish.slug, { ...composed.macros, foods, grams });
     }
   }
 
@@ -1450,8 +1470,8 @@ function balancedDay(
 
   search(optionsFor(true));
 
-  // The energy floor outranks `PLATE_LIMIT` (`0076`) and `PLATE_GRAMS_MAX`
-  // (`0078`): when no combination inside both reaches it, the day is searched once more at every size a person
+  // The energy floor outranks `PLATE_LIMIT` (`0076`), `PLATE_GRAMS_MAX`
+  // (`0078`) and `PLATE_FOOD_MAX` (016): when no combination inside both reaches it, the day is searched once more at every size a person
   // can be served, and `FLOOR_OUTRANKS_ORDER` decides as it always has.
   if (floorMiss(deliveredKcal(picks, best, bestSets), minimumKcal) > 0) {
     search(optionsFor(false));

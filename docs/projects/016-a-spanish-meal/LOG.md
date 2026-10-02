@@ -136,3 +136,22 @@
   - Cap their share at 35%.
   - Wire the larder from the generation context.
   - Return the gram ceiling to a flat 750 g when the flag turns on.
+
+## Phase 5 — No plate holds more than two servings of one food (D) (2026-10-02)
+
+- **Executor**: `backend-d` (opus · medium) in `/team`.
+- **Result**: done.
+- **Evidence**:
+  - **What was built.**
+    - `core/domain/PlateFood`: `PLATE_FOOD_MAX` (meat 250 g, fish 300 g, cooked legume 400 g, grain 160 g dry, potato 400 g), recognised as `0008` § D says. `plateFoodMax` scales a meal past 1,100 kcal of share by share ÷ 1,100; snacks and supper never scale.
+    - Checked inside `withinPlateLimit`, so the schedule, swaps (`pickReplacement`) and event rebuilds hold it, flag on or off. The energy floor still outranks it.
+    - The evaluator counts plates over each ceiling with core's own recogniser.
+  - **Tests.** Unit tests for the table, the recogniser and the scaling, and through `pickReplacement` and `schedulePlan`, the floor included. Mutation checks: lifting the potato ceiling fails 6 tests, and unplugging it from `withinPlateLimit` fails 3. One hash pinned by phase 3 moved on purpose (five meals at 1.8×, a chicken plate over 250 g) and was re-pinned.
+  - **Evaluator** (`016-p5-off` vs `016-p3-off`, `016-p5-on` vs `016-p4-on`):
+    - 13/13 profiles 14/14 days, flag off and on. No allergen, no blocking.
+    - Plates over a ceiling: 0 flag off and on.
+    - Heaviest plate per food, flag off: potato 500 → 400, meat 360 → 240, fish 375 → 300, legumes 438 → 410 (a scaled share), grains 160 → 157.
+    - Flag on: potato 450 → 400, legumes 313 → 375, meat 240 → 225, fish 285, grains 138.
+    - Mains within 0.75–1.5 servings: flag off 276 → 283 of 364, flag on 356 → 357. `objetivo-alto-5-comidas` flag off 10 → 6 of 28.
+    - Time per profile: at most 2.8 s off and 13.1 s on.
+- **Deviations**: grain counts the cooked slugs of `0078`'s yield table only, as the evaluator did. A dry grain in a recipe is not counted.
