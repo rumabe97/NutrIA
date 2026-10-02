@@ -30,9 +30,11 @@
 --
 -- What sits beside a meal (`meal_accompaniments`, 0055) snapshots the meal's
 -- recipe and servings, and the reads keep a row only while both still equal
--- the meal's. A row that matches its meal now has its `servings` multiplied
--- by the same k, so the sides stay with their plate; a row that was already
--- stale stays as it was. Its grams, kcal and macros are its own, untouched.
+-- the meal's. Every row set beside one of these recipes has its `servings`
+-- multiplied by the same k as the meals: s x k = m x k exactly when s = m, so
+-- a row that matched its meal still does and a stale one stays stale (never
+-- brought back by its meal's new count). Its grams, kcal and macros are its
+-- own, untouched.
 --
 -- Bounds. A recipe is skipped — left as it is — if its split would take any of
 -- its meals past 4 servings (SERVING_BOUNDS.max, the most the scheduler ever
@@ -47,10 +49,20 @@
 -- On the dev database (read-only dry run, 2026-10-02): 41 recipes (40 ai,
 -- 1 seed), k = 2 for 40 and 3 for 1, none skipped; 146 meals, the largest
 -- 1.75 servings before and 3.5 after; 12 accompaniment rows, all matching
--- their meal.
+-- their meal. Before it runs on production, keep a read-only capture of the
+-- repair set (recipes, k, skipped, meal ids and servings), as 0047 did.
 --
 -- A recipe with zero servings gives a null energy and is left out (NULLIF), so
 -- one bad row cannot fail the migration and with it the production build.
+--
+-- Two windows it cannot close, accepted with the owner's lead:
+-- - A generation or a swap already running on the previous API may read one
+--   of these recipes before this commits and write its meal after, counted at
+--   the old servings; that meal shows its amounts divided by k until the plan
+--   is regenerated. Merge when `plan_generation_jobs` has nothing running.
+-- - The seed's load file (docs/local, run by the owner) holds the one seed
+--   lunch past the bound unsplit. Load it before this migration runs, or run
+--   this statement again after loading it: it is idempotent.
 --
 -- One statement, one snapshot: the sides, the meals and their recipes move
 -- together, every CTE reading the rows as they were before it, and running it
@@ -94,11 +106,8 @@ WITH "per_serving" AS (
 "repaired_sides" AS (
   UPDATE "meal_accompaniments" ma
   SET "servings" = ma."servings" * rp."k"
-  FROM "meals" m, "repair" rp
-  WHERE ma."meal_id" = m."id"
-    AND m."recipe_id" = rp."id"
-    AND ma."recipe_id" = m."recipe_id"
-    AND ma."servings" = m."servings"
+  FROM "repair" rp
+  WHERE ma."recipe_id" = rp."id"
   RETURNING ma."id"
 ),
 "repaired_meals" AS (

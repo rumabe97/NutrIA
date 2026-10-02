@@ -118,3 +118,9 @@ fruit or a salad beside a lunch or a dinner (`0079`), so the dish is one plate f
 - On dev (read-only dry run): 41 recipes (40 ai, 1 seed), k = 2 for 40 and 3 for 1, none
   skipped; 146 meals, the largest going from 1.75 to 3.5 servings; 12 accompaniment rows.
   (owner: yes to the split, 2026-10-02)
+- Two windows it cannot close (migration review, P2): a generation or swap already running on
+  the previous API may write a meal at the old servings, so merge when `plan_generation_jobs`
+  has nothing running; and a first load of the seed file after `0056` brings its one lunch past
+  the bound back unsplit, so load the seed first or re-run `0056`'s statement after it
+  (idempotent). Before it runs on production, keep a read-only capture of the repair set, as
+  `0047` did.
