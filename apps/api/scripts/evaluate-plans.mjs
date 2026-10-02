@@ -816,7 +816,8 @@ function servingsHistogram(days) {
   for (const day of days) {
     for (const meal of day.meals) {
       const sizes = (bySlot[meal.slot] ??= {});
-      const key = String(meal.servings);
+      // Two decimals, so `1.00` is not an integer key an object would move ahead of `0.75`.
+      const key = meal.servings.toFixed(2);
 
       sizes[key] = (sizes[key] ?? 0) + 1;
     }
