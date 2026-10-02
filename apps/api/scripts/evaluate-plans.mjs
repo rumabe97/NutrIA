@@ -70,7 +70,7 @@ import {
 } from 'core/domain/Preference';
 import { PLAN_DAYS, PLATE_GRAMS_MAX, PLATE_LIMIT, plateGramsMax, schedulePlan, SERVING_PREFERENCE } from 'core/domain/Scheduler';
 import { bestEffortExclusions, dishSafety, normaliseForMatching, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
-import { DISHES_NEEDED_PER_SLOT, MAIN_SLOTS } from 'core/domain/Variety';
+import { DISHES_NEEDED_PER_SLOT, MAIN_SLOTS, STARCH_RULES, starchBase, starchCap } from 'core/domain/Variety';
 import { plateFoodMax, plateFoods } from 'core/domain/PlateFood';
 
 // ---------------------------------------------------------------------------
@@ -548,6 +548,7 @@ async function measureProfile(profile, shared, options) {
     slug: profile.slug,
     unsafe,
     spanish: spanishMetrics(scheduled.assignment.days, context.catalogue),
+    starch: starchMetrics(scheduled.assignment.days),
     // How varied the plan actually is, not just whether it broke a rule —
     // distinct dishes maximised, no two days the same, a repeat as far apart
     // as the pool allows (owner, 2026-09-26; `0065`).
@@ -561,6 +562,54 @@ async function measureProfile(profile, shared, options) {
     })),
     worst
   };
+}
+
+/**
+ * The plate's starch base (016 phase 7), over the plan's lunches and dinners:
+ * how many of each base, how many dinners are pasta or rice, and every pair of
+ * days running — or meals on one day — that share pasta or rice, which
+ * `STARCH_RULES` keeps apart. The dish's own base, never what is beside it.
+ */
+function starchMetrics(days) {
+  const mains = {};
+  const dinners = {};
+  const byDay = new Map(STARCH_RULES.capped.map(base => [base, new Map()]));
+  const total = Object.fromEntries(STARCH_RULES.capped.map(base => [base, 0]));
+
+  for (const day of days) {
+    for (const meal of day.meals) {
+      const base = starchBase(meal.dish) ?? 'none';
+
+      if (byDay.has(base)) {
+        byDay.get(base).set(day.dayIndex, (byDay.get(base).get(day.dayIndex) ?? 0) + 1);
+        total[base] += 1;
+      }
+
+      if (MAIN_SLOTS.has(meal.slot)) {
+        mains[base] = (mains[base] ?? 0) + 1;
+      }
+
+      if (meal.slot === 'dinner') {
+        dinners[base] = (dinners[base] ?? 0) + 1;
+      }
+    }
+  }
+
+  const repeats = [];
+
+  for (const [base, counts] of byDay) {
+    for (const [dayIndex, count] of [...counts].sort((a, b) => a[0] - b[0])) {
+      if (count > 1) {
+        repeats.push(`${base} twice on day ${dayIndex}`);
+      }
+
+      if (counts.has(dayIndex - 1)) {
+        repeats.push(`${base} days ${dayIndex - 1}–${dayIndex}`);
+      }
+    }
+  }
+
+  return { cap: starchCap(days.length), consecutive: repeats, dinnerPastaOrRice: (dinners.pasta ?? 0) + (dinners.rice ?? 0), dinners, mains, total };
 }
 
 /**
@@ -1185,6 +1234,19 @@ function printProfile(profile, result) {
         `    FOREIGN day ${item.dayIndex} ${item.slot}: "${item.dish}"${item.slug ? ` holds ${item.slug}` : ''}${item.cuisine ? ` (${item.cuisine})` : ''}`
       );
     }
+  }
+
+  if (result.starch) {
+    const { cap, consecutive, dinnerPastaOrRice, mains, total } = result.starch;
+
+    console.log(
+      `  starch base (016 p7), lunches and dinners: ${Object.entries(mains)
+        .sort((a, b) => b[1] - a[1])
+        .map(([base, count]) => `${base} ${count}`)
+        .join(
+          ', '
+        )}; all meals pasta ${total.pasta}, rice ${total.rice} (cap ${cap}); dinners with pasta or rice ${dinnerPastaOrRice}; days running ${consecutive.length}${consecutive.length > 0 ? ` (${consecutive.join(', ')})` : ''}`
+    );
   }
 
   if (result.unsafe.length > 0) {

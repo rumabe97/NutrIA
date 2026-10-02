@@ -1,6 +1,6 @@
 # 0079 — A dish fits a meal by its cuisine, and its accompaniments come from that cuisine
 
-- **Status**: accepted (owner, 2026-10-02, with the nine answers under "Owner's answers")
+- **Status**: accepted (owner, 2026-10-02, with the nine answers under "Owner's answers"); amended 2026-10-02 (Italian pasta and rice lunch only, see "Amendment")
 - **Date**: 2026-10-02
 - **Deciders**: owner ("en la mediterránea el arroz no encajaría en cena, pero en la asiática sí… acompañantes que no fuera solamente pan: ensaladas, en Asia ponen arroz… quiero que sea súper profesional"); agent `architect`: the tables, the sources, the measurement. The owner answered the nine open questions and decided that no BEDCA data is used anywhere
 - **Project**: docs/projects/016-a-spanish-meal (phase 2)
@@ -12,7 +12,7 @@
 - **Five food groups decide where a dish fits**: rice, pasta, couscous and other grains, potato, and stewed pulses. Each is recognised from catalogue slugs and grams.
   - Bread, salads, vegetables and soups fit every main meal everywhere, so they need no rule.
   - "Fried" and "heavy sauce" cannot be recognised from the data, so they are left out (measured below).
-- **Spanish dinner loses rice, pasta and grains.** Asian keeps rice at dinner. Italian keeps pasta at dinner. Italian, Asian and Mexican/Latin also keep pulses at dinner (option B, chosen by the owner).
+- **Spanish dinner loses rice, pasta and grains.** Asian keeps rice at dinner. Italian pasta and rice are lunch only too (amended 2026-10-02). Italian, Asian and Mexican/Latin also keep pulses at dinner (option B, chosen by the owner).
 - **Accompaniments come from the dish's family.**
   - Spanish: bread, salad, gazpacho, vegetables, fruit, yoghurt.
   - Asian: plain rice, miso soup, cucumber salad, pak choi.
@@ -103,8 +103,8 @@ The 40 g threshold is two thirds of a plate of rice or pasta. The AESAN sets a p
 
 | Group | B | MS | L | AS | D | Su | Reason |
 |---|---|---|---|---|---|---|---|
-| Arroz | no | no | sí | no | sí | no | Risotto is a primo at pranzo or cena |
-| Pasta y fideos | no | no | sí | no | sí | no | The Italian guidance counts cereals at "1–2 porzioni a pasto", every meal (Smartfood/IEO portions table); pasta at cena is ordinary |
+| Arroz | no | no | sí | no | ~~sí~~ no | no | Risotto is a primo at pranzo or cena. Lunch only since the amendment |
+| Pasta y fideos | no | no | sí | no | ~~sí~~ no | no | The Italian guidance counts cereals at "1–2 porzioni a pasto", every meal (Smartfood/IEO portions table); pasta at cena is ordinary. Lunch only since the amendment |
 | Cuscús y otros granos | no | no | sí | no | sí | no | Farro, orzo and polenta stand in for pasta at either meal |
 | Patata y boniato | no | no | sí | no | sí | no | A contorno at either meal |
 | Legumbre guisada | no | no | sí | no | sí | no | Pasta e fagioli and minestrone are classic cene. Applied through option B (owner, answer 5) |
@@ -318,11 +318,18 @@ Examples: "Paella de verduras y pollo", "Arroz caldoso de marisco", "Fideuá de 
 2. **Rice at a Spanish dinner: the 40 g dry threshold.** Any real amount of rice makes the dish a lunch. 198 dinners for the omnivore.
 3. **No couscous or quinoa at a Spanish dinner.**
 4. **No potato at a Spanish breakfast.** An individual tortilla stays allowed at the morning snack, a cell the Spanish table already had.
-5. **Pasta and stewed pulses at an Italian dinner: yes, both.**
+5. **Pasta and stewed pulses at an Italian dinner: yes, both.** Pasta withdrawn by the amendment below; pulses stand.
 6. **The dish's family sets the accompaniments.**
 7. **Cheese and nuts as accompaniments: breakfast only.**
 8. **Season is a hard filter for accompaniments.** Dishes keep season as a preference.
 9. **No rice at an Asian breakfast.**
+
+## Amendment — 2026-10-02 — Italian pasta and rice are lunch only
+
+- **What changed**: in Table 2, the Italian row's pasta and rice cells lose dinner, the same as the Spanish row. Italian grains, potato and pulses keep dinner. Asian rice and noodles keep dinner. Couscous stays lunch only where it already was.
+- **Why** (owner, from their own production plan): a `traditional_spanish` fortnight of two main meals served pasta at 9 of its 28 lunches and dinners. Four of those were dinners of a dish tagged "Italiana", some on days running. The person eating it is Spanish, whatever the recipe's label says.
+- **With it**, plan 016 phase 7 adds the starch-base variety rule (`STARCH_RULES`, `core/domain/Variety/Starch.ts`): pasta and rice four times a fortnight each, never on two days running, priced like the protein rule. The bases are read with this record's food groups and their grams, so the two never disagree.
+- **Code**: `FAMILY_FIT.italian` in `core/domain/MealFit/Cuisine.ts`. Measured in plan 016 phase 7.
 
 ## Sources
 

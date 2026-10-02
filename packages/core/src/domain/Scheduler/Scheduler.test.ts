@@ -20,11 +20,12 @@ function slotsForTest(mealsPerDay: number, includesSnacks: boolean) {
   return slotsIn(shapeFor(mealsPerDay, includesSnacks));
 }
 
-import { mainProtein, PROTEIN_RULES, proteinCap, VARIETY_RULES, varietyViolations } from 'core/domain/Variety';
+import { mainProtein, PROTEIN_RULES, proteinCap, STARCH_RULES, starchBase, starchCap, VARIETY_RULES, varietyViolations } from 'core/domain/Variety';
 import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValidation';
 import { makeCatalogue, makeCatalogueIngredient, makeDish, makePool, MINIMUM_KCAL, TARGETS } from '#test/fixtures';
 
 import type { NutritionTargets } from 'core/entities/Nutrition';
+import type { CatalogueIngredient } from 'core/entities/Plan';
 
 const catalogue = makeCatalogue();
 
@@ -927,6 +928,82 @@ describe('schedulePlan — one main protein, once a day (PROTEIN_RULES)', () => 
   });
 });
 
+describe('schedulePlan — pasta and rice four times a fortnight, never on days running (STARCH_RULES)', () => {
+  // Every food the same composition, so fit ties everywhere and the pool's
+  // order decides — pasta first at every lunch and dinner, which a scheduler
+  // with no word for "the same plate of pasta" would serve all fortnight.
+  const bases = ['espaguetis-secos', 'arroz-largo-crudo', 'patata', 'lentejas-cocidas', 'quinoa-cruda', 'pechuga-de-pollo', 'merluza'];
+  const starchCatalogue = makeCatalogue(bases.map((slug, index) => makeCatalogueIngredient({ id: `s-${index}`, name: slug, slug })));
+  const SHARE = { breakfast: 0.28, dinner: 0.34, lunch: 0.37 } as const;
+  const slots = ['breakfast', 'lunch', 'dinner'] as const;
+  const pool = slots.flatMap(slot =>
+    bases.flatMap(base =>
+      Array.from({ length: 6 }, (_none, n) =>
+        makeDish({
+          ingredients: [{ grams: Math.round((TARGETS.kcal * SHARE[slot]) / 2) + n * 5, slug: base }],
+          name: `${slot} ${base} ${n}`,
+          slots: [slot],
+          slug: `${slot}-${base}-${n}`
+        })
+      )
+    )
+  );
+
+  it('serves pasta, and rice, at most four times and never on two days running', () => {
+    const result = schedulePlan({
+      catalogue: starchCatalogue,
+      minimumKcal: MINIMUM_KCAL,
+      pool,
+      targets: TARGETS,
+      weights: weightsFor(shapeFor(3, false))
+    });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    for (const capped of STARCH_RULES.capped) {
+      const days = result.assignment.days.flatMap(day => day.meals.filter(meal => starchBase(meal.dish) === capped).map(() => day.dayIndex));
+
+      expect(days.length, `${capped} on days ${days.join(', ')}`).toBeLessThanOrEqual(starchCap(PLAN_DAYS));
+      expect(new Set(days).size, `${capped} twice on a day: ${days.join(', ')}`).toBe(days.length);
+      expect(
+        days.some(day => days.includes(day + 1)),
+        `${capped} on days running: ${days.join(', ')}`
+      ).toBe(false);
+    }
+  });
+
+  it('keeps the rule against the days a rebuild leaves in place', () => {
+    // Pasta on days 3 and 5, from meals the pool no longer holds: day 4 is rebuilt.
+    const kept = [1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].flatMap(dayIndex =>
+      slots.map(slot => ({
+        dayIndex,
+        dishSlug: `kept-${slot}-${dayIndex}`,
+        slot,
+        starch: slot === 'lunch' && (dayIndex === 3 || dayIndex === 5) ? ('pasta' as const) : null
+      }))
+    );
+    const result = schedulePlan({
+      catalogue: starchCatalogue,
+      dayIndexes: [4],
+      minimumKcal: MINIMUM_KCAL,
+      placed: kept,
+      pool,
+      targets: TARGETS,
+      weights: weightsFor(shapeFor(3, false))
+    });
+
+    expect(result.ok).toBe(true);
+
+    if (result.ok) {
+      expect(result.assignment.days.flatMap(day => day.meals.map(meal => starchBase(meal.dish)))).not.toContain('pasta');
+    }
+  });
+});
+
 describe('schedulePlan — the fortnight is repaired as a whole (0048)', () => {
   /**
    * Days are built in order and each dish may appear twice, so the dishes that
@@ -1046,6 +1123,38 @@ describe('schedulePlan — the fortnight is repaired as a whole (0048)', () => {
     // every time.
     expect(varietyViolations(first.assignment.days).filter(violation => violation.kind !== 'identical_day')).toEqual([]);
     expect(second.assignment).toEqual(first.assignment);
+  });
+
+  it('repairs the fortnight without bringing rice onto days running (STARCH_RULES)', () => {
+    // The same pool, the starch of its two starchiest lunches rice and of the rest quinoa: the exchanges now move a base between days.
+    const starchy = makeCatalogue([
+      ...[...spreadCatalogue.values()],
+      { ...(spreadCatalogue.get('arroz') as CatalogueIngredient), id: 'i-arroz-largo', slug: 'arroz-largo-crudo' },
+      { ...(spreadCatalogue.get('arroz') as CatalogueIngredient), id: 'i-quinoa', slug: 'quinoa-cruda' }
+    ]);
+    const pool = spreadPool.map(dish => ({
+      ...dish,
+      ingredients: dish.ingredients.map(item =>
+        item.slug === 'arroz' ? { ...item, slug: dish.slug === 'lunch-0' || dish.slug === 'lunch-1' ? 'arroz-largo-crudo' : 'quinoa-cruda' } : item
+      )
+    }));
+    const result = schedulePlan({ catalogue: starchy, minimumKcal: MINIMUM_KCAL, pool, targets: T, weights: weightsFor(shapeFor(3, false)) });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const rice = result.assignment.days.flatMap(day => day.meals.filter(meal => starchBase(meal.dish) === 'rice').map(() => day.dayIndex));
+
+    expect(rice.length).toBeGreaterThan(0);
+    expect(rice.length).toBeLessThanOrEqual(starchCap(PLAN_DAYS));
+    expect(rice.some(day => rice.includes(day + 1))).toBe(false);
+
+    for (const day of result.assignment.days) {
+      expect(Math.abs(day.totals.kcal - T.kcal)).toBeLessThanOrEqual(T.kcal * 0.05);
+    }
   });
 });
 
@@ -1176,6 +1285,26 @@ describe('pickReplacement', () => {
     const tooMuch = 565 * SERVING_BOUNDS.max + 1;
 
     expect(pickReplacement({ budget, catalogue, dayIndex: 3, placed: [], plateMinimumKcal: tooMuch, pool: [fits], slot: 'lunch' })).toBeUndefined();
+  });
+
+  it('keeps pasta off the day beside a pasta, and off a plan that has its four (STARCH_RULES)', () => {
+    const starchCatalogue = makeCatalogue([
+      makeCatalogueIngredient({ id: 'i-pasta', slug: 'espaguetis-secos' }),
+      makeCatalogueIngredient({ id: 'i-patata', slug: 'patata' })
+    ]);
+    // The same plate at the same size: the pasta wins every tie by its slug.
+    const pool = [lunch('espaguetis', [{ grams: 300, slug: 'espaguetis-secos' }]), lunch('patatas', [{ grams: 300, slug: 'patata' }])];
+    // The plan's own meals: never in a swap's pool, so they bring their base.
+    const pastaOn = (...days: number[]) =>
+      days.map(dayIndex => ({ dayIndex, dishSlug: `pasta-${dayIndex}`, slot: 'dinner' as const, starch: 'pasta' as const }));
+    const swap = (placed: ReturnType<typeof pastaOn>) =>
+      pickReplacement({ budget, catalogue: starchCatalogue, dayIndex: 3, placed, plateMinimumKcal: 0, pool, slot: 'lunch' })?.dish.slug;
+
+    expect(swap([])).toBe('espaguetis');
+    expect(swap(pastaOn(5, 9))).toBe('espaguetis');
+    expect(swap(pastaOn(2))).toBe('patatas');
+    expect(swap(pastaOn(3))).toBe('patatas');
+    expect(swap(pastaOn(6, 8, 10, 12))).toBe('patatas');
   });
 });
 
