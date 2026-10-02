@@ -38,7 +38,7 @@
     - gnocchi (`noquis`) on its own line.
     The JSON gains a top-level `library` block (by source, by source × slot, by slot × family).
 - **Identity evidence**: off and on, on the seed library, before and after the change. Every field except `ms` and the new fields (`library`, `starch.byFamily`, `starch.dinnerPastaOrRiceOutsideAsian`, `starch.gnocchi`) was byte-identical (`cmp`). The text output only gained lines.
-- **The export**: 371 recipes with `source = 'ai'`, 704 KiB. All 371 loaded; no slug collided with the seed.
+- **The export**: taken once on 2026-10-02 by the lead: 371 recipes with `source = 'ai'`, 2,534 ingredient rows, 269 catalogue slugs, 0 recipes without ingredients, 703.7 KiB. All 371 loaded; no slug collided with the seed.
 
 ### Library composition (`pnpm db:local status` and the evaluator's `library` block)
 
