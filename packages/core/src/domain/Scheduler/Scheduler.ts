@@ -2053,6 +2053,13 @@ function improveDay(
   const targets = targetsOn(input, dayIndex);
   let current = [...picks];
 
+  // Each day `sized` has searched, by its dishes (017 phase 3): a swap a round
+  // shortlisted comes back in the next round whenever that round changed another
+  // meal, and a quarter of these searches were the same day again. Every pick here
+  // is sized `servingsFor` its dish and slot and carries no set, so the dishes
+  // alone are the day the search is given, and the answer is the one it would give.
+  const known = new Map<string, { readonly cost: number; readonly miss: number }>();
+
   // A swap is judged on the bands first (`bandMiss`, the bands validation
   // reports): a day with fewer macros outside, or outside by less, wins whatever
   // its fit and the variety rules' prices say, and those decide only between days
@@ -2071,13 +2078,6 @@ function improveDay(
   // with them (one day 5.1% over its fat); the rules gave a little where they had
   // held a day out — one profile's legume six times instead of four, a snack
   // kind four times. The most-served protein did not move.
-  //
-  // Remembered by the day's dishes (017 phase 3): a swap a round shortlisted
-  // comes back in the next round whenever that round changed another meal, and a
-  // quarter of these searches were the same day again. Every pick here is sized
-  // `servingsFor` its dish and slot and carries no set, so the dishes alone are
-  // the day the search is given, and the answer is the one it would give.
-  const known = new Map<string, { readonly cost: number; readonly miss: number }>();
   const sized = (day: readonly Pick[]): { readonly cost: number; readonly miss: number } => {
     const key = day.map(pick => pick.dish.slug).join('|');
     let found = known.get(key);
@@ -2591,6 +2591,7 @@ function repairOutOfBand(
     const elsewhere = proteinCounts(others, proteins);
     const week = planWeek(start.dayIndex);
     const sides = sidesOn?.(start.dayIndex);
+
     // What the day pays the variety rules, priced as `improveDay` prices them.
     const priceOf = (picks: readonly Pick[]): number => {
       const placements = picks.map(pick => ({ dayIndex: start.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }));
