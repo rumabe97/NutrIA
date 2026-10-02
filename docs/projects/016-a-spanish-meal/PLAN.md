@@ -127,7 +127,7 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
 
 ### Phase 5 — No plate holds more than two servings of one food (D), after accompaniments
 
-- [ ] pending
+- [x] done (2026-10-02)
 - **Dispatch**: `backend` (opus · medium) and `plan-evaluator`. `/execute-project 016 phase 5`.
 - **Goal**: PRD criterion 3. Reordered after A (owner, 2026-10-02): before accompaniments exist, a per-food ceiling would cost more days in band. Run only if the evaluator still shows a food over its ceiling once A is on.
 - **Steps**:
