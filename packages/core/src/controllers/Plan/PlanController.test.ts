@@ -142,10 +142,12 @@ describe('PlanJobController.start — one generation at a time', () => {
     });
 
     it('claims, checks the client’s allowance, then admits the job with the trail row — and keeps the claim', async () => {
-      allowing(true);
+      const allowances = allowing(true);
 
       await expect(PlanJobController.start('usr-client', record)).resolves.toMatchObject({ id: 'job-1', pendingReview: false });
       expect(claim).toHaveBeenCalledWith('usr-client', null);
+      // Asked under the claim only, and without charging a plan the client scheduled (owner, 2026-10-02).
+      expect(allowances).toHaveBeenCalledExactlyOnceWith('usr-client', expect.any(String), false);
       expect(admit).toHaveBeenCalledExactlyOnceWith('job-1', record);
       expect(release).not.toHaveBeenCalled();
     });
@@ -301,8 +303,8 @@ describe('PlanJobController.start — one generation at a time', () => {
       await expect(PlanJobController.start('usr-1', undefined, after(7))).resolves.toMatchObject({ id: 'job-1' });
       expect(claim).toHaveBeenCalledWith('usr-1', after(7));
       expect(allowances).toHaveBeenCalledTimes(2);
-      expect(allowances).toHaveBeenNthCalledWith(1, 'usr-1', after(7));
-      expect(allowances).toHaveBeenNthCalledWith(2, 'usr-1', after(7));
+      expect(allowances).toHaveBeenNthCalledWith(1, 'usr-1', after(7), true);
+      expect(allowances).toHaveBeenNthCalledWith(2, 'usr-1', after(7), true);
     });
 
     it('stores today as no choice, which is the generation it always was', async () => {
@@ -580,6 +582,44 @@ describe('the chooser of first days (project 015)', () => {
     const spent = await PlanController.startStanding('usr-1', after(5));
 
     expect(spent.standing).toMatchObject({ allowed: false, kind: 'redo', used: 1 });
+  });
+
+  // invariant-reviewer-p2's walk-through: alternating a cut and a replacement must not mint redos.
+  it('keeps a redo spent cutting the plan under way spent when its waiting plan is replaced, either way', async () => {
+    const active = plan({ id: 'p1', endDate: after(6), version: 1 });
+    // Step 1 happened: a plan waiting from day 3 cut the plan under way — a redo, not an opener.
+    const cutter = plan({ id: 'p2', endDate: after(16), redo: true, status: 'scheduled', version: 2 });
+
+    findActive.mockResolvedValue({ ...active, endDate: after(2) });
+    findChain.mockResolvedValue([cutter, { ...active, endDate: after(2) }]);
+
+    // Step 2: replacing it with a start after the cut plan ends is refused — the cut's redo counts.
+    await expect(PlanController.startStanding('usr-1', after(5))).resolves.toMatchObject({ standing: { allowed: false, used: 1 } });
+    // Step 3: cutting again is refused as well.
+    await expect(PlanController.startStanding('usr-1', after(1))).resolves.toMatchObject({ standing: { allowed: false, used: 1 } });
+  });
+
+  it('still allows the first replacement of a free waiting plan, and refuses the second', async () => {
+    const active = plan({ id: 'p1', version: 1 });
+
+    findActive.mockResolvedValue(active);
+    findChain.mockResolvedValue([plan({ id: 'p2', endDate: after(16), status: 'scheduled', version: 2 }), active]);
+    await expect(PlanController.startStanding('usr-1', after(5))).resolves.toMatchObject({ standing: { allowed: true, used: 0 } });
+
+    findChain.mockResolvedValue([plan({ id: 'p3', endDate: after(16), opens: true, redo: true, status: 'scheduled', version: 3 }), active]);
+    await expect(PlanController.startStanding('usr-1', after(5))).resolves.toMatchObject({ standing: { allowed: false, used: 1 } });
+  });
+
+  it('does not count a waiting plan for a professional’s generation: it replaces it at no charge (owner, 2026-10-02)', async () => {
+    const active = plan({ id: 'p1', endDate: after(-1), version: 1 });
+
+    findActive.mockResolvedValue(active);
+    findChain.mockResolvedValue([plan({ id: 'p3', endDate: after(16), opens: true, redo: true, status: 'scheduled', version: 3 }), active]);
+
+    await expect(PlanController.startStanding('usr-client', today, false)).resolves.toMatchObject({
+      meaning: { kind: 'new_fortnight' },
+      standing: { allowed: true }
+    });
   });
 });
 

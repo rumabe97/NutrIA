@@ -730,8 +730,12 @@ export const PlanController = {
    * as `PlanJobController.start` asks it: a pending plan that counts is the
    * fortnight under way (`0060`), as in `allowances(…, true)`.
    */
-  async startStanding(userId: string, start: string): Promise<{ readonly meaning: StartMeaning; readonly standing: PlanRedoStanding }> {
-    return standingAt(await startContext(userId, true), start);
+  async startStanding(
+    userId: string,
+    start: string,
+    chargeWaiting = true
+  ): Promise<{ readonly meaning: StartMeaning; readonly standing: PlanRedoStanding }> {
+    return standingAt(await startContext(userId, true), start, chargeWaiting);
   },
 
   async swapMeal(
@@ -970,8 +974,10 @@ export const PlanJobController = {
       // Counted *after* the claim, not before: holding the slot is what makes
       // the count honest. A plan can only be committed by a generation, no
       // generation can begin while this claim stands, so the chain this reads
-      // is the whole chain and cannot grow underneath the decision.
-      await refuseSpentStart(userId, start);
+      // is the whole chain and cannot grow underneath the decision. A
+      // professional's generation replaces a plan waiting for its day at no
+      // charge to the client, so that plan is not counted for it.
+      await refuseSpentStart(userId, start, record === undefined);
 
       if (record) {
         await PlanJobRepository.admit(job.id, record);
@@ -1118,13 +1124,26 @@ async function startContext(userId: string, forGeneration: boolean): Promise<Sta
 }
 
 /**
- * What starting on `start` would spend, and whether it may (project 015): the
- * redos counted in the fortnight it belongs to — the one under way when it
- * cuts it (with the plan waiting for its day, when that one cut it too), the
- * waiting plan's own when it replaces it, nothing when it opens the next one.
+ * What starting on `start` would spend, and whether it may (project 015).
+ *
+ * With a plan waiting for its day, every start replaces it, and its chain is
+ * counted — whichever way it faced, so a redo spent cutting the plan under way
+ * stays spent when the waiting plan is replaced by one that opens the next
+ * fortnight. A start that cuts the plan under way also counts that plan's own
+ * chain, and the larger of the two decides. With nothing waiting, a cut counts
+ * the plan under way and anything later is free.
+ *
+ * `chargeWaiting` false is a professional's generation (`0060`, owner's
+ * decision 2026-10-02): it replaces a waiting plan at no charge to the client,
+ * so the waiting plan neither makes it a redo nor is counted.
  */
-function standingAt(context: StartContext, start: string): { readonly meaning: StartMeaning; readonly standing: PlanRedoStanding } {
-  const { chain, current, ends, tier, today, waiting } = context;
+function standingAt(
+  context: StartContext,
+  start: string,
+  chargeWaiting = true
+): { readonly meaning: StartMeaning; readonly standing: PlanRedoStanding } {
+  const { chain, current, ends, tier, today } = context;
+  const waiting = chargeWaiting ? context.waiting : undefined;
   const meaning = startMeaning(ends, start, today, waiting !== undefined);
   const limit = allowancesFor(tier).planRedosPerFortnight;
 
@@ -1132,9 +1151,9 @@ function standingAt(context: StartContext, start: string): { readonly meaning: S
     return { meaning, standing: planRedoStanding(undefined, 0, today, tier) };
   }
 
-  const waitingOpens = waiting !== undefined && (!waiting.redo || waiting.opens);
-  const from = meaning.cuts !== null ? (waiting !== undefined && !waitingOpens ? waiting : current) : waitingOpens ? waiting : undefined;
-  const used = from ? redosInFortnight(chain.filter(plan => plan.version <= from.version)) : 0;
+  const countFrom = (plan: { readonly version: number } | undefined) =>
+    plan ? redosInFortnight(chain.filter(candidate => candidate.version <= plan.version)) : 0;
+  const used = Math.max(countFrom(waiting), meaning.cuts !== null ? countFrom(current) : 0);
   const allowed = used < limit;
 
   return {
@@ -1144,8 +1163,8 @@ function standingAt(context: StartContext, start: string): { readonly meaning: S
 }
 
 /** Refuses a start whose redo is spent, as the allowance always has: 429 with the day the next fortnight opens. */
-async function refuseSpentStart(userId: string, start: string): Promise<void> {
-  const { standing } = await PlanController.startStanding(userId, start);
+async function refuseSpentStart(userId: string, start: string, chargeWaiting = true): Promise<void> {
+  const { standing } = await PlanController.startStanding(userId, start, chargeWaiting);
 
   if (!standing.allowed) {
     throw new QuotaExceededError('plan_redo', standing.nextAt);

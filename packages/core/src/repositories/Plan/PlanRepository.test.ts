@@ -7,7 +7,15 @@ const selects: unknown[][] = [];
 const writes: Record<string, unknown>[] = [];
 
 function chain() {
-  const link = { for: () => Promise.resolve(selects.shift() ?? []), from: () => link, limit: () => link, where: () => link };
+  const answer = () => Promise.resolve(selects.shift() ?? []);
+  // Awaited after `for`, or straight after `limit` for a read that holds nothing.
+  const link = {
+    for: answer,
+    from: () => link,
+    limit: () => link,
+    then: (resolve: (rows: unknown[]) => unknown, reject: (error: unknown) => unknown) => answer().then(resolve, reject),
+    where: () => link
+  };
 
   return link;
 }
@@ -104,16 +112,31 @@ describe('saveShape — a plan may wait for its day', () => {
     expect(saveShape({ ...base, start: TODAY, waiting })).toMatchObject({ completesActive: true, replacesWaiting: true, status: 'active' });
   });
 
-  it('carries what the replaced plan spent into the fortnight it belongs to, and nothing across fortnights', () => {
-    // It had itself replaced the opener: one redo of the next fortnight already spent.
+  it('carries everything the replaced plan spent, whichever way either faced — a cut stays spent', async () => {
+    // It had itself replaced the opener: one redo already spent.
     const opener = { generationMetadata: { opens: true, redo: true } };
-    // It had cut the plan under way: a redo of this fortnight.
+    // It had cut the plan under way, after replacing one: two spent.
     const cutter = { generationMetadata: { redo: true, replacedRedos: 1 } };
 
     expect(saveShape({ ...base, start: '2026-10-05', waiting: opener })).toMatchObject({ opens: true, replacedRedos: 1 });
-    expect(saveShape({ ...base, start: '2026-10-04', waiting: opener })).toMatchObject({ opens: false, replacedRedos: 0 });
+    expect(saveShape({ ...base, start: '2026-10-04', waiting: opener })).toMatchObject({ opens: false, replacedRedos: 1 });
     expect(saveShape({ ...base, start: '2026-10-04', waiting: cutter })).toMatchObject({ opens: false, replacedRedos: 2 });
-    expect(saveShape({ ...base, start: '2026-10-05', waiting: cutter })).toMatchObject({ opens: true, replacedRedos: 0 });
+    expect(saveShape({ ...base, start: '2026-10-05', waiting: cutter })).toMatchObject({ opens: true, replacedRedos: 2 });
+    expect(saveShape({ ...base, start: '2026-10-05', waiting: { generationMetadata: { redo: false } } })).toMatchObject({ replacedRedos: 0 });
+  });
+
+  it('replaces a waiting plan for a professional’s plan that goes active, at no charge to the client (owner, 2026-10-02)', () => {
+    const waiting = { generationMetadata: { opens: true, redo: true } };
+
+    expect(saveShape({ ...base, active: { endDate: '2026-10-01' }, byProfessional: true, start: TODAY, waiting })).toEqual({
+      completesActive: true,
+      cutsActiveTo: null,
+      opens: false,
+      redo: false,
+      replacedRedos: 0,
+      replacesWaiting: true,
+      status: 'active'
+    });
   });
 
   it('leaves everything standing for a plan that goes to review — the care path is unchanged', () => {
@@ -126,6 +149,38 @@ describe('saveShape — a plan may wait for its day', () => {
       replacesWaiting: false,
       status: 'pending_review'
     });
+  });
+});
+
+describe('PlanRepository.publish — the professional’s plan prevails over a scheduled one (owner, 2026-10-02)', () => {
+  it('deletes the client’s scheduled plan in the publish’s transaction, with its job unlinked, and charges nothing', async () => {
+    writes.length = 0;
+    // pending (held), active, scheduled (held)
+    selects.push([{ id: 'plan-p', version: 4 }], [{ version: 2 }], [{ id: 'plan-s' }]);
+    const record = vi.fn(async () => undefined);
+
+    await expect(PlanRepository.publish('usr-1', record, '2026-10-02')).resolves.toBe('plan-p');
+    expect(writes).toEqual([
+      { planId: null },
+      { deleted: true },
+      expect.objectContaining({ completedAt: '2026-10-02', status: 'completed' }),
+      expect.objectContaining({ status: 'active' })
+    ]);
+    expect(record).toHaveBeenCalledOnce();
+  });
+
+  it('publishes as before when nothing is scheduled', async () => {
+    writes.length = 0;
+    selects.push([{ id: 'plan-p', version: 4 }], [{ version: 2 }], []);
+
+    await expect(
+      PlanRepository.publish(
+        'usr-1',
+        vi.fn(async () => undefined),
+        '2026-10-02'
+      )
+    ).resolves.toBe('plan-p');
+    expect(writes).toHaveLength(2);
   });
 });
 
