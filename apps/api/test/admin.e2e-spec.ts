@@ -2352,7 +2352,7 @@ describe('admin', () => {
       expect(view.mail.perDay.failed).toHaveLength(view.mail.days.length);
       expect(view.mail.perDay.sent).toHaveLength(view.mail.days.length);
       expect(view.mail.days).toHaveLength(30);
-      expect(view.crons.map(cron => cron.job).sort()).toEqual(['reminders', 'rewrite', 'verifications']);
+      expect(view.crons.map(cron => cron.job).sort()).toEqual(['activations', 'reminders', 'rewrite', 'verifications']);
 
       for (const cron of view.crons) {
         expect(keys(cron)).toEqual(['job', 'lastRunAt', 'stale']);
