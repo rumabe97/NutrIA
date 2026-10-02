@@ -106,7 +106,7 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
 
 ### Phase 4 — Accompaniments end to end, and the flag on (A)
 
-- [ ] pending
+- [ ] in progress
 - **Dispatch**: `/team` — `backend-high`, `frontend`, `tests`, `migration-reviewer`, `invariant-reviewer`, `accessibility`. `/execute-project 016 phase 4`. **human-verify:** the owner sees it on the iPhone.
 - **Goal**: PRD criterion 4, end to end.
 - **Added 2026-10-02 (lead, from phase 3's evaluator): accompaniments accompany, they do not replace the dish.** With the flag on, sides reached 54% of a meal's energy (vegetarian), 46% (halal, traditional Spanish).
