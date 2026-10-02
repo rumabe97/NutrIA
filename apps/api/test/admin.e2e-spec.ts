@@ -2058,11 +2058,13 @@ describe('admin', () => {
     });
 
     it('never name who made a dish: no created_by, no person’s id, not the maker’s id anywhere', async () => {
-      // The premise: this block's generation asked the model, so the catalogue holds a dish `log` made.
+      // The premise: this block's generation asked the model, so the catalogue holds model-made dishes with a maker.
+      // Any of them will do: since the per-food plate ceiling (016 phase 5) a generation keeps only the dishes its
+      // plates could hold, so which person's dishes were kept depends on the shared library, not on `log`.
       expect(asked).toBeGreaterThan(0);
 
       const [dish] = await sql()<{ locale: string; name: string }>`
-        select r.name, r.locale from recipes r join "user" u on u.id = r.created_by where u.email = ${log.email} order by r.name limit 1`;
+        select r.name, r.locale from recipes r where r.source = 'ai' and r.created_by is not null order by r.name limit 1`;
 
       expect(dish).toBeDefined();
 

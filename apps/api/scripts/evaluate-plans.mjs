@@ -71,7 +71,7 @@ import {
 import { PLAN_DAYS, PLATE_GRAMS_MAX, PLATE_LIMIT, plateGramsMax, schedulePlan, SERVING_PREFERENCE } from 'core/domain/Scheduler';
 import { bestEffortExclusions, dishSafety, normaliseForMatching, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
 import { DISHES_NEEDED_PER_SLOT, MAIN_SLOTS } from 'core/domain/Variety';
-import { toDry } from 'core/domain/Yield';
+import { plateFoodMax, plateFoods } from 'core/domain/PlateFood';
 
 // ---------------------------------------------------------------------------
 // The profiles. Fixed here, printed in the report, so the next run measures the
@@ -535,7 +535,7 @@ async function measureProfile(profile, shared, options) {
     fallback: null,
     accompanied: accompanimentMetrics(scheduled.assignment.days),
     dishRuleBreaks: dishRuleBreaks(scheduled.assignment.days, context),
-    foodGroups: foodGroupGrams(scheduled.assignment.days, context.catalogue),
+    foodGroups: foodGroupGrams(scheduled.assignment.days, context.catalogue, dayTargets, targets, weights),
     dinnersByFamily,
     measured: true,
     note,
@@ -958,33 +958,31 @@ function servingsHistogram(days) {
 }
 
 /**
- * The food groups architect report 0008 § D would cap per plate, as served:
- * meat (classes meat and pork), fish and shellfish, cooked legumes
- * (`isLegumeSlug`), grains read dry (`toDry`, `0078`), and potato and sweet
- * potato. Per group, the heaviest plate and the mean over the plates that
- * carry any of it.
+ * The foods `PLATE_FOOD_MAX` caps per plate (`0008` § D, 016 phase 5), as
+ * served and recognised by core's own `plateFood`: meat, fish and shellfish,
+ * cooked legumes, grains read dry, potato and sweet potato. Per group, the
+ * heaviest plate, the mean over the plates that carry any of it, and how many
+ * are over `plateFoodMax` for their slot and that day's share. Keyed as phases
+ * 3 and 4 wrote them, so `--compare` reads across.
  */
-const FOOD_GROUPS = {
-  fish: (slug, item) => item?.classes.some(cls => cls === 'fish' || cls === 'shellfish') ?? false,
-  grains: slug => toDry(slug, 1) !== null,
-  legumes: slug => isLegumeSlug(slug),
-  meat: (slug, item) => item?.classes.some(cls => cls === 'meat' || cls === 'pork') ?? false,
-  potato: slug => slug.startsWith('patata') || slug.startsWith('boniato')
-};
+const FOOD_GROUP_KEYS = { fish: 'fish', grain: 'grains', legume: 'legumes', meat: 'meat', potato: 'potato' };
 
-function foodGroupGrams(days, catalogue) {
-  const groups = Object.fromEntries(Object.keys(FOOD_GROUPS).map(group => [group, []]));
+function foodGroupGrams(days, catalogue, dayTargets, targets, weights) {
+  const total = [...weights.values()].reduce((sum, weight) => sum + weight, 0) || 1;
+  const groups = Object.fromEntries(Object.values(FOOD_GROUP_KEYS).map(group => [group, []]));
+  const over = Object.fromEntries(Object.values(FOOD_GROUP_KEYS).map(group => [group, 0]));
 
   for (const day of days) {
-    for (const meal of day.meals) {
-      for (const [group, matches] of Object.entries(FOOD_GROUPS)) {
-        const grams = plateItems(meal)
-          .filter(item => matches(item.slug, catalogue.get(item.slug)))
-          .reduce((sum, item) => sum + (group === 'grains' ? (toDry(item.slug, item.grams)?.dryGrams ?? 0) : item.grams), 0);
+    const kcal = (dayTargets.get(day.dayIndex) ?? targets).kcal;
 
-        if (grams > 0) {
-          groups[group].push(grams);
-        }
+    for (const meal of day.meals) {
+      const budgetKcal = (kcal * (weights.get(meal.slot) ?? 0)) / total;
+
+      for (const [food, grams] of Object.entries(plateFoods(plateItems(meal), catalogue))) {
+        const group = FOOD_GROUP_KEYS[food];
+
+        over[group] += grams > plateFoodMax(food, meal.slot, budgetKcal) + 0.5 ? 1 : 0;
+        groups[group].push(grams);
       }
     }
   }
@@ -995,6 +993,7 @@ function foodGroupGrams(days, catalogue) {
       {
         max: list.length > 0 ? Math.round(Math.max(...list)) : null,
         mean: list.length > 0 ? Math.round(list.reduce((sum, grams) => sum + grams, 0) / list.length) : null,
+        over: over[group],
         plates: list.length
       }
     ])
@@ -1027,9 +1026,11 @@ function printProfile(profile, result) {
         .join(', ')}${thin.length > 0 ? ` — BELOW: ${thin.map(([slot]) => slot).join(', ')}` : ''}`
     );
     console.log(
-      `  dinners by cuisine family: ${Object.entries(result.dinnersByFamily ?? {})
-        .map(([family, count]) => `${family} ${count}`)
-        .join(', ') || 'none'}`
+      `  dinners by cuisine family: ${
+        Object.entries(result.dinnersByFamily ?? {})
+          .map(([family, count]) => `${family} ${count}`)
+          .join(', ') || 'none'
+      }`
     );
   }
   console.log(`  days inside 5% on all four macros: ${result.daysInsideAll4} / ${PLAN_DAYS}`);
@@ -1135,7 +1136,9 @@ function printProfile(profile, result) {
     console.log(
       `  accompaniments on ${meals} lunches and dinners: ${Object.entries(byCount)
         .map(([count, n]) => `${count}: ${n} (${pct(n / (meals || 1))})`)
-        .join(', ')}; their kcal share mean ${kcalShareMean === null ? 'n/a' : pct(kcalShareMean)}, max ${kcalShareMax === null ? 'n/a' : pct(kcalShareMax)}`
+        .join(
+          ', '
+        )}; their kcal share mean ${kcalShareMean === null ? 'n/a' : pct(kcalShareMean)}, max ${kcalShareMax === null ? 'n/a' : pct(kcalShareMax)}`
     );
     console.log(`    most served: ${top.map(([key, n]) => `${key} ${n}`).join(', ') || 'none'}`);
   }
@@ -1157,7 +1160,9 @@ function printProfile(profile, result) {
 
   if (result.foodGroups) {
     const groups = Object.entries(result.foodGroups)
-      .map(([group, { max, mean, plates }]) => (plates > 0 ? `${group} mean ${mean} g, max ${max} g on ${plates}` : `${group} none`))
+      .map(([group, { max, mean, over, plates }]) =>
+        plates > 0 ? `${group} mean ${mean} g, max ${max} g on ${plates}, over the ceiling ${over ?? '?'}` : `${group} none`
+      )
       .join('; ');
 
     console.log(`  grams per food group per plate (grains dry): ${groups}`);
@@ -1397,7 +1402,13 @@ async function main() {
     writeFileSync(
       options.json,
       JSON.stringify(
-        { flags: options.flags, locale: options.locale, start: options.start, profiles: PROFILES.map(profile => ({ description: profile.description, slug: profile.slug })), results },
+        {
+          flags: options.flags,
+          locale: options.locale,
+          start: options.start,
+          profiles: PROFILES.map(profile => ({ description: profile.description, slug: profile.slug })),
+          results
+        },
         null,
         2
       )

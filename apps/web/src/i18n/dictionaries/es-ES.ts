@@ -16,7 +16,10 @@ export const esES = {
   activity: { athlete: 'Deportista', high: 'Alto', light: 'Ligero', moderate: 'Moderado', sedentary: 'Sedentario' },
 
   admin: {
+    accompanimentsHint:
+      'Encendido: los planes, cambios de plato y reconstrucciones nuevos ponen pan, ensalada o fruta junto a las comidas grandes, y el plato baja a una ración normal.',
     accompanimentsLabel: 'Acompañamientos (pan, ensalada, fruta)',
+    accompanimentsOffHint: 'Apagado: no se añaden acompañamientos nuevos. Los que ya tiene un plan se siguen viendo.',
     automaticActivation: 'Activación automática',
     automaticHint: 'Quien confirma su correo entra directamente. Tú no tienes que hacer nada.',
     events: { app_used: 'Usaron la app', session_started: 'Entradas', swap_requested: 'Cambios de comida pedidos' },

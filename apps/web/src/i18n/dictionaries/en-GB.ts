@@ -12,7 +12,9 @@ export const enGB: Dictionary = {
   activity: { athlete: 'Athlete', high: 'High', light: 'Light', moderate: 'Moderate', sedentary: 'Sedentary' },
 
   admin: {
+    accompanimentsHint: 'On: new plans, swaps and rebuilds set bread, salad or fruit beside large meals, and the plate drops to a normal serving.',
     accompanimentsLabel: 'Accompaniments (bread, salad, fruit)',
+    accompanimentsOffHint: 'Off: no new accompaniments are added. Those a plan already has are still shown.',
     automaticActivation: 'Automatic activation',
     automaticHint: 'Whoever confirms their address is in. Nothing for you to do.',
     events: { app_used: 'Used the app', session_started: 'Sign-ins', swap_requested: 'Meal swaps asked for' },
