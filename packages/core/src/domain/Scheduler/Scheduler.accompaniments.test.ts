@@ -28,6 +28,9 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * JSON in that key order. A field added to a meal later (`accompaniments`) is
  * not in the hash, so the test says what it means: with the flag off, every
  * number of every plan is the one it was.
+ *
+ * Phase 5 (`PLATE_FOOD_MAX`) caps every plate, flag on or off, and moved one
+ * plan on purpose: five meals at 1.8× the target, re-pinned at that phase.
  */
 const FOODS = [
   { carbs: 28, fat: 0.3, kcal: 130, protein: 2.7, slug: 'arroz' },
@@ -143,7 +146,7 @@ describe('the scheduler with accompaniments off — the plans it always made', (
   });
 
   it('five meals, a high target', () => {
-    expect(plan(shapeFor(5, true), 1.8)).toBe('9ed7481961f71050515bb87beab8d173df234f7245665f40e5f20f34b8a676b0');
+    expect(plan(shapeFor(5, true), 1.8)).toBe('80f807f5c5220599708c4c5e10d87be4dda329e2a0594124bcbac21521995311');
   });
 
   it('two big main meals and a light snack', () => {

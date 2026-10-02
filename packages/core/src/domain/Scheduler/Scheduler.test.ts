@@ -13,6 +13,7 @@ import {
   SHARE_BAND
 } from 'core/domain/Scheduler';
 import { shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
+import { PLATE_FOOD_MAX, plateFoodMax } from 'core/domain/PlateFood';
 
 /** The old question, asked of the new answer: "N meals, snacks or not" is still how a test wants to describe a day. */
 function slotsForTest(mealsPerDay: number, includesSnacks: boolean) {
@@ -1902,6 +1903,132 @@ describe('plateGramsMax — a big main meal may weigh more until accompaniments 
       const picked = pickReplacement({ budget, catalogue, dayIndex: 2, placed: [], plateMinimumKcal: 1000, pool, slot: 'lunch' });
 
       expect(gramsOf(picked)).toBeGreaterThan(SCALED_PLATE_GRAMS.maxGrams);
+    });
+  });
+});
+
+describe('PLATE_FOOD_MAX — no plate holds more than about two servings of one food (016 phase 5)', () => {
+  // 'food' carries the energy; potato and water weigh and carry none, so a
+  // dish's potato is set independently of its energy and its weight.
+  const catalogue = makeCatalogue([
+    makeCatalogueIngredient({ id: 'x', kcalPer100g: 300, proteinPer100g: 30, slug: 'food' }),
+    makeCatalogueIngredient({ id: 'p', carbsPer100g: 0, fatPer100g: 0, fiberPer100g: 0, kcalPer100g: 0, proteinPer100g: 0, slug: 'patata' })
+  ]);
+  /** One serving: 600 kcal in 200 g of food, beside `potato` g of potato. */
+  const lunch = (slug: string, potato: number) =>
+    makeDish({
+      ingredients: [
+        { grams: 200, slug: 'food' },
+        { grams: potato, slug: 'patata' }
+      ],
+      name: slug,
+      servings: 1,
+      slots: ['lunch'],
+      slug
+    });
+  const potatoOf = (picked: ReturnType<typeof pickReplacement>): number =>
+    (picked?.ingredients ?? []).filter(item => item.slug === 'patata').reduce((sum, item) => sum + item.grams, 0);
+
+  describe('through pickReplacement', () => {
+    const budget = { carbsG: 110, fatG: 30, kcal: 900, proteinG: 70 };
+
+    it('serves 300 g of potato a serving no further than 400 g, though its energy asks for a serving and a half', () => {
+      const picked = pickReplacement({
+        budget,
+        catalogue,
+        dayIndex: 2,
+        placed: [],
+        plateMinimumKcal: 0,
+        pool: [lunch('patatas', 300)],
+        slot: 'lunch'
+      });
+
+      expect(picked?.servings).toBe(1.25);
+      expect(potatoOf(picked)).toBeLessThanOrEqual(PLATE_FOOD_MAX.potato);
+    });
+
+    it('does not offer a dish whose smallest size is past the ceiling', () => {
+      // Half a serving is 450 g of potato.
+      expect(
+        pickReplacement({ budget, catalogue, dayIndex: 2, placed: [], plateMinimumKcal: 0, pool: [lunch('patatas', 900)], slot: 'lunch' })
+      ).toBeUndefined();
+    });
+
+    it('scales the ceiling for a share past 1,100 kcal', () => {
+      // 1,320 kcal: 480 g of potato, so a serving and a half — 1.25 at the flat 400 g.
+      const big = { carbsG: 160, fatG: 44, kcal: 1320, proteinG: 100 };
+      const picked = pickReplacement({
+        budget: big,
+        catalogue,
+        dayIndex: 2,
+        placed: [],
+        plateMinimumKcal: 0,
+        pool: [lunch('patatas', 300)],
+        slot: 'lunch'
+      });
+
+      expect(picked?.servings).toBe(1.5);
+      expect(potatoOf(picked)).toBeLessThanOrEqual(plateFoodMax('potato', 'lunch', 1320));
+    });
+
+    it('passes the ceiling only as far as the floor needs', () => {
+      const picked = pickReplacement({
+        budget,
+        catalogue,
+        dayIndex: 2,
+        placed: [],
+        plateMinimumKcal: 900,
+        pool: [lunch('patatas', 300)],
+        slot: 'lunch'
+      });
+
+      expect(picked?.servings).toBe(1.5);
+      expect(potatoOf(picked)).toBeGreaterThan(PLATE_FOOD_MAX.potato);
+    });
+  });
+
+  describe('through schedulePlan', () => {
+    const weights = weightsFor({ afternoon_snack: 'off', breakfast: 'off', dinner: 'normal', lunch: 'normal', morning_snack: 'off', supper: 'off' });
+    const T: NutritionTargets = { carbsG: 200, fatG: 55, fiberG: 25, kcal: 1800, proteinG: 180 };
+    // Each lunch and dinner carries its 900-kcal share in one serving and a half, with 300 g of potato a serving.
+    const pool = [
+      ...Array.from({ length: 8 }, (_none, n) => lunch(`lunch-${n}`, 300 + n)),
+      ...Array.from({ length: 8 }, (_none, n) => ({ ...lunch(`dinner-${n}`, 300 + n), slots: ['dinner' as const] }))
+    ];
+    // Each item is rounded to a tenth of a gram on its own.
+    const ROUNDING = 0.5;
+
+    it('never serves more potato than the ceiling, though every day then sits under its energy', () => {
+      const result = schedulePlan({ catalogue, days: 4, minimumKcal: 1200, pool, targets: T, weights });
+
+      expect(result.ok).toBe(true);
+
+      if (!result.ok) {
+        return;
+      }
+
+      const meals = result.assignment.days.flatMap(day => day.meals);
+
+      expect(meals.length).toBeGreaterThan(0);
+
+      for (const meal of meals) {
+        const potato = meal.ingredients.filter(item => item.slug === 'patata').reduce((sum, item) => sum + item.grams, 0);
+
+        expect(potato, `${meal.dish.slug} at ${meal.servings}`).toBeLessThanOrEqual(PLATE_FOOD_MAX.potato + ROUNDING);
+      }
+    });
+
+    it('lets the energy floor outrank the ceiling when nothing under it reaches the floor', () => {
+      // At the ceiling a plate is 1.25 servings, 750 kcal: 1,500 a day, under a 1,700 floor.
+      const result = schedulePlan({ catalogue, days: 2, minimumKcal: 1700, pool, targets: T, weights });
+
+      expect(result.ok).toBe(true);
+
+      if (result.ok) {
+        for (const day of result.assignment.days) {
+          expect(day.totals.kcal, `day ${day.dayIndex}`).toBeGreaterThanOrEqual(1700);
+        }
+      }
     });
   });
 });
