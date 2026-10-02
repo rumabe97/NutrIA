@@ -1,9 +1,10 @@
-import { aliasedTable, and, desc, eq, exists, getTableColumns, gte, inArray, lt, ne, sql } from 'drizzle-orm';
+import { aliasedTable, and, desc, eq, exists, getTableColumns, gte, inArray, lt, lte, ne, sql } from 'drizzle-orm';
 
 import { database } from 'database';
 import { careLinks } from 'database/schema/care';
 import { mealCompletions, mealPlans, meals, mealSwaps, planDays, planGenerationJobs } from 'database/schema/plan';
 import { professionals } from 'database/schema/professional';
+import { profiles } from 'database/schema/profile';
 import { ingredientAllergens, ingredientNames, ingredients, ingredientSubstitutions } from 'database/schema/food';
 import { recipeImages, recipeIngredients, recipes } from 'database/schema/recipe';
 import { shoppingListItems, shoppingLists } from 'database/schema/shopping';
@@ -22,12 +23,58 @@ import type { RecordAccess } from '#repositories/Care';
  */
 const PENDING = 'pending_review';
 
+/**
+ * A plan waiting for its first day (project 015). Visible to its owner — its
+ * days, its list and its swaps are theirs to prepare — and lived from the day
+ * `activateDue` makes it `active`. At most one, by
+ * `meal_plans_one_scheduled_per_user`.
+ */
+const SCHEDULED = 'scheduled';
+
 /** What a client may see of their own plans: everything but a plan still under review. */
 function visible() {
   return ne(mealPlans.status, PENDING);
 }
 
 export const PlanRepository = {
+  /**
+   * Makes the plan waiting for its day the active one, once its day has come
+   * (project 015): the active plan completed the day before it starts, the
+   * waiting one active — one transaction, or nothing. Answers whether one was
+   * activated; with nothing due it changes nothing, so it can run on every read
+   * and from the nightly cron alike.
+   *
+   * The waiting row is held `FOR UPDATE`, so two reads racing on the first
+   * morning queue here, and the second finds it already active. Completing
+   * first is what `meal_plans_one_active_per_user` requires.
+   */
+  async activateDue(userId: string, today: string): Promise<boolean> {
+    try {
+      return await database().transaction(async tx => {
+        const [due] = await tx
+          .select({ id: mealPlans.id, startDate: mealPlans.startDate })
+          .from(mealPlans)
+          .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, SCHEDULED), lte(mealPlans.startDate, today)))
+          .limit(1)
+          .for('update');
+
+        if (!due) {
+          return false;
+        }
+
+        await tx
+          .update(mealPlans)
+          .set({ completedAt: dayBefore(due.startDate), status: 'completed', updatedAt: new Date() })
+          .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, 'active')));
+        await tx.update(mealPlans).set({ activatedAt: new Date(), status: 'active', updatedAt: new Date() }).where(eq(mealPlans.id, due.id));
+
+        return true;
+      });
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   /** Swaps recorded against one plan — what the fortnight's allowance is counted from. */
   async countSwaps(planId: string): Promise<number> {
     try {
@@ -85,6 +132,18 @@ export const PlanRepository = {
    * active. Otherwise — the link ended, paused or lost its grant during the
    * generation, and the client has an active plan — it is refused with a
    * `ConflictError`, nothing is written, and the job fails.
+   *
+   * **A plan may wait for its day** (project 015). A draft whose `startDate` is
+   * after `draft.today` goes in `scheduled`, and the active plan stays active:
+   * when the start falls on or before its end it is **cut** — its days from the
+   * start on are deleted with their meals, and it ends the day before. A plan
+   * already scheduled is replaced (deleted, its job kept with no plan), and the
+   * replacement is a redo: stamped `redo`, carrying what the replaced one spent,
+   * and stamped `opens` when it still starts after the active plan ends — it is
+   * then the next fortnight's first plan (`redosInFortnight`). A start of today
+   * is the path above, unchanged, with the waiting plan replaced as well. A
+   * professional's generation never replaces a plan waiting for its day; a plan
+   * that goes to review leaves it alone.
    */
   async createPlanAtomically(userId: string, draft: PlanDraft, reviewable = false, byProfessional = false): Promise<string> {
     try {
@@ -118,6 +177,19 @@ export const PlanRepository = {
           .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, PENDING)))
           .limit(1)
           .for('update');
+        // Held for the same reason: an activation racing this generation either
+        // lands first (and this plan replaces nothing waiting) or waits for it.
+        const [waiting] = await tx
+          .select({ id: mealPlans.id, generationMetadata: mealPlans.generationMetadata })
+          .from(mealPlans)
+          .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, SCHEDULED)))
+          .limit(1)
+          .for('update');
+        const [active] = await tx
+          .select({ id: mealPlans.id, endDate: mealPlans.endDate })
+          .from(mealPlans)
+          .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, 'active')))
+          .limit(1);
         const link = reviewable ? await publishingLink(tx, userId) : undefined;
         // A professional's regeneration of a pending plan lands pending again even
         // with review turned off since: it replaces what they were reviewing, and a
@@ -127,11 +199,11 @@ export const PlanRepository = {
         const counted = link !== undefined ? pending : undefined;
 
         const previous = await tx
-          .select({ id: mealPlans.id, endDate: mealPlans.endDate, status: mealPlans.status, version: mealPlans.version })
+          .select({ id: mealPlans.id, version: mealPlans.version })
           .from(mealPlans)
           .where(and(eq(mealPlans.userId, userId), visible()))
           .orderBy(desc(mealPlans.version))
-          .limit(1);
+          .limit(2);
 
         const nextVersion = (previous.at(0)?.version ?? 0) + 1;
         // A plan generated while the previous one still had days to run is a
@@ -139,14 +211,15 @@ export const PlanRepository = {
         // is known. Plans from before this stamp existed are not redos: they
         // carry no flag, and the allowance never counts what it did not see.
         // A pending plan is the fortnight under way for this purpose (`0060`).
-        const latest = counted ?? previous.at(0);
-        const redo = latest !== undefined && (latest.status === 'active' || latest.status === PENDING) && latest.endDate >= draft.startDate;
-        const replacedRedos = counted && redo ? replacedRedosOf(counted.generationMetadata) + (counted.generationMetadata?.redo === true ? 1 : 0) : 0;
+        const shape = saveShape({ active, counted, review, start: draft.startDate, today: draft.today, waiting });
+        const { opens, redo, replacedRedos, replacesWaiting } = shape;
 
         // Asked of the table directly, not read off the latest plan: whatever row is
         // `active` is the one the completion below would complete. One whose
         // fortnight has ended is the next one's to replace, a professional's too.
-        if (refusesProfessionalSave({ byProfessional, review, running: await runsOn(tx, userId, draft.startDate) })) {
+        // A plan waiting for its day is the client's next fortnight, and is never
+        // a professional's to replace either.
+        if (refusesProfessionalSave({ byProfessional, review, running: (await runsOn(tx, userId, draft.startDate)) || waiting !== undefined })) {
           throw new ConflictError('The review this plan was generated for has ended; the fortnight under way stays');
         }
 
@@ -155,11 +228,24 @@ export const PlanRepository = {
           await tx.delete(mealPlans).where(eq(mealPlans.id, pending.id));
         }
 
+        if (waiting && replacesWaiting) {
+          await tx.update(planGenerationJobs).set({ planId: null }).where(eq(planGenerationJobs.planId, waiting.id));
+          await tx.delete(mealPlans).where(eq(mealPlans.id, waiting.id));
+        }
+
         // Complete the outgoing plan first: the partial unique index permits only
         // one active row per user, so the new one cannot be inserted until this
         // lands — in the same transaction, so no window exists where a user has none.
         // A plan under review leaves it standing: the client lives it until publishing.
-        if (!review) {
+        //
+        // A plan that waits for its day leaves the active one standing instead —
+        // cut to end the day before it starts, when it would otherwise overlap.
+        if (active && shape.cutsActiveTo !== null) {
+          await tx.delete(planDays).where(and(eq(planDays.planId, active.id), gte(planDays.date, draft.startDate)));
+          await tx.update(mealPlans).set({ endDate: shape.cutsActiveTo, updatedAt: new Date() }).where(eq(mealPlans.id, active.id));
+        }
+
+        if (shape.completesActive) {
           await tx
             .update(mealPlans)
             .set({ completedAt: draft.startDate, status: 'completed' })
@@ -169,12 +255,13 @@ export const PlanRepository = {
         const [plan] = await tx
           .insert(mealPlans)
           .values({
-            activatedAt: review ? null : new Date(),
+            activatedAt: shape.status === 'active' ? new Date() : null,
             endDate: draft.endDate,
-            generationMetadata: { ...draft.generationMetadata, redo, ...(replacedRedos > 0 ? { replacedRedos } : {}) },
-            previousPlanId: previous.at(0)?.id ?? null,
+            generationMetadata: { ...draft.generationMetadata, redo, ...(opens ? { opens } : {}), ...(replacedRedos > 0 ? { replacedRedos } : {}) },
+            // Never the plan this one just replaced: it is gone.
+            previousPlanId: previous.find(row => !(replacesWaiting && row.id === waiting.id))?.id ?? null,
             startDate: draft.startDate,
-            status: review ? PENDING : 'active',
+            status: shape.status,
             strategy: draft.strategy,
             userId,
             version: nextVersion
@@ -306,6 +393,7 @@ export const PlanRepository = {
 
       return rows.map(({ generationMetadata, ...row }) => ({
         ...row,
+        opens: generationMetadata?.opens === true,
         redo: generationMetadata?.redo === true,
         replacedRedos: replacedRedosOf(generationMetadata)
       }));
@@ -577,6 +665,42 @@ export const PlanRepository = {
         .limit(1);
 
       return row;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /** The plan waiting for its day (project 015), or undefined — at most one, by `meal_plans_one_scheduled_per_user`. */
+  async findScheduled(userId: string) {
+    try {
+      const [row] = await database()
+        .select()
+        .from(mealPlans)
+        .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, SCHEDULED)))
+        .limit(1);
+
+      return row;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Every plan waiting for its day that may be due by `latest`, with the time
+   * zone its owner's today is read in — the nightly cron's list (project 015).
+   * Not owner-scoped: the cron has no session and acts on each owner's own
+   * plan through `activateDue`, which is. Mode: one read; the list is small,
+   * a plan waits at most a week.
+   */
+  async findScheduledDue(
+    latest: string
+  ): Promise<readonly { readonly startDate: string; readonly timezone: string | null; readonly userId: string }[]> {
+    try {
+      return await database()
+        .select({ startDate: mealPlans.startDate, timezone: profiles.timezone, userId: mealPlans.userId })
+        .from(mealPlans)
+        .leftJoin(profiles, eq(profiles.userId, mealPlans.userId))
+        .where(and(eq(mealPlans.status, SCHEDULED), lte(mealPlans.startDate, latest)));
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -1122,6 +1246,60 @@ export function refusesProfessionalSave(save: { readonly byProfessional: boolean
 }
 
 /**
+ * How a generated plan is saved (`createPlanAtomically`), decided from the rows
+ * its transaction read — pure, so every branch is tested without a database.
+ *
+ * - `status`: under review, waiting for its day when `start` is after `today`
+ *   (project 015), else active.
+ * - `redo`: it cuts the fortnight under way — the active plan, or a pending one
+ *   that counts (`0060`) — or it replaces a plan waiting for its day. `opens`
+ *   when it is a redo only for the latter: it is the next fortnight's first plan.
+ * - `replacedRedos`: what the pending or waiting plan it replaces had spent in
+ *   the fortnight this one belongs to (`carriedFromWaiting`).
+ * - `cutsActiveTo`: a waiting plan that starts on or before the active plan's
+ *   end cuts it to the day before; `completesActive`: anything that goes active
+ *   completes it, as always. A plan under review does neither.
+ */
+export function saveShape(save: {
+  readonly active: { readonly endDate: string } | undefined;
+  readonly counted: { readonly endDate: string; readonly generationMetadata: Record<string, unknown> | null } | undefined;
+  readonly review: boolean;
+  readonly start: string;
+  readonly today: string;
+  readonly waiting: { readonly generationMetadata: Record<string, unknown> | null } | undefined;
+}): {
+  readonly completesActive: boolean;
+  readonly cutsActiveTo: string | null;
+  readonly opens: boolean;
+  readonly redo: boolean;
+  readonly replacedRedos: number;
+  readonly replacesWaiting: boolean;
+  readonly status: 'active' | 'pending_review' | 'scheduled';
+} {
+  const { active, counted, review, start, today, waiting } = save;
+  const running = counted ?? active;
+  const cuts = running !== undefined && running.endDate >= start;
+  // Replacing a plan waiting for its day is a redo too (project 015) — of the
+  // fortnight it would have opened, unless this one cuts the plan under way,
+  // which makes it a redo of that one.
+  const replacesWaiting = waiting !== undefined && !review;
+  const redo = cuts || replacesWaiting;
+  const status = review ? PENDING : start > today ? SCHEDULED : 'active';
+
+  return {
+    completesActive: status === 'active',
+    cutsActiveTo: status === SCHEDULED && active !== undefined && active.endDate >= start ? dayBefore(start) : null,
+    opens: redo && !cuts,
+    redo,
+    replacedRedos:
+      (counted && cuts ? replacedRedosOf(counted.generationMetadata) + (counted.generationMetadata?.redo === true ? 1 : 0) : 0) +
+      (waiting && replacesWaiting ? carriedFromWaiting(waiting.generationMetadata, cuts) : 0),
+    replacesWaiting,
+    status
+  };
+}
+
+/**
  * Whether the user's `active` plan still runs on `day` — the new plan's first
  * day, the same comparison that stamps a redo — read in the caller's transaction.
  */
@@ -1133,6 +1311,31 @@ async function runsOn(tx: Transaction, userId: string, day: string): Promise<boo
     .limit(1);
 
   return row !== undefined;
+}
+
+/**
+ * What a plan waiting for its day had spent, carried onto the plan replacing it
+ * (project 015) — counted in the fortnight the replacement belongs to. One that
+ * opened the next fortnight (stamped `opens`, or no redo at all) spent only in
+ * that fortnight, so its redos follow a replacement that opens it too; one that
+ * cut the plan under way spent in that fortnight, so its redos follow a
+ * replacement that cuts it again.
+ */
+function carriedFromWaiting(metadata: Record<string, unknown> | null, cuts: boolean): number {
+  const redo = metadata?.redo === true;
+  const opened = !redo || metadata?.opens === true;
+  const spent = redo ? 1 + replacedRedosOf(metadata) : 0;
+
+  return opened === !cuts ? spent : 0;
+}
+
+/** The calendar day before `isoDate`. */
+function dayBefore(isoDate: string): string {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+
+  date.setUTCDate(date.getUTCDate() - 1);
+
+  return date.toISOString().slice(0, 10);
 }
 
 /** The redos spent by pending plans this one replaced (`createPlanAtomically`). */

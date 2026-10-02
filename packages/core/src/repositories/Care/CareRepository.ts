@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, exists, gt, inArray, lte, ne, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, exists, gt, inArray, lte, ne, notInArray, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { ZodError } from 'zod';
 
@@ -761,7 +761,14 @@ async function rosterOf(db: Transaction, professionalId: string, now: Date): Pro
       })
       .from(mealPlans)
       .innerJoin(careLinks, eq(careLinks.clientId, mealPlans.userId))
-      .where(and(eq(careLinks.professionalId, professionalId), eq(careLinks.status, 'active'), ne(mealPlans.status, 'pending_review')))
+      // A plan waiting for its day (project 015) has not started: the stage is the plan being lived.
+      .where(
+        and(
+          eq(careLinks.professionalId, professionalId),
+          eq(careLinks.status, 'active'),
+          notInArray(mealPlans.status, ['pending_review', 'scheduled'])
+        )
+      )
       .orderBy(mealPlans.userId, desc(mealPlans.version))
   ]);
 

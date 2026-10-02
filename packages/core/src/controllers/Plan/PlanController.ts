@@ -1,6 +1,16 @@
-import { ConflictError, MealInFutureError, NotFoundError, PlanPausedError, QuotaExceededError } from 'core/entities/Error';
+import { ConflictError, InputParseError, MealInFutureError, NotFoundError, PlanPausedError, QuotaExceededError } from 'core/entities/Error';
 import { LIVED_PLAN_STATUSES } from 'core/entities/Plan';
-import { allowancesFor, eventStanding, mealSwapStanding, midPlanEventStanding, planRedoStanding, redosInFortnight } from 'core/domain/Allowance';
+import {
+  allowancesFor,
+  eventStanding,
+  MAX_START_DAYS_AHEAD,
+  mealSwapStanding,
+  midPlanEventStanding,
+  planRedoStanding,
+  redosInFortnight,
+  startMeaning
+} from 'core/domain/Allowance';
+import { dayKeyIn } from 'core/domain/Period';
 import { eventsInWindow, planWindow } from 'core/domain/Event';
 import { MAX_DAYS_BEFORE } from 'core/entities/Event';
 import { addDays } from 'core/domain/Vacation';
@@ -19,7 +29,7 @@ import { RecipeController, toPictureStatus } from 'core/controllers/Recipe';
 import { alternativesFor } from 'core/domain/Substitution';
 import { toDry, withoutCooked } from 'core/domain/Yield';
 import type { AiCallRecord, Macros, MealSlot, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
-import type { CountedStanding, MealSwapStanding, PlanRedoStanding, Tier } from 'core/domain/Allowance';
+import type { CountedStanding, MealSwapStanding, PlanRedoStanding, StartMeaning, Tier } from 'core/domain/Allowance';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PlanWindow } from 'core/domain/Event';
 import type { RecordAccess } from '#repositories/Care';
@@ -131,8 +141,22 @@ export interface EventAllowancesView {
   remaining: number;
 }
 
+/**
+ * One day a generation may start on (project 015): today to a week ahead.
+ * `kind` is what starting there spends — nothing for the next fortnight, a
+ * redo for cutting the one under way or replacing a plan waiting for its day —
+ * and `allowed` is false when it is a redo and none is left.
+ */
+export interface StartOptionView {
+  allowed: boolean;
+  date: string;
+  kind: 'new_fortnight' | 'redo';
+}
+
 /** What the person may still do this fortnight, for the screen to say before they try. */
 export interface AllowancesView {
+  /** The day the chooser offers first (project 015): the day after the plan under way ends, when that is within reach, else today. */
+  defaultStart: string;
   events: EventAllowancesView;
   /**
    * How big the largest main meal of the next plan will be, so the generation
@@ -142,6 +166,8 @@ export interface AllowancesView {
   mealSize: MealSizeView | null;
   mealSwaps: MealSwapStanding;
   planRedo: PlanRedoStanding;
+  /** Every day a generation may start on, today first, and what each would spend (project 015). */
+  startOptions: readonly StartOptionView[];
   /**
    * Which allowances these are — the tier as it applies right now, with the
    * `premium` switch already taken into account. It is here so a screen can say
@@ -237,6 +263,46 @@ function presentMeal({ items, meal, recipe }: MealRow): MealView {
 
 export const PlanController = {
   /**
+   * The nightly cron (project 015): every plan waiting for its day whose day
+   * has come in its owner's time zone, activated one owner at a time. Answers
+   * how many were. A failure for one owner does not stop the others; the next
+   * read of their plan activates it anyway.
+   */
+  async activateAllDue(now: Date = new Date()): Promise<{ readonly activated: number; readonly failed: number }> {
+    // Fetched up to the day after UTC's: the zones ahead of it reach tomorrow first.
+    const candidates = await PlanRepository.findScheduledDue(addDays(now.toISOString().slice(0, 10), 1));
+    let activated = 0;
+    let failed = 0;
+
+    for (const candidate of candidates) {
+      const today = dayKeyIn(now, candidate.timezone ?? DEFAULT_TIME_ZONE);
+
+      if (candidate.startDate > today) {
+        continue;
+      }
+
+      try {
+        activated += (await PlanRepository.activateDue(candidate.userId, today)) ? 1 : 0;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    return { activated, failed };
+  },
+
+  /**
+   * Makes the plan waiting for its day active once `today` — the person's —
+   * has reached it (project 015): the plan under way completed the day before,
+   * in one transaction. Idempotent: with nothing due it changes nothing. Run at
+   * the start of every read of the active plan, so a cron that missed a night
+   * never leaves somebody without their plan, and by the cron itself.
+   */
+  async activateDue(userId: string, today: string): Promise<boolean> {
+    return PlanRepository.activateDue(userId, today);
+  },
+
+  /**
    * What the fortnight still allows. `forGeneration` is `PlanJobController.start`'s
    * question (`0060`): whether a generation may begin counts a pending plan that
    * can still be published as the fortnight under way — its redo and its end.
@@ -245,20 +311,11 @@ export const PlanController = {
    * they cannot.
    */
   async allowances(userId: string, forGeneration = false): Promise<AllowancesView> {
-    const [active, chain, tier] = await Promise.all([
-      PlanRepository.findActive(userId),
-      PlanRepository.findChain(userId, true),
-      PlanController.tierOf(userId)
-    ]);
-    // A plan waiting for review (`0060`) is the fortnight a redo would redo: it
-    // was generated, and what it spent is spent, whether or not it is published —
-    // while it can still be published. A plan stranded by a link that ended,
-    // paused or lost its grant costs the client nothing. Nobody unlinked ever
-    // has one, so for them this is the active plan, as before.
-    const pending = chain.find(plan => plan.status === 'pending_review');
-    const counted = pending && (await pendingCounts(userId)) ? pending : undefined;
-    const current = counted ?? active;
-    const fromActive = current ? chain.filter(plan => plan.version <= current.version) : [];
+    // What the fortnight allows is read off the active plan: one whose day has come is it.
+    await PlanController.activateDue(userId, await personToday(userId));
+
+    const context = await startContext(userId, forGeneration);
+    const { active, tier } = context;
     const today = isoToday();
     const [swaps, events, mealSize] = await Promise.all([
       active ? PlanRepository.countSwaps(active.id) : 0,
@@ -268,10 +325,11 @@ export const PlanController = {
     // The counter is on the plan row and dies with the plan, which is what
     // "per plan" means; a plan that has ended is not one that can be rebuilt.
     const midPlan = midPlanEventStanding(active && active.endDate >= today ? active.midPlanLoads : 0, tier);
-    // Which fortnight a redo would redo: a pending plan only when a generation asks.
-    const ends = forGeneration ? current : active;
+    const days = Array.from({ length: MAX_START_DAYS_AHEAD + 1 }, (_, offset) => addDays(context.today, offset));
+    const afterActive = active ? addDays(active.endDate, 1) : null;
 
     return {
+      defaultStart: afterActive !== null && days.includes(afterActive) ? afterActive : context.today,
       events: {
         limit: events.limit,
         midPlan: midPlan.limit > 0 ? { limit: midPlan.limit, remaining: midPlan.remaining } : null,
@@ -279,7 +337,12 @@ export const PlanController = {
       },
       mealSize,
       mealSwaps: mealSwapStanding(swaps, tier),
-      planRedo: planRedoStanding(ends ? { endDate: ends.endDate } : undefined, redosInFortnight(fromActive), today, tier),
+      planRedo: standingAt(context, context.today).standing,
+      startOptions: days.map(date => {
+        const { standing } = standingAt(context, date);
+
+        return { allowed: standing.allowed, date, kind: standing.kind };
+      }),
       tier
     };
   },
@@ -348,6 +411,8 @@ export const PlanController = {
 
   /** The active plan with its days and meals, or null — having no plan is a normal state. */
   async getActivePlan(userId: string, locale: string | null = null): Promise<PlanView | null> {
+    await PlanController.activateDue(userId, await personToday(userId));
+
     const plan = await PlanRepository.findActive(userId);
 
     if (!plan) {
@@ -411,6 +476,36 @@ export const PlanController = {
     }
 
     return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId, locale)));
+  },
+
+  /**
+   * The plan waiting for its day (project 015), as the active plan is read —
+   * or not found when there is none, its day having come included: it is then
+   * the active plan.
+   */
+  async getScheduledPlan(userId: string, locale: string | null = null): Promise<PlanView> {
+    await PlanController.activateDue(userId, await personToday(userId));
+
+    const plan = await PlanRepository.findScheduled(userId);
+
+    if (!plan) {
+      throw new NotFoundError('Plan not found');
+    }
+
+    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId, locale)));
+  },
+
+  /** The list of the plan waiting for its day (project 015), to shop before it starts; not found when there is none. */
+  async getScheduledShoppingList(userId: string, locale: string | null = null): Promise<ShoppingListView> {
+    await PlanController.activateDue(userId, await personToday(userId));
+
+    const plan = await PlanRepository.findScheduled(userId);
+
+    if (!plan) {
+      throw new NotFoundError('Plan not found');
+    }
+
+    return PlanController.getShoppingList(userId, plan.id, locale);
   },
 
   async getShoppingList(userId: string, planId: string, locale: string | null = null): Promise<ShoppingListView> {
@@ -609,6 +704,15 @@ export const PlanController = {
     }
   },
 
+  /**
+   * What a generation starting on `start` would mean and spend (project 015),
+   * as `PlanJobController.start` asks it: a pending plan that counts is the
+   * fortnight under way (`0060`), as in `allowances(…, true)`.
+   */
+  async startStanding(userId: string, start: string): Promise<{ readonly meaning: StartMeaning; readonly standing: PlanRedoStanding }> {
+    return standingAt(await startContext(userId, true), start);
+  },
+
   async swapMeal(
     userId: string,
     mealId: string,
@@ -718,6 +822,21 @@ function round(value: number): number {
  * apart makes it obvious which surface a read-only screen may touch.
  */
 export const PlanJobController = {
+  /**
+   * The days a generation is laid out on (project 015): `start`, the one the
+   * person chose when the job was claimed or else their today, and `today`,
+   * which decides whether the plan waits for its day. Owner-scoped, like the job.
+   */
+  async dates(userId: string, jobId: string): Promise<{ readonly start: string; readonly today: string }> {
+    const [job, today] = await Promise.all([PlanJobRepository.findById(userId, jobId), personToday(userId)]);
+
+    if (!job) {
+      throw new NotFoundError('Job not found');
+    }
+
+    return { start: job.startDate ?? today, today };
+  },
+
   async markFailed(jobId: string, reason: string, detail?: string): Promise<void> {
     await PlanJobRepository.markFailed(jobId, reason, detail);
   },
@@ -746,13 +865,13 @@ export const PlanJobController = {
     const planId = await PlanRepository.createPlanAtomically(userId, draft, professional, byProfessional);
 
     /*
-     * Generation lays a fortnight out from today, one day after another, because
+     * Generation lays a fortnight out from its first day, one day after another, because
      * that is what a fortnight is — it knows nothing about a holiday declared
      * last week. The days are pushed apart afterwards (`0032`), which is the same
      * arithmetic declaring a trip performs, applied to a plan that did not exist
      * when it was declared.
      */
-    await VacationRepository.applyTo(userId);
+    await VacationRepository.applyTo(userId, planId);
 
     return planId;
   },
@@ -772,12 +891,33 @@ export const PlanJobController = {
    * meantime is a 404, as the professional's first check would have answered.
    * Started by both at once, one claims and the other is this conflict. Without it,
    * the path below is the client's own, unchanged.
+   *
+   * `startDate` is the day the person chose for the plan to start (project
+   * 015): from their today to `MAX_START_DAYS_AHEAD` days on, or an
+   * `InputParseError`. What starting there spends (`startMeaning`) is asked
+   * before the claim, so a refusal leaves no job row, and again under it.
+   * A professional's generation never carries one.
    */
-  async start(userId: string, record?: RecordAccess): Promise<JobView> {
+  async start(userId: string, record?: RecordAccess, startDate?: string): Promise<JobView> {
     // No plan is built from a profile whose owner has not consented to its use
     // (RGPD art. 9.2.a) — theirs, whoever starts it. Asked before the claim, so
     // a refusal leaves no job row.
     await requireProfileConsent(userId);
+
+    const today = await personToday(userId);
+
+    if (startDate !== undefined && (startDate < today || startDate > addDays(today, MAX_START_DAYS_AHEAD))) {
+      throw new InputParseError('Datos no válidos', { startDate: [`Must be between ${today} and ${addDays(today, MAX_START_DAYS_AHEAD)}`] });
+    }
+
+    const start = startDate ?? today;
+
+    // A plan whose day has come is the active one before anything is counted.
+    await PlanController.activateDue(userId, today);
+
+    if (!record) {
+      await refuseSpentStart(userId, start);
+    }
 
     // Adopt before failing: a job whose plan committed did not fail, whatever its
     // row says, and marking it abandoned would discard a plan the user already
@@ -788,7 +928,7 @@ export const PlanJobController = {
     // The claim is the refusal: "is one in flight?" and "start one" are a single
     // atomic step in `claim`, because asked as two they both answered *no* to
     // requests fired together and every one of them started a pipeline.
-    const job = await PlanJobRepository.claim(userId);
+    const job = await PlanJobRepository.claim(userId, start === today ? null : start);
 
     if (!job) {
       throw new ConflictError('A plan is already being generated');
@@ -810,11 +950,7 @@ export const PlanJobController = {
       // the count honest. A plan can only be committed by a generation, no
       // generation can begin while this claim stands, so the chain this reads
       // is the whole chain and cannot grow underneath the decision.
-      const { planRedo } = await PlanController.allowances(userId, true);
-
-      if (!planRedo.allowed) {
-        throw new QuotaExceededError('plan_redo', planRedo.nextAt);
-      }
+      await refuseSpentStart(userId, start);
 
       if (record) {
         await PlanJobRepository.admit(job.id, record);
@@ -911,6 +1047,88 @@ async function pendingCounts(userId: string): Promise<boolean> {
 
 function isoToday(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/** The zone a profile keeps when it says nothing else — the column's own default. */
+const DEFAULT_TIME_ZONE = 'Europe/Madrid';
+
+/** The person's calendar day, in the time zone their profile keeps (project 015). */
+async function personToday(userId: string): Promise<string> {
+  const profile = await ProfileRepository.findByUserId(userId);
+
+  return dayKeyIn(new Date(), profile?.timezone ?? DEFAULT_TIME_ZONE);
+}
+
+type ChainPlan = Awaited<ReturnType<typeof PlanRepository.findChain>>[number];
+
+/** Everything `startMeaning` and the redo count read, loaded once for every day the chooser offers. */
+type StartContext = {
+  readonly active: Awaited<ReturnType<typeof PlanRepository.findActive>>;
+  readonly chain: readonly ChainPlan[];
+  /** The plan whose chain a redo of the fortnight under way is counted from: a pending plan that counts (`0060`), else the active plan. */
+  readonly current: { readonly version: number } | undefined;
+  /** The fortnight a redo would redo: a pending plan that counts (`0060`) when a generation asks, else the active plan. */
+  readonly ends: { readonly endDate: string; readonly version: number } | undefined;
+  readonly tier: Tier;
+  readonly today: string;
+  /** The plan waiting for its day (project 015), from the chain. */
+  readonly waiting: ChainPlan | undefined;
+};
+
+async function startContext(userId: string, forGeneration: boolean): Promise<StartContext> {
+  const [active, chain, tier, today] = await Promise.all([
+    PlanRepository.findActive(userId),
+    PlanRepository.findChain(userId, true),
+    PlanController.tierOf(userId),
+    personToday(userId)
+  ]);
+  // A plan waiting for review (`0060`) is the fortnight a redo would redo: it
+  // was generated, and what it spent is spent, whether or not it is published —
+  // while it can still be published. A plan stranded by a link that ended,
+  // paused or lost its grant costs the client nothing. Nobody unlinked ever
+  // has one, so for them this is the active plan, as before. The client's own
+  // screen counts its redos too, but takes the fortnight's end from the plans
+  // the client can see.
+  const pending = chain.find(plan => plan.status === 'pending_review');
+  const counted = pending && (await pendingCounts(userId)) ? pending : undefined;
+  const current = counted ?? active;
+
+  return { active, chain, current, ends: forGeneration ? current : active, tier, today, waiting: chain.find(plan => plan.status === 'scheduled') };
+}
+
+/**
+ * What starting on `start` would spend, and whether it may (project 015): the
+ * redos counted in the fortnight it belongs to — the one under way when it
+ * cuts it (with the plan waiting for its day, when that one cut it too), the
+ * waiting plan's own when it replaces it, nothing when it opens the next one.
+ */
+function standingAt(context: StartContext, start: string): { readonly meaning: StartMeaning; readonly standing: PlanRedoStanding } {
+  const { chain, current, ends, tier, today, waiting } = context;
+  const meaning = startMeaning(ends, start, today, waiting !== undefined);
+  const limit = allowancesFor(tier).planRedosPerFortnight;
+
+  if (meaning.kind === 'new_fortnight') {
+    return { meaning, standing: planRedoStanding(undefined, 0, today, tier) };
+  }
+
+  const waitingOpens = waiting !== undefined && (!waiting.redo || waiting.opens);
+  const from = meaning.cuts !== null ? (waiting !== undefined && !waitingOpens ? waiting : current) : waitingOpens ? waiting : undefined;
+  const used = from ? redosInFortnight(chain.filter(plan => plan.version <= from.version)) : 0;
+  const allowed = used < limit;
+
+  return {
+    meaning,
+    standing: { allowed, kind: 'redo', limit, nextAt: allowed || meaning.cuts === null || !ends ? null : addDays(ends.endDate, 1), used }
+  };
+}
+
+/** Refuses a start whose redo is spent, as the allowance always has: 429 with the day the next fortnight opens. */
+async function refuseSpentStart(userId: string, start: string): Promise<void> {
+  const { standing } = await PlanController.startStanding(userId, start);
+
+  if (!standing.allowed) {
+    throw new QuotaExceededError('plan_redo', standing.nextAt);
+  }
 }
 
 /**

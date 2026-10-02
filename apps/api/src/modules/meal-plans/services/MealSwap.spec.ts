@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
-import { OnboardingIncompleteError, ProfileConsentRequiredError, QuotaExceededError } from 'core/entities/Error';
+import { ConflictError, OnboardingIncompleteError, ProfileConsentRequiredError, QuotaExceededError } from 'core/entities/Error';
 import { PlanController } from 'core/controllers/Plan';
 import { ProfileConsentController, ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
@@ -94,6 +94,7 @@ function harness(
     readonly composition?: readonly MealCompositionView[];
     readonly generated?: readonly CandidateDish[];
     readonly library?: readonly CandidateDish[];
+    readonly planStatus?: string;
     readonly remaining?: number;
     readonly sex?: 'female' | 'male';
   } = {}
@@ -106,7 +107,7 @@ function harness(
       id: 'plan-1',
       endDate: '2026-09-22',
       startDate: '2026-09-09',
-      status: 'active',
+      status: options.planStatus ?? 'active',
       strategy: { carbsG: 250, fatG: 70, fiberG: 30, kcal: 2200, proteinG: 160 }
     },
     recipe: { id: 'r-1', cookMinutes: 10, name: 'Lentil stew', prepMinutes: 5, servings: 1, slug: 'lentil-stew' }
@@ -114,10 +115,12 @@ function harness(
   jest
     .spyOn(PlanController, 'allowances')
     .mockResolvedValue({
+      defaultStart: '2026-09-09',
       events: { limit: 3, midPlan: null, remaining: 3 },
       mealSize: null,
       mealSwaps: { allowed: (options.remaining ?? 5) > 0, limit: 5, remaining: options.remaining ?? 5, used: 5 - (options.remaining ?? 5) },
       planRedo: { allowed: true, kind: 'redo', limit: 1, nextAt: null, used: 0 },
+      startOptions: [],
       tier: 'free'
     });
   jest
@@ -420,5 +423,37 @@ describe('MealSwapService', () => {
 
     await expect(service.swap('user-1', MEAL, 'es-ES')).rejects.toBeInstanceOf(QuotaExceededError);
     expect(reusablePool).not.toHaveBeenCalled();
+  });
+
+  /* Project 015: the plan waiting for its day is the person's own coming fortnight. */
+  it('swaps a meal of the plan waiting for its day, counted against that plan’s own swaps', async () => {
+    const fresh = lunch('turkey-rice', [
+      { grams: 200, slug: 'chicken' },
+      { grams: 250, slug: 'rice' }
+    ]);
+    const { service, swapMeal } = harness({ library: [fresh], planStatus: 'scheduled' });
+    const standing = jest.spyOn(PlanController, 'mealSwapStanding').mockResolvedValue({ allowed: true, limit: 5, remaining: 5, used: 0 });
+
+    await service.swap('user-1', MEAL, 'es-ES');
+
+    expect(standing).toHaveBeenCalledWith('user-1', 'plan-1');
+    expect(PlanController.allowances).not.toHaveBeenCalled();
+    expect(swapMeal).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a waiting plan’s swap when that plan has none left', async () => {
+    const { service, swapMeal } = harness({ library: [FITS], planStatus: 'scheduled' });
+
+    jest.spyOn(PlanController, 'mealSwapStanding').mockResolvedValue({ allowed: false, limit: 5, remaining: 0, used: 5 });
+
+    await expect(service.swap('user-1', MEAL, 'es-ES')).rejects.toBeInstanceOf(QuotaExceededError);
+    expect(swapMeal).not.toHaveBeenCalled();
+  });
+
+  it('still refuses a meal of a plan that has ended', async () => {
+    const { service, swapMeal } = harness({ library: [FITS], planStatus: 'completed' });
+
+    await expect(service.swap('user-1', MEAL, 'es-ES')).rejects.toBeInstanceOf(ConflictError);
+    expect(swapMeal).not.toHaveBeenCalled();
   });
 });

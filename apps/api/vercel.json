@@ -35,6 +35,10 @@
     {
       "path": "/api/v1/cron/sweep-verifications",
       "schedule": "5 8 * * *"
+    },
+    {
+      "path": "/api/v1/cron/activate-plans",
+      "schedule": "5 22 * * *"
     }
   ]
 }

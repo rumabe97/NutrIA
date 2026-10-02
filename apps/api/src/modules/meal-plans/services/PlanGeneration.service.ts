@@ -142,9 +142,12 @@ export class PlanGenerationService {
     const weights = weightsFor(shape);
     const slots = slotsIn(shape);
 
-    // Laid out from today, one day after another, which is what a fortnight is
-    // — and what lets an event's date become a day index before scheduling.
-    const start = new Date();
+    // Laid out from its first day, one day after another, which is what a
+    // fortnight is — and what lets an event's date become a day index before
+    // scheduling. The first day is the one chosen with the job, or the person's
+    // today (project 015); a later one makes the plan wait for it.
+    const dates = await PlanJobController.dates(userId, jobId);
+    const start = new Date(`${dates.start}T00:00:00Z`);
     const loads = await this.loadsFor(userId, targets, profile.targets?.bounds ?? null, start);
 
     await markStep(STEPS.choosing);
@@ -427,7 +430,8 @@ export class PlanGenerationService {
         rotation,
         { advisories: advisorySummary, fallback, quality },
         start,
-        loads
+        loads,
+        dates.today
       ),
       byProfessional
     );
@@ -549,7 +553,8 @@ export class PlanGenerationService {
     rotation: Rotation,
     { advisories, fallback, quality }: { readonly advisories: readonly string[]; readonly fallback: Fallback; readonly quality: PlanQuality },
     start: Date,
-    loads: Loads
+    loads: Loads,
+    today: string
   ): PlanDraft {
     const end = new Date(start);
 
@@ -610,7 +615,8 @@ export class PlanGenerationService {
         totalGrams: item.totalGrams
       })),
       startDate: isoDate(start),
-      strategy: { carbsG: targets.carbsG, fatG: targets.fatG, fiberG: targets.fiberG, kcal: targets.kcal, proteinG: targets.proteinG }
+      strategy: { carbsG: targets.carbsG, fatG: targets.fatG, fiberG: targets.fiberG, kcal: targets.kcal, proteinG: targets.proteinG },
+      today
     };
   }
 }

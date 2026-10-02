@@ -150,14 +150,18 @@ type Mocks = {
   profile: unknown;
   reusable: CandidateDish[];
   safety: Set<string>;
+  /** The day the job says the plan starts (project 015); the UTC today when absent. */
+  start: string;
 };
 
 /** What `persist` is handed, as far as these cases read it. */
 type Draft = {
   days: { dayIndex: number; loadedFor: string | null; targets: NutritionTargets }[];
+  endDate: string;
   generationMetadata: { advisories: readonly string[]; quality: PlanQuality };
   startDate: string;
   strategy: NutritionTargets;
+  today: string;
 };
 
 /** An event five days out that eats for two: days 4 and 5 of a plan laid out from today. */
@@ -208,6 +212,9 @@ function build(overrides: Partial<Mocks> = {}) {
   jest.spyOn(CheckInController, 'latestForGeneration').mockResolvedValue(null);
   jest.spyOn(EventController, 'list').mockResolvedValue(overrides.events ?? []);
   jest.spyOn(PlanJobController, 'persist').mockImplementation(persist as never);
+  jest
+    .spyOn(PlanJobController, 'dates')
+    .mockResolvedValue({ start: overrides.start ?? new Date().toISOString().slice(0, 10), today: new Date().toISOString().slice(0, 10) });
 
   const buildPool = jest.fn<(input: unknown) => Promise<PoolResult>>(async () =>
     Promise.resolve({
@@ -639,6 +646,24 @@ describe('PlanGenerationService', () => {
 
     expect(draft.days).toHaveLength(14);
     expect(draft.shoppingItems.length).toBeGreaterThan(0);
+  });
+
+  /* Project 015: the job carries the day the person chose; the fortnight is laid out from it. */
+  it('lays the fortnight out from the day the job chose, and hands persist the day it was made', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const start = addDays(today, 3);
+    const { persist, service } = build({ start });
+    const list = jest.spyOn(EventController, 'list');
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    const draft = persist.mock.calls[0]?.[1] as Draft;
+
+    expect(draft.startDate).toBe(start);
+    expect(draft.endDate).toBe(addDays(start, 13));
+    expect(draft.today).toBe(today);
+    // Events are read as of that day, so their loaded days land on its dates.
+    expect(list).toHaveBeenCalledWith('usr-1', start);
   });
 
   it('reports each stage before it runs, and never a stage it did not reach', async () => {

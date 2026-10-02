@@ -5,6 +5,7 @@ import request from 'supertest';
 import { CheckInReminderService } from '../../notifications/index.js';
 import { CronController } from './Cron.controller.js';
 import { CronRunService } from '../services/index.js';
+import { DuePlansService } from '../../meal-plans/services/DuePlans.service.js';
 import { ExpiredInvitationsService } from '../../care/services/ExpiredInvitations.service.js';
 import { ExpiredVerificationsService } from '../../auth/services/ExpiredVerifications.service.js';
 import { ENV } from '../../../config/index.js';
@@ -27,6 +28,7 @@ describe('the cron routes', () => {
   const sweep = jest.fn(async () => Promise.resolve({ considered: 0, failed: 0, pushed: 0, sent: 0 }));
   const forget = jest.fn(async () => Promise.resolve());
   const forgetVerifications = jest.fn(async () => Promise.resolve(0));
+  const activate = jest.fn(async () => Promise.resolve({ activated: 0, failed: 0 }));
   const record = jest.fn(async (_job: string, _counts: Readonly<Record<string, 'cap' | number>>) => Promise.resolve());
   const digest = jest.fn(async () => Promise.resolve());
   const checkSpend = jest.fn(async () => Promise.resolve());
@@ -50,6 +52,7 @@ describe('the cron routes', () => {
         { provide: ExpiredInvitationsService, useValue: { forget } },
         { provide: ExpiredVerificationsService, useValue: { forget: forgetVerifications } },
         { provide: CronRunService, useValue: { record } },
+        { provide: DuePlansService, useValue: { activate } },
         { provide: PictureCandidatesService, useValue: { clean } },
         { provide: OwnerAlertsService, useValue: { checkSpend, digest, pictureFailures, watchReminders } }
       ]
@@ -431,6 +434,43 @@ describe('the cron routes', () => {
 
     await request(server).get('/cron/sweep-verifications').set('Authorization', bearer('undefined')).expect(404);
     expect(forgetVerifications).not.toHaveBeenCalled();
+  });
+
+  /* Project 015: a plan that waited for its day becomes the active one at 00:05 Madrid. */
+  it('activates the plans whose day has come on its own route, answers how many, and records the run', async () => {
+    activate.mockResolvedValueOnce({ activated: 2, failed: 1 });
+    const server = await boot(SECRET);
+
+    const response = await request(server).get('/cron/activate-plans').set('Authorization', bearer(SECRET)).expect(200);
+
+    expect(response.body).toEqual({ activated: 2, failed: 1 });
+    expect(activate).toHaveBeenCalledTimes(1);
+    expect(sweep).not.toHaveBeenCalled();
+    expect(forgetVerifications).not.toHaveBeenCalled();
+    expect(record).toHaveBeenCalledWith('activations', { activated: 2, failed: 1 });
+  });
+
+  it('records no activation run that did not finish', async () => {
+    activate.mockRejectedValueOnce(new Error('database down'));
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/activate-plans').set('Authorization', bearer(SECRET)).expect(500);
+
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('activates nothing for the wrong bearer, none at all, or with no secret configured', async () => {
+    let server = await boot(SECRET);
+
+    await request(server).get('/cron/activate-plans').set('Authorization', bearer('wrong')).expect(404);
+    await request(server).get('/cron/activate-plans').expect(404);
+    await app.close();
+
+    server = await boot(undefined);
+    await request(server).get('/cron/activate-plans').set('Authorization', bearer('undefined')).expect(404);
+
+    expect(activate).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
   });
 
   /* 0066: a dish is drawn the first time its meal page is opened, never by a sweep. */

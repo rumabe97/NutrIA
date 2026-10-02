@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { CronController, RecipesController } from './controllers/index.js';
 import { envProvider } from '../../config/index.js';
 import { ExpiredInvitationsService } from '../care/services/ExpiredInvitations.service.js';
+import { DuePlansService } from '../meal-plans/services/DuePlans.service.js';
 import { ExpiredVerificationsService } from '../auth/services/ExpiredVerifications.service.js';
 import { NotificationsModule } from '../notifications/index.js';
 import { OwnerAlertsModule } from '../owner-alerts/index.js';
@@ -18,6 +19,6 @@ import { CronRunService, RecipesService } from './services/index.js';
 @Module({
   controllers: [CronController, RecipesController],
   imports: [NotificationsModule, OwnerAlertsModule],
-  providers: [CronRunService, envProvider, ExpiredInvitationsService, ExpiredVerificationsService, RecipesService]
+  providers: [CronRunService, DuePlansService, envProvider, ExpiredInvitationsService, ExpiredVerificationsService, RecipesService]
 })
 export class RecipesModule {}
