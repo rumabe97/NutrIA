@@ -82,7 +82,7 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
 
 ### Phase 3 — Accompaniments in the domain, behind a flag (A)
 
-- [ ] in progress
+- [x] done
 - **Dispatch**: `backend-high` (opus · high), `frontend` (sonnet · medium, for the note refinement only), `plan-evaluator`, `invariant-reviewer` (opus · high). `/execute-project 016 phase 3`. Starts after project 015 phase 2 merges, because both touch `/plan/generando` and the allowances view.
 - **Goal**: PRD criterion 4, domain half, with the flag off in production.
 
@@ -109,6 +109,11 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
 - [ ] pending
 - **Dispatch**: `/team` — `backend-high`, `frontend`, `tests`, `migration-reviewer`, `invariant-reviewer`, `accessibility`. `/execute-project 016 phase 4`. **human-verify:** the owner sees it on the iPhone.
 - **Goal**: PRD criterion 4, end to end.
+- **Added 2026-10-02 (lead, from phase 3's evaluator): accompaniments accompany, they do not replace the dish.** With the flag on, sides reached 54% of a meal's energy (vegetarian), 46% (halal, traditional Spanish).
+  - Add a hard cap: the sides of one meal carry at most 35% of that meal's energy (`ACCOMPANIMENT_MAX_SHARE`). It is checked inside the set choice, so a set over it is never offered.
+  - Measure again: days in band no worse than phase 3's flag-on run, and the share of mains in 0.75–1.5 servings stays ≥ 80%.
+- **Also from the phase 3 review (P2-3):** build the larder from `RecipeController.generationContext`'s merged preferences and safety on generation, swap and event rebuild.
+  - Test that only a coeliac gets gluten-free bread, and that `assertPlanIsSafe` sees the sides.
 - **Steps**:
   1. Add the `meal_accompaniments` migration (additive) and the repository.
   2. Generation, swap and rebuild delete and reinsert in their own transaction. The views gain accompaniments, and `composition` and the shopping list include them.
