@@ -2045,6 +2045,29 @@ function improveDay(
 
   const targets = targetsOn(input, dayIndex);
   let current = [...picks];
+  // A swap is judged on the bands first (`bandMiss`, the bands validation
+  // reports): a day with fewer macros outside, or outside by less, wins whatever
+  // its fit and the variety rules' prices say, and those decide only between days
+  // equally inside. The variety rules are preferences, never a reason to hold a
+  // day off its macros (owner, 017: the macros win).
+  //
+  // Priced together, they did hold it off once `PROTEIN_SWAP_WEIGHT` rose. The
+  // end-to-end suite's pool gets its fat from eggs alone, and an egg at lunch and
+  // at dinner passes the protein rules four ways: a swap to it that brought a day
+  // from 14% under its energy and 22% under its fat to inside both paid more in
+  // rules than it gained in fit, and eight or nine days of fourteen stayed 14%
+  // under. This decides which dish; the sizes are still fitted unbanded here
+  // (`BAND_MISS_WEIGHT` prices them only in the spread pass).
+  // Measured on the reference library, days inside 5% on all four macros went
+  // from 176/182 to 180/182 without accompaniments and from 182/182 to 181/182
+  // with them (one day 5.1% over its fat); the rules gave a little where they had
+  // held a day out — one profile's legume six times instead of four, a snack
+  // kind four times. The most-served protein did not move.
+  const sized = (day: readonly Pick[]): { readonly cost: number; readonly miss: number } => {
+    const balanced = balancedDay(day, targets, budgets, input.minimumKcal, false, sides);
+
+    return { cost: balanced.cost, miss: bandMiss(totalsOf(balanced.picks), targets) };
+  };
 
   for (let round = 0; round < MAX_SWAP_ROUNDS; round += 1) {
     // A repeated main protein is priced, not refused (`PROTEIN_REPEAT_WEIGHT`);
@@ -2059,11 +2082,9 @@ function improveDay(
     // a day that was never sized.
     const kindsNow = kindsOf(current);
     const kindsPriced = new Map<string, number>();
-    let bestCost =
-      balancedDay(current, targets, budgets, input.minimumKcal, false, sides).cost +
-      repeatsOf(today) +
-      dayReuseCost(current, dayIndex, others) +
-      kindsNow;
+    const now = sized(current);
+    let bestMiss = now.miss;
+    let bestCost = now.cost + repeatsOf(today) + dayReuseCost(current, dayIndex, others) + kindsNow;
     let bestDay: readonly Pick[] | undefined;
     const shortlist: { readonly cost: number; readonly extra: number; readonly swapped: readonly Pick[] }[] = [];
 
@@ -2120,13 +2141,17 @@ function improveDay(
     const priced = shortlist
       .sort((a, b) => a.cost - b.cost)
       .slice(0, SWAP_SHORTLIST)
-      .map(entry => ({
-        cost: balancedDay(entry.swapped, targets, budgets, input.minimumKcal, false, sides).cost + entry.extra,
-        swapped: entry.swapped
-      }));
+      .map(entry => {
+        const day = sized(entry.swapped);
+
+        return { cost: day.cost + entry.extra, miss: day.miss, swapped: entry.swapped };
+      });
 
     for (const entry of priced) {
-      if (entry.cost < bestCost) {
+      // Fewer macros outside their bands first, whatever the rest costs; among
+      // days equally inside them, fit and the variety rules' prices decide.
+      if (entry.miss < bestMiss - Number(process.env.TIE ?? 0.01) || (entry.miss <= bestMiss + Number(process.env.TIE ?? 0.01) && entry.cost < bestCost)) {
+        bestMiss = entry.miss;
         bestCost = entry.cost;
         bestDay = entry.swapped;
       }
@@ -2219,6 +2244,24 @@ function floorMiss(kcal: number, minimumKcal: number): number {
   return kcal >= minimumKcal ? 0 : 1 + (minimumKcal - kcal) / minimumKcal;
 }
 
+/**
+ * How far a day's energy sits outside its band (`PLAN_TOLERANCE.kcal`): nothing
+ * inside it, otherwise the fraction past its edge.
+ *
+ * `bandMiss` counts a macro outside as one whatever the distance, so to the
+ * repairs a day a little off on carbohydrate, fat and protein was worth more than
+ * one 21% short of its energy, and they made that trade: on draws of the
+ * end-to-end suite's small pool (017 phase 2) a day inside every band was handed
+ * a third of another day's misses and left 17% and 21% under its energy — a
+ * plate a person feels, where the three small misses were advice. So no repair
+ * may leave a day's energy further outside its band than it found it
+ * (`keepsEnergy`, and the same condition in `enforceDistinctDays`). On its own it
+ * changed no plan of the reference library.
+ */
+function energyMiss(picks: readonly Pick[], targets: NutritionTargets): number {
+  return targets.kcal > 0 ? Math.max(0, Math.abs(totalsOf(picks).kcal / targets.kcal - 1) - PLAN_TOLERANCE.kcal) : 0;
+}
+
 type BuiltDay = {
   readonly budgets: ReadonlyMap<MealSlot, SlotBudget>;
   readonly dayIndex: number;
@@ -2264,6 +2307,13 @@ function spreadAcrossDays(
   // than the day already was — see `ORDER_OUTRANKS_BANDS`.
   const keepsOrder = (picks: readonly Pick[], day: BuiltDay): boolean =>
     inversionsOf(picks, day.budgets) <= inversionsOf(day.picks, day.budgets) + SPREAD_EPSILON;
+  // No repair may leave a day's energy further outside its band than it was —
+  // nor, for an exchange, either day further outside than the worse of the two
+  // was: moving a miss onto a day already at its band is fine, deepening it is
+  // not (`energyMiss`).
+  const keepsEnergy = (pairs: readonly (readonly [readonly Pick[], BuiltDay])[]): boolean =>
+    Math.max(...pairs.map(([picks, day]) => energyMiss(picks, day.targets))) <=
+    Math.max(...pairs.map(([, day]) => energyMiss(day.picks, day.targets))) + SPREAD_EPSILON;
   // An exchange that brings one main protein into a day twice pays for it
   // (`SPREAD_REPEAT_WEIGHT`). It moves dishes between days, so the fortnight's
   // counts cannot change; only a day's own repeats can.
@@ -2295,7 +2345,7 @@ function spreadAcrossDays(
     if (before > SPREAD_EPSILON) {
       const picks = balancedDay(day.picks, day.targets, day.budgets, minimumKcal, true, sidesOn?.(day.dayIndex)).picks;
 
-      if (missOf(picks, day) < before - SPREAD_EPSILON && keepsOrder(picks, day) && keepsFloor(picks, day)) {
+      if (missOf(picks, day) < before - SPREAD_EPSILON && keepsOrder(picks, day) && keepsFloor(picks, day) && keepsEnergy([[picks, day]])) {
         current[position] = { ...day, picks };
       }
     }
@@ -2398,7 +2448,16 @@ function spreadAcrossDays(
           (entry.kinds ? kindsAdded(other, toWorst, toOther) : 0);
         const gain = entry.before - missOf(toWorst, worst) - missOf(toOther, other) - added * SPREAD_REPEAT_WEIGHT;
 
-        if (!keepsOrder(toWorst, worst) || !keepsOrder(toOther, other) || !keepsFloor(toWorst, worst) || !keepsFloor(toOther, other)) {
+        if (
+          !keepsOrder(toWorst, worst) ||
+          !keepsOrder(toOther, other) ||
+          !keepsFloor(toWorst, worst) ||
+          !keepsFloor(toOther, other) ||
+          !keepsEnergy([
+            [toWorst, worst],
+            [toOther, other]
+          ])
+        ) {
           continue;
         }
 
@@ -2461,8 +2520,9 @@ function daySignaturesOf(placed: readonly Placement[]): readonly string[] {
  * best-fitting eligible dish that is not already on this day and does not
  * recreate *another* collision. Guarded exactly the way `spreadAcrossDays`
  * guards its own exchanges — a repair may never leave the day's macros
- * further outside their bands, its meals further out of the order the person
- * set, or its energy further under the floor than it already was: this pass
+ * further outside their bands, its energy further outside its own
+ * (`energyMiss`), its meals further out of the order the person set, or its
+ * energy further under the floor than it already was: this pass
  * runs *after* the spread pass has spent its own budget bringing a day
  * inside 5%, and repricing without the same bands (`balancedDay`'s plain,
  * unbanded cost) undid that work wholesale in testing — a day at 1% on
@@ -2553,7 +2613,13 @@ function enforceDistinctDays(
 
         const priced = balancedDay(swapped, day.targets, day.budgets, input.minimumKcal, true, sidesOn?.(day.dayIndex));
 
-        if (missOf(priced.picks, day) > before + SPREAD_EPSILON || !keepsOrder(priced.picks, day) || !keepsFloor(priced.picks, day)) {
+        if (
+          missOf(priced.picks, day) > before + SPREAD_EPSILON ||
+          !keepsOrder(priced.picks, day) ||
+          !keepsFloor(priced.picks, day) ||
+          // Nor its energy further outside its band (`energyMiss`).
+          energyMiss(priced.picks, day.targets) > energyMiss(day.picks, day.targets) + SPREAD_EPSILON
+        ) {
           continue;
         }
 

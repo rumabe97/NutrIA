@@ -40,7 +40,7 @@ import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValida
 import { makeCatalogue, makeCatalogueIngredient, makeDish, makePool, MINIMUM_KCAL, TARGETS } from '#test/fixtures';
 
 import type { NutritionTargets } from 'core/entities/Nutrition';
-import type { CatalogueIngredient } from 'core/entities/Plan';
+import type { CandidateDish, CatalogueIngredient } from 'core/entities/Plan';
 
 const catalogue = makeCatalogue();
 
@@ -1034,6 +1034,121 @@ describe('schedulePlan — no protein dominates, and legumes vary (017 phase 2)'
         `${legume} on days ${at.join(', ')}`
       ).toBe(false);
     }
+  });
+});
+
+describe('schedulePlan — on a small pool, energy before every other band (017 phase 2)', () => {
+  // The end-to-end suite's pool: fifteen dishes of ten seeded foods, each asked
+  // for in variants, with the seed's own macros and meals. Both cases failed the
+  // suite's own check once phase 2's rules were in.
+  const food = (slug: string, macros: [number, number, number, number, number], extra: Partial<CatalogueIngredient> = {}) =>
+    makeCatalogueIngredient({
+      id: slug,
+      carbsPer100g: macros[2],
+      fatPer100g: macros[3],
+      fiberPer100g: macros[4],
+      kcalPer100g: macros[0],
+      proteinPer100g: macros[1],
+      slug,
+      ...extra
+    });
+  const catalogue = makeCatalogue([
+    food('arroz-blanco-cocido', [130, 2.4, 28.6, 0.2, 0], { mealSlots: ['lunch', 'dinner'] }),
+    food('copos-de-avena', [379, 13.2, 67.7, 6.5, 10.1], { mealSlots: ['breakfast', 'morning_snack', 'afternoon_snack', 'supper'] }),
+    food('huevo', [143, 12.6, 0.7, 9.5, 0], { category: 'protein', classes: ['animal', 'egg'] }),
+    food('lentejas-cocidas', [116, 9, 20.1, 0.4, 7.9], { category: 'protein', mealSlots: ['lunch'] }),
+    food('merluza', [82, 17.8, 0, 1, 0], { category: 'protein', classes: ['animal', 'fish'], mealSlots: ['lunch', 'dinner'] }),
+    food('pan-integral', [252, 12.4, 42.7, 3.5, 6]),
+    food('patata', [77, 2, 17.5, 0.1, 2.1]),
+    food('pechuga-de-pollo', [120, 22.5, 0, 2.6, 0], { category: 'protein', classes: ['animal', 'meat'], mealSlots: ['lunch', 'dinner'] }),
+    food('tomate', [18, 0.9, 3.9, 0.2, 1.2], { seasonMonths: [6, 7, 8, 9] }),
+    food('yogur-griego-natural', [97, 9, 4, 5, 0], { classes: ['animal', 'dairy'] })
+  ]);
+  const dishes: readonly (readonly [string, readonly (readonly [number, string])[]])[] = [
+    ['avena-con-yogur', [[80, 'copos-de-avena'], [150, 'yogur-griego-natural']]],
+    ['tostada-con-huevo', [[80, 'pan-integral'], [120, 'huevo']]],
+    ['yogur-con-avena', [[200, 'yogur-griego-natural'], [60, 'copos-de-avena']]],
+    ['huevos-con-pan', [[140, 'huevo'], [60, 'pan-integral']]],
+    ['avena-sola', [[110, 'copos-de-avena']]],
+    ['arroz-con-pollo', [[220, 'arroz-blanco-cocido'], [180, 'pechuga-de-pollo']]],
+    ['lentejas-con-arroz', [[250, 'lentejas-cocidas'], [150, 'arroz-blanco-cocido']]],
+    ['pollo-con-patata', [[200, 'pechuga-de-pollo'], [250, 'patata']]],
+    ['arroz-con-tomate', [[260, 'arroz-blanco-cocido'], [150, 'tomate']]],
+    ['lentejas-solas', [[350, 'lentejas-cocidas']]],
+    ['merluza-con-patata', [[200, 'merluza'], [220, 'patata']]],
+    ['pollo-con-tomate', [[170, 'pechuga-de-pollo'], [200, 'tomate']]],
+    ['merluza-con-arroz', [[180, 'merluza'], [180, 'arroz-blanco-cocido']]],
+    ['patata-con-huevo', [[250, 'patata'], [110, 'huevo']]],
+    ['merluza-sola', [[300, 'merluza']]]
+  ];
+  const slots = slotsForTest(3, false);
+  // `dish:call-variant`, in the order the pool came: the order breaks ties, so it is the fixture.
+  const drawn =
+    '1:1.3 1:1.2 12:1.2 4:1.2 4:3.3 5:1.2 13:2.2 3:1.3 8:3.1 3:3.1 10:2.3 13:2.3 7:1.2 4:1.1 7:3.3 11:2.1 10:3.2 10:1.3 14:1.3 1:2.1 ' +
+    '2:2.1 6:2.1 1:2.3 12:2.2 6:3.2 7:2.1 6:3.3 6:3.1 1:1.1 7:1.1 8:1.3 4:3.2 0:3.3 9:1.1 13:3.2 11:3.2 5:1.3 12:3.2 5:2.2 2:1.1 ' +
+    '2:1.3 11:3.1 9:2.1 1:3.3 9:3.1 4:3.1 5:3.3 13:1.3 11:3.3 11:2.3 13:1.2 6:1.1 6:1.3 2:2.2 7:1.3 0:2.2 11:1.3 0:2.1';
+  const pool = drawn.split(' ').map(entry => {
+    const [at, variant] = entry.split(':') as [string, string];
+    const [name, items] = dishes[Number(at)] as (typeof dishes)[number];
+
+    return makeDish({
+      ingredients: items.map(([grams, slug]) => ({ grams, slug })),
+      name,
+      // A dish's meals are its foods' (`fitSlots`): lentils are a lunch, oats a breakfast.
+      slots: slots.filter(slot =>
+        items.every(([, slug]) => {
+          const meals = catalogue.get(slug)?.mealSlots ?? [];
+
+          return meals.length === 0 || meals.includes(slot);
+        })
+      ),
+      slug: `${name}-${variant.replace('.', '-')}`
+    });
+  });
+  const targets = { carbsG: 291, fatG: 70, fiberG: 31, kcal: 2246, proteinG: 113 };
+  // Every dish in `count` variants, in the order the suite asks for them.
+  const variants = (count: number) =>
+    Array.from({ length: count }, (_none, variant) =>
+      dishes.map(([name, items]) =>
+        makeDish({
+          ingredients: items.map(([grams, slug]) => ({ grams, slug })),
+          name,
+          slots: slots.filter(slot =>
+            items.every(([, slug]) => {
+              const meals = catalogue.get(slug)?.mealSlots ?? [];
+
+              return meals.length === 0 || meals.includes(slot);
+            })
+          ),
+          slug: `${name}-${variant}`
+        })
+      )
+    ).flat();
+  const inBand = (pool: readonly CandidateDish[]) => {
+    const result = schedulePlan({ catalogue, minimumKcal: MINIMUM_KCAL, monthOf: () => 10, pool, targets, weights: weightsFor(shapeFor(3, false)) });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    for (const day of result.assignment.days) {
+      expect(Math.abs(day.totals.kcal - targets.kcal), `day ${day.dayIndex} at ${day.totals.kcal} kcal`).toBeLessThanOrEqual(targets.kcal * FIXTURE_BAND);
+    }
+  };
+
+  // The pool's fat is in its eggs alone, and an egg at lunch and at dinner passes
+  // the protein rules four ways. Priced at `PROTEIN_SWAP_WEIGHT` beside the fit,
+  // the swap to one that brought a day inside its bands cost more than it gained.
+  it('serves the eggs a day needs for its macros rather than keep it off them for variety', () => {
+    inBand(variants(4));
+  });
+
+  // The repairs used to trade a day a little off on three macros for one 21%
+  // short of its energy, twice (`energyMiss`).
+  it('never repairs one day by leaving another far off its energy', () => {
+    inBand(pool);
   });
 });
 
