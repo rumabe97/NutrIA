@@ -82,7 +82,7 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
 
 ### Phase 3 — Accompaniments in the domain, behind a flag (A)
 
-- [ ] pending
+- [ ] in progress
 - **Dispatch**: `backend-high` (opus · high), `frontend` (sonnet · medium, for the note refinement only), `plan-evaluator`, `invariant-reviewer` (opus · high). `/execute-project 016 phase 3`. Starts after project 015 phase 2 merges, because both touch `/plan/generando` and the allowances view.
 - **Goal**: PRD criterion 4, domain half, with the flag off in production.
 
