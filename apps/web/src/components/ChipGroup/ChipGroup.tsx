@@ -1,9 +1,11 @@
 import styles from './ChipGroup.module.css';
 
 export interface Chip {
+  /** The id of visible text that says why this one cannot be chosen. */
+  describedBy?: string;
   /** A second, smaller line under the label, inside the same pill and the same accessible name. */
   detail?: string;
-  /** Not selectable; the pill stays in the group so the choice reads as complete. */
+  /** Not selectable, yet still reachable: `aria-disabled` rather than `disabled`, so the reason can be found by keyboard. */
   disabled?: boolean;
   label: string;
   value: string;
@@ -28,11 +30,12 @@ export function ChipGroup({ name, options, selected = [], single }: ChipGroupPro
         <label className={styles.chip} key={option.value}>
           {single ? (
             <input
+              aria-describedby={option.describedBy}
+              aria-disabled={option.disabled || undefined}
               checked={single.choice === option.value}
               className={styles.input}
-              disabled={option.disabled}
               name={name}
-              onChange={() => single.onChoose(option.value)}
+              onChange={() => (option.disabled ? undefined : single.onChoose(option.value))}
               type="radio"
               value={option.value}
             />

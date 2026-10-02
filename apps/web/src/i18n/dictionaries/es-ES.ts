@@ -1501,8 +1501,9 @@ export const esES = {
     serverDetail: 'Detalle del servidor:',
     start: 'Generar mi plan',
     startDate: {
+      chosen: 'Tu plan empieza el {date}.',
       free: 'Gratis',
-      legend: '¿Cuándo empiezas?',
+      legend: '¿Cuándo empieza tu plan?',
       noRedo: 'Sin rehaceres',
       redoNote: 'Cuenta como un rehacer: los días de tu plan que coincidan con el nuevo se sustituyen.',
       spentNote: 'Ya has usado tu rehacer de este plan. Puedes elegir un día a partir del {date}.',

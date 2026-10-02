@@ -60,9 +60,13 @@
   color: inherit;
 }
 
-.chip:has(input:disabled) {
+.chip:has(input[aria-disabled='true']) {
   background-color: transparent;
   border-style: dashed;
   color: var(--foreground-03);
   cursor: not-allowed;
+}
+
+.chip:has(input:checked) {
+  font-weight: var(--font-weight-semibold);
 }

@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 import styles from './StartDatePicker.module.css';
 
 import { Text } from 'ui/components/Text';
@@ -28,6 +30,8 @@ export function StartDatePicker({ onChange, options, redoNextAt, value }: StartD
   const dictionary = useDictionary();
   const locale = useLocale();
   const t = dictionary.generation.startDate;
+  const reasonId = useId();
+  const day = (date: string) => formatDate(date, locale, { day: 'numeric', month: 'short', weekday: 'short' });
   const chosen = options.find(option => option.date === value);
   const spent = options.some(option => !option.allowed);
 
@@ -37,6 +41,7 @@ export function StartDatePicker({ onChange, options, redoNextAt, value }: StartD
       <ChipGroup
         name="startDate"
         options={options.map((option, offset) => ({
+          describedBy: option.allowed || !redoNextAt ? undefined : reasonId,
           detail: !option.allowed ? t.noRedo : option.kind === 'redo' ? t.usesRedo : t.free,
           disabled: !option.allowed,
           label:
@@ -49,13 +54,14 @@ export function StartDatePicker({ onChange, options, redoNextAt, value }: StartD
         }))}
         single={{ choice: value, onChoose: onChange }}
       />
-      {chosen?.kind === 'redo' ? (
-        <Text className={styles.note} size="sm" tone="secondary">
-          {t.redoNote}
-        </Text>
-      ) : null}
+      {/* Said again in words whenever the choice changes, without moving focus. */}
+      <Text aria-atomic="true" aria-live="polite" className={styles.note} size="sm" tone="secondary">
+        {chosen
+          ? `${interpolate(t.chosen, { date: formatDate(chosen.date, locale, { day: 'numeric', month: 'long', weekday: 'long' }) })}${chosen.kind === 'redo' ? ` ${t.redoNote}` : ''}`
+          : ''}
+      </Text>
       {spent && redoNextAt ? (
-        <Text className={styles.note} size="sm" tone="secondary">
+        <Text className={styles.note} id={reasonId} size="sm" tone="secondary">
           {interpolate(t.spentNote, { date: formatDate(redoNextAt, locale, { day: 'numeric', month: 'long' }) })}
         </Text>
       ) : null}

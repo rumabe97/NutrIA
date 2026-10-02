@@ -1467,8 +1467,9 @@ export const enGB: Dictionary = {
     serverDetail: 'Server detail:',
     start: 'Build my plan',
     startDate: {
+      chosen: 'Your plan starts on {date}.',
       free: 'Free',
-      legend: 'When do you start?',
+      legend: 'When does your plan start?',
       noRedo: 'No redos left',
       redoNote: 'It counts as a redo: the days of your plan that overlap the new one are replaced.',
       spentNote: 'You have used this plan’s redo. You can choose a day from {date}.',
