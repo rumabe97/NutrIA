@@ -12,6 +12,7 @@ export const enGB: Dictionary = {
   activity: { athlete: 'Athlete', high: 'High', light: 'Light', moderate: 'Moderate', sedentary: 'Sedentary' },
 
   admin: {
+    accompanimentsLabel: 'Accompaniments (bread, salad, fruit)',
     automaticActivation: 'Automatic activation',
     automaticHint: 'Whoever confirms their address is in. Nothing for you to do.',
     events: { app_used: 'Used the app', session_started: 'Sign-ins', swap_requested: 'Meal swaps asked for' },
@@ -1720,11 +1721,22 @@ export const enGB: Dictionary = {
   },
 
   mealSize: {
-    add: 'Add a meal',
-    body: 'With {count} meals a day, the largest carries about {kcal} kcal. It is the only way to spread your macros, which is why the dishes come out generous. If you add a meal (a breakfast or a snack), each dish will be smaller.',
+    body: 'With {count} meals a day, the largest carries about {kcal} kcal. It is the only way to spread your macros, which is why the dishes come out generous.',
     dismissed: 'Note hidden',
     keep: 'Carry on',
     keepName: 'Carry on and build my plan',
+    suggestions: {
+      add_afternoon_snack: {
+        action: 'Add an afternoon snack',
+        body: 'If you add an afternoon snack, your main meal would come down to about {kcal} kcal.'
+      },
+      add_breakfast: { action: 'Add a breakfast', body: 'If you add a breakfast, your main meal would come down to about {kcal} kcal.' },
+      none: 'More meals of this kind would not bring it any lower: it is your macros that make it big.',
+      snack_to_normal: {
+        action: 'Change the {slot}',
+        body: 'If you move the {slot} from light to normal, your main meal would come down to about {kcal} kcal.'
+      }
+    },
     title: 'Your meals will be big',
     understood: 'Got it'
   },

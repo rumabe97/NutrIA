@@ -141,6 +141,7 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
               answerKey={mealSizeKey(profile.mealSize.largestMainKcal, preferences.mealShape)}
               count={mealCount(preferences.mealShape)}
               kcal={profile.mealSize.largestMainKcal}
+              suggestion={profile.mealSize.suggestion}
             />
           ) : null}
 
