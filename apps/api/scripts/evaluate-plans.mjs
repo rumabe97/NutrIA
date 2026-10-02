@@ -56,7 +56,7 @@ import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts
 import { RecipeController } from 'core/controllers/Recipe';
 import { larderFor } from 'core/domain/Accompaniment';
 import { SafetyController } from 'core/controllers/Safety';
-import { cuisineFamily, dishGroups, groupFits, outOfSeasonFruit } from 'core/domain/MealFit';
+import { cuisineFamily, dishGroups, groupFits, isSnackOrBreakfastDish, outOfSeasonFruit } from 'core/domain/MealFit';
 import { DEFAULT_MEAL_SHAPE, shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { loadedTargets } from 'core/domain/Event';
 import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
@@ -620,6 +620,7 @@ async function measureProfile(profile, shared, options) {
     spanish: spanishMetrics(scheduled.assignment.days, context.catalogue),
     starch: starchMetrics(scheduled.assignment.days),
     kinds: kindMetrics(scheduled.assignment.days, context.catalogue, monthOf),
+    mainMeals: mainMealMetrics(scheduled.assignment.days),
     // How varied the plan actually is, not just whether it broke a rule —
     // distinct dishes maximised, no two days the same, a repeat as far apart
     // as the pool allows (owner, 2026-09-26; `0065`).
@@ -1173,6 +1174,35 @@ function dishRuleBreaks(days, context) {
 }
 
 /**
+ * A dinner is a meal (017 phase 3, owner's amendment of 2026-10-02): every
+ * lunch and dinner filled by a dish that is a snack or a breakfast by its slots
+ * (`isSnackOrBreakfastDish`), and every one of those past two servings — both
+ * must be 0 — beside the largest plate served at a main meal, for the eye.
+ */
+function mainMealMetrics(days) {
+  const light = [];
+  let largest = null;
+
+  for (const day of days) {
+    for (const meal of day.meals) {
+      if (!MAIN_SLOTS.has(meal.slot)) {
+        continue;
+      }
+
+      if (isSnackOrBreakfastDish(meal.dish)) {
+        light.push({ dayIndex: day.dayIndex, dish: meal.dish.name, servings: meal.servings, slot: meal.slot });
+      }
+
+      if (!largest || meal.servings > largest.servings) {
+        largest = { dayIndex: day.dayIndex, dish: meal.dish.name, servings: meal.servings, slot: meal.slot };
+      }
+    }
+  }
+
+  return { largest, lightOverTwo: light.filter(item => item.servings > 2), lightPlates: light };
+}
+
+/**
  * How many plates of each slot were served at each size (project 016): the
  * question accompaniments answer is whether a big meal is one dish at three
  * servings, and a mean hides that.
@@ -1547,6 +1577,13 @@ function printProfile(profile, result) {
     console.log(
       `  plates with fresh fruit out of season that day (017 p2, must be 0): ${outOfSeason.length}${outOfSeason.length > 0 ? ` (${outOfSeason.map(item => `day ${item.dayIndex} ${item.slot}: "${item.dish}", ${item.fruit}`).join('; ')})` : ''}`
     );
+
+    const { largest, lightOverTwo, lightPlates } = result.mainMeals;
+    const listed = items => (items.length > 0 ? ` (${items.map(item => `day ${item.dayIndex} ${item.slot}: "${item.dish}" ×${item.servings}`).join('; ')})` : '');
+
+    console.log(`  lunches and dinners filled by a snack or breakfast dish (017 p3, must be 0): ${lightPlates.length}${listed(lightPlates)}`);
+    console.log(`  of those, past 2 servings (017 p3, must be 0): ${lightOverTwo.length}${listed(lightOverTwo)}`);
+    console.log(`  largest plate at lunch or dinner: ${largest ? `×${largest.servings}, day ${largest.dayIndex} ${largest.slot}: "${largest.dish}"` : 'none'}`);
 
     console.log(
       `  legumes by kind, every meal (017 p2, 3 a fortnight each, never on days running): ${
