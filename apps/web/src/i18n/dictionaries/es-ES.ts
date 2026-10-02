@@ -16,6 +16,7 @@ export const esES = {
   activity: { athlete: 'Deportista', high: 'Alto', light: 'Ligero', moderate: 'Moderado', sedentary: 'Sedentario' },
 
   admin: {
+    accompanimentsLabel: 'Acompañamientos (pan, ensalada, fruta)',
     automaticActivation: 'Activación automática',
     automaticHint: 'Quien confirma su correo entra directamente. Tú no tienes que hacer nada.',
     events: { app_used: 'Usaron la app', session_started: 'Entradas', swap_requested: 'Cambios de comida pedidos' },

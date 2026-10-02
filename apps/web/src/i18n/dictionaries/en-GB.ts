@@ -12,6 +12,7 @@ export const enGB: Dictionary = {
   activity: { athlete: 'Athlete', high: 'High', light: 'Light', moderate: 'Moderate', sedentary: 'Sedentary' },
 
   admin: {
+    accompanimentsLabel: 'Accompaniments (bread, salad, fruit)',
     automaticActivation: 'Automatic activation',
     automaticHint: 'Whoever confirms their address is in. Nothing for you to do.',
     events: { app_used: 'Used the app', session_started: 'Sign-ins', swap_requested: 'Meal swaps asked for' },
