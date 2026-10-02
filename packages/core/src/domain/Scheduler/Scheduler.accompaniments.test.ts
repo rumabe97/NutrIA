@@ -189,7 +189,13 @@ describe('the scheduler with accompaniments off — the plans it always made', (
 });
 
 describe('the scheduler repairs a day still outside its bands (017 phase 3)', () => {
-  const BAND_KINDS: ReadonlySet<string> = new Set(['carbs_out_of_band', 'fat_out_of_band', 'kcal_out_of_band', 'protein_above_target', 'protein_below_target']);
+  const BAND_KINDS: ReadonlySet<string> = new Set([
+    'carbs_out_of_band',
+    'fat_out_of_band',
+    'kcal_out_of_band',
+    'protein_above_target',
+    'protein_below_target'
+  ]);
 
   it('brings one more day of three meals inside 5% on all four macros, by a swap sized to the bands', () => {
     const shape = shapeFor(3, false);

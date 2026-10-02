@@ -2224,7 +2224,9 @@ function totalsOf(picks: readonly Pick[]): Macros {
  * meals summed as `sumMacros` sums them — what `validatePlan` is given.
  */
 function deliveredTotals(picks: readonly Pick[]): Macros {
-  return sumMacros(picks.map(pick => (pick.set ? addMacros(scaleMacros(pick.base, pick.servings), pick.set.macros) : scaleMacros(pick.base, pick.servings))));
+  return sumMacros(
+    picks.map(pick => (pick.set ? addMacros(scaleMacros(pick.base, pick.servings), pick.set.macros) : scaleMacros(pick.base, pick.servings)))
+  );
 }
 
 /** The day's totals measured against the day's targets. */
@@ -2599,7 +2601,10 @@ function repairOutOfBand(
         week
       );
 
-      return (repeats + kindsExcess([...others, ...placements], kinds.checks, kinds.days)) * PROTEIN_SWAP_WEIGHT + dayReuseCost(picks, start.dayIndex, others);
+      return (
+        (repeats + kindsExcess([...others, ...placements], kinds.checks, kinds.days)) * PROTEIN_SWAP_WEIGHT +
+        dayReuseCost(picks, start.dayIndex, others)
+      );
     };
 
     let day = start;

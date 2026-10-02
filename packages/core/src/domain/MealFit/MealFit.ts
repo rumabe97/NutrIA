@@ -135,7 +135,8 @@ export function fitSlots(
         }
 
         return belongsTo(ingredient, slot, dietaryPatterns);
-      }) && [...groups].every(group => groupFits(family, group, slot))
+      }) &&
+      [...groups].every(group => groupFits(family, group, slot))
   );
 }
 
