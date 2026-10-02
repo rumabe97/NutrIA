@@ -8,7 +8,7 @@
 > planner agent via `/plan-project`; approved by the owner before execution starts.
 > Write repo-relative: no absolute paths, no references to other private repos.
 
-- **Status**: approved
+- **Status**: done
 - **Type**: standard
 - **PRD**: ./PRD.md
 - **Routing profile**: tiered, routed inside each `/team` run. Phases 3–5 touch the allergy layer or AI output, so they sit at the `quality-max` floor, with the reviewers at opus · high.
@@ -106,7 +106,7 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
 
 ### Phase 4 — Accompaniments end to end, and the flag on (A)
 
-- [ ] in progress
+- [x] done — #193, the admin switch in #194; the owner turned the flag on in production and checked it on the iPhone (2026-10-02)
 - **Dispatch**: `/team` — `backend-high`, `frontend`, `tests`, `migration-reviewer`, `invariant-reviewer`, `accessibility`. `/execute-project 016 phase 4`. **human-verify:** the owner sees it on the iPhone.
 - **Goal**: PRD criterion 4, end to end.
 - **Added 2026-10-02 (lead, from phase 3's evaluator): accompaniments accompany, they do not replace the dish.** With the flag on, sides reached 54% of a meal's energy (vegetarian), 46% (halal, traditional Spanish).
