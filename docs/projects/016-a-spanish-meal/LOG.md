@@ -155,3 +155,24 @@
     - Mains within 0.75–1.5 servings: flag off 276 → 283 of 364, flag on 356 → 357. `objetivo-alto-5-comidas` flag off 10 → 6 of 28.
     - Time per profile: at most 2.8 s off and 13.1 s on.
 - **Deviations**: grain counts the cooked slugs of `0078`'s yield table only, as the evaluator did. A dry grain in a recipe is not counted.
+
+## 2026-10-02 — Project closed
+
+- Shipped:
+  - #190: phase 1;
+  - #192: phases 2–3;
+  - #193: phase 4;
+  - #194: phase 5, plus the admin switch;
+  - #195: phase 6 and migration 0056;
+  - #196: phase 7.
+- The `accompaniments` flag is on in production (owner).
+- Left open, for the owner:
+  - two weeks of watching `oversized` and `unwanted` in the console (phase 6 step 4);
+  - running `migrate` on Nutria-E2E for 0055 and 0056;
+  - checking VoiceOver on the "+" and the side headings, on the iPhone.
+- Carried to the next project ("scheduler tuning", queued in the workspace LOG):
+  - generation is slow with accompaniments on (35–110 s of CPU per plan in the e2e harness, against about 19 s off); the speed-up branch `agent/sides-perf/backend-h` is in progress;
+  - the two days phase 7 lost with the flag on (`objetivo-bajo-3-comidas` and `objetivo-alto-5-comidas`, protein 5.4% and 5.1%);
+  - whether the starch cap becomes hard;
+  - the e2e suite speed-up waiting on that work (`agent/sides-speed/tests-g` at 724e3870).
+- Next by owner decision: project 017, more accompaniments.

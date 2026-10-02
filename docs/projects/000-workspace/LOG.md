@@ -499,3 +499,14 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   - First the Spanish sides that are missing: vegetable creams, caldo, roasted peppers, menestra, mushrooms, wholemeal bread, picos.
   - Then the families with 2–3 options each (Asian, Mexican, Middle Eastern), and breakfast.
 - **Status:** queued after project 016 closes. Owner decision of 2026-10-02.
+
+## 2026-10-02 — Project (queued): scheduler tuning after 016
+
+- **Why:**
+  - With accompaniments on (on in production since 2026-10-02), generation spends 35–110 s of CPU per plan in `schedulePlan`, against about 19 s off. Five at once hit the 280 s timeout, and the e2e job went from about 12 to about 23 min.
+  - Project 016 phase 7 lost one day in band on two profiles with the flag on.
+- **Scope:**
+  1. **Speed, with byte-identical plans.** The branch `agent/sides-perf/backend-h` is in progress; then the e2e speed-up at `agent/sides-speed/tests-g` 724e3870.
+  2. **Win back the two days:** `objetivo-bajo-3-comidas` (from the starch rule) and `objetivo-alto-5-comidas` (from Italian pasta becoming lunch-only), protein 5.4% and 5.1%.
+  3. **Decide whether the pasta/rice cap of 4 becomes hard**, measured in days in band.
+- **Status:** queued. Owner decision of 2026-10-02 ("hazlo en el siguiente proyecto"). The lead recommends it before 017, because 017's extra sides would widen the same search.
