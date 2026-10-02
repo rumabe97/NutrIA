@@ -119,6 +119,23 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
   3. PROMPT_VERSION 4.6.0.
   4. In the console, watch the `oversized` and `unwanted` rates for two weeks.
 
+### Phase 6 — Pasta and rice belong at lunch, and one starch base does not crowd the fortnight
+
+- [ ] pending
+- **Dispatch**: `backend` (opus · medium) and `plan-evaluator`. `/execute-project 016 phase 6`. Added 2026-10-02 (owner, from their own production plan).
+- **Goal**: two complaints from the owner's production plan.
+  - Pasta came back many times in one fortnight (different recipes, same base).
+  - Pasta and rice landed at dinner, which in Spanish home eating belongs at lunch.
+- **Steps**:
+  1. **Lunch only.** Pasta, rice and couscous (raw and cooked, the "cooking bases" rows of `packages/database/src/seed/ingredients/meals.ts` rule 5 that are grains or pasta) become lunch only, where today they are lunch and dinner by `0062`.
+     - Done through the seed's meal lists and a reviewed data migration for the catalogue rows. The `migration-reviewer` reviews it.
+     - Existing recipes are narrowed by `MealFit` as today.
+     - The evaluator is checked for dinner coverage: dinners lose those dishes, so watch `DISHES_NEEDED_PER_SLOT` and days in band.
+  2. **Starch-base variety.** A rule beside `PROTEIN_RULES` (`core/domain/Variety`) recognises a dish's main starch base: pasta, rice, couscous or other grain, potato or boniato, legume, bread. It caps each base per fortnight (proposal: pasta ≤ 4 and rice ≤ 4 in 14 days) and keeps the same base off consecutive days, priced and enforced exactly like the protein rule.
+  3. Evaluator: per profile, count each starch base and the number of dinner plates with pasta or rice.
+- **Stop if** dinner coverage falls under `DISHES_NEEDED_PER_SLOT` for any profile, or a profile loses more than one day in band.
+- **Owner to confirm at start**: the caps (4 pasta and 4 rice per fortnight), and whether couscous is lunch-only too.
+
 ## Hand-off
 
 - **Order** (amended 2026-10-02): C with the scaled ceiling, then A (domain, then end to end), then D if still needed, then B. B never goes before A.
