@@ -150,14 +150,18 @@ type Mocks = {
   profile: unknown;
   reusable: CandidateDish[];
   safety: Set<string>;
+  /** The day the job says the plan starts (project 015); the UTC today when absent. */
+  start: string;
 };
 
 /** What `persist` is handed, as far as these cases read it. */
 type Draft = {
   days: { dayIndex: number; loadedFor: string | null; targets: NutritionTargets }[];
+  endDate: string;
   generationMetadata: { advisories: readonly string[]; quality: PlanQuality };
   startDate: string;
   strategy: NutritionTargets;
+  today: string;
 };
 
 /** An event five days out that eats for two: days 4 and 5 of a plan laid out from today. */
@@ -208,6 +212,11 @@ function build(overrides: Partial<Mocks> = {}) {
   jest.spyOn(CheckInController, 'latestForGeneration').mockResolvedValue(null);
   jest.spyOn(EventController, 'list').mockResolvedValue(overrides.events ?? []);
   jest.spyOn(PlanJobController, 'persist').mockImplementation(persist as never);
+  // Nothing under way to cut unless a case says so (project 015).
+  jest.spyOn(PlanController, 'cutComposition').mockResolvedValue(null);
+  jest
+    .spyOn(PlanJobController, 'dates')
+    .mockResolvedValue({ start: overrides.start ?? new Date().toISOString().slice(0, 10), today: new Date().toISOString().slice(0, 10) });
 
   const buildPool = jest.fn<(input: unknown) => Promise<PoolResult>>(async () =>
     Promise.resolve({
@@ -639,6 +648,92 @@ describe('PlanGenerationService', () => {
 
     expect(draft.days).toHaveLength(14);
     expect(draft.shoppingItems.length).toBeGreaterThan(0);
+  });
+
+  /* Project 015: the job carries the day the person chose; the fortnight is laid out from it. */
+  it('lays the fortnight out from the day the job chose, and hands persist the day it was made', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const start = addDays(today, 3);
+    const { persist, service } = build({ start });
+    const list = jest.spyOn(EventController, 'list');
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    const draft = persist.mock.calls[0]?.[1] as Draft;
+
+    expect(draft.startDate).toBe(start);
+    expect(draft.endDate).toBe(addDays(start, 13));
+    expect(draft.today).toBe(today);
+    // Events are read as of that day, so their loaded days land on its dates.
+    expect(list).toHaveBeenCalledWith('usr-1', start);
+  });
+
+  /* Project 015: a plan that waits for its day may cut the one under way; that one's list keeps only the days it keeps. */
+  it('rebuilds the cut plan’s list from the days it keeps, and hands it to persist for that plan', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const start = addDays(today, 2);
+    const { persist, service } = build({ start });
+    const kept = (dayIndex: number, grams: number) => ({
+      id: `kept-${dayIndex}`,
+      date: addDays(today, dayIndex - 1),
+      dayIndex,
+      ingredients: [{ grams, slug: 'arroz' }],
+      macros: { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 },
+      recipeSlug: 'arroz-1',
+      servings: 1,
+      slot: 'lunch' as const,
+      sortOrder: 0
+    });
+    const cut = jest.spyOn(PlanController, 'cutComposition').mockResolvedValue({ meals: [kept(1, 100), kept(2, 150)], planId: 'plan-a' });
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    const draft = persist.mock.calls[0]?.[1] as Draft & { cutShoppingItems?: { items: { totalGrams: number }[]; planId: string } };
+
+    expect(cut).toHaveBeenCalledWith('usr-1', start);
+    expect(draft.cutShoppingItems?.planId).toBe('plan-a');
+    // Two days of rice, one line: what the days it keeps need, and nothing from the days it lost.
+    expect(draft.cutShoppingItems?.items).toHaveLength(1);
+    expect(draft.cutShoppingItems?.items[0]?.totalGrams).toBe(250);
+  });
+
+  it('leaves the cut plan’s list as it stands when a food it keeps is not in today’s catalogue — never a shorter list', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const { persist, service } = build({ start: addDays(today, 2) });
+
+    jest.spyOn(PlanController, 'cutComposition').mockResolvedValue({
+      meals: [
+        {
+          id: 'kept-1',
+          date: today,
+          dayIndex: 1,
+          ingredients: [
+            { grams: 100, slug: 'arroz' },
+            { grams: 80, slug: 'no-longer-in-the-catalogue' }
+          ],
+          macros: { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 },
+          recipeSlug: 'arroz-1',
+          servings: 1,
+          slot: 'lunch',
+          sortOrder: 0
+        }
+      ],
+      planId: 'plan-a'
+    });
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    expect(persist.mock.calls[0]?.[1]).not.toHaveProperty('cutShoppingItems');
+  });
+
+  it('asks for no cut when the plan starts today: the plan under way is completed, as always', async () => {
+    const { persist, service } = build();
+    const cut = jest.spyOn(PlanController, 'cutComposition');
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    expect(cut).not.toHaveBeenCalled();
+    expect(persist.mock.calls[0]?.[1]).not.toHaveProperty('cutShoppingItems');
   });
 
   it('reports each stage before it runs, and never a stage it did not reach', async () => {

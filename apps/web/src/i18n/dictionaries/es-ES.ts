@@ -1024,7 +1024,12 @@ export const esES = {
     cronEmpty: 'Sin tareas.',
     cronNever: 'Nunca',
     cronNote: 'Atrasada si lleva más de {hours} h sin terminar.',
-    crons: { reminders: 'Avisos de check-in', rewrite: 'Reescritura de los pasos', verifications: 'Borrado de enlaces caducados' },
+    crons: {
+      activations: 'Activación de planes',
+      reminders: 'Avisos de check-in',
+      rewrite: 'Reescritura de los pasos',
+      verifications: 'Borrado de enlaces caducados'
+    },
     cronState: { ok: 'Al día', stale: 'Atrasada' },
     cronTitle: 'Tareas programadas',
     howCounted: [
@@ -1328,6 +1333,11 @@ export const esES = {
     lastDay: 'Último día',
     nextMeal: 'Lo siguiente',
     nextMealNone: 'Ya no queda nada por hoy.',
+    nextPlanBody: 'Ya está preparado. Puedes ver sus días y adelantar la compra.',
+    nextPlanDays: 'Ver sus días',
+    nextPlanShopping: 'Ver su lista de la compra',
+    nextPlanTitle: 'Tu próximo plan empieza el {date}',
+    nextPlanWaitingBody: 'Todavía no es su primer día, así que aún no hay comidas que mostrar. Puedes ver sus días y adelantar la compra.',
     noPlanBody:
       'Ya tenemos todo lo que necesitamos sobre ti. Crearemos catorce días completos con recetas, cantidades y la lista de la compra hecha.',
     noPlanCta: 'Crear mi plan',
@@ -1495,6 +1505,17 @@ export const esES = {
     safetyNote: 'Comprobamos tus alergias antes de guardar nada.',
     serverDetail: 'Detalle del servidor:',
     start: 'Generar mi plan',
+    startDate: {
+      chosen: 'Tu plan empieza el {date}.',
+      free: 'Gratis',
+      legend: '¿Cuándo empieza tu plan?',
+      noRedo: 'Sin rehaceres',
+      redoNote: 'Cuenta como un rehacer: los días de tu plan que coincidan con el nuevo se sustituyen.',
+      spentNote: 'Ya has usado tu rehacer de este plan. Puedes elegir un día a partir del {date}.',
+      today: 'Hoy',
+      tomorrow: 'Mañana',
+      usesRedo: 'Usa un rehacer'
+    },
     starting: 'Empezando…',
     steps: {
       BUILDING_LIST: 'Preparando tu lista de la compra',
@@ -1920,6 +1941,7 @@ export const esES = {
     '/cambiar-contrasena': { title: 'Cambia tu contraseña' },
     '/check-in': { title: 'Check-in de la quincena' },
     '/compra': { title: 'La compra' },
+    '/compra/proxima': { title: 'La compra del próximo plan' },
     '/condiciones': {
       description: 'Las condiciones para usar NutrIA: qué es y qué no es, tu cuenta, las alergias, Premium y cómo cancelarlo.',
       title: 'Condiciones de uso'
@@ -1937,6 +1959,7 @@ export const esES = {
     '/plan/generando': { title: 'Creando tu plan' },
     '/plan/historial': { title: 'Tus planes anteriores' },
     '/plan/historial/[id]': { title: 'Un plan anterior' },
+    '/plan/proximo': { title: 'Tu próximo plan' },
     '/privacidad': {
       description: 'Qué datos guarda NutrIA sobre ti, para qué los usa, con quién los comparte y cómo verlos, corregirlos o borrarlos.',
       title: 'Política de privacidad'
@@ -1977,7 +2000,13 @@ export const esES = {
     redoAvailable: 'Puedes rehacer este plan una vez esta quincena: recetas nuevas para los mismos días.',
     redoCta: 'Rehacer el plan',
     redoSpent: 'Ya has rehecho tu plan esta quincena. Podrás crear el siguiente el {date}.',
+    scheduledBody: 'Todavía no es su primer día. Mientras tanto puedes ver sus días y cambiar lo que no te encaje.',
+    scheduledCta: 'Ver sus días',
+    scheduledLink: 'Tu próximo plan empieza el {date} →',
+    scheduledTitle: 'Tu plan empieza el {date}',
     title: 'Tu plan',
+    upcomingBack: '← Tu plan actual',
+    upcomingTitle: 'Tu próximo plan',
     week: 'Semana {number}'
   },
 
@@ -2603,6 +2632,7 @@ export const esES = {
     nearby: 'Supermercados cerca',
     nearbyOpens: ' (se abre en la app de mapas)',
     nearbyQuery: 'supermercado',
+    nextSubtitle: 'Todo lo que necesitas para el plan que empieza el {date}, ya sumado.',
     notice: 'Por ahora la lista es solo de consulta. Poder marcar lo que ya tienes, ajustar cantidades y añadir cosas llega en la próxima entrega.',
     progress: '{done} de {total} ya en el carro',
     share: 'Compartir lo que falta',
@@ -2610,6 +2640,9 @@ export const esES = {
     shareNothing: 'Ya lo tienes todo en el carro: no queda nada que compartir.',
     shareTitle: 'Lista de la compra',
     subtitle: 'Todo lo que necesitas para los catorce días, ya sumado.',
+    switchCurrent: 'Actual',
+    switchLabel: 'Qué lista ver',
+    switchNext: 'Próximo',
     title: 'Lista de la compra'
   },
 

@@ -12,9 +12,10 @@ import type { PlanVacation, Vacation } from 'core/entities/Vacation';
 
 /**
  * Plans a pause may still move. A finished plan is history and history does not move (`0021`).
- * A plan waiting for review (`0060`) is a fortnight still to be lived, so a trip moves it too.
+ * A plan waiting for review (`0060`) is a fortnight still to be lived, so a trip moves it too,
+ * and so is a plan waiting for its day (project 015).
  */
-const MOVABLE = ['active', 'draft', 'generating', 'pending_review'] as const;
+const MOVABLE = ['active', 'draft', 'generating', 'pending_review', 'scheduled'] as const;
 
 export const VacationRepository = {
   /**
@@ -24,8 +25,13 @@ export const VacationRepository = {
    * that is what a fortnight is. A holiday declared last week is only known
    * here, so the days are pushed apart afterwards — same arithmetic, applied
    * once per trip in date order, each one moving the days that come after it.
+   *
+   * Only `planId`, the plan just made: every other plan the trips can move was
+   * moved when each trip was declared, and moving it again would push it twice.
+   * A plan that waits for its day leaves the active one standing (project 015),
+   * so this is no longer the only plan the person has.
    */
-  async applyTo(userId: string, today = new Date().toISOString().slice(0, 10)): Promise<void> {
+  async applyTo(userId: string, planId: string, today = new Date().toISOString().slice(0, 10)): Promise<void> {
     try {
       const trips = await VacationRepository.findUpcoming(userId, today);
 
@@ -35,7 +41,7 @@ export const VacationRepository = {
 
       await database().transaction(async tx => {
         for (const trip of trips) {
-          await shift(tx, userId, trip.startsOn, daysAway(trip));
+          await shift(tx, userId, trip.startsOn, daysAway(trip), planId);
         }
       });
     } catch (error: unknown) {
@@ -123,7 +129,7 @@ export const VacationRepository = {
 
 /**
  * Moves every plan day on or after `from` by `days`, and the plan's own dates
- * with them.
+ * with them — of every plan a trip may move, or of `planId` alone.
  *
  * Written as three statements against `date` columns rather than in JavaScript:
  * Postgres adds days to a `date` without ever meeting a timezone, and a plan
@@ -134,8 +140,8 @@ export const VacationRepository = {
  * is ambiguous — `operator is not unique: date + unknown` — so the cast is what
  * makes the statement run at all.
  */
-async function shift(tx: Transaction, userId: string, from: string, days: number): Promise<void> {
-  const mine = and(eq(mealPlans.userId, userId), inArray(mealPlans.status, MOVABLE));
+async function shift(tx: Transaction, userId: string, from: string, days: number, planId?: string): Promise<void> {
+  const mine = and(eq(mealPlans.userId, userId), inArray(mealPlans.status, MOVABLE), planId === undefined ? undefined : eq(mealPlans.id, planId));
   const movable = tx.select({ id: mealPlans.id }).from(mealPlans).where(mine);
 
   await tx

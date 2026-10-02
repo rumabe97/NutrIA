@@ -72,7 +72,13 @@ export const mealPlans = pgTable(
     // transaction, which CONCURRENTLY cannot run inside.
     uniqueIndex('meal_plans_one_pending_review_per_user')
       .on(table.userId)
-      .where(sql`${table.status} = 'pending_review'`)
+      .where(sql`${table.status} = 'pending_review'`),
+    // At most one plan waiting for its first day per user (project 015): a
+    // second generation replaces it, inside `createPlanAtomically`, and this is
+    // what makes two that race land one. An equality, like the one above.
+    uniqueIndex('meal_plans_one_scheduled_per_user')
+      .on(table.userId)
+      .where(sql`${table.status} = 'scheduled'`)
   ]
 );
 
@@ -244,6 +250,11 @@ export const planGenerationJobs = userOwned(
     errorDetail: text(),
     finishedAt: timestamp({ withTimezone: true }),
     planId: uuid().references(() => mealPlans.id, { onDelete: 'cascade' }),
+    /**
+     * The day the person chose for the plan to start (project 015), from their
+     * today to a week ahead. Null for today, and for every job before it.
+     */
+    startDate: date(),
     startedAt: timestamp({ withTimezone: true }),
     status: jobStatus().notNull().default('queued'),
     step: text()

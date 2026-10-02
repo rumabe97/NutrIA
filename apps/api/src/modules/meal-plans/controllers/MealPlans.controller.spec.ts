@@ -40,7 +40,7 @@ function pictures(available = false) {
 }
 
 function build(picturesService = pictures()) {
-  const start = jest.fn(async (_userId: string) =>
+  const start = jest.fn(async (_userId: string, _record?: unknown, _startDate?: string) =>
     Promise.resolve({ id: 'job-1', error: null, errorDetail: null, planId: null, status: 'queued', step: null })
   );
   const swap = jest.fn(async (_userId: string, _mealId: string, _locale: string | null, _axis?: SwapAxis) => Promise.resolve({ id: 'meal-1' }));
@@ -81,19 +81,29 @@ describe('MealPlansController', () => {
   it('starts generation for the session user, never an id from the request', async () => {
     const { controller, start } = build();
 
-    await controller.generate(ALICE);
+    await controller.generate(ALICE, {});
 
-    expect(start).toHaveBeenCalledWith('usr-alice');
+    expect(start).toHaveBeenCalledWith('usr-alice', undefined, undefined);
+  });
+
+  it('passes the chosen start day through with the session user (project 015)', async () => {
+    const { controller, start } = build();
+
+    await controller.generate(ALICE, { startDate: '2026-10-05' });
+
+    expect(start).toHaveBeenCalledWith('usr-alice', undefined, '2026-10-05');
   });
 
   it('reads the allowances for the session user', async () => {
     const allowances = jest
       .spyOn(PlanController, 'allowances')
       .mockResolvedValue({
+        defaultStart: '2026-09-09',
         events: { limit: 3, midPlan: null, remaining: 3 },
         mealSize: null,
         mealSwaps: { allowed: true, limit: 5, remaining: 5, used: 0 },
         planRedo: { allowed: true, kind: 'new_fortnight', limit: 1, nextAt: null, used: 0 },
+        startOptions: [],
         tier: 'free'
       });
 
@@ -223,7 +233,7 @@ describe('MealPlansController', () => {
  */
 describe('meal-plan routes behind onboarding (through the real pipeline)', () => {
   let app: INestApplication;
-  const start = jest.fn(async (_userId: string) =>
+  const start = jest.fn(async (_userId: string, _record?: unknown, _startDate?: string) =>
     Promise.resolve({ id: 'job-1', error: null, errorDetail: null, planId: null, status: 'queued', step: null })
   );
 
@@ -289,6 +299,22 @@ describe('meal-plan routes behind onboarding (through the real pipeline)', () =>
     const response: Response = await request(app.getHttpServer() as Server).post('/meal-plans/generate');
 
     expect(response.status).toBe(201);
-    expect(start).toHaveBeenCalledWith('usr-alice');
+    expect(start).toHaveBeenCalledWith('usr-alice', undefined, undefined);
+  });
+
+  /* Project 015: a malformed day never reaches the job. */
+  it('refuses a malformed start day as INVALID_INPUT, and starts nothing', async () => {
+    jest.spyOn(OnboardingController, 'getState').mockResolvedValue(onboardingState({ completedAt: '2026-09-07', isComplete: true, resumeStep: 9 }));
+
+    for (const startDate of ['2026-13-45', 'mañana', 20261005]) {
+      const response: Response = await request(app.getHttpServer() as Server)
+        .post('/meal-plans/generate')
+        .send({ startDate });
+
+      expect(response.status).toBe(422);
+      expect(response.body).toMatchObject({ code: 'INVALID_INPUT' });
+    }
+
+    expect(start).not.toHaveBeenCalled();
   });
 });

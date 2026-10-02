@@ -993,7 +993,7 @@ export const enGB: Dictionary = {
     cronEmpty: 'No jobs.',
     cronNever: 'Never',
     cronNote: 'Stale if it has gone more than {hours} h without finishing.',
-    crons: { reminders: 'Check-in reminders', rewrite: 'Step rewrite', verifications: 'Expired link cleanup' },
+    crons: { activations: 'Plan activation', reminders: 'Check-in reminders', rewrite: 'Step rewrite', verifications: 'Expired link cleanup' },
     cronState: { ok: 'On time', stale: 'Stale' },
     cronTitle: 'Scheduled jobs',
     howCounted: [
@@ -1298,6 +1298,11 @@ export const enGB: Dictionary = {
     lastDay: 'Last day',
     nextMeal: 'Up next',
     nextMealNone: 'Nothing left for today.',
+    nextPlanBody: 'It is ready. You can look at its days and get the shopping done ahead.',
+    nextPlanDays: 'See its days',
+    nextPlanShopping: 'See its shopping list',
+    nextPlanTitle: 'Your next plan starts on {date}',
+    nextPlanWaitingBody: 'Its first day has not come yet, so there are no meals to show. You can look at its days and get the shopping done ahead.',
     noPlanBody: 'We have everything we need about you. We will build fourteen complete days with recipes, quantities and the shopping list written.',
     noPlanCta: 'Create my plan',
     noPlanTitle: 'No plan yet',
@@ -1461,6 +1466,17 @@ export const enGB: Dictionary = {
     safetyNote: 'We check your allergies before saving anything.',
     serverDetail: 'Server detail:',
     start: 'Build my plan',
+    startDate: {
+      chosen: 'Your plan starts on {date}.',
+      free: 'Free',
+      legend: 'When does your plan start?',
+      noRedo: 'No redos left',
+      redoNote: 'It counts as a redo: the days of your plan that overlap the new one are replaced.',
+      spentNote: 'You have used this plan’s redo. You can choose a day from {date}.',
+      today: 'Today',
+      tomorrow: 'Tomorrow',
+      usesRedo: 'Uses a redo'
+    },
     starting: 'Starting…',
     steps: {
       BUILDING_LIST: 'Putting your shopping list together',
@@ -1874,6 +1890,7 @@ export const enGB: Dictionary = {
     '/cambiar-contrasena': { title: 'Change your password' },
     '/check-in': { title: "The fortnight's check-in" },
     '/compra': { title: 'The shopping' },
+    '/compra/proxima': { title: 'Shopping for the next plan' },
     '/condiciones': {
       description: 'The terms for using NutrIA: what it is and is not, your account, allergies, Premium and how to cancel it.',
       title: 'Terms of use'
@@ -1891,6 +1908,7 @@ export const enGB: Dictionary = {
     '/plan/generando': { title: 'Building your plan' },
     '/plan/historial': { title: 'Your earlier plans' },
     '/plan/historial/[id]': { title: 'An earlier plan' },
+    '/plan/proximo': { title: 'Your next plan' },
     '/privacidad': {
       description: 'What NutrIA holds about you, what it is used for, who it is shared with, and how to see, correct or delete it.',
       title: 'Privacy policy'
@@ -1932,7 +1950,13 @@ export const enGB: Dictionary = {
     redoAvailable: 'You can redo this plan once this fortnight: new dishes for the same days.',
     redoCta: 'Redo the plan',
     redoSpent: 'You have already redone your plan this fortnight. The next one opens on {date}.',
+    scheduledBody: 'Its first day has not come yet. Meanwhile you can look at its days and change what does not suit you.',
+    scheduledCta: 'See its days',
+    scheduledLink: 'Your next plan starts on {date} →',
+    scheduledTitle: 'Your plan starts on {date}',
     title: 'Your plan',
+    upcomingBack: '← Your current plan',
+    upcomingTitle: 'Your next plan',
     week: 'Week {number}'
   },
 
@@ -2558,6 +2582,7 @@ export const enGB: Dictionary = {
     nearby: 'Supermarkets nearby',
     nearbyOpens: ' (opens in your maps app)',
     nearbyQuery: 'supermarket',
+    nextSubtitle: 'Everything you need for the plan that starts on {date}, already added up.',
     notice: 'For now the list is read-only. Ticking off what you already have, adjusting quantities and adding items arrives in the next release.',
     progress: '{done} of {total} in the trolley',
     share: 'Share what is left',
@@ -2565,6 +2590,9 @@ export const enGB: Dictionary = {
     shareNothing: 'Everything is in the trolley: nothing left to share.',
     shareTitle: 'Shopping list',
     subtitle: 'Everything you need for the fortnight, already added up.',
+    switchCurrent: 'Current',
+    switchLabel: 'Which list to show',
+    switchNext: 'Next',
     title: 'Shopping list'
   },
 

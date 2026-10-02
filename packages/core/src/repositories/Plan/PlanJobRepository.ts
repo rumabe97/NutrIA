@@ -116,8 +116,9 @@ export const PlanJobRepository = {
    *
    * Returns the claimed job, or `undefined` when a generation is already under
    * way. `release` gives the slot back if the generation may not start after all.
+   * `startDate` is the day the person chose (project 015); null is their today.
    */
-  async claim(userId: string) {
+  async claim(userId: string, startDate: string | null = null) {
     try {
       return await database().transaction(async tx => {
         const [lock] = await tx.execute<{ held: boolean }>(
@@ -138,7 +139,7 @@ export const PlanJobRepository = {
           return undefined;
         }
 
-        const [row] = await tx.insert(planGenerationJobs).values({ status: 'queued', userId }).returning();
+        const [row] = await tx.insert(planGenerationJobs).values({ startDate, status: 'queued', userId }).returning();
 
         if (!row) {
           throw new DatabaseOperationError('Job insert returned no row');

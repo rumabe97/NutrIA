@@ -44,3 +44,29 @@
   opacity: 0;
   position: absolute;
 }
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  line-height: var(--line-height-02);
+}
+
+.detail {
+  color: var(--foreground-03);
+  font-size: var(--font-size-02);
+}
+
+.chip:has(input:checked) .detail {
+  color: inherit;
+}
+
+.chip:has(input[aria-disabled='true']) {
+  background-color: transparent;
+  border-style: dashed;
+  color: var(--foreground-03);
+  cursor: not-allowed;
+}
+
+.chip:has(input:checked) {
+  font-weight: var(--font-weight-semibold);
+}

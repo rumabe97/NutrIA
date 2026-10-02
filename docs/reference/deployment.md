@@ -178,6 +178,7 @@ platform sends it as the bearer, and without it the route answers 404.
 | `/api/v1/cron/rewrite-steps` | one text generation per recipe, at most twelve a run, ending by 240 s. Through the gateway, its free models; on Google directly, the daily cap generation needs | `AI_REWRITE_STEPS`, off by default; `AI_REWRITE_MODEL` picks its model ([`ai-gateway.md`](./ai-gateway.md) §6) |
 | `/api/v1/cron/reminders` | **nothing from the AI provider**: a mail and/or a push per account, at most once a fortnight | the **Check-in reminder** switch on `/admin`, off until thrown; `SMTP_HOST` for the mail and `VAPID_*` for the push. Sends nothing without either |
 | `/api/v1/cron/sweep-verifications` | **nothing from the AI provider**: one `DELETE` of the verification rows already past `expires_at` (unused reset tokens, abandoned OAuth states). Better Auth's own cleanup on read is off (`0075`), so this is the only pruning | nothing: it always runs |
+| `/api/v1/cron/activate-plans` | **nothing from the AI provider**: at 23:05 UTC (after midnight in Madrid all year), for every plan waiting for its day that is now due, one transaction per person completes the running plan (`completedAt` = the day before) and activates the waiting one (project 015). Every read of the active plan does the same for its own person, so a missed run heals on the next visit | nothing: it always runs |
 
 Each cron runs daily by choice, not by the plan's limit: Vercel is on Pro since 2026-09-26,
 which runs crons as often as hourly. What keeps them daily is Neon's free compute, shared by

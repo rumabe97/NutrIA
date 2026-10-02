@@ -12,6 +12,7 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { CtaLink } from 'components/CtaLink';
 import { EventPlanner } from 'components/EventPlanner';
 import { MealSizeNote } from 'components/MealSizeNote';
+import { StartDatePicker } from 'components/StartDatePicker';
 
 import { api, ApiError, messageFor } from 'lib/api';
 import { formatDate, interpolate } from 'lib/format';
@@ -19,9 +20,9 @@ import { generationError, stepLabel } from 'lib/generation';
 import { hasMealSizeAnswer, mealSizeBody, rememberMealSizeAnswer, subscribeMealSizeAnswers } from 'lib/mealSize';
 import { markPendingReview } from 'lib/pendingReview';
 
+import type { AllowancesView, JobView } from 'core/controllers/Plan';
 import type { EventAllowance } from 'components/EventPlanner';
 import type { EventView } from 'core/controllers/Event';
-import type { JobView } from 'core/controllers/Plan';
 
 /**
  * Polling backs off: 1 s, 2 s, 4 s, then every 6 s. The first answers arrive
@@ -47,6 +48,8 @@ type Phase =
 interface GenerationProgressProps {
   /** What is left of the events cap, or `null` while the API does not say — see `EventAllowance`. */
   allowance: EventAllowance | null;
+  /** The day the picker opens on: the API's, which is the day after the plan under way ends, or today. */
+  defaultStart: string;
   /** The upcoming events, shown before the job starts so the plan is built with them. */
   events: readonly EventView[];
   /**
@@ -54,6 +57,10 @@ interface GenerationProgressProps {
    * key its answer is kept under (`mealSizeKey`). Null when nothing needs saying.
    */
   mealSize: { answerKey: string; count: number; kcal: number } | null;
+  /** The first day a redo is available again, when none is left. */
+  redoNextAt: string | null;
+  /** Today and the seven days after, each with what choosing it costs. */
+  startOptions: AllowancesView['startOptions'];
 }
 
 /** The server cannot know what this browser remembers, so the note is asked: never skipped by default. */
@@ -76,12 +83,13 @@ function notAnsweredOnServer(): boolean {
  * script of reassuring messages (PRD criterion 8). The bar is indeterminate for
  * the same reason: the pipeline reports stages, not a percentage.
  */
-export function GenerationProgress({ allowance, events, mealSize }: GenerationProgressProps) {
+export function GenerationProgress({ allowance, defaultStart, events, mealSize, redoNextAt, startOptions }: GenerationProgressProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
   const [phase, setPhase] = useState<Phase>({ kind: 'ready' });
   const [fatal, setFatal] = useState<string>();
+  const [startDate, setStartDate] = useState(defaultStart);
   const kept = useSyncExternalStore(
     subscribeMealSizeAnswers,
     () => (mealSize ? hasMealSizeAnswer('kept', mealSize.answerKey) : true),
@@ -101,7 +109,7 @@ export function GenerationProgress({ allowance, events, mealSize }: GenerationPr
     let job: JobView;
 
     try {
-      job = await api<JobView>('/meal-plans/generate', { method: 'POST' });
+      job = await api<JobView>('/meal-plans/generate', { body: startDate ? { startDate } : undefined, method: 'POST' });
     } catch (error) {
       // 429 is the generation limit, not a failure of the plan itself.
       setFatal(
@@ -222,6 +230,15 @@ export function GenerationProgress({ allowance, events, mealSize }: GenerationPr
         <div className={styles.before}>
           <EventPlanner allowance={allowance} events={events} variant="generation" />
         </div>
+
+        {/* Always offered: the next fortnight is free whichever day it starts on,
+            and what a day costs is said on its own chip. It is a choice, not an
+            action: the one primary button is still below. */}
+        {startOptions.length > 0 ? (
+          <div className={styles.before}>
+            <StartDatePicker onChange={setStartDate} options={startOptions} redoNextAt={redoNextAt} value={startDate} />
+          </div>
+        ) : null}
 
         {/* A large meal is said before the job exists: afterwards the only
             answer is a redo. "Carry on" is remembered, so it is not asked again
