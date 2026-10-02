@@ -65,7 +65,8 @@ describe('a plan waits for its day, end to end', () => {
   const server = (): ReturnType<typeof httpServer> => httpServer(app);
   const get = (account: Account, path: string): request.Test => request(server()).get(`/${PREFIX}${path}`).set('Cookie', account.cookie);
   const view = async (account: Account, path: string): Promise<PlanView> => (await get(account, path).expect(200)).body as PlanView;
-  const allowances = async (account: Account): Promise<AllowancesView> => (await get(account, '/meal-plans/allowances').expect(200)).body as AllowancesView;
+  const allowances = async (account: Account): Promise<AllowancesView> =>
+    (await get(account, '/meal-plans/allowances').expect(200)).body as AllowancesView;
 
   const person = async (label: string): Promise<Account> => {
     const account = await register(app, `scheduled-${label}-${Date.now()}@e2e.invalid`);
@@ -78,7 +79,11 @@ describe('a plan waits for its day, end to end', () => {
 
   /** Starts a generation from `startDate`, waits for it, and returns the job. */
   const generateFrom = async (account: Account, startDate: string): Promise<JobResult> => {
-    const started: Response = await request(server()).post(`/${PREFIX}/meal-plans/generate`).set('Cookie', account.cookie).send({ startDate }).expect(201);
+    const started: Response = await request(server())
+      .post(`/${PREFIX}/meal-plans/generate`)
+      .set('Cookie', account.cookie)
+      .send({ startDate })
+      .expect(201);
     const jobId = (started.body as { id: string }).id;
 
     for (let waited = 0; waited < 120_000; waited += 250) {
@@ -225,7 +230,9 @@ describe('a plan waits for its day, end to end', () => {
 
       expect(foreign.status).toBe(unknown.status);
       expect(foreign.body).toEqual(unknown.body);
-      expect(((await get(stranger, '/meal-plans').expect(200)).body as unknown[]).map(plan => (plan as { id: string }).id)).not.toContain(scheduled.id);
+      expect(((await get(stranger, '/meal-plans').expect(200)).body as unknown[]).map(plan => (plan as { id: string }).id)).not.toContain(
+        scheduled.id
+      );
     });
 
     it('is replaced, not stacked, by a second one — and that counts a redo', async () => {
@@ -291,8 +298,9 @@ describe('a plan waits for its day, end to end', () => {
       expect((await generateFrom(account, plus(today, 6))).status).toBe('succeeded');
 
       const next = await view(account, '/meal-plans/scheduled');
-      const sql = (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> })
-        .$client;
+      const sql = (
+        database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> }
+      ).$client;
 
       // What an API rolled back and forth could leave: the scheduled plan numbered below the running one.
       await sql`update meal_plans set version = 50 where id = ${running.id}`;
