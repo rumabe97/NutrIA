@@ -25,6 +25,7 @@ import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValida
 import { makeCatalogue, makeCatalogueIngredient, makeDish, makePool, MINIMUM_KCAL, TARGETS } from '#test/fixtures';
 
 import type { NutritionTargets } from 'core/entities/Nutrition';
+import type { CatalogueIngredient } from 'core/entities/Plan';
 
 const catalogue = makeCatalogue();
 
@@ -1122,6 +1123,38 @@ describe('schedulePlan — the fortnight is repaired as a whole (0048)', () => {
     // every time.
     expect(varietyViolations(first.assignment.days).filter(violation => violation.kind !== 'identical_day')).toEqual([]);
     expect(second.assignment).toEqual(first.assignment);
+  });
+
+  it('repairs the fortnight without bringing rice onto days running (STARCH_RULES)', () => {
+    // The same pool, the starch of its two starchiest lunches rice and of the rest quinoa: the exchanges now move a base between days.
+    const starchy = makeCatalogue([
+      ...[...spreadCatalogue.values()],
+      { ...(spreadCatalogue.get('arroz') as CatalogueIngredient), id: 'i-arroz-largo', slug: 'arroz-largo-crudo' },
+      { ...(spreadCatalogue.get('arroz') as CatalogueIngredient), id: 'i-quinoa', slug: 'quinoa-cruda' }
+    ]);
+    const pool = spreadPool.map(dish => ({
+      ...dish,
+      ingredients: dish.ingredients.map(item =>
+        item.slug === 'arroz' ? { ...item, slug: dish.slug === 'lunch-0' || dish.slug === 'lunch-1' ? 'arroz-largo-crudo' : 'quinoa-cruda' } : item
+      )
+    }));
+    const result = schedulePlan({ catalogue: starchy, minimumKcal: MINIMUM_KCAL, pool, targets: T, weights: weightsFor(shapeFor(3, false)) });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const rice = result.assignment.days.flatMap(day => day.meals.filter(meal => starchBase(meal.dish) === 'rice').map(() => day.dayIndex));
+
+    expect(rice.length).toBeGreaterThan(0);
+    expect(rice.length).toBeLessThanOrEqual(starchCap(PLAN_DAYS));
+    expect(rice.some(day => rice.includes(day + 1))).toBe(false);
+
+    for (const day of result.assignment.days) {
+      expect(Math.abs(day.totals.kcal - T.kcal)).toBeLessThanOrEqual(T.kcal * 0.05);
+    }
   });
 });
 
