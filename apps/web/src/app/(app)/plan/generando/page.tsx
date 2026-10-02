@@ -35,12 +35,15 @@ export default async function GeneratingPage() {
   return (
     <GenerationProgress
       allowance={allowances?.events ?? null}
+      defaultStart={allowances?.defaultStart ?? ''}
       events={events ?? []}
       mealSize={
         size?.largeMeals && shape
           ? { answerKey: mealSizeKey(size.largestMainKcal, shape), count: mealCount(shape), kcal: size.largestMainKcal }
           : null
       }
+      redoNextAt={allowances?.planRedo.nextAt ?? null}
+      startOptions={allowances?.startOptions ?? []}
     />
   );
 }
