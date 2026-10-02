@@ -114,6 +114,7 @@ const COMPOSITION: readonly MealCompositionView[] = Array.from({ length: 14 }, (
       date: `2026-09-${String(8 + dayIndex).padStart(2, '0')}`,
       dayIndex,
       ingredients: dish.ingredients,
+      legume: null,
       macros: { carbsG: 60, fatG: 20, fiberG: 8, kcal: 660, proteinG: 40 },
       recipeSlug: dish.slug,
       servings: 1,

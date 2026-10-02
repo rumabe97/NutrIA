@@ -71,7 +71,16 @@ import {
 } from 'core/domain/Preference';
 import { PLAN_DAYS, PLATE_GRAMS_MAX, PLATE_LIMIT, plateGramsMax, schedulePlan, SERVING_PREFERENCE } from 'core/domain/Scheduler';
 import { bestEffortExclusions, dishSafety, normaliseForMatching, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
-import { DISHES_NEEDED_PER_SLOT, isCappedStarch, MAIN_SLOTS, STARCH_RULES, starchBase, starchCap } from 'core/domain/Variety';
+import {
+  DISHES_NEEDED_PER_SLOT,
+  isCappedStarch,
+  legumeKind,
+  MAIN_SLOTS,
+  mainProtein,
+  STARCH_RULES,
+  starchBase,
+  starchCap
+} from 'core/domain/Variety';
 import { plateFoodMax, plateFoods } from 'core/domain/PlateFood';
 
 // ---------------------------------------------------------------------------
@@ -572,6 +581,7 @@ async function measureProfile(profile, shared, options) {
     unsafe,
     spanish: spanishMetrics(scheduled.assignment.days, context.catalogue),
     starch: starchMetrics(scheduled.assignment.days),
+    kinds: kindMetrics(scheduled.assignment.days, context.catalogue),
     // How varied the plan actually is, not just whether it broke a rule —
     // distinct dishes maximised, no two days the same, a repeat as far apart
     // as the pool allows (owner, 2026-09-26; `0065`).
@@ -675,6 +685,61 @@ function starchMetrics(days) {
     mains,
     outsideTable2,
     total
+  };
+}
+
+/**
+ * How often one kind of food comes back (017 phase 2): each main protein at
+ * lunch and dinner (`mainProtein`), over the fortnight and in its busiest week;
+ * each legume at any meal (`legumeKind`), with the days it ran on or doubled.
+ */
+function kindMetrics(days, catalogue) {
+  const proteins = {};
+  const legumeDays = new Map();
+
+  for (const day of days) {
+    for (const meal of day.meals) {
+      const legume = legumeKind(meal.dish);
+
+      if (legume) {
+        legumeDays.set(legume, [...(legumeDays.get(legume) ?? []), day.dayIndex]);
+      }
+
+      if (!MAIN_SLOTS.has(meal.slot)) {
+        continue;
+      }
+
+      const protein = mainProtein(meal.dish, catalogue);
+
+      if (protein) {
+        const entry = (proteins[protein] ??= { total: 0, weeks: [0, 0] });
+
+        entry.total += 1;
+        entry.weeks[day.dayIndex <= 7 ? 0 : 1] += 1;
+      }
+    }
+  }
+
+  const top = Object.entries(proteins).sort((a, b) => b[1].total - a[1].total || a[0].localeCompare(b[0]));
+
+  const legumes = Object.fromEntries(
+    [...legumeDays].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).map(([kind, at]) => [kind, at.length])
+  );
+  const legumeRuns = [...legumeDays].flatMap(([kind, at]) =>
+    at.flatMap((dayIndex, position) => [
+      ...(at.indexOf(dayIndex) !== position ? [`${kind} twice on day ${dayIndex}`] : []),
+      ...(at.indexOf(dayIndex) === position && at.includes(dayIndex - 1) ? [`${kind} days ${dayIndex - 1}–${dayIndex}`] : [])
+    ])
+  );
+  const legumeTop = Object.entries(legumes)[0];
+
+  return {
+    legumeMax: legumeTop ? { kind: legumeTop[0], total: legumeTop[1] } : null,
+    legumeRuns,
+    legumes,
+    proteinMax: top[0] ? { kind: top[0][0], total: top[0][1].total } : null,
+    proteinMaxWeek: Math.max(0, ...top.map(([, entry]) => Math.max(...entry.weeks))),
+    proteins: Object.fromEntries(top.map(([kind, entry]) => [kind, entry.total]))
   };
 }
 
@@ -1398,6 +1463,26 @@ function printProfile(profile, result) {
     );
     console.log(
       `  gnocchi: ${gnocchi.length}${gnocchi.length > 0 ? ` (${gnocchi.map(item => `day ${item.dayIndex} ${item.slot}: "${item.dish}", ${item.family}, read as ${item.base}`).join('; ')})` : ''}`
+    );
+  }
+
+  if (result.kinds) {
+    const { proteinMax, proteinMaxWeek, proteins } = result.kinds;
+
+    console.log(
+      `  main proteins at lunch and dinner (017 p2): ${Object.entries(proteins)
+        .map(([kind, count]) => `${kind} ${count}`)
+        .join(', ')}; most ${proteinMax ? `${proteinMax.kind} ${proteinMax.total}` : 'none'}, busiest week ${proteinMaxWeek}`
+    );
+
+    const { legumeRuns = [], legumes = {} } = result.kinds;
+
+    console.log(
+      `  legumes by kind, every meal (017 p2, 3 a fortnight each, never on days running): ${
+        Object.entries(legumes)
+          .map(([kind, count]) => `${kind} ${count}`)
+          .join(', ') || 'none'
+      }; days running ${legumeRuns.length}${legumeRuns.length > 0 ? ` (${legumeRuns.join(', ')})` : ''}`
     );
   }
 

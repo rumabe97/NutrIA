@@ -2,7 +2,10 @@
 // rotation constants at load, and the index would make that a cycle.
 import { dishGroups } from '../MealFit/Cuisine';
 
+import { kindCrowded, kindExcess } from './Kinds';
+
 import type { FoodGroup } from '../MealFit/Cuisine';
+import type { KindCheck, KindMeal, KindRule } from './Kinds';
 import type { Placement } from './Variety';
 import type { CandidateDish } from 'core/entities/Plan';
 
@@ -143,53 +146,32 @@ export function starchMeals(placements: readonly Placement[], index: StarchIndex
   return meals;
 }
 
+/** `STARCH_RULES` as a kind rule (`KindRule`): each capped base apart and at its cap. */
+const STARCH_KIND_RULE: KindRule = { apart: true, perFortnight: STARCH_RULES.perFortnight };
+
 /**
  * How many meals break `STARCH_RULES` in these: each past the plan's cap, each
  * second one on a day, each day that follows a day of the same base. Counted
  * by the meal, as `PROTEIN_RULES`' excess is.
  */
 export function starchExcess(meals: readonly StarchMeal[], days: number): number {
-  const cap = starchCap(days);
-  let excess = 0;
-
-  for (const base of CAPPED) {
-    const byDay = new Map<number, number>();
-    let total = 0;
-
-    for (const meal of meals) {
-      if (meal.base === base) {
-        byDay.set(meal.dayIndex, (byDay.get(meal.dayIndex) ?? 0) + 1);
-        total += 1;
-      }
-    }
-
-    excess += Math.max(0, total - cap);
-
-    for (const [dayIndex, count] of byDay) {
-      excess += count - 1 + (byDay.has(dayIndex - 1) ? 1 : 0);
-    }
-  }
-
-  return excess;
+  return kindExcess(toKindMeals(meals), days, STARCH_KIND_RULE);
 }
 
 /** Whether a dish of `base` on `dayIndex` would add to `starchExcess` over `meals`: its base is on that day or the next or the one before, or at its cap. */
 export function starchCrowded(base: StarchBase | null, dayIndex: number, meals: readonly StarchMeal[], days: number): boolean {
-  if (!isCappedStarch(base)) {
-    return false;
-  }
+  return isCappedStarch(base) && kindCrowded(base, dayIndex, toKindMeals(meals), days, STARCH_KIND_RULE);
+}
 
-  let total = 0;
+function toKindMeals(meals: readonly StarchMeal[]): KindMeal[] {
+  return meals.flatMap(meal => (isCappedStarch(meal.base) && meal.base !== null ? [{ dayIndex: meal.dayIndex, kind: meal.base }] : []));
+}
 
-  for (const meal of meals) {
-    if (meal.base === base) {
-      if (Math.abs(meal.dayIndex - dayIndex) <= 1) {
-        return true;
-      }
-
-      total += 1;
-    }
-  }
-
-  return total >= starchCap(days);
+/** `STARCH_RULES` as the scheduler applies it, over a pool's index: only the capped bases count, and a placement's own base is read first. */
+export function starchCheck(index: StarchIndex): KindCheck {
+  return {
+    index: new Map([...index].map(([slug, base]) => [slug, isCappedStarch(base) ? base : null])),
+    named: placement => (placement.starch === undefined ? undefined : isCappedStarch(placement.starch) ? placement.starch : null),
+    rule: STARCH_KIND_RULE
+  };
 }

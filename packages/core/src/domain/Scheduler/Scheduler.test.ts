@@ -20,7 +20,20 @@ function slotsForTest(mealsPerDay: number, includesSnacks: boolean) {
   return slotsIn(shapeFor(mealsPerDay, includesSnacks));
 }
 
-import { mainProtein, PROTEIN_RULES, proteinCap, STARCH_RULES, starchBase, starchCap, VARIETY_RULES, varietyViolations } from 'core/domain/Variety';
+import {
+  LEGUME_RULES,
+  legumeKind,
+  MAIN_SLOTS,
+  mainProtein,
+  planWeek,
+  PROTEIN_RULES,
+  proteinCap,
+  STARCH_RULES,
+  starchBase,
+  starchCap,
+  VARIETY_RULES,
+  varietyViolations
+} from 'core/domain/Variety';
 import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValidation';
 import { makeCatalogue, makeCatalogueIngredient, makeDish, makePool, MINIMUM_KCAL, TARGETS } from '#test/fixtures';
 
@@ -925,6 +938,100 @@ describe('schedulePlan — one main protein, once a day (PROTEIN_RULES)', () => 
       schedulePlan({ catalogue: proteinCatalogue, minimumKcal: MINIMUM_KCAL, pool: tuna, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) })
         .ok
     ).toBe(true);
+  });
+});
+
+describe('schedulePlan — no protein dominates, and legumes vary (017 phase 2)', () => {
+  // A real fortnight served pork in eight of twenty-eight mains: lomo, solomillo
+  // and a ham are three slugs and one animal. Every dish here is mostly a
+  // neutral base with 100 g of its protein, so fit ties and the rules decide.
+  const pork = ['lomo-de-cerdo', 'solomillo-de-cerdo', 'jamon-serrano'];
+  const others = ['pechuga-de-pollo', 'pechuga-de-pavo', 'ternera-magra', 'merluza', 'huevo'];
+  const legumes = ['garbanzos-cocidos', 'garbanzos-secos', 'lentejas-cocidas'];
+  const catalogue = makeCatalogue([
+    makeCatalogueIngredient({ id: 'base', slug: 'base' }),
+    ...pork.map((slug, index) => makeCatalogueIngredient({ id: `pork-${index}`, category: 'protein', classes: ['animal', 'meat', 'pork'], slug })),
+    ...others.map((slug, index) => makeCatalogueIngredient({ id: `other-${index}`, category: 'protein', slug })),
+    ...legumes.map((slug, index) => makeCatalogueIngredient({ id: `legume-${index}`, slug }))
+  ]);
+  const SHARE = { breakfast: 0.28, dinner: 0.34, lunch: 0.37 } as const;
+  const plate = (slot: keyof typeof SHARE, n: number) => Math.round((TARGETS.kcal * SHARE[slot]) / 2) + n * 5;
+  const pool = [
+    ...Array.from({ length: 8 }, (_none, n) =>
+      makeDish({ ingredients: [{ grams: plate('breakfast', n), slug: 'base' }], slots: ['breakfast'], slug: `breakfast-${n}` })
+    ),
+    ...(['lunch', 'dinner'] as const).flatMap(slot =>
+      [...pork, ...others, ...legumes].flatMap(kind =>
+        [0, 1, 2].map(n =>
+          makeDish({
+            ingredients: [
+              { grams: plate(slot, n) - 100, slug: 'base' },
+              { grams: 100, slug: kind }
+            ],
+            slots: [slot],
+            slug: `${slot}-${kind}-${n}`
+          })
+        )
+      )
+    )
+  ];
+  const result = schedulePlan({ catalogue, minimumKcal: MINIMUM_KCAL, pool, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) });
+
+  it('counts every pork cut as one protein, held to three lunches and dinners a week', () => {
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const byWeek = new Map<string, number>();
+    let porkMains = 0;
+
+    for (const day of result.assignment.days) {
+      for (const meal of day.meals.filter(entry => MAIN_SLOTS.has(entry.slot))) {
+        const protein = mainProtein(meal.dish, catalogue);
+
+        if (protein) {
+          byWeek.set(`${planWeek(day.dayIndex)}:${protein}`, (byWeek.get(`${planWeek(day.dayIndex)}:${protein}`) ?? 0) + 1);
+        }
+
+        porkMains += protein === 'cerdo' ? 1 : 0;
+      }
+    }
+
+    expect(porkMains).toBeGreaterThan(0);
+    expect(porkMains).toBeLessThanOrEqual(2 * PROTEIN_RULES.perMainsWeek);
+    expect(Math.max(...byWeek.values()), JSON.stringify([...byWeek])).toBeLessThanOrEqual(PROTEIN_RULES.perMainsWeek);
+  });
+
+  it('serves the same legume three times a fortnight at most, never on days running', () => {
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const days = new Map<string, number[]>();
+
+    for (const day of result.assignment.days) {
+      for (const meal of day.meals) {
+        const legume = legumeKind(meal.dish);
+
+        if (legume) {
+          days.set(legume, [...(days.get(legume) ?? []), day.dayIndex]);
+        }
+      }
+    }
+
+    expect(days.get('garbanzos')?.length ?? 0).toBeGreaterThan(0);
+
+    for (const [legume, at] of days) {
+      expect(at.length, `${legume} on days ${at.join(', ')}`).toBeLessThanOrEqual(LEGUME_RULES.perFortnight);
+      expect(
+        at.some((dayIndex, position) => at.includes(dayIndex + 1) || at.indexOf(dayIndex) !== position),
+        `${legume} on days ${at.join(', ')}`
+      ).toBe(false);
+    }
   });
 });
 

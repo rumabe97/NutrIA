@@ -2,23 +2,28 @@ import { NO_ACCOMPANIMENT, setsBeside } from 'core/domain/Accompaniment';
 import { addMacros, composePerServing, scaleIngredients, scaleMacros, sumMacros } from 'core/domain/Composition';
 import {
   canPlace,
-  isCappedStarch,
+  countsFor,
   isPreferredDish,
+  kindExcess,
+  kindMeals,
+  kindsCrowded,
+  kindsExcess,
+  legumeCheck,
+  legumeIndex,
   MAIN_SLOTS,
   mainProtein,
   nearestGap,
+  planWeek,
   PREFERRED_MAIN_GAP,
   PROTEIN_RULES,
   proteinCap,
-  starchCrowded,
-  starchExcess,
-  starchIndex,
-  starchMeals
+  starchCheck,
+  starchIndex
 } from 'core/domain/Variety';
 import { PLAN_TOLERANCE } from 'core/domain/PlanValidation';
 import { plateFoodMax, plateFoods } from 'core/domain/PlateFood';
 import type { AccompanimentSet, Larder } from 'core/domain/Accompaniment';
-import type { Leaning, Placement, StarchIndex } from 'core/domain/Variety';
+import type { KindCheck, Leaning, Placement } from 'core/domain/Variety';
 import type { PlateFood } from 'core/domain/PlateFood';
 import type { CandidateDish, Catalogue, Macros, MealSlot, PlanAssignment, PlanDayAssignment, ScheduledMeal, SwapAxis } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
@@ -412,6 +417,22 @@ const FIT_TIE = 0.05;
 const PROTEIN_REPEAT_WEIGHT = 0.05;
 
 /**
+ * What a day's swap pays for each meal it leaves past `PROTEIN_RULES`, or past
+ * a kind rule (`STARCH_RULES`, `LEGUME_RULES`) — three times
+ * `PROTEIN_REPEAT_WEIGHT`, about ten points of energy.
+ *
+ * At the first pick's weight the rules never decided anything here: a real
+ * fortnight (017 phase 2) served pork in eight of twenty-eight mains, and on
+ * rotated pools of the reference library this search put one protein in eight
+ * mains, because a swap that fit a few points better was always on offer and
+ * a protein past its limit cost less than that. At the same weight a meal past
+ * a kind rule cost exactly what serving a dish a second time does, so the
+ * search had no reason to prefer the second. Measured on rotated pools, the
+ * most-served protein fell from eight mains to six.
+ */
+const PROTEIN_SWAP_WEIGHT = 0.15;
+
+/**
  * The same inside the spread pass, where a macro brought inside its band is
  * worth one: half that. An exchange that only moves a macro closer does not
  * buy a repeat; one that brings a macro inside does.
@@ -544,8 +565,8 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
   const proteins = proteinIndex(input.pool, input.catalogue);
   // Over the whole fortnight, even when only some of its days are laid out here.
   const cap = proteinCap(slots.length * days);
-  // Pasta, rice and grains, priced at the protein rule's weight wherever it is (`STARCH_RULES`).
-  const starch: StarchRule = { days, index: starchIndex(input.pool) };
+  // Pasta, rice and grains, and the same legume, priced at the protein rule's weight wherever they are (`STARCH_RULES`, `LEGUME_RULES`).
+  const kinds = kindRules(input.pool, days);
   const indexes = input.dayIndexes ?? Array.from({ length: days }, (_none, offset) => offset + 1);
 
   // The days that are not being laid out go in first, so every `canPlace` below
@@ -575,7 +596,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
       // deliver nothing — and the later passes never swap a fitting plate out.
       const fitting = eligible.filter(dish => fitsPlate(perServing.get(dish.slug) as PerServing, budget, slot));
 
-      const starchPlaced = starchMeals(placed, starch.index);
+      const kindsPlaced = kinds.checks.map(check => kindMeals(placed, check));
       const chosen = pickBest(
         fitting.length > 0 ? fitting : eligible,
         budget,
@@ -583,9 +604,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
         placed,
         dayIndex,
         slot,
-        slug =>
-          Number(crowded(slug, { dayIndex, slot }, placed, proteins, cap)) +
-          Number(starchCrowded(starch.index.get(slug) ?? null, dayIndex, starchPlaced, days))
+        slug => Number(crowded(slug, { dayIndex, slot }, placed, proteins, cap)) + kindsCrowded(slug, slot, dayIndex, kindsPlaced, kinds.checks, days)
       );
 
       if (!chosen) {
@@ -601,7 +620,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
       placed.push({ dayIndex, dishSlug: chosen.slug, slot });
     }
 
-    const improved = improveDay(picks, input, perServing, dayIndex, placed, budgets, { cap, proteins, starch }, sidesOn?.(dayIndex));
+    const improved = improveDay(picks, input, perServing, dayIndex, placed, budgets, { cap, kinds, proteins }, sidesOn?.(dayIndex));
 
     // Swapping changed what this day holds, so the placement record must follow or
     // later days would enforce variety against dishes that are no longer served.
@@ -616,8 +635,8 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
     built.push({ budgets, dayIndex, picks: balanceDay(improved, targets, budgets, input.minimumKcal, sidesOn?.(dayIndex)), targets });
   }
 
-  const spread = spreadAcrossDays(built, input.placed ?? [], proteins, starch, input.minimumKcal, sidesOn);
-  const distinct = enforceDistinctDays(spread, input, input.placed ?? [], proteins, cap, starch, sidesOn);
+  const spread = spreadAcrossDays(built, input.placed ?? [], proteins, kinds, input.minimumKcal, sidesOn);
+  const distinct = enforceDistinctDays(spread, input, input.placed ?? [], proteins, cap, kinds, sidesOn);
 
   const assignedDays: PlanDayAssignment[] = distinct.map(day => {
     const meals: ScheduledMeal[] = day.picks.map(pick => {
@@ -749,19 +768,20 @@ export function pickReplacement(input: {
 
   const rank = (dish: CandidateDish): number =>
     input.leaning !== undefined && isPreferredDish(dish, input.leaning) && costOf(dish.slug) <= PREFERRED_FIT_TOLERANCE ? 0 : 1;
-  // Pasta or rice the plan already has that day, the day either side or four
-  // times (`STARCH_RULES`), priced as the scheduler prices it. The plan's own
-  // meals are never in a swap's pool, so their bases come from `placed`.
-  const starches = starchIndex(input.pool);
-  const starchPlaced = starchMeals(input.placed, starches);
-  const starchCost = (dish: CandidateDish): number =>
-    starchCrowded(starches.get(dish.slug) ?? null, input.dayIndex, starchPlaced, PLAN_DAYS) ? PROTEIN_REPEAT_WEIGHT : 0;
+  // Pasta, rice, grains or a legume the plan already has that day, the day
+  // either side or as often as its rule allows (`STARCH_RULES`, `LEGUME_RULES`),
+  // priced as the scheduler prices it. The plan's own meals are never in a
+  // swap's pool, so their bases and legumes come from `placed`.
+  const kinds = kindRules(input.pool, PLAN_DAYS);
+  const kindsPlaced = kinds.checks.map(check => kindMeals(input.placed, check));
+  const kindsCost = (dish: CandidateDish): number =>
+    kindsCrowded(dish.slug, input.slot, input.dayIndex, kindsPlaced, kinds.checks, PLAN_DAYS) * PROTEIN_REPEAT_WEIGHT;
 
   const dish = input.pool
     .filter(
       candidate => candidate.slots.includes(input.slot) && passes(candidate) && canPlace(candidate.slug, input.slot, input.dayIndex, input.placed)
     )
-    .sort((a, b) => rank(a) - rank(b) || costOf(a.slug) + starchCost(a) - (costOf(b.slug) + starchCost(b)) || a.slug.localeCompare(b.slug))
+    .sort((a, b) => rank(a) - rank(b) || costOf(a.slug) + kindsCost(a) - (costOf(b.slug) + kindsCost(b)) || a.slug.localeCompare(b.slug))
     .at(0);
   const base = dish ? perServing.get(dish.slug) : undefined;
 
@@ -1077,8 +1097,21 @@ function perServingIndex(pool: readonly CandidateDish[], catalogue: Catalogue): 
 /** Each pool dish's main protein, by slug — see `mainProtein`. */
 type ProteinIndex = ReadonlyMap<string, string | null>;
 
-/** Pasta, rice and grains (`STARCH_RULES`): each pool dish's base, and the plan's length its cap is scaled to. */
-type StarchRule = { readonly days: number; readonly index: StarchIndex };
+/**
+ * The kind rules (`KindRule`) the scheduler prices — pasta, rice and grains
+ * (`STARCH_RULES`), the same legume (`LEGUME_RULES`) — each over the pool's
+ * index, and the plan's length their caps are scaled to.
+ */
+type KindRules = { readonly checks: readonly KindCheck[]; readonly days: number };
+
+function kindRules(pool: readonly CandidateDish[], days: number): KindRules {
+  return { checks: [starchCheck(starchIndex(pool)), legumeCheck(legumeIndex(pool))], days };
+}
+
+/** Whether a dish at a slot has any kind the rules count — only a swap that brings one in or takes one out can move their cost. */
+function countsForAny(kinds: KindRules, slug: string, slot: MealSlot): boolean {
+  return kinds.checks.some(check => countsFor(check, slug, slot));
+}
 
 function proteinIndex(pool: readonly CandidateDish[], catalogue: Catalogue): ProteinIndex {
   return new Map(pool.map(dish => [dish.slug, mainProtein(dish, catalogue)]));
@@ -1087,15 +1120,24 @@ function proteinIndex(pool: readonly CandidateDish[], catalogue: Catalogue): Pro
 /** A day's meal as the protein rules see it: its main protein, and which meal it is. */
 type ProteinMeal = { readonly protein: string | null; readonly slot: MealSlot };
 
-/** Meals per main protein over a plan, and within each meal of it, keyed `slot:protein`. */
-type ProteinCounts = { readonly bySlot: ReadonlyMap<string, number>; readonly plan: ReadonlyMap<string, number> };
+/**
+ * Meals per main protein over a plan, within each meal of it (keyed
+ * `slot:protein`), and at lunch and dinner within each week of it (keyed
+ * `week:protein`, `planWeek`).
+ */
+type ProteinCounts = {
+  readonly bySlot: ReadonlyMap<string, number>;
+  readonly mainsByWeek: ReadonlyMap<string, number>;
+  readonly plan: ReadonlyMap<string, number>;
+};
 
-const NO_PROTEIN_COUNTS: ProteinCounts = { bySlot: new Map(), plan: new Map() };
+const NO_PROTEIN_COUNTS: ProteinCounts = { bySlot: new Map(), mainsByWeek: new Map(), plan: new Map() };
 
 /** Meals per main protein in these placements. A dish from outside the pool counts for nothing. */
 function proteinCounts(placements: readonly Placement[], proteins: ProteinIndex): ProteinCounts {
   const plan = new Map<string, number>();
   const bySlot = new Map<string, number>();
+  const mainsByWeek = new Map<string, number>();
 
   for (const placement of placements) {
     const protein = proteins.get(placement.dishSlug);
@@ -1103,10 +1145,27 @@ function proteinCounts(placements: readonly Placement[], proteins: ProteinIndex)
     if (protein) {
       plan.set(protein, (plan.get(protein) ?? 0) + 1);
       bySlot.set(`${placement.slot}:${protein}`, (bySlot.get(`${placement.slot}:${protein}`) ?? 0) + 1);
+
+      if (MAIN_SLOTS.has(placement.slot)) {
+        const key = `${planWeek(placement.dayIndex)}:${protein}`;
+
+        mainsByWeek.set(key, (mainsByWeek.get(key) ?? 0) + 1);
+      }
     }
   }
 
-  return { bySlot, plan };
+  return { bySlot, mainsByWeek, plan };
+}
+
+/** Lunches and dinners past `PROTEIN_RULES.perMainsWeek`, over every week and protein of these placements. */
+function mainsWeekExcess(placements: readonly Placement[], proteins: ProteinIndex): number {
+  let excess = 0;
+
+  for (const count of proteinCounts(placements, proteins).mainsByWeek.values()) {
+    excess += Math.max(0, count - PROTEIN_RULES.perMainsWeek);
+  }
+
+  return excess;
 }
 
 /**
@@ -1119,8 +1178,9 @@ function proteinCounts(placements: readonly Placement[], proteins: ProteinIndex)
  * much as four repeats — enough to buy a day 10% off its energy on the
  * end-to-end suite's three-protein dinners. A meal over the line is one meal.
  */
-function proteinExcess(day: readonly ProteinMeal[], elsewhere: ProteinCounts, cap: number): number {
+function proteinExcess(day: readonly ProteinMeal[], elsewhere: ProteinCounts, cap: number, week: number): number {
   const counts = new Map<string, number>();
+  const mains = new Map<string, number>();
   let excess = 0;
 
   for (const { protein, slot } of day) {
@@ -1128,6 +1188,10 @@ function proteinExcess(day: readonly ProteinMeal[], elsewhere: ProteinCounts, ca
       counts.set(protein, (counts.get(protein) ?? 0) + 1);
       // A day has one meal per slot, so this meal is the slot's only addition.
       excess += (elsewhere.bySlot.get(`${slot}:${protein}`) ?? 0) >= PROTEIN_RULES.perSlot ? 1 : 0;
+
+      if (MAIN_SLOTS.has(slot)) {
+        mains.set(protein, (mains.get(protein) ?? 0) + 1);
+      }
     }
   }
 
@@ -1137,10 +1201,16 @@ function proteinExcess(day: readonly ProteinMeal[], elsewhere: ProteinCounts, ca
     excess += Math.max(0, count - PROTEIN_RULES.perDay) + Math.max(0, count - room);
   }
 
+  for (const [protein, count] of mains) {
+    const room = Math.max(0, PROTEIN_RULES.perMainsWeek - (elsewhere.mainsByWeek.get(`${week}:${protein}`) ?? 0));
+
+    excess += Math.max(0, count - room);
+  }
+
   return excess;
 }
 
-/** Whether this dish would repeat a main protein the day already has, or pass its fortnight's or its meal's allowance. */
+/** Whether this dish would repeat a main protein the day already has, or pass its fortnight's, its meal's or its week's allowance. */
 function crowded(
   slug: string,
   at: { readonly dayIndex: number; readonly slot: MealSlot },
@@ -1157,16 +1227,19 @@ function crowded(
   let today = 0;
   let inPlan = 0;
   let inSlot = 0;
+  let inWeek = 0;
+  const main = MAIN_SLOTS.has(at.slot);
 
   for (const placement of placed) {
     if (proteins.get(placement.dishSlug) === protein) {
       inPlan += 1;
       today += placement.dayIndex === at.dayIndex ? 1 : 0;
       inSlot += placement.slot === at.slot ? 1 : 0;
+      inWeek += main && MAIN_SLOTS.has(placement.slot) && planWeek(placement.dayIndex) === planWeek(at.dayIndex) ? 1 : 0;
     }
   }
 
-  return today >= PROTEIN_RULES.perDay || inPlan >= cap || inSlot >= PROTEIN_RULES.perSlot;
+  return today >= PROTEIN_RULES.perDay || inPlan >= cap || inSlot >= PROTEIN_RULES.perSlot || inWeek >= PROTEIN_RULES.perMainsWeek;
 }
 
 /**
@@ -1188,7 +1261,7 @@ function pickBest(
   slot: MealSlot,
   crowds: (slug: string) => number
 ): CandidateDish | undefined {
-  // A dish that would repeat a main protein, or a capped starch (`STARCH_RULES`), is priced as
+  // A dish that would repeat a main protein, a capped starch or a legume (`STARCH_RULES`, `LEGUME_RULES`), is priced as
   // fitting that much worse per rule (`PROTEIN_REPEAT_WEIGHT`): another dish wins if it fits nearly as
   // well, and the repeat is served when nothing does. A dish already served
   // elsewhere in the plan carries the same kind of cost (`DISH_REPEAT_WEIGHT`)
@@ -1893,26 +1966,26 @@ function improveDay(
   dayIndex: number,
   placed: readonly Placement[],
   budgets: ReadonlyMap<MealSlot, SlotBudget>,
-  protein: { readonly cap: number; readonly proteins: ProteinIndex; readonly starch: StarchRule },
+  protein: { readonly cap: number; readonly kinds: KindRules; readonly proteins: ProteinIndex },
   sides?: Sides
 ): readonly Pick[] {
   const others = placed.filter(placement => placement.dayIndex !== dayIndex);
   const elsewhere = proteinCounts(others, protein.proteins);
   const proteinOf = (slug: string): string | null => protein.proteins.get(slug) ?? null;
-  // Pasta, rice and grains against the rest of the plan, at the protein rule's weight.
-  const { starch } = protein;
-  const starchElsewhere = starchMeals(others, starch.index);
-  const starchOf = (day: readonly Pick[]): number =>
-    starchExcess(
-      [
-        ...starchElsewhere,
-        ...starchMeals(
-          day.map(entry => ({ dayIndex, dishSlug: entry.dish.slug, slot: entry.slot })),
-          starch.index
-        )
-      ],
-      starch.days
-    ) * PROTEIN_REPEAT_WEIGHT;
+  // Pasta, rice, grains and legumes against the rest of the plan, at the protein rule's weight.
+  const { kinds } = protein;
+  const kindsElsewhere = kinds.checks.map(check => kindMeals(others, check));
+
+  const kindsOf = (day: readonly Pick[]): number => {
+    const placements = day.map(entry => ({ dayIndex, dishSlug: entry.dish.slug, slot: entry.slot }));
+
+    return (
+      kinds.checks.reduce(
+        (sum, check, position) => sum + kindExcess([...(kindsElsewhere[position] ?? []), ...kindMeals(placements, check)], kinds.days, check.rule),
+        0
+      ) * PROTEIN_SWAP_WEIGHT
+    );
+  };
 
   const targets = targetsOn(input, dayIndex);
   let current = [...picks];
@@ -1925,15 +1998,15 @@ function improveDay(
     // daily targets barely move, this search kept spending the same handful of
     // best-fitting dishes on every day it touched (`0065`).
     const today = current.map(entry => ({ protein: proteinOf(entry.dish.slug), slot: entry.slot }));
-    const repeatsOf = (day: readonly ProteinMeal[]): number => proteinExcess(day, elsewhere, protein.cap) * PROTEIN_REPEAT_WEIGHT;
+    const repeatsOf = (day: readonly ProteinMeal[]): number => proteinExcess(day, elsewhere, protein.cap, planWeek(dayIndex)) * PROTEIN_SWAP_WEIGHT;
     // Priced the same way the candidates will be, or a swap could "win" against
     // a day that was never sized.
-    const starchNow = starchOf(current);
+    const kindsNow = kindsOf(current);
     let bestCost =
       balancedDay(current, targets, budgets, input.minimumKcal, false, sides).cost +
       repeatsOf(today) +
       dayReuseCost(current, dayIndex, others) +
-      starchNow;
+      kindsNow;
     let bestDay: readonly Pick[] | undefined;
     const shortlist: { readonly cost: number; readonly extra: number; readonly swapped: readonly Pick[] }[] = [];
 
@@ -1962,10 +2035,10 @@ function improveDay(
         const swapped = current.map((entry, position) =>
           position === index ? { base, dish: candidate, servings, slot: entry.slot, sortOrder: entry.sortOrder } : entry
         );
-        // Only a swap that brings a capped starch in, or takes it out, can move the starch cost.
-        const starchCost =
-          isCappedStarch(starch.index.get(candidate.slug)) || isCappedStarch(starch.index.get(pick.dish.slug)) ? starchOf(swapped) : starchNow;
-        const extra = repeats + dayReuseCost(swapped, dayIndex, others) + starchCost;
+        // Only a swap that brings a counted kind in, or takes it out, can move the kinds' cost.
+        const kindsCost =
+          countsForAny(kinds, candidate.slug, pick.slot) || countsForAny(kinds, pick.dish.slug, pick.slot) ? kindsOf(swapped) : kindsNow;
+        const extra = repeats + dayReuseCost(swapped, dayIndex, others) + kindsCost;
 
         shortlist.push({ cost: dayFitCost(swapped, targets) + extra, extra, swapped });
       }
@@ -2099,7 +2172,7 @@ function spreadAcrossDays(
   days: readonly BuiltDay[],
   fixed: readonly Placement[],
   proteins: ProteinIndex,
-  starch: StarchRule,
+  kinds: KindRules,
   minimumKcal: number,
   sidesOn?: (dayIndex: number) => Sides
 ): readonly BuiltDay[] {
@@ -2126,7 +2199,8 @@ function spreadAcrossDays(
     proteinExcess(
       picks.map(pick => ({ protein: proteins.get(pick.dish.slug) ?? null, slot: pick.slot })),
       NO_PROTEIN_COUNTS,
-      Number.POSITIVE_INFINITY
+      Number.POSITIVE_INFINITY,
+      0
     );
   const resized = (day: BuiltDay, index: number, replacement: Pick): Pick[] =>
     day.picks.map((pick, position) =>
@@ -2168,20 +2242,22 @@ function spreadAcrossDays(
         ...fixed,
         ...current.flatMap(day => day.picks.map(pick => ({ dayIndex: day.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot })))
       ];
-      const starchBefore = starchExcess(starchMeals(placements, starch.index), starch.days);
+      const kindsBefore = kindsExcess(placements, kinds.checks, kinds.days) + mainsWeekExcess(placements, proteins);
 
-      // An exchange keeps the fortnight's pasta and rice, but may bring two onto days running.
-      const starchAdded = (other: BuiltDay, toWorst: readonly Pick[], toOther: readonly Pick[]): number => {
+      // An exchange keeps the fortnight's pasta, rice, grains and legumes, but
+      // may bring two onto days running — or move a protein into a week that
+      // already has its three (`PROTEIN_RULES.perMainsWeek`).
+      const kindsAdded = (other: BuiltDay, toWorst: readonly Pick[], toOther: readonly Pick[]): number => {
         const moved = [
           ...placements.filter(placement => placement.dayIndex !== worst.dayIndex && placement.dayIndex !== other.dayIndex),
           ...toWorst.map(pick => ({ dayIndex: worst.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot })),
           ...toOther.map(pick => ({ dayIndex: other.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }))
         ];
 
-        return Math.max(0, starchExcess(starchMeals(moved, starch.index), starch.days) - starchBefore);
+        return Math.max(0, kindsExcess(moved, kinds.checks, kinds.days) + mainsWeekExcess(moved, proteins) - kindsBefore);
       };
 
-      const screened: { before: number; otherAt: number; quick: number; starch: boolean; toOther: Pick[]; toWorst: Pick[] }[] = [];
+      const screened: { before: number; kinds: boolean; otherAt: number; quick: number; toOther: Pick[]; toWorst: Pick[] }[] = [];
 
       for (const [otherAt, other] of current.entries()) {
         if (otherAt === worstAt) {
@@ -2220,9 +2296,11 @@ function spreadAcrossDays(
 
           screened.push({
             before,
+            kinds:
+              kinds.checks.some(check => check.index.get(mine.dish.slug) !== check.index.get(theirs.dish.slug)) ||
+              (planWeek(worst.dayIndex) !== planWeek(other.dayIndex) && proteins.get(mine.dish.slug) !== proteins.get(theirs.dish.slug)),
             otherAt,
             quick: missOf(toWorst, worst) + missOf(toOther, other) - before,
-            starch: starch.index.get(mine.dish.slug) !== starch.index.get(theirs.dish.slug),
             toOther,
             toWorst
           });
@@ -2239,7 +2317,7 @@ function spreadAcrossDays(
         const added =
           Math.max(0, repeatsIn(toWorst) - repeatsIn(worst.picks)) +
           Math.max(0, repeatsIn(toOther) - repeatsIn(other.picks)) +
-          (entry.starch ? starchAdded(other, toWorst, toOther) : 0);
+          (entry.kinds ? kindsAdded(other, toWorst, toOther) : 0);
         const gain = entry.before - missOf(toWorst, worst) - missOf(toOther, other) - added * SPREAD_REPEAT_WEIGHT;
 
         if (!keepsOrder(toWorst, worst) || !keepsOrder(toOther, other) || !keepsFloor(toWorst, worst) || !keepsFloor(toOther, other)) {
@@ -2320,7 +2398,7 @@ function enforceDistinctDays(
   fixed: readonly Placement[],
   proteins: ProteinIndex,
   cap: number,
-  starch: StarchRule,
+  kinds: KindRules,
   sidesOn?: (dayIndex: number) => Sides
 ): readonly BuiltDay[] {
   const perServing = perServingIndex(input.pool, input.catalogue);
@@ -2363,7 +2441,7 @@ function enforceDistinctDays(
         .filter((_entry, at) => at !== position)
         .map(entry => ({ dayIndex: day.dayIndex, dishSlug: entry.dish.slug, slot: entry.slot }));
       const placedElsewhere = [...fixed, ...elsewhere, ...siblings];
-      const starchElsewhere = starchMeals(placedElsewhere, starch.index);
+      const kindsElsewhere = kinds.checks.map(check => kindMeals(placedElsewhere, check));
 
       for (const candidate of input.pool) {
         if (!candidate.slots.includes(pick.slot) || candidate.slug === pick.dish.slug) {
@@ -2376,7 +2454,7 @@ function enforceDistinctDays(
           !base ||
           !fitsPlate(base, budget, pick.slot) ||
           crowded(candidate.slug, { dayIndex: day.dayIndex, slot: pick.slot }, placedElsewhere, proteins, cap) ||
-          starchCrowded(starch.index.get(candidate.slug) ?? null, day.dayIndex, starchElsewhere, starch.days)
+          kindsCrowded(candidate.slug, pick.slot, day.dayIndex, kindsElsewhere, kinds.checks, kinds.days) > 0
         ) {
           continue;
         }

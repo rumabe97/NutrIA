@@ -143,7 +143,13 @@ export class PlanLoadRebuildService {
     // Everything the plan keeps, so the variety rules hold across the seam: a
     // rebuilt Thursday may not serve what the untouched Tuesday already does.
     const kept = composition.filter(meal => !rebuilding.has(meal.dayIndex));
-    const placed: Placement[] = kept.map(meal => ({ dayIndex: meal.dayIndex, dishSlug: meal.recipeSlug, slot: meal.slot, starch: meal.starch }));
+    const placed: Placement[] = kept.map(meal => ({
+      dayIndex: meal.dayIndex,
+      dishSlug: meal.recipeSlug,
+      legume: meal.legume,
+      slot: meal.slot,
+      starch: meal.starch
+    }));
     const dayIndexes = [...rebuilding].sort((a, b) => a - b);
     const sex = profile.profile?.sex ?? 'prefer_not_to_say';
     // What may go beside a big lunch or dinner (project 016), as at generation:
