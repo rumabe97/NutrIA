@@ -196,8 +196,21 @@ describe('accompaniments, end to end', () => {
     return response.body as SidedPlan;
   };
 
+  /**
+   * The suite reads every meal of a plan several times, and the default limit
+   * (120 a minute per account and route) can run out on a slow runner: a 429 is
+   * waited out for the window and tried again, twice at most.
+   */
   const detailOf = async (who: Account, mealId: string): Promise<Sided<MealDetailView>> => {
-    const response: Response = await request(server()).get(`/${PREFIX}/meal-plans/meals/${mealId}`).set('Cookie', who.cookie).expect(200);
+    const send = () => request(server()).get(`/${PREFIX}/meal-plans/meals/${mealId}`).set('Cookie', who.cookie);
+    let response: Response = await send();
+
+    for (let retry = 0; retry < 2 && response.status === 429; retry += 1) {
+      await new Promise(resolve => setTimeout(resolve, 61_000));
+      response = await send();
+    }
+
+    expect(response.status).toBe(200);
 
     return response.body as Sided<MealDetailView>;
   };
@@ -620,7 +633,7 @@ describe('accompaniments, end to end', () => {
         await SettingsController.setFlag('premium', false, UNAUDITED);
         await UserController.setTier(main.id, 'free', UNAUDITED);
       }
-    }, 240_000);
+    }, 420_000);
 
     // --- (e) A professional's review ---------------------------------------------
 
