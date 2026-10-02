@@ -9,7 +9,7 @@ import { EventRepository } from '#repositories/Event';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { PlanJobRepository, PlanRepository } from '#repositories/Plan';
 import { ProfileRepository } from '#repositories/Profile';
-import { requireProfileConsent } from 'core/controllers/Profile';
+import { ProfileController, requireProfileConsent } from 'core/controllers/Profile';
 import { UserRepository } from '#repositories/User';
 import { VacationRepository } from '#repositories/Vacation';
 import { isAway } from 'core/domain/Vacation';
@@ -24,6 +24,7 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PlanWindow } from 'core/domain/Event';
 import type { RecordAccess } from '#repositories/Care';
 import type { PictureClaim } from 'core/controllers/Recipe';
+import type { MealSizeView } from 'core/controllers/Profile';
 
 // --- Presenters ---------------------------------------------------------------
 
@@ -133,6 +134,12 @@ export interface EventAllowancesView {
 /** What the person may still do this fortnight, for the screen to say before they try. */
 export interface AllowancesView {
   events: EventAllowancesView;
+  /**
+   * How big the largest main meal of the next plan will be, so the generation
+   * screen can offer one meal more before it starts (project 016). Null until
+   * the profile has targets — see `FullProfileView.mealSize`.
+   */
+  mealSize: MealSizeView | null;
   mealSwaps: MealSwapStanding;
   planRedo: PlanRedoStanding;
   /**
@@ -253,9 +260,10 @@ export const PlanController = {
     const current = counted ?? active;
     const fromActive = current ? chain.filter(plan => plan.version <= current.version) : [];
     const today = isoToday();
-    const [swaps, events] = await Promise.all([
+    const [swaps, events, mealSize] = await Promise.all([
       active ? PlanRepository.countSwaps(active.id) : 0,
-      PlanController.eventStanding(userId, planWindow(active, today), tier)
+      PlanController.eventStanding(userId, planWindow(active, today), tier),
+      ProfileController.mealSize(userId)
     ]);
     // The counter is on the plan row and dies with the plan, which is what
     // "per plan" means; a plan that has ended is not one that can be rebuilt.
@@ -269,6 +277,7 @@ export const PlanController = {
         midPlan: midPlan.limit > 0 ? { limit: midPlan.limit, remaining: midPlan.remaining } : null,
         remaining: events.remaining
       },
+      mealSize,
       mealSwaps: mealSwapStanding(swaps, tier),
       planRedo: planRedoStanding(ends ? { endDate: ends.endDate } : undefined, redosInFortnight(fromActive), today, tier),
       tier

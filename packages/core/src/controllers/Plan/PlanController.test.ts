@@ -21,6 +21,7 @@ const findChain = vi.fn<(userId: string, withPending?: boolean) => Promise<reado
 const findHistory = vi.fn<(userId: string, limit: number, offset: number) => Promise<readonly Row[]>>();
 const release = vi.fn<(jobId: string) => Promise<void>>();
 const requireProfileConsent = vi.fn<(userId: string) => Promise<void>>(async () => undefined);
+const mealSize = vi.fn<(userId: string) => Promise<{ largeMeals: boolean; largestMainKcal: number } | null>>(async () => null);
 const setMealStatus = vi.fn<(userId: string, mealId: string, status: string) => Promise<'closed' | 'done' | 'missing'>>();
 
 vi.mock('#repositories/Plan', () => ({
@@ -51,7 +52,10 @@ vi.mock('#repositories/User', () => ({ UserRepository: { tierOf: (u: string) => 
 
 // Nobody in this file is away. The pause is its own suite; here it must not be
 // the reason a mark is refused, or these tests would pass for the wrong reason.
-vi.mock('core/controllers/Profile', () => ({ requireProfileConsent: (u: string) => requireProfileConsent(u) }));
+vi.mock('core/controllers/Profile', () => ({
+  ProfileController: { mealSize: (u: string) => mealSize(u) },
+  requireProfileConsent: (u: string) => requireProfileConsent(u)
+}));
 vi.mock('core/controllers/Settings', () => ({ SettingsController: { flags: () => flags() } }));
 vi.mock('#repositories/Vacation', () => ({ VacationRepository: { findUpcoming: () => Promise.resolve([]) } }));
 
@@ -313,6 +317,15 @@ describe('PlanController.allowances — a pending plan is the fortnight under wa
     findActive.mockResolvedValue(active);
     flags.mockResolvedValue({ premium: false, professional: true });
     isPublishable.mockResolvedValue(true);
+    mealSize.mockResolvedValue(null);
+  });
+
+  it('carries the size of the largest main meal, for the note before generating (016)', async () => {
+    findChain.mockResolvedValue([active]);
+    mealSize.mockResolvedValue({ largeMeals: true, largestMainKcal: 1100 });
+
+    await expect(PlanController.allowances('usr-1')).resolves.toMatchObject({ mealSize: { largeMeals: true, largestMainKcal: 1100 } });
+    expect(mealSize).toHaveBeenCalledWith('usr-1');
   });
 
   it('costs the client nothing for a pending plan nobody can publish any more — the link ended, paused or lost its grant', async () => {

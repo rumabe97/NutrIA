@@ -1,0 +1,20 @@
+.note {
+  border-left: 3px solid var(--color-brand-fill);
+  display: grid;
+  gap: var(--space-02);
+  text-align: start;
+}
+
+.title {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-04);
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+  margin-top: var(--space-03);
+}
