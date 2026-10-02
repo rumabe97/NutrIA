@@ -502,7 +502,12 @@ describe('MealSwapService', () => {
       macros: { carbsG: 110, fatG: 25, fiberG: 12, kcal: 1000, proteinG: 70 }
     });
     const composition = [big(MEAL, 3, 'lunch', CURRENT), big('m-2', 4, 'dinner', FITS)];
-    const library = [lunch('rice-bowl', [{ grams: 400, slug: 'rice' }, { grams: 150, slug: 'chicken' }])];
+    const library = [
+      lunch('rice-bowl', [
+        { grams: 400, slug: 'rice' },
+        { grams: 150, slug: 'chicken' }
+      ])
+    ];
     type Row = { accompanimentKey: string };
     const keysOf = (swapMeal: ReturnType<typeof harness>['swapMeal']): string[] =>
       ((swapMeal.mock.calls[0]?.[2] as { accompaniments?: readonly Row[] } | undefined)?.accompaniments ?? []).map(row => row.accompanimentKey);
@@ -543,7 +548,7 @@ describe('MealSwapService', () => {
       expect(items.some(item => item.ingredientId === 'i-pan-sin-gluten')).toBe(true);
     });
 
-    it('refuses a replacement whose side the swap\'s own gate rejects, and writes nothing', async () => {
+    it("refuses a replacement whose side the swap's own gate rejects, and writes nothing", async () => {
       // As if the larder had been bypassed: a coeliac's new plate comes back
       // with wheat bread beside it. The gate reads plate and sides together.
       pickReplacement.mockImplementation(input => {

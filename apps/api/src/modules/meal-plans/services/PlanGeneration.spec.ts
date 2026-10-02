@@ -918,17 +918,13 @@ describe('PlanGenerationService', () => {
     });
     const WITH_BREAD = toCatalogue([...CATALOGUE.values(), bread('pan-blanco', true), bread('pan-integral', true), bread('pan-sin-gluten', false)]);
     // Two big meals, so lunch and dinner are each well past 700 kcal.
-    const TWO_MEALS = {
-      preferences: {
-        activityLevel: 'moderate' as const,
-        mealShape: { ...shapeFor(3, false), breakfast: 'off' as const }
-      }
-    };
-    const twoMealPool = (): CandidateDish[] =>
-      pool().filter(dish => dish.slots.includes('lunch') || dish.slots.includes('dinner'));
+    const TWO_MEALS = { preferences: { activityLevel: 'moderate' as const, mealShape: { ...shapeFor(3, false), breakfast: 'off' as const } } };
+    const twoMealPool = (): CandidateDish[] => pool().filter(dish => dish.slots.includes('lunch') || dish.slots.includes('dinner'));
     type SidedDraft = { days: { meals: { accompaniments?: { accompanimentKey: string; ingredientId: string; kcal: number }[]; kcal: number }[] }[] };
     const sideKeys = (persist: jest.Mock): string[] =>
-      (persist.mock.calls[0]?.[1] as SidedDraft).days.flatMap(day => day.meals.flatMap(meal => (meal.accompaniments ?? []).map(row => row.accompanimentKey)));
+      (persist.mock.calls[0]?.[1] as SidedDraft).days.flatMap(day =>
+        day.meals.flatMap(meal => (meal.accompaniments ?? []).map(row => row.accompanimentKey))
+      );
 
     it('stores nothing beside the plate while the flag is off', async () => {
       const { persist, service } = build({ catalogue: WITH_BREAD, profile: TWO_MEALS, reusable: twoMealPool() });
@@ -976,7 +972,7 @@ describe('PlanGenerationService', () => {
       expect(keys.filter(key => key.startsWith('pan-') && key !== 'pan-sin-gluten')).toEqual([]);
     });
 
-    it('stores the sides as rows, the meal\'s kcal the whole meal\'s', async () => {
+    it("stores the sides as rows, the meal's kcal the whole meal's", async () => {
       const { persist, service } = build({ accompaniments: true, catalogue: WITH_BREAD, profile: TWO_MEALS, reusable: twoMealPool() });
 
       await service.generate('usr-1', 'job-1', async () => Promise.resolve());
@@ -992,7 +988,9 @@ describe('PlanGenerationService', () => {
         const rows = stored[index]?.accompaniments ?? [];
 
         expect(stored[index]?.kcal).toBe(meal.macros.kcal);
-        expect(rows.map(row => row.ingredientId)).toEqual((meal.accompaniments ?? []).flatMap(side => side.ingredients.map(item => `ing-${item.slug}`)));
+        expect(rows.map(row => row.ingredientId)).toEqual(
+          (meal.accompaniments ?? []).flatMap(side => side.ingredients.map(item => `ing-${item.slug}`))
+        );
       }
     });
 

@@ -256,7 +256,15 @@ export class PlanGenerationService {
         }
       : {};
 
-    let scheduled = schedulePlan({ ...sides, catalogue: context.catalogue, dayTargets: loads.dayTargets, minimumKcal, pool: built.dishes, targets, weights });
+    let scheduled = schedulePlan({
+      ...sides,
+      catalogue: context.catalogue,
+      dayTargets: loads.dayTargets,
+      minimumKcal,
+      pool: built.dishes,
+      targets,
+      weights
+    });
     let fallback: Fallback = null;
 
     if (!scheduled.ok) {
@@ -277,7 +285,15 @@ export class PlanGenerationService {
       const widened = await wholeLibrary();
 
       this.logger.warn(`Retrying with the full library (${widened.length} dishes, last fortnight included)`);
-      scheduled = schedulePlan({ ...sides, catalogue: context.catalogue, dayTargets: loads.dayTargets, minimumKcal, pool: widened, targets, weights });
+      scheduled = schedulePlan({
+        ...sides,
+        catalogue: context.catalogue,
+        dayTargets: loads.dayTargets,
+        minimumKcal,
+        pool: widened,
+        targets,
+        weights
+      });
       fallback = 'full_library';
     }
 
@@ -365,7 +381,15 @@ export class PlanGenerationService {
     if (fallback === null && bandMiss(violations) > 0) {
       const rest = rotatePool(everything, slots, rotation, Number.POSITIVE_INFINITY);
       const wider = [...new Map([...built.dishes, ...rest].map(dish => [dish.slug, dish])).values()];
-      const retried = schedulePlan({ ...sides, catalogue: context.catalogue, dayTargets: loads.dayTargets, minimumKcal, pool: wider, targets, weights });
+      const retried = schedulePlan({
+        ...sides,
+        catalogue: context.catalogue,
+        dayTargets: loads.dayTargets,
+        minimumKcal,
+        pool: wider,
+        targets,
+        weights
+      });
 
       if (retried.ok) {
         const retriedViolations = check(retried.assignment);
