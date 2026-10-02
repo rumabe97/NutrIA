@@ -262,6 +262,35 @@ describe('accompaniments, end to end', () => {
     expect(broken).toEqual([]);
   };
 
+  /**
+   * The stored rows of these meals, against what the view shows: only the current
+   * dish's sides remain (every row carries the meal's current recipe, so none was
+   * left by the dish it replaced), and no key is stored that the view does not
+   * show — nor one fewer ingredient row than the view lists.
+   */
+  const expectStoredSidesAre = async (plan: SidedPlan, mealIds: readonly string[]): Promise<void> => {
+    const meals = mealsOf(plan).filter(meal => mealIds.includes(meal.id));
+    const broken: string[] = [];
+
+    expect(meals.length).toBe(mealIds.length);
+
+    for (const meal of meals) {
+      const rows = await tables()<{ key: string; recipe: string }>`
+        select accompaniment_key as key, recipe_id::text as recipe from meal_accompaniments where meal_id = ${meal.id}`;
+      const shown = meal.accompaniments.flatMap(side => side.ingredients.map(() => side.key)).sort();
+
+      if (rows.some(row => row.recipe !== meal.recipeId)) {
+        broken.push(`${meal.name}: rows left by another dish`);
+      }
+
+      if (JSON.stringify(rows.map(row => row.key).sort()) !== JSON.stringify(shown)) {
+        broken.push(`${meal.name}: stored ${rows.map(row => row.key).sort().join(',')}, shown ${shown.join(',')}`);
+      }
+    }
+
+    expect(broken).toEqual([]);
+  };
+
   /** Every ingredient name the meal detail says the list will call for: the dish's and the sides'. */
   const expectListCoversSides = async (who: Account, plan: SidedPlan): Promise<void> => {
     const list = await listOf(who);
@@ -498,6 +527,7 @@ describe('accompaniments, end to end', () => {
         // The meal's rows were replaced, not added to: the view holds only the new dish's sides.
         expect(replaced?.accompaniments.length ?? 0).toBeLessThanOrEqual(3);
         await expectConsistent(after);
+        await expectStoredSidesAre(after, [target.id]);
         expect((await detailOf(main, target.id)).accompaniments).toEqual(replaced?.accompaniments);
         // Every other meal is exactly as it was.
         expect(mealsOf(after).filter(meal => meal.id !== target.id)).toEqual(mealsOf(plan).filter(meal => meal.id !== target.id).map(meal => meal));
@@ -540,6 +570,10 @@ describe('accompaniments, end to end', () => {
         }
 
         await expectConsistent(after);
+        await expectStoredSidesAre(
+          after,
+          after.days.filter(day => rebuilt.has(day.date)).flatMap(day => day.meals.map(meal => meal.id))
+        );
         expect(after.days.filter(day => !rebuilt.has(day.date))).toEqual(before.days.filter(day => !rebuilt.has(day.date)));
         // The days that eat for the event are bigger: sides or not, they are built to its targets, so some meal there is sided or fits without.
         expect(after.days.filter(day => rebuilt.has(day.date)).every(day => day.loadedFor === 'Media maratón')).toBe(true);
