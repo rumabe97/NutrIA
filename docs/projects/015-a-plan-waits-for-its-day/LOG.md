@@ -39,3 +39,35 @@
   - P2: the migrate step sets no `lock_timeout`. A task for the deploy recipe.
   - The 0052 collision with `feat/two-factor-removal` still applies to whichever merges second.
 - **Notes for the next phase**: phase 1 must be deployed before phase 2 merges.
+
+## Phase 2 — A plan waits for its day (2026-10-02)
+
+- **Executor**: run as `/team`, with opus 5.5 as lead.
+  - `backend-high` (opus) as `backend-p2`, `frontend` (sonnet · medium) as `frontend-p2`, `tests` (sonnet · medium) as `tests-p2`.
+  - `migration-reviewer-p2` and `invariant-reviewer-p2` (opus · high), and `accessibility-low` (sonnet) as `accessibility-p2`.
+  - The earlier start-date work of project 013 item 9 was reused and adapted.
+- **Result**: done (merge pending CI).
+- **Evidence**:
+  - **Migration 0054.**
+    - It adds `plan_generation_jobs.start_date` (nullable) and the partial unique index `meal_plans_one_scheduled_per_user`.
+    - Review: no P0. The P1 (a stale scheduled plan after a rollback) is fixed: an older scheduled plan is deleted on activation, never activated, with a test. The P3 comment is done.
+    - It depends on 0053 being deployed first, which is true since #189. The two migrations cannot share one migrator transaction.
+  - **Invariant review**, on a84f4883..30356293: nothing holds the merge.
+    - **P1, the redo-allowance dodge**, by alternating a cutting start and a replacing start (≈6–12 generations a fortnight on the free tier). Fixed: while a plan waits, every start counts the waiting plan's chain, and a cut also counts the running plan's chain, the larger deciding. A replaced waiting plan carries what it spent. The reviewer's walk-through is a unit test, and the e2e caught it too.
+    - **P2s, fixed:**
+      - a professional's generation was refused because of a waiting plan;
+      - publishing over a scheduled plan (owner decision (a): the scheduled plan is deleted at publish, at no charge);
+      - the cron moved to 23:05 UTC;
+      - the cut plan's list is rebuilt only when every kept food resolves, otherwise it is left as it stands.
+    - **P3, accepted as deliberate (strict side):** after a scheduled-plan replacement has spent the next fortnight's redo, a cut of the current plan is refused.
+  - **Backend.** Gate green: core 3,378+, api 1,389+.
+  - **Web.** Lint, types and tests green (206). Design review pass.
+  - **Accessibility probe.** Six screens at 320, 390 and 1280 px, light and dark, with keyboard: no P0, P1 or P2. The one P3 (an empty tick circle on the upcoming plan) is fixed.
+- **Deviations from plan**:
+  - Trips shift only the newly created plan.
+  - A replaced scheduled plan is deleted.
+  - Cutting A returns its swaps on the deleted days.
+  - Activation also runs on allowances and the scheduled reads.
+  - The midnight-crossing cut heals on read.
+  - Next-plan screens are `/plan/proximo` and `/compra/proxima`, so the offline copy is never overwritten.
+- **Decisions**: `decisions/LOG.md` lines of 2026-10-02 (the project, and the care-path publish).
