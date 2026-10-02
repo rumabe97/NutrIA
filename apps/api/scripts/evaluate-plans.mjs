@@ -189,6 +189,18 @@ const PROFILES = [
     target: { activityLevel: 'moderate', ageYears: 62, goal: 'maintenance', heightCm: 172, sex: 'male', weightKg: 78 },
     shape: DEFAULT_MEAL_SHAPE,
     dietaryPattern: 'traditional_spanish'
+  },
+  {
+    // A synthetic stand-in, not a copy (`0076`), for a real 3-meal account whose
+    // plan ran protein −3% to −15% on most days and served a yoghurt cup ×3 as
+    // dinner (017 phase 3, owner's amendment of 2026-10-02): its targets as the
+    // app gave them, its meals, and the dislike it told the app.
+    slug: 'tres-comidas-proteina-alta',
+    description: 'Three meals (morning snack, lunch, dinner), 2,079 kcal with 138 g protein, dislikes fish',
+    target: { activityLevel: 'moderate', ageYears: 40, goal: 'weight_loss', heightCm: 178, paceKgPerWeek: 0.5, sex: 'male', weightKg: 92 },
+    targets: { carbsG: 236, fatG: 65, kcal: 2079, proteinG: 138 },
+    shape: { afternoon_snack: 'off', breakfast: 'off', dinner: 'normal', lunch: 'normal', morning_snack: 'normal', supper: 'off' },
+    dislikedLabels: ['pescado']
   }
 ];
 
@@ -374,6 +386,27 @@ function contextFor(profile, shared) {
     };
   }
 
+  if (profile.dislikedLabels) {
+    // What `generationContext` does with a profile's dislikes: resolved by
+    // `resolvePreferences` and added to what `nobodysContext` already excludes.
+    const resolved = resolvePreferences({
+      allergenIdsByKey: shared.allergenIdsByKey,
+      dietaryPatterns: [],
+      dislikedLabels: profile.dislikedLabels,
+      ingredients,
+      maxMinutesPerDish: null
+    });
+    const preferences = {
+      ...shared.preferences,
+      excludedIngredientIds: new Set([...shared.preferences.excludedIngredientIds, ...resolved.excludedIngredientIds])
+    };
+
+    return {
+      context: { ...shared, preferences },
+      note: `${resolved.excludedIngredientIds.size} ingredients excluded by the dislikes ${profile.dislikedLabels.join(', ')}`
+    };
+  }
+
   return { context: shared, note: null };
 }
 
@@ -390,7 +423,8 @@ async function measureProfile(profile, shared, options) {
   let targets;
 
   try {
-    targets = nutritionTargets(profile.target);
+    // A profile stated by its targets keeps the body's fibre and floor, and its own macros.
+    targets = { ...nutritionTargets(profile.target), ...profile.targets };
   } catch (error) {
     if (error instanceof TargetsUnreachableError) {
       return { measured: false, note: `targets unreachable: ${error.message}`, slug: profile.slug };
