@@ -576,7 +576,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
       placed.push({ dayIndex, dishSlug: chosen.slug, slot });
     }
 
-    const improved = improveDay(picks, input, dayIndex, placed, budgets, { cap, proteins }, sidesOn?.(dayIndex));
+    const improved = improveDay(picks, input, perServing, dayIndex, placed, budgets, { cap, proteins }, sidesOn?.(dayIndex));
 
     // Swapping changed what this day holds, so the placement record must follow or
     // later days would enforce variety against dishes that are no longer served.
@@ -918,13 +918,39 @@ function withinPlateLimit(perServing: PerServing, servings: number, budget: Slot
  * the grams are the plate's alone — nothing beside it is a capped food.
  */
 function withinFoodMax(perServing: PerServing, servings: number, budget: SlotBudget, slot: MealSlot): boolean {
-  return Object.entries(perServing.foods).every(
-    ([food, grams]) => grams * servings <= plateFoodMax(food as PlateFood, slot, budget.kcal) + PLATE_EPSILON
-  );
+  return foodsOf(perServing).every(([food, grams]) => grams * servings <= plateFoodMax(food, slot, budget.kcal) + PLATE_EPSILON);
 }
+
+/** `perServing.foods` as entries, listed once per serving rather than at every size a search tries. */
+const FOOD_ENTRIES = new WeakMap<PerServing, readonly (readonly [PlateFood, number])[]>();
+
+function foodsOf(perServing: PerServing): readonly (readonly [PlateFood, number])[] {
+  let entries = FOOD_ENTRIES.get(perServing);
+
+  if (!entries) {
+    entries = Object.entries(perServing.foods) as [PlateFood, number][];
+    FOOD_ENTRIES.set(perServing, entries);
+  }
+
+  return entries;
+}
+
+/**
+ * `plateServings` already worked out, per serving and by everything else it
+ * reads: the slot, the share and its ceiling, and what is beside the plate.
+ */
+const PLATE_SERVINGS = new WeakMap<PerServing, Map<string, readonly number[]>>();
 
 /** Every quarter size inside `SERVING_BOUNDS`, `PLATE_LIMIT`, `PLATE_GRAMS_MAX` and `PLATE_FOOD_MAX`, smallest first. Empty when there is none. */
 function plateServings(perServing: PerServing, budget: SlotBudget, slot: MealSlot, besideKcal = 0): readonly number[] {
+  let known = PLATE_SERVINGS.get(perServing);
+  const key = `${slot}|${budget.kcal}|${budget.gramsMax}|${besideKcal}`;
+  const cached = known?.get(key);
+
+  if (cached) {
+    return cached;
+  }
+
   const sizes: number[] = [];
 
   for (let servings: number = SERVING_BOUNDS.min; servings <= SERVING_BOUNDS.max; servings = roundServings(servings + SERVING_STEP)) {
@@ -932,6 +958,13 @@ function plateServings(perServing: PerServing, budget: SlotBudget, slot: MealSlo
       sizes.push(servings);
     }
   }
+
+  if (!known) {
+    known = new Map();
+    PLATE_SERVINGS.set(perServing, known);
+  }
+
+  known.set(key, sizes);
 
   return sizes;
 }
@@ -1174,6 +1207,83 @@ function mealKcal(pick: Pick, servings: number, set: AccompanimentSet | undefine
   return pick.base.kcal * servings + (set?.macros.kcal ?? 0);
 }
 
+/** One meal's part of a day's cost, at one size beside one set (`balancedDay`). */
+type Term = {
+  /** What the set beside it carries, zero for none. */
+  readonly beside: Macros;
+  /** The meal's energy: the plate and what is beside it. */
+  readonly meal: number;
+  readonly misses: number;
+  /** The plate's own macros at this size. */
+  readonly plate: Macros;
+  /** How far outside `SHARE_BAND` the meal sits; zero inside it. */
+  readonly stray: number;
+  readonly tenths: number;
+};
+
+/** A day's cost so far, summed meal by meal. */
+type DaySums = Macros & { readonly misses: number; readonly strays: number; readonly tenths: number };
+
+const NO_SUMS: DaySums = { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, misses: 0, proteinG: 0, strays: 0, tenths: 0 };
+
+/** The sums with one more meal: plate first, then what is beside it, as a day has always added them. */
+function addTerm(sums: DaySums, term: Term): DaySums {
+  return {
+    carbsG: sums.carbsG + term.plate.carbsG + term.beside.carbsG,
+    fatG: sums.fatG + term.plate.fatG + term.beside.fatG,
+    fiberG: sums.fiberG + term.plate.fiberG + term.beside.fiberG,
+    kcal: sums.kcal + term.plate.kcal + term.beside.kcal,
+    misses: sums.misses + term.misses,
+    proteinG: sums.proteinG + term.plate.proteinG + term.beside.proteinG,
+    strays: sums.strays + term.stray,
+    tenths: sums.tenths + term.tenths
+  };
+}
+
+/**
+ * What the meals from one onwards can still add to a day, whatever options
+ * they take: each macro's least and most, the most tenths of energy, and the
+ * least strays and serving misses. What `balancedDay` bounds a branch by.
+ */
+type RemainingRange = { readonly high: Macros; readonly low: Macros; readonly misses: number; readonly strays: number; readonly tenths: number };
+
+/**
+ * How far a bound may sit above the cost it bounds and still prune, relative
+ * to that cost. A bound is summed in another order than the leaf it bounds, so
+ * it can be a few units in the last place high; this is far above that, and
+ * far below any difference in cost the search decides on.
+ */
+const BOUND_SLACK = 1e-9;
+
+/** `RemainingRange` from every meal onwards, the last one empty. */
+function remainingRanges(options: readonly (readonly { readonly term: Term }[])[]): readonly RemainingRange[] {
+  const zero: Macros = { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 };
+  const ranges: RemainingRange[] = [{ high: zero, low: zero, misses: 0, strays: 0, tenths: 0 }];
+
+  for (let index = options.length - 1; index >= 0; index -= 1) {
+    const after = ranges[0] as RemainingRange;
+    const terms = (options[index] ?? []).map(option => option.term);
+    const added = (key: keyof Macros): number[] => terms.map(term => term.plate[key] + term.beside[key]);
+    const span = (pick: (values: number[]) => number, from: Macros): Macros => ({
+      carbsG: from.carbsG + pick(added('carbsG')),
+      fatG: from.fatG + pick(added('fatG')),
+      fiberG: from.fiberG + pick(added('fiberG')),
+      kcal: from.kcal + pick(added('kcal')),
+      proteinG: from.proteinG + pick(added('proteinG'))
+    });
+
+    ranges.unshift({
+      high: span(values => Math.max(...values), after.high),
+      low: span(values => Math.min(...values), after.low),
+      misses: after.misses + Math.min(...terms.map(term => term.misses)),
+      strays: after.strays + Math.min(...terms.map(term => term.stray)),
+      tenths: after.tenths + Math.max(...terms.map(term => term.tenths))
+    });
+  }
+
+  return ranges;
+}
+
 /**
  * Each dish's window, in quarter steps, under a ceiling on the combinations
  * the day will price — see `BALANCE_MAX_COMBOS`.
@@ -1321,46 +1431,58 @@ function balancedDay(
   }
 
   const kcals: number[] = picks.map(() => 0);
+  const target = { carbsG: targets.carbsG, fatG: targets.fatG, kcal: targets.kcal, proteinG: targets.proteinG };
+
+  // One meal's part of the day's cost at a size and beside a set — worked out
+  // once per option of the search, not again at every combination holding it.
+  const termOf = (index: number, factor: number, set: AccompanimentSet | undefined): Term => {
+    const pick = picks[index] as Pick;
+    const beside = (set ?? pick.set)?.macros;
+    const plate = pick.base.kcal * factor;
+    const meal = plate + (beside?.kcal ?? 0);
+    const budget = shares[index] ?? 0;
+    const share = budget > 0 ? meal / budget : 0;
+
+    return {
+      beside: {
+        carbsG: beside?.carbsG ?? 0,
+        fatG: beside?.fatG ?? 0,
+        fiberG: beside?.fiberG ?? 0,
+        kcal: beside?.kcal ?? 0,
+        proteinG: beside?.proteinG ?? 0
+      },
+      meal,
+      misses: servingMiss(factor),
+      plate: {
+        carbsG: pick.base.carbsG * factor,
+        fatG: pick.base.fatG * factor,
+        fiberG: pick.base.fiberG * factor,
+        kcal: plate,
+        proteinG: pick.base.proteinG * factor
+      },
+      // Zero inside the band: adding it is adding nothing, to the bit.
+      stray: budget <= 0 ? 0 : share < SHARE_BAND.min ? SHARE_BAND.min - share : share > SHARE_BAND.max ? share - SHARE_BAND.max : 0,
+      tenths: Math.round(plate * 10) + Math.round((beside?.kcal ?? 0) * 10)
+    };
+  };
 
   // `fitCost` + bands + `inversionsOf` + strays + `SERVING_PREFERENCE` +
   // `floorMiss(deliveredKcal)`, for the sizes and sets given.
   const dayCost = (servings: readonly number[], sets: readonly (AccompanimentSet | undefined)[] = []): number => {
-    let carbsG = 0;
-    let fatG = 0;
-    let fiberG = 0;
-    let kcal = 0;
-    let proteinG = 0;
-    let tenths = 0;
-    let strays = 0;
-    let misses = 0;
+    let sums = NO_SUMS;
 
     for (const [index, pick] of picks.entries()) {
-      const factor = servings[index] ?? pick.servings;
-      const beside = (sets[index] ?? pick.set)?.macros;
-      const plate = pick.base.kcal * factor;
+      const term = termOf(index, servings[index] ?? pick.servings, sets[index] ?? pick.set);
 
-      carbsG = carbsG + pick.base.carbsG * factor + (beside?.carbsG ?? 0);
-      fatG = fatG + pick.base.fatG * factor + (beside?.fatG ?? 0);
-      fiberG = fiberG + pick.base.fiberG * factor + (beside?.fiberG ?? 0);
-      kcal = kcal + plate + (beside?.kcal ?? 0);
-      proteinG = proteinG + pick.base.proteinG * factor + (beside?.proteinG ?? 0);
-      tenths = tenths + Math.round(plate * 10) + Math.round((beside?.kcal ?? 0) * 10);
-      misses += servingMiss(factor);
-      kcals[index] = plate + (beside?.kcal ?? 0);
-
-      const budget = shares[index] ?? 0;
-
-      if (budget > 0) {
-        const share = (kcals[index] ?? 0) / budget;
-
-        if (share < SHARE_BAND.min) {
-          strays += SHARE_BAND.min - share;
-        } else if (share > SHARE_BAND.max) {
-          strays += share - SHARE_BAND.max;
-        }
-      }
+      sums = addTerm(sums, term);
+      kcals[index] = term.meal;
     }
 
+    return closingCost(sums);
+  };
+
+  // The day's cost once every meal's term is summed and `kcals` holds each meal's energy.
+  const closingCost = ({ carbsG, fatG, fiberG, kcal, misses, proteinG, strays, tenths }: DaySums): number => {
     // A meal the person said should be bigger must stay bigger — see
     // `SHARE_ORDER_GAP`. Priced as a hinge on every ordered pair.
     let inversions = 0;
@@ -1377,7 +1499,7 @@ function balancedDay(
     const totals = { carbsG, fatG, fiberG, kcal, proteinG };
 
     return (
-      fitCost(totals, { carbsG: targets.carbsG, fatG: targets.fatG, kcal: targets.kcal, proteinG: targets.proteinG }) +
+      fitCost(totals, target) +
       (banded ? bandMiss(totals, targets) * BAND_MISS_WEIGHT : 0) +
       inversions * (banded ? ORDER_OUTRANKS_BANDS : SHARE_INVERSION_WEIGHT) +
       strays * SHARE_BAND_WEIGHT +
@@ -1396,7 +1518,7 @@ function balancedDay(
     banded ? SPREAD_MAX_COMBOS : BALANCE_MAX_COMBOS,
     offered.map(sets => sets.length)
   );
-  type Option = { readonly servings: number; readonly set: AccompanimentSet | undefined };
+  type Option = { readonly servings: number; readonly set: AccompanimentSet | undefined; readonly term: Term };
   const optionsFor = (limited: boolean): Option[][] =>
     picks.map((pick, index) => {
       const options: Option[] = [];
@@ -1419,7 +1541,7 @@ function balancedDay(
             sidesWithinShare(pick.base, servings, set?.macros.kcal ?? 0) &&
             (!limited || withinPlateLimit(pick.base, servings, budget, pick.slot, set?.macros.kcal ?? 0))
           ) {
-            options.push({ servings, set });
+            options.push({ servings, set, term: termOf(index, servings, set) });
           }
         }
       }
@@ -1427,7 +1549,7 @@ function balancedDay(
       // Nothing admissible in the window only for a dish with no admissible size
       // at all — `servingsFor` sizes every other one inside the limit, and its
       // own size is always in its window. It keeps that size.
-      return options.length > 0 ? options : [{ servings: pick.servings, set: pick.set }];
+      return options.length > 0 ? options : [{ servings: pick.servings, set: pick.set, term: termOf(index, pick.servings, pick.set) }];
     });
 
   // The day as it stands is the one to beat, when its plates are inside the
@@ -1439,13 +1561,57 @@ function balancedDay(
   let bestSets: readonly (AccompanimentSet | undefined)[] = picks.map(pick => pick.set);
   let bestCost = inside ? dayCost(best, bestSets) : Number.POSITIVE_INFINITY;
 
+  // Every combination, in slot order. The sums run down the recursion, one
+  // meal a level, in the order `dayCost` adds them — so each leaf's cost is
+  // `dayCost`'s for that combination, to the bit, without summing its prefix again.
+  //
+  // A branch is left unvisited only when no leaf under it can beat the best so
+  // far (`lowestBelow`, less `BOUND_SLACK`): a leaf there could only have lost,
+  // so the combination chosen — the first of the lowest cost — is the one the
+  // whole search would choose.
   const search = (options: readonly (readonly Option[])[]): void => {
-    const sizes: number[] = [];
-    const sets: (AccompanimentSet | undefined)[] = [];
+    const sizes: number[] = picks.map(pick => pick.servings);
+    const sets: (AccompanimentSet | undefined)[] = picks.map(pick => pick.set);
+    const rest = remainingRanges(options);
 
-    const visit = (index: number): void => {
+    // The least any leaf under this prefix can cost: each macro's reachable
+    // range against its target, what the prefix and the cheapest remaining
+    // options already miss, the ordered pairs already placed, and the floor
+    // at the most energy still reachable. `bandMiss` is taken as nothing.
+    const lowestBelow = (index: number, sums: DaySums): number => {
+      const range = rest[index] as RemainingRange;
+      const distance = (sum: number, low: number, high: number, wanted: number): number =>
+        wanted <= 0 ? 0 : sum + low > wanted ? (sum + low - wanted) / wanted : sum + high < wanted ? (wanted - sum - high) / wanted : 0;
+      let inversions = 0;
+
+      for (const pair of ordered) {
+        if (pair.bigger < index && pair.smaller < index) {
+          const biggerKcal = kcals[pair.bigger] ?? 0;
+          const smallerKcal = kcals[pair.smaller] ?? 0;
+
+          if (smallerKcal >= biggerKcal) {
+            inversions += 1 + (smallerKcal - biggerKcal) / pair.budget;
+          }
+        }
+      }
+
+      const reachable = (sums.tenths + range.tenths) / 10;
+
+      return (
+        distance(sums.kcal, range.low.kcal, range.high.kcal, target.kcal) * 1.5 +
+        distance(sums.proteinG, range.low.proteinG, range.high.proteinG, target.proteinG) +
+        distance(sums.carbsG, range.low.carbsG, range.high.carbsG, target.carbsG) * 0.75 +
+        distance(sums.fatG, range.low.fatG, range.high.fatG, target.fatG) * 0.75 +
+        inversions * (banded ? ORDER_OUTRANKS_BANDS : SHARE_INVERSION_WEIGHT) +
+        (sums.strays + range.strays) * SHARE_BAND_WEIGHT +
+        (sides ? (sums.misses + range.misses) * SERVING_PREFERENCE_WEIGHT : 0) +
+        (reachable < minimumKcal ? floorMiss(reachable, minimumKcal) * FLOOR_OUTRANKS_ORDER : 0)
+      );
+    };
+
+    const visit = (index: number, sums: DaySums): void => {
       if (index === picks.length) {
-        const cost = dayCost(sizes, sets);
+        const cost = closingCost(sums);
 
         if (cost < bestCost) {
           bestCost = cost;
@@ -1456,16 +1622,19 @@ function balancedDay(
         return;
       }
 
+      if (index > 0 && lowestBelow(index, sums) > bestCost + BOUND_SLACK * (1 + Math.abs(bestCost))) {
+        return;
+      }
+
       for (const option of options[index] ?? []) {
-        sizes.push(option.servings);
-        sets.push(option.set);
-        visit(index + 1);
-        sizes.pop();
-        sets.pop();
+        sizes[index] = option.servings;
+        sets[index] = option.set;
+        kcals[index] = option.term.meal;
+        visit(index + 1, addTerm(sums, option.term));
       }
     };
 
-    visit(0);
+    visit(0, NO_SUMS);
   };
 
   search(optionsFor(true));
@@ -1522,13 +1691,13 @@ const SWAP_SHORTLIST = 24;
 function improveDay(
   picks: readonly Pick[],
   input: SchedulerInput,
+  perServing: ReadonlyMap<string, PerServing>,
   dayIndex: number,
   placed: readonly Placement[],
   budgets: ReadonlyMap<MealSlot, SlotBudget>,
   protein: { readonly cap: number; readonly proteins: ProteinIndex },
   sides?: Sides
 ): readonly Pick[] {
-  const perServing = perServingIndex(input.pool, input.catalogue);
   const others = placed.filter(placement => placement.dayIndex !== dayIndex);
   const elsewhere = proteinCounts(others, protein.proteins);
   const proteinOf = (slug: string): string | null => protein.proteins.get(slug) ?? null;
