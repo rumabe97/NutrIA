@@ -151,6 +151,14 @@ function tables(): Tables {
   return (database() as unknown as { readonly $client: Tables }).$client;
 }
 
+/**
+ * A plan without the picture: a dish's drawing is made on its first view (`0066`), so a second read
+ * of the same meal may carry an address the first did not. Nothing about sides.
+ */
+function bare<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value, (key, inner: unknown) => (key === 'illustrationPath' ? undefined : inner))) as T;
+}
+
 describe('accompaniments, end to end', () => {
   let app: INestApplication;
   let stamp: number;
@@ -208,7 +216,7 @@ describe('accompaniments, end to end', () => {
   /** What each meal's dish alone carries, priced from the catalogue and the recipe: nothing the sides' code produced. */
   const dishKcalOf = async (planId: string): Promise<ReadonlyMap<string, number>> => {
     const rows = await tables()<{ id: string; dish: string }>`
-      select m.id, coalesce(sum(ri.grams * m.servings / nullif(r.servings, 0) * i.kcal_per_100g / 100), 0)::text as dish
+      select m.id, coalesce(sum(ri.grams * m.servings / nullif(r.servings, 0) * i.kcal_per100g / 100), 0)::text as dish
       from meals m
       join plan_days d on d.id = m.plan_day_id
       join recipes r on r.id = m.recipe_id
@@ -418,6 +426,17 @@ describe('accompaniments, end to end', () => {
     await completeOnboarding(app, coeliac, [idOf('gluten')], [], true);
     await completeOnboarding(app, spanish, [], [], false, ['traditional_spanish']);
     await completeOnboarding(app, client);
+
+    // A big, very active body: each main meal is well over the 700 kcal from which sides are offered,
+    // so "some meal has sides" is the rule working and never the scheduler's luck.
+    for (const who of [main, milk, coeliac, spanish, client]) {
+      const patch = async (step: string, data: unknown) =>
+        request(server()).patch(`/${PREFIX}/onboarding`).set('Cookie', who.cookie).send({ data, step }).expect(200);
+
+      await patch('about-you', { birthDate: '1990-03-11', country: 'ES', displayName: 'Test', sex: 'male' });
+      await patch('goal', { paceKgPerWeek: null, startingWeightKg: 95, targetWeightKg: 95, type: 'maintenance' });
+      await patch('body-activity', { activityLevel: 'athlete', currentWeightKg: 95, heightCm: 190 });
+    }
   }, 240_000);
 
   afterAll(async () => {
@@ -451,7 +470,7 @@ describe('accompaniments, end to end', () => {
   // --- (g) The flag off -------------------------------------------------------
 
   it('with the flag off puts nothing beside any plate, in the plan or in a meal', async () => {
-    expect((await generateAndWait(app, off, 180_000)).status).toBe('succeeded');
+    expect(await generateAndWait(app, off, 180_000)).toMatchObject({ status: 'succeeded' });
 
     const plan = await activePlan(off);
 
@@ -477,7 +496,7 @@ describe('accompaniments, end to end', () => {
 
     beforeAll(async () => {
       await setFlag('accompaniments', true);
-      expect((await generateAndWait(app, main, 180_000)).status).toBe('succeeded');
+      expect(await generateAndWait(app, main, 180_000)).toMatchObject({ status: 'succeeded' });
       plan = await activePlan(main);
     }, 240_000);
 
@@ -548,11 +567,7 @@ describe('accompaniments, end to end', () => {
         await expectStoredSidesAre(after, [target.id]);
         expect((await detailOf(main, target.id)).accompaniments).toEqual(replaced?.accompaniments);
         // Every other meal is exactly as it was.
-        expect(mealsOf(after).filter(meal => meal.id !== target.id)).toEqual(
-          mealsOf(plan)
-            .filter(meal => meal.id !== target.id)
-            .map(meal => meal)
-        );
+        expect(bare(mealsOf(after).filter(meal => meal.id !== target.id))).toEqual(bare(mealsOf(plan).filter(meal => meal.id !== target.id)));
         plan = after;
       }
 
@@ -596,7 +611,7 @@ describe('accompaniments, end to end', () => {
           after,
           after.days.filter(day => rebuilt.has(day.date)).flatMap(day => day.meals.map(meal => meal.id))
         );
-        expect(after.days.filter(day => !rebuilt.has(day.date))).toEqual(before.days.filter(day => !rebuilt.has(day.date)));
+        expect(bare(after.days.filter(day => !rebuilt.has(day.date)))).toEqual(bare(before.days.filter(day => !rebuilt.has(day.date))));
         // The days that eat for the event are bigger: sides or not, they are built to its targets, so some meal there is sided or fits without.
         expect(after.days.filter(day => rebuilt.has(day.date)).every(day => day.loadedFor === 'Media maratón')).toBe(true);
         await expectListCoversSides(main, after);
@@ -694,7 +709,7 @@ describe('accompaniments, end to end', () => {
   describe('with the flag on, for the people the sides could hurt', () => {
     it('never gives a milk-allergic person a yoghurt or a cheese, though the model proposes them and the table offers them', async () => {
       await setFlag('accompaniments', true);
-      expect((await generateAndWait(app, milk, 180_000)).status).toBe('succeeded');
+      expect(await generateAndWait(app, milk, 180_000)).toMatchObject({ status: 'succeeded' });
 
       const plan = await activePlan(milk);
 
@@ -719,7 +734,8 @@ describe('accompaniments, end to end', () => {
     }, 300_000);
 
     it('gives a coeliac the gluten-free bread at most, never a wheat bread, a pita or a tabbouleh', async () => {
-      expect((await generateAndWait(app, coeliac, 180_000)).status).toBe('succeeded');
+      await setFlag('accompaniments', true);
+      expect(await generateAndWait(app, coeliac, 180_000)).toMatchObject({ status: 'succeeded' });
 
       const plan = await activePlan(coeliac);
 
@@ -738,7 +754,8 @@ describe('accompaniments, end to end', () => {
     }, 300_000);
 
     it('keeps traditional Spanish to a Spanish table: no foreign accompaniment, no excluded ingredient in one', async () => {
-      expect((await generateAndWait(app, spanish, 180_000)).status).toBe('succeeded');
+      await setFlag('accompaniments', true);
+      expect(await generateAndWait(app, spanish, 180_000)).toMatchObject({ status: 'succeeded' });
 
       const plan = await activePlan(spanish);
 
@@ -760,7 +777,7 @@ describe('accompaniments, end to end', () => {
 
     // The views show what the meal stores, never what the flag says: the plan is exactly as it was, sides and energy.
     expect(sidedMeals(plan).length).toBeGreaterThan(0);
-    expect(plan).toEqual(stored);
+    expect(bare(plan)).toEqual(bare(stored));
     await expectConsistent(plan);
 
     const target = sidedMeals(plan).find(meal => meal.slot === 'lunch') ?? sidedMeals(plan)[0];
@@ -779,6 +796,6 @@ describe('accompaniments, end to end', () => {
     await expectStoredSidesAre(after, [target?.id ?? '']);
     // A swapped meal is the dish alone again: its energy is the dish's, and the rest is as it was.
     await expectConsistent(after);
-    expect(mealsOf(after).filter(meal => meal.id !== target?.id)).toEqual(mealsOf(plan).filter(meal => meal.id !== target?.id));
+    expect(bare(mealsOf(after).filter(meal => meal.id !== target?.id))).toEqual(bare(mealsOf(plan).filter(meal => meal.id !== target?.id)));
   }, 120_000);
 });
