@@ -17,6 +17,7 @@ import {
   PREFERRED_MAIN_GAP,
   PROTEIN_RULES,
   proteinCap,
+  snackCheck,
   starchCheck,
   starchIndex
 } from 'core/domain/Variety';
@@ -574,8 +575,8 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
   const proteins = proteinIndex(input.pool, input.catalogue);
   // Over the whole fortnight, even when only some of its days are laid out here.
   const cap = proteinCap(slots.length * days);
-  // Pasta, rice and grains, and the same legume, priced at the protein rule's weight wherever they are (`STARCH_RULES`, `LEGUME_RULES`).
-  const kinds = kindRules(input.pool, days);
+  // Pasta, rice and grains, the same legume and the same snack, priced at the protein rule's weight wherever they are (`kindRules`).
+  const kinds = kindRules(input.pool, input.catalogue, days);
   const indexes = input.dayIndexes ?? Array.from({ length: days }, (_none, offset) => offset + 1);
 
   // The days that are not being laid out go in first, so every `canPlace` below
@@ -791,7 +792,7 @@ export function pickReplacement(input: {
   // either side or as often as its rule allows (`STARCH_RULES`, `LEGUME_RULES`),
   // priced as the scheduler prices it. The plan's own meals are never in a
   // swap's pool, so their bases and legumes come from `placed`.
-  const kinds = kindRules(input.pool, PLAN_DAYS);
+  const kinds = kindRules(input.pool, input.catalogue, PLAN_DAYS);
   const kindsPlaced = kinds.checks.map(check => kindMeals(input.placed, check));
   const kindsCost = (dish: CandidateDish): number =>
     kindsCrowded(dish.slug, input.slot, input.dayIndex, kindsPlaced, kinds.checks, PLAN_DAYS) * PROTEIN_REPEAT_WEIGHT;
@@ -1118,13 +1119,16 @@ type ProteinIndex = ReadonlyMap<string, string | null>;
 
 /**
  * The kind rules (`KindRule`) the scheduler prices — pasta, rice and grains
- * (`STARCH_RULES`), the same legume (`LEGUME_RULES`) — each over the pool's
- * index, and the plan's length their caps are scaled to.
+ * (`STARCH_RULES`), the same legume (`LEGUME_RULES`), the same kind of snack
+ * (`SNACK_RULES`) — each over the pool's index, and the plan's length their
+ * caps are scaled to. A swap or a rebuild knows the starch and the legume of
+ * the meals it keeps (`Placement`); a kept snack outside the pool counts for
+ * nothing, as a kept protein does.
  */
 type KindRules = { readonly checks: readonly KindCheck[]; readonly days: number };
 
-function kindRules(pool: readonly CandidateDish[], days: number): KindRules {
-  return { checks: [starchCheck(starchIndex(pool)), legumeCheck(legumeIndex(pool))], days };
+function kindRules(pool: readonly CandidateDish[], catalogue: Catalogue, days: number): KindRules {
+  return { checks: [starchCheck(starchIndex(pool)), legumeCheck(legumeIndex(pool)), snackCheck(pool, catalogue)], days };
 }
 
 /** Whether a pool dish may be served on a day: its fresh fruit in that day's month (`SchedulerInput.monthOf`). */
@@ -1158,6 +1162,11 @@ function seasonFor(input: SchedulerInput): Seasonal {
 /** Whether a dish at a slot has any kind the rules count — only a swap that brings one in or takes one out can move their cost. */
 function countsForAny(kinds: KindRules, slug: string, slot: MealSlot): boolean {
   return kinds.checks.some(check => countsFor(check, slug, slot));
+}
+
+/** What the kind rules see of a dish at a slot: its kind under each, or nothing. */
+function kindsKey(kinds: KindRules, slug: string, slot: MealSlot): string {
+  return kinds.checks.map(check => (countsFor(check, slug, slot) ? (check.index.get(slug) ?? '') : '')).join('|');
 }
 
 function proteinIndex(pool: readonly CandidateDish[], catalogue: Catalogue): ProteinIndex {
@@ -2049,6 +2058,7 @@ function improveDay(
     // Priced the same way the candidates will be, or a swap could "win" against
     // a day that was never sized.
     const kindsNow = kindsOf(current);
+    const kindsPriced = new Map<string, number>();
     let bestCost =
       balancedDay(current, targets, budgets, input.minimumKcal, false, sides).cost +
       repeatsOf(today) +
@@ -2088,8 +2098,17 @@ function improveDay(
           position === index ? { base, dish: candidate, servings, slot: entry.slot, sortOrder: entry.sortOrder } : entry
         );
         // Only a swap that brings a counted kind in, or takes it out, can move the kinds' cost.
-        const kindsCost =
-          countsForAny(kinds, candidate.slug, pick.slot) || countsForAny(kinds, pick.dish.slug, pick.slot) ? kindsOf(swapped) : kindsNow;
+        // A swap moves the kinds' cost only through what the candidate is, so it is
+        // priced once per meal and kind (`kindsKey`), not once per candidate.
+        let kindsCost = kindsNow;
+
+        if (countsForAny(kinds, candidate.slug, pick.slot) || countsForAny(kinds, pick.dish.slug, pick.slot)) {
+          const key = `${index}|${kindsKey(kinds, candidate.slug, pick.slot)}`;
+
+          kindsCost = kindsPriced.get(key) ?? kindsOf(swapped);
+          kindsPriced.set(key, kindsCost);
+        }
+
         const extra = repeats + dayReuseCost(swapped, dayIndex, others) + kindsCost;
 
         shortlist.push({ cost: dayFitCost(swapped, targets) + extra, extra, swapped });

@@ -145,12 +145,14 @@ describe('the scheduler with accompaniments off — the plans it always made', (
     expect(plan(shapeFor(3, false), 1)).toBe('c4a45a2989dd20d05d5c4d5db22e9825fa645275701eb90c3c305b1bc583a4b6');
   });
 
+  // Moved in 017 phase 2 (group D): the snacks of these shapes are now held to
+  // three of a kind a fortnight (`SNACK_RULES`), and every fixture snack is one kind.
   it('five meals, a high target', () => {
-    expect(plan(shapeFor(5, true), 1.8)).toBe('80f807f5c5220599708c4c5e10d87be4dda329e2a0594124bcbac21521995311');
+    expect(plan(shapeFor(5, true), 1.8)).toBe('20c69b262854accd9025305901bed19f5758dfb73663d5e49a07139ad4e4fba0');
   });
 
   it('two big main meals and a light snack', () => {
-    expect(plan(TWO_MEALS, 1.1)).toBe('9d742f73e4ac84f1bcb3cefa5da72384912a99b2e08858b82ab9793967700ac4');
+    expect(plan(TWO_MEALS, 1.1)).toBe('c9d723f8b3d3fb09dcdb0f87a03b15a44183d60faaf626a0bbf4bcabfc288034');
   });
 
   it('a swap', () => {

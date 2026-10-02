@@ -78,6 +78,8 @@ import {
   legumeKind,
   MAIN_SLOTS,
   mainProtein,
+  SNACK_KIND_SLOTS,
+  snackKind,
   STARCH_RULES,
   starchBase,
   starchCap
@@ -699,9 +701,16 @@ function kindMetrics(days, catalogue, monthOf) {
   const proteins = {};
   const legumeDays = new Map();
   const outOfSeason = [];
+  const snacks = {};
 
   for (const day of days) {
     for (const meal of day.meals) {
+      const snack = SNACK_KIND_SLOTS.has(meal.slot) ? snackKind(meal.dish, catalogue) : null;
+
+      if (snack) {
+        snacks[snack] = (snacks[snack] ?? 0) + 1;
+      }
+
       const fruit = outOfSeasonFruit(meal.dish, catalogue, monthOf(day.dayIndex));
 
       if (fruit) {
@@ -747,6 +756,11 @@ function kindMetrics(days, catalogue, monthOf) {
     legumeRuns,
     legumes,
     outOfSeason,
+    snackMax:
+      Object.entries(snacks)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([kind, total]) => ({ kind, total }))[0] ?? null,
+    snacks,
     proteinMax: top[0] ? { kind: top[0][0], total: top[0][1].total } : null,
     proteinMaxWeek: Math.max(0, ...top.map(([, entry]) => Math.max(...entry.weeks))),
     proteins: Object.fromEntries(top.map(([kind, entry]) => [kind, entry.total]))
@@ -1485,7 +1499,16 @@ function printProfile(profile, result) {
         .join(', ')}; most ${proteinMax ? `${proteinMax.kind} ${proteinMax.total}` : 'none'}, busiest week ${proteinMaxWeek}`
     );
 
-    const { legumeRuns = [], legumes = {}, outOfSeason = [] } = result.kinds;
+    const { legumeRuns = [], legumes = {}, outOfSeason = [], snacks = {} } = result.kinds;
+
+    console.log(
+      `  snacks by kind (017 p2, 3 a fortnight each): ${
+        Object.entries(snacks)
+          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+          .map(([kind, count]) => `${kind} ${count}`)
+          .join(', ') || 'none'
+      }`
+    );
 
     console.log(
       `  plates with fresh fruit out of season that day (017 p2, must be 0): ${outOfSeason.length}${outOfSeason.length > 0 ? ` (${outOfSeason.map(item => `day ${item.dayIndex} ${item.slot}: "${item.dish}", ${item.fruit}`).join('; ')})` : ''}`

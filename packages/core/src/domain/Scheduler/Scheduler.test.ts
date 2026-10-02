@@ -28,6 +28,8 @@ import {
   planWeek,
   PROTEIN_RULES,
   proteinCap,
+  SNACK_RULES,
+  snackKind,
   STARCH_RULES,
   starchBase,
   starchCap,
@@ -1263,6 +1265,55 @@ describe('schedulePlan — the fortnight is repaired as a whole (0048)', () => {
     for (const day of result.assignment.days) {
       expect(Math.abs(day.totals.kcal - T.kcal)).toBeLessThanOrEqual(T.kcal * 0.05);
     }
+  });
+});
+
+describe('schedulePlan — snacks vary (017 phase 2)', () => {
+  // Yoghurt cups with a different fruit each, a fresh cheese, toasts and eggs,
+  // alike in every macro: the morning snack takes the pool's first, a cup.
+  const catalogue = makeCatalogue([
+    makeCatalogueIngredient({ id: 'base', slug: 'base' }),
+    makeCatalogueIngredient({ id: 'yogur', category: 'dairy', slug: 'yogur-proteico' }),
+    makeCatalogueIngredient({ id: 'requeson', category: 'dairy', slug: 'requeson' }),
+    makeCatalogueIngredient({ id: 'pan', category: 'bakery', slug: 'pan-integral' }),
+    makeCatalogueIngredient({ id: 'huevo', category: 'protein', slug: 'huevo' }),
+    makeCatalogueIngredient({ id: 'pavo', category: 'protein', slug: 'pechuga-de-pavo' })
+  ]);
+  const SHARE = { dinner: 0.4, lunch: 0.45, morning_snack: 0.15 } as const;
+  const plate = (slot: keyof typeof SHARE, n: number) => Math.round((TARGETS.kcal * SHARE[slot]) / 2) + n * 5;
+  const snacks = ['yogur-proteico', 'yogur-proteico', 'yogur-proteico', 'requeson', 'pan-integral', 'huevo', 'pechuga-de-pavo'];
+  const pool = [
+    ...snacks.flatMap((main, kind) =>
+      [0, 1].map(n =>
+        makeDish({ ingredients: [{ grams: plate('morning_snack', n), slug: main }], slots: ['morning_snack'], slug: `snack-${kind}-${n}` })
+      )
+    ),
+    ...(['lunch', 'dinner'] as const).flatMap(slot =>
+      Array.from({ length: 10 }, (_none, n) =>
+        makeDish({ ingredients: [{ grams: plate(slot, n), slug: 'base' }], slots: [slot], slug: `${slot}-${n}` })
+      )
+    )
+  ];
+  const weights = weightsFor({ afternoon_snack: 'off', breakfast: 'off', dinner: 'normal', lunch: 'normal', morning_snack: 'normal', supper: 'off' });
+
+  it('serves the same kind of snack three times a fortnight at most', () => {
+    const result = schedulePlan({ catalogue, minimumKcal: MINIMUM_KCAL, pool, targets: TARGETS, weights });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const kinds = new Map<string, number>();
+
+    for (const meal of result.assignment.days.flatMap(day => day.meals.filter(entry => entry.slot === 'morning_snack'))) {
+      const kind = snackKind(meal.dish, catalogue) ?? 'none';
+
+      kinds.set(kind, (kinds.get(kind) ?? 0) + 1);
+    }
+
+    expect(Math.max(...kinds.values()), JSON.stringify([...kinds])).toBeLessThanOrEqual(SNACK_RULES.perFortnight);
   });
 });
 
