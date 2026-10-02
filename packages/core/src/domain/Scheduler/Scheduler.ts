@@ -1,6 +1,7 @@
 import { composePerServing, scaleIngredients, scaleMacros, sumMacros } from 'core/domain/Composition';
 import { canPlace, isPreferredDish, MAIN_SLOTS, mainProtein, nearestGap, PREFERRED_MAIN_GAP, PROTEIN_RULES, proteinCap } from 'core/domain/Variety';
 import { PLAN_TOLERANCE } from 'core/domain/PlanValidation';
+import { slotShares } from 'core/domain/MealShape';
 import type { Leaning, Placement } from 'core/domain/Variety';
 import type { CandidateDish, Catalogue, Macros, MealSlot, PlanAssignment, PlanDayAssignment, ScheduledMeal, SwapAxis } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
@@ -144,6 +145,38 @@ export const PLATE_GRAMS_MAX: Readonly<Record<MealSlot, number>> = {
   morning_snack: 250,
   supper: 250
 };
+
+/**
+ * TEMPORARY (project 016, LOG 2026-10-02) — until the `accompaniments` flag
+ * (016 phase 3) carries a big meal's energy on a second plate, a main meal
+ * whose share is past `fromKcal` may weigh more than `PLATE_GRAMS_MAX`: in
+ * proportion to its share, up to `maxGrams`.
+ *
+ * The flat 750 g of `0078` left a person with two main meals 3–11 days of 14
+ * inside ±5 %, against 14 before it: a 1,100-kcal lunch of ordinary dishes does
+ * not fit in 750 g. The owner put the ±5 % promise first. When the flag turns
+ * on, this goes and `PLATE_GRAMS_MAX` is the ceiling again.
+ */
+export const SCALED_PLATE_GRAMS = { fromKcal: 950, maxGrams: 900 } as const;
+
+/** The slots `SCALED_PLATE_GRAMS` scales — the meals; snacks and supper keep their ceiling. */
+const SCALED_PLATE_SLOTS: ReadonlySet<MealSlot> = new Set(['breakfast', 'lunch', 'dinner']);
+
+/**
+ * How much one plate in this slot may weigh when its share of the day is
+ * `budgetKcal`: `PLATE_GRAMS_MAX`, scaled for a big main meal by
+ * `SCALED_PLATE_GRAMS`. The one ceiling every sizing path reads, through
+ * `withinPlateLimit`.
+ */
+export function plateGramsMax(slot: MealSlot, budgetKcal: number): number {
+  const base = PLATE_GRAMS_MAX[slot];
+
+  if (!SCALED_PLATE_SLOTS.has(slot) || budgetKcal <= SCALED_PLATE_GRAMS.fromKcal) {
+    return base;
+  }
+
+  return Math.min(SCALED_PLATE_GRAMS.maxGrams, (base * budgetKcal) / SCALED_PLATE_GRAMS.fromKcal);
+}
 
 /** Float slack for a share computed at a limit's edge. */
 const PLATE_EPSILON = 1e-9;
@@ -618,17 +651,10 @@ export function axisFilter(
  * in a test (`0045`).
  */
 function slotBudgets(weights: ReadonlyMap<MealSlot, number>, targets: NutritionTargets): ReadonlyMap<MealSlot, SlotBudget> {
-  const total = [...weights.values()].reduce((sum, weight) => sum + weight, 0) || 1;
-
   return new Map(
-    [...weights].map(([slot, weight]) => [
+    [...slotShares(weights)].map(([slot, share]) => [
       slot,
-      {
-        carbsG: (targets.carbsG * weight) / total,
-        fatG: (targets.fatG * weight) / total,
-        kcal: (targets.kcal * weight) / total,
-        proteinG: (targets.proteinG * weight) / total
-      }
+      { carbsG: targets.carbsG * share, fatG: targets.fatG * share, kcal: targets.kcal * share, proteinG: targets.proteinG * share }
     ])
   );
 }
@@ -662,11 +688,11 @@ function servingsFor(perServing: PerServing, budget: SlotBudget, slot: MealSlot)
 
 /**
  * Whether this many servings keep the plate inside `PLATE_LIMIT` of its share
- * and under `PLATE_GRAMS_MAX` for its slot. The weight is checked even where
+ * and under `plateGramsMax` for its slot and share. The weight is checked even where
  * the share cannot be — a budget or a dish of no energy.
  */
 function withinPlateLimit(perServing: PerServing, servings: number, budget: SlotBudget, slot: MealSlot): boolean {
-  const light = perServing.grams * servings <= PLATE_GRAMS_MAX[slot] + PLATE_EPSILON;
+  const light = perServing.grams * servings <= plateGramsMax(slot, budget.kcal) + PLATE_EPSILON;
 
   if (budget.kcal <= 0 || perServing.kcal <= 0) {
     return light;
