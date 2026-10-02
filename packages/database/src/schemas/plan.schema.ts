@@ -159,6 +159,13 @@ export const meals = pgTable(
  * reason the meal does — history keeps the numbers that were eaten. A swap
  * and an event rebuild delete and reinsert a meal's rows in their own
  * transaction. Account deletion reaches them through the meal's cascade.
+ *
+ * `recipeId` and `servings` snapshot the plate the rows were set beside. An
+ * API from before this table swaps or rebuilds a meal in place and knows
+ * nothing of it, so after a rollback a meal may point at another dish while
+ * its old sides stay; the reads keep only rows whose plate is still the
+ * meal's, and a cleanup can find the rest with one join. Rows are only ever
+ * inserted and deleted, so they carry `createdAt` and no `updatedAt`.
  */
 export const mealAccompaniments = pgTable(
   'meal_accompaniments',
@@ -167,6 +174,7 @@ export const mealAccompaniments = pgTable(
     /** `core/domain/Accompaniment`'s key: stable, what the screen names it by. */
     accompanimentKey: text().notNull(),
     carbsG: numeric({ precision: 7, scale: 2 }).notNull(),
+    createdAt: timestamps.createdAt,
     fatG: numeric({ precision: 7, scale: 2 }).notNull(),
     grams: numeric({ precision: 7, scale: 2 }).notNull(),
     ingredientId: uuid()
@@ -177,6 +185,12 @@ export const mealAccompaniments = pgTable(
       .notNull()
       .references(() => meals.id, { onDelete: 'cascade' }),
     proteinG: numeric({ precision: 7, scale: 2 }).notNull(),
+    /** The meal's dish when these rows were written — see above. */
+    recipeId: uuid()
+      .notNull()
+      .references(() => recipes.id, { onDelete: 'restrict' }),
+    /** The meal's servings when these rows were written — see above. */
+    servings: numeric({ precision: 4, scale: 2 }).notNull(),
     sortOrder: smallint().notNull().default(0)
   },
   // Led by `meal_id`, so it is also the index every read of a meal's rows uses.

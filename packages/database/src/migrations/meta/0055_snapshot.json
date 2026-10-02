@@ -1,5 +1,5 @@
 {
-  "id": "626039ae-f076-4dce-af52-2581d28ec551",
+  "id": "771522dc-8270-4f4c-acba-ee780072228d",
   "prevId": "ba18f102-1e38-45ea-bcea-4a8031f18117",
   "version": "7",
   "dialect": "postgresql",
@@ -2021,6 +2021,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
         "fat_g": {
           "name": "fat_g",
           "type": "numeric(7, 2)",
@@ -2054,6 +2061,18 @@
         "protein_g": {
           "name": "protein_g",
           "type": "numeric(7, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recipe_id": {
+          "name": "recipe_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "servings": {
+          "name": "servings",
+          "type": "numeric(4, 2)",
           "primaryKey": false,
           "notNull": true
         },
@@ -2091,6 +2110,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "meal_accompaniments_recipe_id_recipes_id_fk": {
+          "name": "meal_accompaniments_recipe_id_recipes_id_fk",
+          "tableFrom": "meal_accompaniments",
+          "tableTo": "recipes",
+          "columnsFrom": [
+            "recipe_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
           "onUpdate": "no action"
         }
       },
