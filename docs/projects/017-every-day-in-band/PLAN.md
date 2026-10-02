@@ -63,7 +63,7 @@ Every measurement runs on the local Postgres: `pnpm db:local`, `NUTRIA_LOCAL_PG=
 
 - [ ] pending
 - **Dispatch**: opus @ medium — `/execute-project 017 phase 2`. `plan-evaluator` (opus @ high) measures.
-- **Covers**: PRD criterion 3 (read as "outside what `0079` allows": rice at an Asian or Latin dinner is allowed), and the owner's amendments of 2026-10-02 (grains capped, legumes varied).
+- **Covers**: PRD criterion 3 (read as "outside what `0079` allows": rice at an Asian or Latin dinner is allowed), and the owner's amendments of 2026-10-02 (grains capped, legumes varied, fruit in season in dishes, no protein dominates, snacks vary).
 - **Steps**:
   1. Bring in 603fc977 (`FOOD_GROUP_GRAMS` for rice, pasta and grains at 20 g dry; `noquis` in pasta; specs from the four production dishes). Rebase it on `main` and keep its specs.
   2. Evaluate off and on against the phase 1 baseline. Report per profile:
@@ -78,6 +78,16 @@ Every measurement runs on the local Postgres: `pnpm db:local`, `NUTRIA_LOCAL_PG=
      - This uses the same pricing as the starch rule.
      - The evaluator reports legumes by kind per profile.
      - A real plan served chickpeas at 6 of 14 lunches, twice on consecutive days.
+  6. *Amended 2026-10-02 (owner): fruit in season in dishes too.*
+     - A dish whose fresh fruit is out of season in a day's month (`seasonMonths`, Spain's calendar, `0062` § 2) is not served that day. This is the hard filter accompaniments already have.
+     - Fruit only: vegetables are found all year.
+     - The evaluator counts out-of-season fruit plates, which must be 0.
+     - A real plan served "Biscotes con requesón y nectarina" in October.
+  7. *Amended 2026-10-02 (owner): no protein dominates.*
+     - The same main protein (pork, chicken, beef, turkey and so on, as `PROTEIN_RULES` reads it) appears at most about 3 times a week at lunch and dinner.
+     - First find why the protein rule let pork through 8 of 28 mains in a real plan, then fix the cause.
+     - Mind the person's dislikes: a person who dislikes fish gets no fish. A fish minimum was considered and refused by the owner for that reason.
+  8. *Amended 2026-10-02 (owner): snacks vary.* The same kind of snack (a yoghurt cup, a toast and so on, by its main ingredient) appears at most 3 times a fortnight. A real plan served the same protein-yoghurt cup 6 of 14 mornings.
 - **Stop if**: an allergen reaches a plate, or a dinner pool falls under `DISHES_NEEDED_PER_SLOT`.
 - **Verification**:
   - `docs/local/017-p2-{off,on}.json`;

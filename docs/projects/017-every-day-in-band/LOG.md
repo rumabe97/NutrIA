@@ -122,3 +122,13 @@ Added:
 - Phase 2: grains capped like pasta and rice, and legumes varied by kind.
 - Phase 3: a dinner is never a snack or breakfast dish, no more than 2 servings unless the dish is a main, and a new evaluator profile shaped like that account.
 - Criterion 3 is read as "outside what `0079` allows": rice at a Latin dinner is allowed.
+
+## Plan amended again (2026-10-02, owner)
+
+The same plan was read again for variety and season.
+- **Season:** the caqui was in season (October–December). A nectarine dish was not (May–September): season filters accompaniments, not dishes.
+- **Pork:** in 8 of 28 mains.
+- **Fish:** almost none, but this person told the app he dislikes fish, so that is correct. The owner refused a fish minimum for that reason.
+- **Snacks:** the same yoghurt cup on 6 of 14 mornings.
+
+Added to phase 2: fruit in season in dishes, no protein dominates (about 3 times a week at most), and snacks vary (the same kind at most 3 times a fortnight).
