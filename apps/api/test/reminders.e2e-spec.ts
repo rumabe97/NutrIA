@@ -3,7 +3,19 @@ import request from 'supertest';
 
 import { NotificationController } from 'core/controllers/Notification';
 
-import { completeOnboarding, createApp, deleteAccounts, generateAndWait, httpServer, madridToday, POOL, PREFIX, register, ScriptedAiClient, shiftPlansBack } from './harness.js';
+import {
+  completeOnboarding,
+  createApp,
+  deleteAccounts,
+  generateAndWait,
+  httpServer,
+  madridToday,
+  POOL,
+  PREFIX,
+  register,
+  ScriptedAiClient,
+  shiftPlansBack
+} from './harness.js';
 
 import type { Account } from './harness.js';
 import type { INestApplication } from '@nestjs/common';

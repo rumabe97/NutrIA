@@ -1,7 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
-import { completeOnboarding, createApp, deleteAccounts, generateAndWait, httpServer, madridToday, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import {
+  completeOnboarding,
+  createApp,
+  deleteAccounts,
+  generateAndWait,
+  httpServer,
+  madridToday,
+  POOL,
+  PREFIX,
+  register,
+  ScriptedAiClient
+} from './harness.js';
 
 import type { Account } from './harness.js';
 import type { INestApplication } from '@nestjs/common';
