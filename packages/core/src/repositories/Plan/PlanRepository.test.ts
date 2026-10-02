@@ -2,18 +2,19 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { PlanRepository, refusesProfessionalSave, saveShape } from './PlanRepository';
 
-/** The rows the next `select … for update` answers, and every write the transaction made, in order. */
-const due: { id: string; startDate: string }[] = [];
+/** What each `select … for update` answers, in order, and every write the transaction made. */
+const selects: unknown[][] = [];
 const writes: Record<string, unknown>[] = [];
 
-function chain(rows: () => unknown[]) {
-  const link = { for: () => Promise.resolve(rows()), from: () => link, limit: () => link, where: () => link };
+function chain() {
+  const link = { for: () => Promise.resolve(selects.shift() ?? []), from: () => link, limit: () => link, where: () => link };
 
   return link;
 }
 
 const tx = {
-  select: () => chain(() => due.splice(0)),
+  delete: () => ({ where: () => Promise.resolve(writes.push({ deleted: true })) }),
+  select: () => chain(),
   update: () => ({ set: (values: Record<string, unknown>) => ({ where: () => Promise.resolve(writes.push(values)) }) })
 };
 
@@ -131,12 +132,21 @@ describe('saveShape — a plan may wait for its day', () => {
 describe('PlanRepository.activateDue — on its day, once', () => {
   it('completes the plan under way the day before and activates the waiting one', async () => {
     writes.length = 0;
-    due.push({ id: 'plan-2', startDate: '2026-10-05' });
+    selects.push([{ id: 'plan-2', startDate: '2026-10-05', version: 2 }], [{ version: 1 }]);
 
     await expect(PlanRepository.activateDue('usr-1', '2026-10-05')).resolves.toBe(true);
     expect(writes).toHaveLength(2);
     expect(writes[0]).toMatchObject({ completedAt: '2026-10-04', status: 'completed' });
     expect(writes[1]).toMatchObject({ status: 'active' });
+  });
+
+  it('deletes, never activates, a waiting plan older than the active one — left by a rolled-back release', async () => {
+    writes.length = 0;
+    selects.push([{ id: 'plan-2', startDate: '2026-10-05', version: 2 }], [{ version: 3 }]);
+
+    await expect(PlanRepository.activateDue('usr-1', '2026-10-05')).resolves.toBe(false);
+    // The job is unlinked, the stale row deleted; the active plan is not completed.
+    expect(writes).toEqual([{ planId: null }, { deleted: true }]);
   });
 
   it('changes nothing when nothing is due, so a second run is harmless', async () => {

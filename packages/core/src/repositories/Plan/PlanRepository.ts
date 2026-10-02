@@ -45,20 +45,40 @@ export const PlanRepository = {
    * and from the nightly cron alike.
    *
    * The waiting row is held `FOR UPDATE`, so two reads racing on the first
-   * morning queue here, and the second finds it already active. Completing
+   * morning queue here, and the second finds it already active. One older than
+   * the active plan is stale (see below) and is deleted, not activated. Completing
    * first is what `meal_plans_one_active_per_user` requires.
    */
   async activateDue(userId: string, today: string): Promise<boolean> {
     try {
       return await database().transaction(async tx => {
         const [due] = await tx
-          .select({ id: mealPlans.id, startDate: mealPlans.startDate })
+          .select({ id: mealPlans.id, startDate: mealPlans.startDate, version: mealPlans.version })
           .from(mealPlans)
           .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, SCHEDULED), lte(mealPlans.startDate, today)))
           .limit(1)
           .for('update');
 
         if (!due) {
+          return false;
+        }
+
+        const [active] = await tx
+          .select({ version: mealPlans.version })
+          .from(mealPlans)
+          .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, 'active')))
+          .limit(1)
+          .for('update');
+
+        // A waiting plan older than the active one can only be left over by an API
+        // rolled back to before project 015, which generated past it without
+        // knowing the state. Activating it would replace the person's newer plan
+        // with a stale one, so it is deleted instead — as `publish` treats a stale
+        // pending plan — its job kept with no plan.
+        if (active && active.version > due.version) {
+          await tx.update(planGenerationJobs).set({ planId: null }).where(eq(planGenerationJobs.planId, due.id));
+          await tx.delete(mealPlans).where(eq(mealPlans.id, due.id));
+
           return false;
         }
 
