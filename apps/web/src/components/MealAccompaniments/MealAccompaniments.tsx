@@ -48,16 +48,16 @@ export function MealAccompaniments({ dictionary, locale, mealKcal, sides }: Meal
         </Text>
       </div>
 
-      <div className={styles.sides}>
+      <ul className={styles.sides} role="list">
         {sides.map(side => (
-          <div className={styles.side} key={side.key}>
+          <li className={styles.side} key={side.key}>
             <div className={styles.head}>
               <h3 className={styles.name}>{accompanimentTitle(side, dictionary, locale)}</h3>
               <span className={styles.kcal}>
                 {interpolate(dictionary.meal.accompanimentAdds, { kcal: formatNumber(Math.round(side.kcal), locale) })} {dictionary.units.kcal}
               </span>
             </div>
-            <ul className={styles.ingredients}>
+            <ul className={styles.ingredients} role="list">
               {side.ingredients.map(ingredient => (
                 <li className={styles.ingredient} key={ingredient.name}>
                   {/* Plain rice is weighed dry in the kitchen, like a dish's grains. */}
@@ -80,9 +80,9 @@ export function MealAccompaniments({ dictionary, locale, mealKcal, sides }: Meal
                 </li>
               ))}
             </ul>
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 }

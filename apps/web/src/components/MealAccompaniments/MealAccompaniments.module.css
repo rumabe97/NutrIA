@@ -19,6 +19,9 @@
 .sides {
   display: grid;
   gap: var(--gap-block);
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .head {

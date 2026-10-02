@@ -1,3 +1,4 @@
+import { ACCOMPANIMENTS } from 'core/domain/Accompaniment';
 import { describe, expect, it } from 'vitest';
 
 import { accompanimentPhrase, accompanimentTitle } from './accompaniments';
@@ -27,5 +28,12 @@ describe('accompanimentPhrase', () => {
 
   it('has the same keys in both languages', () => {
     expect(Object.keys(enGB.meal.accompanimentNames)).toEqual(Object.keys(esES.meal.accompanimentNames));
+  });
+
+  it('has a phrase for every accompaniment core can offer, in both languages', () => {
+    const keys = ACCOMPANIMENTS.map(accompaniment => accompaniment.key);
+
+    expect(keys.filter(key => !(key in esES.meal.accompanimentNames))).toEqual([]);
+    expect(keys.filter(key => !(key in enGB.meal.accompanimentNames))).toEqual([]);
   });
 });

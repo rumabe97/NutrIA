@@ -104,6 +104,8 @@
 .side {
   color: var(--foreground-02);
   display: inline-block;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
 }
 
 .meta {
