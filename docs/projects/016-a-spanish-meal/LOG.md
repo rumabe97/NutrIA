@@ -85,3 +85,21 @@
   - Phase 2 is accompaniments in the domain, behind a flag.
   - Base for the evaluator: `016-p1.json`.
   - The owner's rotation-only run (6/14) is the number A must lift.
+
+## Phase 2 — Design: cuisine families, meal fit by cuisine, accompaniments by cuisine (2026-10-02)
+
+- **Executor**: `architect` (opus · high) as `architect-016`. It drafted the tables with sources it read and measured them read-only on the dev database, behind `guard.mjs`.
+- **Result**: done. The owner approved all nine answers. Decision [`0079`](../../decisions/0079-meals-fit-by-cuisine-and-accompaniments-by-cuisine.md) is accepted.
+- **Evidence** (dev, excluding 906 end-to-end leftover recipes):
+  - Dinners servable: 310 → 198 (omnivore), 199 → 129 (`traditional_spanish`), 74 → 57 (vegan, keeping the `0062` §4 pulse exception).
+  - Worst profile (traditional_spanish, coeliac, no milk): 81 dinners.
+  - No slot is pushed below the 19 a fortnight needs.
+- **Decisions**:
+  - **Six families.** A null or unmapped cuisine is read as Spanish, the strictest, so a mislabel can only lose a meal.
+  - **Five food groups**, recognised by slug and dry grams (40 g by `0078`'s yields). "Fried" and "heavy sauce" were dropped as unrecognisable from the data.
+  - **The table widens as well as narrows.**
+  - **The dish's family sets the accompaniments.** Cheese and nuts are breakfast-only, and season is a hard filter for accompaniments.
+  - **No BEDCA** (owner): sources and macros are USDA FoodData Central. The 14 BEDCA-sourced catalogue rows are re-sourced in a queued task (`000-workspace` LOG). `queso-de-burgos` (breakfast only) is the one accompaniment still on such a row.
+- **Notes for the next phase**:
+  - Phase 3 implements 0079 tables 1–3 literally. Phase 7's step 1 is superseded.
+  - Dev holds 906 end-to-end leftover recipes that inflate library counts: a cleanup for dev data, not this project.

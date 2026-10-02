@@ -63,7 +63,7 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
 
 ### Phase 2 — Design: cuisine families, what fits each meal, and accompaniments by cuisine (owner approves the tables)
 
-- [ ] pending
+- [x] done — decision [`0079`](../../decisions/0079-meals-fit-by-cuisine-and-accompaniments-by-cuisine.md), approved by the owner
 - **Dispatch**: `architect` (opus · high) drafting with sources, and `plan-evaluator` checking coverage against the dev library. `/execute-project 016 phase 2`. **owner-approves:** the three tables before any code is built on them. Added 2026-10-02 (owner: "quiero que sea súper profesional").
 - **Goal**: replace per-ingredient meal lists and a bread-only side list with the way a dietitian reasons about a tradition. The tables are data that later phases implement literally.
 - **Deliverable**: a decision record with three tables and their sources (AESAN and SENC guidance, BEDCA for composition, each tradition's home cookery):
@@ -145,6 +145,7 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
 - **Goal**: two complaints from the owner's production plan.
   - Pasta came back many times in one fortnight (different recipes, same base).
   - Pasta and rice landed at dinner, which in Spanish home eating belongs at lunch.
+- **Amended by `0079`:** step 1 (lunch-only by data migration) is superseded. Meal fit is decided in code by cuisine family (`0079` table 2) and needs no catalogue migration. Steps 2–3 (starch-base variety) stand.
 - **Steps**:
   1. **Lunch only.** Pasta, rice and couscous (raw and cooked, the "cooking bases" rows of `packages/database/src/seed/ingredients/meals.ts` rule 5 that are grains or pasta) become lunch only, where today they are lunch and dinner by `0062`.
      - Done through the seed's meal lists and a reviewed data migration for the catalogue rows. The `migration-reviewer` reviews it.
