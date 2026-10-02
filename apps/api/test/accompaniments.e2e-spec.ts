@@ -38,8 +38,9 @@ import type { Response } from 'supertest';
  * piece of fruit, stored on the meal and counted in its energy.
  *
  * The contract the suite is written from: `MealView` and `MealDetailView` carry
- * `accompaniments`, empty when a meal has none **or the `accompaniments` flag
- * is off**; `meals.kcal` is the whole meal, dish and sides; the shopping list
+ * `accompaniments`, what the meal stores (empty when it has none: a plan made, a
+ * meal swapped or a day rebuilt with the flag off stores none; the views never
+ * read the flag); `meals.kcal` is the whole meal, dish and sides; the shopping list
  * includes the sides' ingredients; the sides of a meal carry at most 35% of its
  * energy.
  *
@@ -50,7 +51,8 @@ import type { Response } from 'supertest';
  * food; a swap, an event rebuild and a professional's review and publish each
  * leave every meal consistent in the same way; allergies and patterns hold on
  * the sides as on the dishes, with the model deliberately proposing the
- * allergen; and with the flag off nothing is beside any plate.
+ * allergen; and with the flag off nothing is beside any new plate, while a stored
+ * plan keeps its sides.
  *
  * The flag, the `premium` switch and the `professional` switch are global: all
  * three go back off in `afterAll`. Requires a real database and a seeded
@@ -706,26 +708,30 @@ describe('accompaniments, end to end', () => {
 
   // --- (g) The flag off again --------------------------------------------------
 
-  it('goes back to nothing beside any plate when the flag is turned off, on the views and on a new swap', async () => {
+  it('leaves a stored plan’s sides alone when the flag is turned off, and a swap made while it is off leaves that meal with none', async () => {
+    const stored = await activePlan(main);
+
     await setFlag('accompaniments', false);
 
     const plan = await activePlan(main);
 
-    for (const meal of mealsOf(plan)) {
-      expect(meal.accompaniments).toEqual([]);
-    }
+    // The views show what the meal stores, never what the flag says: the plan is exactly as it was, sides and energy.
+    expect(sidedMeals(plan).length).toBeGreaterThan(0);
+    expect(plan).toEqual(stored);
+    await expectConsistent(plan);
 
-    const target = mealsOf(plan).find(meal => meal.slot === 'lunch');
+    const target = sidedMeals(plan).find(meal => meal.slot === 'lunch') ?? sidedMeals(plan)[0];
 
     await request(server()).post(`/${PREFIX}/meal-plans/meals/${target?.id ?? ''}/swap`).set('Cookie', main.cookie).send({}).expect(201);
 
-    const swapped = (await activePlan(main)).days.flatMap(day => day.meals).find(meal => meal.id === target?.id);
+    const after = await activePlan(main);
+    const swapped = mealsOf(after).find(meal => meal.id === target?.id);
 
     expect(swapped?.accompaniments).toEqual([]);
-
-    // A swapped meal is the dish alone again: its energy is the dish's.
-    const dishes = await dishKcalOf(plan.id);
-
-    expect(Math.abs((swapped?.kcal ?? 0) - (dishes.get(target?.id ?? '') ?? Number.NaN))).toBeLessThanOrEqual(4);
+    expect((await detailOf(main, target?.id ?? '')).accompaniments).toEqual([]);
+    await expectStoredSidesAre(after, [target?.id ?? '']);
+    // A swapped meal is the dish alone again: its energy is the dish's, and the rest is as it was.
+    await expectConsistent(after);
+    expect(mealsOf(after).filter(meal => meal.id !== target?.id)).toEqual(mealsOf(plan).filter(meal => meal.id !== target?.id));
   }, 120_000);
 });
