@@ -56,20 +56,16 @@ export function weightsFor(shape: MealShape): ReadonlyMap<MealSlot, number> {
 }
 
 /**
- * Each eaten slot's fraction of the day — the weights normalised over the
- * slots that are eaten. The one division the scheduler's budgets and the note
- * before generating both read, so the kcal a screen quotes is the kcal a plate
- * is sized to.
+ * Each eaten slot's energy, in kcal, for this shape and these targets.
+ * Unrounded, and the scheduler's own arithmetic (`slotBudgets`) to the last
+ * operation — `(kcal × weight) ÷ total`, not `kcal × (weight ÷ total)` — so the
+ * kcal a screen quotes is the kcal a plate is sized to, bit for bit.
  */
-export function slotShares(weights: ReadonlyMap<MealSlot, number>): ReadonlyMap<MealSlot, number> {
+export function mealShareKcal(shape: MealShape, targets: Pick<NutritionTargets, 'kcal'>): ReadonlyMap<MealSlot, number> {
+  const weights = weightsFor(shape);
   const total = [...weights.values()].reduce((sum, weight) => sum + weight, 0) || 1;
 
-  return new Map([...weights].map(([slot, weight]) => [slot, weight / total]));
-}
-
-/** Each eaten slot's energy, in kcal, for this shape and these targets. Unrounded. */
-export function mealShareKcal(shape: MealShape, targets: Pick<NutritionTargets, 'kcal'>): ReadonlyMap<MealSlot, number> {
-  return new Map([...slotShares(weightsFor(shape))].map(([slot, share]) => [slot, targets.kcal * share]));
+  return new Map([...weights].map(([slot, weight]) => [slot, (targets.kcal * weight) / total]));
 }
 
 /**

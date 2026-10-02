@@ -1,7 +1,6 @@
 import { composePerServing, scaleIngredients, scaleMacros, sumMacros } from 'core/domain/Composition';
 import { canPlace, isPreferredDish, MAIN_SLOTS, mainProtein, nearestGap, PREFERRED_MAIN_GAP, PROTEIN_RULES, proteinCap } from 'core/domain/Variety';
 import { PLAN_TOLERANCE } from 'core/domain/PlanValidation';
-import { slotShares } from 'core/domain/MealShape';
 import type { Leaning, Placement } from 'core/domain/Variety';
 import type { CandidateDish, Catalogue, Macros, MealSlot, PlanAssignment, PlanDayAssignment, ScheduledMeal, SwapAxis } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
@@ -651,10 +650,17 @@ export function axisFilter(
  * in a test (`0045`).
  */
 function slotBudgets(weights: ReadonlyMap<MealSlot, number>, targets: NutritionTargets): ReadonlyMap<MealSlot, SlotBudget> {
+  const total = [...weights.values()].reduce((sum, weight) => sum + weight, 0) || 1;
+
   return new Map(
-    [...slotShares(weights)].map(([slot, share]) => [
+    [...weights].map(([slot, weight]) => [
       slot,
-      { carbsG: targets.carbsG * share, fatG: targets.fatG * share, kcal: targets.kcal * share, proteinG: targets.proteinG * share }
+      {
+        carbsG: (targets.carbsG * weight) / total,
+        fatG: (targets.fatG * weight) / total,
+        kcal: (targets.kcal * weight) / total,
+        proteinG: (targets.proteinG * weight) / total
+      }
     ])
   );
 }
