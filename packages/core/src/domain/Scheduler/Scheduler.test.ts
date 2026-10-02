@@ -1126,16 +1126,17 @@ describe('schedulePlan — the fortnight is repaired as a whole (0048)', () => {
   });
 
   it('repairs the fortnight without bringing rice onto days running (STARCH_RULES)', () => {
-    // The same pool, the starch of its two starchiest lunches rice and of the rest quinoa: the exchanges now move a base between days.
+    // The same pool, the starch of its two starchiest lunches rice: the exchanges now move a base between days.
+    // The rest keep the fixture's own `arroz`, which no food group knows. They were quinoa until 017 phase 2
+    // capped the grains too, and a pool whose every lunch is capped has no way to keep rice apart.
     const starchy = makeCatalogue([
       ...[...spreadCatalogue.values()],
-      { ...(spreadCatalogue.get('arroz') as CatalogueIngredient), id: 'i-arroz-largo', slug: 'arroz-largo-crudo' },
-      { ...(spreadCatalogue.get('arroz') as CatalogueIngredient), id: 'i-quinoa', slug: 'quinoa-cruda' }
+      { ...(spreadCatalogue.get('arroz') as CatalogueIngredient), id: 'i-arroz-largo', slug: 'arroz-largo-crudo' }
     ]);
     const pool = spreadPool.map(dish => ({
       ...dish,
       ingredients: dish.ingredients.map(item =>
-        item.slug === 'arroz' ? { ...item, slug: dish.slug === 'lunch-0' || dish.slug === 'lunch-1' ? 'arroz-largo-crudo' : 'quinoa-cruda' } : item
+        item.slug === 'arroz' && (dish.slug === 'lunch-0' || dish.slug === 'lunch-1') ? { ...item, slug: 'arroz-largo-crudo' } : item
       )
     }));
     const result = schedulePlan({ catalogue: starchy, minimumKcal: MINIMUM_KCAL, pool, targets: T, weights: weightsFor(shapeFor(3, false)) });

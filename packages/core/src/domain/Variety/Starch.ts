@@ -85,27 +85,30 @@ export function starchBase(dish: Dish): StarchBase | null {
 }
 
 /**
- * **Four of pasta and four of rice a fortnight, never on two days running**
- * (owner, 2026-10-02; plan 016 phase 7).
+ * **Four of pasta, four of rice and four of couscous or another grain a
+ * fortnight, each never on two days running** (owner, 2026-10-02; plan 016
+ * phase 7, grains from plan 017 phase 2).
  *
- * Only those two: they are what came back, and a plate of potato or a legume
- * stew is the ordinary shape of a Spanish week. Twice on one day counts as
- * running too. Like `PROTEIN_RULES`, a preference the scheduler keeps whenever
- * the pool lets it, priced at the same weight — never a reason to fail a plan.
+ * Only those three: pasta and rice are what came back, and couscous followed
+ * them once the 20 g threshold saw it — a real fortnight served it seven times,
+ * five at dinner. A plate of potato or a legume stew is the ordinary shape of
+ * a Spanish week. Twice on one day counts as running too. Like
+ * `PROTEIN_RULES`, a preference the scheduler keeps whenever the pool lets it,
+ * priced at the same weight — never a reason to fail a plan.
  */
-export const STARCH_RULES = { capped: ['pasta', 'rice'], perFortnight: 4 } as const satisfies {
+export const STARCH_RULES = { capped: ['pasta', 'rice', 'grains'], perFortnight: 4 } as const satisfies {
   readonly capped: readonly StarchBase[];
   readonly perFortnight: number;
 };
 
 const CAPPED: ReadonlySet<StarchBase> = new Set(STARCH_RULES.capped);
 
-/** Whether the rule counts this base: pasta or rice. */
+/** Whether the rule counts this base: pasta, rice or grains. */
 export function isCappedStarch(base: StarchBase | null | undefined): boolean {
   return base !== null && base !== undefined && CAPPED.has(base);
 }
 
-/** How often pasta, or rice, may appear in a plan of `days` days — four in fourteen, scaled, one at least. */
+/** How often pasta, rice or grains may each appear in a plan of `days` days — four in fourteen, scaled, one at least. */
 export function starchCap(days: number): number {
   return Math.max(1, Math.ceil((STARCH_RULES.perFortnight * days) / 14));
 }

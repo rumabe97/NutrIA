@@ -544,7 +544,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
   const proteins = proteinIndex(input.pool, input.catalogue);
   // Over the whole fortnight, even when only some of its days are laid out here.
   const cap = proteinCap(slots.length * days);
-  // Pasta and rice, priced at the protein rule's weight wherever it is (`STARCH_RULES`).
+  // Pasta, rice and grains, priced at the protein rule's weight wherever it is (`STARCH_RULES`).
   const starch: StarchRule = { days, index: starchIndex(input.pool) };
   const indexes = input.dayIndexes ?? Array.from({ length: days }, (_none, offset) => offset + 1);
 
@@ -1077,7 +1077,7 @@ function perServingIndex(pool: readonly CandidateDish[], catalogue: Catalogue): 
 /** Each pool dish's main protein, by slug — see `mainProtein`. */
 type ProteinIndex = ReadonlyMap<string, string | null>;
 
-/** Pasta and rice (`STARCH_RULES`): each pool dish's base, and the plan's length its cap is scaled to. */
+/** Pasta, rice and grains (`STARCH_RULES`): each pool dish's base, and the plan's length its cap is scaled to. */
 type StarchRule = { readonly days: number; readonly index: StarchIndex };
 
 function proteinIndex(pool: readonly CandidateDish[], catalogue: Catalogue): ProteinIndex {
@@ -1188,7 +1188,7 @@ function pickBest(
   slot: MealSlot,
   crowds: (slug: string) => number
 ): CandidateDish | undefined {
-  // A dish that would repeat a main protein, or pasta or rice, is priced as
+  // A dish that would repeat a main protein, or a capped starch (`STARCH_RULES`), is priced as
   // fitting that much worse per rule (`PROTEIN_REPEAT_WEIGHT`): another dish wins if it fits nearly as
   // well, and the repeat is served when nothing does. A dish already served
   // elsewhere in the plan carries the same kind of cost (`DISH_REPEAT_WEIGHT`)
@@ -1899,7 +1899,7 @@ function improveDay(
   const others = placed.filter(placement => placement.dayIndex !== dayIndex);
   const elsewhere = proteinCounts(others, protein.proteins);
   const proteinOf = (slug: string): string | null => protein.proteins.get(slug) ?? null;
-  // Pasta and rice against the rest of the plan, at the protein rule's weight.
+  // Pasta, rice and grains against the rest of the plan, at the protein rule's weight.
   const { starch } = protein;
   const starchElsewhere = starchMeals(others, starch.index);
   const starchOf = (day: readonly Pick[]): number =>
@@ -1962,7 +1962,7 @@ function improveDay(
         const swapped = current.map((entry, position) =>
           position === index ? { base, dish: candidate, servings, slot: entry.slot, sortOrder: entry.sortOrder } : entry
         );
-        // Only a swap that brings pasta or rice in, or takes it out, can move the starch cost.
+        // Only a swap that brings a capped starch in, or takes it out, can move the starch cost.
         const starchCost =
           isCappedStarch(starch.index.get(candidate.slug)) || isCappedStarch(starch.index.get(pick.dish.slug)) ? starchOf(swapped) : starchNow;
         const extra = repeats + dayReuseCost(swapped, dayIndex, others) + starchCost;

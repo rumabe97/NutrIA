@@ -55,7 +55,7 @@ import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts
 import { RecipeController } from 'core/controllers/Recipe';
 import { larderFor } from 'core/domain/Accompaniment';
 import { SafetyController } from 'core/controllers/Safety';
-import { cuisineFamily } from 'core/domain/MealFit';
+import { cuisineFamily, dishGroups, groupFits } from 'core/domain/MealFit';
 import { DEFAULT_MEAL_SHAPE, shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { loadedTargets } from 'core/domain/Event';
 import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
@@ -480,6 +480,24 @@ async function measureProfile(profile, shared, options) {
 
   const daysOutside = new Set(bandViolations.map(violation => violation.dayIndex));
   const daysInsideAll4 = PLAN_DAYS - daysOutside.size;
+  // Each day out of band with what missed and what it served (017 phase 2), so
+  // a day a rule costs can be traced to its macro and its meals.
+  const outOfBand = [...daysOutside]
+    .sort((a, b) => a - b)
+    .map(dayIndex => ({
+      dayIndex,
+      meals: (scheduled.assignment.days.find(day => day.dayIndex === dayIndex)?.meals ?? []).map(meal => ({
+        base: starchBase(meal.dish) ?? 'none',
+        dish: meal.dish.name,
+        kcal: Math.round(meal.macros.kcal),
+        servings: meal.servings,
+        sides: (meal.accompaniments ?? []).map(side => side.key),
+        slot: meal.slot
+      })),
+      misses: bandViolations
+        .filter(violation => violation.dayIndex === dayIndex)
+        .map(violation => ({ actual: Math.round(violation.actual * 10) / 10, kind: violation.kind, target: violation.target }))
+    }));
 
   let worst = null;
 
@@ -543,6 +561,7 @@ async function measureProfile(profile, shared, options) {
     dinnersByFamily,
     measured: true,
     note,
+    outOfBand,
     plateShare,
     plateWeight,
     poolBySlot,
@@ -588,6 +607,7 @@ function starchMetrics(days) {
   const byFamily = {};
   const gnocchi = [];
   let dinnerPastaOrRiceOutsideAsian = 0;
+  const outsideTable2 = [];
 
   for (const day of days) {
     for (const meal of day.meals) {
@@ -609,6 +629,14 @@ function starchMetrics(days) {
 
         if (meal.slot === 'dinner' && isCappedStarch(base) && family !== 'asian') {
           dinnerPastaOrRiceOutsideAsian += 1;
+        }
+
+        // 017 phase 2: what Table 2 itself refuses at this meal — rice at a
+        // Latin dinner is allowed, so this, not the line above, must be 0.
+        for (const group of dishGroups(meal.dish)) {
+          if (isCappedStarch(group) && !groupFits(family, group, meal.slot)) {
+            outsideTable2.push({ dayIndex: day.dayIndex, dish: meal.dish.name, family, group, slot: meal.slot });
+          }
         }
 
         if (meal.dish.ingredients.some(item => item.slug === GNOCCHI_SLUG)) {
@@ -645,6 +673,7 @@ function starchMetrics(days) {
     dinners,
     gnocchi,
     mains,
+    outsideTable2,
     total
   };
 }
@@ -1176,6 +1205,14 @@ function printProfile(profile, result) {
     console.log('  worst day: none — every day inside band');
   }
 
+  for (const day of result.outOfBand ?? []) {
+    console.log(
+      `  out of band, day ${day.dayIndex}: ${day.misses.map(miss => `${miss.kind} ${miss.actual} vs ${miss.target}`).join('; ')} — ${day.meals
+        .map(meal => `${meal.slot} "${meal.dish}" ×${meal.servings}${meal.sides.length > 0 ? ` + ${meal.sides.join(', ')}` : ''}`)
+        .join('; ')}`
+    );
+  }
+
   console.log(`  deviation from target, signed mean / mean |dev|: ${formatDeviations(result.deviations)}`);
 
   const advisoryEntries = Object.entries(result.advisories);
@@ -1327,9 +1364,11 @@ function printProfile(profile, result) {
       `  starch base (016 p7), lunches and dinners: ${Object.entries(mains)
         .sort((a, b) => b[1] - a[1])
         .map(([base, count]) => `${base} ${count}`)
+        .join(', ')}; all meals ${Object.entries(total)
+        .map(([base, count]) => `${base} ${count}`)
         .join(
           ', '
-        )}; all meals pasta ${total.pasta}, rice ${total.rice} (cap ${cap}); dinners with pasta or rice ${dinnerPastaOrRice}; days running ${consecutive.length}${consecutive.length > 0 ? ` (${consecutive.join(', ')})` : ''}`
+        )} (cap ${cap} each); dinners with pasta or rice ${dinnerPastaOrRice}; days running ${consecutive.length}${consecutive.length > 0 ? ` (${consecutive.join(', ')})` : ''}`
     );
 
     const { byFamily = {}, dinnerPastaOrRiceOutsideAsian, gnocchi = [] } = result.starch;
@@ -1351,6 +1390,12 @@ function printProfile(profile, result) {
     }
 
     console.log(`  dinners with pasta or rice outside the Asian family: ${dinnerPastaOrRiceOutsideAsian}`);
+
+    const { outsideTable2 = [] } = result.starch;
+
+    console.log(
+      `  pasta, rice or grains where 0079 Table 2 refuses them (017 p2, must be 0): ${outsideTable2.length}${outsideTable2.length > 0 ? ` (${outsideTable2.map(item => `day ${item.dayIndex} ${item.slot}: "${item.dish}", ${item.family} ${item.group}`).join('; ')})` : ''}`
+    );
     console.log(
       `  gnocchi: ${gnocchi.length}${gnocchi.length > 0 ? ` (${gnocchi.map(item => `day ${item.dayIndex} ${item.slot}: "${item.dish}", ${item.family}, read as ${item.base}`).join('; ')})` : ''}`
     );

@@ -79,7 +79,7 @@ describe('the starch of a real fortnight (production plan v15)', () => {
   });
 });
 
-describe('STARCH_RULES — pasta and rice four times a fortnight, never on days running', () => {
+describe('STARCH_RULES — pasta, rice and grains four times a fortnight, never on days running', () => {
   const pasta = (dayIndex: number): StarchMeal => ({ base: 'pasta', dayIndex });
   const rice = (dayIndex: number): StarchMeal => ({ base: 'rice', dayIndex });
 
@@ -104,14 +104,28 @@ describe('STARCH_RULES — pasta and rice four times a fortnight, never on days 
     expect(starchExcess([pasta(1), rice(2)], 14)).toBe(0);
   });
 
-  it('never counts potato, a legume, a grain or bread', () => {
+  it('never counts potato, a legume or bread', () => {
     const meals: StarchMeal[] = Array.from({ length: 14 }, (_none, day) => [
       { base: 'potato' as const, dayIndex: day + 1 },
-      { base: 'legume' as const, dayIndex: day + 1 }
+      { base: 'legume' as const, dayIndex: day + 1 },
+      { base: 'bread' as const, dayIndex: day + 1 }
     ]).flat();
 
     expect(starchExcess(meals, 14)).toBe(0);
     expect(starchCrowded('potato', 2, meals, 14)).toBe(false);
+  });
+
+  it('caps couscous and the other grains like pasta and rice (017 phase 2: a real fortnight served couscous seven times)', () => {
+    const grains = (dayIndex: number): StarchMeal => ({ base: 'grains', dayIndex });
+
+    expect(STARCH_RULES.capped).toContain('grains');
+    expect(starchExcess([1, 3, 5, 7].map(grains), 14)).toBe(0);
+    expect(starchExcess([1, 3, 5, 7, 9, 11, 13].map(grains), 14)).toBe(3);
+    expect(starchExcess([grains(4), grains(5)], 14)).toBe(1);
+    expect(starchCrowded('grains', 6, [grains(5)], 14)).toBe(true);
+    expect(starchCrowded('grains', 7, [grains(5)], 14)).toBe(false);
+    // A grain beside a pasta is two bases, not a run.
+    expect(starchExcess([grains(4), { base: 'pasta', dayIndex: 5 }], 14)).toBe(0);
   });
 
   it('crowds a pasta beside a pasta, or one past the cap', () => {
