@@ -61,10 +61,29 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
      - copy in both dictionaries.
   3. Run the design review and `/local-probe`.
 
-### Phase 2 — Accompaniments in the domain, behind a flag (A)
+### Phase 2 — Design: cuisine families, what fits each meal, and accompaniments by cuisine (owner approves the tables)
 
 - [ ] pending
-- **Dispatch**: `backend-high` (opus · high), `frontend` (sonnet · medium, for the note refinement only), `plan-evaluator`, `invariant-reviewer` (opus · high). `/execute-project 016 phase 2`. Starts after project 015 phase 2 merges, because both touch `/plan/generando` and the allowances view.
+- **Dispatch**: `architect` (opus · high) drafting with sources, and `plan-evaluator` checking coverage against the dev library. `/execute-project 016 phase 2`. **owner-approves:** the three tables before any code is built on them. Added 2026-10-02 (owner: "quiero que sea súper profesional").
+- **Goal**: replace per-ingredient meal lists and a bread-only side list with the way a dietitian reasons about a tradition. The tables are data that later phases implement literally.
+- **Deliverable**: a decision record with three tables and their sources (AESAN and SENC guidance, BEDCA for composition, each tradition's home cookery):
+  1. **Cuisine families.** About 6–7: Spanish/Mediterranean, Italian, Asian, Mexican/Latin, Arab/Maghreb, other. Normalised from a recipe's free-text `cuisine` (the map started in `0077`), with a rule for null.
+  2. **What fits each meal, by family.** Family × food group (rice, pasta, couscous and other grains, bread, potato or boniato, legume stews, fried, heavy sauces, raw salads…) × meal slot, with a one-line reason each. For example, rice at lunch in Spanish/Mediterranean but at any main meal in Asian. It supersedes the slot rule of the former phase 6 and drives `MealFit` for dishes by their family.
+  3. **Accompaniments by family.**
+     - Simple ones: bread, seasonal fruit, yoghurt, nuts, fresh cheese.
+     - Composed ones, as small fixed recipes with ingredients and portions, so that safety and macros work: green salad, mixed salad, plain rice, sautéed vegetables, gazpacho in season, tortilla de maíz, pico de gallo…
+     - Each family's typical set, and which slot each accompaniment fits.
+     - All of them respect allergies, dietary patterns (`traditional_spanish` excludes its rows), season and dislikes.
+- **Steps**:
+  1. Draft the tables with sources.
+  2. Measure them against the dev library: for each family and slot, how many dishes remain servable and which food groups thin dinner. Stop and flag any slot under `DISHES_NEEDED_PER_SLOT`.
+  3. The owner reviews and approves, or edits.
+  4. Write the decision record and amend phases 3–4 if the tables change their shape.
+
+### Phase 3 — Accompaniments in the domain, behind a flag (A)
+
+- [ ] pending
+- **Dispatch**: `backend-high` (opus · high), `frontend` (sonnet · medium, for the note refinement only), `plan-evaluator`, `invariant-reviewer` (opus · high). `/execute-project 016 phase 3`. Starts after project 015 phase 2 merges, because both touch `/plan/generando` and the allowances view.
 - **Goal**: PRD criterion 4, domain half, with the flag off in production.
 
 - **Added 2026-10-02 (owner): a smarter large-meals note (C refinement).** The note told a person who already eats four times (two light snacks) to "add a meal". It should name the change that would work.
@@ -84,10 +103,10 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
   5. Run the evaluator with `--flag accompaniments`.
 - **Stop if**: any profile loses a day in band, a fortnight takes more than ~60 s, or any allergen reaches a plate.
 
-### Phase 3 — Accompaniments end to end, and the flag on (A)
+### Phase 4 — Accompaniments end to end, and the flag on (A)
 
 - [ ] pending
-- **Dispatch**: `/team` — `backend-high`, `frontend`, `tests`, `migration-reviewer`, `invariant-reviewer`, `accessibility`. `/execute-project 016 phase 3`. **human-verify:** the owner sees it on the iPhone.
+- **Dispatch**: `/team` — `backend-high`, `frontend`, `tests`, `migration-reviewer`, `invariant-reviewer`, `accessibility`. `/execute-project 016 phase 4`. **human-verify:** the owner sees it on the iPhone.
 - **Goal**: PRD criterion 4, end to end.
 - **Steps**:
   1. Add the `meal_accompaniments` migration (additive) and the repository.
@@ -96,10 +115,10 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
   4. e2e: a meal with accompaniments, a swap, a rebuild, a professional review, and allergies and patterns respected.
   5. Turn the flag on after deploy, and with it return `PLATE_GRAMS_MAX` to the flat 750 g (phase 1's scaling ends).
 
-### Phase 4 — No plate holds more than two servings of one food (D), after accompaniments
+### Phase 5 — No plate holds more than two servings of one food (D), after accompaniments
 
 - [ ] pending
-- **Dispatch**: `backend` (opus · medium) and `plan-evaluator`. `/execute-project 016 phase 4`.
+- **Dispatch**: `backend` (opus · medium) and `plan-evaluator`. `/execute-project 016 phase 5`.
 - **Goal**: PRD criterion 3. Reordered after A (owner, 2026-10-02): before accompaniments exist, a per-food ceiling would cost more days in band. Run only if the evaluator still shows a food over its ceiling once A is on.
 - **Steps**:
   1. Add `PLATE_FOOD_MAX` and the group test, with groups recognised as `0008` § D says.
@@ -108,10 +127,10 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
   4. Run the evaluator against the phase 0 base.
 - **Stop if**: a profile loses more than one day in band.
 
-### Phase 5 — Dishes designed for one person (B)
+### Phase 6 — Dishes designed for one person (B)
 
 - [ ] pending
-- **Dispatch**: `backend-high` (opus · high), `invariant-reviewer`, `plan-evaluator`. `/execute-project 016 phase 5`.
+- **Dispatch**: `backend-high` (opus · high), `invariant-reviewer`, `plan-evaluator`. `/execute-project 016 phase 6`.
 - **Goal**: PRD criterion 5.
 - **Steps**:
   1. Change the prompt as in `0008` § B, with a spec that the person-dependent text is unchanged.
@@ -119,10 +138,10 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
   3. PROMPT_VERSION 4.6.0.
   4. In the console, watch the `oversized` and `unwanted` rates for two weeks.
 
-### Phase 6 — Pasta and rice belong at lunch, and one starch base does not crowd the fortnight
+### Phase 7 — Starch-base variety (its lunch-only rule is superseded by phase 2's table)
 
 - [ ] pending
-- **Dispatch**: `backend` (opus · medium) and `plan-evaluator`. `/execute-project 016 phase 6`. Added 2026-10-02 (owner, from their own production plan).
+- **Dispatch**: `backend` (opus · medium) and `plan-evaluator`. `/execute-project 016 phase 7`. Added 2026-10-02 (owner, from their own production plan).
 - **Goal**: two complaints from the owner's production plan.
   - Pasta came back many times in one fortnight (different recipes, same base).
   - Pasta and rice landed at dinner, which in Spanish home eating belongs at lunch.
@@ -138,7 +157,13 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
 
 ## Hand-off
 
-- **Order** (amended 2026-10-02): C with the scaled ceiling, then A (domain, then end to end), then D if still needed, then B. B never goes before A.
+- **Order** (amended 2026-10-02):
+  1. C with the scaled ceiling.
+  2. The design tables, which the owner approves.
+  3. A in the domain, then A end to end, built on the tables.
+  4. D, if still needed.
+  5. B, which never goes before A.
+  6. Starch-base variety.
 - **Zero euros.** Measuring B with `bench-models.mjs` costs model calls: ask the owner for the number first.
 - **Production** is read-only, and only by the owner's command.
 - **No `fable` for agents.**
