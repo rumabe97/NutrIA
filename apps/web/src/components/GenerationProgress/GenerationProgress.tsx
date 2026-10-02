@@ -17,12 +17,13 @@ import { StartDatePicker } from 'components/StartDatePicker';
 import { api, ApiError, messageFor } from 'lib/api';
 import { formatDate, interpolate } from 'lib/format';
 import { generationError, stepLabel } from 'lib/generation';
-import { hasMealSizeAnswer, mealSizeBody, rememberMealSizeAnswer, subscribeMealSizeAnswers } from 'lib/mealSize';
+import { hasMealSizeAnswer, mealSizeAction, mealSizeBody, rememberMealSizeAnswer, subscribeMealSizeAnswers } from 'lib/mealSize';
 import { markPendingReview } from 'lib/pendingReview';
 
 import type { AllowancesView, JobView } from 'core/controllers/Plan';
 import type { EventAllowance } from 'components/EventPlanner';
 import type { EventView } from 'core/controllers/Event';
+import type { MealSizeSuggestion } from 'lib/mealSize';
 
 /**
  * Polling backs off: 1 s, 2 s, 4 s, then every 6 s. The first answers arrive
@@ -56,7 +57,7 @@ interface GenerationProgressProps {
    * What the biggest main meal will weigh, when the shape makes it large, and the
    * key its answer is kept under (`mealSizeKey`). Null when nothing needs saying.
    */
-  mealSize: { answerKey: string; count: number; kcal: number } | null;
+  mealSize: { answerKey: string; count: number; kcal: number; suggestion: MealSizeSuggestion | null } | null;
   /** The first day a redo is available again, when none is left. */
   redoNextAt: string | null;
   /** Today and the seven days after, each with what choosing it costs. */
@@ -96,6 +97,7 @@ export function GenerationProgress({ allowance, defaultStart, events, mealSize, 
     notAnsweredOnServer
   );
   const asksAboutSize = mealSize !== null && !kept;
+  const addLabel = mealSize ? mealSizeAction(dictionary, locale, mealSize.suggestion) : null;
 
   async function start() {
     setFatal(undefined);
@@ -245,7 +247,10 @@ export function GenerationProgress({ allowance, defaultStart, events, mealSize, 
             until the figure or the shape changes. */}
         {asksAboutSize ? (
           <div className={styles.before}>
-            <MealSizeNote body={mealSizeBody(dictionary, locale, mealSize.count, mealSize.kcal)} title={dictionary.mealSize.title} />
+            <MealSizeNote
+              body={mealSizeBody(dictionary, locale, mealSize.count, mealSize.kcal, mealSize.suggestion)}
+              title={dictionary.mealSize.title}
+            />
           </div>
         ) : null}
 
@@ -263,9 +268,11 @@ export function GenerationProgress({ allowance, defaultStart, events, mealSize, 
               >
                 {dictionary.mealSize.keep}
               </Button>
-              <CtaLink href="/onboarding/4?volver=generando" size="lg" variant="secondary">
-                {dictionary.mealSize.add}
-              </CtaLink>
+              {addLabel ? (
+                <CtaLink href="/onboarding/4?volver=generando" size="lg" variant="secondary">
+                  {addLabel}
+                </CtaLink>
+              ) : null}
             </Fragment>
           ) : (
             <Button onClick={() => void start()} size="lg" type="button">

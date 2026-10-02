@@ -39,7 +39,7 @@ export default async function GeneratingPage() {
       events={events ?? []}
       mealSize={
         size?.largeMeals && shape
-          ? { answerKey: mealSizeKey(size.largestMainKcal, shape), count: mealCount(shape), kcal: size.largestMainKcal }
+          ? { answerKey: mealSizeKey(size.largestMainKcal, shape), count: mealCount(shape), kcal: size.largestMainKcal, suggestion: size.suggestion }
           : null
       }
       redoNextAt={allowances?.planRedo.nextAt ?? null}

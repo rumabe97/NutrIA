@@ -7,7 +7,9 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { CtaLink } from 'components/CtaLink';
 import { MealSizeNote } from 'components/MealSizeNote';
 
-import { hasMealSizeAnswer, mealSizeBody, rememberMealSizeAnswer, subscribeMealSizeAnswers } from 'lib/mealSize';
+import { hasMealSizeAnswer, mealSizeAction, mealSizeBody, rememberMealSizeAnswer, subscribeMealSizeAnswers } from 'lib/mealSize';
+
+import type { MealSizeSuggestion } from 'lib/mealSize';
 
 interface ProfileMealSizeNoteProps {
   /** `mealSizeKey` of the biggest main meal and the shape. */
@@ -15,6 +17,7 @@ interface ProfileMealSizeNoteProps {
   /** How many meals a day the shape has. */
   count: number;
   kcal: number;
+  suggestion: MealSizeSuggestion | null;
 }
 
 /** The server cannot know what this browser remembers, so it draws nothing. */
@@ -27,13 +30,14 @@ function hiddenOnServer(): boolean {
  * Dismissed is remembered against the shape and the figure, so it comes back
  * when either changes.
  */
-export function ProfileMealSizeNote({ answerKey, count, kcal }: ProfileMealSizeNoteProps) {
+export function ProfileMealSizeNote({ answerKey, count, kcal, suggestion }: ProfileMealSizeNoteProps) {
   const dictionary = useDictionary();
   const locale = useLocale();
   const dismissed = useSyncExternalStore(subscribeMealSizeAnswers, () => hasMealSizeAnswer('dismissed', answerKey), hiddenOnServer);
 
   const holder = useRef<HTMLDivElement>(null);
   const [said, setSaid] = useState(false);
+  const add = mealSizeAction(dictionary, locale, suggestion);
 
   function dismiss() {
     rememberMealSizeAnswer('dismissed', answerKey);
@@ -53,15 +57,17 @@ export function ProfileMealSizeNote({ answerKey, count, kcal }: ProfileMealSizeN
         <MealSizeNote
           actions={
             <Fragment>
-              <CtaLink href="/onboarding/4?volver=perfil" variant="secondary">
-                {dictionary.mealSize.add}
-              </CtaLink>
+              {add ? (
+                <CtaLink href="/onboarding/4?volver=perfil" variant="secondary">
+                  {add}
+                </CtaLink>
+              ) : null}
               <Button onClick={dismiss} type="button" variant="secondary">
                 {dictionary.mealSize.understood}
               </Button>
             </Fragment>
           }
-          body={mealSizeBody(dictionary, locale, count, kcal)}
+          body={mealSizeBody(dictionary, locale, count, kcal, suggestion)}
           heading="h3"
           title={dictionary.mealSize.title}
         />
