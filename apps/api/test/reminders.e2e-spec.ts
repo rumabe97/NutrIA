@@ -3,7 +3,7 @@ import request from 'supertest';
 
 import { NotificationController } from 'core/controllers/Notification';
 
-import { completeOnboarding, createApp, deleteAccounts, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import { completeOnboarding, createApp, deleteAccounts, generateAndWait, httpServer, POOL, PREFIX, register, madridToday, ScriptedAiClient, shiftPlansBack } from './harness.js';
 
 import type { Account } from './harness.js';
 import type { INestApplication } from '@nestjs/common';
@@ -57,7 +57,15 @@ describe('the check-in reminder', () => {
 
     const plan: Response = await request(httpServer(app)).get(`/${PREFIX}/meal-plans/active`).set('Cookie', account.cookie).expect(200);
 
-    closes = (plan.body as PlanView).endDate;
+    // The plan runs to its last day, so that is today: a reminder recorded "now"
+    // is only found again if it was sent after the plan began, as it always is
+    // in life. Left to start today, "now" is before the Madrid day's midnight in
+    // UTC for two hours a night and the record would not count.
+    const lastDay = (plan.body as PlanView).endDate;
+    const daysToGo = Math.round((Date.parse(`${lastDay}T00:00:00Z`) - Date.parse(`${madridToday()}T00:00:00Z`)) / DAY_MS);
+
+    await shiftPlansBack(account.id, daysToGo);
+    closes = madridToday();
   }, 120_000);
 
   afterAll(async () => {

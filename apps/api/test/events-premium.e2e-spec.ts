@@ -15,6 +15,7 @@ import {
   dish,
   generateAndWait,
   httpServer,
+  madridToday,
   POOL,
   PREFIX,
   register,
@@ -141,7 +142,7 @@ describe('events on premium', () => {
     // Trace-sensitive, so oats count too: the library's breakfasts carry bread
     // and oats, and the premise of the safety case is that neither may be served.
     await completeOnboarding(app, celiac, [glutenId], [], true);
-    today = new Date().toISOString().slice(0, 10);
+    today = madridToday();
 
     expect((await generateAndWait(app, athlete)).status).toBe('succeeded');
     expect((await generateAndWait(app, celiac)).status).toBe('succeeded');
