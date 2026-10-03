@@ -677,7 +677,7 @@ export const NO_ACCOMPANIMENT: AccompanimentSet = { items: [], macros: { carbsG:
  */
 export type AccompanimentDiner = {
   readonly catalogue: Catalogue;
-  readonly preferences: Pick<PreferenceExclusions, 'excludedIngredientIds' | 'keepsMeatFromDairy'>;
+  readonly preferences: Pick<PreferenceExclusions, 'excludedIngredientIds' | 'keepsMeatFromDairy' | 'refusesForeignDishes'>;
   readonly safety: SafetyProfile;
 };
 
@@ -694,12 +694,22 @@ export type Larder = { readonly diner: AccompanimentDiner; readonly portions: re
  * (`mentionsUnresolvedAllergy`): somebody who typed "gazpacho" gets no gazpacho,
  * though tomato and cucumber share no word with it. A composed accompaniment
  * with one row out is out whole.
+ *
+ * Whoever refuses foreign dishes (`traditional_spanish`, `0077`) is offered no
+ * side that only a foreign family serves, whatever its rows: a couscous or an
+ * elote holds nothing `0077` lists, and the dish filter (`breaksPatternDish`)
+ * reads a cuisine list that does not hold every value `cuisineFamily` maps to
+ * a foreign family ("turca", "cubana"), so it cannot be what keeps them away.
  */
 export function larderFor(diner: AccompanimentDiner): Larder {
   const unresolved = bestEffortExclusions(diner.safety.unenforceableLabels, [...diner.catalogue.values()]);
   const portions: AccompanimentPortion[] = [];
 
   for (const accompaniment of ACCOMPANIMENTS) {
+    if (diner.preferences.refusesForeignDishes && isForeignOnly(accompaniment)) {
+      continue;
+    }
+
     for (const items of accompaniment.portions) {
       const known = items.every(item => diner.catalogue.has(item.slug));
       const allowed = items.every(item => {
@@ -723,6 +733,14 @@ export function larderFor(diner: AccompanimentDiner): Larder {
   }
 
   return { diner, portions };
+}
+
+/** The families `traditional_spanish` refuses a dish of (`FOREIGN_CUISINES`, by family). */
+const FOREIGN_FAMILIES: ReadonlySet<CuisineFamily> = new Set(['arab', 'asian', 'latin']);
+
+/** A side only foreign families serve: never one every family shares, nor one a Spanish or Italian table does. */
+function isForeignOnly(accompaniment: Accompaniment): boolean {
+  return accompaniment.families !== 'all' && accompaniment.families.every(family => FOREIGN_FAMILIES.has(family));
 }
 
 /** The fruits a dish may already be carrying, so a fruit dessert is not served beside a fruit plate. */
