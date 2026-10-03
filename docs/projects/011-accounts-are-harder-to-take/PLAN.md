@@ -322,7 +322,7 @@ records what was decided.
 
 ### Phase 4 — The owner removes a lost second factor, after 48 hours
 
-- [ ] in progress
+- [x] done — #205 (2026-10-03)
 - **Dispatch**: opus @ high — `/execute-project 011 phase 4`, as a `/team` (`backend`,
   `frontend`, `tests`). `quality-max`: it removes a person's protection. Reviews:
   `invariant-reviewer`, `migration-reviewer`, `legal` (the procedure). — owner-approves:
