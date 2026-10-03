@@ -619,3 +619,44 @@
   production (the plan's condition).
 - **Decisions**: none new.
 - **Advisor**: not consulted.
+
+## Hotfix — the confirmation link signed in whoever opened it (2026-10-03)
+
+- **Found by**: the phase 8 invariant review, as a P0 already on `main`. Fixed by
+  `backend` (`backend-011p6`) on `fix/verify-no-auto-sign-in`, outside phase 8's own
+  scope; the lead assigned the web and e2e halves to it too.
+- **The attack**: `emailVerification.autoSignInAfterVerification` was `true`.
+  1. A stranger signs the victim's address up with a password of their own; Better Auth
+     mails the victim the confirmation link.
+  2. The victim opens it and is signed into the stranger's account. Onboarding asks for
+     health data, and the victim enters it.
+  3. The stranger, who holds the password (and still the session sign-up gave), reads
+     it.
+- **The fix**:
+  - `autoSignInAfterVerification: false`. The link proves the mailbox and nothing more.
+  - Every confirmation link lands on the web's `/verificar-email` (`VERIFIED_PAGE` in
+    `VerificationMail.ts`, set before `absoluteCallback`), whatever `callbackURL` the
+    client sent. Links already in mailboxes carry `callbackURL=/` and land on the home
+    page, signed out: harmless, and they still confirm.
+  - `/verificar-email` was orphaned (sign-up has gone to `/onboarding` for a while). It is
+    now "Correo confirmado" / "Ahora inicia sesión con tu correo y tu contraseña", with a
+    link to sign in and, for somebody who did not make the account or does not know its
+    password, a link to reset it. Focus goes to the heading on arrival. A refused link
+    (Better Auth's `?error=…`) says "Este enlace ya no sirve". The page stays static:
+    the confirmed copy is the `Suspense` fallback, and only `?error` changes it.
+  - The pending screen no longer says "Ábrelo y entras".
+  - The way back in for the victim: they reset the password. `revokeSessionsOnPasswordReset`
+    was already `true`, so the reset ends every session the stranger had, and the
+    stranger's password stops working.
+- **Not affected**: change-email is not enabled (its branch of `/verify-email` mints a
+  session regardless). There is no native app and no deep link; the PWA opens the link
+  in the browser, which now asks to sign in.
+- **What phase 8 must keep**: PLAN phase 8 said "`autoSignInAfterVerification` stays on";
+  amended. With phase 8's `autoSignIn: false` on sign-up too, a new account signs in
+  after confirming.
+- **Pinned**: `EmailVerification.spec.ts` (the two options, and the attack end to end
+  on the real `createAuth`: the link gives the victim no session, the stranger's
+  session survives the confirmation and dies at the reset, the stranger's password is
+  401 and the victim's new one 200). It fails on `true`. `VerificationMail.spec.ts`: a
+  link lands on `/verificar-email` whatever the client asked.
+

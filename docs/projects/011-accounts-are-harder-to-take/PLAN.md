@@ -517,7 +517,9 @@ records what was decided.
   - `apps/web`:
     - `RegisterScreen.tsx` drops the "already registered" branch and, after sign-up,
       shows "revisa tu correo" for every address;
-    - `autoSignInAfterVerification` stays on, so the link signs the person in;
+    - `autoSignInAfterVerification` is off since the hotfix (LOG, "Hotfix — the confirmation
+      link signed in whoever opened it"): the link confirms and lands on "Correo
+      confirmado. Ahora inicia sesión" (`/verificar-email`);
     - the copy says that on iPhone the link opens in Safari, and that in the installed
       app they then sign in;
     - dictionaries.
