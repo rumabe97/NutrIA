@@ -87,4 +87,4 @@
     1. merges `origin/main`;
     2. deletes its 0057 files and regenerates the migration as 0058 with `generate --custom`, so its snapshot carries `two_factor_removal`;
     3. reruns `check-migrations --drift` and the gate.
-  - The evaluator JSONs are in the session's scratchpad, not in `docs/local/`.
+  - The evaluator runs are in `docs/local/018-p2-{base-off,base-on,off,on}.json`.
