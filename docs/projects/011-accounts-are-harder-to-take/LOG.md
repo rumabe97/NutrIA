@@ -449,3 +449,9 @@
 - **Migration**: `0059_a_person_keeps_passkeys_on_their_account` — one new table,
   `passkey` (`credential_id` UNIQUE, `counter` bigint, `user_id` ON DELETE CASCADE, indexed),
   generated on main's `0058` snapshot.
+
+## 2026-10-03 — Phase 5 also carries a scheduler fix (`0082`)
+
+- **What**: pasta, rice and grains are no longer served on two days running, and no legume more than three times a fortnight, unless a day's bands need it. Both rules now sit with the starch cap (`0081`) in `KindRules.held`.
+- **Why here**: the owner, 2026-10-03, after his production plan served rice on days 1 and 2 and white beans four times: "mete ese pequeño arreglo en esta fase del 011". It is project 017's rule, shipped in this phase's pull request, with no other link to accounts.
+- **Measured**: reference library, 196/196 days off and on; starch runs 1 → 0; meals past a legume's three 13 → 0 off and 5 → 0 on; `schedulePlan` time +3.2% off and −9.2% on. Full table in `0082`.
