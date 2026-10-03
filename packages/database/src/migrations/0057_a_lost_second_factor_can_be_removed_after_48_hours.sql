@@ -1,11 +1,14 @@
 -- Hand-added comment only; the statements are drizzle-kit's, unchanged (PLAN 011 phase 4).
 -- A new, empty table and one nullable column with no default. The ADD COLUMN on "two_factor" is metadata only: no
 -- row is rewritten. But drizzle-kit migrate runs every pending migration in ONE transaction, so the ACCESS EXCLUSIVE
--- lock it takes on "two_factor" is held until COMMIT — through the two foreign keys after it, which check no rows
--- (the table is empty) but take SHARE ROW EXCLUSIVE on "user" and wait behind any open writer there
--- (BillingRepository.customerFor holds FOR NO KEY UPDATE on a user row while it calls Stripe; the SDK's timeout is
--- 80 s). While it waits, every 2FA sign-in's read of "two_factor" waits too. Usually seconds; so do not merge this
--- just before the 03:30 and 08:00 UTC crons or while somebody is checking out.
+-- lock it takes on "two_factor" (itself queued behind any in-flight read of "two_factor") is held until COMMIT —
+-- through the two foreign keys after it, which check no rows (the table is empty) but take SHARE ROW EXCLUSIVE on
+-- "user" and wait behind any uncommitted INSERT, UPDATE or DELETE there (ROW EXCLUSIVE: an activation, a tier change,
+-- Better Auth's own user updates). Row locks such as FOR NO KEY UPDATE take only ROW SHARE and do not hold it up.
+-- While it waits, every 2FA sign-in's read of "two_factor" waits too. Those writes take milliseconds, but drizzle-kit
+-- migrate sets no lock_timeout, so the wait has no bound of its own; a failure or a deadlock aborts the one
+-- transaction — the build fails, nothing is applied and the old API keeps serving. Still, do not merge this just
+-- before the 03:30 and 08:00 UTC crons.
 -- No backfill, on purpose: NULL last_totp_step means "no code accepted since this was recorded", and the first
 -- correct code claims its step. The old API, still running while this deploys, neither reads nor writes the column
 -- or the table: its Drizzle schema does not name them, and the plugin's INSERT leaves the column NULL. If the API is

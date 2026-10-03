@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { Logger } from '@nestjs/common';
 
 import { ProfileController } from 'core/controllers/Profile';
 
@@ -70,5 +71,21 @@ describe('sendTwoFactorRemovalMail', () => {
     expect(unconfigured.send).not.toHaveBeenCalled();
     expect(logged).toHaveLength(2);
     expect(logged.join('\n')).not.toContain('ana@example.com');
+  });
+
+  it('a mail the provider refused is an error line with its kind and the account, never the address', async () => {
+    jest.spyOn(ProfileController, 'localeOf').mockResolvedValue('es-ES');
+    const errors: string[] = [];
+    jest.spyOn(Logger.prototype, 'error').mockImplementation((line: unknown) => {
+      errors.push(String(line));
+    });
+    const refused = mailer(true);
+    refused.send.mockResolvedValue(false);
+
+    await sendTwoFactorRemovalMail(refused, request);
+
+    expect(refused.send).toHaveBeenCalledTimes(1);
+    expect(errors).toEqual(['two_factor_removal_unmailed {"kind":"requested","userId":"user_1"}']);
+    expect([...errors, ...logged].join('\n')).not.toContain('ana@example.com');
   });
 });

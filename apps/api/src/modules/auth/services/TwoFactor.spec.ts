@@ -72,7 +72,7 @@ jest.unstable_mockModule('./TwoFactorRemovalMail.js', () => ({
 }));
 
 const { createAuth } = await import('../auth.config.js');
-const { refusesLinkPastTheFactor } = await import('./TwoFactor.js');
+const { refusesLinkPastTheFactor, totpStepOf } = await import('./TwoFactor.js');
 
 const ORIGIN = 'http://localhost:3000';
 const PASSWORD = 'correct-horse-battery-staple-9';
@@ -477,6 +477,30 @@ describe('the second factor', () => {
       row.lockedUntil = null;
       row.failedVerificationCount = 0;
       expect((await call(auth, challenge, '/two-factor/verify-totp', { code })).status).toBe(200);
+    });
+
+    it('finds a code two steps ahead on a thirty-second boundary, which the plugin accepts a moment later, so it is claimed', () => {
+      // The secret as the plugin stores it, keyed as UTF-8 bytes (`@better-auth/utils/otp`).
+      const secret = 'a-secret-the-plugin-generated';
+      const at = (step: number): string => {
+        const counter = Buffer.alloc(8);
+        counter.writeBigUInt64BE(BigInt(step));
+        const mac = createHmac('sha1', Buffer.from(secret, 'utf8')).update(counter).digest();
+        const offset = (mac.at(-1) ?? 0) & 0xf;
+
+        return ((mac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).toString().padStart(6, '0');
+      };
+      const step = 59_000_000;
+      // The hook's clock: the last millisecond of `step`. The plugin's, a millisecond on, is in `step + 1`, and its
+      // window (one either side) takes `step + 2`'s code.
+      const lastMillisecond = (step + 1) * 30_000 - 1;
+
+      expect(totpStepOf(secret, at(step + 2), lastMillisecond)).toBe(step + 2);
+      expect(totpStepOf(secret, at(step - 2), lastMillisecond)).toBe(step - 2);
+      expect(totpStepOf(secret, at(step), lastMillisecond)).toBe(step);
+      // Three away no clock a millisecond apart accepts: left to the plugin, which refuses it as a wrong code.
+      expect(totpStepOf(secret, at(step + 3), lastMillisecond)).toBeNull();
+      expect(totpStepOf(secret, at(step - 3), lastMillisecond)).toBeNull();
     });
   });
 

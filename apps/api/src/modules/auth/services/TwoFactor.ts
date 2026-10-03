@@ -53,6 +53,14 @@ const SIGN_IN = '/sign-in/email';
 const TOTP_DIGITS = 6;
 const TOTP_PERIOD_MS = 30_000;
 const TOTP_WINDOW = 1;
+/**
+ * How far either side the replay rule looks: one step wider than the plugin's window. The hook and the plugin each
+ * read their own clock, so a code typed on a thirty-second boundary may be two steps ahead of the hook's "now" and
+ * one ahead of the plugin's a millisecond later — accepted, and it must have been claimed. A code two steps away that
+ * the plugin then refuses is claimed anyway: an old one costs nothing, every later code being newer; a new one comes
+ * only from a phone whose clock is a minute or more ahead, whose codes the plugin refuses either way.
+ */
+const TOTP_SEARCH = TOTP_WINDOW + 1;
 
 /** The challenge cookie's name inside the plugin (`two-factor/constant.mjs`), which does not export it; Better Auth prefixes it. */
 const TWO_FACTOR_COOKIE = 'two_factor';
@@ -132,16 +140,17 @@ function hotp(secret: string, step: number): string {
 }
 
 /**
- * The newest step of the plugin's window (the current one, the one before,
- * the one after) whose code is `code`, or null when none is. Every step is
- * compared, in constant time, so the answer takes as long whichever matched.
+ * The newest step within two of the current one (`TOTP_SEARCH`: the plugin's
+ * window, one step wider either side) whose code is `code`, or null when none
+ * is. Every step is compared, in constant time, so the answer takes as long
+ * whichever matched.
  */
 export function totpStepOf(secret: string, code: string, now: number = Date.now()): number | null {
   const current = Math.floor(now / TOTP_PERIOD_MS);
   const given = Buffer.from(code);
   let matched: number | null = null;
 
-  for (let offset = -TOTP_WINDOW; offset <= TOTP_WINDOW; offset += 1) {
+  for (let offset = -TOTP_SEARCH; offset <= TOTP_SEARCH; offset += 1) {
     const expected = Buffer.from(hotp(secret, current + offset));
 
     if (expected.length === given.length && timingSafeEqual(expected, given)) {
@@ -171,7 +180,7 @@ async function verifyingAccount(context: Context): Promise<{ readonly id: string
  * Before the plugin, on `/two-factor/verify-totp` (PLAN 011 phase 4, the
  * replay rule): a correct code is accepted once. The account's secret is
  * decrypted the way the plugin does, the code's step found in the plugin's
- * window, and the step claimed for the account in one guarded `UPDATE`
+ * window and one step either side of it (`TOTP_SEARCH`), and the step claimed for the account in one guarded `UPDATE`
  * (`TwoFactorController.claimTotpStep`, `two_factor.last_totp_step`). A
  * step already claimed — the same code again, on another challenge or from a
  * session — or an older one answers exactly what the plugin answers a wrong
