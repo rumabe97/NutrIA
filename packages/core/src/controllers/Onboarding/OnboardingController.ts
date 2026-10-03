@@ -3,7 +3,7 @@ import { OnboardingRepository } from '#repositories/Onboarding';
 import { resolveFreeTextAllergens } from 'core/controllers/Safety';
 import { ProfileRepository } from '#repositories/Profile';
 import { SafetyRepository } from '#repositories/Safety';
-import { assertOldEnough, hasProfileConsent, PROFILE_CONSENT_STEPS, requireProfileConsent } from 'core/controllers/Profile';
+import { assertOldEnough, hasProfileConsent, personToday, PROFILE_CONSENT_STEPS, requireProfileConsent } from 'core/controllers/Profile';
 import type { OnboardingState, OnboardingStep, OnboardingStepInput } from 'core/entities/Onboarding';
 
 // --- Presenters ---------------------------------------------------------------
@@ -75,7 +75,7 @@ export const OnboardingController = {
       return view;
     }
 
-    return presentOnboarding(await OnboardingRepository.markComplete(userId, new Date().toISOString().slice(0, 10)), consented);
+    return presentOnboarding(await OnboardingRepository.markComplete(userId, await personToday(userId)), consented);
   },
 
   async getState(userId: string): Promise<OnboardingView> {

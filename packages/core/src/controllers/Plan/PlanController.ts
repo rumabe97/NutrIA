@@ -10,7 +10,7 @@ import {
   redosInFortnight,
   startMeaning
 } from 'core/domain/Allowance';
-import { dayKeyIn } from 'core/domain/Period';
+import { personDayKey } from 'core/domain/Period';
 import { eventsInWindow, planWindow } from 'core/domain/Event';
 import { MAX_DAYS_BEFORE } from 'core/entities/Event';
 import { addDays } from 'core/domain/Vacation';
@@ -19,7 +19,7 @@ import { EventRepository } from '#repositories/Event';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { PlanJobRepository, PlanRepository } from '#repositories/Plan';
 import { ProfileRepository } from '#repositories/Profile';
-import { ProfileController, requireProfileConsent } from 'core/controllers/Profile';
+import { personToday, ProfileController, requireProfileConsent } from 'core/controllers/Profile';
 import { UserRepository } from '#repositories/User';
 import { VacationRepository } from '#repositories/Vacation';
 import { isAway } from 'core/domain/Vacation';
@@ -361,7 +361,7 @@ export const PlanController = {
     let failed = 0;
 
     for (const candidate of candidates) {
-      const today = dayKeyIn(now, candidate.timezone ?? DEFAULT_TIME_ZONE);
+      const today = personDayKey(now, candidate.timezone);
 
       if (candidate.startDate > today) {
         continue;
@@ -401,8 +401,7 @@ export const PlanController = {
     await PlanController.activateDue(userId, await personToday(userId));
 
     const context = await startContext(userId, forGeneration);
-    const { active, tier } = context;
-    const today = isoToday();
+    const { active, tier, today } = context;
     const [swaps, events, mealSize] = await Promise.all([
       active ? PlanRepository.countSwaps(active.id) : 0,
       PlanController.eventStanding(userId, planWindow(active, today), tier),
@@ -737,10 +736,14 @@ export const PlanController = {
    * `new_fortnight` on the same day the client's own allowance reads — the
    * same rule, so it is never earlier. A fortnight still running never is.
    */
-  async professionalMayGenerate(userId: string, today: string = isoToday()): Promise<boolean> {
-    const [active, pending] = await Promise.all([PlanRepository.findActive(userId), PlanRepository.findPending(userId)]);
+  async professionalMayGenerate(userId: string, today?: string): Promise<boolean> {
+    const [active, pending, day] = await Promise.all([
+      PlanRepository.findActive(userId),
+      PlanRepository.findPending(userId),
+      today ?? personToday(userId)
+    ]);
 
-    return pending !== undefined || planRedoStanding(active, 0, today).kind === 'new_fortnight';
+    return pending !== undefined || planRedoStanding(active, 0, day).kind === 'new_fortnight';
   },
 
   /**
@@ -750,7 +753,8 @@ export const PlanController = {
    * `NotFoundError`. Answers the plan as the client will now see it.
    */
   async publish(userId: string, record: RecordAccess, locale: string | null = null): Promise<PlanView> {
-    const planId = await PlanRepository.publish(userId, record);
+    // The plan it replaces is completed on the client's day, not the professional's.
+    const planId = await PlanRepository.publish(userId, record, await personToday(userId));
 
     if (!planId) {
       throw new NotFoundError('Plan not found');
@@ -777,7 +781,7 @@ export const PlanController = {
     days: Parameters<typeof PlanRepository.rebuildLoadedDays>[2]['days'],
     shoppingItems: readonly ShoppingItemDraft[]
   ): Promise<void> {
-    await assertNotPaused(userId);
+    await assertNotPaused(userId, await personToday(userId));
     await PlanRepository.rebuildLoadedDays(
       userId,
       planId,
@@ -792,9 +796,12 @@ export const PlanController = {
    * denial: the past is read-only (0021), and the screen says so.
    */
   async setMealStatus(userId: string, mealId: string, status: MealStatus): Promise<void> {
-    await assertNotPaused(userId);
+    // The person's day, the one their plan is laid out in: day one is today from their midnight, not UTC's.
+    const today = await personToday(userId);
 
-    const result = await PlanRepository.setMealStatus(userId, mealId, status);
+    await assertNotPaused(userId, today);
+
+    const result = await PlanRepository.setMealStatus(userId, mealId, status, today);
 
     if (result === 'missing') {
       throw new NotFoundError('Meal not found');
@@ -853,7 +860,7 @@ export const PlanController = {
     // A professional's swap on the plan under review, with its trail row (`0060`).
     review?: { readonly record: RecordAccess }
   ): Promise<void> {
-    await assertNotPaused(userId);
+    await assertNotPaused(userId, await personToday(userId));
     await PlanRepository.swapMeal(
       userId,
       mealId,
@@ -997,7 +1004,7 @@ export const PlanJobController = {
      * arithmetic declaring a trip performs, applied to a plan that did not exist
      * when it was declared.
      */
-    await VacationRepository.applyTo(userId, planId);
+    await VacationRepository.applyTo(userId, planId, await personToday(userId));
 
     return planId;
   },
@@ -1179,20 +1186,6 @@ async function pendingCounts(userId: string): Promise<boolean> {
   return professional && (await PlanRepository.isPublishable(userId));
 }
 
-function isoToday(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-/** The zone a profile keeps when it says nothing else — the column's own default. */
-const DEFAULT_TIME_ZONE = 'Europe/Madrid';
-
-/** The person's calendar day, in the time zone their profile keeps (project 015). */
-async function personToday(userId: string): Promise<string> {
-  const profile = await ProfileRepository.findByUserId(userId);
-
-  return dayKeyIn(new Date(), profile?.timezone ?? DEFAULT_TIME_ZONE);
-}
-
 type ChainPlan = Awaited<ReturnType<typeof PlanRepository.findChain>>[number];
 
 /** Everything `startMeaning` and the redo count read, loaded once for every day the chooser offers. */
@@ -1287,8 +1280,7 @@ async function refuseSpentStart(userId: string, start: string, chargeWaiting = t
  * that true rather than polite — a disabled button is a suggestion, and the
  * request behind it is one `curl` away.
  */
-async function assertNotPaused(userId: string): Promise<void> {
-  const today = new Date().toISOString().slice(0, 10);
+async function assertNotPaused(userId: string, today: string): Promise<void> {
   const trips = await VacationRepository.findUpcoming(userId, today);
 
   if (trips.some(trip => isAway(trip, today))) {

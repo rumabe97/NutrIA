@@ -2,7 +2,18 @@ import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_PERIOD, periodQuerySchema, PERIODS } from 'core/entities/Period';
 
-import { fillDays, fillWeeks, madridDayKey, madridDayKeys, madridMidnight, madridWeekKeys, parsePeriod, weekKey, windowFor } from './Period';
+import {
+  fillDays,
+  fillWeeks,
+  madridDayKey,
+  madridDayKeys,
+  madridMidnight,
+  madridWeekKeys,
+  parsePeriod,
+  personDayKey,
+  weekKey,
+  windowFor
+} from './Period';
 
 describe('parsePeriod', () => {
   it('is 30 when nothing is asked for', () => {
@@ -37,6 +48,25 @@ describe('madridDayKey', () => {
     // In winter the line is at 23:00 UTC.
     expect(madridDayKey(new Date('2026-01-14T22:59:59Z'))).toBe('2026-01-14');
     expect(madridDayKey(new Date('2026-01-14T23:00:00Z'))).toBe('2026-01-15');
+  });
+});
+
+describe('personDayKey', () => {
+  it("is the person's day, not UTC's, in the hours after Madrid's midnight", () => {
+    // 22:30 UTC on the 2nd is 00:30 on the 3rd in Madrid in summer: day one of
+    // a plan laid out on the 3rd is today, not tomorrow.
+    expect(personDayKey(new Date('2026-10-02T22:30:00Z'), 'Europe/Madrid')).toBe('2026-10-03');
+    expect(personDayKey(new Date('2026-10-02T21:59:59Z'), 'Europe/Madrid')).toBe('2026-10-02');
+  });
+
+  it("is Madrid's day when the profile keeps no zone", () => {
+    expect(personDayKey(new Date('2026-10-02T22:30:00Z'), null)).toBe('2026-10-03');
+    expect(personDayKey(new Date('2026-10-02T22:30:00Z'), undefined)).toBe('2026-10-03');
+  });
+
+  it('reads any zone the profile keeps', () => {
+    expect(personDayKey(new Date('2026-10-02T22:30:00Z'), 'America/New_York')).toBe('2026-10-02');
+    expect(personDayKey(new Date('2026-10-02T22:30:00Z'), 'UTC')).toBe('2026-10-02');
   });
 });
 

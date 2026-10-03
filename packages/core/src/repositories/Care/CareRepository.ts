@@ -6,7 +6,7 @@ import { database } from 'database';
 import { careAccessLog, careInvitations, careLinks } from 'database/schema/care';
 import { checkIns } from 'database/schema/progress';
 import { mealPlans } from 'database/schema/plan';
-import { onboardingState, targetOverrides } from 'database/schema/profile';
+import { onboardingState, profiles, targetOverrides } from 'database/schema/profile';
 import { professionals } from 'database/schema/professional';
 import { user } from 'database/schema/auth';
 
@@ -58,8 +58,11 @@ export type ActiveLink = { readonly clientName: string; readonly link: CareLink;
 /** One row of a professional's list, as stored: the link, the client's name, and where they are. */
 export type RosterLink = {
   readonly clientName: string;
-  /** The client's latest plan by version, but never one under review — the one a check-in is due on — or null. */
-  readonly latestPlan: { readonly answered: boolean; readonly endDate: string } | null;
+  /**
+   * The client's latest plan by version, but never one under review — the one a check-in is due on — or null.
+   * `timeZone` is the client's, from their profile: a check-in is due on the client's day, not the professional's.
+   */
+  readonly latestPlan: { readonly answered: boolean; readonly endDate: string; readonly timeZone: string | null } | null;
   readonly link: Pick<CareLink, 'consentedAt' | 'id' | 'reviewBeforePublish' | 'sharesHealth' | 'status'>;
   readonly onboarded: boolean;
   /** Whether a plan is under way. */
@@ -757,10 +760,12 @@ async function rosterOf(db: Transaction, professionalId: string, now: Date): Pro
             .where(and(eq(checkIns.userId, mealPlans.userId), eq(checkIns.planId, mealPlans.id)))
         )}`,
         endDate: mealPlans.endDate,
-        linkId: careLinks.id
+        linkId: careLinks.id,
+        timeZone: profiles.timezone
       })
       .from(mealPlans)
       .innerJoin(careLinks, eq(careLinks.clientId, mealPlans.userId))
+      .leftJoin(profiles, eq(profiles.userId, mealPlans.userId))
       // A plan waiting for its day (project 015) has not started: the stage is the plan being lived.
       .where(
         and(
@@ -793,12 +798,12 @@ async function rosterOf(db: Transaction, professionalId: string, now: Date): Pro
 
 /** The latest plan behind one link, from the per-client rows `roster` read. */
 function latestOf(
-  rows: readonly { readonly answered: boolean; readonly endDate: string; readonly linkId: string }[],
+  rows: readonly { readonly answered: boolean; readonly endDate: string; readonly linkId: string; readonly timeZone: string | null }[],
   linkId: string
 ): RosterLink['latestPlan'] {
   const row = rows.find(candidate => candidate.linkId === linkId);
 
-  return row ? { answered: row.answered, endDate: row.endDate } : null;
+  return row ? { answered: row.answered, endDate: row.endDate, timeZone: row.timeZone } : null;
 }
 
 type Transaction = Parameters<Parameters<ReturnType<typeof database>['transaction']>[0]>[0];

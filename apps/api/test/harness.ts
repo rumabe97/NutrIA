@@ -11,6 +11,7 @@ import { database } from 'database';
 import { UNAUDITED } from 'core/entities/Audit';
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
+import { dayKeyIn } from 'core/domain/Period';
 import { shapeFor } from 'core/domain/MealShape';
 
 import { AiClient } from '../src/modules/ai/clients/AiClient.js';
@@ -787,4 +788,14 @@ export class CookieJar {
   get header(): string {
     return [...this.cookies].map(([name, value]) => `${name}=${value}`).join('; ');
   }
+}
+
+/**
+ * The calendar day a person in Madrid is living, as `YYYY-MM-DD` — what the API
+ * calls "today" for every account these suites register (their profile keeps
+ * `Europe/Madrid`). Never `new Date().toISOString().slice(0, 10)`: that is the
+ * UTC day, and for two hours a night it is yesterday.
+ */
+export function madridToday(): string {
+  return dayKeyIn(new Date(), 'Europe/Madrid');
 }
