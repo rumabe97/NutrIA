@@ -67,3 +67,59 @@
   - Compare against `docs/local/019-base-{off,on}.json` with `--rotate 10` on the same reference library.
   - `rules[*].applies` comes from `balanceSupply` over the whole filtered library. Phase 4's effective minimum should read the same thing.
   - The rotation offer (`offer`: legume dishes and kinds, fish dishes, per seed) is in each plan of the JSON. It is phase 2's metric.
+
+## Phase 2 — The pool carries every group (2026-10-03)
+
+- **Executor**: Opus 5.5 (agent `backend-019p1`, continuing).
+- **Result**: done.
+- **What changed**:
+  - `rotatePool` takes an optional `reserve` hook (`PoolReserve`). Given each slot's dishes in shuffled order and the dishes earlier slots already took, it names the dishes the slot takes first. The rest fill the slot as before. The pool is handed over in shuffled order whatever was reserved. Without the hook, the pick is unchanged.
+  - `reserveGroups` (`core/domain/Balance`) is the reservation (`POOL_RESERVE`):
+    - at lunch, 6 legume dishes; at dinner, 2, one kind at a time before a second of any;
+    - at each of lunch and dinner, 3 fish dishes, an oily one first;
+    - at each of lunch and dinner, 3 whole-grain dishes (≥ 20 g dry whole grain a serving, at least half the dish's cereal).
+  - A dish an earlier slot took is reserved last, so lunch and dinner reserve different dishes.
+  - Every dish is read per serving with phase 1's recognition. Only lunch and dinner are reserved.
+  - `RecipeController.reusablePool` passes the reservation whenever it rotates, so production (`PlanGeneration`) and the evaluator's `--rotate` both get it. The whole-library and `wider_rotation` rescues are unchanged.
+  - The reservation draws only from the person's filtered library: someone who dislikes fish has none in it and is reserved none (owner, 017). There is no fish minimum for them.
+- **Evidence** (reference library, 871 recipes, local Postgres, no reset needed; `--rotate 10`, against `docs/local/019-base-{off,on}.json`; new runs in `docs/local/019-p2-{off,on}.json`):
+  - **Rotation offer, 140 rotations** (phase 2's metric):
+
+    | Offer at lunch and dinner | Before | After |
+    |---|---|---|
+    | Fewest legume dishes | 2 | 6 |
+    | Fewest legume kinds | 2 | 4 |
+    | Rotations short of 6 legume dishes of ≥ 3 kinds | 15 | 0 |
+    | Fewest fish dishes, among the 12 profiles that eat fish | 2 | 6 |
+    | Rotations short of 6 fish dishes, among those 12 profiles | 12 | 0 |
+
+  - **Days in band**: 1,958/1,960 off (baseline 1,958), 1,960/1,960 on (baseline 1,959). 0 allergens. `wider_rotation` needed in 103 plans off (baseline 110) and 27 on (baseline 35), and every one was rescued.
+  - **Rules held, off / on (baseline → phase 2)**:
+    - legumes 112 → 116, 83 → 109 (of 140);
+    - fish 82 → 84, 93 → 93 (of 120);
+    - oily fish 108 → 110, 95 → 101;
+    - fish + shellfish ≤ 8: 72 → 73, 68 → 69;
+    - meat 39 → 44, 41 → 55 (of 130);
+    - red meat 56 → 68, 60 → 63;
+    - processed 25 → 40, 41 → 47;
+    - eggs 43 → 34, 67 → 36;
+    - starches 106 → 108, 65 → 72;
+    - vegetables at every main 0 → 0, 1 → 1; at 80% of mains 7 → 4, 33 → 23;
+    - fruit 0 → 0, 25 → 9;
+    - whole grain 7 → 34, 8 → 33;
+    - fibre 130 → 130, 130 → 130.
+  - **Score by goal** (mean of median scores, baseline → phase 2):
+    - off: weight loss 43 → 47, muscle gain 42 → 46, maintenance 45 → 49, healthy eating 53 → 56, performance 35 → 46;
+    - on: weight loss 43 → 44, muscle gain 35 → 31, maintenance 45 → 47, healthy eating 55 → 55, performance 42 → 35.
+  - **Time**: `schedulePlan` summed over the 140 plans, run back to back with phase 1's build from a scratch worktree, alternating, on a machine shared with other agents. On the quiet runs:
+    - off 84,252 ms against 84,810 (−1%);
+    - on, medians of five pairs, 59,391 against 58,350 (+2%).
+    - Within +10%.
+  - Specs: `reserveGroups` 3, `rotatePool` with a reservation 2; core 3,770 tests green. Gate `--full` green.
+- **Deviations from plan**:
+  - The pool is handed over in shuffled order, not with the reserved dishes first. Reserved-first changed the order the uncapped `wider_rotation` pool is built in, and `schedulePlan` breaks ties by pool order: that cost 2 days off and 1 on through rescued plans, which this keeps.
+- **Decisions**: none new; `0084` comes with phase 4's minimums.
+- **Notes for the next phase**:
+  - The pool now carries what the minimums need, but the scheduler still serves fewer: objetivo-bajo-3-comidas has ≥ 6 legume dishes in every rotation and serves a median of 4–5. That gap is phase 4's.
+  - More whole-grain and legume dishes in the pool pushed out some egg, fruit and vegetable dishes. Eggs ≤ 8 fell (110 → 70 of 260) and fruit fell with accompaniments on (25 → 9). The egg cap is phase 3's; fruit and vegetables are phase 5's.
+  - On with accompaniments, muscle gain and performance (one profile each) lost score through eggs and fruit; nothing lost days.
