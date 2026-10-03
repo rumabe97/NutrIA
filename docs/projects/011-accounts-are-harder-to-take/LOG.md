@@ -411,3 +411,41 @@
   and `twoFactorRemovalDueAt`, and the system page lists the `twoFactorRemovals` cron;
   `admin.e2e-spec.ts` was updated for both (by `backend`, with the lead's approval, since
   the file is `tests`').
+
+## Phase 5 — Passkeys (2026-10-03)
+
+- **Executor**: opus @ high (`backend`, resumed by a second `backend` after the first
+  stalled), with `frontend` and `legal`.
+- **Result**: partial — built, migration `0059`, e2e green locally; the migration and
+  invariant reviews, the live accessibility probe and the owner's iPhone check are still
+  to come.
+- **Upgrade notes** (step 1, `better-auth` 1.7.6 → 1.7.7 alone, before the plugin; the
+  dist diff read between the two versions):
+  - sessions, cookies and hooks are unchanged; the two-factor plugin is unchanged;
+  - OAuth state rows are now `auth-state:<state>` in `verification`, with a cookie key
+    derived from their purpose (the Magic Link advisory GHSA-965c-763c-88jm);
+  - a 429 and a middleware error now carry `Content-Type: application/json`;
+  - the Drizzle adapter's conditional `updateOne` keeps its `WHERE` (the database-backed
+    rate limit relies on it);
+  - the web client's session signal is a refactor only: the list of paths that refresh
+    the session moved into an exported `matchesSessionSignal`, same paths.
+- **Decisions** (who decided: the lead, delegated by the owner on 2026-10-03 — "las
+  decisiones anótalas con lo más recomendado"):
+  - **(b) the password before a passkey**: `POST /auth/passkey/confirm-password
+    { password }` leaves a ten-minute, single-use grant for that session in
+    `verification` (`passkey-grant-<sessionId>`); without it both registration steps answer
+    403 `PASSWORD_CONFIRMATION_REQUIRED`. An account with no password adds one only from a
+    session ten minutes young (403 `SESSION_NOT_FRESH` otherwise). A session somebody else
+    holds cannot turn itself into a key that outlives it.
+  - **(c) a password reset removes every passkey** of the account, in the reset's
+    transaction, one `auth.passkey_removed` per key, and the "password changed" mail says
+    how many went. A reset is what someone does when the account is no longer only theirs.
+  - **User verification required** (from `legal`'s art. 32 RGPD finding): the options ask
+    for `userVerification: 'required'` at registration and at sign-in, and the plugin's
+    `afterVerification` hooks refuse an answer without the UV flag (registration 400
+    `FAILED_TO_VERIFY_REGISTRATION`, sign-in 401 `AUTHENTICATION_FAILED`). A passkey
+    sign-in opens a session with no second step only because the device held and the
+    person who unlocked it are the two factors; a key on possession alone never signs in.
+- **Migration**: `0059_a_person_keeps_passkeys_on_their_account` — one new table,
+  `passkey` (`credential_id` UNIQUE, `counter` bigint, `user_id` ON DELETE CASCADE, indexed),
+  generated on main's `0058` snapshot.
