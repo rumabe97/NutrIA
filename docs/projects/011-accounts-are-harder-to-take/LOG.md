@@ -619,3 +619,60 @@
   production (the plan's condition).
 - **Decisions**: none new.
 - **Advisor**: not consulted.
+
+## Phase 8 — Sign-up reveals nothing (2026-10-03)
+
+- **Executor**: opus 5.5 (`backend`, one agent, resumed after a machine crash from the WIP
+  commit; the lead allowed it to edit `apps/web`'s `RegisterScreen`, `SignInForm` and
+  dictionaries and `apps/api/test` for this phase).
+- **Result**: partial — built, unit and local e2e green; the invariant review, CI,
+  `/local-probe` and the owner's iPhone check are still to come. **The
+  `requireEmailVerification` part is not to reach production until the lead confirms**,
+  after the owner OKs a read-only count of the unconfirmed production accounts.
+- **What was built** (the plan's scope):
+  - `autoSignIn: false`: sign-up opens no session for anybody, and Better Auth answers an
+    address that already has an account with its 200 and a synthetic user
+    (`customSyntheticUser` adds the terms' record, so both answers carry the same fields).
+  - `onExistingUserSignUp` mails that address "somebody tried to create an account with
+    your address" (`ExistingAccountSignUp`, es/en), after the response.
+  - `RegisterScreen` drops the 422 branch and ends on "check your email" for every address,
+    with the iPhone note (the link opens in Safari; the installed app then signs in).
+- **Amendment** (who decided: the lead, under the owner's delegation of 2026-10-03; the
+  plan amended in the same change): **sign-up then sign-in was still an oracle.** A
+  stranger signs up an address with a password of their own, then signs in with it: 200
+  where the address was new (their own unconfirmed account), 401 where it already had one.
+  - `requireEmailVerification: true`. Better Auth answers an unconfirmed account's right
+    password 403 `EMAIL_NOT_VERIFIED`; `hooks.after` makes it Better Auth's own 401
+    `INVALID_EMAIL_OR_PASSWORD` (`services/UnconfirmedSignIn.ts`). Found in Better Auth
+    1.7.7's dispatch: over HTTP the response keeps the *status of the error the route
+    threw*, whatever an after-hook returns in its place, so the hook answers a finished
+    `Response` built as better-call builds a thrown error's (status, its text,
+    `Content-Type`, the JSON body); through `auth.api` it throws the error.
+  - State identical too: the brake (phase 7) counted the attempt before the route ran, and
+    only a 2xx clears it, so an unconfirmed right password is +1 and the row stays.
+  - `sendOnSignIn: true`: that person gets a fresh link, after the response. Better Auth
+    sends it only when the address is unconfirmed, so a confirmed account never gets one.
+  - **Mail budget, new.** Better Auth's only limit on a verification mail is per IP (3 a
+    minute on `/send-verification-email`), and `sendOnSignIn` does not even pass through
+    that route. With the brake letting about ten attempts per quarter hour through, a
+    stranger holding the password of an account they made with somebody's address could
+    mail that address hundreds of times a day. So every confirmation link, and the
+    "somebody tried" mail, is held to **three per address per hour, per kind**
+    (`core/domain/MailBudget`): the existing rule's three, over the life of a link, per
+    address instead of per IP. The rows are HMAC-keyed (`mail-budget:<key>`) in Better
+    Auth's `verification` table, decided under a transaction-scoped advisory lock, expired
+    by `expiresAt` and swept by the daily `/cron/sweep-verifications`: no migration. It
+    runs in the background task, so nothing a client sees or times changes; it fails open
+    with `mail_budget_unavailable`.
+  - The web's 401 copy says, for everybody, what an unconfirmed person must do;
+    `socialNotLinked` no longer sends them to a password sign-in that cannot succeed.
+  - Google, passkeys and the harness are unaffected: Better Auth reads this flag only in
+    `/sign-in/email` (the social link reads the provider's own option); a passkey needs a
+    confirmed address to be added; `register()` confirms before it signs in.
+- **Unit specs that signed in an unconfirmed account** now confirm it in their memory store
+  first (`AccountSecurity`, `TwoFactor`, `PasswordPolicy`, `Passkey`, `SessionRenewal`,
+  `AccountDeletion`, `SignInBrake`). E2E suites that test the address lock sign in
+  confirmed and put the address back (`harness.ts` `unconfirmAddress`): no route makes an
+  unconfirmed session any more, but one from before this change, or one through a
+  provider that would not vouch for the address, still exists. `deleteAccountByEmail`
+  confirms before its sign-in.

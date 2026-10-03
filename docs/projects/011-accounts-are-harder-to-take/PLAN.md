@@ -523,6 +523,27 @@ records what was decided.
     - dictionaries.
   - `apps/api/test/**`: a case in `access.e2e-spec.ts`; `harness.ts` already signs in after
     sign-up and must keep working.
+  - **Amended 2026-10-03** (the lead, under the owner's delegation of 2026-10-03; LOG,
+    phase 8): sign-up *then sign-in* was still an oracle. A stranger signs up an address
+    with a password of their own, then signs in with it: 200 where the address was new,
+    401 where it already had an account. So:
+    - `emailAndPassword.requireEmailVerification: true`. Better Auth's 403
+      `EMAIL_NOT_VERIFIED` for an unconfirmed account's right password is rewritten by
+      `hooks.after` into its own 401 `INVALID_EMAIL_OR_PASSWORD`, the same in status, body
+      and headers (`services/UnconfirmedSignIn.ts`);
+    - the per-address brake moves exactly as for a wrong password: the attempt counts, and
+      only a 2xx clears it;
+    - `emailVerification.sendOnSignIn: true`: that person gets a fresh link, after the
+      response, never a confirmed account;
+    - every link, and the "somebody tried" mail, within a budget of three per address per
+      hour (`core/domain/MailBudget`, rows in Better Auth's `verification` table, no
+      migration);
+    - the web's 401 copy says, for everybody, what an unconfirmed person must do;
+    - an e2e pins it: the new-address and existing-address probes give the same answer and
+      the same `sign_in_failure` row;
+    - **not shipped to production until the lead confirms**: the owner first OKs a read-only
+      count of the unconfirmed production accounts, who from this change can no longer sign
+      in with their password until they open a link.
 - **Steps**:
   1. Confirm in Better Auth 's installed source (the version phase 5 left) that the
      response body and status are identical for both cases, and measure the timing
