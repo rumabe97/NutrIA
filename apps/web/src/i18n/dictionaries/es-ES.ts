@@ -202,6 +202,8 @@ export const esES = {
       'auth.2fa_removed_by_owner': 'Verificación en dos pasos quitada a petición',
       'auth.backup_code_used': 'Código de respaldo usado',
       'auth.backup_codes_regenerated': 'Códigos de respaldo nuevos generados',
+      'auth.passkey_added': 'Llave de acceso añadida',
+      'auth.passkey_removed': 'Llave de acceso quitada',
       'auth.password_changed': 'Contraseña cambiada',
       'auth.sessions_revoked': 'Sesiones cerradas',
       'feedback.handled': 'Mensaje marcado como visto',
@@ -1085,6 +1087,7 @@ export const esES = {
       'owner-alert': 'Aviso al propietario',
       'owner-digest': 'Resumen diario al propietario',
       'owner-picture-alert': 'Aviso de imágenes al propietario',
+      'passkey-added': 'Llave de acceso añadida',
       'password-changed': 'Contraseña cambiada',
       'password-reset': 'Restablecer contraseña',
       'professional-granted': 'Perfil profesional concedido',
@@ -1130,7 +1133,8 @@ export const esES = {
     backToSignIn: 'Volver a acceder',
     checkEmail: 'Revisa tu correo',
     chooseNewPassword: 'Elige una contraseña nueva',
-    chooseNewPasswordSubtitle: 'Después podrás acceder con ella.',
+    chooseNewPasswordSubtitle:
+      'Después podrás acceder con ella. Si tenías llaves de acceso, las quitamos: podrás añadirlas de nuevo desde tu perfil.',
     confirmPassword: 'Repite la contraseña',
     continueWith: 'Continuar con {provider}',
     createAccount: 'Crea tu cuenta',
@@ -2064,6 +2068,34 @@ export const esES = {
     '/verificar-email': { title: 'Confirmar tu correo' }
   },
 
+  passkeys: {
+    add: 'Añadir una llave de acceso',
+    addBody: 'Escribe tu contraseña. Después tu dispositivo te pedirá Face ID, tu huella o su código para crear la llave.',
+    added: 'Llave de acceso añadida. Te lo confirmamos por correo.',
+    addedOn: 'Añadida el {date}',
+    addFailed: 'No se pudo añadir la llave de acceso. Inténtalo de nuevo.',
+    addTitle: 'Confirma que eres tú',
+    alreadyAdded: 'Este dispositivo ya guarda una llave de acceso para tu cuenta.',
+    body: 'Entra con Face ID, tu huella o el bloqueo de tu dispositivo, sin escribir la contraseña. Cada llave sirve solo en esta dirección web: {host}.',
+    listFailed: 'No hemos podido cargar tus llaves de acceso.',
+    listNotFresh: 'Por seguridad, tus llaves solo se muestran si has entrado hace poco.',
+    loading: 'Cargando tus llaves de acceso…',
+    none: 'Todavía no tienes ninguna llave de acceso.',
+    remove: 'Quitar',
+    removeBody: 'Ya no podrás entrar con ella. Tu dispositivo puede seguir ofreciéndola: bórrala también allí, entre tus contraseñas.',
+    removeConfirm: 'Sí, quitarla',
+    removed: 'Hemos quitado la llave {name}.',
+    removeGone: 'Esa llave ya no estaba en tu cuenta.',
+    removeLabel: 'Quitar la llave {name}, añadida el {date}',
+    removeTitle: '¿Quitar la llave {name}?',
+    resetNote: 'Si restableces tu contraseña, quitamos todas tus llaves y tendrás que añadirlas de nuevo.',
+    signIn: 'Entrar con llave de acceso',
+    signInFailed: 'No se pudo entrar con la llave de acceso. Prueba otra vez o entra con tu contraseña.',
+    stale: 'Por seguridad, para añadir una llave tienes que haber entrado hace menos de 10 minutos.',
+    title: 'Llaves de acceso',
+    unnamed: 'Llave de acceso'
+  },
+
   picture: { aiMark: 'IA', aiMarkLabel: 'Imagen generada por IA' },
 
   plan: {
@@ -2413,6 +2445,7 @@ export const esES = {
           'Pagos: si contratas Premium, Stripe cobra y nosotros guardamos solo el identificador de tu suscripción y su estado. Nunca vemos el número de tu tarjeta.',
           'Seguridad de tu cuenta: anotamos cuándo cambias o restableces tu contraseña y cuándo cierras sesiones, con la fecha y sin tu dirección IP. Para que podamos ver qué pasó si alguien entra en tu cuenta.',
           'Verificación en dos pasos, solo si la activas: el secreto de tu aplicación de autenticación y tus códigos de respaldo, cifrados, los intentos fallidos de código y, en el registro de seguridad, cuándo la activas, la desactivas o usas un código de respaldo. Si la desactivas, borramos el secreto y los códigos. Si pierdes el teléfono y los códigos de respaldo, puedes pedirnos, desde la dirección de tu cuenta, que la quitemos: te avisamos por correo al momento, entre 48 y 72 horas después se quita y, si entras antes con un código, se cancela; en el registro de seguridad queda anotado. Para que, aunque alguien sepa tu contraseña, no entre en tu cuenta.',
+          'Llaves de acceso, solo si añades una: su identificador y su clave pública (Face ID, tu huella o el código de tu dispositivo no salen nunca de él, ni nos llegan), el nombre de tu navegador y sistema con el que la guardamos, cuándo la añadiste, si se sincroniza entre tus dispositivos y, en el registro de seguridad, cuándo añades o quitas una. Si la quitas, o si restableces tu contraseña, la borramos. Para que puedas entrar sin contraseña.',
           'Uso del producto: registramos, ligado a tu cuenta, cuándo abres sesión y cuándo pides cambiar un plato, sin más detalle. Para saber si el producto funciona.',
           'Lo que nos escribes: los mensajes del buzón de sugerencias, para leerlos y responderte.'
         ],
@@ -2507,7 +2540,7 @@ export const esES = {
       {
         heading: 'Cookies y almacenamiento en tu dispositivo',
         paragraphs: [
-          'Solo usamos lo imprescindible para que el servicio funcione, y por eso no te pedimos permiso: la cookie de tu sesión, la del idioma que has elegido, la que, si marcas «confiar en este dispositivo» al verificar en dos pasos, evita pedirte el código durante 30 días en ese navegador y, al entrar con Google o Apple, las que ese paso necesita durante unos minutos. Ninguna es de terceros ni rastrea tu actividad en otras webs.',
+          'Solo usamos lo imprescindible para que el servicio funcione, y por eso no te pedimos permiso: la cookie de tu sesión, la del idioma que has elegido, la que, si marcas «confiar en este dispositivo» al verificar en dos pasos, evita pedirte el código durante 30 días en ese navegador y, al entrar con Google o Apple o al usar o añadir una llave de acceso, las que ese paso necesita durante unos minutos. Ninguna es de terceros ni rastrea tu actividad en otras webs.',
           'En el almacenamiento de tu navegador guardamos lo que marcas sin conexión hasta que se envía, un aviso de plan pendiente de revisión y, si instalas NutrIA en tu teléfono, una copia de tu plan de hoy y de la lista de la compra para usarlas sin conexión. Todo se queda en tu dispositivo.'
         ]
       },
@@ -2525,7 +2558,7 @@ export const esES = {
       }
     ],
     title: 'Política de privacidad',
-    updated: 'Última actualización: 1 de octubre de 2026'
+    updated: 'Última actualización: 3 de octubre de 2026'
   },
   profile: {
     account: 'Cuenta',

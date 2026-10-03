@@ -8,6 +8,7 @@ import { useDictionary } from 'i18n/LocaleProvider';
 
 import { Card } from 'components/Card';
 import { ChangePasswordForm } from 'components/ChangePasswordForm';
+import { PasskeyCard } from 'components/PasskeyCard';
 import { SessionList } from 'components/SessionList';
 import { TwoFactorCard } from 'components/TwoFactorCard';
 
@@ -25,8 +26,8 @@ interface SecurityCardProps {
 
 /**
  * The profile's "Seguridad": the password, the second factor (only with a password: an
- * account that signs in with Google gets Google's own, in the sentence above), and where
- * the account is signed in.
+ * account that signs in with Google gets Google's own, in the sentence above), passkeys,
+ * and where the account is signed in.
  *
  * One client component for both because a password change closes every other session:
  * the list is drawn again after it, by remounting it, rather than showing devices that
@@ -68,6 +69,10 @@ export function SecurityCard({ email, hasPassword, twoFactorEnabled }: SecurityC
           <TwoFactorCard email={email} enabled={twoFactorEnabled} />
         </Card>
       ) : null}
+
+      {/* For every account: a passkey needs no password. The card draws nothing in a browser
+          without WebAuthn, its surface included. */}
+      <PasskeyCard email={email} hasPassword={hasPassword} />
 
       <Card as="section">
         <SessionList key={generation} />
