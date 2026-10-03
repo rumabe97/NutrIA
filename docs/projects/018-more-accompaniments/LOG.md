@@ -89,3 +89,58 @@
     - An empty catalogue (a fresh database, CI) passes.
   - Its header says the seed change and the migration land and revert together, because the seed rewrites an ingredient's links wholesale.
 - The evaluator runs are in `docs/local/018-p2-{base-off,base-on,off,on}.json`.
+
+## Phase 3 — The entries, live (2026-10-03)
+
+- **Executor**: opus @ medium (`backend-018p3`), one advisor consult. The web phrases were written by the backend agent too, with the lead's approval.
+- **Result**: done. Project delivered.
+- **What changed**:
+  - **The 39 accepted entries** of report `0009` are in `ACCOMPANIMENTS`, `COMPOSED_NAMES` and `COMPOSED_PREPARATIONS`, taken from the report's literals by script, not retyped. Each sits beside its role and family: new fruit after `pina`, the two dessert composites after the yoghurts, `kimchi`, `guacamole` and `datiles` at the end of 3a, and the composed ones after their family's existing entries. So a tie in the ranking still goes to an entry that was there before. The list is 85 entries, 50 of them composed.
+  - **`meal.accompanimentNames`**: 39 phrases each in es-ES and en-GB, as the report wrote them.
+  - **The table comment** no longer says "USDA rows only". It names the BEDCA row and the five `manual` rows that were already there.
+  - **`FRUIT`** gains `datiles`, so dates are not served beside a dish that already carries 100 g of fruit. The four new fruits leave its literal list, because the `months: 'catalogue'` entries already supply them.
+- **Time first (step 1).** schedulePlan is the evaluator's `scheduleMs`, summed over the 14 profiles. Base is `092de70b` (phase 2's tip, which becomes `main` when #206 merges). Base and branch ran back to back, two rounds, best of two:
+
+  | Run | Off: base → branch | On: base → branch |
+  |---|---|---|
+  | Pasted, unpruned | 2,885 / 2,870 → 2,891 / 2,911 ms (+0.7 %) | 6,416 / 6,217 → 8,304 / 8,199 ms (**+31.9 %**) |
+  | Eight portions per role | 2,970 / 2,917 → 3,208 / 2,907 ms (−0.3 %) | 6,398 / 6,296 → 7,129 / 7,047 ms (+11.9 %) |
+  | Six per role, unfit singletons dropped | 2,994 / 2,949 → 3,310 / 2,972 ms (+0.8 %) | 6,519 / 6,498 → 6,222 / 6,107 ms (−6.0 %) |
+  | **Six per role, unfit singletons kept last (shipped)** | 2,952 / 2,964 → 2,905 / 2,986 ms (−1.6 %) | 6,468 / 6,341 → 6,278 / 6,164 ms (**−2.8 %**) |
+
+  - A first unpruned run on a loaded machine (load average 4–5) read −0.5 % on. That was noise, and it is why every row above was run back to back on a quiet machine (load about 1.3).
+  - **Pruning.** `offeredSets` (Scheduler) gives `setsBeside` a new `keep` argument. Each role keeps its `ACCOMPANIMENT_CANDIDATES_PER_ROLE` (6) best portions, priced alone exactly as `setCost` prices a set of one. Only those are combined, still in table order. Generation and swaps share it.
+    - A portion that fits no plate on its own is ranked last, not dropped. The plate's share has a floor (`PLATE_LIMIT.min`), and more energy beside a small plate can lift the meal over it. So a set can fit where its single portions do not.
+    - The first pruned version dropped those portions. Ranking them last instead changed no measured number: 196/196, and 197 distinct.
+    - Eight per role was over +10 %, and gave fewer distinct sides (189 against 197).
+- **Specs (step 3)**, in `Accompaniment.seed.test.ts`, on the real seed: its links, seasons and macros. So no case passes because a fixture left a row out. The first assertion is that every row of every side is found.
+  - **Milk** (`pure-de-patata`, `yogur-con-miel`), **gluten** (`salmorejo`, `pan-con-tomate`, `cuscus`, `espinacas-con-sesamo`) and **tree nuts** (`espinacas-a-la-catalana`, also through `setsBeside` at lunch and dinner beside a Spanish plate): each side is offered to somebody without the allergy and never to somebody with it.
+  - **traditional_spanish.** The sides holding a `0077` row are out of the larder. Through `setsBeside`, across every month at lunch and dinner, nothing foreign is offered beside a Moroccan, Mexican, Turkish or Cuban dish, while everybody else gets those sides.
+  - The oil test and the coverage tests pass. The composed count is now 50.
+  - `Accompaniment.test.ts` tests `keep`.
+- **Deviation: a larder rule for foreign-only sides.**
+  - **What the specs showed.** `cuscus`, `elote`, `curtido`, `ensalada-de-aguacate`, `ensalada-de-zanahoria-marroqui`, `ensalada-de-remolacha`, `mutabal` and `datiles` hold no `0077` row. Only the dish filter kept them away, and `breaksPatternDish` refuses by `FOREIGN_CUISINES`. That list lacks values `cuisineFamily` maps to a foreign family: `turca`, `levantina`, `moroccan`, `asian`, `indian`, `mexican`, `colombiana`, `argentina`, `cubana` and `caribena`. A "Turca" dish reaches a traditional Spanish plan today, and would have brought a couscous with it.
+  - **What changed.** `larderFor` now leaves out, for whoever `refusesForeignDishes`, every side that only the arab, asian or latin family serves. Shared sides (`'all'`) and Spanish or Italian ones stay. The spec fails on four cases without it.
+  - **For the lead:** none of those cuisine values is in the reference library. Whether the dishes themselves should be refused (adding the values to `FOREIGN_CUISINES`) changes what the dish filter does, and is left to the lead.
+- **Evaluator (step 4).** `accompanied.distinct` counts the different sides each profile's fortnight served. It is printed per profile and in `--compare`.
+  - **Days in band.** Off: 196/196, the same as phase 2's tip measured the same day. Against `018-p2-off.json`, objetivo-bajo-3-comidas goes from 13 to 14, as on the base. The 14th profile (`tres-comidas-proteina-alta`) is not in the phase 2 files. On: 196/196, before and after.
+  - **Safety and meals.** 0 allergens and 0 snack-at-main, off and on. `--compare` says "the same" for every profile on.
+  - **Distinct sides per fortnight**, phase 2's code against this branch, flag on, total 145 → 197:
+    - objetivo-alto-5-comidas 19 → 28;
+    - tres-comidas-proteina-alta 10 → 21;
+    - patron-vegetariano 14 → 19;
+    - patron-halal 15 → 19;
+    - patron-sin-lactosa 13 → 18;
+    - imc-alto-2-comidas 15 → 18;
+    - patron-tradicional-espanola 13 → 18;
+    - alergia-personalizada-no-resuelta 15 → 18;
+    - alergia-personalizada 12 → 16;
+    - quincena-con-evento 8 → 11;
+    - alergia-lacteos 11 → 11, the one that did not rise;
+    - objetivo-bajo-3-comidas, patron-kosher and patron-sin-gluten 0 → 0: all 28 of their lunches and dinners took no side, before and after (`byCount` 0: 28). Why kosher and gluten-free get none was not looked into; it predates 018.
+  - **No repetition cost.** The count rose, so it was not added.
+  - **Risk 4 of the report** (near-zero sides): `kimchi` is never among the most served.
+- **Evidence**:
+  - `docs/local/018-p3-{off,on}.json`;
+  - core: 122 files, 3,684 tests green at the final code;
+  - the gate result is in the hand-back.

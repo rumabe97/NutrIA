@@ -315,6 +315,21 @@ describe('setsBeside — a whole-meal rule judged on the whole table', () => {
   });
 });
 
+describe('setsBeside — narrowed before it combines (018 phase 3)', () => {
+  it('builds its sets from the portions `keep` leaves, and only from them', () => {
+    const larder = larderFor(diner());
+    const all = portionsBeside(larder, SPANISH_STEW, 'lunch', OCTOBER);
+    const firstOfEach = (portions: readonly AccompanimentPortion[]) =>
+      (['starch', 'vegetable', 'dessert'] as const).flatMap(role => portions.filter(portion => portion.accompaniment.role === role).slice(0, 1));
+    const sets = setsBeside(larder, SPANISH_STEW, 'lunch', OCTOBER, firstOfEach);
+    const kept = keysOf(firstOfEach(all));
+
+    expect(sets).toHaveLength(8);
+    expect(sets.flatMap(set => set.portions).every(portion => kept.has(portion.accompaniment.key))).toBe(true);
+    expect(setsBeside(larder, SPANISH_STEW, 'lunch', OCTOBER)).toHaveLength(setsOf(all).length);
+  });
+});
+
 describe('setsOf — nothing, or one of each role', () => {
   it('starts with nothing and never puts two of a role together', () => {
     const portions = portionsBeside(larderFor(diner()), SPANISH_STEW, 'lunch', OCTOBER);
@@ -379,7 +394,7 @@ describe('what is stored and shown of an accompaniment (016 phase 4)', () => {
   it('tells how every composed accompaniment is made in both languages, and gives a simple one no line', () => {
     const composed = ACCOMPANIMENTS.filter(isComposed);
 
-    expect(composed).toHaveLength(18);
+    expect(composed).toHaveLength(50);
 
     for (const accompaniment of composed) {
       for (const locale of ['es-ES', 'en-GB']) {
