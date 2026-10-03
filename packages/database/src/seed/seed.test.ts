@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
@@ -177,7 +178,7 @@ describe('allergen links', () => {
   // Project 018 phase 2: a carton broth lists celery, and migration 0057 put the same links in production.
   it('declare celery on every carton broth but dashi, as contains, the same rows the migration links', () => {
     const broths = INGREDIENT_SEED.filter(ingredient => ingredient.slug.startsWith('caldo-') && ingredient.slug !== 'caldo-dashi');
-    const migration = readFileSync(new URL('../migrations/0057_broths_declare_celery.sql', import.meta.url), 'utf8');
+    const migration = readFileSync(join(__dirname, '../migrations/0057_broths_declare_celery.sql'), 'utf8');
     const linked = [...(/"slug" IN \(([^)]*)\)/u.exec(migration)?.[1] ?? '').matchAll(/'([^']+)'/gu)].map(match => match[1]);
 
     expect(broths.filter(ingredient => !ingredient.allergens?.some(link => link.key === 'celery' && (link.presence ?? 'contains') === 'contains'))).toEqual([]);
