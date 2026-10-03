@@ -407,6 +407,13 @@
       "when": 1790989514319,
       "tag": "0057_a_lost_second_factor_can_be_removed_after_48_hours",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1790996134702,
+      "tag": "0058_broths_declare_celery",
+      "breakpoints": true
     }
   ]
 }

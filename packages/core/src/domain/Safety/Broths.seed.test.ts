@@ -7,7 +7,7 @@ import { makeCatalogueIngredient, makeSafetyProfile } from '#test/fixtures';
 import { INGREDIENT_SEED } from '../../../../database/src/seed/ingredients';
 
 /**
- * Project 018 phase 2 (migration 0057): the carton broths declare celery, so a
+ * Project 018 phase 2 (migration 0058): the carton broths declare celery, so a
  * dish or a side holding one never reaches somebody allergic to it. Read on the
  * real seed's links — the rows production's catalogue now carries — through the
  * gate generation, swaps and `larderFor` all pass (`dishSafety`).
