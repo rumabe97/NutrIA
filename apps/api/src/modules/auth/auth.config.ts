@@ -24,6 +24,7 @@ import { sendPasskeyAddedMail } from './services/PasskeyMail.js';
 import { sendPasswordChangedMail } from './services/PasswordChangedMail.js';
 import { sendPasswordResetMail } from './services/PasswordResetMail.js';
 import { signInBrake } from './services/SignInBrake.js';
+import { signUpFloor } from './services/SignUpFloor.js';
 import {
   BACKUP_CODE_COUNT,
   refusesLinkPastTheFactor,
@@ -53,7 +54,9 @@ const MINUTES = 60;
  *
  * The end-to-end suites open dozens of accounts in a couple of minutes from one
  * address, which is precisely that shape of traffic. Only the paths they
- * hammer — and `/two-factor/*`, three in ten seconds by the plugin's rule, and `/passkey/*` — are raised, only under `NODE_ENV=test`, and raised rather than switched
+ * hammer — and `/two-factor/*`, three in ten seconds by the plugin's rule, `/passkey/*`, and
+ * `/request-password-reset`, three a minute, which the reset suites and the
+ * squatter's reset in `access` share — are raised, only under `NODE_ENV=test`, and raised rather than switched
  * off: the limiter stays on its real path, so a broken `rate_limit` table still
  * fails the suites, and every other route keeps the production rule.
  */
@@ -98,9 +101,15 @@ export function createAuth(
   const brake = signInBrake(env.BETTER_AUTH_SECRET);
   // Three mails of a kind per address per hour from the doors anybody can knock at (PLAN 011 phase 8).
   const budget = mailBudget(env.BETTER_AUTH_SECRET);
+  // A sign-up answers no earlier than its floor, a new address and an existing one alike (PLAN 011 phase 8).
+  const floor = signUpFloor();
   const security = {
+    addressConfirmed: async (account: { id: string; email: string }) => {
+      await onAddressConfirmed(account, selfService);
+    },
     background,
     brake,
+    floor,
     isCompromised,
     mailPasskeyAdded: async ({ id, acceptLanguage, email, userAgent }: PasskeyNotice) =>
       sendPasskeyAddedMail(mailer, { acceptLanguage, appUrl: env.APP_URL, to: email, userAgent, userId: id }),
@@ -387,7 +396,7 @@ export function createAuth(
      * checks the password it just proved against HIBP in the background and
      * marks the account on a hit.
      */
-    hooks: { after: accountSecurityAfter(security), before: accountSecurityBefore(isCompromised, brake) },
+    hooks: { after: accountSecurityAfter(security), before: accountSecurityBefore(isCompromised, brake, floor) },
     // Better Auth's own lines through Nest's logger, never with a WebAuthn challenge in them (`services/AuthLogger.ts`).
     logger: authLogger(),
     plugins: [
@@ -442,7 +451,13 @@ export function createAuth(
     rateLimit: {
       customRules:
         env.NODE_ENV === 'test'
-          ? { '/passkey/*': TEST_AUTH_RULE, '/sign-in/*': TEST_AUTH_RULE, '/sign-up/*': TEST_AUTH_RULE, '/two-factor/*': TEST_AUTH_RULE }
+          ? {
+              '/passkey/*': TEST_AUTH_RULE,
+              '/request-password-reset': TEST_AUTH_RULE,
+              '/sign-in/*': TEST_AUTH_RULE,
+              '/sign-up/*': TEST_AUTH_RULE,
+              '/two-factor/*': TEST_AUTH_RULE
+            }
           : PASSKEY_SIGN_IN_RULES,
       enabled: true,
       storage: 'database'

@@ -33,9 +33,15 @@ const isPasswordCompromised = jest.fn<(password: string) => Promise<boolean>>();
 jest.unstable_mockModule('better-auth/adapters/drizzle', () => ({ drizzleAdapter: () => memoryAdapter(store) }));
 jest.unstable_mockModule('better-auth/plugins/haveibeenpwned', () => ({ isPasswordCompromised }));
 jest.unstable_mockModule('database', () => ({ database: () => ({}) }));
+const addressesConfirmed: string[] = [];
+
 jest.unstable_mockModule('./SelfService.js', () => ({
   onAccountCreated: async () => Promise.resolve(),
-  onAddressConfirmed: async () => Promise.resolve()
+  onAddressConfirmed: async ({ email }: { email: string }) => {
+    addressesConfirmed.push(email);
+
+    return Promise.resolve('waiting');
+  }
 }));
 jest.unstable_mockModule('./VerificationMail.js', () => ({ sendVerificationMail: async () => Promise.resolve() }));
 jest.unstable_mockModule('./PasswordResetMail.js', () => ({
@@ -150,6 +156,17 @@ async function sessionOf(auth: Auth, cookie: string): Promise<{ user: Row } | nu
 /** The `UserController` writes, spied; their SQL is `packages/core`'s to prove. */
 function spyWrites() {
   return {
+    // The address confirmed in the store as the repository would: only while it was not.
+    confirmAddressByReset: jest.spyOn(UserController, 'confirmAddressByReset').mockImplementation(async id => {
+      const row = store.user.find(candidate => candidate.id === id);
+      const was = row?.emailVerified === true;
+
+      if (row) {
+        row.emailVerified = true;
+      }
+
+      return Promise.resolve(Boolean(row) && !was);
+    }),
     forgetPasskeys: jest.spyOn(UserController, 'forgetPasskeys').mockResolvedValue(0),
     markPasswordCompromised: jest.spyOn(UserController, 'markPasswordCompromised').mockResolvedValue(true),
     passwordChanged: jest.spyOn(UserController, 'passwordChanged').mockResolvedValue(0),
@@ -167,6 +184,7 @@ describe('what follows a password change, a closed session and a sign-in', () =>
 
     resetUrls.length = 0;
     mails.length = 0;
+    addressesConfirmed.length = 0;
     tasks.length = 0;
     isPasswordCompromised.mockReset();
     isPasswordCompromised.mockResolvedValue(false);
@@ -283,6 +301,49 @@ describe('what follows a password change, a closed session and a sign-in', () =>
       expect(reset.status).toBe(200);
       expect(writes.passwordChanged).toHaveBeenCalledWith(store.user[0]?.id as string, 'reset');
       expect(mails).toEqual([{ to: ACCOUNT.email, userAgent: IPHONE, userId: store.user[0]?.id as string }]);
+    });
+
+    it('confirms an unconfirmed address, with what confirming runs, and the new password then signs in (PLAN 011 phase 8)', async () => {
+      const auth = build();
+      // Signed up by somebody else, never confirmed: their password, not the owner's.
+      await call(auth, '/sign-up/email', { body: { ...ACCOUNT, password: PASSWORD } });
+      await auth.api.requestPasswordReset({ body: { email: ACCOUNT.email } });
+      await drain();
+      const token = new URL(resetUrls.at(-1) ?? '').pathname.split('/').at(-1) ?? '';
+
+      expect((await signIn(auth, IPHONE, PASSWORD)).status).toBe(401);
+      expect((await call(auth, '/reset-password', { body: { newPassword: NEW_PASSWORD, token }, userAgent: IPHONE })).status).toBe(200);
+
+      expect(store.user[0]?.emailVerified).toBe(true);
+      expect(addressesConfirmed).toEqual([ACCOUNT.email]);
+      expect((await signIn(auth, IPHONE, NEW_PASSWORD)).status).toBe(200);
+    });
+
+    it('runs nothing of confirming for an address already confirmed', async () => {
+      const auth = build();
+      await signUp(auth);
+      await auth.api.requestPasswordReset({ body: { email: ACCOUNT.email } });
+      await drain();
+      const token = new URL(resetUrls.at(-1) ?? '').pathname.split('/').at(-1) ?? '';
+
+      await call(auth, '/reset-password', { body: { newPassword: NEW_PASSWORD, token }, userAgent: IPHONE });
+
+      expect(writes.confirmAddressByReset).toHaveBeenCalledTimes(1);
+      expect(addressesConfirmed).toEqual([]);
+    });
+
+    it('still resets when the address cannot be confirmed, with one line that names the account only', async () => {
+      const auth = build();
+      await signUp(auth);
+      writes.confirmAddressByReset.mockRejectedValue(new Error('database down'));
+      const error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+      await auth.api.requestPasswordReset({ body: { email: ACCOUNT.email } });
+      await drain();
+      const token = new URL(resetUrls.at(-1) ?? '').pathname.split('/').at(-1) ?? '';
+
+      expect((await call(auth, '/reset-password', { body: { newPassword: NEW_PASSWORD, token }, userAgent: IPHONE })).status).toBe(200);
+      expect(error).toHaveBeenCalledWith(`address_not_confirmed_on_reset ${JSON.stringify({ userId: store.user[0]?.id })}`);
+      expect(writes.passwordChanged).toHaveBeenCalledWith(store.user[0]?.id as string, 'reset');
     });
 
     it('tells the mail how many passkeys the reset removed (PLAN 011 phase 5)', async () => {

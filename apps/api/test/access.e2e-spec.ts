@@ -393,6 +393,8 @@ describe('sign-up: the same answer for a new address and an existing one', () =>
   const stamp = `${Date.now()}`;
   const existing = `signup-existing-${stamp}@e2e.invalid`;
   const fresh = `signup-new-${stamp}@e2e.invalid`;
+  const victim = `signup-victim-${stamp}@e2e.invalid`;
+  const VICTIM_PASSWORD = 'lantern-orchard-pebble-river-4';
   const OTHER_PASSWORD = 'otra-frase-de-caballos-azules';
   const logged: string[] = [];
   let restore: (() => void) | undefined;
@@ -437,9 +439,10 @@ describe('sign-up: the same answer for a new address and an existing one', () =>
 
   afterAll(async () => {
     restore?.();
-    await tables()`delete from sign_in_failure where key = any(${[keyOf(existing), keyOf(fresh)]})`;
+    await tables()`delete from sign_in_failure where key = any(${[keyOf(existing), keyOf(fresh), keyOf(victim)]})`;
     await deleteAccountByEmail(app, existing, PASSWORD);
     await deleteAccountByEmail(app, fresh, OTHER_PASSWORD);
+    await deleteAccountByEmail(app, victim, VICTIM_PASSWORD);
     await app?.close();
   });
 
@@ -515,5 +518,30 @@ describe('sign-up: the same answer for a new address and an existing one', () =>
     expect(user).toEqual({ n: 1, name: 'Ana' });
     await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email: existing, password: OTHER_PASSWORD }).expect(401);
     await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email: existing, password: PASSWORD }).expect(200);
+  });
+  it('lets the owner of an address a stranger signed up first in, by a reset: the reset confirms the address', async () => {
+    const server = httpServer(app);
+
+    // The stranger signs the address up with a password of their own, and never confirms it.
+    await request(server).post(`/${PREFIX}/auth/sign-up/email`).send({ email: victim, name: 'Mallory', password: OTHER_PASSWORD }).expect(200);
+
+    const [squatted] = await tables()<{ id: string; verified: boolean }>`select id, email_verified as verified from "user" where email = ${victim}`;
+
+    expect(squatted?.verified).toBe(false);
+
+    // The owner asks for a reset; the link goes to their mailbox (read from the table here).
+    await request(server).post(`/${PREFIX}/auth/request-password-reset`).send({ email: victim }).expect(200);
+
+    const [row] = await tables()<{ identifier: string }>`
+      select identifier from verification where value = ${squatted?.id ?? ''} and identifier like 'reset-password:%' order by created_at desc limit 1`;
+    const token = row?.identifier.slice('reset-password:'.length) ?? '';
+
+    await request(server).post(`/${PREFIX}/auth/reset-password`).send({ newPassword: VICTIM_PASSWORD, token }).expect(200);
+
+    const [after] = await tables()<{ verified: boolean }>`select email_verified as verified from "user" where email = ${victim}`;
+
+    expect(after?.verified).toBe(true);
+    await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email: victim, password: VICTIM_PASSWORD }).expect(200);
+    await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email: victim, password: OTHER_PASSWORD }).expect(401);
   });
 });

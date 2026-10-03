@@ -55,6 +55,7 @@ jest.unstable_mockModule('./ExistingAccountMail.js', () => ({
 }));
 
 const { createAuth } = await import('../auth.config.js');
+const { SIGN_UP_FLOOR_MS } = await import('./SignUpFloor.js');
 
 const ORIGIN = 'http://localhost:3000';
 const PASSWORD = 'correct-horse-battery-staple-9';
@@ -229,5 +230,21 @@ describe('sign-up reveals nothing', () => {
       { kind: 'existing', to: EXISTING },
       { kind: 'existing', to: EXISTING }
     ]);
+  });
+  it('answers both no earlier than the floor, the new address and the existing one alike', async () => {
+    const auth = build();
+    await signUp(auth, EXISTING, 'Ana');
+
+    const timed = async (email: string): Promise<number> => {
+      const start = performance.now();
+
+      expect((await signUp(auth, email, 'Bea', OTHER_PASSWORD)).status).toBe(200);
+
+      return performance.now() - start;
+    };
+
+    // A timer may fire a millisecond early; nothing may come back meaningfully before the floor.
+    expect(await timed(EXISTING)).toBeGreaterThanOrEqual(SIGN_UP_FLOOR_MS - 2);
+    expect(await timed(NEW)).toBeGreaterThanOrEqual(SIGN_UP_FLOOR_MS - 2);
   });
 });

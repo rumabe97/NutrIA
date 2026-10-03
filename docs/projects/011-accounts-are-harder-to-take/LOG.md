@@ -714,3 +714,49 @@
     goes to the new one only.
 - **Decisions**: the mail budget (the lead, under the owner's delegation, 2026-10-03).
 - **Advisor**: not consulted.
+
+## Phase 8 — two additions after the hand-off (2026-10-03)
+
+- **Executor**: opus 5.5 (`backend`, the same agent).
+- **Who decided**: the lead, under the owner's delegation of 2026-10-03. Both close
+  differences the hand-off listed.
+- **A time floor on `/sign-up/email`** (`services/SignUpFloor.ts`):
+  - Every sign-up answers no earlier than **500 ms**, the floor Better Auth itself keeps
+    on `/send-verification-email`. A refused password is not held: its answer is the same
+    for every address.
+  - The new-address branch was ~8 ms slower locally (the row, the credential and
+    `onAccountCreated`, inline). On Neon that is a few round trips, well under the floor.
+  - The clock starts in `hooks.before` once the password checks have passed, not at the
+    request. HIBP can take up to two seconds (`HIBP_TIMEOUT_MS`), the same for any
+    address; counting it would let a slow HIBP push one branch past the floor and not the
+    other. So the floor covers exactly the part that depends on the address.
+  - `hooks.after` waits out what is left, whatever the answer.
+  - Keyed on the request: HTTP only, since a call through `auth.api` has no request and no
+    stranger can make one.
+  - On under `NODE_ENV=test` too, as the brake is. The unit suites took ~50 s with it.
+  - Pinned by:
+    - `SignUpFloor.spec.ts` (fake clock: what is left of the floor, nothing past it, no
+      other route, no `auth.api` call, nothing before the clock started);
+    - `SignUp.spec.ts`: on the real Better Auth over HTTP, both branches take at least the
+      floor.
+- **A completed reset confirms the address** (`onPasswordReset`):
+  - Better Auth 1.7.7's reset does not: `routes/password.mjs` never touches
+    `emailVerified`.
+  - Now `UserController.confirmAddressByReset` sets it, on that account and only while it
+    was unconfirmed. When it does, it runs what confirming an address runs
+    (`onAddressConfirmed`: the account opens itself, or the owner is told).
+  - A failure leaves the address as it was, writes one line
+    (`address_not_confirmed_on_reset`, the account id only), and the reset still answers
+    200.
+  - This closes the squatter case: a stranger signs up somebody's address with their own
+    password, never confirms; the owner resets and signs in with the new password.
+  - Pinned by:
+    - `AccountSecurity.spec.ts` (3 cases: confirmed, then signs in; an already confirmed
+      address runs nothing; a failure still resets);
+    - `UserRepository.test.ts` (the `WHERE` holds `email_verified = false`);
+    - `access.e2e-spec.ts`: the squatter signs up, the owner resets, the new password gets
+      200 and the squatter's gets 401.
+- **Test-only rate rule**: `/request-password-reset` joins the paths raised under
+  `NODE_ENV=test`. Its three-a-minute per-IP rule was shared, in one run, by the reset
+  suites and the squatter's reset in `access`. No suite asserts that 429.
+
