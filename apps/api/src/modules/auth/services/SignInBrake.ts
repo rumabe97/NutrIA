@@ -36,10 +36,14 @@ export type SignInBrake = {
  *   attempts fired at once cannot all read the count before any has written
  *   it. A correct password clears the row, so what stays counted is the
  *   failures.
- * - Never a hard lock: the longest wait is fifteen minutes, and the right
- *   password gets in once it is over. A passkey and Google never pass here:
- *   neither has a password to guess, and both stay open to the owner of an
- *   address somebody else is braking.
+ * - No wait is longer than fifteen minutes, but the attempt at its end goes to
+ *   whoever asks first: an attacker who spends each one on a wrong password
+ *   keeps the address braked while they keep at it, and a reset that clears
+ *   the row is braked again after ten more. A passkey and Google never pass
+ *   here: neither has a password to guess, and both stay open to the owner of
+ *   an address somebody else is braking.
+ * - Clearing on a correct password is itself a signal: an address whose row
+ *   was cleared between two probes had an owner who signed in. Accepted (LOG).
  * - It fails open: if its row cannot be read or written, the sign-in goes on
  *   behind Better Auth's own per-IP limit, and the line
  *   `sign_in_brake_unavailable` says so. A brake that broke must not lock

@@ -88,7 +88,7 @@ describe('decideAttempt', () => {
     expect(decideAttempt(ten, at(30_000))).toEqual({ kind: 'allowed', next: { count: 11, nextAllowedAt: at(90_000), windowStartedAt: NOW } });
   });
 
-  it('never waits longer than fifteen minutes: no hard lock', () => {
+  it('never waits longer than fifteen minutes', () => {
     const many = attempts(40);
 
     expect(many?.count).toBe(40);

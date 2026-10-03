@@ -533,8 +533,9 @@
     `window_started_at`, `next_allowed_at`. No address, no user FK.
   - The rule is `core/domain/SignInBrake` (`decideAttempt`, `waitAfter`): the tenth attempt
     in fifteen minutes runs and leaves the next waiting 30 s, then 1, 2, 4, 8 min, capped at
-    15 min. The window starts again after fifteen quiet minutes, measured from the end of the
-    last wait, so a patient guesser stays at the cap rather than earning nine free tries back.
+    15 min. Until the waits begin, the window is fixed from its first attempt; once they have
+    begun, it restarts only after fifteen minutes with no attempt past the end of the last
+    wait, so a patient guesser stays at the cap rather than earning nine free tries back.
   - `hooks.before` on `/sign-in/email` answers 429 `{code:'TOO_MANY_ATTEMPTS'}` with
     `Retry-After` and `X-Retry-After` while the address waits, before the password is checked.
     It is the same for an address with an account and one without: nothing about the
@@ -570,9 +571,21 @@
     about ten tries per quarter hour per address, under a thousand a day, from any number of IPs.
     Against a 12-character password with no known breach that is harmless. A daily budget
     would be the next step if the § 9 numbers ever show it.
-  - A persistent attacker can keep an address at the 15-minute wait. The owner then gets
-    in after the wait, or at once through a passkey, Google, or a reset (which clears it).
-    That is the price of "no hard lock" without a device cookie.
+  - **"The right password gets in after the wait" holds only when nobody else is using the
+    end of the wait** (invariant review, P1-a). The attempt at the end of each wait goes to
+    whoever asks first, and `Retry-After` says when. An attacker who spends each one on a
+    wrong password keeps a password-only account braked for as long as they keep at it. A
+    reset clears the row, but ten more failures brake it again. What "no hard lock" means
+    here is that no single wait exceeds 15 min and that passkeys and Google are never
+    braked: those are the owner's way in during an attack. The follow-up, if it is ever
+    needed, is a device cookie from a past sign-in that exempts that browser from the brake.
+  - **Clearing on success is a slow existence signal** (invariant review, P1-b). Only an
+    address with an account can have its row cleared, by a correct sign-in or a reset.
+    Nine failures, then later a tenth and an eleventh: with no account the answers are
+    always 401 then 429; if the owner signed in with a password in between, they are 401
+    then 401. It needs the owner to sign in inside the prober's window, and any reaction to
+    a success would leak the success. Recorded as a known limit; the owner decides whether
+    it stands.
 - **Evidence**:
   - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api` green:
     core 125 files, database 53 tests, api 1511 tests.

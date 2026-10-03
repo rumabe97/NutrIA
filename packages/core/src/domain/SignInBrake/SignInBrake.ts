@@ -12,9 +12,11 @@ const DAY = 24 * 60 * MINUTE;
  * Every attempt in a window counts — a correct password then deletes the row,
  * so what is left counted is the failures. The tenth attempt in fifteen
  * minutes still runs, and leaves the next one waiting thirty seconds; each
- * attempt after a wait doubles it, up to fifteen minutes. Never a hard lock:
- * the owner of the address gets in with the right password once the wait is
- * over, however long somebody else has been guessing.
+ * attempt after a wait doubles it, up to fifteen minutes. No wait is ever
+ * longer than that, but the attempt at the end of a wait goes to whoever asks
+ * first: somebody who spends each one on a wrong password keeps the address
+ * braked for as long as they keep at it. A passkey and Google never pass here,
+ * and stay open to the owner meanwhile (PLAN 011 phase 7, LOG).
  */
 export const SIGN_IN_BRAKE = {
   firstWaitMs: 30 * SECOND,
@@ -23,7 +25,11 @@ export const SIGN_IN_BRAKE = {
   maxWaitMs: 15 * MINUTE,
   /** The attempt in one window that starts the waits. */
   threshold: 10,
-  /** Fifteen quiet minutes — after the window began, or after the last wait ended — and the count starts again. */
+  /**
+   * The window: fixed from its first attempt while no wait has begun; once the
+   * waits have begun, fifteen minutes with no attempt after the last wait ended.
+   * Either way past it, the count starts again at one.
+   */
   windowMs: 15 * MINUTE
 } as const;
 
