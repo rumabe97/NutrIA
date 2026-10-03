@@ -571,21 +571,23 @@
     about ten tries per quarter hour per address, under a thousand a day, from any number of IPs.
     Against a 12-character password with no known breach that is harmless. A daily budget
     would be the next step if the § 9 numbers ever show it.
-  - **"The right password gets in after the wait" holds only when nobody else is using the
-    end of the wait** (invariant review, P1-a). The attempt at the end of each wait goes to
-    whoever asks first, and `Retry-After` says when. An attacker who spends each one on a
-    wrong password keeps a password-only account braked for as long as they keep at it. A
-    reset clears the row, but ten more failures brake it again. What "no hard lock" means
-    here is that no single wait exceeds 15 min and that passkeys and Google are never
-    braked: those are the owner's way in during an attack. The follow-up, if it is ever
-    needed, is a device cookie from a past sign-in that exempts that browser from the brake.
-  - **Clearing on success is a slow existence signal** (invariant review, P1-b). Only an
-    address with an account can have its row cleared, by a correct sign-in or a reset.
-    Nine failures, then later a tenth and an eleventh: with no account the answers are
-    always 401 then 429; if the owner signed in with a password in between, they are 401
-    then 401. It needs the owner to sign in inside the prober's window, and any reaction to
-    a success would leak the success. Recorded as a known limit; the owner decides whether
-    it stands.
+  - **Not "never a hard lock"** (invariant review, P1-a). An attacker who knows the
+    address can keep a password-only account braked for as long as the attack runs: the
+    attempt at the end of each wait goes to whoever asks first, and `Retry-After` says
+    when. A passkey or Google sign-in is the escape. The reset clears the row but can be
+    raced: ten more failures brake it again. No single wait exceeds 15 min. PRD 12 is
+    amended to say so, and phase 7b (a device cookie that exempts a browser that signed in
+    before) is the remedy, planned after phase 8.
+  - **Clearing on success leaks existence slowly** (invariant review, P1-b). Only an
+    address with an account can have its row cleared, by a correct sign-in or a reset. The
+    probe is nine failures, then the victim signs in with a password, then two more
+    probes: 401 then 401, where an address with no account answers 401 then 429. It needs
+    a password sign-in by the victim inside the prober's window. No health data crosses an
+    account boundary. The trade-off is that without clearing, the owner's own sign-ins
+    would count against them. Kept as a known limit.
+  - **Decision** (who decided: the lead, under the owner's delegation of 2026-10-03, "las
+    decisiones anótalas con lo más recomendado"): ship the brake, state its limits
+    honestly, and plan the real remedy as phase 7b.
 - **Evidence**:
   - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api` green:
     core 125 files, database 53 tests, api 1511 tests.
