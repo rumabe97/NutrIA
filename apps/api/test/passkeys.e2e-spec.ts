@@ -665,9 +665,11 @@ describe('passkeys: Better Auth’s plugin, owned by the session', () => {
       expect((await addPasskey(jar, device)).status).toBe(200);
 
       const lines: string[] = [];
+
       const keep = (...parts: unknown[]) => {
         lines.push(parts.map(part => (typeof part === 'string' ? part : inspect(part))).join(' '));
       };
+
       const spies = [
         ...(['debug', 'error', 'log', 'verbose', 'warn'] as const).map(level => jest.spyOn(Logger.prototype, level).mockImplementation(keep)),
         ...(['debug', 'error', 'info', 'log', 'warn'] as const).map(level => jest.spyOn(console, level).mockImplementation(keep))
