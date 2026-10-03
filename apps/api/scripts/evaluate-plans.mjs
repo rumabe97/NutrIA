@@ -64,8 +64,8 @@ import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValida
 import {
   breaksDishRule,
   breaksPatternDish,
-  FOREIGN_CUISINES,
   freeFromExclusions,
+  isForeignCuisine,
   isLegumeSlug,
   PATTERN_EXCLUDED_SLUGS,
   resolvePreferences
@@ -832,7 +832,7 @@ function spanishMetrics(days, catalogue) {
         forbiddenRows.push({ dayIndex: day.dayIndex, dish: dish.name, slot: meal.slot, slug });
       }
 
-      if (dish.cuisine && FOREIGN_CUISINES.has(normaliseForMatching(dish.cuisine))) {
+      if (isForeignCuisine(dish.cuisine)) {
         foreignCuisines.push({ cuisine: dish.cuisine, dayIndex: day.dayIndex, dish: dish.name, slot: meal.slot });
       } else if (breaksPatternDish({ cuisine: null, name: dish.name }, { refusesForeignDishes: true })) {
         foreignNames.push({ dayIndex: day.dayIndex, dish: dish.name, slot: meal.slot });
