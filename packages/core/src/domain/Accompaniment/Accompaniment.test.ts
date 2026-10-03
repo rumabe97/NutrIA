@@ -379,7 +379,7 @@ describe('what is stored and shown of an accompaniment (016 phase 4)', () => {
   it('tells how every composed accompaniment is made in both languages, and gives a simple one no line', () => {
     const composed = ACCOMPANIMENTS.filter(isComposed);
 
-    expect(composed).toHaveLength(18);
+    expect(composed).toHaveLength(50);
 
     for (const accompaniment of composed) {
       for (const locale of ['es-ES', 'en-GB']) {

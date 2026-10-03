@@ -72,8 +72,11 @@ function composed(
 }
 
 /**
- * Table 3 of `0079`, literally. USDA rows only, except `queso-de-burgos`,
- * which `0079` names as the one still waiting to be re-sourced. `pan-de-semillas`
+ * Table 3 of `0079`, and project 018's first batch (architect report `0009`).
+ * No BEDCA row but `queso-de-burgos`, which `0079` names as the one still
+ * waiting to be re-sourced; five rows of Table 3 are `manual` (`requeson`,
+ * `pan-sin-gluten`, `alga-wakame`, `salsa-de-soja-baja-en-sal`,
+ * `vinagre-de-arroz`), and every row 018 added is USDA. `pan-de-semillas`
  * is not here on purpose: it may contain sesame and tree nuts. `pan-sin-gluten`
  * is, and reaches only the people `freeFromExclusions` leaves it to — which
  * holds only when the caller hands `larderFor` the preferences and safety of
@@ -101,6 +104,10 @@ export const ACCOMPANIMENTS: readonly Accompaniment[] = [
   fruit('melon', 200),
   fruit('sandia', 200),
   fruit('pina', 150),
+  fruit('nispero', 150),
+  fruit('cereza', 150),
+  fruit('albaricoque', 140),
+  fruit('granada', 150),
   {
     families: 'all',
     key: 'yogur-natural-desnatado',
@@ -114,6 +121,33 @@ export const ACCOMPANIMENTS: readonly Accompaniment[] = [
     key: 'yogur-griego-natural',
     months: 'all',
     portions: [[{ grams: 125, slug: 'yogur-griego-natural' }]],
+    role: 'dessert',
+    slots: BLD
+  },
+  {
+    families: 'all',
+    key: 'yogur-con-miel',
+    months: 'all',
+    portions: [
+      [
+        { grams: 125, slug: 'yogur-natural-desnatado' },
+        { grams: 10, slug: 'miel' }
+      ]
+    ],
+    role: 'dessert',
+    slots: BLD
+  },
+  {
+    families: 'all',
+    key: 'macedonia',
+    months: [11, 12, 1, 2, 3],
+    portions: [
+      [
+        { grams: 80, slug: 'naranja' },
+        { grams: 60, slug: 'manzana' },
+        { grams: 40, slug: 'platano' }
+      ]
+    ],
     role: 'dessert',
     slots: BLD
   },
@@ -160,6 +194,9 @@ export const ACCOMPANIMENTS: readonly Accompaniment[] = [
     role: 'vegetable',
     slots: LD
   },
+  { families: ['asian'], key: 'kimchi', months: 'all', portions: [[{ grams: 60, slug: 'kimchi' }]], role: 'vegetable', slots: LD },
+  { families: ['latin'], key: 'guacamole', months: 'all', portions: [[{ grams: 60, slug: 'guacamole' }]], role: 'vegetable', slots: LD },
+  { families: ['arab'], key: 'datiles', months: 'all', portions: [[{ grams: 30, slug: 'datiles' }]], role: 'dessert', slots: BLD },
   // 3b — composed, g per person.
   composed('ensalada-verde', 'vegetable', [...SPANISH, 'italian', 'latin', 'arab'], 'all', [
     { grams: 80, slug: 'lechuga' },
@@ -219,6 +256,192 @@ export const ACCOMPANIMENTS: readonly Accompaniment[] = [
       { grams: 0.5, slug: 'sal' }
     ]
   ),
+  composed(
+    'crema-de-calabacin',
+    'vegetable',
+    SPANISH,
+    [5, 6, 7, 8, 9],
+    [
+      { grams: 250, slug: 'calabacin' },
+      { grams: 40, slug: 'cebolla' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'crema-de-calabaza',
+    'vegetable',
+    SPANISH,
+    [9, 10, 11, 12, 1, 2, 3],
+    [
+      { grams: 250, slug: 'calabaza' },
+      { grams: 40, slug: 'zanahoria' },
+      { grams: 30, slug: 'cebolla' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed('crema-de-puerros', 'vegetable', SPANISH, 'all', [
+    { grams: 120, slug: 'puerro' },
+    { grams: 80, slug: 'patata' },
+    { grams: 20, slug: 'cebolla' },
+    { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+    { grams: 0.5, slug: 'sal' }
+  ]),
+  composed(
+    'pimientos-asados',
+    'vegetable',
+    SPANISH,
+    [7, 8, 9, 10],
+    [
+      { grams: 150, slug: 'pimiento-rojo' },
+      { grams: 2, slug: 'ajo' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed('menestra-de-verduras', 'vegetable', SPANISH, 'all', [
+    { grams: 50, slug: 'judia-verde-congelada' },
+    { grams: 30, slug: 'guisantes-congelados' },
+    { grams: 40, slug: 'coliflor-congelada' },
+    { grams: 30, slug: 'zanahoria' },
+    { grams: 20, slug: 'cebolla' },
+    { grams: 2, slug: 'ajo' },
+    { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+    { grams: 0.5, slug: 'sal' }
+  ]),
+  composed('champinones-al-ajillo', 'vegetable', SPANISH, 'all', [
+    { grams: 150, slug: 'champinon' },
+    { grams: 4, slug: 'ajo' },
+    { grams: 3, slug: 'perejil' },
+    { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+    { grams: 0.5, slug: 'sal' }
+  ]),
+  composed('tomate-alinado', 'vegetable', [...SPANISH, 'italian'], SUMMER, [
+    { grams: 180, slug: 'tomate' },
+    { grams: 1, slug: 'ajo' },
+    { grams: 3, slug: 'perejil' },
+    { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+    { grams: 0.5, slug: 'sal' }
+  ]),
+  composed(
+    'escalivada',
+    'vegetable',
+    SPANISH,
+    [7, 8, 9, 10],
+    [
+      { grams: 100, slug: 'berenjena' },
+      { grams: 80, slug: 'pimiento-rojo' },
+      { grams: 40, slug: 'cebolla' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'espinacas-a-la-catalana',
+    'vegetable',
+    SPANISH,
+    [10, 11, 12, 1, 2, 3, 4, 5, 6],
+    [
+      { grams: 150, slug: 'espinaca' },
+      { grams: 10, slug: 'pasas' },
+      { grams: 5, slug: 'pinones' },
+      { grams: 2, slug: 'ajo' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'acelgas-rehogadas',
+    'vegetable',
+    SPANISH,
+    [8, 9, 10, 11, 12, 1, 2, 3, 4, 5],
+    [
+      { grams: 200, slug: 'acelga' },
+      { grams: 3, slug: 'ajo' },
+      { grams: 0.5, slug: 'pimenton-dulce' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'coliflor-al-ajoarriero',
+    'vegetable',
+    SPANISH,
+    [9, 10, 11, 12, 1, 2, 3, 4],
+    [
+      { grams: 150, slug: 'coliflor' },
+      { grams: 3, slug: 'ajo' },
+      { grams: 1, slug: 'pimenton-dulce' },
+      { grams: 3, slug: 'vinagre-de-vino-tinto' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'alcachofas-a-la-plancha',
+    'vegetable',
+    [...SPANISH, 'italian'],
+    [12, 1, 2, 3, 4, 5],
+    [
+      { grams: 150, slug: 'alcachofa' },
+      { grams: 5, slug: 'limon' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'esparragos-trigueros-a-la-plancha',
+    'vegetable',
+    [...SPANISH, 'italian'],
+    [3, 4, 5, 6, 9],
+    [
+      { grams: 150, slug: 'esparrago-verde' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed('zanahorias-alinadas', 'vegetable', SPANISH, 'all', [
+    { grams: 120, slug: 'zanahoria' },
+    { grams: 2, slug: 'ajo' },
+    { grams: 0.5, slug: 'comino-molido' },
+    { grams: 0.5, slug: 'oregano-seco' },
+    { grams: 5, slug: 'vinagre-de-vino-tinto' },
+    { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+    { grams: 0.5, slug: 'sal' }
+  ]),
+  composed('patata-cocida', 'starch', SPANISH, 'all', [
+    { grams: 150, slug: 'patata' },
+    { grams: 2, slug: 'perejil' },
+    { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+    { grams: 0.5, slug: 'sal' }
+  ]),
+  composed('pure-de-patata', 'starch', SPANISH, 'all', [
+    { grams: 150, slug: 'patata' },
+    { grams: 40, slug: 'leche-semidesnatada' },
+    { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+    { grams: 0.5, slug: 'sal' }
+  ]),
+  composed('salmorejo', 'vegetable', SPANISH, SUMMER, [
+    { grams: 200, slug: 'tomate' },
+    { grams: 30, slug: 'pan-blanco' },
+    { grams: 2, slug: 'ajo' },
+    { grams: 10, slug: 'aceite-de-oliva-virgen-extra' },
+    { grams: 1, slug: 'sal' }
+  ]),
+  composed(
+    'pan-con-tomate',
+    'starch',
+    SPANISH,
+    'all',
+    [
+      { grams: 50, slug: 'pan-blanco' },
+      { grams: 40, slug: 'tomate-triturado' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ],
+    BLD
+  ),
   composed('insalata-mista', 'vegetable', ['italian'], SUMMER, [
     { grams: 60, slug: 'lechuga' },
     { grams: 60, slug: 'tomate-cherry' },
@@ -249,6 +472,22 @@ export const ACCOMPANIMENTS: readonly Accompaniment[] = [
     { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
     { grams: 5, slug: 'salsa-de-soja-baja-en-sal' }
   ]),
+  composed('arroz-jazmin', 'starch', ['asian'], 'all', [{ grams: 50, slug: 'arroz-jazmin-crudo' }]),
+  composed('edamame', 'vegetable', ['asian'], 'all', [
+    { grams: 100, slug: 'edamame-congelado' },
+    { grams: 1, slug: 'sal' }
+  ]),
+  composed(
+    'espinacas-con-sesamo',
+    'vegetable',
+    ['asian'],
+    [10, 11, 12, 1, 2, 3, 4, 5, 6],
+    [
+      { grams: 150, slug: 'espinaca' },
+      { grams: 5, slug: 'sesamo' },
+      { grams: 5, slug: 'salsa-de-soja' }
+    ]
+  ),
   composed('arroz-rojo', 'starch', ['latin'], 'all', [
     { grams: 40, slug: 'arroz-largo-crudo' },
     { grams: 40, slug: 'tomate-triturado' },
@@ -278,6 +517,57 @@ export const ACCOMPANIMENTS: readonly Accompaniment[] = [
     ],
     BLD
   ),
+  composed('yuca-con-mojo', 'starch', ['latin'], 'all', [
+    { grams: 120, slug: 'yuca' },
+    { grams: 2, slug: 'ajo' },
+    { grams: 5, slug: 'lima' },
+    { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+    { grams: 0.5, slug: 'sal' }
+  ]),
+  composed('platano-macho-al-horno', 'starch', ['latin'], 'all', [
+    { grams: 120, slug: 'platano-macho' },
+    { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+    { grams: 0.5, slug: 'sal' }
+  ]),
+  composed(
+    'elote',
+    'starch',
+    ['latin'],
+    [7, 8, 9],
+    [
+      { grams: 150, slug: 'mazorca-de-maiz' },
+      { grams: 5, slug: 'lima' },
+      { grams: 0.5, slug: 'cayena-molida' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'curtido',
+    'vegetable',
+    ['latin'],
+    [9, 10, 11, 12, 1, 2, 3],
+    [
+      { grams: 100, slug: 'col-blanca' },
+      { grams: 30, slug: 'zanahoria' },
+      { grams: 15, slug: 'cebolla' },
+      { grams: 10, slug: 'vinagre-de-manzana' },
+      { grams: 0.5, slug: 'oregano-seco' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'ensalada-de-aguacate',
+    'vegetable',
+    ['latin'],
+    [11, 12, 1, 2, 3, 4],
+    [
+      { grams: 70, slug: 'aguacate' },
+      { grams: 10, slug: 'cebolla-morada' },
+      { grams: 3, slug: 'cilantro' },
+      { grams: 5, slug: 'lima' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
   composed('ensalada-marroqui', 'vegetable', ['arab'], SUMMER, [
     { grams: 80, slug: 'tomate' },
     { grams: 60, slug: 'pepino' },
@@ -304,6 +594,46 @@ export const ACCOMPANIMENTS: readonly Accompaniment[] = [
     ],
     ['lunch']
   ),
+  composed(
+    'cuscus',
+    'starch',
+    ['arab'],
+    'all',
+    [
+      { grams: 50, slug: 'cuscus-crudo' },
+      { grams: 0.5, slug: 'sal' }
+    ],
+    ['lunch']
+  ),
+  composed(
+    'mutabal',
+    'vegetable',
+    ['arab'],
+    [6, 7, 8, 9, 10],
+    [
+      { grams: 150, slug: 'berenjena' },
+      { grams: 10, slug: 'tahini' },
+      { grams: 5, slug: 'limon' },
+      { grams: 2, slug: 'ajo' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed('ensalada-de-zanahoria-marroqui', 'vegetable', ['arab'], 'all', [
+    { grams: 120, slug: 'zanahoria' },
+    { grams: 10, slug: 'limon' },
+    { grams: 0.5, slug: 'comino-molido' },
+    { grams: 5, slug: 'perejil' },
+    { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+    { grams: 0.5, slug: 'sal' }
+  ]),
+  composed('ensalada-de-remolacha', 'vegetable', ['arab'], 'all', [
+    { grams: 120, slug: 'remolacha-cocida' },
+    { grams: 5, slug: 'limon' },
+    { grams: 0.5, slug: 'comino-molido' },
+    { grams: 5, slug: 'perejil' },
+    { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+    { grams: 0.5, slug: 'sal' }
+  ]),
   composed(
     'naranja-con-canela',
     'dessert',
@@ -398,21 +728,18 @@ export function larderFor(diner: AccompanimentDiner): Larder {
 /** The fruits a dish may already be carrying, so a fruit dessert is not served beside a fruit plate. */
 const FRUIT: ReadonlySet<string> = new Set([
   ...ACCOMPANIMENTS.filter(entry => entry.months === 'catalogue').map(entry => entry.key),
-  'albaricoque',
   'arandanos-congelados',
-  'cereza',
   'chirimoya',
   'ciruela',
+  'datiles',
   'frambuesa',
   'frambuesas-congeladas',
   'frutos-rojos-congelados',
-  'granada',
   'higo',
   'lichi',
   'mango',
   'mango-congelado',
   'maracuya',
-  'nispero',
   'papaya',
   'pomelo'
 ]);
@@ -575,24 +902,56 @@ function toSet(portions: readonly AccompanimentPortion[]): AccompanimentSet {
  * the catalogue calls that food in the reader's language.
  */
 const COMPOSED_NAMES: Readonly<Record<string, Readonly<Record<'en-GB' | 'es-ES', string>>>> = {
+  'acelgas-rehogadas': { 'en-GB': 'Sautéed Swiss chard', 'es-ES': 'Acelgas rehogadas' },
+  'alcachofas-a-la-plancha': { 'en-GB': 'Griddled artichokes', 'es-ES': 'Alcachofas a la plancha' },
   'arroz-blanco': { 'en-GB': 'Plain rice', 'es-ES': 'Arroz blanco' },
+  'arroz-jazmin': { 'en-GB': 'Jasmine rice', 'es-ES': 'Arroz jazmín' },
   'arroz-rojo': { 'en-GB': 'Mexican red rice', 'es-ES': 'Arroz rojo' },
   'brocoli-salteado': { 'en-GB': 'Sautéed broccoli', 'es-ES': 'Brócoli salteado' },
+  'champinones-al-ajillo': { 'en-GB': 'Garlic mushrooms', 'es-ES': 'Champiñones al ajillo' },
+  'coliflor-al-ajoarriero': { 'en-GB': 'Cauliflower with garlic and paprika', 'es-ES': 'Coliflor al ajoarriero' },
+  'crema-de-calabacin': { 'en-GB': 'Courgette soup', 'es-ES': 'Crema de calabacín' },
+  'crema-de-calabaza': { 'en-GB': 'Pumpkin soup', 'es-ES': 'Crema de calabaza' },
+  'crema-de-puerros': { 'en-GB': 'Leek and potato soup', 'es-ES': 'Crema de puerros' },
+  curtido: { 'en-GB': 'Curtido (pickled cabbage slaw)', 'es-ES': 'Curtido' },
+  cuscus: { 'en-GB': 'Couscous', 'es-ES': 'Cuscús' },
+  edamame: { 'en-GB': 'Edamame', 'es-ES': 'Edamame' },
+  elote: { 'en-GB': 'Corn on the cob with lime and chilli', 'es-ES': 'Elote' },
+  'ensalada-de-aguacate': { 'en-GB': 'Avocado salad', 'es-ES': 'Ensalada de aguacate' },
   'ensalada-de-invierno': { 'en-GB': 'Winter salad', 'es-ES': 'Ensalada de invierno' },
   'ensalada-de-pepino': { 'en-GB': 'Cucumber salad', 'es-ES': 'Ensalada de pepino' },
+  'ensalada-de-remolacha': { 'en-GB': 'Beetroot salad', 'es-ES': 'Ensalada de remolacha' },
+  'ensalada-de-zanahoria-marroqui': { 'en-GB': 'Moroccan carrot salad', 'es-ES': 'Ensalada de zanahoria a la marroquí' },
   'ensalada-marroqui': { 'en-GB': 'Moroccan salad', 'es-ES': 'Ensalada marroquí' },
   'ensalada-mixta': { 'en-GB': 'Mixed salad', 'es-ES': 'Ensalada mixta' },
   'ensalada-verde': { 'en-GB': 'Green salad', 'es-ES': 'Ensalada verde' },
+  escalivada: { 'en-GB': 'Catalan roasted vegetables', 'es-ES': 'Escalivada' },
+  'esparragos-trigueros-a-la-plancha': { 'en-GB': 'Griddled green asparagus', 'es-ES': 'Espárragos trigueros a la plancha' },
+  'espinacas-a-la-catalana': { 'en-GB': 'Catalan spinach with raisins and pine nuts', 'es-ES': 'Espinacas a la catalana' },
+  'espinacas-con-sesamo': { 'en-GB': 'Sesame spinach', 'es-ES': 'Espinacas con sésamo' },
   frijoles: { 'en-GB': 'Black beans', 'es-ES': 'Frijoles' },
   gazpacho: { 'en-GB': 'Gazpacho', 'es-ES': 'Gazpacho' },
   'insalata-mista': { 'en-GB': 'Insalata mista', 'es-ES': 'Insalata mista' },
   'judias-verdes-rehogadas': { 'en-GB': 'Sautéed green beans', 'es-ES': 'Judías verdes rehogadas' },
+  macedonia: { 'en-GB': 'Fruit salad', 'es-ES': 'Macedonia de fruta' },
+  'menestra-de-verduras': { 'en-GB': 'Mixed vegetable menestra', 'es-ES': 'Menestra de verduras' },
+  mutabal: { 'en-GB': 'Moutabal', 'es-ES': 'Mutabal' },
   'naranja-con-canela': { 'en-GB': 'Orange with cinnamon', 'es-ES': 'Naranja con canela' },
   'pak-choi-salteado': { 'en-GB': 'Stir-fried pak choi', 'es-ES': 'Pak choi salteado' },
+  'pan-con-tomate': { 'en-GB': 'Bread with tomato', 'es-ES': 'Pan con tomate' },
+  'patata-cocida': { 'en-GB': 'Boiled potatoes', 'es-ES': 'Patata cocida' },
   'pico-de-gallo': { 'en-GB': 'Pico de gallo', 'es-ES': 'Pico de gallo' },
+  'pimientos-asados': { 'en-GB': 'Roasted red peppers', 'es-ES': 'Pimientos asados' },
+  'platano-macho-al-horno': { 'en-GB': 'Baked plantain', 'es-ES': 'Plátano macho al horno' },
+  'pure-de-patata': { 'en-GB': 'Mashed potato', 'es-ES': 'Puré de patata' },
+  salmorejo: { 'en-GB': 'Salmorejo', 'es-ES': 'Salmorejo' },
   'sopa-de-miso': { 'en-GB': 'Miso soup', 'es-ES': 'Sopa de miso' },
   tabule: { 'en-GB': 'Tabbouleh', 'es-ES': 'Tabulé' },
-  'verduras-a-la-plancha': { 'en-GB': 'Grilled vegetables', 'es-ES': 'Verduras a la plancha' }
+  'tomate-alinado': { 'en-GB': 'Dressed tomatoes', 'es-ES': 'Tomate aliñado' },
+  'verduras-a-la-plancha': { 'en-GB': 'Grilled vegetables', 'es-ES': 'Verduras a la plancha' },
+  'yogur-con-miel': { 'en-GB': 'Yoghurt with honey', 'es-ES': 'Yogur con miel' },
+  'yuca-con-mojo': { 'en-GB': 'Cassava with garlic and lime', 'es-ES': 'Yuca con mojo' },
+  'zanahorias-alinadas': { 'en-GB': 'Marinated carrots', 'es-ES': 'Zanahorias aliñadas' }
 };
 
 /**
@@ -603,9 +962,26 @@ const COMPOSED_NAMES: Readonly<Record<string, Readonly<Record<'en-GB' | 'es-ES',
  * it comes, and has none.
  */
 const COMPOSED_PREPARATIONS: Readonly<Record<string, Readonly<Record<'en-GB' | 'es-ES', string>>>> = {
+  'acelgas-rehogadas': {
+    'en-GB':
+      'Boil the chopped chard in water with the salt for about 6 minutes, drain and sauté with the sliced garlic and a teaspoon of oil; take off the heat and dust with the paprika.',
+    'es-ES':
+      'Cuece las acelgas troceadas en agua con la sal unos 6 minutos, escúrrelas y rehógalas con el ajo laminado y una cucharadita de aceite; aparta del fuego y espolvorea el pimentón.'
+  },
+  'alcachofas-a-la-plancha': {
+    'en-GB':
+      'Trim the artichokes down to their hearts, halve them, rub them with the lemon and griddle them with a teaspoon of oil for about 8 minutes a side; salt at the end.',
+    'es-ES':
+      'Limpia las alcachofas hasta dejar los corazones, pártelos por la mitad, frótalos con el limón y hazlos a la plancha con una cucharadita de aceite unos 8 minutos por lado; sala al final.'
+  },
   'arroz-blanco': {
     'en-GB': 'Rinse the rice, simmer it covered in twice its volume of salted water for about 15 minutes and let it rest for 5.',
     'es-ES': 'Lava el arroz, cuécelo tapado en el doble de su volumen de agua con la sal unos 15 minutos y déjalo reposar 5.'
+  },
+  'arroz-jazmin': {
+    'en-GB':
+      'Rinse the rice, cook it covered in one and a half times its volume of water over the lowest heat for about 12 minutes and let it rest for 10.',
+    'es-ES': 'Lava el arroz, cuécelo tapado con vez y media su volumen de agua a fuego mínimo unos 12 minutos y déjalo reposar 10.'
   },
   'arroz-rojo': {
     'en-GB':
@@ -619,6 +995,58 @@ const COMPOSED_PREPARATIONS: Readonly<Record<string, Readonly<Record<'en-GB' | '
     'es-ES':
       'Separa el brócoli en ramilletes y saltéalo a fuego vivo con el ajo laminado y una cucharadita de aceite, con un chorrito de agua para que se haga al vapor; sala al final.'
   },
+  'champinones-al-ajillo': {
+    'en-GB':
+      'Sauté the sliced mushrooms over high heat in a teaspoon of oil until golden, add the sliced garlic for one more minute and finish with the chopped parsley and the salt.',
+    'es-ES':
+      'Saltea los champiñones laminados a fuego vivo con una cucharadita de aceite hasta que se doren, añade el ajo laminado un minuto más y termina con el perejil picado y la sal.'
+  },
+  'coliflor-al-ajoarriero': {
+    'en-GB':
+      'Boil the cauliflower florets in water with the salt for about 8 minutes and drain; brown the sliced garlic in a teaspoon of oil, take off the heat, stir in the paprika and vinegar and pour over the cauliflower.',
+    'es-ES':
+      'Cuece la coliflor en ramilletes en agua con la sal unos 8 minutos y escúrrela; dora el ajo laminado con una cucharadita de aceite, aparta del fuego, añade el pimentón y el vinagre y riega la coliflor.'
+  },
+  'crema-de-calabacin': {
+    'en-GB':
+      'Soften the chopped onion in a teaspoon of oil, add the chopped courgette and just enough water to cover, simmer for about 15 minutes, salt and blend until smooth.',
+    'es-ES':
+      'Rehoga la cebolla picada con una cucharadita de aceite, añade el calabacín troceado y agua justo hasta cubrir, cuécelo unos 15 minutos, sala y tritúralo fino.'
+  },
+  'crema-de-calabaza': {
+    'en-GB':
+      'Soften the chopped onion in a teaspoon of oil, add the pumpkin and carrot in chunks and just enough water to cover, simmer for about 20 minutes, salt and blend until smooth.',
+    'es-ES':
+      'Rehoga la cebolla picada con una cucharadita de aceite, añade la calabaza y la zanahoria en trozos y agua justo hasta cubrir, cuécelo unos 20 minutos, sala y tritúralo fino.'
+  },
+  'crema-de-puerros': {
+    'en-GB':
+      'Soften the sliced leek and onion in a teaspoon of oil, add the potato in chunks and just enough water to cover, simmer for about 20 minutes, salt and blend until smooth.',
+    'es-ES':
+      'Rehoga el puerro y la cebolla en rodajas con una cucharadita de aceite, añade la patata en trozos y agua justo hasta cubrir, cuécelo unos 20 minutos, sala y tritúralo fino.'
+  },
+  curtido: {
+    'en-GB':
+      'Finely shred the cabbage, grate the carrot, chop the onion and mix them with the vinegar, the oregano and the salt; leave it in the fridge for at least an hour.',
+    'es-ES':
+      'Corta la col en juliana fina, ralla la zanahoria, pica la cebolla y mézclalas con el vinagre, el orégano y la sal; déjalo reposar al menos una hora en la nevera.'
+  },
+  cuscus: {
+    'en-GB': 'Put the couscous in a bowl with the salt, pour over the same volume of boiling water, cover for 5 minutes and fluff it with a fork.',
+    'es-ES': 'Pon el cuscús en un bol con la sal, cúbrelo con el mismo volumen de agua hirviendo, tápalo 5 minutos y suéltalo con un tenedor.'
+  },
+  edamame: {
+    'en-GB': 'Boil the edamame for about 5 minutes, drain it and sprinkle with the salt.',
+    'es-ES': 'Cuece el edamame en agua hirviendo unos 5 minutos, escúrrelo y espolvorea la sal.'
+  },
+  elote: {
+    'en-GB': 'Boil the corn cob for about 10 minutes, or grill it, and serve it with the lime juice, the cayenne and the salt.',
+    'es-ES': 'Cuece la mazorca en agua hirviendo unos 10 minutos, o ásala a la plancha, y sírvela con el zumo de lima, la cayena y la sal.'
+  },
+  'ensalada-de-aguacate': {
+    'en-GB': 'Dice the avocado and mix it with the thinly sliced red onion, the chopped coriander, the lime juice and the salt.',
+    'es-ES': 'Corta el aguacate en dados y mézclalo con la cebolla morada en juliana fina, el cilantro picado, el zumo de lima y la sal.'
+  },
   'ensalada-de-invierno': {
     'en-GB':
       "Segment the orange, grate the carrot, toss both with the lamb's lettuce and dress with a teaspoon of oil, the vinegar and a pinch of salt.",
@@ -628,6 +1056,14 @@ const COMPOSED_PREPARATIONS: Readonly<Record<string, Readonly<Record<'en-GB' | '
   'ensalada-de-pepino': {
     'en-GB': 'Slice the cucumber thinly, dress it with the rice vinegar and sprinkle with the sesame.',
     'es-ES': 'Corta el pepino en rodajas finas, alíñalo con el vinagre de arroz y espolvorea el sésamo.'
+  },
+  'ensalada-de-remolacha': {
+    'en-GB': 'Dice the cooked beetroot and dress it with the lemon juice, the cumin, the chopped parsley, a teaspoon of oil and the salt.',
+    'es-ES': 'Corta la remolacha cocida en dados y alíñala con el zumo de limón, el comino, el perejil picado, una cucharadita de aceite y la sal.'
+  },
+  'ensalada-de-zanahoria-marroqui': {
+    'en-GB': 'Grate the carrot and dress it with the lemon juice, the cumin, the chopped parsley, a teaspoon of oil and the salt.',
+    'es-ES': 'Ralla la zanahoria y alíñala con el zumo de limón, el comino, el perejil picado, una cucharadita de aceite y la sal.'
   },
   'ensalada-marroqui': {
     'en-GB': 'Dice the tomato, cucumber and onion small, add the parsley and dress with the lemon, a teaspoon of oil and the salt.',
@@ -640,6 +1076,27 @@ const COMPOSED_PREPARATIONS: Readonly<Record<string, Readonly<Record<'en-GB' | '
   'ensalada-verde': {
     'en-GB': 'Wash and tear the lettuce, add thinly sliced onion and dress with a teaspoon of oil, the vinegar and a pinch of salt.',
     'es-ES': 'Lava y trocea la lechuga, añade la cebolla en juliana fina y aliña con una cucharadita de aceite, el vinagre y una pizca de sal.'
+  },
+  escalivada: {
+    'en-GB':
+      'Roast the whole aubergine, pepper and onion at 200 °C for about 45 minutes, peel them, cut them into strips and dress with a teaspoon of oil and the salt.',
+    'es-ES':
+      'Asa la berenjena, el pimiento y la cebolla enteros en el horno a 200 °C unos 45 minutos, pélalos, córtalos en tiras y alíñalos con una cucharadita de aceite y la sal.'
+  },
+  'esparragos-trigueros-a-la-plancha': {
+    'en-GB':
+      'Snap off the woody ends, brush the asparagus with a teaspoon of oil and cook on a very hot griddle for about 5 minutes, turning them; salt at the end.',
+    'es-ES':
+      'Quita la parte dura de los espárragos, úntalos con una cucharadita de aceite y hazlos a la plancha bien caliente unos 5 minutos, dándoles la vuelta; sala al final.'
+  },
+  'espinacas-a-la-catalana': {
+    'en-GB': 'Toast the pine nuts and sliced garlic in a teaspoon of oil, add the raisins and the spinach and stir until it wilts; salt at the end.',
+    'es-ES':
+      'Dora los piñones y el ajo laminado con una cucharadita de aceite, añade las pasas y las espinacas y saltéalas hasta que pierdan volumen; sala al final.'
+  },
+  'espinacas-con-sesamo': {
+    'en-GB': 'Blanch the spinach for a minute, cool it in cold water, squeeze it dry and dress it with the soy sauce and the toasted sesame.',
+    'es-ES': 'Escalda las espinacas un minuto, enfríalas en agua fría, escúrrelas apretando bien y alíñalas con la salsa de soja y el sésamo tostado.'
   },
   frijoles: {
     'en-GB': 'Warm the beans with the chopped onion and garlic and a splash of water for about 10 minutes, mash some of them and add the salt.',
@@ -659,6 +1116,22 @@ const COMPOSED_PREPARATIONS: Readonly<Record<string, Readonly<Record<'en-GB' | '
     'en-GB': 'Boil the beans in salted water for about 8 minutes, drain and toss them for a minute with the sliced garlic and a teaspoon of oil.',
     'es-ES': 'Cuece las judías en agua con sal unos 8 minutos, escúrrelas y rehógalas un minuto con el ajo laminado y una cucharadita de aceite.'
   },
+  macedonia: {
+    'en-GB': 'Chop the peeled orange, the apple and the banana and toss them in a bowl in their own juice.',
+    'es-ES': 'Trocea la naranja pelada, la manzana y el plátano y mézclalos en un bol con su propio zumo.'
+  },
+  'menestra-de-verduras': {
+    'en-GB':
+      'Boil the frozen vegetables and the sliced carrot in water with the salt for about 8 minutes, drain and toss them for a couple of minutes with the chopped onion and garlic and a teaspoon of oil.',
+    'es-ES':
+      'Cuece las verduras congeladas y la zanahoria en rodajas en agua con la sal unos 8 minutos, escúrrelas y rehógalas un par de minutos con la cebolla y el ajo picados y una cucharadita de aceite.'
+  },
+  mutabal: {
+    'en-GB':
+      'Roast the whole aubergine at 200 °C for about 40 minutes, scoop out the flesh, drain it and mash it with the tahini, the lemon juice, the chopped garlic and the salt.',
+    'es-ES':
+      'Asa la berenjena entera en el horno a 200 °C unos 40 minutos, saca la pulpa, escúrrela y cháfala con el tahini, el zumo de limón, el ajo picado y la sal.'
+  },
   'naranja-con-canela': {
     'en-GB': 'Peel and slice the orange and dust it with the cinnamon.',
     'es-ES': 'Pela la naranja, córtala en rodajas y espolvoréala con la canela.'
@@ -669,9 +1142,41 @@ const COMPOSED_PREPARATIONS: Readonly<Record<string, Readonly<Record<'en-GB' | '
     'es-ES':
       'Saltea el pak choi a fuego vivo con el ajo, el jengibre rallado y una cucharadita de aceite dos o tres minutos y termina con la salsa de soja.'
   },
+  'pan-con-tomate': {
+    'en-GB': 'Toast the bread, spread the crushed tomato over it and finish with a teaspoon of oil and the salt.',
+    'es-ES': 'Tuesta el pan, extiende encima el tomate triturado y termina con una cucharadita de aceite y la sal.'
+  },
+  'patata-cocida': {
+    'en-GB': 'Boil the potato in chunks in water with the salt for about 20 minutes, drain and dress with a teaspoon of oil and the chopped parsley.',
+    'es-ES': 'Cuece la patata en trozos en agua con la sal unos 20 minutos, escúrrela y alíñala con una cucharadita de aceite y el perejil picado.'
+  },
   'pico-de-gallo': {
     'en-GB': 'Finely chop the tomato, onion, jalapeño and coriander and mix them with the lime juice and the salt.',
     'es-ES': 'Pica fino el tomate, la cebolla, el jalapeño y el cilantro y mézclalos con el zumo de lima y la sal.'
+  },
+  'pimientos-asados': {
+    'en-GB':
+      'Roast the whole peppers at 200 °C for about 40 minutes, leave them to rest covered, peel them, cut them into strips and dress with the chopped garlic, a teaspoon of oil and the salt.',
+    'es-ES':
+      'Asa los pimientos enteros en el horno a 200 °C unos 40 minutos, déjalos reposar tapados, pélalos, córtalos en tiras y alíñalos con el ajo picado, una cucharadita de aceite y la sal.'
+  },
+  'platano-macho-al-horno': {
+    'en-GB':
+      'Peel the plantain, cut it into thick slices, brush them with a teaspoon of oil and bake at 200 °C for about 20 minutes, turning them halfway; salt at the end.',
+    'es-ES':
+      'Pela el plátano macho, córtalo en rodajas gruesas, úntalas con una cucharadita de aceite y hornéalas a 200 °C unos 20 minutos, dándoles la vuelta a mitad; sala al final.'
+  },
+  'pure-de-patata': {
+    'en-GB':
+      'Boil the potato in chunks in water with the salt for about 20 minutes, drain and mash with the warm milk and a teaspoon of oil until smooth.',
+    'es-ES':
+      'Cuece la patata en trozos en agua con la sal unos 20 minutos, escúrrela y cháfala con la leche caliente y una cucharadita de aceite hasta que quede fina.'
+  },
+  salmorejo: {
+    'en-GB':
+      'Blend the tomatoes with the garlic, add the torn bread, let it soak for a few minutes and blend again with two teaspoons of oil and the salt until thick; serve well chilled.',
+    'es-ES':
+      'Tritura el tomate con el ajo, añade el pan troceado, deja que se empape unos minutos y vuelve a triturar con dos cucharaditas de aceite y la sal hasta que quede espeso; sírvelo bien frío.'
   },
   'sopa-de-miso': {
     'en-GB':
@@ -684,10 +1189,27 @@ const COMPOSED_PREPARATIONS: Readonly<Record<string, Readonly<Record<'en-GB' | '
     'es-ES':
       'Hidrata el bulgur en agua caliente 15 minutos, escúrrelo y mézclalo con el tomate y el pepino picados, las hierbas, el limón, una cucharadita de aceite y la sal.'
   },
+  'tomate-alinado': {
+    'en-GB': 'Slice the tomatoes and dress them with the finely chopped garlic and parsley, a teaspoon of oil and the salt.',
+    'es-ES': 'Corta el tomate en rodajas y alíñalo con el ajo y el perejil muy picados, una cucharadita de aceite y la sal.'
+  },
   'verduras-a-la-plancha': {
     'en-GB': 'Slice the vegetables, brush them with a teaspoon of oil and cook them on a very hot griddle for a few minutes a side; salt at the end.',
     'es-ES':
       'Corta las verduras en láminas, úntalas con una cucharadita de aceite y hazlas a la plancha bien caliente unos minutos por lado; sala al final.'
+  },
+  'yogur-con-miel': { 'en-GB': 'Serve the yoghurt with the honey drizzled over it.', 'es-ES': 'Sirve el yogur con la miel por encima.' },
+  'yuca-con-mojo': {
+    'en-GB':
+      'Boil the peeled cassava in chunks in water with the salt for about 25 minutes, until tender, drain and pour over the chopped garlic, the lime juice and a teaspoon of oil.',
+    'es-ES':
+      'Cuece la yuca pelada y en trozos en agua con la sal unos 25 minutos, hasta que esté tierna, escúrrela y riégala con el ajo picado, el zumo de lima y una cucharadita de aceite.'
+  },
+  'zanahorias-alinadas': {
+    'en-GB':
+      'Boil the sliced carrots in water with the salt for about 8 minutes, drain and dress with the chopped garlic, cumin, oregano, vinegar and a teaspoon of oil; serve cold.',
+    'es-ES':
+      'Cuece la zanahoria en rodajas en agua con la sal unos 8 minutos, escúrrela y alíñala con el ajo picado, el comino, el orégano, el vinagre y una cucharadita de aceite; sírvela fría.'
   }
 };
 
