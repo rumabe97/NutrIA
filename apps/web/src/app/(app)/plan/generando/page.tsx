@@ -1,5 +1,6 @@
 import { GenerationProgress } from 'components/GenerationProgress';
 
+import { mealCount, mealSizeKey } from 'lib/mealSize';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
@@ -7,6 +8,7 @@ import { appMetadata } from '../../../_shared/metadata';
 
 import type { AllowancesView } from 'core/controllers/Plan';
 import type { EventView } from 'core/controllers/Event';
+import type { FullProfileView } from 'core/controllers/Profile';
 import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +24,26 @@ export default async function GeneratingPage() {
   await redirectIfOnboardingIncomplete();
 
   // What will shape this fortnight, fetched before the job exists: the events
-  const [events, allowances] = await Promise.all([serverApi<readonly EventView[]>('/events'), serverApi<AllowancesView>('/meal-plans/allowances')]);
+  const [events, allowances, profile] = await Promise.all([
+    serverApi<readonly EventView[]>('/events'),
+    serverApi<AllowancesView>('/meal-plans/allowances'),
+    serverApi<FullProfileView>('/profile')
+  ]);
+  const shape = profile?.preferences?.mealShape;
+  const size = allowances?.mealSize;
 
-  return <GenerationProgress allowance={allowances?.events ?? null} events={events ?? []} />;
+  return (
+    <GenerationProgress
+      allowance={allowances?.events ?? null}
+      defaultStart={allowances?.defaultStart ?? ''}
+      events={events ?? []}
+      mealSize={
+        size?.largeMeals && shape
+          ? { answerKey: mealSizeKey(size.largestMainKcal, shape), count: mealCount(shape), kcal: size.largestMainKcal, suggestion: size.suggestion }
+          : null
+      }
+      redoNextAt={allowances?.planRedo.nextAt ?? null}
+      startOptions={allowances?.startOptions ?? []}
+    />
+  );
 }

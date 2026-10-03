@@ -9,6 +9,7 @@ import { PlanController } from 'core/controllers/Plan';
 import { ProfileConsentRequiredError } from 'core/entities/Error';
 import { ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
+import { SettingsController } from 'core/controllers/Settings';
 import { ageInYears, resolveTargets } from 'core/domain/Nutrition';
 import { loadedDates, loadedTargets } from 'core/domain/Event';
 import { addDays } from 'core/domain/Vacation';
@@ -16,7 +17,19 @@ import { shapeFor } from 'core/domain/MealShape';
 import { toCatalogue } from 'core/entities/Plan';
 import { VARIETY_RULES, varietyViolations } from 'core/domain/Variety';
 
-import { PlanLoadRebuildService } from './PlanLoadRebuild.service.js';
+import type * as Scheduler from 'core/domain/Scheduler';
+
+/*
+ * `schedulePlan` is a named import of a CommonJS export, fixed at link time:
+ * mocked at the module seam, wrapping the real one, so a case can hand the
+ * rebuild a day its own gate must refuse.
+ */
+const scheduler = jest.requireActual<typeof Scheduler>('core/domain/Scheduler');
+const schedulePlan = jest.fn<typeof scheduler.schedulePlan>(scheduler.schedulePlan);
+
+jest.unstable_mockModule('core/domain/Scheduler', () => ({ ...scheduler, schedulePlan }));
+
+const { PlanLoadRebuildService } = await import('./PlanLoadRebuild.service.js');
 
 import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
 import type { EventView } from 'core/controllers/Event';
@@ -98,13 +111,15 @@ const COMPOSITION: readonly MealCompositionView[] = Array.from({ length: 14 }, (
 
     return {
       id: `meal-${dayIndex}-${slot}`,
+      date: `2026-09-${String(8 + dayIndex).padStart(2, '0')}`,
       dayIndex,
       ingredients: dish.ingredients,
       macros: { carbsG: 60, fatG: 20, fiberG: 8, kcal: 660, proteinG: 40 },
       recipeSlug: dish.slug,
       servings: 1,
       slot,
-      sortOrder
+      sortOrder,
+      starch: null
     };
   })
 );
@@ -148,7 +163,17 @@ function race(on = '2026-09-12', daysBefore = 2): EventView {
 type Written = Parameters<typeof PlanController.rebuildLoadedDays>;
 
 function build(
-  overrides: { allowed?: boolean; consented?: boolean; onboardingComplete?: boolean; profile?: Partial<typeof PROFILE>; safety?: Set<string> } = {}
+  overrides: {
+    /** The `accompaniments` flag (project 016), off by default; the catalogue and what the context excludes with it. */
+    accompaniments?: boolean;
+    allowed?: boolean;
+    catalogue?: typeof CATALOGUE;
+    consented?: boolean;
+    excluded?: ReadonlySet<string>;
+    onboardingComplete?: boolean;
+    profile?: Partial<typeof PROFILE>;
+    safety?: Set<string>;
+  } = {}
 ) {
   const rebuild = jest.spyOn(PlanController, 'rebuildLoadedDays').mockResolvedValue(undefined);
   const reusable = jest.spyOn(RecipeController, 'reusablePool').mockResolvedValue(LIBRARY);
@@ -158,9 +183,12 @@ function build(
   jest
     .spyOn(PlanController, 'allowances')
     .mockResolvedValue({
+      defaultStart: '2026-09-09',
       events: { limit: premium ? 10 : 3, midPlan: premium ? { limit: 3, remaining: 3 } : null, remaining: premium ? 9 : 2 },
+      mealSize: null,
       mealSwaps: { allowed: true, limit: premium ? 20 : 5, remaining: premium ? 20 : 5, used: 0 },
       planRedo: { allowed: true, kind: 'redo', limit: premium ? 3 : 1, nextAt: null, used: 0 },
+      startOptions: [],
       tier: premium ? 'premium' : 'free'
     });
   jest.spyOn(PlanController, 'getActivePlan').mockResolvedValue(PLAN as never);
@@ -169,10 +197,10 @@ function build(
   jest
     .spyOn(RecipeController, 'generationContext')
     .mockResolvedValue({
-      catalogue: CATALOGUE,
+      catalogue: overrides.catalogue ?? CATALOGUE,
       dietaryPatterns: [],
       locale: 'es-ES',
-      preferences: NO_PREFERENCE_EXCLUSIONS,
+      preferences: overrides.excluded ? { ...NO_PREFERENCE_EXCLUSIONS, excludedIngredientIds: overrides.excluded } : NO_PREFERENCE_EXCLUSIONS,
       safety: {
         allergenIds: overrides.safety ?? new Set(),
         crossContaminationAllergenIds: new Set(),
@@ -182,6 +210,8 @@ function build(
       }
     });
   jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [], liked: [] });
+  // The accompaniments flag, off unless a test turns it on (project 016).
+  jest.spyOn(SettingsController, 'accompaniments').mockResolvedValue(overrides.accompaniments ?? false);
   jest
     .spyOn(OnboardingController, 'getState')
     .mockResolvedValue({
@@ -332,5 +362,91 @@ describe('PlanLoadRebuildService — a fortnight rebuilt for an event (0044)', (
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({ ingredientId: 'ing-arroz' });
     expect(items[0]!.totalGrams).toBeGreaterThan(keptGrams);
+  });
+
+  /*
+   * Project 016 phase 4: a rebuilt day composes what goes beside its big meals
+   * from the person's larder, built from the rebuild's own generation context,
+   * and hands the rows to be written in place of the old ones.
+   */
+  describe('accompaniments (016)', () => {
+    const bread = (slug: string, gluten: boolean): CatalogueIngredient => ({
+      ...ingredient(slug, gluten ? [{ allergenId: GLUTEN, presence: 'contains' }] : []),
+      category: 'bakery'
+    });
+    const sideKeys = (rebuild: ReturnType<typeof build>['rebuild']): string[] =>
+      ((rebuild.mock.calls[0] as Written | undefined)?.[2] ?? []).flatMap(day =>
+        day.meals.flatMap(meal => (meal.accompaniments ?? []).map(row => row.accompanimentKey))
+      );
+
+    it('writes none beside the plates while the flag is off', async () => {
+      const { rebuild, service } = build({ catalogue: toCatalogue([...CATALOGUE.values(), bread('pan-blanco', true)]) });
+
+      await service.forEvent('usr-1', race(), TODAY);
+
+      expect(sideKeys(rebuild)).toEqual([]);
+    });
+
+    it('gives a coeliac gluten-free bread and no other', async () => {
+      const { rebuild, service } = build({
+        accompaniments: true,
+        // The plates' rice made safe for them, so only the bread is in question.
+        catalogue: toCatalogue([ingredient('arroz'), bread('pan-blanco', true), bread('pan-sin-gluten', false)]),
+        safety: new Set([GLUTEN])
+      });
+
+      await expect(service.forEvent('usr-1', race(), TODAY)).resolves.toEqual(['2026-09-11']);
+
+      const keys = sideKeys(rebuild);
+
+      expect(keys).toContain('pan-sin-gluten');
+      expect(keys).not.toContain('pan-blanco');
+    });
+
+    it('never gives gluten-free bread to somebody the context does not leave it to', async () => {
+      const { rebuild, service } = build({
+        accompaniments: true,
+        catalogue: toCatalogue([...CATALOGUE.values(), bread('pan-sin-gluten', false)]),
+        excluded: new Set(['ing-pan-sin-gluten'])
+      });
+
+      await expect(service.forEvent('usr-1', race(), TODAY)).resolves.toEqual(['2026-09-11']);
+      expect(sideKeys(rebuild)).not.toContain('pan-sin-gluten');
+    });
+
+    it('refuses to write a day whose side the allergy gate rejects', async () => {
+      // As if the larder had been bypassed: a coeliac's rebuilt lunch comes back
+      // with wheat bread beside a safe plate. The gate reads plate and sides together.
+      schedulePlan.mockImplementationOnce(input => {
+        const result = scheduler.schedulePlan(input);
+
+        if (!result.ok) {
+          return result;
+        }
+
+        const [first, ...rest] = result.assignment.days;
+        const [meal, ...others] = first?.meals ?? [];
+
+        if (!first || !meal) {
+          return result;
+        }
+
+        const side = { ingredients: [{ grams: 60, slug: 'pan-blanco' }], key: 'pan-blanco', macros: meal.macros };
+        const sided = { ...meal, accompaniments: [side], ingredients: [...meal.ingredients, ...side.ingredients] };
+
+        return { ...result, assignment: { days: [{ ...first, meals: [sided, ...others] }, ...rest] } };
+      });
+
+      const { rebuild, service } = build({
+        accompaniments: true,
+        // The plates' rice made safe for them, so only the side is in question.
+        catalogue: toCatalogue([ingredient('arroz'), bread('pan-blanco', true), bread('pan-sin-gluten', false)]),
+        safety: new Set([GLUTEN])
+      });
+
+      await expect(service.forEvent('usr-1', race(), TODAY)).resolves.toEqual([]);
+      expect(schedulePlan).toHaveBeenCalled();
+      expect(rebuild).not.toHaveBeenCalled();
+    });
   });
 });

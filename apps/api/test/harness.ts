@@ -516,6 +516,29 @@ function sqlClient(): <Row>(strings: TemplateStringsArray, ...values: readonly u
 }
 
 /**
+ * Moves every plan of one account `days` days into the past — the plan's own
+ * dates, its days' dates and its `completedAt` — so a suite can reach "the
+ * scheduled plan's day is today" without a fake system clock (project 015).
+ * Written on the tables, like `openPractice`, because no route moves a plan.
+ */
+export async function shiftPlansBack(userId: string, days: number): Promise<void> {
+  const sql = sqlClient();
+
+  await sql`update plan_days set date = date - ${days}::int where plan_id in (select id from meal_plans where user_id = ${userId})`;
+  await sql`update meal_plans set start_date = start_date - ${days}::int, end_date = end_date - ${days}::int,
+    completed_at = completed_at - ${days}::int where user_id = ${userId}`;
+}
+
+/** One plan's row, as a suite asserts it: status and the two dates that matter, as `YYYY-MM-DD`. */
+export async function planRow(planId: string): Promise<{ completedAt: string | null; endDate: string; startDate: string; status: string } | null> {
+  const rows = await sqlClient()<{ completedAt: string | null; endDate: string; startDate: string; status: string }>`
+    select to_char(completed_at, 'YYYY-MM-DD') as "completedAt", to_char(end_date, 'YYYY-MM-DD') as "endDate",
+      to_char(start_date, 'YYYY-MM-DD') as "startDate", status::text as status from meal_plans where id = ${planId}`;
+
+  return rows[0] ?? null;
+}
+
+/**
  * How many rows the admin trail (`0071`) holds for one action, or for all of
  * them. Read directly from the table rather than through `GET /admin/audit`
  * so a suite proving "this call wrote no row" (a 404 that must leave the

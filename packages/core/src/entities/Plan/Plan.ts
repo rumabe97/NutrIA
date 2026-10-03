@@ -100,11 +100,29 @@ export const candidateDishSchema = z.object({
 
 export type CandidateDish = z.infer<typeof candidateDishSchema>;
 
+/** One accompaniment beside a plate (`0079` Table 3): its key, its rows at their grams, and its macros. */
+export type ScheduledAccompaniment = {
+  readonly ingredients: readonly { readonly grams: number; readonly slug: string }[];
+  readonly key: string;
+  readonly macros: Macros;
+};
+
 /** One dish placed in one slot on one day, with its scaled quantities and macros. */
 export type ScheduledMeal = {
+  /**
+   * What goes beside the plate, when the scheduler was given accompaniments
+   * (project 016, behind the `accompaniments` flag); absent otherwise, so a
+   * plan made with the flag off is the plan it always was. Empty is a meal
+   * with nothing beside it.
+   */
+  readonly accompaniments?: readonly ScheduledAccompaniment[];
   readonly dish: CandidateDish;
-  /** Scaled to `servings`; what the shopping list and the meal detail both read. */
+  /**
+   * Scaled to `servings`, then every accompaniment's rows; what the shopping
+   * list, the allergy gate and the meal detail all read — the whole meal.
+   */
   readonly ingredients: readonly { readonly grams: number; readonly slug: string }[];
+  /** The whole meal: the plate at `servings`, and its accompaniments. */
   readonly macros: Macros;
   readonly servings: number;
   readonly slot: MealSlot;
@@ -150,7 +168,25 @@ export type RecipeDraft = {
   readonly stepsVersion: string;
 };
 
+/**
+ * One stored row of what goes beside a meal (`meal_accompaniments`, project
+ * 016): one food of one accompaniment, with its own snapshot. Built by
+ * `core/domain/Accompaniment`'s `accompanimentRows`.
+ */
+export type MealAccompanimentDraft = {
+  readonly accompanimentKey: string;
+  readonly carbsG: number;
+  readonly fatG: number;
+  readonly grams: number;
+  readonly ingredientId: string;
+  readonly kcal: number;
+  readonly proteinG: number;
+  readonly sortOrder: number;
+};
+
 export type MealDraft = {
+  /** What goes beside the plate, one row per food; absent or empty is nothing. The macros above are the whole meal's. */
+  readonly accompaniments?: readonly MealAccompanimentDraft[];
   readonly carbsG: number;
   readonly fatG: number;
   readonly fiberG: number;
@@ -172,6 +208,12 @@ export type ShoppingItemDraft = {
 };
 
 export type PlanDraft = {
+  /**
+   * The list the active plan keeps when this one cuts it (project 015): built
+   * from the days it has left, for that plan's id. The repository writes it in
+   * the same transaction as the cut, and only for that plan.
+   */
+  readonly cutShoppingItems?: { readonly items: readonly ShoppingItemDraft[]; readonly planId: string };
   readonly days: readonly {
     readonly date: string;
     readonly dayIndex: number;
@@ -189,6 +231,11 @@ export type PlanDraft = {
   readonly shoppingItems: readonly ShoppingItemDraft[];
   readonly startDate: string;
   readonly strategy: NutritionTargets;
+  /**
+   * The person's calendar day when the generation began (project 015): a plan
+   * whose `startDate` is after it waits as `scheduled`.
+   */
+  readonly today: string;
 };
 
 /** The only field a shopping-list item exposes for writing. */
@@ -234,3 +281,12 @@ export type SwapAxis = (typeof SWAP_AXES)[number];
 
 export const swapMealSchema = z.object({ axis: z.enum(SWAP_AXES).optional() }).default({});
 export type SwapMeal = z.infer<typeof swapMealSchema>;
+
+/**
+ * The day the fortnight starts, optionally; the person's today when it is left
+ * out (project 015). Its window — their today to `MAX_START_DAYS_AHEAD` days
+ * on — is theirs, so it is checked where their today is known,
+ * `PlanJobController.start`.
+ */
+export const generatePlanSchema = z.object({ startDate: z.iso.date().optional() }).default({});
+export type GeneratePlan = z.infer<typeof generatePlanSchema>;

@@ -78,6 +78,7 @@ from local development:
 | `SWAGGER_ENABLED` | leave unset — off by default outside development; an explicit `true` is refused, because the schema describes every endpoint to anyone who asks |
 | `DATABASE_URL` | Neon's **pooled** endpoint (host contains `-pooler`) |
 | `DIRECT_DATABASE_URL` | Neon's **direct** endpoint — the build runs migrations through it |
+| `NUTRIA_LOCAL_PG` | **never set** — local only (tests, evaluator, dev): it replaces both database URLs with the loopback Postgres `pnpm db:local` runs. The API refuses to boot with it when `NODE_ENV=production` or `VERCEL_ENV` is set |
 | `AI_REWRITE_STEPS` | `false` on a free-tier project: the rewrite sweep would spend the daily request cap generation needs in ~2 hours; `true` with billing |
 | `CRON_SECRET` | any 16+ characters (`openssl rand -base64 32`); the platform sends it as a bearer on a cron call. Two crons are scheduled: the rewrite sweep and the check-in reminder (§3b). Unset, the routes 404 and say so in the log |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | the password-reset sender (`0019`), see §5c. All five together or none: a host without credentials or a sender is refused at boot. With none, reset links go to the log and nobody receives them |
@@ -163,7 +164,7 @@ one, and a preview that half-works is worse than none.
 
 ## 3b. The crons
 
-`apps/api/vercel.json` schedules four:
+`apps/api/vercel.json` schedules five:
 - the rewrite sweep, daily at 03:30 UTC, when nobody is building a plan;
 - the check-in reminder, daily at 08:00 UTC ([`0054`](../decisions/0054-the-check-in-reminder-comes-back-behind-a-switch.md));
 - the verification sweep, daily at 08:05 UTC, right after the reminder so Neon is usually
@@ -171,6 +172,7 @@ one, and a preview that half-works is worse than none.
 - the second-factor removals, daily at 08:10 UTC, which carry out the owner's removals
   once their 48 h have passed (project 011 phase 4,
   [`procedimiento-quitar-segundo-factor`](../legal/procedimiento-quitar-segundo-factor.md)).
+- the plan activation, daily at 23:05 UTC, after midnight in Madrid all year (project 015).
 
 There is no illustration sweep any more: a dish's picture is drawn the first time somebody
 opens its meal page (`0066`, §4). Every cron call needs `CRON_SECRET` on the API project: the
@@ -181,6 +183,7 @@ platform sends it as the bearer, and without it the route answers 404.
 | `/api/v1/cron/rewrite-steps` | one text generation per recipe, at most twelve a run, ending by 240 s. Through the gateway, its free models; on Google directly, the daily cap generation needs | `AI_REWRITE_STEPS`, off by default; `AI_REWRITE_MODEL` picks its model ([`ai-gateway.md`](./ai-gateway.md) §6) |
 | `/api/v1/cron/reminders` | **nothing from the AI provider**: a mail and/or a push per account, at most once a fortnight | the **Check-in reminder** switch on `/admin`, off until thrown; `SMTP_HOST` for the mail and `VAPID_*` for the push. Sends nothing without either |
 | `/api/v1/cron/sweep-verifications` | **nothing from the AI provider**: one `DELETE` of the verification rows already past `expires_at` (unused reset tokens, abandoned OAuth states). Better Auth's own cleanup on read is off (`0075`), so this is the only pruning | nothing: it always runs |
+| `/api/v1/cron/activate-plans` | **nothing from the AI provider**: at 23:05 UTC (after midnight in Madrid all year), for every plan waiting for its day that is now due, one transaction per person completes the running plan (`completedAt` = the day before) and activates the waiting one (project 015). Every read of the active plan does the same for its own person, so a missed run heals on the next visit | nothing: it always runs |
 | `/api/v1/cron/two-factor-removals` | **nothing from the AI provider**: for each removal past its `due_at` and not cancelled, deletes the account's `two_factor` row, turns the factor off, forgets its trusted devices, audits `auth.2fa_removed_by_owner` and mails the address. On a daily run, "48 h" is 48–72 h | nothing: it always runs |
 
 Each cron runs daily by choice, not by the plan's limit: Vercel is on Pro since 2026-09-26,

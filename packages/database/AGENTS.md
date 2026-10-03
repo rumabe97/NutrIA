@@ -68,6 +68,14 @@ tag built in `apps/api` (ESM) does not satisfy a signature from here (CommonJS).
   cannot carry named prepared statements across checkouts.
 - `DIRECT_DATABASE_URL` — the **direct**, session-mode endpoint. `drizzle.config.ts` only.
   DDL cannot run through the pooler.
+- `NUTRIA_LOCAL_PG=1` — both of the above are replaced by `LOCAL_DATABASE_URL` (`src/env.ts`),
+  the loopback Postgres `pnpm db:local` runs, inside `required()`, which every connection in
+  this package goes through. It beats an exported value too: dotenv, `--env-file` and Nest's
+  `ConfigModule` never overwrite a variable already set, so a Neon URL left in a shell would
+  otherwise win. Local migrations, seeds, tests and the evaluator run this way, never against
+  Neon — see the root `AGENTS.md` § Local database. The constant is repeated in
+  `scripts/local-pg.mjs` and the probe's `guard.mjs`, which cannot import TypeScript; change
+  all three together.
 
 ## This package compiles
 

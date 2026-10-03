@@ -12,6 +12,9 @@ export const enGB: Dictionary = {
   activity: { athlete: 'Athlete', high: 'High', light: 'Light', moderate: 'Moderate', sedentary: 'Sedentary' },
 
   admin: {
+    accompanimentsHint: 'On: new plans, swaps and rebuilds set bread, salad or fruit beside large meals, and the plate drops to a normal serving.',
+    accompanimentsLabel: 'Accompaniments (bread, salad, fruit)',
+    accompanimentsOffHint: 'Off: no new accompaniments are added. Those a plan already has are still shown.',
     automaticActivation: 'Automatic activation',
     automaticHint: 'Whoever confirms their address is in. Nothing for you to do.',
     events: { app_used: 'Used the app', session_started: 'Sign-ins', swap_requested: 'Meal swaps asked for' },
@@ -741,7 +744,8 @@ export const enGB: Dictionary = {
       draft: 'Draft',
       failed: 'Failed',
       generating: 'Generating',
-      pending_review: 'Awaiting review'
+      pending_review: 'Awaiting review',
+      scheduled: 'Scheduled'
     },
     title: 'Plans'
   },
@@ -1008,6 +1012,7 @@ export const enGB: Dictionary = {
     cronNever: 'Never',
     cronNote: 'Stale if it has gone more than {hours} h without finishing.',
     crons: {
+      activations: 'Plan activation',
       reminders: 'Check-in reminders',
       rewrite: 'Step rewrite',
       twoFactorRemovals: 'Second factor removals',
@@ -1325,6 +1330,11 @@ export const enGB: Dictionary = {
     lastDay: 'Last day',
     nextMeal: 'Up next',
     nextMealNone: 'Nothing left for today.',
+    nextPlanBody: 'It is ready. You can look at its days and get the shopping done ahead.',
+    nextPlanDays: 'See its days',
+    nextPlanShopping: 'See its shopping list',
+    nextPlanTitle: 'Your next plan starts on {date}',
+    nextPlanWaitingBody: 'Its first day has not come yet, so there are no meals to show. You can look at its days and get the shopping done ahead.',
     noPlanBody: 'We have everything we need about you. We will build fourteen complete days with recipes, quantities and the shopping list written.',
     noPlanCta: 'Create my plan',
     noPlanTitle: 'No plan yet',
@@ -1491,6 +1501,17 @@ export const enGB: Dictionary = {
     safetyNote: 'We check your allergies before saving anything.',
     serverDetail: 'Server detail:',
     start: 'Build my plan',
+    startDate: {
+      chosen: 'Your plan starts on {date}.',
+      free: 'Free',
+      legend: 'When does your plan start?',
+      noRedo: 'No redos left',
+      redoNote: 'It counts as a redo: the days of your plan that overlap the new one are replaced.',
+      spentNote: 'You have used this plan’s redo. You can choose a day from {date}.',
+      today: 'Today',
+      tomorrow: 'Tomorrow',
+      usesRedo: 'Uses a redo'
+    },
     starting: 'Starting…',
     steps: {
       BUILDING_LIST: 'Putting your shopping list together',
@@ -1671,12 +1692,64 @@ export const enGB: Dictionary = {
   manifest: { description: 'Personalised meal plans, adjusted every two weeks.' },
 
   meal: {
+    accompanimentAdds: '+{kcal} kcal',
+    accompanimentNames: {
+      almendras: 'almonds ({grams})',
+      'arroz-blanco': 'plain rice',
+      'arroz-rojo': 'Mexican red rice',
+      'brocoli-salteado': 'sautéed broccoli',
+      caqui: 'a persimmon',
+      'ensalada-de-invierno': 'winter salad',
+      'ensalada-de-pepino': 'cucumber salad',
+      'ensalada-marroqui': 'Moroccan salad',
+      'ensalada-mixta': 'mixed salad',
+      'ensalada-verde': 'green salad',
+      fresa: 'strawberries ({grams})',
+      frijoles: 'black beans',
+      gazpacho: 'gazpacho',
+      hummus: 'hummus ({grams})',
+      'insalata-mista': 'insalata mista',
+      'judias-verdes-rehogadas': 'sautéed green beans',
+      kiwi: 'two kiwis',
+      mandarina: 'two mandarins',
+      manzana: 'an apple',
+      melocoton: 'a peach',
+      melon: 'melon ({grams})',
+      naranja: 'an orange',
+      'naranja-con-canela': 'orange with cinnamon',
+      nectarina: 'a nectarine',
+      nueces: 'walnuts ({grams})',
+      'pak-choi-salteado': 'sautéed pak choi',
+      'pan-blanco': 'bread ({grams})',
+      'pan-de-centeno': 'rye bread ({grams})',
+      'pan-de-masa-madre': 'sourdough bread ({grams})',
+      'pan-de-pita': 'pitta bread',
+      'pan-integral': 'wholemeal bread ({grams})',
+      'pan-sin-gluten': 'gluten-free bread ({grams})',
+      pera: 'a pear',
+      'pico-de-gallo': 'pico de gallo',
+      pina: 'pineapple ({grams})',
+      platano: 'a banana',
+      'queso-de-burgos': 'Burgos fresh cheese ({grams})',
+      requeson: 'ricotta-style cheese ({grams})',
+      sandia: 'watermelon ({grams})',
+      'sopa-de-miso': 'miso soup',
+      tabule: 'tabbouleh',
+      'tortilla-de-maiz': 'corn tortillas ({grams})',
+      uva: 'grapes ({grams})',
+      'verduras-a-la-plancha': 'griddled vegetables',
+      'yogur-griego-natural': 'Greek yoghurt ({grams})',
+      'yogur-natural-desnatado': 'plain yoghurt ({grams})'
+    },
+    accompanimentsShare: 'Together they add {kcal} kcal: {percent}% of this meal.',
+    accompanimentsTitle: 'Served with',
     alternatives: 'If you can’t find it',
     back: '← Back to the plan',
     backToHistory: '← Back to the earlier plan',
     badgeDone: 'Eaten',
     badgeSkipped: 'Skipped',
     cook: 'Cook',
+    cookedNote: '({cooked} cooked)',
     dayOf: '{slot} · Day {day}',
     difficulty: { easy: 'Easy', hard: 'Hard', medium: 'Medium' },
     difficultyLabel: 'Difficulty',
@@ -1684,6 +1757,7 @@ export const enGB: Dictionary = {
     dislikedHint: 'Noted: it will not come back, nor anything close to it.',
     done: 'Eaten',
     doneHint: 'Marked as eaten.',
+    dryLine: '{name}: {dry} dry',
     ingredients: 'Ingredients',
     like: 'I like it',
     likedHint: 'Noted: it may come back, and we will look for dishes along these lines.',
@@ -1731,6 +1805,26 @@ export const enGB: Dictionary = {
     verdictTitle: 'What did you think?'
   },
 
+  mealSize: {
+    body: 'With {count} meals a day, the largest carries about {kcal} kcal. It is the only way to spread your macros, which is why the dishes come out generous.',
+    dismissed: 'Note hidden',
+    keep: 'Carry on',
+    keepName: 'Carry on and build my plan',
+    suggestions: {
+      add_afternoon_snack: {
+        action: 'Add an afternoon snack',
+        body: 'If you add an afternoon snack, your main meal would come down to about {kcal} kcal.'
+      },
+      add_breakfast: { action: 'Add a breakfast', body: 'If you add a breakfast, your main meal would come down to about {kcal} kcal.' },
+      none: 'More meals of this kind would not bring it any lower: it is your macros that make it big.',
+      snack_to_normal: {
+        action: 'Change the {slot}',
+        body: 'If you move the {slot} from light to normal, your main meal would come down to about {kcal} kcal.'
+      }
+    },
+    title: 'Your meals will be big',
+    understood: 'Got it'
+  },
   offline: {
     copyEarlier:
       'Offline: this is the copy from {date}. What you tick on the shopping list is saved when you are back online; anything else needs a connection.',
@@ -1758,7 +1852,7 @@ export const enGB: Dictionary = {
       customAllergensHint: 'Separate with commas. When you save we look each one up in our catalogue and tell you what we can apply.',
       dietaryPatterns: 'Way of eating',
       dietaryPatternsHint:
-        'We take out pork, alcohol and gelatine (and, for kosher, shellfish and meat with dairy). Certified meat depends on where you buy it.',
+        'We take out pork, alcohol and gelatine (and, for kosher, shellfish and meat with dairy). Certified meat depends on where you buy it. “Traditional Spanish” leaves only home-style Spanish cooking: no tofu, seitan, quinoa, Asian sauces or tacos.',
       disliked: 'Foods you don’t want to see',
       dislikedHint: 'They will not appear in your plans again.',
       displayName: 'What should we call you?',
@@ -1800,6 +1894,7 @@ export const enGB: Dictionary = {
         lactose_free: 'Lactose-free',
         omnivore: 'No restriction',
         pescatarian: 'Pescatarian',
+        traditional_spanish: 'Traditional Spanish',
         vegan: 'Vegan',
         vegetarian: 'Vegetarian'
       },
@@ -1892,6 +1987,7 @@ export const enGB: Dictionary = {
     '/cambiar-contrasena': { title: 'Change your password' },
     '/check-in': { title: "The fortnight's check-in" },
     '/compra': { title: 'The shopping' },
+    '/compra/proxima': { title: 'Shopping for the next plan' },
     '/condiciones': {
       description: 'The terms for using NutrIA: what it is and is not, your account, allergies, Premium and how to cancel it.',
       title: 'Terms of use'
@@ -1909,6 +2005,7 @@ export const enGB: Dictionary = {
     '/plan/generando': { title: 'Building your plan' },
     '/plan/historial': { title: 'Your earlier plans' },
     '/plan/historial/[id]': { title: 'An earlier plan' },
+    '/plan/proximo': { title: 'Your next plan' },
     '/privacidad': {
       description: 'What NutrIA holds about you, what it is used for, who it is shared with, and how to see, correct or delete it.',
       title: 'Privacy policy'
@@ -1950,7 +2047,13 @@ export const enGB: Dictionary = {
     redoAvailable: 'You can redo this plan once this fortnight: new dishes for the same days.',
     redoCta: 'Redo the plan',
     redoSpent: 'You have already redone your plan this fortnight. The next one opens on {date}.',
+    scheduledBody: 'Its first day has not come yet. Meanwhile you can look at its days and change what does not suit you.',
+    scheduledCta: 'See its days',
+    scheduledLink: 'Your next plan starts on {date} →',
+    scheduledTitle: 'Your plan starts on {date}',
     title: 'Your plan',
+    upcomingBack: '← Your current plan',
+    upcomingTitle: 'Your next plan',
     week: 'Week {number}'
   },
 
@@ -2576,6 +2679,7 @@ export const enGB: Dictionary = {
     nearby: 'Supermarkets nearby',
     nearbyOpens: ' (opens in your maps app)',
     nearbyQuery: 'supermarket',
+    nextSubtitle: 'Everything you need for the plan that starts on {date}, already added up.',
     notice: 'For now the list is read-only. Ticking off what you already have, adjusting quantities and adding items arrives in the next release.',
     progress: '{done} of {total} in the trolley',
     share: 'Share what is left',
@@ -2583,6 +2687,9 @@ export const enGB: Dictionary = {
     shareNothing: 'Everything is in the trolley: nothing left to share.',
     shareTitle: 'Shopping list',
     subtitle: 'Everything you need for the fortnight, already added up.',
+    switchCurrent: 'Current',
+    switchLabel: 'Which list to show',
+    switchNext: 'Next',
     title: 'Shopping list'
   },
 

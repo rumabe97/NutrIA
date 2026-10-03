@@ -11,5 +11,8 @@ export type RewriteRunDto = RewriteHeldBack | RewriteRun;
 /** How many expired verification rows one prune deleted. */
 export type VerificationSweepDto = { readonly deleted: number };
 
+/** What the nightly activation did (project 015): plans made active on their day, and owners it could not reach. */
+export type PlanActivationDto = { readonly activated: number; readonly failed: number };
+
 /** How many due removals of a second factor one run carried out, and how many failed (PLAN 011 phase 4). */
 export type TwoFactorRemovalRunDto = TwoFactorRemovalRun;

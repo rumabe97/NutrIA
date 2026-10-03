@@ -64,9 +64,11 @@ export class PlanJobRunner {
    * `record` is a professional's generation for their client, reached through
    * `CareController.generatePlan` (`0060`): the job and the trail row go in
    * together. The generation itself is the client's, on the client's profile.
+   * `startDate` is the person's own choice of first day (project 015); a
+   * professional's generation never carries one.
    */
-  async start(userId: string, record?: Parameters<ForClient<JobView>>[1]): Promise<JobView> {
-    const job = await PlanJobController.start(userId, record);
+  async start(userId: string, record?: Parameters<ForClient<JobView>>[1], startDate?: string): Promise<JobView> {
+    const job = await PlanJobController.start(userId, record, startDate);
 
     // Deliberately not awaited: the HTTP request returns a job id in milliseconds
     // and the client polls. Handing it over rather than voiding it is what keeps

@@ -6,6 +6,10 @@ export const goalType = pgEnum('goal_type', ['weight_loss', 'maintenance', 'musc
 
 export const activityLevel = pgEnum('activity_level', ['sedentary', 'light', 'moderate', 'high', 'athlete']);
 
+/**
+ * `traditional_spanish` (`0077`) is appended last, like `plan_status`'s
+ * `pending_review`: adding a value rewrites nothing, reordering would.
+ */
 export const dietaryPattern = pgEnum('dietary_pattern', [
   'omnivore',
   'vegetarian',
@@ -15,7 +19,8 @@ export const dietaryPattern = pgEnum('dietary_pattern', [
   'gluten_free',
   'lactose_free',
   'halal',
-  'kosher'
+  'kosher',
+  'traditional_spanish'
 ]);
 
 /** Ordered as they occur in a day — `meals.slot` sorts on this. */
@@ -29,9 +34,10 @@ export const mealStatus = pgEnum('meal_status', ['planned', 'completed', 'skippe
  * the client never sees. **The order is not the lifecycle**: `pending_review`
  * comes before `active` in a plan's life but is appended last, because an
  * added value cannot be placed without reordering — and adding one is what
- * keeps the migration from rewriting anything.
+ * keeps the migration from rewriting anything. `scheduled` is a plan that waits
+ * for a start date after today (`0053`); it too is appended last.
  */
-export const planStatus = pgEnum('plan_status', ['draft', 'generating', 'active', 'completed', 'archived', 'failed', 'pending_review']);
+export const planStatus = pgEnum('plan_status', ['draft', 'generating', 'active', 'completed', 'archived', 'failed', 'pending_review', 'scheduled']);
 
 export const jobStatus = pgEnum('job_status', ['queued', 'running', 'succeeded', 'failed']);
 

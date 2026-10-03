@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { InputParseError, NotFoundError, ProfileConsentRequiredError, UnderMinimumAgeError } from 'core/entities/Error';
 import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
+import { mainMealSize, mealSizeSuggestion } from 'core/domain/MealShape';
 import { makeGoal, makePreferences, makeProfile } from '#test/fixtures';
 
 import { ProfileController } from './ProfileController';
@@ -114,6 +115,27 @@ describe('ProfileController.targets', () => {
 
   it('says nobody set anything when there is no override', async () => {
     expect((await ProfileController.targets(CLIENT_ID))?.setBy).toBeNull();
+  });
+});
+
+describe('ProfileController.mealSize — the note before generating (016)', () => {
+  const TWO_MEALS = { afternoon_snack: 'off', breakfast: 'off', dinner: 'normal', lunch: 'normal', morning_snack: 'off', supper: 'off' } as const;
+
+  it('sizes the meals of the shape the person eats, on the targets in effect', async () => {
+    findPreferences.mockResolvedValue(makePreferences({ mealShape: TWO_MEALS }));
+    const targets = await ProfileController.targets(CLIENT_ID);
+
+    expect(targets).not.toBeNull();
+    expect(await ProfileController.mealSize(CLIENT_ID)).toEqual({
+      ...mainMealSize(TWO_MEALS, targets?.effective ?? { kcal: 0 }),
+      suggestion: mealSizeSuggestion(TWO_MEALS, targets?.effective ?? { kcal: 0 })
+    });
+  });
+
+  it('is null while there are no targets to size from', async () => {
+    findByUserId.mockResolvedValue(undefined);
+
+    expect(await ProfileController.mealSize(CLIENT_ID)).toBeNull();
   });
 });
 

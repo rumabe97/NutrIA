@@ -276,6 +276,19 @@ ingredients do not all resolve. The interface never aggregates the two — "your
 are covered" would be true of one half and a lie about the other, and the reader cannot
 tell which half they are in.
 
+**A way of eating is enforced in code, and the model learns only what it may.** A
+dietary pattern becomes exclusions in `core/domain/Preference` (`resolvePreferences`).
+Halal and kosher work by food class and slug runs, and gluten-free and lactose-free by
+allergen. Traditional Spanish (`0077`) works by 157 exact slugs plus a dish rule
+(`breaksPatternDish`: a foreign stated cuisine or a foreign dish name). The dish rule lives
+inside `RecipeController.usesExcluded`, so reuse, swaps and the event rebuild inherit it,
+and the pool builder rejects a generated dish that breaks it as `unwanted`. The model is
+named only vegetarian and vegan (`NAMEABLE_PATTERNS`), because that is what the accepted
+consent says it receives. For every other pattern it simply sees a catalogue with fewer
+rows, and a spec pins the prompt identical with and without traditional Spanish. A
+pattern's lean towards foods (legumes, fish, rice and huerta vegetables for traditional
+Spanish) orders the library pick, and is kept out of the prompt's list of liked foods.
+
 **Health data is collected as health data, or not at all.** Conditions, medications and
 supplements live in their own tables under an explicit, versioned consent
 (`HEALTH_CONSENT_VERSION`); withdrawing deletes the rows and the consent in one
@@ -327,6 +340,31 @@ while the calorie floor and the protein ceiling are bounds and block. Carbohydra
 had no band at all until `0045`, and the scheduler fitted neither; a real plan missed
 carbohydrate by 46% on every day and passed. The scheduler now fits all four, and 5% is
 what it reaches on a real library.
+
+**Protein is computed on a reference weight, and every plate stays near its share of the
+day** (`0076`). For weight loss, healthy eating and maintenance, the goal's g/kg applies
+to the lower of actual weight and the weight at BMI 25 for the person's height, never
+below the 0.8 g/kg floor on actual weight. Training goals keep actual weight, and energy and
+the protein bounds stay on it. Each plate's energy is held within 0.5–1.5× its slot's share
+of that day (`PLATE_LIMIT`), as a bound rather than the preference `SHARE_BAND` (0.7–1.4)
+is. A day that cannot meet its macros inside it is delivered out of band with its advisory.
+Only the energy floor outranks the limit, and only as far as the floor needs. The limit is
+relative to the person's own share, so `0070`'s big eaters still get their 2–4 servings. A
+real meal plan without it met a 180 g protein target with 1,700-kcal lunches beside
+250-kcal dinners.
+
+**A plate also has a weight ceiling, and cooked grains read dry** (`0078`). No plate weighs
+more than `PLATE_GRAMS_MAX`: 750 g at breakfast, lunch and dinner, and 250 g at the snacks
+and supper. It is enforced through the same `withinPlateLimit` as the energy limit, and the
+energy floor is again the only thing that may pass it. The 15 cooked grains and pastas of
+the catalogue (`core/domain/Yield`) are shown on the meal in dry weight. The meal's own
+grams stay cooked, because the macros are computed from them. The shopping list buys them
+dry, merged with the same food bought dry; cooked legumes stay cooked. *Temporarily* (`016`
+phase 1, until accompaniments land), the main-meal ceiling scales above 950 kcal of share
+by share ÷ 950, up to 900 g, because a flat 750 g cost two-meal people their macro fit.
+Before generating, a person whose largest main meal carries more than 850 kcal
+(`mealSize`, from the scheduler's own shares) is told why their plates are large and
+chooses to add a meal or carry on.
 
 **Nutrition targets are computed, not generated.** `nutritionTargets` in
 `packages/core/domain/Nutrition` derives kcal and macros from Mifflin-St Jeor and the

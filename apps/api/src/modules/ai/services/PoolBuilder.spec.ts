@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
 import { CATALOGUE_SAMPLE_SIZE } from 'core/domain/MealFit';
-import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
+import { NO_PREFERENCE_EXCLUSIONS, resolvePreferences } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT, FRESH_DISHES_PER_SLOT } from 'core/domain/Variety';
 import { toCatalogue } from 'core/entities/Plan';
 
@@ -365,13 +365,7 @@ describe('PoolBuilder', () => {
     // nothing else, so the model served salmon anyway. The catalogue it is shown
     // no longer holds it (0023).
     const { client, generate } = stubClient([{ dishes: [] }]);
-    const wanted = {
-      excludedIngredientIds: new Set(['ing-pollo']),
-      keepsMeatFromDairy: false,
-      maxMinutesPerDish: null,
-      preferredIngredientSlugs: new Set<string>(),
-      unenforceableLabels: []
-    };
+    const wanted = { ...NO_PREFERENCE_EXCLUSIONS, excludedIngredientIds: new Set(['ing-pollo']) };
 
     await new PoolBuilder(client).build({
       context: { ...context(), preferences: wanted },
@@ -427,15 +421,94 @@ describe('PoolBuilder', () => {
     expect(result.metadata.aiCalls[0]?.rejected).toMatchObject({ unwanted: 1 });
   });
 
+  describe('traditional Spanish (0077)', () => {
+    const catalogue = [...CATALOGUE, ingredient('tofu-firme')];
+    const spanish = (): GenerationContext => ({
+      ...context(),
+      catalogue: toCatalogue(catalogue),
+      dietaryPatterns: ['traditional_spanish'],
+      preferences: resolvePreferences({
+        allergenIdsByKey: new Map(),
+        dietaryPatterns: ['traditional_spanish'],
+        dislikedLabels: [],
+        ingredients: catalogue
+      })
+    });
+
+    it('never shows the model a row the pattern excludes', async () => {
+      const { client, generate } = stubClient([{ dishes: [] }]);
+
+      await new PoolBuilder(client).build({ context: spanish(), feature: 'plan', preferences, reusable: [], slots: ['breakfast'] });
+
+      const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
+
+      expect(prompt).toContain('arroz');
+      expect(prompt).not.toContain('tofu-firme');
+    });
+
+    it('rejects a generated "Tofu salteado" as unwanted, and keeps a Spanish dish', async () => {
+      const { client } = stubClient([
+        { dishes: [dish('Tofu salteado', ['breakfast'], ['tofu-firme', 'arroz']), dish('Arroz con tomate', ['breakfast'], ['arroz', 'tomate'])] }
+      ]);
+
+      const result = await new PoolBuilder(client).build({
+        context: spanish(),
+        feature: 'plan',
+        needPerSlot: 2,
+        preferences,
+        reusable: [],
+        slots: ['breakfast']
+      });
+
+      expect(result.generated.map(generated => generated.name)).toEqual(['Arroz con tomate']);
+      expect(result.metadata.aiCalls[0]?.rejected).toMatchObject({ unwanted: 1 });
+    });
+
+    it('rejects a dish of a foreign cuisine or with a foreign name as unwanted, and keeps one with no cuisine', async () => {
+      const { client } = stubClient([
+        {
+          dishes: [
+            { ...dish('Arroz salteado', ['breakfast']), cuisine: 'asiática' },
+            dish('Wok de pollo', ['breakfast'], ['pollo', 'arroz']),
+            dish('Arroz a la cubana', ['breakfast'], ['arroz', 'tomate'])
+          ]
+        }
+      ]);
+
+      const result = await new PoolBuilder(client).build({
+        context: spanish(),
+        feature: 'plan',
+        needPerSlot: 3,
+        preferences,
+        reusable: [],
+        slots: ['breakfast']
+      });
+
+      expect(result.generated.map(generated => generated.name)).toEqual(['Arroz a la cubana']);
+      expect(result.metadata.aiCalls[0]?.rejected).toMatchObject({ unwanted: 2 });
+    });
+
+    it('keeps the same foreign dishes for someone without the pattern', async () => {
+      const { client } = stubClient([
+        { dishes: [{ ...dish('Arroz salteado', ['breakfast']), cuisine: 'asiática' }, dish('Wok de pollo', ['breakfast'], ['pollo', 'arroz'])] }
+      ]);
+
+      const result = await new PoolBuilder(client).build({
+        context: context(),
+        feature: 'plan',
+        needPerSlot: 2,
+        preferences,
+        reusable: [],
+        slots: ['breakfast']
+      });
+
+      expect(result.generated.map(generated => generated.name)).toEqual(['Arroz salteado', 'Wok de pollo']);
+    });
+  });
+
   it('drops a dish that uses a ruled-out ingredient even when the model writes one anyway', async () => {
     const { client } = stubClient([{ dishes: [dish('Pollo al horno', ['breakfast'], ['pollo'])] }]);
-    const wanted = {
-      excludedIngredientIds: new Set(['ing-pollo']),
-      keepsMeatFromDairy: false,
-      maxMinutesPerDish: null,
-      preferredIngredientSlugs: new Set<string>(),
-      unenforceableLabels: []
-    };
+    const wanted = { ...NO_PREFERENCE_EXCLUSIONS, excludedIngredientIds: new Set(['ing-pollo']) };
 
     const result = await new PoolBuilder(client).build({
       context: { ...context(), preferences: wanted },
@@ -825,9 +898,10 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
    * dish is stored as lunch and dinner, never as breakfast too.
    */
   it('keeps a dish returned to the wrong meal at the meal its ingredients actually fit, instead of dropping it', async () => {
-    // Rice, cooked, lunch and dinner only — legitimate exactly where it claims, illegitimate at breakfast.
+    // A plate of rice (150 g cooked, 50 g dry), Asian: Table 2 puts it at lunch and dinner, never at breakfast (`0079`).
     const rice: CatalogueIngredient = { ...ingredient('arroz-blanco-cocido'), mealSlots: ['lunch', 'dinner'] };
-    const { client } = stubClient([{ dishes: [dish('Arroz blanco', ['lunch', 'dinner'], ['arroz-blanco-cocido'])] }]);
+    const bowl = { ...dish('Arroz blanco', ['lunch', 'dinner']), cuisine: 'Japonesa', ingredients: [{ grams: 150, slug: 'arroz-blanco-cocido' }] };
+    const { client } = stubClient([{ dishes: [bowl] }]);
     const result = await new PoolBuilder(client).build({
       context: { ...context(), catalogue: toCatalogue([...CATALOGUE, rice]) },
       feature: 'plan',
@@ -919,17 +993,26 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
     expect(result.generated.map(kept => kept.slots)).toEqual([['breakfast', 'lunch', 'dinner']]);
   });
 
-  it('changes nothing when the lists are empty', async () => {
-    const { client } = stubClient([{ dishes: [stew(['dinner'])] }]);
-    const result = await new PoolBuilder(client).build({
-      context: withLentils([], { ...lentils, mealSlots: [] }),
+  it('reads the stewed pulses by cuisine, not by their list (0079, option B)', async () => {
+    const emptied = withLentils([], { ...lentils, mealSlots: [] });
+    const spanish = await new PoolBuilder(stubClient([{ dishes: [stew(['dinner'])] }]).client).build({
+      context: emptied,
+      feature: 'plan',
+      preferences,
+      reusable: [],
+      slots: ['dinner']
+    });
+    const italian = await new PoolBuilder(stubClient([{ dishes: [{ ...stew(['dinner']), cuisine: 'Italiana' }] }]).client).build({
+      context: withLentils(),
       feature: 'plan',
       preferences,
       reusable: [],
       slots: ['dinner']
     });
 
-    expect(result.generated.map(kept => kept.slots)).toEqual([['dinner']]);
+    // An empty list does not make a Spanish lentil stew a dinner; an Italian one is a dinner whatever the list says.
+    expect(spanish.generated).toEqual([]);
+    expect(italian.generated.map(kept => kept.slots)).toEqual([['dinner']]);
   });
 
   it('asks only after the allergy gate: an unsafe dish is counted as an allergen, whatever its meal', async () => {

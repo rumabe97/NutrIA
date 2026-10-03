@@ -10,12 +10,17 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { useOffline } from 'components/OfflineProvider';
 
+import { accompanimentPhrase } from 'lib/accompaniments';
 import { api } from 'lib/api';
 import { formatNumber, formatQuantity } from 'lib/format';
 import { slotLabel } from 'lib/generation';
 
+import type { MealAccompaniment } from 'lib/accompaniments';
+
 interface MealRowProps {
   id: string;
+  /** What goes beside the plate, read after the dish's name (`0079`). */
+  accompaniments?: readonly MealAccompaniment[];
   /** Already scaled to this meal's portion by the API. */
   ingredients?: readonly { grams: number; name: string }[];
   kcal: number;
@@ -23,6 +28,8 @@ interface MealRowProps {
   proteinG: number;
   /** A row of a plan that is no longer active: the mark is shown, not offered. */
   readOnly?: boolean;
+  /** False for a plan that has not started: there is nothing to mark yet, so no circle that looks as if there were. */
+  showMark?: boolean;
   slot: string;
   status?: string;
 }
@@ -44,7 +51,18 @@ interface MealRowProps {
  * Optimistic; a failure puts it back. "Skipped" stays on the meal's own page,
  * where it is a considered choice rather than a tap in passing.
  */
-export function MealRow({ id, ingredients = [], kcal, name, proteinG, readOnly = false, slot, status: initial = 'planned' }: MealRowProps) {
+export function MealRow({
+  id,
+  accompaniments = [],
+  ingredients = [],
+  kcal,
+  name,
+  proteinG,
+  readOnly = false,
+  showMark = true,
+  slot,
+  status: initial = 'planned'
+}: MealRowProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -60,6 +78,12 @@ export function MealRow({ id, ingredients = [], kcal, name, proteinG, readOnly =
       <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
       <span className={styles.name}>
         {name}
+        {accompaniments.map(side => (
+          <Fragment key={side.key}>
+            {' '}
+            <span className={styles.side}>+ {accompanimentPhrase(side, dictionary, locale)}</span>
+          </Fragment>
+        ))}
         {status === 'completed' ? <span className={styles.badge}>{dictionary.meal.badgeDone}</span> : null}
         {status === 'skipped' ? <span className={styles.badge}>{dictionary.meal.badgeSkipped}</span> : null}
       </span>
@@ -88,8 +112,8 @@ export function MealRow({ id, ingredients = [], kcal, name, proteinG, readOnly =
   }
 
   return (
-    <div className={styles.row} data-status={status}>
-      {readOnly ? (
+    <div className={styles.row} data-marked={showMark} data-status={status}>
+      {!showMark ? null : readOnly ? (
         <span aria-hidden="true" className={styles.tick} data-done={done} data-static="true">
           <svg
             className={styles.tickMark}

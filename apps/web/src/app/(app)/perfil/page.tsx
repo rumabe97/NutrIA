@@ -14,6 +14,7 @@ import { HealthPanel } from 'components/HealthPanel';
 import { LocaleSwitcher } from 'components/LocaleSwitcher';
 import { PremiumCard } from 'components/PremiumCard';
 import { ProfileConsentCard } from 'components/ProfileConsentCard';
+import { ProfileMealSizeNote } from 'components/ProfileMealSizeNote';
 import { ProfileSection } from 'components/ProfileSection';
 import { PushToggle } from 'components/PushToggle';
 import { ReminderToggle } from 'components/ReminderToggle';
@@ -25,6 +26,7 @@ import { VacationPlanner } from 'components/VacationPlanner';
 import { MEAL_SLOTS } from 'core/entities/Plan';
 
 import { formatNumber, interpolate } from 'lib/format';
+import { mealCount, mealSizeKey } from 'lib/mealSize';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
@@ -132,6 +134,17 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
 
           {profile?.targets ? <TargetsPanel targets={profile.targets} /> : null}
 
+          {/* Right under the figures it follows from, and dismissible: it is a fact
+              about the shape, not a fault. */}
+          {profile?.mealSize?.largeMeals && preferences ? (
+            <ProfileMealSizeNote
+              answerKey={mealSizeKey(profile.mealSize.largestMainKcal, preferences.mealShape)}
+              count={mealCount(preferences.mealShape)}
+              kcal={profile.mealSize.largestMainKcal}
+              suggestion={profile.mealSize.suggestion}
+            />
+          ) : null}
+
           {health ? <HealthPanel health={health} /> : null}
 
           <VacationPlanner trips={trips ?? []} />
@@ -221,7 +234,16 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
                   t.none
                 )
               },
-              { label: t.dietaryPatterns, value: list(profile?.dietaryPatterns ?? [], t.noRestriction) }
+              {
+                label: t.dietaryPatterns,
+                value: list(
+                  (profile?.dietaryPatterns ?? []).map(
+                    pattern =>
+                      dictionary.onboarding.options.dietaryPatterns[pattern as keyof typeof dictionary.onboarding.options.dietaryPatterns] ?? pattern
+                  ),
+                  t.noRestriction
+                )
+              }
             ]}
             title={t.restrictions}
           />

@@ -2,6 +2,7 @@ import { date, index, integer, jsonb, numeric, pgTable, smallint, text, timestam
 import { sql } from 'drizzle-orm';
 
 import { jobStatus, macroDirection, mealSlot, mealStatus, planStatus } from './_enums';
+import { ingredients } from './food.schema';
 import { recipes } from './recipe.schema';
 import { user } from './auth.schema';
 import { timestamps } from './_columns';
@@ -64,24 +65,21 @@ export const mealPlans = pgTable(
     uniqueIndex('meal_plans_one_active_per_user')
       .on(table.userId)
       .where(sql`${table.status} = 'active'`),
-    // At most one plan waiting for review per user (`0060`). Written as "none of
-    // the other statuses" because `pending_review` is added in the same migration
-    // transaction, and Postgres refuses a new enum value used before the
-    // transaction that added it commits (a cast to text is not immutable, so an
-    // index predicate cannot compare as text either).
-    //
-    // A value added to `planStatus` later JOINS this index unless it is listed, and
-    // it cannot be listed in the migration that adds it (the same error): add the
-    // value in one release and list it in the next — or, once 0037 is in
-    // production, rewrite this predicate as `= 'pending_review'`, which no future
-    // value can join. `schema.test.ts` fails while the list and the enum
-    // disagree, so while this is NOT IN no release can add a value and stay
-    // green: the rewrite comes before the next plan status.
+    // At most one plan waiting for review per user (`0060`). The predicate is an
+    // equality on purpose (`0053` rewrote it from a NOT IN list): a value added to
+    // `planStatus` later cannot join this index, so no release has to list it
+    // here, and adding a status does not touch the index.
     // Not CONCURRENTLY: drizzle's migrator runs every pending migration in one
     // transaction, which CONCURRENTLY cannot run inside.
     uniqueIndex('meal_plans_one_pending_review_per_user')
       .on(table.userId)
-      .where(sql`${table.status} not in ('draft', 'generating', 'active', 'completed', 'archived', 'failed')`)
+      .where(sql`${table.status} = 'pending_review'`),
+    // At most one plan waiting for its first day per user (project 015): a
+    // second generation replaces it, inside `createPlanAtomically`, and this is
+    // what makes two that race land one. An equality, like the one above.
+    uniqueIndex('meal_plans_one_scheduled_per_user')
+      .on(table.userId)
+      .where(sql`${table.status} = 'scheduled'`)
   ]
 );
 
@@ -147,6 +145,56 @@ export const meals = pgTable(
     // sequential scan of every meal ever stored without this.
     index('meals_recipe_idx').on(table.recipeId)
   ]
+);
+
+/**
+ * What goes beside a meal's plate — bread, a salad, a piece of fruit (project
+ * 016, `0079` Table 3, design A of architect report `0008`): one row per
+ * ingredient of each accompaniment, so a composed one (a salad) is its rows
+ * under one `accompanimentKey`.
+ *
+ * A child of the meal, never a recipe: what goes beside a plate is the
+ * person's, and a recipe is shared. The meal's own `kcal` and macros are the
+ * whole meal, these rows included; each row snapshots its own, for the same
+ * reason the meal does — history keeps the numbers that were eaten. A swap
+ * and an event rebuild delete and reinsert a meal's rows in their own
+ * transaction. Account deletion reaches them through the meal's cascade.
+ *
+ * `recipeId` and `servings` snapshot the plate the rows were set beside. An
+ * API from before this table swaps or rebuilds a meal in place and knows
+ * nothing of it, so after a rollback a meal may point at another dish while
+ * its old sides stay; the reads keep only rows whose plate is still the
+ * meal's, and a cleanup can find the rest with one join. Rows are only ever
+ * inserted and deleted, so they carry `createdAt` and no `updatedAt`.
+ */
+export const mealAccompaniments = pgTable(
+  'meal_accompaniments',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    /** `core/domain/Accompaniment`'s key: stable, what the screen names it by. */
+    accompanimentKey: text().notNull(),
+    carbsG: numeric({ precision: 7, scale: 2 }).notNull(),
+    createdAt: timestamps.createdAt,
+    fatG: numeric({ precision: 7, scale: 2 }).notNull(),
+    grams: numeric({ precision: 7, scale: 2 }).notNull(),
+    ingredientId: uuid()
+      .notNull()
+      .references(() => ingredients.id, { onDelete: 'restrict' }),
+    kcal: numeric({ precision: 7, scale: 2 }).notNull(),
+    mealId: uuid()
+      .notNull()
+      .references(() => meals.id, { onDelete: 'cascade' }),
+    proteinG: numeric({ precision: 7, scale: 2 }).notNull(),
+    /** The meal's dish when these rows were written — see above. */
+    recipeId: uuid()
+      .notNull()
+      .references(() => recipes.id, { onDelete: 'restrict' }),
+    /** The meal's servings when these rows were written — see above. */
+    servings: numeric({ precision: 4, scale: 2 }).notNull(),
+    sortOrder: smallint().notNull().default(0)
+  },
+  // Led by `meal_id`, so it is also the index every read of a meal's rows uses.
+  table => [unique('meal_accompaniments_unique').on(table.mealId, table.accompanimentKey, table.ingredientId)]
 );
 
 /** The adherence signal. One row per user action, so it is auditable and undoable. */
@@ -253,6 +301,11 @@ export const planGenerationJobs = userOwned(
     errorDetail: text(),
     finishedAt: timestamp({ withTimezone: true }),
     planId: uuid().references(() => mealPlans.id, { onDelete: 'cascade' }),
+    /**
+     * The day the person chose for the plan to start (project 015), from their
+     * today to a week ahead. Null for today, and for every job before it.
+     */
+    startDate: date(),
     startedAt: timestamp({ withTimezone: true }),
     status: jobStatus().notNull().default('queued'),
     step: text()

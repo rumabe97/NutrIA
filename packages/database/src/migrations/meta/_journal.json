@@ -369,8 +369,36 @@
     {
       "idx": 52,
       "version": "7",
-      "when": 1790880080691,
-      "tag": "0052_a_lost_second_factor_can_be_removed_after_48_hours",
+      "when": 1790886515979,
+      "tag": "0052_traditional_spanish_is_a_way_of_eating",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1790894268538,
+      "tag": "0053_a_plan_can_be_scheduled",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1790901561983,
+      "tag": "0054_a_plan_waits_for_its_day",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1790927562124,
+      "tag": "0055_meals_carry_what_goes_beside_them",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1790939447426,
+      "tag": "0056_a_lunch_is_one_plate",
       "breakpoints": true
     }
   ]

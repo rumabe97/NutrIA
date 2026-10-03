@@ -9,6 +9,8 @@ import * as schema from './schemas';
 
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
+export { isLocalPg, LOCAL_DATABASE_URL } from './env';
+
 export type Database = PostgresJsDatabase<typeof schema>;
 
 let instance: Database | undefined;

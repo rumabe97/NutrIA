@@ -1,6 +1,16 @@
-import { ConflictError, MealInFutureError, NotFoundError, PlanPausedError, QuotaExceededError } from 'core/entities/Error';
+import { ConflictError, InputParseError, MealInFutureError, NotFoundError, PlanPausedError, QuotaExceededError } from 'core/entities/Error';
 import { LIVED_PLAN_STATUSES } from 'core/entities/Plan';
-import { allowancesFor, eventStanding, mealSwapStanding, midPlanEventStanding, planRedoStanding, redosInFortnight } from 'core/domain/Allowance';
+import {
+  allowancesFor,
+  eventStanding,
+  MAX_START_DAYS_AHEAD,
+  mealSwapStanding,
+  midPlanEventStanding,
+  planRedoStanding,
+  redosInFortnight,
+  startMeaning
+} from 'core/domain/Allowance';
+import { dayKeyIn } from 'core/domain/Period';
 import { eventsInWindow, planWindow } from 'core/domain/Event';
 import { MAX_DAYS_BEFORE } from 'core/entities/Event';
 import { addDays } from 'core/domain/Vacation';
@@ -9,7 +19,7 @@ import { EventRepository } from '#repositories/Event';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { PlanJobRepository, PlanRepository } from '#repositories/Plan';
 import { ProfileRepository } from '#repositories/Profile';
-import { requireProfileConsent } from 'core/controllers/Profile';
+import { ProfileController, requireProfileConsent } from 'core/controllers/Profile';
 import { UserRepository } from '#repositories/User';
 import { VacationRepository } from '#repositories/Vacation';
 import { isAway } from 'core/domain/Vacation';
@@ -17,17 +27,55 @@ import { SafetyController } from 'core/controllers/Safety';
 import { SettingsController } from 'core/controllers/Settings';
 import { RecipeController, toPictureStatus } from 'core/controllers/Recipe';
 import { alternativesFor } from 'core/domain/Substitution';
-import type { AiCallRecord, Macros, MealSlot, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
-import type { CountedStanding, MealSwapStanding, PlanRedoStanding, Tier } from 'core/domain/Allowance';
+import { toDry, withoutCooked } from 'core/domain/Yield';
+import { starchBase } from 'core/domain/Variety';
+import type { StarchBase } from 'core/domain/Variety';
+import { accompanimentName, accompanimentPreparation } from 'core/domain/Accompaniment';
+import type {
+  AiCallRecord,
+  Macros,
+  MealAccompanimentDraft,
+  MealSlot,
+  MealStatus,
+  PlanDraft,
+  RecipeDraft,
+  ShoppingItemDraft
+} from 'core/entities/Plan';
+import type { CountedStanding, MealSwapStanding, PlanRedoStanding, StartMeaning, Tier } from 'core/domain/Allowance';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PlanWindow } from 'core/domain/Event';
 import type { RecordAccess } from '#repositories/Care';
+import type { MealAccompanimentRead } from '#repositories/Plan';
 import type { PictureClaim } from 'core/controllers/Recipe';
+import type { MealSizeView } from 'core/controllers/Profile';
 
 // --- Presenters ---------------------------------------------------------------
 
+/**
+ * One thing beside the plate (project 016, `0079` Table 3): bread, a salad, a
+ * piece of fruit. `key` is stable; `name` is in the reader's language — the
+ * food's own name for a simple one, the dish's for a composed one (a salad).
+ * `grams` and `kcal` are its whole portion; `ingredients` are its foods, with
+ * `dry` as on a meal's own ingredient (`0078`).
+ */
+export interface AccompanimentView {
+  grams: number;
+  ingredients: readonly { dry?: { grams: number; name: string }; grams: number; name: string }[];
+  kcal: number;
+  key: string;
+  name: string;
+  /** How a composed side is made, one sentence in the reader's language; absent for a food served as it comes. */
+  preparation?: string;
+}
+
 export interface MealView {
   id: string;
+  /**
+   * What goes beside the plate, in serving order; empty when nothing does — a
+   * plan made with the `accompaniments` flag off, or before it existed. The
+   * meal's `kcal` and macros already include it; `ingredients` are the dish's only.
+   */
+  accompaniments: readonly AccompanimentView[];
   carbsG: number;
   cookMinutes: number;
   difficulty: string;
@@ -129,11 +177,33 @@ export interface EventAllowancesView {
   remaining: number;
 }
 
+/**
+ * One day a generation may start on (project 015): today to a week ahead.
+ * `kind` is what starting there spends — nothing for the next fortnight, a
+ * redo for cutting the one under way or replacing a plan waiting for its day —
+ * and `allowed` is false when it is a redo and none is left.
+ */
+export interface StartOptionView {
+  allowed: boolean;
+  date: string;
+  kind: 'new_fortnight' | 'redo';
+}
+
 /** What the person may still do this fortnight, for the screen to say before they try. */
 export interface AllowancesView {
+  /** The day the chooser offers first (project 015): the day after the plan under way ends, when that is within reach, else today. */
+  defaultStart: string;
   events: EventAllowancesView;
+  /**
+   * How big the largest main meal of the next plan will be, so the generation
+   * screen can offer one meal more before it starts (project 016). Null until
+   * the profile has targets — see `FullProfileView.mealSize`.
+   */
+  mealSize: MealSizeView | null;
   mealSwaps: MealSwapStanding;
   planRedo: PlanRedoStanding;
+  /** Every day a generation may start on, today first, and what each would spend (project 015). */
+  startOptions: readonly StartOptionView[];
   /**
    * Which allowances these are — the tier as it applies right now, with the
    * `premium` switch already taken into account. It is here so a screen can say
@@ -150,6 +220,8 @@ export interface AllowancesView {
  */
 export interface MealCompositionView {
   id: string;
+  /** The day the meal is on, so a plan cut short can keep only its days before the cut (project 015). */
+  date: string;
   dayIndex: number;
   ingredients: readonly { grams: number; slug: string }[];
   macros: Macros;
@@ -157,6 +229,8 @@ export interface MealCompositionView {
   servings: number;
   slot: MealSlot;
   sortOrder: number;
+  /** The plate's starch base, its own rows and not what is beside it — what a swap or a rebuild keeps pasta and rice apart by (`STARCH_RULES`). */
+  starch: StarchBase | null;
 }
 
 export interface JobView {
@@ -200,13 +274,57 @@ function presentJob(
 
 type MealRow = Awaited<ReturnType<typeof PlanRepository.findDaysWithMeals>>[number]['meals'][number];
 
-function presentMeal({ items, meal, recipe }: MealRow): MealView {
+/**
+ * A meal's accompaniment rows, one view per accompaniment in serving order.
+ * `dryNames` are the dry foods' names where the reader has them; without one, a
+ * cooked food's own name without "cocido", as on the meal's own ingredients.
+ */
+function presentAccompaniments(
+  sides: readonly MealAccompanimentRead[],
+  locale: string,
+  dryNames: ReadonlyMap<string, string> = new Map()
+): readonly AccompanimentView[] {
+  const byKey = new Map<string, MealAccompanimentRead[]>();
+
+  for (const side of sides) {
+    byKey.set(side.accompanimentKey, [...(byKey.get(side.accompanimentKey) ?? []), side]);
+  }
+
+  return [...byKey].map(([key, rows]) => {
+    const preparation = accompanimentPreparation(key, locale);
+
+    return {
+      grams: round(rows.reduce((sum, row) => sum + row.grams, 0)),
+      ingredients: rows.map(row => {
+        const dry = toDry(row.slug, row.grams);
+
+        return {
+          ...(dry && {
+            dry: {
+              grams: Math.max(DRY_STEP_G, Math.round(dry.dryGrams / DRY_STEP_G) * DRY_STEP_G),
+              name: (dry.drySlug && dryNames.get(dry.drySlug)) ?? withoutCooked(row.name)
+            }
+          }),
+          grams: row.grams,
+          name: row.name
+        };
+      }),
+      kcal: round(rows.reduce((sum, row) => sum + row.kcal, 0)),
+      key,
+      name: accompanimentName(key, locale, rows.find(row => row.slug === key)?.name),
+      ...(preparation && { preparation })
+    };
+  });
+}
+
+function presentMeal({ items, meal, recipe, sides }: MealRow, locale: string): MealView {
   // The recipe's quantities are for *its* servings; this meal may have been
   // scaled to fit the day. The same factor `loadMealDetail` applies.
   const factor = Number(meal.servings) / (recipe.servings || 1);
 
   return {
     id: meal.id,
+    accompaniments: presentAccompaniments(sides, locale),
     carbsG: Number(meal.carbsG),
     cookMinutes: recipe.cookMinutes,
     difficulty: recipe.difficulty,
@@ -229,6 +347,46 @@ function presentMeal({ items, meal, recipe }: MealRow): MealView {
 
 export const PlanController = {
   /**
+   * The nightly cron (project 015): every plan waiting for its day whose day
+   * has come in its owner's time zone, activated one owner at a time. Answers
+   * how many were. A failure for one owner does not stop the others; the next
+   * read of their plan activates it anyway.
+   */
+  async activateAllDue(now: Date = new Date()): Promise<{ readonly activated: number; readonly failed: number }> {
+    // Fetched up to the day after UTC's: the zones ahead of it reach tomorrow first.
+    const candidates = await PlanRepository.findScheduledDue(addDays(now.toISOString().slice(0, 10), 1));
+    let activated = 0;
+    let failed = 0;
+
+    for (const candidate of candidates) {
+      const today = dayKeyIn(now, candidate.timezone ?? DEFAULT_TIME_ZONE);
+
+      if (candidate.startDate > today) {
+        continue;
+      }
+
+      try {
+        activated += (await PlanRepository.activateDue(candidate.userId, today)) ? 1 : 0;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    return { activated, failed };
+  },
+
+  /**
+   * Makes the plan waiting for its day active once `today` — the person's —
+   * has reached it (project 015): the plan under way completed the day before,
+   * in one transaction. Idempotent: with nothing due it changes nothing. Run at
+   * the start of every read of the active plan, so a cron that missed a night
+   * never leaves somebody without their plan, and by the cron itself.
+   */
+  async activateDue(userId: string, today: string): Promise<boolean> {
+    return PlanRepository.activateDue(userId, today);
+  },
+
+  /**
    * What the fortnight still allows. `forGeneration` is `PlanJobController.start`'s
    * question (`0060`): whether a generation may begin counts a pending plan that
    * can still be published as the fortnight under way — its redo and its end.
@@ -237,39 +395,38 @@ export const PlanController = {
    * they cannot.
    */
   async allowances(userId: string, forGeneration = false): Promise<AllowancesView> {
-    const [active, chain, tier] = await Promise.all([
-      PlanRepository.findActive(userId),
-      PlanRepository.findChain(userId, true),
-      PlanController.tierOf(userId)
-    ]);
-    // A plan waiting for review (`0060`) is the fortnight a redo would redo: it
-    // was generated, and what it spent is spent, whether or not it is published —
-    // while it can still be published. A plan stranded by a link that ended,
-    // paused or lost its grant costs the client nothing. Nobody unlinked ever
-    // has one, so for them this is the active plan, as before.
-    const pending = chain.find(plan => plan.status === 'pending_review');
-    const counted = pending && (await pendingCounts(userId)) ? pending : undefined;
-    const current = counted ?? active;
-    const fromActive = current ? chain.filter(plan => plan.version <= current.version) : [];
+    // What the fortnight allows is read off the active plan: one whose day has come is it.
+    await PlanController.activateDue(userId, await personToday(userId));
+
+    const context = await startContext(userId, forGeneration);
+    const { active, tier } = context;
     const today = isoToday();
-    const [swaps, events] = await Promise.all([
+    const [swaps, events, mealSize] = await Promise.all([
       active ? PlanRepository.countSwaps(active.id) : 0,
-      PlanController.eventStanding(userId, planWindow(active, today), tier)
+      PlanController.eventStanding(userId, planWindow(active, today), tier),
+      ProfileController.mealSize(userId)
     ]);
     // The counter is on the plan row and dies with the plan, which is what
     // "per plan" means; a plan that has ended is not one that can be rebuilt.
     const midPlan = midPlanEventStanding(active && active.endDate >= today ? active.midPlanLoads : 0, tier);
-    // Which fortnight a redo would redo: a pending plan only when a generation asks.
-    const ends = forGeneration ? current : active;
+    const days = Array.from({ length: MAX_START_DAYS_AHEAD + 1 }, (_, offset) => addDays(context.today, offset));
+    const afterActive = active ? addDays(active.endDate, 1) : null;
 
     return {
+      defaultStart: afterActive !== null && days.includes(afterActive) ? afterActive : context.today,
       events: {
         limit: events.limit,
         midPlan: midPlan.limit > 0 ? { limit: midPlan.limit, remaining: midPlan.remaining } : null,
         remaining: events.remaining
       },
+      mealSize,
       mealSwaps: mealSwapStanding(swaps, tier),
-      planRedo: planRedoStanding(ends ? { endDate: ends.endDate } : undefined, redosInFortnight(fromActive), today, tier),
+      planRedo: standingAt(context, context.today).standing,
+      startOptions: days.map(date => {
+        const { standing } = standingAt(context, date);
+
+        return { allowed: standing.allowed, date, kind: standing.kind };
+      }),
       tier
     };
   },
@@ -285,13 +442,18 @@ export const PlanController = {
     const days = await PlanRepository.findDaysWithMeals(plan.id, FALLBACK_LOCALE);
 
     return days.flatMap(day =>
-      day.meals.map(({ items, meal, recipe }) => {
+      day.meals.map(({ items, meal, recipe, sides }) => {
         const factor = Number(meal.servings) / (recipe.servings || 1);
 
         return {
           id: meal.id,
+          date: day.date,
           dayIndex: day.dayIndex,
-          ingredients: items.map(item => ({ grams: Math.round(Number(item.grams) * factor * 10) / 10, slug: item.slug })),
+          // The plate's, then what is beside it (project 016): the shopping list a swap rebuilds counts both.
+          ingredients: [
+            ...items.map(item => ({ grams: Math.round(Number(item.grams) * factor * 10) / 10, slug: item.slug })),
+            ...sides.map(side => ({ grams: side.grams, slug: side.slug }))
+          ],
           macros: {
             carbsG: Number(meal.carbsG),
             fatG: Number(meal.fatG),
@@ -302,10 +464,29 @@ export const PlanController = {
           recipeSlug: recipe.slug,
           servings: Number(meal.servings),
           slot: meal.slot,
-          sortOrder: meal.sortOrder
+          sortOrder: meal.sortOrder,
+          starch: starchBase({ ingredients: items.map(item => ({ grams: Number(item.grams), slug: item.slug })), servings: recipe.servings })
         };
       })
     );
+  },
+
+  /**
+   * What the active plan keeps when a plan starting on `start` cuts it (project
+   * 015): its id and its meals before `start`, as `composition` reads them — what
+   * its shopping list is rebuilt from. Null when nothing is cut: no active plan,
+   * or one that ends before `start`.
+   */
+  async cutComposition(userId: string, start: string): Promise<{ readonly meals: readonly MealCompositionView[]; readonly planId: string } | null> {
+    const active = await PlanRepository.findActive(userId);
+
+    if (!active || active.endDate < start) {
+      return null;
+    }
+
+    const meals = await PlanController.composition(userId, active.id);
+
+    return { meals: meals.filter(meal => meal.date < start), planId: active.id };
   },
 
   /**
@@ -338,13 +519,17 @@ export const PlanController = {
 
   /** The active plan with its days and meals, or null — having no plan is a normal state. */
   async getActivePlan(userId: string, locale: string | null = null): Promise<PlanView | null> {
+    await PlanController.activateDue(userId, await personToday(userId));
+
     const plan = await PlanRepository.findActive(userId);
 
     if (!plan) {
       return null;
     }
 
-    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId, locale)));
+    const resolved = await localeFor(userId, locale);
+
+    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, resolved), resolved);
   },
 
   async getDay(userId: string, planId: string, dayIndex: number, locale: string | null = null): Promise<PlanDayView> {
@@ -389,7 +574,9 @@ export const PlanController = {
       return null;
     }
 
-    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId, locale)));
+    const resolved = await localeFor(userId, locale);
+
+    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, resolved), resolved);
   },
 
   /** Owner-scoped. A plan belonging to someone else is simply not found. */
@@ -400,7 +587,41 @@ export const PlanController = {
       throw new NotFoundError('Plan not found');
     }
 
-    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId, locale)));
+    const resolved = await localeFor(userId, locale);
+
+    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, resolved), resolved);
+  },
+
+  /**
+   * The plan waiting for its day (project 015), as the active plan is read —
+   * or not found when there is none, its day having come included: it is then
+   * the active plan.
+   */
+  async getScheduledPlan(userId: string, locale: string | null = null): Promise<PlanView> {
+    await PlanController.activateDue(userId, await personToday(userId));
+
+    const plan = await PlanRepository.findScheduled(userId);
+
+    if (!plan) {
+      throw new NotFoundError('Plan not found');
+    }
+
+    const resolved = await localeFor(userId, locale);
+
+    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, resolved), resolved);
+  },
+
+  /** The list of the plan waiting for its day (project 015), to shop before it starts; not found when there is none. */
+  async getScheduledShoppingList(userId: string, locale: string | null = null): Promise<ShoppingListView> {
+    await PlanController.activateDue(userId, await personToday(userId));
+
+    const plan = await PlanRepository.findScheduled(userId);
+
+    if (!plan) {
+      throw new NotFoundError('Plan not found');
+    }
+
+    return PlanController.getShoppingList(userId, plan.id, locale);
   },
 
   async getShoppingList(userId: string, planId: string, locale: string | null = null): Promise<ShoppingListView> {
@@ -599,10 +820,25 @@ export const PlanController = {
     }
   },
 
+  /**
+   * What a generation starting on `start` would mean and spend (project 015),
+   * as `PlanJobController.start` asks it: a pending plan that counts is the
+   * fortnight under way (`0060`), as in `allowances(…, true)`.
+   */
+  async startStanding(
+    userId: string,
+    start: string,
+    chargeWaiting = true
+  ): Promise<{ readonly meaning: StartMeaning; readonly standing: PlanRedoStanding }> {
+    return standingAt(await startContext(userId, true), start, chargeWaiting);
+  },
+
   async swapMeal(
     userId: string,
     mealId: string,
     change: {
+      /** What goes beside the new plate (project 016); absent or empty is nothing. */
+      readonly accompaniments?: readonly MealAccompanimentDraft[];
       readonly locale: string;
       readonly macros: Macros;
       readonly newRecipe: RecipeDraft | null;
@@ -660,7 +896,8 @@ export const PlanController = {
 
 function assemble(
   plan: Awaited<ReturnType<typeof PlanRepository.findActive>>,
-  days: Awaited<ReturnType<typeof PlanRepository.findDaysWithMeals>>
+  days: Awaited<ReturnType<typeof PlanRepository.findDaysWithMeals>>,
+  locale: string
 ): PlanView {
   if (!plan) {
     throw new NotFoundError('Plan not found');
@@ -669,7 +906,7 @@ function assemble(
   return {
     id: plan.id,
     days: days.map(day => {
-      const presented = day.meals.map(presentMeal);
+      const presented = day.meals.map(meal => presentMeal(meal, locale));
 
       return {
         date: day.date,
@@ -708,6 +945,21 @@ function round(value: number): number {
  * apart makes it obvious which surface a read-only screen may touch.
  */
 export const PlanJobController = {
+  /**
+   * The days a generation is laid out on (project 015): `start`, the one the
+   * person chose when the job was claimed or else their today, and `today`,
+   * which decides whether the plan waits for its day. Owner-scoped, like the job.
+   */
+  async dates(userId: string, jobId: string): Promise<{ readonly start: string; readonly today: string }> {
+    const [job, today] = await Promise.all([PlanJobRepository.findById(userId, jobId), personToday(userId)]);
+
+    if (!job) {
+      throw new NotFoundError('Job not found');
+    }
+
+    return { start: job.startDate ?? today, today };
+  },
+
   async markFailed(jobId: string, reason: string, detail?: string): Promise<void> {
     await PlanJobRepository.markFailed(jobId, reason, detail);
   },
@@ -736,13 +988,13 @@ export const PlanJobController = {
     const planId = await PlanRepository.createPlanAtomically(userId, draft, professional, byProfessional);
 
     /*
-     * Generation lays a fortnight out from today, one day after another, because
+     * Generation lays a fortnight out from its first day, one day after another, because
      * that is what a fortnight is — it knows nothing about a holiday declared
      * last week. The days are pushed apart afterwards (`0032`), which is the same
      * arithmetic declaring a trip performs, applied to a plan that did not exist
      * when it was declared.
      */
-    await VacationRepository.applyTo(userId);
+    await VacationRepository.applyTo(userId, planId);
 
     return planId;
   },
@@ -762,12 +1014,33 @@ export const PlanJobController = {
    * meantime is a 404, as the professional's first check would have answered.
    * Started by both at once, one claims and the other is this conflict. Without it,
    * the path below is the client's own, unchanged.
+   *
+   * `startDate` is the day the person chose for the plan to start (project
+   * 015): from their today to `MAX_START_DAYS_AHEAD` days on, or an
+   * `InputParseError`. What starting there spends (`startMeaning`) is asked
+   * before the claim, so a refusal leaves no job row, and again under it.
+   * A professional's generation never carries one.
    */
-  async start(userId: string, record?: RecordAccess): Promise<JobView> {
+  async start(userId: string, record?: RecordAccess, startDate?: string): Promise<JobView> {
     // No plan is built from a profile whose owner has not consented to its use
     // (RGPD art. 9.2.a) — theirs, whoever starts it. Asked before the claim, so
     // a refusal leaves no job row.
     await requireProfileConsent(userId);
+
+    const today = await personToday(userId);
+
+    if (startDate !== undefined && (startDate < today || startDate > addDays(today, MAX_START_DAYS_AHEAD))) {
+      throw new InputParseError('Datos no válidos', { startDate: [`Must be between ${today} and ${addDays(today, MAX_START_DAYS_AHEAD)}`] });
+    }
+
+    const start = startDate ?? today;
+
+    // A plan whose day has come is the active one before anything is counted.
+    await PlanController.activateDue(userId, today);
+
+    if (!record) {
+      await refuseSpentStart(userId, start);
+    }
 
     // Adopt before failing: a job whose plan committed did not fail, whatever its
     // row says, and marking it abandoned would discard a plan the user already
@@ -778,7 +1051,7 @@ export const PlanJobController = {
     // The claim is the refusal: "is one in flight?" and "start one" are a single
     // atomic step in `claim`, because asked as two they both answered *no* to
     // requests fired together and every one of them started a pipeline.
-    const job = await PlanJobRepository.claim(userId);
+    const job = await PlanJobRepository.claim(userId, start === today ? null : start);
 
     if (!job) {
       throw new ConflictError('A plan is already being generated');
@@ -799,12 +1072,10 @@ export const PlanJobController = {
       // Counted *after* the claim, not before: holding the slot is what makes
       // the count honest. A plan can only be committed by a generation, no
       // generation can begin while this claim stands, so the chain this reads
-      // is the whole chain and cannot grow underneath the decision.
-      const { planRedo } = await PlanController.allowances(userId, true);
-
-      if (!planRedo.allowed) {
-        throw new QuotaExceededError('plan_redo', planRedo.nextAt);
-      }
+      // is the whole chain and cannot grow underneath the decision. A
+      // professional's generation replaces a plan waiting for its day at no
+      // charge to the client, so that plan is not counted for it.
+      await refuseSpentStart(userId, start, record === undefined);
 
       if (record) {
         await PlanJobRepository.admit(job.id, record);
@@ -823,6 +1094,12 @@ export const PlanJobController = {
 
 export interface MealDetailView {
   id: string;
+  /**
+   * What goes beside the plate, as on `MealView` (project 016); empty when
+   * nothing does. `ingredients` below are the dish's only; the meal's `kcal`
+   * and macros are the whole meal.
+   */
+  accompaniments: readonly AccompanimentView[];
   carbsG: number;
   cookMinutes: number;
   cuisine: string | null;
@@ -838,8 +1115,19 @@ export interface MealDetailView {
    * `alternatives` are what to buy instead when the shop has none, already
    * filtered for this person's allergens and scaled to this portion. Empty for
    * a staple, on purpose.
+   *
+   * `dry` is present only on a cooked grain or pasta (`0078`): what it weighs
+   * before cooking, rounded to 5 g, and the dry food's name — or the cooked
+   * one's without "cocido" when the catalogue has no dry food. `grams` stays the
+   * cooked weight on the plate.
    */
-  ingredients: readonly { alternatives: readonly { grams: number; name: string }[]; grams: number; name: string; unit: string }[];
+  ingredients: readonly {
+    alternatives: readonly { grams: number; name: string }[];
+    dry?: { grams: number; name: string };
+    grams: number;
+    name: string;
+    unit: string;
+  }[];
   kcal: number;
   name: string;
   /**
@@ -892,6 +1180,101 @@ function isoToday(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** The zone a profile keeps when it says nothing else — the column's own default. */
+const DEFAULT_TIME_ZONE = 'Europe/Madrid';
+
+/** The person's calendar day, in the time zone their profile keeps (project 015). */
+async function personToday(userId: string): Promise<string> {
+  const profile = await ProfileRepository.findByUserId(userId);
+
+  return dayKeyIn(new Date(), profile?.timezone ?? DEFAULT_TIME_ZONE);
+}
+
+type ChainPlan = Awaited<ReturnType<typeof PlanRepository.findChain>>[number];
+
+/** Everything `startMeaning` and the redo count read, loaded once for every day the chooser offers. */
+type StartContext = {
+  readonly active: Awaited<ReturnType<typeof PlanRepository.findActive>>;
+  readonly chain: readonly ChainPlan[];
+  /** The plan whose chain a redo of the fortnight under way is counted from: a pending plan that counts (`0060`), else the active plan. */
+  readonly current: { readonly version: number } | undefined;
+  /** The fortnight a redo would redo: a pending plan that counts (`0060`) when a generation asks, else the active plan. */
+  readonly ends: { readonly endDate: string; readonly version: number } | undefined;
+  readonly tier: Tier;
+  readonly today: string;
+  /** The plan waiting for its day (project 015), from the chain. */
+  readonly waiting: ChainPlan | undefined;
+};
+
+async function startContext(userId: string, forGeneration: boolean): Promise<StartContext> {
+  const [active, chain, tier, today] = await Promise.all([
+    PlanRepository.findActive(userId),
+    PlanRepository.findChain(userId, true),
+    PlanController.tierOf(userId),
+    personToday(userId)
+  ]);
+  // A plan waiting for review (`0060`) is the fortnight a redo would redo: it
+  // was generated, and what it spent is spent, whether or not it is published —
+  // while it can still be published. A plan stranded by a link that ended,
+  // paused or lost its grant costs the client nothing. Nobody unlinked ever
+  // has one, so for them this is the active plan, as before. The client's own
+  // screen counts its redos too, but takes the fortnight's end from the plans
+  // the client can see.
+  const pending = chain.find(plan => plan.status === 'pending_review');
+  const counted = pending && (await pendingCounts(userId)) ? pending : undefined;
+  const current = counted ?? active;
+
+  return { active, chain, current, ends: forGeneration ? current : active, tier, today, waiting: chain.find(plan => plan.status === 'scheduled') };
+}
+
+/**
+ * What starting on `start` would spend, and whether it may (project 015).
+ *
+ * With a plan waiting for its day, every start replaces it, and its chain is
+ * counted — whichever way it faced, so a redo spent cutting the plan under way
+ * stays spent when the waiting plan is replaced by one that opens the next
+ * fortnight. A start that cuts the plan under way also counts that plan's own
+ * chain, and the larger of the two decides. With nothing waiting, a cut counts
+ * the plan under way and anything later is free.
+ *
+ * `chargeWaiting` false is a professional's generation (`0060`, owner's
+ * decision 2026-10-02): it replaces a waiting plan at no charge to the client,
+ * so the waiting plan neither makes it a redo nor is counted.
+ */
+function standingAt(
+  context: StartContext,
+  start: string,
+  chargeWaiting = true
+): { readonly meaning: StartMeaning; readonly standing: PlanRedoStanding } {
+  const { chain, current, ends, tier, today } = context;
+  const waiting = chargeWaiting ? context.waiting : undefined;
+  const meaning = startMeaning(ends, start, today, waiting !== undefined);
+  const limit = allowancesFor(tier).planRedosPerFortnight;
+
+  if (meaning.kind === 'new_fortnight') {
+    return { meaning, standing: planRedoStanding(undefined, 0, today, tier) };
+  }
+
+  const countFrom = (plan: { readonly version: number } | undefined) =>
+    plan ? redosInFortnight(chain.filter(candidate => candidate.version <= plan.version)) : 0;
+  const used = Math.max(countFrom(waiting), meaning.cuts !== null ? countFrom(current) : 0);
+  const allowed = used < limit;
+
+  return {
+    meaning,
+    standing: { allowed, kind: 'redo', limit, nextAt: allowed || meaning.cuts === null || !ends ? null : addDays(ends.endDate, 1), used }
+  };
+}
+
+/** Refuses a start whose redo is spent, as the allowance always has: 429 with the day the next fortnight opens. */
+async function refuseSpentStart(userId: string, start: string, chargeWaiting = true): Promise<void> {
+  const { standing } = await PlanController.startStanding(userId, start, chargeWaiting);
+
+  if (!standing.allowed) {
+    throw new QuotaExceededError('plan_redo', standing.nextAt);
+  }
+}
+
 /**
  * Refuses anything that would change a plan while its owner is away (`0032`).
  *
@@ -914,6 +1297,22 @@ async function localeFor(userId: string, requested: string | null): Promise<stri
   return requested ?? (await ProfileRepository.findByUserId(userId))?.locale ?? FALLBACK_LOCALE;
 }
 
+/** What a cooked grain's dry weight is rounded to on the meal (`0078`), and the least it shows: never "0 g". */
+const DRY_STEP_G = 5;
+
+/** The dry foods' names, in the reader's language, for the cooked grains among these slugs. No query when there are none. */
+async function dryNamesFor(slugs: readonly string[], locale: string): Promise<ReadonlyMap<string, string>> {
+  const drySlugs = [...new Set(slugs.flatMap(slug => toDry(slug, 0)?.drySlug ?? []))];
+
+  if (drySlugs.length === 0) {
+    return new Map();
+  }
+
+  const ingredients = await RecipeRepository.loadCatalogue(locale, null, drySlugs);
+
+  return new Map(ingredients.map(ingredient => [ingredient.slug, ingredient.name]));
+}
+
 async function loadMealDetail(userId: string, mealId: string, requested: string | null, withPending = false): Promise<MealDetailView> {
   const locale = await localeFor(userId, requested);
   // The safety profile is fetched alongside the meal rather than only when an
@@ -928,13 +1327,15 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
     throw new NotFoundError('Meal not found');
   }
 
-  const { day, items, meal, plan, recipe } = found;
+  const { day, items, meal, plan, recipe, sides } = found;
   const factor = Number(meal.servings) / (recipe.servings || 1);
   const verdict = await RecipeRepository.findVerdict(userId, recipe.id);
+  const dryNames = await dryNamesFor([...items.map(item => item.slug), ...sides.map(side => side.slug)], locale);
   const picture = toPictureStatus({ status: recipe.pictureStatus, url: recipe.pictureUrl });
 
   return {
     id: meal.id,
+    accompaniments: presentAccompaniments(sides, locale, dryNames),
     carbsG: Number(meal.carbsG),
     cookMinutes: recipe.cookMinutes,
     cuisine: recipe.cuisine,
@@ -947,7 +1348,20 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
     ingredients: items.map(item => {
       const grams = Math.round(Number(item.grams) * factor * 10) / 10;
 
-      return { alternatives: alternativesFor(item, grams, item.substitutes, safety), grams, name: item.name, unit: item.unit };
+      const dry = toDry(item.slug, grams);
+
+      return {
+        alternatives: alternativesFor(item, grams, item.substitutes, safety),
+        ...(dry && {
+          dry: {
+            grams: Math.max(DRY_STEP_G, Math.round(dry.dryGrams / DRY_STEP_G) * DRY_STEP_G),
+            name: (dry.drySlug && dryNames.get(dry.drySlug)) ?? withoutCooked(item.name)
+          }
+        }),
+        grams,
+        name: item.name,
+        unit: item.unit
+      };
     }),
     kcal: Number(meal.kcal),
     name: recipe.name,

@@ -150,6 +150,7 @@ const PERIOD_WORDS = new Set([
   'completed',
   'archived',
   'pending_review',
+  'scheduled',
   // A system event (`ai_call`, `cron_run`, `mail_sent`, `owner_alerted`) never
   // reaches this page's words: it is not something a person did (`0071`).
   ...PRODUCT_EVENTS
@@ -628,7 +629,16 @@ describe('admin', () => {
 
         // Every key present, zeros included, so a legend does not change with what happened.
         expect(summary.charts.generations.series.map(row => row.key)).toEqual(['queued', 'running', 'succeeded', 'failed']);
-        expect(plans.byState.map(row => row.status)).toEqual(['draft', 'generating', 'active', 'completed', 'archived', 'failed', 'pending_review']);
+        expect(plans.byState.map(row => row.status)).toEqual([
+          'draft',
+          'generating',
+          'active',
+          'completed',
+          'archived',
+          'failed',
+          'pending_review',
+          'scheduled'
+        ]);
 
         for (const row of [...summary.charts.generations.series, ...product.events.series]) {
           expect(row.values).toHaveLength(period);
@@ -2048,11 +2058,13 @@ describe('admin', () => {
     });
 
     it('never name who made a dish: no created_by, no person’s id, not the maker’s id anywhere', async () => {
-      // The premise: this block's generation asked the model, so the catalogue holds a dish `log` made.
+      // The premise: this block's generation asked the model, so the catalogue holds model-made dishes with a maker.
+      // Any of them will do: since the per-food plate ceiling (016 phase 5) a generation keeps only the dishes its
+      // plates could hold, so which person's dishes were kept depends on the shared library, not on `log`.
       expect(asked).toBeGreaterThan(0);
 
       const [dish] = await sql()<{ locale: string; name: string }>`
-        select r.name, r.locale from recipes r join "user" u on u.id = r.created_by where u.email = ${log.email} order by r.name limit 1`;
+        select r.name, r.locale from recipes r where r.source = 'ai' and r.created_by is not null order by r.name limit 1`;
 
       expect(dish).toBeDefined();
 
@@ -2342,7 +2354,7 @@ describe('admin', () => {
       expect(view.mail.perDay.failed).toHaveLength(view.mail.days.length);
       expect(view.mail.perDay.sent).toHaveLength(view.mail.days.length);
       expect(view.mail.days).toHaveLength(30);
-      expect(view.crons.map(cron => cron.job).sort()).toEqual(['reminders', 'rewrite', 'verifications']);
+      expect(view.crons.map(cron => cron.job).sort()).toEqual(['activations', 'reminders', 'rewrite', 'verifications']);
 
       for (const cron of view.crons) {
         expect(keys(cron)).toEqual(['job', 'lastRunAt', 'stale']);

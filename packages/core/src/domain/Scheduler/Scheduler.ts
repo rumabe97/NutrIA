@@ -1,7 +1,25 @@
-import { composePerServing, scaleIngredients, scaleMacros, sumMacros } from 'core/domain/Composition';
-import { canPlace, isPreferredDish, MAIN_SLOTS, mainProtein, nearestGap, PREFERRED_MAIN_GAP, PROTEIN_RULES, proteinCap } from 'core/domain/Variety';
+import { NO_ACCOMPANIMENT, setsBeside } from 'core/domain/Accompaniment';
+import { addMacros, composePerServing, scaleIngredients, scaleMacros, sumMacros } from 'core/domain/Composition';
+import {
+  canPlace,
+  isCappedStarch,
+  isPreferredDish,
+  MAIN_SLOTS,
+  mainProtein,
+  nearestGap,
+  PREFERRED_MAIN_GAP,
+  PROTEIN_RULES,
+  proteinCap,
+  starchCrowded,
+  starchExcess,
+  starchIndex,
+  starchMeals
+} from 'core/domain/Variety';
 import { PLAN_TOLERANCE } from 'core/domain/PlanValidation';
-import type { Leaning, Placement } from 'core/domain/Variety';
+import { plateFoodMax, plateFoods } from 'core/domain/PlateFood';
+import type { AccompanimentSet, Larder } from 'core/domain/Accompaniment';
+import type { Leaning, Placement, StarchIndex } from 'core/domain/Variety';
+import type { PlateFood } from 'core/domain/PlateFood';
 import type { CandidateDish, Catalogue, Macros, MealSlot, PlanAssignment, PlanDayAssignment, ScheduledMeal, SwapAxis } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 
@@ -108,6 +126,206 @@ export const SHARE_BAND = { max: 1.4, min: 0.7 } as const;
  * it is further outranked by every macro band (`BAND_MISS_WEIGHT`).
  */
 const SHARE_BAND_WEIGHT = 1;
+
+/**
+ * How far one plate may stray from its share of the day, as a bound rather
+ * than a price (`0076`). `SHARE_BAND` inside it stays the preference.
+ *
+ * `SHARE_BAND` alone let a real meal plan trade a plate's shape for macro fit
+ * every time a protein target asked for it: 1,700-kcal lunches beside 250-kcal
+ * dinners, a "light" snack of 550. `0070` caps one serving; this caps the plate,
+ * relative to the person's own share, so a big eater's 2–4 servings still fit.
+ * A dish that cannot be sized into it is not a candidate for the slot, and a
+ * day that cannot meet its macros inside it is delivered out of band with its
+ * advisory. The energy floor is the one thing that outranks it — see
+ * `balancedDay` and `pickReplacement`.
+ */
+export const PLATE_LIMIT = { max: 1.5, min: 0.5 } as const;
+
+/**
+ * How much one plate may weigh, by slot (`0078`) — the bound on its grams that
+ * `PLATE_LIMIT` is on its energy, enforced the same way and with the same one
+ * exception: the energy floor.
+ *
+ * `PLATE_LIMIT` left a person with two main meals lunches and dinners of
+ * 0.8–1.2 kg, each carrying about 1,000 kcal much of it in water — cooked
+ * grains, vegetables, skyr. The energy was right and the plate was not
+ * something anybody eats. A dish whose smallest serving is past its slot's
+ * ceiling is not a candidate there, exactly like one that cannot be sized into
+ * its share.
+ */
+export const PLATE_GRAMS_MAX: Readonly<Record<MealSlot, number>> = {
+  afternoon_snack: 250,
+  breakfast: 750,
+  dinner: 750,
+  lunch: 750,
+  morning_snack: 250,
+  supper: 250
+};
+
+/**
+ * TEMPORARY (project 016, LOG 2026-10-02) — until the `accompaniments` flag
+ * (016 phase 3) carries a big meal's energy on a second plate, a main meal
+ * whose share is past `fromKcal` may weigh more than `PLATE_GRAMS_MAX`: in
+ * proportion to its share, up to `maxGrams`.
+ *
+ * The flat 750 g of `0078` left a person with two main meals 3–11 days of 14
+ * inside ±5 %, against 14 before it: a 1,100-kcal lunch of ordinary dishes does
+ * not fit in 750 g. The owner put the ±5 % promise first. When the flag turns
+ * on, this goes and `PLATE_GRAMS_MAX` is the ceiling again.
+ */
+export const SCALED_PLATE_GRAMS = { fromKcal: 950, maxGrams: 900 } as const;
+
+/** The slots `SCALED_PLATE_GRAMS` scales — the meals; snacks and supper keep their ceiling. */
+const SCALED_PLATE_SLOTS: ReadonlySet<MealSlot> = new Set(['breakfast', 'lunch', 'dinner']);
+
+/**
+ * How much one plate in this slot may weigh when its share of the day is
+ * `budgetKcal`: `PLATE_GRAMS_MAX`, scaled for a big main meal by
+ * `SCALED_PLATE_GRAMS`. The one ceiling every sizing path reads, through
+ * `withinPlateLimit`.
+ */
+export function plateGramsMax(slot: MealSlot, budgetKcal: number): number {
+  const base = PLATE_GRAMS_MAX[slot];
+
+  if (!SCALED_PLATE_SLOTS.has(slot) || budgetKcal <= SCALED_PLATE_GRAMS.fromKcal) {
+    return base;
+  }
+
+  return Math.min(SCALED_PLATE_GRAMS.maxGrams, (base * budgetKcal) / SCALED_PLATE_GRAMS.fromKcal);
+}
+
+/** Float slack for a share computed at a limit's edge. */
+const PLATE_EPSILON = 1e-9;
+
+/**
+ * Accompaniments (project 016, `0079` Table 3, design A of `0008`): what goes
+ * beside a big main meal — bread, a salad, a piece of fruit — chosen inside
+ * the day's portion search, so the plate is sized knowing what is beside it.
+ *
+ * Only lunch and dinner (`MAIN_SLOTS`), and only when their share of the day
+ * is past `ACCOMPANIED_FROM_KCAL`: below it a plate is a meal on its own, and a
+ * person who eats five times on an ordinary target pays nothing in search.
+ * Each such meal is offered `ACCOMPANIMENT_SETS` sets, "none" always among
+ * them, the best at closing that meal's gap (`rankedSets`), so a three-meal
+ * day prices (9 × 6)² × 9 = 26,244 combinations, under `BALANCE_MAX_COMBOS`.
+ */
+export const ACCOMPANIED_FROM_KCAL = 700;
+export const ACCOMPANIMENT_SETS = 6;
+
+/**
+ * Accompaniments accompany; they do not replace the dish (016 phase 4). With
+ * nothing holding them, phase 3's evaluator saw sides carry 54 % of a
+ * vegetarian's meal and 46 % of a halal or traditional Spanish one. So the
+ * sides of one meal carry at most this share of its energy, plate and sides
+ * together — checked inside the set choice, at every size the search tries,
+ * so a set past it is never offered (`sidesWithinShare`).
+ */
+export const ACCOMPANIMENT_MAX_SHARE = 0.35;
+
+/** Whether what is beside a plate of this size stays within `ACCOMPANIMENT_MAX_SHARE` of the meal. Nothing beside it always does. */
+function sidesWithinShare(perServing: PerServing, servings: number, besideKcal: number): boolean {
+  return besideKcal <= 0 || besideKcal <= ACCOMPANIMENT_MAX_SHARE * (perServing.kcal * servings + besideKcal) + PLATE_EPSILON;
+}
+
+/**
+ * With accompaniments on, a serving is best between these (`0008` § A,
+ * "Raciones"): the hard bounds stay `SERVING_BOUNDS`, and a plate outside this
+ * band costs `SERVING_PREFERENCE_WEIGHT` per serving outside it — so where
+ * half a serving more of a stew and 60 g of bread fit the day alike, the
+ * bread wins. About three points of energy for half a serving: a preference,
+ * never enough to hold a day off its macros.
+ */
+export const SERVING_PREFERENCE = { max: 1.5, min: 0.75 } as const;
+const SERVING_PREFERENCE_WEIGHT = 0.1;
+
+/** What a serving outside `SERVING_PREFERENCE` costs, before its weight. */
+function servingMiss(servings: number): number {
+  return servings < SERVING_PREFERENCE.min ? SERVING_PREFERENCE.min - servings : Math.max(0, servings - SERVING_PREFERENCE.max);
+}
+
+/**
+ * What the scheduler is told about accompaniments: whose larder (`larderFor`)
+ * and which month each day falls in, since season is a hard filter on the day
+ * a meal is served (owner's answer 8). Absent, there are none — the flag off,
+ * and the plan is the one the scheduler always made.
+ */
+export type AccompanimentOffer = {
+  readonly larder: Larder;
+  /** 1–12, for a day of the plan. */
+  readonly monthOf: (dayIndex: number) => number;
+};
+
+/** The offer, bound to one day: the sets a pick of that day may take, or null for a meal that takes none. */
+type Sides = { readonly setsOf: (pick: Pick, budget: SlotBudget) => readonly AccompanimentSet[] | null };
+
+function sidesFor(offer: AccompanimentOffer | undefined, cache: Map<string, readonly AccompanimentSet[]>): ((dayIndex: number) => Sides) | undefined {
+  if (!offer) {
+    return undefined;
+  }
+
+  return dayIndex => {
+    const month = offer.monthOf(dayIndex);
+
+    return {
+      setsOf: (pick, budget) => {
+        if (!MAIN_SLOTS.has(pick.slot) || budget.kcal <= ACCOMPANIED_FROM_KCAL) {
+          return null;
+        }
+
+        const key = `${pick.dish.slug}|${pick.slot}|${month}|${budget.kcal}|${budget.proteinG}|${budget.carbsG}|${budget.fatG}`;
+        let sets = cache.get(key);
+
+        if (!sets) {
+          sets = rankedSets(setsBeside(offer.larder, pick.dish, pick.slot, month), pick.base, budget, pick.slot);
+          cache.set(key, sets);
+        }
+
+        return sets;
+      }
+    };
+  };
+}
+
+/**
+ * The `ACCOMPANIMENT_SETS` sets that best close a meal's gap: each priced with
+ * the plate sized to what the set leaves of the budget, by the fit of the
+ * whole meal to its share plus `SERVING_PREFERENCE`. "None" is always kept.
+ * Returned in the order they were offered — "none" first — so a tie in the
+ * day's search keeps the plainer meal. Deterministic: a tie in rank keeps
+ * table order.
+ */
+function rankedSets(sets: readonly AccompanimentSet[], base: PerServing, budget: SlotBudget, slot: MealSlot): readonly AccompanimentSet[] {
+  const priced = sets
+    .map((set, index) => ({ cost: setCost(set, base, budget, slot), index, set }))
+    .filter(entry => Number.isFinite(entry.cost) || entry.set === NO_ACCOMPANIMENT)
+    .sort((a, b) => a.cost - b.cost || a.index - b.index);
+  const kept = priced.slice(0, ACCOMPANIMENT_SETS);
+
+  if (!kept.some(entry => entry.set === NO_ACCOMPANIMENT)) {
+    kept.splice(kept.length - 1, 1, { cost: 0, index: -1, set: NO_ACCOMPANIMENT });
+  }
+
+  return kept.sort((a, b) => a.index - b.index).map(entry => entry.set);
+}
+
+/** The plate's size beside a set: closest to what the set leaves of the budget, inside the limits. Undefined when none fits. */
+function servingsBeside(set: AccompanimentSet, base: PerServing, budget: SlotBudget, slot: MealSlot): number | undefined {
+  const sizes = plateServings(base, budget, slot, set.macros.kcal);
+  const wanted = base.kcal > 0 ? (budget.kcal - set.macros.kcal) / base.kcal : 1;
+
+  return [...sizes].sort((a, b) => Math.abs(a - wanted) - Math.abs(b - wanted) || a - b).at(0);
+}
+
+function setCost(set: AccompanimentSet, base: PerServing, budget: SlotBudget, slot: MealSlot): number {
+  const servings = servingsBeside(set, base, budget, slot);
+
+  if (servings === undefined) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return fitCost(addMacros(scaleMacros(base, servings), set.macros), budget) + servingMiss(servings) * SERVING_PREFERENCE_WEIGHT;
+}
 
 /**
  * The fortnight pass that spreads what a day could not fix on its own across
@@ -251,6 +469,8 @@ function dayReuseCost(picks: readonly Pick[], dayIndex: number, placed: readonly
 }
 
 export type SchedulerInput = {
+  /** Accompaniments, when the flag is on; absent, none (`AccompanimentOffer`). */
+  readonly accompaniments?: AccompanimentOffer;
   readonly catalogue: Catalogue;
   /**
    * Which days to lay out. Defaults to the whole fortnight, `1..days`.
@@ -324,20 +544,23 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
   const proteins = proteinIndex(input.pool, input.catalogue);
   // Over the whole fortnight, even when only some of its days are laid out here.
   const cap = proteinCap(slots.length * days);
+  // Pasta and rice, priced at the protein rule's weight wherever it is (`STARCH_RULES`).
+  const starch: StarchRule = { days, index: starchIndex(input.pool) };
   const indexes = input.dayIndexes ?? Array.from({ length: days }, (_none, offset) => offset + 1);
 
   // The days that are not being laid out go in first, so every `canPlace` below
   // sees the whole plan rather than only the part of it this call is building.
   const placed: Placement[] = [...(input.placed ?? [])];
   const built: BuiltDay[] = [];
+  const sidesOn = sidesFor(input.accompaniments, new Map());
 
   for (const dayIndex of indexes) {
     // Per day rather than once: a day that eats for an event has its own targets
     // (`0043`), and the budgets are what turn targets into a plate.
     const targets = targetsOn(input, dayIndex);
-    const budgets = slotBudgets(input.weights, targets);
+    const budgets = slotBudgets(input.weights, targets, input.accompaniments !== undefined);
 
-    const picks: { base: Macros; dish: CandidateDish; servings: number; slot: MealSlot; sortOrder: number }[] = [];
+    const picks: { base: PerServing; dish: CandidateDish; servings: number; slot: MealSlot; sortOrder: number }[] = [];
 
     for (const [sortOrder, slot] of slots.entries()) {
       const budget = budgets.get(slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
@@ -345,8 +568,25 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
         .filter(dish => dish.slots.includes(slot))
         .filter(dish => perServing.has(dish.slug))
         .filter(dish => canPlace(dish.slug, slot, dayIndex, placed));
+      // Only dishes that can be sized inside `PLATE_LIMIT` (`0076`) and under
+      // `PLATE_GRAMS_MAX` (`0078`) and `PLATE_FOOD_MAX` (016). When the pool
+      // holds none for this slot, the day is still built from what there is —
+      // a target no dish fits is validation's to refuse, not a reason to
+      // deliver nothing — and the later passes never swap a fitting plate out.
+      const fitting = eligible.filter(dish => fitsPlate(perServing.get(dish.slug) as PerServing, budget, slot));
 
-      const chosen = pickBest(eligible, budget, perServing, placed, dayIndex, slot, slug => crowded(slug, { dayIndex, slot }, placed, proteins, cap));
+      const starchPlaced = starchMeals(placed, starch.index);
+      const chosen = pickBest(
+        fitting.length > 0 ? fitting : eligible,
+        budget,
+        perServing,
+        placed,
+        dayIndex,
+        slot,
+        slug =>
+          Number(crowded(slug, { dayIndex, slot }, placed, proteins, cap)) +
+          Number(starchCrowded(starch.index.get(slug) ?? null, dayIndex, starchPlaced, days))
+      );
 
       if (!chosen) {
         return {
@@ -357,11 +597,11 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
 
       const base = perServing.get(chosen.slug) as NonNullable<ReturnType<typeof perServing.get>>;
 
-      picks.push({ base, dish: chosen, servings: servingsFor(base, budget), slot, sortOrder });
+      picks.push({ base, dish: chosen, servings: servingsFor(base, budget, slot), slot, sortOrder });
       placed.push({ dayIndex, dishSlug: chosen.slug, slot });
     }
 
-    const improved = improveDay(picks, input, dayIndex, placed, budgets, { cap, proteins });
+    const improved = improveDay(picks, input, perServing, dayIndex, placed, budgets, { cap, proteins, starch }, sidesOn?.(dayIndex));
 
     // Swapping changed what this day holds, so the placement record must follow or
     // later days would enforce variety against dishes that are no longer served.
@@ -373,21 +613,25 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
       }
     }
 
-    built.push({ budgets, dayIndex, picks: balanceDay(improved, targets, budgets, input.minimumKcal), targets });
+    built.push({ budgets, dayIndex, picks: balanceDay(improved, targets, budgets, input.minimumKcal, sidesOn?.(dayIndex)), targets });
   }
 
-  const spread = spreadAcrossDays(built, input.placed ?? [], proteins, input.minimumKcal);
-  const distinct = enforceDistinctDays(spread, input, input.placed ?? [], proteins, cap);
+  const spread = spreadAcrossDays(built, input.placed ?? [], proteins, starch, input.minimumKcal, sidesOn);
+  const distinct = enforceDistinctDays(spread, input, input.placed ?? [], proteins, cap, starch, sidesOn);
 
   const assignedDays: PlanDayAssignment[] = distinct.map(day => {
-    const meals: ScheduledMeal[] = day.picks.map(pick => ({
-      dish: pick.dish,
-      ingredients: scaleIngredients(pick.dish.ingredients, pick.servings / pick.dish.servings),
-      macros: scaleMacros(pick.base, pick.servings),
-      servings: pick.servings,
-      slot: pick.slot,
-      sortOrder: pick.sortOrder
-    }));
+    const meals: ScheduledMeal[] = day.picks.map(pick => {
+      const plate = {
+        dish: pick.dish,
+        ingredients: scaleIngredients(pick.dish.ingredients, pick.servings / pick.dish.servings),
+        macros: scaleMacros(pick.base, pick.servings),
+        servings: pick.servings,
+        slot: pick.slot,
+        sortOrder: pick.sortOrder
+      };
+
+      return input.accompaniments ? withAccompaniments(plate, pick.set ?? NO_ACCOMPANIMENT) : plate;
+    });
 
     return { dayIndex: day.dayIndex, meals, totals: sumMacros(meals.map(meal => meal.macros)) };
   });
@@ -395,9 +639,38 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
   return { assignment: { days: assignedDays }, ok: true };
 }
 
-export type SlotBudget = { readonly carbsG: number; readonly fatG: number; readonly kcal: number; readonly proteinG: number };
+/**
+ * A plate and what is beside it, as one meal: the set's rows after the dish's,
+ * and the macros of both — so the day's totals, `validatePlan`, the allergy
+ * gate and the shopping list all see what the person eats, not only the plate.
+ */
+function withAccompaniments<
+  T extends { readonly ingredients: readonly { readonly grams: number; readonly slug: string }[]; readonly macros: Macros }
+>(plate: T, set: AccompanimentSet): T & { readonly accompaniments: ScheduledMeal['accompaniments'] } {
+  return {
+    ...plate,
+    accompaniments: set.portions.map(portion => ({ ingredients: portion.items, key: portion.accompaniment.key, macros: portion.macros })),
+    ingredients: [...plate.ingredients, ...set.items],
+    macros: addMacros(plate.macros, set.macros)
+  };
+}
+
+export type SlotBudget = {
+  readonly carbsG: number;
+  readonly fatG: number;
+  /**
+   * The plate's gram ceiling, when it is not `plateGramsMax`'s: with
+   * accompaniments on, the flat `PLATE_GRAMS_MAX` again (016 phase 1's scaling
+   * was until they carried a big meal's energy on a second plate).
+   */
+  readonly gramsMax?: number;
+  readonly kcal: number;
+  readonly proteinG: number;
+};
 
 export type Replacement = {
+  /** As `ScheduledMeal.accompaniments`: present only when the swap was offered accompaniments. */
+  readonly accompaniments?: ScheduledMeal['accompaniments'];
   readonly dish: CandidateDish;
   readonly ingredients: readonly { readonly grams: number; readonly slug: string }[];
   readonly macros: Macros;
@@ -421,6 +694,12 @@ const PREFERRED_FIT_TOLERANCE = 0.35;
  * ([`0015`](../../../../docs/decisions/0015-one-redo-a-fortnight-five-swaps-a-plan.md)).
  */
 export function pickReplacement(input: {
+  /**
+   * Accompaniments, when the flag is on: whose larder, and the month of the day
+   * being swapped. The new dish is chosen as ever, and its set composed the way
+   * the scheduler composes one (`rankedSets`) — the budget is the whole meal.
+   */
+  readonly accompaniments?: { readonly larder: Larder; readonly month: number };
   readonly budget: SlotBudget;
   readonly catalogue: Catalogue;
   readonly dayIndex: number;
@@ -449,27 +728,40 @@ export function pickReplacement(input: {
   readonly slot: MealSlot;
 }): Replacement | undefined {
   const perServing = perServingIndex(input.pool, input.catalogue);
+  const budget = input.accompaniments ? { ...input.budget, gramsMax: PLATE_GRAMS_MAX[input.slot] } : input.budget;
 
   const passes = (dish: CandidateDish): boolean => {
     const base = perServing.get(dish.slug);
 
-    return base !== undefined && plateKcal(base, SERVING_BOUNDS.max) >= input.plateMinimumKcal && (input.filter?.(dish, base) ?? true);
+    return (
+      base !== undefined &&
+      fitsPlate(base, budget, input.slot) &&
+      plateKcal(base, SERVING_BOUNDS.max) >= input.plateMinimumKcal &&
+      (input.filter?.(dish, base) ?? true)
+    );
   };
 
   const costOf = (slug: string): number => {
     const base = perServing.get(slug);
 
-    return base ? scaledFitCost(base, input.budget) : Number.MAX_VALUE;
+    return base ? scaledFitCost(base, budget, input.slot) : Number.MAX_VALUE;
   };
 
   const rank = (dish: CandidateDish): number =>
     input.leaning !== undefined && isPreferredDish(dish, input.leaning) && costOf(dish.slug) <= PREFERRED_FIT_TOLERANCE ? 0 : 1;
+  // Pasta or rice the plan already has that day, the day either side or four
+  // times (`STARCH_RULES`), priced as the scheduler prices it. The plan's own
+  // meals are never in a swap's pool, so their bases come from `placed`.
+  const starches = starchIndex(input.pool);
+  const starchPlaced = starchMeals(input.placed, starches);
+  const starchCost = (dish: CandidateDish): number =>
+    starchCrowded(starches.get(dish.slug) ?? null, input.dayIndex, starchPlaced, PLAN_DAYS) ? PROTEIN_REPEAT_WEIGHT : 0;
 
   const dish = input.pool
     .filter(
       candidate => candidate.slots.includes(input.slot) && passes(candidate) && canPlace(candidate.slug, input.slot, input.dayIndex, input.placed)
     )
-    .sort((a, b) => rank(a) - rank(b) || costOf(a.slug) - costOf(b.slug) || a.slug.localeCompare(b.slug))
+    .sort((a, b) => rank(a) - rank(b) || costOf(a.slug) + starchCost(a) - (costOf(b.slug) + starchCost(b)) || a.slug.localeCompare(b.slug))
     .at(0);
   const base = dish ? perServing.get(dish.slug) : undefined;
 
@@ -477,14 +769,32 @@ export function pickReplacement(input: {
     return undefined;
   }
 
-  let servings = servingsFor(base, input.budget);
+  const offer = input.accompaniments;
+  const sets =
+    offer && MAIN_SLOTS.has(input.slot) && budget.kcal > ACCOMPANIED_FROM_KCAL
+      ? rankedSets(setsBeside(offer.larder, dish, input.slot, offer.month), base, budget, input.slot)
+      : [];
+  // The best of the offered sets, priced as `rankedSets` priced them; "none" when it is the best or the only one.
+  const set =
+    [...sets]
+      .map((candidate, index) => ({ cost: setCost(candidate, base, budget, input.slot), index, set: candidate }))
+      .sort((a, b) => a.cost - b.cost || a.index - b.index)
+      .at(0)?.set ?? NO_ACCOMPANIMENT;
+  let servings =
+    set === NO_ACCOMPANIMENT
+      ? servingsFor(base, budget, input.slot)
+      : (servingsBeside(set, base, budget, input.slot) ?? servingsFor(base, budget, input.slot));
 
-  // Ends: `passes` kept only dishes that reach it at the largest size.
-  while (plateKcal(base, servings) < input.plateMinimumKcal && servings < SERVING_BOUNDS.max) {
+  // Ends: `passes` kept only dishes that reach it at the largest size. The one
+  // place a plate may pass `PLATE_LIMIT.max`, `PLATE_GRAMS_MAX` or `PLATE_FOOD_MAX`, and only as
+  // far as the floor needs.
+  while (plateKcal(base, servings) + set.macros.kcal < input.plateMinimumKcal && servings < SERVING_BOUNDS.max) {
     servings = roundServings(servings + SERVING_STEP);
   }
 
-  return { dish, ingredients: scaleIngredients(dish.ingredients, servings / dish.servings), macros: scaleMacros(base, servings), servings };
+  const plate = { dish, ingredients: scaleIngredients(dish.ingredients, servings / dish.servings), macros: scaleMacros(base, servings), servings };
+
+  return offer ? withAccompaniments(plate, set) : plate;
 }
 
 /** One plate's energy as it is stored and summed — `scaleMacros`' rounding, see `deliveredKcal`. */
@@ -563,7 +873,7 @@ export function axisFilter(
  * because validation never checked the split either. Found on a real plan, not
  * in a test (`0045`).
  */
-function slotBudgets(weights: ReadonlyMap<MealSlot, number>, targets: NutritionTargets): ReadonlyMap<MealSlot, SlotBudget> {
+function slotBudgets(weights: ReadonlyMap<MealSlot, number>, targets: NutritionTargets, flatGrams = false): ReadonlyMap<MealSlot, SlotBudget> {
   const total = [...weights.values()].reduce((sum, weight) => sum + weight, 0) || 1;
 
   return new Map(
@@ -572,6 +882,8 @@ function slotBudgets(weights: ReadonlyMap<MealSlot, number>, targets: NutritionT
       {
         carbsG: (targets.carbsG * weight) / total,
         fatG: (targets.fatG * weight) / total,
+        // With accompaniments on, the flat ceiling again — see `SlotBudget.gramsMax`.
+        ...(flatGrams ? { gramsMax: PLATE_GRAMS_MAX[slot] } : {}),
         kcal: (targets.kcal * weight) / total,
         proteinG: (targets.proteinG * weight) / total
       }
@@ -588,13 +900,118 @@ function slotBudgets(weights: ReadonlyMap<MealSlot, number>, targets: NutritionT
  * which is precisely backwards. Scaling first neutralises size and leaves the
  * comparison to be about composition, which is what cannot be fixed later.
  */
-function scaledFitCost(perServing: Macros, budget: SlotBudget): number {
-  return fitCost(scaleMacros(perServing, servingsFor(perServing, budget)), budget);
+function scaledFitCost(perServing: PerServing, budget: SlotBudget, slot: MealSlot): number {
+  return fitCost(scaleMacros(perServing, servingsFor(perServing, budget, slot)), budget);
 }
 
-/** The portion that best meets the slot's energy, within what a person can be served. */
-function servingsFor(perServing: Macros, budget: SlotBudget): number {
-  return quantiseServings(perServing.kcal > 0 ? budget.kcal / perServing.kcal : 1);
+/** The portion that best meets the slot's energy, within what a person can be served, `PLATE_LIMIT` and `PLATE_GRAMS_MAX`. */
+function servingsFor(perServing: PerServing, budget: SlotBudget, slot: MealSlot): number {
+  const servings = quantiseServings(perServing.kcal > 0 ? budget.kcal / perServing.kcal : 1);
+  const sizes = plateServings(perServing, budget, slot);
+  const [smallest, largest] = [sizes.at(0), sizes.at(-1)];
+
+  // No admissible size: every caller has already refused such a dish (`fitsPlate`).
+  if (smallest === undefined || largest === undefined) {
+    return servings;
+  }
+
+  return Math.min(Math.max(servings, smallest), largest);
+}
+
+/**
+ * Whether this many servings keep the plate inside `PLATE_LIMIT` of its share,
+ * under `plateGramsMax` for its slot and share, and under `PLATE_FOOD_MAX` of
+ * every capped food (`plateFoodMax`). The weights are checked even where the
+ * share cannot be — a budget or a dish of no energy.
+ *
+ * `besideKcal` is what the meal's accompaniments carry: the share is the whole
+ * meal's, since the share is what the meal is sized to, and the grams are the
+ * plate's alone (`0008`: the ceiling is the plate's; what is beside it has fixed
+ * portions and does not count).
+ */
+function withinPlateLimit(perServing: PerServing, servings: number, budget: SlotBudget, slot: MealSlot, besideKcal = 0): boolean {
+  const light =
+    perServing.grams * servings <= (budget.gramsMax ?? plateGramsMax(slot, budget.kcal)) + PLATE_EPSILON &&
+    withinFoodMax(perServing, servings, budget, slot) &&
+    sidesWithinShare(perServing, servings, besideKcal);
+
+  if (budget.kcal <= 0 || perServing.kcal <= 0) {
+    return light;
+  }
+
+  const share = (perServing.kcal * servings + besideKcal) / budget.kcal;
+
+  return light && share >= PLATE_LIMIT.min - PLATE_EPSILON && share <= PLATE_LIMIT.max + PLATE_EPSILON;
+}
+
+/**
+ * Whether no capped food on a plate of this size passes its ceiling. The share
+ * scaling it is the meal's, accompaniments included, as for `plateGramsMax`;
+ * the grams are the plate's alone — nothing beside it is a capped food.
+ */
+function withinFoodMax(perServing: PerServing, servings: number, budget: SlotBudget, slot: MealSlot): boolean {
+  return foodsOf(perServing).every(([food, grams]) => grams * servings <= plateFoodMax(food, slot, budget.kcal) + PLATE_EPSILON);
+}
+
+/** `perServing.foods` as entries, listed once per serving rather than at every size a search tries. */
+const FOOD_ENTRIES = new WeakMap<PerServing, readonly (readonly [PlateFood, number])[]>();
+
+function foodsOf(perServing: PerServing): readonly (readonly [PlateFood, number])[] {
+  let entries = FOOD_ENTRIES.get(perServing);
+
+  if (!entries) {
+    entries = Object.entries(perServing.foods) as [PlateFood, number][];
+    FOOD_ENTRIES.set(perServing, entries);
+  }
+
+  return entries;
+}
+
+/**
+ * `plateServings` already worked out, per budget (a plan builds each day's
+ * once, and the share and its ceiling are all it reads of one), per serving,
+ * and by the slot and what is beside the plate.
+ */
+const PLATE_SERVINGS = new WeakMap<SlotBudget, WeakMap<PerServing, Map<string, readonly number[]>>>();
+
+/** Every quarter size inside `SERVING_BOUNDS`, `PLATE_LIMIT`, `PLATE_GRAMS_MAX` and `PLATE_FOOD_MAX`, smallest first. Empty when there is none. */
+function plateServings(perServing: PerServing, budget: SlotBudget, slot: MealSlot, besideKcal = 0): readonly number[] {
+  let byServing = PLATE_SERVINGS.get(budget);
+
+  if (!byServing) {
+    byServing = new WeakMap();
+    PLATE_SERVINGS.set(budget, byServing);
+  }
+
+  let known = byServing.get(perServing);
+  const key = besideKcal === 0 ? slot : `${slot}|${besideKcal}`;
+  const cached = known?.get(key);
+
+  if (cached) {
+    return cached;
+  }
+
+  const sizes: number[] = [];
+
+  for (let servings: number = SERVING_BOUNDS.min; servings <= SERVING_BOUNDS.max; servings = roundServings(servings + SERVING_STEP)) {
+    if (withinPlateLimit(perServing, servings, budget, slot, besideKcal)) {
+      sizes.push(servings);
+    }
+  }
+
+  if (!known) {
+    known = new Map();
+    byServing.set(perServing, known);
+  }
+
+  known.set(key, sizes);
+
+  return sizes;
+}
+
+/** Whether a dish can be served in this slot at all without breaking `PLATE_LIMIT`, `PLATE_GRAMS_MAX` or `PLATE_FOOD_MAX`. */
+function fitsPlate(perServing: PerServing, budget: SlotBudget, slot: MealSlot): boolean {
+  return plateServings(perServing, budget, slot).length > 0;
 }
 
 /** How far a dish sits from a budget, as a sum of relative errors. */
@@ -628,19 +1045,29 @@ function fitCost(macros: Macros, budget: SlotBudget): number {
 }
 
 /**
- * Per-serving macros for every dish whose ingredients all resolve. A dish
- * referencing an unknown slug is silently absent rather than crashing the
+ * One serving of a dish: its macros, what it weighs on the plate — cooked, as
+ * the recipe stores it — and the grams of each `PLATE_FOOD_MAX` food in it.
+ */
+type PerServing = Macros & { readonly foods: Readonly<Partial<Record<PlateFood, number>>>; readonly grams: number };
+
+/**
+ * Per-serving macros and grams for every dish whose ingredients all resolve. A
+ * dish referencing an unknown slug is silently absent rather than crashing the
  * scheduler — the pool builder in phase 3 is what rejects and retries those, and
  * by the time a pool reaches here it should contain none.
  */
-function perServingIndex(pool: readonly CandidateDish[], catalogue: Catalogue) {
-  const index = new Map<string, ReturnType<typeof scaleMacros>>();
+function perServingIndex(pool: readonly CandidateDish[], catalogue: Catalogue): ReadonlyMap<string, PerServing> {
+  const index = new Map<string, PerServing>();
 
   for (const dish of pool) {
     const composed = composePerServing(dish, catalogue);
 
     if (composed.ok) {
-      index.set(dish.slug, composed.macros);
+      const servings = dish.servings || 1;
+      const grams = dish.ingredients.reduce((sum, item) => sum + item.grams, 0) / servings;
+      const foods = Object.fromEntries(Object.entries(plateFoods(dish.ingredients, catalogue)).map(([food, total]) => [food, total / servings]));
+
+      index.set(dish.slug, { ...composed.macros, foods, grams });
     }
   }
 
@@ -649,6 +1076,9 @@ function perServingIndex(pool: readonly CandidateDish[], catalogue: Catalogue) {
 
 /** Each pool dish's main protein, by slug — see `mainProtein`. */
 type ProteinIndex = ReadonlyMap<string, string | null>;
+
+/** Pasta and rice (`STARCH_RULES`): each pool dish's base, and the plan's length its cap is scaled to. */
+type StarchRule = { readonly days: number; readonly index: StarchIndex };
 
 function proteinIndex(pool: readonly CandidateDish[], catalogue: Catalogue): ProteinIndex {
   return new Map(pool.map(dish => [dish.slug, mainProtein(dish, catalogue)]));
@@ -752,21 +1182,21 @@ function crowded(
 function pickBest(
   eligible: readonly CandidateDish[],
   budget: SlotBudget,
-  perServing: ReadonlyMap<string, Macros>,
+  perServing: ReadonlyMap<string, PerServing>,
   placed: readonly Placement[],
   dayIndex: number,
   slot: MealSlot,
-  crowds: (slug: string) => boolean
+  crowds: (slug: string) => number
 ): CandidateDish | undefined {
-  // A dish that would repeat a main protein is priced as fitting that much
-  // worse (`PROTEIN_REPEAT_WEIGHT`): another dish wins if it fits nearly as
+  // A dish that would repeat a main protein, or pasta or rice, is priced as
+  // fitting that much worse per rule (`PROTEIN_REPEAT_WEIGHT`): another dish wins if it fits nearly as
   // well, and the repeat is served when nothing does. A dish already served
   // elsewhere in the plan carries the same kind of cost (`DISH_REPEAT_WEIGHT`)
   // — usage already sorts a first-served dish ahead of a repeat, so this only
   // ever breaks a tie between two dishes at the same usage count, one of
   // which sits closer to `PREFERRED_MAIN_GAP` than the other.
   const repeatCost = new Map(
-    eligible.map(dish => [dish.slug, (crowds(dish.slug) ? PROTEIN_REPEAT_WEIGHT : 0) + reuseCost(dish.slug, slot, dayIndex, placed)])
+    eligible.map(dish => [dish.slug, crowds(dish.slug) * PROTEIN_REPEAT_WEIGHT + reuseCost(dish.slug, slot, dayIndex, placed)])
   );
   const usage = new Map<string, number>();
   // Where each dish sat in the pool handed to the scheduler, which is the order
@@ -787,8 +1217,8 @@ function pickBest(
 
       const first = perServing.get(a.slug);
       const second = perServing.get(b.slug);
-      const costA = (first ? scaledFitCost(first, budget) : Number.MAX_VALUE) + (repeatCost.get(a.slug) ?? 0);
-      const costB = (second ? scaledFitCost(second, budget) : Number.MAX_VALUE) + (repeatCost.get(b.slug) ?? 0);
+      const costA = (first ? scaledFitCost(first, budget, slot) : Number.MAX_VALUE) + (repeatCost.get(a.slug) ?? 0);
+      const costB = (second ? scaledFitCost(second, budget, slot) : Number.MAX_VALUE) + (repeatCost.get(b.slug) ?? 0);
 
       /*
        * Two dishes that fit this budget equally well are decided by the order
@@ -805,7 +1235,122 @@ function pickBest(
     .at(0);
 }
 
-type Pick = { readonly base: Macros; readonly dish: CandidateDish; readonly servings: number; readonly slot: MealSlot; readonly sortOrder: number };
+type Pick = {
+  readonly base: PerServing;
+  readonly dish: CandidateDish;
+  readonly servings: number;
+  /** What is beside the plate, once the day's search has chosen it; absent is nothing. Cleared whenever the dish changes. */
+  readonly set?: AccompanimentSet;
+  readonly slot: MealSlot;
+  readonly sortOrder: number;
+};
+
+/** One meal's energy at a size and beside a set — the plate's own, or a set the search is trying. */
+function mealKcal(pick: Pick, servings: number, set: AccompanimentSet | undefined = pick.set): number {
+  return pick.base.kcal * servings + (set?.macros.kcal ?? 0);
+}
+
+/** One meal's part of a day's cost, at one size beside one set (`balancedDay`). */
+type Term = {
+  /** What the set beside it carries, zero for none. */
+  readonly beside: Macros;
+  /** The meal's energy: the plate and what is beside it. */
+  readonly meal: number;
+  readonly misses: number;
+  /** The plate's own macros at this size. */
+  readonly plate: Macros;
+  /** How far outside `SHARE_BAND` the meal sits; zero inside it. */
+  readonly stray: number;
+  readonly tenths: number;
+};
+
+/** A day's cost so far, summed meal by meal. */
+type DaySums = Macros & { readonly misses: number; readonly strays: number; readonly tenths: number };
+
+const NO_SUMS: DaySums = { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, misses: 0, proteinG: 0, strays: 0, tenths: 0 };
+
+/** The sums with one more meal: plate first, then what is beside it, as a day has always added them. */
+function addTerm(sums: DaySums, term: Term): DaySums {
+  return {
+    carbsG: sums.carbsG + term.plate.carbsG + term.beside.carbsG,
+    fatG: sums.fatG + term.plate.fatG + term.beside.fatG,
+    fiberG: sums.fiberG + term.plate.fiberG + term.beside.fiberG,
+    kcal: sums.kcal + term.plate.kcal + term.beside.kcal,
+    misses: sums.misses + term.misses,
+    proteinG: sums.proteinG + term.plate.proteinG + term.beside.proteinG,
+    strays: sums.strays + term.stray,
+    tenths: sums.tenths + term.tenths
+  };
+}
+
+/**
+ * What the meals from one onwards can still add to a day, whatever options
+ * they take: each macro's least and most, the most tenths of energy, and the
+ * least strays and serving misses. What `balancedDay` bounds a branch by.
+ */
+type RemainingRange = { readonly high: Macros; readonly low: Macros; readonly misses: number; readonly strays: number; readonly tenths: number };
+
+/**
+ * How far a bound may sit above the cost it bounds and still prune, relative
+ * to that cost. A bound is summed in another order than the leaf it bounds, so
+ * it can be a few units in the last place high; this is far above that, and
+ * far below any difference in cost the search decides on.
+ */
+const BOUND_SLACK = 1e-9;
+
+const MACRO_KEYS = ['carbsG', 'fatG', 'fiberG', 'kcal', 'proteinG'] as const;
+
+/** `RemainingRange` from every meal onwards, the last one empty. */
+function remainingRanges(options: readonly (readonly { readonly term: Term }[])[]): readonly RemainingRange[] {
+  const zero: Macros = { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 };
+  const ranges: RemainingRange[] = [{ high: zero, low: zero, misses: 0, strays: 0, tenths: 0 }];
+
+  for (let index = options.length - 1; index >= 0; index -= 1) {
+    const after = ranges[0] as RemainingRange;
+    const high = { ...after.high };
+    const low = { ...after.low };
+    let misses = Number.POSITIVE_INFINITY;
+    let strays = Number.POSITIVE_INFINITY;
+    let tenths = Number.NEGATIVE_INFINITY;
+    // Each macro's most and least this meal adds, found in one pass over its options.
+    const most = {
+      carbsG: Number.NEGATIVE_INFINITY,
+      fatG: Number.NEGATIVE_INFINITY,
+      fiberG: Number.NEGATIVE_INFINITY,
+      kcal: Number.NEGATIVE_INFINITY,
+      proteinG: Number.NEGATIVE_INFINITY
+    };
+    const least = {
+      carbsG: Number.POSITIVE_INFINITY,
+      fatG: Number.POSITIVE_INFINITY,
+      fiberG: Number.POSITIVE_INFINITY,
+      kcal: Number.POSITIVE_INFINITY,
+      proteinG: Number.POSITIVE_INFINITY
+    };
+
+    for (const { term } of options[index] ?? []) {
+      for (const key of MACRO_KEYS) {
+        const added = term.plate[key] + term.beside[key];
+
+        most[key] = Math.max(most[key], added);
+        least[key] = Math.min(least[key], added);
+      }
+
+      misses = Math.min(misses, term.misses);
+      strays = Math.min(strays, term.stray);
+      tenths = Math.max(tenths, term.tenths);
+    }
+
+    for (const key of MACRO_KEYS) {
+      high[key] += most[key];
+      low[key] += least[key];
+    }
+
+    ranges.unshift({ high, low, misses: after.misses + misses, strays: after.strays + strays, tenths: after.tenths + tenths });
+  }
+
+  return ranges;
+}
 
 /**
  * Each dish's window, in quarter steps, under a ceiling on the combinations
@@ -816,10 +1361,11 @@ type Pick = { readonly base: Macros; readonly dish: CandidateDish; readonly serv
  * stay even, and when they cannot all be whole it is the lighter meals that
  * are sized more coarsely. Deterministic: ties keep slot order.
  */
-function windowsFor(picks: readonly Pick[], budgets: ReadonlyMap<MealSlot, SlotBudget>, maxCombos: number): number[] {
+function windowsFor(picks: readonly Pick[], budgets: ReadonlyMap<MealSlot, SlotBudget>, maxCombos: number, sets: readonly number[] = []): number[] {
   const order = picks.map((pick, index) => ({ index, kcal: budgets.get(pick.slot)?.kcal ?? 0 })).sort((a, b) => b.kcal - a.kcal || a.index - b.index);
   const windows = picks.map(() => 0);
-  let combos = 1;
+  // Each meal offered accompaniments multiplies the day by its sets, before any window.
+  let combos = sets.reduce((product, count) => product * count, 1);
   let grew = true;
 
   while (grew) {
@@ -845,7 +1391,12 @@ function windowsFor(picks: readonly Pick[], budgets: ReadonlyMap<MealSlot, SlotB
  * meal the person said should be bigger is bigger (`SHARE_ORDER_GAP`). At the
  * sizes given, or each pick's own.
  */
-function inversionsOf(picks: readonly Pick[], budgets: ReadonlyMap<MealSlot, SlotBudget>, servings: readonly number[] = []): number {
+function inversionsOf(
+  picks: readonly Pick[],
+  budgets: ReadonlyMap<MealSlot, SlotBudget>,
+  servings: readonly number[] = [],
+  sets: readonly (AccompanimentSet | undefined)[] = []
+): number {
   let inversions = 0;
 
   for (const [i, bigger] of picks.entries()) {
@@ -858,8 +1409,8 @@ function inversionsOf(picks: readonly Pick[], budgets: ReadonlyMap<MealSlot, Slo
         continue;
       }
 
-      const biggerKcal = bigger.base.kcal * (servings[i] ?? bigger.servings);
-      const smallerKcal = smaller.base.kcal * (servings[j] ?? smaller.servings);
+      const biggerKcal = mealKcal(bigger, servings[i] ?? bigger.servings, sets[i] ?? bigger.set);
+      const smallerKcal = mealKcal(smaller, servings[j] ?? smaller.servings, sets[j] ?? smaller.set);
 
       // Level counts as out of order: a light dinner the size of the normal
       // breakfast is not lighter. With `SHARE_BAND` pulling every meal towards
@@ -871,32 +1422,6 @@ function inversionsOf(picks: readonly Pick[], budgets: ReadonlyMap<MealSlot, Slo
   }
 
   return inversions;
-}
-
-/**
- * How far a day's portions take its meals outside `SHARE_BAND` — zero while
- * every meal is inside. At the sizes given, or each pick's own.
- */
-function straysOf(picks: readonly Pick[], budgets: ReadonlyMap<MealSlot, SlotBudget>, servings: readonly number[] = []): number {
-  let strays = 0;
-
-  for (const [index, pick] of picks.entries()) {
-    const budget = budgets.get(pick.slot)?.kcal ?? 0;
-
-    if (budget <= 0) {
-      continue;
-    }
-
-    const share = (pick.base.kcal * (servings[index] ?? pick.servings)) / budget;
-
-    if (share < SHARE_BAND.min) {
-      strays += SHARE_BAND.min - share;
-    } else if (share > SHARE_BAND.max) {
-      strays += share - SHARE_BAND.max;
-    }
-  }
-
-  return strays;
 }
 
 /**
@@ -921,90 +1446,413 @@ function balanceDay(
   picks: readonly Pick[],
   targets: NutritionTargets,
   budgets: ReadonlyMap<MealSlot, SlotBudget>,
-  minimumKcal: number
+  minimumKcal: number,
+  sides?: Sides
 ): readonly Pick[] {
-  return balancedDay(picks, targets, budgets, minimumKcal).picks;
+  return balancedDay(picks, targets, budgets, minimumKcal, false, sides).picks;
 }
 
-/** `balanceDay`, and what the day costs once sized — the number a swap is judged by. */
+/**
+ * `balanceDay`, and what the day costs once sized — the number a swap is judged by.
+ *
+ * With accompaniments (`sides`), a meal that takes them is searched over its
+ * sets as well as its sizes: each set brings its own window of sizes, centred
+ * where the plate was less what the set carries, and the day takes the best
+ * combination of both. So bread and a smaller plate compete with a bigger
+ * plate on the day's own macros, never chosen afterwards around sizes already
+ * fixed (`0008`, the lesson of `0045`'s greedy pass). Every plate also pays
+ * `SERVING_PREFERENCE` then.
+ */
 function balancedDay(
   picks: readonly Pick[],
   targets: NutritionTargets,
   budgets: ReadonlyMap<MealSlot, SlotBudget>,
   minimumKcal: number,
-  banded = false
+  banded = false,
+  sides?: Sides
 ): { readonly cost: number; readonly picks: readonly Pick[] } {
-  const dayCost = (servings: readonly number[]): number => {
-    const totals = picks.reduce<Macros>(
-      (sum, pick, index) => {
-        const factor = servings[index] ?? pick.servings;
+  const noBudget = { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
+  // Per pick, the sets the search may give it: its own (none, or the one it
+  // carries) unless it takes accompaniments.
+  const offered: readonly (readonly (AccompanimentSet | undefined)[])[] = picks.map(
+    pick => sides?.setsOf(pick, budgets.get(pick.slot) ?? noBudget) ?? [pick.set]
+  );
 
-        return {
-          carbsG: sum.carbsG + pick.base.carbsG * factor,
-          fatG: sum.fatG + pick.base.fatG * factor,
-          fiberG: sum.fiberG + pick.base.fiberG * factor,
-          kcal: sum.kcal + pick.base.kcal * factor,
-          proteinG: sum.proteinG + pick.base.proteinG * factor
-        };
+  // What does not change between combinations, worked out once: each meal's
+  // share, and the pairs whose order the person set (`SHARE_ORDER_GAP`), in the
+  // order `inversionsOf` visits them — so the sums below are its sums, to the bit.
+  const shares = picks.map(pick => budgets.get(pick.slot)?.kcal ?? 0);
+  const ordered: { readonly bigger: number; readonly budget: number; readonly smaller: number }[] = [];
+
+  for (const [i] of picks.entries()) {
+    const biggerBudget = shares[i] ?? 0;
+
+    for (const [j] of picks.entries()) {
+      const smallerBudget = shares[j] ?? 0;
+
+      if (i === j || biggerBudget <= 0 || biggerBudget < smallerBudget * (1 + SHARE_ORDER_GAP)) {
+        continue;
+      }
+
+      ordered.push({ bigger: i, budget: biggerBudget, smaller: j });
+    }
+  }
+
+  const kcals: number[] = picks.map(() => 0);
+  const target = { carbsG: targets.carbsG, fatG: targets.fatG, kcal: targets.kcal, proteinG: targets.proteinG };
+
+  // One meal's part of the day's cost at a size and beside a set — worked out
+  // once per option of the search, not again at every combination holding it.
+  const termOf = (index: number, factor: number, set: AccompanimentSet | undefined): Term => {
+    const pick = picks[index] as Pick;
+    const beside = (set ?? pick.set)?.macros;
+    const plate = pick.base.kcal * factor;
+    const meal = plate + (beside?.kcal ?? 0);
+    const budget = shares[index] ?? 0;
+    const share = budget > 0 ? meal / budget : 0;
+
+    return {
+      beside: {
+        carbsG: beside?.carbsG ?? 0,
+        fatG: beside?.fatG ?? 0,
+        fiberG: beside?.fiberG ?? 0,
+        kcal: beside?.kcal ?? 0,
+        proteinG: beside?.proteinG ?? 0
       },
-      { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 }
-    );
+      meal,
+      misses: servingMiss(factor),
+      plate: {
+        carbsG: pick.base.carbsG * factor,
+        fatG: pick.base.fatG * factor,
+        fiberG: pick.base.fiberG * factor,
+        kcal: plate,
+        proteinG: pick.base.proteinG * factor
+      },
+      // Zero inside the band: adding it is adding nothing, to the bit.
+      stray: budget <= 0 ? 0 : share < SHARE_BAND.min ? SHARE_BAND.min - share : share > SHARE_BAND.max ? share - SHARE_BAND.max : 0,
+      tenths: Math.round(plate * 10) + Math.round((beside?.kcal ?? 0) * 10)
+    };
+  };
+
+  // `fitCost` + bands + `inversionsOf` + strays + `SERVING_PREFERENCE` +
+  // `floorMiss(deliveredKcal)`, for the sizes and sets given.
+  const dayCost = (servings: readonly number[], sets: readonly (AccompanimentSet | undefined)[] = []): number => {
+    let sums = NO_SUMS;
+
+    for (const [index, pick] of picks.entries()) {
+      const term = termOf(index, servings[index] ?? pick.servings, sets[index] ?? pick.set);
+
+      sums = addTerm(sums, term);
+      kcals[index] = term.meal;
+    }
+
+    return closingCost(sums.carbsG, sums.fatG, sums.fiberG, sums.kcal, sums.misses, sums.proteinG, sums.strays, sums.tenths);
+  };
+
+  // The day's cost once every meal's term is summed and `kcals` holds each meal's
+  // energy. The sums come in one by one, so the last meal's options need no object.
+  const closingCost = (
+    carbsG: number,
+    fatG: number,
+    fiberG: number,
+    kcal: number,
+    misses: number,
+    proteinG: number,
+    strays: number,
+    tenths: number
+  ): number => {
     // A meal the person said should be bigger must stay bigger — see
     // `SHARE_ORDER_GAP`. Priced as a hinge on every ordered pair.
-    const inversions = inversionsOf(picks, budgets, servings);
+    let inversions = 0;
+
+    for (const pair of ordered) {
+      const biggerKcal = kcals[pair.bigger] ?? 0;
+      const smallerKcal = kcals[pair.smaller] ?? 0;
+
+      if (smallerKcal >= biggerKcal) {
+        inversions += 1 + (smallerKcal - biggerKcal) / pair.budget;
+      }
+    }
+
+    const totals = { carbsG, fatG, fiberG, kcal, proteinG };
 
     return (
-      fitCost(totals, { carbsG: targets.carbsG, fatG: targets.fatG, kcal: targets.kcal, proteinG: targets.proteinG }) +
+      fitCost(totals, target) +
       (banded ? bandMiss(totals, targets) * BAND_MISS_WEIGHT : 0) +
       inversions * (banded ? ORDER_OUTRANKS_BANDS : SHARE_INVERSION_WEIGHT) +
-      straysOf(picks, budgets, servings) * SHARE_BAND_WEIGHT +
-      floorMiss(deliveredKcal(picks, servings), minimumKcal) * FLOOR_OUTRANKS_ORDER
+      strays * SHARE_BAND_WEIGHT +
+      (sides ? misses * SERVING_PREFERENCE_WEIGHT : 0) +
+      floorMiss(tenths / 10, minimumKcal) * FLOOR_OUTRANKS_ORDER
     );
   };
 
   // The sizes each dish may take: its own, and up to its window either side,
-  // never past what a person can be served.
-  const windows = windowsFor(picks, budgets, banded ? SPREAD_MAX_COMBOS : BALANCE_MAX_COMBOS);
-  const options = picks.map((pick, index) => {
-    const sizes: number[] = [];
-    const window = windows[index] ?? 0;
+  // never past what a person can be served — and, unless `limited` is false,
+  // never outside `PLATE_LIMIT` or over `PLATE_GRAMS_MAX`. Beside a set, the
+  // window is centred where the set leaves the plate.
+  const windows = windowsFor(
+    picks,
+    budgets,
+    banded ? SPREAD_MAX_COMBOS : BALANCE_MAX_COMBOS,
+    offered.map(sets => sets.length)
+  );
+  type Option = { readonly servings: number; readonly set: AccompanimentSet | undefined; readonly term: Term };
+  const optionsFor = (limited: boolean): Option[][] =>
+    picks.map((pick, index) => {
+      const options: Option[] = [];
+      const window = windows[index] ?? 0;
+      const budget = budgets.get(pick.slot) ?? noBudget;
 
-    for (let step = -window; step <= window; step += 1) {
-      const servings = roundServings(pick.servings + step * SERVING_STEP);
+      for (const set of offered[index] ?? [pick.set]) {
+        const centre =
+          set === pick.set || pick.base.kcal <= 0
+            ? pick.servings
+            : quantiseServings(pick.servings + ((pick.set?.macros.kcal ?? 0) - (set?.macros.kcal ?? 0)) / pick.base.kcal);
 
-      if (servings >= SERVING_BOUNDS.min && servings <= SERVING_BOUNDS.max) {
-        sizes.push(servings);
+        for (let step = -window; step <= window; step += 1) {
+          const servings = roundServings(centre + step * SERVING_STEP);
+
+          if (
+            servings >= SERVING_BOUNDS.min &&
+            servings <= SERVING_BOUNDS.max &&
+            // The sides' share holds even where the floor lifts the plate's limits.
+            sidesWithinShare(pick.base, servings, set?.macros.kcal ?? 0) &&
+            (!limited || withinPlateLimit(pick.base, servings, budget, pick.slot, set?.macros.kcal ?? 0))
+          ) {
+            options.push({ servings, set, term: termOf(index, servings, set) });
+          }
+        }
       }
-    }
 
-    return sizes;
-  });
+      // Nothing admissible in the window only for a dish with no admissible size
+      // at all — `servingsFor` sizes every other one inside the limit, and its
+      // own size is always in its window. It keeps that size.
+      return options.length > 0 ? options : [{ servings: pick.servings, set: pick.set, term: termOf(index, pick.servings, pick.set) }];
+    });
 
+  // The day as it stands is the one to beat, when its plates are inside the
+  // limit — a tie keeps it, as it always has.
+  const inside = picks.every(pick =>
+    withinPlateLimit(pick.base, pick.servings, budgets.get(pick.slot) ?? noBudget, pick.slot, pick.set?.macros.kcal ?? 0)
+  );
   let best: readonly number[] = picks.map(pick => pick.servings);
-  let bestCost = dayCost(best);
+  let bestSets: readonly (AccompanimentSet | undefined)[] = picks.map(pick => pick.set);
+  let bestCost = inside ? dayCost(best, bestSets) : Number.POSITIVE_INFINITY;
 
-  const visit = (index: number, chosen: number[]): void => {
-    if (index === picks.length) {
-      const cost = dayCost(chosen);
+  // Every combination, in slot order. The sums run down the recursion, one
+  // meal a level, in the order `dayCost` adds them — so each leaf's cost is
+  // `dayCost`'s for that combination, to the bit, without summing its prefix again.
+  //
+  // A branch is left unvisited only when no leaf under it can beat the best so
+  // far (`lowestBelow`, less `BOUND_SLACK`): a leaf there could only have lost,
+  // so the combination chosen — the first of the lowest cost — is the one the
+  // whole search would choose.
+  const search = (options: readonly (readonly Option[])[]): void => {
+    const sizes: number[] = picks.map(pick => pick.servings);
+    const sets: (AccompanimentSet | undefined)[] = picks.map(pick => pick.set);
+    const rest = remainingRanges(options);
+    const distance = (sum: number, low: number, high: number, wanted: number): number =>
+      wanted <= 0 ? 0 : sum + low > wanted ? (sum + low - wanted) / wanted : sum + high < wanted ? (wanted - sum - high) / wanted : 0;
 
-      if (cost < bestCost) {
-        bestCost = cost;
-        best = [...chosen];
+    // The least any leaf under this prefix can cost: each macro's reachable
+    // range against its target, what the prefix and the cheapest remaining
+    // options already miss, the ordered pairs already placed, and the floor
+    // at the most energy still reachable. `bandMiss` is taken as nothing.
+    const lowestBelow = (index: number, sums: DaySums): number => {
+      const range = rest[index] as RemainingRange;
+
+      return (
+        distance(sums.kcal, range.low.kcal, range.high.kcal, target.kcal) * 1.5 +
+        distance(sums.proteinG, range.low.proteinG, range.high.proteinG, target.proteinG) +
+        distance(sums.carbsG, range.low.carbsG, range.high.carbsG, target.carbsG) * 0.75 +
+        distance(sums.fatG, range.low.fatG, range.high.fatG, target.fatG) * 0.75 +
+        placedInversions(index) +
+        unfitted(sums, range)
+      );
+    };
+
+    // What the ordered pairs already placed cost, priced as `closingCost` prices them.
+    const placedInversions = (index: number): number => {
+      let inversions = 0;
+
+      for (const pair of ordered) {
+        if (pair.bigger < index && pair.smaller < index) {
+          const biggerKcal = kcals[pair.bigger] ?? 0;
+          const smallerKcal = kcals[pair.smaller] ?? 0;
+
+          if (smallerKcal >= biggerKcal) {
+            inversions += 1 + (smallerKcal - biggerKcal) / pair.budget;
+          }
+        }
       }
 
-      return;
+      return inversions * (banded ? ORDER_OUTRANKS_BANDS : SHARE_INVERSION_WEIGHT);
+    };
+
+    // The least the strays, the serving misses and the floor can still add.
+    const unfitted = (sums: DaySums, range: RemainingRange): number => {
+      const reachable = (sums.tenths + range.tenths) / 10;
+
+      return (
+        (sums.strays + range.strays) * SHARE_BAND_WEIGHT +
+        (sides ? (sums.misses + range.misses) * SERVING_PREFERENCE_WEIGHT : 0) +
+        (reachable < minimumKcal ? floorMiss(reachable, minimumKcal) * FLOOR_OUTRANKS_ORDER : 0)
+      );
+    };
+
+    // The least `fitCost` the last meal can leave beside one set, at any size
+    // between `low` and `high` — not only the quarter steps. Every macro moves
+    // with the one size, so the macros cannot each find their target at a
+    // different size, as the ranges let them: the cost is convex in the size,
+    // and its least is at an end or where a macro meets its target.
+    const lowestFit = (sums: DaySums, beside: Macros, low: number, high: number): number => {
+      // Each macro's miss at size zero; at a size, the miss plus the plate's share of it.
+      const kcal = sums.kcal + beside.kcal - target.kcal;
+      const proteinG = sums.proteinG + beside.proteinG - target.proteinG;
+      const carbsG = sums.carbsG + beside.carbsG - target.carbsG;
+      const fatG = sums.fatG + beside.fatG - target.fatG;
+      const at = (size: number): number => (size > low && size < high ? fitAlong(size, kcal, proteinG, carbsG, fatG) : Number.POSITIVE_INFINITY);
+
+      return Math.min(
+        fitAlong(low, kcal, proteinG, carbsG, fatG),
+        fitAlong(high, kcal, proteinG, carbsG, fatG),
+        at(-kcal / lastBase.kcal),
+        at(-proteinG / lastBase.proteinG),
+        at(-carbsG / lastBase.carbsG),
+        at(-fatG / lastBase.fatG)
+      );
+    };
+
+    // `fitCost` of the day with the last meal at a size, from each macro's miss without it.
+    const fitAlong = (size: number, kcal: number, proteinG: number, carbsG: number, fatG: number): number =>
+      (target.kcal > 0 ? (Math.abs(kcal + lastBase.kcal * size) / target.kcal) * 1.5 : 0) +
+      (target.proteinG > 0 ? Math.abs(proteinG + lastBase.proteinG * size) / target.proteinG : 0) +
+      (target.carbsG > 0 ? (Math.abs(carbsG + lastBase.carbsG * size) / target.carbsG) * 0.75 : 0) +
+      (target.fatG > 0 ? (Math.abs(fatG + lastBase.fatG * size) / target.fatG) * 0.75 : 0);
+
+    const last = picks.length - 1;
+    const lastBase: Macros = picks[last]?.base ?? { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 };
+    // The last meal's options, a run per set — the order they were offered in —
+    // each with the range it alone can add: a run that cannot win is not priced.
+    const runs: {
+      readonly beside: Macros;
+      readonly from: number;
+      readonly high: number;
+      readonly low: number;
+      readonly range: RemainingRange;
+      readonly to: number;
+    }[] = [];
+    const lastOptions = options[last] ?? [];
+
+    for (let from = 0; from < lastOptions.length;) {
+      let to = from + 1;
+
+      while (to < lastOptions.length && lastOptions[to]?.set === lastOptions[from]?.set) {
+        to += 1;
+      }
+
+      const run = lastOptions.slice(from, to);
+
+      runs.push({
+        beside: (run[0] as Option).term.beside,
+        from,
+        high: Math.max(...run.map(option => option.servings)),
+        low: Math.min(...run.map(option => option.servings)),
+        range: remainingRanges([run])[0] as RemainingRange,
+        to
+      });
+      from = to;
     }
 
-    for (const servings of options[index] ?? []) {
-      chosen.push(servings);
-      visit(index + 1, chosen);
-      chosen.pop();
-    }
+    const visit = (index: number, sums: DaySums): void => {
+      if (index === picks.length) {
+        const cost = closingCost(sums.carbsG, sums.fatG, sums.fiberG, sums.kcal, sums.misses, sums.proteinG, sums.strays, sums.tenths);
+
+        if (cost < bestCost) {
+          bestCost = cost;
+          best = [...sizes];
+          bestSets = [...sets];
+        }
+
+        return;
+      }
+
+      if (index > 0 && lowestBelow(index, sums) > bestCost + BOUND_SLACK * (1 + Math.abs(bestCost))) {
+        return;
+      }
+
+      // The last meal's options are the leaves, most of the search: each is
+      // summed in place, as `addTerm` sums it, and priced without a call a leaf.
+      if (index === last) {
+        const placed = placedInversions(index);
+
+        for (const run of runs) {
+          if (
+            lowestFit(sums, run.beside, run.low, run.high) + placed + unfitted(sums, run.range) >
+            bestCost + BOUND_SLACK * (1 + Math.abs(bestCost))
+          ) {
+            continue;
+          }
+
+          for (let at = run.from; at < run.to; at += 1) {
+            const option = lastOptions[at] as Option;
+            const { beside, plate } = option.term;
+
+            kcals[index] = option.term.meal;
+
+            const cost = closingCost(
+              sums.carbsG + plate.carbsG + beside.carbsG,
+              sums.fatG + plate.fatG + beside.fatG,
+              sums.fiberG + plate.fiberG + beside.fiberG,
+              sums.kcal + plate.kcal + beside.kcal,
+              sums.misses + option.term.misses,
+              sums.proteinG + plate.proteinG + beside.proteinG,
+              sums.strays + option.term.stray,
+              sums.tenths + option.term.tenths
+            );
+
+            if (cost < bestCost) {
+              sizes[index] = option.servings;
+              sets[index] = option.set;
+              bestCost = cost;
+              best = [...sizes];
+              bestSets = [...sets];
+            }
+          }
+        }
+
+        return;
+      }
+
+      for (const option of options[index] ?? []) {
+        sizes[index] = option.servings;
+        sets[index] = option.set;
+        kcals[index] = option.term.meal;
+        visit(index + 1, addTerm(sums, option.term));
+      }
+    };
+
+    visit(0, NO_SUMS);
   };
 
-  visit(0, []);
+  search(optionsFor(true));
 
-  return { cost: bestCost, picks: picks.map((pick, index) => ({ ...pick, servings: best[index] ?? pick.servings })) };
+  // The energy floor outranks `PLATE_LIMIT` (`0076`), `PLATE_GRAMS_MAX`
+  // (`0078`) and `PLATE_FOOD_MAX` (016): when no combination inside both reaches it, the day is searched once more at every size a person
+  // can be served, and `FLOOR_OUTRANKS_ORDER` decides as it always has.
+  if (floorMiss(deliveredKcal(picks, best, bestSets), minimumKcal) > 0) {
+    search(optionsFor(false));
+  }
+
+  return {
+    cost: bestCost,
+    picks: picks.map((pick, index) => {
+      const servings = best[index] ?? pick.servings;
+      const set = bestSets[index];
+
+      return set === pick.set ? { ...pick, servings } : { ...pick, servings, set };
+    })
+  };
 }
 
 /**
@@ -1041,15 +1889,30 @@ const SWAP_SHORTLIST = 24;
 function improveDay(
   picks: readonly Pick[],
   input: SchedulerInput,
+  perServing: ReadonlyMap<string, PerServing>,
   dayIndex: number,
   placed: readonly Placement[],
   budgets: ReadonlyMap<MealSlot, SlotBudget>,
-  protein: { readonly cap: number; readonly proteins: ProteinIndex }
+  protein: { readonly cap: number; readonly proteins: ProteinIndex; readonly starch: StarchRule },
+  sides?: Sides
 ): readonly Pick[] {
-  const perServing = perServingIndex(input.pool, input.catalogue);
   const others = placed.filter(placement => placement.dayIndex !== dayIndex);
   const elsewhere = proteinCounts(others, protein.proteins);
   const proteinOf = (slug: string): string | null => protein.proteins.get(slug) ?? null;
+  // Pasta and rice against the rest of the plan, at the protein rule's weight.
+  const { starch } = protein;
+  const starchElsewhere = starchMeals(others, starch.index);
+  const starchOf = (day: readonly Pick[]): number =>
+    starchExcess(
+      [
+        ...starchElsewhere,
+        ...starchMeals(
+          day.map(entry => ({ dayIndex, dishSlug: entry.dish.slug, slot: entry.slot })),
+          starch.index
+        )
+      ],
+      starch.days
+    ) * PROTEIN_REPEAT_WEIGHT;
 
   const targets = targetsOn(input, dayIndex);
   let current = [...picks];
@@ -1065,7 +1928,12 @@ function improveDay(
     const repeatsOf = (day: readonly ProteinMeal[]): number => proteinExcess(day, elsewhere, protein.cap) * PROTEIN_REPEAT_WEIGHT;
     // Priced the same way the candidates will be, or a swap could "win" against
     // a day that was never sized.
-    let bestCost = balancedDay(current, targets, budgets, input.minimumKcal).cost + repeatsOf(today) + dayReuseCost(current, dayIndex, others);
+    const starchNow = starchOf(current);
+    let bestCost =
+      balancedDay(current, targets, budgets, input.minimumKcal, false, sides).cost +
+      repeatsOf(today) +
+      dayReuseCost(current, dayIndex, others) +
+      starchNow;
     let bestDay: readonly Pick[] | undefined;
     const shortlist: { readonly cost: number; readonly extra: number; readonly swapped: readonly Pick[] }[] = [];
 
@@ -1083,18 +1951,21 @@ function improveDay(
 
         const base = perServing.get(candidate.slug);
 
-        if (!base || !canPlace(candidate.slug, pick.slot, dayIndex, [...others, ...siblings])) {
+        if (!base || !fitsPlate(base, budget, pick.slot) || !canPlace(candidate.slug, pick.slot, dayIndex, [...others, ...siblings])) {
           continue;
         }
 
         const repeats = repeatsOf(
           today.map((entry, position) => (position === index ? { protein: proteinOf(candidate.slug), slot: entry.slot } : entry))
         );
-        const servings = servingsFor(base, budget);
+        const servings = servingsFor(base, budget, pick.slot);
         const swapped = current.map((entry, position) =>
           position === index ? { base, dish: candidate, servings, slot: entry.slot, sortOrder: entry.sortOrder } : entry
         );
-        const extra = repeats + dayReuseCost(swapped, dayIndex, others);
+        // Only a swap that brings pasta or rice in, or takes it out, can move the starch cost.
+        const starchCost =
+          isCappedStarch(starch.index.get(candidate.slug)) || isCappedStarch(starch.index.get(pick.dish.slug)) ? starchOf(swapped) : starchNow;
+        const extra = repeats + dayReuseCost(swapped, dayIndex, others) + starchCost;
 
         shortlist.push({ cost: dayFitCost(swapped, targets) + extra, extra, swapped });
       }
@@ -1105,7 +1976,10 @@ function improveDay(
     const priced = shortlist
       .sort((a, b) => a.cost - b.cost)
       .slice(0, SWAP_SHORTLIST)
-      .map(entry => ({ cost: balancedDay(entry.swapped, targets, budgets, input.minimumKcal).cost + entry.extra, swapped: entry.swapped }));
+      .map(entry => ({
+        cost: balancedDay(entry.swapped, targets, budgets, input.minimumKcal, false, sides).cost + entry.extra,
+        swapped: entry.swapped
+      }));
 
     for (const entry of priced) {
       if (entry.cost < bestCost) {
@@ -1124,15 +1998,15 @@ function improveDay(
   return current;
 }
 
-/** A day's macros at the sizes its picks carry. */
+/** A day's macros at the sizes its picks carry, with what is beside them. */
 function totalsOf(picks: readonly Pick[]): Macros {
   return picks.reduce<Macros>(
     (sum, pick) => ({
-      carbsG: sum.carbsG + pick.base.carbsG * pick.servings,
-      fatG: sum.fatG + pick.base.fatG * pick.servings,
-      fiberG: sum.fiberG + pick.base.fiberG * pick.servings,
-      kcal: sum.kcal + pick.base.kcal * pick.servings,
-      proteinG: sum.proteinG + pick.base.proteinG * pick.servings
+      carbsG: sum.carbsG + pick.base.carbsG * pick.servings + (pick.set?.macros.carbsG ?? 0),
+      fatG: sum.fatG + pick.base.fatG * pick.servings + (pick.set?.macros.fatG ?? 0),
+      fiberG: sum.fiberG + pick.base.fiberG * pick.servings + (pick.set?.macros.fiberG ?? 0),
+      kcal: sum.kcal + pick.base.kcal * pick.servings + (pick.set?.macros.kcal ?? 0),
+      proteinG: sum.proteinG + pick.base.proteinG * pick.servings + (pick.set?.macros.proteinG ?? 0)
     }),
     { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 }
   );
@@ -1181,8 +2055,13 @@ function bandMiss(totals: Macros, targets: NutritionTargets): number {
  * holds at 1,200.02 can be delivered — and validated — at 1,199.9. The floor is
  * judged on the delivered number, so it is judged on the same one here.
  */
-function deliveredKcal(picks: readonly Pick[], servings: readonly number[] = []): number {
-  const tenths = picks.reduce((sum, pick, index) => sum + Math.round(pick.base.kcal * (servings[index] ?? pick.servings) * 10), 0);
+function deliveredKcal(picks: readonly Pick[], servings: readonly number[] = [], sets: readonly (AccompanimentSet | undefined)[] = []): number {
+  // A set's macros are already tenths (`toSet`), so they add as the plan adds them (`addMacros`).
+  const tenths = picks.reduce(
+    (sum, pick, index) =>
+      sum + Math.round(pick.base.kcal * (servings[index] ?? pick.servings) * 10) + Math.round(((sets[index] ?? pick.set)?.macros.kcal ?? 0) * 10),
+    0
+  );
 
   return tenths / 10;
 }
@@ -1216,7 +2095,14 @@ const SPREAD_EPSILON = 1e-6;
  * days a mid-plan rebuild is not touching. Deterministic: days and meals are
  * visited in order and a tie keeps the first.
  */
-function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[], proteins: ProteinIndex, minimumKcal: number): readonly BuiltDay[] {
+function spreadAcrossDays(
+  days: readonly BuiltDay[],
+  fixed: readonly Placement[],
+  proteins: ProteinIndex,
+  starch: StarchRule,
+  minimumKcal: number,
+  sidesOn?: (dayIndex: number) => Sides
+): readonly BuiltDay[] {
   const current = [...days];
   // A day under the floor is a day outside, whatever its bands say, so it is
   // repaired like one. That prices the floor at one band's worth, which is not
@@ -1249,7 +2135,9 @@ function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[]
             ...pick,
             base: replacement.base,
             dish: replacement.dish,
-            servings: servingsFor(replacement.base, day.budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 })
+            servings: servingsFor(replacement.base, day.budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 }, pick.slot),
+            // What was beside the old dish is not the new one's; the day's search chooses again.
+            set: undefined
           }
         : pick
     );
@@ -1259,7 +2147,7 @@ function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[]
     const before = missOf(day.picks, day);
 
     if (before > SPREAD_EPSILON) {
-      const picks = balancedDay(day.picks, day.targets, day.budgets, minimumKcal, true).picks;
+      const picks = balancedDay(day.picks, day.targets, day.budgets, minimumKcal, true, sidesOn?.(day.dayIndex)).picks;
 
       if (missOf(picks, day) < before - SPREAD_EPSILON && keepsOrder(picks, day) && keepsFloor(picks, day)) {
         current[position] = { ...day, picks };
@@ -1280,7 +2168,20 @@ function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[]
         ...fixed,
         ...current.flatMap(day => day.picks.map(pick => ({ dayIndex: day.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot })))
       ];
-      const screened: { before: number; otherAt: number; quick: number; toOther: Pick[]; toWorst: Pick[] }[] = [];
+      const starchBefore = starchExcess(starchMeals(placements, starch.index), starch.days);
+
+      // An exchange keeps the fortnight's pasta and rice, but may bring two onto days running.
+      const starchAdded = (other: BuiltDay, toWorst: readonly Pick[], toOther: readonly Pick[]): number => {
+        const moved = [
+          ...placements.filter(placement => placement.dayIndex !== worst.dayIndex && placement.dayIndex !== other.dayIndex),
+          ...toWorst.map(pick => ({ dayIndex: worst.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot })),
+          ...toOther.map(pick => ({ dayIndex: other.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }))
+        ];
+
+        return Math.max(0, starchExcess(starchMeals(moved, starch.index), starch.days) - starchBefore);
+      };
+
+      const screened: { before: number; otherAt: number; quick: number; starch: boolean; toOther: Pick[]; toWorst: Pick[] }[] = [];
 
       for (const [otherAt, other] of current.entries()) {
         if (otherAt === worstAt) {
@@ -1297,6 +2198,15 @@ function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[]
             continue;
           }
 
+          const noBudget = { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
+
+          if (
+            !fitsPlate(theirs.base, worst.budgets.get(mine.slot) ?? noBudget, mine.slot) ||
+            !fitsPlate(mine.base, other.budgets.get(mine.slot) ?? noBudget, mine.slot)
+          ) {
+            continue;
+          }
+
           const rest = placements.filter(
             placement => placement.slot !== mine.slot || (placement.dayIndex !== worst.dayIndex && placement.dayIndex !== other.dayIndex)
           );
@@ -1308,7 +2218,14 @@ function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[]
           const toWorst = resized(worst, worstIndex, theirs);
           const toOther = resized(other, otherIndex, mine);
 
-          screened.push({ before, otherAt, quick: missOf(toWorst, worst) + missOf(toOther, other) - before, toOther, toWorst });
+          screened.push({
+            before,
+            otherAt,
+            quick: missOf(toWorst, worst) + missOf(toOther, other) - before,
+            starch: starch.index.get(mine.dish.slug) !== starch.index.get(theirs.dish.slug),
+            toOther,
+            toWorst
+          });
         }
       }
 
@@ -1317,9 +2234,12 @@ function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[]
       // Stable: a tie on the screen keeps the order the exchanges were found in.
       for (const entry of screened.sort((a, b) => a.quick - b.quick).slice(0, SPREAD_SHORTLIST)) {
         const other = current[entry.otherAt] as BuiltDay;
-        const toWorst = balancedDay(entry.toWorst, worst.targets, worst.budgets, minimumKcal, true).picks;
-        const toOther = balancedDay(entry.toOther, other.targets, other.budgets, minimumKcal, true).picks;
-        const added = Math.max(0, repeatsIn(toWorst) - repeatsIn(worst.picks)) + Math.max(0, repeatsIn(toOther) - repeatsIn(other.picks));
+        const toWorst = balancedDay(entry.toWorst, worst.targets, worst.budgets, minimumKcal, true, sidesOn?.(worst.dayIndex)).picks;
+        const toOther = balancedDay(entry.toOther, other.targets, other.budgets, minimumKcal, true, sidesOn?.(other.dayIndex)).picks;
+        const added =
+          Math.max(0, repeatsIn(toWorst) - repeatsIn(worst.picks)) +
+          Math.max(0, repeatsIn(toOther) - repeatsIn(other.picks)) +
+          (entry.starch ? starchAdded(other, toWorst, toOther) : 0);
         const gain = entry.before - missOf(toWorst, worst) - missOf(toOther, other) - added * SPREAD_REPEAT_WEIGHT;
 
         if (!keepsOrder(toWorst, worst) || !keepsOrder(toOther, other) || !keepsFloor(toWorst, worst) || !keepsFloor(toOther, other)) {
@@ -1399,7 +2319,9 @@ function enforceDistinctDays(
   input: SchedulerInput,
   fixed: readonly Placement[],
   proteins: ProteinIndex,
-  cap: number
+  cap: number,
+  starch: StarchRule,
+  sidesOn?: (dayIndex: number) => Sides
 ): readonly BuiltDay[] {
   const perServing = perServingIndex(input.pool, input.catalogue);
   const current = [...days];
@@ -1441,6 +2363,7 @@ function enforceDistinctDays(
         .filter((_entry, at) => at !== position)
         .map(entry => ({ dayIndex: day.dayIndex, dishSlug: entry.dish.slug, slot: entry.slot }));
       const placedElsewhere = [...fixed, ...elsewhere, ...siblings];
+      const starchElsewhere = starchMeals(placedElsewhere, starch.index);
 
       for (const candidate of input.pool) {
         if (!candidate.slots.includes(pick.slot) || candidate.slug === pick.dish.slug) {
@@ -1449,7 +2372,12 @@ function enforceDistinctDays(
 
         const base = perServing.get(candidate.slug);
 
-        if (!base || crowded(candidate.slug, { dayIndex: day.dayIndex, slot: pick.slot }, placedElsewhere, proteins, cap)) {
+        if (
+          !base ||
+          !fitsPlate(base, budget, pick.slot) ||
+          crowded(candidate.slug, { dayIndex: day.dayIndex, slot: pick.slot }, placedElsewhere, proteins, cap) ||
+          starchCrowded(starch.index.get(candidate.slug) ?? null, day.dayIndex, starchElsewhere, starch.days)
+        ) {
           continue;
         }
 
@@ -1457,15 +2385,15 @@ function enforceDistinctDays(
           continue;
         }
 
-        const servings = servingsFor(base, budget);
-        const swapped = day.picks.map((entry, at) => (at === position ? { ...entry, base, dish: candidate, servings } : entry));
+        const servings = servingsFor(base, budget, pick.slot);
+        const swapped = day.picks.map((entry, at) => (at === position ? { ...entry, base, dish: candidate, servings, set: undefined } : entry));
 
         // A repair that only trades this collision for another helps nobody.
         if (seen.has(daySignature(swapped))) {
           continue;
         }
 
-        const priced = balancedDay(swapped, day.targets, day.budgets, input.minimumKcal, true);
+        const priced = balancedDay(swapped, day.targets, day.budgets, input.minimumKcal, true, sidesOn?.(day.dayIndex));
 
         if (missOf(priced.picks, day) > before + SPREAD_EPSILON || !keepsOrder(priced.picks, day) || !keepsFloor(priced.picks, day)) {
           continue;

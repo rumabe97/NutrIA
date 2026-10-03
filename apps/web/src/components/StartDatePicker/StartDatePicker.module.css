@@ -1,0 +1,16 @@
+.fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  text-align: start;
+}
+
+.legend {
+  font-weight: var(--font-weight-semibold);
+  margin-block-end: var(--space-03);
+  padding: 0;
+}
+
+.note {
+  margin-block-start: var(--space-03);
+}

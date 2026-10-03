@@ -36,6 +36,7 @@ const ZERO_LABEL: Record<(typeof ZERO_ITEMS)[number]['key'], string> = {
 };
 
 const CRON_LABEL = {
+  activations: 'activación de planes en su día',
   reminders: 'recordatorios',
   rewrite: 'reescritura nocturna',
   twoFactorRemovals: 'retirada de segundos factores',

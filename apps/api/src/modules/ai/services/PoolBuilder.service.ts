@@ -3,7 +3,7 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { dishSafety, findSafetyViolations, mentionsUnresolvedAllergy } from 'core/domain/Safety';
 import { fitSlots, mealCatalogue, offersPulses, repairSlug } from 'core/domain/MealFit';
 import { cleanSteps, methodMentions } from 'core/domain/Method';
-import { breaksDishRule, withinTime } from 'core/domain/Preference';
+import { breaksDishRule, breaksPatternDish, withinTime } from 'core/domain/Preference';
 import { isOversized, OVERSIZED_FACTOR, servingCap } from 'core/domain/Serving';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
@@ -623,6 +623,14 @@ export class PoolBuilder {
       return { reason: 'unwanted' };
     }
 
+    // Foreign to their way of eating by its stated cuisine or its name
+    // (`0077`): never told to the model, enforced here.
+    if (breaksPatternDish(dish, context.preferences)) {
+      this.logger.warn(`Dish "${dish.name}" rejected: its cuisine or name is foreign to their way of eating`);
+
+      return { reason: 'unwanted' };
+    }
+
     // Its name or method naming an allergy the catalogue could not resolve —
     // what the prompt used to ask ("not in names, steps or garnishes"), now
     // checked here. The label is not logged: it is their words.
@@ -687,14 +695,14 @@ export class PoolBuilder {
     // already held.
     const claimsRequested = dish.slots.includes(requestedSlot);
     const claimed = claimsRequested ? dish.slots : [requestedSlot];
-    let slots = fitSlots({ ingredients: dish.ingredients, slots: claimed }, context.catalogue, context.dietaryPatterns);
+    let slots = fitSlots({ ...dish, slots: claimed }, context.catalogue, context.dietaryPatterns);
 
     if (!claimsRequested && slots.length === 0) {
-      slots = fitSlots({ ingredients: dish.ingredients, slots: dish.slots }, context.catalogue, context.dietaryPatterns);
+      slots = fitSlots(dish, context.catalogue, context.dietaryPatterns);
     }
 
     if (slots.length === 0) {
-      this.logger.warn(`Dish "${dish.name}" rejected: none of ${dish.slots.join(', ')} is a meal all of its ingredients belong to`);
+      this.logger.warn(`Dish "${dish.name}" rejected: none of ${dish.slots.join(', ')} is a meal all of its ingredients belong to, for its cuisine`);
 
       return { reason: 'wrong_meal' };
     }

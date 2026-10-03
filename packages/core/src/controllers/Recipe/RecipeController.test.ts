@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OnboardingIncompleteError, ProfileConsentRequiredError } from 'core/entities/Error';
-import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
+import { NO_PREFERENCE_EXCLUSIONS, resolvePreferences } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 import { toCatalogue } from 'core/entities/Plan';
 import { makeCatalogueIngredient } from '#test/fixtures';
@@ -238,6 +238,59 @@ describe('RecipeController.reusablePool — an allergy the catalogue could not r
   });
 });
 
+describe('RecipeController.reusablePool — traditional Spanish (0077)', () => {
+  const catalogue = [
+    makeCatalogueIngredient({ id: 'i-arroz', name: 'Arroz', slug: 'arroz' }),
+    makeCatalogueIngredient({ id: 'i-tofu-firme', name: 'Tofu firme', slug: 'tofu-firme' })
+  ];
+  const contextFor = (dietaryPatterns: readonly string[]): GenerationContext => ({
+    catalogue: toCatalogue(catalogue),
+    dietaryPatterns,
+    locale: 'es-ES',
+    preferences: resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns, dislikedLabels: [], ingredients: catalogue }),
+    safety: NO_RESTRICTIONS
+  });
+  const recipe = (slug: string, name: string, cuisine: string | null, slugs: readonly string[] = ['arroz']): ReusableRecipe => ({
+    id: slug,
+    cookMinutes: 0,
+    cuisine,
+    difficulty: 'easy',
+    ingredients: slugs.map(ingredient => ({ grams: 80, slug: ingredient })),
+    mealSlots: ['lunch'],
+    name,
+    prepMinutes: 5,
+    servings: 1,
+    slug,
+    steps: [
+      { minutes: 10, text: 'Lavar el arroz y ponerlo a hervir en agua con sal' },
+      { minutes: 2, text: 'Escurrir, reposar dos minutos y servir caliente' }
+    ]
+  });
+  const library = [
+    recipe('tofu-con-arroz', 'Tofu con arroz', 'mediterránea', ['tofu-firme', 'arroz']),
+    recipe('arroz-mexicano', 'Arroz rojo', 'Mexicana'),
+    recipe('curry-de-arroz', 'Curry de arroz', null),
+    recipe('paella', 'Paella', null),
+    recipe('arroz-a-la-cubana', 'Arroz a la cubana', 'española')
+  ];
+
+  it('returns no dish with an excluded row, a foreign cuisine or a foreign name', async () => {
+    findReusable.mockResolvedValue(library);
+
+    const pool = await RecipeController.reusablePool(['lunch'], contextFor(['traditional_spanish']));
+
+    expect(pool.map(dish => dish.slug)).toEqual(['paella', 'arroz-a-la-cubana']);
+  });
+
+  it('returns them all without the pattern', async () => {
+    findReusable.mockResolvedValue(library);
+
+    const pool = await RecipeController.reusablePool(['lunch'], contextFor([]));
+
+    expect(pool).toHaveLength(library.length);
+  });
+});
+
 describe('RecipeController.reusablePool — a dish is served only at the meals its ingredients belong to (0062)', () => {
   const lentils = makeCatalogueIngredient({ id: 'i-lentejas', category: 'protein', classes: [], mealSlots: ['lunch'], slug: 'lentejas-cocidas' });
   const onion = makeCatalogueIngredient({ id: 'i-cebolla', category: 'produce', slug: 'cebolla' });
@@ -302,13 +355,30 @@ describe('RecipeController.reusablePool — a dish is served only at the meals i
     });
   });
 
-  it('changes nothing when every list is empty', async () => {
+  it('changes nothing when every list is empty, but the stewed pulses, which Table 2 places by cuisine (0079)', async () => {
     findReusable.mockResolvedValue(library);
 
     const empty = [lentils, onion, oil, energyDrink].map(ingredient => ({ ...ingredient, mealSlots: [] }));
     const pool = await RecipeController.reusablePool(['breakfast', 'lunch', 'dinner'], contextFor([], empty));
 
-    expect(slotsOf(pool)).toEqual(Object.fromEntries(library.map(item => [item.slug, item.mealSlots])));
+    // No cuisine is judged as Spanish: lentils are a lunch, whatever the list says.
+    expect(slotsOf(pool)).toEqual({
+      'cebolla-asada': ['breakfast', 'lunch', 'dinner'],
+      'cena-energetica': ['dinner'],
+      'lentejas-estofadas': ['lunch']
+    });
+  });
+
+  it('serves the same stew at dinner when its cuisine is Italian (0079, option B)', async () => {
+    findReusable.mockResolvedValue(library.map(item => ({ ...item, cuisine: 'italiana' })));
+
+    const pool = await RecipeController.reusablePool(['breakfast', 'lunch', 'dinner'], contextFor([]));
+
+    expect(slotsOf(pool)).toEqual({
+      'cebolla-asada': ['breakfast', 'lunch', 'dinner'],
+      'lentejas-de-cena': ['dinner'],
+      'lentejas-estofadas': ['lunch', 'dinner']
+    });
   });
 
   it('narrows before the rotation, so the dinners it picks are dinners that can be served', async () => {

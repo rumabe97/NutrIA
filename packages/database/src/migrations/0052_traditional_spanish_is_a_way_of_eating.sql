@@ -1,0 +1,1 @@
+ALTER TYPE "public"."dietary_pattern" ADD VALUE 'traditional_spanish';

@@ -11,21 +11,28 @@ import type { CandidateDish, Catalogue, MealSlot } from 'core/entities/Plan';
  * 55 g of oil as one plate, `servings: 1`, into the library every other person
  * is served from. Four plates declared as one.
  *
- * The figures are the validated seed library's own ceiling, where 500 dishes
- * were designed and tuned by hand to what a person recognises as one plate:
- * lunch and dinner never pass 1,000 kcal there and 95% sit under ~870; breakfast
- * tops out at ~810 (95% under ~700); no snack passes ~450 (95% under ~400).
- * Measured on the dev library, 2026-09-29.
+ * Breakfast's and the snacks' figures are the validated seed library's own
+ * ceiling, where 500 dishes were designed and tuned by hand to what a person
+ * recognises as one plate: breakfast tops out at ~810 (95% under ~700); no
+ * snack passes ~450 (95% under ~400). Lunch and dinner were set the same way
+ * at 900 (the seed's never pass 1,000 and 95% sit under ~870), until 4.6.0
+ * below. Measured on the dev library, 2026-09-29.
  *
  * A person who eats more is served more servings, not a bigger one: the
- * scheduler scales a portion up to `SERVING_BOUNDS.max` (4), so 900 kcal lunches
- * serve a lunch of up to 3,600 kcal.
+ * scheduler scales a portion up to `SERVING_BOUNDS.max` (4), so 650 kcal lunches
+ * serve a lunch of up to 2,600 kcal.
+ *
+ * Lunch and dinner came down from 900 to 650 in prompt 4.6.0 (project 016 § B,
+ * architect report `0008`): the plan now sets bread, fruit and dairy beside a
+ * main dish (`0079`), so the dish is designed for one person's plate and the
+ * meal's size comes from its servings and what sits beside it. The stored
+ * library of 700–900 kcal dishes is served at about 0.75 of a serving.
  */
 export const SERVING_KCAL_CAP: Readonly<Record<MealSlot, number>> = {
   afternoon_snack: 400,
   breakfast: 700,
-  dinner: 900,
-  lunch: 900,
+  dinner: 650,
+  lunch: 650,
   morning_snack: 400,
   supper: 400
 };

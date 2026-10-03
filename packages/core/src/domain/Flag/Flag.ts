@@ -12,7 +12,7 @@
  * service is first deployed and every day a migration runs before a seed.
  */
 
-export type FlagName = 'automaticActivation' | 'checkInReminders' | 'dishPictures' | 'premium' | 'professional';
+export type FlagName = 'accompaniments' | 'automaticActivation' | 'checkInReminders' | 'dishPictures' | 'premium' | 'professional';
 
 export type FlagAudience =
   /** The owner, on `/admin`, and nobody else. */
@@ -44,6 +44,19 @@ export type Flag = {
 };
 
 export const FLAGS: Readonly<Record<FlagName, Flag>> = {
+  /**
+   * Whether a big lunch or dinner gets bread, a salad or fruit beside it
+   * (project 016, `0079` Table 3): the scheduler is handed the person's
+   * larder when it is on, and nothing when it is off.
+   *
+   * Falls back to off. Off, every plan is the plan the scheduler always made,
+   * to the bit — a test pins it. Owner-only: generation, a swap and an event
+   * rebuild read it (`SettingsController.accompaniments`), and a screen reads
+   * what the meal carries, never the flag. Turned on after the deploy that
+   * stores the sides (`meal_accompaniments`).
+   */
+  accompaniments: { audience: 'owner', fallback: false, key: 'accompaniments' },
+
   /**
    * Confirming the address opens the account, unless the owner says otherwise
    * (`0031`).

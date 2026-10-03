@@ -1,5 +1,5 @@
 {
-  "id": "697fbfa7-9afc-4eba-944c-b90749a1b6a3",
+  "id": "3ad56fc2-d6e2-4a4c-956b-87f6ec23bd8f",
   "prevId": "52d755bf-0b19-48ff-8f85-abd2c320dae1",
   "version": "7",
   "dialect": "postgresql",
@@ -479,12 +479,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "last_totp_step": {
-          "name": "last_totp_step",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
         },
         "user_id": {
           "name": "user_id",
@@ -3892,105 +3886,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.two_factor_removal": {
-      "name": "two_factor_removal",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cancelled_at": {
-          "name": "cancelled_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "due_at": {
-          "name": "due_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "requested_at": {
-          "name": "requested_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "requested_by": {
-          "name": "requested_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "two_factor_removal_user_id_user_id_fk": {
-          "name": "two_factor_removal_user_id_user_id_fk",
-          "tableFrom": "two_factor_removal",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "cascade"
-        },
-        "two_factor_removal_requested_by_user_id_fk": {
-          "name": "two_factor_removal_requested_by_user_id_fk",
-          "tableFrom": "two_factor_removal",
-          "tableTo": "user",
-          "columnsFrom": [
-            "requested_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "two_factor_removal_user_id_key": {
-          "name": "two_factor_removal_user_id_key",
-          "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.professionals": {
       "name": "professionals",
       "schema": "",
@@ -6799,7 +6694,8 @@
         "gluten_free",
         "lactose_free",
         "halal",
-        "kosher"
+        "kosher",
+        "traditional_spanish"
       ]
     },
     "public.difficulty": {

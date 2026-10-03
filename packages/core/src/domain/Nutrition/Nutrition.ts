@@ -5,7 +5,9 @@ import {
   MIN_FAT_KCAL_SHARE,
   MINIMUM_DAILY_KCAL,
   PROTEIN_CEILING_G_PER_KG,
-  PROTEIN_FLOOR_G_PER_KG
+  PROTEIN_FLOOR_G_PER_KG,
+  REFERENCE_BMI,
+  REFERENCE_WEIGHT_GOALS
 } from 'core/entities/Nutrition';
 import type { NutritionTargets, TargetOverride, TargetSetter } from 'core/entities/Nutrition';
 import type { ACTIVITY_LEVELS, GOAL_TYPES, SEXES } from 'core/entities/Profile';
@@ -17,7 +19,7 @@ type GoalType = (typeof GOAL_TYPES)[number];
 /** Mifflin-St Jeor multipliers. */
 const ACTIVITY_FACTOR: Record<ActivityLevel, number> = { athlete: 1.9, high: 1.725, light: 1.375, moderate: 1.55, sedentary: 1.2 };
 
-/** Grams of protein per kg of body weight, by goal. */
+/** Grams of protein per kg of reference weight (`proteinReferenceWeightKg`), by goal. */
 const PROTEIN_G_PER_KG: Record<GoalType, number> = { healthy_eating: 1.4, maintenance: 1.6, muscle_gain: 1.9, performance: 1.8, weight_loss: 1.8 };
 
 const FAT_FRACTION_OF_KCAL = 0.28;
@@ -234,6 +236,22 @@ export function targetViolations(targets: NutritionTargets, bounds: TargetBounds
 }
 
 /**
+ * The weight protein is computed on (`0076`): the actual weight, capped at the
+ * weight of `REFERENCE_BMI` for this height, for the goals in
+ * `REFERENCE_WEIGHT_GOALS`. Training goals keep actual weight.
+ *
+ * A cap, not a switch: someone at BMI 29 and someone at BMI 31 of the same
+ * height get targets a few grams apart, not 26.
+ */
+export function proteinReferenceWeightKg(weightKg: number, heightCm: number, goal: GoalType): number {
+  if (!REFERENCE_WEIGHT_GOALS.has(goal) || heightCm <= 0) {
+    return weightKg;
+  }
+
+  return Math.min(weightKg, REFERENCE_BMI * (heightCm / 100) ** 2);
+}
+
+/**
  * The macro split for a calorie figure.
  *
  * Protein is capped by `MAX_PROTEIN_KCAL_SHARE` before carbohydrate takes the
@@ -242,9 +260,17 @@ export function targetViolations(targets: NutritionTargets, bounds: TargetBounds
  * figure the shortfall vanished into a clamp and the macros silently stopped
  * summing to the target. Capping protein means the remainder is never negative,
  * so nothing needs clamping and the set always adds up.
+ *
+ * With a height, protein is computed on the reference weight (`0076`), but
+ * never under `PROTEIN_FLOOR_G_PER_KG` of the actual weight: at BMI 44 and up
+ * the reference weight alone would ask for less than the floor every target is
+ * checked against, and the person would get no targets at all. The energy share
+ * stays outermost, as before.
  */
-export function macrosForKcal(kcal: number, weightKg: number, goal: GoalType): NutritionTargets {
-  const proteinG = Math.round(Math.min(weightKg * PROTEIN_G_PER_KG[goal], (kcal * MAX_PROTEIN_KCAL_SHARE) / KCAL_PER_G.protein));
+export function macrosForKcal(kcal: number, weightKg: number, goal: GoalType, heightCm?: number): NutritionTargets {
+  const referenceKg = heightCm === undefined ? weightKg : proteinReferenceWeightKg(weightKg, heightCm, goal);
+  const neededG = Math.max(referenceKg * PROTEIN_G_PER_KG[goal], weightKg * PROTEIN_FLOOR_G_PER_KG);
+  const proteinG = Math.round(Math.min(neededG, (kcal * MAX_PROTEIN_KCAL_SHARE) / KCAL_PER_G.protein));
   const fatG = Math.round((kcal * FAT_FRACTION_OF_KCAL) / KCAL_PER_G.fat);
   const carbsG = Math.round((kcal - proteinG * KCAL_PER_G.protein - fatG * KCAL_PER_G.fat) / KCAL_PER_G.carbs);
 
@@ -278,7 +304,7 @@ export function nutritionTargets(input: TargetInput): NutritionTargets & { reado
   const magnitude = (paceKgPerWeek * KCAL_PER_KG_OF_BODY_MASS) / DAYS_PER_WEEK;
   const requestedKcal = losing ? bounds.maintenanceKcal - magnitude : gaining ? bounds.maintenanceKcal + magnitude : bounds.maintenanceKcal;
   const kcal = Math.min(Math.max(requestedKcal, bounds.floorKcal), bounds.ceilingKcal);
-  const targets = macrosForKcal(kcal, input.weightKg, input.goal);
+  const targets = macrosForKcal(kcal, input.weightKg, input.goal, input.heightCm);
 
   const violations = targetViolations(targets, bounds);
 
@@ -327,7 +353,7 @@ export function resolveTargets(input: TargetInput, override: TargetOverride | nu
   }
 
   const kcal = override.kcal ?? computedTargets.kcal;
-  const derived = macrosForKcal(kcal, input.weightKg, input.goal);
+  const derived = macrosForKcal(kcal, input.weightKg, input.goal, input.heightCm);
   const proteinG = override.proteinG ?? derived.proteinG;
   const fatG = override.fatG ?? derived.fatG;
   // Carbohydrate absorbs the remainder unless the user named it, so a corrected

@@ -2,6 +2,8 @@ import { createPrivateKey } from 'node:crypto';
 
 import { z } from 'zod';
 
+import { LOCAL_DATABASE_URL } from 'database';
+
 /**
  * Boot-time environment contract.
  *
@@ -388,6 +390,12 @@ const envObject = z.object({
   GOOGLE_OAUTH_CLIENT_SECRET: optional(z.string()),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
+  /**
+   * `1`: both connection strings are the local Postgres `pnpm db:local` runs, whatever
+   * `DATABASE_URL` says (`validateEnv`, and `required()` in the database package).
+   * For tests, the evaluator and local development only; refused on a deployment.
+   */
+  NUTRIA_LOCAL_PG: optional(z.enum(['0', '1'], 'must be 1 or unset')),
   /** The gateway's own bearer key, required only when `AI_PROVIDER` is `omniroute`. */
   OMNIROUTE_API_KEY: optional(z.string()),
   /**
@@ -679,6 +687,10 @@ const envSchema = envObject
     // rule below is skipped, cookies are not `secure`, and Swagger is one flag
     // from public. This is the only place the two are compared, so it fails
     // loudly and names the fix.
+    if (env.NUTRIA_LOCAL_PG === '1' && (env.NODE_ENV === 'production' || env.VERCEL_ENV)) {
+      ctx.addIssue({ code: 'custom', message: 'is for this machine only — never set on a deployment', path: ['NUTRIA_LOCAL_PG'] });
+    }
+
     if (env.VERCEL_ENV === 'production' && env.NODE_ENV !== 'production') {
       ctx.addIssue({
         code: 'custom',
@@ -711,8 +723,18 @@ const envSchema = envObject
 
 export type Env = z.infer<typeof envSchema>;
 
+/**
+ * `NUTRIA_LOCAL_PG=1` replaces both connection strings before anything reads them, so
+ * the e2e run — jest loads no `.env` — needs no URL at all, and a Neon URL in a `.env`
+ * or the shell is never the one used. The local URL is a constant: the switch cannot
+ * be pointed anywhere but this machine.
+ */
+function withLocalDatabase(raw: Record<string, unknown>): Record<string, unknown> {
+  return raw.NUTRIA_LOCAL_PG === '1' ? { ...raw, DATABASE_URL: LOCAL_DATABASE_URL, DIRECT_DATABASE_URL: LOCAL_DATABASE_URL } : raw;
+}
+
 export function validateEnv(raw: Record<string, unknown>): Env {
-  const result = envSchema.safeParse(raw);
+  const result = envSchema.safeParse(withLocalDatabase(raw));
 
   if (result.success) {
     return result.data;

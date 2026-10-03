@@ -1,13 +1,26 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
-import { OnboardingIncompleteError, ProfileConsentRequiredError, QuotaExceededError } from 'core/entities/Error';
+import { ConflictError, OnboardingIncompleteError, ProfileConsentRequiredError, QuotaExceededError } from 'core/entities/Error';
 import { PlanController } from 'core/controllers/Plan';
 import { ProfileConsentController, ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
+import { SettingsController } from 'core/controllers/Settings';
 import { toCatalogue } from 'core/entities/Plan';
 
-import { MealSwapService } from './MealSwap.service.js';
+import type * as Scheduler from 'core/domain/Scheduler';
+
+/*
+ * `pickReplacement` is a named import of a CommonJS export, fixed at link
+ * time: mocked at the module seam, wrapping the real one, so a case can hand
+ * the swap a replacement its own gate must refuse.
+ */
+const scheduler = jest.requireActual<typeof Scheduler>('core/domain/Scheduler');
+const pickReplacement = jest.fn<typeof scheduler.pickReplacement>(scheduler.pickReplacement);
+
+jest.unstable_mockModule('core/domain/Scheduler', () => ({ ...scheduler, pickReplacement }));
+
+const { MealSwapService } = await import('./MealSwap.service.js');
 
 import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
 import type { MealCompositionView } from 'core/controllers/Plan';
@@ -79,21 +92,29 @@ const DISLIKED = lunch('chicken-rice-bad', [
 function meal(id: string, dayIndex: number, slot: MealSlot, dish: CandidateDish): MealCompositionView {
   return {
     id,
+    date: `2026-09-${String(8 + dayIndex).padStart(2, '0')}`,
     dayIndex,
     ingredients: dish.ingredients,
     macros: { carbsG: 60, fatG: 8, fiberG: 10, kcal: 560, proteinG: 42 },
     recipeSlug: dish.slug,
     servings: 1,
     slot,
-    sortOrder: 0
+    sortOrder: 0,
+    starch: null
   };
 }
 
 function harness(
   options: {
+    /** The `accompaniments` flag (project 016), and what the context says of the person; off and nobody by default. */
+    readonly accompaniments?: boolean;
+    readonly allergenIds?: ReadonlySet<string>;
+    readonly catalogue?: readonly CatalogueIngredient[];
     readonly composition?: readonly MealCompositionView[];
+    readonly excluded?: ReadonlySet<string>;
     readonly generated?: readonly CandidateDish[];
     readonly library?: readonly CandidateDish[];
+    readonly planStatus?: string;
     readonly remaining?: number;
     readonly sex?: 'female' | 'male';
   } = {}
@@ -106,7 +127,7 @@ function harness(
       id: 'plan-1',
       endDate: '2026-09-22',
       startDate: '2026-09-09',
-      status: 'active',
+      status: options.planStatus ?? 'active',
       strategy: { carbsG: 250, fatG: 70, fiberG: 30, kcal: 2200, proteinG: 160 }
     },
     recipe: { id: 'r-1', cookMinutes: 10, name: 'Lentil stew', prepMinutes: 5, servings: 1, slug: 'lentil-stew' }
@@ -114,21 +135,26 @@ function harness(
   jest
     .spyOn(PlanController, 'allowances')
     .mockResolvedValue({
+      defaultStart: '2026-09-09',
       events: { limit: 3, midPlan: null, remaining: 3 },
+      mealSize: null,
       mealSwaps: { allowed: (options.remaining ?? 5) > 0, limit: 5, remaining: options.remaining ?? 5, used: 5 - (options.remaining ?? 5) },
       planRedo: { allowed: true, kind: 'redo', limit: 1, nextAt: null, used: 0 },
+      startOptions: [],
       tier: 'free'
     });
   jest
     .spyOn(RecipeController, 'generationContext')
     .mockResolvedValue({
-      catalogue: toCatalogue(CATALOGUE),
+      catalogue: toCatalogue(options.catalogue ?? CATALOGUE),
       dietaryPatterns: [],
       locale: 'es-ES',
-      preferences: NO_PREFERENCE_EXCLUSIONS,
-      safety: SAFETY
+      preferences: options.excluded ? { ...NO_PREFERENCE_EXCLUSIONS, excludedIngredientIds: options.excluded } : NO_PREFERENCE_EXCLUSIONS,
+      safety: options.allergenIds ? { ...SAFETY, allergenIds: options.allergenIds } : SAFETY
     });
   jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [{ name: 'Bad', slug: 'chicken-rice-bad' }], liked: [] });
+  // The accompaniments flag, off unless a test turns it on (project 016).
+  jest.spyOn(SettingsController, 'accompaniments').mockResolvedValue(options.accompaniments ?? false);
   jest
     .spyOn(ProfileController, 'getFullProfile')
     .mockResolvedValue({
@@ -419,5 +445,130 @@ describe('MealSwapService', () => {
 
     await expect(service.swap('user-1', MEAL, 'es-ES')).rejects.toBeInstanceOf(QuotaExceededError);
     expect(reusablePool).not.toHaveBeenCalled();
+  });
+
+  /* Project 015: the plan waiting for its day is the person's own coming fortnight. */
+  it('swaps a meal of the plan waiting for its day, counted against that plan’s own swaps', async () => {
+    const fresh = lunch('turkey-rice', [
+      { grams: 200, slug: 'chicken' },
+      { grams: 250, slug: 'rice' }
+    ]);
+    const { service, swapMeal } = harness({ library: [fresh], planStatus: 'scheduled' });
+    const standing = jest.spyOn(PlanController, 'mealSwapStanding').mockResolvedValue({ allowed: true, limit: 5, remaining: 5, used: 0 });
+
+    await service.swap('user-1', MEAL, 'es-ES');
+
+    expect(standing).toHaveBeenCalledWith('user-1', 'plan-1');
+    expect(PlanController.allowances).not.toHaveBeenCalled();
+    expect(swapMeal).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a waiting plan’s swap when that plan has none left', async () => {
+    const { service, swapMeal } = harness({ library: [FITS], planStatus: 'scheduled' });
+
+    jest.spyOn(PlanController, 'mealSwapStanding').mockResolvedValue({ allowed: false, limit: 5, remaining: 0, used: 5 });
+
+    await expect(service.swap('user-1', MEAL, 'es-ES')).rejects.toBeInstanceOf(QuotaExceededError);
+    expect(swapMeal).not.toHaveBeenCalled();
+  });
+
+  it('still refuses a meal of a plan that has ended', async () => {
+    const { service, swapMeal } = harness({ library: [FITS], planStatus: 'completed' });
+
+    await expect(service.swap('user-1', MEAL, 'es-ES')).rejects.toBeInstanceOf(ConflictError);
+    expect(swapMeal).not.toHaveBeenCalled();
+  });
+
+  /*
+   * Project 016 phase 4: a swap composes what goes beside the new plate from
+   * the person's larder — built from the swap's own generation context — and
+   * replaces the old plate's sides with it.
+   */
+  describe('accompaniments (016)', () => {
+    afterEach(() => {
+      pickReplacement.mockReset();
+      pickReplacement.mockImplementation(scheduler.pickReplacement);
+    });
+
+    const GLUTEN = 'allergen-gluten';
+    const bread = (slug: string, gluten: boolean): CatalogueIngredient => ({
+      ...ingredient(slug, 265, 9),
+      allergens: gluten ? [{ allergenId: GLUTEN, presence: 'contains' }] : [],
+      category: 'bakery'
+    });
+    const WITH_BREAD = [...CATALOGUE, bread('pan-blanco', true), bread('pan-sin-gluten', false)];
+    // A big lunch, past the 700 kcal from which sides are offered.
+    const big = (id: string, dayIndex: number, slot: MealSlot, dish: CandidateDish): MealCompositionView => ({
+      ...meal(id, dayIndex, slot, dish),
+      macros: { carbsG: 110, fatG: 25, fiberG: 12, kcal: 1000, proteinG: 70 }
+    });
+    const composition = [big(MEAL, 3, 'lunch', CURRENT), big('m-2', 4, 'dinner', FITS)];
+    const library = [
+      lunch('rice-bowl', [
+        { grams: 400, slug: 'rice' },
+        { grams: 150, slug: 'chicken' }
+      ])
+    ];
+    type Row = { accompanimentKey: string };
+    const keysOf = (swapMeal: ReturnType<typeof harness>['swapMeal']): string[] =>
+      ((swapMeal.mock.calls[0]?.[2] as { accompaniments?: readonly Row[] } | undefined)?.accompaniments ?? []).map(row => row.accompanimentKey);
+
+    it('replaces the old sides with none while the flag is off', async () => {
+      const { service, swapMeal } = harness({ catalogue: WITH_BREAD, composition, library });
+
+      await service.swap('user-1', MEAL, 'es-ES');
+
+      expect(swapMeal.mock.calls[0]?.[2]?.accompaniments).toEqual([]);
+    });
+
+    it('never gives gluten-free bread to somebody the context does not leave it to', async () => {
+      const { service, swapMeal } = harness({
+        accompaniments: true,
+        catalogue: [...CATALOGUE, bread('pan-sin-gluten', false)],
+        composition,
+        excluded: new Set(['i-pan-sin-gluten']),
+        library
+      });
+
+      await service.swap('user-1', MEAL, 'es-ES');
+
+      expect(swapMeal).toHaveBeenCalled();
+      expect(keysOf(swapMeal)).not.toContain('pan-sin-gluten');
+    });
+
+    it('gives a coeliac gluten-free bread beside the new plate, and the list counts it', async () => {
+      const { service, swapMeal } = harness({ accompaniments: true, allergenIds: new Set([GLUTEN]), catalogue: WITH_BREAD, composition, library });
+
+      await service.swap('user-1', MEAL, 'es-ES');
+
+      const keys = keysOf(swapMeal);
+      const items = swapMeal.mock.calls[0]?.[3] ?? [];
+
+      expect(keys).toContain('pan-sin-gluten');
+      expect(keys).not.toContain('pan-blanco');
+      expect(items.some(item => item.ingredientId === 'i-pan-sin-gluten')).toBe(true);
+    });
+
+    it("refuses a replacement whose side the swap's own gate rejects, and writes nothing", async () => {
+      // As if the larder had been bypassed: a coeliac's new plate comes back
+      // with wheat bread beside it. The gate reads plate and sides together.
+      pickReplacement.mockImplementation(input => {
+        const replacement = scheduler.pickReplacement(input);
+
+        if (!replacement) {
+          return replacement;
+        }
+
+        const side = { ingredients: [{ grams: 60, slug: 'pan-blanco' }], key: 'pan-blanco', macros: replacement.macros };
+
+        return { ...replacement, accompaniments: [side], ingredients: [...replacement.ingredients, ...side.ingredients] };
+      });
+
+      const { service, swapMeal } = harness({ accompaniments: true, allergenIds: new Set([GLUTEN]), catalogue: WITH_BREAD, composition, library });
+
+      await expect(service.swap('user-1', MEAL, 'es-ES')).rejects.toBeInstanceOf(ConflictError);
+      expect(pickReplacement).toHaveBeenCalled();
+      expect(swapMeal).not.toHaveBeenCalled();
+    });
   });
 });

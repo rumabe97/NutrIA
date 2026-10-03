@@ -26,8 +26,18 @@
  * errors rather than applies. See "why one transaction, and why it is provable"
  * below for the mechanism and its one caveat.
  *
- * Usage (from apps/api):
- *   node --env-file-if-exists=.env scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json]
+ * Usage (from the repository root, against the local Postgres `pnpm db:local` runs —
+ * never Neon):
+ *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--start YYYY-MM-DD] [--only <profile>]
+ *
+ * `--flag <name>` names a scheduler flag to measure with on (project 016). The
+ * one that exists is `accompaniments`: each profile's larder (`larderFor`, the
+ * same filter the API will hand the scheduler) is offered beside lunch and
+ * dinner. Any other name is refused.
+ *
+ * `--start` is the fortnight's first day (default 2026-10-05): with
+ * accompaniments, season is a hard filter on the month each day falls in, so
+ * the figures depend on it. It is printed and recorded in the JSON.
  *
  * Exit codes:
  *   0  every profile measured; no plate carried a declared allergen
@@ -37,20 +47,32 @@
  *      overrides a 1
  */
 import { createRequire } from 'node:module';
+import { performance } from 'node:perf_hooks';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts/guard.mjs';
 
 import { RecipeController } from 'core/controllers/Recipe';
+import { larderFor } from 'core/domain/Accompaniment';
 import { SafetyController } from 'core/controllers/Safety';
+import { cuisineFamily } from 'core/domain/MealFit';
 import { DEFAULT_MEAL_SHAPE, shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { loadedTargets } from 'core/domain/Event';
 import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
 import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValidation';
-import { freeFromExclusions, resolvePreferences } from 'core/domain/Preference';
-import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
-import { bestEffortExclusions, dishSafety, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
-import { MAIN_SLOTS } from 'core/domain/Variety';
+import {
+  breaksDishRule,
+  breaksPatternDish,
+  FOREIGN_CUISINES,
+  freeFromExclusions,
+  isLegumeSlug,
+  PATTERN_EXCLUDED_SLUGS,
+  resolvePreferences
+} from 'core/domain/Preference';
+import { PLAN_DAYS, PLATE_GRAMS_MAX, PLATE_LIMIT, plateGramsMax, schedulePlan, SERVING_PREFERENCE } from 'core/domain/Scheduler';
+import { bestEffortExclusions, dishSafety, normaliseForMatching, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
+import { DISHES_NEEDED_PER_SLOT, isCappedStarch, MAIN_SLOTS, STARCH_RULES, starchBase, starchCap } from 'core/domain/Variety';
+import { plateFoodMax, plateFoods } from 'core/domain/PlateFood';
 
 // ---------------------------------------------------------------------------
 // The profiles. Fixed here, printed in the report, so the next run measures the
@@ -138,8 +160,30 @@ const PROFILES = [
     target: { activityLevel: 'moderate', ageYears: 52, goal: 'maintenance', heightCm: 180, sex: 'male', weightKg: 85 },
     shape: DEFAULT_MEAL_SHAPE,
     dietaryPattern: 'lactose_free'
+  },
+  {
+    // A synthetic stand-in for a real meal plan, not a copy of it (`0076`): two
+    // main plates and a light snack carrying a BMI-over-30 weight-loss target,
+    // which once came back as 1,700-kcal lunches beside 250-kcal dinners.
+    slug: 'imc-alto-2-comidas',
+    description:
+      'BMI over 30, losing 1 kg a week, a light morning snack, lunch and dinner — protein on a reference weight, plates inside PLATE_LIMIT',
+    target: { activityLevel: 'moderate', ageYears: 60, goal: 'weight_loss', heightCm: 176, paceKgPerWeek: 1, sex: 'male', weightKg: 102 },
+    shape: { afternoon_snack: 'off', breakfast: 'off', dinner: 'normal', lunch: 'normal', morning_snack: 'light', supper: 'off' }
+  },
+  {
+    slug: 'patron-tradicional-espanola',
+    description: 'A declared dietary pattern (traditional Spanish), ordinary shape — 0077: rows, cuisines and names enforced in code',
+    target: { activityLevel: 'moderate', ageYears: 62, goal: 'maintenance', heightCm: 172, sex: 'male', weightKg: 78 },
+    shape: DEFAULT_MEAL_SHAPE,
+    dietaryPattern: 'traditional_spanish'
   }
 ];
+
+const KNOWN_FLAGS = new Set(['accompaniments']);
+
+/** Gnocchi's catalogue row: counted on its own line until the starch rule knows it (project 017). */
+const GNOCCHI_SLUG = 'noquis';
 
 const BAND_KINDS = new Set(['carbs_out_of_band', 'fat_out_of_band', 'kcal_out_of_band', 'protein_above_target', 'protein_below_target']);
 
@@ -147,7 +191,7 @@ const BAND_KINDS = new Set(['carbs_out_of_band', 'fat_out_of_band', 'kcal_out_of
 // CLI
 // ---------------------------------------------------------------------------
 function parseArgs(argv) {
-  const options = { compare: null, json: null, locale: 'es-ES' };
+  const options = { compare: null, flags: [], json: null, locale: 'es-ES', only: null, start: '2026-10-05' };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -158,6 +202,19 @@ function parseArgs(argv) {
       options.json = argv[(index += 1)];
     } else if (arg === '--compare') {
       options.compare = argv[(index += 1)];
+    } else if (arg === '--only') {
+      options.only = argv[(index += 1)];
+    } else if (arg === '--start') {
+      options.start = argv[(index += 1)];
+    } else if (arg === '--flag') {
+      const name = argv[(index += 1)];
+
+      if (!KNOWN_FLAGS.has(name)) {
+        console.error(`--flag needs a known name (${[...KNOWN_FLAGS].join(', ')})`);
+        process.exit(2);
+      }
+
+      options.flags.push(name);
     } else {
       console.error(`unknown argument: ${arg}`);
       process.exit(2);
@@ -311,7 +368,7 @@ function contextFor(profile, shared) {
 // ---------------------------------------------------------------------------
 // Measuring one profile
 // ---------------------------------------------------------------------------
-async function measureProfile(profile, shared) {
+async function measureProfile(profile, shared, options) {
   const { context, note } = contextFor(profile, shared);
 
   if (!context) {
@@ -344,8 +401,27 @@ async function measureProfile(profile, shared) {
   }
 
   const pool = await RecipeController.reusablePool(slots, context);
+  // What the library can serve each meal for this person, after `fitSlots`
+  // (`0079` Table 2 included), against `DISHES_NEEDED_PER_SLOT`; and the
+  // dinners by cuisine family, which is where Table 2 cuts.
+  const poolBySlot = Object.fromEntries(slots.map(slot => [slot, pool.filter(dish => dish.slots.includes(slot)).length]));
+  const dinnersByFamily = {};
+
+  for (const dish of pool.filter(candidate => candidate.slots.includes('dinner'))) {
+    const family = cuisineFamily(dish.cuisine);
+
+    dinnersByFamily[family] = (dinnersByFamily[family] ?? 0) + 1;
+  }
+
+  // The month each day falls in, from the fortnight's first day, as the API will give it.
+  const start = new Date(`${options.start}T12:00:00Z`);
+  const monthOf = dayIndex => new Date(start.getTime() + (dayIndex - 1) * 86_400_000).getUTCMonth() + 1;
+  const accompaniments = options.flags.includes('accompaniments')
+    ? { larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }), monthOf }
+    : undefined;
 
   const scheduled = schedulePlan({
+    accompaniments,
     catalogue: context.catalogue,
     dayTargets,
     minimumKcal: minimumDailyKcal(profile.target.sex),
@@ -394,6 +470,8 @@ async function measureProfile(profile, shared) {
   // centre those days actually sit. A day loaded for an event is judged
   // against its own raised target, exactly as `validatePlan` judges it.
   const deviations = macroDeviations(scheduled.assignment.days, dayTargets, targets);
+  const plateShare = plateShares(scheduled.assignment.days, dayTargets, targets, weights);
+  const plateWeight = plateGrams(scheduled.assignment.days, dayTargets, targets, weights);
 
   const blockingViolations = violations.filter(isBlocking);
   const bandViolations = violations.filter(violation => BAND_KINDS.has(violation.kind));
@@ -459,11 +537,22 @@ async function measureProfile(profile, shared) {
     daysInsideAll4,
     deviations,
     fallback: null,
+    accompanied: accompanimentMetrics(scheduled.assignment.days),
+    dishRuleBreaks: dishRuleBreaks(scheduled.assignment.days, context),
+    foodGroups: foodGroupGrams(scheduled.assignment.days, context.catalogue, dayTargets, targets, weights),
+    dinnersByFamily,
     measured: true,
     note,
+    plateShare,
+    plateWeight,
+    poolBySlot,
     poolSize: pool.length,
+    servings: servingsHistogram(scheduled.assignment.days),
+    servingsInBand: servingsInBand(scheduled.assignment.days),
     slug: profile.slug,
     unsafe,
+    spanish: spanishMetrics(scheduled.assignment.days, context.catalogue),
+    starch: starchMetrics(scheduled.assignment.days),
     // How varied the plan actually is, not just whether it broke a rule —
     // distinct dishes maximised, no two days the same, a repeat as far apart
     // as the pool allows (owner, 2026-09-26; `0065`).
@@ -477,6 +566,128 @@ async function measureProfile(profile, shared) {
     })),
     worst
   };
+}
+
+/**
+ * The plate's starch base (016 phase 7), over the plan's lunches and dinners:
+ * how many of each base, how many dinners are pasta or rice, and every pair of
+ * days running — or meals on one day — that share pasta or rice, which
+ * `STARCH_RULES` keeps apart. The dish's own base, never what is beside it.
+ *
+ * Project 017 phase 1 adds, without changing the rest: each lunch and dinner by
+ * slot, cuisine family (`cuisineFamily`) and base; the dinners of pasta or rice
+ * outside the Asian family, where `0079` Table 2 says rice and pasta are not a
+ * dinner; and every lunch or dinner with gnocchi (`GNOCCHI_SLUG`), a base the
+ * rule does not know yet.
+ */
+function starchMetrics(days) {
+  const mains = {};
+  const dinners = {};
+  const byDay = new Map(STARCH_RULES.capped.map(base => [base, new Map()]));
+  const total = Object.fromEntries(STARCH_RULES.capped.map(base => [base, 0]));
+  const byFamily = {};
+  const gnocchi = [];
+  let dinnerPastaOrRiceOutsideAsian = 0;
+
+  for (const day of days) {
+    for (const meal of day.meals) {
+      const base = starchBase(meal.dish) ?? 'none';
+
+      if (byDay.has(base)) {
+        byDay.get(base).set(day.dayIndex, (byDay.get(base).get(day.dayIndex) ?? 0) + 1);
+        total[base] += 1;
+      }
+
+      if (MAIN_SLOTS.has(meal.slot)) {
+        mains[base] = (mains[base] ?? 0) + 1;
+
+        const family = cuisineFamily(meal.dish.cuisine);
+        const slot = (byFamily[meal.slot] ??= {});
+        const bases = (slot[family] ??= {});
+
+        bases[base] = (bases[base] ?? 0) + 1;
+
+        if (meal.slot === 'dinner' && isCappedStarch(base) && family !== 'asian') {
+          dinnerPastaOrRiceOutsideAsian += 1;
+        }
+
+        if (meal.dish.ingredients.some(item => item.slug === GNOCCHI_SLUG)) {
+          gnocchi.push({ base, dayIndex: day.dayIndex, dish: meal.dish.name, family, slot: meal.slot });
+        }
+      }
+
+      if (meal.slot === 'dinner') {
+        dinners[base] = (dinners[base] ?? 0) + 1;
+      }
+    }
+  }
+
+  const repeats = [];
+
+  for (const [base, counts] of byDay) {
+    for (const [dayIndex, count] of [...counts].sort((a, b) => a[0] - b[0])) {
+      if (count > 1) {
+        repeats.push(`${base} twice on day ${dayIndex}`);
+      }
+
+      if (counts.has(dayIndex - 1)) {
+        repeats.push(`${base} days ${dayIndex - 1}–${dayIndex}`);
+      }
+    }
+  }
+
+  return {
+    byFamily,
+    cap: starchCap(days.length),
+    consecutive: repeats,
+    dinnerPastaOrRice: (dinners.pasta ?? 0) + (dinners.rice ?? 0),
+    dinnerPastaOrRiceOutsideAsian,
+    dinners,
+    gnocchi,
+    mains,
+    total
+  };
+}
+
+/**
+ * What traditional Spanish (`0077`) promises, read off the plates of every
+ * profile: a row the pattern excludes, a dish of a foreign cuisine, a dish with
+ * a foreign name — each zero for `patron-tradicional-espanola`, and a baseline
+ * for everyone else — and how many lunches and dinners carry legumes and fish
+ * (PRD 013 criterion 6: at least 8 and 6 in the fortnight).
+ */
+function spanishMetrics(days, catalogue) {
+  const forbidden = PATTERN_EXCLUDED_SLUGS.traditional_spanish;
+  const forbiddenRows = [];
+  const foreignCuisines = [];
+  const foreignNames = [];
+  let withLegumes = 0;
+  let withFish = 0;
+
+  for (const day of days) {
+    for (const meal of day.meals) {
+      const { dish } = meal;
+      // The whole meal, so a row beside the plate is judged as one on it.
+      const slugs = meal.ingredients.map(item => item.slug);
+
+      for (const slug of slugs.filter(slug => forbidden.has(slug))) {
+        forbiddenRows.push({ dayIndex: day.dayIndex, dish: dish.name, slot: meal.slot, slug });
+      }
+
+      if (dish.cuisine && FOREIGN_CUISINES.has(normaliseForMatching(dish.cuisine))) {
+        foreignCuisines.push({ cuisine: dish.cuisine, dayIndex: day.dayIndex, dish: dish.name, slot: meal.slot });
+      } else if (breaksPatternDish({ cuisine: null, name: dish.name }, { refusesForeignDishes: true })) {
+        foreignNames.push({ dayIndex: day.dayIndex, dish: dish.name, slot: meal.slot });
+      }
+
+      if (meal.slot === 'lunch' || meal.slot === 'dinner') {
+        withLegumes += slugs.some(isLegumeSlug) ? 1 : 0;
+        withFish += slugs.some(slug => (catalogue.get(slug)?.classes ?? []).some(cls => cls === 'fish' || cls === 'shellfish')) ? 1 : 0;
+      }
+    }
+  }
+
+  return { foreignCuisines, foreignNames, forbiddenRows, mainsWithFish: withFish, mainsWithLegumes: withLegumes };
 }
 
 /**
@@ -642,6 +853,286 @@ function overallMeanAbs(deviations) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+/**
+ * Each plate's energy over its slot's share of that day's target — the measure
+ * `PLATE_LIMIT` bounds (`0076`), from the same `weightsFor` the scheduler sized
+ * with and each day's own target, a loaded one included.
+ */
+function plateShares(days, dayTargets, targets, weights) {
+  const total = [...weights.values()].reduce((sum, weight) => sum + weight, 0) || 1;
+  const shares = [];
+
+  for (const day of days) {
+    const kcal = (dayTargets.get(day.dayIndex) ?? targets).kcal;
+
+    for (const meal of day.meals) {
+      const budget = (kcal * (weights.get(meal.slot) ?? 0)) / total;
+
+      if (budget > 0) {
+        shares.push(meal.macros.kcal / budget);
+      }
+    }
+  }
+
+  const round = value => Math.round(value * 100) / 100;
+
+  return {
+    max: shares.length > 0 ? round(Math.max(...shares)) : null,
+    min: shares.length > 0 ? round(Math.min(...shares)) : null,
+    outsideLimit: shares.filter(share => share < PLATE_LIMIT.min || share > PLATE_LIMIT.max).length,
+    plates: shares.length
+  };
+}
+
+/**
+ * What every plate weighs — the sum of its ingredients' grams, cooked, as the
+ * scheduler sizes them — against `plateGramsMax` for its slot and that day's
+ * share (`0078`, scaled for a big main meal by 016): the heaviest plate, the
+ * mean and the heaviest per slot, and how many are over their ceiling. A meal
+ * is one plate until accompaniments land (016 phase 2), so this is also what a
+ * meal weighs.
+ */
+function plateGrams(days, dayTargets, targets, weights) {
+  const total = [...weights.values()].reduce((sum, weight) => sum + weight, 0) || 1;
+  const bySlot = new Map();
+  let max = null;
+  let overCeiling = 0;
+  let plates = 0;
+
+  for (const day of days) {
+    const kcal = (dayTargets.get(day.dayIndex) ?? targets).kcal;
+
+    for (const meal of day.meals) {
+      const budgetKcal = (kcal * (weights.get(meal.slot) ?? 0)) / total;
+      // The plate alone: what the ceiling bounds. The meal, accompaniments included, beside it.
+      const grams = plateItems(meal).reduce((sum, item) => sum + item.grams, 0);
+      const mealGrams = meal.ingredients.reduce((sum, item) => sum + item.grams, 0);
+      const ceiling = meal.accompaniments ? PLATE_GRAMS_MAX[meal.slot] : plateGramsMax(meal.slot, budgetKcal);
+      const slot = bySlot.get(meal.slot) ?? { ceiling: 0, count: 0, max: 0, mealMax: 0, mealTotal: 0, total: 0 };
+
+      bySlot.set(meal.slot, {
+        ceiling: Math.max(slot.ceiling, ceiling),
+        count: slot.count + 1,
+        max: Math.max(slot.max, grams),
+        mealMax: Math.max(slot.mealMax, mealGrams),
+        mealTotal: slot.mealTotal + mealGrams,
+        total: slot.total + grams
+      });
+      max = max === null ? grams : Math.max(max, grams);
+      // A tenth of a gram per item is rounding, not weight.
+      overCeiling += grams > ceiling + 0.5 ? 1 : 0;
+      plates += 1;
+    }
+  }
+
+  return {
+    ceilingBySlot: Object.fromEntries([...bySlot].map(([slot, { ceiling }]) => [slot, Math.round(ceiling)])),
+    max: max === null ? null : Math.round(max),
+    maxBySlot: Object.fromEntries([...bySlot].map(([slot, entry]) => [slot, Math.round(entry.max)])),
+    mealMaxBySlot: Object.fromEntries([...bySlot].map(([slot, entry]) => [slot, Math.round(entry.mealMax)])),
+    mealMeanBySlot: Object.fromEntries([...bySlot].map(([slot, { count, mealTotal }]) => [slot, Math.round(mealTotal / count)])),
+    meanBySlot: Object.fromEntries([...bySlot].map(([slot, { count, total }]) => [slot, Math.round(total / count)])),
+    overCeiling,
+    plates
+  };
+}
+
+/** A meal's plate alone, without what is beside it: the scheduler puts the dish's scaled rows first. */
+function plateItems(meal) {
+  return meal.ingredients.slice(0, meal.dish.ingredients.length);
+}
+
+/** Of the plates of each kind, how many were served between 0.75 and 1.5 servings (`SERVING_PREFERENCE`, 016 phase 3). */
+function servingsInBand(days) {
+  const count = { all: { inside: 0, plates: 0 }, mains: { inside: 0, plates: 0 } };
+
+  for (const day of days) {
+    for (const meal of day.meals) {
+      const inside = meal.servings >= SERVING_PREFERENCE.min && meal.servings <= SERVING_PREFERENCE.max ? 1 : 0;
+
+      count.all.inside += inside;
+      count.all.plates += 1;
+
+      if (MAIN_SLOTS.has(meal.slot)) {
+        count.mains.inside += inside;
+        count.mains.plates += 1;
+      }
+    }
+  }
+
+  return count;
+}
+
+/**
+ * Lunches and dinners by how many accompaniments they carry (0–3), the share
+ * of the meal's energy those carry where there are any, and which ones were
+ * served most. Null when the plan was made without accompaniments.
+ */
+function accompanimentMetrics(days) {
+  const meals = days.flatMap(day => day.meals).filter(meal => MAIN_SLOTS.has(meal.slot));
+
+  if (!meals.some(meal => meal.accompaniments)) {
+    return null;
+  }
+
+  const byCount = { 0: 0, 1: 0, 2: 0, 3: 0 };
+  const shares = [];
+  const keys = new Map();
+
+  for (const meal of meals) {
+    const list = meal.accompaniments ?? [];
+    const kcal = list.reduce((sum, item) => sum + item.macros.kcal, 0);
+
+    byCount[list.length] = (byCount[list.length] ?? 0) + 1;
+
+    if (list.length > 0 && meal.macros.kcal > 0) {
+      shares.push(kcal / meal.macros.kcal);
+    }
+
+    for (const item of list) {
+      keys.set(item.key, (keys.get(item.key) ?? 0) + 1);
+    }
+  }
+
+  const round = value => Math.round(value * 1000) / 1000;
+
+  return {
+    byCount,
+    kcalShareMax: shares.length > 0 ? round(Math.max(...shares)) : null,
+    kcalShareMean: shares.length > 0 ? round(shares.reduce((sum, value) => sum + value, 0) / shares.length) : null,
+    meals: meals.length,
+    top: [...keys].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 8)
+  };
+}
+
+/** Meals that break a whole-dish rule of the person's way of eating (kosher: meat with dairy), over the whole meal. */
+function dishRuleBreaks(days, context) {
+  const breaks = [];
+
+  for (const day of days) {
+    for (const meal of day.meals) {
+      if (breaksDishRule(meal.ingredients, context.catalogue, context.preferences)) {
+        breaks.push({ dayIndex: day.dayIndex, dish: meal.dish.name, slot: meal.slot });
+      }
+    }
+  }
+
+  return breaks;
+}
+
+/**
+ * How many plates of each slot were served at each size (project 016): the
+ * question accompaniments answer is whether a big meal is one dish at three
+ * servings, and a mean hides that.
+ */
+function servingsHistogram(days) {
+  const bySlot = {};
+
+  for (const day of days) {
+    for (const meal of day.meals) {
+      const sizes = (bySlot[meal.slot] ??= {});
+      // Two decimals, so `1.00` is not an integer key an object would move ahead of `0.75`.
+      const key = meal.servings.toFixed(2);
+
+      sizes[key] = (sizes[key] ?? 0) + 1;
+    }
+  }
+
+  return Object.fromEntries(
+    Object.entries(bySlot).map(([slot, sizes]) => [slot, Object.fromEntries(Object.entries(sizes).sort(([a], [b]) => Number(a) - Number(b)))])
+  );
+}
+
+/**
+ * The foods `PLATE_FOOD_MAX` caps per plate (`0008` § D, 016 phase 5), as
+ * served and recognised by core's own `plateFood`: meat, fish and shellfish,
+ * cooked legumes, grains read dry, potato and sweet potato. Per group, the
+ * heaviest plate, the mean over the plates that carry any of it, and how many
+ * are over `plateFoodMax` for their slot and that day's share. Keyed as phases
+ * 3 and 4 wrote them, so `--compare` reads across.
+ */
+const FOOD_GROUP_KEYS = { fish: 'fish', grain: 'grains', legume: 'legumes', meat: 'meat', potato: 'potato' };
+
+function foodGroupGrams(days, catalogue, dayTargets, targets, weights) {
+  const total = [...weights.values()].reduce((sum, weight) => sum + weight, 0) || 1;
+  const groups = Object.fromEntries(Object.values(FOOD_GROUP_KEYS).map(group => [group, []]));
+  const over = Object.fromEntries(Object.values(FOOD_GROUP_KEYS).map(group => [group, 0]));
+
+  for (const day of days) {
+    const kcal = (dayTargets.get(day.dayIndex) ?? targets).kcal;
+
+    for (const meal of day.meals) {
+      const budgetKcal = (kcal * (weights.get(meal.slot) ?? 0)) / total;
+
+      for (const [food, grams] of Object.entries(plateFoods(plateItems(meal), catalogue))) {
+        const group = FOOD_GROUP_KEYS[food];
+
+        over[group] += grams > plateFoodMax(food, meal.slot, budgetKcal) + 0.5 ? 1 : 0;
+        groups[group].push(grams);
+      }
+    }
+  }
+
+  return Object.fromEntries(
+    Object.entries(groups).map(([group, list]) => [
+      group,
+      {
+        max: list.length > 0 ? Math.round(Math.max(...list)) : null,
+        mean: list.length > 0 ? Math.round(list.reduce((sum, grams) => sum + grams, 0) / list.length) : null,
+        over: over[group],
+        plates: list.length
+      }
+    ])
+  );
+}
+
+/**
+ * What the library this run planned from is made of (project 017, decision
+ * `0080`): the locale's recipes by source, by source and slot, and by slot and
+ * cuisine family. A recipe offered at two slots counts at both. Read in the
+ * run's own read-only transaction, so it describes exactly what was measured.
+ */
+async function libraryComposition(tx, locale) {
+  const rows = await tx.execute(`select source, cuisine, meal_slots from recipes where locale = '${locale.replaceAll("'", "''")}'`);
+  const bySource = {};
+  const bySourceAndSlot = {};
+  const bySlotAndFamily = {};
+
+  for (const row of rows) {
+    bySource[row.source] = (bySource[row.source] ?? 0) + 1;
+
+    const family = cuisineFamily(row.cuisine);
+
+    for (const slot of row.meal_slots) {
+      const slots = (bySourceAndSlot[row.source] ??= {});
+      const families = (bySlotAndFamily[slot] ??= {});
+
+      slots[slot] = (slots[slot] ?? 0) + 1;
+      families[family] = (families[family] ?? 0) + 1;
+    }
+  }
+
+  return { bySlotAndFamily, bySource, bySourceAndSlot, recipes: rows.length };
+}
+
+function printLibrary(library) {
+  const list = counts =>
+    Object.entries(counts)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([key, count]) => `${key} ${count}`)
+      .join(', ');
+
+  console.log(`Library: ${library.recipes} recipes (${list(library.bySource)})`);
+
+  for (const [source, slots] of Object.entries(library.bySourceAndSlot).sort((a, b) => a[0].localeCompare(b[0]))) {
+    console.log(`  ${source} by slot: ${list(slots)}`);
+  }
+
+  for (const [slot, families] of Object.entries(library.bySlotAndFamily).sort((a, b) => a[0].localeCompare(b[0]))) {
+    console.log(`  ${slot} by family: ${list(families)}`);
+  }
+}
+
 function printProfile(profile, result) {
   console.log(`\n${profile.slug} — ${profile.description}`);
 
@@ -658,6 +1149,23 @@ function printProfile(profile, result) {
   }
 
   console.log(`  pool: ${result.poolSize} dishes`);
+
+  if (result.poolBySlot) {
+    const thin = Object.entries(result.poolBySlot).filter(([, count]) => count < DISHES_NEEDED_PER_SLOT);
+
+    console.log(
+      `  servable per slot (need ${DISHES_NEEDED_PER_SLOT}): ${Object.entries(result.poolBySlot)
+        .map(([slot, count]) => `${slot} ${count}`)
+        .join(', ')}${thin.length > 0 ? ` — BELOW: ${thin.map(([slot]) => slot).join(', ')}` : ''}`
+    );
+    console.log(
+      `  dinners by cuisine family: ${
+        Object.entries(result.dinnersByFamily ?? {})
+          .map(([family, count]) => `${family} ${count}`)
+          .join(', ') || 'none'
+      }`
+    );
+  }
   console.log(`  days inside 5% on all four macros: ${result.daysInsideAll4} / ${PLAN_DAYS}`);
 
   if (result.worst) {
@@ -716,6 +1224,135 @@ function printProfile(profile, result) {
   for (const violation of result.varietyViolations.slice(0, 10)) {
     console.log(
       `    day ${violation.dayIndex}${violation.slot ? ` ${violation.slot}` : ''}: ${violation.dishSlug ?? `matches day ${violation.matchesDayIndex}`} (${violation.kind})`
+    );
+  }
+
+  if (result.plateShare) {
+    const { max, min, outsideLimit, plates } = result.plateShare;
+
+    console.log(
+      `  plate share of its slot (limit ${PLATE_LIMIT.min}–${PLATE_LIMIT.max}): min ${min}, max ${max}, outside ${outsideLimit} / ${plates}`
+    );
+  }
+
+  if (result.plateWeight) {
+    const { ceilingBySlot, max, maxBySlot, meanBySlot, overCeiling, plates } = result.plateWeight;
+    const means = Object.entries(meanBySlot)
+      .map(
+        ([slot, mean]) =>
+          `${slot} ${mean} g, max ${maxBySlot?.[slot] ?? '?'} g (ceiling ${ceilingBySlot?.[slot] ?? PLATE_GRAMS_MAX[slot]}, flat ${PLATE_GRAMS_MAX[slot]})`
+      )
+      .join('; ');
+
+    console.log(`  plate grams (0078, scaled by 016 unless accompaniments): max ${max} g; ${means}; over the ceiling ${overCeiling} / ${plates}`);
+
+    if (result.plateWeight.mealMeanBySlot) {
+      console.log(
+        `  meal grams (plate and accompaniments): ${Object.entries(result.plateWeight.mealMeanBySlot)
+          .map(([slot, mean]) => `${slot} ${mean} g, max ${result.plateWeight.mealMaxBySlot?.[slot] ?? '?'} g`)
+          .join('; ')}`
+      );
+    }
+  }
+
+  if (result.servingsInBand) {
+    const { all, mains } = result.servingsInBand;
+
+    console.log(
+      `  servings inside ${SERVING_PREFERENCE.min}–${SERVING_PREFERENCE.max}: lunch and dinner ${mains.inside} / ${mains.plates} (${pct(mains.inside / (mains.plates || 1))}), all plates ${all.inside} / ${all.plates} (${pct(all.inside / (all.plates || 1))})`
+    );
+  }
+
+  if (result.accompanied) {
+    const { byCount, kcalShareMax, kcalShareMean, meals, top } = result.accompanied;
+
+    console.log(
+      `  accompaniments on ${meals} lunches and dinners: ${Object.entries(byCount)
+        .map(([count, n]) => `${count}: ${n} (${pct(n / (meals || 1))})`)
+        .join(
+          ', '
+        )}; their kcal share mean ${kcalShareMean === null ? 'n/a' : pct(kcalShareMean)}, max ${kcalShareMax === null ? 'n/a' : pct(kcalShareMax)}`
+    );
+    console.log(`    most served: ${top.map(([key, n]) => `${key} ${n}`).join(', ') || 'none'}`);
+  }
+
+  if (result.dishRuleBreaks?.length > 0) {
+    console.log(`  WHOLE-MEAL RULE BROKEN (meat with dairy) on ${result.dishRuleBreaks.length} meal(s)`);
+  }
+
+  if (result.servings) {
+    const lines = Object.entries(result.servings).map(
+      ([slot, sizes]) =>
+        `${slot} ${Object.entries(sizes)
+          .map(([size, count]) => `${size}×${count}`)
+          .join(' ')}`
+    );
+
+    console.log(`  servings per slot (size×plates): ${lines.join('; ')}`);
+  }
+
+  if (result.foodGroups) {
+    const groups = Object.entries(result.foodGroups)
+      .map(([group, { max, mean, over, plates }]) =>
+        plates > 0 ? `${group} mean ${mean} g, max ${max} g on ${plates}, over the ceiling ${over ?? '?'}` : `${group} none`
+      )
+      .join('; ');
+
+    console.log(`  grams per food group per plate (grains dry): ${groups}`);
+  }
+
+  if (typeof result.ms === 'number') {
+    console.log(`  time: ${result.ms} ms`);
+  }
+
+  const spanish = result.spanish;
+
+  console.log(
+    `  traditional Spanish (0077): ${spanish.forbiddenRows.length} excluded row(s), ${spanish.foreignCuisines.length} foreign cuisine(s), ${spanish.foreignNames.length} foreign name(s) on plates;` +
+      ` lunches and dinners with legumes ${spanish.mainsWithLegumes}, with fish ${spanish.mainsWithFish}`
+  );
+
+  if (profile.dietaryPattern === 'traditional_spanish') {
+    for (const item of [...spanish.forbiddenRows, ...spanish.foreignCuisines, ...spanish.foreignNames].slice(0, 10)) {
+      console.log(
+        `    FOREIGN day ${item.dayIndex} ${item.slot}: "${item.dish}"${item.slug ? ` holds ${item.slug}` : ''}${item.cuisine ? ` (${item.cuisine})` : ''}`
+      );
+    }
+  }
+
+  if (result.starch) {
+    const { cap, consecutive, dinnerPastaOrRice, mains, total } = result.starch;
+
+    console.log(
+      `  starch base (016 p7), lunches and dinners: ${Object.entries(mains)
+        .sort((a, b) => b[1] - a[1])
+        .map(([base, count]) => `${base} ${count}`)
+        .join(
+          ', '
+        )}; all meals pasta ${total.pasta}, rice ${total.rice} (cap ${cap}); dinners with pasta or rice ${dinnerPastaOrRice}; days running ${consecutive.length}${consecutive.length > 0 ? ` (${consecutive.join(', ')})` : ''}`
+    );
+
+    const { byFamily = {}, dinnerPastaOrRiceOutsideAsian, gnocchi = [] } = result.starch;
+
+    for (const slot of ['lunch', 'dinner']) {
+      const families = Object.entries(byFamily[slot] ?? {}).sort((a, b) => a[0].localeCompare(b[0]));
+
+      console.log(
+        `  starch by family (017 p1), ${slot}: ${families
+          .map(
+            ([family, bases]) =>
+              `${family} [${Object.entries(bases)
+                .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+                .map(([base, count]) => `${base} ${count}`)
+                .join(', ')}]`
+          )
+          .join('; ')}`
+      );
+    }
+
+    console.log(`  dinners with pasta or rice outside the Asian family: ${dinnerPastaOrRiceOutsideAsian}`);
+    console.log(
+      `  gnocchi: ${gnocchi.length}${gnocchi.length > 0 ? ` (${gnocchi.map(item => `day ${item.dayIndex} ${item.slot}: "${item.dish}", ${item.family}, read as ${item.base}`).join('; ')})` : ''}`
     );
   }
 
@@ -826,6 +1463,28 @@ function printComparison(before, results) {
     if (variety) {
       console.log(`  ${variety}`);
     }
+
+    // A file written before `0076` has no plate shares; say so rather than compare with nothing.
+    if (after.plateShare) {
+      console.log(
+        previous.plateShare
+          ? `  plate share: max ${previous.plateShare.max} → ${after.plateShare.max}, outside the limit ${previous.plateShare.outsideLimit} → ${after.plateShare.outsideLimit}`
+          : `  plate share: max ${after.plateShare.max}, outside the limit ${after.plateShare.outsideLimit} (not measured before)`
+      );
+    }
+
+    // Nor does a file written before `0078` have plate grams.
+    if (after.plateWeight) {
+      console.log(
+        previous.plateWeight
+          ? `  plate grams: max ${previous.plateWeight.max} → ${after.plateWeight.max} g, over the ceiling ${previous.plateWeight.overCeiling} → ${after.plateWeight.overCeiling}; mean ${Object.entries(
+              after.plateWeight.meanBySlot
+            )
+              .map(([slot, mean]) => `${slot} ${previous.plateWeight.meanBySlot?.[slot] ?? '?'} → ${mean} g`)
+              .join(', ')}`
+          : `  plate grams: max ${after.plateWeight.max} g, over the ceiling ${after.plateWeight.overCeiling} (not measured before)`
+      );
+    }
   }
 }
 
@@ -865,6 +1524,7 @@ async function main() {
   const originalDatabase = databaseModule.database;
   const pooled = originalDatabase();
 
+  let library;
   let results;
 
   try {
@@ -875,13 +1535,17 @@ async function main() {
         try {
           const shared = await baseContext(options.locale);
 
+          library = await libraryComposition(tx, options.locale);
           results = [];
 
-          for (const profile of PROFILES) {
+          for (const profile of PROFILES.filter(entry => !options.only || entry.slug === options.only)) {
             // eslint-disable-next-line no-await-in-loop -- profiles are measured one at a
             // time inside a single transaction; concurrent reads would not change the
             // result, only make a failure harder to attribute to one profile.
-            results.push(await measureProfile(profile, shared));
+            const started = performance.now();
+            const result = await measureProfile(profile, shared, options);
+
+            results.push({ ...result, ms: Math.round(performance.now() - started) });
           }
         } finally {
           databaseModule.database = originalDatabase;
@@ -894,9 +1558,12 @@ async function main() {
   }
 
   console.log(`Locale: ${options.locale}`);
+  console.log(`Flags: ${options.flags.length > 0 ? options.flags.join(', ') : 'none'}`);
+  console.log(`Fortnight starts: ${options.start}`);
   console.log(`Profiles (fixed, reuse for the next run): ${PROFILES.map(profile => profile.slug).join(', ')}`);
+  printLibrary(library);
 
-  for (const profile of PROFILES) {
+  for (const profile of PROFILES.filter(entry => !options.only || entry.slug === options.only)) {
     printProfile(
       profile,
       results.find(result => result.slug === profile.slug)
@@ -907,7 +1574,14 @@ async function main() {
     writeFileSync(
       options.json,
       JSON.stringify(
-        { locale: options.locale, profiles: PROFILES.map(profile => ({ description: profile.description, slug: profile.slug })), results },
+        {
+          flags: options.flags,
+          library,
+          locale: options.locale,
+          start: options.start,
+          profiles: PROFILES.map(profile => ({ description: profile.description, slug: profile.slug })),
+          results
+        },
         null,
         2
       )

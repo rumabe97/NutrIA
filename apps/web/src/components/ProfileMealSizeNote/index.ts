@@ -1,0 +1,1 @@
+export { ProfileMealSizeNote } from './ProfileMealSizeNote';

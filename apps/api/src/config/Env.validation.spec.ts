@@ -2,6 +2,8 @@ import { generateKeyPairSync } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from '@jest/globals';
 
+import { LOCAL_DATABASE_URL } from 'database';
+
 import { ENV_KEYS, validateEnv } from './Env.validation.js';
 
 const valid = {
@@ -69,6 +71,32 @@ describe('validateEnv', () => {
     it('accepts a correctly locked-down production environment', () => {
       expect(validateEnv({ ...production, ALLOWED_ORIGINS: 'https://nutria.app' }).SWAGGER_ENABLED).toBe(false);
     });
+  });
+});
+
+describe('NUTRIA_LOCAL_PG', () => {
+  it('points both connection strings at the local Postgres, over whatever was set', () => {
+    const env = validateEnv({ ...valid, DIRECT_DATABASE_URL: 'postgresql://user:pass@host/direct', NUTRIA_LOCAL_PG: '1' });
+
+    expect(env.DATABASE_URL).toBe(LOCAL_DATABASE_URL);
+    expect(env.DIRECT_DATABASE_URL).toBe(LOCAL_DATABASE_URL);
+  });
+
+  it('needs no connection string at all, as the e2e run sets none', () => {
+    const { DATABASE_URL: _unset, ...rest } = valid;
+
+    expect(validateEnv({ ...rest, NUTRIA_LOCAL_PG: '1' }).DATABASE_URL).toBe(LOCAL_DATABASE_URL);
+  });
+
+  it('changes nothing when unset or 0, and refuses any other value', () => {
+    expect(validateEnv({ ...valid }).DATABASE_URL).toBe(valid.DATABASE_URL);
+    expect(validateEnv({ ...valid, NUTRIA_LOCAL_PG: '0' }).DATABASE_URL).toBe(valid.DATABASE_URL);
+    expect(() => validateEnv({ ...valid, NUTRIA_LOCAL_PG: 'true' })).toThrow(/NUTRIA_LOCAL_PG/);
+  });
+
+  it('is refused on a deployment', () => {
+    expect(() => validateEnv({ ...valid, NODE_ENV: 'production', NUTRIA_LOCAL_PG: '1' })).toThrow(/NUTRIA_LOCAL_PG/);
+    expect(() => validateEnv({ ...valid, NUTRIA_LOCAL_PG: '1', VERCEL_ENV: 'preview' })).toThrow(/NUTRIA_LOCAL_PG/);
   });
 });
 

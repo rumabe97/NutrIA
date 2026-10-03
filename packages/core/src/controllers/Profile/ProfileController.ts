@@ -4,6 +4,7 @@ import { requireProfileConsent } from './ProfileConsentController';
 import { ageInYears, resolveTargets } from 'core/domain/Nutrition';
 import { FALLBACK_LOCALE } from '#repositories/Recipe';
 import { isEnforceableDislike } from 'core/domain/Preference';
+import { DEFAULT_MEAL_SHAPE, mainMealSize, mealSizeSuggestion } from 'core/domain/MealShape';
 import { ProfileRepository } from '#repositories/Profile';
 import { ProgressRepository } from '#repositories/Progress';
 import { SafetyRepository } from '#repositories/Safety';
@@ -11,6 +12,8 @@ import type { Goal, Preferences, Profile, UpdateGoal, UpdatePreferences, UpdateP
 import type { ResolvedTargets, TargetInput, TargetViolation } from 'core/domain/Nutrition';
 import type { UpdateTargetOverride } from 'core/entities/Nutrition';
 import type { ProfessionalSetter } from '#repositories/Profile';
+import type { MealSizeChange } from 'core/domain/MealShape';
+import type { MealSlot } from 'core/entities/Plan';
 
 // --- Presenters ---------------------------------------------------------------
 
@@ -38,6 +41,21 @@ export interface GoalView {
 
 export type PreferencesView = Omit<Preferences, 'createdAt' | 'updatedAt' | 'userId'>;
 
+/**
+ * How big this person's largest main meal is, for the note that offers one
+ * meal more before a plan is generated (project 016). `largestMainKcal` is the
+ * largest of breakfast, lunch and dinner as the scheduler sizes them;
+ * `largeMeals` is whether it is past `LARGE_MEAL_KCAL`. `suggestion` is the one
+ * change to the shape that would bring it to `LARGE_MEAL_KCAL` or below
+ * (`mealSizeSuggestion`), or null when the meals are not large or no single
+ * change gets there — the note then offers only to carry on.
+ */
+export type MealSizeView = {
+  largeMeals: boolean;
+  largestMainKcal: number;
+  suggestion: { change: MealSizeChange; largestMainKcal: number; slot?: MealSlot } | null;
+};
+
 export interface FullProfileView {
   allergies: readonly { allergenId: string; allergenLabel: string; crossContaminationSensitive: boolean; severity: string }[];
   cuisines: readonly string[];
@@ -57,6 +75,8 @@ export interface FullProfileView {
   foodPreferences: readonly { enforced: boolean; ingredientId: string | null; label: string; sentiment: 'disliked' | 'liked' }[];
   goal: GoalView | null;
   intolerances: readonly { allergenId: string; allergenLabel: string }[];
+  /** Null exactly when `targets` is: there is no meal to size before there are targets. */
+  mealSize: MealSizeView | null;
   preferences: PreferencesView | null;
   profile: ProfileView | null;
   /**
@@ -176,6 +196,27 @@ function explain(violation: TargetViolation): string {
   }
 }
 
+/** The note's figures from the shape the generation reads (`PlanGeneration`) and the targets in effect. */
+function mealSizeOf(preferences: Preferences | undefined, targets: ResolvedTargets): MealSizeView {
+  const shape = preferences?.mealShape ?? DEFAULT_MEAL_SHAPE;
+
+  return { ...mainMealSize(shape, targets.effective), suggestion: mealSizeSuggestion(shape, targets.effective) };
+}
+
+/** The targets exactly as `getFullProfile` resolves them, and the preferences they were resolved with. */
+async function targetsWithPreferences(userId: string): Promise<{ preferences: Preferences | undefined; targets: ResolvedTargets | null }> {
+  const [profile, goal, preferences, latestWeightKg, override] = await Promise.all([
+    ProfileRepository.findByUserId(userId),
+    ProfileRepository.findActiveGoal(userId),
+    ProfileRepository.findPreferences(userId),
+    ProgressRepository.findLatestWeight(userId),
+    ProfileRepository.findTargetOverride(userId)
+  ]);
+  const input = targetInput(profile, goal, preferences, latestWeightKg);
+
+  return { preferences, targets: input ? resolveTargets(input, override ?? null) : null };
+}
+
 // --- Controller ---------------------------------------------------------------
 
 export const ProfileController = {
@@ -216,6 +257,7 @@ export const ProfileController = {
     ]);
 
     const input = targetInput(profile, goal, preferences, latestWeightKg);
+    const targets = input ? resolveTargets(input, override ?? null) : null;
 
     return {
       allergies: allergies.map(a => ({
@@ -235,9 +277,10 @@ export const ProfileController = {
       })),
       goal: goal ? presentGoal(goal) : null,
       intolerances: intolerances.map(i => ({ allergenId: i.allergenId, allergenLabel: i.allergenLabel })),
+      mealSize: targets ? mealSizeOf(preferences, targets) : null,
       preferences: preferences ? presentPreferences(preferences) : null,
       profile: profile ? presentProfile(profile) : null,
-      targets: input ? resolveTargets(input, override ?? null) : null
+      targets
     };
   },
 
@@ -265,6 +308,17 @@ export const ProfileController = {
   },
 
   /**
+   * `getFullProfile`'s `mealSize` alone, for the allowances the generation
+   * screen reads (project 016): the same shape and the same effective targets
+   * the generation will size the plates to, or null until there are targets.
+   */
+  async mealSize(userId: string): Promise<MealSizeView | null> {
+    const { preferences, targets } = await targetsWithPreferences(userId);
+
+    return targets ? mealSizeOf(preferences, targets) : null;
+  },
+
+  /**
    * Marks the tour shown, or asks for it again (`0038`).
    *
    * A timestamp rather than a flag, because "when" answers a question a flag
@@ -284,16 +338,7 @@ export const ProfileController = {
    * text it has no consent to show.
    */
   async targets(userId: string): Promise<ResolvedTargets | null> {
-    const [profile, goal, preferences, latestWeightKg, override] = await Promise.all([
-      ProfileRepository.findByUserId(userId),
-      ProfileRepository.findActiveGoal(userId),
-      ProfileRepository.findPreferences(userId),
-      ProgressRepository.findLatestWeight(userId),
-      ProfileRepository.findTargetOverride(userId)
-    ]);
-    const input = targetInput(profile, goal, preferences, latestWeightKg);
-
-    return input ? resolveTargets(input, override ?? null) : null;
+    return (await targetsWithPreferences(userId)).targets;
   },
 
   async updateGoal(userId: string, input: UpdateGoal): Promise<GoalView> {

@@ -69,6 +69,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
   const tiers = dictionary.adminAccounts.tiers;
 
   const flagLabel: Readonly<Record<FlagName, string>> = {
+    accompaniments: admin.accompanimentsLabel,
     automaticActivation: admin.automaticActivation,
     checkInReminders: admin.remindersTitle,
     dishPictures: admin.picturesLabel,

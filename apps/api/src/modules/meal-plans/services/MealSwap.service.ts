@@ -1,13 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { normaliseForMatching } from 'core/domain/Safety';
+import { dishSafety, normaliseForMatching } from 'core/domain/Safety';
+import { accompanimentRows, larderFor } from 'core/domain/Accompaniment';
 import { buildShoppingList } from 'core/domain/ShoppingList';
 import { axisFilter, pickReplacement } from 'core/domain/Scheduler';
 import { minimumDailyKcal } from 'core/domain/Nutrition';
+import { leaningSlugs } from 'core/domain/Preference';
 import { ConflictError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
 import { PlanController } from 'core/controllers/Plan';
 import { ProfileConsentController, ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
+import { SettingsController } from 'core/controllers/Settings';
 
 import { PoolBuilder } from '../../ai/services/PoolBuilder.service.js';
 import { likedFoodNames, promptPreferences, toRecipeDraft } from './GenerationShared.js';
@@ -80,21 +83,27 @@ export class MealSwapService {
       throw new NotFoundError('Meal not found');
     }
 
-    if (!review && anchor.plan.status !== 'active') {
+    // The plan waiting for its day is the person's own coming fortnight
+    // (project 015): its meals may be swapped, counted against its own swaps.
+    if (!review && anchor.plan.status !== 'active' && anchor.plan.status !== 'scheduled') {
       throw new ConflictError('Only the active plan can be changed');
     }
 
-    const mealSwaps = review ? await PlanController.mealSwapStanding(userId, anchor.plan.id) : (await PlanController.allowances(userId)).mealSwaps;
+    const mealSwaps =
+      review || anchor.plan.status === 'scheduled'
+        ? await PlanController.mealSwapStanding(userId, anchor.plan.id)
+        : (await PlanController.allowances(userId)).mealSwaps;
 
     if (!mealSwaps.allowed) {
       throw new QuotaExceededError('meal_swap');
     }
 
-    const [context, verdicts, profile, meals] = await Promise.all([
+    const [context, verdicts, profile, meals, accompanied] = await Promise.all([
       RecipeController.generationContext(userId),
       RecipeController.verdicts(userId),
       ProfileController.getFullProfile(userId),
-      PlanController.composition(userId, anchor.plan.id, review !== undefined)
+      PlanController.composition(userId, anchor.plan.id, review !== undefined),
+      SettingsController.accompaniments()
     ]);
     const current = meals.find(meal => meal.id === mealId);
 
@@ -106,7 +115,7 @@ export class MealSwapService {
     // is out, so its own dish may not come straight back into the same slot.
     const placed: Placement[] = meals
       .filter(meal => meal.id !== mealId)
-      .map(meal => ({ dayIndex: meal.dayIndex, dishSlug: meal.recipeSlug, slot: meal.slot }));
+      .map(meal => ({ dayIndex: meal.dayIndex, dishSlug: meal.recipeSlug, slot: meal.slot, starch: meal.starch }));
     const inPlan = new Set(meals.map(meal => meal.recipeSlug));
     const disliked = new Set(verdicts.disliked.map(dish => dish.slug));
     // The meal's own planned figures are the budget: the day's totals stay where
@@ -131,7 +140,7 @@ export class MealSwapService {
     };
     const leaning = {
       preferCuisines: new Set(profile.cuisines.map(cuisine => normaliseForMatching(cuisine))),
-      preferIngredientSlugs: context.preferences.preferredIngredientSlugs,
+      preferIngredientSlugs: leaningSlugs(context.preferences),
       preferSlugs: new Set(verdicts.liked.map(dish => dish.slug))
     };
     // What this plate must carry for its day to stay over the floor: the floor,
@@ -141,7 +150,28 @@ export class MealSwapService {
       .filter(meal => meal.dayIndex === current.dayIndex && meal.id !== mealId)
       .reduce((sum, meal) => sum + meal.macros.kcal, 0);
     const plateMinimumKcal = minimumDailyKcal(profile.profile?.sex ?? 'prefer_not_to_say') - restOfDayKcal;
-    const pick = { budget, catalogue: context.catalogue, dayIndex: current.dayIndex, filter, leaning, placed, plateMinimumKcal, slot: current.slot };
+    // What may go beside the new plate (project 016), behind its flag: this
+    // person's larder from the same context the dish is chosen by, in the month
+    // of the day being swapped. The budget stays the whole meal.
+    const sides = accompanied
+      ? {
+          accompaniments: {
+            larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }),
+            month: Number(anchor.day.date.slice(5, 7))
+          }
+        }
+      : {};
+    const pick = {
+      ...sides,
+      budget,
+      catalogue: context.catalogue,
+      dayIndex: current.dayIndex,
+      filter,
+      leaning,
+      placed,
+      plateMinimumKcal,
+      slot: current.slot
+    };
 
     const library = (await RecipeController.reusablePool([current.slot], context)).filter(dish => !inPlan.has(dish.slug) && !disliked.has(dish.slug));
     let replacement = pickReplacement({ ...pick, pool: library });
@@ -190,6 +220,17 @@ export class MealSwapService {
     }
 
     const swapped = replacement;
+
+    // The gate over what is about to be written, plate and sides together, as
+    // generation runs it over the assembled plan: the pool and the larder were
+    // each filtered on the way in, and the meal is what the person eats.
+    const safety = dishSafety(swapped.ingredients, context.catalogue, context.safety);
+
+    if (safety.kind !== 'safe') {
+      this.logger.error(`Swap of meal ${mealId} (${current.slot}) rejected by the allergy gate: ${safety.kind}`);
+      throw new ConflictError('No dish fits this meal right now');
+    }
+
     const shopping = buildShoppingList(
       { days: groupByDay(meals.map(meal => (meal.id === mealId ? { ...meal, ingredients: swapped.ingredients } : meal))) },
       context.catalogue,
@@ -199,7 +240,15 @@ export class MealSwapService {
     await PlanController.swapMeal(
       userId,
       mealId,
-      { locale: context.locale, macros: swapped.macros, newRecipe, recipeSlug: swapped.dish.slug, servings: swapped.servings, source },
+      {
+        accompaniments: accompanimentRows(swapped.accompaniments, context.catalogue),
+        locale: context.locale,
+        macros: swapped.macros,
+        newRecipe,
+        recipeSlug: swapped.dish.slug,
+        servings: swapped.servings,
+        source
+      },
       shopping.items.map(item => ({
         category: item.category,
         displayQuantity: item.displayQuantity,

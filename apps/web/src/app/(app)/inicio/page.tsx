@@ -13,12 +13,13 @@ import { MealRow } from 'components/MealRow';
 import { NextMeal } from 'components/NextMeal';
 import { PlanPendingNotice } from 'components/PlanPendingNotice';
 import { PlanProgress } from 'components/PlanProgress';
+import { ScheduledPlanCard } from 'components/ScheduledPlanCard';
 import { ShoppingSnapshot } from 'components/ShoppingSnapshot';
 import { TargetProgress } from 'components/TargetProgress';
 import { Tour } from 'components/Tour';
 import { WeightTracker } from 'components/WeightTracker';
 
-import { formatDate, formatNumber, interpolate } from 'lib/format';
+import { formatDate, formatNumber, interpolate, localIsoDate } from 'lib/format';
 import { redirectIfOnboardingIncomplete, redirectIfProfileConsentMissing } from 'lib/onboarding';
 import { resumesOn } from 'lib/vacation';
 import { serverApi } from 'lib/server-api';
@@ -65,12 +66,14 @@ export default async function DashboardPage() {
   await redirectIfOnboardingIncomplete();
   await redirectIfProfileConsentMissing();
 
-  const [dictionary, locale, user, profile, plan, shopping, weight, checkIn, trips] = await Promise.all([
+  const [dictionary, locale, user, profile, plan, scheduled, shopping, weight, checkIn, trips] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<UserView>('/users/me'),
     serverApi<FullProfileView>('/profile'),
     serverApi<PlanView | null>('/meal-plans/active'),
+    // A plan chosen to begin on a later day (project 015); 404 is the usual answer.
+    serverApi<PlanView>('/meal-plans/scheduled'),
     // 404s into null when there is no active plan, which is a normal state and
     // why every consumer below is guarded rather than this being awaited apart.
     serverApi<ShoppingListView>('/shopping-lists/active'),
@@ -84,7 +87,7 @@ export default async function DashboardPage() {
   const firstName = (profile?.profile?.displayName ?? user?.name ?? '').split(' ')[0];
   const greeting = t[greetingKey(hour)];
   const hello = firstName ? interpolate(t.greetingNamed, { greeting, name: firstName }) : greeting;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localIsoDate(new Date(), profile?.profile?.timezone);
   const day = plan?.days.find(candidate => candidate.date === today);
   /*
    * There is no day today because the plan was paused around it (`0032`), not
@@ -174,6 +177,7 @@ export default async function DashboardPage() {
                     <div className={`${styles.meals} motion-list`}>
                       {day.meals.map(meal => (
                         <MealRow
+                          accompaniments={meal.accompaniments}
                           id={meal.id}
                           ingredients={meal.ingredients}
                           kcal={meal.kcal}
@@ -202,7 +206,13 @@ export default async function DashboardPage() {
                   </CtaLink>
                 </EmptyState>
               )}
+
+              {scheduled ? <ScheduledPlanCard startDate={scheduled.startDate} /> : null}
             </Fragment>
+          ) : scheduled ? (
+            // Nothing under way and a plan waiting for its day: say when, instead
+            // of offering to build one the person already has.
+            <ScheduledPlanCard startDate={scheduled.startDate} waiting={true} />
           ) : (
             // No "finish your profile" branch: an unfinished profile never reaches
             // this page, it is redirected to its resume step above.

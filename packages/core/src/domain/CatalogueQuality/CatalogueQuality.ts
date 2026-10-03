@@ -13,6 +13,8 @@ import type { RecipeCheck } from 'core/entities/AdminQuery';
  * it serves — its servings, and the meals it names.
  */
 export type QualityRecipe = {
+  /** Decides where its rice, pasta, grains, potato and pulses fit (`0079`); absent is judged as Spanish. */
+  readonly cuisine?: string | null;
   readonly items: readonly { readonly grams: number; readonly slug: string }[];
   /** The `meal_slots` column as it holds them; anything that is not a meal is ignored. */
   readonly mealSlots: readonly string[];
@@ -55,7 +57,7 @@ function slotsOf(mealSlots: readonly string[]): MealSlot[] {
  */
 export function qualityFlags(recipe: QualityRecipe, catalogue: Catalogue, currentStepsVersion: string): QualityFlags {
   const slots = slotsOf(recipe.mealSlots);
-  const dish = { ingredients: [...recipe.items], servings: recipe.servings, slots };
+  const dish = { cuisine: recipe.cuisine ?? null, ingredients: [...recipe.items], servings: recipe.servings, slots };
   const composed = recipe.servings > 0 ? composePerServing(dish, catalogue) : undefined;
   // No meals means no cap to be past: `servingCap([])` is minus infinity.
   const kcal = composed?.ok === true && slots.length > 0 ? composed.macros.kcal : undefined;

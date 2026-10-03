@@ -17,7 +17,9 @@ and none of them belongs in the repository.
 
 ```bash
 export PROBE_DIR="<your scratchpad directory>/probe"
+export NUTRIA_LOCAL_PG=1          # the API and account.mjs use the local Postgres, never Neon
 S=.claude/skills/local-probe/scripts
+pnpm db:local status              # not running? pnpm db:local start (or reset for a fresh one)
 ```
 
 ## 1. Start
@@ -27,7 +29,8 @@ sh $S/servers.sh start            # builds both; about two minutes
 sh $S/servers.sh start --no-build # only when nothing changed since the last build
 ```
 
-It refuses if ports 3000 or 3001 are taken, or if `apps/api/.env` points at production.
+It refuses if ports 3000 or 3001 are taken, or if `apps/api/.env` points at production
+(under `NUTRIA_LOCAL_PG=1` it checks the local URL instead, and `.env` is not read for it).
 It starts the API first and builds the web app against it, on purpose: the sign-in pages
 ask the API which provider buttons to draw while they prerender.
 

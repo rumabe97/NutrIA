@@ -475,3 +475,44 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   and cross-fortnight variety are preferences, and a preference never costs someone
   their plan. Only structure and safety do.
 
+
+## 2026-10-02 — Task (queued): re-source the 14 BEDCA catalogue rows to public-domain USDA data
+
+- **Why:** BEDCA's terms allow electronic use only when it is "personal, educacional o no comercial", unless AESAN gives express authorisation. NutrIA is commercial. The owner decided not to ask for that authorisation and to use public-domain data instead. The `architect` raised this during project 016 phase 2.
+- **Scope:** the 14 seed rows with `source: 'bedca'`, all in `packages/database/src/seed/ingredients/`: jamón serrano, jamón cocido, bacalao desalado, dorada, lubina, sardina, pulpo cocido, queso de Burgos, kéfir, vinagre de Jerez, tomate frito, picos de pan, filete de merluza congelado, aceitunas verdes, salsa alioli.
+- **The work:**
+  - Replace each row's values with the closest USDA FoodData Central food (public domain), and record its FDC id.
+  - Ship a reviewed data migration for the catalogue rows already in production. Stored meals keep their snapshot macros.
+  - Drop "BEDCA" from the web nutrition note (es-ES and en-GB `note`) and from the seed comments.
+  - Re-run the evaluator.
+- **Status:** queued after project 015 phase 2. Owner decision of 2026-10-02.
+
+## 2026-10-02 — Project (queued): 018, more accompaniments (was numbered 017; renumbered when scheduler tuning went first)
+
+- **Why:** project 016 ships 46 accompaniments in code (10 starch, 15 vegetable, 21 dessert; 18 composed, each with a fixed preparation line). The owner wants more variety beside meals.
+- **Method (owner chose two of three options):**
+  - Batches in code. An `architect` drafts by cuisine family from public sources (USDA, never BEDCA); the owner approves; `backend` adds them; the evaluator checks 14/14 days in band and variety.
+  - A model may draft candidates offline, but every entry is reviewed by a person before it goes in.
+  - Missing ingredients come in through a reviewed data migration.
+  - Not chosen for now: a database table with an `/admin` editor. To revisit when the dietitian workspace is in real use.
+- **First batch:** about 40.
+  - First the Spanish sides that are missing: vegetable creams, caldo, roasted peppers, menestra, mushrooms, wholemeal bread, picos.
+  - Then the families with 2–3 options each (Asian, Mexican, Middle Eastern), and breakfast.
+- **Status:** queued after project 016 closes. Owner decision of 2026-10-02.
+
+## 2026-10-02 — Project (queued): scheduler tuning after 016
+
+- **Why:**
+  - With accompaniments on (on in production since 2026-10-02), generation spends 35–110 s of CPU per plan in `schedulePlan`, against about 19 s off. Five at once hit the 280 s timeout, and the e2e job went from about 12 to about 23 min.
+  - Project 016 phase 7 lost one day in band on two profiles with the flag on.
+- **Scope:**
+  1. **Speed, with byte-identical plans.** The branch `agent/sides-perf/backend-h` is in progress; then the e2e speed-up at `agent/sides-speed/tests-g` 724e3870.
+  2. **Win back the two days:** `objetivo-bajo-3-comidas` (from the starch rule) and `objetivo-alto-5-comidas` (from Italian pasta becoming lunch-only), protein 5.4% and 5.1%.
+  3. **Decide whether the pasta/rice cap of 4 becomes hard**, measured in days in band.
+- **Status:** queued. Owner decision of 2026-10-02 ("hazlo en el siguiente proyecto"). The lead recommends it before 017, because 017's extra sides would widen the same search.
+
+## 2026-10-02 — Project 017 planned: every day in band, every starch counted
+
+- The scheduler tuning queued above became `docs/projects/017-every-day-in-band/`, with the PRD approved by the owner: option (a) for the reference library, and "the macros win" over a hard cap.
+- Speed is already done (#198).
+- More accompaniments becomes 018.

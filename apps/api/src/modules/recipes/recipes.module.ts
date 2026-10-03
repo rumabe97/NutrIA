@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { CronController, RecipesController } from './controllers/index.js';
 import { envProvider } from '../../config/index.js';
 import { ExpiredInvitationsService } from '../care/services/ExpiredInvitations.service.js';
+import { DuePlansService } from '../meal-plans/services/DuePlans.service.js';
 import { EmailModule } from '../email/email.module.js';
 import { ExpiredVerificationsService } from '../auth/services/ExpiredVerifications.service.js';
 import { NotificationsModule } from '../notifications/index.js';
@@ -21,6 +22,14 @@ import { TwoFactorRemovalsService } from '../auth/services/TwoFactorRemovals.ser
   controllers: [CronController, RecipesController],
   // `EmailModule`: the removal of a second factor is mailed to the account (PLAN 011 phase 4).
   imports: [EmailModule, NotificationsModule, OwnerAlertsModule],
-  providers: [CronRunService, envProvider, ExpiredInvitationsService, ExpiredVerificationsService, RecipesService, TwoFactorRemovalsService]
+  providers: [
+    CronRunService,
+    DuePlansService,
+    envProvider,
+    ExpiredInvitationsService,
+    ExpiredVerificationsService,
+    RecipesService,
+    TwoFactorRemovalsService
+  ]
 })
 export class RecipesModule {}

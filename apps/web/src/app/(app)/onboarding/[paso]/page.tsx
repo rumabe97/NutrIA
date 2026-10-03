@@ -29,8 +29,9 @@ export default async function OnboardingStepPage({
   searchParams: Promise<{ volver?: string }>;
 }) {
   const [{ paso }, { volver }] = await Promise.all([params, searchParams]);
-  // Only the profile sends people here to edit one step; anything else is the flow itself.
-  const returnTo = volver === 'perfil' ? '/perfil' : null;
+  // Only the profile, and the note before generating, send people here to edit one
+  // step; anything else is the flow itself. A list of two, never an address taken from the URL.
+  const returnTo = volver === 'perfil' ? '/perfil' : volver === 'generando' ? '/plan/generando' : null;
   const step = Number(paso);
 
   if (!Number.isInteger(step) || step < 1 || step > TOTAL_STEPS) {
