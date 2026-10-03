@@ -11,6 +11,7 @@ import {
   completeOnboarding,
   createApp,
   deleteAccounts,
+  enableTotp,
   generateAndWait,
   httpServer,
   openPractice,
@@ -100,6 +101,8 @@ describe('a professional publishes over a scheduled plan', () => {
     professional = await make('pro');
     client = await make('client');
     await UserController.grantAdmin(owner.email);
+    owner = await enableTotp(app, owner);
+    made.push(owner.cookie);
     await SettingsController.setFlag('professional', true, UNAUDITED);
     await request(server())
       .post(`/${PREFIX}/admin/accounts/${professional.id}/professional`)
@@ -108,6 +111,8 @@ describe('a professional publishes over a scheduled plan', () => {
       .expect(201);
     await acceptAgreement(app, professional);
     await openPractice(professional.id);
+    professional = await enableTotp(app, professional);
+    made.push(professional.cookie);
     await completeOnboarding(app, client);
 
     // The client's running plan, eight days in, and the next one scheduled for the day after it.

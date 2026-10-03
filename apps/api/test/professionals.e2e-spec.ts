@@ -4,6 +4,7 @@ import request from 'supertest';
 import { ProfessionalController } from 'core/controllers/Professional';
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { UserController } from 'core/controllers/User';
+import { database } from 'database';
 
 import {
   activate,
@@ -11,11 +12,13 @@ import {
   completeOnboarding,
   createApp,
   deleteAccounts,
+  enableTotp,
   httpServer,
   openPractice,
   PREFIX,
   register,
-  ScriptedAiClient
+  ScriptedAiClient,
+  signInWithTotp
 } from './harness.js';
 
 import type { Account } from './harness.js';
@@ -53,6 +56,12 @@ const NUMBER = '28/12345';
 const SMUGGLED = { collegiateNumber: NUMBER, isProfessional: true, professional: true, role: 'admin', tier: 'premium' };
 /** The four verbs the sweep against `/care/*` needs; `delete` is a client route, never a professional one. */
 type Method = 'get' | 'patch' | 'post';
+
+/** Parameterised SQL through the process's one pool, as `care.e2e-spec.ts` reads its tables. */
+function tables(): <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> {
+  return (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> })
+    .$client;
+}
 
 describe('professionals', () => {
   let app: INestApplication;
@@ -111,6 +120,9 @@ describe('professionals', () => {
     granted = await register(app, `pro-granted-${stamp}@e2e.invalid`);
     made.push(granted.cookie);
     await UserController.grantAdmin(owner.email);
+    // The console is shut to an admin with a password and no TOTP (PLAN 011 phase 6); the confirmation rotates the session.
+    owner = await enableTotp(app, owner);
+    made.push(owner.cookie);
     // On for the whole suite, so every "changed nothing" below is checked with
     // the switch in the position where a row *would* open the workspace.
     await setSwitch(true);
@@ -420,8 +432,11 @@ describe('professionals', () => {
         .set('Cookie', owner.cookie)
         .send({ collegiateNumber: `28/${String(Date.now()).slice(-6)}` })
         .expect(201);
-      // Open from the start, so every 404 below is about the agreement alone — ProfessionalGuard needs both, and this test is about the one `care-practice.e2e-spec.ts` is not.
+      // Open from the start, and TOTP on, so every 404 below is about the agreement alone — ProfessionalGuard needs all
+      // three, and this test is about the one `care-practice.e2e-spec.ts` and the second factor's below are not.
       await openPractice(unaccepted.id);
+      unaccepted = await enableTotp(app, unaccepted);
+      made.push(unaccepted.cookie);
     });
 
     it('is a 404 on every professional route but the practice page, until the current agreement is accepted — any other version refused first', async () => {
@@ -481,6 +496,140 @@ describe('professionals', () => {
         .expect(204);
       expect((await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', unaccepted.cookie).expect(200)).body).toMatchObject({
         agreementAcceptedAt: acceptedAt
+      });
+    });
+  });
+
+  /*
+   * PLAN 011 phase 6 (PRD 11): a client route reads somebody's health data, so a
+   * professional who can sign in with a password must have the authenticator
+   * app on. Without it every client route is the guard's 404 and the workspace's
+   * page says so (`secondFactorRequired`); with it, they work as today; a
+   * Google-only professional — no `credential` account — is never blocked.
+   */
+  describe('the second factor', () => {
+    const CLIENT_ROUTES: readonly [Method, string][] = [
+      ['get', '/care/clients'],
+      ['get', '/care/clients/not-a-link'],
+      ['patch', '/care/clients/not-a-link'],
+      ['patch', '/care/clients/not-a-link/targets'],
+      ['get', '/care/clients/not-a-link/plan/pending'],
+      ['post', '/care/clients/not-a-link/plan/generate'],
+      ['post', '/care/clients/not-a-link/plan/publish'],
+      ['post', '/care/invitations']
+    ];
+
+    /** Granted, agreement accepted, practice open: everything but the second factor. */
+    async function practising(label: string): Promise<Account> {
+      const who = await register(app, `pro-2fa-${label}-${Date.now()}@e2e.invalid`);
+
+      made.push(who.cookie);
+      await request(httpServer(app))
+        .post(`/${PREFIX}/admin/accounts/${who.id}/professional`)
+        .set('Cookie', owner.cookie)
+        .send({ collegiateNumber: `28/${String(Date.now()).slice(-6)}` })
+        .expect(201);
+      await openPractice(who.id);
+      await request(httpServer(app))
+        .post(`/${PREFIX}/care/practice/agreement`)
+        .set('Cookie', who.cookie)
+        .send({ version: PROFESSIONAL_AGREEMENT_VERSION })
+        .expect(204);
+
+      return who;
+    }
+
+    async function expectShut(who: Account): Promise<void> {
+      for (const [method, path] of CLIENT_ROUTES) {
+        const refused: Response = await request(httpServer(app))[method](`/${PREFIX}${path}`).set('Cookie', who.cookie).send({});
+
+        // The guard's own 404, byte for byte: nothing says the workspace is there, or why.
+        expect([refused.status, refused.body]).toEqual([404, { code: 'NOT_FOUND', message: 'Not Found', statusCode: 404 }]);
+      }
+    }
+
+    it('shuts every client route to a professional with a password and no TOTP, keeps the page open, and the page says why', async () => {
+      const server = httpServer(app);
+      const pro = await practising('off');
+
+      await expectShut(pro);
+
+      const page: Response = await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', pro.cookie).expect(200);
+
+      expect(page.body).toMatchObject({ agreementRequired: false, open: true, secondFactorRequired: true });
+      // Being told is all the page does: the professional is still one, on their own `/users/me`.
+      expect(await meBody(pro)).toMatchObject({ professional: true });
+    });
+
+    it('opens them once TOTP is on, and shuts them again on the very next request once it is off', async () => {
+      const server = httpServer(app);
+      const enabled = await enableTotp(app, await practising('on'));
+
+      made.push(enabled.cookie);
+      await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', enabled.cookie).expect(200);
+      expect((await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', enabled.cookie).expect(200)).body).toMatchObject({
+        secondFactorRequired: false
+      });
+
+      // A second session, opened on another device while the factor is on: it existed before the factor went off,
+      // so it proves the flag is read afresh on every request, not carried in whatever the session was made with.
+      const elsewhere = { ...enabled, cookie: await signInWithTotp(app, enabled) };
+
+      made.push(elsewhere.cookie);
+      await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', elsewhere.cookie).expect(200);
+
+      // Turned off from "Seguridad", with the password: the session rotates, and the door shuts with it.
+      const disabled: Response = await request(server)
+        .post(`/${PREFIX}/auth/two-factor/disable`)
+        .set('Cookie', enabled.cookie)
+        .send({ password: 'correct-horse-battery-staple-9' })
+        .expect(200);
+      const off = { ...enabled, cookie: (disabled.headers['set-cookie'] as unknown as string[]).join('; ') };
+
+      made.push(off.cookie);
+
+      for (const who of [elsewhere, off]) {
+        await expectShut(who);
+        expect((await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', who.cookie).expect(200)).body).toMatchObject({
+          secondFactorRequired: true
+        });
+      }
+    });
+
+    /* The legal review of phase 6: a session opened with the password alone must not ride the factor in. */
+    it('closes every other session when TOTP goes on, so one opened earlier with the password alone never reaches a client', async () => {
+      const server = httpServer(app);
+      const pro = await practising('stolen');
+      // Somebody else who knows the password, signed in before the professional turned the factor on.
+      const signedIn: Response = await request(server)
+        .post(`/${PREFIX}/auth/sign-in/email`)
+        .send({ email: pro.email, password: 'correct-horse-battery-staple-9' })
+        .expect(200);
+      const stolen = { ...pro, cookie: (signedIn.headers['set-cookie'] as unknown as string[]).join('; ') };
+
+      await expectShut(stolen);
+      // Live before: so the 404 afterwards is the close, not a cookie that never worked.
+      await request(server).get(`/${PREFIX}/users/me`).set('Cookie', stolen.cookie).expect(200);
+
+      const enabled = await enableTotp(app, pro);
+
+      made.push(enabled.cookie);
+      await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', enabled.cookie).expect(200);
+      // Closed, not merely refused: the session itself is gone, on every route.
+      await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', stolen.cookie).expect(404);
+      await request(server).get(`/${PREFIX}/users/me`).set('Cookie', stolen.cookie).expect(404);
+    });
+
+    it('never blocks a professional with no password — a Google-only account’s second factor is Google’s', async () => {
+      const server = httpServer(app);
+      const pro = await practising('google');
+
+      // What a Google-only account is to the rule: no `credential` account. The session stays as it was.
+      await tables()`delete from account where user_id = ${pro.id} and provider_id = 'credential'`;
+
+      await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', pro.cookie).expect(200);
+      expect((await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', pro.cookie).expect(200)).body).toMatchObject({
+        secondFactorRequired: false
       });
     });
   });

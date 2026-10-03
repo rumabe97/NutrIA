@@ -48,7 +48,8 @@ describe('AdminAccountsController', () => {
                 email: 'owner@example.invalid',
                 emailVerified: true,
                 name: 'Owner',
-                role: 'admin'
+                role: 'admin',
+                twoFactorEnabled: true
               };
 
               return true;

@@ -8,7 +8,7 @@ import { monthStart } from 'core/controllers/Recipe';
 import { database } from 'database';
 
 import { AI_REWRITE_CLIENT } from '../src/modules/ai/ai.config.js';
-import { createApp, deleteAccounts, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import { createApp, deleteAccounts, enableTotp, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
 
 import type { Account } from './harness.js';
 import type { INestApplication } from '@nestjs/common';
@@ -111,8 +111,9 @@ describe('the text models’ month against a cap (0071, phase 4)', () => {
     // The sweep asks its own client (built from the environment, so a stub in this run): the scripted one stands in, to prove it is never asked.
     app = await createApp(ai, builder => builder.overrideProvider(AI_REWRITE_CLIENT).useValue(ai));
     owner = await register(app, `text-cap-owner-${Date.now()}@e2e.invalid`);
-    made.push(owner.cookie);
     await UserController.grantAdmin(owner.email);
+    owner = await enableTotp(app, owner);
+    made.push(owner.cookie);
   });
 
   afterAll(async () => {

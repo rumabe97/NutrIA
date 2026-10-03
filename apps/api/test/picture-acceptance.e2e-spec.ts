@@ -29,6 +29,7 @@ import {
   completeOnboarding,
   createApp,
   deleteAccounts,
+  enableTotp,
   generateAndWait,
   httpServer,
   POOL,
@@ -608,12 +609,14 @@ describe('the owner accepts a picture against the judge, and takes it back (0072
     await sql()`update recipe_images set provenance = provenance - 'candidate' where recipe_id::text = any(${held.map(found => found.recipeId)})`;
 
     owner = await register(app, `picture-acceptance-owner-${stamp}@e2e.invalid`);
-    made.push(owner.cookie);
     await UserController.grantAdmin(owner.email);
+    owner = await enableTotp(app, owner);
+    made.push(owner.cookie);
 
     deputy = await register(app, `picture-acceptance-deputy-${stamp}@e2e.invalid`);
-    made.push(deputy.cookie);
     await UserController.grantAdmin(deputy.email);
+    deputy = await enableTotp(app, deputy);
+    made.push(deputy.cookie);
 
     ordinary = await register(app, `picture-acceptance-ordinary-${stamp}@e2e.invalid`);
     made.push(ordinary.cookie);

@@ -2,6 +2,7 @@ import { CanActivate, Injectable, NotFoundException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 import { ProfessionalController } from 'core/controllers/Professional';
+import { UserController } from 'core/controllers/User';
 
 import { BEFORE_PRACTICE_KEY } from '../decorators/BeforePractice.decorator.js';
 
@@ -39,6 +40,15 @@ import type { ExecutionContext } from '@nestjs/common';
  * `@BeforePractice()` — the workspace's page and accepting the agreement — are
  * the way to both, so they need neither.
  *
+ * **And a second factor** (PLAN 011 phase 6, `0074`): a client route reads
+ * somebody else's health data, so a professional who can sign in with a
+ * password must have the authenticator app on — `UserController.needsSecondFactor`,
+ * the same 404 otherwise. An account with only Google or Apple passes, and so
+ * does a passkey sign-in on an account with TOTP on (`0083`): the rule asks
+ * about the account, never how this session was opened. The workspace's page
+ * and the agreement stay open without it, `@BeforePractice()` again: the page
+ * is where the professional is told to turn it on.
+ *
  * Everything is read on every request and never cached, for the reason
  * `SessionGuard` re-reads the session: revoking the grant, throwing the
  * switch off, or a practice lapsing closes access on the very next request.
@@ -62,6 +72,10 @@ export class ProfessionalGuard implements CanActivate {
 
     if (beforePractice) {
       return true;
+    }
+
+    if (await UserController.needsSecondFactor(user)) {
+      throw new NotFoundException();
     }
 
     const practice = await ProfessionalController.find(user.id);
