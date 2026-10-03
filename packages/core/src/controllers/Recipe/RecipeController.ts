@@ -14,7 +14,7 @@ import { breaksDishRule, breaksPatternDish, freeFromExclusions, resolvePreferenc
 import { SafetyController } from 'core/controllers/Safety';
 import { SettingsController } from 'core/controllers/Settings';
 import { PlanRepository } from '#repositories/Plan';
-import { requireProfileConsent } from 'core/controllers/Profile';
+import { personToday, requireProfileConsent } from 'core/controllers/Profile';
 import { AuditRepository } from '#repositories/Audit';
 import { NotFoundError, OnboardingIncompleteError, PictureRetryRefusedError, PlanPausedError } from 'core/entities/Error';
 import { OnboardingRepository } from '#repositories/Onboarding';
@@ -994,7 +994,7 @@ export const RecipeController = {
      * "while I am away, my plan does not change". One exception to that is a
      * rule nobody remembers.
      */
-    const today = new Date().toISOString().slice(0, 10);
+    const today = await personToday(userId);
 
     if ((await VacationRepository.findUpcoming(userId, today)).some(trip => isAway(trip, today))) {
       throw new PlanPausedError();

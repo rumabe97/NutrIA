@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { NotificationController } from 'core/controllers/Notification';
 import { SettingsController } from 'core/controllers/Settings';
+import { personDayKey } from 'core/domain/Period';
 import { webUrl } from 'core/domain/WebUrl';
 
 import { checkInReminderEmail, checkInReminderPush, checkInReminderRecord } from '../../email/templates/CheckInReminder.js';
@@ -61,7 +62,13 @@ export class CheckInReminderService {
     private readonly reporter: ErrorReporter
   ) {}
 
-  async sweep(today = new Date().toISOString().slice(0, 10)): Promise<ReminderRun> {
+  /**
+   * One sweep for everybody, so one day for everybody: the product's zone
+   * (Madrid), the one every profile keeps unless it says otherwise — never the
+   * UTC date, which is yesterday for an hour or two after Madrid's midnight.
+   * The cron runs at 08:00 UTC, when the two agree anyway.
+   */
+  async sweep(today = personDayKey(new Date(), null)): Promise<ReminderRun> {
     if (!(await SettingsController.checkInReminders())) {
       this.logger.log('Check-in reminders skipped: switched off on /admin');
 

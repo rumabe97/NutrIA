@@ -1,7 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
-import { completeOnboarding, createApp, deleteAccounts, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import {
+  completeOnboarding,
+  createApp,
+  deleteAccounts,
+  generateAndWait,
+  httpServer,
+  madridToday,
+  POOL,
+  PREFIX,
+  register,
+  ScriptedAiClient
+} from './harness.js';
 
 import type { Account } from './harness.js';
 import type { INestApplication } from '@nestjs/common';
@@ -94,7 +105,7 @@ describe('vacations', () => {
   });
 
   it('refuses a trip that would move a day somebody has already eaten', async () => {
-    const yesterday = addDays(new Date().toISOString().slice(0, 10), -1);
+    const yesterday = addDays(madridToday(), -1);
 
     await request(httpServer(app))
       .post(`/${PREFIX}/vacations`)
@@ -115,7 +126,7 @@ describe('vacations', () => {
   });
 
   it('refuses one that ends before it starts, and one longer than a season', async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = madridToday();
     const server = httpServer(app);
 
     await request(server)
@@ -154,7 +165,7 @@ describe('vacations', () => {
 
   it('will not let one account cancel another account trip', async () => {
     const server = httpServer(app);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = madridToday();
     const mine: Response = await request(server)
       .post(`/${PREFIX}/vacations`)
       .set('Cookie', account.cookie)
@@ -176,7 +187,7 @@ describe('vacations', () => {
 
   it('refuses every change to a plan while its owner is away', async () => {
     const server = httpServer(app);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = madridToday();
     const plan = await activePlan(account);
     const meal = plan.days[0].meals[0];
     const detail: Response = await request(server).get(`/${PREFIX}/meal-plans/meals/${meal.id}`).set('Cookie', account.cookie).expect(200);
@@ -232,7 +243,7 @@ describe('vacations', () => {
 
     made.push(traveller.cookie);
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = madridToday();
     const startsOn = addDays(today, 2);
 
     await completeOnboarding(app, traveller);

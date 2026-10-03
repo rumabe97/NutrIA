@@ -31,7 +31,7 @@ export const VacationRepository = {
    * A plan that waits for its day leaves the active one standing (project 015),
    * so this is no longer the only plan the person has.
    */
-  async applyTo(userId: string, planId: string, today = new Date().toISOString().slice(0, 10)): Promise<void> {
+  async applyTo(userId: string, planId: string, today: string): Promise<void> {
     try {
       const trips = await VacationRepository.findUpcoming(userId, today);
 

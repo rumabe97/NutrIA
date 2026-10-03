@@ -37,6 +37,7 @@ vi.mock('#repositories/Progress', () => ({
 vi.mock('#repositories/Care', () => ({ CareRepository: { clientLink: (clientId: string) => clientLink(clientId) } }));
 vi.mock('#repositories/Profile', () => ({ ProfileRepository: { findTargetSetterId: (userId: string) => findTargetSetterId(userId) } }));
 vi.mock('core/controllers/Profile', () => ({
+  personToday: async () => Promise.resolve('2026-09-24'),
   ProfileController: {
     getFullProfile: (...args: Parameters<typeof getFullProfile>) => getFullProfile(...args),
     updateTargets: (...args: Parameters<typeof updateTargets>) => updateTargets(...args)
