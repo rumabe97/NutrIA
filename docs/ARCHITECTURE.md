@@ -188,6 +188,7 @@ Our hooks add the rules the plugin lacks:
   the code, per `0074`);
 - trusted devices are forgotten on disable, password change, reset and
   revoke-(other-)sessions;
+- turning it on closes every other session of the account (011 phase 6);
 - turning it on, off, using a backup code and regenerating codes are each audited and
   mailed.
 
@@ -211,6 +212,23 @@ Our hooks add the rules the plugin lacks:
 - a passkey sign-in cancels a pending removal of the second factor;
 - adding and removing one are audited, and adding one is mailed;
 - no WebAuthn challenge reaches a log line.
+
+**A professional or the admin with a password must have TOTP on** (011 phase 6, `0074`,
+`0083`). The rule lives once, in `core/domain/SecondFactor` (`secondFactorMissing`): an
+account with a `credential` account and `twoFactorEnabled` off lacks it. An account with
+only Google or Apple passes.
+- `ProfessionalGuard` closes every client route, and `AdminGuard` every `@Roles` route,
+  with the same 404 as any denial. The workspace's page and its agreement stay open, and
+  the page says what to do (`secondFactorRequired`). The console's web gate reads the same
+  rule from `/users/me`.
+- The flag rides every session's user row and is re-read on every request. Turning it off
+  from Seguridad, or the owner's 48-hour removal, shuts the doors on the next request,
+  for sessions that already existed too.
+- Turning it on closes the account's other sessions, so a session opened with the
+  password alone never passes the rule.
+- A passkey does not stand in for TOTP on an account with a password: it guards its own
+  sign-in, not the password door beside it. With TOTP on, a passkey sign-in passes with
+  no code.
 
 **Where onboarding resumes is resolved server-side.** `OnboardingView.resumeStep` is the
 first *missing* required step, not the furthest one reached — `currentStep` is the step

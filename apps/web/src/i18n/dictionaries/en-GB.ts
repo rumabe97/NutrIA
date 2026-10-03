@@ -2328,6 +2328,7 @@ export const enGB: Dictionary = {
         heading: 'Security',
         list: [
           'Protect your access: a password you do not use anywhere else, or sign in with Google. Do not leave the session open on a shared computer.',
+          'If your account has a password, two-step verification with an authenticator app is required: without it your clients’ data does not open, and a passkey does not replace it while your account has a password. You turn it on in your profile, under Security. If you sign in only with Google, keep your Google account’s two-step verification on: we cannot check it.',
           'Do not take screenshots or copies of a client’s page except for your clinical record, and keep them with the same protection as the rest of your clinical documentation.',
           'If you think someone has got into your account or seen a client’s data they should not have, write to {email} as soon as you know, and in any case within 24 hours. We will assess whether the Spanish Data Protection Agency and the clients must be told; if the breach is yours, outside NutrIA, that duty is yours.'
         ],

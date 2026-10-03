@@ -17,7 +17,8 @@ import {
   openPractice,
   PREFIX,
   register,
-  ScriptedAiClient
+  ScriptedAiClient,
+  signInWithTotp
 } from './harness.js';
 
 import type { Account } from './harness.js';
@@ -570,6 +571,13 @@ describe('professionals', () => {
         secondFactorRequired: false
       });
 
+      // A second session, opened on another device while the factor is on: it existed before the factor went off,
+      // so it proves the flag is read afresh on every request, not carried in whatever the session was made with.
+      const elsewhere = { ...enabled, cookie: await signInWithTotp(app, enabled) };
+
+      made.push(elsewhere.cookie);
+      await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', elsewhere.cookie).expect(200);
+
       // Turned off from "Seguridad", with the password: the session rotates, and the door shuts with it.
       const disabled: Response = await request(server)
         .post(`/${PREFIX}/auth/two-factor/disable`)
@@ -579,10 +587,13 @@ describe('professionals', () => {
       const off = { ...enabled, cookie: (disabled.headers['set-cookie'] as unknown as string[]).join('; ') };
 
       made.push(off.cookie);
-      await expectShut(off);
-      expect((await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', off.cookie).expect(200)).body).toMatchObject({
-        secondFactorRequired: true
-      });
+
+      for (const who of [elsewhere, off]) {
+        await expectShut(who);
+        expect((await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', who.cookie).expect(200)).body).toMatchObject({
+          secondFactorRequired: true
+        });
+      }
     });
 
     /* The legal review of phase 6: a session opened with the password alone must not ride the factor in. */

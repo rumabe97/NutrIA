@@ -548,6 +548,27 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
       expect(await flagOf(id)).toBe(false);
     });
 
+    /*
+     * PLAN 011 phase 6: the cron sets the flag off on the table and rotates no session, so this is the stale-session
+     * case — an admin's session opened with the factor on must be shut on its very next request once it is removed.
+     */
+    it('shuts a privileged session that already existed on its next request, once the factor is removed', async () => {
+      const { id, email, jar } = await withFactor('irene', 'Irene Sáez');
+
+      await UserController.grantAdmin(email);
+      expect((await get('admin/accounts', jar.header)).status).toBe(200);
+      expect((await requestRemoval(id)).status).toBe(201);
+      await due(id);
+      expect((await cron()).status).toBe(200);
+      expect(await flagOf(id)).toBe(false);
+
+      const refused = await get('admin/accounts', jar.header);
+
+      expect([refused.status, refused.body]).toEqual([404, { code: 'NOT_FOUND', message: 'Not Found', statusCode: 404 }]);
+      // Still the account's own session: it is the console that shut, not the sign-in.
+      expect((await get('users/me', jar.header)).status).toBe(200);
+    });
+
     it('the run takes only the due request: another account’s, not yet due, is left exactly as it was', async () => {
       const dueOne = await withFactor('fabio', 'Fabio Sanz');
       const waiting = await withFactor('gema', 'Gema Ruiz');

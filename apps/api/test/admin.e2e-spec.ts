@@ -22,7 +22,8 @@ import {
   PREFIX,
   register,
   ScriptedAiClient,
-  SEEDED
+  SEEDED,
+  signInWithTotp
 } from './harness.js';
 
 import type { Account } from './harness.js';
@@ -367,6 +368,46 @@ describe('admin', () => {
       for (const route of ROUTES) {
         await request(server).get(`/${PREFIX}/admin/${route}`).set('Cookie', enabled.cookie).expect(200);
       }
+    });
+
+    it('shuts a session that already existed on the very next request once TOTP is turned off', async () => {
+      const server = httpServer(app);
+      const enabled = await enableTotp(app, await anotherAdmin('turned-off'));
+      // Opened on another device while the factor was on, before it went off: the flag is read afresh, not carried.
+      const elsewhere = await signInWithTotp(app, enabled);
+
+      made.push(enabled.cookie, elsewhere);
+      await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', elsewhere).expect(200);
+      await request(server)
+        .post(`/${PREFIX}/auth/two-factor/disable`)
+        .set('Cookie', enabled.cookie)
+        .send({ password: 'correct-horse-battery-staple-9' })
+        .expect(200);
+
+      const refused: Response = await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', elsewhere);
+
+      expect([refused.status, refused.body]).toEqual([404, NOT_FOUND]);
+    });
+
+    /* The legal review of phase 6: a session opened with the password alone must not ride the factor in. */
+    it('closes every other session when TOTP goes on, so one opened earlier with the password alone never reaches the console', async () => {
+      const server = httpServer(app);
+      const admin = await anotherAdmin('stolen');
+      const signedIn: Response = await request(server)
+        .post(`/${PREFIX}/auth/sign-in/email`)
+        .send({ email: admin.email, password: 'correct-horse-battery-staple-9' })
+        .expect(200);
+      const stolen = (signedIn.headers['set-cookie'] as unknown as string[]).join('; ');
+
+      await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', stolen).expect(404);
+
+      const enabled = await enableTotp(app, admin);
+
+      made.push(enabled.cookie);
+      await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', enabled.cookie).expect(200);
+      await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', stolen).expect(404);
+      // Closed, not merely refused: the session itself is gone.
+      await request(server).get(`/${PREFIX}/users/me`).set('Cookie', stolen).expect(404);
     });
 
     it('never blocks an admin with no password — a Google-only account’s second factor is Google’s', async () => {
