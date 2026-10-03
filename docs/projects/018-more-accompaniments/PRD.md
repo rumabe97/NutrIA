@@ -42,7 +42,7 @@ The same sides come back across a fortnight.
 
 ## Acceptance criteria
 
-1. About 40 new accompaniments are in `ACCOMPANIMENTS`. At least 15 are Spanish-family; each of the Asian, Latin and Arab families gains at least 3; breakfast gains at least 5.
+1. About 40 new accompaniments are in `ACCOMPANIMENTS`. At least 15 are Spanish-family; each of the Asian, Latin and Arab families gains at least 3. *Amended 2026-10-03 (lead, owner's delegation):* no breakfast target. Sides are offered only at lunch and dinner above 700 kcal of share (`MAIN_SLOTS`, `0079`), so breakfast sides would never be served; the slots go to the thin families and to Spanish variety.
 2. Every new entry has catalogue ingredients only. Any new ingredient comes from a USDA FoodData Central row, with its FDC id recorded, through a migration that passes `migration-reviewer`.
 3. Every composed entry has es-ES and en-GB names and a preparation line, and every simple one has a web phrase. The existing coverage tests pass. The oil a preparation line names matches its portion.
 4. On the reference library (`pnpm db:local reset --reference`, `NUTRIA_LOCAL_PG=1`):
