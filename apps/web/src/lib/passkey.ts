@@ -65,6 +65,8 @@ export function passkeySignInRefusal(error: PasskeyError, dictionary: Dictionary
  * - `password`: the password typed first is wrong, or its confirmation has lapsed (one
  *   confirmation lets one passkey through, for ten minutes); it goes on the field.
  * - `stale`: the session is too old for this; only signing in again goes on.
+ * - `failed`, for `EMAIL_CONFIRMATION_REQUIRED`: the address is not confirmed yet; the API
+ *   adds no passkey until it is (`0083`), and the link the sign-up mail carried is the way.
  * - `failed`: anything else, with the words to say.
  */
 export type PasskeyAddRefusal =
@@ -84,6 +86,8 @@ export function passkeyAddRefusal(error: PasskeyError, dictionary: Dictionary): 
       return { kind: 'password', message: t.confirmAgain };
     case 'SESSION_NOT_FRESH':
       return { kind: 'stale' };
+    case 'EMAIL_CONFIRMATION_REQUIRED':
+      return { kind: 'failed', message: t.emailUnconfirmed };
     case 'ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED':
       // Said by the browser, before anything reached the API: this device already holds one.
       return { kind: 'failed', message: t.alreadyAdded };

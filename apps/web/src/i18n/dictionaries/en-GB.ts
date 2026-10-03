@@ -2074,6 +2074,7 @@ export const enGB: Dictionary = {
     alreadyAdded: 'This device already holds a passkey for your account.',
     body: 'Sign in with Face ID, your fingerprint or your device’s screen lock, without typing your password. Each passkey only works at this web address: {host}.',
     confirmAgain: 'Enter your password again to add the passkey.',
+    emailUnconfirmed: 'Confirm your email address before adding a passkey: open the link we sent you when you created your account.',
     listFailed: 'We could not load your passkeys.',
     listNotFresh: 'For your security, your passkeys are only shown if you signed in recently.',
     loading: 'Loading your passkeys…',

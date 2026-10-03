@@ -82,8 +82,8 @@ decided across the phase (the lead, delegated by the owner on 2026-10-03).
   on a change or reset. Redeploying after a rollback must first run `DELETE FROM passkey`,
   or delete the rows of the accounts that changed or reset their password in the meantime
   (`0059`'s header).
-- The web must handle `EMAIL_CONFIRMATION_REQUIRED`. It must also handle a confirmation
-  that is spent by a refused verify: the next attempt answers
+- The web maps `EMAIL_CONFIRMATION_REQUIRED` to "confirm your address first"
+  (`passkeyAddRefusal`). A confirmation that a refused verify has spent comes back as
   `PASSWORD_CONFIRMATION_REQUIRED`, and the person confirms again.
 - A second account that offers a credential id already registered meets the UNIQUE
   constraint inside the plugin's insert. That answers a 500 that says nothing about whose

@@ -45,6 +45,17 @@ describe('passkeyAddRefusal', () => {
     expect(passkeyAddRefusal({ code: 'SESSION_NOT_FRESH', status: 403 }, esES)).toEqual({ kind: 'stale' });
   });
 
+  it('asks for the address to be confirmed first, in either language', () => {
+    expect(passkeyAddRefusal({ code: 'EMAIL_CONFIRMATION_REQUIRED', status: 403 }, esES)).toEqual({
+      kind: 'failed',
+      message: 'Confirma tu dirección de correo antes de añadir una llave de acceso: abre el enlace que te enviamos al crear la cuenta.'
+    });
+    expect(passkeyAddRefusal({ code: 'EMAIL_CONFIRMATION_REQUIRED', status: 403 }, enGB)).toEqual({
+      kind: 'failed',
+      message: enGB.passkeys.emailUnconfirmed
+    });
+  });
+
   it('says this device already holds one when the browser says so', () => {
     expect(passkeyAddRefusal({ code: 'ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED', status: 400 }, esES)).toEqual({
       kind: 'failed',

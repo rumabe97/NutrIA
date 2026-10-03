@@ -504,4 +504,14 @@
     grant, only one passing.
   - `deleteAccountByEmail` in the harness is now paced: the suite's last minute could
     spend the API's own allowance, and a 429 was read as "already gone".
+- **Web** (with the lead's approval, since `frontend` was not running): `passkeyAddRefusal`
+  answers `EMAIL_CONFIRMATION_REQUIRED` with "Confirma tu dirección de correo antes de
+  añadir una llave de acceso…" in es-ES and en-GB. `/perfil` has no resend, so the text
+  points to the sign-up mail's link.
+- **Build**: `@simplewebauthn/server` is back in `apps/api`'s `dependencies`. The inferred
+  type of `createAuth` names its WebAuthn JSON types, and as a devDependency
+  `nest build` failed with TS2883 (CI e2e, PR #210), because TypeScript does not write a
+  declaration that references an unlisted package. An explicit return type would have
+  imported the same types into production code, so it is listed in knip's
+  `ignoreDependencies` for `apps/api` instead, with the reason.
 - **Advisor**: not consulted.
