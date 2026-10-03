@@ -418,10 +418,26 @@ describe('passwords: the length, and nothing of the account in it', () => {
     const current = 'granite-meadow-cobalt-4';
     let cookie = '';
 
-    const change = (newPassword: string) => {
+    /**
+     * Better Auth allows three password changes in ten seconds from one address (its own rule, which the test
+     * environment does not raise), and the suites before this one change passwords too: a 429 is waited out, for as
+     * long as it says, and the same change sent again — as in `account-security.e2e-spec.ts`.
+     */
+    const change = async (newPassword: string): Promise<Response> => {
       sent.push(newPassword);
 
-      return request(server()).post(`/${PREFIX}/auth/change-password`).set('Cookie', cookie).send({ currentPassword: current, newPassword });
+      const send = () =>
+        request(server()).post(`/${PREFIX}/auth/change-password`).set('Cookie', cookie).send({ currentPassword: current, newPassword });
+      let response = await send();
+
+      for (let retry = 0; retry < 2 && response.status === 429; retry += 1) {
+        const wait = Number(response.headers['x-retry-after'] ?? 10);
+
+        await new Promise<void>(resolve => setTimeout(resolve, (Number.isFinite(wait) ? wait : 10) * 1000 + 500));
+        response = await send();
+      }
+
+      return response;
     };
 
     beforeAll(async () => {
