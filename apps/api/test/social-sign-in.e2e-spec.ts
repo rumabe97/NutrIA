@@ -7,7 +7,7 @@ import { UNAUDITED } from 'core/entities/Audit';
 import { TERMS_VERSION } from 'core/entities/User';
 import { database } from 'database';
 
-import { createApp, httpServer, PREFIX, ScriptedAiClient } from './harness.js';
+import { createApp, deleteAccountByEmail, httpServer, PREFIX, ScriptedAiClient } from './harness.js';
 
 import type { INestApplication } from '@nestjs/common';
 import type { Response } from 'supertest';
@@ -249,12 +249,17 @@ describe('social sign-in: arriving through a provider', () => {
     expect(new URL(location).searchParams.get('error')).toBe('account_not_linked');
     expect(cookie).not.toContain('session_token');
 
-    // The account is exactly as it was: unconfirmed, unopened, and holding nothing of theirs.
-    const signIn: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: PASSWORD }).expect(200);
-    const squatter = cookiesOf(signIn);
+    // Not even its password signs it in: unconfirmed, it is answered as a wrong one (PLAN 011 phase 8)…
+    await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: PASSWORD }).expect(401);
 
-    sessions.push(squatter);
-    await expect(me(squatter)).resolves.toMatchObject({ activated: false, emailVerified: false });
+    // …and the account is exactly as it was: unconfirmed, unopened, and holding nothing of theirs.
+    const sql = (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> })
+      .$client;
+    const [squatter] = await sql<{ activatedAt: Date | null; emailVerified: boolean }>`
+      select activated_at as "activatedAt", email_verified as "emailVerified" from "user" where email = ${email}`;
+
+    expect(squatter).toEqual({ activatedAt: null, emailVerified: false });
+    await deleteAccountByEmail(app, email, PASSWORD);
   });
 
   it('does not confirm an address the provider would not vouch for', async () => {

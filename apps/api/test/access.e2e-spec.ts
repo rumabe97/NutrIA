@@ -3,9 +3,10 @@ import request from 'supertest';
 
 import { UserController } from 'core/controllers/User';
 import { UNAUDITED } from 'core/entities/Audit';
+import { signInBrakeKey } from 'core/domain/SignInBrake';
 import { database } from 'database';
 
-import { createApp, deleteAccountByEmail, deleteAccounts, httpServer, PREFIX, ScriptedAiClient } from './harness.js';
+import { createApp, deleteAccountByEmail, deleteAccounts, httpServer, PREFIX, ScriptedAiClient, unconfirmAddress } from './harness.js';
 
 import type { INestApplication } from '@nestjs/common';
 import type { Response } from 'supertest';
@@ -69,14 +70,22 @@ describe('access: two locks, and the shape of a denial', () => {
   /** Every account this suite signed up, so `afterAll` can delete each one — `locks-delete` deletes itself and is not added twice. */
   const made: string[] = [];
 
+  /**
+   * Signed up and signed in, its address left unconfirmed and its account
+   * unopened. An unconfirmed account cannot sign in with its password (PLAN
+   * 011 phase 8), so it signs in confirmed and is put back: the session of an
+   * address nobody proved, as one from before phase 8 still is.
+   */
   async function signUp(email: string): Promise<string> {
     const server = httpServer(app);
 
     await request(server).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name: 'Test', password: PASSWORD }).expect(200);
+    await UserController.confirmAddress(email);
 
     const signIn: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: PASSWORD }).expect(200);
     const cookie = (signIn.headers['set-cookie'] as unknown as string[]).join('; ');
 
+    await unconfirmAddress(email);
     made.push(cookie);
 
     return cookie;
@@ -373,6 +382,11 @@ describe('access: two locks, and the shape of a denial', () => {
  * gets a session, and each address gets one mail after the response: the
  * confirmation to the new one, "somebody tried" to the existing one. Mail is
  * not configured under the suites, so each mail is its one log line.
+ *
+ * Nor does the sign-in after it (phase 8, amended): the stranger who signed
+ * up both addresses with a password of their own and signs in with it gets
+ * the same 401 for both — the new account is unconfirmed, the existing one's
+ * password is not theirs — and the same row in the per-address brake.
  */
 describe('sign-up: the same answer for a new address and an existing one', () => {
   let app: INestApplication;
@@ -398,6 +412,8 @@ describe('sign-up: the same answer for a new address and an existing one', () =>
     return rest;
   }
 
+  const keyOf = (email: string) => signInBrakeKey(email, process.env['BETTER_AUTH_SECRET'] ?? '');
+
   async function settle(): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 300));
   }
@@ -405,6 +421,8 @@ describe('sign-up: the same answer for a new address and an existing one', () =>
   beforeAll(async () => {
     app = await createApp(new ScriptedAiClient([]));
     await request(httpServer(app)).post(`/${PREFIX}/auth/sign-up/email`).send({ email: existing, name: 'Ana', password: PASSWORD }).expect(200);
+    // An account somebody already has: its address confirmed, as its link would.
+    await UserController.confirmAddress(existing);
 
     const info = console.info;
 
@@ -419,6 +437,7 @@ describe('sign-up: the same answer for a new address and an existing one', () =>
 
   afterAll(async () => {
     restore?.();
+    await tables()`delete from sign_in_failure where key = any(${[keyOf(existing), keyOf(fresh)]})`;
     await deleteAccountByEmail(app, existing, PASSWORD);
     await deleteAccountByEmail(app, fresh, OTHER_PASSWORD);
     await app?.close();
@@ -458,6 +477,34 @@ describe('sign-up: the same answer for a new address and an existing one', () =>
     ]);
     expect(logged.filter(line => line.includes('verification url'))).toHaveLength(1);
     expect(logged.filter(line => line.includes('verification url'))[0]).toContain(`for ${freshUser?.id}:`);
+  });
+
+  it('answers the sign-in with the stranger’s password the same for both: status, headers, body, and the brake’s row', async () => {
+    const server = httpServer(app);
+    const [freshUser] = await tables()<{ id: string }>`select id from "user" where email = ${fresh}`;
+
+    await tables()`delete from sign_in_failure where key = any(${[keyOf(existing), keyOf(fresh)]})`;
+    await settle();
+    logged.length = 0;
+
+    const toExisting: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email: existing, password: OTHER_PASSWORD });
+    const toFresh: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email: fresh, password: OTHER_PASSWORD });
+
+    expect(toExisting.status).toBe(401);
+    expect(toFresh.status).toBe(toExisting.status);
+    expect(toFresh.text).toBe(toExisting.text);
+    expect(headerShape(toFresh)).toEqual(headerShape(toExisting));
+    expect(toFresh.headers['set-cookie']).toBeUndefined();
+
+    const rows = async (email: string) => tables()<{ count: number; next: Date | null }>`
+      select count, next_allowed_at as next from sign_in_failure where key = ${keyOf(email)}`;
+
+    expect(await rows(fresh)).toEqual([{ count: 1, next: null }]);
+    expect(await rows(existing)).toEqual(await rows(fresh));
+
+    // A fresh link to the unconfirmed address, after the response; the confirmed account is sent none.
+    await settle();
+    expect(logged.filter(line => line.includes('verification url'))).toEqual([expect.stringContaining(`for ${freshUser?.id}:`)]);
   });
 
   it('changes nothing of the existing account: its name and its password still stand', async () => {
