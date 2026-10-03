@@ -643,6 +643,40 @@
   Postgres, all green:
   - professionals, admin, two-factor-removal, two-factor, passkeys and access: 179;
   - care, care-practice, care-review, plan-scheduled-care, accompaniments and audit: 171.
+- **Delta invariant review on `75dab360`** (resumed after the machine crashed; one P1,
+  P2s and P3s, all applied):
+  - **P1, the close was capped and racy.** `closeOtherSessions` listed the sessions with
+    `internalAdapter.listSessions`, which Better Auth caps at 100 rows
+    (`defaultFindManyLimit`), in no order and expired rows included, then deleted that
+    list. An account with more than 100 sessions kept the rest, and a session opened
+    between the list and the delete survived. Now it is one `DELETE` through the adapter
+    (`userId = …` and `token <> the kept one`), uncapped, with the count back. A unit spec
+    with 150 other sessions proves it; on the old code the same spec leaves 50 alive. No
+    `session.delete` hooks and no secondary storage exist, so bypassing the internal
+    adapter loses nothing. `auth.sessions_revoked {scope:'others'}` is written only when
+    the count is above 0.
+  - **P2, fail open but honest.** The delete is tried twice, as `forgetPasskeys` is. When
+    it still fails, the factor stays on (not a 500). The enabling `/two-factor/verify-totp`
+    answer gains `otherSessionsClosed` (`twoFactorAfter` returns `context.json`, as
+    `Passkey.ts` does for the authenticate options). The "enabled" mail
+    (`TwoFactorEvent.enabled.otherSessionsClosed`) and the web's confirmation
+    (`twoFactor.enabled` / `enabledSessionsOpen`) say the sessions closed only when it is
+    `true`. Otherwise they send the person to "Cerrar todas las demás" in Seguridad. The
+    web treats a missing field as `false`.
+  - **P2, the passkey residual.** A session opened with the password alone before the
+    factor went on could have added a passkey, and closing
+    the session does not remove it; once TOTP is on, its sign-in passes (`0083`). The
+    "enabled" mail and both confirmations now ask the person to check their passkeys.
+    `apps/api/AGENTS.md` and `docs/ARCHITECTURE.md` name both residuals. "A session
+    opened with the password alone never passes the rule" was too broad and is gone.
+  - **P3, the lines.** `two_factor_sessions_not_closed` now means only that the delete
+    failed twice. A failed audit row after a delete that worked is
+    `sessions_revoked_unrecorded {scope:'others'}`, as in `AccountSecurity.ts`.
+  - **E2e preconditions.** The stolen cookie answers `/users/me` 200 before `enableTotp`,
+    in `professionals` and `admin`. In `admin`, `elsewhere` still answers `/users/me` 200
+    after `/disable`: refused by the rule, not signed out.
+  - **Legal P3.** `01-acuerdo-profesional.md` reads `PROFESSIONAL_AGREEMENT_VERSION =
+    '1.1.0'`, in force. `78118da3` had not changed that line.
 
 ## Phase 7 — A brake per account (2026-10-03)
 
