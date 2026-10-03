@@ -13,6 +13,7 @@ import {
   createApp,
   deleteAccountByEmail,
   deleteAccounts,
+  enableTotp,
   httpServer,
   latestAuditRow,
   PREFIX,
@@ -70,8 +71,9 @@ describe('audit: one row per admin mutation, and the trail that reads them back'
   beforeAll(async () => {
     app = await createApp(new ScriptedAiClient([]));
     owner = await register(app, `audit-owner-${stamp}@e2e.invalid`);
-    made.push(owner.cookie);
     await UserController.grantAdmin(owner.email);
+    owner = await enableTotp(app, owner);
+    made.push(owner.cookie);
 
     ordinary = await register(app, `audit-user-${stamp}@e2e.invalid`);
     made.push(ordinary.cookie);

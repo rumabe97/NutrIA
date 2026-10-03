@@ -32,6 +32,7 @@ function makeUser(overrides: Partial<SessionUser> = {}): SessionUser {
     name: 'Ana',
     passwordChangeRequired: false,
     role: 'user',
+    twoFactorEnabled: false,
     ...overrides
   };
 }

@@ -20,7 +20,8 @@ import type { FormEvent } from 'react';
 interface TwoFactorSetupProps {
   onCancel: () => void;
   /** The first right code turned the factor on. */
-  onConfirmed: () => void;
+  /** `otherSessionsClosed`: the API closed the account's other sessions when the factor went on — false when it could not. */
+  onConfirmed: (otherSessionsClosed: boolean) => void;
   /** What `/two-factor/enable` answered: the address the authenticator adds. */
   totpUri: string;
 }
@@ -78,10 +79,11 @@ export function TwoFactorSetup({ onCancel, onConfirmed, totpUri }: TwoFactorSetu
 
     setPending(true);
 
-    const { error: verifyError } = await authClient.twoFactor.verifyTotp({ code });
+    const { data, error: verifyError } = await authClient.twoFactor.verifyTotp({ code });
 
     if (!verifyError) {
-      onConfirmed();
+      // Only a plain `true` claims the sessions closed: an answer without the field says nothing it cannot back.
+      onConfirmed((data as { otherSessionsClosed?: unknown } | null)?.otherSessionsClosed === true);
 
       return;
     }

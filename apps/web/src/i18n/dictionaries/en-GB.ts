@@ -2333,6 +2333,7 @@ export const enGB: Dictionary = {
         heading: 'Security',
         list: [
           'Protect your access: a password you do not use anywhere else, or sign in with Google. Do not leave the session open on a shared computer.',
+          'If your account has a password, two-step verification with an authenticator app is required: without it your clients’ data does not open, and a passkey does not replace it while your account has a password. You turn it on in your profile, under Security. If you sign in only with Google, keep your Google account’s two-step verification on: we cannot check it.',
           'Do not take screenshots or copies of a client’s page except for your clinical record, and keep them with the same protection as the rest of your clinical documentation.',
           'If you think someone has got into your account or seen a client’s data they should not have, write to {email} as soon as you know, and in any case within 24 hours. We will assess whether the Spanish Data Protection Agency and the clients must be told; if the breach is yours, outside NutrIA, that duty is yours.'
         ],
@@ -2714,6 +2715,18 @@ export const enGB: Dictionary = {
     weightTitle: 'Your weight'
   },
 
+  secondFactorRequired: {
+    action: 'Go to Security',
+    console: [
+      'To enter the console, your account needs 2-step verification: the console shows data from every account, and your password alone is not enough to open it.',
+      'Turn it on in your profile, under Security, with an authenticator app, then come back here. While your account has a password, a passkey does not replace it.'
+    ],
+    practice: [
+      'To see your clients’ data, your account needs 2-step verification: it is health data, and your password alone is not enough to open it.',
+      'Turn it on in your profile, under Security, with an authenticator app, then come back here: your practice will be open. While your account has a password, a passkey does not replace it.'
+    ],
+    title: 'Turn on 2-step verification'
+  },
   security: {
     browserUnknown: 'Browser',
     changePassword: 'Change password',
@@ -3030,7 +3043,10 @@ export const enGB: Dictionary = {
     done: 'Done',
     download: 'Download (.txt)',
     downloading: 'Downloading {file}',
-    enabled: '2-step verification turned on. We have confirmed it by email.',
+    enabled:
+      '2-step verification turned on. We have signed out your other sessions and confirmed it by email. Check your passkeys too, here under Security, and remove any you do not recognise.',
+    enabledSessionsOpen:
+      '2-step verification turned on; we have confirmed it by email. We could not sign out your other sessions: sign them out here under Security with “Sign out all the others”, and check your passkeys too, removing any you do not recognise.',
     expired: 'Too much time has passed. Sign in again.',
     fileDate: 'Generated on {date}',
     fileName: 'nutria-backup-codes.txt',

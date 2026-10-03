@@ -40,8 +40,8 @@ describe('grantProfessionalSchema', () => {
 
 /* The agreement is accepted at the version the professional read (`docs/legal/textos/01`), never another. */
 describe('acceptAgreementSchema', () => {
-  it('is at 1.0.0: a new version is a deliberate change, and asks every professional again', () => {
-    expect(PROFESSIONAL_AGREEMENT_VERSION).toBe('1.0.0');
+  it('is at 1.1.0 (PLAN 011 phase 6): a new version is a deliberate change, and asks every professional again', () => {
+    expect(PROFESSIONAL_AGREEMENT_VERSION).toBe('1.1.0');
   });
 
   it('accepts the current version', () => {

@@ -15,7 +15,8 @@ const ALICE: SessionUser = {
   emailVerified: true,
   name: 'Alice',
   passwordChangeRequired: false,
-  role: 'user'
+  role: 'user',
+  twoFactorEnabled: false
 };
 
 const weight: WeightView = { changeKg: -1.2, entries: [{ loggedOn: '2026-09-09', weightKg: 86.2 }], latestKg: 86.2, startingWeightKg: 87.4 };
