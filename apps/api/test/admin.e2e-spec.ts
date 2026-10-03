@@ -15,6 +15,7 @@ import {
   createApp,
   deleteAccountByEmail,
   deleteAccounts,
+  enableTotp,
   generateAndWait,
   httpServer,
   POOL,
@@ -307,6 +308,9 @@ describe('admin', () => {
       .send({ email: waiting, name: 'Waiting', password: 'correct-horse-battery-staple-9' })
       .expect(200);
     await UserController.grantAdmin(owner.email);
+    // The console is shut to an admin with a password and no TOTP (PLAN 011 phase 6); the confirmation rotates the session.
+    owner = await enableTotp(app, owner);
+    made.push(owner.cookie);
   });
 
   afterAll(async () => {
@@ -317,6 +321,67 @@ describe('admin', () => {
     }
 
     await app?.close();
+  });
+
+  /*
+   * PLAN 011 phase 6 (PRD 11): the console reads every account, so an admin who
+   * can sign in with a password must have the authenticator app on. Without it
+   * every console route is the guard's 404, the same a stranger gets; `/users/me`
+   * still answers what the web's gate reads to say what to do. An admin with no
+   * password — Google only — is never blocked.
+   */
+  describe('an admin’s second factor', () => {
+    const NOT_FOUND = { code: 'NOT_FOUND', message: 'Not Found', statusCode: 404 };
+
+    async function anotherAdmin(label: string): Promise<Account> {
+      const who = await register(app, `admin-2fa-${label}-${Date.now()}@e2e.invalid`);
+
+      made.push(who.cookie);
+      await UserController.grantAdmin(who.email);
+
+      return who;
+    }
+
+    it('shuts every console route to an admin with a password and no TOTP, with the stranger’s 404, and opens them once it is on', async () => {
+      const server = httpServer(app);
+      const admin = await anotherAdmin('off');
+
+      for (const route of ROUTES) {
+        const refused: Response = await request(server).get(`/${PREFIX}/admin/${route}`).set('Cookie', admin.cookie);
+
+        expect({ body: refused.body as unknown, route, status: refused.status }).toEqual({ body: NOT_FOUND, route, status: 404 });
+      }
+
+      await request(server).post(`/${PREFIX}/admin/accounts/${ordinary.id}/activate`).set('Cookie', admin.cookie).expect(404);
+      // What the web's console gate reads to say what to do instead.
+      expect((await request(server).get(`/${PREFIX}/users/me`).set('Cookie', admin.cookie).expect(200)).body).toMatchObject({
+        hasPassword: true,
+        role: 'admin',
+        twoFactorEnabled: false
+      });
+
+      const enabled = await enableTotp(app, admin);
+
+      made.push(enabled.cookie);
+
+      for (const route of ROUTES) {
+        await request(server).get(`/${PREFIX}/admin/${route}`).set('Cookie', enabled.cookie).expect(200);
+      }
+    });
+
+    it('never blocks an admin with no password — a Google-only account’s second factor is Google’s', async () => {
+      const admin = await anotherAdmin('google');
+
+      // What a Google-only account is to the rule: no `credential` account. The session stays as it was.
+      const sql = (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> })
+        .$client;
+
+      await sql`delete from account where user_id = ${admin.id} and provider_id = 'credential'`;
+
+      for (const route of ROUTES) {
+        await request(httpServer(app)).get(`/${PREFIX}/admin/${route}`).set('Cookie', admin.cookie).expect(200);
+      }
+    });
   });
 
   it('does not exist for an ordinary account', async () => {

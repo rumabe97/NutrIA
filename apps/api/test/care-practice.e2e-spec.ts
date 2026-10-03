@@ -11,7 +11,7 @@ import { SettingsController } from 'core/controllers/Settings';
 import { UNAUDITED } from 'core/entities/Audit';
 import { UserController } from 'core/controllers/User';
 
-import { acceptAgreement, completeOnboarding, deleteAccounts, httpServer, PREFIX, register } from './harness.js';
+import { acceptAgreement, completeOnboarding, deleteAccounts, enableTotp, httpServer, PREFIX, register } from './harness.js';
 import { createApp as assemble } from '../src/config/CreateApp.js';
 import { validateEnv } from '../src/config/Env.validation.js';
 import { EmailService } from '../src/modules/email/services/index.js';
@@ -251,8 +251,8 @@ describe('care-practice', () => {
   }
 
   /**
-   * A granted professional with no practice yet: the grant alone opens
-   * nothing. `agree` defaults true — almost everything below needs the
+   * A granted professional with no practice yet, TOTP on: the grant alone
+   * opens nothing. `agree` defaults true — almost everything below needs the
    * agreement accepted (P1-1) to reach the routes it is about; the one test
    * of the gate itself passes `agree: false`.
    */
@@ -265,11 +265,16 @@ describe('care-practice', () => {
       .send({ collegiateNumber: `28/${String(stamp).slice(-6)}` })
       .expect(201);
 
+    // A password account reaches no client route without TOTP on (PLAN 011 phase 6); the confirmation rotates the session.
+    const enabled = await enableTotp(on.app, who);
+
+    made.push(enabled.cookie);
+
     if (agree) {
-      await acceptAgreement(on.app, who);
+      await acceptAgreement(on.app, enabled);
     }
 
-    return who;
+    return enabled;
   }
 
   async function practiceOf(who: Account): Promise<Practice | undefined> {
@@ -456,6 +461,8 @@ describe('care-practice', () => {
 
     owner = await account('owner');
     await UserController.grantAdmin(owner.email);
+    owner = await enableTotp(on.app, owner);
+    made.push(owner.cookie);
     await setSwitch(true);
     // Personal premium stays off: every premium below is the practice's.
     await SettingsController.setFlag('premium', false, UNAUDITED);
@@ -797,7 +804,8 @@ describe('care-practice', () => {
         },
         includedClients: 0,
         open: false,
-        pendingInvitations: 0
+        pendingInvitations: 0,
+        secondFactorRequired: false
       });
       await practicePage(ordinary).expect(404);
 

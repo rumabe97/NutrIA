@@ -26,7 +26,7 @@ import {
   StubPictureStore
 } from '../src/modules/ai/clients/StubPictureClients.js';
 
-import { completeOnboarding, createApp, deleteAccounts, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import { completeOnboarding, createApp, deleteAccounts, enableTotp, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
 
 import type { Account } from './harness.js';
 import type { AdminRecipesView } from 'core/controllers/Admin';
@@ -339,8 +339,9 @@ describe('what the judge said is kept (project 010, phase 3)', () => {
     await SettingsController.setFlag('dishPictures', true, UNAUDITED);
 
     owner = await register(app, `picture-judgements-owner-${stamp}@e2e.invalid`);
-    made.push(owner.cookie);
     await UserController.grantAdmin(owner.email);
+    owner = await enableTotp(app, owner);
+    made.push(owner.cookie);
 
     planner = await register(app, `picture-judgements-planner-${stamp}@e2e.invalid`);
     made.push(planner.cookie);

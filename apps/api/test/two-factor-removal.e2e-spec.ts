@@ -13,6 +13,7 @@ import {
   CookieJar,
   createApp,
   deleteAccountByEmail,
+  enableTotp,
   httpServer,
   paced,
   PREFIX,
@@ -329,7 +330,8 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
     const ownerMade = await account('owner', 'Olivia Dueña');
 
     await UserController.grantAdmin(ownerMade.email);
-    owner = { ...ownerMade, cookie: (await signedIn(ownerMade.email)).header };
+    // The console is shut to an admin with a password and no TOTP (PLAN 011 phase 6); the confirmation rotates the session.
+    owner = await enableTotp(app, { ...ownerMade, cookie: (await signedIn(ownerMade.email)).header }, ORIGINAL);
 
     const ordinaryMade = await account('ordinary', 'Oscar Llano');
 

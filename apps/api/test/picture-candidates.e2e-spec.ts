@@ -29,6 +29,7 @@ import {
   completeOnboarding,
   createApp,
   deleteAccounts,
+  enableTotp,
   generateAndWait,
   httpServer,
   latestAuditRow,
@@ -383,8 +384,9 @@ describe('a rejected picture waits for the owner (0072, phase 2)', () => {
     await sql()`update recipe_images set provenance = provenance - 'candidate' where recipe_id::text = any(${held.map(found => found.recipeId)})`;
 
     owner = await register(app, `picture-candidates-owner-${stamp}@e2e.invalid`);
-    made.push(owner.cookie);
     await UserController.grantAdmin(owner.email);
+    owner = await enableTotp(app, owner);
+    made.push(owner.cookie);
 
     ordinary = await register(app, `picture-candidates-ordinary-${stamp}@e2e.invalid`);
     made.push(ordinary.cookie);

@@ -431,6 +431,42 @@ export async function deleteAccountByEmail(app: INestApplication, email: string,
   await paced(() => request(server).delete(`/${PREFIX}/users/me`).set('Cookie', cookie));
 }
 
+/** An account with the authenticator app on, and the URI a suite types its codes from. */
+export type TotpAccount = Account & { readonly totpURI: string };
+
+/**
+ * Turns the authenticator app on for an account, the way the person does in
+ * "Seguridad": `/two-factor/enable` with the password, then the first right
+ * code at `/two-factor/verify-totp`. Every privileged account with a password
+ * needs it (PLAN 011 phase 6) — the admin for any console route, a
+ * professional for any client route — so a suite that makes one calls this
+ * straight after `grantAdmin` or the grant.
+ *
+ * **Use the account it answers, not the one it was given.** The confirmation
+ * rotates the session: the old cookie is gone, and a cleanup list holding it
+ * deletes nothing. The account's next password sign-in asks for a code
+ * (`deleteAccountByEmail` takes `totpURI` for it).
+ */
+export async function enableTotp(app: INestApplication, account: Account, password = 'correct-horse-battery-staple-9'): Promise<TotpAccount> {
+  const server = httpServer(app);
+  const enabled = await paced(() => request(server).post(`/${PREFIX}/auth/two-factor/enable`).set('Cookie', account.cookie).send({ password }));
+
+  if (enabled.status !== 200) {
+    throw new Error(`Could not start TOTP for ${account.email}: ${enabled.status}`);
+  }
+
+  const { totpURI } = enabled.body as { totpURI: string };
+  const verified = await paced(() =>
+    request(server).post(`/${PREFIX}/auth/two-factor/verify-totp`).set('Cookie', account.cookie).send({ code: totpCode(totpURI) })
+  );
+
+  if (verified.status !== 200) {
+    throw new Error(`Could not confirm TOTP for ${account.email}: ${verified.status}`);
+  }
+
+  return { ...account, cookie: (verified.headers['set-cookie'] as unknown as string[]).join('; '), totpURI };
+}
+
 /**
  * Opens a granted professional's practice with this many included clients, as
  * a paid practice subscription does (`0061`) — without Stripe, for the suites
