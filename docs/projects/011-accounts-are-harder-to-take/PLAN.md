@@ -480,9 +480,12 @@ records what was decided.
   - `apps/api/src/modules/auth/**`:
     - `hooks.before` on `/sign-in/email`: before `next_allowed_at`, answer 429 with
       `Retry-After`, the same for a known and an unknown address;
-    - `hooks.after` on a 401: count, and from the 10th failure in 15 minutes set
-      `next_allowed_at` growing (30 s, 1 min, 2 min… capped at 15 min);
-    - on a 200: clear the row;
+    - ~~`hooks.after` on a 401: count~~ — amended in execution (LOG, phase 7): every
+      attempt is counted in `hooks.before`, under the row's lock, and a 2xx clears it,
+      so what stays counted is the failures without a burst from many IPs racing the
+      count; from the 10th in 15 minutes set `next_allowed_at` growing (30 s, 1 min,
+      2 min… capped at 15 min);
+    - on a 200 (and on a password reset): clear the row;
     - `NODE_ENV=test` keeps it on; suites use distinct addresses.
   - The `auth.*` audit purge (added 2026-10-01 from phase 2, `legal`'s retention in
     `docs/legal/analisis.md` § 4.1 bis): the same daily cron also deletes `audit_logs`
