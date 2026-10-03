@@ -22,6 +22,16 @@
 --
 -- The previous API, still running during the deploy, reads these links on
 -- every safety check, so it enforces them from the moment this commits.
+--
+-- The seed writes an ingredient's links wholesale (`seed/index.ts`), so the
+-- seed change and this migration land and revert together, never one without
+-- the other: a revert of the seed alone, then a seed run, deletes these links.
+--
+-- The check after the insert fails the migrate run (one transaction: nothing
+-- of it commits, the build fails, the old API keeps serving) when a populated
+-- catalogue still lacks one of the four links as `contains`: a slug renamed, no
+-- `celery` key, or a link already there as `may_contain`, which DO NOTHING
+-- leaves alone. An empty catalogue (a fresh database, CI) passes.
 INSERT INTO "ingredient_allergens" ("ingredient_id", "allergen_id", "presence")
 SELECT "ingredients"."id", "allergens"."id", 'contains'
 FROM "ingredients"
@@ -29,3 +39,16 @@ CROSS JOIN "allergens"
 WHERE "allergens"."key" = 'celery'
   AND "ingredients"."slug" IN ('caldo-de-pollo', 'caldo-de-verduras', 'caldo-de-carne', 'caldo-de-pescado')
 ON CONFLICT ("ingredient_id", "allergen_id") DO NOTHING;
+--> statement-breakpoint
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM "ingredients") AND (
+    SELECT count(*) FROM "ingredient_allergens"
+    JOIN "ingredients" ON "ingredients"."id" = "ingredient_allergens"."ingredient_id"
+    JOIN "allergens" ON "allergens"."id" = "ingredient_allergens"."allergen_id"
+    WHERE "allergens"."key" = 'celery' AND "ingredient_allergens"."presence" = 'contains'
+      AND "ingredients"."slug" IN ('caldo-de-pollo', 'caldo-de-verduras', 'caldo-de-carne', 'caldo-de-pescado')
+  ) <> 4 THEN
+    RAISE EXCEPTION 'broths_declare_celery: the four carton broths do not all contain celery';
+  END IF;
+END $$;
