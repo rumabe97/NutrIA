@@ -987,10 +987,12 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
   });
 
   it('leaves a dish of staples exactly as the model sent it', async () => {
-    const { client } = stubClient([{ dishes: [dish('Arroz con tomate', ['breakfast', 'lunch', 'dinner'], ['arroz', 'tomate'])] }]);
+    // Lunch and dinner only: a dish that also names breakfast or a snack is a light dish and
+    // never fills a main meal (017 phase 3), which is not what this case is about.
+    const { client } = stubClient([{ dishes: [dish('Arroz con tomate', ['lunch', 'dinner'], ['arroz', 'tomate'])] }]);
     const result = await new PoolBuilder(client).build({ context: withLentils(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
 
-    expect(result.generated.map(kept => kept.slots)).toEqual([['breakfast', 'lunch', 'dinner']]);
+    expect(result.generated.map(kept => kept.slots)).toEqual([['lunch', 'dinner']]);
   });
 
   it('reads the stewed pulses by cuisine, not by their list (0079, option B)', async () => {

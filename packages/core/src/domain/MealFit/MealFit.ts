@@ -1,5 +1,5 @@
 import { cuisineFamily, dishGroups, foodGroupOf, groupFits } from './Cuisine';
-import { DISHES_NEEDED_PER_SLOT, seededShuffle } from 'core/domain/Variety';
+import { DISHES_NEEDED_PER_SLOT, MAIN_SLOTS, seededShuffle } from 'core/domain/Variety';
 
 import type { Catalogue, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
 
@@ -58,6 +58,20 @@ export function belongsTo(ingredient: CatalogueIngredient, slot: MealSlot, dieta
 }
 
 /**
+ * Whether a dish is a snack or a breakfast by its own slots: it names
+ * breakfast or any snack among them (owner, 2026-10-02; plan 017 phase 3).
+ *
+ * Such a dish never fills lunch or dinner, whatever else it names. A real plan
+ * served "Copa de yogur proteico con pistachos y mandarina", a dish the model
+ * had put at every meal, as a dinner of three servings: a dinner is a meal. So
+ * every dish at a main meal is one designed as a main, and no plate there is a
+ * snack scaled up past two servings to fill it.
+ */
+export function isSnackOrBreakfastDish(dish: { readonly slots: readonly MealSlot[] }): boolean {
+  return dish.slots.some(slot => !MAIN_SLOTS.has(slot));
+}
+
+/**
  * The meals a dish may be served at: its own `slots`, kept only where every one
  * of its ingredients belongs (`0062` § 5) and where its cuisine serves the food
  * groups it is built on (`0079`, Table 2).
@@ -77,6 +91,9 @@ export function belongsTo(ingredient: CatalogueIngredient, slot: MealSlot, dieta
  * meal (`0062` § 4), so it puts the dish in no group. A dish with no cuisine,
  * or one nobody mapped, is judged as Spanish. Without `grams` a group row
  * counts as the whole group: the table only narrows for not knowing.
+ *
+ * A snack or a breakfast by its own slots (`isSnackOrBreakfastDish`) is never
+ * a lunch or a dinner, whatever else it names.
  *
  * An ingredient the catalogue does not know narrows nothing here: whether a
  * dish may use it at all is the unknown-ingredient gate's question
@@ -101,8 +118,11 @@ export function fitSlots(
     return plantBased && ingredient !== undefined && foodGroupOf(slug) === 'pulses' && isPlantProtein(ingredient);
   });
 
+  const light = isSnackOrBreakfastDish(dish);
+
   return dish.slots.filter(
     slot =>
+      !(light && MAIN_SLOTS.has(slot)) &&
       dish.ingredients.every(item => {
         const ingredient = catalogue.get(item.slug);
 
@@ -115,7 +135,8 @@ export function fitSlots(
         }
 
         return belongsTo(ingredient, slot, dietaryPatterns);
-      }) && [...groups].every(group => groupFits(family, group, slot))
+      }) &&
+      [...groups].every(group => groupFits(family, group, slot))
   );
 }
 

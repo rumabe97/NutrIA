@@ -516,3 +516,11 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
 - The scheduler tuning queued above became `docs/projects/017-every-day-in-band/`, with the PRD approved by the owner: option (a) for the reference library, and "the macros win" over a hard cap.
 - Speed is already done (#198).
 - More accompaniments becomes 018.
+
+## 2026-10-03 — Project 017 delivered
+
+- Every day in band (196/196 on the reference library, accompaniments off and on).
+- Starch seen in small dishes and gnocchi.
+- Grains, legumes, proteins and snacks varied; fruit in season in dishes; a dinner is a meal.
+- Pasta, rice and grains held to four a fortnight (`0081`).
+- Project 018 (more accompaniments) is next; its plan is in `docs/projects/018-more-accompaniments/`.

@@ -1749,6 +1749,28 @@ describe('pickReplacement', () => {
     expect(swap(pastaOn(3))).toBe('patatas');
     expect(swap(pastaOn(6, 8, 10, 12))).toBe('patatas');
   });
+
+  it('serves no fifth pasta however much better it fits, while another dish passes; the fifth when none does (0081)', () => {
+    const starchCatalogue = makeCatalogue([
+      makeCatalogueIngredient({ id: 'i-pasta', proteinPer100g: 13, slug: 'espaguetis-secos' }),
+      makeCatalogueIngredient({ id: 'i-patata', proteinPer100g: 2, slug: 'patata' }),
+      makeCatalogueIngredient({ id: 'i-chicken', kcalPer100g: 120, proteinPer100g: 22.5, slug: 'chicken' })
+    ]);
+    // Pasta and chicken land on the protein; potato alone is far under it.
+    const pasta = lunch('espaguetis-con-pollo', [
+      { grams: 150, slug: 'espaguetis-secos' },
+      { grams: 200, slug: 'chicken' }
+    ]);
+    const potato = lunch('patatas', [{ grams: 400, slug: 'patata' }]);
+    const pastaOn = (...days: number[]) =>
+      days.map(dayIndex => ({ dayIndex, dishSlug: `pasta-${dayIndex}`, slot: 'dinner' as const, starch: 'pasta' as const }));
+    const swap = (pool: readonly (typeof pasta)[], placed: ReturnType<typeof pastaOn>) =>
+      pickReplacement({ budget, catalogue: starchCatalogue, dayIndex: 3, placed, plateMinimumKcal: 0, pool, slot: 'lunch' })?.dish.slug;
+
+    expect(swap([pasta, potato], pastaOn(6, 9, 12))).toBe('espaguetis-con-pollo');
+    expect(swap([pasta, potato], pastaOn(6, 8, 10, 12))).toBe('patatas');
+    expect(swap([pasta], pastaOn(6, 8, 10, 12))).toBe('espaguetis-con-pollo');
+  });
 });
 
 describe('axisFilter', () => {
