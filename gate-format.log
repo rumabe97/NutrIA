@@ -1,0 +1,40 @@
+$ turbo run format
+
+   • turbo 2.11.4
+   • Packages in scope: api, cli, core, database, docs, eslint-configuration, prettier-configuration, typescript-configuration, ui, web
+   • Running format in 10 packages
+   • Remote caching disabled
+
+database:format: cache bypass, force executing 1278712e629f33f4
+ui:format: cache bypass, force executing a6c2d859ea39efd5
+cli:format: cache bypass, force executing 28d7ad12ee981793
+cli:format: $ prettier --check 'src/**/*.ts'
+ui:format: $ prettier --check 'src/**/*.{ts,tsx,css}'
+database:format: $ prettier --check 'src/**/*.ts'
+cli:format: Checking formatting...
+ui:format: Checking formatting...
+database:format: Checking formatting...
+cli:format: All matched files use Prettier code style!
+database:format: All matched files use Prettier code style!
+core:format: cache bypass, force executing 0d77ee9eba1536b6
+core:format: $ prettier --check 'src/**/*.ts'
+core:format: Checking formatting...
+ui:format: All matched files use Prettier code style!
+docs:format: cache bypass, force executing 074fd292b73b5222
+docs:format: $ prettier --check 'src/**/*.{ts,tsx,css}'
+docs:format: Checking formatting...
+docs:format: All matched files use Prettier code style!
+core:format: All matched files use Prettier code style!
+api:format: cache bypass, force executing 46ea0bec734e38de
+web:format: cache bypass, force executing 4498c298ae9a0228
+api:format: $ prettier --check 'src/**/*.ts' 'test/**/*.ts'
+web:format: $ prettier --check 'src/**/*.{ts,tsx,css}'
+api:format: Checking formatting...
+web:format: Checking formatting...
+web:format: All matched files use Prettier code style!
+api:format: All matched files use Prettier code style!
+
+ Tasks:    7 successful, 7 total
+Cached:    0 cached, 7 total
+  Time:    15.877s 
+
