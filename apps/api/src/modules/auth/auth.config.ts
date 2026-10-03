@@ -1,3 +1,4 @@
+import { passkey } from '@better-auth/passkey';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { isPasswordCompromised } from 'better-auth/plugins/haveibeenpwned';
@@ -10,11 +11,13 @@ import { TERMS_VERSION } from 'core/entities/User';
 import { DEFAULT_WEB_LOCALE, webUrl } from 'core/domain/WebUrl';
 
 import { database } from 'database';
-import { account, rateLimit, session, twoFactor as twoFactorTable, user, verification } from 'database/schema/auth';
+import { account, passkey as passkeyTable, rateLimit, session, twoFactor as twoFactorTable, user, verification } from 'database/schema/auth';
 
 import { APPLE_ORIGIN, configuredSocialProviders, socialProviderOptions } from './services/SocialProviders.js';
 import { onAccountCreated, onAddressConfirmed } from './services/SelfService.js';
 import { accountSecurityAfter, accountSecurityBefore, onPasswordReset } from './services/AccountSecurity.js';
+import { passkeyOptions } from './services/Passkey.js';
+import { sendPasskeyAddedMail } from './services/PasskeyMail.js';
 import { sendPasswordChangedMail } from './services/PasswordChangedMail.js';
 import { sendPasswordResetMail } from './services/PasswordResetMail.js';
 import {
@@ -33,6 +36,7 @@ import type { BackgroundTaskService } from '../../shared/services/index.js';
 import type { BillingService } from '../billing/services/Billing.service.js';
 import type { Env } from '../../config/index.js';
 import type { EmailService } from '../email/services/Email.service.js';
+import type { PasskeyNotice } from './services/Passkey.js';
 import type { TwoFactorNotice, TwoFactorRemovalNotice } from './services/TwoFactor.js';
 
 const MINUTES = 60;
@@ -44,11 +48,22 @@ const MINUTES = 60;
  *
  * The end-to-end suites open dozens of accounts in a couple of minutes from one
  * address, which is precisely that shape of traffic. Only the paths they
- * hammer — and `/two-factor/*`, three in ten seconds by the plugin's rule — are raised, only under `NODE_ENV=test`, and raised rather than switched
+ * hammer — and `/two-factor/*`, three in ten seconds by the plugin's rule, and `/passkey/*` — are raised, only under `NODE_ENV=test`, and raised rather than switched
  * off: the limiter stays on its real path, so a broken `rate_limit` table still
  * fails the suites, and every other route keeps the production rule.
  */
 const TEST_AUTH_RULE = { max: 100_000, window: 60 };
+/**
+ * The passkey sign-in's two public routes (PLAN 011 phase 5), held to what a
+ * password sign-in is held to rather than the global hundred in ten seconds:
+ * each options call writes a challenge row anybody can ask for, and the
+ * verify is the guess. The options are asked again on every visit to
+ * `/acceder` (the autofill), hence the wider window there.
+ */
+const PASSKEY_SIGN_IN_RULES = {
+  '/passkey/generate-authenticate-options': { max: 20, window: 60 },
+  '/passkey/verify-authentication': { max: 3, window: 10 }
+};
 const SESSION_MAX_AGE_DAYS = 30;
 const SESSION_REFRESH_AGE_DAYS = 1;
 
@@ -75,6 +90,8 @@ export function createAuth(
   const security = {
     background,
     isCompromised,
+    mailPasskeyAdded: async ({ id, acceptLanguage, email, userAgent }: PasskeyNotice) =>
+      sendPasskeyAddedMail(mailer, { acceptLanguage, appUrl: env.APP_URL, to: email, userAgent, userId: id }),
     mailPasswordChanged: async ({
       id,
       acceptLanguage,
@@ -140,7 +157,10 @@ export function createAuth(
     },
     basePath: `/${env.API_PREFIX}/auth`,
     baseURL: env.BETTER_AUTH_URL,
-    database: drizzleAdapter(database(), { provider: 'pg', schema: { account, rateLimit, session, twoFactor: twoFactorTable, user, verification } }),
+    database: drizzleAdapter(database(), {
+      provider: 'pg',
+      schema: { account, passkey: passkeyTable, rateLimit, session, twoFactor: twoFactorTable, user, verification }
+    }),
     databaseHooks: {
       account: {
         create: {
@@ -302,7 +322,19 @@ export function createAuth(
        */
       twoFactor({ backupCodeOptions: { amount: BACKUP_CODE_COUNT }, issuer: TWO_FACTOR_ISSUER, trustDeviceMaxAge: TRUST_DEVICE_MAX_AGE }),
       // After `twoFactor`, so it sees what the plugin left of the sign-in's session.
-      sessionStartedOnSignIn()
+      sessionStartedOnSignIn(),
+      /*
+       * Passkeys (PLAN 011 phase 5): Face ID or iCloud Keychain, bound to the
+       * web's own host (`passkeyOptions`, from `APP_URL`). Added only from a
+       * session younger than `freshAge` (the plugin's `freshSessionMiddleware`),
+       * listed and removed by their own account — another account's id is the
+       * guard's 404 (`hooks.before`, `services/Passkey.ts`). A sign-in with one
+       * opens a session at once: the key on the device is itself two factors,
+       * and the two-factor plugin only guards the password door. Adding one
+       * writes `auth.passkey_added` and mails the account; removing one writes
+       * `auth.passkey_removed`.
+       */
+      passkey(passkeyOptions(env.APP_URL))
     ],
     /*
      * Counted in the database, not in the process.
@@ -317,7 +349,9 @@ export function createAuth(
      */
     rateLimit: {
       customRules:
-        env.NODE_ENV === 'test' ? { '/sign-in/*': TEST_AUTH_RULE, '/sign-up/*': TEST_AUTH_RULE, '/two-factor/*': TEST_AUTH_RULE } : undefined,
+        env.NODE_ENV === 'test'
+          ? { '/passkey/*': TEST_AUTH_RULE, '/sign-in/*': TEST_AUTH_RULE, '/sign-up/*': TEST_AUTH_RULE, '/two-factor/*': TEST_AUTH_RULE }
+          : PASSKEY_SIGN_IN_RULES,
       enabled: true,
       storage: 'database'
     },

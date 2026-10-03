@@ -4,10 +4,12 @@ import { createAuthMiddleware, getSessionFromCtx, isAPIError } from 'better-auth
 import { UserController } from 'core/controllers/User';
 
 import { breachedOrPass, checkNewPassword, record, text } from './PasswordPolicy.js';
+import { passkeyAfter, passkeyBefore } from './Passkey.js';
 import { twoFactorAfter, twoFactorBefore } from './TwoFactor.js';
 
 import type { BackgroundTaskService } from '../../../shared/services/index.js';
 import type { CompromisedCheck, Context } from './PasswordPolicy.js';
+import type { PasskeyDeps } from './Passkey.js';
 import type { TwoFactorDeps } from './TwoFactor.js';
 import type { PasswordChangedVia, SessionsRevokedScope } from 'core/entities/Audit';
 
@@ -19,13 +21,14 @@ export type PasswordChangedNotice = {
   readonly userAgent: string | null;
 };
 
-export type AccountSecurityDeps = TwoFactorDeps & {
-  readonly background: Pick<BackgroundTaskService, 'run'>;
-  /** Null where HIBP must not be called — under `NODE_ENV=test`. */
-  readonly isCompromised: CompromisedCheck | null;
-  /** Sends "your password has changed"; run in the background, never awaited by a route. */
-  readonly mailPasswordChanged: (notice: PasswordChangedNotice) => Promise<void>;
-};
+export type AccountSecurityDeps = PasskeyDeps &
+  TwoFactorDeps & {
+    readonly background: Pick<BackgroundTaskService, 'run'>;
+    /** Null where HIBP must not be called — under `NODE_ENV=test`. */
+    readonly isCompromised: CompromisedCheck | null;
+    /** Sends "your password has changed"; run in the background, never awaited by a route. */
+    readonly mailPasswordChanged: (notice: PasswordChangedNotice) => Promise<void>;
+  };
 
 const CHANGE_PASSWORD = '/change-password';
 const REVOKE_ONE = '/revoke-session';
@@ -87,7 +90,8 @@ async function passwordChanged(deps: AccountSecurityDeps, notice: PasswordChange
  * changed because somebody else may know it must not leave that somebody's
  * session alive. Better Auth then deletes every session of the account and
  * issues the caller a new one. On `/two-factor/*`, the password-only rule and
- * no email OTP (`TwoFactor.ts`).
+ * no email OTP (`TwoFactor.ts`). On `/passkey/*`, another account's passkey is
+ * the 404 and a registration mints no session (`Passkey.ts`).
  */
 export function accountSecurityBefore(isCompromised: CompromisedCheck | null) {
   const check = checkNewPassword(isCompromised);
@@ -95,6 +99,12 @@ export function accountSecurityBefore(isCompromised: CompromisedCheck | null) {
   return createAuthMiddleware(async context => {
     await check(context);
     await twoFactorBefore(context);
+
+    const passkey = await passkeyBefore(context);
+
+    if (passkey) {
+      return passkey;
+    }
 
     if (context.path === CHANGE_PASSWORD) {
       return { context: { body: { ...record(context.body), revokeOtherSessions: true } } };
@@ -149,6 +159,8 @@ async function notTheCallersSession(context: Context): Promise<{ status: true } 
  *   checked too, though it answers a challenge.
  * - `/two-factor/*`: the factor on or off and a backup code spent, each with
  *   its row and its mail (`TwoFactor.ts`).
+ * - `/passkey/*`: a passkey added (its row and its mail) or removed (its row)
+ *   (`Passkey.ts`).
  */
 export function accountSecurityAfter(deps: AccountSecurityDeps) {
   return createAuthMiddleware(async context => {
@@ -162,6 +174,12 @@ export function accountSecurityAfter(deps: AccountSecurityDeps) {
 
     if (path.startsWith('/two-factor/')) {
       await twoFactorAfter(deps, context, returned);
+
+      return;
+    }
+
+    if (path.startsWith('/passkey/')) {
+      await passkeyAfter(deps, context);
 
       return;
     }

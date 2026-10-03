@@ -171,6 +171,24 @@ describe('UserController.twoFactorChanged', () => {
   });
 });
 
+describe('UserController.passkeyChanged', () => {
+  beforeEach(() => {
+    record.mockReset();
+    forgetTrustedDevices.mockReset();
+  });
+
+  it.each([
+    [true, 'auth.passkey_added'],
+    [false, 'auth.passkey_removed']
+  ] as const)('writes one row with nothing in its metadata when a passkey is added: %s', async (added, action) => {
+    await UserController.passkeyChanged('usr-1', added);
+
+    expect(record).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith({ action, actorId: 'usr-1', entity: 'passkey', metadata: {}, subjectUserId: 'usr-1' }, undefined);
+    expect(forgetTrustedDevices).not.toHaveBeenCalled();
+  });
+});
+
 describe('UserController.backupCodesRegenerated', () => {
   beforeEach(() => {
     record.mockReset();

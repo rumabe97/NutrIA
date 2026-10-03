@@ -165,3 +165,11 @@ describe('a plan waiting for its day (project 015)', () => {
     expect(predicate).toMatch(/^"?[a-z_]*"?\.?"status" = 'scheduled'$/);
   });
 });
+
+describe('a passkey (PLAN 011 phase 5)', () => {
+  it('holds one credential id once, whoever registered it: a sign-in finds the key by that id alone', () => {
+    const unique = config('passkey').uniqueConstraints.find(constraint => constraint.name === 'passkey_credential_id_unique');
+
+    expect(unique?.columns.map(column => column.name)).toEqual(['credentialID']);
+  });
+});

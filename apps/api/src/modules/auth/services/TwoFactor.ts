@@ -82,7 +82,7 @@ const logger = new Logger('TwoFactor');
  * `{"code":"NOT_FOUND","message":"Not Found","statusCode":404}` — the one
  * denial the product gives, whatever was refused.
  */
-function notFound(): APIError {
+export function notFound(): APIError {
   return new APIError('NOT_FOUND', { code: 'NOT_FOUND', message: 'Not Found', statusCode: 404 });
 }
 

@@ -151,6 +151,42 @@ export const twoFactor = pgTable(
 );
 
 /**
+ * An account's passkeys (PLAN 011 phase 5) — Better Auth's passkey plugin owns
+ * the table and its columns, like the ones above. A row is the public half of
+ * a key that lives on the person's device: nothing here signs anybody in by
+ * itself. Bound to the web origin's host (`rpID`); a new domain voids them all
+ * (`0074`).
+ *
+ * `credential_id` is UNIQUE where the plugin only indexes it: a sign-in looks
+ * the key up by that id alone, before it knows the account, and with
+ * attestation `none` the id is whatever the registering client sent — one
+ * account must not be able to register another's id and so stand in the way
+ * of, or in front of, its sign-in.
+ */
+export const passkey = pgTable(
+  'passkey',
+  {
+    id: text().primaryKey(),
+    aaguid: text(),
+    backedUp: boolean().notNull(),
+    /** WebAuthn's signature counter, an unsigned 32-bit number — past `integer`'s range. Synced passkeys keep it at 0. */
+    counter: bigint({ mode: 'number' }).notNull(),
+    createdAt: timestamp({ withTimezone: true }).defaultNow(),
+    credentialID: text().notNull(),
+    deviceType: text().notNull(),
+    /** What the person called it; the plugin leaves it null when they gave none. */
+    name: text(),
+    publicKey: text().notNull(),
+    /** Comma-separated, as the plugin writes it (`usb,nfc,internal,hybrid`). */
+    transports: text(),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' })
+  },
+  table => [unique('passkey_credential_id_unique').on(table.credentialID), index('passkey_user_id_idx').on(table.userId)]
+);
+
+/**
  * Better Auth's rate-limit counters, in the database rather than in a process.
  *
  * The one place a per-instance count is actually dangerous: this is what stands

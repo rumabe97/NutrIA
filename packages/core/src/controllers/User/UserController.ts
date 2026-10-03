@@ -274,6 +274,22 @@ export const UserController = {
   },
 
   /**
+   * A passkey was added or removed (PLAN 011 phase 5), by the account itself
+   * from one of its sessions. Better Auth has already written or deleted the
+   * row; this is the row that says so, with nothing in it — never the
+   * passkey's id, its name, its key or anything of the device.
+   */
+  async passkeyChanged(userId: string, added: boolean): Promise<void> {
+    await AuditRepository.record({
+      action: added ? 'auth.passkey_added' : 'auth.passkey_removed',
+      actorId: userId,
+      entity: 'passkey',
+      metadata: {},
+      subjectUserId: userId
+    });
+  },
+
+  /**
    * The account's password changed (PLAN 011 phase 2) — from a session
    * (`change`) or a reset link (`reset`). The breach mark goes and one
    * `auth.password_changed` row is written, in one transaction. The person is
