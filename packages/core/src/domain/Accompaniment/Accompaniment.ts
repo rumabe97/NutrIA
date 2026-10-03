@@ -881,7 +881,9 @@ export function setsOf(portions: readonly AccompanimentPortion[]): readonly Acco
  * whole-meal rule of their way of eating. `portionsBeside` judges each portion
  * beside the dish; a rule like kosher's is about the whole table, so the set
  * is judged again together — a meat side and a yoghurt would each pass alone.
- * What the scheduler and a swap both read.
+ * What the scheduler and a swap both read. `keep`, when given, narrows the
+ * portions before they are combined (the scheduler's per-role pruning, 018
+ * phase 3); it must return a subset, in table order.
  */
 export function setsBeside(
   larder: Larder,
@@ -891,11 +893,12 @@ export function setsBeside(
     readonly servings: number;
   },
   slot: MealSlot,
-  month: number
+  month: number,
+  keep: (portions: readonly AccompanimentPortion[]) => readonly AccompanimentPortion[] = portions => portions
 ): readonly AccompanimentSet[] {
   const { catalogue, preferences } = larder.diner;
 
-  return setsOf(portionsBeside(larder, dish, slot, month)).filter(
+  return setsOf(keep(portionsBeside(larder, dish, slot, month))).filter(
     set => !breaksDishRule([...dish.ingredients, ...set.items], catalogue, preferences)
   );
 }
