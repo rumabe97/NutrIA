@@ -243,7 +243,7 @@ describe('the second factor', () => {
     twoFactorChanged = jest.spyOn(UserController, 'twoFactorChanged').mockResolvedValue(undefined);
     backupCodeUsed = jest.spyOn(UserController, 'backupCodeUsed').mockResolvedValue(undefined);
     backupCodesRegenerated = jest.spyOn(UserController, 'backupCodesRegenerated').mockResolvedValue(undefined);
-    jest.spyOn(UserController, 'passwordChanged').mockResolvedValue(undefined);
+    jest.spyOn(UserController, 'passwordChanged').mockResolvedValue(0);
     jest.spyOn(UserController, 'sessionsRevoked').mockResolvedValue(undefined);
     analytics = jest.spyOn(AnalyticsController, 'record').mockResolvedValue(undefined);
     jest.spyOn(AnalyticsController, 'recordUse').mockResolvedValue(undefined);

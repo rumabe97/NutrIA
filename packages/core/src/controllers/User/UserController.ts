@@ -6,6 +6,7 @@ import { UserRepository } from '#repositories/User';
 
 import type { ActivationAudit, PasswordChangedVia, SessionsRevokedScope } from 'core/entities/Audit';
 import type { AccountQuery } from 'core/entities/AdminQuery';
+import type { Transaction } from '#repositories/Audit';
 import type { AccountRow, RecordActivationAudit, RecordTierAudit } from '#repositories/User';
 import type { User, UserTier } from 'core/entities/User';
 
@@ -158,6 +159,13 @@ function presentAccount(row: AccountRow): AccountView {
 /** One page of a table and what it was asked with. A screen needs the total to draw the pager. */
 export type Paged<T> = { readonly offset: number; readonly rows: readonly T[]; readonly size: number; readonly total: number };
 
+/** One `auth.passkey_removed` row per passkey a password change took (PLAN 011 phase 5): nothing in it, as when the person removes one. */
+async function passkeysRemovedRows(userId: string, passkeysRemoved: number, tx: Transaction): Promise<void> {
+  for (let removed = 0; removed < passkeysRemoved; removed += 1) {
+    await AuditRepository.record({ action: 'auth.passkey_removed', actorId: userId, entity: 'passkey', metadata: {}, subjectUserId: userId }, tx);
+  }
+}
+
 export const UserController = {
   /**
    * One page of accounts as the query asks — newest first when it asks
@@ -244,6 +252,16 @@ export const UserController = {
   },
 
   /**
+   * Every passkey of the account goes, one `auth.passkey_removed` row each, in
+   * one transaction; returns how many went (PLAN 011 phase 5). Only for when
+   * `passwordChanged` failed: the password is new by then, and its keys must
+   * not outlive it.
+   */
+  async forgetPasskeys(userId: string): Promise<number> {
+    return UserRepository.forgetPasskeys(userId, async (tx, passkeysRemoved) => passkeysRemovedRows(userId, passkeysRemoved, tx));
+  },
+
+  /**
    * `id` must come from the verified session. There is deliberately no
    * "get any user" method: a caller that could pass an arbitrary id would be one
    * missing authorisation check away from reading another account.
@@ -274,17 +292,38 @@ export const UserController = {
   },
 
   /**
+   * A passkey was added or removed (PLAN 011 phase 5), by the account itself
+   * from one of its sessions. Better Auth has already written or deleted the
+   * row; this is the row that says so, with nothing in it — never the
+   * passkey's id, its name, its key or anything of the device.
+   */
+  async passkeyChanged(userId: string, added: boolean): Promise<void> {
+    await AuditRepository.record({
+      action: added ? 'auth.passkey_added' : 'auth.passkey_removed',
+      actorId: userId,
+      entity: 'passkey',
+      metadata: {},
+      subjectUserId: userId
+    });
+  },
+
+  /**
    * The account's password changed (PLAN 011 phase 2) — from a session
    * (`change`) or a reset link (`reset`). The breach mark goes and one
    * `auth.password_changed` row is written, in one transaction. The person is
    * both actor and subject: nobody else can change it.
+   *
+   * Every passkey of the account goes too (PLAN 011 phase 5, `0083`), in the
+   * same transaction, with one `auth.passkey_removed` row for each. Returns
+   * how many went, for the mail to say so.
    */
-  async passwordChanged(userId: string, via: PasswordChangedVia): Promise<void> {
-    await UserRepository.passwordChanged(userId, async tx => {
+  async passwordChanged(userId: string, via: PasswordChangedVia): Promise<number> {
+    return UserRepository.passwordChanged(userId, async (tx, passkeysRemoved) => {
       await AuditRepository.record(
         { action: 'auth.password_changed', actorId: userId, entity: 'user', metadata: { via }, subjectUserId: userId },
         tx
       );
+      await passkeysRemovedRows(userId, passkeysRemoved, tx);
     });
   },
 
@@ -331,6 +370,14 @@ export const UserController = {
           };
 
     return UserRepository.setTier(id, tier, record);
+  },
+
+  /**
+   * Spends the single-use grant `identifier` of the account (PLAN 011 phase
+   * 5): true only for the one request that deleted it, while it was live.
+   */
+  async spendGrant(identifier: string, userId: string): Promise<boolean> {
+    return UserRepository.spendGrant(identifier, userId, new Date());
   },
 
   /**

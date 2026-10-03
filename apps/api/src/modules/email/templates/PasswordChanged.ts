@@ -24,6 +24,7 @@ const COPY: Record<
     linkFallback: string;
     notYou: string;
     on: string;
+    passkeysRemoved: (count: number) => string;
     subject: string;
     wasYou: string;
   }
@@ -35,6 +36,8 @@ const COPY: Record<
     linkFallback: 'If the button does not work, copy this address into your browser:',
     notYou: 'If it was not you, reset your password now:',
     on: 'on',
+    passkeysRemoved: count =>
+      `The change also removed ${count === 1 ? 'the passkey' : `the ${count} passkeys`} of the account. If ${count === 1 ? 'it was' : 'they were'} yours, sign in and add ${count === 1 ? 'it' : 'them'} again under Profile › Security.`,
     subject: 'Your NutrIA password has changed',
     wasYou: 'If it was you, there is nothing else to do.'
   },
@@ -45,6 +48,8 @@ const COPY: Record<
     linkFallback: 'Si el botón no funciona, copia esta dirección en tu navegador:',
     notYou: 'Si no has sido tú, restablece tu contraseña ahora:',
     on: 'en',
+    passkeysRemoved: count =>
+      `Con el cambio se ${count === 1 ? 'ha quitado la llave de acceso' : `han quitado las ${count} llaves de acceso`} de la cuenta. Si ${count === 1 ? 'era tuya' : 'eran tuyas'}, entra y ${count === 1 ? 'añádela' : 'añádelas'} de nuevo en Perfil › Seguridad.`,
     subject: 'Tu contraseña de NutrIA ha cambiado',
     wasYou: 'Si has sido tú, no tienes que hacer nada más.'
   }
@@ -66,11 +71,14 @@ export function passwordChangedEmail({
   at,
   device,
   locale,
+  passkeysRemoved = 0,
   recoverUrl
 }: {
   at: Date;
   device: Device;
   locale: EmailLocale;
+  /** A change or a reset removes every passkey (PLAN 011 phase 5, `0083`): how many went, said only when some did. */
+  passkeysRemoved?: number;
   recoverUrl: string;
 }): RenderedEmail {
   const copy = COPY[locale];
@@ -78,11 +86,13 @@ export function passwordChangedEmail({
   const label = deviceLabel(device, locale);
   const intro = copy.intro(when);
   const from = label ? copy.device(label) : null;
+  const passkeys = passkeysRemoved > 0 ? copy.passkeysRemoved(passkeysRemoved) : null;
 
   const html = layout({
     body: [
       paragraph(intro),
       ...(from ? [paragraph(from)] : []),
+      ...(passkeys ? [paragraph(passkeys)] : []),
       paragraph(copy.notYou),
       button(recoverUrl, copy.button),
       paragraph(copy.wasYou, 'muted'),
@@ -93,7 +103,7 @@ export function passwordChangedEmail({
     title: copy.subject
   });
 
-  const text = [intro, ...(from ? [from] : []), '', copy.notYou, recoverUrl, '', copy.wasYou].join('\n');
+  const text = [intro, ...(from ? [from] : []), ...(passkeys ? ['', passkeys] : []), '', copy.notYou, recoverUrl, '', copy.wasYou].join('\n');
 
   return { html, kind: 'password-changed', subject: copy.subject, text };
 }

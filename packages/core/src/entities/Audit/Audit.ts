@@ -9,8 +9,8 @@ import type { TwoFactorRemovalCancelledBy } from 'core/entities/TwoFactor';
  * that leave a row, plus the automatic activation on email confirmation, plus
  * the acts a person does to their own account's security (PLAN 011 phases 2
  * and 3): changing the password, closing sessions, turning the second factor
- * on or off, spending a backup code and generating new ones; and the owner's
- * removal of a lost second factor (phase 4). Nothing else writes here, and nothing here is a free-form string a caller
+ * on or off, spending a backup code and generating new ones; the owner's
+ * removal of a lost second factor (phase 4); and adding or removing a passkey (phase 5). Nothing else writes here, and nothing here is a free-form string a caller
  * invents — a new admin mutation is a new name added to this list, reviewed,
  * not a string typed at the call site.
  */
@@ -35,7 +35,9 @@ export const AUDIT_ACTIONS = [
   'auth.backup_codes_regenerated',
   'auth.2fa_removal_requested',
   'auth.2fa_removal_cancelled',
-  'auth.2fa_removed_by_owner'
+  'auth.2fa_removed_by_owner',
+  'auth.passkey_added',
+  'auth.passkey_removed'
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -101,6 +103,13 @@ export interface AuditMetadataByAction {
   'auth.backup_code_used': { readonly remaining: number };
   /** Ten new backup codes replaced the old ones (PLAN 011 phase 3). Nothing else: never a code. */
   'auth.backup_codes_regenerated': Record<string, never>;
+  /**
+   * A passkey was added to the account from one of its own sessions (PLAN 011 phase 5). Nothing else: never the
+   * passkey's id, its name (the person typed it), its credential id or key, nor anything of the device or the request.
+   */
+  'auth.passkey_added': Record<string, never>;
+  /** A passkey of the account was removed by the account itself (PLAN 011 phase 5). Nothing else, as above. */
+  'auth.passkey_removed': Record<string, never>;
   /**
    * The account's password changed (PLAN 011 phase 2), and through which door. A closed word and nothing
    * else: never a token, an IP address, a user agent, a session id, nor anything of the password.

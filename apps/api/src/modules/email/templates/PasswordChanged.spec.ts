@@ -50,6 +50,19 @@ describe('passwordChangedEmail', () => {
     expect(mail.html).toContain(`href="${RECOVER}"`);
   });
 
+  it('says the passkeys a change or a reset removed, counted, and tells to add them again; says nothing of passkeys when none went', () => {
+    const one = passwordChangedEmail({ at: AT, device: IPHONE_SAFARI, locale: 'es-ES', passkeysRemoved: 1, recoverUrl: RECOVER });
+    const two = passwordChangedEmail({ at: AT, device: IPHONE_SAFARI, locale: 'en-GB', passkeysRemoved: 2, recoverUrl: RECOVER });
+    const none = passwordChangedEmail({ at: AT, device: IPHONE_SAFARI, locale: 'es-ES', recoverUrl: RECOVER });
+
+    expect(one.text).toContain(
+      'Con el cambio se ha quitado la llave de acceso de la cuenta. Si era tuya, entra y añádela de nuevo en Perfil › Seguridad.'
+    );
+    expect(one.html).toContain('se ha quitado la llave de acceso');
+    expect(two.text).toContain('The change also removed the 2 passkeys of the account.');
+    expect(none.text).not.toMatch(/llave/);
+  });
+
   it('speaks both languages, with its own kind for the log', () => {
     expect(passwordChangedEmail({ at: AT, device: IPHONE_SAFARI, locale: 'es-ES', recoverUrl: RECOVER }).subject).toBe(
       'Tu contraseña de NutrIA ha cambiado'

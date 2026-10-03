@@ -419,7 +419,8 @@ export async function deleteAccounts(app: INestApplication, cookies: readonly st
  */
 export async function deleteAccountByEmail(app: INestApplication, email: string, password = 'correct-horse-battery-staple-9'): Promise<void> {
   const server = httpServer(app);
-  const signIn: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password });
+  // Paced: a suite's last minute of requests may have spent the API's own allowance, and its 429 is not "gone".
+  const signIn: Response = await paced(() => request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password }));
 
   if (signIn.status !== 200) {
     return;
@@ -427,7 +428,7 @@ export async function deleteAccountByEmail(app: INestApplication, email: string,
 
   const cookie = (signIn.headers['set-cookie'] as unknown as string[]).join('; ');
 
-  await request(server).delete(`/${PREFIX}/users/me`).set('Cookie', cookie);
+  await paced(() => request(server).delete(`/${PREFIX}/users/me`).set('Cookie', cookie));
 }
 
 /**

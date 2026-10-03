@@ -4,10 +4,12 @@ import { createAuthMiddleware, getSessionFromCtx, isAPIError } from 'better-auth
 import { UserController } from 'core/controllers/User';
 
 import { breachedOrPass, checkNewPassword, record, text } from './PasswordPolicy.js';
+import { passkeyAfter, passkeyBefore } from './Passkey.js';
 import { twoFactorAfter, twoFactorBefore } from './TwoFactor.js';
 
 import type { BackgroundTaskService } from '../../../shared/services/index.js';
 import type { CompromisedCheck, Context } from './PasswordPolicy.js';
+import type { PasskeyDeps } from './Passkey.js';
 import type { TwoFactorDeps } from './TwoFactor.js';
 import type { PasswordChangedVia, SessionsRevokedScope } from 'core/entities/Audit';
 
@@ -16,16 +18,19 @@ export type PasswordChangedNotice = {
   readonly id: string;
   readonly acceptLanguage: string | null;
   readonly email: string;
+  /** How many passkeys the change or the reset removed: every one the account had (PLAN 011 phase 5, `0083`). */
+  readonly passkeysRemoved: number;
   readonly userAgent: string | null;
 };
 
-export type AccountSecurityDeps = TwoFactorDeps & {
-  readonly background: Pick<BackgroundTaskService, 'run'>;
-  /** Null where HIBP must not be called — under `NODE_ENV=test`. */
-  readonly isCompromised: CompromisedCheck | null;
-  /** Sends "your password has changed"; run in the background, never awaited by a route. */
-  readonly mailPasswordChanged: (notice: PasswordChangedNotice) => Promise<void>;
-};
+export type AccountSecurityDeps = PasskeyDeps &
+  TwoFactorDeps & {
+    readonly background: Pick<BackgroundTaskService, 'run'>;
+    /** Null where HIBP must not be called — under `NODE_ENV=test`. */
+    readonly isCompromised: CompromisedCheck | null;
+    /** Sends "your password has changed"; run in the background, never awaited by a route. */
+    readonly mailPasswordChanged: (notice: PasswordChangedNotice) => Promise<void>;
+  };
 
 const CHANGE_PASSWORD = '/change-password';
 const REVOKE_ONE = '/revoke-session';
@@ -61,21 +66,38 @@ function answeredUser(returned: unknown): { id: string; email: string; marked: b
 /**
  * The password changed (PLAN 011 phase 2): the breach mark goes and the audit
  * row is written, awaited — the very next request must not still be refused
- * 409 — then the mail, in the background.
+ * 409 — then the mail, in the background. A change or a reset also removes
+ * every passkey of the account in that transaction (phase 5, `0083`), and the
+ * mail says how many.
  *
  * Better Auth has stored the new password by now and cannot be undone from
  * here, so a failure to record is logged rather than turned into a 500 that
- * would tell the person a change failed when it did not. The line names the
- * account and the door, never anything of the password.
+ * would tell the person a change failed when it did not. The passkeys are
+ * then tried again on their own: a key added from a stolen session must not
+ * outlive the password that throws its holder out, whatever happened to the
+ * rest. If that fails too, the line `passkeys_not_removed` says so. The lines
+ * name the account and the door, never anything of the password.
  */
-async function passwordChanged(deps: AccountSecurityDeps, notice: PasswordChangedNotice, via: PasswordChangedVia): Promise<void> {
+async function passwordChanged(
+  deps: AccountSecurityDeps,
+  notice: Omit<PasswordChangedNotice, 'passkeysRemoved'>,
+  via: PasswordChangedVia
+): Promise<void> {
+  let passkeysRemoved = 0;
+
   try {
-    await UserController.passwordChanged(notice.id, via);
+    passkeysRemoved = await UserController.passwordChanged(notice.id, via);
   } catch {
     logger.error(`password_change_unrecorded ${JSON.stringify({ userId: notice.id, via })}`);
+
+    try {
+      passkeysRemoved = await UserController.forgetPasskeys(notice.id);
+    } catch {
+      logger.error(`passkeys_not_removed ${JSON.stringify({ userId: notice.id })}`);
+    }
   }
 
-  deps.background.run('password-changed-mail', () => deps.mailPasswordChanged(notice));
+  deps.background.run('password-changed-mail', () => deps.mailPasswordChanged({ ...notice, passkeysRemoved }));
 }
 
 /**
@@ -87,7 +109,8 @@ async function passwordChanged(deps: AccountSecurityDeps, notice: PasswordChange
  * changed because somebody else may know it must not leave that somebody's
  * session alive. Better Auth then deletes every session of the account and
  * issues the caller a new one. On `/two-factor/*`, the password-only rule and
- * no email OTP (`TwoFactor.ts`).
+ * no email OTP (`TwoFactor.ts`). On `/passkey/*`, another account's passkey is
+ * the 404 and a registration mints no session (`Passkey.ts`).
  */
 export function accountSecurityBefore(isCompromised: CompromisedCheck | null) {
   const check = checkNewPassword(isCompromised);
@@ -95,6 +118,12 @@ export function accountSecurityBefore(isCompromised: CompromisedCheck | null) {
   return createAuthMiddleware(async context => {
     await check(context);
     await twoFactorBefore(context);
+
+    const passkey = await passkeyBefore(context);
+
+    if (passkey) {
+      return passkey;
+    }
 
     if (context.path === CHANGE_PASSWORD) {
       return { context: { body: { ...record(context.body), revokeOtherSessions: true } } };
@@ -135,7 +164,7 @@ async function notTheCallersSession(context: Context): Promise<{ status: true } 
  * sign-in leaves no trace here.
  *
  * - `/change-password`: the mark cleared, `auth.password_changed {via:'change'}`,
- *   the mail.
+ *   every passkey removed, the mail.
  * - `/revoke-session`, `/revoke-other-sessions`, `/revoke-sessions`:
  *   `auth.sessions_revoked` with `one` / `others` / `all`, for the session's own
  *   user — Better Auth scoped the deletion to that user already. A
@@ -149,6 +178,9 @@ async function notTheCallersSession(context: Context): Promise<{ status: true } 
  *   checked too, though it answers a challenge.
  * - `/two-factor/*`: the factor on or off and a backup code spent, each with
  *   its row and its mail (`TwoFactor.ts`).
+ * - `/passkey/*`: a passkey added (its row and its mail) or removed (its row),
+ *   and the sign-in options returned asking for the person to be verified
+ *   (`Passkey.ts`).
  */
 export function accountSecurityAfter(deps: AccountSecurityDeps) {
   return createAuthMiddleware(async context => {
@@ -164,6 +196,10 @@ export function accountSecurityAfter(deps: AccountSecurityDeps) {
       await twoFactorAfter(deps, context, returned);
 
       return;
+    }
+
+    if (path.startsWith('/passkey/')) {
+      return passkeyAfter(deps, context);
     }
 
     if (path === CHANGE_PASSWORD) {
@@ -208,8 +244,8 @@ export function accountSecurityAfter(deps: AccountSecurityDeps) {
 
 /**
  * Better Auth's `emailAndPassword.onPasswordReset`: the same as a change, by
- * the other door — the mark cleared, `auth.password_changed {via:'reset'}`, the
- * mail. Runs only after a valid token set the password, so it says nothing
+ * the other door — the mark cleared, `auth.password_changed {via:'reset'}`,
+ * every passkey removed, the mail. Runs only after a valid token set the password, so it says nothing
  * about whether an address has an account.
  */
 export function onPasswordReset(deps: AccountSecurityDeps) {

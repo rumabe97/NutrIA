@@ -28,7 +28,12 @@ const config: KnipConfig = {
       entry: ['eslint.config.js', 'src/main.ts!', 'src/api/index.ts!', 'scripts/*.mjs!', '.sweep.mjs!'],
       // The end-to-end suites and their harness are run by jest through
       // test/jest-e2e.json, which `--production` does not follow.
-      ignore: ['test/**']
+      ignore: ['test/**'],
+      // A production dependency no production file imports: `createAuth`'s inferred type names
+      // its WebAuthn JSON types (through @better-auth/passkey), and TypeScript only writes a
+      // declaration that references a package the workspace lists in `dependencies` — as a
+      // devDependency, `nest build` fails with TS2883. Only the specs import it.
+      ignoreDependencies: ['@simplewebauthn/server']
     },
     'apps/cli': {
       // `!` marks production entries so `--production` follows the import chain.

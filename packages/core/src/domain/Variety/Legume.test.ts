@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { FOOD_GROUP_SLUGS } from 'core/domain/MealFit';
-import { LEGUME_RULES, legumeCheck, legumeIndex, legumeKind, pulseKind } from 'core/domain/Variety';
+import { kindExcess, kindMeals, LEGUME_RULES, legumeCapCheck, legumeCheck, legumeIndex, legumeKind, pulseKind } from 'core/domain/Variety';
 
 function dish(...items: [string, number][]) {
   return { ingredients: items.map(([slug, grams]) => ({ grams, slug })) };
@@ -46,5 +46,21 @@ describe('LEGUME_RULES — the same legume three times a fortnight, never on day
     expect(check.named?.({ dayIndex: 1, dishSlug: 'not-in-pool', legume: 'lentejas', slot: 'lunch' })).toBe('lentejas');
     expect(check.named?.({ dayIndex: 1, dishSlug: 'garbanzos', slot: 'lunch' })).toBeUndefined();
     expect(check.index.get('garbanzos')).toBe('garbanzos');
+  });
+
+  it('holds its three alone in legumeCapCheck: days running are left to the priced check (0082)', () => {
+    const index = legumeIndex([{ ...dish(['alubias-blancas-cocidas', 200]), slug: 'alubias' }]);
+    const on = (...days: number[]) =>
+      kindMeals(
+        days.map(dayIndex => ({ dayIndex, dishSlug: 'alubias', slot: 'lunch' as const })),
+        legumeCapCheck(index)
+      );
+    const held = legumeCapCheck(index);
+
+    expect(held.rule).toEqual({ apart: false, perFortnight: LEGUME_RULES.perFortnight });
+    expect(held.named?.({ dayIndex: 1, dishSlug: 'not-in-pool', legume: 'lentejas', slot: 'lunch' })).toBe('lentejas');
+    expect(kindExcess(on(1, 2, 3), 14, held.rule)).toBe(0);
+    expect(kindExcess(on(1, 4, 7, 10), 14, held.rule)).toBe(1);
+    expect(kindExcess(on(1, 2, 3), 14, legumeCheck(index).rule)).toBe(2);
   });
 });

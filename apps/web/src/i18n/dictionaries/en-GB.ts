@@ -190,6 +190,8 @@ export const enGB: Dictionary = {
       'auth.2fa_removed_by_owner': '2-step verification removed on request',
       'auth.backup_code_used': 'Backup code used',
       'auth.backup_codes_regenerated': 'New backup codes generated',
+      'auth.passkey_added': 'Passkey added',
+      'auth.passkey_removed': 'Passkey removed',
       'auth.password_changed': 'Password changed',
       'auth.sessions_revoked': 'Sessions signed out',
       'feedback.handled': 'Message marked seen',
@@ -1050,6 +1052,7 @@ export const enGB: Dictionary = {
       'owner-alert': 'Alert to the owner',
       'owner-digest': 'Daily digest to the owner',
       'owner-picture-alert': 'Picture alert to the owner',
+      'passkey-added': 'Passkey added',
       'password-changed': 'Password changed',
       'password-reset': 'Password reset',
       'professional-granted': 'Professional profile granted',
@@ -1095,7 +1098,8 @@ export const enGB: Dictionary = {
     backToSignIn: 'Back to sign in',
     checkEmail: 'Check your email',
     chooseNewPassword: 'Choose a new password',
-    chooseNewPasswordSubtitle: 'You will be able to sign in with it afterwards.',
+    chooseNewPasswordSubtitle:
+      'You will be able to sign in with it afterwards. If you had passkeys, we remove them: you can add them again from your profile.',
     confirmPassword: 'Repeat the password',
     continueWith: 'Continue with {provider}',
     createAccount: 'Create your account',
@@ -2060,6 +2064,36 @@ export const enGB: Dictionary = {
     '/verificar-email': { title: 'Confirm your email' }
   },
 
+  passkeys: {
+    add: 'Add a passkey',
+    addBody: 'Enter your password. Your device will then ask for Face ID, your fingerprint or its passcode to create the passkey.',
+    added: 'Passkey added. We have emailed you to confirm it.',
+    addedOn: 'Added on {date}',
+    addFailed: 'The passkey could not be added. Please try again.',
+    addTitle: 'Confirm it is you',
+    alreadyAdded: 'This device already holds a passkey for your account.',
+    body: 'Sign in with Face ID, your fingerprint or your device’s screen lock, without typing your password. Each passkey only works at this web address: {host}.',
+    confirmAgain: 'Enter your password again to add the passkey.',
+    emailUnconfirmed: 'Confirm your email address before adding a passkey: open the link we sent you when you created your account.',
+    listFailed: 'We could not load your passkeys.',
+    listNotFresh: 'For your security, your passkeys are only shown if you signed in recently.',
+    loading: 'Loading your passkeys…',
+    none: 'You have no passkeys yet.',
+    remove: 'Remove',
+    removeBody: 'You will no longer be able to sign in with it. Your device may still offer it: delete it there too, among your passwords.',
+    removeConfirm: 'Yes, remove it',
+    removed: 'We have removed the passkey {name}.',
+    removeGone: 'That passkey was no longer on your account.',
+    removeLabel: 'Remove the passkey {name}, added on {date}',
+    removeTitle: 'Remove the passkey {name}?',
+    resetNote: 'If you change or reset your password, we remove all your passkeys and you will need to add them again.',
+    signIn: 'Sign in with a passkey',
+    signInFailed: 'Could not sign in with the passkey. Try again or sign in with your password.',
+    stale: 'For your security, you need to have signed in within the last 10 minutes to add a passkey.',
+    title: 'Passkeys',
+    unnamed: 'Passkey'
+  },
+
   picture: { aiMark: 'AI', aiMarkLabel: 'AI-generated image' },
 
   plan: {
@@ -2408,7 +2442,8 @@ export const enGB: Dictionary = {
           'How the plan is going: which meals you mark as eaten or skipped, your ratings and comments on dishes, your weight over time and your fortnightly check-ins. So the next plan takes them into account.',
           'Payments: if you subscribe to Premium, Stripe takes the payment and we keep only the identifier for your subscription and its status. We never see your card number.',
           'Account security: we record when you change or reset your password and when you sign out of sessions, with the date and without your IP address. So that we can see what happened if someone gets into your account.',
-          'Two-step verification, only if you turn it on: the secret of your authenticator app and your backup codes, encrypted, failed code attempts and, in the security record, when you turn it on, turn it off or use a backup code. If you turn it off, we delete the secret and the codes. If you lose your phone and your backup codes, you can ask us, from your account’s address, to remove it: we email you right away, it is removed 48 to 72 hours later and, if you sign in with a code before then, it is cancelled; it is noted in the security record. So that, even if someone knows your password, they cannot get into your account.',
+          'Two-step verification, only if you turn it on: the secret of your authenticator app and your backup codes, encrypted, failed code attempts and, in the security record, when you turn it on, turn it off or use a backup code. If you turn it off, we delete the secret and the codes. If you lose your phone and your backup codes, you can ask us, from your account’s address, to remove it: we email you right away, it is removed 48 to 72 hours later and, if you sign in with a code or a passkey before then, it is cancelled (if signing in with your password does not ask you for the code, write to us from that address and we will cancel it); it is noted in the security record. So that, even if someone knows your password, they cannot get into your account.',
+          "Passkeys, only if you add one: its identifier and public key; what your device tells us about it, such as whether it syncs across your devices, how it connects or what kind of device or app keeps it; the name of your browser and system we save it under; when you added it and, in the security record, when one is added or removed. The secret part of the key, your Face ID, your fingerprint and your device's passcode never reach us: the key stays on your device or, if you sync your passkeys (for example with iCloud or Google), with the service you choose for that. We delete it if you remove it, or when you change or reset your password. So that you can sign in without a password.",
           'Product use: we record, linked to your account, when you sign in and when you ask to change a dish, and nothing more. To know whether the product works.',
           'What you write to us: messages in the feedback box, so we can read and answer them.'
         ],
@@ -2503,7 +2538,7 @@ export const enGB: Dictionary = {
       {
         heading: 'Cookies and storage on your device',
         paragraphs: [
-          'We only use what is essential for the service to work, which is why we do not ask for permission: your session cookie, the cookie for the language you chose, the one that, if you tick “trust this device” when verifying in two steps, stops asking you for the code for 30 days in that browser, and, when you sign in with Google or Apple, the ones that step needs for a few minutes. None is third-party or tracks you on other sites.',
+          'We only use what is essential for the service to work, which is why we do not ask for permission: your session cookie, the cookie for the language you chose, the one that, if you tick “trust this device” when verifying in two steps, stops asking you for the code for 30 days in that browser, and, when you sign in with Google or Apple, on the sign-in page (which offers you your passkeys) or when you add a passkey, the ones that step needs for a few minutes. None is third-party or tracks you on other sites.',
           "In your browser's storage we keep the meals you tick while offline until they are sent, a notice about a plan pending review and, if you install NutrIA on your phone, a copy of today's plan and the shopping list so they work offline. It all stays on your device."
         ]
       },
@@ -2521,7 +2556,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Privacy policy',
-    updated: 'Last updated: 1 October 2026'
+    updated: 'Last updated: 3 October 2026'
   },
 
   profile: {
@@ -2687,7 +2722,7 @@ export const enGB: Dictionary = {
     currentPasswordMissing: 'Type your current password.',
     deviceOn: '{browser} on {platform}',
     forcedBody:
-      'Your password appears in known data breaches. It does not mean anyone has got into your account, but it is no longer safe: choose a new one to carry on. Saving it signs you out on your other devices.',
+      'Your password appears in known data breaches. It does not mean anyone has got into your account, but it is no longer safe: choose a new one to carry on. Saving it signs you out on your other devices and removes your passkeys.',
     forcedSignOut: 'Sign out',
     forcedTitle: 'Change your password',
     googleOnly: 'You sign in with Google, so your account is as well protected as your Google account.',
@@ -2695,7 +2730,7 @@ export const enGB: Dictionary = {
     lastActive: 'Last active: {date}',
     noOtherSessions: 'You are not signed in on any other device.',
     othersClosed: 'We have signed you out on your other devices.',
-    passwordBody: 'Changing it signs you out on your other devices, and we let you know by email.',
+    passwordBody: 'Changing it signs you out on your other devices and removes your passkeys, and we let you know by email.',
     passwordChanged: 'Password changed. We have signed you out on your other devices.',
     passwordTitle: 'Password',
     sectionTitle: 'Security',

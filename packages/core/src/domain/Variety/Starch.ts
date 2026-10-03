@@ -99,10 +99,11 @@ export function starchBase(dish: Dish): StarchBase | null {
  * `PROTEIN_RULES`, a preference the scheduler keeps whenever the pool lets it,
  * priced at the same weight — never a reason to fail a plan.
  *
- * The four a fortnight is harder than that (017 phase 4, `0081`): the scheduler
- * places no dish that takes its base past the cap while another dish keeps the
- * day as close to its macros, and past it only when none does (owner: the
- * macros win). Days running stay priced.
+ * The rule is harder than that (017 phase 4, `0081`; the days running since
+ * `0082`): the scheduler places no dish that takes its base past the cap, onto
+ * the day beside one of its own or twice on one day, while another dish keeps
+ * the day as close to its macros, and does only when none does (owner: the
+ * macros win).
  */
 export const STARCH_RULES = { capped: ['pasta', 'rice', 'grains'], perFortnight: 4 } as const satisfies {
   readonly capped: readonly StarchBase[];
@@ -163,7 +164,7 @@ export function starchExcess(meals: readonly StarchMeal[], days: number): number
   return kindExcess(toKindMeals(meals), days, STARCH_KIND_RULE);
 }
 
-/** How many meals in these are past `STARCH_RULES`' cap — the part of `starchExcess` the scheduler holds hard (`0081`). */
+/** How many meals in these are past `STARCH_RULES`' cap alone (`0081`); the scheduler holds the whole of `starchExcess` since `0082`. */
 export function starchPastCap(meals: readonly StarchMeal[], days: number): number {
   return kindPastCap(toKindMeals(meals), days, STARCH_KIND_RULE);
 }
