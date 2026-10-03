@@ -515,3 +515,81 @@
   imported the same types into production code, so it is listed in knip's
   `ignoreDependencies` for `apps/api` instead, with the reason.
 - **Advisor**: not consulted.
+
+## Phase 6 — Mandatory for professionals and the admin (2026-10-03)
+
+- **Executor**: opus 5.5 @ high (`backend`, named `backend-011p6`), on
+  `agent/privileged-2fa/backend-011p6`. For this phase the lead allowed it to edit
+  `apps/web` (the workspace copy and the console's gate) and `apps/api/test`.
+- **Owner gate, cleared**:
+  - The owner, 2026-10-03: "Activado el 2FA, no tengo nutricionista".
+  - A read-only production check confirmed both halves. The one admin account has a
+    password and `two_factor_enabled = true`. The only `professionals` row is that same
+    account.
+  - So no professional is active with a password and no second factor (the phase's
+    stop signal), and the admin half ships with the professionals' half.
+- **Result**: done, pending the invariant and legal reviews.
+- **The rule, as written** (`core/domain/SecondFactor`, `secondFactorMissing`):
+  - An account with a `credential` account must have `twoFactorEnabled`.
+  - An account with only provider accounts passes.
+  - `UserController.needsSecondFactor(user)` asks it from the session's user. The flag
+    rides the session (`SessionGuard` copies it to `request.user`), so an account with
+    the factor on costs no query. Only an account with it off is asked whether it has a
+    password, and only in `ProfessionalGuard` and `AdminGuard`.
+  - **Professionals**: every client route is the guard's 404. The `@BeforePractice()`
+    routes stay open: the workspace's page and accepting the agreement.
+    `GET /care/practice` adds `secondFactorRequired`, and `/consulta` shows
+    `SecondFactorRequired` in place of the workspace, before the agreement.
+  - **The admin**: `AdminGuard` (now async) answers the same 404 on every
+    `@Roles('admin')` route. The web's console gate applies the same function to
+    `/users/me` (`role`, `hasPassword`, `twoFactorEnabled`) and shows
+    `SecondFactorRequired` instead of the console.
+- **Decision: a passkey does not stand in for TOTP on a password account** (the lead's
+  view, confirmed here). `0083` makes a user-verified passkey's own sign-in two factors,
+  but it guards nothing at the password door beside it. So a privileged account with a
+  password, a passkey and no TOTP is refused, however it signed in. With TOTP on, a
+  passkey sign-in passes with no code, as `0083` § Consequences says. The rule asks
+  about the account, never about how the session was opened. The copy says "mientras tu
+  cuenta tenga contraseña, una llave de acceso no la sustituye", and never promises that
+  every sign-in asks for the code.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api
+    --filter=web`: green. The API has 1510 unit specs.
+  - `pnpm --filter api build`: green.
+  - The end-to-end suites ran on local Postgres (`NUTRIA_LOCAL_PG=1`), one run at a
+    time, all green:
+    - professionals 25;
+    - admin, access, two-factor, two-factor-removal, care-review, billing and
+      social-sign-in: 258 together;
+    - care and care-practice: 107;
+    - audit, text-cap, the five picture suites, dish-pictures, plan-scheduled-care,
+      accompaniments and passkeys: 142.
+  - New end-to-end cases:
+    - professionals: client routes shut with the guard's 404 byte for byte, the page
+      open with `secondFactorRequired: true`; opened by TOTP and shut again on the next
+      request after `/two-factor/disable`; a professional with no `credential` account
+      never blocked;
+    - admin: console routes shut with the stranger's 404, `/users/me` saying what the
+      web reads, opened by TOTP; an admin with no password never blocked;
+    - passkeys: an admin with a password and a passkey but no TOTP is refused after a
+      passkey sign-in, and let in by a passkey sign-in with no code once TOTP is on.
+- **Harness**:
+  - `enableTotp(app, account, password?)` turns TOTP on through `/two-factor/enable` and
+    the first `/verify-totp`. It answers the account with its rotated cookie: the old
+    one is gone.
+  - Every suite that makes an admin or a working professional calls it and puts the
+    new cookie in its cleanup list.
+  - `register` is now paced: the two extra `/auth/*` calls per privileged account
+    pushed `care.e2e-spec.ts` past the API's own 120-a-minute limiter.
+  - `care-practice`'s "deletes a professional who pays" deletes from the confirmed
+    session. A password sign-in would now be challenged.
+- **Deviations from plan**: none in scope. The plan names `Session.guard.ts`,
+  `Professional.guard.ts` and `Admin.guard.ts`; the practice view's field and the web's
+  console gate are how "copy that says what to do" reaches each page.
+- **Not changed, to note**:
+  - Billing's practice checkout and the Stripe test-mode check (`role === 'admin'`) are
+    not behind these guards. They read no health data.
+  - The owner's one-click activation link is `@Public()` and authorised by its token, not
+    the session.
+- **Advisor**: not consulted.
+- **After deploy**: the owner still reaches `/admin` (his account has TOTP on).
