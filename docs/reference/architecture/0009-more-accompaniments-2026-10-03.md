@@ -61,6 +61,14 @@ el aceite exacto de su ración. Las condiciones:
    Leo que habla del fruto seco servido como acompañamiento, no de la guarnición de una
    verdura. Recomiendo aceptarla: es el caso de frutos de cáscara que la fase 3 necesita en
    comida y cena. Pero choca con la letra de esa respuesta, así que la marco.
+6. **Los dos caldos no entran hasta que sus filas declaren el apio.** `caldo-de-pollo` y
+   `caldo-de-verduras` no tienen ningún alérgeno en el seed (`starter.ts:1060`, `:1071`).
+   En cambio, `pastilla-de-caldo-de-verduras` y `sopa-de-verduras-envasada` sí llevan
+   "puede contener apio". Un caldo de brick español casi siempre lleva apio. Como plato
+   aparte, el caldo llegaría a alguien alérgico al apio sin que nada lo pare. El arreglo:
+   añadir el enlace `celery` a las dos filas en la migración revisada de la fase 2. Eso
+   protege también a los platos que ya los usan. Hasta entonces, recomiendo rechazar las
+   dos entradas. Es un hallazgo de seguridad: va el primero en § Riesgos.
 
 ## Premisas revisadas
 
@@ -163,7 +171,8 @@ Notas por entrada:
 - **`caldo-de-pollo`** tiene la clase `meat`: vegetarianos y veganos no lo reciben y
   tienen `caldo-de-verduras`. Para kosher, `setsBeside` impide servirlo con un yogur
   (`Accompaniment.ts:542`). Los dos caldos aportan 15 kcal: sirven para variar, no para
-  cerrar macros (§ Riesgos, punto 4).
+  cerrar macros (§ Riesgos, punto 4). **No deben entrar hasta que sus filas declaren el
+  apio** (condición 6 del veredicto).
 - **`salmorejo`** lleva 30 g de pan y es el caso de gluten en comida y cena. Como su papel
   es verdura, el filtro "pan junto a pan" no lo mira: puede salir con pan en el papel de
   almidón. Son 60–90 g de pan entre los dos, dentro de la ración de la AESAN.
@@ -1119,3 +1128,267 @@ valen para comida y cena:
       albaricoque: 'apricots ({grams})',
       granada: 'pomegranate seeds ({grams})',
 ```
+### 6. El lote entero
+
+| | Almidón | Verdura | Postre | Total |
+|---|---|---|---|---|
+| Española (con "otras"; 3 también italianas) | 5 | 17 | 0 | 22 |
+| Asiática | 1 | 3 | 0 | 4 |
+| Mexicana y latina | 3 | 1 | 0 | 4 |
+| Árabe y magrebí | 1 | 3 | 1 | 5 |
+| Todas las familias | 0 | 0 | 7 | 7 |
+| **Total** | **10** | **24** | **8** | **42** |
+
+Por comidas:
+- 30 son de comida y cena;
+- 9 de desayuno, comida y cena;
+- 2 solo de desayuno;
+- 1 solo de comida (`cuscus`).
+
+Por tipo: 31 compuestas, 7 simples y 4 frutas.
+
+La lista para aceptar o rechazar. El número entre paréntesis remite a la condición del
+veredicto.
+
+
+| # | Clave | Familia | Papel | Comidas | Meses | kcal | Alérgenos | Recomendación |
+|---|---|---|---|---|---|---|---|---|
+| 1 | `crema-de-calabacin` | española | vegetable | C Ce | 5, 6, 7, 8, 9 | 102.7 | — | aceptar |
+| 2 | `crema-de-calabaza` | española | vegetable | C Ce | 9, 10, 11, 12, 1, 2, 3 | 137.6 | — | aceptar |
+| 3 | `crema-de-puerros` | española | vegetable | C Ce | todo el año | 187 | — | aceptar |
+| 4 | `caldo-de-pollo` | española | vegetable | C Ce | 10, 11, 12, 1, 2, 3, 4 | 15 | — | condicional: apio (6) |
+| 5 | `caldo-de-verduras` | española | vegetable | C Ce | 10, 11, 12, 1, 2, 3, 4 | 15 | — | condicional: apio (6) |
+| 6 | `pimientos-asados` | española | vegetable | C Ce | 7, 8, 9, 10 | 86.2 | — | aceptar |
+| 7 | `menestra-de-verduras` | española | vegetable | C Ce | todo el año | 116.7 | — | aceptar |
+| 8 | `champinones-al-ajillo` | española | vegetable | C Ce | todo el año | 84.2 | — | aceptar |
+| 9 | `tomate-alinado` | española + italiana | vegetable | C Ce | 6, 7, 8, 9 | 79.2 | — | aceptar |
+| 10 | `escalivada` | española | vegetable | C Ce | 7, 8, 9, 10 | 106 | — | aceptar |
+| 11 | `espinacas-a-la-catalana` | española | vegetable | C Ce | 10, 11, 12, 1, 2, 3, 4, 5, 6 | 145.4 | tree_nuts | aceptar; choca con la respuesta 7 (5) |
+| 12 | `acelgas-rehogadas` | española | vegetable | C Ce | 8, 9, 10, 11, 12, 1, 2, 3, 4, 5 | 88.1 | — | aceptar |
+| 13 | `coliflor-al-ajoarriero` | española | vegetable | C Ce | 9, 10, 11, 12, 1, 2, 3, 4 | 89.6 | — | aceptar |
+| 14 | `alcachofas-a-la-plancha` | española + italiana | vegetable | C Ce | 12, 1, 2, 3, 4, 5 | 116.2 | — | aceptar |
+| 15 | `esparragos-trigueros-a-la-plancha` | española + italiana | vegetable | C Ce | 3, 4, 5, 6, 9 | 74.2 | — | aceptar |
+| 16 | `zanahorias-alinadas` | española | vegetable | C Ce | todo el año | 100.5 | — | aceptar |
+| 17 | `patata-cocida` | española | starch | C Ce | todo el año | 160.4 | — | aceptar |
+| 18 | `pure-de-patata` | española | starch | C Ce | todo el año | 179.7 | lactose, milk | aceptar |
+| 19 | `salmorejo` | española | vegetable | C Ce | 6, 7, 8, 9 | 214.4 | gluten | aceptar |
+| 20 | `picos-de-pan` | española | starch | D C Ce | todo el año | 79.8 / 119.7 | gluten | condicional: fila BEDCA (4) |
+| 21 | `pan-con-tomate` | española | starch | D C Ce | todo el año | 204.4 | gluten | aceptar |
+| 22 | `tostada-con-aceite` | española | starch | D | todo el año | 170.2 | gluten | aceptar; dormida hasta que el desayuno tenga acompañamientos (1) |
+| 23 | `arroz-jazmin` | asian | starch | C Ce | todo el año | 182.5 | — | aceptar |
+| 24 | `edamame` | asian | vegetable | C Ce | todo el año | 109 | soy | aceptar |
+| 25 | `espinacas-con-sesamo` | asian | vegetable | C Ce | 10, 11, 12, 1, 2, 3, 4, 5, 6 | 65.8 | gluten, sesame, soy | aceptar |
+| 26 | `kimchi` | asian | vegetable | C Ce | todo el año | 9 | crustaceans (trazas), fish (trazas) | aceptar |
+| 27 | `yuca-con-mojo` | latin | starch | C Ce | todo el año | 240.7 | — | aceptar |
+| 28 | `platano-macho-al-horno` | latin | starch | C Ce | todo el año | 226.6 | — | aceptar |
+| 29 | `elote` | latin | starch | C Ce | 7, 8, 9 | 132.1 | — | aceptar |
+| 30 | `guacamole` | latin | vegetable | C Ce | todo el año | 94.2 | — | aceptar |
+| 31 | `cuscus` | arab | starch | C | todo el año | 188 | gluten | aceptar |
+| 32 | `mutabal` | arab | vegetable | C Ce | 6, 7, 8, 9, 10 | 101.4 | sesame | aceptar |
+| 33 | `ensalada-de-zanahoria-marroqui` | arab | vegetable | C Ce | todo el año | 100 | — | aceptar |
+| 34 | `ensalada-de-remolacha` | arab | vegetable | C Ce | todo el año | 102.1 | — | aceptar |
+| 35 | `datiles` | arab | dessert | D C Ce | todo el año | 84.6 | — | aceptar |
+| 36 | `yogur-con-miel` | todas | dessert | D C Ce | todo el año | 100.4 | lactose, milk | aceptar |
+| 37 | `macedonia` | todas | dessert | D C Ce | 11, 12, 1, 2, 3 | 107.4 | — | aceptar |
+| 38 | `avellanas` | todas | dessert | D | todo el año | 125.6 / 188.4 | tree_nuts | aceptar; dormida hasta que el desayuno tenga acompañamientos (1) |
+| 39 | `nispero` | todas | dessert | D C Ce | 4, 5 (catálogo) | 70.5 | — | aceptar |
+| 40 | `cereza` | todas | dessert | D C Ce | 5, 6, 7 (catálogo) | 94.5 | — | aceptar |
+| 41 | `albaricoque` | todas | dessert | D C Ce | 5, 6, 7, 8 (catálogo) | 67.2 | — | aceptar |
+| 42 | `granada` | todas | dessert | D C Ce | 10, 11 (catálogo) | 124.5 | — | aceptar |
+
+## Filas que faltan
+
+**Ningún slug falta en el catálogo.** Las 42 entradas usan 61 filas distintas, todas en el
+seed. Hay dos cambios de datos que no son altas, y por eso no encajan en el
+`INSERT … ON CONFLICT (slug) DO NOTHING` que describe la fase 2:
+
+1. **Re-fuentear `picos-de-pan`** (hoy BEDCA: 399 kcal, 11 g de proteína, 73 g de
+   hidratos, 7 g de grasa y 3,5 g de fibra por 100 g). Propuesta:
+
+   | Campo | Valor |
+   |---|---|
+   | FDC id | **174929** (SR Legacy) |
+   | Descripción | Bread, sticks, plain |
+   | Por 100 g | 412 kcal · 12,0 g proteína · 68,4 g hidratos · 9,5 g grasa · 3,0 g fibra (medido: API de FoodData Central, 2026-10-03) |
+   | Alérgenos | `gluten` (contiene). Propongo además `sesame` como trazas: es una **hipótesis**, porque muchos picos españoles avisan "puede contener sésamo". Hay que comprobarlo en dos o tres etiquetas antes de la migración |
+   | Efecto | La ración de 30 g pasa de 119,7 a 123,6 kcal. Cambian también los platos que ya usen la fila |
+
+   Es un `UPDATE` de una fila de producción, y es una de las 14 filas BEDCA cuya
+   re-fuente está en cola (`000-workspace` LOG). Recomiendo hacerlo dentro de esa tarea, no
+   aquí, y dejar `picos-de-pan` fuera de este lote hasta entonces.
+2. **Declarar el apio en los caldos** (condición 6): añadir el enlace `celery` a
+   `caldo-de-pollo` y a `caldo-de-verduras`. Recomiendo `contains` y no `may_contain`. La
+   fila es genérica, y el apio suele ir en la lista de ingredientes del caldo de brick, no
+   solo en las trazas. Que siempre sea así es una **hipótesis**: hay que leer tres
+   etiquetas de supermercado. Es un alta en la tabla de enlaces de alérgenos y puede ir en
+   la migración revisada de la fase 2, con su `ON CONFLICT DO NOTHING`.
+
+Si el lead acepta los caldos, **la fase 2 no se salta**, aunque no falte ningún slug.
+
+## Comprobaciones
+
+Las hice con un script sobre el seed. No hubo base de datos ni modelo.
+
+| Comprobación | Resultado |
+|---|---|
+| Cada slug está en el catálogo | 42 de 42 entradas; 61 de 61 filas |
+| Fuente de cada fila | todas `usda`, salvo `picos-de-pan` (`bedca`). Ninguna `manual` |
+| Las entradas españolas no llevan ninguna fila de `traditional_spanish` (`Preference.ts:98`) | 0 de 22 |
+| El aceite de la frase coincide con el de la ración, en los dos idiomas | 31 de 31 compuestas |
+| Los literales dan exactamente las entradas de las tablas | 42 de 42; las 31 compuestas según `isComposed` tienen nombre y preparación |
+| Ningún grupo de la tabla 2 deja una celda muerta (familia × comida declarada que el código nunca ofrecería) | ninguna |
+| Los meses declarados salen de las filas frescas | sí, salvo los caldos y `pan-con-tomate` (declarados, ver § Cómo está hecho el lote) |
+
+## Requisitos
+
+- **Código (fase 3)**:
+  - pegar las entradas aceptadas en `ACCOMPANIMENTS`, `COMPOSED_NAMES` y
+    `COMPOSED_PREPARATIONS`, ordenando las claves como pida el linter;
+  - pegar sus frases en `meal.accompanimentNames`, en `es-ES` y `en-GB`;
+  - corregir el comentario de `Accompaniment.ts:74–82` ("USDA rows only"), que ya hoy no es
+    cierto;
+  - las pruebas del PRD, criterio 5:
+    - leche: `pure-de-patata` y `yogur-con-miel`;
+    - gluten: `salmorejo`, `pan-con-tomate` y `cuscus`;
+    - frutos de cáscara en comida y cena: `espinacas-a-la-catalana`;
+    - "tradicional español nunca recibe uno extranjero": por `setsBeside`, con un plato de
+      esa familia, y al menos con `ensalada-de-zanahoria-marroqui` o `elote`, que no llevan
+      ninguna fila de `0077`;
+  - la cuenta de acompañamientos distintos por perfil y quincena en el evaluador.
+- **Datos (fase 2)**: los dos enlaces de apio, si se aceptan los caldos. `picos-de-pan`
+  espera a la tarea BEDCA.
+- **Infraestructura y dinero**: nada. 0 €. Ninguna llamada a un modelo. La medición va en
+  `pnpm db:local` con `NUTRIA_LOCAL_PG=1`, nunca en Neon.
+- **Decisiones del lead** (el owner las delegó el 2026-10-03):
+  - aceptar o rechazar cada entrada;
+  - el desayuno (condición 1);
+  - `picos-de-pan` (4);
+  - `espinacas-a-la-catalana` (5);
+  - los caldos (6);
+  - qué hacer si el tiempo pasa de +10 % (§ Riesgos, punto 3).
+- **Tiempo del owner**: ninguno, salvo que se decida abrir el desayuno. Eso cambia el
+  planificador y merece su visto bueno.
+
+## Riesgos
+
+1. **Seguridad: apio sin declarar en los caldos.**
+   - **Probabilidad**: alta. El caldo de brick suele llevar apio (**hipótesis**, por
+     comprobar en etiquetas).
+   - **A quién afecta**: a una persona alérgica al apio, que recibiría un tazón de caldo
+     sin que nada lo pare.
+   - **Cómo se vería**: no se ve en el código. Solo en la etiqueta.
+   - **Cómo se deshace**: no aceptar los caldos, o añadir el enlace en la fase 2. El enlace
+     protege también a los platos que ya usan esas filas.
+2. **Seguridad: alérgenos nuevos en la mesa.**
+   - **Qué entra**:
+     - frutos de cáscara en comida y cena (`espinacas-a-la-catalana`);
+     - sésamo (`mutabal`, `espinacas-con-sesamo`);
+     - soja (`edamame`, `espinacas-con-sesamo`);
+     - gluten (`salmorejo`, `pan-con-tomate`, `tostada-con-aceite`, `cuscus`,
+       `espinacas-con-sesamo`, `picos-de-pan`);
+     - leche (`pure-de-patata`, `yogur-con-miel`);
+     - trazas de pescado y crustáceos (`kimchi`).
+   - **Quién lo para**: todo pasa por el mismo `dishSafety` que juzga los platos. El único
+     riesgo real es que una fila del catálogo tenga mal un enlace.
+   - **Revisé las filas usadas**: solo encontré el caso del apio. Los piñones van marcados
+     como frutos de cáscara, aunque el anexo II del Reglamento 1169/2011 no los nombra. Es
+     la opción prudente y la dejo así.
+3. **Tiempo de `schedulePlan`.**
+   - **Cuánto crecen los conjuntos**: `setsOf` forma el producto de los tres papeles, y
+     `rankedSets` valora cada conjunto por cada clave de caché (plato, comida, mes y
+     presupuesto del día). La tabla de abajo está medida por combinatoria sobre la lista,
+     contando raciones (un pan tiene dos) y sin los filtros de cada persona ni del plato.
+     Por eso es un techo.
+   - **Lo que no sé**: qué parte del tiempo de `schedulePlan` se va en valorar conjuntos
+     (**desconocido**).
+   - **Señal de parada**: más de +10 % frente al cierre de 017 en la primera medición de la
+     fase 3.
+   - **Remedio**:
+     - podar cada papel antes del producto, por ejemplo quedarse con las 4 raciones de
+       cada papel que mejor cierran el hueco por sí solas. Es un cambio del planificador y
+       lo decide el lead;
+     - o entrar el lote en dos tandas: primero las de temporada y después las de todo el
+       año.
+   - **Cómo se deshace**: quitar entradas.
+4. **Acompañamientos casi sin energía.**
+   - **Cuáles**: los caldos (15 kcal) y `kimchi` (9 kcal).
+   - **El problema**: casi no mueven el coste de un conjunto, así que "X + caldo" empata
+     casi con "X".
+   - **Qué puede pasar** (**hipótesis**): que ocupen puestos del top 6 como casi duplicados,
+     o que se añadan casi siempre porque salen gratis.
+   - **Cómo se vería**: en el evaluador, la frecuencia de cada clave.
+   - **Cómo se deshace**: quitarlos, o darles una ración mayor.
+5. **La variedad no sube.** Es la hipótesis de la condición 3.
+   - **Cómo se vería**: la nueva cuenta de distintos del evaluador.
+   - **Remedio**: un coste por repetir acompañamiento. El PRD deja fuera las "reglas
+     nuevas", así que lo decide el lead.
+6. **El orden de la tabla decide los empates.** Una entrada añadida al final pierde todos
+   los empates frente a las de hoy. Dónde se pegan las entradas cambia los planes. La fase 3
+   debe colocarlas a propósito, junto a las de su papel y su familia como hace el fichero,
+   y medir.
+
+| Familia | Comida | Conjuntos hoy (media de 12 meses) | Con el lote (media) | Factor | Máximo con el lote (mes: almidón/verdura/postre, frente a hoy) |
+|---|---|---|---|---|---|
+| española | comida y cena | 410 | 2.666 | ×6,5 | 2.940 (noviembre: 13/13/14; hoy 8/3/11) |
+| italiana | comida y cena | 245 | 437 | ×1,8 | 648 (junio: 8/5/11; hoy 8/3/8) |
+| asiática | comida y cena | 343 | 847 | ×2,5 | 990 (noviembre: 10/5/14; hoy 9/2/11) |
+| latina | comida y cena | 411 | 780 | ×1,9 | 975 (julio: 14/4/12; hoy 11/3/9) |
+| árabe | comida | 485 | 1.083 | ×2,2 | 1.344 (julio: 11/7/13; hoy 10/4/9) |
+| árabe | cena | 469 | 953 | ×2,0 | 1.120 (julio: 9/7/13; hoy 9/4/9) |
+
+El 77 % de la biblioteca es española (947 de 1.229 platos, `0079`), así que la cifra que
+importa es la primera fila.
+
+## Coste y esfuerzo
+
+Todo es **estimado**, con un agente opus a esfuerzo medio, como dice el plan.
+
+| Trabajo | Esfuerzo | De qué depende |
+|---|---|---|
+| Fase 2: dos enlaces de apio y su revisión | 1–2 h de agente | de que se acepten los caldos |
+| Fase 3: pegar, nombres, frases web, comentario | 1–2 h | del número de entradas aceptadas |
+| Fase 3: pruebas y cuenta de distintos en el evaluador | 2–3 h | — |
+| Fase 3: medir sin y con el flag en la biblioteca de referencia | 1–3 h | del tiempo de `schedulePlan`, que no conozco |
+| Si hay que podar por papel | +2–4 h, y una decisión del lead | de la primera medición |
+| Dinero | 0 € | — |
+
+## Plan
+
+Va en fases pequeñas para el `PLAN` de 018, como enmienda a sus fases 2 y 3.
+
+1. **Fase 2, solo si se aceptan los caldos.**
+   - **Qué**: la migración con los dos enlaces `celery` y el seed igual.
+   - **Éxito**: `pnpm db:local reset --reference`, `check-migrations`, y el visto bueno de
+     `migration-reviewer`.
+   - **Parada**: el revisor la rechaza.
+   - `picos-de-pan` no va aquí.
+2. **Fase 3a: medir el tiempo antes que nada.**
+   - **Qué**: pegar las entradas aceptadas y correr el evaluador sin y con el flag, con
+     `ms` por perfil.
+   - **Éxito**: dentro de +10 % del cierre de 017.
+   - **Parada**: si pasa de +10 %, no seguir. Llevar al lead la poda por papel o la entrada
+     en dos tandas.
+3. **Fase 3b: lo demás de la fase 3.**
+   - **Qué**: las pruebas, los nombres, las frases web y la cuenta de distintos.
+   - **Éxito**: el criterio 4 del PRD (196/196 días en banda, 0 alérgenos, 0 snack en
+     comida principal, y que suban los distintos).
+   - **Parada**: un día perdido, un alérgeno, o que los distintos no suban. En ese caso, va
+     al lead como regla de repetición.
+4. **Fuera de 018, a decidir.**
+   - Abrir el desayuno a los acompañamientos. Las entradas ya están.
+   - Re-fuentear `picos-de-pan` con la tarea BEDCA.
+
+## Qué no sé
+
+- **Qué parte de `schedulePlan` es valorar conjuntos.** Solo lo dice la fase 3a.
+- **Si suben los acompañamientos distintos por quincena.** Es una hipótesis. Lo dice la
+  cuenta nueva del evaluador.
+- **Si los caldos de brick españoles llevan siempre apio, y si los picos llevan trazas de
+  sésamo.** Se resuelve leyendo tres etiquetas de cada uno.
+- **Cuántas comidas pasan de 700 kcal en cada perfil.** Solo esas reciben acompañamientos,
+  así que eso pone el techo de la variedad que se puede ver. El evaluador ya da el reparto
+  de 0–3 acompañamientos por comida.
+- **Si "Bread, sticks, plain" (FDC 174929) es un buen sustituto de los picos.** Las cifras
+  están cerca de las de BEDCA (412 frente a 399 kcal). La receta de los picos andaluces
+  lleva aceite y puede tener algo más de grasa. Lo decide quien re-fuentee las 14 filas.
+
