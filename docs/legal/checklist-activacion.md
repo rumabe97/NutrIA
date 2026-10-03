@@ -24,6 +24,13 @@
 
 - [ ] La purga diaria de `audit_logs` (`action LIKE 'auth.%'`, `createdAt` de más de 12 meses) está en producción: fase 7 del 011, en el cron diario de fallos de inicio de sesión. Con prueba de que no borra filas de administración (`analisis.md` § 4.1 bis). Solo entonces se publica la frase marcada ⟦si purga-seguridad⟧ de [`textos/02`](./textos/02-politica-privacidad.md). Hasta entonces la política dice solo «mientras exista tu cuenta».
 
+## 0 quinquies. Antes de llevar a producción el alta que no revela nada (proyecto 011 fase 8, PR #217)
+
+- [ ] La viñeta ⟦frenos⟧ y la frase de interés legítimo de [`textos/02`](./textos/02-politica-privacidad.md) en `privacy` (es-ES y en-GB), **en el mismo cambio** (P2-14). Si se publica otro día que el 3 de octubre de 2026, `privacy.updated` con esa fecha. Sin correo de aviso.
+- [ ] `requireEmailVerification: true` no sale antes de que el propietario haya visto, en lectura, cuántas cuentas de producción no han confirmado su dirección (lo pide el PLAN). Recomendado, no exigido: escribirles una vez con un enlace antes de encenderlo.
+- [ ] (P3, no bloquea) Las dos frases de la web que el presupuesto puede volver falsas (`auth.signUpSent`, `auth.invalidCredentials`) y la frase nueva del correo § O de [`textos/06`](./textos/06-correos.md) (`analisis.md` § 9, P3).
+- [ ] `/condiciones` **no** cambia: el contrato se sigue celebrando al pulsar; si alguien quiere decir allí que hay que confirmar el correo, sube `TERMS_VERSION` (`0071`).
+
 ## 0 bis. Antes de poner `AI_PROVIDER=openrouter` en producción (`0064`)
 
 > Producción corre con `AI_PROVIDER=stub` desde el 2026-09-26: no sale nada a ningún
