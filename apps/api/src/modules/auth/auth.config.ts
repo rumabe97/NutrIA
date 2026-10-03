@@ -16,7 +16,7 @@ import { account, passkey as passkeyTable, rateLimit, session, twoFactor as twoF
 import { APPLE_ORIGIN, configuredSocialProviders, socialProviderOptions } from './services/SocialProviders.js';
 import { onAccountCreated, onAddressConfirmed } from './services/SelfService.js';
 import { accountSecurityAfter, accountSecurityBefore, onPasswordReset } from './services/AccountSecurity.js';
-import { passkeyOptions } from './services/Passkey.js';
+import { passkeyOptions, passkeyPasswordConfirmation } from './services/Passkey.js';
 import { sendPasskeyAddedMail } from './services/PasskeyMail.js';
 import { sendPasswordChangedMail } from './services/PasswordChangedMail.js';
 import { sendPasswordResetMail } from './services/PasswordResetMail.js';
@@ -36,6 +36,7 @@ import type { BackgroundTaskService } from '../../shared/services/index.js';
 import type { BillingService } from '../billing/services/Billing.service.js';
 import type { Env } from '../../config/index.js';
 import type { EmailService } from '../email/services/Email.service.js';
+import type { PasswordChangedNotice } from './services/AccountSecurity.js';
 import type { PasskeyNotice } from './services/Passkey.js';
 import type { TwoFactorNotice, TwoFactorRemovalNotice } from './services/TwoFactor.js';
 
@@ -57,10 +58,12 @@ const TEST_AUTH_RULE = { max: 100_000, window: 60 };
  * The passkey sign-in's two public routes (PLAN 011 phase 5), held to what a
  * password sign-in is held to rather than the global hundred in ten seconds:
  * each options call writes a challenge row anybody can ask for, and the
- * verify is the guess. The options are asked again on every visit to
+ * verify is the guess. The password confirmation before adding one is a
+ * password guess too. The options are asked again on every visit to
  * `/acceder` (the autofill), hence the wider window there.
  */
 const PASSKEY_SIGN_IN_RULES = {
+  '/passkey/confirm-password': { max: 3, window: 10 },
   '/passkey/generate-authenticate-options': { max: 20, window: 60 },
   '/passkey/verify-authentication': { max: 3, window: 10 }
 };
@@ -92,17 +95,8 @@ export function createAuth(
     isCompromised,
     mailPasskeyAdded: async ({ id, acceptLanguage, email, userAgent }: PasskeyNotice) =>
       sendPasskeyAddedMail(mailer, { acceptLanguage, appUrl: env.APP_URL, to: email, userAgent, userId: id }),
-    mailPasswordChanged: async ({
-      id,
-      acceptLanguage,
-      email,
-      userAgent
-    }: {
-      id: string;
-      acceptLanguage: string | null;
-      email: string;
-      userAgent: string | null;
-    }) => sendPasswordChangedMail(mailer, { acceptLanguage, appUrl: env.APP_URL, to: email, userAgent, userId: id }),
+    mailPasswordChanged: async ({ id, acceptLanguage, email, passkeysRemoved, userAgent }: PasswordChangedNotice) =>
+      sendPasswordChangedMail(mailer, { acceptLanguage, appUrl: env.APP_URL, passkeysRemoved, to: email, userAgent, userId: id }),
     mailTwoFactor: async ({ id, acceptLanguage, email, event, userAgent }: TwoFactorNotice) =>
       sendTwoFactorMail(mailer, { acceptLanguage, appUrl: env.APP_URL, event, to: email, userAgent, userId: id }),
     mailTwoFactorRemoval: async ({ id, email, event }: TwoFactorRemovalNotice) =>
@@ -325,16 +319,19 @@ export function createAuth(
       sessionStartedOnSignIn(),
       /*
        * Passkeys (PLAN 011 phase 5): Face ID or iCloud Keychain, bound to the
-       * web's own host (`passkeyOptions`, from `APP_URL`). Added only from a
-       * session younger than `freshAge` (the plugin's `freshSessionMiddleware`),
-       * listed and removed by their own account — another account's id is the
+       * web's own host (`passkeyOptions`, from `APP_URL`). Added only after
+       * the password is confirmed at `/passkey/confirm-password` (the plugin
+       * below), or from a session ten minutes young for an account with no
+       * password (`hooks.before`); listed and removed by their own account — another account's id is the
        * guard's 404 (`hooks.before`, `services/Passkey.ts`). A sign-in with one
        * opens a session at once: the key on the device is itself two factors,
        * and the two-factor plugin only guards the password door. Adding one
        * writes `auth.passkey_added` and mails the account; removing one writes
-       * `auth.passkey_removed`.
+       * `auth.passkey_removed`. A password reset removes every passkey of
+       * the account (`UserController.passwordChanged`).
        */
-      passkey(passkeyOptions(env.APP_URL))
+      passkey(passkeyOptions(env.APP_URL)),
+      passkeyPasswordConfirmation()
     ],
     /*
      * Counted in the database, not in the process.

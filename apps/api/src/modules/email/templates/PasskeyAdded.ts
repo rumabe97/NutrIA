@@ -20,8 +20,8 @@ type Copy = {
 /**
  * "You added a passkey" (PLAN 011 phase 5). Like the two-factor mail: when,
  * roughly from what — a browser and a system family, never an address — and
- * what to do if it was not them. Here that is more than a reset: a passkey
- * outlives a new password, so the person also removes it from Seguridad.
+ * what to do if it was not them: a reset, which signs every device out and
+ * removes every passkey of the account (PLAN 011 phase 5).
  * Never the passkey's name — whoever added it chose the words — nor anything
  * of the account's contents: no word of health (M14), no name, no plan.
  */
@@ -31,7 +31,7 @@ const COPY: Record<EmailLocale, Copy> = {
     device: device => `From: ${device}.`,
     linkFallback: 'If the button does not work, copy this address into your browser:',
     notYou:
-      'If it was not you, somebody has been inside your account: reset your password now, then sign in and remove that passkey under Profile › Security. A new password alone does not stop a passkey.',
+      'If it was not you, somebody has been inside your account: reset your password now. A reset signs every device out and removes every passkey of the account, this one included.',
     subject: 'You added a passkey',
     wasYou: 'If it was you, there is nothing else to do.',
     what: when =>
@@ -42,7 +42,7 @@ const COPY: Record<EmailLocale, Copy> = {
     device: device => `Desde: ${device}.`,
     linkFallback: 'Si el botón no funciona, copia esta dirección en tu navegador:',
     notYou:
-      'Si no has sido tú, alguien ha entrado en tu cuenta: restablece la contraseña ahora, entra y quita esa llave en Perfil › Seguridad. Una contraseña nueva no basta para anular una llave de acceso.',
+      'Si no has sido tú, alguien ha entrado en tu cuenta: restablece la contraseña ahora. Al restablecerla se cierran todas las sesiones y se quitan todas las llaves de acceso de la cuenta, también esta.',
     subject: 'Has añadido una llave de acceso',
     wasYou: 'Si has sido tú, no tienes que hacer nada más.',
     what: when =>

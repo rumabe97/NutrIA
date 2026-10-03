@@ -22,7 +22,8 @@ const forgetExpiredVerifications = vi.fn<(now: Date) => Promise<number>>();
 const hasPassword = vi.fn<(id: string) => Promise<boolean>>();
 const markPasswordCompromised = vi.fn<(id: string, at: Date) => Promise<boolean>>();
 const forgetTrustedDevices = vi.fn<(id: string) => Promise<number>>();
-const passwordChanged = vi.fn<(id: string, record: (tx: unknown) => Promise<void>) => Promise<void>>();
+const passwordChanged =
+  vi.fn<(id: string, record: (tx: unknown, passkeysRemoved: number) => Promise<void>, options?: { forgetPasskeys?: boolean }) => Promise<number>>();
 
 vi.mock('#repositories/User', () => ({
   UserRepository: {
@@ -33,7 +34,8 @@ vi.mock('#repositories/User', () => ({
     forgetTrustedDevices: (id: string) => forgetTrustedDevices(id),
     hasPassword: (id: string) => hasPassword(id),
     markPasswordCompromised: (id: string, at: Date) => markPasswordCompromised(id, at),
-    passwordChanged: (id: string, r: (tx: unknown) => Promise<void>) => passwordChanged(id, r),
+    passwordChanged: (id: string, r: (tx: unknown, passkeysRemoved: number) => Promise<void>, options?: { forgetPasskeys?: boolean }) =>
+      passwordChanged(id, r, options),
     setTier: (id: string, tier: UserTier, r?: (tx: unknown, from: UserTier) => Promise<void>) => setTier(id, tier, r)
   }
 }));
@@ -104,7 +106,11 @@ describe('UserController.passwordChanged', () => {
   beforeEach(() => {
     passwordChanged.mockReset();
     record.mockReset();
-    passwordChanged.mockImplementation(async (_id, r) => r('tx-1'));
+    passwordChanged.mockImplementation(async (_id, r) => {
+      await r('tx-1', 0);
+
+      return 0;
+    });
   });
 
   it.each(['change', 'reset'] as const)(
@@ -112,7 +118,7 @@ describe('UserController.passwordChanged', () => {
     async via => {
       await UserController.passwordChanged('usr-1', via);
 
-      expect(passwordChanged).toHaveBeenCalledWith('usr-1', expect.any(Function));
+      expect(passwordChanged).toHaveBeenCalledWith('usr-1', expect.any(Function), { forgetPasskeys: via === 'reset' });
       expect(record).toHaveBeenCalledTimes(1);
       expect(record).toHaveBeenCalledWith(
         { action: 'auth.password_changed', actorId: 'usr-1', entity: 'user', metadata: { via }, subjectUserId: 'usr-1' },
@@ -120,6 +126,34 @@ describe('UserController.passwordChanged', () => {
       );
     }
   );
+});
+
+describe('UserController.passwordChanged, after a reset that removed passkeys', () => {
+  beforeEach(() => {
+    passwordChanged.mockReset();
+    record.mockReset();
+    passwordChanged.mockImplementation(async (_id, r) => {
+      await r('tx-1', 2);
+
+      return 2;
+    });
+  });
+
+  it('writes one auth.passkey_removed row per passkey, with nothing in it, in the same transaction, and says how many went', async () => {
+    await expect(UserController.passwordChanged('usr-1', 'reset')).resolves.toBe(2);
+
+    expect(record).toHaveBeenCalledTimes(3);
+    expect(record).toHaveBeenNthCalledWith(
+      2,
+      { action: 'auth.passkey_removed', actorId: 'usr-1', entity: 'passkey', metadata: {}, subjectUserId: 'usr-1' },
+      'tx-1'
+    );
+    expect(record).toHaveBeenNthCalledWith(
+      3,
+      { action: 'auth.passkey_removed', actorId: 'usr-1', entity: 'passkey', metadata: {}, subjectUserId: 'usr-1' },
+      'tx-1'
+    );
+  });
 });
 
 describe('UserController.sessionsRevoked', () => {

@@ -1,13 +1,17 @@
 import { Logger } from '@nestjs/common';
-import { getSessionFromCtx } from 'better-auth/api';
+import { BASE_ERROR_CODES } from 'better-auth';
+import { APIError, createAuthEndpoint, getSessionFromCtx, sessionMiddleware } from 'better-auth/api';
+import { z } from 'zod';
 
 import { UserController } from 'core/controllers/User';
+import { PASSWORD_MAX_LENGTH } from 'core/entities/Password';
 
 import { record, text } from './PasswordPolicy.js';
 import { notFound } from './TwoFactor.js';
 
 import type { BackgroundTaskService } from '../../../shared/services/index.js';
 import type { Context } from './PasswordPolicy.js';
+import type { BetterAuthPlugin } from 'better-auth';
 
 /** Whom a new passkey is about, and what the mail needs from the request that added it. */
 export type PasskeyNotice = {
@@ -26,12 +30,35 @@ export type PasskeyDeps = {
 /** What the person's device shows beside the key it keeps. */
 export const PASSKEY_RP_NAME = 'NutrIA';
 
+const CONFIRM_PASSWORD = '/passkey/confirm-password';
+const GENERATE_REGISTER_OPTIONS = '/passkey/generate-register-options';
 const VERIFY_REGISTRATION = '/passkey/verify-registration';
 const DELETE = '/passkey/delete-passkey';
 const UPDATE = '/passkey/update-passkey';
 
 /** The plugin's routes that name one passkey by `id` in the body. */
 const BY_ID: ReadonlySet<string> = new Set([DELETE, UPDATE]);
+
+/** The two steps of adding a passkey: both ask the same question (`mayAddPasskey`). */
+const ADDING: ReadonlySet<string> = new Set([GENERATE_REGISTER_OPTIONS, VERIFY_REGISTRATION]);
+
+/** How long a confirmed password lets its session add one passkey: the options' five minutes, and the person's time to look at their phone. */
+export const PASSKEY_GRANT_MS = 10 * 60 * 1000;
+
+/** How young the session of an account with no password must be to add a passkey: the sign-in through its provider is the proof. */
+export const PASSWORDLESS_FRESH_MS = 10 * 60 * 1000;
+
+/** The refusal when a password account has not confirmed it (or the confirmation lapsed or was spent): the web asks for it, then tries again. */
+export const PASSWORD_CONFIRMATION_REQUIRED = { code: 'PASSWORD_CONFIRMATION_REQUIRED', message: 'Confirm your password to add a passkey' } as const;
+
+/**
+ * The `verification` row a confirmed password leaves (PLAN 011 phase 5): one
+ * per session, valued with the account id, spent by the passkey it lets in.
+ * Never the password, never anything derived from it.
+ */
+export function passkeyGrantOf(sessionId: string): string {
+  return `passkey-grant-${sessionId}`;
+}
 
 const logger = new Logger('Passkey');
 
@@ -50,6 +77,86 @@ export function passkeyOptions(appUrl: string): { origin: string; rpID: string; 
 }
 
 /**
+ * `POST /passkey/confirm-password { password }` (PLAN 011 phase 5, the lead's
+ * decision (b)): a password account proves the password before it may add a
+ * passkey, as it does before `/two-factor/enable`, so a session somebody else
+ * holds cannot turn itself into a key that outlives it. A right password
+ * leaves a grant for this session (`passkeyGrantOf`, `PASSKEY_GRANT_MS`) and
+ * answers `{ status: true }`; a wrong one is Better Auth's 400
+ * `INVALID_PASSWORD`. An account with no password has nothing to confirm:
+ * the guard's 404, as `/two-factor/enable` answers it. No session is the
+ * route's own 401. Rate-limited like a sign-in (`auth.config.ts`).
+ */
+export function passkeyPasswordConfirmation(): BetterAuthPlugin {
+  return {
+    id: 'passkey-password-confirmation',
+    endpoints: {
+      confirmPasskeyPassword: createAuthEndpoint(
+        CONFIRM_PASSWORD,
+        { body: z.object({ password: z.string().min(1).max(PASSWORD_MAX_LENGTH) }), method: 'POST', use: [sessionMiddleware] },
+        async context => {
+          const caller = context.context.session;
+          const credential = await context.context.internalAdapter.findCredentialAccount(caller.user.id);
+
+          if (!credential?.password) {
+            throw notFound();
+          }
+
+          if (!(await context.context.password.verify({ hash: credential.password, password: context.body.password }))) {
+            throw APIError.from('BAD_REQUEST', BASE_ERROR_CODES.INVALID_PASSWORD);
+          }
+
+          const identifier = passkeyGrantOf(caller.session.id);
+
+          await context.context.internalAdapter.deleteVerificationByIdentifier(identifier);
+          await context.context.internalAdapter.createVerificationValue({
+            expiresAt: new Date(Date.now() + PASSKEY_GRANT_MS),
+            identifier,
+            value: caller.user.id
+          });
+
+          return context.json({ status: true });
+        }
+      )
+    }
+  };
+}
+
+/**
+ * Whether the caller may take a step of adding a passkey (the lead's
+ * decision (b)): an account with a password needs a live grant from
+ * `/passkey/confirm-password` for this very session; one with no password
+ * (Google or Apple only) needs a session no older than
+ * `PASSWORDLESS_FRESH_MS`, refused with Better Auth's own 403
+ * `SESSION_NOT_FRESH` so the web asks for a fresh sign-in as it already does.
+ * No session is left to the route's own 401.
+ */
+async function mayAddPasskey(context: Context): Promise<void> {
+  const caller = await getSessionFromCtx(context);
+
+  if (!caller) {
+    return;
+  }
+
+  const credential = await context.context.internalAdapter.findCredentialAccount(caller.user.id);
+
+  if (credential?.password) {
+    const grant = await context.context.internalAdapter.findVerificationValue(passkeyGrantOf(caller.session.id));
+    const live = grant?.value === caller.user.id && new Date(grant.expiresAt).getTime() > Date.now();
+
+    if (!live) {
+      throw APIError.from('FORBIDDEN', PASSWORD_CONFIRMATION_REQUIRED);
+    }
+
+    return;
+  }
+
+  if (Date.now() - new Date(caller.session.createdAt).getTime() > PASSWORDLESS_FRESH_MS) {
+    throw APIError.from('FORBIDDEN', BASE_ERROR_CODES.SESSION_NOT_FRESH);
+  }
+}
+
+/**
  * Before the plugin (PLAN 011 phase 5):
  *
  * - `/passkey/delete-passkey` and `/passkey/update-passkey` for a passkey that
@@ -58,12 +165,19 @@ export function passkeyOptions(appUrl: string): { origin: string; rpID: string; 
  *   `YOU_ARE_NOT_ALLOWED_TO_REGISTER_THIS_PASSKEY` for another account's and
  *   404 `PASSKEY_NOT_FOUND` for a made-up id: two answers that tell which ids
  *   exist. No session, or no id, is left to the route's own 401 or 400.
+ * - `/passkey/generate-register-options` and `/passkey/verify-registration`:
+ *   the password confirmed, or a young session for an account with none
+ *   (`mayAddPasskey`).
  * - `/passkey/verify-registration`: `createSession` is forced to `false`. A
  *   passkey is added from a session the person already has; minting a second
  *   one there would be a sign-in nobody made.
  */
 export async function passkeyBefore(context: Context): Promise<{ context: { body: Record<string, unknown> } } | undefined> {
   const path = context.path ?? '';
+
+  if (ADDING.has(path)) {
+    await mayAddPasskey(context);
+  }
 
   if (path === VERIFY_REGISTRATION) {
     return { context: { body: { ...record(context.body), createSession: false } } };
@@ -98,10 +212,10 @@ export async function passkeyBefore(context: Context): Promise<{ context: { body
 /**
  * After the plugin, on a 2xx only (called from `accountSecurityAfter`):
  *
- * - `/passkey/verify-registration`: `auth.passkey_added`, awaited — the trail
- *   must not lag the answer — then the mail in the background. The passkey is
- *   the session's own account's: the plugin refuses a challenge made for
- *   anybody else.
+ * - `/passkey/verify-registration`: the session's grant is spent, then
+ *   `auth.passkey_added`, awaited — the trail must not lag the answer — then
+ *   the mail in the background. The passkey is the session's own account's:
+ *   the plugin refuses a challenge made for anybody else.
  * - `/passkey/delete-passkey`: `auth.passkey_removed`, no mail — the person
  *   took a key away, and the one who could abuse that already had a session.
  *
@@ -117,6 +231,11 @@ export async function passkeyAfter(deps: PasskeyDeps, context: Context): Promise
   }
 
   const added = path === VERIFY_REGISTRATION;
+
+  if (added && context.context.session?.session) {
+    // The grant is spent: one confirmed password, one passkey.
+    await context.context.internalAdapter.deleteVerificationByIdentifier(passkeyGrantOf(context.context.session.session.id)).catch(() => undefined);
+  }
 
   try {
     await UserController.passkeyChanged(user.id, added);

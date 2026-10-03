@@ -18,6 +18,8 @@ export type PasswordChangedNotice = {
   readonly id: string;
   readonly acceptLanguage: string | null;
   readonly email: string;
+  /** How many passkeys the change removed — a reset removes them all (PLAN 011 phase 5); a change, none. */
+  readonly passkeysRemoved: number;
   readonly userAgent: string | null;
 };
 
@@ -64,21 +66,28 @@ function answeredUser(returned: unknown): { id: string; email: string; marked: b
 /**
  * The password changed (PLAN 011 phase 2): the breach mark goes and the audit
  * row is written, awaited — the very next request must not still be refused
- * 409 — then the mail, in the background.
+ * 409 — then the mail, in the background. A reset also removes every passkey
+ * of the account in that transaction (phase 5), and the mail says how many.
  *
  * Better Auth has stored the new password by now and cannot be undone from
  * here, so a failure to record is logged rather than turned into a 500 that
  * would tell the person a change failed when it did not. The line names the
  * account and the door, never anything of the password.
  */
-async function passwordChanged(deps: AccountSecurityDeps, notice: PasswordChangedNotice, via: PasswordChangedVia): Promise<void> {
+async function passwordChanged(
+  deps: AccountSecurityDeps,
+  notice: Omit<PasswordChangedNotice, 'passkeysRemoved'>,
+  via: PasswordChangedVia
+): Promise<void> {
+  let passkeysRemoved = 0;
+
   try {
-    await UserController.passwordChanged(notice.id, via);
+    passkeysRemoved = await UserController.passwordChanged(notice.id, via);
   } catch {
     logger.error(`password_change_unrecorded ${JSON.stringify({ userId: notice.id, via })}`);
   }
 
-  deps.background.run('password-changed-mail', () => deps.mailPasswordChanged(notice));
+  deps.background.run('password-changed-mail', () => deps.mailPasswordChanged({ ...notice, passkeysRemoved }));
 }
 
 /**

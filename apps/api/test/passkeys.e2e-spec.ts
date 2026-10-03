@@ -20,6 +20,9 @@ import type { Response } from 'supertest';
  *
  * - registration options need a session — none is the route's own 401 — and
  *   name the web's own host as the relying party;
+ * - a password account confirms its password first (`/passkey/confirm-password`):
+ *   without it both steps are 403 `PASSWORD_CONFIRMATION_REQUIRED`, a wrong
+ *   one is `INVALID_PASSWORD`, and one confirmation lets one passkey in;
  * - a key added from a session is stored for that session's account, under
  *   the real column names, writes `auth.passkey_added` (no entity id, no IP,
  *   nothing in the metadata) and mails the account, with no word of health;
@@ -29,6 +32,8 @@ import type { Response } from 'supertest';
  *   byte for byte — the same answer as an id that does not exist — and
  *   changes nothing; the account's own is removed with `auth.passkey_removed`;
  * - one credential id is registered once, whoever tries again;
+ * - a password reset removes every passkey of the account, one
+ *   `auth.passkey_removed` each, and its mail says so;
  * - deleting the account deletes its passkeys (ON DELETE CASCADE).
  *
  * The device is `Authenticator` below — a P-256 key made here, packed as a
@@ -191,8 +196,15 @@ describe('passkeys: Better Auth’s plugin, owned by the session', () => {
     return { id, email, jar: new CookieJar().take(signedIn) };
   }
 
-  /** Options, the device's answer, the verify: the verify's response. */
+  /** The password confirmed for the jar's session, as the web asks before adding a passkey. */
+  async function confirm(jar: CookieJar, password = PASSWORD): Promise<Response> {
+    return post('auth/passkey/confirm-password', jar.header, { password });
+  }
+
+  /** The password confirmed, then options, the device's answer, the verify: the verify's response. */
   async function addPasskey(jar: CookieJar, device: Authenticator): Promise<Response> {
+    expect((await confirm(jar)).status).toBe(200);
+
     const options = await get('auth/passkey/generate-register-options', jar.header);
 
     expect(options.status).toBe(200);
@@ -293,10 +305,38 @@ describe('passkeys: Better Auth’s plugin, owned by the session', () => {
     it('name the web’s own host as the relying party, NutrIA', async () => {
       const { jar } = await account('options');
 
+      expect((await confirm(jar)).status).toBe(200);
+
       const options = await get('auth/passkey/generate-register-options', jar.header);
 
       expect(options.status).toBe(200);
       expect(options.body).toMatchObject({ attestation: 'none', rp: { id: RP_ID, name: 'NutrIA' } });
+    });
+  });
+
+  describe('the password first', () => {
+    it('refuses both steps 403 PASSWORD_CONFIRMATION_REQUIRED without it, a wrong one with INVALID_PASSWORD, and lets one passkey in per confirmation', async () => {
+      const { id, jar } = await account('confirms');
+
+      const unconfirmed = await get('auth/passkey/generate-register-options', jar.header);
+      const verify = await post('auth/passkey/verify-registration', jar.header, { response: new Authenticator().create('any') });
+      const wrong = await confirm(jar, 'not-the-password-at-all-7');
+
+      expect(unconfirmed.status).toBe(403);
+      expect((unconfirmed.body as { code?: string }).code).toBe('PASSWORD_CONFIRMATION_REQUIRED');
+      expect(verify.status).toBe(403);
+      expect(wrong.status).toBe(400);
+      expect((wrong.body as { code?: string }).code).toBe('INVALID_PASSWORD');
+      expect((await get('auth/passkey/generate-register-options', jar.header)).status).toBe(403);
+
+      expect((await addPasskey(jar, new Authenticator())).status).toBe(200);
+      expect((await get('auth/passkey/generate-register-options', jar.header)).status).toBe(403);
+      expect(await passkeysOf(id)).toHaveLength(1);
+
+      const [grants] = await sql()<{ n: number }>`
+        select count(*)::int as n from verification where identifier like 'passkey-grant-%' and value = ${id}`;
+
+      expect(grants?.n).toBe(0);
     });
   });
 
@@ -423,6 +463,33 @@ describe('passkeys: Better Auth’s plugin, owned by the session', () => {
       expect(await auditRows(id, 'auth.passkey_removed')).toEqual([
         { actorId: id, entity: 'passkey', entityId: null, ipHash: null, metadata: {}, subjectUserId: id }
       ]);
+    });
+  });
+
+  describe('a password reset', () => {
+    it('removes every passkey of the account, writes auth.passkey_removed for each, and the mail says so', async () => {
+      const { id, email, jar } = await account('reset');
+
+      await addPasskey(jar, new Authenticator());
+      await addPasskey(jar, new Authenticator());
+      expect(await passkeysOf(id)).toHaveLength(2);
+
+      expect((await post('auth/request-password-reset', '', { email })).status).toBe(200);
+
+      // Read from the table, not from the mail: the row is written before the response, the mail may land after it.
+      const [row] = await sql()<{ identifier: string }>`
+        select identifier from verification where value = ${id} and identifier like 'reset-password:%' order by created_at desc limit 1`;
+      const token = row?.identifier.slice('reset-password:'.length) ?? '';
+      const reset = await post('auth/reset-password', '', { newPassword: 'amber-lantern-quietly-walks-7', token });
+
+      expect(reset.status).toBe(200);
+      expect(await passkeysOf(id)).toEqual([]);
+      expect(await auditRows(id, 'auth.passkey_removed')).toEqual([
+        { actorId: id, entity: 'passkey', entityId: null, ipHash: null, metadata: {}, subjectUserId: id },
+        { actorId: id, entity: 'passkey', entityId: null, ipHash: null, metadata: {}, subjectUserId: id }
+      ]);
+
+      await until(() => outbox.some(mail => mail.to === email && /han quitado las 2 llaves de acceso/.test(mail.text)), 'the reset mail');
     });
   });
 

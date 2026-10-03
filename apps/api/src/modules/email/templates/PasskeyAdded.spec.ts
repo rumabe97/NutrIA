@@ -38,13 +38,15 @@ describe('passkeyAddedEmail', () => {
     expect(sent.text).toContain('Desde: Safari en iPhone.');
   });
 
-  it('sends a person who did not do it to reset the password and remove the passkey, with the link in both bodies', () => {
+  it('sends a person who did not do it to reset the password, which removes the passkey, with the link in both bodies', () => {
     const sent = mail();
 
-    expect(sent.text).toContain('restablece la contraseña ahora, entra y quita esa llave en Perfil › Seguridad');
+    expect(sent.text).toContain(
+      'restablece la contraseña ahora. Al restablecerla se cierran todas las sesiones y se quitan todas las llaves de acceso'
+    );
     expect(sent.text).toContain(RECOVER);
     expect(sent.html).toContain(`href="${RECOVER}"`);
-    expect(mail('en-GB').text).toContain('remove that passkey under Profile › Security');
+    expect(mail('en-GB').text).toContain('A reset signs every device out and removes every passkey of the account');
   });
 
   it.each(['es-ES', 'en-GB'] as const)('says no word of health in %s (M14)', locale => {
