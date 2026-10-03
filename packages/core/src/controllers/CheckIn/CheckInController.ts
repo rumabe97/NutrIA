@@ -2,7 +2,7 @@ import { CareRepository } from '#repositories/Care';
 import { CheckInRepository } from '#repositories/CheckIn';
 import { ConflictError, NotFoundError } from 'core/entities/Error';
 import { PlanRepository } from '#repositories/Plan';
-import { ProfileController, requireProfileConsent } from 'core/controllers/Profile';
+import { personToday, ProfileController, requireProfileConsent } from 'core/controllers/Profile';
 import { ProfileRepository } from '#repositories/Profile';
 import { ProgressRepository } from '#repositories/Progress';
 
@@ -41,10 +41,6 @@ export type CheckInForGeneration = {
   readonly hunger: HungerAnswer;
   readonly satisfaction: number;
 };
-
-function isoToday(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 /**
  * Whether a fortnight's check-in is due: the plan has reached its last day and
@@ -123,13 +119,17 @@ export const CheckInController = {
       return { adherence: null, done: false, due: false, plan: null, stats: { completed: 0, planned: 0, skipped: 0, total: 0 } };
     }
 
-    const [existing, stats] = await Promise.all([CheckInRepository.findByPlan(userId, latest.id), CheckInRepository.planStats(userId, latest.id)]);
+    const [existing, stats, today] = await Promise.all([
+      CheckInRepository.findByPlan(userId, latest.id),
+      CheckInRepository.planStats(userId, latest.id),
+      personToday(userId)
+    ]);
     const marked = stats.completed + stats.skipped;
 
     return {
       adherence: marked > 0 ? Math.round((stats.completed / marked) * 100) : null,
       done: existing !== undefined,
-      due: isCheckInDue(latest, existing !== undefined, isoToday()),
+      due: isCheckInDue(latest, existing !== undefined, today),
       plan: { id: latest.id, endDate: latest.endDate, startDate: latest.startDate, status: latest.status },
       stats
     };
@@ -175,7 +175,7 @@ export const CheckInController = {
       await requireProfileConsent(userId);
     }
 
-    const today = isoToday();
+    const today = await personToday(userId);
 
     const recorded = await CheckInRepository.create(userId, {
       comments: input.comments?.trim() ? input.comments.trim() : null,

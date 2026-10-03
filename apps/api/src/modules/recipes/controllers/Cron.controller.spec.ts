@@ -11,6 +11,7 @@ import { ExpiredVerificationsService } from '../../auth/services/ExpiredVerifica
 import { ENV } from '../../../config/index.js';
 import { OwnerAlertsService } from '../../owner-alerts/index.js';
 import { PictureCandidatesService, RecipeRewriter } from '../../ai/index.js';
+import { TwoFactorRemovalsService } from '../../auth/services/TwoFactorRemovals.service.js';
 
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
@@ -29,6 +30,7 @@ describe('the cron routes', () => {
   const forget = jest.fn(async () => Promise.resolve());
   const forgetVerifications = jest.fn(async () => Promise.resolve(0));
   const activate = jest.fn(async () => Promise.resolve({ activated: 0, failed: 0 }));
+  const removeTwoFactors = jest.fn(async () => Promise.resolve({ failed: 0, removed: 0 }));
   const record = jest.fn(async (_job: string, _counts: Readonly<Record<string, 'cap' | number>>) => Promise.resolve());
   const digest = jest.fn(async () => Promise.resolve());
   const checkSpend = jest.fn(async () => Promise.resolve());
@@ -51,6 +53,7 @@ describe('the cron routes', () => {
         { provide: CheckInReminderService, useValue: { sweep } },
         { provide: ExpiredInvitationsService, useValue: { forget } },
         { provide: ExpiredVerificationsService, useValue: { forget: forgetVerifications } },
+        { provide: TwoFactorRemovalsService, useValue: { run: removeTwoFactors } },
         { provide: CronRunService, useValue: { record } },
         { provide: DuePlansService, useValue: { activate } },
         { provide: PictureCandidatesService, useValue: { clean } },
@@ -470,6 +473,42 @@ describe('the cron routes', () => {
     await request(server).get('/cron/activate-plans').set('Authorization', bearer('undefined')).expect(404);
 
     expect(activate).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  /* PLAN 011 phase 4: the owner's removals of lost second factors run on their own route, and record their run. */
+  it('carries out the due two-factor removals on their own route, answers the counts and records the run', async () => {
+    removeTwoFactors.mockResolvedValueOnce({ failed: 1, removed: 2 });
+    const server = await boot(SECRET);
+
+    const response = await request(server).get('/cron/two-factor-removals').set('Authorization', bearer(SECRET)).expect(200);
+
+    expect(response.body).toEqual({ failed: 1, removed: 2 });
+    expect(removeTwoFactors).toHaveBeenCalledTimes(1);
+    expect(forgetVerifications).not.toHaveBeenCalled();
+    expect(sweep).not.toHaveBeenCalled();
+    expect(record).toHaveBeenCalledWith('twoFactorRemovals', { failed: 1, removed: 2 });
+  });
+
+  it('records no two-factor run that did not finish', async () => {
+    removeTwoFactors.mockRejectedValueOnce(new Error('database down'));
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/two-factor-removals').set('Authorization', bearer(SECRET)).expect(500);
+
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('removes no factor for the wrong bearer, none at all, or no secret configured', async () => {
+    let server = await boot(SECRET);
+
+    await request(server).get('/cron/two-factor-removals').set('Authorization', bearer('wrong')).expect(404);
+    await request(server).get('/cron/two-factor-removals').expect(404);
+    await app.close();
+    server = await boot(undefined);
+    await request(server).get('/cron/two-factor-removals').set('Authorization', bearer('undefined')).expect(404);
+
+    expect(removeTwoFactors).not.toHaveBeenCalled();
     expect(record).not.toHaveBeenCalled();
   });
 

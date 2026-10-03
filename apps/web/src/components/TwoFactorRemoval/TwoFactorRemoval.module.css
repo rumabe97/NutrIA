@@ -1,0 +1,44 @@
+.root {
+  display: grid;
+  justify-items: start;
+}
+
+/* The date and "Cancelar" side by side, the button wrapping under the date before the cell does. */
+.pending {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02);
+}
+
+/* The failure line is always there; empty, it takes no room. */
+.error {
+  color: var(--color-error-text);
+  margin: 0;
+  max-inline-size: 18rem;
+}
+
+.error:not(:empty) {
+  margin-block-start: var(--space-02);
+}
+
+/* In the dialog: the failure line and the two buttons. The line is always there, so a
+   failure is announced when it arrives; empty, it takes no room. */
+.actions {
+  display: grid;
+}
+
+.dialogError {
+  color: var(--color-error-text);
+  margin: 0;
+}
+
+.dialogError:not(:empty) {
+  margin-block-end: var(--space-03);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02);
+}

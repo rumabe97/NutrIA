@@ -18,3 +18,4 @@ export * from './Catalogue.dto.js';
 export * from './FeedbackInbox.dto.js';
 export * from './Professionals.dto.js';
 export * from './PushTest.dto.js';
+export * from './TwoFactorRemoval.dto.js';

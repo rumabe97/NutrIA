@@ -2,7 +2,10 @@
 // rotation constants at load, and the index would make that a cycle.
 import { dishGroups } from '../MealFit/Cuisine';
 
+import { kindCrowded, kindExcess, kindPastCap } from './Kinds';
+
 import type { FoodGroup } from '../MealFit/Cuisine';
+import type { KindCheck, KindMeal, KindRule } from './Kinds';
 import type { Placement } from './Variety';
 import type { CandidateDish } from 'core/entities/Plan';
 
@@ -63,7 +66,7 @@ export const BREAD_SLUGS: ReadonlySet<string> = new Set([
   'wrap-integral'
 ]);
 
-/** Grams of bread a serving from which a dish is a bread: a roll, two slices — the grains' own 40 g. */
+/** Grams of bread a serving from which a dish is a bread: a roll, two slices. Bread is not capped, so it kept the 40 g the grains had before `0079`'s amendment. */
 export const BREAD_GRAMS = 40;
 
 type Dish = { readonly ingredients: readonly { readonly grams?: number; readonly slug: string }[]; readonly servings?: number };
@@ -85,27 +88,35 @@ export function starchBase(dish: Dish): StarchBase | null {
 }
 
 /**
- * **Four of pasta and four of rice a fortnight, never on two days running**
- * (owner, 2026-10-02; plan 016 phase 7).
+ * **Four of pasta, four of rice and four of couscous or another grain a
+ * fortnight, each never on two days running** (owner, 2026-10-02; plan 016
+ * phase 7, grains from plan 017 phase 2).
  *
- * Only those two: they are what came back, and a plate of potato or a legume
- * stew is the ordinary shape of a Spanish week. Twice on one day counts as
- * running too. Like `PROTEIN_RULES`, a preference the scheduler keeps whenever
- * the pool lets it, priced at the same weight — never a reason to fail a plan.
+ * Only those three: pasta and rice are what came back, and couscous followed
+ * them once the 20 g threshold saw it — a real fortnight served it seven times,
+ * five at dinner. A plate of potato or a legume stew is the ordinary shape of
+ * a Spanish week. Twice on one day counts as running too. Like
+ * `PROTEIN_RULES`, a preference the scheduler keeps whenever the pool lets it,
+ * priced at the same weight — never a reason to fail a plan.
+ *
+ * The four a fortnight is harder than that (017 phase 4, `0081`): the scheduler
+ * places no dish that takes its base past the cap while another dish keeps the
+ * day as close to its macros, and past it only when none does (owner: the
+ * macros win). Days running stay priced.
  */
-export const STARCH_RULES = { capped: ['pasta', 'rice'], perFortnight: 4 } as const satisfies {
+export const STARCH_RULES = { capped: ['pasta', 'rice', 'grains'], perFortnight: 4 } as const satisfies {
   readonly capped: readonly StarchBase[];
   readonly perFortnight: number;
 };
 
 const CAPPED: ReadonlySet<StarchBase> = new Set(STARCH_RULES.capped);
 
-/** Whether the rule counts this base: pasta or rice. */
+/** Whether the rule counts this base: pasta, rice or grains. */
 export function isCappedStarch(base: StarchBase | null | undefined): boolean {
   return base !== null && base !== undefined && CAPPED.has(base);
 }
 
-/** How often pasta, or rice, may appear in a plan of `days` days — four in fourteen, scaled, one at least. */
+/** How often pasta, rice or grains may each appear in a plan of `days` days — four in fourteen, scaled, one at least. */
 export function starchCap(days: number): number {
   return Math.max(1, Math.ceil((STARCH_RULES.perFortnight * days) / 14));
 }
@@ -140,53 +151,37 @@ export function starchMeals(placements: readonly Placement[], index: StarchIndex
   return meals;
 }
 
+/** `STARCH_RULES` as a kind rule (`KindRule`): each capped base apart and at its cap. */
+const STARCH_KIND_RULE: KindRule = { apart: true, perFortnight: STARCH_RULES.perFortnight };
+
 /**
  * How many meals break `STARCH_RULES` in these: each past the plan's cap, each
  * second one on a day, each day that follows a day of the same base. Counted
  * by the meal, as `PROTEIN_RULES`' excess is.
  */
 export function starchExcess(meals: readonly StarchMeal[], days: number): number {
-  const cap = starchCap(days);
-  let excess = 0;
+  return kindExcess(toKindMeals(meals), days, STARCH_KIND_RULE);
+}
 
-  for (const base of CAPPED) {
-    const byDay = new Map<number, number>();
-    let total = 0;
-
-    for (const meal of meals) {
-      if (meal.base === base) {
-        byDay.set(meal.dayIndex, (byDay.get(meal.dayIndex) ?? 0) + 1);
-        total += 1;
-      }
-    }
-
-    excess += Math.max(0, total - cap);
-
-    for (const [dayIndex, count] of byDay) {
-      excess += count - 1 + (byDay.has(dayIndex - 1) ? 1 : 0);
-    }
-  }
-
-  return excess;
+/** How many meals in these are past `STARCH_RULES`' cap — the part of `starchExcess` the scheduler holds hard (`0081`). */
+export function starchPastCap(meals: readonly StarchMeal[], days: number): number {
+  return kindPastCap(toKindMeals(meals), days, STARCH_KIND_RULE);
 }
 
 /** Whether a dish of `base` on `dayIndex` would add to `starchExcess` over `meals`: its base is on that day or the next or the one before, or at its cap. */
 export function starchCrowded(base: StarchBase | null, dayIndex: number, meals: readonly StarchMeal[], days: number): boolean {
-  if (!isCappedStarch(base)) {
-    return false;
-  }
+  return isCappedStarch(base) && kindCrowded(base, dayIndex, toKindMeals(meals), days, STARCH_KIND_RULE);
+}
 
-  let total = 0;
+function toKindMeals(meals: readonly StarchMeal[]): KindMeal[] {
+  return meals.flatMap(meal => (isCappedStarch(meal.base) && meal.base !== null ? [{ dayIndex: meal.dayIndex, kind: meal.base }] : []));
+}
 
-  for (const meal of meals) {
-    if (meal.base === base) {
-      if (Math.abs(meal.dayIndex - dayIndex) <= 1) {
-        return true;
-      }
-
-      total += 1;
-    }
-  }
-
-  return total >= starchCap(days);
+/** `STARCH_RULES` as the scheduler applies it, over a pool's index: only the capped bases count, and a placement's own base is read first. */
+export function starchCheck(index: StarchIndex): KindCheck {
+  return {
+    index: new Map([...index].map(([slug, base]) => [slug, isCappedStarch(base) ? base : null])),
+    named: placement => (placement.starch === undefined ? undefined : isCappedStarch(placement.starch) ? placement.starch : null),
+    rule: STARCH_KIND_RULE
+  };
 }

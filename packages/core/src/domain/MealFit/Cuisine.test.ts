@@ -100,13 +100,18 @@ describe('the food groups of Table 2', () => {
     expect(FOOD_GROUP_SLUGS.pulses.size).toBe(23);
   });
 
-  it('reads a cooked grain dry, per serving, against 40 g', () => {
-    // 150 g cooked rice is 50 g dry; 90 g cooked is 30 g, a garnish.
-    expect(dishGroups({ ingredients: [{ grams: 150, slug: 'arroz-blanco-cocido' }] })).toEqual(new Set(['rice']));
-    expect(dishGroups({ ingredients: [{ grams: 90, slug: 'arroz-blanco-cocido' }] })).toEqual(new Set());
-    // A pot for two of 80 g dry is 40 g each.
-    expect(dishGroups({ ingredients: [{ grams: 80, slug: 'arroz-bomba-crudo' }], servings: 2 })).toEqual(new Set(['rice']));
-    expect(dishGroups({ ingredients: [{ grams: 78, slug: 'arroz-bomba-crudo' }], servings: 2 })).toEqual(new Set());
+  it('reads a cooked grain dry, per serving, against 20 g (0079, threshold amended 2026-10-02)', () => {
+    // 90 g cooked rice is 30 g dry, a side: rice. 57 g cooked is 19 g, a garnish.
+    expect(dishGroups({ ingredients: [{ grams: 90, slug: 'arroz-blanco-cocido' }] })).toEqual(new Set(['rice']));
+    expect(dishGroups({ ingredients: [{ grams: 57, slug: 'arroz-blanco-cocido' }] })).toEqual(new Set());
+    // A pot for two of 40 g dry is 20 g each.
+    expect(dishGroups({ ingredients: [{ grams: 40, slug: 'arroz-bomba-crudo' }], servings: 2 })).toEqual(new Set(['rice']));
+    expect(dishGroups({ ingredients: [{ grams: 38, slug: 'arroz-bomba-crudo' }], servings: 2 })).toEqual(new Set());
+  });
+
+  it('counts gnocchi as pasta, read as stored', () => {
+    expect(foodGroupOf('noquis')).toBe('pasta');
+    expect(dishGroups({ ingredients: [{ grams: 70, slug: 'noquis' }] })).toEqual(new Set(['pasta']));
   });
 
   it('needs 100 g of potato, and any amount of a stewed pulse', () => {
@@ -183,9 +188,11 @@ describe('fitSlots by cuisine (0079, option B)', () => {
   });
 
   it('leaves a garnish of rice where the list would not, because the table decides its rows', () => {
-    const breakfast = { ...dish(null, ['arroz-blanco-cocido', 60], ['merluza', 80]), slots: ['breakfast', 'lunch'] as MealSlot[] };
+    // 45 g cooked is 15 g dry, under the 20 g of a side.
+    // A breakfast alone: one that also claimed lunch would lose it as a breakfast dish (017 phase 3).
+    const breakfast = { ...dish(null, ['arroz-blanco-cocido', 45], ['merluza', 80]), slots: ['breakfast'] as MealSlot[] };
 
-    expect(fitSlots(breakfast, catalogue, [])).toEqual(['breakfast', 'lunch']);
+    expect(fitSlots(breakfast, catalogue, [])).toEqual(['breakfast']);
   });
 
   it('keeps an Italian pasta or risotto at lunch, as a Spanish one (0079, amended 2026-10-02)', () => {
@@ -206,5 +213,28 @@ describe('fitSlots by cuisine (0079, option B)', () => {
 
   it('never brings back a row in no meal', () => {
     expect(fitSlots(dish('Italiana', ['polenta', 10], ['merluza', 100]), catalogue, [])).toEqual([]);
+  });
+});
+
+describe('the dishes of a real fortnight that reached dinner (0079, threshold amended 2026-10-02)', () => {
+  // Production plan v15: each was served at dinner while the threshold was 40 g
+  // dry. The starch rows and grams are the recipes' own, one serving each.
+  const catalogue = toCatalogue([]);
+  const PRODUCTION: readonly { cuisine: string; group: FoodGroup; name: string; row: [string, number] }[] = [
+    { cuisine: 'Italiana', group: 'pasta', name: 'Pasta Integral con Gambas, Coliflor y Mozzarella', row: ['pasta-integral-cocida', 80] },
+    { cuisine: 'Mediterránea', group: 'grains', name: 'Lomo de Cerdo al Romero con Cuscús y Vegetales', row: ['cuscus-cocido', 70] },
+    { cuisine: 'italiana', group: 'pasta', name: 'Ñoquis salteados con pechuga de pollo', row: ['noquis', 180] },
+    { cuisine: 'Italiana', group: 'pasta', name: 'Noquis Salteados con Pollo, Berenjena y Mozzarella', row: ['noquis', 70] }
+  ];
+
+  it.each(PRODUCTION)('reads "$name" as $group', ({ group, row: [slug, grams] }) => {
+    expect(dishGroups({ ingredients: [{ grams, slug }], servings: 1 })).toEqual(new Set([group]));
+  });
+
+  // Table 2 keeps Italian grains at dinner — a farro, a polenta — so the couscous is held to the Spanish family only.
+  it.each(PRODUCTION)('keeps "$name" to lunch, as Spanish or Mediterranean, and as Italian if a pasta', ({ cuisine, group, row: [slug, grams] }) => {
+    for (const value of [cuisine, 'Española', 'Mediterránea', ...(group === 'pasta' ? ['Italiana'] : [])]) {
+      expect(fitSlots({ cuisine: value, ingredients: [{ grams, slug }], servings: 1, slots: ['lunch', 'dinner'] }, catalogue, [])).toEqual(['lunch']);
+    }
   });
 });

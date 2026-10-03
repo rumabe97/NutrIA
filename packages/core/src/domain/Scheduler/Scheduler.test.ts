@@ -20,12 +20,27 @@ function slotsForTest(mealsPerDay: number, includesSnacks: boolean) {
   return slotsIn(shapeFor(mealsPerDay, includesSnacks));
 }
 
-import { mainProtein, PROTEIN_RULES, proteinCap, STARCH_RULES, starchBase, starchCap, VARIETY_RULES, varietyViolations } from 'core/domain/Variety';
+import {
+  LEGUME_RULES,
+  legumeKind,
+  MAIN_SLOTS,
+  mainProtein,
+  planWeek,
+  PROTEIN_RULES,
+  proteinCap,
+  SNACK_RULES,
+  snackKind,
+  STARCH_RULES,
+  starchBase,
+  starchCap,
+  VARIETY_RULES,
+  varietyViolations
+} from 'core/domain/Variety';
 import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValidation';
 import { makeCatalogue, makeCatalogueIngredient, makeDish, makePool, MINIMUM_KCAL, TARGETS } from '#test/fixtures';
 
 import type { NutritionTargets } from 'core/entities/Nutrition';
-import type { CatalogueIngredient } from 'core/entities/Plan';
+import type { CandidateDish, CatalogueIngredient } from 'core/entities/Plan';
 
 const catalogue = makeCatalogue();
 
@@ -928,6 +943,290 @@ describe('schedulePlan — one main protein, once a day (PROTEIN_RULES)', () => 
   });
 });
 
+describe('schedulePlan — no protein dominates, and legumes vary (017 phase 2)', () => {
+  // A real fortnight served pork in eight of twenty-eight mains: lomo, solomillo
+  // and a ham are three slugs and one animal. Every dish here is mostly a
+  // neutral base with 100 g of its protein, so fit ties and the rules decide.
+  const pork = ['lomo-de-cerdo', 'solomillo-de-cerdo', 'jamon-serrano'];
+  const others = ['pechuga-de-pollo', 'pechuga-de-pavo', 'ternera-magra', 'merluza', 'huevo'];
+  const legumes = ['garbanzos-cocidos', 'garbanzos-secos', 'lentejas-cocidas'];
+  const catalogue = makeCatalogue([
+    makeCatalogueIngredient({ id: 'base', slug: 'base' }),
+    ...pork.map((slug, index) => makeCatalogueIngredient({ id: `pork-${index}`, category: 'protein', classes: ['animal', 'meat', 'pork'], slug })),
+    ...others.map((slug, index) => makeCatalogueIngredient({ id: `other-${index}`, category: 'protein', slug })),
+    ...legumes.map((slug, index) => makeCatalogueIngredient({ id: `legume-${index}`, slug }))
+  ]);
+  const SHARE = { breakfast: 0.28, dinner: 0.34, lunch: 0.37 } as const;
+  const plate = (slot: keyof typeof SHARE, n: number) => Math.round((TARGETS.kcal * SHARE[slot]) / 2) + n * 5;
+  const pool = [
+    ...Array.from({ length: 8 }, (_none, n) =>
+      makeDish({ ingredients: [{ grams: plate('breakfast', n), slug: 'base' }], slots: ['breakfast'], slug: `breakfast-${n}` })
+    ),
+    ...(['lunch', 'dinner'] as const).flatMap(slot =>
+      [...pork, ...others, ...legumes].flatMap(kind =>
+        [0, 1, 2].map(n =>
+          makeDish({
+            ingredients: [
+              { grams: plate(slot, n) - 100, slug: 'base' },
+              { grams: 100, slug: kind }
+            ],
+            slots: [slot],
+            slug: `${slot}-${kind}-${n}`
+          })
+        )
+      )
+    )
+  ];
+  const result = schedulePlan({ catalogue, minimumKcal: MINIMUM_KCAL, pool, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) });
+
+  it('counts every pork cut as one protein, held to three lunches and dinners a week', () => {
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const byWeek = new Map<string, number>();
+    let porkMains = 0;
+
+    for (const day of result.assignment.days) {
+      for (const meal of day.meals.filter(entry => MAIN_SLOTS.has(entry.slot))) {
+        const protein = mainProtein(meal.dish, catalogue);
+
+        if (protein) {
+          byWeek.set(`${planWeek(day.dayIndex)}:${protein}`, (byWeek.get(`${planWeek(day.dayIndex)}:${protein}`) ?? 0) + 1);
+        }
+
+        porkMains += protein === 'cerdo' ? 1 : 0;
+      }
+    }
+
+    expect(porkMains).toBeGreaterThan(0);
+    expect(porkMains).toBeLessThanOrEqual(2 * PROTEIN_RULES.perMainsWeek);
+    expect(Math.max(...byWeek.values()), JSON.stringify([...byWeek])).toBeLessThanOrEqual(PROTEIN_RULES.perMainsWeek);
+  });
+
+  it('serves the same legume three times a fortnight at most, never on days running', () => {
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const days = new Map<string, number[]>();
+
+    for (const day of result.assignment.days) {
+      for (const meal of day.meals) {
+        const legume = legumeKind(meal.dish);
+
+        if (legume) {
+          days.set(legume, [...(days.get(legume) ?? []), day.dayIndex]);
+        }
+      }
+    }
+
+    expect(days.get('garbanzos')?.length ?? 0).toBeGreaterThan(0);
+
+    for (const [legume, at] of days) {
+      expect(at.length, `${legume} on days ${at.join(', ')}`).toBeLessThanOrEqual(LEGUME_RULES.perFortnight);
+      expect(
+        at.some((dayIndex, position) => at.includes(dayIndex + 1) || at.indexOf(dayIndex) !== position),
+        `${legume} on days ${at.join(', ')}`
+      ).toBe(false);
+    }
+  });
+});
+
+describe('schedulePlan — on a small pool, energy before every other band (017 phase 2)', () => {
+  // The end-to-end suite's pool: fifteen dishes of ten seeded foods, each asked
+  // for in variants, with the seed's own macros and meals. Both cases failed the
+  // suite's own check once phase 2's rules were in.
+  const food = (slug: string, macros: [number, number, number, number, number], extra: Partial<CatalogueIngredient> = {}) =>
+    makeCatalogueIngredient({
+      id: slug,
+      carbsPer100g: macros[2],
+      fatPer100g: macros[3],
+      fiberPer100g: macros[4],
+      kcalPer100g: macros[0],
+      proteinPer100g: macros[1],
+      slug,
+      ...extra
+    });
+  const catalogue = makeCatalogue([
+    food('arroz-blanco-cocido', [130, 2.4, 28.6, 0.2, 0], { mealSlots: ['lunch', 'dinner'] }),
+    food('copos-de-avena', [379, 13.2, 67.7, 6.5, 10.1], { mealSlots: ['breakfast', 'morning_snack', 'afternoon_snack', 'supper'] }),
+    food('huevo', [143, 12.6, 0.7, 9.5, 0], { category: 'protein', classes: ['animal', 'egg'] }),
+    food('lentejas-cocidas', [116, 9, 20.1, 0.4, 7.9], { category: 'protein', mealSlots: ['lunch'] }),
+    food('merluza', [82, 17.8, 0, 1, 0], { category: 'protein', classes: ['animal', 'fish'], mealSlots: ['lunch', 'dinner'] }),
+    food('pan-integral', [252, 12.4, 42.7, 3.5, 6]),
+    food('patata', [77, 2, 17.5, 0.1, 2.1]),
+    food('pechuga-de-pollo', [120, 22.5, 0, 2.6, 0], { category: 'protein', classes: ['animal', 'meat'], mealSlots: ['lunch', 'dinner'] }),
+    food('tomate', [18, 0.9, 3.9, 0.2, 1.2], { seasonMonths: [6, 7, 8, 9] }),
+    food('yogur-griego-natural', [97, 9, 4, 5, 0], { classes: ['animal', 'dairy'] })
+  ]);
+  const dishes: readonly (readonly [string, readonly (readonly [number, string])[]])[] = [
+    [
+      'avena-con-yogur',
+      [
+        [80, 'copos-de-avena'],
+        [150, 'yogur-griego-natural']
+      ]
+    ],
+    [
+      'tostada-con-huevo',
+      [
+        [80, 'pan-integral'],
+        [120, 'huevo']
+      ]
+    ],
+    [
+      'yogur-con-avena',
+      [
+        [200, 'yogur-griego-natural'],
+        [60, 'copos-de-avena']
+      ]
+    ],
+    [
+      'huevos-con-pan',
+      [
+        [140, 'huevo'],
+        [60, 'pan-integral']
+      ]
+    ],
+    ['avena-sola', [[110, 'copos-de-avena']]],
+    [
+      'arroz-con-pollo',
+      [
+        [220, 'arroz-blanco-cocido'],
+        [180, 'pechuga-de-pollo']
+      ]
+    ],
+    [
+      'lentejas-con-arroz',
+      [
+        [250, 'lentejas-cocidas'],
+        [150, 'arroz-blanco-cocido']
+      ]
+    ],
+    [
+      'pollo-con-patata',
+      [
+        [200, 'pechuga-de-pollo'],
+        [250, 'patata']
+      ]
+    ],
+    [
+      'arroz-con-tomate',
+      [
+        [260, 'arroz-blanco-cocido'],
+        [150, 'tomate']
+      ]
+    ],
+    ['lentejas-solas', [[350, 'lentejas-cocidas']]],
+    [
+      'merluza-con-patata',
+      [
+        [200, 'merluza'],
+        [220, 'patata']
+      ]
+    ],
+    [
+      'pollo-con-tomate',
+      [
+        [170, 'pechuga-de-pollo'],
+        [200, 'tomate']
+      ]
+    ],
+    [
+      'merluza-con-arroz',
+      [
+        [180, 'merluza'],
+        [180, 'arroz-blanco-cocido']
+      ]
+    ],
+    [
+      'patata-con-huevo',
+      [
+        [250, 'patata'],
+        [110, 'huevo']
+      ]
+    ],
+    ['merluza-sola', [[300, 'merluza']]]
+  ];
+  const slots = slotsForTest(3, false);
+  // `dish:call-variant`, in the order the pool came: the order breaks ties, so it is the fixture.
+  const drawn =
+    '1:1.3 1:1.2 12:1.2 4:1.2 4:3.3 5:1.2 13:2.2 3:1.3 8:3.1 3:3.1 10:2.3 13:2.3 7:1.2 4:1.1 7:3.3 11:2.1 10:3.2 10:1.3 14:1.3 1:2.1 ' +
+    '2:2.1 6:2.1 1:2.3 12:2.2 6:3.2 7:2.1 6:3.3 6:3.1 1:1.1 7:1.1 8:1.3 4:3.2 0:3.3 9:1.1 13:3.2 11:3.2 5:1.3 12:3.2 5:2.2 2:1.1 ' +
+    '2:1.3 11:3.1 9:2.1 1:3.3 9:3.1 4:3.1 5:3.3 13:1.3 11:3.3 11:2.3 13:1.2 6:1.1 6:1.3 2:2.2 7:1.3 0:2.2 11:1.3 0:2.1';
+  const pool = drawn.split(' ').map(entry => {
+    const [at, variant] = entry.split(':') as [string, string];
+    const [name, items] = dishes[Number(at)] as (typeof dishes)[number];
+
+    return makeDish({
+      ingredients: items.map(([grams, slug]) => ({ grams, slug })),
+      name,
+      // A dish's meals are its foods' (`fitSlots`): lentils are a lunch, oats a breakfast.
+      slots: slots.filter(slot =>
+        items.every(([, slug]) => {
+          const meals = catalogue.get(slug)?.mealSlots ?? [];
+
+          return meals.length === 0 || meals.includes(slot);
+        })
+      ),
+      slug: `${name}-${variant.replace('.', '-')}`
+    });
+  });
+  const targets = { carbsG: 291, fatG: 70, fiberG: 31, kcal: 2246, proteinG: 113 };
+  // Every dish in `count` variants, in the order the suite asks for them.
+  const variants = (count: number) =>
+    Array.from({ length: count }, (_none, variant) =>
+      dishes.map(([name, items]) =>
+        makeDish({
+          ingredients: items.map(([grams, slug]) => ({ grams, slug })),
+          name,
+          slots: slots.filter(slot =>
+            items.every(([, slug]) => {
+              const meals = catalogue.get(slug)?.mealSlots ?? [];
+
+              return meals.length === 0 || meals.includes(slot);
+            })
+          ),
+          slug: `${name}-${variant}`
+        })
+      )
+    ).flat();
+
+  const inBand = (pool: readonly CandidateDish[]) => {
+    const result = schedulePlan({ catalogue, minimumKcal: MINIMUM_KCAL, monthOf: () => 10, pool, targets, weights: weightsFor(shapeFor(3, false)) });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    for (const day of result.assignment.days) {
+      expect(Math.abs(day.totals.kcal - targets.kcal), `day ${day.dayIndex} at ${day.totals.kcal} kcal`).toBeLessThanOrEqual(
+        targets.kcal * FIXTURE_BAND
+      );
+    }
+  };
+
+  // The pool's fat is in its eggs alone, and an egg at lunch and at dinner passes
+  // the protein rules four ways. Priced at `PROTEIN_SWAP_WEIGHT` beside the fit,
+  // the swap to one that brought a day inside its bands cost more than it gained.
+  it('serves the eggs a day needs for its macros rather than keep it off them for variety', () => {
+    inBand(variants(4));
+  });
+
+  // The repairs used to trade a day a little off on three macros for one 21%
+  // short of its energy, twice (`energyMiss`).
+  it('never repairs one day by leaving another far off its energy', () => {
+    inBand(pool);
+  });
+});
+
 describe('schedulePlan — pasta and rice four times a fortnight, never on days running (STARCH_RULES)', () => {
   // Every food the same composition, so fit ties everywhere and the pool's
   // order decides — pasta first at every lunch and dinner, which a scheduler
@@ -1126,16 +1425,17 @@ describe('schedulePlan — the fortnight is repaired as a whole (0048)', () => {
   });
 
   it('repairs the fortnight without bringing rice onto days running (STARCH_RULES)', () => {
-    // The same pool, the starch of its two starchiest lunches rice and of the rest quinoa: the exchanges now move a base between days.
+    // The same pool, the starch of its two starchiest lunches rice: the exchanges now move a base between days.
+    // The rest keep the fixture's own `arroz`, which no food group knows. They were quinoa until 017 phase 2
+    // capped the grains too, and a pool whose every lunch is capped has no way to keep rice apart.
     const starchy = makeCatalogue([
       ...[...spreadCatalogue.values()],
-      { ...(spreadCatalogue.get('arroz') as CatalogueIngredient), id: 'i-arroz-largo', slug: 'arroz-largo-crudo' },
-      { ...(spreadCatalogue.get('arroz') as CatalogueIngredient), id: 'i-quinoa', slug: 'quinoa-cruda' }
+      { ...(spreadCatalogue.get('arroz') as CatalogueIngredient), id: 'i-arroz-largo', slug: 'arroz-largo-crudo' }
     ]);
     const pool = spreadPool.map(dish => ({
       ...dish,
       ingredients: dish.ingredients.map(item =>
-        item.slug === 'arroz' ? { ...item, slug: dish.slug === 'lunch-0' || dish.slug === 'lunch-1' ? 'arroz-largo-crudo' : 'quinoa-cruda' } : item
+        item.slug === 'arroz' && (dish.slug === 'lunch-0' || dish.slug === 'lunch-1') ? { ...item, slug: 'arroz-largo-crudo' } : item
       )
     }));
     const result = schedulePlan({ catalogue: starchy, minimumKcal: MINIMUM_KCAL, pool, targets: T, weights: weightsFor(shapeFor(3, false)) });
@@ -1155,6 +1455,132 @@ describe('schedulePlan — the fortnight is repaired as a whole (0048)', () => {
     for (const day of result.assignment.days) {
       expect(Math.abs(day.totals.kcal - T.kcal)).toBeLessThanOrEqual(T.kcal * 0.05);
     }
+  });
+});
+
+describe('schedulePlan — snacks vary (017 phase 2)', () => {
+  // Yoghurt cups with a different fruit each, a fresh cheese, toasts and eggs,
+  // alike in every macro: the morning snack takes the pool's first, a cup.
+  const catalogue = makeCatalogue([
+    makeCatalogueIngredient({ id: 'base', slug: 'base' }),
+    makeCatalogueIngredient({ id: 'yogur', category: 'dairy', slug: 'yogur-proteico' }),
+    makeCatalogueIngredient({ id: 'requeson', category: 'dairy', slug: 'requeson' }),
+    makeCatalogueIngredient({ id: 'pan', category: 'bakery', slug: 'pan-integral' }),
+    makeCatalogueIngredient({ id: 'huevo', category: 'protein', slug: 'huevo' }),
+    makeCatalogueIngredient({ id: 'pavo', category: 'protein', slug: 'pechuga-de-pavo' })
+  ]);
+  const SHARE = { dinner: 0.4, lunch: 0.45, morning_snack: 0.15 } as const;
+  const plate = (slot: keyof typeof SHARE, n: number) => Math.round((TARGETS.kcal * SHARE[slot]) / 2) + n * 5;
+  const snacks = ['yogur-proteico', 'yogur-proteico', 'yogur-proteico', 'requeson', 'pan-integral', 'huevo', 'pechuga-de-pavo'];
+  const pool = [
+    ...snacks.flatMap((main, kind) =>
+      [0, 1].map(n =>
+        makeDish({ ingredients: [{ grams: plate('morning_snack', n), slug: main }], slots: ['morning_snack'], slug: `snack-${kind}-${n}` })
+      )
+    ),
+    ...(['lunch', 'dinner'] as const).flatMap(slot =>
+      Array.from({ length: 10 }, (_none, n) =>
+        makeDish({ ingredients: [{ grams: plate(slot, n), slug: 'base' }], slots: [slot], slug: `${slot}-${n}` })
+      )
+    )
+  ];
+  const weights = weightsFor({ afternoon_snack: 'off', breakfast: 'off', dinner: 'normal', lunch: 'normal', morning_snack: 'normal', supper: 'off' });
+
+  it('serves the same kind of snack three times a fortnight at most', () => {
+    const result = schedulePlan({ catalogue, minimumKcal: MINIMUM_KCAL, pool, targets: TARGETS, weights });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const kinds = new Map<string, number>();
+
+    for (const meal of result.assignment.days.flatMap(day => day.meals.filter(entry => entry.slot === 'morning_snack'))) {
+      const kind = snackKind(meal.dish, catalogue) ?? 'none';
+
+      kinds.set(kind, (kinds.get(kind) ?? 0) + 1);
+    }
+
+    expect(Math.max(...kinds.values()), JSON.stringify([...kinds])).toBeLessThanOrEqual(SNACK_RULES.perFortnight);
+  });
+});
+
+describe('schedulePlan — fruit in season on the plate (017 phase 2)', () => {
+  // A nectarine snack and a caqui snack fit alike; the fortnight runs from 25
+  // September into October, when nectarines are over (Spain's calendar, `0062`).
+  const catalogue = makeCatalogue([
+    makeCatalogueIngredient({ id: 'base', slug: 'base' }),
+    makeCatalogueIngredient({ id: 'nectarina', category: 'produce', seasonMonths: [5, 6, 7, 8, 9], slug: 'nectarina' }),
+    makeCatalogueIngredient({ id: 'caqui', category: 'produce', seasonMonths: [10, 11, 12], slug: 'caqui' })
+  ]);
+  const SHARE = { breakfast: 0.28, dinner: 0.34, lunch: 0.37 } as const;
+  const pool = (['breakfast', 'lunch', 'dinner'] as const).flatMap(slot =>
+    Array.from({ length: 8 }, (_none, n) => {
+      const fruit = slot === 'breakfast' ? (n % 2 === 0 ? 'nectarina' : 'caqui') : null;
+      const grams = Math.round((TARGETS.kcal * SHARE[slot]) / 2) + n * 5;
+
+      return makeDish({
+        ingredients: fruit
+          ? [
+              { grams: grams - 50, slug: 'base' },
+              { grams: 50, slug: fruit }
+            ]
+          : [{ grams, slug: 'base' }],
+        slots: [slot],
+        slug: `${slot}-${fruit ?? 'base'}-${n}`
+      });
+    })
+  );
+  // Day 1 is 25 September: days 1–6 are September, 7–14 October.
+  const monthOf = (dayIndex: number): number => (dayIndex <= 6 ? 9 : 10);
+  const run = (withMonths: boolean) =>
+    schedulePlan({
+      catalogue,
+      minimumKcal: MINIMUM_KCAL,
+      ...(withMonths ? { monthOf } : {}),
+      pool,
+      targets: TARGETS,
+      weights: weightsFor(shapeFor(3, false))
+    });
+
+  it('serves no nectarine on an October day, and still serves it in September', () => {
+    const result = run(true);
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const nectarines = result.assignment.days.flatMap(day =>
+      day.meals.filter(meal => meal.ingredients.some(item => item.slug === 'nectarina')).map(() => day.dayIndex)
+    );
+
+    expect(nectarines.filter(dayIndex => monthOf(dayIndex) === 10)).toEqual([]);
+    expect(nectarines.length).toBeGreaterThan(0);
+  });
+
+  it('judges no season when it is not told the months', () => {
+    const result = run(false);
+
+    expect(
+      result.ok &&
+        result.assignment.days.some(day => day.dayIndex > 6 && day.meals.some(meal => meal.ingredients.some(item => item.slug === 'nectarina')))
+    ).toBe(true);
+  });
+
+  it('keeps a plan when the only dish for a meal is out of season', () => {
+    const only = pool.map(dish => ({
+      ...dish,
+      ingredients: dish.ingredients.map(item => (item.slug === 'caqui' ? { ...item, slug: 'nectarina' } : item))
+    }));
+
+    expect(
+      schedulePlan({ catalogue, minimumKcal: MINIMUM_KCAL, monthOf: () => 10, pool: only, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) })
+        .ok
+    ).toBe(true);
   });
 });
 
@@ -1196,6 +1622,23 @@ describe('pickReplacement', () => {
     expect(picked?.dish.slug).toBe('chicken-rice');
     expect(picked?.servings).toBeGreaterThan(0);
     expect(Math.abs((picked?.macros.kcal ?? 0) - budget.kcal) / budget.kcal).toBeLessThan(0.2);
+  });
+
+  it('offers no dish whose fresh fruit is out of season in the day’s month (017 phase 2)', () => {
+    const seasonal = makeCatalogue([
+      ...catalogue.values(),
+      makeCatalogueIngredient({ id: 'i-nectarina', category: 'produce', seasonMonths: [5, 6, 7, 8, 9], slug: 'nectarina' })
+    ]);
+    const withNectarine = lunch('chicken-rice-nectarine', [
+      { grams: 200, slug: 'chicken' },
+      { grams: 250, slug: 'rice' },
+      { grams: 1, slug: 'nectarina' }
+    ]);
+    const pick = { budget, catalogue: seasonal, dayIndex: 3, placed: [], plateMinimumKcal: 0, pool: [withNectarine], slot: 'lunch' as const };
+
+    expect(pickReplacement({ ...pick, month: 10 })).toBeUndefined();
+    expect(pickReplacement({ ...pick, month: 7 })?.dish.slug).toBe('chicken-rice-nectarine');
+    expect(pickReplacement(pick)?.dish.slug).toBe('chicken-rice-nectarine');
   });
 
   it('keeps the variety rules: a dish already used too often in the plan is not offered', () => {
@@ -1305,6 +1748,28 @@ describe('pickReplacement', () => {
     expect(swap(pastaOn(2))).toBe('patatas');
     expect(swap(pastaOn(3))).toBe('patatas');
     expect(swap(pastaOn(6, 8, 10, 12))).toBe('patatas');
+  });
+
+  it('serves no fifth pasta however much better it fits, while another dish passes; the fifth when none does (0081)', () => {
+    const starchCatalogue = makeCatalogue([
+      makeCatalogueIngredient({ id: 'i-pasta', proteinPer100g: 13, slug: 'espaguetis-secos' }),
+      makeCatalogueIngredient({ id: 'i-patata', proteinPer100g: 2, slug: 'patata' }),
+      makeCatalogueIngredient({ id: 'i-chicken', kcalPer100g: 120, proteinPer100g: 22.5, slug: 'chicken' })
+    ]);
+    // Pasta and chicken land on the protein; potato alone is far under it.
+    const pasta = lunch('espaguetis-con-pollo', [
+      { grams: 150, slug: 'espaguetis-secos' },
+      { grams: 200, slug: 'chicken' }
+    ]);
+    const potato = lunch('patatas', [{ grams: 400, slug: 'patata' }]);
+    const pastaOn = (...days: number[]) =>
+      days.map(dayIndex => ({ dayIndex, dishSlug: `pasta-${dayIndex}`, slot: 'dinner' as const, starch: 'pasta' as const }));
+    const swap = (pool: readonly (typeof pasta)[], placed: ReturnType<typeof pastaOn>) =>
+      pickReplacement({ budget, catalogue: starchCatalogue, dayIndex: 3, placed, plateMinimumKcal: 0, pool, slot: 'lunch' })?.dish.slug;
+
+    expect(swap([pasta, potato], pastaOn(6, 9, 12))).toBe('espaguetis-con-pollo');
+    expect(swap([pasta, potato], pastaOn(6, 8, 10, 12))).toBe('patatas');
+    expect(swap([pasta], pastaOn(6, 8, 10, 12))).toBe('espaguetis-con-pollo');
   });
 });
 

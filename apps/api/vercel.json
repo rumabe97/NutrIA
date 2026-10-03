@@ -39,6 +39,10 @@
     {
       "path": "/api/v1/cron/activate-plans",
       "schedule": "5 23 * * *"
+    },
+    {
+      "path": "/api/v1/cron/two-factor-removals",
+      "schedule": "10 8 * * *"
     }
   ]
 }

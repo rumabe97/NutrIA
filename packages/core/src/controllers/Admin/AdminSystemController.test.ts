@@ -57,6 +57,7 @@ describe('AdminSystemController.system', () => {
       'supper',
       'reminders',
       'rewrite',
+      'twoFactorRemovals',
       'verifications',
       'activations',
       'verify'
@@ -128,7 +129,8 @@ describe('AdminSystemController.system', () => {
       { job: 'reminders', lastRunAt: new Date(NOW.getTime() - 26 * HOUR).toISOString(), stale: false },
       { job: 'rewrite', lastRunAt: new Date(NOW.getTime() - 27 * HOUR).toISOString(), stale: true },
       { job: 'verifications', lastRunAt: null, stale: true },
-      { job: 'activations', lastRunAt: null, stale: true }
+      { job: 'activations', lastRunAt: null, stale: true },
+      { job: 'twoFactorRemovals', lastRunAt: null, stale: true }
     ]);
 
     repository.lastCronRuns.mockResolvedValue([]);
@@ -137,7 +139,8 @@ describe('AdminSystemController.system', () => {
       { job: 'reminders', lastRunAt: null, stale: true },
       { job: 'rewrite', lastRunAt: null, stale: true },
       { job: 'verifications', lastRunAt: null, stale: true },
-      { job: 'activations', lastRunAt: null, stale: true }
+      { job: 'activations', lastRunAt: null, stale: true },
+      { job: 'twoFactorRemovals', lastRunAt: null, stale: true }
     ]);
   });
 

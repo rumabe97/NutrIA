@@ -821,7 +821,7 @@ export const PlanRepository = {
    * A pending plan older than the active one is refused (see below). A plan the
    * client scheduled for its day is deleted with it (project 015).
    */
-  async publish(userId: string, record: RecordAccess, today: string = new Date().toISOString().slice(0, 10)): Promise<string | undefined> {
+  async publish(userId: string, record: RecordAccess, today: string): Promise<string | undefined> {
     try {
       return await database().transaction(async tx => {
         const [pending] = await tx
@@ -1080,14 +1080,10 @@ export const PlanRepository = {
    * a check-in will read. Owner-scoped in the statement. `missing` when the
    * meal is not theirs (a 404 upstream) or its plan is under review (`0060`);
    * `closed` when its plan is no longer the active one — the past is
-   * read-only (0021).
+   * read-only (0021). `today` is the person's own day (`personToday`), the
+   * one their plan is laid out in — never the UTC date.
    */
-  async setMealStatus(
-    userId: string,
-    mealId: string,
-    status: MealStatus,
-    today: string = new Date().toISOString().slice(0, 10)
-  ): Promise<'closed' | 'done' | 'future' | 'missing'> {
+  async setMealStatus(userId: string, mealId: string, status: MealStatus, today: string): Promise<'closed' | 'done' | 'future' | 'missing'> {
     try {
       return await database().transaction(async tx => {
         const [owned] = await tx
@@ -1123,7 +1119,7 @@ export const PlanRepository = {
         await tx.delete(mealCompletions).where(and(eq(mealCompletions.userId, userId), eq(mealCompletions.mealId, mealId)));
 
         if (status !== 'planned') {
-          await tx.insert(mealCompletions).values({ loggedAt: new Date().toISOString().slice(0, 10), mealId, status, userId });
+          await tx.insert(mealCompletions).values({ loggedAt: today, mealId, status, userId });
         }
 
         return 'done';

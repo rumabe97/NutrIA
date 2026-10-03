@@ -247,13 +247,11 @@ export class PlanGenerationService {
     // this person's larder, filtered by the very context the dishes were —
     // their allergies, their way of eating, their dislikes, the free-from foods
     // only for whoever needs them — and the month each day falls in.
+    // The month each day falls in: what fruit is in season on it, on the plate
+    // (017 phase 2) and, with the flag, beside it.
+    const monthOf = (dayIndex: number): number => addDays(start, dayIndex - 1).getUTCMonth() + 1;
     const sides = (await SettingsController.accompaniments())
-      ? {
-          accompaniments: {
-            larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }),
-            monthOf: (dayIndex: number) => addDays(start, dayIndex - 1).getUTCMonth() + 1
-          }
-        }
+      ? { accompaniments: { larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }), monthOf } }
       : {};
 
     let scheduled = schedulePlan({
@@ -261,6 +259,7 @@ export class PlanGenerationService {
       catalogue: context.catalogue,
       dayTargets: loads.dayTargets,
       minimumKcal,
+      monthOf,
       pool: built.dishes,
       targets,
       weights
@@ -290,6 +289,7 @@ export class PlanGenerationService {
         catalogue: context.catalogue,
         dayTargets: loads.dayTargets,
         minimumKcal,
+        monthOf,
         pool: widened,
         targets,
         weights
@@ -345,6 +345,7 @@ export class PlanGenerationService {
         catalogue: context.catalogue,
         dayTargets: loads.dayTargets,
         minimumKcal,
+        monthOf,
         pool: await wholeLibrary(),
         targets,
         weights
@@ -386,6 +387,7 @@ export class PlanGenerationService {
         catalogue: context.catalogue,
         dayTargets: loads.dayTargets,
         minimumKcal,
+        monthOf,
         pool: wider,
         targets,
         weights

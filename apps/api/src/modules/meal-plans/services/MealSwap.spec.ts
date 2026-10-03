@@ -95,6 +95,7 @@ function meal(id: string, dayIndex: number, slot: MealSlot, dish: CandidateDish)
     date: `2026-09-${String(8 + dayIndex).padStart(2, '0')}`,
     dayIndex,
     ingredients: dish.ingredients,
+    legume: null,
     macros: { carbsG: 60, fatG: 8, fiberG: 10, kcal: 560, proteinG: 42 },
     recipeSlug: dish.slug,
     servings: 1,

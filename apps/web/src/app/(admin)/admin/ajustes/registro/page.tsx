@@ -113,6 +113,10 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
       return interpolate(t.backupCodesLeft, { remaining: data.remaining });
     }
 
+    if (row.action === 'auth.2fa_removal_cancelled' && (data.by === 'owner' || data.by === 'account')) {
+      return t.removalCancelledBy[data.by];
+    }
+
     if (row.action === 'auth.sessions_revoked' && (data.scope === 'one' || data.scope === 'others' || data.scope === 'all')) {
       return t.sessionsScope[data.scope];
     }

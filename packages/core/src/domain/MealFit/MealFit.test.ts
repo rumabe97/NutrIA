@@ -5,7 +5,18 @@ import { makeCatalogueIngredient } from '#test/fixtures';
 
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
-import { belongsTo, CATALOGUE_SAMPLE_SIZE, fitSlots, inSeason, libraryUsage, mealCatalogue, offersPulses } from './MealFit';
+import {
+  belongsTo,
+  CATALOGUE_SAMPLE_SIZE,
+  fitSlots,
+  FRESH_FRUIT_SLUGS,
+  inSeason,
+  isSnackOrBreakfastDish,
+  libraryUsage,
+  mealCatalogue,
+  offersPulses,
+  outOfSeasonFruit
+} from './MealFit';
 
 import type { CatalogueIngredient, MealSlot } from 'core/entities/Plan';
 import type { LibraryRecipe } from './MealFit';
@@ -116,16 +127,32 @@ describe('fitSlots — which of its own meals a dish may be served at', () => {
   });
 
   it('leaves a dish of staples exactly as it came', () => {
-    const staples = dish(['breakfast', 'lunch', 'dinner', 'supper'], 'aceite-de-oliva', 'cebolla', 'sal', 'tomate');
+    const staples = ['aceite-de-oliva', 'cebolla', 'sal', 'tomate'];
 
-    expect(fitSlots(staples, catalogue, OMNIVORE)).toEqual(['breakfast', 'lunch', 'dinner', 'supper']);
+    expect(fitSlots(dish(['lunch', 'dinner'], ...staples), catalogue, OMNIVORE)).toEqual(['lunch', 'dinner']);
+    expect(fitSlots(dish(['breakfast', 'supper'], ...staples), catalogue, OMNIVORE)).toEqual(['breakfast', 'supper']);
   });
 
   it('narrows to what every ingredient shares, never to what one of them allows', () => {
+    // chorizo: everything but breakfast → the morning snack.
+    expect(fitSlots(dish(['breakfast', 'morning_snack'], 'chorizo'), catalogue, OMNIVORE)).toEqual(['morning_snack']);
     // chicken: lunch, dinner; chorizo: everything but breakfast → lunch, dinner.
-    expect(fitSlots(dish(['breakfast', 'lunch', 'dinner'], 'pollo', 'chorizo'), catalogue, OMNIVORE)).toEqual(['lunch', 'dinner']);
+    expect(fitSlots(dish(['lunch', 'dinner'], 'pollo', 'chorizo'), catalogue, OMNIVORE)).toEqual(['lunch', 'dinner']);
     // add lentils (lunch only) → lunch.
-    expect(fitSlots(dish(['breakfast', 'lunch', 'dinner'], 'pollo', 'chorizo', 'lentejas-cocidas'), catalogue, OMNIVORE)).toEqual(['lunch']);
+    expect(fitSlots(dish(['lunch', 'dinner'], 'pollo', 'chorizo', 'lentejas-cocidas'), catalogue, OMNIVORE)).toEqual(['lunch']);
+  });
+
+  it('never serves a snack or a breakfast by its own slots at lunch or dinner, whatever else it names (017 phase 3)', () => {
+    const staples = ['aceite-de-oliva', 'cebolla', 'sal', 'tomate'];
+
+    // The real plan's yoghurt cup claimed every meal and was served as dinner ×3.
+    expect(fitSlots(dish([...EVERY_SLOT], ...staples), catalogue, OMNIVORE)).toEqual(['breakfast', 'morning_snack', 'afternoon_snack', 'supper']);
+    expect(fitSlots(dish(['afternoon_snack', 'dinner'], ...staples), catalogue, VEGAN)).toEqual(['afternoon_snack']);
+    expect(fitSlots(dish(['breakfast', 'lunch'], ...staples), catalogue, OMNIVORE)).toEqual(['breakfast']);
+    // A late snack is a snack.
+    expect(fitSlots(dish(['dinner', 'supper'], ...staples), catalogue, OMNIVORE)).toEqual(['supper']);
+    // A main is a main.
+    expect(fitSlots(dish(['lunch', 'dinner'], ...staples), catalogue, OMNIVORE)).toEqual(['lunch', 'dinner']);
   });
 
   it('never adds a meal the dish did not claim, even where every ingredient belongs', () => {
@@ -153,11 +180,27 @@ describe('fitSlots — which of its own meals a dish may be served at', () => {
       ['pollo', 'chorizo'],
       ['bebida-energetica', 'huevo']
     ]) {
-      expect(fitSlots(dish([...EVERY_SLOT], ...slugs), empty, OMNIVORE)).toEqual(EVERY_SLOT);
+      expect(fitSlots(dish(['lunch', 'dinner'], ...slugs), empty, OMNIVORE)).toEqual(['lunch', 'dinner']);
+      expect(fitSlots(dish(['breakfast', 'morning_snack', 'afternoon_snack', 'supper'], ...slugs), empty, OMNIVORE)).toEqual([
+        'breakfast',
+        'morning_snack',
+        'afternoon_snack',
+        'supper'
+      ]);
     }
 
     // Except a Table 2 group, which the table places, not the list (`0079`, option B).
-    expect(fitSlots(dish([...EVERY_SLOT], 'lentejas-cocidas'), empty, OMNIVORE)).toEqual(['lunch']);
+    expect(fitSlots(dish(['lunch', 'dinner'], 'lentejas-cocidas'), empty, OMNIVORE)).toEqual(['lunch']);
+  });
+});
+
+describe('isSnackOrBreakfastDish — a dinner is a meal', () => {
+  it('names a dish that claims breakfast or any snack, and no dish that claims only lunch and dinner', () => {
+    expect(isSnackOrBreakfastDish({ slots: [...EVERY_SLOT] })).toBe(true);
+    expect(isSnackOrBreakfastDish({ slots: ['supper'] })).toBe(true);
+    expect(isSnackOrBreakfastDish({ slots: ['breakfast', 'dinner'] })).toBe(true);
+    expect(isSnackOrBreakfastDish({ slots: ['lunch', 'dinner'] })).toBe(false);
+    expect(isSnackOrBreakfastDish({ slots: ['dinner'] })).toBe(false);
   });
 });
 
@@ -330,5 +373,29 @@ describe('mealCatalogue — the rows one meal’s request is shown', () => {
 
     expect(shown.every(row => many.includes(row))).toBe(true);
     expect(shown).toEqual(many.filter(row => shown.includes(row)));
+  });
+});
+
+describe('outOfSeasonFruit — a dish’s fresh fruit in its month (017 phase 2)', () => {
+  const catalogue = toCatalogue([
+    makeCatalogueIngredient({ id: 'i-nectarina', category: 'produce', seasonMonths: [5, 6, 7, 8, 9], slug: 'nectarina' }),
+    makeCatalogueIngredient({ id: 'i-caqui', category: 'produce', seasonMonths: [10, 11, 12], slug: 'caqui' }),
+    makeCatalogueIngredient({ id: 'i-platano', category: 'produce', slug: 'platano' }),
+    makeCatalogueIngredient({ id: 'i-tomate', category: 'produce', seasonMonths: [6, 7, 8, 9], slug: 'tomate' }),
+    makeCatalogueIngredient({ id: 'i-requeson', category: 'dairy', slug: 'requeson' })
+  ]);
+  const biscotes = { ingredients: [{ slug: 'requeson' }, { slug: 'nectarina' }] };
+
+  it('names the fruit out of season: a real plan served a nectarine in October', () => {
+    expect(outOfSeasonFruit(biscotes, catalogue, 10)).toBe('nectarina');
+    expect(outOfSeasonFruit(biscotes, catalogue, 7)).toBeNull();
+    expect(outOfSeasonFruit({ ingredients: [{ slug: 'caqui' }] }, catalogue, 10)).toBeNull();
+  });
+
+  it('never judges a vegetable, nor a fruit with no season', () => {
+    expect(outOfSeasonFruit({ ingredients: [{ slug: 'tomate' }] }, catalogue, 1)).toBeNull();
+    expect(outOfSeasonFruit({ ingredients: [{ slug: 'platano' }] }, catalogue, 1)).toBeNull();
+    expect(FRESH_FRUIT_SLUGS.has('tomate')).toBe(false);
+    expect(FRESH_FRUIT_SLUGS.has('aguacate')).toBe(false);
   });
 });

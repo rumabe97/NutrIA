@@ -10,7 +10,7 @@ import { minimumDailyKcal, targetViolations } from 'core/domain/Nutrition';
 import { OnboardingIncompleteError, PlanPausedError, ProfileConsentRequiredError, QuotaExceededError } from 'core/entities/Error';
 import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController } from 'core/controllers/Plan';
-import { ProfileController } from 'core/controllers/Profile';
+import { personToday, ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
 import { SettingsController } from 'core/controllers/Settings';
 import { accompanimentRows, larderFor } from 'core/domain/Accompaniment';
@@ -46,7 +46,7 @@ export class PlanLoadRebuildService {
   private readonly logger = new Logger(PlanLoadRebuildService.name);
 
   /** The dates of the active plan rebuilt for this event, oldest first. Empty when none were. */
-  async forEvent(userId: string, event: EventView, today = isoToday()): Promise<readonly string[]> {
+  async forEvent(userId: string, event: EventView, on?: string): Promise<readonly string[]> {
     const { events } = await PlanController.allowances(userId);
 
     // Null is a tier with no such thing; zero left is a tier that has spent it.
@@ -62,6 +62,8 @@ export class PlanLoadRebuildService {
       return [];
     }
 
+    // The person's day, the one their plan is laid out in — never the UTC date.
+    const today = on ?? (await personToday(userId));
     const wanted = new Set(event.loadedDates);
     const days = plan.days.filter(day => wanted.has(day.date) && day.date > today);
 
@@ -143,19 +145,22 @@ export class PlanLoadRebuildService {
     // Everything the plan keeps, so the variety rules hold across the seam: a
     // rebuilt Thursday may not serve what the untouched Tuesday already does.
     const kept = composition.filter(meal => !rebuilding.has(meal.dayIndex));
-    const placed: Placement[] = kept.map(meal => ({ dayIndex: meal.dayIndex, dishSlug: meal.recipeSlug, slot: meal.slot, starch: meal.starch }));
+    const placed: Placement[] = kept.map(meal => ({
+      dayIndex: meal.dayIndex,
+      dishSlug: meal.recipeSlug,
+      legume: meal.legume,
+      slot: meal.slot,
+      starch: meal.starch
+    }));
     const dayIndexes = [...rebuilding].sort((a, b) => a - b);
     const sex = profile.profile?.sex ?? 'prefer_not_to_say';
     // What may go beside a big lunch or dinner (project 016), as at generation:
-    // this person's larder from the same context, in each rebuilt day's month.
+    // this person's larder from the same context, in each rebuilt day's month —
+    // the month that also decides which fruit is in season on the plate (017).
     const months = new Map(plan.days.map(day => [day.dayIndex, Number(day.date.slice(5, 7))]));
+    const monthOf = (dayIndex: number): number => months.get(dayIndex) ?? 1;
     const sides = (await SettingsController.accompaniments())
-      ? {
-          accompaniments: {
-            larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }),
-            monthOf: (dayIndex: number) => months.get(dayIndex) ?? 1
-          }
-        }
+      ? { accompaniments: { larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }), monthOf } }
       : {};
     const scheduled = schedulePlan({
       ...sides,
@@ -164,6 +169,7 @@ export class PlanLoadRebuildService {
       dayTargets: new Map(dayIndexes.map(dayIndex => [dayIndex, targets])),
       // As at generation: a day rebuilt around an event is sized over the floor too.
       minimumKcal: minimumDailyKcal(sex),
+      monthOf,
       placed,
       pool,
       targets: base,
@@ -288,8 +294,4 @@ function groupByDay(meals: readonly MealCompositionView[]): readonly { readonly 
   }
 
   return [...days.values()].map(entries => ({ meals: entries }));
-}
-
-function isoToday(): string {
-  return new Date().toISOString().slice(0, 10);
 }

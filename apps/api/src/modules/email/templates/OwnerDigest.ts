@@ -39,6 +39,7 @@ const CRON_LABEL = {
   activations: 'activación de planes en su día',
   reminders: 'recordatorios',
   rewrite: 'reescritura nocturna',
+  twoFactorRemovals: 'retirada de segundos factores',
   verifications: 'borrado de enlaces caducados'
 } as const;
 

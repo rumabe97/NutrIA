@@ -6,6 +6,7 @@ import { ACCOMPANIED_FROM_KCAL, ACCOMPANIMENT_MAX_SHARE, pickReplacement, PLATE_
 import { ACCOMPANIMENTS, larderFor } from 'core/domain/Accompaniment';
 import { addMacros, composePerServing, scaleMacros } from 'core/domain/Composition';
 import { mealShareKcal, shapeFor, weightsFor } from 'core/domain/MealShape';
+import { validatePlan } from 'core/domain/PlanValidation';
 import { breaksDishRule, NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
 import { dishSafety, toSafetyProfile } from 'core/domain/Safety';
 import { toCatalogue } from 'core/entities/Plan';
@@ -126,7 +127,7 @@ function scaled(kcalScale: number): NutritionTargets {
   };
 }
 
-function plan(shape: MealShape, kcalScale: number): string {
+function assignmentFor(shape: MealShape, kcalScale: number): PlanAssignment {
   const weights = weightsFor(shape);
   const targets = scaled(kcalScale);
   const result = schedulePlan({ catalogue, minimumKcal: MINIMUM_KCAL, pool: pool([...weights.keys()]), targets, weights });
@@ -135,22 +136,39 @@ function plan(shape: MealShape, kcalScale: number): string {
     throw new Error('the fixture pool must schedule');
   }
 
-  return digest(result.assignment);
+  return result.assignment;
+}
+
+function plan(shape: MealShape, kcalScale: number): string {
+  return digest(assignmentFor(shape, kcalScale));
 }
 
 const TWO_MEALS: MealShape = { afternoon_snack: 'off', breakfast: 'off', dinner: 'normal', lunch: 'normal', morning_snack: 'light', supper: 'off' };
 
+// All three moved again with 017 phase 2's fix: a day's swaps judged on its
+// bands before the variety rules' prices, and no repair deepening a day's energy
+// miss (`energyMiss`). On this toy pool it is a trade, not a gain — three meals:
+// worst carbohydrate day 22% to 6%, worst energy day 6% to 9%; days inside 5% on
+// all four 4, 11 and 3 of 14 (were 4, 12 and 4). The reference library is the
+// measure: 176/182 such days to 180/182 without accompaniments, 182/182 to
+// 181/182 with them.
+// All three moved again with 017 phase 3: a day still outside its bands after
+// the spread pass is repaired by a swap sized to them (`repairOutOfBand`). On
+// this toy pool, three meals 4 to 5 days of 14 inside 5% on all four, the two
+// main meals' worst day 15.2% to 14.4%, five meals unchanged at 11.
 describe('the scheduler with accompaniments off — the plans it always made', () => {
   it('three meals, an ordinary target', () => {
-    expect(plan(shapeFor(3, false), 1)).toBe('c4a45a2989dd20d05d5c4d5db22e9825fa645275701eb90c3c305b1bc583a4b6');
+    expect(plan(shapeFor(3, false), 1)).toBe('6709f8bdb9c8a4010ad2c40954d61c01926c7c5377b57c81c88753a1eb38b289');
   });
 
+  // Moved in 017 phase 2 (group D): the snacks of these shapes are now held to
+  // three of a kind a fortnight (`SNACK_RULES`), and every fixture snack is one kind.
   it('five meals, a high target', () => {
-    expect(plan(shapeFor(5, true), 1.8)).toBe('80f807f5c5220599708c4c5e10d87be4dda329e2a0594124bcbac21521995311');
+    expect(plan(shapeFor(5, true), 1.8)).toBe('5b1af8e2de89f231cbb62b63b3b9745a401dc5e3589c010521fe724aa07f9224');
   });
 
   it('two big main meals and a light snack', () => {
-    expect(plan(TWO_MEALS, 1.1)).toBe('9d742f73e4ac84f1bcb3cefa5da72384912a99b2e08858b82ab9793967700ac4');
+    expect(plan(TWO_MEALS, 1.1)).toBe('d4356b054cb9cceb516b49097272dd773f65c25e6f2f07043770e25c29672dae');
   });
 
   it('a swap', () => {
@@ -167,6 +185,32 @@ describe('the scheduler with accompaniments off — the plans it always made', (
     expect(createHash('sha256').update(JSON.stringify(replacement)).digest('hex')).toBe(
       'a904b080b51a87150c83263c70337856a2035cf290bd8c5cda0f0d59778fba45'
     );
+  });
+});
+
+describe('the scheduler repairs a day still outside its bands (017 phase 3)', () => {
+  const BAND_KINDS: ReadonlySet<string> = new Set([
+    'carbs_out_of_band',
+    'fat_out_of_band',
+    'kcal_out_of_band',
+    'protein_above_target',
+    'protein_below_target'
+  ]);
+
+  it('brings one more day of three meals inside 5% on all four macros, by a swap sized to the bands', () => {
+    const shape = shapeFor(3, false);
+    const violations = validatePlan({
+      assignment: assignmentFor(shape, 1),
+      expectedDays: 14,
+      expectedSlots: [...weightsFor(shape).keys()],
+      sex: 'male',
+      targets: scaled(1),
+      weightKg: 80
+    });
+    const outside = new Set(violations.flatMap(violation => (BAND_KINDS.has(violation.kind) && 'dayIndex' in violation ? [violation.dayIndex] : [])));
+
+    // 4 of 14 before the repair, on this toy pool.
+    expect(14 - outside.size).toBe(5);
   });
 });
 

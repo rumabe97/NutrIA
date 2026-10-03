@@ -35,9 +35,10 @@
  * same filter the API will hand the scheduler) is offered beside lunch and
  * dinner. Any other name is refused.
  *
- * `--start` is the fortnight's first day (default 2026-10-05): with
- * accompaniments, season is a hard filter on the month each day falls in, so
- * the figures depend on it. It is printed and recorded in the JSON.
+ * `--start` is the fortnight's first day (default 2026-10-05): season is a
+ * hard filter on the month each day falls in — on a dish's fresh fruit since
+ * 017 phase 2, and with accompaniments on what goes beside it — so the figures
+ * depend on it. It is printed and recorded in the JSON.
  *
  * Exit codes:
  *   0  every profile measured; no plate carried a declared allergen
@@ -55,7 +56,7 @@ import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts
 import { RecipeController } from 'core/controllers/Recipe';
 import { larderFor } from 'core/domain/Accompaniment';
 import { SafetyController } from 'core/controllers/Safety';
-import { cuisineFamily } from 'core/domain/MealFit';
+import { cuisineFamily, dishGroups, groupFits, isSnackOrBreakfastDish, outOfSeasonFruit } from 'core/domain/MealFit';
 import { DEFAULT_MEAL_SHAPE, shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { loadedTargets } from 'core/domain/Event';
 import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
@@ -71,7 +72,18 @@ import {
 } from 'core/domain/Preference';
 import { PLAN_DAYS, PLATE_GRAMS_MAX, PLATE_LIMIT, plateGramsMax, schedulePlan, SERVING_PREFERENCE } from 'core/domain/Scheduler';
 import { bestEffortExclusions, dishSafety, normaliseForMatching, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
-import { DISHES_NEEDED_PER_SLOT, isCappedStarch, MAIN_SLOTS, STARCH_RULES, starchBase, starchCap } from 'core/domain/Variety';
+import {
+  DISHES_NEEDED_PER_SLOT,
+  isCappedStarch,
+  legumeKind,
+  MAIN_SLOTS,
+  mainProtein,
+  SNACK_KIND_SLOTS,
+  snackKind,
+  STARCH_RULES,
+  starchBase,
+  starchCap
+} from 'core/domain/Variety';
 import { plateFoodMax, plateFoods } from 'core/domain/PlateFood';
 
 // ---------------------------------------------------------------------------
@@ -177,6 +189,18 @@ const PROFILES = [
     target: { activityLevel: 'moderate', ageYears: 62, goal: 'maintenance', heightCm: 172, sex: 'male', weightKg: 78 },
     shape: DEFAULT_MEAL_SHAPE,
     dietaryPattern: 'traditional_spanish'
+  },
+  {
+    // A synthetic stand-in, not a copy (`0076`), for a real 3-meal account whose
+    // plan ran protein −3% to −15% on most days and served a yoghurt cup ×3 as
+    // dinner (017 phase 3, owner's amendment of 2026-10-02): its targets as the
+    // app gave them, its meals, and the dislike it told the app.
+    slug: 'tres-comidas-proteina-alta',
+    description: 'Three meals (morning snack, lunch, dinner), 2,079 kcal with 138 g protein, dislikes fish',
+    target: { activityLevel: 'moderate', ageYears: 40, goal: 'weight_loss', heightCm: 178, paceKgPerWeek: 0.5, sex: 'male', weightKg: 92 },
+    targets: { carbsG: 236, fatG: 65, kcal: 2079, proteinG: 138 },
+    shape: { afternoon_snack: 'off', breakfast: 'off', dinner: 'normal', lunch: 'normal', morning_snack: 'normal', supper: 'off' },
+    dislikedLabels: ['pescado']
   }
 ];
 
@@ -362,6 +386,27 @@ function contextFor(profile, shared) {
     };
   }
 
+  if (profile.dislikedLabels) {
+    // What `generationContext` does with a profile's dislikes: resolved by
+    // `resolvePreferences` and added to what `nobodysContext` already excludes.
+    const resolved = resolvePreferences({
+      allergenIdsByKey: shared.allergenIdsByKey,
+      dietaryPatterns: [],
+      dislikedLabels: profile.dislikedLabels,
+      ingredients,
+      maxMinutesPerDish: null
+    });
+    const preferences = {
+      ...shared.preferences,
+      excludedIngredientIds: new Set([...shared.preferences.excludedIngredientIds, ...resolved.excludedIngredientIds])
+    };
+
+    return {
+      context: { ...shared, preferences },
+      note: `${resolved.excludedIngredientIds.size} ingredients excluded by the dislikes ${profile.dislikedLabels.join(', ')}`
+    };
+  }
+
   return { context: shared, note: null };
 }
 
@@ -378,7 +423,8 @@ async function measureProfile(profile, shared, options) {
   let targets;
 
   try {
-    targets = nutritionTargets(profile.target);
+    // A profile stated by its targets keeps the body's fibre and floor, and its own macros.
+    targets = { ...nutritionTargets(profile.target), ...profile.targets };
   } catch (error) {
     if (error instanceof TargetsUnreachableError) {
       return { measured: false, note: `targets unreachable: ${error.message}`, slug: profile.slug };
@@ -420,15 +466,20 @@ async function measureProfile(profile, shared, options) {
     ? { larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }), monthOf }
     : undefined;
 
+  // The scheduler alone, without the pool's read or this report (017 phase 3): what generation waits for.
+  const scheduleStarted = performance.now();
   const scheduled = schedulePlan({
     accompaniments,
     catalogue: context.catalogue,
     dayTargets,
     minimumKcal: minimumDailyKcal(profile.target.sex),
+    monthOf,
     pool,
     targets,
     weights
   });
+
+  const scheduleMs = Math.round(performance.now() - scheduleStarted);
 
   if (!scheduled.ok) {
     return { measured: false, note, poolSize: pool.length, shortfall: scheduled.shortfall, slug: profile.slug };
@@ -480,6 +531,24 @@ async function measureProfile(profile, shared, options) {
 
   const daysOutside = new Set(bandViolations.map(violation => violation.dayIndex));
   const daysInsideAll4 = PLAN_DAYS - daysOutside.size;
+  // Each day out of band with what missed and what it served (017 phase 2), so
+  // a day a rule costs can be traced to its macro and its meals.
+  const outOfBand = [...daysOutside]
+    .sort((a, b) => a - b)
+    .map(dayIndex => ({
+      dayIndex,
+      meals: (scheduled.assignment.days.find(day => day.dayIndex === dayIndex)?.meals ?? []).map(meal => ({
+        base: starchBase(meal.dish) ?? 'none',
+        dish: meal.dish.name,
+        kcal: Math.round(meal.macros.kcal),
+        servings: meal.servings,
+        sides: (meal.accompaniments ?? []).map(side => side.key),
+        slot: meal.slot
+      })),
+      misses: bandViolations
+        .filter(violation => violation.dayIndex === dayIndex)
+        .map(violation => ({ actual: Math.round(violation.actual * 10) / 10, kind: violation.kind, target: violation.target }))
+    }));
 
   let worst = null;
 
@@ -532,6 +601,7 @@ async function measureProfile(profile, shared, options) {
 
   return {
     advisories: tally([...bandViolations, ...otherAdvisories]),
+    scheduleMs,
     blocking: tally(blockingViolations),
     blockingDetail,
     daysInsideAll4,
@@ -543,6 +613,7 @@ async function measureProfile(profile, shared, options) {
     dinnersByFamily,
     measured: true,
     note,
+    outOfBand,
     plateShare,
     plateWeight,
     poolBySlot,
@@ -553,6 +624,8 @@ async function measureProfile(profile, shared, options) {
     unsafe,
     spanish: spanishMetrics(scheduled.assignment.days, context.catalogue),
     starch: starchMetrics(scheduled.assignment.days),
+    kinds: kindMetrics(scheduled.assignment.days, context.catalogue, monthOf),
+    mainMeals: mainMealMetrics(scheduled.assignment.days),
     // How varied the plan actually is, not just whether it broke a rule —
     // distinct dishes maximised, no two days the same, a repeat as far apart
     // as the pool allows (owner, 2026-09-26; `0065`).
@@ -588,6 +661,7 @@ function starchMetrics(days) {
   const byFamily = {};
   const gnocchi = [];
   let dinnerPastaOrRiceOutsideAsian = 0;
+  const outsideTable2 = [];
 
   for (const day of days) {
     for (const meal of day.meals) {
@@ -609,6 +683,14 @@ function starchMetrics(days) {
 
         if (meal.slot === 'dinner' && isCappedStarch(base) && family !== 'asian') {
           dinnerPastaOrRiceOutsideAsian += 1;
+        }
+
+        // 017 phase 2: what Table 2 itself refuses at this meal — rice at a
+        // Latin dinner is allowed, so this, not the line above, must be 0.
+        for (const group of dishGroups(meal.dish)) {
+          if (isCappedStarch(group) && !groupFits(family, group, meal.slot)) {
+            outsideTable2.push({ dayIndex: day.dayIndex, dish: meal.dish.name, family, group, slot: meal.slot });
+          }
         }
 
         if (meal.dish.ingredients.some(item => item.slug === GNOCCHI_SLUG)) {
@@ -645,7 +727,83 @@ function starchMetrics(days) {
     dinners,
     gnocchi,
     mains,
+    outsideTable2,
     total
+  };
+}
+
+/**
+ * How often one kind of food comes back (017 phase 2): each main protein at
+ * lunch and dinner (`mainProtein`), over the fortnight and in its busiest week;
+ * each legume at any meal (`legumeKind`), with the days it ran on or doubled.
+ */
+function kindMetrics(days, catalogue, monthOf) {
+  const proteins = {};
+  const legumeDays = new Map();
+  const outOfSeason = [];
+  const snacks = {};
+
+  for (const day of days) {
+    for (const meal of day.meals) {
+      const snack = SNACK_KIND_SLOTS.has(meal.slot) ? snackKind(meal.dish, catalogue) : null;
+
+      if (snack) {
+        snacks[snack] = (snacks[snack] ?? 0) + 1;
+      }
+
+      const fruit = outOfSeasonFruit(meal.dish, catalogue, monthOf(day.dayIndex));
+
+      if (fruit) {
+        outOfSeason.push({ dayIndex: day.dayIndex, dish: meal.dish.name, fruit, slot: meal.slot });
+      }
+
+      const legume = legumeKind(meal.dish);
+
+      if (legume) {
+        legumeDays.set(legume, [...(legumeDays.get(legume) ?? []), day.dayIndex]);
+      }
+
+      if (!MAIN_SLOTS.has(meal.slot)) {
+        continue;
+      }
+
+      const protein = mainProtein(meal.dish, catalogue);
+
+      if (protein) {
+        const entry = (proteins[protein] ??= { total: 0, weeks: [0, 0] });
+
+        entry.total += 1;
+        entry.weeks[day.dayIndex <= 7 ? 0 : 1] += 1;
+      }
+    }
+  }
+
+  const top = Object.entries(proteins).sort((a, b) => b[1].total - a[1].total || a[0].localeCompare(b[0]));
+
+  const legumes = Object.fromEntries(
+    [...legumeDays].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).map(([kind, at]) => [kind, at.length])
+  );
+  const legumeRuns = [...legumeDays].flatMap(([kind, at]) =>
+    at.flatMap((dayIndex, position) => [
+      ...(at.indexOf(dayIndex) !== position ? [`${kind} twice on day ${dayIndex}`] : []),
+      ...(at.indexOf(dayIndex) === position && at.includes(dayIndex - 1) ? [`${kind} days ${dayIndex - 1}–${dayIndex}`] : [])
+    ])
+  );
+  const legumeTop = Object.entries(legumes)[0];
+
+  return {
+    legumeMax: legumeTop ? { kind: legumeTop[0], total: legumeTop[1] } : null,
+    legumeRuns,
+    legumes,
+    outOfSeason,
+    snackMax:
+      Object.entries(snacks)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([kind, total]) => ({ kind, total }))[0] ?? null,
+    snacks,
+    proteinMax: top[0] ? { kind: top[0][0], total: top[0][1].total } : null,
+    proteinMaxWeek: Math.max(0, ...top.map(([, entry]) => Math.max(...entry.weeks))),
+    proteins: Object.fromEntries(top.map(([kind, entry]) => [kind, entry.total]))
   };
 }
 
@@ -1021,6 +1179,35 @@ function dishRuleBreaks(days, context) {
 }
 
 /**
+ * A dinner is a meal (017 phase 3, owner's amendment of 2026-10-02): every
+ * lunch and dinner filled by a dish that is a snack or a breakfast by its slots
+ * (`isSnackOrBreakfastDish`), and every one of those past two servings — both
+ * must be 0 — beside the largest plate served at a main meal, for the eye.
+ */
+function mainMealMetrics(days) {
+  const light = [];
+  let largest = null;
+
+  for (const day of days) {
+    for (const meal of day.meals) {
+      if (!MAIN_SLOTS.has(meal.slot)) {
+        continue;
+      }
+
+      if (isSnackOrBreakfastDish(meal.dish)) {
+        light.push({ dayIndex: day.dayIndex, dish: meal.dish.name, servings: meal.servings, slot: meal.slot });
+      }
+
+      if (!largest || meal.servings > largest.servings) {
+        largest = { dayIndex: day.dayIndex, dish: meal.dish.name, servings: meal.servings, slot: meal.slot };
+      }
+    }
+  }
+
+  return { largest, lightOverTwo: light.filter(item => item.servings > 2), lightPlates: light };
+}
+
+/**
  * How many plates of each slot were served at each size (project 016): the
  * question accompaniments answer is whether a big meal is one dish at three
  * servings, and a mean hides that.
@@ -1176,6 +1363,14 @@ function printProfile(profile, result) {
     console.log('  worst day: none — every day inside band');
   }
 
+  for (const day of result.outOfBand ?? []) {
+    console.log(
+      `  out of band, day ${day.dayIndex}: ${day.misses.map(miss => `${miss.kind} ${miss.actual} vs ${miss.target}`).join('; ')} — ${day.meals
+        .map(meal => `${meal.slot} "${meal.dish}" ×${meal.servings}${meal.sides.length > 0 ? ` + ${meal.sides.join(', ')}` : ''}`)
+        .join('; ')}`
+    );
+  }
+
   console.log(`  deviation from target, signed mean / mean |dev|: ${formatDeviations(result.deviations)}`);
 
   const advisoryEntries = Object.entries(result.advisories);
@@ -1302,7 +1497,7 @@ function printProfile(profile, result) {
   }
 
   if (typeof result.ms === 'number') {
-    console.log(`  time: ${result.ms} ms`);
+    console.log(`  time: ${result.ms} ms, of which scheduling ${result.scheduleMs} ms`);
   }
 
   const spanish = result.spanish;
@@ -1327,9 +1522,11 @@ function printProfile(profile, result) {
       `  starch base (016 p7), lunches and dinners: ${Object.entries(mains)
         .sort((a, b) => b[1] - a[1])
         .map(([base, count]) => `${base} ${count}`)
+        .join(', ')}; all meals ${Object.entries(total)
+        .map(([base, count]) => `${base} ${count}`)
         .join(
           ', '
-        )}; all meals pasta ${total.pasta}, rice ${total.rice} (cap ${cap}); dinners with pasta or rice ${dinnerPastaOrRice}; days running ${consecutive.length}${consecutive.length > 0 ? ` (${consecutive.join(', ')})` : ''}`
+        )} (cap ${cap} each); dinners with pasta or rice ${dinnerPastaOrRice}; days running ${consecutive.length}${consecutive.length > 0 ? ` (${consecutive.join(', ')})` : ''}`
     );
 
     const { byFamily = {}, dinnerPastaOrRiceOutsideAsian, gnocchi = [] } = result.starch;
@@ -1351,8 +1548,54 @@ function printProfile(profile, result) {
     }
 
     console.log(`  dinners with pasta or rice outside the Asian family: ${dinnerPastaOrRiceOutsideAsian}`);
+
+    const { outsideTable2 = [] } = result.starch;
+
+    console.log(
+      `  pasta, rice or grains where 0079 Table 2 refuses them (017 p2, must be 0): ${outsideTable2.length}${outsideTable2.length > 0 ? ` (${outsideTable2.map(item => `day ${item.dayIndex} ${item.slot}: "${item.dish}", ${item.family} ${item.group}`).join('; ')})` : ''}`
+    );
     console.log(
       `  gnocchi: ${gnocchi.length}${gnocchi.length > 0 ? ` (${gnocchi.map(item => `day ${item.dayIndex} ${item.slot}: "${item.dish}", ${item.family}, read as ${item.base}`).join('; ')})` : ''}`
+    );
+  }
+
+  if (result.kinds) {
+    const { proteinMax, proteinMaxWeek, proteins } = result.kinds;
+
+    console.log(
+      `  main proteins at lunch and dinner (017 p2): ${Object.entries(proteins)
+        .map(([kind, count]) => `${kind} ${count}`)
+        .join(', ')}; most ${proteinMax ? `${proteinMax.kind} ${proteinMax.total}` : 'none'}, busiest week ${proteinMaxWeek}`
+    );
+
+    const { legumeRuns = [], legumes = {}, outOfSeason = [], snacks = {} } = result.kinds;
+
+    console.log(
+      `  snacks by kind (017 p2, 3 a fortnight each): ${
+        Object.entries(snacks)
+          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+          .map(([kind, count]) => `${kind} ${count}`)
+          .join(', ') || 'none'
+      }`
+    );
+
+    console.log(
+      `  plates with fresh fruit out of season that day (017 p2, must be 0): ${outOfSeason.length}${outOfSeason.length > 0 ? ` (${outOfSeason.map(item => `day ${item.dayIndex} ${item.slot}: "${item.dish}", ${item.fruit}`).join('; ')})` : ''}`
+    );
+
+    const { largest, lightOverTwo, lightPlates } = result.mainMeals;
+    const listed = items => (items.length > 0 ? ` (${items.map(item => `day ${item.dayIndex} ${item.slot}: "${item.dish}" ×${item.servings}`).join('; ')})` : '');
+
+    console.log(`  lunches and dinners filled by a snack or breakfast dish (017 p3, must be 0): ${lightPlates.length}${listed(lightPlates)}`);
+    console.log(`  of those, past 2 servings (017 p3, must be 0): ${lightOverTwo.length}${listed(lightOverTwo)}`);
+    console.log(`  largest plate at lunch or dinner: ${largest ? `×${largest.servings}, day ${largest.dayIndex} ${largest.slot}: "${largest.dish}"` : 'none'}`);
+
+    console.log(
+      `  legumes by kind, every meal (017 p2, 3 a fortnight each, never on days running): ${
+        Object.entries(legumes)
+          .map(([kind, count]) => `${kind} ${count}`)
+          .join(', ') || 'none'
+      }; days running ${legumeRuns.length}${legumeRuns.length > 0 ? ` (${legumeRuns.join(', ')})` : ''}`
     );
   }
 
