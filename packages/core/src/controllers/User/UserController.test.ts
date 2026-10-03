@@ -511,3 +511,32 @@ describe('UserController.forgetExpiredVerifications', () => {
     expect(forgetExpiredVerifications).toHaveBeenCalledExactlyOnceWith(now);
   });
 });
+
+/*
+ * PLAN 011 phase 6: what `ProfessionalGuard` and `AdminGuard` ask on every
+ * request they see. The flag rides the session, so the common case — the
+ * factor on — costs no query.
+ */
+describe('UserController.needsSecondFactor', () => {
+  beforeEach(() => {
+    hasPassword.mockReset();
+  });
+
+  it('answers false with the factor on, without asking about a password', async () => {
+    await expect(UserController.needsSecondFactor({ id: 'usr-1', twoFactorEnabled: true })).resolves.toBe(false);
+    expect(hasPassword).not.toHaveBeenCalled();
+  });
+
+  it('answers true for a password account with the factor off, asked of the session’s own id', async () => {
+    hasPassword.mockResolvedValue(true);
+
+    await expect(UserController.needsSecondFactor({ id: 'usr-1', twoFactorEnabled: false })).resolves.toBe(true);
+    expect(hasPassword).toHaveBeenCalledWith('usr-1');
+  });
+
+  it('answers false for an account with no password: its second factor is its provider’s', async () => {
+    hasPassword.mockResolvedValue(false);
+
+    await expect(UserController.needsSecondFactor({ id: 'usr-1', twoFactorEnabled: false })).resolves.toBe(false);
+  });
+});

@@ -3,6 +3,7 @@ import { AuditRepository } from '#repositories/Audit';
 import { NotFoundError } from 'core/entities/Error';
 import { UNAUDITED } from 'core/entities/Audit';
 import { UserRepository } from '#repositories/User';
+import { secondFactorMissing } from 'core/domain/SecondFactor';
 
 import type { ActivationAudit, PasswordChangedVia, SessionsRevokedScope } from 'core/entities/Audit';
 import type { AccountQuery } from 'core/entities/AdminQuery';
@@ -289,6 +290,23 @@ export const UserController = {
    */
   async markPasswordCompromised(userId: string, at: Date = new Date()): Promise<boolean> {
     return UserRepository.markPasswordCompromised(userId, at);
+  },
+
+  /**
+   * Whether a privileged account must turn its second factor on before a
+   * privileged route opens (PLAN 011 phase 6, `secondFactorMissing`). `user`
+   * is the session's: `twoFactorEnabled` rides it, so an account with the
+   * factor on is answered with no query; only one with it off is asked
+   * whether it has a password at all. `ProfessionalGuard` and `AdminGuard`
+   * ask on every request they see, never cached: turning the factor off — or
+   * the owner's removal — closes the door on the very next one.
+   */
+  async needsSecondFactor(user: { readonly id: string; readonly twoFactorEnabled: boolean }): Promise<boolean> {
+    if (user.twoFactorEnabled) {
+      return false;
+    }
+
+    return secondFactorMissing({ hasPassword: await UserRepository.hasPassword(user.id), twoFactorEnabled: false });
   },
 
   /**

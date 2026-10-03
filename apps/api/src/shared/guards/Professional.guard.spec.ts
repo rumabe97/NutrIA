@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { ProfessionalController } from 'core/controllers/Professional';
+import { UserController } from 'core/controllers/User';
 
 import { BeforePractice } from '../decorators/BeforePractice.decorator.js';
 import { ProfessionalGuard } from './Professional.guard.js';
@@ -21,7 +22,7 @@ const PRACTISING = {
 @BeforePractice()
 class WorkspacePage {}
 
-function makeContext(user?: { id: string }, page: new () => object = class {}): ExecutionContext {
+function makeContext(user?: { id: string; twoFactorEnabled?: boolean }, page: new () => object = class {}): ExecutionContext {
   return {
     getClass: () => page,
     getHandler: () => () => undefined,
@@ -38,6 +39,7 @@ function makeContext(user?: { id: string }, page: new () => object = class {}): 
 describe('ProfessionalGuard', () => {
   beforeEach(() => {
     jest.spyOn(ProfessionalController, 'find').mockResolvedValue(PRACTISING);
+    jest.spyOn(UserController, 'needsSecondFactor').mockResolvedValue(false);
   });
 
   afterEach(() => {
@@ -101,6 +103,41 @@ describe('ProfessionalGuard', () => {
     jest.spyOn(ProfessionalController, 'find').mockResolvedValue({ ...PRACTISING, agreementRequired: true, practiceOpen: false });
 
     await expect(new ProfessionalGuard(new Reflector()).canActivate(makeContext({ id: 'usr-new' }, WorkspacePage))).resolves.toBe(true);
+  });
+
+  /* PLAN 011 phase 6: a client route reads somebody's health data, so a password needs the authenticator app on. */
+  it('denies a professional who still needs a second factor, with the same 404, even with everything else in order', async () => {
+    jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+    jest.spyOn(UserController, 'needsSecondFactor').mockResolvedValue(true);
+
+    await expect(new ProfessionalGuard(new Reflector()).canActivate(makeContext({ id: 'usr-no-totp' }))).rejects.toThrow(
+      expect.objectContaining({ status: 404 }) as unknown as Error
+    );
+  });
+
+  it('asks about the session’s own user and its flag, never an id from the request', async () => {
+    jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+    const needs = jest.spyOn(UserController, 'needsSecondFactor').mockResolvedValue(false);
+
+    await new ProfessionalGuard(new Reflector()).canActivate(makeContext({ id: 'usr-alice', twoFactorEnabled: true }));
+
+    expect(needs).toHaveBeenCalledWith({ id: 'usr-alice', twoFactorEnabled: true });
+  });
+
+  it('lets that professional reach the workspace’s page — where they are told to turn it on', async () => {
+    jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+    const needs = jest.spyOn(UserController, 'needsSecondFactor').mockResolvedValue(true);
+
+    await expect(new ProfessionalGuard(new Reflector()).canActivate(makeContext({ id: 'usr-no-totp' }, WorkspacePage))).resolves.toBe(true);
+    expect(needs).not.toHaveBeenCalled();
+  });
+
+  it('never asks about the second factor of an account that is not a professional', async () => {
+    jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
+    const needs = jest.spyOn(UserController, 'needsSecondFactor');
+
+    await expect(new ProfessionalGuard(new Reflector()).canActivate(makeContext({ id: 'usr-plain' }))).rejects.toThrow(NotFoundException);
+    expect(needs).not.toHaveBeenCalled();
   });
 
   it('still asks for the grant on that page', async () => {
