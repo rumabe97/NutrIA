@@ -1,0 +1,118 @@
+.root {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The same title every card on the profile gives its blocks; focusable only by script,
+   after a removal takes the button that had focus away. */
+.title {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-04);
+  margin: 0;
+}
+
+.error {
+  border-left: 2px solid var(--color-error);
+  color: var(--color-error-text);
+  font-size: var(--font-size-02);
+  margin: 0;
+  padding: var(--space-02) var(--space-04);
+}
+
+.done {
+  color: var(--foreground-02);
+  font-size: var(--font-size-03);
+  margin: 0;
+}
+
+/* A settings list, as SessionList draws it: rows divided by hairlines, not a card per passkey. */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  align-items: center;
+  border-top: 1px solid var(--border-01);
+  display: flex;
+  gap: var(--space-04);
+  justify-content: space-between;
+  padding-block: var(--space-03);
+}
+
+.row:last-child {
+  border-bottom: 1px solid var(--border-01);
+}
+
+.passkey {
+  display: grid;
+  gap: var(--space-01);
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-04);
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  line-height: var(--line-height-04);
+}
+
+.row > button {
+  flex-shrink: 0;
+}
+
+.notFresh {
+  border-inline-start: 3px solid var(--color-warning);
+  display: grid;
+  gap: var(--space-03);
+  padding-inline-start: var(--space-04);
+}
+
+.confirm {
+  border-top: 1px solid var(--border-01);
+  display: grid;
+  gap: var(--space-02);
+  padding-top: var(--space-04);
+}
+
+.question {
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}
+
+.actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+  padding-top: var(--space-02);
+}
+
+/* "Añadir una llave de acceso" is wider than a phone at large text: wrap the label. */
+.actions > button {
+  block-size: auto;
+  height: auto;
+  line-height: var(--line-height-02);
+  max-width: 100%;
+  padding-block: var(--space-02);
+  text-align: center;
+  white-space: normal;
+}
+
+/* Text this large for the screen: the button goes under the passkey it removes. */
+@media (width < 17rem) {
+  .row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

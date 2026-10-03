@@ -1,20 +1,17 @@
 'use client';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
-import { useRouter } from 'next/navigation';
-
 import styles from './SessionList.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
-import { authClient, signOut } from 'lib/auth-client';
+import { SignInAgainButton } from 'components/SignInAgainButton';
+
+import { authClient } from 'lib/auth-client';
 import { deviceLabel } from 'lib/deviceLabel';
-import { forgetOfflineCopies } from 'lib/offline';
-import { forgetPushOnThisDevice } from 'lib/push';
 import { formatInstant, interpolate } from 'lib/format';
-import { SIGN_IN_AGAIN_PATH } from 'lib/accountDeletion';
 
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { KeyboardEvent } from 'react';
@@ -72,7 +69,6 @@ async function readSessions(dictionary: Dictionary): Promise<ListState> {
  * copy above the list says so.
  */
 export function SessionList() {
-  const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
   const t = dictionary.security;
@@ -80,7 +76,6 @@ export function SessionList() {
   const [closing, setClosing] = useState<string>();
   const [confirming, setConfirming] = useState(false);
   const [closingOthers, setClosingOthers] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState<string>();
   const [done, setDone] = useState<string>();
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -203,22 +198,6 @@ export function SessionList() {
     }
   }
 
-  /** The menu's sign-out, then the sign-in page, which brings them back to the profile. */
-  async function signOutAndBack() {
-    setSigningOut(true);
-
-    try {
-      await forgetPushOnThisDevice();
-      await signOut();
-      await forgetOfflineCopies();
-      router.push(SIGN_IN_AGAIN_PATH);
-      router.refresh();
-    } catch {
-      // Offline, most likely: the button comes back.
-      setSigningOut(false);
-    }
-  }
-
   const others = state.kind === 'ready' ? state.rows.filter(row => !row.current).length : null;
   // With no list to go by, closing the others is still offered: it needs no fresh session.
   const canCloseOthers = state.kind === 'notFresh' || (others !== null && others > 0);
@@ -271,9 +250,7 @@ export function SessionList() {
         <div className={styles.notFresh}>
           <Text size="sm">{t.sessionsNotFresh}</Text>
           <div className={styles.actions}>
-            <Button loading={signingOut} onClick={() => void signOutAndBack()} type="button" variant="secondary">
-              {t.signInAgain}
-            </Button>
+            <SignInAgainButton />
           </div>
         </div>
       ) : null}
