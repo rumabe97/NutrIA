@@ -358,6 +358,11 @@ records what was decided.
     newer than the last one used is refused like a wrong code. Phase 3 left the plugin
     accepting a replay within its ±1 window (RFC 6238 § 5.2, NIST 800-63B). Specs and E2E
     pin the refusal.
+  - Amended 2026-10-03: the routes are `POST` and `DELETE
+    /admin/accounts/:id/two-factor/removal`, not `/admin/users/:id/…`, so they sit beside
+    the console's other account routes (`/admin/accounts`). The account rows gain
+    `twoFactorEnabled` and `twoFactorRemovalDueAt`, and the system page's crons gain
+    `twoFactorRemovals`; `admin.e2e-spec.ts` pins both.
 - **Steps**:
   1. `legal` drafts the procedure; the owner approves it.
   2. Migration, `core`, routes, cron step, emails, each with its spec.
