@@ -10,6 +10,7 @@ import { AuthModule } from './modules/auth/index.js';
 import { BillingModule } from './modules/billing/index.js';
 import { CareModule } from './modules/care/index.js';
 import { CheckInsModule } from './modules/check-ins/index.js';
+import { CspReportModule } from './modules/csp-report/index.js';
 import { FeedbackModule } from './modules/feedback/index.js';
 import { HealthDataModule } from './modules/health-data/index.js';
 import { HealthModule } from './modules/health/index.js';
@@ -43,6 +44,7 @@ import { LoggingModule } from './shared/logging/index.js';
     BillingModule,
     CareModule,
     CheckInsModule,
+    CspReportModule,
     FeedbackModule,
     HealthDataModule,
     HealthModule,
