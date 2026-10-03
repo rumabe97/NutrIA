@@ -5,7 +5,7 @@
 > **Audience**: agents primarily, humans review. **Committed**: yes. **Written by**: the
 > lead via `/plan-project`; approved by the owner's delegation of 2026-10-03.
 
-- **Status**: approved
+- **Status**: delivered (2026-10-03)
 - **Type**: standard
 - **PRD**: ./PRD.md
 - **Routing profile**: tiered
@@ -20,7 +20,7 @@ Starts after project 017 is merged, since 017 changes the scheduler these sides 
 
 ### Phase 1 — The batch, drafted
 
-- [ ] pending
+- [x] done (2026-10-03) — report `0009`, 42 entries, 39 accepted (LOG)
 - **Dispatch**: opus @ high — `architect` — `/execute-project 018 phase 1`.
 - **Covers**: PRD criteria 1 and 2 (the design side).
 - **Steps**:
@@ -52,7 +52,7 @@ Starts after project 017 is merged, since 017 changes the scheduler these sides 
 
 ### Phase 3 — The entries, live
 
-- [ ] pending
+- [x] done (2026-10-03) — 39 entries; each role pruned to its six best portions before the sets are built (time −6 % against phase 2, +32 % unpruned); foreign-only sides out of the `traditional_spanish` larder; see the LOG
 - **Dispatch**: opus @ medium — `backend` and `frontend` (web phrases), `plan-evaluator` — `/execute-project 018 phase 3`.
 - **Covers**: PRD criteria 1, 3, 4 and 5.
 - **Steps**:
