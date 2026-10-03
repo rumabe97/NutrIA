@@ -135,3 +135,467 @@ el aceite exacto de su ración. Las condiciones:
   ración: kcal, proteína, hidratos, grasa y fibra en gramos. "Clases" son las del catálogo
   que ningún alérgeno revela (`meat`, `animal`), las que leen vegetarianos, veganos y kosher.
 
+## Propuesta
+
+### 1. Familia española: comida y cena (20)
+
+Son guarniciones de casa, de las que se ponen en una mesa española:
+- **tres cremas**: calabacín en verano, calabaza en otoño e invierno, puerros todo el año;
+- **dos caldos**;
+- **verduras de temporada** para cada época:
+  - pimientos asados y escalivada a final de verano;
+  - acelgas, coliflor y espinacas en invierno;
+  - alcachofas y trigueros en primavera;
+- **menestra, champiñones y zanahorias aliñadas** todo el año;
+- **dos patatas**: cocida y en puré;
+- **salmorejo** en verano;
+- **picos**.
+
+Con ellas, la verdura española pasa de 3 opciones a 11–15 según el mes. Hoy hay 3 de
+octubre a mayo, porque solo `ensalada-verde` es de todo el año.
+
+Notas por entrada:
+- **`crema-de-puerros`, `patata-cocida`, `pure-de-patata`** son del grupo patata (`0079`,
+  tabla 2). En la mesa española encajan en comida y cena, pero no se ofrecen junto a un
+  plato que ya lleve 100 g o más de patata por ración (`Accompaniment.ts:485`). Es lo que
+  se quiere.
+- **`caldo-de-pollo`** tiene la clase `meat`: vegetarianos y veganos no lo reciben y
+  tienen `caldo-de-verduras`. Para kosher, `setsBeside` impide servirlo con un yogur
+  (`Accompaniment.ts:542`). Los dos caldos aportan 15 kcal: sirven para variar, no para
+  cerrar macros (§ Riesgos, punto 4).
+- **`salmorejo`** lleva 30 g de pan y es el caso de gluten en comida y cena. Como su papel
+  es verdura, el filtro "pan junto a pan" no lo mira: puede salir con pan en el papel de
+  almidón. Son 60–90 g de pan entre los dos, dentro de la ración de la AESAN.
+- **`espinacas-a-la-catalana`**: ver la condición 5 del veredicto (frutos de cáscara en
+  comida y cena).
+- **`menestra-de-verduras`** usa las filas congeladas USDA (judía verde, guisantes,
+  coliflor), así que es de todo el año. La menestra de temporada (alcachofa, habas y
+  guisantes frescos) solo coincidiría en mayo. Las filas `menestra-congelada` y
+  `alcachofas-congeladas` son `manual` y no las uso.
+- **`picos-de-pan`** es condicional: ver la condición 4 y § Filas que faltan. Le doy dos
+  raciones, 20 y 30 g, en vez de las 30 y 60 g de `bread()`. 60 g de picos son unas
+  250 kcal.
+- **Lo que dejé fuera**:
+  - **pimientos de Padrón**: su fila es `manual`; con la de pimiento verde USDA serían
+    otra entrada que re-fuentear;
+  - **pisto y pipirrana**: más plato que guarnición, o casi iguales a lo que ya hay en
+    verano;
+  - **caldo con fideos**: por el detalle de `itemGroups`;
+  - **setas variadas**: los champiñones ya cubren "setas" y cada verdura de todo el año
+    encarece el planificador (§ Riesgos).
+
+| Clave | Papel | Familias | Comidas | Meses | Ración | kcal | P | HC | G | Fibra | Alérgenos | Clases |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `crema-de-calabacin` | vegetable | spanish, other | C Ce | 5, 6, 7, 8, 9 | 295.5 g | 102.7 | 3.4 | 11.5 | 5.8 | 3.2 | — | — |
+| `crema-de-calabaza` | vegetable | spanish, other | C Ce | 9, 10, 11, 12, 1, 2, 3 | 325.5 g | 137.6 | 3.2 | 22.9 | 5.4 | 2.9 | — | — |
+| `crema-de-puerros` | vegetable | spanish, other | C Ce | todo el año | 225.5 g | 187 | 3.6 | 32.9 | 5.5 | 4.2 | — | — |
+| `caldo-de-pollo` | vegetable | spanish, other | C Ce | 10, 11, 12, 1, 2, 3, 4 | 250 g | 15 | 1.5 | 1 | 0.5 | 0 | — | meat |
+| `caldo-de-verduras` | vegetable | spanish, other | C Ce | 10, 11, 12, 1, 2, 3, 4 | 250 g | 15 | 0.5 | 2.5 | 0.3 | 0 | — | — |
+| `pimientos-asados` | vegetable | spanish, other | C Ce | 7, 8, 9, 10 | 157.5 g | 86.2 | 1.6 | 9.7 | 5.5 | 3.2 | — | — |
+| `menestra-de-verduras` | vegetable | spanish, other | C Ce | todo el año | 177.5 g | 116.7 | 3.9 | 15.1 | 5.4 | 4.8 | — | — |
+| `champinones-al-ajillo` | vegetable | spanish, other | C Ce | todo el año | 162.5 g | 84.2 | 5 | 6.5 | 5.5 | 1.7 | — | — |
+| `tomate-alinado` | vegetable | spanish, other, italian | C Ce | 6, 7, 8, 9 | 189.5 g | 79.2 | 1.8 | 7.5 | 5.4 | 2.3 | — | — |
+| `escalivada` | vegetable | spanish, other | C Ce | 7, 8, 9, 10 | 225.5 g | 106 | 2.2 | 14.4 | 5.5 | 5.4 | — | — |
+| `espinacas-a-la-catalana` | vegetable | spanish, other | C Ce | 10, 11, 12, 1, 2, 3, 4, 5, 6 | 172.5 g | 145.4 | 5.5 | 14.7 | 9.1 | 3.9 | tree_nuts | — |
+| `acelgas-rehogadas` | vegetable | spanish, other | C Ce | 8, 9, 10, 11, 12, 1, 2, 3, 4, 5 | 209 g | 88.1 | 3.9 | 8.7 | 5.5 | 3.4 | — | — |
+| `coliflor-al-ajoarriero` | vegetable | spanish, other | C Ce | 9, 10, 11, 12, 1, 2, 3, 4 | 162.5 g | 89.6 | 3.2 | 9 | 5.6 | 3.4 | — | — |
+| `alcachofas-a-la-plancha` | vegetable | spanish, other, italian | C Ce | 12, 1, 2, 3, 4, 5 | 160.5 g | 116.2 | 5 | 16.2 | 5.2 | 8.2 | — | — |
+| `esparragos-trigueros-a-la-plancha` | vegetable | spanish, other, italian | C Ce | 3, 4, 5, 6, 9 | 155.5 g | 74.2 | 3.3 | 5.9 | 5.2 | 3.2 | — | — |
+| `zanahorias-alinadas` | vegetable | spanish, other | C Ce | todo el año | 133.5 g | 100.5 | 1.3 | 12.8 | 5.4 | 3.7 | — | — |
+| `patata-cocida` | starch | spanish, other | C Ce | todo el año | 157.5 g | 160.4 | 3.1 | 26.4 | 5.2 | 3.2 | — | — |
+| `pure-de-patata` | starch | spanish, other | C Ce | todo el año | 195.5 g | 179.7 | 4.3 | 28.2 | 6 | 3.2 | lactose, milk | — |
+| `salmorejo` | vegetable | spanish, other | C Ce | 6, 7, 8, 9 | 243 g | 214.4 | 4.6 | 24.8 | 11.6 | 3.3 | gluten | — |
+| `picos-de-pan` | starch | spanish, other | D C Ce | todo el año | 20 g | 79.8 | 2.2 | 14.6 | 1.4 | 0.7 | gluten | — |
+|  | | | | | 30 g | 119.7 | 3.3 | 21.9 | 2.1 | 1.1 |  |  |
+
+`ACCOMPANIMENTS`:
+
+```ts
+  composed(
+    'crema-de-calabacin',
+    'vegetable',
+    SPANISH,
+    [5, 6, 7, 8, 9],
+    [
+      { grams: 250, slug: 'calabacin' },
+      { grams: 40, slug: 'cebolla' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'crema-de-calabaza',
+    'vegetable',
+    SPANISH,
+    [9, 10, 11, 12, 1, 2, 3],
+    [
+      { grams: 250, slug: 'calabaza' },
+      { grams: 40, slug: 'zanahoria' },
+      { grams: 30, slug: 'cebolla' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'crema-de-puerros',
+    'vegetable',
+    SPANISH,
+    'all',
+    [
+      { grams: 120, slug: 'puerro' },
+      { grams: 80, slug: 'patata' },
+      { grams: 20, slug: 'cebolla' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  {
+    families: SPANISH,
+    key: 'caldo-de-pollo',
+    months: [10, 11, 12, 1, 2, 3, 4],
+    portions: [[{ grams: 250, slug: 'caldo-de-pollo' }]],
+    role: 'vegetable',
+    slots: LD
+  },
+  {
+    families: SPANISH,
+    key: 'caldo-de-verduras',
+    months: [10, 11, 12, 1, 2, 3, 4],
+    portions: [[{ grams: 250, slug: 'caldo-de-verduras' }]],
+    role: 'vegetable',
+    slots: LD
+  },
+  composed(
+    'pimientos-asados',
+    'vegetable',
+    SPANISH,
+    [7, 8, 9, 10],
+    [
+      { grams: 150, slug: 'pimiento-rojo' },
+      { grams: 2, slug: 'ajo' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'menestra-de-verduras',
+    'vegetable',
+    SPANISH,
+    'all',
+    [
+      { grams: 50, slug: 'judia-verde-congelada' },
+      { grams: 30, slug: 'guisantes-congelados' },
+      { grams: 40, slug: 'coliflor-congelada' },
+      { grams: 30, slug: 'zanahoria' },
+      { grams: 20, slug: 'cebolla' },
+      { grams: 2, slug: 'ajo' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'champinones-al-ajillo',
+    'vegetable',
+    SPANISH,
+    'all',
+    [
+      { grams: 150, slug: 'champinon' },
+      { grams: 4, slug: 'ajo' },
+      { grams: 3, slug: 'perejil' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'tomate-alinado',
+    'vegetable',
+    [...SPANISH, 'italian'],
+    SUMMER,
+    [
+      { grams: 180, slug: 'tomate' },
+      { grams: 1, slug: 'ajo' },
+      { grams: 3, slug: 'perejil' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'escalivada',
+    'vegetable',
+    SPANISH,
+    [7, 8, 9, 10],
+    [
+      { grams: 100, slug: 'berenjena' },
+      { grams: 80, slug: 'pimiento-rojo' },
+      { grams: 40, slug: 'cebolla' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'espinacas-a-la-catalana',
+    'vegetable',
+    SPANISH,
+    [10, 11, 12, 1, 2, 3, 4, 5, 6],
+    [
+      { grams: 150, slug: 'espinaca' },
+      { grams: 10, slug: 'pasas' },
+      { grams: 5, slug: 'pinones' },
+      { grams: 2, slug: 'ajo' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'acelgas-rehogadas',
+    'vegetable',
+    SPANISH,
+    [8, 9, 10, 11, 12, 1, 2, 3, 4, 5],
+    [
+      { grams: 200, slug: 'acelga' },
+      { grams: 3, slug: 'ajo' },
+      { grams: 0.5, slug: 'pimenton-dulce' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'coliflor-al-ajoarriero',
+    'vegetable',
+    SPANISH,
+    [9, 10, 11, 12, 1, 2, 3, 4],
+    [
+      { grams: 150, slug: 'coliflor' },
+      { grams: 3, slug: 'ajo' },
+      { grams: 1, slug: 'pimenton-dulce' },
+      { grams: 3, slug: 'vinagre-de-vino-tinto' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'alcachofas-a-la-plancha',
+    'vegetable',
+    [...SPANISH, 'italian'],
+    [12, 1, 2, 3, 4, 5],
+    [
+      { grams: 150, slug: 'alcachofa' },
+      { grams: 5, slug: 'limon' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'esparragos-trigueros-a-la-plancha',
+    'vegetable',
+    [...SPANISH, 'italian'],
+    [3, 4, 5, 6, 9],
+    [
+      { grams: 150, slug: 'esparrago-verde' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'zanahorias-alinadas',
+    'vegetable',
+    SPANISH,
+    'all',
+    [
+      { grams: 120, slug: 'zanahoria' },
+      { grams: 2, slug: 'ajo' },
+      { grams: 0.5, slug: 'comino-molido' },
+      { grams: 0.5, slug: 'oregano-seco' },
+      { grams: 5, slug: 'vinagre-de-vino-tinto' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'patata-cocida',
+    'starch',
+    SPANISH,
+    'all',
+    [
+      { grams: 150, slug: 'patata' },
+      { grams: 2, slug: 'perejil' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'pure-de-patata',
+    'starch',
+    SPANISH,
+    'all',
+    [
+      { grams: 150, slug: 'patata' },
+      { grams: 40, slug: 'leche-semidesnatada' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'salmorejo',
+    'vegetable',
+    SPANISH,
+    SUMMER,
+    [
+      { grams: 200, slug: 'tomate' },
+      { grams: 30, slug: 'pan-blanco' },
+      { grams: 2, slug: 'ajo' },
+      { grams: 10, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 1, slug: 'sal' }
+    ]
+  ),
+  {
+    families: SPANISH,
+    key: 'picos-de-pan',
+    months: 'all',
+    portions: [[{ grams: 20, slug: 'picos-de-pan' }], [{ grams: 30, slug: 'picos-de-pan' }]],
+    role: 'starch',
+    slots: BLD
+  },
+```
+
+`COMPOSED_NAMES`:
+
+```ts
+  'crema-de-calabacin': { 'en-GB': 'Courgette soup', 'es-ES': 'Crema de calabacín' },
+  'crema-de-calabaza': { 'en-GB': 'Pumpkin soup', 'es-ES': 'Crema de calabaza' },
+  'crema-de-puerros': { 'en-GB': 'Leek and potato soup', 'es-ES': 'Crema de puerros' },
+  'pimientos-asados': { 'en-GB': 'Roasted red peppers', 'es-ES': 'Pimientos asados' },
+  'menestra-de-verduras': { 'en-GB': 'Mixed vegetable menestra', 'es-ES': 'Menestra de verduras' },
+  'champinones-al-ajillo': { 'en-GB': 'Garlic mushrooms', 'es-ES': 'Champiñones al ajillo' },
+  'tomate-alinado': { 'en-GB': 'Dressed tomatoes', 'es-ES': 'Tomate aliñado' },
+  escalivada: { 'en-GB': 'Catalan roasted vegetables', 'es-ES': 'Escalivada' },
+  'espinacas-a-la-catalana': { 'en-GB': 'Catalan spinach with raisins and pine nuts', 'es-ES': 'Espinacas a la catalana' },
+  'acelgas-rehogadas': { 'en-GB': 'Sautéed Swiss chard', 'es-ES': 'Acelgas rehogadas' },
+  'coliflor-al-ajoarriero': { 'en-GB': 'Cauliflower with garlic and paprika', 'es-ES': 'Coliflor al ajoarriero' },
+  'alcachofas-a-la-plancha': { 'en-GB': 'Griddled artichokes', 'es-ES': 'Alcachofas a la plancha' },
+  'esparragos-trigueros-a-la-plancha': { 'en-GB': 'Griddled green asparagus', 'es-ES': 'Espárragos trigueros a la plancha' },
+  'zanahorias-alinadas': { 'en-GB': 'Marinated carrots', 'es-ES': 'Zanahorias aliñadas' },
+  'patata-cocida': { 'en-GB': 'Boiled potatoes', 'es-ES': 'Patata cocida' },
+  'pure-de-patata': { 'en-GB': 'Mashed potato', 'es-ES': 'Puré de patata' },
+  salmorejo: { 'en-GB': 'Salmorejo', 'es-ES': 'Salmorejo' },
+```
+
+`COMPOSED_PREPARATIONS`:
+
+```ts
+  'crema-de-calabacin': {
+    'en-GB': 'Soften the chopped onion in a teaspoon of oil, add the chopped courgette and just enough water to cover, simmer for about 15 minutes, salt and blend until smooth.',
+    'es-ES': 'Rehoga la cebolla picada con una cucharadita de aceite, añade el calabacín troceado y agua justo hasta cubrir, cuécelo unos 15 minutos, sala y tritúralo fino.'
+  },
+  'crema-de-calabaza': {
+    'en-GB': 'Soften the chopped onion in a teaspoon of oil, add the pumpkin and carrot in chunks and just enough water to cover, simmer for about 20 minutes, salt and blend until smooth.',
+    'es-ES': 'Rehoga la cebolla picada con una cucharadita de aceite, añade la calabaza y la zanahoria en trozos y agua justo hasta cubrir, cuécelo unos 20 minutos, sala y tritúralo fino.'
+  },
+  'crema-de-puerros': {
+    'en-GB': 'Soften the sliced leek and onion in a teaspoon of oil, add the potato in chunks and just enough water to cover, simmer for about 20 minutes, salt and blend until smooth.',
+    'es-ES': 'Rehoga el puerro y la cebolla en rodajas con una cucharadita de aceite, añade la patata en trozos y agua justo hasta cubrir, cuécelo unos 20 minutos, sala y tritúralo fino.'
+  },
+  'pimientos-asados': {
+    'en-GB': 'Roast the whole peppers at 200 °C for about 40 minutes, leave them to rest covered, peel them, cut them into strips and dress with the chopped garlic, a teaspoon of oil and the salt.',
+    'es-ES': 'Asa los pimientos enteros en el horno a 200 °C unos 40 minutos, déjalos reposar tapados, pélalos, córtalos en tiras y alíñalos con el ajo picado, una cucharadita de aceite y la sal.'
+  },
+  'menestra-de-verduras': {
+    'en-GB': 'Boil the frozen vegetables and the sliced carrot in water with the salt for about 8 minutes, drain and toss them for a couple of minutes with the chopped onion and garlic and a teaspoon of oil.',
+    'es-ES': 'Cuece las verduras congeladas y la zanahoria en rodajas en agua con la sal unos 8 minutos, escúrrelas y rehógalas un par de minutos con la cebolla y el ajo picados y una cucharadita de aceite.'
+  },
+  'champinones-al-ajillo': {
+    'en-GB': 'Sauté the sliced mushrooms over high heat in a teaspoon of oil until golden, add the sliced garlic for one more minute and finish with the chopped parsley and the salt.',
+    'es-ES': 'Saltea los champiñones laminados a fuego vivo con una cucharadita de aceite hasta que se doren, añade el ajo laminado un minuto más y termina con el perejil picado y la sal.'
+  },
+  'tomate-alinado': {
+    'en-GB': 'Slice the tomatoes and dress them with the finely chopped garlic and parsley, a teaspoon of oil and the salt.',
+    'es-ES': 'Corta el tomate en rodajas y alíñalo con el ajo y el perejil muy picados, una cucharadita de aceite y la sal.'
+  },
+  escalivada: {
+    'en-GB': 'Roast the whole aubergine, pepper and onion at 200 °C for about 45 minutes, peel them, cut them into strips and dress with a teaspoon of oil and the salt.',
+    'es-ES': 'Asa la berenjena, el pimiento y la cebolla enteros en el horno a 200 °C unos 45 minutos, pélalos, córtalos en tiras y alíñalos con una cucharadita de aceite y la sal.'
+  },
+  'espinacas-a-la-catalana': {
+    'en-GB': 'Toast the pine nuts and sliced garlic in a teaspoon of oil, add the raisins and the spinach and stir until it wilts; salt at the end.',
+    'es-ES': 'Dora los piñones y el ajo laminado con una cucharadita de aceite, añade las pasas y las espinacas y saltéalas hasta que pierdan volumen; sala al final.'
+  },
+  'acelgas-rehogadas': {
+    'en-GB': 'Boil the chopped chard in water with the salt for about 6 minutes, drain and sauté with the sliced garlic and a teaspoon of oil; take off the heat and dust with the paprika.',
+    'es-ES': 'Cuece las acelgas troceadas en agua con la sal unos 6 minutos, escúrrelas y rehógalas con el ajo laminado y una cucharadita de aceite; aparta del fuego y espolvorea el pimentón.'
+  },
+  'coliflor-al-ajoarriero': {
+    'en-GB': 'Boil the cauliflower florets in water with the salt for about 8 minutes and drain; brown the sliced garlic in a teaspoon of oil, take off the heat, stir in the paprika and vinegar and pour over the cauliflower.',
+    'es-ES': 'Cuece la coliflor en ramilletes en agua con la sal unos 8 minutos y escúrrela; dora el ajo laminado con una cucharadita de aceite, aparta del fuego, añade el pimentón y el vinagre y riega la coliflor.'
+  },
+  'alcachofas-a-la-plancha': {
+    'en-GB': 'Trim the artichokes down to their hearts, halve them, rub them with the lemon and griddle them with a teaspoon of oil for about 8 minutes a side; salt at the end.',
+    'es-ES': 'Limpia las alcachofas hasta dejar los corazones, pártelos por la mitad, frótalos con el limón y hazlos a la plancha con una cucharadita de aceite unos 8 minutos por lado; sala al final.'
+  },
+  'esparragos-trigueros-a-la-plancha': {
+    'en-GB': 'Snap off the woody ends, brush the asparagus with a teaspoon of oil and cook on a very hot griddle for about 5 minutes, turning them; salt at the end.',
+    'es-ES': 'Quita la parte dura de los espárragos, úntalos con una cucharadita de aceite y hazlos a la plancha bien caliente unos 5 minutos, dándoles la vuelta; sala al final.'
+  },
+  'zanahorias-alinadas': {
+    'en-GB': 'Boil the sliced carrots in water with the salt for about 8 minutes, drain and dress with the chopped garlic, cumin, oregano, vinegar and a teaspoon of oil; serve cold.',
+    'es-ES': 'Cuece la zanahoria en rodajas en agua con la sal unos 8 minutos, escúrrela y alíñala con el ajo picado, el comino, el orégano, el vinagre y una cucharadita de aceite; sírvela fría.'
+  },
+  'patata-cocida': {
+    'en-GB': 'Boil the potato in chunks in water with the salt for about 20 minutes, drain and dress with a teaspoon of oil and the chopped parsley.',
+    'es-ES': 'Cuece la patata en trozos en agua con la sal unos 20 minutos, escúrrela y alíñala con una cucharadita de aceite y el perejil picado.'
+  },
+  'pure-de-patata': {
+    'en-GB': 'Boil the potato in chunks in water with the salt for about 20 minutes, drain and mash with the warm milk and a teaspoon of oil until smooth.',
+    'es-ES': 'Cuece la patata en trozos en agua con la sal unos 20 minutos, escúrrela y cháfala con la leche caliente y una cucharadita de aceite hasta que quede fina.'
+  },
+  salmorejo: {
+    'en-GB': 'Blend the tomatoes with the garlic, add the torn bread, let it soak for a few minutes and blend again with two teaspoons of oil and the salt until thick; serve well chilled.',
+    'es-ES': 'Tritura el tomate con el ajo, añade el pan troceado, deja que se empape unos minutos y vuelve a triturar con dos cucharaditas de aceite y la sal hasta que quede espeso; sírvelo bien frío.'
+  },
+```
+
+`meal.accompanimentNames` (web, `es-ES` y `en-GB`):
+
+```ts
+// es-ES
+      'crema-de-calabacin': 'crema de calabacín',
+      'crema-de-calabaza': 'crema de calabaza',
+      'crema-de-puerros': 'crema de puerros',
+      'caldo-de-pollo': 'un tazón de caldo de pollo',
+      'caldo-de-verduras': 'un tazón de caldo de verduras',
+      'pimientos-asados': 'pimientos asados',
+      'menestra-de-verduras': 'menestra de verduras',
+      'champinones-al-ajillo': 'champiñones al ajillo',
+      'tomate-alinado': 'tomate aliñado',
+      escalivada: 'escalivada',
+      'espinacas-a-la-catalana': 'espinacas a la catalana',
+      'acelgas-rehogadas': 'acelgas rehogadas',
+      'coliflor-al-ajoarriero': 'coliflor al ajoarriero',
+      'alcachofas-a-la-plancha': 'alcachofas a la plancha',
+      'esparragos-trigueros-a-la-plancha': 'espárragos trigueros a la plancha',
+      'zanahorias-alinadas': 'zanahorias aliñadas',
+      'patata-cocida': 'patata cocida',
+      'pure-de-patata': 'puré de patata',
+      salmorejo: 'salmorejo',
+      'picos-de-pan': 'picos de pan ({grams})',
+// en-GB
+      'crema-de-calabacin': 'courgette soup',
+      'crema-de-calabaza': 'pumpkin soup',
+      'crema-de-puerros': 'leek and potato soup',
+      'caldo-de-pollo': 'a bowl of chicken broth',
+      'caldo-de-verduras': 'a bowl of vegetable broth',
+      'pimientos-asados': 'roasted red peppers',
+      'menestra-de-verduras': 'mixed vegetable menestra',
+      'champinones-al-ajillo': 'garlic mushrooms',
+      'tomate-alinado': 'dressed tomatoes',
+      escalivada: 'Catalan roasted vegetables',
+      'espinacas-a-la-catalana': 'Catalan spinach with raisins and pine nuts',
+      'acelgas-rehogadas': 'sautéed Swiss chard',
+      'coliflor-al-ajoarriero': 'cauliflower with garlic and paprika',
+      'alcachofas-a-la-plancha': 'griddled artichokes',
+      'esparragos-trigueros-a-la-plancha': 'griddled green asparagus',
+      'zanahorias-alinadas': 'marinated carrots',
+      'patata-cocida': 'boiled potatoes',
+      'pure-de-patata': 'mashed potato',
+      salmorejo: 'salmorejo',
+      'picos-de-pan': 'breadsticks ({grams})',
+```
