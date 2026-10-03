@@ -1,3 +1,4 @@
+import { contentSecurityPolicy } from './csp.js';
 import { pagesSource } from './headersSource.js';
 
 /**
@@ -21,7 +22,7 @@ const upstreamBase = upstreamUrl?.pathname.replace(/\/+$/, '');
  * The simple security headers on every page (report `0007` § 3.2 D7): no framing — the
  * reset link carries its token in the URL — no MIME sniffing, the origin and not the path
  * in a referrer, and none of the three powerful features, which nothing in this app uses.
- * No CSP yet: that is phase 9 of project 011, report-only first.
+ * The CSP is report-only (project 011 phase 9) and built in `csp.js`; nothing is blocked.
  *
  * The proxied API paths are left out. The API answers with its own set (helmet: a stricter
  * `no-referrer`, its own CSP), and a second value for the same header on a proxied response
@@ -32,7 +33,11 @@ const SECURITY_HEADERS = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' }
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+  {
+    key: 'Content-Security-Policy-Report-Only',
+    value: contentSecurityPolicy({ apiUrl: process.env.NEXT_PUBLIC_API_URL, development: process.env.NODE_ENV !== 'production' })
+  }
 ];
 
 /** @type {import('next').NextConfig} */
