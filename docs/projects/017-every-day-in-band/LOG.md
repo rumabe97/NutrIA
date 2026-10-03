@@ -258,3 +258,21 @@ A CPU profile of objetivo-alto-5-comidas on puts the time in `balancedDay`'s sea
 - **Deviations**: the "no more than 2 servings unless a main" rule is met through the snack rule. Every dish at a main meal is now one designed only for main meals, so no snack is scaled up.
 - **Spec**: `PoolBuilder.spec.ts` "leaves a dish of staples exactly as the model sent it" used a dish naming breakfast, lunch and dinner. It now names lunch and dinner, because the case is about staples, not about light dishes.
 - **Note**: e2e runs on the shared local DB add recipes. Reset with `pnpm db:local reset --reference` and check for 871 before measuring.
+
+## Phase 4 — The cap, decided (2026-10-03)
+
+- **Executor**: opus @ medium (`backend-017p4`) wrote the cap (`760edbf0`, `e4e780ef`). The agent was lost to a reboot, and the lead measured and closed the phase.
+- **Result**: done.
+- **Evidence**: on the reference library, 871 recipes, local Postgres:
+  - 196/196 days off and on;
+  - 0 allergens;
+  - 0 profiles past four pasta, rice or grains (phase 3: 7);
+  - time +2.2% off and +0.8% on against phase 3, best of two back to back.
+  - Outputs are in `docs/local/017-p4-{off,on}.json`.
+- **Decisions**: [`0081`](../../decisions/0081-pasta-rice-and-grains-capped-unless-the-bands-need-more.md): the cap is held above any fit, and only the bands outrank it.
+
+## Project closed (2026-10-03)
+
+- **PRD criteria:** all six met. Library and baseline (1); per-family report (2); starch seen, no pasta or rice at a dinner outside what `0079` allows (3); 196/196 off and on (4); the cap held (5); time within +10% (6).
+- **Owner amendments also met:** grains capped, legumes varied, fruit in season in dishes, no protein dominating, snacks varied, a dinner is a meal, and the new profile.
+- **Next:** 018.
