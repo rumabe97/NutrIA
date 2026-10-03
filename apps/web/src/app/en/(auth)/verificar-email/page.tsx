@@ -6,5 +6,5 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = pageMetadata('en-GB', '/verificar-email');
 
 export default function EnglishVerifyEmailPage() {
-  return <VerifyEmailScreen locale="en-GB" />;
+  return <VerifyEmailScreen />;
 }

@@ -1142,7 +1142,6 @@ export const esES = {
     email: 'Correo electrónico',
     emailTaken: 'Ya existe una cuenta con ese correo.',
     forgotPassword: '¿Has olvidado tu contraseña?',
-    goToAccount: 'Ir a mi cuenta',
     haveAccount: '¿Ya tienes cuenta?',
     invalidCredentials: 'Correo o contraseña incorrectos.',
     invalidLink: 'Este enlace no es válido o ha caducado.',
@@ -1199,9 +1198,13 @@ export const esES = {
     tooManyAttempts: 'Demasiados intentos seguidos. Espera un momento y vuelve a probar.',
     toSignIn: 'Accede',
     toSignUp: 'Crea la tuya',
-    verifyBody: 'Te hemos enviado un enlace de confirmación. Ábrelo desde este dispositivo para activar tu cuenta.',
-    verifyMeanwhile: 'Mientras tanto puedes seguir configurando tu perfil: tu plan se generará cuando termines.',
-    verifyTitle: 'Confirma tu correo'
+    verifyBody: 'Ahora inicia sesión con tu correo y tu contraseña.',
+    verifyFailedBody: 'Puede que haya caducado o que ya lo hayas usado. Si ya confirmaste tu correo, inicia sesión.',
+    verifyFailedTitle: 'Este enlace ya no sirve',
+    verifyNotYours: '¿No creaste tú la cuenta, o no sabes su contraseña? No la adivines:',
+    verifyReset: 'restablécela, y se cerrará cualquier otra sesión abierta en ella.',
+    verifySignIn: 'Iniciar sesión',
+    verifyTitle: 'Correo confirmado'
   },
 
   care: {
@@ -2105,7 +2108,7 @@ export const esES = {
       title: 'Crear tu cuenta'
     },
     '/restablecer': { title: 'Elegir una contraseña nueva' },
-    '/verificar-email': { title: 'Confirmar tu correo' }
+    '/verificar-email': { title: 'Correo confirmado' }
   },
 
   passkeys: {
