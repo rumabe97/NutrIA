@@ -6,6 +6,7 @@ import { UserRepository } from '#repositories/User';
 
 import type { ActivationAudit, PasswordChangedVia, SessionsRevokedScope } from 'core/entities/Audit';
 import type { AccountQuery } from 'core/entities/AdminQuery';
+import type { Transaction } from '#repositories/Audit';
 import type { AccountRow, RecordActivationAudit, RecordTierAudit } from '#repositories/User';
 import type { User, UserTier } from 'core/entities/User';
 
@@ -158,6 +159,13 @@ function presentAccount(row: AccountRow): AccountView {
 /** One page of a table and what it was asked with. A screen needs the total to draw the pager. */
 export type Paged<T> = { readonly offset: number; readonly rows: readonly T[]; readonly size: number; readonly total: number };
 
+/** One `auth.passkey_removed` row per passkey a password change took (PLAN 011 phase 5): nothing in it, as when the person removes one. */
+async function passkeysRemovedRows(userId: string, passkeysRemoved: number, tx: Transaction): Promise<void> {
+  for (let removed = 0; removed < passkeysRemoved; removed += 1) {
+    await AuditRepository.record({ action: 'auth.passkey_removed', actorId: userId, entity: 'passkey', metadata: {}, subjectUserId: userId }, tx);
+  }
+}
+
 export const UserController = {
   /**
    * One page of accounts as the query asks — newest first when it asks
@@ -295,28 +303,36 @@ export const UserController = {
    * `auth.password_changed` row is written, in one transaction. The person is
    * both actor and subject: nobody else can change it.
    *
-   * A reset also removes every passkey of the account (PLAN 011 phase 5), in
-   * the same transaction, with one `auth.passkey_removed` row for each.
-   * Returns how many went, for the mail to say so.
+   * Every passkey of the account goes too (PLAN 011 phase 5, `0083`), in the
+   * same transaction, with one `auth.passkey_removed` row for each. Returns
+   * how many went, for the mail to say so.
    */
   async passwordChanged(userId: string, via: PasswordChangedVia): Promise<number> {
-    return UserRepository.passwordChanged(
-      userId,
-      async (tx, passkeysRemoved) => {
-        await AuditRepository.record(
-          { action: 'auth.password_changed', actorId: userId, entity: 'user', metadata: { via }, subjectUserId: userId },
-          tx
-        );
+    return UserRepository.passwordChanged(userId, async (tx, passkeysRemoved) => {
+      await AuditRepository.record(
+        { action: 'auth.password_changed', actorId: userId, entity: 'user', metadata: { via }, subjectUserId: userId },
+        tx
+      );
+      await passkeysRemovedRows(userId, passkeysRemoved, tx);
+    });
+  },
 
-        for (let removed = 0; removed < passkeysRemoved; removed += 1) {
-          await AuditRepository.record(
-            { action: 'auth.passkey_removed', actorId: userId, entity: 'passkey', metadata: {}, subjectUserId: userId },
-            tx
-          );
-        }
-      },
-      { forgetPasskeys: via === 'reset' }
-    );
+  /**
+   * Every passkey of the account goes, one `auth.passkey_removed` row each, in
+   * one transaction; returns how many went (PLAN 011 phase 5). Only for when
+   * `passwordChanged` failed: the password is new by then, and its keys must
+   * not outlive it.
+   */
+  async forgetPasskeys(userId: string): Promise<number> {
+    return UserRepository.forgetPasskeys(userId, async (tx, passkeysRemoved) => passkeysRemovedRows(userId, passkeysRemoved, tx));
+  },
+
+  /**
+   * Spends the single-use grant `identifier` of the account (PLAN 011 phase
+   * 5): true only for the one request that deleted it, while it was live.
+   */
+  async spendGrant(identifier: string, userId: string): Promise<boolean> {
+    return UserRepository.spendGrant(identifier, userId, new Date());
   },
 
   /**

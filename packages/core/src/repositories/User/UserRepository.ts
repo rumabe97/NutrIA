@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, getTableName, inArray, isNotNull, isNull, like, lt, not, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, getTableName, gt, inArray, isNotNull, isNull, like, lt, not, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { analyticsEvents, twoFactorRemovals } from 'database/schema/platform';
@@ -45,9 +45,12 @@ function trustedDevicesOf(id: string): SQL | undefined {
 
 /**
  * `passwordChanged`'s watcher: the audit rows, written in the transaction that clears the breach mark — handed how
- * many passkeys that transaction removed (none unless asked to), so each can have its row.
+ * many passkeys that transaction removed, so each can have its row.
  */
 export type RecordPasswordAudit = (tx: Transaction, passkeysRemoved: number) => Promise<void>;
+
+/** `forgetPasskeys`' watcher: one row per passkey the transaction removed. */
+export type RecordPasskeysForgotten = (tx: Transaction, passkeysRemoved: number) => Promise<void>;
 
 /**
  * One account on the owner's table: the row's own columns, and four
@@ -426,23 +429,63 @@ export const UserRepository = {
    * 011 phase 3): a password changed because somebody else may know it must
    * not leave that somebody's browser skipping the second factor.
    *
-   * With `forgetPasskeys` (a reset, PLAN 011 phase 5), every passkey of the
-   * account goes too, in the same transaction: a key somebody added from a
-   * stolen session must not outlive the reset that throws them out. Returns
-   * how many went.
+   * Every passkey of the account goes too, in the same transaction (PLAN 011
+   * phase 5, `0083`): a key somebody added from a stolen session must not
+   * outlive the change or the reset that throws them out. Returns how many
+   * went.
    */
-  async passwordChanged(id: string, record: RecordPasswordAudit, { forgetPasskeys = false }: { forgetPasskeys?: boolean } = {}): Promise<number> {
+  async passwordChanged(id: string, record: RecordPasswordAudit): Promise<number> {
     try {
       return await database().transaction(async tx => {
         await tx.update(user).set({ passwordCompromisedAt: null }).where(eq(user.id, id));
         await tx.delete(verification).where(trustedDevicesOf(id));
 
-        const removed = forgetPasskeys ? (await tx.delete(passkey).where(eq(passkey.userId, id)).returning({ id: passkey.id })).length : 0;
+        const removed = (await tx.delete(passkey).where(eq(passkey.userId, id)).returning({ id: passkey.id })).length;
 
         await record(tx, removed);
 
         return removed;
       });
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Every passkey of the account goes, with the caller's rows, in one
+   * transaction, and answers how many went (PLAN 011 phase 5). The second
+   * attempt after `passwordChanged`'s transaction failed: the new password
+   * is stored by then, and a key added from a stolen session must still go.
+   */
+  async forgetPasskeys(id: string, record: RecordPasskeysForgotten): Promise<number> {
+    try {
+      return await database().transaction(async tx => {
+        const removed = (await tx.delete(passkey).where(eq(passkey.userId, id)).returning({ id: passkey.id })).length;
+
+        await record(tx, removed);
+
+        return removed;
+      });
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Spends a single-use grant (PLAN 011 phase 5): deletes the `verification`
+   * row named `identifier` only if it is the account's own and has not
+   * expired, and answers whether it did. One statement, so two requests on
+   * one grant cannot both find it: the second waits on the first's row lock
+   * and then deletes nothing.
+   */
+  async spendGrant(identifier: string, id: string, now: Date): Promise<boolean> {
+    try {
+      const rows = await database()
+        .delete(verification)
+        .where(and(eq(verification.identifier, identifier), eq(verification.value, id), gt(verification.expiresAt, now)))
+        .returning({ id: verification.id });
+
+      return rows.length > 0;
     } catch (error: unknown) {
       throw wrap(error);
     }

@@ -434,19 +434,10 @@ describe('UserRepository.passwordChanged', () => {
     txDeleted = [];
   });
 
-  it('removes no passkey unless asked, and tells the row so', async () => {
+  it('removes every passkey of that account, and nobody else’s, in the same transaction, and counts them', async () => {
     const record = vi.fn(async (_tx: unknown, _removed: number) => {});
 
-    await expect(UserRepository.passwordChanged('usr-1', record)).resolves.toBe(0);
-
-    expect(txDeleted.map(entry => entry.table)).toEqual([verification]);
-    expect(record).toHaveBeenCalledWith(expect.anything(), 0);
-  });
-
-  it('removes every passkey of that account, and nobody else’s, in the same transaction when asked (a reset), and counts them', async () => {
-    const record = vi.fn(async (_tx: unknown, _removed: number) => {});
-
-    await expect(UserRepository.passwordChanged('usr-1', record, { forgetPasskeys: true })).resolves.toBe(2);
+    await expect(UserRepository.passwordChanged('usr-1', record)).resolves.toBe(2);
 
     const removal = txDeleted.find(entry => entry.table === passkey);
 
@@ -470,8 +461,9 @@ describe('UserRepository.passwordChanged', () => {
       vi.fn(async () => {})
     );
 
-    expect(deleted?.table).toBe(verification);
-    expect(render(deleted?.where)).toEqual({
+    const trusted = txDeleted.find(entry => entry.table === verification);
+
+    expect(render(trusted?.where)).toEqual({
       params: ['usr-1', 'trust-device-%'],
       sql: '("verification"."value" = $1 and "verification"."identifier" like $2)'
     });
@@ -483,5 +475,50 @@ describe('UserRepository.passwordChanged', () => {
     });
 
     await expect(UserRepository.passwordChanged('usr-1', record)).rejects.toThrow();
+  });
+});
+
+describe('UserRepository.forgetPasskeys', () => {
+  beforeEach(() => {
+    txDeleted = [];
+  });
+
+  it('removes every passkey of that account, and nothing else, in one transaction with the caller’s rows, and counts them', async () => {
+    const record = vi.fn(async (_tx: unknown, _removed: number) => {});
+
+    await expect(UserRepository.forgetPasskeys('usr-1', record)).resolves.toBe(2);
+
+    expect(txDeleted.map(entry => entry.table)).toEqual([passkey]);
+    expect(render(txDeleted[0]?.where)).toEqual({ params: ['usr-1'], sql: '"passkey"."user_id" = $1' });
+    expect(record).toHaveBeenCalledWith(expect.anything(), 2);
+  });
+
+  it('rejects, wrapped, when the rows cannot be written', async () => {
+    await expect(
+      UserRepository.forgetPasskeys(
+        'usr-1',
+        vi.fn(async () => {
+          throw new Error('database unavailable');
+        })
+      )
+    ).rejects.toThrow();
+  });
+});
+
+describe('UserRepository.spendGrant', () => {
+  beforeEach(() => {
+    deleted = undefined;
+  });
+
+  it('deletes that grant only while it is the account’s own and live, in one statement, and says it did', async () => {
+    const now = new Date('2026-10-03T10:00:00.000Z');
+
+    await expect(UserRepository.spendGrant('passkey-grant-s1', 'usr-1', now)).resolves.toBe(true);
+
+    expect(deleted?.table).toBe(verification);
+    expect(render(deleted?.where)).toEqual({
+      params: ['passkey-grant-s1', 'usr-1', now.toISOString()],
+      sql: '("verification"."identifier" = $1 and "verification"."value" = $2 and "verification"."expires_at" > $3)'
+    });
   });
 });
