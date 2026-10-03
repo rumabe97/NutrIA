@@ -286,13 +286,22 @@ export async function register(app: INestApplication, email: string): Promise<Ac
   const password = 'correct-horse-battery-staple-9';
   const server = httpServer(app);
 
-  await request(server)
-    .post(`/${PREFIX}/auth/sign-up/email`)
-    .send({ email, name: email.split('@')[0], password })
-    .expect(200);
+  // Paced: every `/auth/*` call of a suite spends one allowance of the API's own limiter, and the privileged
+  // accounts' TOTP (`enableTotp`) spends two more each.
+  const signUp = await paced(() => request(server).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name: email.split('@')[0], password }));
+
+  if (signUp.status !== 200) {
+    throw new Error(`Sign-up refused for ${email}: ${signUp.status}`);
+  }
+
   await activate(email);
 
-  const signIn: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password }).expect(200);
+  const signIn: Response = await paced(() => request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password }));
+
+  if (signIn.status !== 200) {
+    throw new Error(`Sign-in refused for ${email}: ${signIn.status}`);
+  }
+
   const cookie = (signIn.headers['set-cookie'] as unknown as string[]).join('; ');
   const me: Response = await request(server).get(`/${PREFIX}/users/me`).set('Cookie', cookie).expect(200);
 

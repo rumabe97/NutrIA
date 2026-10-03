@@ -663,6 +663,50 @@ describe('passkeys: Better Auth’s plugin, owned by the session', () => {
     });
   });
 
+  /*
+   * PLAN 011 phase 6, decided with `0083`: a passkey makes its own sign-in two
+   * factors, but it guards nothing at the password door beside it. So an admin
+   * (or professional) with a password and a passkey but no TOTP is still
+   * refused, whichever way they signed in; once TOTP is on, a passkey sign-in
+   * opens the console with no code.
+   */
+  describe('a privileged account with a password', () => {
+    it('is refused the console with a passkey and no TOTP, and let in by a passkey sign-in once TOTP is on', async () => {
+      const { id, email, jar } = await account('privileged');
+      const device = new Authenticator();
+
+      await UserController.grantAdmin(email);
+      expect((await addPasskey(jar, device)).status).toBe(200);
+
+      const first = await passkeySignIn(device);
+
+      expect(first.response.status).toBe(200);
+
+      const refused = await get('admin/accounts', first.jar.header);
+
+      expect({ status: refused.status, text: refused.text }).toEqual(await guardsNotFound());
+
+      const enabled = await post('auth/two-factor/enable', first.jar.header, { password: PASSWORD });
+
+      expect(enabled.status).toBe(200);
+
+      const verified = await post('auth/two-factor/verify-totp', first.jar.header, {
+        code: await clock.fresh((enabled.body as { totpURI: string }).totpURI)
+      });
+
+      expect(verified.status).toBe(200);
+
+      const [factor] = await sql()<{ on: boolean }>`select two_factor_enabled as on from "user" where id = ${id}`;
+
+      expect(factor?.on).toBe(true);
+
+      const second = await passkeySignIn(device);
+
+      expect(second.response.body).not.toHaveProperty('twoFactorRedirect');
+      expect((await get('admin/accounts', second.jar.header)).status).toBe(200);
+    });
+  });
+
   describe('a verify made for another challenge', () => {
     it('leaves neither challenge in any log line', async () => {
       const { jar } = await account('log');

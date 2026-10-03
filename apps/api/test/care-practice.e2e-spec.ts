@@ -65,7 +65,6 @@ const KEYS = {
 };
 const SIGNER = new Stripe('sk_test_e2e_practice_signer');
 const PERIOD_END = Math.floor(new Date('2026-12-01T00:00:00Z').getTime() / 1000);
-const PASSWORD = 'correct-horse-battery-staple-9';
 
 type Checkout = Stripe.Checkout.SessionCreateParams;
 
@@ -1201,12 +1200,9 @@ describe('care-practice', () => {
     await setTargets(pro, linkId, { kcal: 2010 }).expect(200);
 
     const before = await overrideRow(client);
-    const signIn: Response = await request(server()).post(`/${PREFIX}/auth/sign-in/email`).send({ email: pro.email, password: PASSWORD }).expect(200);
 
-    await request(server())
-      .delete(`/${PREFIX}/users/me`)
-      .set('Cookie', (signIn.headers['set-cookie'] as unknown as string[]).join('; '))
-      .expect(204);
+    // The session TOTP's confirmation opened minutes ago is fresh enough to delete from; a password sign-in would now be challenged.
+    await request(server()).delete(`/${PREFIX}/users/me`).set('Cookie', pro.cookie).expect(204);
 
     expect(await overrideRow(client)).toEqual({ ...before, setByProfessionalId: null });
     await request(server()).get(`/${PREFIX}/profile`).set('Cookie', client.cookie).expect(200);
