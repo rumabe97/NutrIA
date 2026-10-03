@@ -42,3 +42,4 @@
   - **Time first.** Paste the batch, measure schedulePlan, and stop above +10%. Prune each role before building the sets if needed.
   - **Variety.** If distinct sides per profile do not rise, add a small repetition cost for the same side within a fortnight, priced like the kind rules and measured.
   - **traditional_spanish spec.** It goes through `setsBeside` with a foreign dish.
+- **Report revised (3ada521a).** It now follows the breakfast decision: the two breakfast-only entries are gone, and `curtido` and `ensalada-de-aguacate` (Latin vegetables, the thinnest family) take their places. The batch is still 42. Accepted: 39, all but `picos-de-pan`, `caldo-de-pollo` and `caldo-de-verduras`. That gives 18 Spanish, 4 Asian, 6 Latin and 5 Arab.
