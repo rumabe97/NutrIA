@@ -105,11 +105,13 @@
   |---|---|---|
   | Pasted, unpruned | 2,885 / 2,870 → 2,891 / 2,911 ms (+0.7 %) | 6,416 / 6,217 → 8,304 / 8,199 ms (**+31.9 %**) |
   | Eight portions per role | 2,970 / 2,917 → 3,208 / 2,907 ms (−0.3 %) | 6,398 / 6,296 → 7,129 / 7,047 ms (+11.9 %) |
-  | **Six per role (shipped)** | 2,994 / 2,949 → 3,310 / 2,972 ms (+0.8 %) | 6,519 / 6,498 → 6,222 / 6,107 ms (**−6.0 %**) |
+  | Six per role, unfit singletons dropped | 2,994 / 2,949 → 3,310 / 2,972 ms (+0.8 %) | 6,519 / 6,498 → 6,222 / 6,107 ms (−6.0 %) |
+  | **Six per role, unfit singletons kept last (shipped)** | 2,952 / 2,964 → 2,905 / 2,986 ms (−1.6 %) | 6,468 / 6,341 → 6,278 / 6,164 ms (**−2.8 %**) |
 
   - A first unpruned run on a loaded machine (load average 4–5) read −0.5 % on. That was noise, and it is why every row above was run back to back on a quiet machine (load about 1.3).
   - **Pruning.** `offeredSets` (Scheduler) gives `setsBeside` a new `keep` argument. Each role keeps its `ACCOMPANIMENT_CANDIDATES_PER_ROLE` (6) best portions, priced alone exactly as `setCost` prices a set of one. Only those are combined, still in table order. Generation and swaps share it.
-    - A portion that fits no plate alone fits none in a set either, because more energy beside the plate only narrows the sizes. So the prune drops nothing that could have been chosen on that ground.
+    - A portion that fits no plate on its own is ranked last, not dropped. The plate's share has a floor (`PLATE_LIMIT.min`), and more energy beside a small plate can lift the meal over it. So a set can fit where its single portions do not.
+    - The first pruned version dropped those portions. Ranking them last instead changed no measured number: 196/196, and 197 distinct.
     - Eight per role was over +10 %, and gave fewer distinct sides (189 against 197).
 - **Specs (step 3)**, in `Accompaniment.seed.test.ts`, on the real seed: its links, seasons and macros. So no case passes because a fixture left a row out. The first assertion is that every row of every side is found.
   - **Milk** (`pure-de-patata`, `yogur-con-miel`), **gluten** (`salmorejo`, `pan-con-tomate`, `cuscus`, `espinacas-con-sesamo`) and **tree nuts** (`espinacas-a-la-catalana`, also through `setsBeside` at lunch and dinner beside a Spanish plate): each side is offered to somebody without the allergy and never to somebody with it.
@@ -135,10 +137,10 @@
     - alergia-personalizada 12 → 16;
     - quincena-con-evento 8 → 11;
     - alergia-lacteos 11 → 11, the one that did not rise;
-    - objetivo-bajo-3-comidas, patron-kosher and patron-sin-gluten 0 → 0: no meal past 700 kcal takes a side.
+    - objetivo-bajo-3-comidas, patron-kosher and patron-sin-gluten 0 → 0: all 28 of their lunches and dinners took no side, before and after (`byCount` 0: 28). Why kosher and gluten-free get none was not looked into; it predates 018.
   - **No repetition cost.** The count rose, so it was not added.
   - **Risk 4 of the report** (near-zero sides): `kimchi` is never among the most served.
 - **Evidence**:
   - `docs/local/018-p3-{off,on}.json`;
-  - core 122 files, 3,683 tests green before the specs were added;
+  - core: 122 files, 3,684 tests green at the final code;
   - the gate result is in the hand-back.

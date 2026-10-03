@@ -52,7 +52,7 @@ Starts after project 017 is merged, since 017 changes the scheduler these sides 
 
 ### Phase 3 — The entries, live
 
-- [x] done (2026-10-03) — 39 entries; each role pruned to its six best portions before the sets are built (time −6 % against phase 2, +32 % unpruned); foreign-only sides out of the `traditional_spanish` larder; see the LOG
+- [x] done (2026-10-03) — 39 entries; each role pruned to its six best portions before the sets are built (time −2.8 % against phase 2, +32 % unpruned); foreign-only sides out of the `traditional_spanish` larder; see the LOG
 - **Dispatch**: opus @ medium — `backend` and `frontend` (web phrases), `plan-evaluator` — `/execute-project 018 phase 3`.
 - **Covers**: PRD criteria 1, 3, 4 and 5.
 - **Steps**:

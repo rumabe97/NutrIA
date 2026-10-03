@@ -322,8 +322,8 @@ function offeredSets(
         index,
         portion
       }))
-      .filter(entry => Number.isFinite(entry.cost))
-      .sort((a, b) => a.cost - b.cost || a.index - b.index);
+      // One that fits no plate alone stays, last: more beside a small plate can lift the meal past `PLATE_LIMIT.min`.
+      .sort((a, b) => (a.cost === b.cost ? 0 : a.cost < b.cost ? -1 : 1) || a.index - b.index);
     const kept = new Set(
       (['starch', 'vegetable', 'dessert'] as const).flatMap(role =>
         priced

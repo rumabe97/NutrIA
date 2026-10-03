@@ -528,5 +528,5 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
 ## 2026-10-03 — Project 018 delivered
 
 - 39 new accompaniments: 18 Spanish, 4 Asian, 6 Latin, 5 Arab and 6 desserts for every family. 196/196 days in band, off and on; 0 allergens.
-- The scheduler combines each role's six best sides, so schedulePlan is 6 % faster than before the batch. Distinct sides per fortnight rose from 145 to 197 across the 14 profiles.
+- The scheduler combines each role's six best sides, so schedulePlan is about 3 % faster than before the batch. Distinct sides per fortnight rose from 145 to 197 across the 14 profiles.
 - Open for the lead: `FOREIGN_CUISINES` lacks cuisine values `cuisineFamily` reads as foreign ("turca", "cubana"...). The sides are now guarded in the larder; the dishes are not (018 LOG, phase 3).
