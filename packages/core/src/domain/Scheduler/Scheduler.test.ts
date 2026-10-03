@@ -1764,7 +1764,7 @@ describe('pickReplacement', () => {
     const potato = lunch('patatas', [{ grams: 400, slug: 'patata' }]);
     const pastaOn = (...days: number[]) =>
       days.map(dayIndex => ({ dayIndex, dishSlug: `pasta-${dayIndex}`, slot: 'dinner' as const, starch: 'pasta' as const }));
-    const swap = (pool: readonly typeof pasta[], placed: ReturnType<typeof pastaOn>) =>
+    const swap = (pool: readonly (typeof pasta)[], placed: ReturnType<typeof pastaOn>) =>
       pickReplacement({ budget, catalogue: starchCatalogue, dayIndex: 3, placed, plateMinimumKcal: 0, pool, slot: 'lunch' })?.dish.slug;
 
     expect(swap([pasta, potato], pastaOn(6, 9, 12))).toBe('espaguetis-con-pollo');

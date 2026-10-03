@@ -833,7 +833,13 @@ export function pickReplacement(input: {
     .filter(
       candidate => candidate.slots.includes(input.slot) && passes(candidate) && canPlace(candidate.slug, input.slot, input.dayIndex, input.placed)
     )
-    .sort((a, b) => pastCap(a) - pastCap(b) || rank(a) - rank(b) || costOf(a.slug) + kindsCost(a) - (costOf(b.slug) + kindsCost(b)) || a.slug.localeCompare(b.slug))
+    .sort(
+      (a, b) =>
+        pastCap(a) - pastCap(b) ||
+        rank(a) - rank(b) ||
+        costOf(a.slug) + kindsCost(a) - (costOf(b.slug) + kindsCost(b)) ||
+        a.slug.localeCompare(b.slug)
+    )
     .at(0);
   const base = dish ? perServing.get(dish.slug) : undefined;
 
