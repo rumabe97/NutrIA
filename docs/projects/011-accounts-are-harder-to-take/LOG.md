@@ -612,3 +612,34 @@
     case: a session signed in with the password before TOTP went on is gone afterwards.
   - Rerun: two-factor, professionals, passkeys, two-factor-removal and care-practice,
     126 tests, green. API unit specs: 1513.
+- **Legal review, agreement § 8** (`legal-p6`, `e1f79a94` on this branch; applied under
+  the owner's delegation of 2026-10-03):
+  - `practiceAgreement` § 8 in `es-ES.ts` and `en-GB.ts` carries the
+    ⟦dos-pasos-obligatoria⟧ bullet. A password account must have the authenticator app
+    on; a passkey does not replace it. A Google-only professional keeps Google's own
+    two-step verification on, which NutrIA cannot check.
+  - `PROFESSIONAL_AGREEMENT_VERSION` is `1.1.0`, so every professional is asked again.
+    Today that is only the owner's own account.
+- **Invariant review** (`invariant-reviewer-p6`): no P0 or P1. The P2s and P3s are
+  applied:
+  - **P2-1**: the "off again" checks now run on a session that already existed before
+    the factor went off, for a professional (`professionals.e2e-spec.ts`) and for the
+    admin (`admin.e2e-spec.ts`). Nothing else pins `cookieCache` off, and this is the
+    first place the flag decides who gets in.
+  - **P2-2**: `two-factor-removal.e2e-spec.ts` makes an admin with TOTP, carries out the
+    owner's removal through the cron, and checks that the admin's existing session gets
+    the guard's 404 on `/admin/accounts` while `/users/me` still answers.
+  - **P3-1**: `apps/api/AGENTS.md` names `CareService.practice` as the third caller of
+    the password lookup, and `docs/ARCHITECTURE.md` § Invariants gains a phase 6
+    paragraph.
+  - **P3-2**: `deleteAccountByEmail` finishes a TOTP challenge when given the account's
+    `totpURI`, and throws without it instead of leaving the account behind. New harness
+    helper `signInWithTotp`.
+  - **P3-3**: `enableTotp` types its code inside the retried request.
+- **Also**: an admin case for the session gap — a session opened with the password alone
+  before TOTP went on is closed (`admin.e2e-spec.ts`).
+- **Merged `origin/main`** (CSP report-only, phase 5 shipped). The local database had
+  been reset by another agent, so migrations were re-applied first. Rerun on local
+  Postgres, all green:
+  - professionals, admin, two-factor-removal, two-factor, passkeys and access: 179;
+  - care, care-practice, care-review, plan-scheduled-care, accompaniments and audit: 171.
