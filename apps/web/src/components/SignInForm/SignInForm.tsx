@@ -153,14 +153,18 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
       setPending(false);
 
       // One message for wrong password and unknown account alike: telling them
-      // apart turns this form into an account-enumeration oracle. Anything that
-      // is *not* a refusal — the service down, a rejected origin, a database the
-      // API cannot reach — says so instead: for a whole afternoon those read as
-      // "wrong password" and sent the owner looking in the wrong place.
+      // apart turns this form into an account-enumeration oracle. A 429 is a
+      // wait — the per-IP limit or the per-address brake, the same answer for
+      // an address with an account and one without (PLAN 011 phase 7). Anything
+      // else that is *not* a refusal — the service down, a rejected origin, a
+      // database the API cannot reach — says so instead: for a whole afternoon
+      // those read as "wrong password" and sent the owner looking in the wrong place.
       setError(
         signInError.status === 401
           ? dictionary.auth.invalidCredentials
-          : interpolate(dictionary.auth.signInUnavailable, { status: signInError.status })
+          : signInError.status === 429
+            ? dictionary.auth.signInPaused
+            : interpolate(dictionary.auth.signInUnavailable, { status: signInError.status })
       );
 
       return;

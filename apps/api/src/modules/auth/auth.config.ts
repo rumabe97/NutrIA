@@ -21,6 +21,7 @@ import { PASSKEY_USER_VERIFICATION, passkeyOptions, passkeyPasswordConfirmation 
 import { sendPasskeyAddedMail } from './services/PasskeyMail.js';
 import { sendPasswordChangedMail } from './services/PasswordChangedMail.js';
 import { sendPasswordResetMail } from './services/PasswordResetMail.js';
+import { signInBrake } from './services/SignInBrake.js';
 import {
   BACKUP_CODE_COUNT,
   refusesLinkPastTheFactor,
@@ -91,8 +92,11 @@ export function createAuth(
   const selfService = { link: (path: string) => webUrl(env.APP_URL, path, DEFAULT_WEB_LOCALE), mailer, ownerEmail: env.OWNER_EMAIL };
   // HIBP is never called under `NODE_ENV=test`: the suites must not reach the network.
   const isCompromised = env.NODE_ENV === 'test' ? null : isPasswordCompromised;
+  // On under `NODE_ENV=test` as well: the suites sign in with addresses of their own.
+  const brake = signInBrake(env.BETTER_AUTH_SECRET);
   const security = {
     background,
+    brake,
     isCompromised,
     mailPasskeyAdded: async ({ id, acceptLanguage, email, userAgent }: PasskeyNotice) =>
       sendPasskeyAddedMail(mailer, { acceptLanguage, appUrl: env.APP_URL, to: email, userAgent, userId: id }),
@@ -293,7 +297,9 @@ export function createAuth(
         })
     },
     /*
-     * Before: a new password — sign-up, reset, change — holding a word the
+     * Before: a password sign-in is counted against its address, and answered
+     * 429 while the address waits (`services/SignInBrake.ts`, PLAN 011 phase 7).
+     * A new password — sign-up, reset, change — holding a word the
      * account gives away, or one HIBP knows, is refused (`services/PasswordPolicy.ts`);
      * HIBP fails open, and the context check stays on under test. And a change
      * of password always closes every other session, whatever the body says.
@@ -301,10 +307,11 @@ export function createAuth(
      * After, on a 2xx (`services/AccountSecurity.ts`, PLAN 011 phase 2): a
      * change clears the breach mark, removes the passkeys, leaves its audit
      * rows and sends the mail;
-     * closing sessions leaves its row; a sign-in checks the password it just
-     * proved against HIBP in the background and marks the account on a hit.
+     * closing sessions leaves its row; a sign-in clears its address's brake,
+     * checks the password it just proved against HIBP in the background and
+     * marks the account on a hit.
      */
-    hooks: { after: accountSecurityAfter(security), before: accountSecurityBefore(isCompromised) },
+    hooks: { after: accountSecurityAfter(security), before: accountSecurityBefore(isCompromised, brake) },
     // Better Auth's own lines through Nest's logger, never with a WebAuthn challenge in them (`services/AuthLogger.ts`).
     logger: authLogger(),
     plugins: [

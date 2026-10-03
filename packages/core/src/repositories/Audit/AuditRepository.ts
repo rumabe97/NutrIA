@@ -1,10 +1,11 @@
-import { count, desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq, like, lt } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import { database } from 'database';
 import { auditLogs } from 'database/schema/platform';
 import { user } from 'database/schema/auth';
 
+import { AUTH_AUDIT_PREFIX } from 'core/entities/Audit';
 import { DatabaseOperationError } from 'core/entities/Error';
 
 import type { AuditAction, AuditMetadataByAction } from 'core/entities/Audit';
@@ -51,6 +52,24 @@ export type AuditRow = {
  * when. Never a request body, never an IP address (`ipHash` stays empty).
  */
 export const AuditRepository = {
+  /**
+   * The retention of a person's account-security trail (PLAN 011 phase 7):
+   * every `auth.*` row written before `cutoff`, and nothing else — an admin
+   * action's row is kept whatever its age. Answers how many went.
+   */
+  async forgetAuthRowsBefore(cutoff: Date): Promise<number> {
+    try {
+      const rows = await database()
+        .delete(auditLogs)
+        .where(and(like(auditLogs.action, `${AUTH_AUDIT_PREFIX}%`), lt(auditLogs.createdAt, cutoff)))
+        .returning({ id: auditLogs.id });
+
+      return rows.length;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   /** One page, newest first; the tail of the order (the id) keeps a page boundary stable when two rows land in the same instant. */
   async page(
     filter: { readonly action?: AuditAction },

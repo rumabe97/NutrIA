@@ -52,8 +52,8 @@ const config: KnipConfig = {
       // The offline worker (`0053`) is fetched by the browser from its URL, which no
       // import names. `headersSource.js` is imported only by `next.config.js`, which knip's
       // Next plugin reads as config and does not follow in `--production`; it builds the
-      // security headers' path pattern (project 011).
-      entry: ['eslint.config.js', 'public/sw.js!', 'headersSource.js!']
+      // security headers' path pattern (project 011), and `csp.js` builds its report-only CSP (phase 9).
+      entry: ['eslint.config.js', 'public/sw.js!', 'headersSource.js!', 'csp.js!']
     },
     'configurations/eslint': {
       entry: ['base.js!', 'node.js!', 'next.js!', 'react-internal.js!', 'monk.js!']

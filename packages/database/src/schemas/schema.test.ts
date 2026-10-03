@@ -173,3 +173,13 @@ describe('a passkey (PLAN 011 phase 5)', () => {
     expect(unique?.columns.map(column => column.name)).toEqual(['credentialID']);
   });
 });
+
+describe('the sign-in brake (PLAN 011 phase 7)', () => {
+  it('is keyed by an HMAC alone: no address column, and no foreign key that would treat an unknown address differently', () => {
+    const table = config('sign_in_failure');
+
+    expect(table.columns.map(column => column.name).sort()).toEqual(['count', 'key', 'nextAllowedAt', 'windowStartedAt']);
+    expect(table.columns.find(column => column.name === 'key')?.primary).toBe(true);
+    expect(table.foreignKeys).toEqual([]);
+  });
+});
