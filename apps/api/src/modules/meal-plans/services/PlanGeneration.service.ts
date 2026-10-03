@@ -7,7 +7,7 @@ import { dishSafety } from 'core/domain/Safety';
 import { leaningSlugs } from 'core/domain/Preference';
 import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
 import { DEFAULT_MEAL_SHAPE, slotsIn, weightsFor } from 'core/domain/MealShape';
-import { isBlocking, planQuality, validatePlan } from 'core/domain/PlanValidation';
+import { isBlocking, planBandMiss, planQuality, validatePlan } from 'core/domain/PlanValidation';
 import { eventOn, loadedTargets } from 'core/domain/Event';
 import { minimumDailyKcal, targetViolations } from 'core/domain/Nutrition';
 import { CheckInController } from 'core/controllers/CheckIn';
@@ -379,7 +379,7 @@ export class PlanGenerationService {
      * they dislike. The fresh dishes the model wrote stay first in the pool.
      * No second model call — the library costs nothing to read.
      */
-    if (fallback === null && bandMiss(violations) > 0) {
+    if (fallback === null && planBandMiss(violations) > 0) {
       const rest = rotatePool(everything, slots, rotation, Number.POSITIVE_INFINITY);
       const wider = [...new Map([...built.dishes, ...rest].map(dish => [dish.slug, dish])).values()];
       const retried = schedulePlan({
@@ -396,7 +396,7 @@ export class PlanGenerationService {
       if (retried.ok) {
         const retriedViolations = check(retried.assignment);
 
-        if (!retriedViolations.some(isBlocking) && bandMiss(retriedViolations) < bandMiss(violations)) {
+        if (!retriedViolations.some(isBlocking) && planBandMiss(retriedViolations) < planBandMiss(violations)) {
           this.logger.log(`Macros missed with the rotated pool; the uncapped rotation (${wider.length} dishes) missed by less`);
           scheduled = retried;
           violations = retriedViolations;
@@ -721,30 +721,6 @@ function byDay<T extends { readonly dayIndex: number }>(meals: readonly T[]): re
  * rescue from a plan that missed its macros (`0046`).
  */
 type Fallback = 'full_library' | 'wider_rotation' | null;
-
-const BAND_KINDS = new Set<PlanViolation['kind']>([
-  'carbs_out_of_band',
-  'fat_out_of_band',
-  'kcal_out_of_band',
-  'protein_above_target',
-  'protein_below_target'
-]);
-
-/**
- * How far a plan's days fall outside their macro bands, summed: zero when every
- * day of every macro is inside. A count would call a plan with one day at 30%
- * better than one with two days at 6%, which is not what "misses by less"
- * means to someone reading their Tuesday.
- */
-function bandMiss(violations: readonly PlanViolation[]): number {
-  return violations.reduce((sum, violation) => {
-    if (!BAND_KINDS.has(violation.kind) || !('target' in violation) || violation.target <= 0) {
-      return sum;
-    }
-
-    return sum + Math.max(0, Math.abs(violation.actual - violation.target) / violation.target - violation.tolerance);
-  }, 0);
-}
 
 /** The days that eat for something, by index, and what the bounds would not allow. */
 type Loads = {

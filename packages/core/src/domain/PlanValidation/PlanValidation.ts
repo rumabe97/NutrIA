@@ -88,6 +88,33 @@ export function isBlocking(violation: PlanViolation): boolean {
   return BLOCKING_KINDS.has(violation.kind);
 }
 
+const BAND_KINDS = new Set<PlanViolation['kind']>([
+  'carbs_out_of_band',
+  'fat_out_of_band',
+  'kcal_out_of_band',
+  'protein_above_target',
+  'protein_below_target'
+]);
+
+/**
+ * How far a plan's days fall outside their macro bands, summed: zero when every
+ * day of every macro is inside. A count would call a plan with one day at 30%
+ * better than one with two days at 6%, which is not what "misses by less"
+ * means to someone reading their Tuesday.
+ *
+ * What decides the `wider_rotation` rescue (`0046`); the plan evaluator's
+ * `--rotate` reads the same function (019 phase 1).
+ */
+export function planBandMiss(violations: readonly PlanViolation[]): number {
+  return violations.reduce((sum, violation) => {
+    if (!BAND_KINDS.has(violation.kind) || !('target' in violation) || violation.target <= 0) {
+      return sum;
+    }
+
+    return sum + Math.max(0, Math.abs(violation.actual - violation.target) / violation.target - violation.tolerance);
+  }, 0);
+}
+
 const BLOCKING_KINDS = new Set<PlanViolation['kind']>([
   'below_minimum_kcal',
   'empty_day',

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValidation';
+import { isBlocking, PLAN_TOLERANCE, planBandMiss, validatePlan } from 'core/domain/PlanValidation';
 import { schedulePlan } from 'core/domain/Scheduler';
 import { shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { makeCatalogue, makePool, MINIMUM_KCAL, TARGETS } from '#test/fixtures';
@@ -307,5 +307,19 @@ describe('validatePlan — a day that eats for something is judged against its o
     const violations = validatePlan({ ...base, assignment: withLoadedDay() });
 
     expect(violations.some(violation => violation.kind === 'kcal_out_of_band' && violation.dayIndex === 3)).toBe(true);
+  });
+});
+
+describe('planBandMiss', () => {
+  it('sums how far past its tolerance each band miss falls, and ignores everything that is not a band', () => {
+    expect(
+      planBandMiss([
+        { actual: 2300, dayIndex: 1, kind: 'kcal_out_of_band', target: 2000, tolerance: 0.05 },
+        { actual: 90, dayIndex: 2, kind: 'protein_below_target', target: 100, tolerance: 0.05 },
+        { actual: 1000, dayIndex: 3, kind: 'below_minimum_kcal', minimum: 1200 },
+        { dayIndex: 4, kind: 'empty_day' }
+      ])
+    ).toBeCloseTo(0.1 + 0.05);
+    expect(planBandMiss([])).toBe(0);
   });
 });
