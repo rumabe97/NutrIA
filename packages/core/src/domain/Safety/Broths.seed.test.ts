@@ -19,8 +19,8 @@ describe('the broths, for somebody allergic to celery', () => {
   const catalogue = toCatalogue(
     INGREDIENT_SEED.map(row =>
       makeCatalogueIngredient({
-        allergens: (row.allergens ?? []).map(link => ({ allergenId: link.key, presence: link.presence ?? 'contains' })),
         id: `i-${row.slug}`,
+        allergens: (row.allergens ?? []).map(link => ({ allergenId: link.key, presence: link.presence ?? 'contains' })),
         name: row.name,
         slug: row.slug
       })
