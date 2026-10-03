@@ -504,7 +504,11 @@ export async function signInWithTotp(app: INestApplication, account: TotpAccount
 }
 
 /** An account with the authenticator app on, and the URI a suite types its codes from. */
-export type TotpAccount = Account & { readonly totpURI: string };
+export type TotpAccount = Account & {
+  /** What the confirmation answered: whether the account's other sessions were closed (`closeOtherSessions`). */
+  readonly otherSessionsClosed?: boolean;
+  readonly totpURI: string;
+};
 
 /**
  * Turns the authenticator app on for an account, the way the person does in
@@ -541,7 +545,9 @@ export async function enableTotp(app: INestApplication, account: Account, passwo
     throw new Error(`Could not confirm TOTP for ${account.email}: ${verified.status}`);
   }
 
-  return { ...account, cookie: (verified.headers['set-cookie'] as unknown as string[]).join('; '), totpURI };
+  const { otherSessionsClosed } = verified.body as { otherSessionsClosed?: boolean };
+
+  return { ...account, cookie: (verified.headers['set-cookie'] as unknown as string[]).join('; '), otherSessionsClosed, totpURI };
 }
 
 /**

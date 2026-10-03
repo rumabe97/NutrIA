@@ -11,6 +11,7 @@ import { activationToken } from '../src/modules/auth/services/ActivationLink.js'
 
 import {
   auditCount,
+  auditRowsAboutSubject,
   completeOnboarding,
   createApp,
   deleteAccountByEmail,
@@ -408,6 +409,11 @@ describe('admin', () => {
       const enabled = await enableTotp(app, admin);
 
       made.push(enabled.cookie);
+      // Through the real driver, not the unit specs' memory adapter: the delete's count reached the answer and the trail.
+      expect(enabled.otherSessionsClosed).toBe(true);
+      expect((await auditRowsAboutSubject(admin.id)).filter(row => row.action === 'auth.sessions_revoked').map(row => row.metadata)).toEqual([
+        { scope: 'others' }
+      ]);
       await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', enabled.cookie).expect(200);
       await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', stolen).expect(404);
       // Closed, not merely refused: the session itself is gone.

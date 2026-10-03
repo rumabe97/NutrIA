@@ -317,7 +317,11 @@ export async function cancelPendingRemoval(
  * One `DELETE` of every session of the account but `keep`, never a list
  * first: Better Auth's `listSessions` stops at 100 rows, in no order, and a
  * session opened between the list and the delete would survive (delta
- * invariant review, P1). Awaited, before the answer, and tried twice, as
+ * invariant review, P1). The raw adapter skips Better Auth's secondary
+ * storage, which is right only because there is none (no `secondaryStorage`
+ * in `auth.config.ts`, as there is no `cookieCache`): adding one means
+ * clearing it here too. The count includes expired rows not yet swept, so
+ * the row may be written when only those went. Awaited, before the answer, and tried twice, as
  * `forgetPasskeys` is. Whether it went is what this answers: the mail and the
  * web's confirmation say the other sessions were closed only when they were.
  *
