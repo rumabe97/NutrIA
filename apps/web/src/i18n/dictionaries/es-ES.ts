@@ -1175,7 +1175,7 @@ export const esES = {
     pendingConfirmBody:
       'Te hemos enviado un enlace a {email}. Ábrelo y vuelve aquí, o inicia sesión en el dispositivo donde lo abras: no hace falta nada más.',
     pendingConfirmTitle: 'Confirma tu correo',
-    pendingConfirmWaitBody: 'Te hemos enviado un enlace a {email}. Confírmalo y podrás entrar en cuanto abramos tu cuenta.',
+    pendingConfirmWaitBody: 'Te hemos enviado un enlace a {email}. Confírmalo y, en cuanto abramos tu cuenta, inicia sesión para empezar.',
     pendingSignOut: 'Cerrar sesión',
     pendingTitle: 'Cuenta pendiente de activación',
     recoverSent: 'Si existe una cuenta con ese correo, te hemos enviado un enlace para restablecer la contraseña. Caduca en una hora.',

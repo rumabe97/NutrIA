@@ -1140,7 +1140,7 @@ export const enGB: Dictionary = {
     pendingConfirmBody:
       'We have sent a link to {email}. Open it and come back here, or sign in on the device where you open it — nothing else is needed.',
     pendingConfirmTitle: 'Confirm your email',
-    pendingConfirmWaitBody: 'We have sent a link to {email}. Confirm it, and you are in as soon as we open your account.',
+    pendingConfirmWaitBody: 'We have sent a link to {email}. Confirm it, then sign in to start as soon as we open your account.',
     pendingSignOut: 'Sign out',
     pendingTitle: 'Account pending activation',
     recoverSent: 'If an account exists with that email, we have sent a link to reset the password. It expires in an hour.',
