@@ -151,8 +151,9 @@ Son guarniciones de casa, de las que se ponen en una mesa española:
 - **salmorejo** en verano;
 - **picos**.
 
-Con ellas, la verdura española pasa de 3 opciones a 11–15 según el mes. Hoy hay 3 de
-octubre a mayo, porque solo `ensalada-verde` es de todo el año.
+Con ellas, las opciones de verdura junto a un plato español pasan de 2–5 a 11–18 según el
+mes. Hoy, de octubre a mayo, son 2 o 3, porque solo `ensalada-verde` es de todo el año
+(medido por combinatoria sobre la lista, sin filtros de persona).
 
 Notas por entrada:
 - **`crema-de-puerros`, `patata-cocida`, `pure-de-patata`** son del grupo patata (`0079`,
@@ -598,4 +599,365 @@ Notas por entrada:
       'pure-de-patata': 'mashed potato',
       salmorejo: 'salmorejo',
       'picos-de-pan': 'breadsticks ({grams})',
+```
+### 2. Asiática (4)
+
+- **Qué entra**:
+  - un segundo arroz: el jazmín, para la cocina tailandesa y vietnamita;
+  - tres guarniciones que se ponen de verdad al lado del plato: edamame, espinacas con
+    sésamo (el *gomae* japonés) y kimchi.
+- **Verdura**: pasa de 2–3 opciones a 5–6.
+- **`arroz-jazmin`**: es del grupo arroz. La mesa asiática lo admite en comida y cena, pero
+  no junto a un plato de arroz (`Accompaniment.ts:485`).
+- **`espinacas-con-sesamo`**: usa `salsa-de-soja` (USDA; soja y gluten) y no
+  `salsa-de-soja-baja-en-sal`, que es `manual`. Es el segundo caso de gluten del lote.
+- **`kimchi`**: su fila lleva trazas de pescado y crustáceos. Quien marcó esas trazas no
+  lo recibe. Aporta 9 kcal (§ Riesgos, punto 4).
+- **`edamame`**: lleva soja y 11 g de proteína. Va en el papel de verdura, como la sopa de
+  miso.
+
+| Clave | Filas de `0077` que lleva (`traditional_spanish`) |
+|---|---|
+| `arroz-jazmin` | `arroz-jazmin-crudo` |
+| `edamame` | `edamame-congelado` |
+| `espinacas-con-sesamo` | `sesamo`, `salsa-de-soja` |
+| `kimchi` | `kimchi` |
+
+
+| Clave | Papel | Familias | Comidas | Meses | Ración | kcal | P | HC | G | Fibra | Alérgenos | Clases |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `arroz-jazmin` | starch | asian | C Ce | todo el año | 50 g | 182.5 | 3.6 | 40 | 0.4 | 0.7 | — | — |
+| `edamame` | vegetable | asian | C Ce | todo el año | 101 g | 109 | 11.2 | 7.6 | 4.7 | 4.8 | soy | — |
+| `espinacas-con-sesamo` | vegetable | asian | C Ce | 10, 11, 12, 1, 2, 3, 4, 5, 6 | 160 g | 65.8 | 5.6 | 6.8 | 3.1 | 3.9 | gluten, sesame, soy | — |
+| `kimchi` | vegetable | asian | C Ce | todo el año | 60 g | 9 | 0.7 | 1.4 | 0.3 | 1 | crustaceans (trazas), fish (trazas) | — |
+
+`ACCOMPANIMENTS`:
+
+```ts
+  composed(
+    'arroz-jazmin',
+    'starch',
+    ['asian'],
+    'all',
+    [
+      { grams: 50, slug: 'arroz-jazmin-crudo' }
+    ]
+  ),
+  composed(
+    'edamame',
+    'vegetable',
+    ['asian'],
+    'all',
+    [
+      { grams: 100, slug: 'edamame-congelado' },
+      { grams: 1, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'espinacas-con-sesamo',
+    'vegetable',
+    ['asian'],
+    [10, 11, 12, 1, 2, 3, 4, 5, 6],
+    [
+      { grams: 150, slug: 'espinaca' },
+      { grams: 5, slug: 'sesamo' },
+      { grams: 5, slug: 'salsa-de-soja' }
+    ]
+  ),
+  {
+    families: ['asian'],
+    key: 'kimchi',
+    months: 'all',
+    portions: [[{ grams: 60, slug: 'kimchi' }]],
+    role: 'vegetable',
+    slots: LD
+  },
+```
+
+`COMPOSED_NAMES`:
+
+```ts
+  'arroz-jazmin': { 'en-GB': 'Jasmine rice', 'es-ES': 'Arroz jazmín' },
+  edamame: { 'en-GB': 'Edamame', 'es-ES': 'Edamame' },
+  'espinacas-con-sesamo': { 'en-GB': 'Sesame spinach', 'es-ES': 'Espinacas con sésamo' },
+```
+
+`COMPOSED_PREPARATIONS`:
+
+```ts
+  'arroz-jazmin': {
+    'en-GB': 'Rinse the rice, cook it covered in one and a half times its volume of water over the lowest heat for about 12 minutes and let it rest for 10.',
+    'es-ES': 'Lava el arroz, cuécelo tapado con vez y media su volumen de agua a fuego mínimo unos 12 minutos y déjalo reposar 10.'
+  },
+  edamame: {
+    'en-GB': 'Boil the edamame for about 5 minutes, drain it and sprinkle with the salt.',
+    'es-ES': 'Cuece el edamame en agua hirviendo unos 5 minutos, escúrrelo y espolvorea la sal.'
+  },
+  'espinacas-con-sesamo': {
+    'en-GB': 'Blanch the spinach for a minute, cool it in cold water, squeeze it dry and dress it with the soy sauce and the toasted sesame.',
+    'es-ES': 'Escalda las espinacas un minuto, enfríalas en agua fría, escúrrelas apretando bien y alíñalas con la salsa de soja y el sésamo tostado.'
+  },
+```
+
+`meal.accompanimentNames` (web, `es-ES` y `en-GB`):
+
+```ts
+// es-ES
+      'arroz-jazmin': 'arroz jazmín',
+      edamame: 'edamame',
+      'espinacas-con-sesamo': 'espinacas con sésamo',
+      kimchi: 'kimchi ({grams})',
+// en-GB
+      'arroz-jazmin': 'jasmine rice',
+      edamame: 'edamame',
+      'espinacas-con-sesamo': 'sesame spinach',
+      kimchi: 'kimchi ({grams})',
+```
+### 3. Mexicana y latina (4)
+
+- **Qué entra**:
+  - tres almidones de la mesa latina que no son ni tortilla ni arroz: yuca con mojo
+    (Cuba, Colombia), plátano macho al horno y elote (México, en verano);
+  - el guacamole como verdura.
+- **La verdura latina sigue corta** (3–4 opciones). En el catálogo no hay filas USDA de
+  nopal ni de chayote, y las ensaladas latinas se parecen a las que ya hay.
+- **`yuca-con-mojo`**: `yuca` es del grupo patata. La mesa latina la admite en comida y
+  cena (`Cuisine.ts:236`).
+- **`elote`**: `mazorca-de-maiz` no tiene grupo. 150 g de grano es una mazorca grande
+  (`gramsPerUnit` 150).
+- **Lo que las aparta del tradicional español**: `yuca`, `platano-macho` y `guacamole`
+  están en la lista de `0077`. `elote` no lleva ninguna fila de esa lista; lo aparta la
+  familia (ver § Premisas revisadas).
+
+
+| Clave | Papel | Familias | Comidas | Meses | Ración | kcal | P | HC | G | Fibra | Alérgenos | Clases |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `yuca-con-mojo` | starch | latin | C Ce | todo el año | 132.5 g | 240.7 | 1.8 | 46.9 | 5.4 | 2.3 | — | — |
+| `platano-macho-al-horno` | starch | latin | C Ce | todo el año | 125.5 g | 226.6 | 1.4 | 44 | 5.1 | 2.6 | — | — |
+| `elote` | starch | latin | C Ce | 7, 8, 9 | 156 g | 132.1 | 5 | 28.9 | 2.2 | 3.3 | — | — |
+| `guacamole` | vegetable | latin | C Ce | todo el año | 60 g | 94.2 | 1.1 | 3.6 | 8.4 | 3 | — | — |
+
+`ACCOMPANIMENTS`:
+
+```ts
+  composed(
+    'yuca-con-mojo',
+    'starch',
+    ['latin'],
+    'all',
+    [
+      { grams: 120, slug: 'yuca' },
+      { grams: 2, slug: 'ajo' },
+      { grams: 5, slug: 'lima' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'platano-macho-al-horno',
+    'starch',
+    ['latin'],
+    'all',
+    [
+      { grams: 120, slug: 'platano-macho' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'elote',
+    'starch',
+    ['latin'],
+    [7, 8, 9],
+    [
+      { grams: 150, slug: 'mazorca-de-maiz' },
+      { grams: 5, slug: 'lima' },
+      { grams: 0.5, slug: 'cayena-molida' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  {
+    families: ['latin'],
+    key: 'guacamole',
+    months: 'all',
+    portions: [[{ grams: 60, slug: 'guacamole' }]],
+    role: 'vegetable',
+    slots: LD
+  },
+```
+
+`COMPOSED_NAMES`:
+
+```ts
+  'yuca-con-mojo': { 'en-GB': 'Cassava with garlic and lime', 'es-ES': 'Yuca con mojo' },
+  'platano-macho-al-horno': { 'en-GB': 'Baked plantain', 'es-ES': 'Plátano macho al horno' },
+  elote: { 'en-GB': 'Corn on the cob with lime and chilli', 'es-ES': 'Elote' },
+```
+
+`COMPOSED_PREPARATIONS`:
+
+```ts
+  'yuca-con-mojo': {
+    'en-GB': 'Boil the peeled cassava in chunks in water with the salt for about 25 minutes, until tender, drain and pour over the chopped garlic, the lime juice and a teaspoon of oil.',
+    'es-ES': 'Cuece la yuca pelada y en trozos en agua con la sal unos 25 minutos, hasta que esté tierna, escúrrela y riégala con el ajo picado, el zumo de lima y una cucharadita de aceite.'
+  },
+  'platano-macho-al-horno': {
+    'en-GB': 'Peel the plantain, cut it into thick slices, brush them with a teaspoon of oil and bake at 200 °C for about 20 minutes, turning them halfway; salt at the end.',
+    'es-ES': 'Pela el plátano macho, córtalo en rodajas gruesas, úntalas con una cucharadita de aceite y hornéalas a 200 °C unos 20 minutos, dándoles la vuelta a mitad; sala al final.'
+  },
+  elote: {
+    'en-GB': 'Boil the corn cob for about 10 minutes, or grill it, and serve it with the lime juice, the cayenne and the salt.',
+    'es-ES': 'Cuece la mazorca en agua hirviendo unos 10 minutos, o ásala a la plancha, y sírvela con el zumo de lima, la cayena y la sal.'
+  },
+```
+
+`meal.accompanimentNames` (web, `es-ES` y `en-GB`):
+
+```ts
+// es-ES
+      'yuca-con-mojo': 'yuca con mojo',
+      'platano-macho-al-horno': 'plátano macho al horno',
+      elote: 'elote',
+      guacamole: 'guacamole ({grams})',
+// en-GB
+      'yuca-con-mojo': 'cassava with garlic and lime',
+      'platano-macho-al-horno': 'baked plantain',
+      elote: 'corn on the cob with lime and chilli',
+      guacamole: 'guacamole ({grams})',
+```
+### 4. Árabe y magrebí (5)
+
+- **Qué entra**:
+  - el cuscús, que en Marruecos se come a mediodía;
+  - mutabal (berenjena asada con tahini) en verano;
+  - dos ensaladas de todo el año, zanahoria y remolacha, para que la mesa árabe no se quede
+    en `hummus` y `ensalada-verde` de octubre a mayo;
+  - dátiles como postre.
+- **`cuscus`**: es del grupo de granos. La mesa árabe lo admite solo en comida
+  (`Cuisine.ts:233`), y la entrada se declara `['lunch']`, igual que `tabule`.
+- **`mutabal`**: lleva sésamo (tahini). No lleva aceite, y su frase no lo nombra.
+- **`datiles`**: postre de la familia árabe en desayuno, comida y cena. Una ración de 30 g
+  son 3–4 dátiles (`gramsPerUnit` 8) y 85 kcal.
+- **El tradicional español**: `ensalada-de-zanahoria-marroqui`, `ensalada-de-remolacha`,
+  `cuscus` y `datiles` no llevan ninguna fila de `0077`. Lo que los aparta es la familia del
+  plato.
+
+| Clave | Papel | Familias | Comidas | Meses | Ración | kcal | P | HC | G | Fibra | Alérgenos | Clases |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `cuscus` | starch | arab | C | todo el año | 50.5 g | 188 | 6.4 | 38.7 | 0.3 | 2.5 | gluten | — |
+| `mutabal` | vegetable | arab | C Ce | 6, 7, 8, 9, 10 | 167.5 g | 101.4 | 3.4 | 12.1 | 5.7 | 5.6 | sesame | — |
+| `ensalada-de-zanahoria-marroqui` | vegetable | arab | C Ce | todo el año | 141 g | 100 | 1.4 | 13 | 5.4 | 3.9 | — | — |
+| `ensalada-de-remolacha` | vegetable | arab | C Ce | todo el año | 136 g | 102.1 | 2.3 | 13 | 5.4 | 2.8 | — | — |
+| `datiles` | dessert | arab | D C Ce | todo el año | 30 g | 84.6 | 0.8 | 22.5 | 0.1 | 2.4 | — | — |
+
+`ACCOMPANIMENTS`:
+
+```ts
+  composed(
+    'cuscus',
+    'starch',
+    ['arab'],
+    'all',
+    [
+      { grams: 50, slug: 'cuscus-crudo' },
+      { grams: 0.5, slug: 'sal' }
+    ],
+    ['lunch']
+  ),
+  composed(
+    'mutabal',
+    'vegetable',
+    ['arab'],
+    [6, 7, 8, 9, 10],
+    [
+      { grams: 150, slug: 'berenjena' },
+      { grams: 10, slug: 'tahini' },
+      { grams: 5, slug: 'limon' },
+      { grams: 2, slug: 'ajo' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'ensalada-de-zanahoria-marroqui',
+    'vegetable',
+    ['arab'],
+    'all',
+    [
+      { grams: 120, slug: 'zanahoria' },
+      { grams: 10, slug: 'limon' },
+      { grams: 0.5, slug: 'comino-molido' },
+      { grams: 5, slug: 'perejil' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'ensalada-de-remolacha',
+    'vegetable',
+    ['arab'],
+    'all',
+    [
+      { grams: 120, slug: 'remolacha-cocida' },
+      { grams: 5, slug: 'limon' },
+      { grams: 0.5, slug: 'comino-molido' },
+      { grams: 5, slug: 'perejil' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  {
+    families: ['arab'],
+    key: 'datiles',
+    months: 'all',
+    portions: [[{ grams: 30, slug: 'datiles' }]],
+    role: 'dessert',
+    slots: BLD
+  },
+```
+
+`COMPOSED_NAMES`:
+
+```ts
+  cuscus: { 'en-GB': 'Couscous', 'es-ES': 'Cuscús' },
+  mutabal: { 'en-GB': 'Moutabal', 'es-ES': 'Mutabal' },
+  'ensalada-de-zanahoria-marroqui': { 'en-GB': 'Moroccan carrot salad', 'es-ES': 'Ensalada de zanahoria a la marroquí' },
+  'ensalada-de-remolacha': { 'en-GB': 'Beetroot salad', 'es-ES': 'Ensalada de remolacha' },
+```
+
+`COMPOSED_PREPARATIONS`:
+
+```ts
+  cuscus: {
+    'en-GB': 'Put the couscous in a bowl with the salt, pour over the same volume of boiling water, cover for 5 minutes and fluff it with a fork.',
+    'es-ES': 'Pon el cuscús en un bol con la sal, cúbrelo con el mismo volumen de agua hirviendo, tápalo 5 minutos y suéltalo con un tenedor.'
+  },
+  mutabal: {
+    'en-GB': 'Roast the whole aubergine at 200 °C for about 40 minutes, scoop out the flesh, drain it and mash it with the tahini, the lemon juice, the chopped garlic and the salt.',
+    'es-ES': 'Asa la berenjena entera en el horno a 200 °C unos 40 minutos, saca la pulpa, escúrrela y cháfala con el tahini, el zumo de limón, el ajo picado y la sal.'
+  },
+  'ensalada-de-zanahoria-marroqui': {
+    'en-GB': 'Grate the carrot and dress it with the lemon juice, the cumin, the chopped parsley, a teaspoon of oil and the salt.',
+    'es-ES': 'Ralla la zanahoria y alíñala con el zumo de limón, el comino, el perejil picado, una cucharadita de aceite y la sal.'
+  },
+  'ensalada-de-remolacha': {
+    'en-GB': 'Dice the cooked beetroot and dress it with the lemon juice, the cumin, the chopped parsley, a teaspoon of oil and the salt.',
+    'es-ES': 'Corta la remolacha cocida en dados y alíñala con el zumo de limón, el comino, el perejil picado, una cucharadita de aceite y la sal.'
+  },
+```
+
+`meal.accompanimentNames` (web, `es-ES` y `en-GB`):
+
+```ts
+// es-ES
+      cuscus: 'cuscús',
+      mutabal: 'mutabal',
+      'ensalada-de-zanahoria-marroqui': 'ensalada de zanahoria a la marroquí',
+      'ensalada-de-remolacha': 'ensalada de remolacha',
+      datiles: 'dátiles ({grams})',
+// en-GB
+      cuscus: 'couscous',
+      mutabal: 'moutabal',
+      'ensalada-de-zanahoria-marroqui': 'Moroccan carrot salad',
+      'ensalada-de-remolacha': 'beetroot salad',
+      datiles: 'dates ({grams})',
 ```
