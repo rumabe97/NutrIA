@@ -64,8 +64,8 @@ import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValida
 import {
   breaksDishRule,
   breaksPatternDish,
-  FOREIGN_CUISINES,
   freeFromExclusions,
+  isForeignCuisine,
   isLegumeSlug,
   PATTERN_EXCLUDED_SLUGS,
   resolvePreferences
@@ -832,7 +832,7 @@ function spanishMetrics(days, catalogue) {
         forbiddenRows.push({ dayIndex: day.dayIndex, dish: dish.name, slot: meal.slot, slug });
       }
 
-      if (dish.cuisine && FOREIGN_CUISINES.has(normaliseForMatching(dish.cuisine))) {
+      if (isForeignCuisine(dish.cuisine)) {
         foreignCuisines.push({ cuisine: dish.cuisine, dayIndex: day.dayIndex, dish: dish.name, slot: meal.slot });
       } else if (breaksPatternDish({ cuisine: null, name: dish.name }, { refusesForeignDishes: true })) {
         foreignNames.push({ dayIndex: day.dayIndex, dish: dish.name, slot: meal.slot });
@@ -1123,8 +1123,9 @@ function servingsInBand(days) {
 
 /**
  * Lunches and dinners by how many accompaniments they carry (0–3), the share
- * of the meal's energy those carry where there are any, and which ones were
- * served most. Null when the plan was made without accompaniments.
+ * of the meal's energy those carry where there are any, which ones were
+ * served most, and how many different ones the fortnight served (018 p3: the
+ * variety a longer list is for). Null when the plan was made without accompaniments.
  */
 function accompanimentMetrics(days) {
   const meals = days.flatMap(day => day.meals).filter(meal => MAIN_SLOTS.has(meal.slot));
@@ -1156,6 +1157,7 @@ function accompanimentMetrics(days) {
 
   return {
     byCount,
+    distinct: keys.size,
     kcalShareMax: shares.length > 0 ? round(Math.max(...shares)) : null,
     kcalShareMean: shares.length > 0 ? round(shares.reduce((sum, value) => sum + value, 0) / shares.length) : null,
     meals: meals.length,
@@ -1459,7 +1461,7 @@ function printProfile(profile, result) {
   }
 
   if (result.accompanied) {
-    const { byCount, kcalShareMax, kcalShareMean, meals, top } = result.accompanied;
+    const { byCount, distinct, kcalShareMax, kcalShareMean, meals, top } = result.accompanied;
 
     console.log(
       `  accompaniments on ${meals} lunches and dinners: ${Object.entries(byCount)
@@ -1469,6 +1471,7 @@ function printProfile(profile, result) {
         )}; their kcal share mean ${kcalShareMean === null ? 'n/a' : pct(kcalShareMean)}, max ${kcalShareMax === null ? 'n/a' : pct(kcalShareMax)}`
     );
     console.log(`    most served: ${top.map(([key, n]) => `${key} ${n}`).join(', ') || 'none'}`);
+    console.log(`    distinct accompaniments in the fortnight (018 p3): ${distinct}`);
   }
 
   if (result.dishRuleBreaks?.length > 0) {
@@ -1705,6 +1708,13 @@ function printComparison(before, results) {
 
     if (variety) {
       console.log(`  ${variety}`);
+    }
+
+    // Nor does a file written before 018 phase 3 count the distinct accompaniments.
+    if (after.accompanied) {
+      const before = previous.accompanied?.distinct;
+
+      console.log(`  distinct accompaniments: ${before === undefined ? 'not measured before' : before} → ${after.accompanied.distinct}`);
     }
 
     // A file written before `0076` has no plate shares; say so rather than compare with nothing.
