@@ -687,6 +687,7 @@ describe('PlanGenerationService', () => {
       date: addDays(today, dayIndex - 1),
       dayIndex,
       ingredients: [{ grams, slug: 'arroz' }],
+      legume: null,
       macros: { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 },
       recipeSlug: 'arroz-1',
       servings: 1,
@@ -721,6 +722,7 @@ describe('PlanGenerationService', () => {
             { grams: 100, slug: 'arroz' },
             { grams: 80, slug: 'no-longer-in-the-catalogue' }
           ],
+          legume: null,
           macros: { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 },
           recipeSlug: 'arroz-1',
           servings: 1,
