@@ -39,7 +39,7 @@ export const BLANKED_ENV = [
   'APPLE_OAUTH_PRIVATE_KEY',
   'SENTRY_DSN',
   'BLOB_READ_WRITE_TOKEN',
-  'BLOB_CANDIDATES_READ_WRITE_TOKEN',
+  'BLOB_CANDIDATES_READ_WRITE_TOKEN'
 ] as const;
 
 export function forceOffline(): void {

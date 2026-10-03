@@ -29,10 +29,19 @@ describe('the run cannot reach mail, push or a paid model', () => {
       APP_URL: 'http://localhost:3000',
       BETTER_AUTH_URL: 'http://localhost:3001',
       BETTER_AUTH_SECRET: 'x'.repeat(48),
-      ...process.env,
+      ...process.env
     });
     expect(env.AI_PROVIDER).toBe('stub');
-    for (const key of ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'OWNER_EMAIL', 'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY'] as const) {
+    for (const key of [
+      'SMTP_HOST',
+      'SMTP_USER',
+      'SMTP_PASS',
+      'OWNER_EMAIL',
+      'VAPID_PUBLIC_KEY',
+      'VAPID_PRIVATE_KEY',
+      'OPENROUTER_API_KEY',
+      'GOOGLE_API_KEY'
+    ] as const) {
       expect([key, env[key] || undefined]).toEqual([key, undefined]);
     }
   });
@@ -40,9 +49,7 @@ describe('the run cannot reach mail, push or a paid model', () => {
   it('keeps a .env file that sets them from winning (dotenv does not override the process)', async () => {
     const file = join(dir, '.env');
     writeFileSync(file, 'SMTP_HOST=smtp.example.invalid\nOWNER_EMAIL=owner@example.invalid\nVAPID_PRIVATE_KEY=leak\nAI_PROVIDER=openrouter\n');
-    const module = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot({ envFilePath: file, ignoreEnvVars: false })],
-    }).compile();
+    const module = await Test.createTestingModule({ imports: [ConfigModule.forRoot({ envFilePath: file, ignoreEnvVars: false })] }).compile();
     const config = module.get(ConfigService);
     expect(config.get('SMTP_HOST')).toBe('');
     expect(config.get('OWNER_EMAIL')).toBe('');
