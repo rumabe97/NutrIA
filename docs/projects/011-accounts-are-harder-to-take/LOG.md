@@ -760,3 +760,47 @@
   `NODE_ENV=test`. Its three-a-minute per-IP rule was shared, in one run, by the reset
   suites and the squatter's reset in `access`. No suite asserts that 429.
 
+## Phase 8 — the invariant, accessibility and legal reviews applied (2026-10-03)
+
+- **Executor**: opus 5.5 (`backend`, the same agent). Routing by the lead; the
+  invariant review's P0 (`autoSignInAfterVerification`, already on main) goes to main
+  as a separate hotfix by `backend-011p6`, not here.
+- **Invariant review**:
+  - **P1, `/send-verification-email` timing**: Better Auth awaits our
+    `sendVerificationEmail` on the anonymous resend and only pads it to 500 ms. So the
+    budget's lookup and SMTP made an unconfirmed address slower than an unknown or a
+    confirmed one. The callback now hands budget and SMTP to `BackgroundTaskService` and
+    returns at once. Pinned by `VerificationResend.spec.ts`: with SMTP that never answers,
+    an unconfirmed address answers at the floor, like an unknown one.
+  - **P1, sign-up floor**: `SIGN_UP_FLOOR_MS` is now **800 ms**. The slow branch's tail on
+    Neon could not be measured here, so the floor is set with margin over the ~95 ms
+    measured locally. Raise it if production timing ever shows a sign-up near it.
+  - **P2**: a third budget kind, `reset`, for the reset mail. Better Auth already sends it
+    after the response, so the answer is unchanged.
+  - **P3**: `emailVerification.expiresIn` is written out as `MAIL_BUDGET.windowMs / 1000`
+    (3600). A spec ties the two.
+  - **P3**: a spec shows that no address reaches any log line, Nest's or the console's, on
+    an existing-address sign-up.
+- **Accessibility review** (static read):
+  - "Check your email" focuses its heading and titles the tab (`lib/authAnswer`
+    `arriveAtSent`, tested with fakes). The old title comes back on the way out.
+  - "Usar otro correo" returns to the form with the name and address as typed, and focuses
+    the address field.
+  - The sign-in alert remounts per submit (`key={attempt}`).
+  - A 401 sits on the password field (`aria-invalid`, described by it), and the alert is
+    kept for a wait or an outage (`signInRefusal` answers `where`, tested).
+  - Secondary text measured: 4.9:1 light and 6.9:1 dark against the page.
+  - Not tested: the focus and the key in a DOM. `apps/web`'s vitest runs in node with no
+    testing library; the probe is the check.
+- **Legal review**:
+  - The ⟦frenos⟧ item and the widened legitimate-interest paragraph go into `/privacidad`
+    (es/en), exactly as `legal` wrote them. `privacy.updated` already reads 3 October
+    2026. There is no privacy version constant to bump.
+  - `auth.signUpSent` and `auth.invalidCredentials` no longer claim a mail was sent: the
+    first is conditional ("si {email} es correcta, te llegará…"), the second names the
+    three-an-hour limit. Reconciled with the accessibility wording ("si aún no has
+    confirmado tu dirección…"); neither says an account exists.
+  - The "somebody tried" mail gains, before the reset link, the line for somebody who never
+    made the account. This is variant A, since a completed reset confirms the address.
+  - P2-15, a sweep of unconfirmed accounts, is in the PLAN as a pending follow-up.
+

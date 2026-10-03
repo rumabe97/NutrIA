@@ -544,6 +544,11 @@ records what was decided.
     - **not shipped to production until the lead confirms**: the owner first OKs a read-only
       count of the unconfirmed production accounts, who from this change can no longer sign
       in with their password until they open a link.
+  - **Pending follow-up, not built in phase 8** (`legal`, P2-15, 2026-10-03): a 30-day sweep
+    of unconfirmed accounts with no session and no data. Phase 8 lets anybody create an
+    unconfirmed account for any address; nothing ever deletes one that nobody confirms. To
+    be planned: what "no data" means (no profile, no plan, no audit row), the notice, and
+    whether the daily cron carries it.
 - **Steps**:
   1. Confirm in Better Auth 's installed source (the version phase 5 left) that the
      response body and status are identical for both cases, and measure the timing

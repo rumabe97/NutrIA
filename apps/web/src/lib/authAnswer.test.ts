@@ -1,20 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
+import { arriveAtSent, signInRefusal, signUpOutcome } from './authAnswer';
 import { enGB } from '../i18n/dictionaries/en-GB';
 import { esES } from '../i18n/dictionaries/es-ES';
-import { signInRefusal, signUpOutcome } from './authAnswer';
 
 const EMAIL = 'ana@example.invalid';
 
 describe('signUpOutcome', () => {
-  it('ends every accepted sign-up on "we have written to" the address, in both languages', () => {
+  it('ends every accepted sign-up on the same conditional "an email will reach you", in both languages', () => {
     expect(signUpOutcome(null, EMAIL, esES)).toEqual({
       kind: 'sent',
-      message: `Te hemos escrito a ${EMAIL}. Abre el enlace del correo para entrar.`
+      message: `Si ${EMAIL} es correcta, te llegará un correo en unos minutos. Abre el enlace para entrar.`
     });
     expect(signUpOutcome(null, EMAIL, enGB)).toEqual({
       kind: 'sent',
-      message: `We have written to ${EMAIL}. Open the link in the email to sign in.`
+      message: `If ${EMAIL} is right, an email will reach you in a few minutes. Open the link to sign in.`
     });
   });
 
@@ -44,22 +44,58 @@ describe('signUpOutcome', () => {
 
 describe('signInRefusal', () => {
   it('answers a 401 with one message that tells an unconfirmed person what to do, and implies no account', () => {
-    expect(signInRefusal(401, esES)).toBe(
-      'Correo o contraseña incorrectos. Si acabas de crear la cuenta, confirma antes tu dirección: si la contraseña era la buena, te acabamos de enviar el enlace de nuevo.'
+    expect(signInRefusal(401, esES).message).toBe(
+      'Correo o contraseña incorrectos. Si aún no has confirmado tu dirección y la contraseña era la buena, te enviamos el enlace de nuevo (como mucho tres veces por hora; mira también en el correo no deseado).'
     );
-    expect(signInRefusal(401, enGB)).toBe(
-      'Wrong email or password. If you have just created your account, confirm your address first: if the password was right, we have just sent you the link again.'
+    expect(signInRefusal(401, enGB).message).toBe(
+      'Wrong email or password. If you have not confirmed your address yet and the password was right, we send you the link again (at most three times an hour; check your spam folder too).'
     );
 
     for (const dictionary of [esES, enGB]) {
-      expect(signInRefusal(401, dictionary)).not.toMatch(
-        /tu cuenta existe|ya existe|your account exists|already exists|no está confirmada|not been confirmed/i
+      expect(signInRefusal(401, dictionary).message).not.toMatch(
+        /tu cuenta existe|ya existe|tu cuenta no|your account exists|already exists|your account is|no está confirmada|has not been confirmed|te hemos enviado|we have sent/i
       );
     }
   });
 
   it('keeps a wait a wait and an outage an outage', () => {
-    expect(signInRefusal(429, esES)).toBe(esES.auth.signInPaused);
-    expect(signInRefusal(503, enGB)).toBe('We could not sign you in (error 503). Try again in a moment.');
+    expect(signInRefusal(429, esES)).toEqual({ message: esES.auth.signInPaused, where: 'alert' });
+    expect(signInRefusal(503, enGB)).toEqual({ message: 'We could not sign you in (error 503). Try again in a moment.', where: 'alert' });
+  });
+});
+
+describe('signInRefusal — where', () => {
+  it('puts a 401 on the password field, and nothing else there', () => {
+    expect(signInRefusal(401, esES).where).toBe('password');
+    expect(signInRefusal(429, esES).where).toBe('alert');
+    expect(signInRefusal(500, esES).where).toBe('alert');
+  });
+});
+
+describe('arriveAtSent', () => {
+  it('focuses the heading and titles the tab, and puts the old title back on the way out', () => {
+    const page = { title: 'Crea tu cuenta · NutrIA' };
+    let focused = 0;
+    const heading = {
+      focus: () => {
+        focused += 1;
+      }
+    };
+
+    const leave = arriveAtSent(heading, esES.auth.checkEmail, page);
+
+    expect(focused).toBe(1);
+    expect(page.title).toBe('Revisa tu correo · NutrIA');
+
+    leave();
+    expect(page.title).toBe('Crea tu cuenta · NutrIA');
+  });
+
+  it('still titles the tab when the heading is not there yet', () => {
+    const page = { title: '' };
+
+    arriveAtSent(null, enGB.auth.checkEmail, page);
+
+    expect(page.title).toBe('Check your email · NutrIA');
   });
 });

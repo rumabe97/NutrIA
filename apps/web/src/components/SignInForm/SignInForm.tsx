@@ -55,6 +55,10 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
   const locale = useLocale();
   const params = useSearchParams();
   const [error, setError] = useState<string | undefined>(() => arrivalError(params.get('error'), dictionary));
+  // A 401 is said on the password field, where the person goes back to (PLAN 011 phase 8).
+  const [passwordError, setPasswordError] = useState<string>();
+  // Each submit remounts the alert, so the same refusal twice is announced twice.
+  const [attempt, setAttempt] = useState(0);
   const [pending, setPending] = useState(false);
   const passkeys = useSyncExternalStore(unchanging, passkeysSupported, () => false);
   const [passkeyPending, setPasskeyPending] = useState(false);
@@ -143,7 +147,9 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(undefined);
+    setPasswordError(undefined);
     setPasskeyError(undefined);
+    setAttempt(previous => previous + 1);
     setPending(true);
 
     const form = new FormData(event.currentTarget);
@@ -153,8 +159,11 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
       setPending(false);
 
       // One message for a wrong password, an unknown address and an unconfirmed account's
-      // right password (`lib/authAnswer`, PLAN 011 phases 7 and 8).
-      setError(signInRefusal(signInError.status, dictionary));
+      // right password, on the password field; a wait or an outage in the alert
+      // (`lib/authAnswer`, PLAN 011 phases 7 and 8).
+      const refusal = signInRefusal(signInError.status, dictionary);
+
+      (refusal.where === 'password' ? setPasswordError : setError)(refusal.message);
 
       return;
     }
@@ -184,14 +193,22 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
 
       <form className={styles.form} noValidate={true} onSubmit={onSubmit}>
         {error ? (
-          <p className={styles.error} role="alert">
+          <p className={styles.error} key={attempt} role="alert">
             {error}
           </p>
         ) : null}
 
         {/* `webauthn` last: the browser offers this site's passkeys among the field's suggestions. */}
         <Input autoComplete="username webauthn" label={dictionary.auth.email} name="email" required={true} type="email" />
-        <Input autoComplete="current-password" label={dictionary.auth.password} name="password" required={true} type="password" />
+        <Input
+          autoComplete="current-password"
+          error={passwordError}
+          label={dictionary.auth.password}
+          name="password"
+          onChange={() => setPasswordError(undefined)}
+          required={true}
+          type="password"
+        />
 
         <Link className={`${styles.link} ${styles.forgot}`} href="/recuperar">
           {dictionary.auth.forgotPassword}

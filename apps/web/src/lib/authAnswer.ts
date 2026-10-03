@@ -3,6 +3,14 @@ import { passwordRefusalMessage } from './newPassword';
 
 import type { Dictionary } from '../i18n/dictionaries/es-ES';
 
+/**
+ * Where the sign-in form says a refusal. A 401 is about what was typed, so it
+ * sits on the password field (`aria-invalid`, described by it), where it is
+ * read on the field the person returns to; a wait or an outage is not about
+ * the fields, and keeps the alert above them.
+ */
+export type SignInRefusal = { readonly message: string; readonly where: 'alert' | 'password' };
+
 /** What the sign-up form shows once the API has answered. */
 export type SignUpOutcome =
   | { readonly kind: 'password'; readonly message: string }
@@ -45,10 +53,28 @@ export function signUpOutcome(
  * so instead: for a whole afternoon those read as "wrong password" and sent the
  * owner looking in the wrong place.
  */
-export function signInRefusal(status: number, dictionary: Dictionary): string {
+export function signInRefusal(status: number, dictionary: Dictionary): SignInRefusal {
   if (status === 401) {
-    return dictionary.auth.invalidCredentials;
+    return { message: dictionary.auth.invalidCredentials, where: 'password' };
   }
 
-  return status === 429 ? dictionary.auth.signInPaused : interpolate(dictionary.auth.signInUnavailable, { status });
+  return { message: status === 429 ? dictionary.auth.signInPaused : interpolate(dictionary.auth.signInUnavailable, { status }), where: 'alert' };
+}
+
+/**
+ * The sign-up form's "check your email" arriving in place of the form (PLAN 011
+ * phase 8, the accessibility review): focus moves to its heading, which reads
+ * it, and the tab's title says it — the page did not change, so the route
+ * announcer will not. Answers what puts the title back, for the way back to
+ * the form.
+ */
+export function arriveAtSent(heading: Pick<HTMLElement, 'focus'> | null, title: string, page: Pick<Document, 'title'>): () => void {
+  const before = page.title;
+
+  page.title = `${title} · NutrIA`;
+  heading?.focus();
+
+  return () => {
+    page.title = before;
+  };
 }

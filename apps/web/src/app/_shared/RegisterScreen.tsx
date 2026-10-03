@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useId, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 
 import Link from 'next/link';
 
@@ -17,10 +17,10 @@ import { SocialSignIn } from 'components/SocialSignIn';
 
 import { PASSWORD_MIN_LENGTH } from 'core/entities/Password';
 
+import { arriveAtSent, signUpOutcome } from 'lib/authAnswer';
 import { forgetOfflineCopies } from 'lib/offline';
 import { PASSWORD_RULES, passwordLengthRefusal, passwordRefusalMessage } from 'lib/newPassword';
 import { signUp } from 'lib/auth-client';
-import { signUpOutcome } from 'lib/authAnswer';
 
 import type { FormEvent } from 'react';
 import type { SocialProvider } from 'lib/sign-in-providers';
@@ -29,8 +29,14 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
   const dictionary = useDictionary();
   const locale = useLocale();
   const [error, setError] = useState<string>();
-  // "We have written to {email}": from then on the screen says only that, whoever the address belongs to.
+  // "An email will reach you": from then on the screen says only that, whoever the address belongs to.
   const [sent, setSent] = useState<string>();
+  // What was typed, kept for the way back from "check your email": the form remounts with it.
+  const [typed, setTyped] = useState<{ email: string; name: string }>({ email: '', name: '' });
+  const sentHeading = useRef<HTMLHeadingElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  // Back from "check your email": focus goes to the address, the field the person came back to fix.
+  const [cameBack, setCameBack] = useState(false);
   // A refused password is said on the field too, next to the button: the alert at the top
   // is announced, but at 320px it is off-screen when the button is pressed.
   const [passwordError, setPasswordError] = useState<string>();
@@ -41,6 +47,15 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
   const [passwordLength, setPasswordLength] = useState(0);
   const hintId = useId();
   const levelId = useId();
+
+  // The form gave way to "check your email" on the same page: focus and the tab's title follow it.
+  useEffect(() => (sent ? arriveAtSent(sentHeading.current, dictionary.auth.checkEmail, document) : undefined), [sent, dictionary]);
+
+  useEffect(() => {
+    if (cameBack && !sent) {
+      (formRef.current?.elements.namedItem('email') as HTMLInputElement | null)?.focus();
+    }
+  }, [cameBack, sent]);
 
   function refusePassword(message: string) {
     setError(message);
@@ -67,7 +82,11 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
     setPending(true);
 
     const email = String(form.get('email'));
-    const { error: signUpError } = await signUp.email({ email, name: String(form.get('name')), password });
+    const name = String(form.get('name'));
+
+    setTyped({ email, name });
+
+    const { error: signUpError } = await signUp.email({ email, name, password });
 
     setPending(false);
 
@@ -100,14 +119,25 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
   if (sent) {
     return (
       <Fragment>
-        <h1 className={styles.title}>{dictionary.auth.checkEmail}</h1>
-        <p className={styles.success} role="status">
-          {sent}
-        </p>
+        <h1 className={styles.title} ref={sentHeading} tabIndex={-1}>
+          {dictionary.auth.checkEmail}
+        </h1>
+        <p className={styles.success}>{sent}</p>
         <Text size="sm" style={{ marginTop: 'var(--space-05)' }} tone="secondary">
           {dictionary.auth.signUpSentInstalled}
         </Text>
         <div className={styles.footer}>
+          {/* Back to the form, the address as it was typed: the way out of a typo. */}
+          <Button
+            onClick={() => {
+              setCameBack(true);
+              setSent(undefined);
+            }}
+            type="button"
+            variant="secondary"
+          >
+            {dictionary.auth.useAnotherEmail}
+          </Button>
           <Link className={styles.link} href={withLocale('/acceder', locale)}>
             {dictionary.auth.backToSignIn}
           </Link>
@@ -129,15 +159,15 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
       {/* A new account lands on onboarding whichever way it was made. */}
       <SocialSignIn next="/onboarding" providers={providers} />
 
-      <form className={styles.form} noValidate={true} onSubmit={onSubmit}>
+      <form className={styles.form} noValidate={true} onSubmit={onSubmit} ref={formRef}>
         {error ? (
           <p className={styles.error} key={attempt} role="alert">
             {error}
           </p>
         ) : null}
 
-        <Input autoComplete="name" label={dictionary.auth.name} name="name" required={true} type="text" />
-        <Input autoComplete="email" label={dictionary.auth.email} name="email" required={true} type="email" />
+        <Input autoComplete="name" defaultValue={typed.name} label={dictionary.auth.name} name="name" required={true} type="text" />
+        <Input autoComplete="email" defaultValue={typed.email} label={dictionary.auth.email} name="email" required={true} type="email" />
         <Input
           autoComplete="new-password"
           describedBy={`${hintId} ${levelId}`}

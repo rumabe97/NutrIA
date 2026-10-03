@@ -1110,7 +1110,7 @@ export const enGB: Dictionary = {
     goToAccount: 'Go to my account',
     haveAccount: 'Already have an account?',
     invalidCredentials:
-      'Wrong email or password. If you have just created your account, confirm your address first: if the password was right, we have just sent you the link again.',
+      'Wrong email or password. If you have not confirmed your address yet and the password was right, we send you the link again (at most three times an hour; check your spam folder too).',
     invalidLink: 'This link is not valid, or it has expired.',
     legalAge: 'You need to be at least 18 to create an account.',
     legalNotice: 'By creating your account you accept the {terms}. How we handle your data is explained in the {privacy}.',
@@ -1159,7 +1159,7 @@ export const enGB: Dictionary = {
     signUp: 'Create my plan',
     signUpFailed: 'We could not create the account. Please try again.',
     signUpPending: 'Creating your account…',
-    signUpSent: 'We have written to {email}. Open the link in the email to sign in.',
+    signUpSent: 'If {email} is right, an email will reach you in a few minutes. Open the link to sign in.',
     signUpSentInstalled:
       'On iPhone the link opens in Safari. If you use NutrIA from your home screen, go back to the app afterwards and sign in with your email and password.',
     socialFailed: 'We could not complete the sign-in. Try again, or sign in with your email.',
@@ -1168,6 +1168,7 @@ export const enGB: Dictionary = {
     tooManyAttempts: 'Too many attempts in a row. Wait a moment and try again.',
     toSignIn: 'Sign in',
     toSignUp: 'Create one',
+    useAnotherEmail: 'Use another email',
     verifyBody: 'We have sent you a confirmation link. Open it on this device to activate your account.',
     verifyMeanwhile: 'In the meantime you can carry on setting up your profile: your plan is generated when you finish.',
     verifyTitle: 'Confirm your email'
@@ -2447,6 +2448,7 @@ export const enGB: Dictionary = {
           'How the plan is going: which meals you mark as eaten or skipped, your ratings and comments on dishes, your weight over time and your fortnightly check-ins. So the next plan takes them into account.',
           'Payments: if you subscribe to Premium, Stripe takes the payment and we keep only the identifier for your subscription and its status. We never see your card number.',
           'Account security: we record when you change or reset your password and when you sign out of sessions, with the date and without your IP address. So that we can see what happened if someone gets into your account.',
+          'Brakes against abuse: so that nobody can guess passwords or fill a mailbox with our emails, we count, for each email address, failed attempts to sign in with a password and the confirmation and notice emails we send it and, for each IP address, the requests to your account’s pages (signing in, creating an account, resetting the password…). We do not keep your email address for this, but a fingerprint of it made with a secret key of ours. We count the same whether or not the address has an account, and it is not deleted when you delete yours: it expires on its own, at most two days after the last attempt or email; the IP counts stop counting after a minute and are deleted shortly after.',
           'Two-step verification, only if you turn it on: the secret of your authenticator app and your backup codes, encrypted, failed code attempts and, in the security record, when you turn it on, turn it off or use a backup code. If you turn it off, we delete the secret and the codes. If you lose your phone and your backup codes, you can ask us, from your account’s address, to remove it: we email you right away, it is removed 48 to 72 hours later and, if you sign in with a code or a passkey before then, it is cancelled (if signing in with your password does not ask you for the code, write to us from that address and we will cancel it); it is noted in the security record. So that, even if someone knows your password, they cannot get into your account.',
           "Passkeys, only if you add one: its identifier and public key; what your device tells us about it, such as whether it syncs across your devices, how it connects or what kind of device or app keeps it; the name of your browser and system we save it under; when you added it and, in the security record, when one is added or removed. The secret part of the key, your Face ID, your fingerprint and your device's passcode never reach us: the key stays on your device or, if you sync your passkeys (for example with iCloud or Google), with the service you choose for that. We delete it if you remove it, or when you change or reset your password. So that you can sign in without a password.",
           'Product use: we record, linked to your account, when you sign in and when you ask to change a dish, and nothing more. To know whether the product works.',
@@ -2465,7 +2467,7 @@ export const enGB: Dictionary = {
         paragraphs: [
           'To provide the service you ask for (contract): your account, profile, plans, payments and service emails.',
           'With your explicit consent: your allergies and intolerances, your body and goal and your way of eating, which you give with a checkbox of its own when you create your profile. Without them we cannot make a safe plan for you, so without that consent we do not generate plans; you can withdraw it at any time by deleting that data from your profile. Your conditions, medications and supplements, under a separate, optional consent. Each consent is stored with its date and the version of the text you accepted.',
-          'Our legitimate interest: recording product use and technical errors to keep it working, with no health data. You can object by writing to us.',
+          'Our legitimate interest: recording product use and technical errors to keep it working, with no health data, and protecting accounts: the security record, the brakes against abuse and the security notices we send you. You can object by writing to us.',
           'Legal obligation: keeping what tax law requires about payments (Stripe does this).'
         ]
       },

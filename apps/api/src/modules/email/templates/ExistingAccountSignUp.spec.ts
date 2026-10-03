@@ -57,4 +57,21 @@ describe('existingAccountSignUpEmail', () => {
       expect(`${sent.subject}\n${sent.text}`).not.toMatch(word);
     }
   });
+  it('tells somebody who never made the account that a stranger may have, and that a new password lets them in', () => {
+    for (const [locale, words] of [
+      ['es-ES', 'puede que alguien la creara con tu dirección'],
+      ['en-GB', 'somebody may have created one with your address']
+    ] as const) {
+      const mail = existingAccountSignUpEmail({
+        locale,
+        recoverUrl: 'https://nutria.example/recuperar',
+        signInUrl: 'https://nutria.example/acceder'
+      });
+
+      expect(mail.text).toContain(words);
+      expect(mail.html).toContain(words);
+      // Before the reset link it points to.
+      expect(mail.text.indexOf(words)).toBeLessThan(mail.text.indexOf('https://nutria.example/recuperar'));
+    }
+  });
 });
