@@ -7,7 +7,7 @@ import { database } from 'database';
 import { mealPlans } from 'database/schema/plan';
 import { onboardingState } from 'database/schema/profile';
 import { professionals } from 'database/schema/professional';
-import { account, user, verification } from 'database/schema/auth';
+import { account, passkey, user, verification } from 'database/schema/auth';
 
 import { ACTIVE_EVENTS } from 'core/entities/Analytics';
 import { DatabaseOperationError } from 'core/entities/Error';
@@ -43,8 +43,11 @@ function trustedDevicesOf(id: string): SQL | undefined {
   return and(eq(verification.value, id), like(verification.identifier, `${TRUSTED_DEVICE_PREFIX}%`));
 }
 
-/** `passwordChanged`'s watcher: the audit row, written in the transaction that clears the breach mark. */
-export type RecordPasswordAudit = (tx: Transaction) => Promise<void>;
+/**
+ * `passwordChanged`'s watcher: the audit rows, written in the transaction that clears the breach mark — handed how
+ * many passkeys that transaction removed (none unless asked to), so each can have its row.
+ */
+export type RecordPasswordAudit = (tx: Transaction, passkeysRemoved: number) => Promise<void>;
 
 /**
  * One account on the owner's table: the row's own columns, and four
@@ -422,13 +425,23 @@ export const UserRepository = {
    * Every trusted device of the account goes in the same transaction (PLAN
    * 011 phase 3): a password changed because somebody else may know it must
    * not leave that somebody's browser skipping the second factor.
+   *
+   * With `forgetPasskeys` (a reset, PLAN 011 phase 5), every passkey of the
+   * account goes too, in the same transaction: a key somebody added from a
+   * stolen session must not outlive the reset that throws them out. Returns
+   * how many went.
    */
-  async passwordChanged(id: string, record: RecordPasswordAudit): Promise<void> {
+  async passwordChanged(id: string, record: RecordPasswordAudit, { forgetPasskeys = false }: { forgetPasskeys?: boolean } = {}): Promise<number> {
     try {
-      await database().transaction(async tx => {
+      return await database().transaction(async tx => {
         await tx.update(user).set({ passwordCompromisedAt: null }).where(eq(user.id, id));
         await tx.delete(verification).where(trustedDevicesOf(id));
-        await record(tx);
+
+        const removed = forgetPasskeys ? (await tx.delete(passkey).where(eq(passkey.userId, id)).returning({ id: passkey.id })).length : 0;
+
+        await record(tx, removed);
+
+        return removed;
       });
     } catch (error: unknown) {
       throw wrap(error);

@@ -294,14 +294,29 @@ export const UserController = {
    * (`change`) or a reset link (`reset`). The breach mark goes and one
    * `auth.password_changed` row is written, in one transaction. The person is
    * both actor and subject: nobody else can change it.
+   *
+   * A reset also removes every passkey of the account (PLAN 011 phase 5), in
+   * the same transaction, with one `auth.passkey_removed` row for each.
+   * Returns how many went, for the mail to say so.
    */
-  async passwordChanged(userId: string, via: PasswordChangedVia): Promise<void> {
-    await UserRepository.passwordChanged(userId, async tx => {
-      await AuditRepository.record(
-        { action: 'auth.password_changed', actorId: userId, entity: 'user', metadata: { via }, subjectUserId: userId },
-        tx
-      );
-    });
+  async passwordChanged(userId: string, via: PasswordChangedVia): Promise<number> {
+    return UserRepository.passwordChanged(
+      userId,
+      async (tx, passkeysRemoved) => {
+        await AuditRepository.record(
+          { action: 'auth.password_changed', actorId: userId, entity: 'user', metadata: { via }, subjectUserId: userId },
+          tx
+        );
+
+        for (let removed = 0; removed < passkeysRemoved; removed += 1) {
+          await AuditRepository.record(
+            { action: 'auth.passkey_removed', actorId: userId, entity: 'passkey', metadata: {}, subjectUserId: userId },
+            tx
+          );
+        }
+      },
+      { forgetPasskeys: via === 'reset' }
+    );
   },
 
   /**

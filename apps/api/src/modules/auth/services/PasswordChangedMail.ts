@@ -25,10 +25,11 @@ export async function sendPasswordChangedMail(
     acceptLanguage,
     appUrl,
     at = new Date(),
+    passkeysRemoved = 0,
     to,
     userAgent,
     userId
-  }: { acceptLanguage: string | null; appUrl: string; at?: Date; to: string; userAgent: string | null; userId: string }
+  }: { acceptLanguage: string | null; appUrl: string; at?: Date; passkeysRemoved?: number; to: string; userAgent: string | null; userId: string }
 ): Promise<void> {
   if (!mailer.configured) {
     console.info(`[auth] password changed (user ${userId}); no SMTP configured, mail not sent`);
@@ -38,7 +39,7 @@ export async function sendPasswordChangedMail(
 
   const locale = await recipientLocale(userId, acceptLanguage);
   const sent = await mailer.send({
-    ...passwordChangedEmail({ at, device: deviceOf(userAgent), locale, recoverUrl: webUrl(appUrl, RECOVER_PATH, locale) }),
+    ...passwordChangedEmail({ at, device: deviceOf(userAgent), locale, passkeysRemoved, recoverUrl: webUrl(appUrl, RECOVER_PATH, locale) }),
     to
   });
 

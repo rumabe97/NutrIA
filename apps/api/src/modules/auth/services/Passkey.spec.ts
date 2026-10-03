@@ -238,8 +238,15 @@ async function signUp(auth: Auth, account: { email: string; name: string }): Pro
   return browser;
 }
 
-/** The browser asks for options, the device makes a key, the browser hands it back: the answer of the last step. */
+/** The password confirmed for this browser's session, as the web asks before adding a passkey. */
+async function confirm(auth: Auth, browser: Browser, password = PASSWORD) {
+  return call(auth, browser, '/passkey/confirm-password', { password });
+}
+
+/** The password confirmed, the browser asks for options, the device makes a key, the browser hands it back: the answer of the last step. */
 async function addPasskey(auth: Auth, browser: Browser, device: Authenticator, extra: Record<string, unknown> = {}) {
+  await confirm(auth, browser);
+
   const options = await call(auth, browser, '/passkey/generate-register-options');
 
   return call(auth, browser, '/passkey/verify-registration', {
@@ -302,6 +309,7 @@ describe('passkeys', () => {
     it('is what the registration options carry', async () => {
       const auth = build();
       const browser = await signUp(auth, ANA);
+      await confirm(auth, browser);
 
       const options = await call(auth, browser, '/passkey/generate-register-options');
 
@@ -319,12 +327,116 @@ describe('passkeys', () => {
       expect(store.verification).toEqual([]);
     });
 
-    it('answers a session older than a day 403 SESSION_NOT_FRESH: the web asks for a fresh sign-in', async () => {
+    it('answers a session older than a day 403 SESSION_NOT_FRESH, even with the password confirmed: the web asks for a fresh sign-in', async () => {
       const auth = build();
       const browser = await signUp(auth, ANA);
+      await confirm(auth, browser);
 
       for (const row of store.session) {
         row.createdAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+      }
+
+      await expect(call(auth, browser, '/passkey/generate-register-options')).resolves.toMatchObject({
+        body: { code: 'SESSION_NOT_FRESH' },
+        status: 403
+      });
+    });
+  });
+
+  describe('the password first, for an account that has one', () => {
+    it('refuses both steps 403 PASSWORD_CONFIRMATION_REQUIRED until the password is confirmed, and writes no challenge', async () => {
+      const auth = build();
+      const browser = await signUp(auth, ANA);
+
+      const options = await call(auth, browser, '/passkey/generate-register-options');
+      const verify = await call(auth, browser, '/passkey/verify-registration', { response: new Authenticator().create('any') });
+
+      expect(options).toMatchObject({ body: { code: 'PASSWORD_CONFIRMATION_REQUIRED' }, status: 403 });
+      expect(verify).toMatchObject({ body: { code: 'PASSWORD_CONFIRMATION_REQUIRED' }, status: 403 });
+      expect(store.verification).toEqual([]);
+      expect(store.passkey).toEqual([]);
+    });
+
+    it('refuses a wrong password with INVALID_PASSWORD and grants nothing', async () => {
+      const auth = build();
+      const browser = await signUp(auth, ANA);
+
+      const refused = await confirm(auth, browser, 'not-the-password-at-all');
+
+      expect(refused).toMatchObject({ body: { code: 'INVALID_PASSWORD' }, status: 400 });
+      await expect(call(auth, browser, '/passkey/generate-register-options')).resolves.toMatchObject({ status: 403 });
+    });
+
+    it('grants one passkey per confirmation: the next one asks for the password again', async () => {
+      const auth = build();
+      const browser = await signUp(auth, ANA);
+
+      expect((await addPasskey(auth, browser, new Authenticator())).status).toBe(200);
+      await expect(call(auth, browser, '/passkey/generate-register-options')).resolves.toMatchObject({
+        body: { code: 'PASSWORD_CONFIRMATION_REQUIRED' },
+        status: 403
+      });
+    });
+
+    it('grants only the session that confirmed it, and only for ten minutes', async () => {
+      const auth = build();
+      const browser = await signUp(auth, ANA);
+      const other = new Browser();
+      await call(auth, other, '/sign-in/email', { email: ANA.email, password: PASSWORD });
+      await confirm(auth, browser);
+
+      await expect(call(auth, other, '/passkey/generate-register-options')).resolves.toMatchObject({ status: 403 });
+
+      for (const row of store.verification.filter(candidate => String(candidate.identifier).startsWith('passkey-grant-'))) {
+        row.expiresAt = new Date(Date.now() - 1000);
+      }
+
+      await expect(call(auth, browser, '/passkey/generate-register-options')).resolves.toMatchObject({
+        body: { code: 'PASSWORD_CONFIRMATION_REQUIRED' },
+        status: 403
+      });
+    });
+
+    it('keeps the password out of every row and every line', async () => {
+      const auth = build();
+      const browser = await signUp(auth, ANA);
+      await confirm(auth, browser);
+      await confirm(auth, browser, 'a-wrong-guess-of-a-password');
+
+      expect(JSON.stringify(store.verification)).not.toContain(PASSWORD);
+      expect(logged.join('\n')).not.toContain(PASSWORD);
+      expect(logged.join('\n')).not.toContain('a-wrong-guess-of-a-password');
+    });
+
+    it('answers no session with the route’s own 401', async () => {
+      const auth = build();
+
+      await expect(confirm(auth, new Browser())).resolves.toMatchObject({ status: 401 });
+    });
+  });
+
+  describe('an account with no password (Google or Apple only)', () => {
+    it('has nothing to confirm: the guard’s 404, byte for byte', async () => {
+      const auth = build();
+      const browser = await signUp(auth, ANA);
+      store.account.length = 0;
+
+      await expect(confirm(auth, browser)).resolves.toMatchObject({ raw: NOT_FOUND, status: 404 });
+    });
+
+    it('adds one from a session ten minutes young, and refuses an older one 403 SESSION_NOT_FRESH', async () => {
+      const auth = build();
+      const browser = await signUp(auth, ANA);
+      store.account.length = 0;
+      const device = new Authenticator();
+
+      const options = await call(auth, browser, '/passkey/generate-register-options');
+      const added = await call(auth, browser, '/passkey/verify-registration', { response: device.create(options.body?.challenge as string) });
+
+      expect(added.status).toBe(200);
+
+      for (const row of store.session) {
+        row.createdAt = new Date(Date.now() - 11 * 60 * 1000);
       }
 
       await expect(call(auth, browser, '/passkey/generate-register-options')).resolves.toMatchObject({
@@ -367,6 +479,7 @@ describe('passkeys', () => {
     it('refuses a key made for another challenge, and writes and mails nothing', async () => {
       const auth = build();
       const browser = await signUp(auth, ANA);
+      await confirm(auth, browser);
       await call(auth, browser, '/passkey/generate-register-options');
 
       const refused = await call(auth, browser, '/passkey/verify-registration', { response: new Authenticator().create('not-the-challenge') });

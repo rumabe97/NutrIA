@@ -27,7 +27,7 @@ const store: { account: Row[]; rateLimit: Row[]; session: Row[]; user: Row[]; ve
   verification: []
 };
 const resetUrls: string[] = [];
-const mails: { to: string; userAgent: string | null; userId: string }[] = [];
+const mails: { passkeysRemoved?: number; to: string; userAgent: string | null; userId: string }[] = [];
 const isPasswordCompromised = jest.fn<(password: string) => Promise<boolean>>();
 
 jest.unstable_mockModule('better-auth/adapters/drizzle', () => ({ drizzleAdapter: () => memoryAdapter(store) }));
@@ -46,8 +46,11 @@ jest.unstable_mockModule('./PasswordResetMail.js', () => ({
   }
 }));
 jest.unstable_mockModule('./PasswordChangedMail.js', () => ({
-  sendPasswordChangedMail: async (_mailer: unknown, { to, userAgent, userId }: { to: string; userAgent: string | null; userId: string }) => {
-    mails.push({ to, userAgent, userId });
+  sendPasswordChangedMail: async (
+    _mailer: unknown,
+    { passkeysRemoved, to, userAgent, userId }: { passkeysRemoved?: number; to: string; userAgent: string | null; userId: string }
+  ) => {
+    mails.push({ ...(passkeysRemoved ? { passkeysRemoved } : {}), to, userAgent, userId });
 
     return Promise.resolve();
   }
@@ -135,7 +138,7 @@ async function sessionOf(auth: Auth, cookie: string): Promise<{ user: Row } | nu
 function spyWrites() {
   return {
     markPasswordCompromised: jest.spyOn(UserController, 'markPasswordCompromised').mockResolvedValue(true),
-    passwordChanged: jest.spyOn(UserController, 'passwordChanged').mockResolvedValue(undefined),
+    passwordChanged: jest.spyOn(UserController, 'passwordChanged').mockResolvedValue(0),
     sessionsRevoked: jest.spyOn(UserController, 'sessionsRevoked').mockResolvedValue(undefined)
   };
 }
@@ -254,6 +257,20 @@ describe('what follows a password change, a closed session and a sign-in', () =>
       expect(reset.status).toBe(200);
       expect(writes.passwordChanged).toHaveBeenCalledWith(store.user[0]?.id as string, 'reset');
       expect(mails).toEqual([{ to: ACCOUNT.email, userAgent: IPHONE, userId: store.user[0]?.id as string }]);
+    });
+
+    it('tells the mail how many passkeys the reset removed (PLAN 011 phase 5)', async () => {
+      const auth = build();
+      await signUp(auth);
+      writes.passwordChanged.mockResolvedValue(2);
+      await auth.api.requestPasswordReset({ body: { email: ACCOUNT.email } });
+      await drain();
+      const token = new URL(resetUrls.at(-1) ?? '').pathname.split('/').at(-1) ?? '';
+
+      await call(auth, '/reset-password', { body: { newPassword: NEW_PASSWORD, token }, userAgent: IPHONE });
+      await drain();
+
+      expect(mails).toEqual([{ passkeysRemoved: 2, to: ACCOUNT.email, userAgent: IPHONE, userId: store.user[0]?.id as string }]);
     });
 
     it('records nothing for a dead token', async () => {
