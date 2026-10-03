@@ -3076,7 +3076,10 @@ export const esES = {
     done: 'Terminar',
     download: 'Descargar (.txt)',
     downloading: 'Descargando {file}',
-    enabled: 'Verificación en dos pasos activada. Hemos cerrado tus demás sesiones y te lo confirmamos por correo.',
+    enabled:
+      'Verificación en dos pasos activada. Hemos cerrado tus demás sesiones y te lo confirmamos por correo. Revisa también tus llaves de acceso, aquí en Seguridad, y quita las que no reconozcas.',
+    enabledSessionsOpen:
+      'Verificación en dos pasos activada; te lo confirmamos por correo. No hemos podido cerrar tus demás sesiones: ciérralas aquí en Seguridad con «Cerrar todas las demás», y revisa también tus llaves de acceso y quita las que no reconozcas.',
     expired: 'Ha pasado demasiado tiempo. Vuelve a acceder.',
     fileDate: 'Generados el {date}',
     fileName: 'nutria-codigos-respaldo.txt',

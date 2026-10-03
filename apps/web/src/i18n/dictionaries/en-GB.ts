@@ -3039,7 +3039,10 @@ export const enGB: Dictionary = {
     done: 'Done',
     download: 'Download (.txt)',
     downloading: 'Downloading {file}',
-    enabled: '2-step verification turned on. We have signed out your other sessions and confirmed it by email.',
+    enabled:
+      '2-step verification turned on. We have signed out your other sessions and confirmed it by email. Check your passkeys too, here under Security, and remove any you do not recognise.',
+    enabledSessionsOpen:
+      '2-step verification turned on; we have confirmed it by email. We could not sign out your other sessions: sign them out here under Security with “Sign out all the others”, and check your passkeys too, removing any you do not recognise.',
     expired: 'Too much time has passed. Sign in again.',
     fileDate: 'Generated on {date}',
     fileName: 'nutria-backup-codes.txt',
