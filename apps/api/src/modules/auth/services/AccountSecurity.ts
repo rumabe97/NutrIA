@@ -6,6 +6,7 @@ import { UserController } from 'core/controllers/User';
 import { breachedOrPass, checkNewPassword, record, text } from './PasswordPolicy.js';
 import { passkeyAfter, passkeyBefore } from './Passkey.js';
 import { twoFactorAfter, twoFactorBefore } from './TwoFactor.js';
+import { unconfirmedAsInvalid } from './UnconfirmedSignIn.js';
 
 import type { BackgroundTaskService } from '../../../shared/services/index.js';
 import type { CompromisedCheck, Context } from './PasswordPolicy.js';
@@ -167,7 +168,9 @@ async function notTheCallersSession(context: Context): Promise<{ status: true } 
 
 /**
  * Better Auth's `hooks.after`, on a 2xx only — a refused change, revoke or
- * sign-in leaves no trace here.
+ * sign-in leaves no trace here. The one refusal it touches is an unconfirmed
+ * account's right password, answered as a wrong one (`UnconfirmedSignIn.ts`,
+ * PLAN 011 phase 8).
  *
  * - `/change-password`: the mark cleared, `auth.password_changed {via:'change'}`,
  *   every passkey removed, the mail.
@@ -195,8 +198,12 @@ export function accountSecurityAfter(deps: AccountSecurityDeps) {
   return createAuthMiddleware(async context => {
     const returned: unknown = context.context.returned;
 
-    if (returned === undefined || isAPIError(returned)) {
+    if (returned === undefined) {
       return;
+    }
+
+    if (isAPIError(returned)) {
+      return unconfirmedAsInvalid(context);
     }
 
     const path = context.path ?? '';

@@ -63,9 +63,17 @@ function requestWith(cookie: string): ExecutionContext {
   } as unknown as ExecutionContext;
 }
 
-/** Signs somebody up, then in — sign-up opens no session (PLAN 011 phase 8) — and hands back their cookie and their id. */
+/**
+ * Signs somebody up, confirms them as their link would, then signs them in —
+ * sign-up opens no session, and an unconfirmed account no sign-in (PLAN 011
+ * phase 8) — and hands back their cookie and their id.
+ */
 async function signedIn(auth: ReturnType<typeof createAuth>): Promise<{ cookie: string; userId: string }> {
   await auth.api.signUpEmail({ body: { email: 'ana@example.invalid', name: 'Ana', password: 'una-contraseña-larga' } });
+
+  for (const row of store.user) {
+    row.emailVerified = true;
+  }
 
   const { headers, response } = await auth.api.signInEmail({
     body: { email: 'ana@example.invalid', password: 'una-contraseña-larga' },

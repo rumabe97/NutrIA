@@ -18,6 +18,7 @@ import { onAccountCreated, onAddressConfirmed } from './services/SelfService.js'
 import { accountSecurityAfter, accountSecurityBefore, onPasswordReset } from './services/AccountSecurity.js';
 import { authLogger } from './services/AuthLogger.js';
 import { sendExistingAccountMail } from './services/ExistingAccountMail.js';
+import { mailBudget } from './services/MailBudget.js';
 import { PASSKEY_USER_VERIFICATION, passkeyOptions, passkeyPasswordConfirmation } from './services/Passkey.js';
 import { sendPasskeyAddedMail } from './services/PasskeyMail.js';
 import { sendPasswordChangedMail } from './services/PasswordChangedMail.js';
@@ -95,6 +96,8 @@ export function createAuth(
   const isCompromised = env.NODE_ENV === 'test' ? null : isPasswordCompromised;
   // On under `NODE_ENV=test` as well: the suites sign in with addresses of their own.
   const brake = signInBrake(env.BETTER_AUTH_SECRET);
+  // Three mails of a kind per address per hour from the doors anybody can knock at (PLAN 011 phase 8).
+  const budget = mailBudget(env.BETTER_AUTH_SECRET);
   const security = {
     background,
     brake,
@@ -260,24 +263,28 @@ export function createAuth(
        * real one is: the terms' record the create hook writes, the rest as
        * Better Auth builds it. The id is fresh and names no account.
        */
-      customSyntheticUser: ({ additionalFields, coreFields, id }) => ({ ...coreFields, ...additionalFields, ...termsRecord(), id }),
+      customSyntheticUser: ({ id, additionalFields, coreFields }) => ({ ...coreFields, ...additionalFields, ...termsRecord(), id }),
       enabled: true,
       // The rule's one home is `core` (PLAN 011 phase 1); the web forms read the same two numbers.
       maxPasswordLength: PASSWORD_MAX_LENGTH,
       minPasswordLength: PASSWORD_MIN_LENGTH,
       /*
        * "Somebody tried to create an account with your address" (PLAN 011
-       * phase 8), to that address only. Better Auth hands it to
+       * phase 8), to that address only, within its hourly budget
+       * (`services/MailBudget.ts`): anybody can sign up any address, as often
+       * as Better Auth's per-IP limit lets them. Better Auth hands it to
        * `runInBackgroundOrAwait`, so it goes after the response, as the new
        * address's verification mail does.
        */
       onExistingUserSignUp: async ({ user: existing }, request) =>
-        sendExistingAccountMail(mailer, {
-          acceptLanguage: request?.headers.get('accept-language') ?? null,
-          appUrl: env.APP_URL,
-          to: existing.email,
-          userId: existing.id
-        }),
+        budget.within('existing-account', existing, async () =>
+          sendExistingAccountMail(mailer, {
+            acceptLanguage: request?.headers.get('accept-language') ?? null,
+            appUrl: env.APP_URL,
+            to: existing.email,
+            userId: existing.id
+          })
+        ),
       // The mark cleared, the audit row, the "password changed" mail (PLAN 011 phase 2; `services/AccountSecurity.ts`).
       onPasswordReset: onPasswordReset(security),
       /*
@@ -285,11 +292,20 @@ export function createAuth(
        * a session at sign-up for a new address, and none for an existing one,
        * was the difference that told a stranger which addresses have an
        * account. So the form ends on "check your email" for every address, and
-       * a new person is signed in by the confirmation link. Off here, still:
-       * an unconfirmed account that signs in with its password is let in and
-       * gated by `EMAIL_NOT_VERIFIED`, as it always was.
+       * a new person is signed in by the confirmation link.
+       *
+       * And no password sign-in before the address is confirmed (PLAN 011
+       * phase 8, amended). Otherwise sign-up then sign-in is the same oracle:
+       * a stranger signs up somebody's address with a password of their own
+       * and signs in with it — let in where the address was new, refused where
+       * it already had an account. Better Auth refuses the unconfirmed one 403
+       * `EMAIL_NOT_VERIFIED`; `hooks.after` makes that the 401 a wrong password
+       * gets (`services/UnconfirmedSignIn.ts`), the brake counts it as one, and
+       * the address is sent a fresh link (`emailVerification.sendOnSignIn`).
+       * Google and passkeys never pass here: Google's own address is verified,
+       * and a passkey needs a confirmed address to be added.
        */
-      requireEmailVerification: false,
+      requireEmailVerification: true,
       /*
        * A reset is somebody proving the address is theirs, often because
        * somebody else got there first: signed up with it, never confirmed it,
@@ -324,20 +340,37 @@ export function createAuth(
       },
       autoSignInAfterVerification: true,
       /*
+       * A fresh link to an unconfirmed account that signs in with its right
+       * password (PLAN 011 phase 8, amended): the person who lost the first
+       * mail gets another, though the answer is a wrong password's. Better
+       * Auth sends it only when the address is unconfirmed, so a confirmed
+       * account never gets one, and through `runInBackgroundOrAwait`, after
+       * the response.
+       */
+      sendOnSignIn: true,
+      /*
        * Sent, since `0030`: confirming an address no longer opens the account.
        * That is `activatedAt`, which only the owner writes, so the link proves
        * what the person can prove and nothing more.
        */
       sendOnSignUp: true,
+      /*
+       * Every link — at sign-up, at a sign-in, asked again — within the
+       * address's hourly budget (`services/MailBudget.ts`): a stranger who
+       * signed up somebody's address knows its password, and could otherwise
+       * mail that address on every sign-in the brake lets through.
+       */
       sendVerificationEmail: ({ url, user: recipient }, request) =>
-        sendVerificationMail(mailer, {
-          acceptLanguage: request?.headers.get('accept-language') ?? null,
-          appUrl: env.APP_URL,
-          nodeEnv: env.NODE_ENV,
-          to: recipient.email,
-          url,
-          userId: recipient.id
-        })
+        budget.within('verification', recipient, async () =>
+          sendVerificationMail(mailer, {
+            acceptLanguage: request?.headers.get('accept-language') ?? null,
+            appUrl: env.APP_URL,
+            nodeEnv: env.NODE_ENV,
+            to: recipient.email,
+            url,
+            userId: recipient.id
+          })
+        )
     },
     /*
      * Before: a password sign-in is counted against its address, and answered

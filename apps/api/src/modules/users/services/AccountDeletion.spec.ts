@@ -73,11 +73,12 @@ describe('deleting an account through UsersService.remove, on the real Better Au
     const auth = createAuth(env, { configured: false, send: async () => Promise.resolve(false) }, { cancelEverything }, new BackgroundTaskService());
     await auth.api.signUpEmail({ body: { email: 'ana@example.invalid', name: 'Ana', password: 'una-contraseña-larga' } });
 
-    // Sign-up opens no session (PLAN 011 phase 8): the session is a sign-in's.
-    const { headers } = await auth.api.signInEmail({
-      body: { email: 'ana@example.invalid', password: 'una-contraseña-larga' },
-      returnHeaders: true
-    });
+    // Sign-up opens no session, and an unconfirmed account no sign-in (PLAN 011 phase 8): confirmed as its link would, then signed in.
+    for (const row of store.user) {
+      row.emailVerified = true;
+    }
+
+    const { headers } = await auth.api.signInEmail({ body: { email: 'ana@example.invalid', password: 'una-contraseña-larga' }, returnHeaders: true });
     const cookie = (headers.get('set-cookie') ?? '').split(';')[0] ?? '';
 
     return { cookie, service: new UsersService(auth) };

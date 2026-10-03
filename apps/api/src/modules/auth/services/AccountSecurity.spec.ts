@@ -120,9 +120,19 @@ async function call(
   return { body: text ? (JSON.parse(text) as Record<string, unknown>) : null, cookie: session ?? null, status: response.status };
 }
 
-/** Signed up, then signed in — sign-up opens no session (PLAN 011 phase 8) — with the sign-in's cookie. */
+/** Confirms the address in the store, as its link would: an unconfirmed account cannot sign in with its password (PLAN 011 phase 8). */
+function confirm(email: string): void {
+  const row = store.user.find(candidate => candidate.email === email);
+
+  if (row) {
+    row.emailVerified = true;
+  }
+}
+
+/** Signed up and confirmed, then signed in — sign-up opens no session (PLAN 011 phase 8) — with the sign-in's cookie. */
 async function signUp(auth: Auth): Promise<string> {
   await call(auth, '/sign-up/email', { body: { ...ACCOUNT, password: PASSWORD } });
+  confirm(ACCOUNT.email);
 
   const { cookie } = await call(auth, '/sign-in/email', { body: { email: ACCOUNT.email, password: PASSWORD } });
 
@@ -366,6 +376,7 @@ describe('what follows a password change, a closed session and a sign-in', () =>
       const auth = build();
       const ana = await signUp(auth);
       await call(auth, '/sign-up/email', { body: { email: 'bea@example.invalid', name: 'Bea', password: PASSWORD } });
+      confirm('bea@example.invalid');
       const bea = (await call(auth, '/sign-in/email', { body: { email: 'bea@example.invalid', password: PASSWORD } })).cookie ?? '';
       const beaToken = store.session.find(row => row.userId === store.user.find(user => user.email === 'bea@example.invalid')?.id)?.token;
 

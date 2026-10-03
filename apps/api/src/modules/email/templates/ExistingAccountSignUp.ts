@@ -2,15 +2,7 @@ import { button, escapeHtml, layout, paragraph } from './Layout.js';
 
 import type { EmailLocale, RenderedEmail } from './Layout.js';
 
-type Copy = {
-  button: string;
-  google: string;
-  linkFallback: string;
-  notYou: string;
-  reset: string;
-  subject: string;
-  what: string;
-};
+type Copy = { button: string; google: string; linkFallback: string; notYou: string; reset: string; subject: string; what: string };
 
 /**
  * "Somebody tried to create an account with your address" (PLAN 011 phase 8).

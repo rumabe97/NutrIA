@@ -3,6 +3,10 @@ import { Logger } from '@nestjs/common';
 import { memoryAdapter } from 'better-auth/adapters/memory';
 
 import { AnalyticsController } from 'core/controllers/Analytics';
+import { MailBudgetController } from 'core/controllers/MailBudget';
+import { decideMail } from 'core/domain/MailBudget';
+
+import type { MailsSent } from 'core/domain/MailBudget';
 
 import { validateEnv } from '../../../config/Env.validation.js';
 
@@ -14,8 +18,9 @@ import { validateEnv } from '../../../config/Env.validation.js';
  * id and the instants), no session for either, and one mail each — the
  * confirmation to the new address, "somebody tried" to the existing one.
  *
- * Swapped: the storage, the mails (captured, never sent), the analytics write
- * and the background runner (collected; `drain()` is "after the response").
+ * Swapped: the storage, the mails (captured, never sent), the analytics write,
+ * the mail budget's rows (a map decided by the real `decideMail`) and the
+ * background runner (collected; `drain()` is "after the response").
  */
 type Row = Record<string, unknown>;
 
@@ -58,6 +63,7 @@ const EXISTING = 'ana@example.invalid';
 const NEW = 'nuevo@example.invalid';
 
 const tasks: ((() => Promise<unknown>) | Promise<unknown>)[] = [];
+const budgetRows = new Map<string, MailsSent>();
 
 async function drain(): Promise<void> {
   while (tasks.length > 0) {
@@ -115,7 +121,13 @@ function shape(body: string): Record<string, unknown> {
     .filter(([key, value]) => value !== null && !['createdAt', 'email', 'id', 'termsAcceptedAt', 'updatedAt'].includes(key))
     .sort(([a], [b]) => a.localeCompare(b));
 
-  return { keys: Object.keys(user).filter(key => user[key] !== null).sort(), token, user: Object.fromEntries(fields) };
+  return {
+    keys: Object.keys(user)
+      .filter(key => user[key] !== null)
+      .sort(),
+    token,
+    user: Object.fromEntries(fields)
+  };
 }
 
 describe('sign-up reveals nothing', () => {
@@ -126,7 +138,17 @@ describe('sign-up reveals nothing', () => {
 
     mails.length = 0;
     tasks.length = 0;
+    budgetRows.clear();
     jest.spyOn(AnalyticsController, 'record').mockResolvedValue(undefined);
+    jest.spyOn(MailBudgetController, 'spend').mockImplementation(async key => {
+      const decision = decideMail(budgetRows.get(key), new Date());
+
+      if (decision.kind === 'send') {
+        budgetRows.set(key, decision.next);
+      }
+
+      return Promise.resolve(decision.kind === 'send');
+    });
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
   });
 
@@ -187,5 +209,25 @@ describe('sign-up reveals nothing', () => {
     await signUp(auth, EXISTING, 'Bea', OTHER_PASSWORD);
 
     expect(JSON.stringify({ account: store.account, user: store.user })).toBe(before);
+  });
+  it('mails an existing address three times an hour at most, however often it is signed up, and answers every time the same', async () => {
+    const auth = build();
+    await signUp(auth, EXISTING, 'Ana');
+    await drain();
+    mails.length = 0;
+
+    const answers = [];
+
+    for (let i = 0; i < 5; i += 1) {
+      answers.push((await signUp(auth, EXISTING, 'Bea', OTHER_PASSWORD)).status);
+    }
+
+    await drain();
+    expect(answers).toEqual([200, 200, 200, 200, 200]);
+    expect(mails).toEqual([
+      { kind: 'existing', to: EXISTING },
+      { kind: 'existing', to: EXISTING },
+      { kind: 'existing', to: EXISTING }
+    ]);
   });
 });

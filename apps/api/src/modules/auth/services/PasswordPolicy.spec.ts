@@ -89,9 +89,18 @@ async function outcome(call: Promise<unknown>): Promise<{ code?: string; status:
   }
 }
 
-/** Signed up, then signed in when the sign-up was accepted — sign-up opens no session (PLAN 011 phase 8) — with the sign-in's headers. */
+/**
+ * Signed up, then confirmed and signed in when the sign-up was accepted —
+ * sign-up opens no session, and an unconfirmed account no sign-in (PLAN 011
+ * phase 8) — with the sign-in's headers.
+ */
 async function signUp(auth: ReturnType<typeof createAuth>, password: string, account: { email: string; name: string } = ACCOUNT) {
   const signedUp = await auth.api.signUpEmail({ body: { ...account, password }, returnHeaders: true });
+  const row = store.user.find(candidate => candidate.email === account.email);
+
+  if (row) {
+    row.emailVerified = true;
+  }
 
   return auth.api.signInEmail({ body: { email: account.email, password }, returnHeaders: true }).catch(() => signedUp);
 }

@@ -411,6 +411,7 @@ describe('sign-up: the same answer for a new address and an existing one', () =>
     console.info = (...args: unknown[]) => {
       logged.push(args.map(String).join(' '));
     };
+
     restore = () => {
       console.info = info;
     };
@@ -433,7 +434,9 @@ describe('sign-up: the same answer for a new address and an existing one', () =>
     const toExisting: Response = await request(server)
       .post(`/${PREFIX}/auth/sign-up/email`)
       .send({ email: existing, name: 'Bea', password: OTHER_PASSWORD });
-    const toFresh: Response = await request(server).post(`/${PREFIX}/auth/sign-up/email`).send({ email: fresh, name: 'Bea', password: OTHER_PASSWORD });
+    const toFresh: Response = await request(server)
+      .post(`/${PREFIX}/auth/sign-up/email`)
+      .send({ email: fresh, name: 'Bea', password: OTHER_PASSWORD });
 
     expect(toExisting.status).toBe(200);
     expect(toFresh.status).toBe(200);
