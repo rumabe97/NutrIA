@@ -530,9 +530,35 @@ describe('breaksPatternDish — a foreign cuisine or name (0077)', () => {
 
   // Every value `cuisineFamily` reads as arab, asian or latin, as stored: the refusal follows the family, so none can drift out of it.
   it.each([
-    'Marroquí', 'moroccan', 'Magrebí', 'Árabe', 'Libanesa', 'Oriente Medio', 'levantina', 'Turca',
-    'Asiática', 'asian', 'Oriental', 'China', 'Japonesa', 'Coreana', 'Tailandesa', 'Vietnamita', 'India', 'indio', 'indian', 'Hawaiana',
-    'Mexicana', 'mexican', 'Latina', 'Peruana', 'Venezolana', 'Colombiana', 'Argentina', 'Cubana', 'Caribeña'
+    'Marroquí',
+    'moroccan',
+    'Magrebí',
+    'Árabe',
+    'Libanesa',
+    'Oriente Medio',
+    'levantina',
+    'Turca',
+    'Asiática',
+    'asian',
+    'Oriental',
+    'China',
+    'Japonesa',
+    'Coreana',
+    'Tailandesa',
+    'Vietnamita',
+    'India',
+    'indio',
+    'indian',
+    'Hawaiana',
+    'Mexicana',
+    'mexican',
+    'Latina',
+    'Peruana',
+    'Venezolana',
+    'Colombiana',
+    'Argentina',
+    'Cubana',
+    'Caribeña'
   ])('refuses a %s dish of a foreign family, whatever its name', cuisine => {
     expect(breaksPatternDish({ cuisine, name: 'Pollo con verduras' }, spanish)).toBe(true);
   });
@@ -544,12 +570,24 @@ describe('breaksPatternDish — a foreign cuisine or name (0077)', () => {
     }
   );
 
-  it.each(['Española', 'Mediterránea', 'mediterranean', 'Mediterránea (España)', 'Vasca', 'Gallega', 'Andaluza', 'Canaria', 'Tapa', 'Italiana', 'italian', 'Francesa', 'Griega', 'greek'])(
-    'lets a %s dish pass',
-    cuisine => {
-      expect(breaksPatternDish({ cuisine, name: 'Pollo con verduras' }, spanish)).toBe(false);
-    }
-  );
+  it.each([
+    'Española',
+    'Mediterránea',
+    'mediterranean',
+    'Mediterránea (España)',
+    'Vasca',
+    'Gallega',
+    'Andaluza',
+    'Canaria',
+    'Tapa',
+    'Italiana',
+    'italian',
+    'Francesa',
+    'Griega',
+    'greek'
+  ])('lets a %s dish pass', cuisine => {
+    expect(breaksPatternDish({ cuisine, name: 'Pollo con verduras' }, spanish)).toBe(false);
+  });
 
   it('refuses no cuisine for any other way of eating', () => {
     for (const cuisine of ['Turca', 'Cubana', 'Mexicana', 'Americana']) {

@@ -768,7 +768,14 @@ export const FOREIGN_FAMILIES: ReadonlySet<CuisineFamily> = new Set(['arab', 'as
  * lower case, no accents). They read as `other` there, judged with the Spanish
  * table, and are refused here by name.
  */
-export const FOREIGN_UNMAPPED_CUISINES: ReadonlySet<string> = new Set(['americana', 'estadounidense', 'tropical', 'nordica', 'escandinava', 'fusion']);
+export const FOREIGN_UNMAPPED_CUISINES: ReadonlySet<string> = new Set([
+  'americana',
+  'estadounidense',
+  'tropical',
+  'nordica',
+  'escandinava',
+  'fusion'
+]);
 
 /**
  * Whether a stated cuisine is foreign to Spanish home cooking. Mediterránea,
