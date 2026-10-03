@@ -16,7 +16,8 @@ const ALICE: SessionUser = {
   emailVerified: true,
   name: 'Alice',
   passwordChangeRequired: false,
-  role: 'user'
+  role: 'user',
+  twoFactorEnabled: false
 };
 const PRO = { id: 'usr-pro', email: 'dietista@example.invalid' };
 const BODY = { difficulty: 'ok' as const, hunger: 'right' as const, planId: '11111111-2222-4333-8444-555555555555', satisfaction: 4, weightKg: 78.5 };

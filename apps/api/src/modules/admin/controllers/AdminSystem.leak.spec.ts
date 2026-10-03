@@ -89,7 +89,8 @@ describe('GET /admin/system leaks nothing from the environment', () => {
                 email: 'a@b.invalid',
                 emailVerified: true,
                 name: 'A',
-                role: 'admin'
+                role: 'admin',
+                twoFactorEnabled: true
               };
 
               return true;

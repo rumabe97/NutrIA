@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { CareController } from 'core/controllers/Care';
 import { ProfessionalController } from 'core/controllers/Professional';
+import { UserController } from 'core/controllers/User';
 import { webUrl } from 'core/domain/WebUrl';
 
 import { BackgroundTaskService } from '../../../shared/services/index.js';
@@ -120,11 +121,20 @@ export class CareService {
     return CareController.planJob(professional, linkId, jobId);
   }
 
-  /** The practice's standing from core, and the way to pay from billing: counts and prices, never a client. */
+  /**
+   * The practice's standing from core, the way to pay from billing, and whether
+   * the second factor still bars the client routes (PLAN 011 phase 6) — the
+   * question `ProfessionalGuard` asks, asked the same way. Counts and prices,
+   * never a client.
+   */
   async practice(professional: SessionUser): Promise<CarePracticeDto> {
-    const [standing, billing] = await Promise.all([CareController.practice(professional), this.billing.practiceOffer(professional)]);
+    const [standing, billing, secondFactorRequired] = await Promise.all([
+      CareController.practice(professional),
+      this.billing.practiceOffer(professional),
+      UserController.needsSecondFactor(professional)
+    ]);
 
-    return { ...standing, billing };
+    return { ...standing, billing, secondFactorRequired };
   }
 
   async publishPlan(professional: SessionUser, linkId: string, locale: string | null): Promise<CareClientPlanDto> {

@@ -10,6 +10,7 @@ import { CareController } from 'core/controllers/Care';
 import { CareLinkExistsError, InputParseError, NotFoundError, PracticeFullError } from 'core/entities/Error';
 import { ProfessionalController } from 'core/controllers/Professional';
 import { ProfileController } from 'core/controllers/Profile';
+import { UserController } from 'core/controllers/User';
 
 import { AllExceptionsFilter } from '../../../shared/filters/index.js';
 import { BackgroundTaskService } from '../../../shared/services/index.js';
@@ -36,7 +37,7 @@ import type { Server } from 'node:http';
 const PREFIX = 'api/v1';
 const TOKEN = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcde';
 const LINK_ID = '0b8e7f4a-3c2d-4e1f-9a8b-7c6d5e4f3a2b';
-const SESSION = { id: 'usr-session', activated: true, email: 'ana@example.invalid', emailVerified: true, name: 'Ana Dietista', role: 'user' };
+const SESSION = { id: 'usr-session', activated: true, email: 'ana@example.invalid', emailVerified: true, name: 'Ana Dietista', role: 'user', twoFactorEnabled: true };
 
 const LINK: CareLinkView = {
   id: LINK_ID,
@@ -719,8 +720,46 @@ describe('care routes', () => {
         billing: OFFER,
         includedClients: 30,
         open: false,
+        pendingInvitations: 0,
+        secondFactorRequired: false
+      });
+    });
+
+    /* PLAN 011 phase 6: the page opens without the second factor, and says it is needed; the client routes do not. */
+    it('opens that page to a professional who still needs a second factor, and says so', async () => {
+      practiceOffer.mockResolvedValue(OFFER);
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      const needs = jest.spyOn(UserController, 'needsSecondFactor').mockResolvedValue(true);
+      jest.spyOn(CareController, 'practice').mockResolvedValue({
+        activeClients: 0,
+        agreementAcceptedAt: '2026-09-02T00:00:00.000Z',
+        agreementRequired: false,
+        agreementVersion: PROFESSIONAL_AGREEMENT_VERSION,
+        includedClients: 30,
+        open: true,
         pendingInvitations: 0
       });
+
+      const response = await request(server()).get(`/${PREFIX}/care/practice`).expect(200);
+
+      expect(response.body).toMatchObject({ open: true, secondFactorRequired: true });
+      expect(needs).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }));
+    });
+
+    it.each([
+      ['get', '/care/clients'],
+      ['get', `/care/clients/${LINK_ID}`],
+      ['post', '/care/invitations']
+    ] as const)('closes %s %s to a professional who still needs a second factor, with the same 404', async (method, path) => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      jest.spyOn(UserController, 'needsSecondFactor').mockResolvedValue(true);
+      const clients = jest.spyOn(CareController, 'clients');
+      const invite = jest.spyOn(CareController, 'invite');
+
+      await request(server())[method](`/${PREFIX}${path}`).send({ email: 'cliente@example.invalid' }).expect(404);
+
+      expect(clients).not.toHaveBeenCalled();
+      expect(invite).not.toHaveBeenCalled();
     });
 
     it('keeps that page shut to an account that is not a professional', async () => {
