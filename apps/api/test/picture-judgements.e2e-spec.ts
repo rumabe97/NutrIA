@@ -26,7 +26,18 @@ import {
   StubPictureStore
 } from '../src/modules/ai/clients/StubPictureClients.js';
 
-import { completeOnboarding, createApp, deleteAccounts, enableTotp, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import {
+  completeOnboarding,
+  createApp,
+  deleteAccounts,
+  enableTotp,
+  generateAndWait,
+  httpServer,
+  POOL,
+  PREFIX,
+  register,
+  ScriptedAiClient
+} from './harness.js';
 
 import type { Account } from './harness.js';
 import type { AdminRecipesView } from 'core/controllers/Admin';

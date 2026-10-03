@@ -37,7 +37,15 @@ import type { Server } from 'node:http';
 const PREFIX = 'api/v1';
 const TOKEN = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcde';
 const LINK_ID = '0b8e7f4a-3c2d-4e1f-9a8b-7c6d5e4f3a2b';
-const SESSION = { id: 'usr-session', activated: true, email: 'ana@example.invalid', emailVerified: true, name: 'Ana Dietista', role: 'user', twoFactorEnabled: true };
+const SESSION = {
+  id: 'usr-session',
+  activated: true,
+  email: 'ana@example.invalid',
+  emailVerified: true,
+  name: 'Ana Dietista',
+  role: 'user',
+  twoFactorEnabled: true
+};
 
 const LINK: CareLinkView = {
   id: LINK_ID,
@@ -730,15 +738,17 @@ describe('care routes', () => {
       practiceOffer.mockResolvedValue(OFFER);
       jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
       const needs = jest.spyOn(UserController, 'needsSecondFactor').mockResolvedValue(true);
-      jest.spyOn(CareController, 'practice').mockResolvedValue({
-        activeClients: 0,
-        agreementAcceptedAt: '2026-09-02T00:00:00.000Z',
-        agreementRequired: false,
-        agreementVersion: PROFESSIONAL_AGREEMENT_VERSION,
-        includedClients: 30,
-        open: true,
-        pendingInvitations: 0
-      });
+      jest
+        .spyOn(CareController, 'practice')
+        .mockResolvedValue({
+          activeClients: 0,
+          agreementAcceptedAt: '2026-09-02T00:00:00.000Z',
+          agreementRequired: false,
+          agreementVersion: PROFESSIONAL_AGREEMENT_VERSION,
+          includedClients: 30,
+          open: true,
+          pendingInvitations: 0
+        });
 
       const response = await request(server()).get(`/${PREFIX}/care/practice`).expect(200);
 

@@ -373,8 +373,9 @@ describe('admin', () => {
       const admin = await anotherAdmin('google');
 
       // What a Google-only account is to the rule: no `credential` account. The session stays as it was.
-      const sql = (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> })
-        .$client;
+      const sql = (
+        database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> }
+      ).$client;
 
       await sql`delete from account where user_id = ${admin.id} and provider_id = 'credential'`;
 

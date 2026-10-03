@@ -58,7 +58,8 @@ type Method = 'get' | 'patch' | 'post';
 
 /** Parameterised SQL through the process's one pool, as `care.e2e-spec.ts` reads its tables. */
 function tables(): <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> {
-  return (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> }).$client;
+  return (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> })
+    .$client;
 }
 
 describe('professionals', () => {

@@ -288,7 +288,11 @@ export async function register(app: INestApplication, email: string): Promise<Ac
 
   // Paced: every `/auth/*` call of a suite spends one allowance of the API's own limiter, and the privileged
   // accounts' TOTP (`enableTotp`) spends two more each.
-  const signUp = await paced(() => request(server).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name: email.split('@')[0], password }));
+  const signUp = await paced(() =>
+    request(server)
+      .post(`/${PREFIX}/auth/sign-up/email`)
+      .send({ email, name: email.split('@')[0], password })
+  );
 
   if (signUp.status !== 200) {
     throw new Error(`Sign-up refused for ${email}: ${signUp.status}`);
@@ -466,7 +470,10 @@ export async function enableTotp(app: INestApplication, account: Account, passwo
 
   const { totpURI } = enabled.body as { totpURI: string };
   const verified = await paced(() =>
-    request(server).post(`/${PREFIX}/auth/two-factor/verify-totp`).set('Cookie', account.cookie).send({ code: totpCode(totpURI) })
+    request(server)
+      .post(`/${PREFIX}/auth/two-factor/verify-totp`)
+      .set('Cookie', account.cookie)
+      .send({ code: totpCode(totpURI) })
   );
 
   if (verified.status !== 200) {

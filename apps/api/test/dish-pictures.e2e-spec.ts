@@ -17,7 +17,18 @@ import { PictureJudgeClient } from '../src/modules/ai/clients/PictureJudgeClient
 import { PictureStore } from '../src/modules/ai/clients/PictureStore.js';
 import { STUB_PICTURE, StubPictureImageClient, StubPictureJudgeClient, StubPictureStore } from '../src/modules/ai/clients/StubPictureClients.js';
 
-import { completeOnboarding, createApp, deleteAccounts, enableTotp, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import {
+  completeOnboarding,
+  createApp,
+  deleteAccounts,
+  enableTotp,
+  generateAndWait,
+  httpServer,
+  POOL,
+  PREFIX,
+  register,
+  ScriptedAiClient
+} from './harness.js';
 
 import type { Account } from './harness.js';
 import type { DrawnPicture } from '../src/modules/ai/clients/PictureImageClient.js';
