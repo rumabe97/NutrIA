@@ -1172,7 +1172,7 @@ export const esES = {
     passwordTooShort: 'La contraseña debe tener al menos {count} caracteres.',
     pendingBody: 'Estamos abriendo NutrIA poco a poco. Activaremos tu cuenta ({email}) en cuanto podamos y te avisaremos por correo.',
     pendingCheck: 'Volver a comprobar',
-    pendingConfirmBody: 'Te hemos enviado un enlace a {email}. Ábrelo y entras: no hace falta nada más.',
+    pendingConfirmBody: 'Te hemos enviado un enlace a {email}. Ábrelo y vuelve aquí, o inicia sesión en el dispositivo donde lo abras: no hace falta nada más.',
     pendingConfirmTitle: 'Confirma tu correo',
     pendingConfirmWaitBody: 'Te hemos enviado un enlace a {email}. Confírmalo y podrás entrar en cuanto abramos tu cuenta.',
     pendingSignOut: 'Cerrar sesión',
