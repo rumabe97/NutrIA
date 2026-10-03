@@ -213,6 +213,18 @@ describe('balanceOf', () => {
     expect(report.rules.starches).toMatchObject({ limit: 1, met: false });
   });
 
+  it('judges vegetables at every main, the report’s 80% beside it and left out of the score', () => {
+    const days = Array.from({ length: 5 }, (_, index) =>
+      day(index + 1, [meal('lunch', [{ grams: 120, slug: 'pechuga-de-pollo' }, ...(index === 0 ? [] : VEGETABLES)])])
+    );
+    const { rules, score } = balanceOf({ catalogue, days, plantBased: false, supply: everything });
+    const scored = Object.entries(rules).filter(([name, rule]) => rule.applies && name !== 'vegetablesMostMains');
+
+    expect(rules.vegetables).toMatchObject({ met: false, value: 0.8 });
+    expect(rules.vegetablesMostMains).toMatchObject({ met: true, value: 0.8 });
+    expect(score).toBeCloseTo(scored.filter(([, rule]) => rule.met).length / scored.length);
+  });
+
   it('applies no minimum the pool cannot supply, and doubles the meat cap with no fish', () => {
     const days = [day(1, [meal('lunch', [{ grams: 120, slug: 'pechuga-de-pollo' }])])];
     const report = balanceOf({ catalogue, days, plantBased: false, supply: { fish: false, legume: false, meat: true, processed: false } });

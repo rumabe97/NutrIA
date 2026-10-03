@@ -446,7 +446,13 @@ export function balanceSupply(pool: readonly Pick<CandidateDish, 'ingredients' |
   return supply;
 }
 
-/** The rules of the table, in the order the LOG reports them. */
+/**
+ * The rules of the table, in the order the LOG reports them. Vegetables are
+ * judged two ways (owner's delegation of 2026-10-03): `vegetables` is the
+ * PRD's rule, ≥ 150 g at every lunch and dinner, and is the one scored;
+ * `vegetablesMostMains` is report `0010`'s measure, ≥ 150 g at 80% of them,
+ * kept beside it so the two baselines read across. It is not scored.
+ */
 export const BALANCE_RULES = [
   'legumes',
   'fish',
@@ -458,12 +464,15 @@ export const BALANCE_RULES = [
   'eggs',
   'starches',
   'vegetables',
+  'vegetablesMostMains',
   'fruit',
   'wholeGrain',
   'fibre'
 ] as const;
 
 export type BalanceRule = (typeof BALANCE_RULES)[number];
+
+const UNSCORED_RULES: ReadonlySet<BalanceRule> = new Set(['vegetablesMostMains']);
 
 /** One rule on one plan: whether it applies to this person, whether it held, what was served and the limit. */
 export type RuleResult = { readonly applies: boolean; readonly limit: number; readonly met: boolean; readonly value: number };
@@ -496,7 +505,7 @@ export type BalanceReport = {
     readonly wholeGrainShare: number | null;
   };
   readonly rules: Readonly<Record<BalanceRule, RuleResult>>;
-  /** The share of the rules that apply that held. Unweighted: an easy rule never hides a hard one. */
+  /** The share of the scored rules that apply that held. Unweighted: an easy rule never hides a hard one. */
   readonly score: number;
 };
 
@@ -527,8 +536,8 @@ export type BalanceInput = {
 
 /**
  * The fortnight against PRD 019's table, per `0010` § 4.1: each rule that
- * applies holds or not. Vegetables are scored as ≥ 150 g at 80% of the mains,
- * as the report measured them; meat's cap doubles when the pool has no fish.
+ * applies holds or not; vegetables by the PRD's every main, the report's 80%
+ * beside it unscored. Meat's cap doubles when the pool has no fish.
  */
 export function balanceOf({ catalogue, days, plantBased, supply }: BalanceInput): BalanceReport {
   let legumes = 0;
@@ -634,11 +643,12 @@ export function balanceOf({ catalogue, days, plantBased, supply }: BalanceInput)
     processed: { applies: supply.processed, limit: cap(2), met: processed <= cap(2) && runs(processedDays) === 0, value: processed },
     redMeat: { applies: supply.meat, limit: cap(4), met: redMeat <= cap(4) && runs(redDays) === 0, value: redMeat },
     starches: { applies: true, limit: starchCap, met: starchMost <= starchCap, value: starchMost },
-    vegetables: { applies: mains > 0, limit: 0.8, met: vegetableMainsShare >= 0.8, value: vegetableMainsShare },
+    vegetables: { applies: mains > 0, limit: 1, met: mains > 0 && vegetableMains === mains, value: vegetableMainsShare },
+    vegetablesMostMains: { applies: mains > 0, limit: 0.8, met: vegetableMainsShare >= 0.8, value: vegetableMainsShare },
     wholeGrain: { applies: wholeGrainShare !== null, limit: 0.5, met: (wholeGrainShare ?? 0) >= 0.5, value: wholeGrainShare ?? 0 }
   };
 
-  const applying = BALANCE_RULES.filter(rule => rules[rule].applies);
+  const applying = BALANCE_RULES.filter(rule => rules[rule].applies && !UNSCORED_RULES.has(rule));
 
   return {
     counts: {
