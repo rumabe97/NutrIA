@@ -226,28 +226,43 @@ describe('plan generation', () => {
     // meal-detail responses, and require the list to match.
     const expected = new Map<string, number>();
     const occurrences = new Map<string, number>();
+    // Meals whose figure for a row is a cooked grain read dry, by row.
+    const dried = new Map<string, number>();
 
     for (const day of plan.days) {
       for (const meal of day.meals) {
         const detail: Response = await request(server).get(`/${PREFIX}/meal-plans/meals/${meal.id}`).set('Cookie', alice.cookie).expect(200);
+        const { ingredients } = detail.body as { ingredients: readonly { dry?: { grams: number; name: string }; grams: number; name: string }[] };
 
-        for (const item of (detail.body as { ingredients: readonly { grams: number; name: string }[] }).ingredients) {
-          expected.set(item.name, (expected.get(item.name) ?? 0) + item.grams);
-          occurrences.set(item.name, (occurrences.get(item.name) ?? 0) + 1);
+        for (const item of ingredients) {
+          // A cooked grain is bought dry (`0078`): the list sums it on the dry
+          // food's row, and the meal names that row and its weight in `dry` —
+          // the same `toDry` mapping, which is all the view gives of it.
+          const name = item.dry?.name ?? item.name;
+
+          expected.set(name, (expected.get(name) ?? 0) + (item.dry?.grams ?? item.grams));
+          occurrences.set(name, (occurrences.get(name) ?? 0) + 1);
+
+          if (item.dry) {
+            dried.set(name, (dried.get(name) ?? 0) + 1);
+          }
         }
       }
     }
 
     expect(list.items).toHaveLength(expected.size);
 
-    for (const item of list.items) {
+    for (const listed of list.items) {
+      // A dry row the catalogue has no dry food for is the cooked one's, named "(en seco)".
+      const item = { ...listed, name: listed.name.replace(/ \(en seco\)$/u, '') };
       // Each meal-detail figure is rounded to one decimal (±0.05 g) and the list
       // rounds once more, so the drift a *correct* list may show grows with the
       // number of meals the ingredient appears in. A flat gram was too tight for
-      // an ingredient in every breakfast.
+      // an ingredient in every breakfast. A dry figure is rounded to 5 g on the
+      // meal (±2.5 g each) and the row up to 5 g once summed.
       const count = occurrences.get(item.name) ?? 0;
       const drift = Math.abs(item.totalGrams - (expected.get(item.name) ?? 0));
-      const tolerance = 0.05 * count + 0.1;
+      const tolerance = 0.05 * count + 0.1 + (dried.has(item.name) ? 2.5 * (dried.get(item.name) ?? 0) + 5 : 0);
 
       // Shaped so a failure names the ingredient, the drift and how many meals it
       // was added over — the three things needed to tell rounding from an error.

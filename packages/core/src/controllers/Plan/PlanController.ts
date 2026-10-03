@@ -28,7 +28,7 @@ import { SettingsController } from 'core/controllers/Settings';
 import { RecipeController, toPictureStatus } from 'core/controllers/Recipe';
 import { alternativesFor } from 'core/domain/Substitution';
 import { toDry, withoutCooked } from 'core/domain/Yield';
-import { starchBase } from 'core/domain/Variety';
+import { legumeKind, starchBase } from 'core/domain/Variety';
 import type { StarchBase } from 'core/domain/Variety';
 import { accompanimentName, accompanimentPreparation } from 'core/domain/Accompaniment';
 import type {
@@ -224,6 +224,8 @@ export interface MealCompositionView {
   date: string;
   dayIndex: number;
   ingredients: readonly { grams: number; slug: string }[];
+  /** The plate's legume, its own rows — what a swap or a rebuild keeps one legume apart by (`LEGUME_RULES`). */
+  legume: string | null;
   macros: Macros;
   recipeSlug: string;
   servings: number;
@@ -453,6 +455,7 @@ export const PlanController = {
             ...items.map(item => ({ grams: Math.round(Number(item.grams) * factor * 10) / 10, slug: item.slug })),
             ...sides.map(side => ({ grams: side.grams, slug: side.slug }))
           ],
+          legume: legumeKind({ ingredients: items.map(item => ({ grams: Number(item.grams), slug: item.slug })) }),
           macros: {
             carbsG: Number(meal.carbsG),
             fatG: Number(meal.fatG),

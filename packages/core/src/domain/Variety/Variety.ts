@@ -68,6 +68,8 @@ function gapBetween(slot: MealSlot, other: MealSlot): number {
 export type Placement = {
   readonly dayIndex: number;
   readonly dishSlug: string;
+  /** The dish's legume, the same way (`legumeKind`, `LEGUME_RULES`). */
+  readonly legume?: string | null;
   readonly slot: MealSlot;
   /** The dish's starch base, when the caller knows it and the pool may not hold the dish — a swap, a rebuild (`starchMeals`). */
   readonly starch?: StarchBase | null;

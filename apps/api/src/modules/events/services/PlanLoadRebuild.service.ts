@@ -145,19 +145,22 @@ export class PlanLoadRebuildService {
     // Everything the plan keeps, so the variety rules hold across the seam: a
     // rebuilt Thursday may not serve what the untouched Tuesday already does.
     const kept = composition.filter(meal => !rebuilding.has(meal.dayIndex));
-    const placed: Placement[] = kept.map(meal => ({ dayIndex: meal.dayIndex, dishSlug: meal.recipeSlug, slot: meal.slot, starch: meal.starch }));
+    const placed: Placement[] = kept.map(meal => ({
+      dayIndex: meal.dayIndex,
+      dishSlug: meal.recipeSlug,
+      legume: meal.legume,
+      slot: meal.slot,
+      starch: meal.starch
+    }));
     const dayIndexes = [...rebuilding].sort((a, b) => a - b);
     const sex = profile.profile?.sex ?? 'prefer_not_to_say';
     // What may go beside a big lunch or dinner (project 016), as at generation:
-    // this person's larder from the same context, in each rebuilt day's month.
+    // this person's larder from the same context, in each rebuilt day's month —
+    // the month that also decides which fruit is in season on the plate (017).
     const months = new Map(plan.days.map(day => [day.dayIndex, Number(day.date.slice(5, 7))]));
+    const monthOf = (dayIndex: number): number => months.get(dayIndex) ?? 1;
     const sides = (await SettingsController.accompaniments())
-      ? {
-          accompaniments: {
-            larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }),
-            monthOf: (dayIndex: number) => months.get(dayIndex) ?? 1
-          }
-        }
+      ? { accompaniments: { larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }), monthOf } }
       : {};
     const scheduled = schedulePlan({
       ...sides,
@@ -166,6 +169,7 @@ export class PlanLoadRebuildService {
       dayTargets: new Map(dayIndexes.map(dayIndex => [dayIndex, targets])),
       // As at generation: a day rebuilt around an event is sized over the floor too.
       minimumKcal: minimumDailyKcal(sex),
+      monthOf,
       placed,
       pool,
       targets: base,

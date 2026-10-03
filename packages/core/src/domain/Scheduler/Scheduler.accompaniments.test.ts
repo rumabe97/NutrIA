@@ -140,17 +140,26 @@ function plan(shape: MealShape, kcalScale: number): string {
 
 const TWO_MEALS: MealShape = { afternoon_snack: 'off', breakfast: 'off', dinner: 'normal', lunch: 'normal', morning_snack: 'light', supper: 'off' };
 
+// All three moved again with 017 phase 2's fix: a day's swaps judged on its
+// bands before the variety rules' prices, and no repair deepening a day's energy
+// miss (`energyMiss`). On this toy pool it is a trade, not a gain — three meals:
+// worst carbohydrate day 22% to 6%, worst energy day 6% to 9%; days inside 5% on
+// all four 4, 11 and 3 of 14 (were 4, 12 and 4). The reference library is the
+// measure: 176/182 such days to 180/182 without accompaniments, 182/182 to
+// 181/182 with them.
 describe('the scheduler with accompaniments off — the plans it always made', () => {
   it('three meals, an ordinary target', () => {
-    expect(plan(shapeFor(3, false), 1)).toBe('c4a45a2989dd20d05d5c4d5db22e9825fa645275701eb90c3c305b1bc583a4b6');
+    expect(plan(shapeFor(3, false), 1)).toBe('5420517b59e69220fc74174b10918413cbbac18fcb145abfb8e870fbcedd5f87');
   });
 
+  // Moved in 017 phase 2 (group D): the snacks of these shapes are now held to
+  // three of a kind a fortnight (`SNACK_RULES`), and every fixture snack is one kind.
   it('five meals, a high target', () => {
-    expect(plan(shapeFor(5, true), 1.8)).toBe('80f807f5c5220599708c4c5e10d87be4dda329e2a0594124bcbac21521995311');
+    expect(plan(shapeFor(5, true), 1.8)).toBe('474d936201e83d313a215c2cf6721729703b9edffd306ec4ee0e4c38f2299154');
   });
 
   it('two big main meals and a light snack', () => {
-    expect(plan(TWO_MEALS, 1.1)).toBe('9d742f73e4ac84f1bcb3cefa5da72384912a99b2e08858b82ab9793967700ac4');
+    expect(plan(TWO_MEALS, 1.1)).toBe('1b9a3a08884f4bab7d8375f8be5f9f0cda701427715038aca39bf999c640ca91');
   });
 
   it('a swap', () => {
