@@ -42,14 +42,15 @@
   - **Time first.** Paste the batch, measure schedulePlan, and stop above +10%. Prune each role before building the sets if needed.
   - **Variety.** If distinct sides per profile do not rise, add a small repetition cost for the same side within a fortnight, priced like the kind rules and measured.
   - **traditional_spanish spec.** It goes through `setsBeside` with a foreign dish.
+- **Report revised (3ada521a).** It now follows the breakfast decision: the two breakfast-only entries are gone, and `curtido` and `ensalada-de-aguacate` (Latin vegetables, the thinnest family) take their places. The batch is still 42. Accepted: 39, all but `picos-de-pan`, `caldo-de-pollo` and `caldo-de-verduras`. That gives 18 Spanish, 4 Asian, 6 Latin and 5 Arab.
 
 ## Phase 2 — Celery on the broths, and the side threshold (2026-10-03)
 
 - **Executor**: opus @ medium (`backend-018p2`). No advisor consulted.
-- **Result**: done. The migration review (`migration-reviewer`) is the lead's to start. The migration number is to be redone after project 011 merges (below).
+- **Result**: done. Reviewed by `migration-reviewer-018`: safe to ship, no P0 or P1. Its findings are applied (below).
 - **What changed**:
   - **Seed.** `caldo-de-pollo` and `caldo-de-verduras` (starter.ts) carry `celery` as `contains`. So do `caldo-de-carne` and `caldo-de-pescado` (pantry.ts): the reasoning for the two is the same, a generic carton broth that lists celery.
-  - **Migration `0057_broths_declare_celery`** is data only (`--custom`). It inserts the four links keyed by slug and allergen key, `ON CONFLICT ("ingredient_id", "allergen_id") DO NOTHING`. Celery derives no food class, so `ingredients.classes` is untouched.
+  - **Migration `0058_broths_declare_celery`** is data only (`--custom`). It was first written as 0057, then regenerated as 0058 on top of project 011's 0057 once that merged, so its snapshot and journal `when` follow 011's. It inserts the four links keyed by slug and allergen key, `ON CONFLICT ("ingredient_id", "allergen_id") DO NOTHING`. Celery derives no food class, so `ingredients.classes` is untouched.
   - **`itemGroups`** (core/domain/Accompaniment) now takes the whole portion. A vegetable or dessert side reads its groups through `dishGroups`, which has the `FOOD_GROUP_GRAMS` threshold. A **starch** side keeps every group it holds, whatever the grams.
     - **Deviation:** the plain threshold would have dropped the tabulé's 30 g of bulgur below grains' 40 g. That side would then have been offered beside a couscous. Of the 46 entries, only the tabulé changed.
     - So the threshold applies where the finding was (a few grams of noodles in a broth), and every existing entry keeps its groups.
@@ -82,9 +83,9 @@
   - `check-migrations --drift` passed.
   - The gate (`--full`) passed: migrations, checks (lint, types, coverage), web build, static, format and deadcode.
     - The leak check ran with built-in rules only: a worktree has no `docs/local/leak-patterns.txt`. It needs a run from the main checkout.
-- **For the lead.**
-  - Project 011's `0057_a_lost_second_factor…` takes 0057 and merges first (lead's decision). After that merge, this branch:
-    1. merges `origin/main`;
-    2. deletes its 0057 files and regenerates the migration as 0058 with `generate --custom`, so its snapshot carries `two_factor_removal`;
-    3. reruns `check-migrations --drift` and the gate.
-  - The evaluator runs are in `docs/local/018-p2-{base-off,base-on,off,on}.json`.
+- **Migration review (`migration-reviewer-018`), applied.**
+  - The migration ends with a check. On a populated catalogue, it raises unless all four links are there as `contains`, and the whole migrate run then rolls back.
+    - It is tested in a rolled-back transaction on the local reference database: it passes as is, and raises with one link as `may_contain`.
+    - An empty catalogue (a fresh database, CI) passes.
+  - Its header says the seed change and the migration land and revert together, because the seed rewrites an ingredient's links wholesale.
+- The evaluator runs are in `docs/local/018-p2-{base-off,base-on,off,on}.json`.

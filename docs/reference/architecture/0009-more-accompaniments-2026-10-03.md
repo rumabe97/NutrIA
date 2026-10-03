@@ -27,43 +27,52 @@
 ## Veredicto
 
 **Sí, con condiciones.** Hay 42 entradas listas:
-- 22 de familia española;
-- 4 asiáticas, 4 latinas y 5 árabes;
-- 7 para todas las familias.
+- 21 de familia española;
+- 4 asiáticas, 6 latinas y 5 árabes;
+- 6 postres para todas las familias.
 
 Todas usan filas que ya están en el catálogo, y todas esas filas son USDA salvo una:
 `picos-de-pan` es BEDCA y queda condicionada. **No falta ningún slug.** Ninguna entrada
 española lleva una fila que `traditional_spanish` excluya. Toda línea de preparación nombra
-el aceite exacto de su ración. Las condiciones:
+el aceite exacto de su ración.
 
-1. **El desayuno no recibe acompañamientos hoy.** El planificador solo los ofrece en comida
-   y cena, y solo cuando esa comida pasa de 700 kcal (`Scheduler.ts:272` y `:774`,
-   `MAIN_SLOTS` en `Variety.ts:35`). Las 11 entradas nuevas con desayuno cumplen el criterio
-   del PRD sobre el papel. Nueve de ellas también sirven en comida y cena, y esas sí se
-   verán. Dos son solo de desayuno: `tostada-con-aceite` y `avellanas`. Esas dos, igual que
-   las nueces, las almendras y los quesos de hoy, no llegan a ningún plan. Que el desayuno
-   lleve acompañamientos es un cambio del planificador fuera del alcance de 018. **Decide
-   el lead.**
-2. **El tiempo de `schedulePlan` está en riesgo.** El número de conjuntos que el planificador
+**Decisión del lead (2026-10-03, por delegación del owner):** los acompañamientos se quedan
+en comida y cena, por diseño (`0079`: llenan las comidas principales grandes). El objetivo
+de "al menos 5 de desayuno" sale del PRD. Este informe ya lo aplica:
+- no hay ninguna entrada solo de desayuno. Retiré `tostada-con-aceite` y `avellanas` del
+  primer borrador;
+- esos dos huecos van a la familia más corta: la verdura latina gana `curtido` y
+  `ensalada-de-aguacate`;
+- una entrada lleva desayuno entre sus comidas solo si también es realista en comida y
+  cena, como el pan y la fruta de hoy. Son 9.
+
+**Hallazgo al margen:** el planificador nunca sirve acompañamientos en el desayuno
+(`Scheduler.ts:272` y `:774`, `MAIN_SLOTS` en `Variety.ts:35`). Por eso las cuatro entradas
+de hoy que son solo de desayuno (`nueces`, `almendras`, `queso-de-burgos`, `requeson`)
+no llegan a ningún plan. Si se quitan o se quedan es cosa del lead; 018 no las toca.
+
+Las condiciones:
+
+1. **El tiempo de `schedulePlan` está en riesgo.** El número de conjuntos que el planificador
    valora por plato, comida y día en la familia española pasa de 410 a 2.666 de media, ×6,5
    (medido por combinatoria, sin los filtros de cada persona; ver § Riesgos). El PRD pide
    no pasar de +10 %. Hay que medirlo al principio de la fase 3, con una señal de parada y
    un remedio ya pensado.
-3. **Más entradas no garantizan más variedad.** El planificador elige el conjunto que mejor
+2. **Más entradas no garantizan más variedad.** El planificador elige el conjunto que mejor
    cierra las macros y deshace empates por el orden de la tabla. No hay ningún coste por
    repetir un acompañamiento (`rankedSets`, `Scheduler.ts:298`). Que suban los
    acompañamientos distintos por quincena es una **hipótesis** que mide la fase 3. Si no
    suben, falta una regla de repetición, que es un cambio del planificador.
-4. **`picos-de-pan` depende de re-fuentear su fila** de BEDCA a USDA (FDC 174929). Eso es
+3. **`picos-de-pan` depende de re-fuentear su fila** de BEDCA a USDA (FDC 174929). Eso es
    un `UPDATE` de una fila que ya existe, no el `INSERT … ON CONFLICT DO NOTHING` de la
    fase 2. Mi recomendación: la entrada entra solo cuando lo haga la tarea pendiente de
    re-fuentear las 14 filas BEDCA. Si no, se queda fuera de este lote.
-5. **`espinacas-a-la-catalana` lleva 5 g de piñones en comida y cena.** La respuesta 7 del
+4. **`espinacas-a-la-catalana` lleva 5 g de piñones en comida y cena.** La respuesta 7 del
    owner en `0079` dice que los frutos secos como acompañamiento son solo de desayuno.
    Leo que habla del fruto seco servido como acompañamiento, no de la guarnición de una
    verdura. Recomiendo aceptarla: es el caso de frutos de cáscara que la fase 3 necesita en
    comida y cena. Pero choca con la letra de esa respuesta, así que la marco.
-6. **Los dos caldos no entran hasta que sus filas declaren el apio.** `caldo-de-pollo` y
+5. **Los dos caldos no entran hasta que sus filas declaren el apio.** `caldo-de-pollo` y
    `caldo-de-verduras` no tienen ningún alérgeno en el seed (`starter.ts:1060`, `:1071`).
    En cambio, `pastilla-de-caldo-de-verduras` y `sopa-de-verduras-envasada` sí llevan
    "puede contener apio". Un caldo de brick español casi siempre lleva apio. Como plato
@@ -78,7 +87,7 @@ el aceite exacto de su ración. Las condiciones:
 |---|---|---|
 | Faltan guarniciones españolas: cremas de verdura, caldo, pimientos asados, menestra, setas, pan integral, picos | **confirmada, salvo el pan integral**, que es **incorrecta** | `pan-integral` está en `ACCOMPANIMENTS` (`Accompaniment.ts:86`) y en la tabla 3a de `0079`. Lo demás no está |
 | Asiática, latina y árabe tienen 2–3 opciones cada una | **confirmada a medias** | Propias de cada familia: asiática 4 (`arroz-blanco`, `sopa-de-miso`, `ensalada-de-pepino`, `pak-choi-salteado`), latina 4 (`tortilla-de-maiz`, `arroz-rojo`, `pico-de-gallo`, `frijoles`), árabe 5 (`pan-de-pita`, `hummus`, `ensalada-marroqui`, `tabule`, `naranja-con-canela`). Las tres comparten además `ensalada-verde`, la fruta y el yogur. Por papel son 1–3, y eso es lo que el PRD quiere decir |
-| El desayuno gana al menos 5 | **incorrecta como variedad servida** | El desayuno no recibe acompañamientos (`Scheduler.ts:272`, `:774`; `MAIN_SLOTS` = comida y cena, `Variety.ts:35`). Lo mismo dice el plan de 016, línea 21: "at K = 6 per main slot" |
+| El desayuno gana al menos 5 | **incorrecta como variedad servida**; el lead retiró el objetivo | El desayuno no recibe acompañamientos (`Scheduler.ts:272`, `:774`; `MAIN_SLOTS` = comida y cena, `Variety.ts:35`). Lo mismo dice el plan de 016, línea 21: "at K = 6 per main slot". El lead lo confirmó como diseño el 2026-10-03 |
 | Los mismos acompañamientos vuelven en la quincena, y más entradas lo arreglan | **hipótesis** | La elección es por ajuste de macros, con empates por posición en la tabla, y no hay coste de repetición (`Scheduler.ts:291–310`). Se prueba con la cuenta de distintos por perfil y quincena que la fase 3 añade al evaluador |
 | Los acompañamientos actuales son "USDA salvo `queso-de-burgos`" (comentario en `Accompaniment.ts:74–82`) | **incorrecta** | En el seed, cinco filas que ya se usan son `manual`, no USDA: `requeson`, `pan-sin-gluten`, `alga-wakame`, `salsa-de-soja-baja-en-sal` y `vinagre-de-arroz`. No es BEDCA, pero tampoco es una fuente pública. Mi regla para el lote: solo filas USDA; ninguna `manual`; BEDCA nunca, salvo `picos-de-pan`, y esa queda condicionada |
 | Los filtros de la despensa (`larderFor`) cubren cualquier entrada nueva | **confirmada para alergias, intolerancias, formas de comer y gustos** | `larderFor` pasa cada fila por `dishSafety` y por `excludedIngredientIds` (`Accompaniment.ts:368–396`), y el conjunto se juzga otra vez con el plato para kosher (`setsBeside`, `:530`) |
@@ -135,8 +144,8 @@ el aceite exacto de su ración. Las condiciones:
   - Las españolas usan `SPANISH` (española y "otras"). Tres de ellas son también italianas:
     `tomate-alinado`, `alcachofas-a-la-plancha` y `esparragos-trigueros-a-la-plancha`.
   - Las extranjeras, solo su familia.
-  - La fruta, el yogur con miel, la macedonia y las avellanas, todas las familias, como las
-    simples de hoy.
+  - La fruta, el yogur con miel y la macedonia, todas las familias, como las simples de
+    hoy.
 - **Forma**: cada entrada va como literal de TypeScript con las ayudas del propio fichero
   (`composed`, `fruit`, `BLD`, `LD`, `SPANISH`, `SUMMER`), más su nombre, su preparación y
   sus frases web. La fase 3 solo tiene que pegar y ordenar las claves. Comprobé que los
@@ -147,7 +156,7 @@ el aceite exacto de su ración. Las condiciones:
 
 ## Propuesta
 
-### 1. Familia española: comida y cena (20)
+### 1. Familia española (21)
 
 Son guarniciones de casa, de las que se ponen en una mesa española:
 - **tres cremas**: calabacín en verano, calabaza en otoño e invierno, puerros todo el año;
@@ -159,7 +168,7 @@ Son guarniciones de casa, de las que se ponen en una mesa española:
 - **menestra, champiñones y zanahorias aliñadas** todo el año;
 - **dos patatas**: cocida y en puré;
 - **salmorejo** en verano;
-- **picos**.
+- **pan con tomate** y **picos**.
 
 Con ellas, las opciones de verdura junto a un plato español pasan de 2–5 a 11–18 según el
 mes. Hoy, de octubre a mayo, son 2 o 3, porque solo `ensalada-verde` es de todo el año
@@ -174,17 +183,20 @@ Notas por entrada:
   tienen `caldo-de-verduras`. Para kosher, `setsBeside` impide servirlo con un yogur
   (`Accompaniment.ts:542`). Los dos caldos aportan 15 kcal: sirven para variar, no para
   cerrar macros (§ Riesgos, punto 4). **No deben entrar hasta que sus filas declaren el
-  apio** (condición 6 del veredicto).
+  apio** (condición 5 del veredicto).
 - **`salmorejo`** lleva 30 g de pan y es el caso de gluten en comida y cena. Como su papel
   es verdura, el filtro "pan junto a pan" no lo mira: puede salir con pan en el papel de
   almidón. Son 60–90 g de pan entre los dos, dentro de la ración de la AESAN.
-- **`espinacas-a-la-catalana`**: ver la condición 5 del veredicto (frutos de cáscara en
+- **`espinacas-a-la-catalana`**: ver la condición 4 del veredicto (frutos de cáscara en
   comida y cena).
+- **`pan-con-tomate`** lleva tomate triturado de bote, así que es de todo el año, como
+  `arroz-rojo`. Va en desayuno, comida y cena, como el pan: el pa amb tomàquet es también
+  de la cena catalana. Lleva gluten.
 - **`menestra-de-verduras`** usa las filas congeladas USDA (judía verde, guisantes,
   coliflor), así que es de todo el año. La menestra de temporada (alcachofa, habas y
   guisantes frescos) solo coincidiría en mayo. Las filas `menestra-congelada` y
   `alcachofas-congeladas` son `manual` y no las uso.
-- **`picos-de-pan`** es condicional: ver la condición 4 y § Filas que faltan. Le doy dos
+- **`picos-de-pan`** es condicional: ver la condición 3 y § Filas que faltan. Le doy dos
   raciones, 20 y 30 g, en vez de las 30 y 60 g de `bread()`. 60 g de picos son unas
   250 kcal.
 - **Lo que dejé fuera**:
@@ -219,6 +231,7 @@ Notas por entrada:
 | `salmorejo` | vegetable | spanish, other | C Ce | 6, 7, 8, 9 | 243 g | 214.4 | 4.6 | 24.8 | 11.6 | 3.3 | gluten | — |
 | `picos-de-pan` | starch | spanish, other | D C Ce | todo el año | 20 g | 79.8 | 2.2 | 14.6 | 1.4 | 0.7 | gluten | — |
 |  | | | | | 30 g | 119.7 | 3.3 | 21.9 | 2.1 | 1.1 |  |  |
+| `pan-con-tomate` | starch | spanish, other | D C Ce | todo el año | 95.5 g | 204.4 | 5.1 | 30.9 | 7.1 | 2.2 | gluten | — |
 
 `ACCOMPANIMENTS`:
 
@@ -468,6 +481,19 @@ Notas por entrada:
     role: 'starch',
     slots: BLD
   },
+  composed(
+    'pan-con-tomate',
+    'starch',
+    SPANISH,
+    'all',
+    [
+      { grams: 50, slug: 'pan-blanco' },
+      { grams: 40, slug: 'tomate-triturado' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ],
+    BLD
+  ),
 ```
 
 `COMPOSED_NAMES`:
@@ -490,6 +516,7 @@ Notas por entrada:
   'patata-cocida': { 'en-GB': 'Boiled potatoes', 'es-ES': 'Patata cocida' },
   'pure-de-patata': { 'en-GB': 'Mashed potato', 'es-ES': 'Puré de patata' },
   salmorejo: { 'en-GB': 'Salmorejo', 'es-ES': 'Salmorejo' },
+  'pan-con-tomate': { 'en-GB': 'Bread with tomato', 'es-ES': 'Pan con tomate' },
 ```
 
 `COMPOSED_PREPARATIONS`:
@@ -563,6 +590,10 @@ Notas por entrada:
     'en-GB': 'Blend the tomatoes with the garlic, add the torn bread, let it soak for a few minutes and blend again with two teaspoons of oil and the salt until thick; serve well chilled.',
     'es-ES': 'Tritura el tomate con el ajo, añade el pan troceado, deja que se empape unos minutos y vuelve a triturar con dos cucharaditas de aceite y la sal hasta que quede espeso; sírvelo bien frío.'
   },
+  'pan-con-tomate': {
+    'en-GB': 'Toast the bread, spread the crushed tomato over it and finish with a teaspoon of oil and the salt.',
+    'es-ES': 'Tuesta el pan, extiende encima el tomate triturado y termina con una cucharadita de aceite y la sal.'
+  },
 ```
 
 `meal.accompanimentNames` (web, `es-ES` y `en-GB`):
@@ -589,6 +620,7 @@ Notas por entrada:
       'pure-de-patata': 'puré de patata',
       salmorejo: 'salmorejo',
       'picos-de-pan': 'picos de pan ({grams})',
+      'pan-con-tomate': 'pan con tomate',
 // en-GB
       'crema-de-calabacin': 'courgette soup',
       'crema-de-calabaza': 'pumpkin soup',
@@ -610,6 +642,7 @@ Notas por entrada:
       'pure-de-patata': 'mashed potato',
       salmorejo: 'salmorejo',
       'picos-de-pan': 'breadsticks ({grams})',
+      'pan-con-tomate': 'bread with tomato',
 ```
 ### 2. Asiática (4)
 
@@ -724,20 +757,28 @@ Notas por entrada:
       'espinacas-con-sesamo': 'sesame spinach',
       kimchi: 'kimchi ({grams})',
 ```
-### 3. Mexicana y latina (4)
+### 3. Mexicana y latina (6)
 
 - **Qué entra**:
   - tres almidones de la mesa latina que no son ni tortilla ni arroz: yuca con mojo
     (Cuba, Colombia), plátano macho al horno y elote (México, en verano);
-  - el guacamole como verdura.
-- **La verdura latina sigue corta** (3–4 opciones). En el catálogo no hay filas USDA de
-  nopal ni de chayote, y las ensaladas latinas se parecen a las que ya hay.
+  - tres verduras: guacamole todo el año, curtido (la col en vinagre salvadoreña) de
+    septiembre a marzo, y ensalada de aguacate de noviembre a abril.
+- **La verdura latina era la más corta**, con 2–3 opciones según el mes. Por eso recibe
+  los dos huecos que dejó el desayuno. Pasa a 3–5 opciones. Invierno era lo más flojo: solo
+  `frijoles` y `ensalada-verde`, y ahí entran el curtido y la ensalada de aguacate. En el
+  catálogo no hay filas USDA de nopal ni de chayote.
+- **`ensalada-de-aguacate` y `guacamole`** comparten el aguacate. Como solo va una verdura
+  por conjunto, nunca coinciden en la misma comida. Pero el lead puede preferir una sola.
+- **`curtido`** no lleva aceite, y su frase no lo nombra. Es la verdura más ligera del
+  lote que no es un caldo: 47 kcal.
 - **`yuca-con-mojo`**: `yuca` es del grupo patata. La mesa latina la admite en comida y
   cena (`Cuisine.ts:236`).
 - **`elote`**: `mazorca-de-maiz` no tiene grupo. 150 g de grano es una mazorca grande
   (`gramsPerUnit` 150).
 - **Lo que las aparta del tradicional español**: `yuca`, `platano-macho` y `guacamole`
-  están en la lista de `0077`. `elote` no lleva ninguna fila de esa lista; lo aparta la
+  están en la lista de `0077`. `elote`, `curtido` y `ensalada-de-aguacate` no llevan
+  ninguna fila de esa lista (el aguacate se queda, por decisión del owner); las aparta la
   familia (ver § Premisas revisadas).
 
 
@@ -747,6 +788,8 @@ Notas por entrada:
 | `platano-macho-al-horno` | starch | latin | C Ce | todo el año | 125.5 g | 226.6 | 1.4 | 44 | 5.1 | 2.6 | — | — |
 | `elote` | starch | latin | C Ce | 7, 8, 9 | 156 g | 132.1 | 5 | 28.9 | 2.2 | 3.3 | — | — |
 | `guacamole` | vegetable | latin | C Ce | todo el año | 60 g | 94.2 | 1.1 | 3.6 | 8.4 | 3 | — | — |
+| `curtido` | vegetable | latin | C Ce | 9, 10, 11, 12, 1, 2, 3 | 156 g | 46.7 | 1.8 | 10.5 | 0.2 | 3.8 | — | — |
+| `ensalada-de-aguacate` | vegetable | latin | C Ce | 11, 12, 1, 2, 3, 4 | 88.5 g | 118.2 | 1.6 | 7.5 | 10.3 | 5.1 | — | — |
 
 `ACCOMPANIMENTS`:
 
@@ -795,6 +838,33 @@ Notas por entrada:
     role: 'vegetable',
     slots: LD
   },
+  composed(
+    'curtido',
+    'vegetable',
+    ['latin'],
+    [9, 10, 11, 12, 1, 2, 3],
+    [
+      { grams: 100, slug: 'col-blanca' },
+      { grams: 30, slug: 'zanahoria' },
+      { grams: 15, slug: 'cebolla' },
+      { grams: 10, slug: 'vinagre-de-manzana' },
+      { grams: 0.5, slug: 'oregano-seco' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
+  composed(
+    'ensalada-de-aguacate',
+    'vegetable',
+    ['latin'],
+    [11, 12, 1, 2, 3, 4],
+    [
+      { grams: 70, slug: 'aguacate' },
+      { grams: 10, slug: 'cebolla-morada' },
+      { grams: 3, slug: 'cilantro' },
+      { grams: 5, slug: 'lima' },
+      { grams: 0.5, slug: 'sal' }
+    ]
+  ),
 ```
 
 `COMPOSED_NAMES`:
@@ -803,6 +873,8 @@ Notas por entrada:
   'yuca-con-mojo': { 'en-GB': 'Cassava with garlic and lime', 'es-ES': 'Yuca con mojo' },
   'platano-macho-al-horno': { 'en-GB': 'Baked plantain', 'es-ES': 'Plátano macho al horno' },
   elote: { 'en-GB': 'Corn on the cob with lime and chilli', 'es-ES': 'Elote' },
+  curtido: { 'en-GB': 'Curtido (pickled cabbage slaw)', 'es-ES': 'Curtido' },
+  'ensalada-de-aguacate': { 'en-GB': 'Avocado salad', 'es-ES': 'Ensalada de aguacate' },
 ```
 
 `COMPOSED_PREPARATIONS`:
@@ -820,6 +892,14 @@ Notas por entrada:
     'en-GB': 'Boil the corn cob for about 10 minutes, or grill it, and serve it with the lime juice, the cayenne and the salt.',
     'es-ES': 'Cuece la mazorca en agua hirviendo unos 10 minutos, o ásala a la plancha, y sírvela con el zumo de lima, la cayena y la sal.'
   },
+  curtido: {
+    'en-GB': 'Finely shred the cabbage, grate the carrot, chop the onion and mix them with the vinegar, the oregano and the salt; leave it in the fridge for at least an hour.',
+    'es-ES': 'Corta la col en juliana fina, ralla la zanahoria, pica la cebolla y mézclalas con el vinagre, el orégano y la sal; déjalo reposar al menos una hora en la nevera.'
+  },
+  'ensalada-de-aguacate': {
+    'en-GB': 'Dice the avocado and mix it with the thinly sliced red onion, the chopped coriander, the lime juice and the salt.',
+    'es-ES': 'Corta el aguacate en dados y mézclalo con la cebolla morada en juliana fina, el cilantro picado, el zumo de lima y la sal.'
+  },
 ```
 
 `meal.accompanimentNames` (web, `es-ES` y `en-GB`):
@@ -830,11 +910,15 @@ Notas por entrada:
       'platano-macho-al-horno': 'plátano macho al horno',
       elote: 'elote',
       guacamole: 'guacamole ({grams})',
+      curtido: 'curtido',
+      'ensalada-de-aguacate': 'ensalada de aguacate',
 // en-GB
       'yuca-con-mojo': 'cassava with garlic and lime',
       'platano-macho-al-horno': 'baked plantain',
       elote: 'corn on the cob with lime and chilli',
       guacamole: 'guacamole ({grams})',
+      curtido: 'curtido slaw',
+      'ensalada-de-aguacate': 'avocado salad',
 ```
 ### 4. Árabe y magrebí (5)
 
@@ -972,21 +1056,11 @@ Notas por entrada:
       'ensalada-de-remolacha': 'beetroot salad',
       datiles: 'dates ({grams})',
 ```
-### 5. Desayuno, y lo que vale para todas las familias (9)
+### 5. Postres para todas las familias (6)
 
-Hay 11 entradas nuevas con desayuno entre sus comidas: estas 9, más `picos-de-pan` y
-`datiles`. El criterio del PRD (al menos 5) se cumple sobre el papel. Pero el planificador
-no pone acompañamientos en el desayuno (condición 1), así que solo se verán las que también
-valen para comida y cena:
-
-| Entrada | Comidas | ¿Se sirve hoy? |
-|---|---|---|
-| `pan-con-tomate` | D C Ce | sí, en comida y cena (el pa amb tomàquet de la cena catalana) |
-| `tostada-con-aceite` | D | **no**: solo desayuno |
-| `yogur-con-miel` | D C Ce | sí, como el yogur de hoy |
-| `macedonia` | D C Ce | sí, de noviembre a marzo |
-| `avellanas` | D | **no**: solo desayuno (respuesta 7 de `0079`) |
-| `nispero`, `cereza`, `albaricoque`, `granada` | D C Ce | sí, cada una en sus meses del catálogo |
+Por decisión del lead, ninguna entrada es solo de desayuno. Estas seis llevan desayuno
+entre sus comidas porque son realistas también en comida y cena, como la fruta y el yogur
+de hoy. Pero las que se verán son las de comida y cena.
 
 - **Las cuatro frutas** llenan los meses más flojos:
   - el níspero (4–5), la cereza (5–7) y el albaricoque (5–8) entran en primavera. En abril
@@ -998,21 +1072,12 @@ valen para comida y cena:
   lo recibe. Kosher no lo pone junto a carne (`setsBeside`).
 - **`macedonia`** lleva naranja, manzana y plátano. Sus meses son el cruce de los de la
   naranja y la manzana.
-- **`pan-con-tomate` y `tostada-con-aceite`** son de familia española y cuentan entre sus
-  22. `tostada-con-aceite` usa `pan-integral` para no repetir el pan blanco de
-  `pan-con-tomate`.
-- **Las avellanas** son el caso de frutos de cáscara de desayuno, junto a las nueces y las
-  almendras de hoy. Las propongo por si el lead decide abrir el desayuno. Si no, puede
-  rechazarlas sin perder nada.
+
 
 | Clave | Papel | Familias | Comidas | Meses | Ración | kcal | P | HC | G | Fibra | Alérgenos | Clases |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `pan-con-tomate` | starch | spanish, other | D C Ce | todo el año | 95.5 g | 204.4 | 5.1 | 30.9 | 7.1 | 2.2 | gluten | — |
-| `tostada-con-aceite` | starch | spanish, other | D | todo el año | 55.5 g | 170.2 | 6.2 | 21.4 | 6.8 | 3 | gluten | — |
 | `yogur-con-miel` | dessert | todas | D C Ce | todo el año | 135 g | 100.4 | 7.2 | 17.9 | 0.3 | 0 | lactose, milk | animal |
 | `macedonia` | dessert | todas | D C Ce | 11, 12, 1, 2, 3 | 180 g | 107.4 | 1.3 | 26.7 | 0.3 | 4.4 | — | — |
-| `avellanas` | dessert | todas | D | todo el año | 20 g | 125.6 | 3 | 3.3 | 12.2 | 1.9 | tree_nuts | — |
-|  | | | | | 30 g | 188.4 | 4.5 | 5 | 18.2 | 2.9 |  |  |
 | `nispero` | dessert | todas | D C Ce | catálogo | 150 g | 70.5 | 0.6 | 18.2 | 0.3 | 2.6 | — | — |
 | `cereza` | dessert | todas | D C Ce | catálogo | 150 g | 94.5 | 1.7 | 24 | 0.3 | 3.2 | — | — |
 | `albaricoque` | dessert | todas | D C Ce | catálogo | 140 g | 67.2 | 2 | 15.5 | 0.6 | 2.8 | — | — |
@@ -1021,31 +1086,6 @@ valen para comida y cena:
 `ACCOMPANIMENTS`:
 
 ```ts
-  composed(
-    'pan-con-tomate',
-    'starch',
-    SPANISH,
-    'all',
-    [
-      { grams: 50, slug: 'pan-blanco' },
-      { grams: 40, slug: 'tomate-triturado' },
-      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
-      { grams: 0.5, slug: 'sal' }
-    ],
-    BLD
-  ),
-  composed(
-    'tostada-con-aceite',
-    'starch',
-    SPANISH,
-    'all',
-    [
-      { grams: 50, slug: 'pan-integral' },
-      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
-      { grams: 0.5, slug: 'sal' }
-    ],
-    ['breakfast']
-  ),
   {
     families: 'all',
     key: 'yogur-con-miel',
@@ -1062,14 +1102,6 @@ valen para comida y cena:
     role: 'dessert',
     slots: BLD
   },
-  {
-    families: 'all',
-    key: 'avellanas',
-    months: 'all',
-    portions: [[{ grams: 20, slug: 'avellanas' }], [{ grams: 30, slug: 'avellanas' }]],
-    role: 'dessert',
-    slots: ['breakfast']
-  },
   fruit('nispero', 150),
   fruit('cereza', 150),
   fruit('albaricoque', 140),
@@ -1079,8 +1111,6 @@ valen para comida y cena:
 `COMPOSED_NAMES`:
 
 ```ts
-  'pan-con-tomate': { 'en-GB': 'Bread with tomato', 'es-ES': 'Pan con tomate' },
-  'tostada-con-aceite': { 'en-GB': 'Wholemeal toast with olive oil', 'es-ES': 'Tostada integral con aceite' },
   'yogur-con-miel': { 'en-GB': 'Yoghurt with honey', 'es-ES': 'Yogur con miel' },
   macedonia: { 'en-GB': 'Fruit salad', 'es-ES': 'Macedonia de fruta' },
 ```
@@ -1088,14 +1118,6 @@ valen para comida y cena:
 `COMPOSED_PREPARATIONS`:
 
 ```ts
-  'pan-con-tomate': {
-    'en-GB': 'Toast the bread, spread the crushed tomato over it and finish with a teaspoon of oil and the salt.',
-    'es-ES': 'Tuesta el pan, extiende encima el tomate triturado y termina con una cucharadita de aceite y la sal.'
-  },
-  'tostada-con-aceite': {
-    'en-GB': 'Toast the bread and drizzle it with a teaspoon of oil and the salt.',
-    'es-ES': 'Tuesta el pan y riégalo con una cucharadita de aceite y la sal.'
-  },
   'yogur-con-miel': {
     'en-GB': 'Serve the yoghurt with the honey drizzled over it.',
     'es-ES': 'Sirve el yogur con la miel por encima.'
@@ -1110,21 +1132,15 @@ valen para comida y cena:
 
 ```ts
 // es-ES
-      'pan-con-tomate': 'pan con tomate',
-      'tostada-con-aceite': 'tostada integral con aceite',
       'yogur-con-miel': 'yogur con miel',
       macedonia: 'macedonia de fruta',
-      avellanas: 'avellanas ({grams})',
       nispero: 'nísperos ({grams})',
       cereza: 'cerezas ({grams})',
       albaricoque: 'albaricoques ({grams})',
       granada: 'granada ({grams})',
 // en-GB
-      'pan-con-tomate': 'bread with tomato',
-      'tostada-con-aceite': 'wholemeal toast with olive oil',
       'yogur-con-miel': 'yoghurt with honey',
       macedonia: 'fruit salad',
-      avellanas: 'hazelnuts ({grams})',
       nispero: 'loquats ({grams})',
       cereza: 'cherries ({grams})',
       albaricoque: 'apricots ({grams})',
@@ -1134,20 +1150,20 @@ valen para comida y cena:
 
 | | Almidón | Verdura | Postre | Total |
 |---|---|---|---|---|
-| Española (con "otras"; 3 también italianas) | 5 | 17 | 0 | 22 |
+| Española (con "otras"; 3 también italianas) | 4 | 17 | 0 | 21 |
 | Asiática | 1 | 3 | 0 | 4 |
-| Mexicana y latina | 3 | 1 | 0 | 4 |
+| Mexicana y latina | 3 | 3 | 0 | 6 |
 | Árabe y magrebí | 1 | 3 | 1 | 5 |
-| Todas las familias | 0 | 0 | 7 | 7 |
-| **Total** | **10** | **24** | **8** | **42** |
+| Todas las familias | 0 | 0 | 6 | 6 |
+| **Total** | **9** | **26** | **7** | **42** |
 
 Por comidas:
-- 30 son de comida y cena;
-- 9 de desayuno, comida y cena;
-- 2 solo de desayuno;
-- 1 solo de comida (`cuscus`).
+- 32 son de comida y cena;
+- 9 de desayuno, comida y cena (pan, fruta, yogur, dátiles), que se sirven en comida y cena;
+- 1 solo de comida (`cuscus`);
+- ninguna solo de desayuno.
 
-Por tipo: 31 compuestas, 7 simples y 4 frutas.
+Por tipo: 32 compuestas, 6 simples y 4 frutas.
 
 La lista para aceptar o rechazar. El número entre paréntesis remite a la condición del
 veredicto.
@@ -1158,14 +1174,14 @@ veredicto.
 | 1 | `crema-de-calabacin` | española | vegetable | C Ce | 5, 6, 7, 8, 9 | 102.7 | — | aceptar |
 | 2 | `crema-de-calabaza` | española | vegetable | C Ce | 9, 10, 11, 12, 1, 2, 3 | 137.6 | — | aceptar |
 | 3 | `crema-de-puerros` | española | vegetable | C Ce | todo el año | 187 | — | aceptar |
-| 4 | `caldo-de-pollo` | española | vegetable | C Ce | 10, 11, 12, 1, 2, 3, 4 | 15 | — | condicional: apio (6) |
-| 5 | `caldo-de-verduras` | española | vegetable | C Ce | 10, 11, 12, 1, 2, 3, 4 | 15 | — | condicional: apio (6) |
+| 4 | `caldo-de-pollo` | española | vegetable | C Ce | 10, 11, 12, 1, 2, 3, 4 | 15 | — | condicional: apio (5) |
+| 5 | `caldo-de-verduras` | española | vegetable | C Ce | 10, 11, 12, 1, 2, 3, 4 | 15 | — | condicional: apio (5) |
 | 6 | `pimientos-asados` | española | vegetable | C Ce | 7, 8, 9, 10 | 86.2 | — | aceptar |
 | 7 | `menestra-de-verduras` | española | vegetable | C Ce | todo el año | 116.7 | — | aceptar |
 | 8 | `champinones-al-ajillo` | española | vegetable | C Ce | todo el año | 84.2 | — | aceptar |
 | 9 | `tomate-alinado` | española + italiana | vegetable | C Ce | 6, 7, 8, 9 | 79.2 | — | aceptar |
 | 10 | `escalivada` | española | vegetable | C Ce | 7, 8, 9, 10 | 106 | — | aceptar |
-| 11 | `espinacas-a-la-catalana` | española | vegetable | C Ce | 10, 11, 12, 1, 2, 3, 4, 5, 6 | 145.4 | tree_nuts | aceptar; choca con la respuesta 7 (5) |
+| 11 | `espinacas-a-la-catalana` | española | vegetable | C Ce | 10, 11, 12, 1, 2, 3, 4, 5, 6 | 145.4 | tree_nuts | aceptar; choca con la respuesta 7 (4) |
 | 12 | `acelgas-rehogadas` | española | vegetable | C Ce | 8, 9, 10, 11, 12, 1, 2, 3, 4, 5 | 88.1 | — | aceptar |
 | 13 | `coliflor-al-ajoarriero` | española | vegetable | C Ce | 9, 10, 11, 12, 1, 2, 3, 4 | 89.6 | — | aceptar |
 | 14 | `alcachofas-a-la-plancha` | española + italiana | vegetable | C Ce | 12, 1, 2, 3, 4, 5 | 116.2 | — | aceptar |
@@ -1174,25 +1190,25 @@ veredicto.
 | 17 | `patata-cocida` | española | starch | C Ce | todo el año | 160.4 | — | aceptar |
 | 18 | `pure-de-patata` | española | starch | C Ce | todo el año | 179.7 | lactose, milk | aceptar |
 | 19 | `salmorejo` | española | vegetable | C Ce | 6, 7, 8, 9 | 214.4 | gluten | aceptar |
-| 20 | `picos-de-pan` | española | starch | D C Ce | todo el año | 79.8 / 119.7 | gluten | condicional: fila BEDCA (4) |
+| 20 | `picos-de-pan` | española | starch | D C Ce | todo el año | 79.8 / 119.7 | gluten | condicional: fila BEDCA (3) |
 | 21 | `pan-con-tomate` | española | starch | D C Ce | todo el año | 204.4 | gluten | aceptar |
-| 22 | `tostada-con-aceite` | española | starch | D | todo el año | 170.2 | gluten | aceptar; dormida hasta que el desayuno tenga acompañamientos (1) |
-| 23 | `arroz-jazmin` | asian | starch | C Ce | todo el año | 182.5 | — | aceptar |
-| 24 | `edamame` | asian | vegetable | C Ce | todo el año | 109 | soy | aceptar |
-| 25 | `espinacas-con-sesamo` | asian | vegetable | C Ce | 10, 11, 12, 1, 2, 3, 4, 5, 6 | 65.8 | gluten, sesame, soy | aceptar |
-| 26 | `kimchi` | asian | vegetable | C Ce | todo el año | 9 | crustaceans (trazas), fish (trazas) | aceptar |
-| 27 | `yuca-con-mojo` | latin | starch | C Ce | todo el año | 240.7 | — | aceptar |
-| 28 | `platano-macho-al-horno` | latin | starch | C Ce | todo el año | 226.6 | — | aceptar |
-| 29 | `elote` | latin | starch | C Ce | 7, 8, 9 | 132.1 | — | aceptar |
-| 30 | `guacamole` | latin | vegetable | C Ce | todo el año | 94.2 | — | aceptar |
-| 31 | `cuscus` | arab | starch | C | todo el año | 188 | gluten | aceptar |
-| 32 | `mutabal` | arab | vegetable | C Ce | 6, 7, 8, 9, 10 | 101.4 | sesame | aceptar |
-| 33 | `ensalada-de-zanahoria-marroqui` | arab | vegetable | C Ce | todo el año | 100 | — | aceptar |
-| 34 | `ensalada-de-remolacha` | arab | vegetable | C Ce | todo el año | 102.1 | — | aceptar |
-| 35 | `datiles` | arab | dessert | D C Ce | todo el año | 84.6 | — | aceptar |
-| 36 | `yogur-con-miel` | todas | dessert | D C Ce | todo el año | 100.4 | lactose, milk | aceptar |
-| 37 | `macedonia` | todas | dessert | D C Ce | 11, 12, 1, 2, 3 | 107.4 | — | aceptar |
-| 38 | `avellanas` | todas | dessert | D | todo el año | 125.6 / 188.4 | tree_nuts | aceptar; dormida hasta que el desayuno tenga acompañamientos (1) |
+| 22 | `arroz-jazmin` | asian | starch | C Ce | todo el año | 182.5 | — | aceptar |
+| 23 | `edamame` | asian | vegetable | C Ce | todo el año | 109 | soy | aceptar |
+| 24 | `espinacas-con-sesamo` | asian | vegetable | C Ce | 10, 11, 12, 1, 2, 3, 4, 5, 6 | 65.8 | gluten, sesame, soy | aceptar |
+| 25 | `kimchi` | asian | vegetable | C Ce | todo el año | 9 | crustaceans (trazas), fish (trazas) | aceptar |
+| 26 | `yuca-con-mojo` | latin | starch | C Ce | todo el año | 240.7 | — | aceptar |
+| 27 | `platano-macho-al-horno` | latin | starch | C Ce | todo el año | 226.6 | — | aceptar |
+| 28 | `elote` | latin | starch | C Ce | 7, 8, 9 | 132.1 | — | aceptar |
+| 29 | `guacamole` | latin | vegetable | C Ce | todo el año | 94.2 | — | aceptar |
+| 30 | `curtido` | latin | vegetable | C Ce | 9, 10, 11, 12, 1, 2, 3 | 46.7 | — | aceptar |
+| 31 | `ensalada-de-aguacate` | latin | vegetable | C Ce | 11, 12, 1, 2, 3, 4 | 118.2 | — | aceptar |
+| 32 | `cuscus` | arab | starch | C | todo el año | 188 | gluten | aceptar |
+| 33 | `mutabal` | arab | vegetable | C Ce | 6, 7, 8, 9, 10 | 101.4 | sesame | aceptar |
+| 34 | `ensalada-de-zanahoria-marroqui` | arab | vegetable | C Ce | todo el año | 100 | — | aceptar |
+| 35 | `ensalada-de-remolacha` | arab | vegetable | C Ce | todo el año | 102.1 | — | aceptar |
+| 36 | `datiles` | arab | dessert | D C Ce | todo el año | 84.6 | — | aceptar |
+| 37 | `yogur-con-miel` | todas | dessert | D C Ce | todo el año | 100.4 | lactose, milk | aceptar |
+| 38 | `macedonia` | todas | dessert | D C Ce | 11, 12, 1, 2, 3 | 107.4 | — | aceptar |
 | 39 | `nispero` | todas | dessert | D C Ce | 4, 5 (catálogo) | 70.5 | — | aceptar |
 | 40 | `cereza` | todas | dessert | D C Ce | 5, 6, 7 (catálogo) | 94.5 | — | aceptar |
 | 41 | `albaricoque` | todas | dessert | D C Ce | 5, 6, 7, 8 (catálogo) | 67.2 | — | aceptar |
@@ -1200,7 +1216,7 @@ veredicto.
 
 ## Filas que faltan
 
-**Ningún slug falta en el catálogo.** Las 42 entradas usan 61 filas distintas, todas en el
+**Ningún slug falta en el catálogo.** Las 42 entradas usan 64 filas distintas, todas en el
 seed. Hay dos cambios de datos que no son altas, y por eso no encajan en el
 `INSERT … ON CONFLICT (slug) DO NOTHING` que describe la fase 2:
 
@@ -1218,7 +1234,7 @@ seed. Hay dos cambios de datos que no son altas, y por eso no encajan en el
    Es un `UPDATE` de una fila de producción, y es una de las 14 filas BEDCA cuya
    re-fuente está en cola (`000-workspace` LOG). Recomiendo hacerlo dentro de esa tarea, no
    aquí, y dejar `picos-de-pan` fuera de este lote hasta entonces.
-2. **Declarar el apio en los caldos** (condición 6): añadir el enlace `celery` a
+2. **Declarar el apio en los caldos** (condición 5): añadir el enlace `celery` a
    `caldo-de-pollo` y a `caldo-de-verduras`. Recomiendo `contains` y no `may_contain`. La
    fila es genérica, y el apio suele ir en la lista de ingredientes del caldo de brick, no
    solo en las trazas. Que siempre sea así es una **hipótesis**: hay que leer tres
@@ -1233,11 +1249,11 @@ Las hice con un script sobre el seed. No hubo base de datos ni modelo.
 
 | Comprobación | Resultado |
 |---|---|
-| Cada slug está en el catálogo | 42 de 42 entradas; 61 de 61 filas |
+| Cada slug está en el catálogo | 42 de 42 entradas; 64 de 64 filas |
 | Fuente de cada fila | todas `usda`, salvo `picos-de-pan` (`bedca`). Ninguna `manual` |
-| Las entradas españolas no llevan ninguna fila de `traditional_spanish` (`Preference.ts:98`) | 0 de 22 |
-| El aceite de la frase coincide con el de la ración, en los dos idiomas | 31 de 31 compuestas |
-| Los literales dan exactamente las entradas de las tablas | 42 de 42; las 31 compuestas según `isComposed` tienen nombre y preparación |
+| Las entradas españolas no llevan ninguna fila de `traditional_spanish` (`Preference.ts:98`) | 0 de 21 |
+| El aceite de la frase coincide con el de la ración, en los dos idiomas | 32 de 32 compuestas |
+| Los literales dan exactamente las entradas de las tablas | 42 de 42; las 32 compuestas según `isComposed` tienen nombre y preparación |
 | Ningún grupo de la tabla 2 deja una celda muerta (familia × comida declarada que el código nunca ofrecería) | ninguna |
 | Los meses declarados salen de las filas frescas | sí, salvo los caldos y `pan-con-tomate` (declarados, ver § Cómo está hecho el lote) |
 
@@ -1263,13 +1279,11 @@ Las hice con un script sobre el seed. No hubo base de datos ni modelo.
   `pnpm db:local` con `NUTRIA_LOCAL_PG=1`, nunca en Neon.
 - **Decisiones del lead** (el owner las delegó el 2026-10-03):
   - aceptar o rechazar cada entrada;
-  - el desayuno (condición 1);
-  - `picos-de-pan` (4);
-  - `espinacas-a-la-catalana` (5);
-  - los caldos (6);
+  - `picos-de-pan` (3);
+  - `espinacas-a-la-catalana` (4);
+  - los caldos (5);
   - qué hacer si el tiempo pasa de +10 % (§ Riesgos, punto 3).
-- **Tiempo del owner**: ninguno, salvo que se decida abrir el desayuno. Eso cambia el
-  planificador y merece su visto bueno.
+- **Tiempo del owner**: ninguno.
 
 ## Riesgos
 
@@ -1286,7 +1300,7 @@ Las hice con un script sobre el seed. No hubo base de datos ni modelo.
      - frutos de cáscara en comida y cena (`espinacas-a-la-catalana`);
      - sésamo (`mutabal`, `espinacas-con-sesamo`);
      - soja (`edamame`, `espinacas-con-sesamo`);
-     - gluten (`salmorejo`, `pan-con-tomate`, `tostada-con-aceite`, `cuscus`,
+     - gluten (`salmorejo`, `pan-con-tomate`, `cuscus`,
        `espinacas-con-sesamo`, `picos-de-pan`);
      - leche (`pure-de-patata`, `yogur-con-miel`);
      - trazas de pescado y crustáceos (`kimchi`).
@@ -1320,7 +1334,7 @@ Las hice con un script sobre el seed. No hubo base de datos ni modelo.
      o que se añadan casi siempre porque salen gratis.
    - **Cómo se vería**: en el evaluador, la frecuencia de cada clave.
    - **Cómo se deshace**: quitarlos, o darles una ración mayor.
-5. **La variedad no sube.** Es la hipótesis de la condición 3.
+5. **La variedad no sube.** Es la hipótesis de la condición 2.
    - **Cómo se vería**: la nueva cuenta de distintos del evaluador.
    - **Remedio**: un coste por repetir acompañamiento. El PRD deja fuera las "reglas
      nuevas", así que lo decide el lead.
@@ -1334,7 +1348,7 @@ Las hice con un script sobre el seed. No hubo base de datos ni modelo.
 | española | comida y cena | 410 | 2.666 | ×6,5 | 2.940 (noviembre: 13/13/14; hoy 8/3/11) |
 | italiana | comida y cena | 245 | 437 | ×1,8 | 648 (junio: 8/5/11; hoy 8/3/8) |
 | asiática | comida y cena | 343 | 847 | ×2,5 | 990 (noviembre: 10/5/14; hoy 9/2/11) |
-| latina | comida y cena | 411 | 780 | ×1,9 | 975 (julio: 14/4/12; hoy 11/3/9) |
+| latina | comida y cena | 411 | 980 | ×2,4 | 1.260 (noviembre: 13/5/14; hoy 11/2/11) |
 | árabe | comida | 485 | 1.083 | ×2,2 | 1.344 (julio: 11/7/13; hoy 10/4/9) |
 | árabe | cena | 469 | 953 | ×2,0 | 1.120 (julio: 9/7/13; hoy 9/4/9) |
 
@@ -1377,13 +1391,12 @@ Va en fases pequeñas para el `PLAN` de 018, como enmienda a sus fases 2 y 3.
    - **Parada**: un día perdido, un alérgeno, o que los distintos no suban. En ese caso, va
      al lead como regla de repetición.
 4. **Fuera de 018, a decidir.**
-   - Abrir el desayuno a los acompañamientos. Las entradas ya están.
    - Re-fuentear `picos-de-pan` con la tarea BEDCA.
 
 ## Qué no sé
 
 - **Qué parte de `schedulePlan` es valorar conjuntos.** Solo lo dice la fase 3a.
-- **Si las 61 filas están también en la base de datos.** Las comprobé contra el seed. Si
+- **Si las 64 filas están también en la base de datos.** Las comprobé contra el seed. Si
   una fila del seed aún no hubiera llegado a producción, `larderFor` descartaría la entrada
   sin decir nada (`Accompaniment.ts:374`): es seguro, pero no se ve. La fase 3a, sobre la
   biblioteca de referencia, lo confirma con datos reales.
