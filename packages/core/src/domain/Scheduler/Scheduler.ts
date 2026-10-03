@@ -4,12 +4,11 @@ import {
   canPlace,
   countsFor,
   isPreferredDish,
-  kindAtCap,
   kindExcess,
   kindMeals,
-  kindPastCap,
   kindsCrowded,
   kindsExcess,
+  legumeCapCheck,
   legumeCheck,
   legumeIndex,
   MAIN_SLOTS,
@@ -481,19 +480,23 @@ const PROTEIN_REPEAT_WEIGHT = 0.05;
 const PROTEIN_SWAP_WEIGHT = 0.15;
 
 /**
- * What a day pays for each meal past the capped starches' four a fortnight
- * (`STARCH_RULES`: pasta, rice, grains), in the units of fit — more than any
- * fit a swap can buy, so the cap is held whenever another dish keeps the day as
- * close to its bands. Only the bands outrank it: `improveDay` and
- * `repairOutOfBand` judge a day's band miss first and the prices after, so a
- * day that needs a fifth plate of rice to land inside its macros gets it
- * (owner, 017: the macros win; `0081`).
+ * What a day pays for each meal that breaks a held kind rule (`KindRules.held`)
+ * — pasta, rice or grains past their four a fortnight, on two days running or
+ * twice on one day (`STARCH_RULES`), or a legume past its three
+ * (`LEGUME_RULES`) — in the units of fit: more than any fit a swap can buy, so
+ * the rule is held whenever another dish keeps the day as close to its bands.
+ * Only the bands outrank it: `improveDay` and `repairOutOfBand` judge a day's
+ * band miss first and the prices after, so a day that needs a fifth plate of
+ * rice to land inside its macros gets it (owner, 017: the macros win; `0081`,
+ * `0082`).
  *
- * Priced at 0.15 like the other kind rules, the cap was passed on seven of
- * fourteen profiles of the reference library — rice six or seven times — with
- * every day inside its bands.
+ * Priced at 0.15 like the other kind rules, the starch cap was passed on seven
+ * of fourteen profiles of the reference library — rice six or seven times —
+ * with every day inside its bands; so, until `0082`, were a legume's three (a
+ * production plan's white beans four times) and the starches' days running
+ * (its rice on days 1 and 2).
  */
-const STARCH_CAP_WEIGHT = 100;
+const HELD_KIND_WEIGHT = 100;
 
 /**
  * How close two days' band misses (`bandMiss`) must be for `improveDay` to call
@@ -676,10 +679,11 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
       // deliver nothing — and the later passes never swap a fitting plate out.
       const fitting = servable.filter(dish => fitsPlate(perServing.get(dish.slug) as PerServing, budget, slot));
       const sized = fitting.length > 0 ? fitting : servable;
-      // No pasta, rice or grains past their four while another dish can be
-      // served here (`STARCH_CAP_WEIGHT`, `0081`); when none can, the cap gives.
-      const cappedPlaced = kindMeals(placed, kinds.capped);
-      const underCap = sized.filter(dish => !atStarchCap(dish.slug, slot, cappedPlaced, kinds));
+      // No pasta, rice or grains past their four or beside their own, and no
+      // legume past its three, while another dish can be served here
+      // (`HELD_KIND_WEIGHT`, `0081`, `0082`); when none can, the rule gives.
+      const heldPlaced = kinds.held.map(check => kindMeals(placed, check));
+      const underCap = sized.filter(dish => !breaksHeld(dish.slug, slot, dayIndex, heldPlaced, kinds));
 
       const kindsPlaced = kinds.checks.map(check => kindMeals(placed, check));
       const chosen = pickBest(
@@ -869,9 +873,9 @@ export function pickReplacement(input: {
   const kindsPlaced = kinds.checks.map(check => kindMeals(input.placed, check));
   const kindsCost = (dish: CandidateDish): number =>
     kindsCrowded(dish.slug, input.slot, input.dayIndex, kindsPlaced, kinds.checks, PLAN_DAYS) * PROTEIN_REPEAT_WEIGHT;
-  // Past the capped starches' four only when no other dish passes (`0081`): a swap has no bands to weigh against it.
-  const cappedPlaced = kindMeals(input.placed, kinds.capped);
-  const pastCap = (dish: CandidateDish): number => Number(atStarchCap(dish.slug, input.slot, cappedPlaced, kinds));
+  // Past a held rule only when no other dish passes (`0081`, `0082`): a swap has no bands to weigh against it.
+  const heldPlaced = kinds.held.map(check => kindMeals(input.placed, check));
+  const pastCap = (dish: CandidateDish): number => Number(breaksHeld(dish.slug, input.slot, input.dayIndex, heldPlaced, kinds));
 
   const dish = input.pool
     .filter(
@@ -1207,25 +1211,28 @@ type ProteinIndex = ReadonlyMap<string, string | null>;
  * the meals it keeps (`Placement`); a kept snack outside the pool counts for
  * nothing, as a kept protein does.
  *
- * `capped` is the one check whose cap is held, not priced (`STARCH_CAP_WEIGHT`,
- * `0081`): pasta, rice and grains four times a fortnight.
+ * `held` are the rules held, not priced, on top (`HELD_KIND_WEIGHT`): pasta,
+ * rice and grains whole — four a fortnight, never on days running (`0081`,
+ * `0082`) — and a legume's three a fortnight (`0082`); a legume's days running
+ * stay priced with the rest.
  */
-type KindRules = { readonly capped: KindCheck; readonly checks: readonly KindCheck[]; readonly days: number };
+type KindRules = { readonly checks: readonly KindCheck[]; readonly days: number; readonly held: readonly KindCheck[] };
 
 function kindRules(pool: readonly CandidateDish[], catalogue: Catalogue, days: number): KindRules {
-  const capped = starchCheck(starchIndex(pool));
+  const starch = starchCheck(starchIndex(pool));
+  const legumes = legumeIndex(pool);
 
-  return { capped, checks: [capped, legumeCheck(legumeIndex(pool)), snackCheck(pool, catalogue)], days };
+  return { checks: [starch, legumeCheck(legumes), snackCheck(pool, catalogue)], days, held: [starch, legumeCapCheck(legumes)] };
 }
 
-/** How many of these placements are past the capped starches' four a fortnight (`KindRules.capped`). */
-function pastStarchCap(placements: readonly Placement[], kinds: KindRules): number {
-  return kindPastCap(kindMeals(placements, kinds.capped), kinds.days, kinds.capped.rule);
+/** How many of these placements break a held rule (`KindRules.held`). */
+function pastHeld(placements: readonly Placement[], kinds: KindRules): number {
+  return kindsExcess(placements, kinds.held, kinds.days);
 }
 
-/** Whether a dish at a slot would take its pasta, rice or grains past the cap, over these meals of the capped check. */
-function atStarchCap(slug: string, slot: MealSlot, cappedMeals: readonly KindMeal[], kinds: KindRules): boolean {
-  return countsFor(kinds.capped, slug, slot) && kindAtCap(kinds.capped.index.get(slug), cappedMeals, kinds.days, kinds.capped.rule);
+/** Whether a dish at a slot on a day would break a held rule, over each held check's meals (`heldMeals`, in `KindRules.held`'s order). */
+function breaksHeld(slug: string, slot: MealSlot, dayIndex: number, heldMeals: readonly (readonly KindMeal[])[], kinds: KindRules): boolean {
+  return kindsCrowded(slug, slot, dayIndex, heldMeals, kinds.held, kinds.days) > 0;
 }
 
 /** Whether a pool dish may be served on a day: its fresh fruit in that day's month (`SchedulerInput.monthOf`). */
@@ -2128,9 +2135,9 @@ function improveDay(
   // Pasta, rice, grains and legumes against the rest of the plan, at the protein rule's weight.
   const { kinds } = protein;
   const kindsElsewhere = kinds.checks.map(check => kindMeals(others, check));
-  const cappedElsewhere = kindMeals(others, kinds.capped);
+  const heldElsewhere = kinds.held.map(check => kindMeals(others, check));
 
-  // The capped starches' cap is held at `STARCH_CAP_WEIGHT` on top: only the bands outrank it.
+  // The held rules are held at `HELD_KIND_WEIGHT` on top: only the bands outrank them.
   const kindsOf = (day: readonly Pick[]): number => {
     const placements = day.map(entry => ({ dayIndex, dishSlug: entry.dish.slug, slot: entry.slot }));
 
@@ -2140,7 +2147,11 @@ function improveDay(
         0
       ) *
         PROTEIN_SWAP_WEIGHT +
-      kindPastCap([...cappedElsewhere, ...kindMeals(placements, kinds.capped)], kinds.days, kinds.capped.rule) * STARCH_CAP_WEIGHT
+      kinds.held.reduce(
+        (sum, check, position) => sum + kindExcess([...(heldElsewhere[position] ?? []), ...kindMeals(placements, check)], kinds.days, check.rule),
+        0
+      ) *
+        HELD_KIND_WEIGHT
     );
   };
 
@@ -2698,7 +2709,7 @@ function repairOutOfBand(
 
       return (
         (repeats + kindsExcess([...others, ...placements], kinds.checks, kinds.days)) * PROTEIN_SWAP_WEIGHT +
-        pastStarchCap([...others, ...placements], kinds) * STARCH_CAP_WEIGHT +
+        pastHeld([...others, ...placements], kinds) * HELD_KIND_WEIGHT +
         dayReuseCost(picks, start.dayIndex, others)
       );
     };

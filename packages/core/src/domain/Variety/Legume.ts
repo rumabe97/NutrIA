@@ -67,7 +67,11 @@ export function legumeKind(dish: Dish): string | null {
 /**
  * **The same legume three times a fortnight at most, never on two days
  * running** (owner, 2026-10-02; plan 017 phase 2). The same dish is held to
- * twice a fortnight by `VARIETY_RULES` as ever. Priced like `STARCH_RULES`.
+ * twice a fortnight by `VARIETY_RULES` as ever.
+ *
+ * The three is held like the starches' four (`0082`, `legumeCapCheck`): the
+ * scheduler serves no fourth while another dish keeps the day as close to its
+ * macros. The days running stay priced, like the other kind rules.
  */
 export const LEGUME_RULES = { apart: true, perFortnight: 3 } as const satisfies KindRule;
 
@@ -79,4 +83,9 @@ export function legumeIndex(dishes: readonly Pick<CandidateDish, 'ingredients' |
 /** `LEGUME_RULES` as the scheduler applies it; a placement's own legume is read first (`Placement.legume`). */
 export function legumeCheck(index: ReadonlyMap<string, string | null>): KindCheck {
   return { index, named: placement => placement.legume, rule: LEGUME_RULES };
+}
+
+/** `LEGUME_RULES`' cap alone — the part the scheduler holds (`0082`); its days running are `legumeCheck`'s, priced. */
+export function legumeCapCheck(index: ReadonlyMap<string, string | null>): KindCheck {
+  return { index, named: placement => placement.legume, rule: { apart: false, perFortnight: LEGUME_RULES.perFortnight } };
 }
