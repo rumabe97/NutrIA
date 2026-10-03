@@ -116,6 +116,9 @@ async function fail(auth: Auth, email: string, n: number): Promise<void> {
   }
 }
 
+// Each case signs in ten to thirty times, each a real scrypt: past Jest's five seconds when the whole workspace runs at once.
+jest.setTimeout(30_000);
+
 describe('the per-address sign-in brake', () => {
   let attempt: jest.SpiedFunction<typeof SignInBrakeController.attempt>;
 
