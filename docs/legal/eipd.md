@@ -14,7 +14,7 @@
 | --- | --- |
 | Responsable | {name} (ver `legalIdentity.ts`) |
 | Tratamientos | (1) planificación de comidas con datos de salud y de creencias, con IA generativa; (2) comunicación de datos a dietistas-nutricionistas (proyecto 004) |
-| Versión / fecha | 0.3 borrador, 2026-09-28 (0.2: 2026-09-26; 0.1: 2026-09-25). La 0.3 revisa el recorte del onboarding (`0067`, **sin fusionar**: rama `feat/onboarding-cleanup` — verdad una vez fusionada): § 1.2, 1.3, 2, R2, § 6. La 0.2 revisaba solo el tratamiento con IA (`0064`: OpenRouter): § 1.3, 1.4, 2, R2, R14, M3, M4, § 5 y § 6 |
+| Versión / fecha | 0.4 borrador, 2026-10-03 (0.3: 2026-09-28; 0.2: 2026-09-26; 0.1: 2026-09-25). La 0.4 registra las medidas de cuenta del proyecto 011 (fases 2 a 5, en `main`; fase 6, **sin fusionar**: rama `feat/011-p6-privileged-2fa` — verdad una vez fusionada): R8 y M13, sin puntuar de nuevo (lo hace la fase 10 del 011). La 0.3 revisa el recorte del onboarding (`0067`, **sin fusionar**: rama `feat/onboarding-cleanup` — verdad una vez fusionada): § 1.2, 1.3, 2, R2, § 6. La 0.2 revisaba solo el tratamiento con IA (`0064`: OpenRouter): § 1.3, 1.4, 2, R2, R14, M3, M4, § 5 y § 6 |
 | Aprobación | pendiente — firma y fecha del responsable |
 | DPD | no designado (no obligatorio: [`analisis.md` § 5.2](./analisis.md#52-dpd--no-obligatorio-hoy)) |
 | Por qué es obligatoria | Lista de la AEPD (art. 35.4), criterios 1, 4, 8 y 10; art. 28.2.c LOPDGDD — [`analisis.md` § 5.1](./analisis.md#51-eipd--obligatoria) |
@@ -128,7 +128,7 @@ de las pendientes marcadas.
 | R5 | Una persona comparte su salud con el profesional sin saberlo o no puede dejar de hacerlo | Consentimiento viciado; pérdida de control | 3 hoy | 3 | 9 | M9 (**pendiente**) | 2 |
 | R6 | Un menor obtiene un plan de adelgazamiento | Daño a la salud de un menor; consentimiento inválido | 2 | 4 | 8 | M10 (**pendiente**) | 2 |
 | R7 | Acceso no autorizado a la base de datos o a la exportación | Brecha masiva de datos de salud | 2 | 4 | 8 | M11, M12 (**cifrado pendiente**) | 3 |
-| R8 | Robo de sesión o de cuenta (incluida la de un profesional con varios pacientes) | Revelación de salud de varias personas | 2 | 4 | 8 | M13 | 3 |
+| R8 | Robo de sesión o de cuenta (incluida la de un profesional con varios pacientes, o la del administrador) | Revelación de salud de varias personas | 2 | 4 | 8 | M13 (con lo del 011: ver la medida) | 3, sin puntuar de nuevo hasta la fase 10 del 011. La fase 6 baja la probabilidad del caso peor —la cuenta de un profesional o del administrador— cuando el ataque empieza por la contraseña. **No cierra R8**: (a) no hace nada contra una sesión ya robada; (b) **una sesión abierta solo con la contraseña antes de activar la verificación sigue viva después y pasa la puerta** (P2, enviado a `backend`); (c) un profesional que entra solo con Google depende de la verificación en dos pasos de Google, que NutrIA no puede comprobar |
 | R9 | Datos de salud en registros, errores o correos | Revelación accidental | 2 | 3 | 6 | M14 | 1 |
 | R10 | La invitación revela a un tercero que alguien tiene cuenta o es paciente | Revelación de la relación asistencial | 2 | 3 | 6 | M15 | 1 |
 | R11 | Un plan que no es seguro por calorías o proteína (IA o profesional) | Daño a la salud | 2 | 3 | 6 | M16 | 2 |
@@ -154,7 +154,7 @@ de las pendientes marcadas.
 | M10 | Puerta de edad (18, decisión del propietario de 2026-09-25) en el servidor | **pendiente (P1-4)** |
 | M11 | Solo `apps/api` abre conexión; propiedad por `WHERE userId`; sesión re-leída en cada petición | ✔ |
 | M12 | Exportación manual cifrada, en disco cifrado, borrada a los 30 días | **pendiente (P1-6)** |
-| M13 | Better Auth: contraseñas con hash, límite de intentos en base de datos, vinculación estricta de cuentas, revocar sesiones al resetear, cookies `httpOnly`/`secure`/`lax` | ✔ |
+| M13 | Better Auth: contraseñas con hash, límite de intentos en base de datos, vinculación estricta de cuentas, revocar sesiones al resetear, cookies `httpOnly`/`secure`/`lax`. **Proyecto 011, en `main`**: contraseña de 12 a 128 caracteres que no esté en filtraciones conocidas, comprobada en el servidor contra Have I Been Pwned (si no responde en 2 segundos, la contraseña pasa y queda una línea de registro), y una filtrada se cambia antes de seguir (fases 1-2); cambiar la contraseña cierra las demás sesiones y la persona ve y cierra sus sesiones (fase 2); verificación en dos pasos opcional con app de autenticación y códigos de respaldo de un solo uso (fases 3-4); retirada de un segundo factor perdido solo a petición desde la dirección de la cuenta y a partir de las 48 horas ([`procedimiento-quitar-segundo-factor.md`](./procedimiento-quitar-segundo-factor.md), fase 4); llaves de acceso (fase 5, `0083`). **Fase 6, una vez fusionada** (`core/domain/SecondFactor`, `ProfessionalGuard`, `AdminGuard`): una cuenta de profesional o de administrador **que tenga contraseña** no abre ninguna ruta de pacientes ni de la consola sin la verificación en dos pasos activada (404, como toda denegación); una llave de acceso no la sustituye; una cuenta solo con Google o Apple pasa; desactivarla o la retirada del propietario cierra la puerta en la siguiente petición | ✔ en `main` (fases 1-5); fase 6 **pendiente de fusionar**; **pendiente**: cerrar las demás sesiones al activar la verificación (P2, R8 b); el freno por cuenta (fase 7) |
 | M14 | Redacción pino de campos de salud; Sentry sin cuerpo, usuario ni cabeceras; correos sin palabras de salud | ✔ |
 | M15 | La ruta de invitación responde igual exista o no la cuenta; correo en segundo plano | ✔ |
 | M16 | Suelo de calorías y techo de proteína aplicados por código a cualquier objetivo, también al del profesional (`targetViolations`) | ✔ |
@@ -187,6 +187,7 @@ de las pendientes marcadas.
 | 7 | Textos de `textos/` | frontend | flag `professional` / claves *live* |
 | 8 | M18, purgas | backend | revisión anual |
 | 9 | ~~P2-13 — migración que retire (o ponga a `NULL`) las diez columnas de onboarding que `0067` deja sin lector~~ | backend | **hecho el 2026-09-28**: migración `0043`, en el mismo cambio que `0067` |
+| 10 | M13 — al activar la verificación en dos pasos, cerrar las demás sesiones de la cuenta (R8 b); acuerdo del profesional § 8 con la verificación obligatoria y la de Google ([`textos/01`](./textos/01-acuerdo-profesional.md), versión 1.1.0) | backend + frontend | que un profesional real acepte el acuerdo |
 
 ## 7. Aprobación
 
