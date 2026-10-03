@@ -63,7 +63,7 @@ const COPY: Record<EmailLocale, Copy> = {
 
       switch (event.kind) {
         case 'enabled':
-          return `Two-step verification was turned on ${on}. Signing in with the password now also asks for a code from the authenticator app.`;
+          return `Two-step verification was turned on ${on}. Signing in with the password now also asks for a code from the authenticator app, and every other session of the account was closed.`;
         case 'disabled':
           return `Two-step verification was turned off ${on}. Signing in now asks for the password alone.`;
         case 'backup-code-used':
@@ -97,7 +97,7 @@ const COPY: Record<EmailLocale, Copy> = {
 
       switch (event.kind) {
         case 'enabled':
-          return `La verificación en dos pasos ${of} se activó ${at}. Para entrar con la contraseña, ahora también se pide un código de la app de autenticación.`;
+          return `La verificación en dos pasos ${of} se activó ${at}. Para entrar con la contraseña, ahora también se pide un código de la app de autenticación, y se han cerrado las demás sesiones de la cuenta.`;
         case 'disabled':
           return `La verificación en dos pasos ${of} se desactivó ${at}. Para entrar, ahora basta con la contraseña.`;
         case 'backup-code-used':

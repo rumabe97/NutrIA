@@ -585,6 +585,28 @@ describe('professionals', () => {
       });
     });
 
+    /* The legal review of phase 6: a session opened with the password alone must not ride the factor in. */
+    it('closes every other session when TOTP goes on, so one opened earlier with the password alone never reaches a client', async () => {
+      const server = httpServer(app);
+      const pro = await practising('stolen');
+      // Somebody else who knows the password, signed in before the professional turned the factor on.
+      const signedIn: Response = await request(server)
+        .post(`/${PREFIX}/auth/sign-in/email`)
+        .send({ email: pro.email, password: 'correct-horse-battery-staple-9' })
+        .expect(200);
+      const stolen = { ...pro, cookie: (signedIn.headers['set-cookie'] as unknown as string[]).join('; ') };
+
+      await expectShut(stolen);
+
+      const enabled = await enableTotp(app, pro);
+
+      made.push(enabled.cookie);
+      await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', enabled.cookie).expect(200);
+      // Closed, not merely refused: the session itself is gone, on every route.
+      await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', stolen.cookie).expect(404);
+      await request(server).get(`/${PREFIX}/users/me`).set('Cookie', stolen.cookie).expect(404);
+    });
+
     it('never blocks a professional with no password — a Google-only account’s second factor is Google’s', async () => {
       const server = httpServer(app);
       const pro = await practising('google');

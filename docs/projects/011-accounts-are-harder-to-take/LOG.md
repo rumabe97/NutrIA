@@ -593,3 +593,17 @@
     the session.
 - **Advisor**: not consulted.
 - **After deploy**: the owner still reaches `/admin` (his account has TOTP on).
+- **Legal review, P2 applied** (`legal-p6`): turning TOTP on now closes every other
+  session of the account. The flag rides every session's user row, so a session opened
+  earlier with the password alone would otherwise have passed the privileged rule once
+  the factor went on.
+  - In `twoFactorAfter`, the confirmation that turns the factor on deletes every
+    session but the one the plugin just made, awaited, and writes
+    `auth.sessions_revoked {scope:'others'}` when any went. A failure is the line
+    `two_factor_sessions_not_closed {"userId"}`, not a 500.
+  - This applies to every account, not only privileged ones.
+  - The "enabled" mail and the web's confirmation say the other sessions were closed.
+  - Pinned by three specs in `TwoFactor.spec.ts` and by a `professionals.e2e-spec.ts`
+    case: a session signed in with the password before TOTP went on is gone afterwards.
+  - Rerun: two-factor, professionals, passkeys, two-factor-removal and care-practice,
+    126 tests, green. API unit specs: 1513.

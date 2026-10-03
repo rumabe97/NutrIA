@@ -307,12 +307,39 @@ export async function cancelPendingRemoval(
 }
 
 /**
+ * Turning the factor on closes every other session of the account (PLAN 011
+ * phase 6, the legal review's finding). The flag rides every session's user
+ * row, so a session somebody opened earlier with the password alone would
+ * pass the privileged accounts' rule the moment the factor went on — the very
+ * door the rule shuts. Only the one the plugin just made for this request
+ * (`keep`) survives, as on `/change-password` (`AccountSecurity.ts`), with
+ * the same `auth.sessions_revoked {scope:'others'}` row when any went.
+ * Awaited, before the answer. A failure is the error line
+ * `two_factor_sessions_not_closed`, not a 500: the factor did turn on.
+ */
+async function closeOtherSessions(context: Context, userId: string, keep: string): Promise<void> {
+  try {
+    const others = (await context.context.internalAdapter.listSessions(userId)).map(session => session.token).filter(token => token !== keep);
+
+    if (others.length === 0) {
+      return;
+    }
+
+    await context.context.internalAdapter.deleteSessions(others);
+    await UserController.sessionsRevoked(userId, 'others');
+  } catch {
+    logger.error(`two_factor_sessions_not_closed ${JSON.stringify({ userId })}`);
+  }
+}
+
+/**
  * After the plugin, on a 2xx only (called from `accountSecurityAfter`):
  *
  * - `/two-factor/verify-totp` from a session whose account had the factor off:
  *   that is the factor turning on — the first correct code after `/enable`,
  *   never `/enable` itself, which only stores an unverified secret. The plugin
- *   has rotated the session to one whose user has it on. A challenge (no
+ *   has rotated the session to one whose user has it on; every other session
+ *   of the account is closed (`closeOtherSessions`). A challenge (no
  *   session before the request) is a sign-in and writes nothing here.
  * - `/two-factor/disable`: off, for the session's own account, when it was on.
  * - `/two-factor/generate-backup-codes`: ten new codes, the old ones dead —
@@ -331,6 +358,7 @@ export async function twoFactorAfter(deps: TwoFactorDeps, context: Context, retu
     const after = context.context.newSession;
 
     if (before?.session && before.user.twoFactorEnabled !== true && after?.user.twoFactorEnabled === true) {
+      await closeOtherSessions(context, after.user.id, after.session.token);
       await changed(deps, context, { id: after.user.id, email: after.user.email }, { kind: 'enabled' });
     }
 

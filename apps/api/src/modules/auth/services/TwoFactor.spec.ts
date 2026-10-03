@@ -227,6 +227,7 @@ describe('the second factor', () => {
   let analytics: jest.SpiedFunction<typeof AnalyticsController.record>;
   let claimTotpStep: jest.SpiedFunction<typeof TwoFactorController.claimTotpStep>;
   let cancelRemovalByAccount: jest.SpiedFunction<typeof TwoFactorController.cancelRemovalByAccount>;
+  let sessionsRevoked: jest.SpiedFunction<typeof UserController.sessionsRevoked>;
   const logged: string[] = [];
 
   beforeEach(() => {
@@ -244,7 +245,7 @@ describe('the second factor', () => {
     backupCodeUsed = jest.spyOn(UserController, 'backupCodeUsed').mockResolvedValue(undefined);
     backupCodesRegenerated = jest.spyOn(UserController, 'backupCodesRegenerated').mockResolvedValue(undefined);
     jest.spyOn(UserController, 'passwordChanged').mockResolvedValue(0);
-    jest.spyOn(UserController, 'sessionsRevoked').mockResolvedValue(undefined);
+    sessionsRevoked = jest.spyOn(UserController, 'sessionsRevoked').mockResolvedValue(undefined);
     analytics = jest.spyOn(AnalyticsController, 'record').mockResolvedValue(undefined);
     jest.spyOn(AnalyticsController, 'recordUse').mockResolvedValue(undefined);
     // The replay rule's claim (PLAN 011 phase 4), as `TwoFactorRepository.claimTotpStep`'s guarded UPDATE does it, on the store's row.
@@ -352,6 +353,57 @@ describe('the second factor', () => {
       // The rotation of the session the person already had is not a visit.
       expect(sessionsStarted()).toHaveLength(1);
       await expect(sessionOf(auth, browser)).resolves.toMatchObject({ user: { twoFactorEnabled: true } });
+    });
+  });
+
+  /*
+   * PLAN 011 phase 6, the legal review: the flag rides every session's user row, so a session somebody opened
+   * with the password alone before the factor went on would pass the privileged accounts' rule afterwards.
+   */
+  describe('turning it on closes the other sessions', () => {
+    it('leaves only the session that confirmed it, and writes auth.sessions_revoked {scope: others}', async () => {
+      const auth = build();
+      const confirming = await signUp(auth);
+      const elsewhere = new Browser();
+
+      expect((await call(auth, elsewhere, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD })).status).toBe(200);
+      await expect(sessionOf(auth, elsewhere)).resolves.not.toBeNull();
+
+      const uri = (await call(auth, confirming, '/two-factor/enable', { password: PASSWORD })).body?.totpURI as string;
+
+      // `/enable` alone turns nothing on, and closes nothing.
+      await expect(sessionOf(auth, elsewhere)).resolves.not.toBeNull();
+      expect((await call(auth, confirming, '/two-factor/verify-totp', { code: totp(uri) })).status).toBe(200);
+
+      await expect(sessionOf(auth, elsewhere)).resolves.toBeNull();
+      await expect(sessionOf(auth, confirming)).resolves.toMatchObject({ user: { twoFactorEnabled: true } });
+      expect(store.session).toHaveLength(1);
+      expect(sessionsRevoked.mock.calls).toEqual([[store.user[0]?.id, 'others']]);
+    });
+
+    it('writes no row when there was no other session to close', async () => {
+      const auth = build();
+
+      await withFactor(auth);
+
+      expect(store.session).toHaveLength(1);
+      expect(sessionsRevoked).not.toHaveBeenCalled();
+    });
+
+    it('still turns the factor on when closing them fails, with a line that names only the account', async () => {
+      const auth = build();
+      const confirming = await signUp(auth);
+      const uri = (await call(auth, confirming, '/two-factor/enable', { password: PASSWORD })).body?.totpURI as string;
+      const elsewhere = new Browser();
+
+      await call(auth, elsewhere, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
+      sessionsRevoked.mockRejectedValueOnce(new Error('down'));
+
+      expect((await call(auth, confirming, '/two-factor/verify-totp', { code: totp(uri) })).status).toBe(200);
+      expect(store.user[0]?.twoFactorEnabled).toBe(true);
+      expect(logged.filter(line => line.includes('two_factor_sessions_not_closed'))).toEqual([
+        `two_factor_sessions_not_closed ${JSON.stringify({ userId: store.user[0]?.id })}`
+      ]);
     });
   });
 
