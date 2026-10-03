@@ -175,7 +175,10 @@ describe('UserController.forgetPasskeys', () => {
 
     expect(forgetPasskeys).toHaveBeenCalledWith('usr-1', expect.any(Function));
     expect(record).toHaveBeenCalledTimes(2);
-    expect(record).toHaveBeenCalledWith({ action: 'auth.passkey_removed', actorId: 'usr-1', entity: 'passkey', metadata: {}, subjectUserId: 'usr-1' }, 'tx-2');
+    expect(record).toHaveBeenCalledWith(
+      { action: 'auth.passkey_removed', actorId: 'usr-1', entity: 'passkey', metadata: {}, subjectUserId: 'usr-1' },
+      'tx-2'
+    );
   });
 
   it('writes nothing when the account had none', async () => {

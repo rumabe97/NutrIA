@@ -458,7 +458,10 @@ describe('passkeys', () => {
       const options = await call(auth, browser, '/passkey/generate-register-options');
       const verify = await call(auth, browser, '/passkey/verify-registration', { response: new Authenticator().create('any') });
 
-      expect(options).toMatchObject({ body: { code: 'EMAIL_CONFIRMATION_REQUIRED', message: 'Confirm your email address to add a passkey' }, status: 403 });
+      expect(options).toMatchObject({
+        body: { code: 'EMAIL_CONFIRMATION_REQUIRED', message: 'Confirm your email address to add a passkey' },
+        status: 403
+      });
       expect(verify).toMatchObject({ body: { code: 'EMAIL_CONFIRMATION_REQUIRED' }, status: 403 });
       expect(store.verification).toHaveLength(before);
       expect(store.passkey).toEqual([]);

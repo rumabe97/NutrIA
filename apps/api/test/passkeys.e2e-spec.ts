@@ -233,7 +233,9 @@ describe('passkeys: Better Auth’s plugin, owned by the session', () => {
 
     jar.take(options);
 
-    const response = await post('auth/passkey/verify-authentication', jar.header, { response: device.get((options.body as { challenge: string }).challenge) });
+    const response = await post('auth/passkey/verify-authentication', jar.header, {
+      response: device.get((options.body as { challenge: string }).challenge)
+    });
 
     jar.take(response);
 
@@ -621,7 +623,9 @@ describe('passkeys: Better Auth’s plugin, owned by the session', () => {
 
       expect(enabled.status).toBe(200);
 
-      const verified = await post('auth/two-factor/verify-totp', jar.header, { code: await clock.fresh((enabled.body as { totpURI: string }).totpURI) });
+      const verified = await post('auth/two-factor/verify-totp', jar.header, {
+        code: await clock.fresh((enabled.body as { totpURI: string }).totpURI)
+      });
 
       expect(verified.status).toBe(200);
 
@@ -647,7 +651,9 @@ describe('passkeys: Better Auth’s plugin, owned by the session', () => {
       expect(browser.has('two_factor')).toBe(false);
       expect((await get('users/me', browser.header)).status).toBe(200);
 
-      const [removal] = await sql()<{ cancelledAt: string | null }>`select cancelled_at::text as "cancelledAt" from two_factor_removal where user_id = ${id}`;
+      const [removal] = await sql()<{
+        cancelledAt: string | null;
+      }>`select cancelled_at::text as "cancelledAt" from two_factor_removal where user_id = ${id}`;
 
       expect(removal?.cancelledAt).not.toBeNull();
       expect(await auditRows(id, 'auth.2fa_removal_cancelled')).toEqual([
