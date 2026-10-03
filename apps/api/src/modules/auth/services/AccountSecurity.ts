@@ -10,6 +10,7 @@ import { twoFactorAfter, twoFactorBefore } from './TwoFactor.js';
 import type { BackgroundTaskService } from '../../../shared/services/index.js';
 import type { CompromisedCheck, Context } from './PasswordPolicy.js';
 import type { PasskeyDeps } from './Passkey.js';
+import type { SignInBrake } from './SignInBrake.js';
 import type { TwoFactorDeps } from './TwoFactor.js';
 import type { PasswordChangedVia, SessionsRevokedScope } from 'core/entities/Audit';
 
@@ -26,6 +27,8 @@ export type PasswordChangedNotice = {
 export type AccountSecurityDeps = PasskeyDeps &
   TwoFactorDeps & {
     readonly background: Pick<BackgroundTaskService, 'run'>;
+    /** The per-address brake on password sign-in (PLAN 011 phase 7): cleared by a sign-in and by a reset. */
+    readonly brake: Pick<SignInBrake, 'signedIn'>;
     /** Null where HIBP must not be called — under `NODE_ENV=test`. */
     readonly isCompromised: CompromisedCheck | null;
     /** Sends "your password has changed"; run in the background, never awaited by a route. */
@@ -101,7 +104,9 @@ async function passwordChanged(
 }
 
 /**
- * Better Auth's `hooks.before`. First the password rule on the three doors a
+ * Better Auth's `hooks.before`. First the per-address brake on
+ * `/sign-in/email` (`SignInBrake.ts`), which answers 429 while an address
+ * waits. Then the password rule on the three doors a
  * password is set through (`PasswordPolicy.ts`). On `/revoke-session`, a
  * token that is not the caller's is answered here (`notTheCallersSession`).
  * On `/change-password`, `revokeOtherSessions` is forced to `true` whatever
@@ -112,10 +117,11 @@ async function passwordChanged(
  * no email OTP (`TwoFactor.ts`). On `/passkey/*`, another account's passkey is
  * the 404 and a registration mints no session (`Passkey.ts`).
  */
-export function accountSecurityBefore(isCompromised: CompromisedCheck | null) {
+export function accountSecurityBefore(isCompromised: CompromisedCheck | null, brake: Pick<SignInBrake, 'before'>) {
   const check = checkNewPassword(isCompromised);
 
   return createAuthMiddleware(async context => {
+    await brake.before(context);
     await check(context);
     await twoFactorBefore(context);
 
@@ -170,7 +176,10 @@ async function notTheCallersSession(context: Context): Promise<{ status: true } 
  *   user — Better Auth scoped the deletion to that user already. A
  *   `/revoke-session` for a token that is not the caller's is answered by
  *   `hooks.before` and never gets here, so a `one` row is a session that went.
- * - `/sign-in/email`: the password just proved checked against HIBP, in the
+ * - `/sign-in/email`: the address's brake cleared, awaited — the next
+ *   attempt starts from nothing — whether or not a second factor follows,
+ *   since the password is what the brake guards. Then the password just
+ *   proved checked against HIBP, in the
  *   background — sign-in never waits for it — and the account marked on a hit
  *   if it is not already. A timeout or an error marks nothing (`breachedOrPass`
  *   fails open). Off where `isCompromised` is null. It runs before the
@@ -226,7 +235,17 @@ export function accountSecurityAfter(deps: AccountSecurityDeps) {
       return;
     }
 
-    if (path === SIGN_IN && deps.isCompromised) {
+    if (path !== SIGN_IN) {
+      return;
+    }
+
+    const email = text(record(context.body).email);
+
+    if (email) {
+      await deps.brake.signedIn(email);
+    }
+
+    if (deps.isCompromised) {
       const user = answeredUser(returned);
       const password = text(record(context.body).password);
       const isCompromised = deps.isCompromised;
@@ -247,9 +266,14 @@ export function accountSecurityAfter(deps: AccountSecurityDeps) {
  * the other door — the mark cleared, `auth.password_changed {via:'reset'}`,
  * every passkey removed, the mail. Runs only after a valid token set the password, so it says nothing
  * about whether an address has an account.
+ *
+ * The address's sign-in brake is cleared too (PLAN 011 phase 7): whoever reset
+ * holds the mailbox, and must not wait out a brake somebody else's guesses at
+ * the old password left.
  */
 export function onPasswordReset(deps: AccountSecurityDeps) {
   return async ({ user }: { user: { id: string; email: string } }, request?: Request): Promise<void> => {
+    await deps.brake.signedIn(user.email);
     await passwordChanged(deps, { ...headersOf(request), id: user.id, email: user.email }, 'reset');
   };
 }

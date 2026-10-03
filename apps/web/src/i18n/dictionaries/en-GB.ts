@@ -1151,6 +1151,7 @@ export const enGB: Dictionary = {
     sendLink: 'Send link',
     signIn: 'Sign in',
     signingIn: 'Signing in…',
+    signInPaused: 'Too many attempts; try again in a while.',
     signInSubtitle: 'Sign in to see today’s plan.',
     signInTitle: 'Welcome back',
     signInUnavailable: 'We could not sign you in (error {status}). Try again in a moment.',

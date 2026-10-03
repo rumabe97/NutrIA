@@ -9,9 +9,11 @@ import type { AuditRow } from '#repositories/Audit';
 
 const page = vi.fn<(filter: { action?: AuditAction }, offset: number, size: number) => Promise<{ rows: readonly AuditRow[]; total: number }>>();
 const record = vi.fn<(entry: unknown, tx?: unknown) => Promise<void>>();
+const forgetAuthRowsBefore = vi.fn<(cutoff: Date) => Promise<number>>();
 
 vi.mock('#repositories/Audit', () => ({
   AuditRepository: {
+    forgetAuthRowsBefore: (cutoff: Date) => forgetAuthRowsBefore(cutoff),
     page: (filter: { action?: AuditAction }, offset: number, size: number) => page(filter, offset, size),
     record: (entry: unknown, tx?: unknown) => record(entry, tx)
   }
@@ -24,6 +26,7 @@ function query(raw: Partial<AuditQuery> = {}): AuditQuery {
 beforeEach(() => {
   page.mockReset();
   record.mockReset();
+  forgetAuthRowsBefore.mockReset();
 });
 
 describe('AuditController.list', () => {
@@ -78,5 +81,14 @@ describe('AuditController.record', () => {
     await AuditController.record({ action: 'push.test_sent', actorId: 'usr-owner', entity: 'push', metadata: {} });
 
     expect(record).toHaveBeenCalledWith({ action: 'push.test_sent', actorId: 'usr-owner', entity: 'push', metadata: {} }, undefined);
+  });
+});
+
+describe('AuditController.forgetExpiredAuthRows', () => {
+  it('asks for the auth rows older than twelve calendar months, and answers how many went', async () => {
+    forgetAuthRowsBefore.mockResolvedValue(4);
+
+    await expect(AuditController.forgetExpiredAuthRows(new Date('2026-10-03T08:05:00.000Z'))).resolves.toBe(4);
+    expect(forgetAuthRowsBefore).toHaveBeenCalledWith(new Date('2025-10-03T08:05:00.000Z'));
   });
 });

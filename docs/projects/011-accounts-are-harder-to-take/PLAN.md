@@ -480,9 +480,12 @@ records what was decided.
   - `apps/api/src/modules/auth/**`:
     - `hooks.before` on `/sign-in/email`: before `next_allowed_at`, answer 429 with
       `Retry-After`, the same for a known and an unknown address;
-    - `hooks.after` on a 401: count, and from the 10th failure in 15 minutes set
-      `next_allowed_at` growing (30 s, 1 min, 2 min… capped at 15 min);
-    - on a 200: clear the row;
+    - ~~`hooks.after` on a 401: count~~ — amended in execution (LOG, phase 7): every
+      attempt is counted in `hooks.before`, under the row's lock, and a 2xx clears it,
+      so what stays counted is the failures without a burst from many IPs racing the
+      count; from the 10th in 15 minutes set `next_allowed_at` growing (30 s, 1 min,
+      2 min… capped at 15 min);
+    - on a 200 (and on a password reset): clear the row;
     - `NODE_ENV=test` keeps it on; suites use distinct addresses.
   - The `auth.*` audit purge (added 2026-10-01 from phase 2, `legal`'s retention in
     `docs/legal/analisis.md` § 4.1 bis): the same daily cron also deletes `audit_logs`
@@ -536,6 +539,36 @@ records what was decided.
   - `/local-probe` on `/registro` and the after-sign-up screen.
   - human-verify: the owner signs up a throwaway address on his iPhone, confirms it, and
     signs in in the installed app.
+
+### Phase 7b — A browser that signed in before is not braked
+
+- [ ] pending — added 2026-10-03 from phase 7's invariant review (P1-a), owner's
+  delegation of 2026-10-03. Runs after phase 8.
+- **Dispatch**: opus @ high, as a `/team` (`backend`, `tests`). `quality-max`. Reviews:
+  `invariant-reviewer`, `migration-reviewer` if it needs a table.
+- **Goal**: an attacker who knows an address can no longer keep its owner out. Today they
+  can: the attempt at the end of each wait goes to whoever asks first, so one wrong
+  password per expiry keeps a password-only account braked for as long as the attack runs,
+  and the reset that clears the row can be raced. A passkey or Google is the only escape.
+- **Scope**:
+  - A device cookie, set on a successful password sign-in: signed (or an opaque token in
+    the database), `HttpOnly`, `Secure`, `SameSite=Lax`, naming the account it was earned
+    for, never the address in clear.
+  - `hooks.before` on `/sign-in/email`: a request carrying a valid cookie for the address
+    it signs in to skips the per-address brake. Better Auth's per-IP limit still applies,
+    and so does the two-factor plugin's own lock.
+  - The 429 keeps `Retry-After` and `X-Retry-After`, the same for a known and an unknown
+    address.
+  - A password change or reset invalidates the account's device cookies, as it does
+    trusted devices.
+  - E2E: an address braked by another client still lets the cookie's browser in with the
+    right password; the cookie does not exempt a different address.
+- **Known limit kept, not fixed here (P1-b)**: clearing the row on success leaks slowly that
+  an address has an account. The probe is nine failures, then the victim signs in with a
+  password, then two more probes: 401 then 401 instead of 401 then 429. It needs a password
+  sign-in by the victim inside the prober's window, and no health data crosses an account
+  boundary. The trade-off: without clearing, the owner's own sign-ins would count against
+  them.
 
 ### Phase 9 — A Content Security Policy, report-only
 
@@ -636,7 +669,7 @@ records what was decided.
 | 9 Passkeys | 5 |
 | 10 The owner's removal | 4 |
 | 11 Privileged accounts | 6 |
-| 12 Per-account brake | 7 |
+| 12 Per-account brake | 7, 7b (the device cookie) |
 | 13 Sign-up reveals nothing | 8 |
 | 14 Headers and CSP | 1 (simple headers), 9 (report-only), 10 (enforcing) |
 | 15 Every security email and audit row | 2, 3, 4, 5, 8 |

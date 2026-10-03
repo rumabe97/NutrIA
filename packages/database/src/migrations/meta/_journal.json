@@ -421,6 +421,13 @@
       "when": 1791026635348,
       "tag": "0059_a_person_keeps_passkeys_on_their_account",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1791037945548,
+      "tag": "0060_a_sign_in_brake_per_address",
+      "breakpoints": true
     }
   ]
 }

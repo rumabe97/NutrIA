@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 
+import { AuthRetentionService } from '../../auth/services/AuthRetention.service.js';
 import { CheckInReminderService } from '../../notifications/index.js';
 import { CronController } from './Cron.controller.js';
 import { CronRunService } from '../services/index.js';
@@ -29,6 +30,7 @@ describe('the cron routes', () => {
   const sweep = jest.fn(async () => Promise.resolve({ considered: 0, failed: 0, pushed: 0, sent: 0 }));
   const forget = jest.fn(async () => Promise.resolve());
   const forgetVerifications = jest.fn(async () => Promise.resolve(0));
+  const forgetAuth = jest.fn(async () => Promise.resolve({ authAuditRows: 0, signInFailures: 0 }));
   const activate = jest.fn(async () => Promise.resolve({ activated: 0, failed: 0 }));
   const removeTwoFactors = jest.fn(async () => Promise.resolve({ failed: 0, removed: 0 }));
   const record = jest.fn(async (_job: string, _counts: Readonly<Record<string, 'cap' | number>>) => Promise.resolve());
@@ -53,6 +55,7 @@ describe('the cron routes', () => {
         { provide: CheckInReminderService, useValue: { sweep } },
         { provide: ExpiredInvitationsService, useValue: { forget } },
         { provide: ExpiredVerificationsService, useValue: { forget: forgetVerifications } },
+        { provide: AuthRetentionService, useValue: { forget: forgetAuth } },
         { provide: TwoFactorRemovalsService, useValue: { run: removeTwoFactors } },
         { provide: CronRunService, useValue: { record } },
         { provide: DuePlansService, useValue: { activate } },
@@ -398,24 +401,36 @@ describe('the cron routes', () => {
   });
 
   /* PLAN 011: Better Auth's own pruning is off, so this route owns it; it touches nothing else. */
-  it('deletes the expired verification rows on its own route and answers how many', async () => {
+  /* PLAN 011 phase 7: then the quiet sign-in brake rows and the auth audit rows past twelve months. */
+  it('deletes the expired verification rows on its own route, then the authentication retention, and answers how many', async () => {
     forgetVerifications.mockResolvedValueOnce(5);
+    forgetAuth.mockResolvedValueOnce({ authAuditRows: 4, signInFailures: 3 });
     const server = await boot(SECRET);
 
     const response = await request(server).get('/cron/sweep-verifications').set('Authorization', bearer(SECRET)).expect(200);
 
-    expect(response.body).toEqual({ deleted: 5 });
+    expect(response.body).toEqual({ authAuditRows: 4, deleted: 5, signInFailures: 3 });
     expect(forgetVerifications).toHaveBeenCalledTimes(1);
+    expect(forgetAuth).toHaveBeenCalledTimes(1);
     expect(forget).not.toHaveBeenCalled();
     expect(sweep).not.toHaveBeenCalled();
     expect(rewriteOutdated).not.toHaveBeenCalled();
     // 0071: the run says it finished, with its count, so the console's silent-cron watch sees it.
     expect(record).toHaveBeenCalledTimes(1);
-    expect(record).toHaveBeenCalledWith('verifications', { deleted: 5 });
+    expect(record).toHaveBeenCalledWith('verifications', { authAuditRows: 4, deleted: 5, signInFailures: 3 });
   });
 
   it('records no verification sweep that did not finish', async () => {
     forgetVerifications.mockRejectedValueOnce(new Error('database down'));
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/sweep-verifications').set('Authorization', bearer(SECRET)).expect(500);
+
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('records no sweep whose authentication retention did not finish', async () => {
+    forgetAuth.mockRejectedValueOnce(new Error('database down'));
     const server = await boot(SECRET);
 
     await request(server).get('/cron/sweep-verifications').set('Authorization', bearer(SECRET)).expect(500);
@@ -429,6 +444,7 @@ describe('the cron routes', () => {
     await request(server).get('/cron/sweep-verifications').set('Authorization', bearer('wrong')).expect(404);
     await request(server).get('/cron/sweep-verifications').expect(404);
     expect(forgetVerifications).not.toHaveBeenCalled();
+    expect(forgetAuth).not.toHaveBeenCalled();
     expect(record).not.toHaveBeenCalled();
   });
 
