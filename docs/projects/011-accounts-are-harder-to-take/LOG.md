@@ -515,3 +515,8 @@
   imported the same types into production code, so it is listed in knip's
   `ignoreDependencies` for `apps/api` instead, with the reason.
 - **Advisor**: not consulted.
+
+## Phase 5 — shipped and verified (2026-10-03)
+
+- Merged as #210 and deployed. Migration 0059 is applied.
+- **Human-verify:** the owner added a passkey in Perfil › Seguridad and signed in with Face ID on his iPhone: "funciona, por lo menos en iPhone". The iOS version was not recorded. Android and desktop are not yet checked.
