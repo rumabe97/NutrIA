@@ -1137,7 +1137,8 @@ export const enGB: Dictionary = {
     passwordTooShort: 'The password must be at least {count} characters.',
     pendingBody: 'We are opening NutrIA a few people at a time. We will activate your account ({email}) as soon as we can and let you know by email.',
     pendingCheck: 'Check again',
-    pendingConfirmBody: 'We have sent a link to {email}. Open it and come back here, or sign in on the device where you open it — nothing else is needed.',
+    pendingConfirmBody:
+      'We have sent a link to {email}. Open it and come back here, or sign in on the device where you open it — nothing else is needed.',
     pendingConfirmTitle: 'Confirm your email',
     pendingConfirmWaitBody: 'We have sent a link to {email}. Confirm it, and you are in as soon as we open your account.',
     pendingSignOut: 'Sign out',
