@@ -1,13 +1,13 @@
 'use client';
 import { Fragment, useId, useState } from 'react';
 
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 import styles from 'components/AuthForm/AuthForm.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
+import { interpolate } from 'i18n/interpolate';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { withLocale } from 'i18n/routes';
@@ -27,18 +27,15 @@ import type { FormEvent } from 'react';
 import type { SocialProvider } from 'lib/sign-in-providers';
 
 function signUpFailure(status: number, dictionary: Dictionary): string {
-  if (status === 422) {
-    return dictionary.auth.emailTaken;
-  }
-
   return status === 429 ? dictionary.auth.tooManyAttempts : dictionary.auth.signUpFailed;
 }
 
 export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readonly SocialProvider[] }>) {
-  const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
   const [error, setError] = useState<string>();
+  // The address the sign-up was sent for: from then on the screen says "check your email", whoever that address belongs to.
+  const [sentTo, setSentTo] = useState<string>();
   // A refused password is said on the field too, next to the button: the alert at the top
   // is announced, but at 320px it is off-screen when the button is pressed.
   const [passwordError, setPasswordError] = useState<string>();
@@ -74,7 +71,8 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
 
     setPending(true);
 
-    const { error: signUpError } = await signUp.email({ email: String(form.get('email')), name: String(form.get('name')), password });
+    const email = String(form.get('email'));
+    const { error: signUpError } = await signUp.email({ email, name: String(form.get('name')), password });
 
     setPending(false);
 
@@ -88,10 +86,9 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
         return;
       }
 
-      // Better Auth distinguishes "email already registered" from everything
-      // else. Both are shown as-is: at sign-*up* an existing address is
-      // information the visitor already has, and hiding it only produces a
-      // confusing dead end. Its rate limit answers 429: that one is a wait, not a failure.
+      // An address that already has an account is no failure: the API answers
+      // it as a new one (PLAN 011 phase 8). Its rate limit answers 429: that
+      // one is a wait, not a failure.
       setError(signUpFailure(signUpError.status, dictionary));
 
       return;
@@ -99,7 +96,29 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
 
     // A new account on a device somebody else used: their copies go first (`0053`).
     await forgetOfflineCopies();
-    router.push('/onboarding');
+    // Sign-up opens no session (PLAN 011 phase 8): the same "check your email" for every
+    // address, new or not. The mail says the rest — the link that signs a new person in,
+    // or to the owner of an existing account, that somebody tried.
+    setSentTo(email);
+  }
+
+  if (sentTo) {
+    return (
+      <Fragment>
+        <h1 className={styles.title}>{dictionary.auth.checkEmail}</h1>
+        <p className={styles.success} role="status">
+          {interpolate(dictionary.auth.signUpSent, { email: sentTo })}
+        </p>
+        <Text size="sm" style={{ marginTop: 'var(--space-05)' }} tone="secondary">
+          {dictionary.auth.signUpSentInstalled}
+        </Text>
+        <div className={styles.footer}>
+          <Link className={styles.link} href={withLocale('/acceder', locale)}>
+            {dictionary.auth.backToSignIn}
+          </Link>
+        </div>
+      </Fragment>
+    );
   }
 
   return (

@@ -1106,11 +1106,11 @@ export const enGB: Dictionary = {
     createAccount: 'Create your account',
     createAccountSubtitle: 'A few minutes of questions and you will have your first fourteen-day plan.',
     email: 'Email address',
-    emailTaken: 'An account with that email already exists.',
     forgotPassword: 'Forgotten your password?',
     goToAccount: 'Go to my account',
     haveAccount: 'Already have an account?',
-    invalidCredentials: 'Wrong email or password.',
+    invalidCredentials:
+      'Wrong email or password. If you have just created your account, confirm your address first: if the password was right, we have just sent you the link again.',
     invalidLink: 'This link is not valid, or it has expired.',
     legalAge: 'You need to be at least 18 to create an account.',
     legalNotice: 'By creating your account you accept the {terms}. How we handle your data is explained in the {privacy}.',
@@ -1159,9 +1159,12 @@ export const enGB: Dictionary = {
     signUp: 'Create my plan',
     signUpFailed: 'We could not create the account. Please try again.',
     signUpPending: 'Creating your account…',
+    signUpSent: 'We have written to {email}. Open the link in the email to sign in.',
+    signUpSentInstalled:
+      'On iPhone the link opens in Safari. If you use NutrIA from your home screen, go back to the app afterwards and sign in with your email and password.',
     socialFailed: 'We could not complete the sign-in. Try again, or sign in with your email.',
     socialNotLinked:
-      'There is already an account with that address, and it has not been confirmed yet. Sign in with your password and confirm the email, or reset the password. After that you can sign in this way too.',
+      'There is already an account with that address, and it has not been confirmed yet. Open it with the confirmation link we sent you: if you cannot find it, sign in with your email and password and we will send you another. After that you can sign in this way too.',
     tooManyAttempts: 'Too many attempts in a row. Wait a moment and try again.',
     toSignIn: 'Sign in',
     toSignUp: 'Create one',

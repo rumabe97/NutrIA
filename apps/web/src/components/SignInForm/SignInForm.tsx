@@ -153,7 +153,9 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
       setPending(false);
 
       // One message for wrong password and unknown account alike: telling them
-      // apart turns this form into an account-enumeration oracle. A 429 is a
+      // apart turns this form into an account-enumeration oracle. An unconfirmed
+      // account's right password is that 401 too (PLAN 011 phase 8), so the
+      // message says, for everybody, what such a person must do. A 429 is a
       // wait — the per-IP limit or the per-address brake, the same answer for
       // an address with an account and one without (PLAN 011 phase 7). Anything
       // else that is *not* a refusal — the service down, a rejected origin, a

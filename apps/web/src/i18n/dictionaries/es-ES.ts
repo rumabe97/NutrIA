@@ -1141,11 +1141,11 @@ export const esES = {
     createAccount: 'Crea tu cuenta',
     createAccountSubtitle: 'Unos minutos de preguntas y tendrás tu primer plan de catorce días.',
     email: 'Correo electrónico',
-    emailTaken: 'Ya existe una cuenta con ese correo.',
     forgotPassword: '¿Has olvidado tu contraseña?',
     goToAccount: 'Ir a mi cuenta',
     haveAccount: '¿Ya tienes cuenta?',
-    invalidCredentials: 'Correo o contraseña incorrectos.',
+    invalidCredentials:
+      'Correo o contraseña incorrectos. Si acabas de crear la cuenta, confirma antes tu dirección: si la contraseña era la buena, te acabamos de enviar el enlace de nuevo.',
     invalidLink: 'Este enlace no es válido o ha caducado.',
     legalAge: 'Necesitas tener al menos 18 años para crear una cuenta.',
     legalNotice: 'Al crear tu cuenta aceptas las {terms}. Cómo tratamos tus datos te lo explica la {privacy}.',
@@ -1194,9 +1194,12 @@ export const esES = {
     signUp: 'Crear mi plan',
     signUpFailed: 'No hemos podido crear la cuenta. Inténtalo de nuevo.',
     signUpPending: 'Creando tu cuenta…',
+    signUpSent: 'Te hemos escrito a {email}. Abre el enlace del correo para entrar.',
+    signUpSentInstalled:
+      'En iPhone el enlace se abre en Safari. Si usas NutrIA desde la pantalla de inicio, vuelve después a la app y entra con tu correo y tu contraseña.',
     socialFailed: 'No hemos podido completar el acceso. Inténtalo de nuevo o entra con tu correo.',
     socialNotLinked:
-      'Ya hay una cuenta con esa dirección y aún no está confirmada. Entra con tu contraseña y confirma el correo, o restablece la contraseña. Después podrás entrar también así.',
+      'Ya hay una cuenta con esa dirección y aún no está confirmada. Ábrela con el enlace de confirmación que te enviamos: si no lo encuentras, entra con tu correo y tu contraseña y te enviaremos otro. Después podrás entrar también así.',
     tooManyAttempts: 'Demasiados intentos seguidos. Espera un momento y vuelve a probar.',
     toSignIn: 'Accede',
     toSignUp: 'Crea la tuya',
