@@ -258,7 +258,17 @@ denying camera, microphone and geolocation on every path **except the proxied AP
 which keeps helmet's own set from `apps/api` (a stricter `no-referrer`, its own CSP) rather
 than getting a second, conflicting value. Static headers keep the public pages
 prerendered and cached. Before using any of the three denied features, change the policy
-in the same commit. No CSP yet — project 011 phase 9 adds it, report-only first.
+in the same commit.
+
+**Content-Security-Policy** (`csp.js`, sent as `Content-Security-Policy-Report-Only` — nothing
+is blocked yet; project 011 phase 10 enforces it after a week of clean reports). No nonces, so
+pages stay static: scripts and styles allow `'unsafe-inline'`. **To add an origin**: put it in
+the one directive that loads it (`img-src` for pictures, `connect-src` for `fetch`, never
+`default-src`), say in `csp.js`'s comment what loads from it, and pin it in `csp.test.ts`. A
+navigation (Google sign-in, a map link) needs no entry; a script, frame or image from a new
+host does. Browsers post violations to `POST /csp-report` in the API, which logs the
+directive and the blocked origin only — read them in the API's runtime logs
+(`csp-report directive=… blocked=…`).
 
 ## Offline
 

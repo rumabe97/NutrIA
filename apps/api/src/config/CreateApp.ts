@@ -72,6 +72,9 @@ export async function createApp(expressApp?: Express): Promise<NestExpressApplic
   // that one route reads its body raw (`0056`). The JSON parser below leaves a
   // body that has already been read alone.
   app.use(`/${prefix}/billing/webhook`, express.raw({ limit: '256kb', type: 'application/json' }));
+  // A browser posts a CSP violation as `application/csp-report` or `application/reports+json`,
+  // neither of which the default JSON parser reads (`csp-report`, project 011 phase 9).
+  app.use(`/${prefix}/csp-report`, express.json({ limit: '16kb', type: ['application/csp-report', 'application/reports+json', 'application/json'] }));
   app.use(express.json({ limit: '256kb' }));
   app.use(express.urlencoded({ extended: true, limit: '256kb' }));
 
