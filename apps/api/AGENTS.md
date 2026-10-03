@@ -144,6 +144,8 @@ Not style preferences. Changing one is a security regression.
 - **Roles come from the database row, never the request.**
 - **Never log a request body, a cookie, an `Authorization` header or an email address.** The pino redaction list in `app.module.ts` covers the known carriers; new ones get added there.
 - **The request log scrubs every token a URL carries.** `withoutSecrets` (`shared/logging/pino.ts`) runs over the `url`, the `referer` and the response's `location`, and replaces the invitation token, the reset token (`/auth/reset-password/<token>` and `?token=`) and the verification token (`/auth/verify-email?token=`), plain and percent-encoded. A new route or page that carries a secret in its URL is added there, with its `pino.spec.ts` case, in the same change.
+- **`POST /csp-report` is the one public route that logs.** `modules/csp-report` receives the web's report-only Content-Security-Policy violations (project 011 phase 9): rate limited by address, body parsed by its own `express.json` in `createApp` (`application/csp-report`), logs `csp-report directive=… blocked=<origin>` only — never the document URL, a query or an address — and stores nothing. Anything that is not a CSP report is a 400.
+
 
 ## Allergy safety
 
