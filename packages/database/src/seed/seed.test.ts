@@ -181,7 +181,9 @@ describe('allergen links', () => {
     const migration = readFileSync(join(__dirname, '../migrations/0057_broths_declare_celery.sql'), 'utf8');
     const linked = [...(/"slug" IN \(([^)]*)\)/u.exec(migration)?.[1] ?? '').matchAll(/'([^']+)'/gu)].map(match => match[1]);
 
-    expect(broths.filter(ingredient => !ingredient.allergens?.some(link => link.key === 'celery' && (link.presence ?? 'contains') === 'contains'))).toEqual([]);
+    expect(
+      broths.filter(ingredient => !ingredient.allergens?.some(link => link.key === 'celery' && (link.presence ?? 'contains') === 'contains'))
+    ).toEqual([]);
     expect(linked.sort()).toEqual(broths.map(ingredient => ingredient.slug).sort());
   });
 });
