@@ -2,7 +2,11 @@ import { afterAll } from '@jest/globals';
 
 import { closeDatabase } from 'database';
 
+import { forceOffline } from './env-guard.js';
 import { installHibpTripwire } from './hibp-tripwire.js';
+
+// First of all: whatever `.env` carries, no mail, push or paid model call can happen (`env-guard.ts`).
+forceOffline();
 
 // Before any suite builds its app: no request to Have I Been Pwned ever leaves a run (`hibp-tripwire.ts`).
 installHibpTripwire();
