@@ -70,3 +70,4 @@ graphify-out/
 
 # Database exports carry every user's health data; they never enter the repository.
 backups/
+gate-*.log
