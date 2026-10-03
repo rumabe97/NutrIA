@@ -5,7 +5,7 @@
 > `/plan-project`, from the owner's scope of 2026-10-02; approved by the owner before the
 > plan is written.
 
-- **Status**: approved
+- **Status**: delivered
 - **Roadmap item**: follow-up to project 016 (scheduler tuning, queued in `docs/projects/000-workspace/LOG.md`, 2026-10-02)
 
 ## Problem

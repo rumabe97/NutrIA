@@ -1026,7 +1026,7 @@ export const PANTRY: readonly IngredientSeed[] = [
   },
   // ── Stocks and wine ───────────────────────────────────────────────────
   {
-    allergens: [{ key: 'fish' }],
+    allergens: [{ key: 'celery' }, { key: 'fish' }],
     carbs: 0.5,
     category: 'pantry',
     defaultUnit: 'ml',
@@ -1037,6 +1037,7 @@ export const PANTRY: readonly IngredientSeed[] = [
     slug: 'caldo-de-pescado'
   },
   {
+    allergens: [{ key: 'celery' }],
     carbs: 0.5,
     category: 'pantry',
     classes: ['meat'],

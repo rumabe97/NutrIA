@@ -328,7 +328,9 @@ describe('RecipeController.reusablePool — a dish is served only at the meals i
   });
   const library = [
     recipe('lentejas-estofadas', ['lunch', 'dinner'], 'lentejas-cocidas', 'cebolla', 'aceite-de-oliva'),
-    recipe('cebolla-asada', ['breakfast', 'lunch', 'dinner'], 'cebolla', 'aceite-de-oliva'),
+    recipe('cebolla-asada', ['lunch', 'dinner'], 'cebolla', 'aceite-de-oliva'),
+    // A breakfast by its own slots, though it names lunch and dinner too: never a main meal (017 phase 3).
+    recipe('tostada-de-cebolla', ['breakfast', 'lunch', 'dinner'], 'cebolla', 'aceite-de-oliva'),
     recipe('cena-energetica', ['dinner'], 'bebida-energetica', 'cebolla'),
     recipe('lentejas-de-cena', ['dinner'], 'lentejas-cocidas', 'cebolla')
   ];
@@ -340,7 +342,7 @@ describe('RecipeController.reusablePool — a dish is served only at the meals i
 
     const pool = await RecipeController.reusablePool(['breakfast', 'lunch', 'dinner'], contextFor([]));
 
-    expect(slotsOf(pool)).toEqual({ 'cebolla-asada': ['breakfast', 'lunch', 'dinner'], 'lentejas-estofadas': ['lunch'] });
+    expect(slotsOf(pool)).toEqual({ 'cebolla-asada': ['lunch', 'dinner'], 'lentejas-estofadas': ['lunch'], 'tostada-de-cebolla': ['breakfast'] });
   });
 
   it('serves the same stew at both for a vegan, and still never the food in no meal', async () => {
@@ -349,9 +351,10 @@ describe('RecipeController.reusablePool — a dish is served only at the meals i
     const pool = await RecipeController.reusablePool(['breakfast', 'lunch', 'dinner'], contextFor(['vegan']));
 
     expect(slotsOf(pool)).toEqual({
-      'cebolla-asada': ['breakfast', 'lunch', 'dinner'],
+      'cebolla-asada': ['lunch', 'dinner'],
       'lentejas-de-cena': ['dinner'],
-      'lentejas-estofadas': ['lunch', 'dinner']
+      'lentejas-estofadas': ['lunch', 'dinner'],
+      'tostada-de-cebolla': ['breakfast']
     });
   });
 
@@ -363,9 +366,10 @@ describe('RecipeController.reusablePool — a dish is served only at the meals i
 
     // No cuisine is judged as Spanish: lentils are a lunch, whatever the list says.
     expect(slotsOf(pool)).toEqual({
-      'cebolla-asada': ['breakfast', 'lunch', 'dinner'],
+      'cebolla-asada': ['lunch', 'dinner'],
       'cena-energetica': ['dinner'],
-      'lentejas-estofadas': ['lunch']
+      'lentejas-estofadas': ['lunch'],
+      'tostada-de-cebolla': ['breakfast']
     });
   });
 
@@ -375,9 +379,10 @@ describe('RecipeController.reusablePool — a dish is served only at the meals i
     const pool = await RecipeController.reusablePool(['breakfast', 'lunch', 'dinner'], contextFor([]));
 
     expect(slotsOf(pool)).toEqual({
-      'cebolla-asada': ['breakfast', 'lunch', 'dinner'],
+      'cebolla-asada': ['lunch', 'dinner'],
       'lentejas-de-cena': ['dinner'],
-      'lentejas-estofadas': ['lunch', 'dinner']
+      'lentejas-estofadas': ['lunch', 'dinner'],
+      'tostada-de-cebolla': ['breakfast']
     });
   });
 

@@ -2,7 +2,7 @@
 // rotation constants at load, and the index would make that a cycle.
 import { dishGroups } from '../MealFit/Cuisine';
 
-import { kindCrowded, kindExcess } from './Kinds';
+import { kindCrowded, kindExcess, kindPastCap } from './Kinds';
 
 import type { FoodGroup } from '../MealFit/Cuisine';
 import type { KindCheck, KindMeal, KindRule } from './Kinds';
@@ -98,6 +98,11 @@ export function starchBase(dish: Dish): StarchBase | null {
  * a Spanish week. Twice on one day counts as running too. Like
  * `PROTEIN_RULES`, a preference the scheduler keeps whenever the pool lets it,
  * priced at the same weight — never a reason to fail a plan.
+ *
+ * The four a fortnight is harder than that (017 phase 4, `0081`): the scheduler
+ * places no dish that takes its base past the cap while another dish keeps the
+ * day as close to its macros, and past it only when none does (owner: the
+ * macros win). Days running stay priced.
  */
 export const STARCH_RULES = { capped: ['pasta', 'rice', 'grains'], perFortnight: 4 } as const satisfies {
   readonly capped: readonly StarchBase[];
@@ -156,6 +161,11 @@ const STARCH_KIND_RULE: KindRule = { apart: true, perFortnight: STARCH_RULES.per
  */
 export function starchExcess(meals: readonly StarchMeal[], days: number): number {
   return kindExcess(toKindMeals(meals), days, STARCH_KIND_RULE);
+}
+
+/** How many meals in these are past `STARCH_RULES`' cap — the part of `starchExcess` the scheduler holds hard (`0081`). */
+export function starchPastCap(meals: readonly StarchMeal[], days: number): number {
+  return kindPastCap(toKindMeals(meals), days, STARCH_KIND_RULE);
 }
 
 /** Whether a dish of `base` on `dayIndex` would add to `starchExcess` over `meals`: its base is on that day or the next or the one before, or at its cap. */

@@ -56,7 +56,7 @@ import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts
 import { RecipeController } from 'core/controllers/Recipe';
 import { larderFor } from 'core/domain/Accompaniment';
 import { SafetyController } from 'core/controllers/Safety';
-import { cuisineFamily, dishGroups, groupFits, outOfSeasonFruit } from 'core/domain/MealFit';
+import { cuisineFamily, dishGroups, groupFits, isSnackOrBreakfastDish, outOfSeasonFruit } from 'core/domain/MealFit';
 import { DEFAULT_MEAL_SHAPE, shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { loadedTargets } from 'core/domain/Event';
 import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
@@ -189,6 +189,18 @@ const PROFILES = [
     target: { activityLevel: 'moderate', ageYears: 62, goal: 'maintenance', heightCm: 172, sex: 'male', weightKg: 78 },
     shape: DEFAULT_MEAL_SHAPE,
     dietaryPattern: 'traditional_spanish'
+  },
+  {
+    // A synthetic stand-in, not a copy (`0076`), for a real 3-meal account whose
+    // plan ran protein −3% to −15% on most days and served a yoghurt cup ×3 as
+    // dinner (017 phase 3, owner's amendment of 2026-10-02): its targets as the
+    // app gave them, its meals, and the dislike it told the app.
+    slug: 'tres-comidas-proteina-alta',
+    description: 'Three meals (morning snack, lunch, dinner), 2,079 kcal with 138 g protein, dislikes fish',
+    target: { activityLevel: 'moderate', ageYears: 40, goal: 'weight_loss', heightCm: 178, paceKgPerWeek: 0.5, sex: 'male', weightKg: 92 },
+    targets: { carbsG: 236, fatG: 65, kcal: 2079, proteinG: 138 },
+    shape: { afternoon_snack: 'off', breakfast: 'off', dinner: 'normal', lunch: 'normal', morning_snack: 'normal', supper: 'off' },
+    dislikedLabels: ['pescado']
   }
 ];
 
@@ -374,6 +386,27 @@ function contextFor(profile, shared) {
     };
   }
 
+  if (profile.dislikedLabels) {
+    // What `generationContext` does with a profile's dislikes: resolved by
+    // `resolvePreferences` and added to what `nobodysContext` already excludes.
+    const resolved = resolvePreferences({
+      allergenIdsByKey: shared.allergenIdsByKey,
+      dietaryPatterns: [],
+      dislikedLabels: profile.dislikedLabels,
+      ingredients,
+      maxMinutesPerDish: null
+    });
+    const preferences = {
+      ...shared.preferences,
+      excludedIngredientIds: new Set([...shared.preferences.excludedIngredientIds, ...resolved.excludedIngredientIds])
+    };
+
+    return {
+      context: { ...shared, preferences },
+      note: `${resolved.excludedIngredientIds.size} ingredients excluded by the dislikes ${profile.dislikedLabels.join(', ')}`
+    };
+  }
+
   return { context: shared, note: null };
 }
 
@@ -390,7 +423,8 @@ async function measureProfile(profile, shared, options) {
   let targets;
 
   try {
-    targets = nutritionTargets(profile.target);
+    // A profile stated by its targets keeps the body's fibre and floor, and its own macros.
+    targets = { ...nutritionTargets(profile.target), ...profile.targets };
   } catch (error) {
     if (error instanceof TargetsUnreachableError) {
       return { measured: false, note: `targets unreachable: ${error.message}`, slug: profile.slug };
@@ -432,6 +466,8 @@ async function measureProfile(profile, shared, options) {
     ? { larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }), monthOf }
     : undefined;
 
+  // The scheduler alone, without the pool's read or this report (017 phase 3): what generation waits for.
+  const scheduleStarted = performance.now();
   const scheduled = schedulePlan({
     accompaniments,
     catalogue: context.catalogue,
@@ -442,6 +478,8 @@ async function measureProfile(profile, shared, options) {
     targets,
     weights
   });
+
+  const scheduleMs = Math.round(performance.now() - scheduleStarted);
 
   if (!scheduled.ok) {
     return { measured: false, note, poolSize: pool.length, shortfall: scheduled.shortfall, slug: profile.slug };
@@ -563,6 +601,7 @@ async function measureProfile(profile, shared, options) {
 
   return {
     advisories: tally([...bandViolations, ...otherAdvisories]),
+    scheduleMs,
     blocking: tally(blockingViolations),
     blockingDetail,
     daysInsideAll4,
@@ -586,6 +625,7 @@ async function measureProfile(profile, shared, options) {
     spanish: spanishMetrics(scheduled.assignment.days, context.catalogue),
     starch: starchMetrics(scheduled.assignment.days),
     kinds: kindMetrics(scheduled.assignment.days, context.catalogue, monthOf),
+    mainMeals: mainMealMetrics(scheduled.assignment.days),
     // How varied the plan actually is, not just whether it broke a rule —
     // distinct dishes maximised, no two days the same, a repeat as far apart
     // as the pool allows (owner, 2026-09-26; `0065`).
@@ -1139,6 +1179,35 @@ function dishRuleBreaks(days, context) {
 }
 
 /**
+ * A dinner is a meal (017 phase 3, owner's amendment of 2026-10-02): every
+ * lunch and dinner filled by a dish that is a snack or a breakfast by its slots
+ * (`isSnackOrBreakfastDish`), and every one of those past two servings — both
+ * must be 0 — beside the largest plate served at a main meal, for the eye.
+ */
+function mainMealMetrics(days) {
+  const light = [];
+  let largest = null;
+
+  for (const day of days) {
+    for (const meal of day.meals) {
+      if (!MAIN_SLOTS.has(meal.slot)) {
+        continue;
+      }
+
+      if (isSnackOrBreakfastDish(meal.dish)) {
+        light.push({ dayIndex: day.dayIndex, dish: meal.dish.name, servings: meal.servings, slot: meal.slot });
+      }
+
+      if (!largest || meal.servings > largest.servings) {
+        largest = { dayIndex: day.dayIndex, dish: meal.dish.name, servings: meal.servings, slot: meal.slot };
+      }
+    }
+  }
+
+  return { largest, lightOverTwo: light.filter(item => item.servings > 2), lightPlates: light };
+}
+
+/**
  * How many plates of each slot were served at each size (project 016): the
  * question accompaniments answer is whether a big meal is one dish at three
  * servings, and a mean hides that.
@@ -1428,7 +1497,7 @@ function printProfile(profile, result) {
   }
 
   if (typeof result.ms === 'number') {
-    console.log(`  time: ${result.ms} ms`);
+    console.log(`  time: ${result.ms} ms, of which scheduling ${result.scheduleMs} ms`);
   }
 
   const spanish = result.spanish;
@@ -1513,6 +1582,13 @@ function printProfile(profile, result) {
     console.log(
       `  plates with fresh fruit out of season that day (017 p2, must be 0): ${outOfSeason.length}${outOfSeason.length > 0 ? ` (${outOfSeason.map(item => `day ${item.dayIndex} ${item.slot}: "${item.dish}", ${item.fruit}`).join('; ')})` : ''}`
     );
+
+    const { largest, lightOverTwo, lightPlates } = result.mainMeals;
+    const listed = items => (items.length > 0 ? ` (${items.map(item => `day ${item.dayIndex} ${item.slot}: "${item.dish}" ×${item.servings}`).join('; ')})` : '');
+
+    console.log(`  lunches and dinners filled by a snack or breakfast dish (017 p3, must be 0): ${lightPlates.length}${listed(lightPlates)}`);
+    console.log(`  of those, past 2 servings (017 p3, must be 0): ${lightOverTwo.length}${listed(lightOverTwo)}`);
+    console.log(`  largest plate at lunch or dinner: ${largest ? `×${largest.servings}, day ${largest.dayIndex} ${largest.slot}: "${largest.dish}"` : 'none'}`);
 
     console.log(
       `  legumes by kind, every meal (017 p2, 3 a fortnight each, never on days running): ${

@@ -7,7 +7,7 @@
 > **Audience**: agents primarily, humans review. **Committed**: yes. **Written by**: a
 > planner agent via `/plan-project`; approved by the owner before execution starts.
 
-- **Status**: approved
+- **Status**: done
 - **Type**: standard
 - **PRD**: ./PRD.md
 - **Routing profile**: tiered
@@ -96,7 +96,7 @@ Every measurement runs on the local Postgres: `pnpm db:local`, `NUTRIA_LOCAL_PG=
 
 ### Phase 3 — Every day in band
 
-- [ ] pending
+- [x] done — 196/196 days off and on on the reference library, 0 snack-or-breakfast dishes at a main meal, schedulePlan −1.3% off / −2.1% on against #198 (2026-10-03)
 - **Dispatch**: opus @ high — `/execute-project 017 phase 3`. `plan-evaluator` (opus @ high). Deviation from `tiered`'s medium: the fix is a design choice in the scheduler's search, not a specified change.
 - **Covers**: PRD criteria 4 and 6, and the owner's amendments of 2026-10-02 (snack dishes at dinner, the new profile).
 - **Steps**:
@@ -123,7 +123,7 @@ Every measurement runs on the local Postgres: `pnpm db:local`, `NUTRIA_LOCAL_PG=
 
 ### Phase 4 — The cap, decided
 
-- [ ] pending
+- [x] done — the cap held above fit, only the bands outrank it (`0081`); 196/196 off and on, 0 profiles past four (2026-10-03)
 - **Dispatch**: opus @ medium — `/execute-project 017 phase 4`. `plan-evaluator` (opus @ high).
 - **Covers**: PRD criterion 5.
 - **Steps**:

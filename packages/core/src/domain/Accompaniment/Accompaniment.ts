@@ -443,8 +443,19 @@ function isBread(slug: string, catalogue: Catalogue): boolean {
   return catalogue.get(slug)?.category === 'bakery' || (slug.startsWith('pan-') && slug !== 'pan-rallado');
 }
 
-function itemGroups(items: readonly AccompanimentItem[]): ReadonlySet<FoodGroup> {
-  return new Set(items.map(item => foodGroupOf(item.slug)).filter((group): group is FoodGroup => group !== null));
+/**
+ * The groups a portion belongs to. A starch is the plate's starch whatever its
+ * grams, so a tabulé (30 g of bulgur) is grains and never goes beside a
+ * couscous. Any other side takes the dish's threshold (`FOOD_GROUP_GRAMS`,
+ * through `dishGroups`; a portion is one serving): a few grams of noodles in a
+ * broth do not make it pasta.
+ */
+function itemGroups(portion: AccompanimentPortion): ReadonlySet<FoodGroup> {
+  if (portion.accompaniment.role === 'starch') {
+    return new Set(portion.items.map(item => foodGroupOf(item.slug)).filter((group): group is FoodGroup => group !== null));
+  }
+
+  return dishGroups({ ingredients: portion.items });
 }
 
 /**
@@ -477,7 +488,7 @@ export function portionsBeside(
 
   return larder.portions.filter(portion => {
     const { accompaniment } = portion;
-    const own = itemGroups(portion.items);
+    const own = itemGroups(portion);
 
     return (
       (accompaniment.families === 'all' || accompaniment.families.includes(family)) &&

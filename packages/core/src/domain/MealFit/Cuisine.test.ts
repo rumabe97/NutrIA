@@ -189,9 +189,10 @@ describe('fitSlots by cuisine (0079, option B)', () => {
 
   it('leaves a garnish of rice where the list would not, because the table decides its rows', () => {
     // 45 g cooked is 15 g dry, under the 20 g of a side.
-    const breakfast = { ...dish(null, ['arroz-blanco-cocido', 45], ['merluza', 80]), slots: ['breakfast', 'lunch'] as MealSlot[] };
+    // A breakfast alone: one that also claimed lunch would lose it as a breakfast dish (017 phase 3).
+    const breakfast = { ...dish(null, ['arroz-blanco-cocido', 45], ['merluza', 80]), slots: ['breakfast'] as MealSlot[] };
 
-    expect(fitSlots(breakfast, catalogue, [])).toEqual(['breakfast', 'lunch']);
+    expect(fitSlots(breakfast, catalogue, [])).toEqual(['breakfast']);
   });
 
   it('keeps an Italian pasta or risotto at lunch, as a Spanish one (0079, amended 2026-10-02)', () => {
