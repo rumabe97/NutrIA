@@ -1,4 +1,7 @@
+import { cuisineFamily } from 'core/domain/MealFit';
 import { normaliseForMatching } from 'core/domain/Safety';
+
+import type { CuisineFamily } from 'core/domain/MealFit';
 
 import type { CatalogueIngredient } from 'core/entities/Plan';
 import type { FoodClass } from 'database/schema/food';
@@ -752,39 +755,40 @@ export function leaningSlugs(preferences: Pick<PreferenceExclusions, 'leaningIng
 }
 
 /**
- * Cuisines foreign to Spanish home cooking, normalised (`normaliseForMatching`:
- * lower case, no accents). A dish whose stated cuisine is exactly one of these
- * is out for `traditional_spanish` (`0077`). Mediterránea, española and its
- * regions, italiana, francesa and griega pass on their ingredients, and so does
- * a dish with no cuisine at all.
+ * The cuisine families foreign to Spanish home cooking (`0077`, as amended
+ * 2026-10-03): a dish whose stated cuisine `cuisineFamily` reads as one of
+ * these is out for `traditional_spanish`. Read from the family, not from a
+ * second list, so a value added to `0079`'s Table 1 is refused the day it is
+ * mapped — "turca" and "cubana" reached the plan while the two lists drifted.
  */
-export const FOREIGN_CUISINES: ReadonlySet<string> = new Set([
-  'mexicana',
-  'asiatica',
-  'oriental',
-  'india',
-  'indio',
-  'japonesa',
-  'tailandesa',
-  'china',
-  'coreana',
-  'vietnamita',
-  'peruana',
-  'latina',
-  'venezolana',
+export const FOREIGN_FAMILIES: ReadonlySet<CuisineFamily> = new Set(['arab', 'asian', 'latin']);
+
+/**
+ * Foreign cuisines Table 1 maps to no family, normalised (`normaliseForMatching`:
+ * lower case, no accents). They read as `other` there, judged with the Spanish
+ * table, and are refused here by name.
+ */
+export const FOREIGN_UNMAPPED_CUISINES: ReadonlySet<string> = new Set([
   'americana',
   'estadounidense',
-  'hawaiana',
   'tropical',
   'nordica',
   'escandinava',
-  'marroqui',
-  'magrebi',
-  'arabe',
-  'libanesa',
-  'oriente medio',
   'fusion'
 ]);
+
+/**
+ * Whether a stated cuisine is foreign to Spanish home cooking. Mediterránea,
+ * española and its regions, italiana, francesa and griega pass on their
+ * ingredients, and so does a dish with no cuisine at all.
+ */
+export function isForeignCuisine(cuisine: string | null | undefined): boolean {
+  if (!cuisine) {
+    return false;
+  }
+
+  return FOREIGN_FAMILIES.has(cuisineFamily(cuisine)) || FOREIGN_UNMAPPED_CUISINES.has(normaliseForMatching(cuisine));
+}
 
 /**
  * A dish name that gives away a foreign dish (`0077`), read on the normalised
@@ -801,8 +805,8 @@ const REFUSES_FOREIGN_DISHES: ReadonlySet<string> = new Set(['traditional_spanis
 
 /**
  * Whether a whole dish is foreign to this person's way of eating by what it
- * says it is rather than by what it holds: a stated cuisine in
- * `FOREIGN_CUISINES`, or a name `FOREIGN_DISH_NAME` gives away. A missing or
+ * says it is rather than by what it holds: a stated cuisine
+ * `isForeignCuisine` refuses, or a name `FOREIGN_DISH_NAME` gives away. A missing or
  * empty cuisine passes; its ingredients are judged on their own, by
  * `excludedIngredientIds`.
  */
@@ -814,7 +818,7 @@ export function breaksPatternDish(
     return false;
   }
 
-  if (dish.cuisine && FOREIGN_CUISINES.has(normaliseForMatching(dish.cuisine))) {
+  if (isForeignCuisine(dish.cuisine)) {
     return true;
   }
 

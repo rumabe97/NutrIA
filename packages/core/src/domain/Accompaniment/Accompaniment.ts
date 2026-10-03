@@ -1,6 +1,6 @@
 import { composeMacros, scaleMacros } from 'core/domain/Composition';
 import { cuisineFamily, dishGroups, foodGroupOf, groupFits } from 'core/domain/MealFit';
-import { breaksDishRule } from 'core/domain/Preference';
+import { breaksDishRule, FOREIGN_FAMILIES } from 'core/domain/Preference';
 import { bestEffortExclusions, dishSafety, mentionsUnresolvedAllergy } from 'core/domain/Safety';
 
 import type { CuisineFamily, FoodGroup } from 'core/domain/MealFit';
@@ -697,9 +697,8 @@ export type Larder = { readonly diner: AccompanimentDiner; readonly portions: re
  *
  * Whoever refuses foreign dishes (`traditional_spanish`, `0077`) is offered no
  * side that only a foreign family serves, whatever its rows: a couscous or an
- * elote holds nothing `0077` lists, and the dish filter (`breaksPatternDish`)
- * reads a cuisine list that does not hold every value `cuisineFamily` maps to
- * a foreign family ("turca", "cubana"), so it cannot be what keeps them away.
+ * elote holds nothing `0077` lists, and beside a dish of no stated cuisine the
+ * dish filter (`breaksPatternDish`) has no family to refuse.
  */
 export function larderFor(diner: AccompanimentDiner): Larder {
   const unresolved = bestEffortExclusions(diner.safety.unenforceableLabels, [...diner.catalogue.values()]);
@@ -734,9 +733,6 @@ export function larderFor(diner: AccompanimentDiner): Larder {
 
   return { diner, portions };
 }
-
-/** The families `traditional_spanish` refuses a dish of (`FOREIGN_CUISINES`, by family). */
-const FOREIGN_FAMILIES: ReadonlySet<CuisineFamily> = new Set(['arab', 'asian', 'latin']);
 
 /** A side only foreign families serve: never one every family shares, nor one a Spanish or Italian table does. */
 function isForeignOnly(accompaniment: Accompaniment): boolean {

@@ -42,3 +42,7 @@ A real user who eats Spanish home cooking was served skyr, seitán and edamame, 
 - Among the lunches and dinners kept: 137 have legumes, 153 rice and 179 fish.
 - The rule loses 21 dishes by cuisine alone (chili con carne, ceviche, arepas, a Moroccan chicken) and 2 by name alone (a shakshuka, a curry).
 - A new catalogue row foreign to Spanish cooking is not excluded until it is added to the list. The seed-subset test keeps the list honest in the other direction.
+
+## Amendment — 2026-10-03 — the foreign cuisine is read from its family
+
+Rule 2's list drifted from `0079`'s Table 1: "turca", "levantina", "moroccan", "asian", "indian", "mexican", "colombiana", "argentina", "cubana" and "caribena" map to a foreign family there but were not on the list, so such a dish reached a traditional Spanish plan (found by project 018). Rule 2 is now `isForeignCuisine`: a dish whose `cuisineFamily` is `arab`, `asian` or `latin` is out, plus the foreign values Table 1 maps to no family (`americana, estadounidense, tropical, nordica, escandinava, fusion`, `FOREIGN_UNMAPPED_CUISINES`). A value added to Table 1 is refused the day it is mapped. What passes is unchanged: no cuisine, Spanish and its regions, Mediterranean and Greek (`spanish` family), Italian, French (`other`). The name rule is unchanged. On the reference library (local Postgres) the change is measured as none: no recipe carries a value the old list missed, the traditional profile stays 14/14 with 0 allergens, and its dinner pool is 105 before and after (spanish 100, italian 3, other 2), flag off and on.

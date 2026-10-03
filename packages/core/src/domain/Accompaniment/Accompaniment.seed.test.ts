@@ -119,7 +119,7 @@ describe('traditional Spanish never gets a foreign side', () => {
   it.each([
     ['Marroquí', ['cuscus', 'ensalada-de-zanahoria-marroqui', 'ensalada-de-remolacha', 'datiles', 'mutabal']],
     ['Mexicana', ['elote', 'curtido', 'ensalada-de-aguacate']],
-    // Cuisines `cuisineFamily` reads as foreign that `breaksPatternDish` does not refuse: the plate reaches them, its foreign sides do not.
+    // Cuisines Table 1 added after 0077's first list: the family refuses the plate and its foreign sides alike.
     ['Turca', ['cuscus', 'ensalada-de-zanahoria-marroqui']],
     ['Cubana', ['elote', 'curtido']]
   ] as const)('offers nothing foreign beside a %s dish, though everybody else gets its sides', (cuisine, keys) => {
@@ -134,9 +134,9 @@ describe('traditional Spanish never gets a foreign side', () => {
     expect(foreign.filter(entry => them.has(entry.key)).map(entry => entry.key)).toEqual([]);
   });
 
-  it('is the guarantee: the dish filter refuses a Moroccan plate, but not every cuisine of a foreign family', () => {
+  it('agrees with the dish filter: a plate of a foreign family is refused whole', () => {
     expect(breaksPatternDish({ cuisine: 'Marroquí', name: 'Pollo con verduras' }, spanish)).toBe(true);
-    expect(breaksPatternDish({ cuisine: 'Turca', name: 'Pollo con verduras' }, spanish)).toBe(false);
+    expect(breaksPatternDish({ cuisine: 'Turca', name: 'Pollo con verduras' }, spanish)).toBe(true);
   });
 
   it('keeps their Spanish sides', () => {
