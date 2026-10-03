@@ -12,13 +12,7 @@ import { PictureCandidatesService, RecipeRewriter } from '../../ai/index.js';
 import { Public, SkipRateLimit } from '../../../shared/index.js';
 import { TwoFactorRemovalsService } from '../../auth/services/TwoFactorRemovals.service.js';
 
-import type {
-  PlanActivationDto,
-  ReminderRunDto,
-  RewriteRunDto,
-  TwoFactorRemovalRunDto,
-  VerificationSweepDto
-} from '../dto/out/index.js';
+import type { PlanActivationDto, ReminderRunDto, RewriteRunDto, TwoFactorRemovalRunDto, VerificationSweepDto } from '../dto/out/index.js';
 
 /**
  * The most the reminders watch and the pictures' mail may take before a sweep starts. The sweep's own clock
