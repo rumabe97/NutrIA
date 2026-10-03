@@ -36,7 +36,7 @@ Every phase is measured on the reference library (`0080`) with `--rotate`, and m
 
 ### Phase 2 — The pool carries every group
 
-- [ ] pending
+- [x] done (2026-10-03; see LOG)
 - **Dispatch**: opus @ high — `/execute-project 019 phase 2`. Deviation: the pool shapes every plan.
 - **Covers**: PRD 2.
 - **Steps**: the rotation reserves, per slot, enough dishes of each group the table needs (legume kinds, oily fish, whole grain), within the person's filtered library, and fills the rest as today. Measure.

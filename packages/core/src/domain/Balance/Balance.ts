@@ -1,8 +1,8 @@
 import { dishGroups, FOOD_GROUP_SLUGS, FRESH_FRUIT_SLUGS } from 'core/domain/MealFit';
-import { BREAD_SLUGS, MAIN_SLOTS, STARCH_RULES, starchBase } from 'core/domain/Variety';
+import { BREAD_SLUGS, legumeKind, MAIN_SLOTS, STARCH_RULES, starchBase } from 'core/domain/Variety';
 import { toDry } from 'core/domain/Yield';
 
-import type { CandidateDish, Catalogue, PlanDayAssignment, ScheduledMeal } from 'core/entities/Plan';
+import type { CandidateDish, Catalogue, MealSlot, PlanDayAssignment, ScheduledMeal } from 'core/entities/Plan';
 
 /**
  * How balanced a fortnight is by food group (project 019, architect report
@@ -444,6 +444,98 @@ export function balanceSupply(pool: readonly Pick<CandidateDish, 'ingredients' |
   }
 
   return supply;
+}
+
+/**
+ * What a slot's rotation keeps for the groups the fortnight's table needs
+ * (019 phase 2, `0010` § 3.2 point 1): the minimums of the PRD table are 8
+ * legumes of more than one kind, 6 fish with 2 oily, and half the cereal
+ * whole, over 28 mains. Without this the rotation shuffles 19 dishes a meal
+ * blind to groups, and in a quarter of the measured rotations the pool held
+ * two legume kinds or fewer — a minimum the scheduler could not meet whatever
+ * it chose. Lunch carries the legumes, since a Spanish legume stew does not
+ * dine (`0079`); dinner keeps a couple, the light forms where there are any.
+ */
+export const POOL_RESERVE: Readonly<
+  Record<'dinner' | 'lunch', { readonly fish: number; readonly legumes: number; readonly oilyFish: number; readonly wholeGrain: number }>
+> = { dinner: { fish: 3, legumes: 2, oilyFish: 1, wholeGrain: 3 }, lunch: { fish: 3, legumes: 6, oilyFish: 1, wholeGrain: 3 } };
+
+/** A dish's groups for one serving, as the rotation reads them. */
+function servingGroups(dish: Pick<CandidateDish, 'ingredients' | 'servings'>, catalogue: Catalogue): MealGroups {
+  const servings = dish.servings > 0 ? dish.servings : 1;
+
+  return mealGroups(
+    dish.ingredients.map(item => ({ grams: item.grams / servings, slug: item.slug })),
+    catalogue
+  );
+}
+
+/** The cereal of a serving is mostly whole, and there is a plate's worth of it (`FOOD_GROUP_GRAMS`, 20 g dry). */
+const WHOLE_GRAIN_DISH_GRAMS = 20;
+
+/**
+ * The dishes a slot's rotation takes first, from that slot's dishes in their
+ * shuffled order (`rotatePool`'s `reserve`), so the reservation is the
+ * person's own pick and changes with the seed:
+ *
+ * - legumes, one of each kind in turn before a second of any, so the cap of
+ *   three a kind (`LEGUME_RULES`) never makes the minimum impossible;
+ * - fish, the oily first;
+ * - whole grain.
+ *
+ * A dish an earlier slot already took is reserved last, so lunch and dinner
+ * reserve different dishes where the library has them: a fish served at both
+ * would be one fish dish in the fortnight's offer, not two.
+ *
+ * Only what the slot holds: the library has already been filtered by the
+ * person's allergies, way of eating and dislikes, so somebody who does not
+ * like fish is reserved none and given no fish to eat (owner, 017). Lunch and
+ * dinner only; every other meal is shuffled as before.
+ */
+export function reserveGroups(
+  inSlot: readonly CandidateDish[],
+  slot: MealSlot,
+  catalogue: Catalogue,
+  taken: ReadonlySet<string> = new Set()
+): readonly CandidateDish[] {
+  if (slot !== 'lunch' && slot !== 'dinner') {
+    return [];
+  }
+
+  const quota = POOL_RESERVE[slot];
+  const fresh = [...inSlot.filter(dish => !taken.has(dish.slug)), ...inSlot.filter(dish => taken.has(dish.slug))];
+  const read = fresh.map(dish => ({ dish, groups: servingGroups(dish, catalogue) }));
+  const byKind = new Map<string, CandidateDish[]>();
+
+  for (const { dish, groups } of read) {
+    if (mealServings(groups).legume) {
+      const kind = legumeKind(dish) ?? dish.slug;
+
+      byKind.set(kind, [...(byKind.get(kind) ?? []), dish]);
+    }
+  }
+
+  const legumes: CandidateDish[] = [];
+
+  for (let round = 0; legumes.length < quota.legumes && [...byKind.values()].some(list => list.length > round); round += 1) {
+    for (const list of byKind.values()) {
+      const dish = list[round];
+
+      if (dish && legumes.length < quota.legumes) {
+        legumes.push(dish);
+      }
+    }
+  }
+
+  const fish = read.filter(({ groups }) => mealServings(groups).fish);
+  const oily = fish.filter(({ groups }) => mealServings(groups).oilyFish).slice(0, quota.oilyFish);
+  const fishPicked = [...new Set([...oily, ...fish].map(entry => entry.dish))].slice(0, quota.fish);
+  const wholeGrain = read
+    .filter(({ groups }) => groups.wholeGrainDry >= WHOLE_GRAIN_DISH_GRAMS && groups.wholeGrainDry * 2 >= groups.cerealDry)
+    .slice(0, quota.wholeGrain)
+    .map(entry => entry.dish);
+
+  return [...new Set([...legumes, ...fishPicked, ...wholeGrain])];
 }
 
 /**

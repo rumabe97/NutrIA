@@ -11,7 +11,9 @@ import {
   mealGroups,
   mealServings,
   meatColour,
+  POOL_RESERVE,
   proteinPerKgBySlot,
+  reserveGroups,
   scaledToMains
 } from 'core/domain/Balance';
 import { makeCatalogue, makeCatalogueIngredient, makeDish } from '#test/fixtures';
@@ -258,5 +260,41 @@ describe('proteinPerKgBySlot', () => {
     expect(bySlot.breakfast?.min).toBeCloseTo(0.1);
     expect(bySlot.lunch?.mean).toBeCloseTo(0.5);
     expect(bySlot.lunch?.min).toBeCloseTo(0.4);
+  });
+});
+
+describe('reserveGroups', () => {
+  const lunch = (slug: string, ingredients: CandidateDish['ingredients']) => makeDish({ ingredients, slots: ['lunch', 'dinner'], slug });
+  const lentils = Array.from({ length: 5 }, (_, index) => lunch(`lentejas-${index}`, [{ grams: 100, slug: 'lentejas-cocidas' }]));
+  const hummus = lunch('hummus', [{ grams: 120, slug: 'hummus' }]);
+  const fabada = lunch('fabada', [{ grams: 200, slug: 'fabada-en-lata' }]);
+  const hake = Array.from({ length: 4 }, (_, index) => lunch(`merluza-${index}`, [{ grams: 120, slug: 'merluza' }]));
+  const salmon = lunch('salmon', [{ grams: 120, slug: 'salmon' }]);
+  const brown = lunch('arroz-integral', [{ grams: 150, slug: 'arroz-integral-cocido' }]);
+  const chicken = lunch('pollo', [{ grams: 150, slug: 'pechuga-de-pollo' }]);
+  const inSlot = [...lentils, hummus, fabada, ...hake, salmon, brown, chicken];
+
+  it('reserves legumes one kind at a time, the oily fish first, then whole grain, at lunch', () => {
+    const reserved = reserveGroups(inSlot, 'lunch', catalogue).map(dish => dish.slug);
+
+    expect(reserved.slice(0, POOL_RESERVE.lunch.legumes)).toEqual(['lentejas-0', 'hummus', 'fabada', 'lentejas-1', 'lentejas-2', 'lentejas-3']);
+    expect(reserved.slice(6, 9)).toEqual(['salmon', 'merluza-0', 'merluza-1']);
+    expect(reserved).toContain('arroz-integral');
+    expect(reserved).not.toContain('pollo');
+  });
+
+  it('reserves what an earlier slot did not take first, and nothing outside lunch and dinner', () => {
+    const taken = new Set(['lentejas-0', 'salmon', 'merluza-0']);
+    const reserved = reserveGroups(inSlot, 'dinner', catalogue, taken).map(dish => dish.slug);
+
+    expect(reserved.slice(0, POOL_RESERVE.dinner.legumes)).toEqual(['lentejas-1', 'hummus']);
+    expect(reserved).toContain('merluza-1');
+    expect(reserveGroups(inSlot, 'breakfast', catalogue)).toEqual([]);
+  });
+
+  it('reserves no fish from a library with none, as for somebody who does not like it', () => {
+    const reserved = reserveGroups([...lentils, chicken], 'lunch', catalogue);
+
+    expect(reserved.every(dish => dish.slug.startsWith('lentejas'))).toBe(true);
   });
 });
