@@ -25,7 +25,7 @@ Every phase is measured on the reference library (`0080`) with `--rotate`, and m
 
 ### Phase 1 — Measure the way production does
 
-- [ ] pending
+- [x] done (2026-10-03; see LOG)
 - **Dispatch**: opus @ medium — `/execute-project 019 phase 1`.
 - **Covers**: PRD 1.
 - **Steps**:
