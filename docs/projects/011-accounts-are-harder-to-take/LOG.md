@@ -567,7 +567,7 @@
   for the owner of an address somebody else is braking.
 - **Known limits** (accepted, stated for the reviewers):
   - The brake throttles; it does not stop. Escalating then going quiet, a guesser gets
-    about ten tries per half hour per address, roughly 700 a day, from any number of IPs.
+    about ten tries per quarter hour per address, under a thousand a day, from any number of IPs.
     Against a 12-character password with no known breach that is harmless. A daily budget
     would be the next step if the § 9 numbers ever show it.
   - A persistent attacker can keep an address at the 15-minute wait. The owner then gets
