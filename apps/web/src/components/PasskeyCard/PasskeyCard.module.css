@@ -99,7 +99,7 @@
 }
 
 /* "Añadir una llave de acceso" is wider than a phone at large text: wrap the label. */
-.actions > [class] {
+.actions > button {
   block-size: auto;
   height: auto;
   line-height: var(--line-height-02);

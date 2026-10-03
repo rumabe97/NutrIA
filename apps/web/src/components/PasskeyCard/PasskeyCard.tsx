@@ -232,6 +232,8 @@ export function PasskeyCard({ email, hasPassword }: PasskeyCardProps) {
 
     if (removeError && removeError.status !== 404) {
       if (removeError.code === 'SESSION_NOT_FRESH') {
+        // The question and its button leave the page: the title takes focus, above the sentence that says why.
+        returnTo.current = 'heading';
         setStep({ kind: 'idle' });
         setState({ kind: 'notFresh' });
 
@@ -311,6 +313,8 @@ export function PasskeyCard({ email, hasPassword }: PasskeyCardProps) {
           </Text>
           <Button
             onClick={() => {
+              // This button leaves the page with the failure: the title takes focus.
+              returnTo.current = 'heading';
               setState({ kind: 'loading' });
               void load();
             }}

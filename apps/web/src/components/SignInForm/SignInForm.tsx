@@ -58,6 +58,8 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
   const [pending, setPending] = useState(false);
   const passkeys = useSyncExternalStore(unchanging, passkeysSupported, () => false);
   const [passkeyPending, setPasskeyPending] = useState(false);
+  // The button's own refusal, said above the button: at 320px the form's alert is off-screen from it.
+  const [passkeyError, setPasskeyError] = useState<string>();
   // A sign-in with a passkey already went through: the autofill prompt that is still open
   // must not start a second one.
   const arrived = useRef(false);
@@ -95,8 +97,9 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
       if (passkeyError) {
         const message = passkeySignInRefusal(passkeyError, dictionary);
 
+        // From the field's suggestions, the form's alert by the field; from the button, by the button.
         if (message) {
-          setError(message);
+          (autoFill ? setError : setPasskeyError)(message);
         }
 
         return false;
@@ -120,6 +123,7 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
 
   async function onPasskey() {
     setError(undefined);
+    setPasskeyError(undefined);
     setPasskeyPending(true);
 
     // Starting this prompt ends the autofill one, which answers as cancelled.
@@ -139,6 +143,7 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(undefined);
+    setPasskeyError(undefined);
     setPending(true);
 
     const form = new FormData(event.currentTarget);
@@ -204,6 +209,11 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
         </Button>
 
         {/* Only in a browser that can use one; the form's submit stays the one primary. */}
+        {passkeyError ? (
+          <p className={styles.error} role="alert">
+            {passkeyError}
+          </p>
+        ) : null}
         {passkeys ? (
           <Button disabled={pending} loading={passkeyPending} onClick={() => void onPasskey()} type="button" variant="secondary">
             {dictionary.passkeys.signIn}
