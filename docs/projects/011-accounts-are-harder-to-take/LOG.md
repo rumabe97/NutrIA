@@ -676,3 +676,41 @@
   unconfirmed session any more, but one from before this change, or one through a
   provider that would not vouch for the address, still exists. `deleteAccountByEmail`
   confirms before its sign-in.
+- **The lead's two checks on the budget**: the HMAC label is `mail-budget:<kind>:`, not
+  the brake's `sign-in-brake:`, so a budget key and a brake key for one address cannot be
+  matched across tables. The rows are not in `rate_limit` but in `verification`, with the
+  key and a count only (no address). They expire at the end of their hour, and the daily
+  `/cron/sweep-verifications` deletes every row whose `expiresAt` has passed. Better
+  Auth's own cleanup is off (`verification.disableCleanup`).
+- **Timing** (step 1, measured locally: 25 rounds alternating, on the real app over
+  supertest, local Postgres). Medians, min in brackets:
+  - sign-up, new address 93.6 ms (85.9), existing address 85.6 ms (78.3). The
+    existing-address branch is not slower: its mail already goes after the response. The
+    **new** branch is ~8 ms slower here (the row, the credential, `onAccountCreated`, inline).
+    On Neon that is a few more round trips, so it is a residual timing signal, not padded in
+    this change (see the hand-off).
+  - sign-in with the stranger's password, new (unconfirmed, right password) 90.8 ms
+    (82.6), existing (wrong password) 91.3 ms (84.3): no difference.
+- **Evidence**:
+  - `sh .claude/skills/ship/scripts/gate.sh --full`: green. That covers migrations, lint,
+    types, coverage, the web build, static pages, format, dead code and leaks.
+  - New tests:
+    - core: `MailBudget.test.ts`, `MailBudgetRepository.test.ts` (the lock, the read, the
+      insert/update SQL), `MailBudgetController.test.ts`.
+    - api: `MailBudget.spec.ts`. `SignInBrake.spec.ts` gains 4 cases: an unconfirmed right
+      password equals a wrong one to the byte with a fresh link; the new-address and
+      existing-address probes give the same answer and brake rows; the tenth such attempt
+      brakes; and the `auth.api` path throws the same 401. `SignUp.spec.ts` gains the
+      budget case: five sign-ups, three mails.
+    - web: `lib/authAnswer.test.ts`.
+  - End-to-end on the local Postgres, all 48 suites in band: 697/699. The two failures:
+    - `care` (an unconfirmed squatter's session): fixed, then green on rerun.
+    - `admin` "never name who made a dish": finds no `source='ai'` dish with `created_by`
+      in the library. That is data state from the shared local library, not this change;
+      it still fails alone and is reported to the lead.
+  - `access.e2e` pins the oracle: the stranger's sign-in with their own password gives the
+    same status, body and headers, and the same `sign_in_failure` row
+    `{count: 1, next_allowed_at: null}`, for a new and an existing address. A fresh link
+    goes to the new one only.
+- **Decisions**: the mail budget (the lead, under the owner's delegation, 2026-10-03).
+- **Advisor**: not consulted.
