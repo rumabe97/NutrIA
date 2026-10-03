@@ -584,7 +584,9 @@
     probes: 401 then 401, where an address with no account answers 401 then 429. It needs
     a password sign-in by the victim inside the prober's window. No health data crosses an
     account boundary. The trade-off is that without clearing, the owner's own sign-ins
-    would count against them. Kept as a known limit.
+    would count against them. **Stands as a known limit** (who decided: the lead, under
+    the owner's delegation of 2026-10-03 — the recommended option; the owner can revisit
+    it).
   - **Decision** (who decided: the lead, under the owner's delegation of 2026-10-03, "las
     decisiones anótalas con lo más recomendado"): ship the brake, state its limits
     honestly, and plan the real remedy as phase 7b.
