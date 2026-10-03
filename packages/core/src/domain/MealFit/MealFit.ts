@@ -133,6 +133,72 @@ export function inSeason(ingredient: CatalogueIngredient, month: number): boolea
 }
 
 /**
+ * The catalogue's fresh fruit (checked 2026-10-02): the produce rows with a
+ * season that are eaten as fruit. Not avocado or tomato, which a kitchen uses
+ * as vegetables, nor chestnuts. Frozen and tinned fruit, and fresh fruit with
+ * no season (banana, pineapple), are every month by their own empty list.
+ */
+export const FRESH_FRUIT_SLUGS: ReadonlySet<string> = new Set([
+  'albaricoque',
+  'arandano',
+  'caqui',
+  'cereza',
+  'chirimoya',
+  'ciruela',
+  'frambuesa',
+  'fresa',
+  'granada',
+  'grosella',
+  'higo',
+  'higo-chumbo',
+  'kiwi',
+  'lichi',
+  'mandarina',
+  'mango',
+  'manzana',
+  'melocoton',
+  'melon',
+  'melon-cantalupo',
+  'membrillo',
+  'mora',
+  'naranja',
+  'nectarina',
+  'nispero',
+  'paraguayo',
+  'pera',
+  'pitaya',
+  'pomelo',
+  'sandia',
+  'uva'
+]);
+
+/**
+ * The first fresh fruit of a dish that is out of season in `month`, or null
+ * when every fruit it carries is in season (owner, 2026-10-02; plan 017 phase 2).
+ *
+ * The one place a season takes something away: a dish whose fruit is out of
+ * season that month is not served that day, the hard filter accompaniments
+ * already had (`0079`, owner's answer 8). A real plan served "Biscotes con
+ * requesón y nectarina" in October. Fruit only: vegetables are found, and
+ * eaten, all year.
+ */
+export function outOfSeasonFruit(
+  dish: { readonly ingredients: readonly { readonly slug: string }[] },
+  catalogue: Catalogue,
+  month: number
+): string | null {
+  for (const item of dish.ingredients) {
+    const ingredient = FRESH_FRUIT_SLUGS.has(item.slug) ? catalogue.get(item.slug) : undefined;
+
+    if (ingredient && !inSeason(ingredient, month)) {
+      return item.slug;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Whether this meal offers the plant proteins lunch does: every one that
  * belongs at lunch for this person belongs here too.
  *

@@ -61,7 +61,7 @@ Every measurement runs on the local Postgres: `pnpm db:local`, `NUTRIA_LOCAL_PG=
 
 ### Phase 2 — The rule sees small dishes and gnocchi
 
-- [ ] pending
+- [x] done (2026-10-02) — see LOG.md
 - **Dispatch**: opus @ medium — `/execute-project 017 phase 2`. `plan-evaluator` (opus @ high) measures.
 - **Covers**: PRD criterion 3 (read as "outside what `0079` allows": rice at an Asian or Latin dinner is allowed), and the owner's amendments of 2026-10-02 (grains capped, legumes varied, fruit in season in dishes, no protein dominates, snacks vary).
 - **Steps**:

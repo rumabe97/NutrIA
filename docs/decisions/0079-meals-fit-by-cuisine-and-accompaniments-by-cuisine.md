@@ -1,6 +1,6 @@
 # 0079 — A dish fits a meal by its cuisine, and its accompaniments come from that cuisine
 
-- **Status**: accepted (owner, 2026-10-02, with the nine answers under "Owner's answers"); amended 2026-10-02 (Italian pasta and rice lunch only, see "Amendment")
+- **Status**: accepted (owner, 2026-10-02, with the nine answers under "Owner's answers"); amended 2026-10-02 (Italian pasta and rice lunch only, see "Amendment"; rice, pasta and grain threshold 40 → 20 g dry and gnocchi counted as pasta, see "Amendment — threshold")
 - **Date**: 2026-10-02
 - **Deciders**: owner ("en la mediterránea el arroz no encajaría en cena, pero en la asiática sí… acompañantes que no fuera solamente pan: ensaladas, en Asia ponen arroz… quiero que sea súper profesional"); agent `architect`: the tables, the sources, the measurement. The owner answered the nine open questions and decided that no BEDCA data is used anywhere
 - **Project**: docs/projects/016-a-spanish-meal (phase 2)
@@ -75,13 +75,13 @@ A recipe's `cuisine` is normalised exactly as `0077` does (`normaliseForMatching
 
 | Group | Catalogue rows | A dish belongs to it when |
 |---|---|---|
-| **Arroz** | the `arroz-*` cooking rows: `arroz-blanco-cocido`, `-integral-`, `-basmati-`, `-salvaje-` (cooked and raw), `arroz-largo-crudo`, `arroz-jazmin-crudo`, `arroz-bomba-crudo`, `arroz-negro-crudo`, `arroz-para-sushi`, `arroz-vaporizado`, `arroz-tres-delicias-congelado`, `paella-congelada`. Not rice: `tortitas-de-arroz`, `arroz-con-leche`, `arroz-hinchado`, `harina-`, `bebida-`, `vinagre-` and `papel-de-arroz` | ≥ 40 g dry |
-| **Pasta y fideos** | `espaguetis-secos`, `macarrones-secos`, `pasta-integral-seca`, `pasta-cocida`, `pasta-integral-cocida`, `fideos-finos`, `fideos-de-arroz-*`, `fideos-soba`, `fideos-de-cristal`, `noodles-*`, `pasta-sin-gluten`, `pasta-de-lentejas`, `pasta-de-garbanzos`, `tortellini`, `raviolis-frescos`, `pasta-fresca-al-huevo`, `placas-de-lasana`, `ramen-instantaneo`, `lasana-preparada`, `canelones-preparados`, `sopa-de-fideos-envasada` | ≥ 40 g dry |
-| **Cuscús y otros granos** | the other `0078` grains: `cuscus-*`, `bulgur-*`, `quinoa-cocida`, `quinoa-cruda`, `mijo*`, `trigo-sarraceno*`, `cebada-*`, `espelta-*`, `polenta*`, `freekeh`, `amaranto`. Oats are a breakfast food and are not here | ≥ 40 g dry |
+| **Arroz** | the `arroz-*` cooking rows: `arroz-blanco-cocido`, `-integral-`, `-basmati-`, `-salvaje-` (cooked and raw), `arroz-largo-crudo`, `arroz-jazmin-crudo`, `arroz-bomba-crudo`, `arroz-negro-crudo`, `arroz-para-sushi`, `arroz-vaporizado`, `arroz-tres-delicias-congelado`, `paella-congelada`. Not rice: `tortitas-de-arroz`, `arroz-con-leche`, `arroz-hinchado`, `harina-`, `bebida-`, `vinagre-` and `papel-de-arroz` | ≥ ~~40~~ 20 g dry |
+| **Pasta y fideos** | `espaguetis-secos`, `macarrones-secos`, `pasta-integral-seca`, `pasta-cocida`, `pasta-integral-cocida`, `fideos-finos`, `fideos-de-arroz-*`, `fideos-soba`, `fideos-de-cristal`, `noodles-*`, `pasta-sin-gluten`, `pasta-de-lentejas`, `pasta-de-garbanzos`, `tortellini`, `raviolis-frescos`, `pasta-fresca-al-huevo`, `placas-de-lasana`, `ramen-instantaneo`, `lasana-preparada`, `canelones-preparados`, `sopa-de-fideos-envasada`, `noquis` (amended) | ≥ ~~40~~ 20 g dry (`noquis` as stored) |
+| **Cuscús y otros granos** | the other `0078` grains: `cuscus-*`, `bulgur-*`, `quinoa-cocida`, `quinoa-cruda`, `mijo*`, `trigo-sarraceno*`, `cebada-*`, `espelta-*`, `polenta*`, `freekeh`, `amaranto`. Oats are a breakfast food and are not here | ≥ ~~40~~ 20 g dry |
 | **Patata y boniato** | `patata`, `patata-nueva`, `boniato`, `yuca`, `patatas-gajo-congeladas`, `patatas-fritas-congeladas`, `pure-de-patatas-en-copos` | ≥ 100 g |
 | **Legumbre guisada** | the 23 rows of `seed/ingredients/meals.ts` rule 1 (lentils, chickpeas, beans, dry broad beans, tinned pulse stews) | any amount, as `0062` does today |
 
-The 40 g threshold is two thirds of a plate of rice or pasta. The AESAN sets a plate at 60–80 g dry. Below the threshold the group is an ingredient, not the dish: the spoonful of rice in a soup. Its sensitivity is measured below.
+The 40 g threshold (20 g since the threshold amendment) is two thirds of a plate of rice or pasta. The AESAN sets a plate at 60–80 g dry. Below the threshold the group is an ingredient, not the dish: the spoonful of rice in a soup. Its sensitivity is measured below.
 
 **Not a group, on purpose:**
 - **Bread, salads, vegetables, soups and creams** fit every main meal in every family. The sources below put vegetables and bread at every main meal. They follow the `0062` lists as today.
@@ -330,6 +330,13 @@ Examples: "Paella de verduras y pollo", "Arroz caldoso de marisco", "Fideuá de 
 - **Why** (owner, from their own production plan): a `traditional_spanish` fortnight of two main meals served pasta at 9 of its 28 lunches and dinners. Four of those were dinners of a dish tagged "Italiana", some on days running. The person eating it is Spanish, whatever the recipe's label says.
 - **With it**, plan 016 phase 7 adds the starch-base variety rule (`STARCH_RULES`, `core/domain/Variety/Starch.ts`): pasta and rice four times a fortnight each, never on two days running, priced like the protein rule. The bases are read with this record's food groups and their grams, so the two never disagree.
 - **Code**: `FAMILY_FIT.italian` in `core/domain/MealFit/Cuisine.ts`. Measured in plan 016 phase 7.
+
+## Amendment — 2026-10-02 — the threshold is 20 g dry, and gnocchi are pasta
+
+- **What changed**: Table 2's threshold for rice, pasta and the other grains falls from 40 g to 20 g dry per serving. `noquis` joins the pasta group, read as stored (it has no dry form). Potato (100 g) and pulses (any amount) are unchanged. The catalogue was checked again for pasta, rice and grain rows missing from the sets: `noquis` was the only one.
+- **Why** (the owner's production plan v15, generated after phase 7 was live): pasta reached dinner and appeared 6 times in 14 days, two of them running, because recognition missed it. Since the 650 kcal serving cap (prompt 4.6.0) dishes are drawn smaller: a whole-wheat pasta of 80 g cooked (about 36 g dry) and a couscous of 70 g cooked (about 28 g dry) were served at dinner as no pasta and no grain at all, and two gnocchi dishes went unseen because `noquis` was in no group. `STARCH_RULES` reads the same recognition, so its cap and its days-running rule missed them too.
+- **The value**: the AESAN plate is 60–80 g dry and a side 30–40 g. 20 g is a third of the smallest plate: every side counts, and a garnish or a soup's handful (50 g of cooked rice, about 17 g dry) does not. It sits below the 25 g row of the sensitivity table above, so Spanish dinners shrink by somewhat more than that row's 7 for the omnivore; not re-measured (the dev database was over its quota).
+- **Code**: `FOOD_GROUP_GRAMS` and `FOOD_GROUP_SLUGS.pasta` in `core/domain/MealFit/Cuisine.ts`. Unit tests are built from the four production dishes.
 
 ## Sources
 
