@@ -1,3 +1,4 @@
+import { PASSKEY_ERROR_CODES } from '@better-auth/passkey';
 import { Logger } from '@nestjs/common';
 import { BASE_ERROR_CODES } from 'better-auth';
 import { APIError, createAuthEndpoint, getSessionFromCtx, sessionMiddleware } from 'better-auth/api';
@@ -11,6 +12,7 @@ import { notFound } from './TwoFactor.js';
 
 import type { BackgroundTaskService } from '../../../shared/services/index.js';
 import type { Context } from './PasswordPolicy.js';
+import type { PasskeyOptions } from '@better-auth/passkey';
 import type { BetterAuthPlugin } from 'better-auth';
 
 /** Whom a new passkey is about, and what the mail needs from the request that added it. */
@@ -31,6 +33,7 @@ export type PasskeyDeps = {
 export const PASSKEY_RP_NAME = 'NutrIA';
 
 const CONFIRM_PASSWORD = '/passkey/confirm-password';
+const GENERATE_AUTHENTICATE_OPTIONS = '/passkey/generate-authenticate-options';
 const GENERATE_REGISTER_OPTIONS = '/passkey/generate-register-options';
 const VERIFY_REGISTRATION = '/passkey/verify-registration';
 const DELETE = '/passkey/delete-passkey';
@@ -75,6 +78,47 @@ export function passkeyOptions(appUrl: string): { origin: string; rpID: string; 
 
   return { origin: web.origin, rpID: web.hostname, rpName: PASSKEY_RP_NAME };
 }
+
+/** What WebAuthn calls verifying the person, asked of every registration and every sign-in (`PASSKEY_USER_VERIFICATION`). */
+const USER_VERIFICATION = 'required';
+
+/**
+ * The person, not only their device (PLAN 011 phase 5, the lead's decision
+ * on legal's art. 32 finding): a passkey is the thing held *and* the face,
+ * fingerprint or device code that unlocks it, so a sign-in with one opens a
+ * session with no second step. A key used on possession alone — a security
+ * key tapped, an authenticator that skipped the check — would be one factor
+ * walking past the second.
+ *
+ * - The options ask for it: `userVerification: 'required'` at registration
+ *   (`authenticatorSelection`) and at sign-in (`passkeyAfter` rewrites the
+ *   plugin's fixed `'preferred'`), so the browser refuses a device that
+ *   cannot verify the person before anything reaches us.
+ * - The answer must carry it: the plugin verifies with
+ *   `requireUserVerification: false`, so its `afterVerification` hooks refuse
+ *   any registration or sign-in whose authenticator data lacks the UV flag —
+ *   the plugin's own 400 `FAILED_TO_VERIFY_REGISTRATION` (no key stored) and
+ *   401 `AUTHENTICATION_FAILED` (no session, the counter untouched). A
+ *   browser that ignores the options is caught here; the options alone are a
+ *   request, never the rule.
+ */
+export const PASSKEY_USER_VERIFICATION: Pick<PasskeyOptions, 'authentication' | 'authenticatorSelection' | 'registration'> = {
+  authentication: {
+    afterVerification: ({ verification }) => {
+      if (!verification.authenticationInfo.userVerified) {
+        throw APIError.from('UNAUTHORIZED', PASSKEY_ERROR_CODES.AUTHENTICATION_FAILED);
+      }
+    }
+  },
+  authenticatorSelection: { residentKey: 'preferred', userVerification: USER_VERIFICATION },
+  registration: {
+    afterVerification: ({ verification }) => {
+      if (!verification.registrationInfo?.userVerified) {
+        throw APIError.from('BAD_REQUEST', PASSKEY_ERROR_CODES.FAILED_TO_VERIFY_REGISTRATION);
+      }
+    }
+  }
+};
 
 /**
  * `POST /passkey/confirm-password { password }` (PLAN 011 phase 5, the lead's
@@ -212,6 +256,10 @@ export async function passkeyBefore(context: Context): Promise<{ context: { body
 /**
  * After the plugin, on a 2xx only (called from `accountSecurityAfter`):
  *
+ * - `/passkey/generate-authenticate-options`: the options ask for the person
+ *   to be verified (`PASSKEY_USER_VERIFICATION`); the plugin offers no
+ *   setting for it at sign-in, so its answer is returned with
+ *   `userVerification: 'required'` in place of its `'preferred'`.
  * - `/passkey/verify-registration`: the session's grant is spent, then
  *   `auth.passkey_added`, awaited — the trail must not lag the answer — then
  *   the mail in the background. The passkey is the session's own account's:
@@ -222,12 +270,17 @@ export async function passkeyBefore(context: Context): Promise<{ context: { body
  * A failed row is a line, not a 500: the passkey did change. Neither the row
  * nor the line carries the passkey's id, name, key or anything of the device.
  */
-export async function passkeyAfter(deps: PasskeyDeps, context: Context): Promise<void> {
+export async function passkeyAfter(deps: PasskeyDeps, context: Context): Promise<unknown> {
   const path = context.path ?? '';
+
+  if (path === GENERATE_AUTHENTICATE_OPTIONS) {
+    return context.json({ ...record(context.context.returned), userVerification: USER_VERIFICATION });
+  }
+
   const user = context.context.session?.user;
 
   if (!user || (path !== VERIFY_REGISTRATION && path !== DELETE)) {
-    return;
+    return undefined;
   }
 
   const added = path === VERIFY_REGISTRATION;
@@ -244,7 +297,7 @@ export async function passkeyAfter(deps: PasskeyDeps, context: Context): Promise
   }
 
   if (!added) {
-    return;
+    return undefined;
   }
 
   const notice: PasskeyNotice = {
@@ -255,4 +308,6 @@ export async function passkeyAfter(deps: PasskeyDeps, context: Context): Promise
   };
 
   deps.background.run('passkey-mail', () => deps.mailPasskeyAdded(notice));
+
+  return undefined;
 }

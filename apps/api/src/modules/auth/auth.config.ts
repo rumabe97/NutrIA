@@ -16,7 +16,7 @@ import { account, passkey as passkeyTable, rateLimit, session, twoFactor as twoF
 import { APPLE_ORIGIN, configuredSocialProviders, socialProviderOptions } from './services/SocialProviders.js';
 import { onAccountCreated, onAddressConfirmed } from './services/SelfService.js';
 import { accountSecurityAfter, accountSecurityBefore, onPasswordReset } from './services/AccountSecurity.js';
-import { passkeyOptions, passkeyPasswordConfirmation } from './services/Passkey.js';
+import { PASSKEY_USER_VERIFICATION, passkeyOptions, passkeyPasswordConfirmation } from './services/Passkey.js';
 import { sendPasskeyAddedMail } from './services/PasskeyMail.js';
 import { sendPasswordChangedMail } from './services/PasswordChangedMail.js';
 import { sendPasswordResetMail } from './services/PasswordResetMail.js';
@@ -323,14 +323,19 @@ export function createAuth(
        * the password is confirmed at `/passkey/confirm-password` (the plugin
        * below), or from a session ten minutes young for an account with no
        * password (`hooks.before`); listed and removed by their own account — another account's id is the
-       * guard's 404 (`hooks.before`, `services/Passkey.ts`). A sign-in with one
-       * opens a session at once: the key on the device is itself two factors,
-       * and the two-factor plugin only guards the password door. Adding one
+       * guard's 404 (`hooks.before`, `services/Passkey.ts`). Every
+       * registration and every sign-in must verify the person — Face ID, a
+       * fingerprint, the device's code — asked for in the options and refused
+       * when the authenticator's answer lacks it (`PASSKEY_USER_VERIFICATION`).
+       * That is why a sign-in with one opens a session at once: the device held
+       * and the person who unlocked it are the two factors, and the two-factor
+       * plugin only guards the password door. A key on possession alone never
+       * signs in. Adding one
        * writes `auth.passkey_added` and mails the account; removing one writes
        * `auth.passkey_removed`. A password reset removes every passkey of
        * the account (`UserController.passwordChanged`).
        */
-      passkey(passkeyOptions(env.APP_URL)),
+      passkey({ ...passkeyOptions(env.APP_URL), ...PASSKEY_USER_VERIFICATION }),
       passkeyPasswordConfirmation()
     ],
     /*

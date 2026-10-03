@@ -168,7 +168,8 @@ async function notTheCallersSession(context: Context): Promise<{ status: true } 
  *   checked too, though it answers a challenge.
  * - `/two-factor/*`: the factor on or off and a backup code spent, each with
  *   its row and its mail (`TwoFactor.ts`).
- * - `/passkey/*`: a passkey added (its row and its mail) or removed (its row)
+ * - `/passkey/*`: a passkey added (its row and its mail) or removed (its row),
+ *   and the sign-in options returned asking for the person to be verified
  *   (`Passkey.ts`).
  */
 export function accountSecurityAfter(deps: AccountSecurityDeps) {
@@ -188,9 +189,7 @@ export function accountSecurityAfter(deps: AccountSecurityDeps) {
     }
 
     if (path.startsWith('/passkey/')) {
-      await passkeyAfter(deps, context);
-
-      return;
+      return passkeyAfter(deps, context);
     }
 
     if (path === CHANGE_PASSWORD) {

@@ -155,7 +155,8 @@ function uint32(value: number): Buffer {
 
 /**
  * A device that keeps one passkey: what a browser's `navigator.credentials`
- * hands back, built by hand. Flags UP and UV (and AT when registering), a
+ * hands back, built by hand. Flags UP and UV (and AT when registering) — UV
+ * left out once `verifies` is false, a key used on possession alone — a
  * zero AAGUID as an iPhone sends under attestation `none`, the signature an
  * ECDSA P-256 over the authenticator data and the client data's hash.
  */
@@ -163,6 +164,9 @@ class Authenticator {
   readonly credentialId = randomBytes(16);
   private readonly keys = generateKeyPairSync('ec', { namedCurve: 'P-256' });
   private counter = 0;
+
+  /** Whether the device verifies the person (Face ID, a fingerprint, its code): WebAuthn's UV flag. */
+  verifies = true;
 
   get id(): string {
     return this.credentialId.toString('base64url');
@@ -183,7 +187,7 @@ class Authenticator {
     length.writeUInt16BE(this.credentialId.length);
     const authData = Buffer.concat([
       sha256('localhost'),
-      Buffer.from([0x45]),
+      Buffer.from([this.verifies ? 0x45 : 0x41]),
       uint32(this.counter),
       Buffer.alloc(16),
       length,
@@ -215,7 +219,7 @@ class Authenticator {
   get(challenge: string): Record<string, unknown> {
     this.counter += 1;
     const clientData = Buffer.from(JSON.stringify({ challenge, crossOrigin: false, origin: ORIGIN, type: 'webauthn.get' }));
-    const authData = Buffer.concat([sha256('localhost'), Buffer.from([0x05]), uint32(this.counter)]);
+    const authData = Buffer.concat([sha256('localhost'), Buffer.from([this.verifies ? 0x05 : 0x01]), uint32(this.counter)]);
 
     return {
       id: this.id,
@@ -316,6 +320,70 @@ describe('passkeys', () => {
       expect(options.status).toBe(200);
       expect(options.body?.rp).toEqual({ id: 'localhost', name: 'NutrIA' });
       expect(options.body?.attestation).toBe('none');
+    });
+  });
+
+  describe('the person, not only the device', () => {
+    it('asks for the person to be verified when adding one', async () => {
+      const auth = build();
+      const browser = await signUp(auth, ANA);
+      await confirm(auth, browser);
+
+      const options = await call(auth, browser, '/passkey/generate-register-options');
+
+      expect(options.body?.authenticatorSelection).toMatchObject({ userVerification: 'required' });
+    });
+
+    it('asks for the person to be verified when signing in, and still hands out the challenge it keeps', async () => {
+      const auth = build();
+      const browser = new Browser();
+
+      const options = await call(auth, browser, '/passkey/generate-authenticate-options');
+
+      expect(options.status).toBe(200);
+      expect(options.body?.userVerification).toBe('required');
+      expect(typeof options.body?.challenge).toBe('string');
+      expect(browser.has('passkey')).toBe(true);
+    });
+
+    it('refuses a key added without the person verified: nothing stored, the grant kept, nothing written or mailed', async () => {
+      const auth = build();
+      const browser = await signUp(auth, ANA);
+      const device = new Authenticator();
+      device.verifies = false;
+
+      const refused = await addPasskey(auth, browser, device);
+      await drain();
+
+      expect(refused).toMatchObject({ body: { code: 'FAILED_TO_VERIFY_REGISTRATION' }, status: 400 });
+      expect(store.passkey).toEqual([]);
+      expect(passkeyChanged).not.toHaveBeenCalled();
+      expect(mails).toEqual([]);
+
+      device.verifies = true;
+      const options = await call(auth, browser, '/passkey/generate-register-options');
+      const added = await call(auth, browser, '/passkey/verify-registration', { response: device.create(options.body?.challenge as string) });
+
+      expect(added.status).toBe(200);
+    });
+
+    it('refuses a sign-in on possession alone: 401 AUTHENTICATION_FAILED, no session, no visit, the counter untouched', async () => {
+      const auth = build();
+      const device = new Authenticator();
+      await addPasskey(auth, await signUp(auth, ANA), device);
+      const sessions = store.session.length;
+      const counted = sessionsStarted().length;
+      const browser = new Browser();
+      device.verifies = false;
+
+      const options = await call(auth, browser, '/passkey/generate-authenticate-options');
+      const refused = await call(auth, browser, '/passkey/verify-authentication', { response: device.get(options.body?.challenge as string) });
+
+      expect(refused).toMatchObject({ body: { code: 'AUTHENTICATION_FAILED' }, status: 401 });
+      expect(browser.has('session_token')).toBe(false);
+      expect(store.session).toHaveLength(sessions);
+      expect(sessionsStarted()).toHaveLength(counted);
+      expect(store.passkey).toMatchObject([{ counter: 0 }]);
     });
   });
 
