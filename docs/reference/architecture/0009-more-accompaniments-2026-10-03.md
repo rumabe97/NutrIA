@@ -19,8 +19,10 @@
 > como `round`. Son las cifras que el código dará, no una estimación.
 >
 > **Medición**: no hubo ninguna llamada a un modelo ni ninguna lectura de Neon. El único
-> servicio externo consultado es la API pública de USDA FoodData Central, para una fila
-> (`picos-de-pan`).
+> servicio externo fue la API pública de USDA FoodData Central: tres búsquedas (palitos de
+> pan, tostadas melba y pimiento verde), de las que se usa una (`picos-de-pan`).
+> "En el catálogo" quiere decir en el seed (`packages/database/src/seed/ingredients/`), no
+> en una base de datos.
 
 ## Veredicto
 
@@ -1381,6 +1383,10 @@ Va en fases pequeñas para el `PLAN` de 018, como enmienda a sus fases 2 y 3.
 ## Qué no sé
 
 - **Qué parte de `schedulePlan` es valorar conjuntos.** Solo lo dice la fase 3a.
+- **Si las 61 filas están también en la base de datos.** Las comprobé contra el seed. Si
+  una fila del seed aún no hubiera llegado a producción, `larderFor` descartaría la entrada
+  sin decir nada (`Accompaniment.ts:374`): es seguro, pero no se ve. La fase 3a, sobre la
+  biblioteca de referencia, lo confirma con datos reales.
 - **Si suben los acompañamientos distintos por quincena.** Es una hipótesis. Lo dice la
   cuenta nueva del evaluador.
 - **Si los caldos de brick españoles llevan siempre apio, y si los picos llevan trazas de
