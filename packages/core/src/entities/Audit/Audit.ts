@@ -42,6 +42,16 @@ export const AUDIT_ACTIONS = [
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
+/**
+ * The prefix of a person's own account-security rows, and how long they are
+ * kept (PLAN 011 phase 7; `legal`'s retention in `docs/legal/analisis.md`
+ * § 4.1 bis): the daily sweep deletes an `auth.*` row twelve months after it
+ * was written, and no other row.
+ */
+export const AUTH_AUDIT_PREFIX = 'auth.';
+
+export const AUTH_AUDIT_RETENTION_MONTHS = 12;
+
 /** How an account came to be activated — never the request body, only this. */
 export const ACCOUNT_ACTIVATION_VIA = ['console', 'mail_link', 'automatic'] as const;
 

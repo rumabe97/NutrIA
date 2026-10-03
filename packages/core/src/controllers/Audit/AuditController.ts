@@ -1,5 +1,5 @@
 import { AuditRepository } from '#repositories/Audit';
-import { auditQuerySchema } from 'core/entities/Audit';
+import { auditQuerySchema, AUTH_AUDIT_RETENTION_MONTHS } from 'core/entities/Audit';
 
 import type { AuditAction, AuditMetadataByAction, AuditQuery } from 'core/entities/Audit';
 import type { AuditRow } from '#repositories/Audit';
@@ -32,6 +32,19 @@ function present(row: AuditRow): AuditLogView {
  * `record`, which exists for the one action with no transaction to share.
  */
 export const AuditController = {
+  /**
+   * The daily sweep's retention of the account-security trail (PLAN 011
+   * phase 7): every `auth.*` row older than twelve calendar months, and no
+   * other row. Answers how many went.
+   */
+  async forgetExpiredAuthRows(now: Date = new Date()): Promise<number> {
+    const cutoff = new Date(now);
+
+    cutoff.setUTCMonth(cutoff.getUTCMonth() - AUTH_AUDIT_RETENTION_MONTHS);
+
+    return AuditRepository.forgetAuthRowsBefore(cutoff);
+  },
+
   /** One page, newest first, filtered by action when the query asks. */
   async list(query: AuditQuery = auditQuerySchema.parse({})): Promise<Paged<AuditLogView>> {
     const { rows, total } = await AuditRepository.page({ action: query.action }, query.offset, query.size);

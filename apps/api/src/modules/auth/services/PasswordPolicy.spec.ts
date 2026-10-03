@@ -5,6 +5,7 @@ import { Logger } from '@nestjs/common';
 import { memoryAdapter } from 'better-auth/adapters/memory';
 
 import { AnalyticsController } from 'core/controllers/Analytics';
+import { SignInBrakeController } from 'core/controllers/SignInBrake';
 
 import { validateEnv } from '../../../config/Env.validation.js';
 import { BackgroundTaskService } from '../../../shared/services/index.js';
@@ -116,6 +117,8 @@ describe('the password rule on the three doors', () => {
     isPasswordCompromised.mockReset();
     isPasswordCompromised.mockResolvedValue(false);
     jest.spyOn(AnalyticsController, 'record').mockResolvedValue(undefined);
+    // The sign-in brake's rows are `SignInBrake.spec.ts`'s; a reset clears one.
+    jest.spyOn(SignInBrakeController, 'signedIn').mockResolvedValue(undefined);
     warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
   });
 
