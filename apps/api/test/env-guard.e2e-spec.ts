@@ -12,7 +12,7 @@ import { BLANKED_ENV } from './env-guard.js';
 const dir = mkdtempSync(join(tmpdir(), 'nutria-env-guard-'));
 
 afterAll(() => {
-  rmSync(dir, { recursive: true, force: true });
+  rmSync(dir, { force: true, recursive: true });
 });
 
 describe('the run cannot reach mail, push or a paid model', () => {
@@ -20,6 +20,7 @@ describe('the run cannot reach mail, push or a paid model', () => {
     for (const key of BLANKED_ENV) {
       expect([key, process.env[key]]).toEqual([key, '']);
     }
+
     expect(process.env.AI_PROVIDER).toBe('stub');
   });
 
@@ -27,11 +28,12 @@ describe('the run cannot reach mail, push or a paid model', () => {
     // Only what the contract demands and the .env would supply; every guarded key stays as the guard left it.
     const env = validateEnv({
       APP_URL: 'http://localhost:3000',
-      BETTER_AUTH_URL: 'http://localhost:3001',
       BETTER_AUTH_SECRET: 'x'.repeat(48),
+      BETTER_AUTH_URL: 'http://localhost:3001',
       ...process.env
     });
     expect(env.AI_PROVIDER).toBe('stub');
+
     for (const key of [
       'SMTP_HOST',
       'SMTP_USER',

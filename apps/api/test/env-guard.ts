@@ -46,7 +46,9 @@ export function forceOffline(): void {
   for (const key of BLANKED_ENV) {
     process.env[key] = '';
   }
+
   process.env.AI_PROVIDER = 'stub';
+
   // The stub has no use for provider routing; a leftover would only be read by a real one.
   for (const key of ['AI_MODEL', 'AI_REWRITE_MODEL', 'OMNIROUTE_MODEL', 'AI_PROVIDER_ONLY', 'AI_PROVIDER_IGNORE', 'AI_FALLBACK_MODELS']) {
     process.env[key] = '';
