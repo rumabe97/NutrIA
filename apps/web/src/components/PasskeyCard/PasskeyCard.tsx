@@ -176,8 +176,9 @@ export function PasskeyCard({ email, hasPassword }: PasskeyCardProps) {
       case 'password':
         return { field: 'password', message: refusal.message, restart: false };
       case 'stale':
+        // "Añadir" gives way to the sentence and its button; the title takes focus above them.
         setStale(true);
-        back('add');
+        back('heading');
 
         return undefined;
       case 'failed':
@@ -398,8 +399,8 @@ export function PasskeyCard({ email, hasPassword }: PasskeyCardProps) {
         />
       ) : null}
 
-      {/* Offered while the list is readable, or failed to load (adding needs no list). */}
-      {step.kind === 'password' || state.kind === 'notFresh' || state.kind === 'loading' ? null : (
+      {/* Offered while the list is readable, or failed to load (adding needs no list), and never once only a fresh sign-in lets it through. */}
+      {step.kind === 'password' || stale || state.kind === 'notFresh' || state.kind === 'loading' ? null : (
         <div className={styles.actions}>
           <Button
             disabled={removing || step.kind !== 'idle'}

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { passkeyAddRefusal, passkeySignInRefusal } from './passkey';
 import { enGB } from '../i18n/dictionaries/en-GB';
 import { esES } from '../i18n/dictionaries/es-ES';
+import { passkeyAddRefusal, passkeySignInRefusal } from './passkey';
 
 describe('passkeySignInRefusal', () => {
   it('says nothing when the prompt was closed, aborted or never finished', () => {
