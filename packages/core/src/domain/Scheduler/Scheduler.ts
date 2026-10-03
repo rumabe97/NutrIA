@@ -26,7 +26,7 @@ import {
 import { outOfSeasonFruit } from 'core/domain/MealFit';
 import { PLAN_TOLERANCE } from 'core/domain/PlanValidation';
 import { plateFoodMax, plateFoods } from 'core/domain/PlateFood';
-import type { AccompanimentSet, Larder } from 'core/domain/Accompaniment';
+import type { AccompanimentPortion, AccompanimentSet, Larder } from 'core/domain/Accompaniment';
 import type { KindCheck, KindMeal, Leaning, Placement } from 'core/domain/Variety';
 import type { PlateFood } from 'core/domain/PlateFood';
 import type { CandidateDish, Catalogue, Macros, MealSlot, PlanAssignment, PlanDayAssignment, ScheduledMeal, SwapAxis } from 'core/entities/Plan';
@@ -286,7 +286,7 @@ function sidesFor(offer: AccompanimentOffer | undefined, cache: Map<string, read
         let sets = cache.get(key);
 
         if (!sets) {
-          sets = rankedSets(setsBeside(offer.larder, pick.dish, pick.slot, month), pick.base, budget, pick.slot);
+          sets = offeredSets(offer.larder, pick.dish, pick.slot, month, pick.base, budget);
           cache.set(key, sets);
         }
 
@@ -294,6 +294,50 @@ function sidesFor(offer: AccompanimentOffer | undefined, cache: Map<string, read
       }
     };
   };
+}
+
+/**
+ * How many portions of each role go into the product of sets (018 phase 3).
+ * The list grew from 46 entries to 85, and every set is priced for every dish,
+ * meal, month and budget: unpruned, the Spanish table went from about 410 sets
+ * to 2,666 and `schedulePlan` took a third longer with accompaniments on. So
+ * each role keeps its best portions on their own first — priced exactly as a
+ * set of one (`setCost`) — and only those are combined.
+ */
+export const ACCOMPANIMENT_CANDIDATES_PER_ROLE = 6;
+
+/** The sets offered beside one pick: `setsBeside` on each role's best `ACCOMPANIMENT_CANDIDATES_PER_ROLE` portions, ranked. */
+function offeredSets(
+  larder: Larder,
+  dish: CandidateDish,
+  slot: MealSlot,
+  month: number,
+  base: PerServing,
+  budget: SlotBudget
+): readonly AccompanimentSet[] {
+  const keep = (portions: readonly AccompanimentPortion[]): readonly AccompanimentPortion[] => {
+    const priced = portions
+      .map((portion, index) => ({
+        cost: setCost({ items: portion.items, macros: portion.macros, portions: [portion] }, base, budget, slot),
+        index,
+        portion
+      }))
+      // One that fits no plate alone stays, last: more beside a small plate can lift the meal past `PLATE_LIMIT.min`.
+      .sort((a, b) => (a.cost === b.cost ? 0 : a.cost < b.cost ? -1 : 1) || a.index - b.index);
+    const kept = new Set(
+      (['starch', 'vegetable', 'dessert'] as const).flatMap(role =>
+        priced
+          .filter(entry => entry.portion.accompaniment.role === role)
+          .slice(0, ACCOMPANIMENT_CANDIDATES_PER_ROLE)
+          .map(entry => entry.portion)
+      )
+    );
+
+    // Table order kept, so a tie in the ranking still goes to the plainer, older entry.
+    return portions.filter(portion => kept.has(portion));
+  };
+
+  return rankedSets(setsBeside(larder, dish, slot, month, keep), base, budget, slot);
 }
 
 /**
@@ -850,7 +894,7 @@ export function pickReplacement(input: {
   const offer = input.accompaniments;
   const sets =
     offer && MAIN_SLOTS.has(input.slot) && budget.kcal > ACCOMPANIED_FROM_KCAL
-      ? rankedSets(setsBeside(offer.larder, dish, input.slot, offer.month), base, budget, input.slot)
+      ? offeredSets(offer.larder, dish, input.slot, offer.month, base, budget)
       : [];
   // The best of the offered sets, priced as `rankedSets` priced them; "none" when it is the best or the only one.
   const set =

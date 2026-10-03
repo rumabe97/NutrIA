@@ -4,7 +4,7 @@
 > **Audience**: humans and agents. **Committed**: yes. **Written by**: the lead via
 > `/plan-project`, from the owner's scope of 2026-10-02; approved by the owner on 2026-10-03.
 
-- **Status**: approved
+- **Status**: delivered (2026-10-03)
 - **Roadmap item**: follow-up to project 016 (queued in `docs/projects/000-workspace/LOG.md`, 2026-10-02)
 
 ## Problem
