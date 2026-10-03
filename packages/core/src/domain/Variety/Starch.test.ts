@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { dishGroups } from 'core/domain/MealFit';
-import { STARCH_RULES, starchBase, starchCap, starchCrowded, starchExcess, starchIndex, starchMeals } from 'core/domain/Variety';
+import { STARCH_RULES, starchBase, starchCap, starchCrowded, starchExcess, starchIndex, starchMeals, starchPastCap } from 'core/domain/Variety';
 
 import type { StarchMeal } from 'core/domain/Variety';
 
@@ -96,6 +96,12 @@ describe('STARCH_RULES — pasta, rice and grains four times a fortnight, never 
     expect(starchExcess([1, 3, 5, 7, 9, 11].map(pasta), 14)).toBe(2);
     // Each base has a cap of its own.
     expect(starchExcess([...[1, 3, 5, 7].map(pasta), ...[2, 4, 6, 8].map(rice)], 14)).toBe(0);
+  });
+
+  it('counts the cap apart from days running: the part the scheduler holds (0081)', () => {
+    expect(starchPastCap([1, 2, 3, 4].map(pasta), 14)).toBe(0);
+    expect(starchPastCap([1, 3, 5, 7, 9].map(pasta), 14)).toBe(1);
+    expect(starchPastCap([...[1, 3, 5, 7, 9].map(pasta), ...[2, 4, 6, 8, 10, 12].map(rice)], 14)).toBe(3);
   });
 
   it('counts the same base on two days running, or twice on one day', () => {

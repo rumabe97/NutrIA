@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { kindCap, kindCrowded, kindExcess, kindMeals, kindsCrowded, kindsExcess } from 'core/domain/Variety';
+import { kindAtCap, kindCap, kindCrowded, kindExcess, kindMeals, kindPastCap, kindsCrowded, kindsExcess } from 'core/domain/Variety';
 
 import type { KindCheck, KindMeal, KindRule } from 'core/domain/Variety';
 
@@ -40,6 +40,16 @@ describe('kind rules', () => {
     expect(kindExcess([meal('garbanzos', 3), meal('garbanzos', 4)], 14, APART)).toBe(1);
     expect(kindExcess([meal('garbanzos', 3), meal('garbanzos', 3)], 14, APART)).toBe(1);
     expect(kindExcess([meal('yogur', 3), meal('yogur', 4), meal('yogur', 4)], 14, LOOSE)).toBe(0);
+  });
+
+  it('count the cap alone, kind by kind, and tell a meal that would pass it wherever it lands (0081)', () => {
+    const four = [1, 2, 3, 4].map(day => meal('garbanzos', day));
+
+    expect(kindPastCap(four, 14, APART)).toBe(1);
+    expect(kindPastCap([...four.slice(0, 3), meal('lentejas', 4)], 14, APART)).toBe(0);
+    expect(kindAtCap('garbanzos', four.slice(0, 3), 14, APART)).toBe(true);
+    expect(kindAtCap('garbanzos', four.slice(0, 2), 14, APART)).toBe(false);
+    expect(kindAtCap(null, four, 14, APART)).toBe(false);
   });
 
   it('crowd a meal beside its kind, or past the cap', () => {
