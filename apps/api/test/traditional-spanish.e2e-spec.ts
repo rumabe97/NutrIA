@@ -3,6 +3,7 @@ import request from 'supertest';
 
 import type { Response } from 'supertest';
 
+import { isForeignCuisine } from 'core/domain/Preference';
 import { database } from 'database';
 
 import {
@@ -198,35 +199,6 @@ const EXCLUDED_SLUGS: readonly string[] = [
   'zaatar'
 ];
 
-/** `0077` § 2, already normalised (lower case, no accents). */
-const FOREIGN_CUISINES: readonly string[] = [
-  'mexicana',
-  'asiatica',
-  'oriental',
-  'india',
-  'indio',
-  'japonesa',
-  'tailandesa',
-  'china',
-  'coreana',
-  'vietnamita',
-  'peruana',
-  'latina',
-  'venezolana',
-  'americana',
-  'estadounidense',
-  'hawaiana',
-  'tropical',
-  'nordica',
-  'escandinava',
-  'marroqui',
-  'magrebi',
-  'arabe',
-  'libanesa',
-  'oriente medio',
-  'fusion'
-];
-
 /** `0077` § 3, as written there. */
 const FOREIGN_NAME =
   /\b(?:curry|shakshuka|wok|poke|sushi|ramen|burrito|fajitas?|quesadilla|teriyaki|pad thai|falafel|tabul[eé]|nachos|hummus|guacamole|chipotle|tikka|masala|noodles?|bibimbap|kimchi)\b/i;
@@ -392,14 +364,10 @@ async function plates(userId: string): Promise<readonly PlanRow[]> {
     where p.user_id = ${userId}`;
 }
 
-function normalise(value: string | null): string {
-  return (value ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
-}
-
 function violations(rows: readonly PlanRow[]): readonly string[] {
   return rows.flatMap(row => [
     ...(EXCLUDED_SLUGS.includes(row.ingredientSlug) ? [`ingredient ${row.ingredientSlug} in "${row.name}"`] : []),
-    ...(FOREIGN_CUISINES.includes(normalise(row.cuisine)) ? [`cuisine ${row.cuisine} in "${row.name}"`] : []),
+    ...(isForeignCuisine(row.cuisine) ? [`cuisine ${row.cuisine} in "${row.name}"`] : []),
     ...(FOREIGN_NAME.test(row.name) ? [`name "${row.name}"`] : [])
   ]);
 }
