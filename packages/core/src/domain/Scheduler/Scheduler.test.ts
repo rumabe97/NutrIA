@@ -1303,6 +1303,89 @@ describe('schedulePlan — pasta and rice four times a fortnight, never on days 
   });
 });
 
+describe('schedulePlan — rice beside rice and a fourth legume held like the starch cap (0082)', () => {
+  // Day 4 is rebuilt, and its lunch is one of two plates of the same macros:
+  // chicken with rice or white beans, or pork with potato. The pork is a fourth
+  // in its week and already served on day 12, so it pays more in priced rules
+  // (0.15 + 0.05) than one rule broken by the other (0.15): priced, the rice
+  // went beside day 3's rice and the beans past their three.
+  const SHARE = { breakfast: 0.28, dinner: 0.34, lunch: 0.37 } as const;
+  const plate = (slot: keyof typeof SHARE, n: number) => Math.round((TARGETS.kcal * SHARE[slot]) / 2) + n * 5;
+  const catalogue = makeCatalogue([
+    ...['base', 'arroz-largo-crudo', 'alubias-blancas-cocidas', 'patata'].map(slug => makeCatalogueIngredient({ id: slug, slug })),
+    makeCatalogueIngredient({ id: 'pollo', category: 'protein', slug: 'pechuga-de-pollo' }),
+    makeCatalogueIngredient({ id: 'cerdo', category: 'protein', classes: ['animal', 'meat', 'pork'], slug: 'lomo-de-cerdo' }),
+    makeCatalogueIngredient({ id: 'merluza', category: 'protein', slug: 'merluza' })
+  ]);
+  const dish = (slot: keyof typeof SHARE, slug: string, n: number, ...items: string[]) =>
+    makeDish({
+      ingredients: [{ grams: plate(slot, n) - 100 * items.length, slug: 'base' }, ...items.map(item => ({ grams: 100, slug: item }))],
+      slots: [slot],
+      slug
+    });
+  const porkLunch = dish('lunch', 'lunch-pork-potato', 0, 'lomo-de-cerdo', 'patata');
+  const neutral = [
+    ...[0, 1, 2].map(n => dish('breakfast', `breakfast-${n}`, n)),
+    ...[0, 1, 2].map(n => dish('dinner', `dinner-hake-${n}`, n, 'merluza')),
+    ...[0, 1, 2].map(n => dish('dinner', `dinner-pork-${n}`, n, 'lomo-de-cerdo'))
+  ];
+  const slots = ['breakfast', 'lunch', 'dinner'] as const;
+  // Every other day kept, from meals the pool no longer holds — but for pork at
+  // the dinners of days 1–3 and the pork lunch on day 12, which the pool does.
+  const kept = (named: (dayIndex: number, slot: (typeof slots)[number]) => { legume?: string; starch?: 'rice' }) =>
+    [1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].flatMap(dayIndex =>
+      slots.map(slot => ({
+        dayIndex,
+        dishSlug:
+          slot === 'dinner' && dayIndex <= 3
+            ? `dinner-pork-${dayIndex - 1}`
+            : slot === 'lunch' && dayIndex === 12
+              ? porkLunch.slug
+              : `kept-${slot}-${dayIndex}`,
+        slot,
+        ...named(dayIndex, slot)
+      }))
+    );
+
+  const lunchOnDay4 = (lunches: readonly CandidateDish[], placed: ReturnType<typeof kept>) => {
+    const result = schedulePlan({
+      catalogue,
+      dayIndexes: [4],
+      minimumKcal: MINIMUM_KCAL,
+      placed,
+      pool: [...neutral, ...lunches],
+      targets: TARGETS,
+      weights: weightsFor(shapeFor(3, false))
+    });
+
+    return result.ok ? result.assignment.days.flatMap(day => day.meals.filter(meal => meal.slot === 'lunch').map(meal => meal.dish.slug)) : [];
+  };
+
+  it('serves no rice the day after a rice while another dish keeps the day as close; the rice when none does', () => {
+    const rice = dish('lunch', 'lunch-chicken-rice', 0, 'pechuga-de-pollo', 'arroz-largo-crudo');
+    const riceOnDay3 = kept((dayIndex, slot) => (dayIndex === 3 && slot === 'lunch' ? { starch: 'rice' } : {}));
+
+    expect(lunchOnDay4([rice, porkLunch], riceOnDay3)).toEqual([porkLunch.slug]);
+    expect(
+      lunchOnDay4(
+        [rice, porkLunch],
+        kept(() => ({}))
+      )
+    ).toEqual([rice.slug]);
+    expect(lunchOnDay4([rice], riceOnDay3)).toEqual([rice.slug]);
+  });
+
+  it('serves no fourth white beans while another dish keeps the day as close; the fourth when none does', () => {
+    const beans = dish('lunch', 'lunch-chicken-beans', 0, 'pechuga-de-pollo', 'alubias-blancas-cocidas');
+    const beansOn = (...days: number[]) =>
+      kept((dayIndex, slot) => (slot === 'dinner' && days.includes(dayIndex) ? { legume: 'alubias-blancas' } : {}));
+
+    expect(lunchOnDay4([beans, porkLunch], beansOn(8, 10, 13))).toEqual([porkLunch.slug]);
+    expect(lunchOnDay4([beans, porkLunch], beansOn(8, 13))).toEqual([beans.slug]);
+    expect(lunchOnDay4([beans], beansOn(8, 10, 13))).toEqual([beans.slug]);
+  });
+});
+
 describe('schedulePlan — the fortnight is repaired as a whole (0048)', () => {
   /**
    * Days are built in order and each dish may appear twice, so the dishes that
@@ -1770,6 +1853,52 @@ describe('pickReplacement', () => {
     expect(swap([pasta, potato], pastaOn(6, 9, 12))).toBe('espaguetis-con-pollo');
     expect(swap([pasta, potato], pastaOn(6, 8, 10, 12))).toBe('patatas');
     expect(swap([pasta], pastaOn(6, 8, 10, 12))).toBe('espaguetis-con-pollo');
+  });
+
+  it('serves no pasta beside a pasta however much better it fits, while another dish passes; beside one when none does (0082)', () => {
+    const starchCatalogue = makeCatalogue([
+      makeCatalogueIngredient({ id: 'i-pasta', proteinPer100g: 13, slug: 'espaguetis-secos' }),
+      makeCatalogueIngredient({ id: 'i-patata', proteinPer100g: 2, slug: 'patata' }),
+      makeCatalogueIngredient({ id: 'i-chicken', kcalPer100g: 120, proteinPer100g: 22.5, slug: 'chicken' })
+    ]);
+    const pasta = lunch('espaguetis-con-pollo', [
+      { grams: 150, slug: 'espaguetis-secos' },
+      { grams: 200, slug: 'chicken' }
+    ]);
+    const potato = lunch('patatas', [{ grams: 400, slug: 'patata' }]);
+    const pastaOn = (...days: number[]) =>
+      days.map(dayIndex => ({ dayIndex, dishSlug: `pasta-${dayIndex}`, slot: 'dinner' as const, starch: 'pasta' as const }));
+    const swap = (pool: readonly (typeof pasta)[], placed: ReturnType<typeof pastaOn>) =>
+      pickReplacement({ budget, catalogue: starchCatalogue, dayIndex: 3, placed, plateMinimumKcal: 0, pool, slot: 'lunch' })?.dish.slug;
+
+    expect(swap([pasta, potato], pastaOn(5, 9))).toBe('espaguetis-con-pollo');
+    expect(swap([pasta, potato], pastaOn(2))).toBe('patatas');
+    expect(swap([pasta, potato], pastaOn(3))).toBe('patatas');
+    expect(swap([pasta, potato], pastaOn(4))).toBe('patatas');
+    expect(swap([pasta], pastaOn(2))).toBe('espaguetis-con-pollo');
+  });
+
+  it('serves no fourth of a legume however much better it fits, while another dish passes; the fourth when none does (0082)', () => {
+    const legumeCatalogue = makeCatalogue([
+      makeCatalogueIngredient({ id: 'i-beans', proteinPer100g: 13, slug: 'alubias-blancas-cocidas' }),
+      makeCatalogueIngredient({ id: 'i-patata', proteinPer100g: 2, slug: 'patata' }),
+      makeCatalogueIngredient({ id: 'i-chicken', kcalPer100g: 120, proteinPer100g: 22.5, slug: 'chicken' })
+    ]);
+    const beans = lunch('alubias-con-pollo', [
+      { grams: 150, slug: 'alubias-blancas-cocidas' },
+      { grams: 200, slug: 'chicken' }
+    ]);
+    const potato = lunch('patatas', [{ grams: 400, slug: 'patata' }]);
+    const legumeOn = (legume: string, ...days: number[]) =>
+      days.map(dayIndex => ({ dayIndex, dishSlug: `${legume}-${dayIndex}`, legume, slot: 'dinner' as const }));
+    const swap = (pool: readonly (typeof beans)[], placed: ReturnType<typeof legumeOn>) =>
+      pickReplacement({ budget, catalogue: legumeCatalogue, dayIndex: 3, placed, plateMinimumKcal: 0, pool, slot: 'lunch' })?.dish.slug;
+
+    expect(swap([beans, potato], legumeOn('alubias-blancas', 7, 11))).toBe('alubias-con-pollo');
+    expect(swap([beans, potato], legumeOn('alubias-blancas', 7, 9, 11))).toBe('patatas');
+    // Another legume's three are no reason to hold these back.
+    expect(swap([beans, potato], legumeOn('garbanzos', 7, 9, 11))).toBe('alubias-con-pollo');
+    expect(swap([beans], legumeOn('alubias-blancas', 7, 9, 11))).toBe('alubias-con-pollo');
   });
 });
 
