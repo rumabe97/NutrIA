@@ -5,15 +5,16 @@ const HOUR = 60 * 60 * 1000;
 /**
  * How many mails one address may be sent, of one kind, by doors anybody can
  * knock at (PLAN 011 phase 8): the confirmation link, sent again on every
- * sign-in of an unconfirmed account, and "somebody tried to create an account
- * with your address". Better Auth holds `/send-verification-email` to three
+ * sign-in of an unconfirmed account, "somebody tried to create an account
+ * with your address", and a password reset, which anybody may ask for any
+ * address. Better Auth holds `/send-verification-email` to three
  * mails a minute per IP; this is the same three, per address and per hour —
  * the life of a link — so a stranger with many IPs cannot fill a mailbox.
  */
 export const MAIL_BUDGET = { max: 3, windowMs: HOUR } as const;
 
 /** The mails the budget counts, each on its own: an attack on one never spends the other. */
-export type MailBudgetKind = 'existing-account' | 'verification';
+export type MailBudgetKind = 'existing-account' | 'reset' | 'verification';
 
 /** What the budget holds for one address and kind: the mails sent in the window, and when the window ends. */
 export type MailsSent = { readonly count: number; readonly windowEndsAt: Date };

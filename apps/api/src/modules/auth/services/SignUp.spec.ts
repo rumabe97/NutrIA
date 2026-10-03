@@ -4,7 +4,7 @@ import { memoryAdapter } from 'better-auth/adapters/memory';
 
 import { AnalyticsController } from 'core/controllers/Analytics';
 import { MailBudgetController } from 'core/controllers/MailBudget';
-import { decideMail } from 'core/domain/MailBudget';
+import { decideMail, MAIL_BUDGET } from 'core/domain/MailBudget';
 
 import type { MailsSent } from 'core/domain/MailBudget';
 
@@ -246,5 +246,37 @@ describe('sign-up reveals nothing', () => {
     // A timer may fire a millisecond early; nothing may come back meaningfully before the floor.
     expect(await timed(EXISTING)).toBeGreaterThanOrEqual(SIGN_UP_FLOOR_MS - 2);
     expect(await timed(NEW)).toBeGreaterThanOrEqual(SIGN_UP_FLOOR_MS - 2);
+  });
+  it('gives a link the mail budget’s hour, written out rather than left to Better Auth’s default', () => {
+    const auth = build();
+
+    expect(auth.options.emailVerification.expiresIn).toBe(3600);
+    expect(auth.options.emailVerification.expiresIn * 1000).toBe(MAIL_BUDGET.windowMs);
+  });
+
+  it('writes no address to any log line for a sign-up with an existing address', async () => {
+    const auth = build();
+    const lines: string[] = [];
+
+    const capture = (...args: unknown[]) => {
+      lines.push(args.map(arg => (typeof arg === 'string' ? arg : JSON.stringify(arg))).join(' '));
+    };
+
+    for (const level of ['debug', 'error', 'log', 'verbose', 'warn'] as const) {
+      jest.spyOn(Logger.prototype, level).mockImplementation(capture);
+    }
+
+    for (const level of ['debug', 'error', 'info', 'log', 'warn'] as const) {
+      jest.spyOn(console, level).mockImplementation(capture);
+    }
+
+    await signUp(auth, EXISTING, 'Ana');
+    await drain();
+    lines.length = 0;
+
+    await signUp(auth, EXISTING, 'Bea', OTHER_PASSWORD);
+    await drain();
+
+    expect(lines.join('\n')).not.toMatch(/ana@example/i);
   });
 });

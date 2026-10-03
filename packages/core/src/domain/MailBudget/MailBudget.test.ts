@@ -22,6 +22,7 @@ describe('mailBudgetKey', () => {
     const key = mailBudgetKey('verification', 'ana@example.invalid', SECRET);
 
     expect(mailBudgetKey('existing-account', 'ana@example.invalid', SECRET)).not.toBe(key);
+    expect(mailBudgetKey('reset', 'ana@example.invalid', SECRET)).not.toBe(key);
     expect(mailBudgetKey('verification', 'bea@example.invalid', SECRET)).not.toBe(key);
     expect(mailBudgetKey('verification', 'ana@example.invalid', `${SECRET}-other`)).not.toBe(key);
   });

@@ -8,6 +8,7 @@ import { AnalyticsController } from 'core/controllers/Analytics';
 import { CareController } from 'core/controllers/Care';
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from 'core/entities/Password';
 import { TERMS_VERSION } from 'core/entities/User';
+import { MAIL_BUDGET } from 'core/domain/MailBudget';
 import { DEFAULT_WEB_LOCALE, webUrl } from 'core/domain/WebUrl';
 
 import { database } from 'database';
@@ -325,16 +326,22 @@ export function createAuth(
        */
       revokeSessionsOnPasswordReset: true,
       // The one mail the product sends (0019). The request's language picks
-      // the copy; the web app sends the tag it is rendering in.
+      // the copy; the web app sends the tag it is rendering in. Anybody can
+      // ask for one for any address, so within its hourly budget too
+      // (`services/MailBudget.ts`, PLAN 011 phase 8); Better Auth sends it
+      // after the response (`runInBackgroundOrAwait`), so the budget's lookup
+      // is never in the answer's time.
       sendResetPassword: ({ url, user: recipient }, request) =>
-        sendPasswordResetMail(mailer, {
-          acceptLanguage: request?.headers.get('accept-language') ?? null,
-          appUrl: env.APP_URL,
-          nodeEnv: env.NODE_ENV,
-          to: recipient.email,
-          url,
-          userId: recipient.id
-        })
+        budget.within('reset', recipient, async () =>
+          sendPasswordResetMail(mailer, {
+            acceptLanguage: request?.headers.get('accept-language') ?? null,
+            appUrl: env.APP_URL,
+            nodeEnv: env.NODE_ENV,
+            to: recipient.email,
+            url,
+            userId: recipient.id
+          })
+        )
     },
     emailVerification: {
       /*
@@ -348,6 +355,13 @@ export function createAuth(
         await onAddressConfirmed(verified, selfService);
       },
       autoSignInAfterVerification: true,
+      /*
+       * A link lives an hour, written here rather than left to Better Auth's
+       * default (PLAN 011 phase 8): the mail budget's window is the same hour
+       * (`MAIL_BUDGET.windowMs`), so a held link is never the only one that
+       * could still work — the three sent in the window are.
+       */
+      expiresIn: MAIL_BUDGET.windowMs / 1000,
       /*
        * A fresh link to an unconfirmed account that signs in with its right
        * password (PLAN 011 phase 8, amended): the person who lost the first
@@ -368,18 +382,30 @@ export function createAuth(
        * address's hourly budget (`services/MailBudget.ts`): a stranger who
        * signed up somebody's address knows its password, and could otherwise
        * mail that address on every sign-in the brake lets through.
+       *
+       * Handed to `BackgroundTaskService` here, and this returns at once
+       * (PLAN 011 phase 8, invariant review P1): sign-up and sign-in already
+       * run it after the response, but the anonymous `/send-verification-email`
+       * awaits it, and its 500 ms is a floor, not a ceiling — the budget's
+       * lookup and SMTP would make an unconfirmed address slower than an
+       * unknown or a confirmed one.
        */
-      sendVerificationEmail: ({ url, user: recipient }, request) =>
-        budget.within('verification', recipient, async () =>
-          sendVerificationMail(mailer, {
-            acceptLanguage: request?.headers.get('accept-language') ?? null,
-            appUrl: env.APP_URL,
-            nodeEnv: env.NODE_ENV,
-            to: recipient.email,
-            url,
-            userId: recipient.id
-          })
-        )
+      sendVerificationEmail: async ({ url, user: recipient }, request) => {
+        background.run('verification-mail', async () =>
+          budget.within('verification', recipient, async () =>
+            sendVerificationMail(mailer, {
+              acceptLanguage: request?.headers.get('accept-language') ?? null,
+              appUrl: env.APP_URL,
+              nodeEnv: env.NODE_ENV,
+              to: recipient.email,
+              url,
+              userId: recipient.id
+            })
+          )
+        );
+
+        return Promise.resolve();
+      }
     },
     /*
      * Before: a password sign-in is counted against its address, and answered

@@ -4,10 +4,14 @@ const SIGN_UP = '/sign-up/email';
 
 /**
  * How long `/sign-up/email` takes at the least, counted from the moment the
- * password checks are done (PLAN 011 phase 8, amended): Better Auth's own floor
- * on `/send-verification-email`, for the same reason.
+ * password checks are done (PLAN 011 phase 8, amended). Better Auth keeps 500
+ * ms on `/send-verification-email` for the same reason; this one is 800 with
+ * margin, because what it hides was measured only here (~95 ms for the new
+ * address, local Postgres) and not on Neon, where the new branch's few extra
+ * round trips may stretch its tail: a floor below the slow branch's p99 leaks
+ * in the tail. Raise it if production timing ever shows a sign-up near it.
  */
-export const SIGN_UP_FLOOR_MS = 500;
+export const SIGN_UP_FLOOR_MS = 800;
 
 export type SignUpFloor = {
   /** `hooks.after`: waits out what is left of the floor, whatever the answer. */
