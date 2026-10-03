@@ -272,14 +272,25 @@ export function createAuth(
       /*
        * The door decides what confirming an address does (`0031`, amended):
        * self-service while registration is open, an admin's act while it is
-       * closed. The hook runs after `emailVerified` is written and before the
-       * session cookie is set, and `SessionGuard` re-reads the row on every
-       * request, so the person is in on their next navigation.
+       * closed. The hook runs after `emailVerified` is written, and
+       * `SessionGuard` re-reads the row on every request, so a session the
+       * person already has is in on its next navigation.
        */
       afterEmailVerification: async (verified: { id: string; email: string }) => {
         await onAddressConfirmed(verified, selfService);
       },
-      autoSignInAfterVerification: true,
+      /*
+       * Never on (hotfix, 011 phase 8 invariant review). The link proves the
+       * mailbox and nothing more: a stranger can sign an address up with a
+       * password of their own, and with this on, the owner of the mailbox who
+       * opened the link was signed into the stranger's account, entered their
+       * health data there, and the stranger — who holds the password — read
+       * it. The link lands on the web's "confirmed, now sign in" page
+       * (`VerificationMail.ts`); the real owner, not knowing that password,
+       * resets it, and `revokeSessionsOnPasswordReset` ends the stranger's
+       * sessions. Pinned by `EmailVerification.spec.ts`.
+       */
+      autoSignInAfterVerification: false,
       /*
        * Sent, since `0030`: confirming an address no longer opens the account.
        * That is `activatedAt`, which only the owner writes, so the link proves

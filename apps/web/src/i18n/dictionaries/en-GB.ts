@@ -1107,7 +1107,6 @@ export const enGB: Dictionary = {
     email: 'Email address',
     emailTaken: 'An account with that email already exists.',
     forgotPassword: 'Forgotten your password?',
-    goToAccount: 'Go to my account',
     haveAccount: 'Already have an account?',
     invalidCredentials: 'Wrong email or password.',
     invalidLink: 'This link is not valid, or it has expired.',
@@ -1138,9 +1137,10 @@ export const enGB: Dictionary = {
     passwordTooShort: 'The password must be at least {count} characters.',
     pendingBody: 'We are opening NutrIA a few people at a time. We will activate your account ({email}) as soon as we can and let you know by email.',
     pendingCheck: 'Check again',
-    pendingConfirmBody: 'We have sent a link to {email}. Open it and you are in — nothing else is needed.',
+    pendingConfirmBody:
+      'We have sent a link to {email}. Open it and come back here, or sign in on the device where you open it — nothing else is needed.',
     pendingConfirmTitle: 'Confirm your email',
-    pendingConfirmWaitBody: 'We have sent a link to {email}. Confirm it, and you are in as soon as we open your account.',
+    pendingConfirmWaitBody: 'We have sent a link to {email}. Confirm it, then sign in to start as soon as we open your account.',
     pendingSignOut: 'Sign out',
     pendingTitle: 'Account pending activation',
     recoverSent: 'If an account exists with that email, we have sent a link to reset the password. It expires in an hour.',
@@ -1164,9 +1164,13 @@ export const enGB: Dictionary = {
     tooManyAttempts: 'Too many attempts in a row. Wait a moment and try again.',
     toSignIn: 'Sign in',
     toSignUp: 'Create one',
-    verifyBody: 'We have sent you a confirmation link. Open it on this device to activate your account.',
-    verifyMeanwhile: 'In the meantime you can carry on setting up your profile: your plan is generated when you finish.',
-    verifyTitle: 'Confirm your email'
+    verifyBody: 'Now sign in with your email and your password.',
+    verifyFailedBody: 'It may have expired or already been used. If you have already confirmed your email, sign in.',
+    verifyFailedTitle: 'This link no longer works',
+    verifyNotYours: 'Did you not create the account, or do you not know its password? Do not guess it:',
+    verifyReset: 'reset it, and any other session open on it will be closed.',
+    verifySignIn: 'Sign in',
+    verifyTitle: 'Email confirmed'
   },
 
   care: {
@@ -2062,7 +2066,7 @@ export const enGB: Dictionary = {
       title: 'Create your account'
     },
     '/restablecer': { title: 'Choose a new password' },
-    '/verificar-email': { title: 'Confirm your email' }
+    '/verificar-email': { title: 'Email confirmed' }
   },
 
   passkeys: {
