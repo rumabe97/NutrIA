@@ -24,11 +24,13 @@ const markPasswordCompromised = vi.fn<(id: string, at: Date) => Promise<boolean>
 const forgetTrustedDevices = vi.fn<(id: string) => Promise<number>>();
 const passwordChanged = vi.fn<(id: string, record: (tx: unknown, passkeysRemoved: number) => Promise<void>) => Promise<number>>();
 const forgetPasskeys = vi.fn<(id: string, record: (tx: unknown, passkeysRemoved: number) => Promise<void>) => Promise<number>>();
+const confirmAddressByReset = vi.fn<(id: string) => Promise<boolean>>();
 const spendGrant = vi.fn<(identifier: string, id: string, now: Date) => Promise<boolean>>();
 
 vi.mock('#repositories/User', () => ({
   UserRepository: {
     activate: (match: { id?: string; email?: string }, r?: (tx: unknown, subjectUserId: string) => Promise<void>) => activate(match, r),
+    confirmAddressByReset: (id: string) => confirmAddressByReset(id),
     findAll: (query: AccountQuery) => findAll(query),
     findById: (id: string) => findById(id),
     forgetExpiredVerifications: (now: Date) => forgetExpiredVerifications(now),
@@ -190,6 +192,16 @@ describe('UserController.forgetPasskeys', () => {
 
     await expect(UserController.forgetPasskeys('usr-1')).resolves.toBe(0);
     expect(record).not.toHaveBeenCalled();
+  });
+});
+
+describe('UserController.confirmAddressByReset', () => {
+  it('answers whether the reset was what confirmed the address', async () => {
+    confirmAddressByReset.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+    await expect(UserController.confirmAddressByReset('usr-1')).resolves.toBe(true);
+    await expect(UserController.confirmAddressByReset('usr-1')).resolves.toBe(false);
+    expect(confirmAddressByReset).toHaveBeenCalledWith('usr-1');
   });
 });
 

@@ -414,11 +414,18 @@ export async function deleteAccounts(app: INestApplication, cookies: readonly st
  * `DELETE /users/me` is `@AllowUnverified()` — reachable by a session whatever
  * state its two locks are in, which is why signing in first is always enough.
  *
+ * The address is confirmed first, as its link would: an unconfirmed account
+ * cannot sign in with its password (PLAN 011 phase 8), and an account a suite
+ * only signed up never had its link opened.
+ *
  * Silently returns when the sign-in fails: the account is already gone, which
  * a second cleanup run against the same database must tolerate.
  */
 export async function deleteAccountByEmail(app: INestApplication, email: string, password = 'correct-horse-battery-staple-9'): Promise<void> {
   const server = httpServer(app);
+
+  await UserController.confirmAddress(email);
+
   // Paced: a suite's last minute of requests may have spent the API's own allowance, and its 429 is not "gone".
   const signIn: Response = await paced(() => request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password }));
 
@@ -429,6 +436,24 @@ export async function deleteAccountByEmail(app: INestApplication, email: string,
   const cookie = (signIn.headers['set-cookie'] as unknown as string[]).join('; ');
 
   await paced(() => request(server).delete(`/${PREFIX}/users/me`).set('Cookie', cookie));
+}
+
+/**
+ * Takes an account's address back to unconfirmed, on the table: the state of a
+ * session whose address nobody proved. Since PLAN 011 phase 8 an unconfirmed
+ * account cannot sign in with its password, so no route makes one any more;
+ * a session from before it, or one through a provider that would not vouch for
+ * the address, still can be. A suite that tests the address lock signs in
+ * confirmed (`UserController.confirmAddress`), then calls this.
+ */
+export async function unconfirmAddress(email: string): Promise<void> {
+  const sql = (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> })
+    .$client;
+  const unconfirmed = await sql<{ id: string }>`update "user" set email_verified = false where email = ${email} returning id`;
+
+  if (unconfirmed.length !== 1) {
+    throw new Error(`No account to unconfirm for ${email}`);
+  }
 }
 
 /**

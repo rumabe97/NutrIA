@@ -3,9 +3,10 @@ import request from 'supertest';
 
 import { UserController } from 'core/controllers/User';
 import { UNAUDITED } from 'core/entities/Audit';
+import { signInBrakeKey } from 'core/domain/SignInBrake';
 import { database } from 'database';
 
-import { createApp, deleteAccountByEmail, deleteAccounts, httpServer, PREFIX, ScriptedAiClient } from './harness.js';
+import { createApp, deleteAccountByEmail, deleteAccounts, httpServer, PREFIX, ScriptedAiClient, unconfirmAddress } from './harness.js';
 
 import type { INestApplication } from '@nestjs/common';
 import type { Response } from 'supertest';
@@ -69,14 +70,22 @@ describe('access: two locks, and the shape of a denial', () => {
   /** Every account this suite signed up, so `afterAll` can delete each one — `locks-delete` deletes itself and is not added twice. */
   const made: string[] = [];
 
+  /**
+   * Signed up and signed in, its address left unconfirmed and its account
+   * unopened. An unconfirmed account cannot sign in with its password (PLAN
+   * 011 phase 8), so it signs in confirmed and is put back: the session of an
+   * address nobody proved, as one from before phase 8 still is.
+   */
   async function signUp(email: string): Promise<string> {
     const server = httpServer(app);
 
     await request(server).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name: 'Test', password: PASSWORD }).expect(200);
+    await UserController.confirmAddress(email);
 
     const signIn: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: PASSWORD }).expect(200);
     const cookie = (signIn.headers['set-cookie'] as unknown as string[]).join('; ');
 
+    await unconfirmAddress(email);
     made.push(cookie);
 
     return cookie;
@@ -363,5 +372,176 @@ describe('access: two locks, and the shape of a denial', () => {
       // The aged cookie in `made` can no longer delete it; if the test stopped half-way, this still does.
       await deleteAccountByEmail(app, email, PASSWORD);
     }
+  });
+});
+
+/**
+ * Sign-up reveals nothing (PLAN 011 phase 8, `0074`): an address that already
+ * has an account is answered exactly as a new one — status, headers and body
+ * but for the values new on every answer (the id, the instants) — neither
+ * gets a session, and each address gets one mail after the response: the
+ * confirmation to the new one, "somebody tried" to the existing one. Mail is
+ * not configured under the suites, so each mail is its one log line.
+ *
+ * Nor does the sign-in after it (phase 8, amended): the stranger who signed
+ * up both addresses with a password of their own and signs in with it gets
+ * the same 401 for both — the new account is unconfirmed, the existing one's
+ * password is not theirs — and the same row in the per-address brake.
+ */
+describe('sign-up: the same answer for a new address and an existing one', () => {
+  let app: INestApplication;
+  const stamp = `${Date.now()}`;
+  const existing = `signup-existing-${stamp}@e2e.invalid`;
+  const fresh = `signup-new-${stamp}@e2e.invalid`;
+  const victim = `signup-victim-${stamp}@e2e.invalid`;
+  const VICTIM_PASSWORD = 'lantern-orchard-pebble-river-4';
+  const OTHER_PASSWORD = 'otra-frase-de-caballos-azules';
+  const logged: string[] = [];
+  let restore: (() => void) | undefined;
+
+  /** The values new on every answer, whoever asks; everything else must match to the byte, key order included. */
+  function shape(body: string): string {
+    return body
+      .replace(/"id":"[^"]+"/, '"id":"<id>"')
+      .replace(/"(createdAt|updatedAt|termsAcceptedAt)":"[^"]+"/g, '"$1":"<at>"')
+      .replace(/"email":"[^"]+"/, '"email":"<email>"');
+  }
+
+  /** The headers that are the same thing on every answer; `date` and the request id differ by when, not by whom. */
+  function headerShape(response: Response): Record<string, string> {
+    const { date: _date, 'x-request-id': _id, ...rest } = response.headers as Record<string, string>;
+
+    return rest;
+  }
+
+  const keyOf = (email: string) => signInBrakeKey(email, process.env['BETTER_AUTH_SECRET'] ?? '');
+
+  async function settle(): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 300));
+  }
+
+  beforeAll(async () => {
+    app = await createApp(new ScriptedAiClient([]));
+    await request(httpServer(app)).post(`/${PREFIX}/auth/sign-up/email`).send({ email: existing, name: 'Ana', password: PASSWORD }).expect(200);
+    // An account somebody already has: its address confirmed, as its link would.
+    await UserController.confirmAddress(existing);
+
+    const info = console.info;
+
+    console.info = (...args: unknown[]) => {
+      logged.push(args.map(String).join(' '));
+    };
+
+    restore = () => {
+      console.info = info;
+    };
+  });
+
+  afterAll(async () => {
+    restore?.();
+    await tables()`delete from sign_in_failure where key = any(${[keyOf(existing), keyOf(fresh), keyOf(victim)]})`;
+    await deleteAccountByEmail(app, existing, PASSWORD);
+    await deleteAccountByEmail(app, fresh, OTHER_PASSWORD);
+    await deleteAccountByEmail(app, victim, VICTIM_PASSWORD);
+    await app?.close();
+  });
+
+  it('answers both with the same status, headers and body, opens no session, and mails each once', async () => {
+    const server = httpServer(app);
+    const [existingUser] = await tables()<{ id: string }>`select id from "user" where email = ${existing}`;
+
+    await settle();
+    logged.length = 0;
+
+    const toExisting: Response = await request(server)
+      .post(`/${PREFIX}/auth/sign-up/email`)
+      .send({ email: existing, name: 'Bea', password: OTHER_PASSWORD });
+    const toFresh: Response = await request(server)
+      .post(`/${PREFIX}/auth/sign-up/email`)
+      .send({ email: fresh, name: 'Bea', password: OTHER_PASSWORD });
+
+    expect(toExisting.status).toBe(200);
+    expect(toFresh.status).toBe(200);
+    expect(shape(toExisting.text)).toBe(shape(toFresh.text));
+    expect(headerShape(toExisting)).toEqual(headerShape(toFresh));
+    expect(toExisting.headers['set-cookie']).toBeUndefined();
+    expect(toFresh.headers['set-cookie']).toBeUndefined();
+    expect(toExisting.body).toMatchObject({ token: null, user: { email: existing, emailVerified: false, name: 'Bea' } });
+
+    // The existing account answered with a fresh id, never its own.
+    expect((toExisting.body as { user: { id: string } }).user.id).not.toBe(existingUser?.id);
+
+    await settle();
+
+    const [freshUser] = await tables()<{ id: string }>`select id from "user" where email = ${fresh}`;
+
+    expect(logged.filter(line => line.includes('sign-up with an existing address'))).toEqual([
+      `[auth] sign-up with an existing address (user ${existingUser?.id}); no SMTP configured, mail not sent`
+    ]);
+    expect(logged.filter(line => line.includes('verification url'))).toHaveLength(1);
+    expect(logged.filter(line => line.includes('verification url'))[0]).toContain(`for ${freshUser?.id}:`);
+  });
+
+  it('answers the sign-in with the stranger’s password the same for both: status, headers, body, and the brake’s row', async () => {
+    const server = httpServer(app);
+    const [freshUser] = await tables()<{ id: string }>`select id from "user" where email = ${fresh}`;
+
+    await tables()`delete from sign_in_failure where key = any(${[keyOf(existing), keyOf(fresh)]})`;
+    await settle();
+    logged.length = 0;
+
+    const toExisting: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email: existing, password: OTHER_PASSWORD });
+    const toFresh: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email: fresh, password: OTHER_PASSWORD });
+
+    expect(toExisting.status).toBe(401);
+    expect(toFresh.status).toBe(toExisting.status);
+    expect(toFresh.text).toBe(toExisting.text);
+    expect(headerShape(toFresh)).toEqual(headerShape(toExisting));
+    expect(toFresh.headers['set-cookie']).toBeUndefined();
+
+    const rows = async (email: string) => tables()<{ count: number; next: Date | null }>`
+      select count, next_allowed_at as next from sign_in_failure where key = ${keyOf(email)}`;
+
+    expect(await rows(fresh)).toEqual([{ count: 1, next: null }]);
+    expect(await rows(existing)).toEqual(await rows(fresh));
+
+    // A fresh link to the unconfirmed address, after the response; the confirmed account is sent none.
+    await settle();
+    expect(logged.filter(line => line.includes('verification url'))).toEqual([expect.stringContaining(`for ${freshUser?.id}:`)]);
+  });
+
+  it('changes nothing of the existing account: its name and its password still stand', async () => {
+    const server = httpServer(app);
+    const [user] = await tables()<{ n: number; name: string }>`
+      select name, (select count(*)::int from "user" where email = ${existing}) as n from "user" where email = ${existing}`;
+
+    expect(user).toEqual({ n: 1, name: 'Ana' });
+    await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email: existing, password: OTHER_PASSWORD }).expect(401);
+    await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email: existing, password: PASSWORD }).expect(200);
+  });
+  it('lets the owner of an address a stranger signed up first in, by a reset: the reset confirms the address', async () => {
+    const server = httpServer(app);
+
+    // The stranger signs the address up with a password of their own, and never confirms it.
+    await request(server).post(`/${PREFIX}/auth/sign-up/email`).send({ email: victim, name: 'Mallory', password: OTHER_PASSWORD }).expect(200);
+
+    const [squatted] = await tables()<{ id: string; verified: boolean }>`select id, email_verified as verified from "user" where email = ${victim}`;
+
+    expect(squatted?.verified).toBe(false);
+
+    // The owner asks for a reset; the link goes to their mailbox (read from the table here).
+    await request(server).post(`/${PREFIX}/auth/request-password-reset`).send({ email: victim }).expect(200);
+
+    const [row] = await tables()<{ identifier: string }>`
+      select identifier from verification where value = ${squatted?.id ?? ''} and identifier like 'reset-password:%' order by created_at desc limit 1`;
+    const token = row?.identifier.slice('reset-password:'.length) ?? '';
+
+    await request(server).post(`/${PREFIX}/auth/reset-password`).send({ newPassword: VICTIM_PASSWORD, token }).expect(200);
+
+    const [after] = await tables()<{ verified: boolean }>`select email_verified as verified from "user" where email = ${victim}`;
+
+    expect(after?.verified).toBe(true);
+    await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email: victim, password: VICTIM_PASSWORD }).expect(200);
+    await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email: victim, password: OTHER_PASSWORD }).expect(401);
   });
 });

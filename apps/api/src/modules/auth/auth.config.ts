@@ -17,11 +17,14 @@ import { APPLE_ORIGIN, configuredSocialProviders, socialProviderOptions } from '
 import { onAccountCreated, onAddressConfirmed } from './services/SelfService.js';
 import { accountSecurityAfter, accountSecurityBefore, onPasswordReset } from './services/AccountSecurity.js';
 import { authLogger } from './services/AuthLogger.js';
+import { sendExistingAccountMail } from './services/ExistingAccountMail.js';
+import { mailBudget } from './services/MailBudget.js';
 import { PASSKEY_USER_VERIFICATION, passkeyOptions, passkeyPasswordConfirmation } from './services/Passkey.js';
 import { sendPasskeyAddedMail } from './services/PasskeyMail.js';
 import { sendPasswordChangedMail } from './services/PasswordChangedMail.js';
 import { sendPasswordResetMail } from './services/PasswordResetMail.js';
 import { signInBrake } from './services/SignInBrake.js';
+import { signUpFloor } from './services/SignUpFloor.js';
 import {
   BACKUP_CODE_COUNT,
   refusesLinkPastTheFactor,
@@ -51,7 +54,9 @@ const MINUTES = 60;
  *
  * The end-to-end suites open dozens of accounts in a couple of minutes from one
  * address, which is precisely that shape of traffic. Only the paths they
- * hammer — and `/two-factor/*`, three in ten seconds by the plugin's rule, and `/passkey/*` — are raised, only under `NODE_ENV=test`, and raised rather than switched
+ * hammer — and `/two-factor/*`, three in ten seconds by the plugin's rule, `/passkey/*`, and
+ * `/request-password-reset`, three a minute, which the reset suites and the
+ * squatter's reset in `access` share — are raised, only under `NODE_ENV=test`, and raised rather than switched
  * off: the limiter stays on its real path, so a broken `rate_limit` table still
  * fails the suites, and every other route keeps the production rule.
  */
@@ -94,9 +99,17 @@ export function createAuth(
   const isCompromised = env.NODE_ENV === 'test' ? null : isPasswordCompromised;
   // On under `NODE_ENV=test` as well: the suites sign in with addresses of their own.
   const brake = signInBrake(env.BETTER_AUTH_SECRET);
+  // Three mails of a kind per address per hour from the doors anybody can knock at (PLAN 011 phase 8).
+  const budget = mailBudget(env.BETTER_AUTH_SECRET);
+  // A sign-up answers no earlier than its floor, a new address and an existing one alike (PLAN 011 phase 8).
+  const floor = signUpFloor();
   const security = {
+    addressConfirmed: async (account: { id: string; email: string }) => {
+      await onAddressConfirmed(account, selfService);
+    },
     background,
     brake,
+    floor,
     isCompromised,
     mailPasskeyAdded: async ({ id, acceptLanguage, email, userAgent }: PasskeyNotice) =>
       sendPasskeyAddedMail(mailer, { acceptLanguage, appUrl: env.APP_URL, to: email, userAgent, userId: id }),
@@ -107,6 +120,14 @@ export function createAuth(
     mailTwoFactorRemoval: async ({ id, email, event }: TwoFactorRemovalNotice) =>
       sendTwoFactorRemovalMail(mailer, { appUrl: env.APP_URL, event, to: email, userId: id })
   };
+
+  /*
+   * Which `/condiciones` an account is created under (`0071`, phase 7), written
+   * by `databaseHooks.user.create.before` into the real row and repeated in the
+   * synthetic one an existing address is answered with, so the two sign-up
+   * answers carry the same fields.
+   */
+  const termsRecord = () => ({ termsAcceptedAt: new Date(), termsVersion: TERMS_VERSION });
 
   return betterAuth({
     account: {
@@ -232,21 +253,68 @@ export function createAuth(
            * sign-up body with `termsVersion` in it never gets this far:
            * `input: false` below refuses it (400) and no account is made.
            */
-          before: async (created: Record<string, unknown>) => ({ data: { ...created, termsAcceptedAt: new Date(), termsVersion: TERMS_VERSION } })
+          before: async (created: Record<string, unknown>) => ({ data: { ...created, ...termsRecord() } })
         }
       }
     },
     emailAndPassword: {
+      /*
+       * Sign-up reveals nothing (PLAN 011 phase 8, `0074`): it never opens a
+       * session, so Better Auth answers an address that already has an
+       * account with the same 200 and a synthetic user, instead of 422. A new
+       * person signs in by opening the confirmation link
+       * (`autoSignInAfterVerification`); the owner of an existing address is
+       * mailed instead (`onExistingUserSignUp`).
+       */
+      autoSignIn: false,
+      /*
+       * The synthetic user an existing address is answered with, shaped as the
+       * real one is: the terms' record the create hook writes, the rest as
+       * Better Auth builds it. The id is fresh and names no account.
+       */
+      customSyntheticUser: ({ id, additionalFields, coreFields }) => ({ ...coreFields, ...additionalFields, ...termsRecord(), id }),
       enabled: true,
       // The rule's one home is `core` (PLAN 011 phase 1); the web forms read the same two numbers.
       maxPasswordLength: PASSWORD_MAX_LENGTH,
       minPasswordLength: PASSWORD_MIN_LENGTH,
+      /*
+       * "Somebody tried to create an account with your address" (PLAN 011
+       * phase 8), to that address only, within its hourly budget
+       * (`services/MailBudget.ts`): anybody can sign up any address, as often
+       * as Better Auth's per-IP limit lets them. Better Auth hands it to
+       * `runInBackgroundOrAwait`, so it goes after the response, as the new
+       * address's verification mail does.
+       */
+      onExistingUserSignUp: async ({ user: existing }, request) =>
+        budget.within('existing-account', existing, async () =>
+          sendExistingAccountMail(mailer, {
+            acceptLanguage: request?.headers.get('accept-language') ?? null,
+            appUrl: env.APP_URL,
+            to: existing.email,
+            userId: existing.id
+          })
+        ),
       // The mark cleared, the audit row, the "password changed" mail (PLAN 011 phase 2; `services/AccountSecurity.ts`).
       onPasswordReset: onPasswordReset(security),
-      // Verification is required before a session is useful, but sign-up still
-      // succeeds — bouncing the user back to the form with "check your email"
-      // half-completed is worse than letting them in and gating the plan.
-      requireEmailVerification: false,
+      /*
+       * Sign-up no longer signs anybody in (`autoSignIn: false` above, `0074`):
+       * a session at sign-up for a new address, and none for an existing one,
+       * was the difference that told a stranger which addresses have an
+       * account. So the form ends on "check your email" for every address, and
+       * a new person is signed in by the confirmation link.
+       *
+       * And no password sign-in before the address is confirmed (PLAN 011
+       * phase 8, amended). Otherwise sign-up then sign-in is the same oracle:
+       * a stranger signs up somebody's address with a password of their own
+       * and signs in with it — let in where the address was new, refused where
+       * it already had an account. Better Auth refuses the unconfirmed one 403
+       * `EMAIL_NOT_VERIFIED`; `hooks.after` makes that the 401 a wrong password
+       * gets (`services/UnconfirmedSignIn.ts`), the brake counts it as one, and
+       * the address is sent a fresh link (`emailVerification.sendOnSignIn`).
+       * Google and passkeys never pass here: Google's own address is verified,
+       * and a passkey needs a confirmed address to be added.
+       */
+      requireEmailVerification: true,
       /*
        * A reset is somebody proving the address is theirs, often because
        * somebody else got there first: signed up with it, never confirmed it,
@@ -281,20 +349,37 @@ export function createAuth(
       },
       autoSignInAfterVerification: true,
       /*
+       * A fresh link to an unconfirmed account that signs in with its right
+       * password (PLAN 011 phase 8, amended): the person who lost the first
+       * mail gets another, though the answer is a wrong password's. Better
+       * Auth sends it only when the address is unconfirmed, so a confirmed
+       * account never gets one, and through `runInBackgroundOrAwait`, after
+       * the response.
+       */
+      sendOnSignIn: true,
+      /*
        * Sent, since `0030`: confirming an address no longer opens the account.
        * That is `activatedAt`, which only the owner writes, so the link proves
        * what the person can prove and nothing more.
        */
       sendOnSignUp: true,
+      /*
+       * Every link — at sign-up, at a sign-in, asked again — within the
+       * address's hourly budget (`services/MailBudget.ts`): a stranger who
+       * signed up somebody's address knows its password, and could otherwise
+       * mail that address on every sign-in the brake lets through.
+       */
       sendVerificationEmail: ({ url, user: recipient }, request) =>
-        sendVerificationMail(mailer, {
-          acceptLanguage: request?.headers.get('accept-language') ?? null,
-          appUrl: env.APP_URL,
-          nodeEnv: env.NODE_ENV,
-          to: recipient.email,
-          url,
-          userId: recipient.id
-        })
+        budget.within('verification', recipient, async () =>
+          sendVerificationMail(mailer, {
+            acceptLanguage: request?.headers.get('accept-language') ?? null,
+            appUrl: env.APP_URL,
+            nodeEnv: env.NODE_ENV,
+            to: recipient.email,
+            url,
+            userId: recipient.id
+          })
+        )
     },
     /*
      * Before: a password sign-in is counted against its address, and answered
@@ -311,7 +396,7 @@ export function createAuth(
      * checks the password it just proved against HIBP in the background and
      * marks the account on a hit.
      */
-    hooks: { after: accountSecurityAfter(security), before: accountSecurityBefore(isCompromised, brake) },
+    hooks: { after: accountSecurityAfter(security), before: accountSecurityBefore(isCompromised, brake, floor) },
     // Better Auth's own lines through Nest's logger, never with a WebAuthn challenge in them (`services/AuthLogger.ts`).
     logger: authLogger(),
     plugins: [
@@ -366,7 +451,13 @@ export function createAuth(
     rateLimit: {
       customRules:
         env.NODE_ENV === 'test'
-          ? { '/passkey/*': TEST_AUTH_RULE, '/sign-in/*': TEST_AUTH_RULE, '/sign-up/*': TEST_AUTH_RULE, '/two-factor/*': TEST_AUTH_RULE }
+          ? {
+              '/passkey/*': TEST_AUTH_RULE,
+              '/request-password-reset': TEST_AUTH_RULE,
+              '/sign-in/*': TEST_AUTH_RULE,
+              '/sign-up/*': TEST_AUTH_RULE,
+              '/two-factor/*': TEST_AUTH_RULE
+            }
           : PASSKEY_SIGN_IN_RULES,
       enabled: true,
       storage: 'database'

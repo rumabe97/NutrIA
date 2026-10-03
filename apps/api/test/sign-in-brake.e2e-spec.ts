@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
+import { UserController } from 'core/controllers/User';
 import { signInBrakeKey } from 'core/domain/SignInBrake';
 import { database } from 'database';
 
@@ -75,6 +76,8 @@ describe('a brake per address on password sign-in', () => {
     app = await createApp(new ScriptedAiClient([]));
 
     await paced(() => request(server()).post(`/${PREFIX}/auth/sign-up/email`).send({ email: known, name: 'Brake', password: PASSWORD }));
+    // Confirmed, as its link would: an unconfirmed account's right password is a wrong one (PLAN 011 phase 8).
+    await UserController.confirmAddress(known);
   });
 
   afterAll(async () => {

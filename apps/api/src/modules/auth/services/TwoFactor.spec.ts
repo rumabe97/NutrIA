@@ -195,9 +195,21 @@ function totp(uri: string, at = Date.now()): string {
   return value.toString().padStart(6, '0');
 }
 
+/** Confirms the address in the store, as its link would: an unconfirmed account cannot sign in with its password (PLAN 011 phase 8). */
+function confirm(email: string): void {
+  const row = store.user.find(candidate => candidate.email === email);
+
+  if (row) {
+    row.emailVerified = true;
+  }
+}
+
+/** Signed up and confirmed, then signed in: sign-up opens no session (PLAN 011 phase 8). */
 async function signUp(auth: Auth): Promise<Browser> {
   const browser = new Browser();
   await call(auth, browser, '/sign-up/email', { ...ACCOUNT, password: PASSWORD });
+  confirm(ACCOUNT.email);
+  await call(auth, browser, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
 
   return browser;
 }

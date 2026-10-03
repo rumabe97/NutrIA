@@ -246,12 +246,24 @@ class Authenticator {
   }
 }
 
-/** Signed up, with the address confirmed — as every account that may add a passkey has — unless `confirmed` is false. */
+/**
+ * Signed up and signed in — sign-up opens no session, and an unconfirmed
+ * account no sign-in (PLAN 011 phase 8), so the address is confirmed first —
+ * then left confirmed, as every account that may add a passkey is, unless
+ * `confirmed` is false: a session whose address is not, as one from before
+ * phase 8 may still be.
+ */
 async function signUp(auth: Auth, account: { email: string; name: string }, confirmed = true): Promise<Browser> {
   const browser = new Browser();
   await call(auth, browser, '/sign-up/email', { ...account, password: PASSWORD });
 
   const row = store.user.find(candidate => candidate.email === account.email);
+
+  if (row) {
+    row.emailVerified = true;
+  }
+
+  await call(auth, browser, '/sign-in/email', { email: account.email, password: PASSWORD });
 
   if (row) {
     row.emailVerified = confirmed;
