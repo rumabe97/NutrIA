@@ -224,7 +224,7 @@ async function refuseReplayedCode(context: Context): Promise<void> {
 }
 
 /** The account a 2xx answer names — the challenge routes answer `{ token, user }`. */
-function answeredUser(returned: unknown): { id: string; email: string } | null {
+export function answeredUser(returned: unknown): { id: string; email: string } | null {
   const user = record(record(returned).user);
   const id = text(user.id);
   const email = text(user.email);
@@ -276,15 +276,19 @@ async function changed(deps: TwoFactorDeps, context: Context, user: { id: string
 
 /**
  * A correct code from the account — a sign-in, a check from a session, the
- * confirmation that turns the factor on — cancels the owner's pending removal
- * of its factor (PLAN 011 phase 4): whoever can enter one has not lost it.
+ * confirmation that turns the factor on — or a sign-in with one of its
+ * passkeys (`Passkey.ts`, `0083`) cancels the owner's pending removal of its
+ * factor (PLAN 011 phase 4): whoever can do that has not lost the account.
  * Awaited, so the removal is gone before the answer; the row is
  * `auth.2fa_removal_cancelled {by:'account'}`, then the "cancelled" mail in
  * the background. Nothing pending — the common case — says nothing. A
  * failure is a line, not a 500: the person did sign in, and their next
  * correct code tries again.
  */
-async function cancelPendingRemoval(deps: TwoFactorDeps, user: { id: string; email: string } | null): Promise<void> {
+export async function cancelPendingRemoval(
+  deps: Pick<TwoFactorDeps, 'background' | 'mailTwoFactorRemoval'>,
+  user: { id: string; email: string } | null
+): Promise<void> {
   if (!user) {
     return;
   }

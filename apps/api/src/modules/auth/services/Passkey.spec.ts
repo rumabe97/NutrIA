@@ -1,4 +1,5 @@
 import { createHash, generateKeyPairSync, randomBytes, sign } from 'node:crypto';
+import { inspect } from 'node:util';
 
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { Logger } from '@nestjs/common';
@@ -6,6 +7,7 @@ import { isoCBOR } from '@simplewebauthn/server/helpers';
 import { memoryAdapter } from 'better-auth/adapters/memory';
 
 import { AnalyticsController } from 'core/controllers/Analytics';
+import { TwoFactorController } from 'core/controllers/TwoFactor';
 import { UserController } from 'core/controllers/User';
 
 import { validateEnv } from '../../../config/Env.validation.js';
@@ -21,8 +23,9 @@ import { validateEnv } from '../../../config/Env.validation.js';
  * verification.
  *
  * Swapped: the storage, the mails (captured, never sent), the
- * `UserController` and `AnalyticsController` writes (spied — their SQL is
- * `packages/core`'s to prove) and the background runner (collected;
+ * `UserController`, `TwoFactorController` and `AnalyticsController` writes
+ * (spied — their SQL is `packages/core`'s to prove; `spendGrant` acts on the
+ * in-memory rows as its `DELETE … RETURNING` does) and the background runner (collected;
  * `drain()` is "after the response").
  */
 type Row = Record<string, unknown>;
@@ -37,6 +40,7 @@ const store: { account: Row[]; passkey: Row[]; rateLimit: Row[]; session: Row[];
   verification: []
 };
 const mails: { to: string; userId: string }[] = [];
+const removalMails: { event: unknown; to: string; userId: string }[] = [];
 
 jest.unstable_mockModule('better-auth/adapters/drizzle', () => ({ drizzleAdapter: () => memoryAdapter(store) }));
 jest.unstable_mockModule('database', () => ({ database: () => ({}) }));
@@ -45,6 +49,13 @@ jest.unstable_mockModule('./SelfService.js', () => ({
   onAddressConfirmed: async () => Promise.resolve()
 }));
 jest.unstable_mockModule('./VerificationMail.js', () => ({ sendVerificationMail: async () => Promise.resolve() }));
+jest.unstable_mockModule('./TwoFactorRemovalMail.js', () => ({
+  sendTwoFactorRemovalMail: async (_mailer: unknown, { event, to, userId }: { event: unknown; to: string; userId: string }) => {
+    removalMails.push({ event, to, userId });
+
+    return Promise.resolve();
+  }
+}));
 jest.unstable_mockModule('./PasskeyMail.js', () => ({
   sendPasskeyAddedMail: async (_mailer: unknown, { to, userId }: { to: string; userId: string }) => {
     mails.push({ to, userId });
@@ -235,9 +246,16 @@ class Authenticator {
   }
 }
 
-async function signUp(auth: Auth, account: { email: string; name: string }): Promise<Browser> {
+/** Signed up, with the address confirmed — as every account that may add a passkey has — unless `confirmed` is false. */
+async function signUp(auth: Auth, account: { email: string; name: string }, confirmed = true): Promise<Browser> {
   const browser = new Browser();
   await call(auth, browser, '/sign-up/email', { ...account, password: PASSWORD });
+
+  const row = store.user.find(candidate => candidate.email === account.email);
+
+  if (row) {
+    row.emailVerified = confirmed;
+  }
 
   return browser;
 }
@@ -267,6 +285,7 @@ function userId(email: string): string {
 describe('passkeys', () => {
   let passkeyChanged: jest.SpiedFunction<typeof UserController.passkeyChanged>;
   let analytics: jest.SpiedFunction<typeof AnalyticsController.record>;
+  let cancelRemoval: jest.SpiedFunction<typeof TwoFactorController.cancelRemovalByAccount>;
   const logged: string[] = [];
 
   beforeEach(() => {
@@ -275,14 +294,28 @@ describe('passkeys', () => {
     }
 
     mails.length = 0;
+    removalMails.length = 0;
     tasks.length = 0;
     logged.length = 0;
     passkeyChanged = jest.spyOn(UserController, 'passkeyChanged').mockResolvedValue(undefined);
     analytics = jest.spyOn(AnalyticsController, 'record').mockResolvedValue(undefined);
     jest.spyOn(AnalyticsController, 'recordUse').mockResolvedValue(undefined);
+    cancelRemoval = jest.spyOn(TwoFactorController, 'cancelRemovalByAccount').mockResolvedValue(null);
+    jest.spyOn(UserController, 'spendGrant').mockImplementation(async (identifier, id) => {
+      const at = store.verification.findIndex(
+        row => row.identifier === identifier && row.value === id && new Date(row.expiresAt as Date).getTime() > Date.now()
+      );
+
+      if (at >= 0) {
+        store.verification.splice(at, 1);
+      }
+
+      return Promise.resolve(at >= 0);
+    });
 
     const keep = (...parts: unknown[]) => {
-      logged.push(parts.map(part => (typeof part === 'string' ? part : JSON.stringify(part))).join(' '));
+      // `inspect`, not `JSON.stringify`: an `Error` stringifies to `{}`, and its message is what must be looked at.
+      logged.push(parts.map(part => (typeof part === 'string' ? part : inspect(part))).join(' '));
     };
 
     for (const level of ['debug', 'error', 'info', 'log', 'warn'] as const) {
@@ -346,7 +379,7 @@ describe('passkeys', () => {
       expect(browser.has('passkey')).toBe(true);
     });
 
-    it('refuses a key added without the person verified: nothing stored, the grant kept, nothing written or mailed', async () => {
+    it('refuses a key added without the person verified: nothing stored, the grant spent, nothing written or mailed', async () => {
       const auth = build();
       const browser = await signUp(auth, ANA);
       const device = new Authenticator();
@@ -360,11 +393,14 @@ describe('passkeys', () => {
       expect(passkeyChanged).not.toHaveBeenCalled();
       expect(mails).toEqual([]);
 
-      device.verifies = true;
-      const options = await call(auth, browser, '/passkey/generate-register-options');
-      const added = await call(auth, browser, '/passkey/verify-registration', { response: device.create(options.body?.challenge as string) });
+      await expect(call(auth, browser, '/passkey/generate-register-options')).resolves.toMatchObject({
+        body: { code: 'PASSWORD_CONFIRMATION_REQUIRED' },
+        status: 403
+      });
 
-      expect(added.status).toBe(200);
+      device.verifies = true;
+
+      expect((await addPasskey(auth, browser, device)).status).toBe(200);
     });
 
     it('refuses a sign-in on possession alone: 401 AUTHENTICATION_FAILED, no session, no visit, the counter untouched', async () => {
@@ -411,6 +447,35 @@ describe('passkeys', () => {
     });
   });
 
+  describe('an address not yet confirmed', () => {
+    it('refuses both steps 403 EMAIL_CONFIRMATION_REQUIRED, even with the password confirmed, and writes no challenge', async () => {
+      const auth = build();
+      const browser = await signUp(auth, ANA, false);
+
+      expect((await confirm(auth, browser)).status).toBe(200);
+
+      const before = store.verification.length;
+      const options = await call(auth, browser, '/passkey/generate-register-options');
+      const verify = await call(auth, browser, '/passkey/verify-registration', { response: new Authenticator().create('any') });
+
+      expect(options).toMatchObject({ body: { code: 'EMAIL_CONFIRMATION_REQUIRED', message: 'Confirm your email address to add a passkey' }, status: 403 });
+      expect(verify).toMatchObject({ body: { code: 'EMAIL_CONFIRMATION_REQUIRED' }, status: 403 });
+      expect(store.verification).toHaveLength(before);
+      expect(store.passkey).toEqual([]);
+    });
+
+    it('refuses an account with no password the same way, however young its session', async () => {
+      const auth = build();
+      const browser = await signUp(auth, ANA, false);
+      store.account.length = 0;
+
+      await expect(call(auth, browser, '/passkey/generate-register-options')).resolves.toMatchObject({
+        body: { code: 'EMAIL_CONFIRMATION_REQUIRED' },
+        status: 403
+      });
+    });
+  });
+
   describe('the password first, for an account that has one', () => {
     it('refuses both steps 403 PASSWORD_CONFIRMATION_REQUIRED until the password is confirmed, and writes no challenge', async () => {
       const auth = build();
@@ -441,6 +506,23 @@ describe('passkeys', () => {
 
       expect((await addPasskey(auth, browser, new Authenticator())).status).toBe(200);
       await expect(call(auth, browser, '/passkey/generate-register-options')).resolves.toMatchObject({
+        body: { code: 'PASSWORD_CONFIRMATION_REQUIRED' },
+        status: 403
+      });
+    });
+
+    it('is spent by the verify itself, before the plugin runs: a verify the plugin refuses spends it all the same', async () => {
+      const auth = build();
+      const browser = await signUp(auth, ANA);
+      await confirm(auth, browser);
+      await call(auth, browser, '/passkey/generate-register-options');
+
+      const refused = await call(auth, browser, '/passkey/verify-registration', { response: new Authenticator().create('not-the-challenge') });
+
+      expect(refused.status).toBeGreaterThanOrEqual(400);
+      expect(UserController.spendGrant).toHaveBeenCalledTimes(1);
+      expect(store.verification.filter(row => String(row.identifier).startsWith('passkey-grant-'))).toEqual([]);
+      await expect(call(auth, browser, '/passkey/verify-registration', { response: new Authenticator().create('any') })).resolves.toMatchObject({
         body: { code: 'PASSWORD_CONFIRMATION_REQUIRED' },
         status: 403
       });
@@ -592,6 +674,88 @@ describe('passkeys', () => {
       expect(browser.has('session_token')).toBe(true);
       expect(sessionsStarted()).toHaveLength(counted + 1);
       expect(passkeyChanged).not.toHaveBeenCalled();
+    });
+
+    it('opens a session at once for an account with TOTP on: no second step, by design (0083)', async () => {
+      const auth = build();
+      const device = new Authenticator();
+      await addPasskey(auth, await signUp(auth, ANA), device);
+
+      for (const row of store.user) {
+        row.twoFactorEnabled = true;
+      }
+
+      const browser = new Browser();
+      const options = await call(auth, browser, '/passkey/generate-authenticate-options');
+      const signedIn = await call(auth, browser, '/passkey/verify-authentication', { response: device.get(options.body?.challenge as string) });
+
+      expect(signedIn.status).toBe(200);
+      expect(signedIn.body).not.toHaveProperty('twoFactorRedirect');
+      expect(browser.has('session_token')).toBe(true);
+      expect(browser.has('two_factor')).toBe(false);
+    });
+
+    it('cancels a pending removal of the second factor, awaited, and sends the "cancelled" mail', async () => {
+      const auth = build();
+      const device = new Authenticator();
+      await addPasskey(auth, await signUp(auth, ANA), device);
+      await drain();
+      cancelRemoval.mockResolvedValue({ email: ANA.email });
+
+      const browser = new Browser();
+      const options = await call(auth, browser, '/passkey/generate-authenticate-options');
+      const signedIn = await call(auth, browser, '/passkey/verify-authentication', { response: device.get(options.body?.challenge as string) });
+
+      expect(signedIn.status).toBe(200);
+      expect(cancelRemoval).toHaveBeenCalledWith(userId(ANA.email));
+
+      await drain();
+
+      expect(removalMails).toEqual([{ event: { kind: 'cancelled' }, to: ANA.email, userId: userId(ANA.email) }]);
+    });
+
+    it('signs in all the same when the cancel fails, with a line that names only the account', async () => {
+      const auth = build();
+      const device = new Authenticator();
+      await addPasskey(auth, await signUp(auth, ANA), device);
+      cancelRemoval.mockRejectedValue(new Error('database down'));
+
+      const browser = new Browser();
+      const options = await call(auth, browser, '/passkey/generate-authenticate-options');
+      const signedIn = await call(auth, browser, '/passkey/verify-authentication', { response: device.get(options.body?.challenge as string) });
+      await drain();
+
+      expect(signedIn.status).toBe(200);
+      expect(logged).toContain(`two_factor_removal_uncancelled {"userId":"${userId(ANA.email)}"}`);
+      expect(removalMails).toEqual([]);
+    });
+
+    it('asks nothing of the removal on a refused sign-in', async () => {
+      const auth = build();
+      const browser = new Browser();
+      const options = await call(auth, browser, '/passkey/generate-authenticate-options');
+
+      await call(auth, browser, '/passkey/verify-authentication', { response: new Authenticator().get(options.body?.challenge as string) });
+
+      expect(cancelRemoval).not.toHaveBeenCalled();
+    });
+
+    it('keeps both challenges out of every line when the answer was made for another one', async () => {
+      const auth = build();
+      const device = new Authenticator();
+      await addPasskey(auth, await signUp(auth, ANA), device);
+      logged.length = 0;
+
+      const browser = new Browser();
+      const options = await call(auth, browser, '/passkey/generate-authenticate-options');
+      const ours = options.body?.challenge as string;
+      const theirs = 'a-challenge-somebody-else-was-given';
+      const refused = await call(auth, browser, '/passkey/verify-authentication', { response: device.get(theirs) });
+
+      expect(refused).toMatchObject({ body: { code: 'AUTHENTICATION_FAILED' }, status: 400 });
+      expect(logged.join('\n')).toContain('Failed to verify authentication');
+      expect(logged.join('\n')).not.toContain(ours);
+      expect(logged.join('\n')).not.toContain(theirs);
     });
 
     it('refuses a key nobody registered, with no session', async () => {

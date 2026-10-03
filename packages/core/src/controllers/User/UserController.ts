@@ -252,6 +252,16 @@ export const UserController = {
   },
 
   /**
+   * Every passkey of the account goes, one `auth.passkey_removed` row each, in
+   * one transaction; returns how many went (PLAN 011 phase 5). Only for when
+   * `passwordChanged` failed: the password is new by then, and its keys must
+   * not outlive it.
+   */
+  async forgetPasskeys(userId: string): Promise<number> {
+    return UserRepository.forgetPasskeys(userId, async (tx, passkeysRemoved) => passkeysRemovedRows(userId, passkeysRemoved, tx));
+  },
+
+  /**
    * `id` must come from the verified session. There is deliberately no
    * "get any user" method: a caller that could pass an arbitrary id would be one
    * missing authorisation check away from reading another account.
@@ -318,24 +328,6 @@ export const UserController = {
   },
 
   /**
-   * Every passkey of the account goes, one `auth.passkey_removed` row each, in
-   * one transaction; returns how many went (PLAN 011 phase 5). Only for when
-   * `passwordChanged` failed: the password is new by then, and its keys must
-   * not outlive it.
-   */
-  async forgetPasskeys(userId: string): Promise<number> {
-    return UserRepository.forgetPasskeys(userId, async (tx, passkeysRemoved) => passkeysRemovedRows(userId, passkeysRemoved, tx));
-  },
-
-  /**
-   * Spends the single-use grant `identifier` of the account (PLAN 011 phase
-   * 5): true only for the one request that deleted it, while it was live.
-   */
-  async spendGrant(identifier: string, userId: string): Promise<boolean> {
-    return UserRepository.spendGrant(identifier, userId, new Date());
-  },
-
-  /**
    * The person closed sessions of their own (PLAN 011 phase 2). Better Auth
    * has already deleted them, scoped to the session's user; this is the row
    * that says so — which ones in a closed word, never which token, device or
@@ -378,6 +370,14 @@ export const UserController = {
           };
 
     return UserRepository.setTier(id, tier, record);
+  },
+
+  /**
+   * Spends the single-use grant `identifier` of the account (PLAN 011 phase
+   * 5): true only for the one request that deleted it, while it was live.
+   */
+  async spendGrant(identifier: string, userId: string): Promise<boolean> {
+    return UserRepository.spendGrant(identifier, userId, new Date());
   },
 
   /**

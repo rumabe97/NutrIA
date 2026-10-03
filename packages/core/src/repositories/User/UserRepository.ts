@@ -332,6 +332,26 @@ export const UserRepository = {
   },
 
   /**
+   * Every passkey of the account goes, with the caller's rows, in one
+   * transaction, and answers how many went (PLAN 011 phase 5). The second
+   * attempt after `passwordChanged`'s transaction failed: the new password
+   * is stored by then, and a key added from a stolen session must still go.
+   */
+  async forgetPasskeys(id: string, record: RecordPasskeysForgotten): Promise<number> {
+    try {
+      return await database().transaction(async tx => {
+        const removed = (await tx.delete(passkey).where(eq(passkey.userId, id)).returning({ id: passkey.id })).length;
+
+        await record(tx, removed);
+
+        return removed;
+      });
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
    * Deletes every verification row — reset tokens, address links, OAuth state —
    * whose `expires_at` is already past, and answers how many went (PLAN 011).
    * The second write to a table Better Auth owns: the pruning Better Auth did
@@ -452,46 +472,6 @@ export const UserRepository = {
   },
 
   /**
-   * Every passkey of the account goes, with the caller's rows, in one
-   * transaction, and answers how many went (PLAN 011 phase 5). The second
-   * attempt after `passwordChanged`'s transaction failed: the new password
-   * is stored by then, and a key added from a stolen session must still go.
-   */
-  async forgetPasskeys(id: string, record: RecordPasskeysForgotten): Promise<number> {
-    try {
-      return await database().transaction(async tx => {
-        const removed = (await tx.delete(passkey).where(eq(passkey.userId, id)).returning({ id: passkey.id })).length;
-
-        await record(tx, removed);
-
-        return removed;
-      });
-    } catch (error: unknown) {
-      throw wrap(error);
-    }
-  },
-
-  /**
-   * Spends a single-use grant (PLAN 011 phase 5): deletes the `verification`
-   * row named `identifier` only if it is the account's own and has not
-   * expired, and answers whether it did. One statement, so two requests on
-   * one grant cannot both find it: the second waits on the first's row lock
-   * and then deletes nothing.
-   */
-  async spendGrant(identifier: string, id: string, now: Date): Promise<boolean> {
-    try {
-      const rows = await database()
-        .delete(verification)
-        .where(and(eq(verification.identifier, identifier), eq(verification.value, id), gt(verification.expiresAt, now)))
-        .returning({ id: verification.id });
-
-      return rows.length > 0;
-    } catch (error: unknown) {
-      throw wrap(error);
-    }
-  },
-
-  /**
    * Moves an account between tiers (`0042`).
    *
    * The owner's decision, like activation, and the second write this repository
@@ -516,6 +496,26 @@ export const UserRepository = {
 
         return row ?? null;
       });
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Spends a single-use grant (PLAN 011 phase 5): deletes the `verification`
+   * row named `identifier` only if it is the account's own and has not
+   * expired, and answers whether it did. One statement, so two requests on
+   * one grant cannot both find it: the second waits on the first's row lock
+   * and then deletes nothing.
+   */
+  async spendGrant(identifier: string, id: string, now: Date): Promise<boolean> {
+    try {
+      const rows = await database()
+        .delete(verification)
+        .where(and(eq(verification.identifier, identifier), eq(verification.value, id), gt(verification.expiresAt, now)))
+        .returning({ id: verification.id });
+
+      return rows.length > 0;
     } catch (error: unknown) {
       throw wrap(error);
     }

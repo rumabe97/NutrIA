@@ -37,7 +37,7 @@ const COPY: Record<
     notYou: 'If it was not you, reset your password now:',
     on: 'on',
     passkeysRemoved: count =>
-      `Resetting it also removed ${count === 1 ? 'the passkey' : `the ${count} passkeys`} of the account. If ${count === 1 ? 'it was' : 'they were'} yours, sign in and add ${count === 1 ? 'it' : 'them'} again under Profile › Security.`,
+      `The change also removed ${count === 1 ? 'the passkey' : `the ${count} passkeys`} of the account. If ${count === 1 ? 'it was' : 'they were'} yours, sign in and add ${count === 1 ? 'it' : 'them'} again under Profile › Security.`,
     subject: 'Your NutrIA password has changed',
     wasYou: 'If it was you, there is nothing else to do.'
   },
@@ -49,7 +49,7 @@ const COPY: Record<
     notYou: 'Si no has sido tú, restablece tu contraseña ahora:',
     on: 'en',
     passkeysRemoved: count =>
-      `Al restablecerla se ${count === 1 ? 'ha quitado la llave de acceso' : `han quitado las ${count} llaves de acceso`} de la cuenta. Si ${count === 1 ? 'era tuya' : 'eran tuyas'}, entra y ${count === 1 ? 'añádela' : 'añádelas'} de nuevo en Perfil › Seguridad.`,
+      `Con el cambio se ${count === 1 ? 'ha quitado la llave de acceso' : `han quitado las ${count} llaves de acceso`} de la cuenta. Si ${count === 1 ? 'era tuya' : 'eran tuyas'}, entra y ${count === 1 ? 'añádela' : 'añádelas'} de nuevo en Perfil › Seguridad.`,
     subject: 'Tu contraseña de NutrIA ha cambiado',
     wasYou: 'Si has sido tú, no tienes que hacer nada más.'
   }
@@ -77,7 +77,7 @@ export function passwordChangedEmail({
   at: Date;
   device: Device;
   locale: EmailLocale;
-  /** A reset removes every passkey (PLAN 011 phase 5): how many went, said only when some did. */
+  /** A change or a reset removes every passkey (PLAN 011 phase 5, `0083`): how many went, said only when some did. */
   passkeysRemoved?: number;
   recoverUrl: string;
 }): RenderedEmail {

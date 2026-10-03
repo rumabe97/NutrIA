@@ -134,9 +134,10 @@ async function sessionOf(auth: Auth, cookie: string): Promise<{ user: Row } | nu
   return auth.api.getSession({ headers: new Headers({ cookie }) }) as Promise<{ user: Row } | null>;
 }
 
-/** The three `UserController` writes, spied; their SQL is `packages/core`'s to prove. */
+/** The `UserController` writes, spied; their SQL is `packages/core`'s to prove. */
 function spyWrites() {
   return {
+    forgetPasskeys: jest.spyOn(UserController, 'forgetPasskeys').mockResolvedValue(0),
     markPasswordCompromised: jest.spyOn(UserController, 'markPasswordCompromised').mockResolvedValue(true),
     passwordChanged: jest.spyOn(UserController, 'passwordChanged').mockResolvedValue(0),
     sessionsRevoked: jest.spyOn(UserController, 'sessionsRevoked').mockResolvedValue(undefined)
@@ -241,6 +242,18 @@ describe('what follows a password change, a closed session and a sign-in', () =>
 
       expect(changed.status).toBe(200);
     });
+
+    it('tells the mail how many passkeys the change removed (0083)', async () => {
+      writes.passwordChanged.mockResolvedValue(3);
+      const auth = build();
+      const laptop = await signUp(auth);
+
+      await call(auth, '/change-password', { body: { currentPassword: PASSWORD, newPassword: NEW_PASSWORD }, cookie: laptop, userAgent: IPHONE });
+      await drain();
+
+      expect(writes.forgetPasskeys).not.toHaveBeenCalled();
+      expect(mails).toEqual([{ passkeysRemoved: 3, to: ACCOUNT.email, userAgent: IPHONE, userId: store.user[0]?.id as string }]);
+    });
   });
 
   describe('a reset', () => {
@@ -271,6 +284,46 @@ describe('what follows a password change, a closed session and a sign-in', () =>
       await drain();
 
       expect(mails).toEqual([{ passkeysRemoved: 2, to: ACCOUNT.email, userAgent: IPHONE, userId: store.user[0]?.id as string }]);
+    });
+
+    it('removes the passkeys on their own when the reset’s transaction fails, and the mail says how many went', async () => {
+      const errors = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+      writes.passwordChanged.mockRejectedValue(new Error('database unavailable'));
+      writes.forgetPasskeys.mockResolvedValue(2);
+      const auth = build();
+      await signUp(auth);
+      await auth.api.requestPasswordReset({ body: { email: ACCOUNT.email } });
+      await drain();
+      const token = new URL(resetUrls.at(-1) ?? '').pathname.split('/').at(-1) ?? '';
+      const userId = store.user[0]?.id as string;
+
+      const reset = await call(auth, '/reset-password', { body: { newPassword: NEW_PASSWORD, token }, userAgent: IPHONE });
+      await drain();
+
+      expect(reset.status).toBe(200);
+      expect(writes.forgetPasskeys).toHaveBeenCalledWith(userId);
+      expect(errors).toHaveBeenCalledWith(`password_change_unrecorded {"userId":"${userId}","via":"reset"}`);
+      expect(errors).not.toHaveBeenCalledWith(expect.stringContaining('passkeys_not_removed'));
+      expect(mails).toEqual([{ passkeysRemoved: 2, to: ACCOUNT.email, userAgent: IPHONE, userId }]);
+    });
+
+    it('says passkeys_not_removed, at error level, when the passkeys cannot be removed either — and still mails', async () => {
+      const errors = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+      writes.passwordChanged.mockRejectedValue(new Error('database unavailable'));
+      writes.forgetPasskeys.mockRejectedValue(new Error('database unavailable'));
+      const auth = build();
+      await signUp(auth);
+      await auth.api.requestPasswordReset({ body: { email: ACCOUNT.email } });
+      await drain();
+      const token = new URL(resetUrls.at(-1) ?? '').pathname.split('/').at(-1) ?? '';
+      const userId = store.user[0]?.id as string;
+
+      const reset = await call(auth, '/reset-password', { body: { newPassword: NEW_PASSWORD, token }, userAgent: IPHONE });
+      await drain();
+
+      expect(reset.status).toBe(200);
+      expect(errors).toHaveBeenCalledWith(`passkeys_not_removed {"userId":"${userId}"}`);
+      expect(mails).toEqual([{ to: ACCOUNT.email, userAgent: IPHONE, userId }]);
     });
 
     it('records nothing for a dead token', async () => {

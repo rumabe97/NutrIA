@@ -18,7 +18,7 @@ export type PasswordChangedNotice = {
   readonly id: string;
   readonly acceptLanguage: string | null;
   readonly email: string;
-  /** How many passkeys the change removed — a reset removes them all (PLAN 011 phase 5); a change, none. */
+  /** How many passkeys the change or the reset removed: every one the account had (PLAN 011 phase 5, `0083`). */
   readonly passkeysRemoved: number;
   readonly userAgent: string | null;
 };
@@ -66,13 +66,17 @@ function answeredUser(returned: unknown): { id: string; email: string; marked: b
 /**
  * The password changed (PLAN 011 phase 2): the breach mark goes and the audit
  * row is written, awaited — the very next request must not still be refused
- * 409 — then the mail, in the background. A reset also removes every passkey
- * of the account in that transaction (phase 5), and the mail says how many.
+ * 409 — then the mail, in the background. A change or a reset also removes
+ * every passkey of the account in that transaction (phase 5, `0083`), and the
+ * mail says how many.
  *
  * Better Auth has stored the new password by now and cannot be undone from
  * here, so a failure to record is logged rather than turned into a 500 that
- * would tell the person a change failed when it did not. The line names the
- * account and the door, never anything of the password.
+ * would tell the person a change failed when it did not. The passkeys are
+ * then tried again on their own: a key added from a stolen session must not
+ * outlive the password that throws its holder out, whatever happened to the
+ * rest. If that fails too, the line `passkeys_not_removed` says so. The lines
+ * name the account and the door, never anything of the password.
  */
 async function passwordChanged(
   deps: AccountSecurityDeps,
@@ -85,6 +89,12 @@ async function passwordChanged(
     passkeysRemoved = await UserController.passwordChanged(notice.id, via);
   } catch {
     logger.error(`password_change_unrecorded ${JSON.stringify({ userId: notice.id, via })}`);
+
+    try {
+      passkeysRemoved = await UserController.forgetPasskeys(notice.id);
+    } catch {
+      logger.error(`passkeys_not_removed ${JSON.stringify({ userId: notice.id })}`);
+    }
   }
 
   deps.background.run('password-changed-mail', () => deps.mailPasswordChanged({ ...notice, passkeysRemoved }));
@@ -154,7 +164,7 @@ async function notTheCallersSession(context: Context): Promise<{ status: true } 
  * sign-in leaves no trace here.
  *
  * - `/change-password`: the mark cleared, `auth.password_changed {via:'change'}`,
- *   the mail.
+ *   every passkey removed, the mail.
  * - `/revoke-session`, `/revoke-other-sessions`, `/revoke-sessions`:
  *   `auth.sessions_revoked` with `one` / `others` / `all`, for the session's own
  *   user — Better Auth scoped the deletion to that user already. A
@@ -234,8 +244,8 @@ export function accountSecurityAfter(deps: AccountSecurityDeps) {
 
 /**
  * Better Auth's `emailAndPassword.onPasswordReset`: the same as a change, by
- * the other door — the mark cleared, `auth.password_changed {via:'reset'}`, the
- * mail. Runs only after a valid token set the password, so it says nothing
+ * the other door — the mark cleared, `auth.password_changed {via:'reset'}`,
+ * every passkey removed, the mail. Runs only after a valid token set the password, so it says nothing
  * about whether an address has an account.
  */
 export function onPasswordReset(deps: AccountSecurityDeps) {
