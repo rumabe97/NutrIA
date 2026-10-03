@@ -7,7 +7,6 @@ import styles from 'components/AuthForm/AuthForm.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
-import { interpolate } from 'i18n/interpolate';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { withLocale } from 'i18n/routes';
@@ -21,21 +20,17 @@ import { PASSWORD_MIN_LENGTH } from 'core/entities/Password';
 import { forgetOfflineCopies } from 'lib/offline';
 import { PASSWORD_RULES, passwordLengthRefusal, passwordRefusalMessage } from 'lib/newPassword';
 import { signUp } from 'lib/auth-client';
+import { signUpOutcome } from 'lib/authAnswer';
 
-import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { FormEvent } from 'react';
 import type { SocialProvider } from 'lib/sign-in-providers';
-
-function signUpFailure(status: number, dictionary: Dictionary): string {
-  return status === 429 ? dictionary.auth.tooManyAttempts : dictionary.auth.signUpFailed;
-}
 
 export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readonly SocialProvider[] }>) {
   const dictionary = useDictionary();
   const locale = useLocale();
   const [error, setError] = useState<string>();
-  // The address the sign-up was sent for: from then on the screen says "check your email", whoever that address belongs to.
-  const [sentTo, setSentTo] = useState<string>();
+  // "We have written to {email}": from then on the screen says only that, whoever the address belongs to.
+  const [sent, setSent] = useState<string>();
   // A refused password is said on the field too, next to the button: the alert at the top
   // is announced, but at 320px it is off-screen when the button is pressed.
   const [passwordError, setPasswordError] = useState<string>();
@@ -76,38 +71,38 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
 
     setPending(false);
 
-    if (signUpError) {
-      // A refused password says why, by its code, on the field and in the alert.
-      const refusal = passwordRefusalMessage(signUpError.code, dictionary);
+    // A refused password says why, on the field and in the alert; anything else
+    // refused is a wait (429) or the generic failure — never "email taken": the
+    // API answers an address with an account as it answers a new one (PLAN 011
+    // phase 8, `lib/authAnswer`).
+    const outcome = signUpOutcome(signUpError ? { code: signUpError.code, status: signUpError.status } : null, email, dictionary);
 
-      if (refusal) {
-        refusePassword(refusal);
+    if (outcome.kind === 'password') {
+      refusePassword(outcome.message);
 
-        return;
-      }
+      return;
+    }
 
-      // An address that already has an account is no failure: the API answers
-      // it as a new one (PLAN 011 phase 8). Its rate limit answers 429: that
-      // one is a wait, not a failure.
-      setError(signUpFailure(signUpError.status, dictionary));
+    if (outcome.kind === 'refused') {
+      setError(outcome.message);
 
       return;
     }
 
     // A new account on a device somebody else used: their copies go first (`0053`).
     await forgetOfflineCopies();
-    // Sign-up opens no session (PLAN 011 phase 8): the same "check your email" for every
-    // address, new or not. The mail says the rest — the link that signs a new person in,
-    // or to the owner of an existing account, that somebody tried.
-    setSentTo(email);
+    // Sign-up opens no session: the same "check your email" for every address, new or
+    // not. The mail says the rest — the link that signs a new person in, or to the
+    // owner of an existing account, that somebody tried.
+    setSent(outcome.message);
   }
 
-  if (sentTo) {
+  if (sent) {
     return (
       <Fragment>
         <h1 className={styles.title}>{dictionary.auth.checkEmail}</h1>
         <p className={styles.success} role="status">
-          {interpolate(dictionary.auth.signUpSent, { email: sentTo })}
+          {sent}
         </p>
         <Text size="sm" style={{ marginTop: 'var(--space-05)' }} tone="secondary">
           {dictionary.auth.signUpSentInstalled}

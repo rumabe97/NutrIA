@@ -16,10 +16,10 @@ import { LegalNotice } from 'components/LegalNotice';
 import { SocialSignIn } from 'components/SocialSignIn';
 
 import { forgetOfflineCopies } from 'lib/offline';
-import { interpolate } from 'lib/format';
 import { ownPath } from 'lib/ownPath';
 import { passkeyAutofillAvailable, passkeySignInRefusal, passkeysSupported, unchanging } from 'lib/passkey';
 import { signIn } from 'lib/auth-client';
+import { signInRefusal } from 'lib/authAnswer';
 import { syncLocaleFromProfile } from 'lib/locale-sync';
 
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
@@ -152,22 +152,9 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
     if (signInError) {
       setPending(false);
 
-      // One message for wrong password and unknown account alike: telling them
-      // apart turns this form into an account-enumeration oracle. An unconfirmed
-      // account's right password is that 401 too (PLAN 011 phase 8), so the
-      // message says, for everybody, what such a person must do. A 429 is a
-      // wait — the per-IP limit or the per-address brake, the same answer for
-      // an address with an account and one without (PLAN 011 phase 7). Anything
-      // else that is *not* a refusal — the service down, a rejected origin, a
-      // database the API cannot reach — says so instead: for a whole afternoon
-      // those read as "wrong password" and sent the owner looking in the wrong place.
-      setError(
-        signInError.status === 401
-          ? dictionary.auth.invalidCredentials
-          : signInError.status === 429
-            ? dictionary.auth.signInPaused
-            : interpolate(dictionary.auth.signInUnavailable, { status: signInError.status })
-      );
+      // One message for a wrong password, an unknown address and an unconfirmed account's
+      // right password (`lib/authAnswer`, PLAN 011 phases 7 and 8).
+      setError(signInRefusal(signInError.status, dictionary));
 
       return;
     }
