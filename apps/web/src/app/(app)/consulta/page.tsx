@@ -12,6 +12,7 @@ import { Card } from 'components/Card';
 import { CareInviteForm } from 'components/CareInviteForm';
 import { PracticeAgreement } from 'components/PracticeAgreement';
 import { PracticePlanCard } from 'components/PracticePlanCard';
+import { SecondFactorRequired } from 'components/SecondFactorRequired';
 
 import { formatInstant, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
@@ -49,6 +50,10 @@ function daysUntil(iso: string): number {
  * (`docs/legal/textos/01-acuerdo-profesional.md`). Nothing past that gate is
  * reachable until it posts back.
  *
+ * Before both, `practice.secondFactorRequired` shows `SecondFactorRequired`:
+ * a professional who signs in with a password must turn on the second factor
+ * before any client route opens (PLAN 011 phase 6).
+ *
  * Every link here carries a link id and never a client's account id; the list
  * is read once per visit because each read leaves a row in every active
  * client's trail.
@@ -63,6 +68,13 @@ export default async function PracticePage({ searchParams }: Readonly<{ searchPa
 
   if (!practice) {
     notFound();
+  }
+
+  // A password account with no second factor reaches no client (PLAN 011 phase 6): the API
+  // answers 404 on every client route, and this says how to open them — before the agreement,
+  // which needs nothing of it, because nothing behind the agreement would open anyway.
+  if (practice.secondFactorRequired) {
+    return <SecondFactorRequired where="practice" />;
   }
 
   // The agreement gates the whole workspace (`docs/legal/textos/01-acuerdo-profesional.md`):

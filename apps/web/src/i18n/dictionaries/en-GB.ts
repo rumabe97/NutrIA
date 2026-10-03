@@ -2709,6 +2709,18 @@ export const enGB: Dictionary = {
     weightTitle: 'Your weight'
   },
 
+  secondFactorRequired: {
+    action: 'Go to Security',
+    console: [
+      'To enter the console, your account needs 2-step verification: the console shows data from every account, and your password alone is not enough to open it.',
+      'Turn it on in your profile, under Security, with an authenticator app, then come back here. While your account has a password, a passkey does not replace it.'
+    ],
+    practice: [
+      'To see your clients’ data, your account needs 2-step verification: it is health data, and your password alone is not enough to open it.',
+      'Turn it on in your profile, under Security, with an authenticator app, then come back here: your practice will be open. While your account has a password, a passkey does not replace it.'
+    ],
+    title: 'Turn on 2-step verification'
+  },
   security: {
     browserUnknown: 'Browser',
     changePassword: 'Change password',

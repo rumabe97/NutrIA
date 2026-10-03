@@ -2751,6 +2751,18 @@ export const esES = {
     weightTitle: 'Tu peso'
   },
 
+  secondFactorRequired: {
+    action: 'Ir a Seguridad',
+    console: [
+      'Para entrar en la consola, tu cuenta necesita la verificación en dos pasos: la consola muestra datos de todas las cuentas, y tu contraseña sola no basta para abrirla.',
+      'Actívala en tu perfil, en Seguridad, con una app de autenticación, y vuelve aquí. Mientras tu cuenta tenga contraseña, una llave de acceso no la sustituye.'
+    ],
+    practice: [
+      'Para ver los datos de tus pacientes, tu cuenta necesita la verificación en dos pasos: son datos de salud, y tu contraseña sola no basta para abrirlos.',
+      'Actívala en tu perfil, en Seguridad, con una app de autenticación, y vuelve aquí: tu consulta estará abierta. Mientras tu cuenta tenga contraseña, una llave de acceso no la sustituye.'
+    ],
+    title: 'Activa la verificación en dos pasos'
+  },
   security: {
     browserUnknown: 'Navegador',
     changePassword: 'Cambiar contraseña',
