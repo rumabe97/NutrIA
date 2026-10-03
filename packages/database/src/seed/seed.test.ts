@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { ALLERGEN_SEED } from './allergens';
@@ -170,6 +173,18 @@ describe('allergen links', () => {
     }
 
     expect(missing).toEqual([]);
+  });
+
+  // Project 018 phase 2: a carton broth lists celery, and migration 0058 put the same links in production.
+  it('declare celery on every carton broth but dashi, as contains, the same rows the migration links', () => {
+    const broths = INGREDIENT_SEED.filter(ingredient => ingredient.slug.startsWith('caldo-') && ingredient.slug !== 'caldo-dashi');
+    const migration = readFileSync(join(__dirname, '../migrations/0058_broths_declare_celery.sql'), 'utf8');
+    const linked = [...(/"slug" IN \(([^)]*)\)/u.exec(migration)?.[1] ?? '').matchAll(/'([^']+)'/gu)].map(match => match[1]);
+
+    expect(
+      broths.filter(ingredient => !ingredient.allergens?.some(link => link.key === 'celery' && (link.presence ?? 'contains') === 'contains'))
+    ).toEqual([]);
+    expect(linked.sort()).toEqual(broths.map(ingredient => ingredient.slug).sort());
   });
 });
 

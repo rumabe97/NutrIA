@@ -1049,6 +1049,7 @@ export const STARTER: readonly IngredientSeed[] = [
   },
   { carbs: 11, category: 'pantry', fat: 4, fiber: 1.5, kcal: 86, name: 'Tomate frito', protein: 1.5, slug: 'tomate-frito', source: 'bedca' },
   {
+    allergens: [{ key: 'celery' }],
     carbs: 0.4,
     category: 'pantry',
     classes: ['meat'],
@@ -1061,6 +1062,7 @@ export const STARTER: readonly IngredientSeed[] = [
     source: 'usda'
   },
   {
+    allergens: [{ key: 'celery' }],
     carbs: 1,
     category: 'pantry',
     defaultUnit: 'ml',

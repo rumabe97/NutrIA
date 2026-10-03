@@ -253,6 +253,35 @@ describe('portionsBeside — what may go beside one plate, at one meal, in one m
     expect(keysOf(portionsBeside(larder, SPANISH_STEW, 'lunch', OCTOBER)).has('platano')).toBe(true);
   });
 
+  // Project 018 phase 2: a side reads its groups by the dish's grams, but a starch is always the plate's starch.
+  it('does not make a broth pasta for a few grams of noodles, and keeps the tabulé grains', () => {
+    const items = [
+      { grams: 250, slug: 'caldo-de-verduras' },
+      { grams: 10, slug: 'fideos-finos' }
+    ];
+    const broth: AccompanimentPortion = {
+      accompaniment: { families: 'all', key: 'caldo-con-fideos', months: 'all', portions: [items], role: 'vegetable', slots: ['lunch', 'dinner'] },
+      grams: 260,
+      items,
+      macros: { carbsG: 9, fatG: 0.5, fiberG: 0.5, kcal: 50, proteinG: 2 }
+    };
+    const tabule = larder.portions.find(portion => portion.accompaniment.key === 'tabule');
+    const pastaDish = { cuisine: 'Española', ingredients: [{ grams: 80, slug: 'fideos-finos' }], servings: 1 };
+    const couscous = { cuisine: 'Marroquí', ingredients: [{ grams: 70, slug: 'cuscus-crudo' }], servings: 1 };
+
+    expect(tabule).toBeDefined();
+
+    const sides = { diner: larder.diner, portions: [broth, ...(tabule ? [tabule] : [])] };
+
+    // A Spanish table has pasta only at lunch: a broth with 10 g of noodles is no pasta, so it goes at dinner too.
+    expect(keysOf(portionsBeside(sides, SPANISH_STEW, 'dinner', OCTOBER)).has('caldo-con-fideos')).toBe(true);
+    // Nor is it pasta beside pasta.
+    expect(keysOf(portionsBeside(sides, pastaDish, 'lunch', OCTOBER)).has('caldo-con-fideos')).toBe(true);
+    // 30 g of bulgur is under the dish threshold, and the tabulé is grains all the same: never beside a couscous.
+    expect(keysOf(portionsBeside(sides, { ...SPANISH_STEW, cuisine: 'Marroquí' }, 'lunch', 7)).has('tabule')).toBe(true);
+    expect(keysOf(portionsBeside(sides, couscous, 'lunch', 7)).has('tabule')).toBe(false);
+  });
+
   it('judges kosher on the whole meal: no yoghurt beside meat, yoghurt beside fish', () => {
     const kosher = { ...NO_PREFERENCE_EXCLUSIONS, keepsMeatFromDairy: true };
     const meatCatalogue = toCatalogue([...rows, makeCatalogueIngredient({ id: 'i-ternera', classes: ['animal', 'meat'], slug: 'ternera' })]);

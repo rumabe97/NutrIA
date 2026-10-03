@@ -82,29 +82,33 @@ const SECOND_BATCH: Readonly<Partial<Record<(typeof DISH_KEYS)[number], Readonly
   ricePancakes: { pancakes: ['Waffle'] } // gluten and milk, beside rice-flour pancakes
 };
 
-/** How many products each dish accepts that carry nothing it lacks. */
+/**
+ * How many products each dish accepts that carry nothing it lacks. One fewer
+ * each since project 018 phase 2: the broths declare celery, which no example
+ * dish carries.
+ */
 const CARRY_NOTHING_MORE: Readonly<Record<(typeof DISH_KEYS)[number], number>> = {
-  cauliflowerPizza: 33,
-  chickenWithRice: 33,
-  coconutCurry: 33,
-  cornTacos: 33,
-  fruitSalad: 33,
-  glutenFreeBiscuits: 34,
-  glutenFreeBreaded: 33,
-  glutenFreeSpaghetti: 33,
-  glutenFreeToast: 33,
-  heuraNuggets: 36,
-  heuraStirFry: 36,
-  lemonCake: 33,
-  lentilStew: 33,
-  prawnsWithRice: 33,
-  riceCakes: 33,
-  ricePancakes: 33,
-  soyMilkShake: 36,
-  soyYoghurt: 37,
-  veganCheeseSalad: 33,
-  wheatSpaghetti: 128,
-  yoghurtWithOats: 88
+  cauliflowerPizza: 32,
+  chickenWithRice: 32,
+  coconutCurry: 32,
+  cornTacos: 32,
+  fruitSalad: 32,
+  glutenFreeBiscuits: 33,
+  glutenFreeBreaded: 32,
+  glutenFreeSpaghetti: 32,
+  glutenFreeToast: 32,
+  heuraNuggets: 35,
+  heuraStirFry: 35,
+  lemonCake: 32,
+  lentilStew: 32,
+  prawnsWithRice: 32,
+  riceCakes: 32,
+  ricePancakes: 32,
+  soyMilkShake: 35,
+  soyYoghurt: 36,
+  veganCheeseSalad: 32,
+  wheatSpaghetti: 127,
+  yoghurtWithOats: 87
 };
 
 /** A word and its singular, as the rule reads a plural. */
