@@ -120,8 +120,11 @@ async function call(
   return { body: text ? (JSON.parse(text) as Record<string, unknown>) : null, cookie: session ?? null, status: response.status };
 }
 
+/** Signed up, then signed in — sign-up opens no session (PLAN 011 phase 8) — with the sign-in's cookie. */
 async function signUp(auth: Auth): Promise<string> {
-  const { cookie } = await call(auth, '/sign-up/email', { body: { ...ACCOUNT, password: PASSWORD } });
+  await call(auth, '/sign-up/email', { body: { ...ACCOUNT, password: PASSWORD } });
+
+  const { cookie } = await call(auth, '/sign-in/email', { body: { email: ACCOUNT.email, password: PASSWORD } });
 
   return cookie ?? '';
 }
@@ -362,7 +365,8 @@ describe('what follows a password change, a closed session and a sign-in', () =>
     it('answers 200 for another person’s token, closes nothing and records nothing', async () => {
       const auth = build();
       const ana = await signUp(auth);
-      const bea = (await call(auth, '/sign-up/email', { body: { email: 'bea@example.invalid', name: 'Bea', password: PASSWORD } })).cookie ?? '';
+      await call(auth, '/sign-up/email', { body: { email: 'bea@example.invalid', name: 'Bea', password: PASSWORD } });
+      const bea = (await call(auth, '/sign-in/email', { body: { email: 'bea@example.invalid', password: PASSWORD } })).cookie ?? '';
       const beaToken = store.session.find(row => row.userId === store.user.find(user => user.email === 'bea@example.invalid')?.id)?.token;
 
       const answered = await call(auth, '/revoke-session', { body: { token: beaToken }, cookie: ana });
@@ -515,6 +519,8 @@ describe('what follows a password change, a closed session and a sign-in', () =>
     it('asks HIBP nothing for a refused sign-in, nor for an account already marked', async () => {
       const auth = build('development');
       await signUp(auth);
+      // The sign-in after sign-up checks its own password in the background: done before the count starts.
+      await drain();
       isPasswordCompromised.mockClear();
 
       await signIn(auth, LAPTOP, 'not-the-password-at-all');

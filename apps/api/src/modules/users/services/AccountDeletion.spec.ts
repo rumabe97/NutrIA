@@ -71,8 +71,11 @@ describe('deleting an account through UsersService.remove, on the real Better Au
 
   async function signedIn() {
     const auth = createAuth(env, { configured: false, send: async () => Promise.resolve(false) }, { cancelEverything }, new BackgroundTaskService());
-    const { headers } = await auth.api.signUpEmail({
-      body: { email: 'ana@example.invalid', name: 'Ana', password: 'una-contraseña-larga' },
+    await auth.api.signUpEmail({ body: { email: 'ana@example.invalid', name: 'Ana', password: 'una-contraseña-larga' } });
+
+    // Sign-up opens no session (PLAN 011 phase 8): the session is a sign-in's.
+    const { headers } = await auth.api.signInEmail({
+      body: { email: 'ana@example.invalid', password: 'una-contraseña-larga' },
       returnHeaders: true
     });
     const cookie = (headers.get('set-cookie') ?? '').split(';')[0] ?? '';

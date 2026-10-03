@@ -365,3 +365,105 @@ describe('access: two locks, and the shape of a denial', () => {
     }
   });
 });
+
+/**
+ * Sign-up reveals nothing (PLAN 011 phase 8, `0074`): an address that already
+ * has an account is answered exactly as a new one — status, headers and body
+ * but for the values new on every answer (the id, the instants) — neither
+ * gets a session, and each address gets one mail after the response: the
+ * confirmation to the new one, "somebody tried" to the existing one. Mail is
+ * not configured under the suites, so each mail is its one log line.
+ */
+describe('sign-up: the same answer for a new address and an existing one', () => {
+  let app: INestApplication;
+  const stamp = `${Date.now()}`;
+  const existing = `signup-existing-${stamp}@e2e.invalid`;
+  const fresh = `signup-new-${stamp}@e2e.invalid`;
+  const OTHER_PASSWORD = 'otra-frase-de-caballos-azules';
+  const logged: string[] = [];
+  let restore: (() => void) | undefined;
+
+  /** The values new on every answer, whoever asks; everything else must match to the byte, key order included. */
+  function shape(body: string): string {
+    return body
+      .replace(/"id":"[^"]+"/, '"id":"<id>"')
+      .replace(/"(createdAt|updatedAt|termsAcceptedAt)":"[^"]+"/g, '"$1":"<at>"')
+      .replace(/"email":"[^"]+"/, '"email":"<email>"');
+  }
+
+  /** The headers that are the same thing on every answer; `date` and the request id differ by when, not by whom. */
+  function headerShape(response: Response): Record<string, string> {
+    const { date: _date, 'x-request-id': _id, ...rest } = response.headers as Record<string, string>;
+
+    return rest;
+  }
+
+  async function settle(): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 300));
+  }
+
+  beforeAll(async () => {
+    app = await createApp(new ScriptedAiClient([]));
+    await request(httpServer(app)).post(`/${PREFIX}/auth/sign-up/email`).send({ email: existing, name: 'Ana', password: PASSWORD }).expect(200);
+
+    const info = console.info;
+
+    console.info = (...args: unknown[]) => {
+      logged.push(args.map(String).join(' '));
+    };
+    restore = () => {
+      console.info = info;
+    };
+  });
+
+  afterAll(async () => {
+    restore?.();
+    await deleteAccountByEmail(app, existing, PASSWORD);
+    await deleteAccountByEmail(app, fresh, OTHER_PASSWORD);
+    await app?.close();
+  });
+
+  it('answers both with the same status, headers and body, opens no session, and mails each once', async () => {
+    const server = httpServer(app);
+    const [existingUser] = await tables()<{ id: string }>`select id from "user" where email = ${existing}`;
+
+    await settle();
+    logged.length = 0;
+
+    const toExisting: Response = await request(server)
+      .post(`/${PREFIX}/auth/sign-up/email`)
+      .send({ email: existing, name: 'Bea', password: OTHER_PASSWORD });
+    const toFresh: Response = await request(server).post(`/${PREFIX}/auth/sign-up/email`).send({ email: fresh, name: 'Bea', password: OTHER_PASSWORD });
+
+    expect(toExisting.status).toBe(200);
+    expect(toFresh.status).toBe(200);
+    expect(shape(toExisting.text)).toBe(shape(toFresh.text));
+    expect(headerShape(toExisting)).toEqual(headerShape(toFresh));
+    expect(toExisting.headers['set-cookie']).toBeUndefined();
+    expect(toFresh.headers['set-cookie']).toBeUndefined();
+    expect(toExisting.body).toMatchObject({ token: null, user: { email: existing, emailVerified: false, name: 'Bea' } });
+
+    // The existing account answered with a fresh id, never its own.
+    expect((toExisting.body as { user: { id: string } }).user.id).not.toBe(existingUser?.id);
+
+    await settle();
+
+    const [freshUser] = await tables()<{ id: string }>`select id from "user" where email = ${fresh}`;
+
+    expect(logged.filter(line => line.includes('sign-up with an existing address'))).toEqual([
+      `[auth] sign-up with an existing address (user ${existingUser?.id}); no SMTP configured, mail not sent`
+    ]);
+    expect(logged.filter(line => line.includes('verification url'))).toHaveLength(1);
+    expect(logged.filter(line => line.includes('verification url'))[0]).toContain(`for ${freshUser?.id}:`);
+  });
+
+  it('changes nothing of the existing account: its name and its password still stand', async () => {
+    const server = httpServer(app);
+    const [user] = await tables()<{ n: number; name: string }>`
+      select name, (select count(*)::int from "user" where email = ${existing}) as n from "user" where email = ${existing}`;
+
+    expect(user).toEqual({ n: 1, name: 'Ana' });
+    await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email: existing, password: OTHER_PASSWORD }).expect(401);
+    await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email: existing, password: PASSWORD }).expect(200);
+  });
+});

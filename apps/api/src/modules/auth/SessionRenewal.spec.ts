@@ -63,10 +63,12 @@ function requestWith(cookie: string): ExecutionContext {
   } as unknown as ExecutionContext;
 }
 
-/** Signs somebody up — which signs them in — and hands back their cookie and their id. */
+/** Signs somebody up, then in — sign-up opens no session (PLAN 011 phase 8) — and hands back their cookie and their id. */
 async function signedIn(auth: ReturnType<typeof createAuth>): Promise<{ cookie: string; userId: string }> {
-  const { headers, response } = await auth.api.signUpEmail({
-    body: { email: 'ana@example.invalid', name: 'Ana', password: 'una-contraseña-larga' },
+  await auth.api.signUpEmail({ body: { email: 'ana@example.invalid', name: 'Ana', password: 'una-contraseña-larga' } });
+
+  const { headers, response } = await auth.api.signInEmail({
+    body: { email: 'ana@example.invalid', password: 'una-contraseña-larga' },
     returnHeaders: true
   });
   const cookie = (headers.get('set-cookie') ?? '').split(';')[0] ?? '';

@@ -1084,6 +1084,7 @@ export const esES = {
       'care-invitation': 'Invitación de vínculo',
       'check-in-reminder': 'Aviso de check-in',
       'checkin-submitted': 'Check-in enviado',
+      'existing-account-sign-up': 'Alta con un correo que ya tiene cuenta',
       'owner-alert': 'Aviso al propietario',
       'owner-digest': 'Resumen diario al propietario',
       'owner-picture-alert': 'Aviso de imágenes al propietario',

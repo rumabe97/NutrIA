@@ -246,7 +246,10 @@ class Authenticator {
   }
 }
 
-/** Signed up, with the address confirmed — as every account that may add a passkey has — unless `confirmed` is false. */
+/**
+ * Signed up, with the address confirmed — as every account that may add a passkey has — unless `confirmed` is false,
+ * then signed in: sign-up opens no session (PLAN 011 phase 8).
+ */
 async function signUp(auth: Auth, account: { email: string; name: string }, confirmed = true): Promise<Browser> {
   const browser = new Browser();
   await call(auth, browser, '/sign-up/email', { ...account, password: PASSWORD });
@@ -256,6 +259,8 @@ async function signUp(auth: Auth, account: { email: string; name: string }, conf
   if (row) {
     row.emailVerified = confirmed;
   }
+
+  await call(auth, browser, '/sign-in/email', { email: account.email, password: PASSWORD });
 
   return browser;
 }

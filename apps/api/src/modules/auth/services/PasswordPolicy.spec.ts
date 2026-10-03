@@ -89,8 +89,11 @@ async function outcome(call: Promise<unknown>): Promise<{ code?: string; status:
   }
 }
 
+/** Signed up, then signed in when the sign-up was accepted — sign-up opens no session (PLAN 011 phase 8) — with the sign-in's headers. */
 async function signUp(auth: ReturnType<typeof createAuth>, password: string, account: { email: string; name: string } = ACCOUNT) {
-  return auth.api.signUpEmail({ body: { ...account, password }, returnHeaders: true });
+  const signedUp = await auth.api.signUpEmail({ body: { ...account, password }, returnHeaders: true });
+
+  return auth.api.signInEmail({ body: { email: account.email, password }, returnHeaders: true }).catch(() => signedUp);
 }
 
 /** The token of the last reset link sent, as the person would click it. */

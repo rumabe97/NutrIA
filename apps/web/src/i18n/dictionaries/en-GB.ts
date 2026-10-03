@@ -1049,6 +1049,7 @@ export const enGB: Dictionary = {
       'care-invitation': 'Link invitation',
       'check-in-reminder': 'Check-in reminder',
       'checkin-submitted': 'Check-in submitted',
+      'existing-account-sign-up': 'Sign-up with an address that has an account',
       'owner-alert': 'Alert to the owner',
       'owner-digest': 'Daily digest to the owner',
       'owner-picture-alert': 'Picture alert to the owner',

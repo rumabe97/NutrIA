@@ -17,6 +17,7 @@ import { APPLE_ORIGIN, configuredSocialProviders, socialProviderOptions } from '
 import { onAccountCreated, onAddressConfirmed } from './services/SelfService.js';
 import { accountSecurityAfter, accountSecurityBefore, onPasswordReset } from './services/AccountSecurity.js';
 import { authLogger } from './services/AuthLogger.js';
+import { sendExistingAccountMail } from './services/ExistingAccountMail.js';
 import { PASSKEY_USER_VERIFICATION, passkeyOptions, passkeyPasswordConfirmation } from './services/Passkey.js';
 import { sendPasskeyAddedMail } from './services/PasskeyMail.js';
 import { sendPasswordChangedMail } from './services/PasswordChangedMail.js';
@@ -107,6 +108,14 @@ export function createAuth(
     mailTwoFactorRemoval: async ({ id, email, event }: TwoFactorRemovalNotice) =>
       sendTwoFactorRemovalMail(mailer, { appUrl: env.APP_URL, event, to: email, userId: id })
   };
+
+  /*
+   * Which `/condiciones` an account is created under (`0071`, phase 7), written
+   * by `databaseHooks.user.create.before` into the real row and repeated in the
+   * synthetic one an existing address is answered with, so the two sign-up
+   * answers carry the same fields.
+   */
+  const termsRecord = () => ({ termsAcceptedAt: new Date(), termsVersion: TERMS_VERSION });
 
   return betterAuth({
     account: {
@@ -232,20 +241,54 @@ export function createAuth(
            * sign-up body with `termsVersion` in it never gets this far:
            * `input: false` below refuses it (400) and no account is made.
            */
-          before: async (created: Record<string, unknown>) => ({ data: { ...created, termsAcceptedAt: new Date(), termsVersion: TERMS_VERSION } })
+          before: async (created: Record<string, unknown>) => ({ data: { ...created, ...termsRecord() } })
         }
       }
     },
     emailAndPassword: {
+      /*
+       * Sign-up reveals nothing (PLAN 011 phase 8, `0074`): it never opens a
+       * session, so Better Auth answers an address that already has an
+       * account with the same 200 and a synthetic user, instead of 422. A new
+       * person signs in by opening the confirmation link
+       * (`autoSignInAfterVerification`); the owner of an existing address is
+       * mailed instead (`onExistingUserSignUp`).
+       */
+      autoSignIn: false,
+      /*
+       * The synthetic user an existing address is answered with, shaped as the
+       * real one is: the terms' record the create hook writes, the rest as
+       * Better Auth builds it. The id is fresh and names no account.
+       */
+      customSyntheticUser: ({ additionalFields, coreFields, id }) => ({ ...coreFields, ...additionalFields, ...termsRecord(), id }),
       enabled: true,
       // The rule's one home is `core` (PLAN 011 phase 1); the web forms read the same two numbers.
       maxPasswordLength: PASSWORD_MAX_LENGTH,
       minPasswordLength: PASSWORD_MIN_LENGTH,
+      /*
+       * "Somebody tried to create an account with your address" (PLAN 011
+       * phase 8), to that address only. Better Auth hands it to
+       * `runInBackgroundOrAwait`, so it goes after the response, as the new
+       * address's verification mail does.
+       */
+      onExistingUserSignUp: async ({ user: existing }, request) =>
+        sendExistingAccountMail(mailer, {
+          acceptLanguage: request?.headers.get('accept-language') ?? null,
+          appUrl: env.APP_URL,
+          to: existing.email,
+          userId: existing.id
+        }),
       // The mark cleared, the audit row, the "password changed" mail (PLAN 011 phase 2; `services/AccountSecurity.ts`).
       onPasswordReset: onPasswordReset(security),
-      // Verification is required before a session is useful, but sign-up still
-      // succeeds — bouncing the user back to the form with "check your email"
-      // half-completed is worse than letting them in and gating the plan.
+      /*
+       * Sign-up no longer signs anybody in (`autoSignIn: false` above, `0074`):
+       * a session at sign-up for a new address, and none for an existing one,
+       * was the difference that told a stranger which addresses have an
+       * account. So the form ends on "check your email" for every address, and
+       * a new person is signed in by the confirmation link. Off here, still:
+       * an unconfirmed account that signs in with its password is let in and
+       * gated by `EMAIL_NOT_VERIFIED`, as it always was.
+       */
       requireEmailVerification: false,
       /*
        * A reset is somebody proving the address is theirs, often because
