@@ -482,6 +482,7 @@ describe('the second factor', () => {
     it('finds a code two steps ahead on a thirty-second boundary, which the plugin accepts a moment later, so it is claimed', () => {
       // The secret as the plugin stores it, keyed as UTF-8 bytes (`@better-auth/utils/otp`).
       const secret = 'a-secret-the-plugin-generated';
+
       const at = (step: number): string => {
         const counter = Buffer.alloc(8);
         counter.writeBigUInt64BE(BigInt(step));
@@ -490,6 +491,7 @@ describe('the second factor', () => {
 
         return ((mac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).toString().padStart(6, '0');
       };
+
       const step = 59_000_000;
       // The hook's clock: the last millisecond of `step`. The plugin's, a millisecond on, is in `step + 1`, and its
       // window (one either side) takes `step + 2`'s code.
