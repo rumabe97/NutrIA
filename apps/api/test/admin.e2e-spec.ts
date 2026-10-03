@@ -387,6 +387,8 @@ describe('admin', () => {
       const refused: Response = await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', elsewhere);
 
       expect([refused.status, refused.body]).toEqual([404, NOT_FOUND]);
+      // Refused by the rule, not signed out: turning the factor off closes no session.
+      await request(server).get(`/${PREFIX}/users/me`).set('Cookie', elsewhere).expect(200);
     });
 
     /* The legal review of phase 6: a session opened with the password alone must not ride the factor in. */
@@ -400,6 +402,8 @@ describe('admin', () => {
       const stolen = (signedIn.headers['set-cookie'] as unknown as string[]).join('; ');
 
       await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', stolen).expect(404);
+      // Live before: so the 404 afterwards is the close, not a cookie that never worked.
+      await request(server).get(`/${PREFIX}/users/me`).set('Cookie', stolen).expect(200);
 
       const enabled = await enableTotp(app, admin);
 

@@ -608,6 +608,8 @@ describe('professionals', () => {
       const stolen = { ...pro, cookie: (signedIn.headers['set-cookie'] as unknown as string[]).join('; ') };
 
       await expectShut(stolen);
+      // Live before: so the 404 afterwards is the close, not a cookie that never worked.
+      await request(server).get(`/${PREFIX}/users/me`).set('Cookie', stolen.cookie).expect(200);
 
       const enabled = await enableTotp(app, pro);
 
