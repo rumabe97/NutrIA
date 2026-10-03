@@ -62,7 +62,8 @@ export function passkeySignInRefusal(error: PasskeyError, dictionary: Dictionary
  * What a failed attempt to add a passkey means, by code.
  *
  * - `cancelled`: the prompt was closed; nothing is said.
- * - `password`: the password typed first is wrong; it goes on the field.
+ * - `password`: the password typed first is wrong, or its confirmation has lapsed (one
+ *   confirmation lets one passkey through, for ten minutes); it goes on the field.
  * - `stale`: the session is too old for this; only signing in again goes on.
  * - `failed`: anything else, with the words to say.
  */
@@ -79,6 +80,8 @@ export function passkeyAddRefusal(error: PasskeyError, dictionary: Dictionary): 
   switch (error.code) {
     case 'INVALID_PASSWORD':
       return { kind: 'password', message: dictionary.twoFactor.wrongPassword };
+    case 'PASSWORD_CONFIRMATION_REQUIRED':
+      return { kind: 'password', message: t.confirmAgain };
     case 'SESSION_NOT_FRESH':
       return { kind: 'stale' };
     case 'ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED':

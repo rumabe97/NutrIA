@@ -152,11 +152,25 @@ export function PasskeyCard({ email, hasPassword }: PasskeyCardProps) {
    * themselves apart. What went wrong comes back, already in words, for whoever asked.
    */
   async function register(password?: string): Promise<TwoFactorRefusal | undefined> {
+    // On an account with a password, the password first: right, it lets one passkey
+    // through for ten minutes; wrong, it stays on the field.
+    if (password !== undefined) {
+      const { error: confirmError } = await authClient.$fetch<{ status: boolean }>('/passkey/confirm-password', {
+        body: { password },
+        method: 'POST'
+      });
+
+      if (confirmError) {
+        const refusal = passkeyAddRefusal(confirmError, dictionary);
+
+        return refusal.kind === 'password'
+          ? { field: 'password', message: refusal.message, restart: false }
+          : { field: null, message: confirmError.status === 429 ? dictionary.auth.tooManyAttempts : dictionary.errors.internal, restart: false };
+      }
+    }
+
     const name = deviceLabel(navigator.userAgent, dictionary);
-    const { error: addError } = await authClient.passkey.addPasskey(
-      { name },
-      password === undefined ? undefined : { headers: { 'x-password': password } }
-    );
+    const { error: addError } = await authClient.passkey.addPasskey({ name });
 
     if (!addError) {
       setStale(false);

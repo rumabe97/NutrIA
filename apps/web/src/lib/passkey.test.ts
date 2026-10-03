@@ -34,6 +34,13 @@ describe('passkeyAddRefusal', () => {
     expect(passkeyAddRefusal({ code: 'INVALID_PASSWORD', status: 400 }, esES)).toEqual({ kind: 'password', message: esES.twoFactor.wrongPassword });
   });
 
+  it('asks for the password again once its confirmation has lapsed', () => {
+    expect(passkeyAddRefusal({ code: 'PASSWORD_CONFIRMATION_REQUIRED', status: 403 }, esES)).toEqual({
+      kind: 'password',
+      message: esES.passkeys.confirmAgain
+    });
+  });
+
   it('asks for a fresh sign-in when the session is too old', () => {
     expect(passkeyAddRefusal({ code: 'SESSION_NOT_FRESH', status: 403 }, esES)).toEqual({ kind: 'stale' });
   });

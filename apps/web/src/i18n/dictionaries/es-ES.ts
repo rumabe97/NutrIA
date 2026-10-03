@@ -2077,6 +2077,7 @@ export const esES = {
     addTitle: 'Confirma que eres tú',
     alreadyAdded: 'Este dispositivo ya guarda una llave de acceso para tu cuenta.',
     body: 'Entra con Face ID, tu huella o el bloqueo de tu dispositivo, sin escribir la contraseña. Cada llave sirve solo en esta dirección web: {host}.',
+    confirmAgain: 'Vuelve a escribir tu contraseña para añadir la llave.',
     listFailed: 'No hemos podido cargar tus llaves de acceso.',
     listNotFresh: 'Por seguridad, tus llaves solo se muestran si has entrado hace poco.',
     loading: 'Cargando tus llaves de acceso…',
