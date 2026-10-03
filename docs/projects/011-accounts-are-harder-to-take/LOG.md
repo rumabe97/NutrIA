@@ -601,7 +601,10 @@
       `AuthRetention.spec.ts`, `Cron.controller.spec.ts`.
   - End-to-end, local Postgres (`NUTRIA_LOCAL_PG=1`), one run:
     `sign-in-brake|access|passwords|account-security|two-factor|passkeys|admin`, 7 suites,
-    **170/170**. `sign-in-brake.e2e-spec.ts` (5):
+    **170/170**. `sign-in-brake.e2e-spec.ts` (5, then 6 after the review):
+    - (added after the invariant review, P2) thirty simultaneous wrong passwords for one
+      new address, each with its own `X-Forwarded-For`: exactly ten 401s, twenty 429s,
+      `count = 10` on the row; three runs, all green;
     - ten failures, then 429 with `Retry-After` even to the right password, no session;
     - an unknown address gets the same status, body and headers;
     - four columns, 64-hex keys, no address in any row;

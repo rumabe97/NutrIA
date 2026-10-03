@@ -97,6 +97,34 @@ describe('a brake per address on password sign-in', () => {
 
   let knownBraked: Response;
 
+  /*
+   * The attempts are counted under the row's lock before the password is
+   * checked, so a burst from many clients cannot all read the count before any
+   * writes it: exactly ten run, the rest wait. Each carries its own
+   * `X-Forwarded-For`, which Better Auth's per-IP limit reads, as from many IPs.
+   */
+  it('lets exactly ten of thirty simultaneous wrong passwords through, however many IPs they come from', async () => {
+    const burst = `brake-burst-${stamp}@e2e.invalid`;
+
+    brakeKeys.push(keyOf(burst));
+
+    const answers = await Promise.all(
+      Array.from({ length: 30 }, async (_, i) =>
+        paced(() =>
+          request(server())
+            .post(`/${PREFIX}/auth/sign-in/email`)
+            .set('X-Forwarded-For', `203.0.113.${i + 1}`)
+            .send({ email: burst, password: WRONG })
+        )
+      )
+    );
+    const statuses = answers.map(answer => answer.status);
+
+    expect(statuses.filter(status => status === 401)).toHaveLength(10);
+    expect(statuses.filter(status => status === 429)).toHaveLength(20);
+    expect(await brakeRow(burst)).toMatchObject({ count: 10 });
+  });
+
   it('answers 429 with Retry-After after ten failures for an address with an account, even to the right password', async () => {
     await fail(known, 10);
 
