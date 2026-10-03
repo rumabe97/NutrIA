@@ -42,3 +42,49 @@
   - **Time first.** Paste the batch, measure schedulePlan, and stop above +10%. Prune each role before building the sets if needed.
   - **Variety.** If distinct sides per profile do not rise, add a small repetition cost for the same side within a fortnight, priced like the kind rules and measured.
   - **traditional_spanish spec.** It goes through `setsBeside` with a foreign dish.
+
+## Phase 2 — Celery on the broths, and the side threshold (2026-10-03)
+
+- **Executor**: opus @ medium (`backend-018p2`). No advisor consulted.
+- **Result**: done. The migration review (`migration-reviewer`) is the lead's to start. The migration number is to be redone after project 011 merges (below).
+- **What changed**:
+  - **Seed.** `caldo-de-pollo` and `caldo-de-verduras` (starter.ts) carry `celery` as `contains`. So do `caldo-de-carne` and `caldo-de-pescado` (pantry.ts): the reasoning for the two is the same, a generic carton broth that lists celery.
+  - **Migration `0057_broths_declare_celery`** is data only (`--custom`). It inserts the four links keyed by slug and allergen key, `ON CONFLICT ("ingredient_id", "allergen_id") DO NOTHING`. Celery derives no food class, so `ingredients.classes` is untouched.
+  - **`itemGroups`** (core/domain/Accompaniment) now takes the whole portion. A vegetable or dessert side reads its groups through `dishGroups`, which has the `FOOD_GROUP_GRAMS` threshold. A **starch** side keeps every group it holds, whatever the grams.
+    - **Deviation:** the plain threshold would have dropped the tabulé's 30 g of bulgur below grains' 40 g. That side would then have been offered beside a couscous. Of the 46 entries, only the tabulé changed.
+    - So the threshold applies where the finding was (a few grams of noodles in a broth), and every existing entry keeps its groups.
+- **Other broth and soup rows: verdicts.**
+  - `caldo-de-carne`: **added**. Same case as the chicken broth.
+  - `caldo-de-pescado`: **added**. A carton fish stock lists celery as often as the others, and the cautious reading wins.
+  - `caldo-dashi`: no. It is kombu and bonito, with no celery.
+  - `pastilla-de-caldo`, `pastilla-de-caldo-de-verduras`, `sopa-de-verduras-envasada`, `sopa-de-fideos-envasada`, `crema-de-verduras-envasada`: already carry celery as `may_contain`. **Left as they are.**
+    - Moving them to `contains` would need `DO UPDATE`, outside this phase's idempotent `DO NOTHING`. It is open for the lead.
+  - `crema-de-calabaza-envasada`, `crema-de-champinones-envasada`, `gazpacho-envasado`, `salmorejo-envasado`, `sofrito-envasado`, `cocido-madrileno-en-lata`, `fabada-en-lata`, `lentejas-con-chorizo-en-lata`, `alubias-con-verduras-en-lata`, `garbanzos-con-espinacas-en-lata`, `ramen-instantaneo`: **no link added**. None clearly carries celery.
+    - The two creams and the canned stews sometimes do. They are worth a look in the queued USDA re-sourcing task, not a guess here.
+- **Specs.**
+  - `core/domain/Safety/Broths.seed.test.ts` reads the real seed's links through `dishSafety`, the gate generation, swaps and `larderFor` share:
+    - each of the four broths is refused for a celery allergy;
+    - a rice dish with a splash of broth is refused, and passes without it;
+    - nobody without that allergy loses them.
+  - `database/src/seed/seed.test.ts`: every `caldo-*` but dashi carries celery `contains`, and the migration's slug list equals those rows.
+  - `Accompaniment.test.ts`:
+    - a vegetable broth with 10 g of noodles is not pasta, at a Spanish dinner nor beside a pasta dish;
+    - the tabulé stays grains beside a couscous.
+    - Both checked failing against the old code and against a threshold-for-all.
+  - `judge.catalogue.test.ts`: `CARRY_NOTHING_MORE` is one fewer for every example dish, because a broth now carries celery that none of them does.
+- **Evidence.**
+  - Measured on the reference library (`pnpm db:local reset --reference`, `NUTRIA_LOCAL_PG=1`, start 2026-10-05, 13 profiles), base (`de16e909`) against this branch:
+    - **Days off:** 181/182 before and after. The one day out of band is objetivo-bajo-3-comidas, as in 017's baseline.
+    - **Days on:** 182/182 before and after.
+    - **`--compare`:** "the same" for all 13 profiles, off and on.
+    - **Allergens:** 0 in all four runs.
+  - The timings are not comparable: the base run shared the machine with a gate.
+  - `check-migrations --drift` passed.
+  - The gate (`--full`) passed: migrations, checks (lint, types, coverage), web build, static, format and deadcode.
+    - The leak check ran with built-in rules only: a worktree has no `docs/local/leak-patterns.txt`. It needs a run from the main checkout.
+- **For the lead.**
+  - Project 011's `0057_a_lost_second_factor…` takes 0057 and merges first (lead's decision). After that merge, this branch:
+    1. merges `origin/main`;
+    2. deletes its 0057 files and regenerates the migration as 0058 with `generate --custom`, so its snapshot carries `two_factor_removal`;
+    3. reruns `check-migrations --drift` and the gate.
+  - The evaluator JSONs are in the session's scratchpad, not in `docs/local/`.

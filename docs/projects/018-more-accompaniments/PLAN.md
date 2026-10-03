@@ -38,7 +38,7 @@ Starts after project 017 is merged, since 017 changes the scheduler these sides 
 
 ### Phase 2 — Missing ingredients
 
-- [ ] pending
+- [x] done (2026-10-03) — scope as the LOG's phase 1 review set it: celery links on the broths (migration 0057, renumbered after project 011's) and the side threshold; no missing ingredient
 - **Dispatch**: opus @ medium — `backend` plus `migration-reviewer` (opus @ high) — `/execute-project 018 phase 2`. Skipped, with a LOG line, if phase 1 lists none.
 - **Covers**: PRD criterion 2.
 - **Steps**:
