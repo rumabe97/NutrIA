@@ -15,10 +15,11 @@
 > **Almacenamiento**: `POST /care/practice/agreement { version }` escribe
 > `agreementVersion` y `agreementAcceptedAt` en `professionals` (ver
 > [`analisis.md` § 11](../analisis.md#11-lo-que-hay-que-construir-para-el-004-y-quién)).
-> **Versión**: `PROFESSIONAL_AGREEMENT_VERSION = '1.0.0'`. Cualquier cambio de fondo en
-> este texto o en el 04 la sube y vuelve a pedirse. **1.1.0** (2026-10-03, propuesta):
-> § 8, la viñeta ⟦dos-pasos-obligatoria⟧ (proyecto 011 fase 6), en `practiceAgreement` de
-> `es-ES.ts` y `en-GB.ts`, en el mismo cambio que sube la constante.
+> **Versión**: `PROFESSIONAL_AGREEMENT_VERSION = '1.1.0'`, en vigor
+> (`core/entities/Professional`). Cualquier cambio de fondo en este texto o en el 04 la
+> sube y vuelve a pedirse. **1.1.0** (2026-10-03, proyecto 011 fase 6): § 8, la viñeta
+> ⟦dos-pasos-obligatoria⟧, en `practiceAgreement` de `es-ES.ts` y `en-GB.ts`. **1.0.0**:
+> la primera.
 >
 > **Marcadores**: `{name}` y `{email}` de `legalIdentity.ts` (el titular de NutrIA).
 

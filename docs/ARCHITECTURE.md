@@ -224,8 +224,12 @@ only Google or Apple passes.
 - The flag rides every session's user row and is re-read on every request. Turning it off
   from Seguridad, or the owner's 48-hour removal, shuts the doors on the next request,
   for sessions that already existed too.
-- Turning it on closes the account's other sessions, so a session opened with the
-  password alone never passes the rule.
+- Turning it on closes the account's other sessions, in one `DELETE`, so a session
+  opened earlier with the password alone does not pass the rule afterwards. Two
+  residuals remain. If that delete fails twice, the old sessions pass until the person
+  closes them; the mail and the confirmation then say so. And a passkey such a session
+  registered before the factor went on survives the close, and its sign-in passes once
+  TOTP is on. The "enabled" mail and confirmation ask the person to check their passkeys.
 - A passkey does not stand in for TOTP on an account with a password: it guards its own
   sign-in, not the password door beside it. With TOTP on, a passkey sign-in passes with
   no code.
