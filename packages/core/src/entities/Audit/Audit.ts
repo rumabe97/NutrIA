@@ -2,13 +2,15 @@ import { z } from 'zod';
 
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from 'core/entities/AdminQuery';
 import type { PictureAcceptedBy } from 'core/entities/DishPicture';
+import type { TwoFactorRemovalCancelledBy } from 'core/entities/TwoFactor';
 
 /**
  * Ajustes › Registro de acciones (`0071`): the closed list of admin mutations
  * that leave a row, plus the automatic activation on email confirmation, plus
  * the acts a person does to their own account's security (PLAN 011 phases 2
  * and 3): changing the password, closing sessions, turning the second factor
- * on or off, spending a backup code and generating new ones. Nothing else writes here, and nothing here is a free-form string a caller
+ * on or off, spending a backup code and generating new ones; and the owner's
+ * removal of a lost second factor (phase 4). Nothing else writes here, and nothing here is a free-form string a caller
  * invents — a new admin mutation is a new name added to this list, reviewed,
  * not a string typed at the call site.
  */
@@ -30,7 +32,10 @@ export const AUDIT_ACTIONS = [
   'auth.2fa_enabled',
   'auth.2fa_disabled',
   'auth.backup_code_used',
-  'auth.backup_codes_regenerated'
+  'auth.backup_codes_regenerated',
+  'auth.2fa_removal_requested',
+  'auth.2fa_removal_cancelled',
+  'auth.2fa_removed_by_owner'
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -83,6 +88,15 @@ export interface AuditMetadataByAction {
   'auth.2fa_disabled': Record<string, never>;
   /** The second factor went on — the first correct code after `/two-factor/enable` (PLAN 011 phase 3). Nothing else. */
   'auth.2fa_enabled': Record<string, never>;
+  /**
+   * A pending removal of the second factor was cancelled (PLAN 011 phase 4): by the owner from the console, or by the
+   * account entering a correct code. Who, in a closed word, and nothing else.
+   */
+  'auth.2fa_removal_cancelled': { readonly by: TwoFactorRemovalCancelledBy };
+  /** The owner asked for the account's lost second factor to be removed in 48 hours (PLAN 011 phase 4). Nothing else: never the request's reason, address or headers. */
+  'auth.2fa_removal_requested': Record<string, never>;
+  /** The daily cron removed the second factor the owner had asked to remove, its 48 hours past (PLAN 011 phase 4). No actor. Nothing else. */
+  'auth.2fa_removed_by_owner': Record<string, never>;
   /** A backup code was spent (PLAN 011 phase 3): how many are left, and never which one. */
   'auth.backup_code_used': { readonly remaining: number };
   /** Ten new backup codes replaced the old ones (PLAN 011 phase 3). Nothing else: never a code. */

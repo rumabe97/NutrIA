@@ -676,6 +676,76 @@ export function totpSecret(totpURI: string): { readonly base32: string; readonly
   return { base32, raw: base32Decode(base32).toString('utf8') };
 }
 
+function pause(ms: number): Promise<void> {
+  return new Promise<void>(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Right codes the server has not taken yet. It remembers the last step it
+ * accepted for a secret and refuses that one and every older one
+ * (`two_factor.last_totp_step`, PLAN 011 phase 4), so `fresh` hands out the
+ * current step's code, or the next one's while the ±1 window allows it, and
+ * otherwise waits for the clock's next step. A step is recorded as it is
+ * handed out: one the server then refuses for another reason only makes the
+ * next code a later one. One instance per suite.
+ */
+export class TotpClock {
+  private readonly claimed = new Map<string, number>();
+
+  async fresh(totpURI: string): Promise<string> {
+    for (;;) {
+      const now = Date.now();
+      const step = Math.floor(now / 30_000);
+      const last = this.claimed.get(totpURI) ?? Number.NEGATIVE_INFINITY;
+
+      for (const ahead of [0, 1]) {
+        if (step + ahead > last) {
+          this.claimed.set(totpURI, step + ahead);
+
+          return totpCode(totpURI, ahead, now);
+        }
+      }
+
+      await pause((step + 1) * 30_000 - now + 50);
+    }
+  }
+
+  /** A step the suite typed on its own (an older-step case): the codes after it are later ones. */
+  claim(totpURI: string, step: number): void {
+    this.claimed.set(totpURI, Math.max(step, this.claimed.get(totpURI) ?? Number.NEGATIVE_INFINITY));
+  }
+}
+
+/** Waits out the end of a TOTP step, so what follows has at least fifteen seconds of the same one. */
+export async function steadyStep(): Promise<void> {
+  const into = Date.now() % 30_000;
+
+  if (into > 15_000) {
+    await pause(30_000 - into + 50);
+  }
+}
+
+/**
+ * The API's own limiter (`RateLimitGuard`, 120 a minute) keys a caller with no session on its address and the
+ * route pattern, and every `/auth/*` path is one pattern: a suite's sign-ups, sign-ins, challenges and codes
+ * all spend the same allowance. On CI's local Postgres a suite outruns it inside a minute; on Neon it never
+ * does. Its refusal never reached a handler, so it is waited out and the same request sent again. It is told
+ * apart by what it lacks: Better Auth's own 429 always carries `X-Retry-After`, the guard's never does (and the
+ * exception filter hands its body back as `REQUEST_ERROR`, so the code cannot tell them apart). Better Auth's is
+ * the product answering, and is not retried here.
+ */
+export async function paced(send: () => PromiseLike<Response>): Promise<Response> {
+  const deadline = Date.now() + 70_000;
+  let response = await send();
+
+  while (response.status === 429 && response.headers['x-retry-after'] === undefined && Date.now() < deadline) {
+    await pause(5_000);
+    response = await send();
+  }
+
+  return response;
+}
+
 /**
  * A browser's cookie jar, as far as a suite needs one: each `Set-Cookie` of a
  * response replaces the cookie of that name, and one set to expire

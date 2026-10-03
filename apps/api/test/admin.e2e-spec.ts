@@ -182,8 +182,10 @@ const INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
 /**
  * Every key an account row may carry (`0028`, `0068`), sorted. A snapshot on
- * purpose: a twelfth key — a profile field, a plan, anything about a body or
- * food — fails the suite until somebody decides it belongs here.
+ * purpose: a fourteenth key — a profile field, a plan, anything about a body or
+ * food — fails the suite until somebody decides it belongs here. Project 011
+ * phase 4 added two: whether the second factor is on, and when a removal the
+ * owner asked for is due (null when none waits).
  */
 const ACCOUNT_KEYS = [
   'activated',
@@ -196,7 +198,9 @@ const ACCOUNT_KEYS = [
   'plans',
   'professional',
   'role',
-  'tier'
+  'tier',
+  'twoFactorEnabled',
+  'twoFactorRemovalDueAt'
 ];
 
 /** Every key an inbox row carries — unchanged by phase 5. */
@@ -369,6 +373,7 @@ describe('admin', () => {
     // who they granted, and nothing about a person's body or their food ever
     // joins it. The assertion is exhaustive so adding a field is a decision.
     // Phase 5 of project 007 added four milestones — dates, a count and a yes/no — and nothing else (`0068`).
+    // Phase 4 of project 011 added the second factor's state and a pending removal's due date, nothing else.
     expect(Object.keys(queued ?? {}).sort()).toEqual(ACCOUNT_KEYS);
   });
 
@@ -894,7 +899,7 @@ describe('admin', () => {
       await expectOnly('confirmed=yes&activated=no', [confirmedEmail]);
     });
 
-    it('carry each account’s milestones, and exactly the eleven keys', async () => {
+    it('carry each account’s milestones, and exactly the thirteen keys', async () => {
       const page = await accounts(`q=${token}`);
       const row = (email: string) => page.rows.find(account => account.email === email);
 
@@ -919,14 +924,16 @@ describe('admin', () => {
       expect(full?.lastActiveAt).toMatch(INSTANT);
       expect(full?.onboardedAt).toMatch(DAY);
       expect([shiftDay(today, -1), today, shiftDay(today, 1)]).toContain(full?.onboardedAt);
-      // None: no recorded activity, never onboarded, no plan, no grant.
+      // None: no recorded activity, never onboarded, no plan, no grant, no second factor.
       expect(row(waitingEmail)).toMatchObject({
         activated: false,
         emailVerified: false,
         lastActiveAt: null,
         onboardedAt: null,
         plans: 0,
-        professional: false
+        professional: false,
+        twoFactorEnabled: false,
+        twoFactorRemovalDueAt: null
       });
 
       expect(row(plain.email)).toMatchObject({ onboardedAt: null, plans: 0, professional: false, role: 'user', tier: 'free' });
@@ -2354,7 +2361,7 @@ describe('admin', () => {
       expect(view.mail.perDay.failed).toHaveLength(view.mail.days.length);
       expect(view.mail.perDay.sent).toHaveLength(view.mail.days.length);
       expect(view.mail.days).toHaveLength(30);
-      expect(view.crons.map(cron => cron.job).sort()).toEqual(['activations', 'reminders', 'rewrite', 'verifications']);
+      expect(view.crons.map(cron => cron.job).sort()).toEqual(['activations', 'reminders', 'rewrite', 'twoFactorRemovals', 'verifications']);
 
       for (const cron of view.crons) {
         expect(keys(cron)).toEqual(['job', 'lastRunAt', 'stale']);

@@ -10,7 +10,8 @@ import {
   AdminProfessionalsController,
   AdminPushTestController,
   AdminSettingsController,
-  AdminSystemController
+  AdminSystemController,
+  AdminTwoFactorController
 } from './controllers/index.js';
 import {
   AdminAccountsService,
@@ -21,7 +22,8 @@ import {
   AdminPushTestService,
   AdminService,
   AdminSettingsService,
-  AdminSystemService
+  AdminSystemService,
+  AdminTwoFactorService
 } from './services/index.js';
 import { BackgroundTaskService } from '../../shared/services/index.js';
 import { EmailModule } from '../email/email.module.js';
@@ -45,9 +47,11 @@ import { OwnerAlertsModule } from '../owner-alerts/index.js';
     AdminProfessionalsController,
     AdminPushTestController,
     AdminSettingsController,
-    AdminSystemController
+    AdminSystemController,
+    AdminTwoFactorController
   ],
-  // `PushService`: the owner's test goes out through the one door every push does; `EmailService`: the grant's mail;
+  // `PushService`: the owner's test goes out through the one door every push does; `EmailService`: the grant's mail and
+  // the two-factor removal's;
   // `OwnerAlertsService`: a retried picture that fails again is mailed like any other (project 009).
   imports: [EmailModule, NotificationsModule, OwnerAlertsModule],
   providers: [
@@ -60,6 +64,7 @@ import { OwnerAlertsModule } from '../owner-alerts/index.js';
     AdminService,
     AdminSettingsService,
     AdminSystemService,
+    AdminTwoFactorService,
     BackgroundTaskService,
     envProvider
   ]

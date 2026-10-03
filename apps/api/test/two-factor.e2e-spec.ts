@@ -6,7 +6,20 @@ import { SettingsController } from 'core/controllers/Settings';
 import { database } from 'database';
 
 import { EmailService } from '../src/modules/email/services/index.js';
-import { activate, CookieJar, createApp, deleteAccountByEmail, httpServer, PREFIX, ScriptedAiClient, totpCode, totpSecret } from './harness.js';
+import {
+  activate,
+  CookieJar,
+  createApp,
+  deleteAccountByEmail,
+  httpServer,
+  paced,
+  PREFIX,
+  ScriptedAiClient,
+  steadyStep,
+  TotpClock,
+  totpCode,
+  totpSecret
+} from './harness.js';
 import { hibpAttempts, hibpTripwireInstalled } from './hibp-tripwire.js';
 
 import type { INestApplication } from '@nestjs/common';
@@ -22,6 +35,9 @@ import type { Response } from 'supertest';
  *   `auth.2fa_enabled` written and its mail sent;
  * - with the factor on, `/sign-in/email` answers `twoFactorRedirect` and no
  *   usable session, and only a TOTP code or a backup code finishes it;
+ * - a TOTP code works once (phase 4): the same code on a new challenge, or a
+ *   right code of an older step than the last one accepted, is refused exactly
+ *   as a wrong code, and two challenges racing one code make one session;
  * - a backup code works once (`auth.backup_code_used {remaining}`, and a mail);
  * - turning it off and new backup codes both need the password; new codes
  *   write `auth.backup_codes_regenerated` and send a mail; turning off what is
@@ -138,6 +154,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
   /** Every response body but enable's and generate's, so the end can look for the secret in them. */
   const bodies: string[] = [];
   const ids: string[] = [];
+  const clock = new TotpClock();
   let googleCookie = '';
   let googleSub = '';
   let googleEmail = '';
@@ -149,27 +166,6 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
 
   function seen(response: Response): Response {
     bodies.push(JSON.stringify(response.body ?? {}));
-
-    return response;
-  }
-
-  /**
-   * The API's own limiter (`RateLimitGuard`, 120 a minute) keys a caller with no session on its address and the
-   * route pattern, and every `/auth/*` path is one pattern: this suite's sign-ups, sign-ins, challenges and codes
-   * all spend the same allowance. On CI's local Postgres the suite outruns it inside a minute; on Neon it never
-   * does. Its refusal never reached a handler, so it is waited out and the same request sent again. It is told
-   * apart by what it lacks: Better Auth's own 429 always carries `X-Retry-After`, the guard's never does (and the
-   * exception filter hands its body back as `REQUEST_ERROR`, so the code cannot tell them apart). Better Auth's is
-   * the product answering, and is not retried here.
-   */
-  async function paced(send: () => PromiseLike<Response>): Promise<Response> {
-    const deadline = Date.now() + 70_000;
-    let response = await send();
-
-    while (response.status === 429 && response.headers['x-retry-after'] === undefined && Date.now() < deadline) {
-      await pause(5_000);
-      response = await send();
-    }
 
     return response;
   }
@@ -261,7 +257,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
     const made = await account(label, name);
     const jar = await signedIn(made.email);
     const { backupCodes, totpURI } = await enable(jar);
-    const verified = await verifyTotp(jar.header, totpCode(totpURI));
+    const verified = await verifyTotp(jar.header, await clock.fresh(totpURI));
 
     expect(verified.status).toBe(200);
     // The enabling verify swaps the session for a new one: the cookie sent is dead from here.
@@ -378,7 +374,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
   /** A sign-in finished with "trust this device": the `trust_device` cookie it handed back, and nothing else. */
   async function trustedDevice(email: string, uri: string, password = ORIGINAL): Promise<string> {
     const { jar } = await challenged(email, password);
-    const trusted = await verifyTotp(jar.header, totpCode(uri), true);
+    const trusted = await verifyTotp(jar.header, await clock.fresh(uri), true);
 
     expect(trusted.status).toBe(200);
     expect(jar.take(trusted).has('trust_device')).toBe(true);
@@ -490,9 +486,9 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       );
     }) as typeof fetch;
 
-    const [clock] = await sql()<{ now: string }>`select now()::text as now`;
+    const [dbNow] = await sql()<{ now: string }>`select now()::text as now`;
 
-    started = clock?.now ?? '';
+    started = dbNow?.now ?? '';
     app = await createApp(new ScriptedAiClient([]));
   });
 
@@ -580,7 +576,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       expect(code(refused)).toBe('INVALID_CODE');
       expect(await flagOf(id)).toBe(false);
 
-      const verified = await verifyTotp(jar.header, totpCode(totpURI));
+      const verified = await verifyTotp(jar.header, await clock.fresh(totpURI));
 
       expect(verified.status).toBe(200);
       jar.take(verified);
@@ -651,7 +647,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       expect(jar.take(refused).has('session_token')).toBe(false);
       expect((await get('users/me', rawCookies(response))).status).toBe(404);
 
-      const typed = totpCode(uri);
+      const typed = await clock.fresh(uri);
       const verified = await verifyTotp(jar.header, typed);
 
       expect(verified.status).toBe(200);
@@ -669,21 +665,88 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       expect(await sessionsOf(id)).toBe(1);
     });
 
-    it('accepts the same code again on a new challenge within its window: the plugin keeps no record of used codes', async () => {
+    it('refuses the same code on a new challenge within its window, exactly as a wrong code, and the challenge stays whole', async () => {
       const { id, email, uri } = await withFactor('dora', 'Dora Vidal');
-      const typed = totpCode(uri);
+      const typed = await clock.fresh(uri);
       const first = await challenged(email);
 
       expect((await verifyTotp(first.jar.header, typed)).status).toBe(200);
 
-      // Better Auth 1.7.6's `verifyTOTP` checks the code against the ±1 window and stores nothing about it, so a code
-      // seen over a shoulder works again for up to ninety seconds. Pinned as it is; reported to the lead (RFC 6238 § 5.2
-      // says a verifier should refuse a second use). If this starts failing with 401, the replay is now refused: flip it.
+      // A code seen over a shoulder, typed again inside its ninety seconds (RFC 6238 § 5.2; PLAN 011 phase 4).
       const second = await challenged(email);
+      const sessions = await sessionsOf(id);
+      const wrong = await verifyTotp(second.jar.header, wrongCode(uri));
       const reused = await verifyTotp(second.jar.header, typed);
 
-      expect(reused.status).toBe(200);
-      expect((await get('users/me', second.jar.take(reused).header)).body).toMatchObject({ id });
+      expect(reused.status).toBe(401);
+      expect(code(reused)).toBe('INVALID_CODE');
+      expect({ status: reused.status, text: reused.text }).toEqual({ status: wrong.status, text: wrong.text });
+      expect(second.jar.take(reused).has('session_token')).toBe(false);
+      expect(await sessionsOf(id)).toBe(sessions);
+
+      // The refusal spent nothing of the challenge: a code of a later step still finishes it.
+      const finished = await verifyTotp(second.jar.header, await clock.fresh(uri));
+
+      expect(finished.status).toBe(200);
+      expect((await get('users/me', second.jar.take(finished).header)).body).toMatchObject({ id });
+    });
+
+    it('refuses a right code of an older step than the last one accepted, never typed before — the enabling code included', async () => {
+      const { id, email } = await account('abril', 'Abril Soler');
+      const jar = await signedIn(email);
+      const { totpURI: uri } = await enable(jar);
+
+      // Far enough from a step boundary that every code below stays inside the server's ±1 window to the end.
+      await steadyStep();
+
+      const base = Math.floor(Date.now() / 30_000);
+      const at = (step: number) => totpCode(uri, 0, step * 30_000);
+      const [ahead, current, behind] = [at(base + 1), at(base), at(base - 1)];
+
+      expect(new Set([ahead, current, behind]).size).toBe(3);
+      clock.claim(uri, base + 1);
+
+      // The enabling verify takes the step ahead, the furthest the window lets it.
+      const verified = await verifyTotp(jar.header, ahead);
+
+      expect(verified.status).toBe(200);
+      jar.take(verified);
+      expect(await flagOf(id)).toBe(true);
+
+      const [stored] = await sql()<{ step: string | null }>`select last_totp_step::text as step from two_factor where user_id = ${id}`;
+
+      expect(stored?.step).toBe(String(base + 1));
+
+      const { jar: challenge } = await challenged(email);
+      const wrong = await verifyTotp(challenge.header, wrongCode(uri));
+
+      for (const older of [current, behind]) {
+        const refused = await verifyTotp(challenge.header, older);
+
+        expect(code(refused)).toBe('INVALID_CODE');
+        expect({ status: refused.status, text: refused.text }).toEqual({ status: wrong.status, text: wrong.text });
+        expect(challenge.take(refused).has('session_token')).toBe(false);
+      }
+
+      // Still the same step: both codes were inside the window, so what refused them was the claim, not the clock.
+      expect(Math.floor(Date.now() / 30_000)).toBe(base);
+      expect((await sql()<{ step: string | null }>`select last_totp_step::text as step from two_factor where user_id = ${id}`)[0]?.step).toBe(
+        String(base + 1)
+      );
+    });
+
+    it('two challenges answered at once with the same code: one session, one refusal', async () => {
+      const { id, email, uri } = await withFactor('dalia', 'Dalia Pardo');
+      const typed = await clock.fresh(uri);
+      const [one, two] = await Promise.all([challenged(email), challenged(email)]);
+
+      await sql()`delete from session where user_id = ${id}`;
+
+      const answers = await Promise.all([verifyTotp(one.jar.header, typed), verifyTotp(two.jar.header, typed)]);
+
+      expect(answers.map(answer => answer.status).sort()).toEqual([200, 401]);
+      expect(answers.map(answer => code(answer) ?? null).filter(Boolean)).toEqual(['INVALID_CODE']);
+      expect(await sessionsOf(id)).toBe(1);
     });
 
     it('takes a backup code once and not twice, and records and mails each use with the count left', async () => {
@@ -725,7 +788,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       const { email, uri } = await withFactor('fabio', 'Fabio Sanz');
       const other = await withFactor('gema', 'Gema Ruiz');
       const first = await challenged(email);
-      const trusted = await verifyTotp(first.jar.header, totpCode(uri), true);
+      const trusted = await verifyTotp(first.jar.header, await clock.fresh(uri), true);
 
       expect(trusted.status).toBe(200);
       first.jar.take(trusted);
@@ -762,7 +825,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
 
       // Without asking for it, nothing is trusted.
       const plain = await challenged(email);
-      const untrusted = await verifyTotp(plain.jar.header, totpCode(uri));
+      const untrusted = await verifyTotp(plain.jar.header, await clock.fresh(uri));
 
       expect(untrusted.status).toBe(200);
       expect(new CookieJar().take(untrusted).has('trust_device')).toBe(false);
@@ -914,7 +977,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
 
       const { jar } = await challenged(email, 'cobalt-harbour-willow-7');
 
-      expect((await verifyTotp(jar.header, totpCode(uri))).status).toBe(200);
+      expect((await verifyTotp(jar.header, await clock.fresh(uri))).status).toBe(200);
       await sql()`delete from verification where id = ${token}`;
     });
 
@@ -1000,7 +1063,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       expect((await get('users/me', challenge.header)).status).toBe(404);
 
       // The challenge is still whole: the OTP routes spent none of it, and a TOTP code still finishes it.
-      expect((await verifyTotp(challenge.header, totpCode(uri))).status).toBe(200);
+      expect((await verifyTotp(challenge.header, await clock.fresh(uri))).status).toBe(200);
 
       // Signed in, the same: nothing to send, nothing to verify.
       const signed = await signedIn(plain.email);
@@ -1045,7 +1108,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
 
       // The owner, signed in with the password and the code, can still join Google to the account on purpose.
       const { jar } = await challenged(email);
-      const verified = await verifyTotp(jar.header, totpCode(uri));
+      const verified = await verifyTotp(jar.header, await clock.fresh(uri));
 
       expect(verified.status).toBe(200);
       jar.take(verified);
@@ -1073,7 +1136,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       const jar = await signedIn(email);
       const { totpURI } = await enable(jar);
 
-      jar.take(await verifyTotp(jar.header, totpCode(totpURI)));
+      jar.take(await verifyTotp(jar.header, await clock.fresh(totpURI)));
       expect(await flagOf(id)).toBe(true);
 
       // Better Auth challenges only a password sign-in; a provider sign-in rests on the provider's own second factor.
@@ -1129,14 +1192,14 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       expect(await trustRows(id)).toBe(0);
 
       const { totpURI } = await enable(jar);
-      const verified = await verifyTotp(jar.header, totpCode(totpURI));
+      const verified = await verifyTotp(jar.header, await clock.fresh(totpURI));
 
       expect(verified.status).toBe(200);
       jar.take(verified);
 
       const { jar: challenge } = await challenged(email, ORIGINAL, trust);
 
-      expect((await verifyTotp(challenge.header, totpCode(totpURI))).status).toBe(200);
+      expect((await verifyTotp(challenge.header, await clock.fresh(totpURI))).status).toBe(200);
     });
 
     it('a device trusted before a password change is asked again', async () => {
@@ -1199,7 +1262,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       await pause(1000);
       expect(await sessionStarts(id)).toBe(atStart);
 
-      expect((await verifyTotp(jar.header, totpCode(uri))).status).toBe(200);
+      expect((await verifyTotp(jar.header, await clock.fresh(uri))).status).toBe(200);
       await until(async () => (await sessionStarts(id)) > atStart, 'The session_started of a two-factor sign-in');
       await pause(500);
       expect(await sessionStarts(id)).toBe(atStart + 1);

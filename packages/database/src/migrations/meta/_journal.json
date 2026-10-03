@@ -400,6 +400,13 @@
       "when": 1790939447426,
       "tag": "0056_a_lunch_is_one_plate",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1790989514319,
+      "tag": "0057_a_lost_second_factor_can_be_removed_after_48_hours",
+      "breakpoints": true
     }
   ]
 }

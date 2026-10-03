@@ -23,7 +23,8 @@ const SINGLETON_TABLES = [
   'target_overrides',
   'health_data_consents',
   'professionals',
-  'profile_data_consents'
+  'profile_data_consents',
+  'two_factor_removal'
 ];
 
 /**

@@ -1,14 +1,19 @@
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
 import { Logger } from '@nestjs/common';
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { symmetricDecrypt } from 'better-auth/crypto';
+import { TWO_FACTOR_ERROR_CODES } from 'better-auth/plugins/two-factor';
 
 import { AnalyticsController } from 'core/controllers/Analytics';
+import { TwoFactorController } from 'core/controllers/TwoFactor';
 import { UserController } from 'core/controllers/User';
 
 import { record, text } from './PasswordPolicy.js';
 
 import type { BackgroundTaskService } from '../../../shared/services/index.js';
 import type { TwoFactorEvent } from '../../email/templates/TwoFactorChanged.js';
+import type { TwoFactorRemovalEvent } from '../../email/templates/TwoFactorRemoval.js';
 import type { Context } from './PasswordPolicy.js';
 import type { BetterAuthPlugin } from 'better-auth';
 
@@ -21,10 +26,15 @@ export type TwoFactorNotice = {
   readonly userAgent: string | null;
 };
 
+/** Whom a step of the owner's removal of the factor is about (PLAN 011 phase 4): the account's own address, and nothing of the request. */
+export type TwoFactorRemovalNotice = { readonly id: string; readonly email: string; readonly event: TwoFactorRemovalEvent };
+
 export type TwoFactorDeps = {
   readonly background: Pick<BackgroundTaskService, 'run'>;
   /** Sends the mail for `notice.event`; run in the background, never awaited by a route. */
   readonly mailTwoFactor: (notice: TwoFactorNotice) => Promise<void>;
+  /** Sends the removal mail — here, only "the request was cancelled"; run in the background. */
+  readonly mailTwoFactorRemoval: (notice: TwoFactorRemovalNotice) => Promise<void>;
 };
 
 export const TWO_FACTOR_ISSUER = 'NutrIA';
@@ -38,6 +48,22 @@ const VERIFY_TOTP = '/two-factor/verify-totp';
 const VERIFY_BACKUP_CODE = '/two-factor/verify-backup-code';
 const GENERATE_BACKUP_CODES = '/two-factor/generate-backup-codes';
 const SIGN_IN = '/sign-in/email';
+
+/** The plugin's TOTP, left at its defaults (`twoFactor()` in `auth.config.ts` sets no `totpOptions`): six digits, thirty seconds, a step either side. */
+const TOTP_DIGITS = 6;
+const TOTP_PERIOD_MS = 30_000;
+const TOTP_WINDOW = 1;
+/**
+ * How far either side the replay rule looks: one step wider than the plugin's window. The hook and the plugin each
+ * read their own clock, so a code typed on a thirty-second boundary may be two steps ahead of the hook's "now" and
+ * one ahead of the plugin's a millisecond later — accepted, and it must have been claimed. A code two steps away that
+ * the plugin then refuses is claimed anyway: an old one costs nothing, every later code being newer; a new one comes
+ * only from a phone whose clock is a minute or more ahead, whose codes the plugin refuses either way.
+ */
+const TOTP_SEARCH = TOTP_WINDOW + 1;
+
+/** The challenge cookie's name inside the plugin (`two-factor/constant.mjs`), which does not export it; Better Auth prefixes it. */
+const TWO_FACTOR_COOKIE = 'two_factor';
 
 /**
  * The plugin's routes this product does not offer, answered the 404 before the
@@ -79,6 +105,12 @@ export async function twoFactorBefore(context: Context): Promise<void> {
     throw notFound();
   }
 
+  if (path === VERIFY_TOTP) {
+    await refuseReplayedCode(context);
+
+    return;
+  }
+
   if (path !== ENABLE) {
     return;
   }
@@ -87,6 +119,107 @@ export async function twoFactorBefore(context: Context): Promise<void> {
 
   if (caller && !(await context.context.internalAdapter.findCredentialAccount(caller.user.id))) {
     throw notFound();
+  }
+}
+
+/**
+ * The HOTP value of one step (RFC 4226), as the plugin computes it
+ * (`@better-auth/utils/otp`): HMAC-SHA1 keyed with the secret's UTF-8 bytes,
+ * over the step as an eight-byte big-endian counter, dynamically truncated.
+ */
+function hotp(secret: string, step: number): string {
+  const counter = Buffer.alloc(8);
+
+  counter.writeBigUInt64BE(BigInt(step));
+
+  const mac = createHmac('sha1', Buffer.from(secret, 'utf8')).update(counter).digest();
+  const offset = (mac[mac.length - 1] ?? 0) & 0x0f;
+  const value = mac.readUInt32BE(offset) & 0x7fffffff;
+
+  return String(value % 10 ** TOTP_DIGITS).padStart(TOTP_DIGITS, '0');
+}
+
+/**
+ * The newest step within two of the current one (`TOTP_SEARCH`: the plugin's
+ * window, one step wider either side) whose code is `code`, or null when none
+ * is. Every step is compared, in constant time, so the answer takes as long
+ * whichever matched.
+ */
+export function totpStepOf(secret: string, code: string, now: number = Date.now()): number | null {
+  const current = Math.floor(now / TOTP_PERIOD_MS);
+  const given = Buffer.from(code);
+  let matched: number | null = null;
+
+  for (let offset = -TOTP_SEARCH; offset <= TOTP_SEARCH; offset += 1) {
+    const expected = Buffer.from(hotp(secret, current + offset));
+
+    if (expected.length === given.length && timingSafeEqual(expected, given)) {
+      matched = current + offset;
+    }
+  }
+
+  return matched;
+}
+
+/** The account a `/two-factor/verify-totp` is for: the session's, or — in a sign-in — the one the signed challenge cookie names, read the way the plugin reads it. */
+async function verifyingAccount(context: Context): Promise<{ readonly id: string; readonly signIn: boolean } | null> {
+  const session = await getSessionFromCtx(context);
+
+  if (session) {
+    return { id: session.user.id, signIn: false };
+  }
+
+  const cookie = context.context.createAuthCookie(TWO_FACTOR_COOKIE);
+  const challenge = await context.getSignedCookie(cookie.name, context.context.secret);
+  const pending = challenge ? await context.context.internalAdapter.findVerificationValue(challenge) : null;
+
+  return pending?.value ? { id: pending.value, signIn: true } : null;
+}
+
+/**
+ * Before the plugin, on `/two-factor/verify-totp` (PLAN 011 phase 4, the
+ * replay rule): a correct code is accepted once. The account's secret is
+ * decrypted the way the plugin does, the code's step found in the plugin's
+ * window and one step either side of it (`TOTP_SEARCH`), and the step claimed for the account in one guarded `UPDATE`
+ * (`TwoFactorController.claimTotpStep`, `two_factor.last_totp_step`). A
+ * step already claimed — the same code again, on another challenge or from a
+ * session — or an older one answers exactly what the plugin answers a wrong
+ * code: 401 `INVALID_CODE`. Covers the confirmation that turns the factor on.
+ *
+ * Left to the plugin, untouched: a code that matches no step (a wrong code,
+ * which the plugin counts against the challenge and the account), no
+ * account or no row, and the cases the plugin refuses anyway — a sign-in on
+ * an unverified secret, or a locked account — so a refusal never spends the
+ * step the person's next attempt needs. Backup codes are another route.
+ * Never logged: the code, the secret, the step.
+ */
+async function refuseReplayedCode(context: Context): Promise<void> {
+  const code = text(record(context.body).code);
+
+  if (!code || !/^\d+$/.test(code)) {
+    return;
+  }
+
+  const account = await verifyingAccount(context);
+
+  if (!account) {
+    return;
+  }
+
+  const row = await context.context.adapter.findOne<{ lockedUntil?: Date | string | null; secret: string; verified?: boolean | null }>({
+    model: 'twoFactor',
+    where: [{ field: 'userId', value: account.id }]
+  });
+  const locked = row?.lockedUntil ? new Date(row.lockedUntil).getTime() > Date.now() : false;
+
+  if (!row || (account.signIn && (row.verified === false || locked))) {
+    return;
+  }
+
+  const step = totpStepOf(await symmetricDecrypt({ data: row.secret, key: context.context.secretConfig }), code);
+
+  if (step !== null && !(await TwoFactorController.claimTotpStep(account.id, step))) {
+    throw APIError.from('UNAUTHORIZED', TWO_FACTOR_ERROR_CODES.INVALID_CODE);
   }
 }
 
@@ -142,6 +275,34 @@ async function changed(deps: TwoFactorDeps, context: Context, user: { id: string
 }
 
 /**
+ * A correct code from the account — a sign-in, a check from a session, the
+ * confirmation that turns the factor on — cancels the owner's pending removal
+ * of its factor (PLAN 011 phase 4): whoever can enter one has not lost it.
+ * Awaited, so the removal is gone before the answer; the row is
+ * `auth.2fa_removal_cancelled {by:'account'}`, then the "cancelled" mail in
+ * the background. Nothing pending — the common case — says nothing. A
+ * failure is a line, not a 500: the person did sign in, and their next
+ * correct code tries again.
+ */
+async function cancelPendingRemoval(deps: TwoFactorDeps, user: { id: string; email: string } | null): Promise<void> {
+  if (!user) {
+    return;
+  }
+
+  try {
+    const cancelled = await TwoFactorController.cancelRemovalByAccount(user.id);
+
+    if (cancelled) {
+      deps.background.run('two-factor-removal-mail', () =>
+        deps.mailTwoFactorRemoval({ id: user.id, email: cancelled.email, event: { kind: 'cancelled' } })
+      );
+    }
+  } catch {
+    logger.error(`two_factor_removal_uncancelled ${JSON.stringify({ userId: user.id })}`);
+  }
+}
+
+/**
  * After the plugin, on a 2xx only (called from `accountSecurityAfter`):
  *
  * - `/two-factor/verify-totp` from a session whose account had the factor off:
@@ -155,6 +316,8 @@ async function changed(deps: TwoFactorDeps, context: Context, user: { id: string
  *   swap the owner's codes for their own in silence.
  * - `/two-factor/verify-backup-code`: one code spent, from a challenge or a
  *   session, with how many are left.
+ * - Both verify routes: a pending removal of the factor is cancelled
+ *   (`cancelPendingRemoval`).
  */
 export async function twoFactorAfter(deps: TwoFactorDeps, context: Context, returned: unknown): Promise<void> {
   const path = context.path ?? '';
@@ -166,6 +329,8 @@ export async function twoFactorAfter(deps: TwoFactorDeps, context: Context, retu
     if (before?.session && before.user.twoFactorEnabled !== true && after?.user.twoFactorEnabled === true) {
       await changed(deps, context, { id: after.user.id, email: after.user.email }, { kind: 'enabled' });
     }
+
+    await cancelPendingRemoval(deps, answeredUser(returned));
 
     return;
   }
@@ -197,6 +362,8 @@ export async function twoFactorAfter(deps: TwoFactorDeps, context: Context, retu
     if (!user) {
       return;
     }
+
+    await cancelPendingRemoval(deps, user);
 
     const remaining = await backupCodesLeft(context, user.id).catch(() => null);
 

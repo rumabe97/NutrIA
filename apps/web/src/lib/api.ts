@@ -35,6 +35,8 @@ export type ApiErrorCode =
   | 'QUOTA_EXCEEDED'
   | 'REAUTHENTICATION_REQUIRED'
   | 'REQUEST_ERROR'
+  | 'TWO_FACTOR_NOT_ENABLED'
+  | 'TWO_FACTOR_REMOVAL_PENDING'
   | 'UNDER_MINIMUM_AGE'
   | 'UNSAFE_CONTENT';
 
@@ -87,6 +89,8 @@ const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
   QUOTA_EXCEEDED: 'quotaExceeded',
   REAUTHENTICATION_REQUIRED: 'reauthenticationRequired',
   REQUEST_ERROR: 'request',
+  TWO_FACTOR_NOT_ENABLED: 'twoFactorNotEnabled',
+  TWO_FACTOR_REMOVAL_PENDING: 'twoFactorRemovalPending',
   UNDER_MINIMUM_AGE: 'underMinimumAge',
   UNSAFE_CONTENT: 'unsafeContent'
 };

@@ -222,7 +222,9 @@ const ROW: AccountRow = {
   plans: 2,
   professional: false,
   role: 'user',
-  tier: 'free'
+  tier: 'free',
+  twoFactorEnabled: true,
+  twoFactorRemovalDueAt: new Date('2026-10-03T19:00:00.000Z')
 };
 
 /*
@@ -264,8 +266,18 @@ describe('UserController.accounts', () => {
       plans: 2,
       professional: false,
       role: 'user',
-      tier: 'free'
+      tier: 'free',
+      twoFactorEnabled: true,
+      twoFactorRemovalDueAt: '2026-10-03T19:00:00.000Z'
     });
+  });
+
+  it('shows no pending removal as null (PLAN 011 phase 4)', async () => {
+    findAll.mockResolvedValue({ rows: [{ ...ROW, twoFactorEnabled: false, twoFactorRemovalDueAt: null }], total: 1 });
+
+    const { rows } = await UserController.accounts();
+
+    expect(rows[0]).toMatchObject({ twoFactorEnabled: false, twoFactorRemovalDueAt: null });
   });
 
   it('keeps an account nobody has seen yet as null, not as a date', async () => {
@@ -276,7 +288,7 @@ describe('UserController.accounts', () => {
     expect(rows[0]).toMatchObject({ activated: false, lastActiveAt: null, onboardedAt: null, plans: 0 });
   });
 
-  it('carries only its eleven keys, whatever else a row brings', async () => {
+  it('carries only its thirteen keys, whatever else a row brings', async () => {
     findAll.mockResolvedValue({ rows: [{ ...ROW, allergies: ['gluten'], weightKg: 80 } as AccountRow], total: 1 });
 
     const { rows } = await UserController.accounts();
@@ -292,7 +304,9 @@ describe('UserController.accounts', () => {
       'plans',
       'professional',
       'role',
-      'tier'
+      'tier',
+      'twoFactorEnabled',
+      'twoFactorRemovalDueAt'
     ]);
   });
 });

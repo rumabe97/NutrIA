@@ -10,8 +10,9 @@ import { ExpiredVerificationsService } from '../../auth/services/ExpiredVerifica
 import { OwnerAlertsService } from '../../owner-alerts/index.js';
 import { PictureCandidatesService, RecipeRewriter } from '../../ai/index.js';
 import { Public, SkipRateLimit } from '../../../shared/index.js';
+import { TwoFactorRemovalsService } from '../../auth/services/TwoFactorRemovals.service.js';
 
-import type { PlanActivationDto, ReminderRunDto, RewriteRunDto, VerificationSweepDto } from '../dto/out/index.js';
+import type { PlanActivationDto, ReminderRunDto, RewriteRunDto, TwoFactorRemovalRunDto, VerificationSweepDto } from '../dto/out/index.js';
 
 /**
  * The most the reminders watch and the pictures' mail may take before a sweep starts. The sweep's own clock
@@ -59,6 +60,7 @@ export class CronController {
     private readonly reminders: CheckInReminderService,
     private readonly rewriter: RecipeRewriter,
     private readonly runs: CronRunService,
+    private readonly twoFactorRemovals: TwoFactorRemovalsService,
     private readonly verifications: ExpiredVerificationsService
   ) {}
 
@@ -155,6 +157,23 @@ export class CronController {
 
     // At the end, so the record says the run finished and the console's silent-cron watch sees it (`0071`).
     await this.runs.record('verifications', run);
+
+    return run;
+  }
+
+  /**
+   * Once a day, ten minutes after the reminders: every removal of a lost second
+   * factor the owner asked for whose 48 hours have passed and that nobody
+   * cancelled is carried out and mailed (PLAN 011 phase 4). On a daily
+   * schedule, 48 hours means the first run at or after them — 48 to 72 hours,
+   * as the mail says. Spends nothing and needs no switch.
+   */
+  @Get('two-factor-removals')
+  async removeTwoFactors(): Promise<TwoFactorRemovalRunDto> {
+    const run = await this.twoFactorRemovals.run();
+
+    // At the end, so the record says the run finished and the console's silent-cron watch sees it (`0071`).
+    await this.runs.record('twoFactorRemovals', run);
 
     return run;
   }
