@@ -1,14 +1,17 @@
 import { createHash, generateKeyPairSync, randomBytes, sign } from 'node:crypto';
+import { inspect } from 'node:util';
 
 import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
+import { Logger } from '@nestjs/common';
 import { isoCBOR } from '@simplewebauthn/server/helpers';
 import request from 'supertest';
 import { hashPassword } from 'better-auth/crypto';
 
+import { UserController } from 'core/controllers/User';
 import { database } from 'database';
 
 import { EmailService } from '../src/modules/email/services/index.js';
-import { activate, CookieJar, createApp, deleteAccountByEmail, httpServer, paced, PREFIX, ScriptedAiClient } from './harness.js';
+import { activate, CookieJar, createApp, deleteAccountByEmail, httpServer, paced, PREFIX, ScriptedAiClient, TotpClock } from './harness.js';
 
 import type { INestApplication } from '@nestjs/common';
 import type { OutgoingEmail } from '../src/modules/email/services/index.js';
@@ -32,8 +35,14 @@ import type { Response } from 'supertest';
  *   byte for byte — the same answer as an id that does not exist — and
  *   changes nothing; the account's own is removed with `auth.passkey_removed`;
  * - one credential id is registered once, whoever tries again;
- * - a password reset removes every passkey of the account, one
- *   `auth.passkey_removed` each, and its mail says so;
+ * - an address not yet confirmed adds none (403 `EMAIL_CONFIRMATION_REQUIRED`);
+ * - one confirmation lets one passkey in, even to two verifies sent at once;
+ * - a passkey sign-in still meets every guard's 409, opens a session with no
+ *   second step for an account with TOTP on (`0083`), and cancels a pending
+ *   removal of that factor;
+ * - a failed verify leaves no challenge in any log line;
+ * - a password change and a password reset each remove every passkey of the
+ *   account, one `auth.passkey_removed` each, and the mail says so;
  * - deleting the account deletes its passkeys (ON DELETE CASCADE).
  *
  * The device is `Authenticator` below — a P-256 key made here, packed as a
@@ -157,6 +166,7 @@ describe('passkeys: Better Auth’s plugin, owned by the session', () => {
   const pattern = `passkeys-%-${String(stamp)}@e2e.invalid`;
   const sql = (): Sql => (database() as unknown as { readonly $client: Sql }).$client;
   const outbox: OutgoingEmail[] = [];
+  const clock = new TotpClock();
   let started = '';
 
   const server = () => httpServer(app);
@@ -214,6 +224,42 @@ describe('passkeys: Better Auth’s plugin, owned by the session', () => {
       name: 'iPhone',
       response: device.create((options.body as { challenge: string }).challenge)
     });
+  }
+
+  /** A sign-in with the device's key, from a browser with nothing in it: the jar it leaves and the answer. */
+  async function passkeySignIn(device: Authenticator): Promise<{ jar: CookieJar; response: Response }> {
+    const jar = new CookieJar();
+    const options = await get('auth/passkey/generate-authenticate-options', '');
+
+    jar.take(options);
+
+    const response = await post('auth/passkey/verify-authentication', jar.header, { response: device.get((options.body as { challenge: string }).challenge) });
+
+    jar.take(response);
+
+    return { jar, response };
+  }
+
+  /**
+   * Better Auth's own limit on a change of password and on a reset request is three in ten seconds from one address,
+   * which the test environment does not raise: its 429 is waited out, for as long as it says, and the same request
+   * sent again — as in `passwords.e2e-spec.ts`.
+   */
+  async function waitedOut(send: () => Promise<Response>): Promise<Response> {
+    let response = await send();
+
+    for (let retry = 0; retry < 2 && response.status === 429; retry += 1) {
+      const wait = Number(response.headers['x-retry-after'] ?? 10);
+
+      await pause((Number.isFinite(wait) ? wait : 10) * 1000 + 500);
+      response = await send();
+    }
+
+    return response;
+  }
+
+  async function changePassword(jar: CookieJar, newPassword: string): Promise<Response> {
+    return waitedOut(async () => post('auth/change-password', jar.header, { currentPassword: PASSWORD, newPassword }));
   }
 
   async function passkeysOf(userId: string): Promise<{ id: string; credentialId: string }[]> {
@@ -279,6 +325,12 @@ describe('passkeys: Better Auth’s plugin, owned by the session', () => {
       // Whatever this suite left: given a known password, then deleted through the product's own door.
       const left = await sql()<{ id: string; email: string }>`select id, email from "user" where email like ${pattern}`;
       const known = await hashPassword(CLEANUP_PASSWORD);
+
+      // Both locks open, the mark gone and the factor off: what a sign-in needs to hand back a session the deletion accepts.
+      await sql()`delete from two_factor where user_id in (select id from "user" where email like ${pattern})`;
+      await sql()`
+        update "user" set two_factor_enabled = false, email_verified = true, activated_at = coalesce(activated_at, now()), password_compromised_at = null
+        where email like ${pattern}`;
 
       for (const { id, email } of left) {
         await sql()`update account set password = ${known} where user_id = ${id} and provider_id = 'credential'`;
@@ -466,6 +518,205 @@ describe('passkeys: Better Auth’s plugin, owned by the session', () => {
     });
   });
 
+  describe('an address not yet confirmed', () => {
+    it('adds no passkey: both steps 403 EMAIL_CONFIRMATION_REQUIRED, even with the password confirmed', async () => {
+      const { id, jar } = await account('unconfirmed');
+
+      await sql()`update "user" set email_verified = false where id = ${id}`;
+
+      expect((await confirm(jar)).status).toBe(200);
+
+      const options = await get('auth/passkey/generate-register-options', jar.header);
+      const verify = await post('auth/passkey/verify-registration', jar.header, { response: new Authenticator().create('any') });
+
+      for (const refused of [options, verify]) {
+        expect(refused.status).toBe(403);
+        expect((refused.body as { code?: string }).code).toBe('EMAIL_CONFIRMATION_REQUIRED');
+      }
+
+      expect(options.body).not.toHaveProperty('challenge');
+      expect(await passkeysOf(id)).toEqual([]);
+      expect(await auditRows(id, 'auth.passkey_added')).toEqual([]);
+    });
+  });
+
+  describe('one confirmation, one passkey', () => {
+    it('lets exactly one of two verifies sent at once through on a single grant', async () => {
+      const { id, jar } = await account('race');
+
+      expect((await confirm(jar)).status).toBe(200);
+
+      // Two challenges for the one session, each in its own cookie: two tabs, one password typed.
+      const first = await get('auth/passkey/generate-register-options', jar.header);
+      const second = await get('auth/passkey/generate-register-options', jar.header);
+      const cookieOf = (options: Response) => `${jar.header}; ${new CookieJar().take(options).header}`;
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+
+      const answers = await Promise.all(
+        [first, second].map(async options =>
+          post('auth/passkey/verify-registration', cookieOf(options), {
+            name: 'iPhone',
+            response: new Authenticator().create((options.body as { challenge: string }).challenge)
+          })
+        )
+      );
+      const statuses = answers.map(answer => answer.status).sort();
+      const refused = answers.find(answer => answer.status !== 200);
+
+      expect(statuses).toEqual([200, 403]);
+      expect((refused?.body as { code?: string }).code).toBe('PASSWORD_CONFIRMATION_REQUIRED');
+      expect(await passkeysOf(id)).toHaveLength(1);
+      expect(await auditRows(id, 'auth.passkey_added')).toHaveLength(1);
+    });
+  });
+
+  describe('signing in with a passkey meets every guard the password does', () => {
+    async function signedInAfter(change: (id: string) => Promise<unknown>): Promise<Response> {
+      const { id, jar } = await account(`guards-${String(Math.random()).slice(2, 8)}`);
+      const device = new Authenticator();
+
+      expect((await addPasskey(jar, device)).status).toBe(200);
+      await change(id);
+
+      const { jar: browser, response } = await passkeySignIn(device);
+
+      expect(response.status).toBe(200);
+      expect(browser.has('session_token')).toBe(true);
+
+      return get('profile', browser.header);
+    }
+
+    it('answers 409 PASSWORD_CHANGE_REQUIRED to an account whose password was found breached', async () => {
+      const answer = await signedInAfter(async id => sql()`update "user" set password_compromised_at = now() where id = ${id}`);
+
+      expect(answer.status).toBe(409);
+      expect((answer.body as { code?: string }).code).toBe('PASSWORD_CHANGE_REQUIRED');
+    });
+
+    it('answers 409 EMAIL_NOT_VERIFIED to an account whose address is not confirmed', async () => {
+      const answer = await signedInAfter(async id => sql()`update "user" set email_verified = false where id = ${id}`);
+
+      expect(answer.status).toBe(409);
+      expect((answer.body as { code?: string }).code).toBe('EMAIL_NOT_VERIFIED');
+    });
+
+    it('answers 409 ACCOUNT_NOT_ACTIVATED to an account the owner has not opened', async () => {
+      const answer = await signedInAfter(async id => sql()`update "user" set activated_at = null where id = ${id}`);
+
+      expect(answer.status).toBe(409);
+      expect((answer.body as { code?: string }).code).toBe('ACCOUNT_NOT_ACTIVATED');
+    });
+  });
+
+  describe('an account with TOTP on', () => {
+    it('signs in with its passkey with no second step (0083), and that sign-in cancels a pending removal of the factor', async () => {
+      const { id, email, jar } = await account('totp');
+      const device = new Authenticator();
+
+      expect((await addPasskey(jar, device)).status).toBe(200);
+
+      const enabled = await post('auth/two-factor/enable', jar.header, { password: PASSWORD });
+
+      expect(enabled.status).toBe(200);
+
+      const verified = await post('auth/two-factor/verify-totp', jar.header, { code: await clock.fresh((enabled.body as { totpURI: string }).totpURI) });
+
+      expect(verified.status).toBe(200);
+
+      const [factor] = await sql()<{ on: boolean }>`select two_factor_enabled as on from "user" where id = ${id}`;
+
+      expect(factor?.on).toBe(true);
+
+      // The password door asks for the code: that is the factor this sign-in walks past, on purpose.
+      const challenged = await post('auth/sign-in/email', '', { email, password: PASSWORD });
+
+      expect(challenged.body).toMatchObject({ twoFactorRedirect: true });
+
+      await sql()`
+        insert into two_factor_removal (user_id, requested_at, due_at)
+        values (${id}, now(), now() + interval '48 hours')`;
+
+      const { jar: browser, response } = await passkeySignIn(device);
+
+      expect(response.status).toBe(200);
+      expect(response.body).not.toHaveProperty('twoFactorRedirect');
+      expect(response.body).toMatchObject({ user: { id } });
+      expect(browser.has('session_token')).toBe(true);
+      expect(browser.has('two_factor')).toBe(false);
+      expect((await get('users/me', browser.header)).status).toBe(200);
+
+      const [removal] = await sql()<{ cancelledAt: string | null }>`select cancelled_at::text as "cancelledAt" from two_factor_removal where user_id = ${id}`;
+
+      expect(removal?.cancelledAt).not.toBeNull();
+      expect(await auditRows(id, 'auth.2fa_removal_cancelled')).toEqual([
+        { actorId: id, entity: 'user', entityId: null, ipHash: null, metadata: { by: 'account' }, subjectUserId: id }
+      ]);
+      await until(() => outbox.some(mail => mail.to === email && mail.kind === 'two-factor-removal-cancelled'), 'the "removal cancelled" mail');
+    });
+  });
+
+  describe('a verify made for another challenge', () => {
+    it('leaves neither challenge in any log line', async () => {
+      const { jar } = await account('log');
+      const device = new Authenticator();
+
+      expect((await addPasskey(jar, device)).status).toBe(200);
+
+      const lines: string[] = [];
+      const keep = (...parts: unknown[]) => {
+        lines.push(parts.map(part => (typeof part === 'string' ? part : inspect(part))).join(' '));
+      };
+      const spies = [
+        ...(['debug', 'error', 'log', 'verbose', 'warn'] as const).map(level => jest.spyOn(Logger.prototype, level).mockImplementation(keep)),
+        ...(['debug', 'error', 'info', 'log', 'warn'] as const).map(level => jest.spyOn(console, level).mockImplementation(keep))
+      ];
+
+      try {
+        const browser = new CookieJar();
+        const options = await get('auth/passkey/generate-authenticate-options', '');
+        const ours = (options.body as { challenge: string }).challenge;
+        const theirs = `a-challenge-somebody-else-was-given-${String(stamp)}`;
+
+        browser.take(options);
+
+        const refused = await post('auth/passkey/verify-authentication', browser.header, { response: device.get(theirs) });
+
+        expect(refused.status).toBe(400);
+        expect((refused.body as { code?: string }).code).toBe('AUTHENTICATION_FAILED');
+        expect(lines.join('\n')).toContain('Failed to verify authentication');
+        expect(lines.join('\n')).not.toContain(ours);
+        expect(lines.join('\n')).not.toContain(theirs);
+      } finally {
+        for (const spy of spies) {
+          spy.mockRestore();
+        }
+      }
+    });
+  });
+
+  describe('a password change', () => {
+    it('removes every passkey of the account, writes auth.passkey_removed for each, and the mail says so', async () => {
+      const { id, email, jar } = await account('change');
+
+      await addPasskey(jar, new Authenticator());
+      await addPasskey(jar, new Authenticator());
+      expect(await passkeysOf(id)).toHaveLength(2);
+
+      const changed = await changePassword(jar, 'amber-lantern-quietly-walks-8');
+
+      expect(changed.status).toBe(200);
+      expect(await passkeysOf(id)).toEqual([]);
+      expect(await auditRows(id, 'auth.passkey_removed')).toEqual([
+        { actorId: id, entity: 'passkey', entityId: null, ipHash: null, metadata: {}, subjectUserId: id },
+        { actorId: id, entity: 'passkey', entityId: null, ipHash: null, metadata: {}, subjectUserId: id }
+      ]);
+
+      await until(() => outbox.some(mail => mail.to === email && /han quitado las 2 llaves de acceso/.test(mail.text)), 'the change mail');
+    });
+  });
+
   describe('a password reset', () => {
     it('removes every passkey of the account, writes auth.passkey_removed for each, and the mail says so', async () => {
       const { id, email, jar } = await account('reset');
@@ -474,7 +725,7 @@ describe('passkeys: Better Auth’s plugin, owned by the session', () => {
       await addPasskey(jar, new Authenticator());
       expect(await passkeysOf(id)).toHaveLength(2);
 
-      expect((await post('auth/request-password-reset', '', { email })).status).toBe(200);
+      expect((await waitedOut(async () => post('auth/request-password-reset', '', { email }))).status).toBe(200);
 
       // Read from the table, not from the mail: the row is written before the response, the mail may land after it.
       const [row] = await sql()<{ identifier: string }>`
@@ -490,6 +741,68 @@ describe('passkeys: Better Auth’s plugin, owned by the session', () => {
       ]);
 
       await until(() => outbox.some(mail => mail.to === email && /han quitado las 2 llaves de acceso/.test(mail.text)), 'the reset mail');
+    });
+  });
+
+  describe('a password reset whose transaction fails', () => {
+    /** A reset token for the account, read from the table: the row is written before the response, the mail may land after it. */
+    async function resetToken(id: string, email: string): Promise<string> {
+      expect((await waitedOut(async () => post('auth/request-password-reset', '', { email }))).status).toBe(200);
+
+      const [row] = await sql()<{ identifier: string }>`
+        select identifier from verification where value = ${id} and identifier like 'reset-password:%' order by created_at desc limit 1`;
+
+      return row?.identifier.slice('reset-password:'.length) ?? '';
+    }
+
+    it('still removes every passkey, on its own, with a row each, and the mail says how many went', async () => {
+      const { id, email, jar } = await account('reset-fails');
+
+      await addPasskey(jar, new Authenticator());
+      await addPasskey(jar, new Authenticator());
+
+      const token = await resetToken(id, email);
+      const failed = jest.spyOn(UserController, 'passwordChanged').mockRejectedValueOnce(new Error('database unavailable'));
+      const errors = jest.spyOn(Logger.prototype, 'error');
+
+      try {
+        const reset = await post('auth/reset-password', '', { newPassword: 'amber-lantern-quietly-walks-9', token });
+
+        expect(reset.status).toBe(200);
+        expect(failed).toHaveBeenCalledWith(id, 'reset');
+        expect(await passkeysOf(id)).toEqual([]);
+        expect(await auditRows(id, 'auth.passkey_removed')).toHaveLength(2);
+        expect(await auditRows(id, 'auth.password_changed')).toEqual([]);
+        expect(errors).toHaveBeenCalledWith(`password_change_unrecorded {"userId":"${id}","via":"reset"}`);
+        expect(errors).not.toHaveBeenCalledWith(expect.stringContaining('passkeys_not_removed'));
+        await until(() => outbox.some(mail => mail.to === email && /han quitado las 2 llaves de acceso/.test(mail.text)), 'the reset mail');
+      } finally {
+        failed.mockRestore();
+        errors.mockRestore();
+      }
+    });
+
+    it('says passkeys_not_removed at error level when the second attempt fails too', async () => {
+      const { id, email, jar } = await account('reset-fails-twice');
+
+      await addPasskey(jar, new Authenticator());
+
+      const token = await resetToken(id, email);
+      const failed = jest.spyOn(UserController, 'passwordChanged').mockRejectedValueOnce(new Error('database unavailable'));
+      const retried = jest.spyOn(UserController, 'forgetPasskeys').mockRejectedValueOnce(new Error('database unavailable'));
+      const errors = jest.spyOn(Logger.prototype, 'error');
+
+      try {
+        const reset = await post('auth/reset-password', '', { newPassword: 'amber-lantern-quietly-walks-10', token });
+
+        expect(reset.status).toBe(200);
+        expect(retried).toHaveBeenCalledWith(id);
+        expect(errors).toHaveBeenCalledWith(`passkeys_not_removed {"userId":"${id}"}`);
+      } finally {
+        failed.mockRestore();
+        retried.mockRestore();
+        errors.mockRestore();
+      }
     });
   });
 

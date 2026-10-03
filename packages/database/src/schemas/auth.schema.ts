@@ -161,7 +161,10 @@ export const twoFactor = pgTable(
  * the key up by that id alone, before it knows the account, and with
  * attestation `none` the id is whatever the registering client sent — one
  * account must not be able to register another's id and so stand in the way
- * of, or in front of, its sign-in.
+ * of, or in front of, its sign-in. A second account offering an id already
+ * registered fails on this constraint inside the plugin's insert, which
+ * Better Auth answers with a 500: nothing is stored and nothing is said about
+ * whose the id is, so the 500 is acceptable.
  */
 export const passkey = pgTable(
   'passkey',

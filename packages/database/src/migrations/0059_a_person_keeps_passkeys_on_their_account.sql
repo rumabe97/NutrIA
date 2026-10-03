@@ -9,8 +9,10 @@
 -- UNIQUE: one authenticator's key belongs to one account. counter is bigint because WebAuthn's counter is an unsigned
 -- 32-bit number. The old API, still running while this deploys, has no passkey plugin and its Drizzle schema does not
 -- name the table, so it neither reads nor writes it. If the API is rolled back, passkeys already added stay in their
--- rows, unused — nobody can sign in with one until the new API returns — and a password reset made meanwhile does not
--- remove them (the new API's rule); the person removes them under Seguridad, or the table is emptied by hand.
+-- rows, unused — nobody can sign in with one until the new API returns — and a password change or reset made meanwhile
+-- does not remove them (the new API's rule); the person removes them under Seguridad, or the table is emptied by hand.
+-- Redeploying after a rollback must first DELETE FROM passkey (or the rows of accounts that reset or changed their
+-- password meanwhile), because the old API did not remove passkeys.
 CREATE TABLE "passkey" (
 	"id" text PRIMARY KEY NOT NULL,
 	"aaguid" text,
