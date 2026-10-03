@@ -59,7 +59,10 @@ function offeredBeside(of: Larder, dish: Parameters<typeof setsBeside>[1]): Set<
   );
 }
 
-const allergic = (allergenId: string): SafetyProfile => toSafetyProfile([{ allergenId, crossContaminationSensitive: false }], []);
+function allergic(allergenId: string): SafetyProfile {
+  return toSafetyProfile([{ allergenId, crossContaminationSensitive: false }], []);
+}
+
 const SPANISH_FISH = { cuisine: 'Española', ingredients: [{ grams: 150, slug: 'merluza' }], servings: 1 };
 
 describe('the new sides on the real catalogue', () => {
