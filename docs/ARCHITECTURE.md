@@ -193,6 +193,25 @@ Our hooks add the rules the plugin lacks:
 
 The plugin's provisional session is not counted as a `session_started`.
 
+**A passkey is a passwordless door as strong as a second factor** (011 phase 5, `0083`,
+amending `0074`). It is Better Auth's `passkey` plugin, bound to the web origin's host.
+Every registration and every sign-in must verify the person (WebAuthn UV): the options ask
+for it, and our `afterVerification` hooks refuse an answer without it. So a passkey sign-in
+opens a session with no second step, **even for an account with TOTP on**, and that is on
+purpose. The guards after sign-in still apply to it as to any session (`EMAIL_NOT_VERIFIED`,
+`ACCOUNT_NOT_ACTIVATED`, `PASSWORD_CHANGE_REQUIRED`).
+
+Our hooks add the rules the plugin lacks:
+- adding one needs a confirmed address and the password confirmed, as a single-use grant
+  for that session that the verify spends atomically, or a session ten minutes young for
+  an account with no password;
+- another account's passkey is the guard's 404 on delete and rename;
+- any password change, from Seguridad or by a reset, removes every passkey of the account
+  in the same transaction (and again on its own if that fails);
+- a passkey sign-in cancels a pending removal of the second factor;
+- adding and removing one are audited, and adding one is mailed;
+- no WebAuthn challenge reaches a log line.
+
 **Where onboarding resumes is resolved server-side.** `OnboardingView.resumeStep` is the
 first *missing* required step, not the furthest one reached — `currentStep` is the step
 after the last one saved, so re-editing an early answer used to send a returning user to a
