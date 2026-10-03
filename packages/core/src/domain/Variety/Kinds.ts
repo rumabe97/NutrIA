@@ -58,6 +58,24 @@ export function kindExcess(meals: readonly KindMeal[], days: number, rule: KindR
   return excess;
 }
 
+/** How many meals in these are past `rule`'s cap, counted per kind — the cap alone, not the days running (`kindExcess` counts both). */
+export function kindPastCap(meals: readonly KindMeal[], days: number, rule: KindRule): number {
+  const totals = new Map<string, number>();
+
+  for (const meal of meals) {
+    totals.set(meal.kind, (totals.get(meal.kind) ?? 0) + 1);
+  }
+
+  const cap = kindCap(rule, days);
+
+  return [...totals.values()].reduce((sum, total) => sum + Math.max(0, total - cap), 0);
+}
+
+/** Whether a meal of `kind` would take it past `rule`'s cap over `meals`: the cap alone, wherever the meal lands. */
+export function kindAtCap(kind: string | null | undefined, meals: readonly KindMeal[], days: number, rule: KindRule): boolean {
+  return kind !== null && kind !== undefined && meals.filter(meal => meal.kind === kind).length >= kindCap(rule, days);
+}
+
 /** Whether a meal of `kind` on `dayIndex` would add to `kindExcess` over `meals`: at its cap or, kept apart, beside one of its kind. */
 export function kindCrowded(kind: string | null | undefined, dayIndex: number, meals: readonly KindMeal[], days: number, rule: KindRule): boolean {
   if (kind === null || kind === undefined) {
