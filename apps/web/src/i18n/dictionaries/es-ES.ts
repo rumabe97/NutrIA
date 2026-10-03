@@ -1186,6 +1186,7 @@ export const esES = {
     sendLink: 'Enviar enlace',
     signIn: 'Acceder',
     signingIn: 'Accediendo…',
+    signInPaused: 'Demasiados intentos; prueba dentro de un rato.',
     signInSubtitle: 'Accede para ver tu plan de hoy.',
     signInTitle: 'Bienvenido de nuevo',
     signInUnavailable: 'No hemos podido iniciar sesión (error {status}). Inténtalo de nuevo en un momento.',

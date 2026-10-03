@@ -163,8 +163,12 @@ An account holds health data (RGPD art. 9), and nothing beyond a password guards
     his codes; the owner still reaches `/admin`. A Google-only account in either role is
     not blocked.
 12. **Per-account brake.** After ~10 failed sign-ins in 15 minutes for one address, the
-    next tries wait longer each time; the right password still gets in after the wait;
-    there is no hard lock. The address is stored only as an HMAC.
+    next tries wait longer each time. No wait is longer than 15 minutes, and passkeys and
+    Google sign-in are never braked. An attacker who knows the address and keeps failing
+    can hold a password-only address braked for as long as the attack runs; the reset
+    clears the brake but can be raced. A device-exemption cookie is the follow-up
+    (phase 7b). The address is stored only as an HMAC. *(Amended 2026-10-03, owner's
+    delegation, after the invariant review.)*
 13. **Sign-up reveals nothing.** Sign-up answers identically for a new and an existing
     address; the existing one receives the "someone tried" email; a new user signs in by
     confirming the address. The web's copy says so, in both languages.

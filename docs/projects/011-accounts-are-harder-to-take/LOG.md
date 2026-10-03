@@ -643,3 +643,102 @@
   Postgres, all green:
   - professionals, admin, two-factor-removal, two-factor, passkeys and access: 179;
   - care, care-practice, care-review, plan-scheduled-care, accompaniments and audit: 171.
+
+## Phase 7 — A brake per account (2026-10-03)
+
+- **Executor**: opus 5.5 @ high (`backend`, one agent; the lead allowed it to edit
+  `apps/web`'s `SignInForm` and dictionaries and `apps/api/test` for this phase).
+- **Result**: partial — built, migration `0060`, unit and local e2e green; the migration
+  and invariant reviews and CI are still to come.
+- **What was built**:
+  - `sign_in_failure` (`0060_a_sign_in_brake_per_address`): `key` (HMAC-SHA256 of
+    `sign-in-brake:` + the lower-cased address, with `BETTER_AUTH_SECRET`), `count`,
+    `window_started_at`, `next_allowed_at`. No address, no user FK.
+  - The rule is `core/domain/SignInBrake` (`decideAttempt`, `waitAfter`): the tenth attempt
+    in fifteen minutes runs and leaves the next waiting 30 s, then 1, 2, 4, 8 min, capped at
+    15 min. Until the waits begin, the window is fixed from its first attempt; once they have
+    begun, it restarts only after fifteen minutes with no attempt past the end of the last
+    wait, so a patient guesser stays at the cap rather than earning nine free tries back.
+  - `hooks.before` on `/sign-in/email` answers 429 `{code:'TOO_MANY_ATTEMPTS'}` with
+    `Retry-After` and `X-Retry-After` while the address waits, before the password is checked.
+    It is the same for an address with an account and one without: nothing about the
+    account is looked up.
+  - A 2xx sign-in clears the row. So does a password reset (`onPasswordReset`).
+  - The daily `/cron/sweep-verifications` now also deletes brake rows a day quiet, and the
+    `auth.*` audit rows older than twelve calendar months, and nothing else
+    (`AuthRetentionService`; the run's record gains `signInFailures` and `authAuditRows`).
+  - `SignInForm` maps any 429 to "Demasiados intentos; prueba dentro de un rato." /
+    "Too many attempts; try again in a while." (`auth.signInPaused`).
+- **Deviations from plan** (plan amended in the same change):
+  - **Counted before, not after.** The plan counted a 401 in `hooks.after`. That leaves the
+    time Better Auth spends hashing (tens of ms) between the check and the count, and a burst
+    from many IPs would all pass the check together. Every attempt is now counted in
+    `hooks.before`, in one transaction under the row's lock
+    (`INSERT … ON CONFLICT DO UPDATE … RETURNING`, then `UPDATE`). A correct password
+    deletes the row, so what stays counted is the failures. A braked attempt writes nothing,
+    so a wait is never stretched by the attempts made during it.
+  - **A reset clears the brake.** Whoever reset holds the mailbox, and should not wait out a
+    brake somebody else's guesses at the old password left.
+  - **It fails open.** If its row cannot be read or written, the sign-in goes on behind
+    Better Auth's per-IP limit and the line `sign_in_brake_unavailable` is written (never
+    the address). A broken brake must not lock everybody out.
+  - `X-Retry-After` beside `Retry-After`: it is the header Better Auth's own limiter sends,
+    and the e2e harness's `paced` reads it to tell the product's 429 from the API guard's.
+- **Passkeys are not braked** (the lead's question). A passkey sign-in has no password to
+  guess. Its verify is already held to 3 in 10 s per IP, and every attempt needs a
+  user-verified signature from a registered key (`0083`). Braking it by address would only
+  let a stranger shut the owner's one guess-proof door. It also stays open, with Google,
+  for the owner of an address somebody else is braking.
+- **Known limits** (accepted, stated for the reviewers):
+  - The brake throttles; it does not stop. Escalating then going quiet, a guesser gets
+    about ten tries per quarter hour per address, under a thousand a day, from any number of IPs.
+    Against a 12-character password with no known breach that is harmless. A daily budget
+    would be the next step if the § 9 numbers ever show it.
+  - **Not "never a hard lock"** (invariant review, P1-a). An attacker who knows the
+    address can keep a password-only account braked for as long as the attack runs: the
+    attempt at the end of each wait goes to whoever asks first, and `Retry-After` says
+    when. A passkey or Google sign-in is the escape. The reset clears the row but can be
+    raced: ten more failures brake it again. No single wait exceeds 15 min. PRD 12 is
+    amended to say so, and phase 7b (a device cookie that exempts a browser that signed in
+    before) is the remedy, planned after phase 8.
+  - **Clearing on success leaks existence slowly** (invariant review, P1-b). Only an
+    address with an account can have its row cleared, by a correct sign-in or a reset. The
+    probe is nine failures, then the victim signs in with a password, then two more
+    probes: 401 then 401, where an address with no account answers 401 then 429. It needs
+    a password sign-in by the victim inside the prober's window. No health data crosses an
+    account boundary. The trade-off is that without clearing, the owner's own sign-ins
+    would count against them. **Stands as a known limit** (who decided: the lead, under
+    the owner's delegation of 2026-10-03 — the recommended option; the owner can revisit
+    it).
+  - **Decision** (who decided: the lead, under the owner's delegation of 2026-10-03, "las
+    decisiones anótalas con lo más recomendado"): ship the brake, state its limits
+    honestly, and plan the real remedy as phase 7b.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api` green:
+    core 125 files, database 53 tests, api 1511 tests.
+  - New tests:
+    - `core`: `SignInBrake.test.ts` (12), `SignInBrakeRepository.test.ts` (5: the exact SQL
+      of the locked upsert, the update, the clear and the sweep), `SignInBrakeController`,
+      and `AuditRepository`/`AuditController` for the purge (`action like 'auth.%' and
+      created_at < cutoff`).
+    - `database`: `schema.test.ts` (no address column, no FK).
+    - `api`: `SignInBrake.spec.ts` (10, over HTTP on the real `createAuth`),
+      `AuthRetention.spec.ts`, `Cron.controller.spec.ts`.
+  - End-to-end, local Postgres (`NUTRIA_LOCAL_PG=1`), one run:
+    `sign-in-brake|access|passwords|account-security|two-factor|passkeys|admin`, 7 suites,
+    **170/170**. `sign-in-brake.e2e-spec.ts` (5, then 6 after the review):
+    - (added after the invariant review, P2) thirty simultaneous wrong passwords for one
+      new address, each with its own `X-Forwarded-For`: exactly ten 401s, twenty 429s,
+      `count = 10` on the row; three runs, all green;
+    - ten failures, then 429 with `Retry-After` even to the right password, no session;
+    - an unknown address gets the same status, body and headers;
+    - four columns, 64-hex keys, no address in any row;
+    - after the real wait the right password gets in and the row is gone;
+    - the cron deletes a 13-month `auth.password_changed`, keeps an 11-month
+      `auth.passkey_added` and 13-month `account.activated` and `setting.changed`, deletes
+      a quiet brake row and keeps one still waiting.
+- **For `legal` and the lead**: the `auth.*` purge exists from this merge. `/privacidad`
+  still names no retention for those rows; it may say twelve months once this runs in
+  production (the plan's condition).
+- **Decisions**: none new.
+- **Advisor**: not consulted.

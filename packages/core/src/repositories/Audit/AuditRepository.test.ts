@@ -21,10 +21,18 @@ function render(fragment: SQL | undefined): { params: unknown[]; sql: string } {
 let rows: Record<string, unknown>[] = [];
 let counted: Record<string, unknown>[] = [{ n: 3 }];
 let inserted: Record<string, unknown> | undefined;
+let deleted: { table?: unknown; where?: SQL } = {};
 const seen: { countWhere?: SQL; limit?: number; offset?: number; pageWhere?: SQL } = {};
 
 vi.mock('database', () => ({
   database: () => ({
+    delete: (table: unknown) => ({
+      where: (where: SQL) => {
+        deleted = { table, where };
+
+        return { returning: () => Promise.resolve([{ id: 'a-1' }, { id: 'a-2' }]) };
+      }
+    }),
     insert: () => ({
       values: (values: Record<string, unknown>) => {
         inserted = values;
@@ -70,6 +78,7 @@ beforeEach(() => {
   rows = [];
   counted = [{ n: 3 }];
   inserted = undefined;
+  deleted = {};
 
   for (const key of Object.keys(seen)) {
     delete seen[key as keyof typeof seen];
@@ -138,5 +147,17 @@ describe('AuditRepository.page', () => {
     expect(seen.offset).toBe(10);
     expect(render(seen.countWhere)).toEqual(render(seen.pageWhere));
     expect(result).toEqual({ rows, total: 1 });
+  });
+});
+
+describe('AuditRepository.forgetAuthRowsBefore', () => {
+  it('deletes only rows whose action starts with auth. and that are older than the cutoff, and counts them', async () => {
+    const cutoff = new Date('2025-10-03T08:05:00.000Z');
+
+    await expect(AuditRepository.forgetAuthRowsBefore(cutoff)).resolves.toBe(2);
+    expect(render(deleted.where)).toEqual({
+      params: ['auth.%', cutoff.toISOString()],
+      sql: '("audit_logs"."action" like $1 and "audit_logs"."created_at" < $2)'
+    });
   });
 });

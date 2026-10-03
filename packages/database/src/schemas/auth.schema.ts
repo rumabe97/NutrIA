@@ -207,3 +207,23 @@ export const rateLimit = pgTable('rate_limit', {
   /** Epoch milliseconds, as Better Auth writes it. */
   lastRequest: bigint({ mode: 'number' }).notNull()
 });
+
+/**
+ * The per-address brake on password sign-in (PLAN 011 phase 7): how many
+ * sign-ins an address has tried lately, from however many IPs, and when the
+ * next one may run. `rate_limit` above counts per IP; this counts per address.
+ *
+ * `key` is an HMAC of the lower-cased address with `BETTER_AUTH_SECRET`, never
+ * the address: the table says nothing about who tried. No foreign key to
+ * `user`, on purpose: an address with no account is braked exactly like one
+ * with an account, or the brake would tell the two apart. A correct password
+ * deletes the row, and the daily `/cron/sweep-verifications` deletes rows a
+ * day quiet.
+ */
+export const signInFailure = pgTable('sign_in_failure', {
+  count: integer().notNull(),
+  key: text().primaryKey(),
+  /** Null until the attempts reach the brake; a sign-in before it answers 429. */
+  nextAllowedAt: timestamp({ withTimezone: true }),
+  windowStartedAt: timestamp({ withTimezone: true }).notNull()
+});
