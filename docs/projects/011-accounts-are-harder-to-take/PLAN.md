@@ -384,7 +384,7 @@ records what was decided.
 
 ### Phase 5 — Passkeys
 
-- [ ] pending
+- [x] done — #210; human-verify passed: the owner added a passkey and signed in with Face ID on his iPhone (2026-10-03; iOS version not recorded)
 - **Dispatch**: opus @ high — `/execute-project 011 phase 5`, as a `/team` (`backend`,
   `frontend`, `tests`). `quality-max`. Reviews: `invariant-reviewer`, `migration-reviewer`,
   `accessibility` with `/local-probe`. — human-verify: the owner adds a passkey on his
