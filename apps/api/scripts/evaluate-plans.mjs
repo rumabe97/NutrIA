@@ -28,7 +28,7 @@
  *
  * Usage (from the repository root, against the local Postgres `pnpm db:local` runs —
  * never Neon):
- *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--start YYYY-MM-DD] [--only <profile>]
+ *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds]]
  *
  * `--flag <name>` names a scheduler flag to measure with on (project 016). The
  * one that exists is `accompaniments`: each profile's larder (`larderFor`, the
@@ -39,6 +39,21 @@
  * hard filter on the month each day falls in — on a dish's fresh fruit since
  * 017 phase 2, and with accompaniments on what goes beside it — so the figures
  * depend on it. It is printed and recorded in the JSON.
+ *
+ * `--rotate [seeds]` (019 phase 1, default 10 seeds) plans the way production
+ * does instead of from the whole library: each seed is one fortnight's
+ * rotation — `reusablePool` with a `Rotation` built as `PlanGeneration` builds
+ * it, nineteen dishes a slot — then the same rescues in the same order: the
+ * whole library when the pool cannot fill a plan or the plan is blocked, and
+ * `wider_rotation` (the uncapped rotation, kept when `planBandMiss` is
+ * smaller) when a day misses a band. Without the model's fresh third: the
+ * pool is the rotation alone, which is what `PoolBuilder` serves with no
+ * provider. Each plan is scored for balance against PRD 019's table
+ * (`core/domain/Balance`), and the report is per profile, per goal and per
+ * rule. `--compare` does not read a rotate file.
+ *
+ * Every plan, plain or rotated, carries its balance score and its protein per
+ * kg at each meal (`balance`, `proteinPerKg`).
  *
  * Exit codes:
  *   0  every profile measured; no plate carried a declared allergen
@@ -54,19 +69,21 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts/guard.mjs';
 
 import { RecipeController } from 'core/controllers/Recipe';
+import { BALANCE_RULES, balanceOf, balanceSupply, mealGroups, mealServings, proteinPerKgBySlot } from 'core/domain/Balance';
 import { larderFor } from 'core/domain/Accompaniment';
 import { SafetyController } from 'core/controllers/Safety';
 import { cuisineFamily, dishGroups, groupFits, isSnackOrBreakfastDish, outOfSeasonFruit } from 'core/domain/MealFit';
 import { DEFAULT_MEAL_SHAPE, shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { loadedTargets } from 'core/domain/Event';
 import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
-import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValidation';
+import { isBlocking, PLAN_TOLERANCE, planBandMiss, validatePlan } from 'core/domain/PlanValidation';
 import {
   breaksDishRule,
   breaksPatternDish,
   freeFromExclusions,
   isForeignCuisine,
   isLegumeSlug,
+  leaningSlugs,
   PATTERN_EXCLUDED_SLUGS,
   resolvePreferences
 } from 'core/domain/Preference';
@@ -78,6 +95,7 @@ import {
   legumeKind,
   MAIN_SLOTS,
   mainProtein,
+  rotatePool,
   SNACK_KIND_SLOTS,
   snackKind,
   STARCH_RULES,
@@ -215,7 +233,7 @@ const BAND_KINDS = new Set(['carbs_out_of_band', 'fat_out_of_band', 'kcal_out_of
 // CLI
 // ---------------------------------------------------------------------------
 function parseArgs(argv) {
-  const options = { compare: null, flags: [], json: null, locale: 'es-ES', only: null, start: '2026-10-05' };
+  const options = { compare: null, flags: [], json: null, locale: 'es-ES', only: null, rotate: null, start: '2026-10-05' };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -230,6 +248,15 @@ function parseArgs(argv) {
       options.only = argv[(index += 1)];
     } else if (arg === '--start') {
       options.start = argv[(index += 1)];
+    } else if (arg === '--rotate') {
+      const seeds = /^\d+$/.test(argv[index + 1] ?? '') ? Number(argv[(index += 1)]) : 10;
+
+      if (seeds < 1) {
+        console.error('--rotate needs at least one seed');
+        process.exit(2);
+      }
+
+      options.rotate = seeds;
     } else if (arg === '--flag') {
       const name = argv[(index += 1)];
 
@@ -411,15 +438,13 @@ function contextFor(profile, shared) {
 }
 
 // ---------------------------------------------------------------------------
-// Measuring one profile
+// What `schedulePlan` needs for one profile beside its pool: its targets (null,
+// with the reason, when the equations reject them), its meals and their
+// weights, the days loaded for an event (`0043`), the month each day falls in,
+// and the larder when accompaniments are on. Shared by the plain run and
+// `--rotate`, so both plan the same person.
 // ---------------------------------------------------------------------------
-async function measureProfile(profile, shared, options) {
-  const { context, note } = contextFor(profile, shared);
-
-  if (!context) {
-    return { measured: false, note, slug: profile.slug };
-  }
-
+function planInputs(profile, context, options) {
   let targets;
 
   try {
@@ -427,7 +452,7 @@ async function measureProfile(profile, shared, options) {
     targets = { ...nutritionTargets(profile.target), ...profile.targets };
   } catch (error) {
     if (error instanceof TargetsUnreachableError) {
-      return { measured: false, note: `targets unreachable: ${error.message}`, slug: profile.slug };
+      return { note: `targets unreachable: ${error.message}`, targets: null };
     }
 
     throw error;
@@ -446,6 +471,58 @@ async function measureProfile(profile, shared, options) {
     }
   }
 
+  // The month each day falls in, from the fortnight's first day, as the API will give it.
+  const start = new Date(`${options.start}T12:00:00Z`);
+  const monthOf = dayIndex => new Date(start.getTime() + (dayIndex - 1) * 86_400_000).getUTCMonth() + 1;
+  const accompaniments = options.flags.includes('accompaniments')
+    ? { larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }), monthOf }
+    : undefined;
+
+  return { accompaniments, dayTargets, monthOf, slots, targets, weights };
+}
+
+/** Every declared allergen on a plate of the plan, re-checked meal by meal as `PlanGenerationService.assertPlanIsSafe` does. */
+function unsafeMeals(days, context) {
+  const unsafe = [];
+
+  for (const day of days) {
+    for (const meal of day.meals) {
+      const safety = dishSafety(meal.ingredients, context.catalogue, context.safety);
+
+      if (safety.kind === 'unsafe') {
+        for (const violation of safety.violations) {
+          unsafe.push({ dayIndex: day.dayIndex, dish: meal.dish.name, ingredient: violation.ingredientName, kind: violation.kind, slot: meal.slot });
+        }
+      }
+    }
+  }
+
+  return unsafe;
+}
+
+/** Vegetarian or vegan: the egg is their protein, and PRD 019 keeps their eggs uncapped. */
+function isPlantBased(profile) {
+  return profile.dietaryPattern === 'vegetarian' || profile.dietaryPattern === 'vegan';
+}
+
+// ---------------------------------------------------------------------------
+// Measuring one profile
+// ---------------------------------------------------------------------------
+async function measureProfile(profile, shared, options) {
+  const { context, note } = contextFor(profile, shared);
+
+  if (!context) {
+    return { measured: false, note, slug: profile.slug };
+  }
+
+  const inputs = planInputs(profile, context, options);
+
+  if (!inputs.targets) {
+    return { measured: false, note: inputs.note, slug: profile.slug };
+  }
+
+  const { accompaniments, dayTargets, monthOf, slots, targets, weights } = inputs;
+
   const pool = await RecipeController.reusablePool(slots, context);
   // What the library can serve each meal for this person, after `fitSlots`
   // (`0079` Table 2 included), against `DISHES_NEEDED_PER_SLOT`; and the
@@ -458,13 +535,6 @@ async function measureProfile(profile, shared, options) {
 
     dinnersByFamily[family] = (dinnersByFamily[family] ?? 0) + 1;
   }
-
-  // The month each day falls in, from the fortnight's first day, as the API will give it.
-  const start = new Date(`${options.start}T12:00:00Z`);
-  const monthOf = dayIndex => new Date(start.getTime() + (dayIndex - 1) * 86_400_000).getUTCMonth() + 1;
-  const accompaniments = options.flags.includes('accompaniments')
-    ? { larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }), monthOf }
-    : undefined;
 
   // The scheduler alone, without the pool's read or this report (017 phase 3): what generation waits for.
   const scheduleStarted = performance.now();
@@ -500,19 +570,7 @@ async function measureProfile(profile, shared, options) {
   // `reusablePool` already filtered by `dishSafety`; this re-checks what was
   // actually scheduled, so a placement bug that somehow introduced an unsafe
   // dish cannot hide behind "the pool was already safe".
-  const unsafe = [];
-
-  for (const day of scheduled.assignment.days) {
-    for (const meal of day.meals) {
-      const safety = dishSafety(meal.ingredients, context.catalogue, context.safety);
-
-      if (safety.kind === 'unsafe') {
-        for (const violation of safety.violations) {
-          unsafe.push({ dayIndex: day.dayIndex, dish: meal.dish.name, ingredient: violation.ingredientName, kind: violation.kind, slot: meal.slot });
-        }
-      }
-    }
-  }
+  const unsafe = unsafeMeals(scheduled.assignment.days, context);
 
   // Every day's own signed deviation from its own target, whether inside the
   // band or not — `bandViolations` only exists for a day *outside* one, so a
@@ -637,7 +695,15 @@ async function measureProfile(profile, shared, options) {
       matchesDayIndex: 'matchesDayIndex' in violation.violation ? violation.violation.matchesDayIndex : null,
       slot: 'slot' in violation.violation ? violation.violation.slot : null
     })),
-    worst
+    worst,
+    // 019 phase 1: the fortnight against PRD 019's table, and each meal's protein per kg.
+    balance: balanceOf({
+      catalogue: context.catalogue,
+      days: scheduled.assignment.days,
+      plantBased: isPlantBased(profile),
+      supply: balanceSupply(pool, context.catalogue)
+    }),
+    proteinPerKg: proteinPerKgBySlot(scheduled.assignment.days, profile.target.weightKg)
   };
 }
 
@@ -987,6 +1053,285 @@ function varietyMetrics(days, slots) {
     slotsFilled: days.length * slots.length,
     totalDistinct: new Set(days.flatMap(day => day.meals.map(meal => meal.dish.slug))).size
   };
+}
+
+// ---------------------------------------------------------------------------
+// Measuring one profile the way production plans it (`--rotate`, 019 phase 1)
+// ---------------------------------------------------------------------------
+
+/**
+ * What one rotation offers at lunch and dinner before the scheduler chooses
+ * anything (`0010` § 4.2): dishes that are a serving of legume, how many kinds
+ * of legume they are, and dishes that are a serving of fish. Read per serving.
+ */
+function rotationOffer(pool, catalogue) {
+  const kinds = new Set();
+  let legumeMains = 0;
+  let fishMains = 0;
+
+  for (const dish of pool.filter(candidate => candidate.slots.some(slot => MAIN_SLOTS.has(slot)))) {
+    const servings = dish.servings > 0 ? dish.servings : 1;
+    const served = mealServings(
+      mealGroups(
+        dish.ingredients.map(item => ({ grams: item.grams / servings, slug: item.slug })),
+        catalogue
+      )
+    );
+
+    if (served.legume) {
+      legumeMains += 1;
+      kinds.add(legumeKind(dish) ?? 'otra');
+    }
+
+    fishMains += served.fish ? 1 : 0;
+  }
+
+  return { fishMains, legumeKinds: kinds.size, legumeMains };
+}
+
+/**
+ * One profile over `options.rotate` seeds, each a fortnight planned as
+ * `PlanGeneration.service.ts` plans it with no model: the person's rotation
+ * (`reusablePool` with a `Rotation`), then the same rescues in the same order
+ * — the whole library when the pool cannot fill the plan, or when the plan is
+ * blocked; the uncapped rotation (`wider_rotation`) when a day misses a band
+ * and that plan misses by less (`planBandMiss`). A synthetic person has no
+ * history, dislikes or chosen kitchens, so only the foods their way of eating
+ * leans towards (`leaningSlugs`) lean the pick, as they do in production.
+ */
+async function measureRotations(profile, shared, options) {
+  const { context, note } = contextFor(profile, shared);
+
+  if (!context) {
+    return { measured: false, note, slug: profile.slug };
+  }
+
+  const inputs = planInputs(profile, context, options);
+
+  if (!inputs.targets) {
+    return { measured: false, note: inputs.note, slug: profile.slug };
+  }
+
+  const { accompaniments, dayTargets, monthOf, slots, targets, weights } = inputs;
+  // The person's whole filtered library: the full-library rescue, the tail of the
+  // uncapped rotation, and what decides which rules apply to them.
+  const everything = await RecipeController.reusablePool(slots, context);
+  const supply = balanceSupply(everything, context.catalogue);
+  const schedule = pool =>
+    schedulePlan({
+      accompaniments,
+      catalogue: context.catalogue,
+      dayTargets,
+      minimumKcal: minimumDailyKcal(profile.target.sex),
+      monthOf,
+      pool,
+      targets,
+      weights
+    });
+  const check = assignment =>
+    validatePlan({
+      assignment,
+      dayTargets,
+      expectedDays: PLAN_DAYS,
+      expectedSlots: slots,
+      sex: profile.target.sex,
+      targets,
+      weightKg: profile.target.weightKg
+    });
+  const plans = [];
+
+  for (let seed = 1; seed <= options.rotate; seed += 1) {
+    const rotation = {
+      avoidSlugs: new Set(),
+      preferCuisines: new Set(),
+      preferIngredientSlugs: leaningSlugs(context.preferences),
+      preferSlugs: new Set(),
+      seed: `${profile.slug}:${seed}`
+    };
+    // eslint-disable-next-line no-await-in-loop -- one read per seed, inside the run's one read-only transaction.
+    const reusable = await RecipeController.reusablePool(slots, context, rotation);
+    const started = performance.now();
+    let scheduled = schedule(reusable);
+    let fallback = null;
+
+    if (!scheduled.ok) {
+      scheduled = schedule(everything);
+      fallback = 'full_library';
+    }
+
+    if (!scheduled.ok) {
+      plans.push({ measured: false, seed, shortfall: scheduled.shortfall });
+      continue;
+    }
+
+    let violations = check(scheduled.assignment);
+
+    if (violations.some(isBlocking) && fallback === null) {
+      const retried = schedule(everything);
+
+      if (retried.ok && !check(retried.assignment).some(isBlocking)) {
+        scheduled = retried;
+        violations = check(retried.assignment);
+        fallback = 'full_library';
+      }
+    }
+
+    const missedBand = fallback === null && planBandMiss(violations) > 0;
+
+    if (missedBand) {
+      const rest = rotatePool(everything, slots, rotation, Number.POSITIVE_INFINITY);
+      const wider = [...new Map([...reusable, ...rest].map(dish => [dish.slug, dish])).values()];
+      const retried = schedule(wider);
+
+      if (retried.ok) {
+        const retriedViolations = check(retried.assignment);
+
+        if (!retriedViolations.some(isBlocking) && planBandMiss(retriedViolations) < planBandMiss(violations)) {
+          scheduled = retried;
+          violations = retriedViolations;
+          fallback = 'wider_rotation';
+        }
+      }
+    }
+
+    const scheduleMs = Math.round(performance.now() - started);
+    const daysOutside = new Set(violations.filter(violation => BAND_KINDS.has(violation.kind)).map(violation => violation.dayIndex));
+
+    plans.push({
+      balance: balanceOf({ catalogue: context.catalogue, days: scheduled.assignment.days, plantBased: isPlantBased(profile), supply }),
+      blocking: violations.filter(isBlocking).length,
+      daysInsideAll4: PLAN_DAYS - daysOutside.size,
+      fallback,
+      measured: true,
+      missedBand,
+      offer: rotationOffer(reusable, context.catalogue),
+      poolSize: reusable.length,
+      proteinPerKg: proteinPerKgBySlot(scheduled.assignment.days, profile.target.weightKg),
+      scheduleMs,
+      seed,
+      unsafe: unsafeMeals(scheduled.assignment.days, context)
+    });
+  }
+
+  return { goal: profile.target.goal, measured: plans.every(plan => plan.measured), note, plans, slug: profile.slug, supply };
+}
+
+function median(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+
+  return sorted.length === 0 ? null : sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+/** Lowest / median / highest of a figure over a profile's measured plans. */
+function spread(plans, read) {
+  const values = plans.map(read);
+
+  return values.length === 0 ? null : { max: Math.max(...values), median: median(values), min: Math.min(...values) };
+}
+
+/**
+ * A rotate run summed up: per profile, the spread of the figures report `0010`
+ * § 4.2 tabulates; per rule, the plans it applied to and held on; per goal,
+ * the mean of its profiles' median scores.
+ */
+function summariseRotations(results) {
+  const profiles = results.map(result => {
+    const plans = (result.plans ?? []).filter(plan => plan.measured);
+
+    return {
+      days: spread(plans, plan => plan.daysInsideAll4),
+      fallbacks: Object.fromEntries(['full_library', 'wider_rotation'].map(kind => [kind, plans.filter(plan => plan.fallback === kind).length])),
+      fish: spread(plans, plan => plan.balance.counts.fish),
+      goal: result.goal,
+      legumes: spread(plans, plan => plan.balance.counts.legumes),
+      missedBand: plans.filter(plan => plan.missedBand).length,
+      offerLegumeKinds: spread(plans, plan => plan.offer.legumeKinds),
+      offerLegumeMains: spread(plans, plan => plan.offer.legumeMains),
+      plans: plans.length,
+      processed: spread(plans, plan => plan.balance.counts.processed),
+      score: spread(plans, plan => plan.balance.score),
+      slug: result.slug
+    };
+  });
+  const allPlans = results.flatMap(result => (result.plans ?? []).filter(plan => plan.measured));
+  const rules = Object.fromEntries(
+    BALANCE_RULES.map(rule => {
+      const applying = allPlans.filter(plan => plan.balance.rules[rule].applies);
+
+      return [rule, { applies: applying.length, met: applying.filter(plan => plan.balance.rules[rule].met).length }];
+    })
+  );
+  const goals = {};
+
+  for (const profile of profiles.filter(entry => entry.score)) {
+    (goals[profile.goal] ??= []).push(profile.score.median);
+  }
+
+  return {
+    days: { inside: allPlans.reduce((sum, plan) => sum + plan.daysInsideAll4, 0), of: allPlans.length * PLAN_DAYS },
+    goals: Object.fromEntries(
+      Object.entries(goals).map(([goal, scores]) => [
+        goal,
+        { meanOfMedians: scores.reduce((sum, value) => sum + value, 0) / scores.length, profiles: scores.length }
+      ])
+    ),
+    plans: allPlans.length,
+    profiles,
+    rules,
+    unsafe: allPlans.reduce((sum, plan) => sum + plan.unsafe.length, 0)
+  };
+}
+
+function printRotations(results, summary) {
+  const range = value => (value ? `${round1(value.min)} / ${round1(value.median)} / ${round1(value.max)}` : 'n/a');
+
+  for (const result of results) {
+    const profile = summary.profiles.find(entry => entry.slug === result.slug);
+
+    console.log(`\n${result.slug} (${result.goal ?? 'n/a'})${result.note ? ` — note: ${result.note}` : ''}`);
+
+    if (!profile || profile.plans === 0) {
+      console.log('  COULD NOT MEASURE');
+      continue;
+    }
+
+    const unmeasured = (result.plans ?? []).filter(plan => !plan.measured);
+
+    console.log(
+      `  plans ${profile.plans}${unmeasured.length > 0 ? ` (could not measure seeds ${unmeasured.map(plan => plan.seed).join(', ')})` : ''}; days in band ${range(profile.days)};` +
+        ` band missed on the rotation ${profile.missedBand}, rescued by wider_rotation ${profile.fallbacks.wider_rotation}, full_library ${profile.fallbacks.full_library}`
+    );
+    console.log(
+      `  min / median / max — legumes ${range(profile.legumes)}, fish ${range(profile.fish)}, processed ${range(profile.processed)}, score ${range(profile.score)}`
+    );
+    console.log(
+      `  rotation offer at lunch and dinner — legume dishes ${range(profile.offerLegumeMains)}, of kinds ${range(profile.offerLegumeKinds)}`
+    );
+    console.log(
+      `  applies: ${Object.entries(result.supply ?? {})
+        .map(([group, has]) => `${group} ${has ? 'yes' : 'no'}`)
+        .join(', ')}`
+    );
+  }
+
+  console.log('\nRules held (plans where the rule applies):');
+
+  for (const [rule, { applies, met }] of Object.entries(summary.rules)) {
+    console.log(`  ${rule.padEnd(17)} ${met}/${applies}${applies > 0 ? ` (${Math.round((met / applies) * 100)}%)` : ''}`);
+  }
+
+  console.log("\nScore by goal (mean of the profiles' median scores):");
+
+  for (const [goal, { meanOfMedians, profiles }] of Object.entries(summary.goals)) {
+    console.log(`  ${goal.padEnd(15)} ${Math.round(meanOfMedians * 100)}% (${profiles} profile${profiles === 1 ? '' : 's'})`);
+  }
+
+  console.log(`\nDays inside 5% on all four macros: ${summary.days.inside} / ${summary.days.of}; plates with a declared allergen: ${summary.unsafe}`);
+}
+
+function round1(value) {
+  return Math.round(value * 100) / 100;
 }
 
 // ---------------------------------------------------------------------------
@@ -1587,11 +1932,14 @@ function printProfile(profile, result) {
     );
 
     const { largest, lightOverTwo, lightPlates } = result.mainMeals;
-    const listed = items => (items.length > 0 ? ` (${items.map(item => `day ${item.dayIndex} ${item.slot}: "${item.dish}" ×${item.servings}`).join('; ')})` : '');
+    const listed = items =>
+      items.length > 0 ? ` (${items.map(item => `day ${item.dayIndex} ${item.slot}: "${item.dish}" ×${item.servings}`).join('; ')})` : '';
 
     console.log(`  lunches and dinners filled by a snack or breakfast dish (017 p3, must be 0): ${lightPlates.length}${listed(lightPlates)}`);
     console.log(`  of those, past 2 servings (017 p3, must be 0): ${lightOverTwo.length}${listed(lightOverTwo)}`);
-    console.log(`  largest plate at lunch or dinner: ${largest ? `×${largest.servings}, day ${largest.dayIndex} ${largest.slot}: "${largest.dish}"` : 'none'}`);
+    console.log(
+      `  largest plate at lunch or dinner: ${largest ? `×${largest.servings}, day ${largest.dayIndex} ${largest.slot}: "${largest.dish}"` : 'none'}`
+    );
 
     console.log(
       `  legumes by kind, every meal (017 p2, 3 a fortnight each, never on days running): ${
@@ -1599,6 +1947,19 @@ function printProfile(profile, result) {
           .map(([kind, count]) => `${kind} ${count}`)
           .join(', ') || 'none'
       }; days running ${legumeRuns.length}${legumeRuns.length > 0 ? ` (${legumeRuns.join(', ')})` : ''}`
+    );
+  }
+
+  if (result.balance) {
+    const missed = Object.entries(result.balance.rules)
+      .filter(([, rule]) => rule.applies && !rule.met)
+      .map(([name, rule]) => `${name} ${round1(rule.value)} (limit ${round1(rule.limit)})`);
+
+    console.log(`  balance against PRD 019 (019 p1): score ${Math.round(result.balance.score * 100)}%; missed ${missed.join(', ') || 'none'}`);
+    console.log(
+      `  protein g/kg by meal, mean (lowest): ${Object.entries(result.proteinPerKg)
+        .map(([slot, { mean, min }]) => `${slot} ${round1(mean)} (${round1(min)})`)
+        .join(', ')}`
     );
   }
 
@@ -1768,6 +2129,48 @@ function printComparison(before, results) {
 // holds for a single pnpm workspace process and is what the hand-back's
 // determinism check (running the whole script twice) also exercises.
 // ---------------------------------------------------------------------------
+/** A `--rotate` run's report, JSON and exit: its own, since `--compare` reads the plain run's shape. */
+function finishRotations(options, library, results) {
+  const summary = summariseRotations(results);
+
+  console.log(`Mode: --rotate ${options.rotate} — production's rotation and rescues, without the model's fresh dishes`);
+  printRotations(results, summary);
+
+  if (options.json) {
+    writeFileSync(
+      options.json,
+      JSON.stringify(
+        {
+          flags: options.flags,
+          library,
+          locale: options.locale,
+          rotate: options.rotate,
+          start: options.start,
+          profiles: PROFILES.map(profile => ({ description: profile.description, slug: profile.slug })),
+          summary,
+          results
+        },
+        null,
+        2
+      )
+    );
+    console.log(`\nWritten to ${options.json}`);
+  }
+
+  if (summary.unsafe > 0) {
+    console.error('\nEXIT 2 — a declared allergen reached a plate.');
+    process.exit(2);
+  }
+
+  if (results.some(result => !result.measured)) {
+    console.error('\nEXIT 1 — at least one profile or seed could not be measured.');
+    process.exit(1);
+  }
+
+  console.log('\nEXIT 0 — every plan measured; no plate carried a declared allergen.');
+  process.exit(0);
+}
+
 async function main() {
   assertNotProduction();
 
@@ -1796,7 +2199,7 @@ async function main() {
             // time inside a single transaction; concurrent reads would not change the
             // result, only make a failure harder to attribute to one profile.
             const started = performance.now();
-            const result = await measureProfile(profile, shared, options);
+            const result = options.rotate ? await measureRotations(profile, shared, options) : await measureProfile(profile, shared, options);
 
             results.push({ ...result, ms: Math.round(performance.now() - started) });
           }
@@ -1815,6 +2218,10 @@ async function main() {
   console.log(`Fortnight starts: ${options.start}`);
   console.log(`Profiles (fixed, reuse for the next run): ${PROFILES.map(profile => profile.slug).join(', ')}`);
   printLibrary(library);
+
+  if (options.rotate) {
+    finishRotations(options, library, results);
+  }
 
   for (const profile of PROFILES.filter(entry => !options.only || entry.slug === options.only)) {
     printProfile(
