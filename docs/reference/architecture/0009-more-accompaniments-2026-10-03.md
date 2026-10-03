@@ -961,3 +961,161 @@ Notas por entrada:
       'ensalada-de-remolacha': 'beetroot salad',
       datiles: 'dates ({grams})',
 ```
+### 5. Desayuno, y lo que vale para todas las familias (9)
+
+Hay 11 entradas nuevas con desayuno entre sus comidas: estas 9, más `picos-de-pan` y
+`datiles`. El criterio del PRD (al menos 5) se cumple sobre el papel. Pero el planificador
+no pone acompañamientos en el desayuno (condición 1), así que solo se verán las que también
+valen para comida y cena:
+
+| Entrada | Comidas | ¿Se sirve hoy? |
+|---|---|---|
+| `pan-con-tomate` | D C Ce | sí, en comida y cena (el pa amb tomàquet de la cena catalana) |
+| `tostada-con-aceite` | D | **no**: solo desayuno |
+| `yogur-con-miel` | D C Ce | sí, como el yogur de hoy |
+| `macedonia` | D C Ce | sí, de noviembre a marzo |
+| `avellanas` | D | **no**: solo desayuno (respuesta 7 de `0079`) |
+| `nispero`, `cereza`, `albaricoque`, `granada` | D C Ce | sí, cada una en sus meses del catálogo |
+
+- **Las cuatro frutas** llenan los meses más flojos:
+  - el níspero (4–5), la cereza (5–7) y el albaricoque (5–8) entran en primavera. En abril
+    hoy solo hay 7 postres en la mesa española.
+  - la granada (10–11) entra en otoño.
+  - Las cuatro ya están en el conjunto `FRUIT` de `Accompaniment.ts:399`, así que el filtro
+    "fruta junto a fruta" ya las conoce.
+- **`yogur-con-miel`** lleva leche. La miel tiene la clase `animal`, así que un vegano no
+  lo recibe. Kosher no lo pone junto a carne (`setsBeside`).
+- **`macedonia`** lleva naranja, manzana y plátano. Sus meses son el cruce de los de la
+  naranja y la manzana.
+- **`pan-con-tomate` y `tostada-con-aceite`** son de familia española y cuentan entre sus
+  22. `tostada-con-aceite` usa `pan-integral` para no repetir el pan blanco de
+  `pan-con-tomate`.
+- **Las avellanas** son el caso de frutos de cáscara de desayuno, junto a las nueces y las
+  almendras de hoy. Las propongo por si el lead decide abrir el desayuno. Si no, puede
+  rechazarlas sin perder nada.
+
+| Clave | Papel | Familias | Comidas | Meses | Ración | kcal | P | HC | G | Fibra | Alérgenos | Clases |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `pan-con-tomate` | starch | spanish, other | D C Ce | todo el año | 95.5 g | 204.4 | 5.1 | 30.9 | 7.1 | 2.2 | gluten | — |
+| `tostada-con-aceite` | starch | spanish, other | D | todo el año | 55.5 g | 170.2 | 6.2 | 21.4 | 6.8 | 3 | gluten | — |
+| `yogur-con-miel` | dessert | todas | D C Ce | todo el año | 135 g | 100.4 | 7.2 | 17.9 | 0.3 | 0 | lactose, milk | animal |
+| `macedonia` | dessert | todas | D C Ce | 11, 12, 1, 2, 3 | 180 g | 107.4 | 1.3 | 26.7 | 0.3 | 4.4 | — | — |
+| `avellanas` | dessert | todas | D | todo el año | 20 g | 125.6 | 3 | 3.3 | 12.2 | 1.9 | tree_nuts | — |
+|  | | | | | 30 g | 188.4 | 4.5 | 5 | 18.2 | 2.9 |  |  |
+| `nispero` | dessert | todas | D C Ce | catálogo | 150 g | 70.5 | 0.6 | 18.2 | 0.3 | 2.6 | — | — |
+| `cereza` | dessert | todas | D C Ce | catálogo | 150 g | 94.5 | 1.7 | 24 | 0.3 | 3.2 | — | — |
+| `albaricoque` | dessert | todas | D C Ce | catálogo | 140 g | 67.2 | 2 | 15.5 | 0.6 | 2.8 | — | — |
+| `granada` | dessert | todas | D C Ce | catálogo | 150 g | 124.5 | 2.6 | 28.1 | 1.8 | 6 | — | — |
+
+`ACCOMPANIMENTS`:
+
+```ts
+  composed(
+    'pan-con-tomate',
+    'starch',
+    SPANISH,
+    'all',
+    [
+      { grams: 50, slug: 'pan-blanco' },
+      { grams: 40, slug: 'tomate-triturado' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ],
+    BLD
+  ),
+  composed(
+    'tostada-con-aceite',
+    'starch',
+    SPANISH,
+    'all',
+    [
+      { grams: 50, slug: 'pan-integral' },
+      { grams: 5, slug: 'aceite-de-oliva-virgen-extra' },
+      { grams: 0.5, slug: 'sal' }
+    ],
+    ['breakfast']
+  ),
+  {
+    families: 'all',
+    key: 'yogur-con-miel',
+    months: 'all',
+    portions: [[{ grams: 125, slug: 'yogur-natural-desnatado' }, { grams: 10, slug: 'miel' }]],
+    role: 'dessert',
+    slots: BLD
+  },
+  {
+    families: 'all',
+    key: 'macedonia',
+    months: [11, 12, 1, 2, 3],
+    portions: [[{ grams: 80, slug: 'naranja' }, { grams: 60, slug: 'manzana' }, { grams: 40, slug: 'platano' }]],
+    role: 'dessert',
+    slots: BLD
+  },
+  {
+    families: 'all',
+    key: 'avellanas',
+    months: 'all',
+    portions: [[{ grams: 20, slug: 'avellanas' }], [{ grams: 30, slug: 'avellanas' }]],
+    role: 'dessert',
+    slots: ['breakfast']
+  },
+  fruit('nispero', 150),
+  fruit('cereza', 150),
+  fruit('albaricoque', 140),
+  fruit('granada', 150),
+```
+
+`COMPOSED_NAMES`:
+
+```ts
+  'pan-con-tomate': { 'en-GB': 'Bread with tomato', 'es-ES': 'Pan con tomate' },
+  'tostada-con-aceite': { 'en-GB': 'Wholemeal toast with olive oil', 'es-ES': 'Tostada integral con aceite' },
+  'yogur-con-miel': { 'en-GB': 'Yoghurt with honey', 'es-ES': 'Yogur con miel' },
+  macedonia: { 'en-GB': 'Fruit salad', 'es-ES': 'Macedonia de fruta' },
+```
+
+`COMPOSED_PREPARATIONS`:
+
+```ts
+  'pan-con-tomate': {
+    'en-GB': 'Toast the bread, spread the crushed tomato over it and finish with a teaspoon of oil and the salt.',
+    'es-ES': 'Tuesta el pan, extiende encima el tomate triturado y termina con una cucharadita de aceite y la sal.'
+  },
+  'tostada-con-aceite': {
+    'en-GB': 'Toast the bread and drizzle it with a teaspoon of oil and the salt.',
+    'es-ES': 'Tuesta el pan y riégalo con una cucharadita de aceite y la sal.'
+  },
+  'yogur-con-miel': {
+    'en-GB': 'Serve the yoghurt with the honey drizzled over it.',
+    'es-ES': 'Sirve el yogur con la miel por encima.'
+  },
+  macedonia: {
+    'en-GB': 'Chop the peeled orange, the apple and the banana and toss them in a bowl in their own juice.',
+    'es-ES': 'Trocea la naranja pelada, la manzana y el plátano y mézclalos en un bol con su propio zumo.'
+  },
+```
+
+`meal.accompanimentNames` (web, `es-ES` y `en-GB`):
+
+```ts
+// es-ES
+      'pan-con-tomate': 'pan con tomate',
+      'tostada-con-aceite': 'tostada integral con aceite',
+      'yogur-con-miel': 'yogur con miel',
+      macedonia: 'macedonia de fruta',
+      avellanas: 'avellanas ({grams})',
+      nispero: 'nísperos ({grams})',
+      cereza: 'cerezas ({grams})',
+      albaricoque: 'albaricoques ({grams})',
+      granada: 'granada ({grams})',
+// en-GB
+      'pan-con-tomate': 'bread with tomato',
+      'tostada-con-aceite': 'wholemeal toast with olive oil',
+      'yogur-con-miel': 'yoghurt with honey',
+      macedonia: 'fruit salad',
+      avellanas: 'hazelnuts ({grams})',
+      nispero: 'loquats ({grams})',
+      cereza: 'cherries ({grams})',
+      albaricoque: 'apricots ({grams})',
+      granada: 'pomegranate seeds ({grams})',
+```
