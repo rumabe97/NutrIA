@@ -88,6 +88,18 @@ export function dayKeyIn(instant: Date, timeZone: string): string {
   }
 }
 
+/** The zone a profile keeps when it says nothing else — the column's own default. */
+export const DEFAULT_TIME_ZONE = 'Europe/Madrid';
+
+/**
+ * A person's calendar day at `instant`, in the zone their profile keeps — or
+ * Madrid's, when there is no profile to ask. Every rule that decides "today"
+ * reads this, never the UTC date: for an hour or two a night that is yesterday.
+ */
+export function personDayKey(instant: Date, timeZone: string | null | undefined): string {
+  return dayKeyIn(instant, timeZone ?? DEFAULT_TIME_ZONE);
+}
+
 /**
  * The first instant of a Madrid calendar day.
  *

@@ -10,6 +10,7 @@ import { ProgressController } from 'core/controllers/Progress';
 import { SettingsRepository } from '#repositories/Settings';
 import { UserRepository } from '#repositories/User';
 import { FLAGS } from 'core/domain/Flag';
+import { personDayKey } from 'core/domain/Period';
 import {
   CARE_CONSENT_VERSION,
   CARE_HEALTH_SHARED,
@@ -291,8 +292,11 @@ function presentClientLink(
   };
 }
 
-/** Where a client with an active link is, first match wins — see `CareClientStage`. */
-function stageOf(row: RosterLink, today: string): CareClientStage {
+/**
+ * Where a client with an active link is, first match wins — see `CareClientStage`.
+ * A check-in is due on the client's own day, in the zone their profile keeps.
+ */
+function stageOf(row: RosterLink, now: Date): CareClientStage {
   if (!row.onboarded) {
     return 'onboarding';
   }
@@ -301,15 +305,15 @@ function stageOf(row: RosterLink, today: string): CareClientStage {
     return 'plan_awaiting_review';
   }
 
-  if (row.latestPlan && isCheckInDue(row.latestPlan, row.latestPlan.answered, today)) {
+  if (row.latestPlan && isCheckInDue(row.latestPlan, row.latestPlan.answered, personDayKey(now, row.latestPlan.timeZone))) {
     return 'check_in_due';
   }
 
   return row.planActive ? 'plan_under_way' : 'awaiting_plan';
 }
 
-function presentClient(row: RosterLink, today: string): CareClientView {
-  return { ...presentClientLink(row.link, row.clientName), stage: row.link.status === 'active' ? stageOf(row, today) : null };
+function presentClient(row: RosterLink, now: Date): CareClientView {
+  return { ...presentClientLink(row.link, row.clientName), stage: row.link.status === 'active' ? stageOf(row, now) : null };
 }
 
 function presentInvitation(row: { readonly email: string; readonly expiresAt: Date }): CareInvitationView {
@@ -547,9 +551,8 @@ export const CareController = {
     }
 
     const roster = await CareRepository.roster(professional.id, now);
-    const today = now.toISOString().slice(0, 10);
 
-    return { clients: roster.links.map(row => presentClient(row, today)), invitations: roster.invitations.map(presentInvitation) };
+    return { clients: roster.links.map(row => presentClient(row, now)), invitations: roster.invitations.map(presentInvitation) };
   },
 
   /** The client says no. The invitation is deleted; nothing is shared and no link exists. */

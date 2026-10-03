@@ -484,10 +484,15 @@ describe('CareController.clients', () => {
       invitations: [{ email: 'nueva@example.com', expiresAt: NOW }],
       links: [
         rosterLink({ link: link(0), onboarded: false }),
-        rosterLink({ latestPlan: { answered: false, endDate: '2026-09-24' }, link: link(1), planActive: true }),
-        rosterLink({ latestPlan: { answered: false, endDate: '2026-09-25' }, link: link(2), planActive: true }),
-        rosterLink({ latestPlan: { answered: true, endDate: '2026-09-20' }, link: link(3) }),
-        rosterLink({ latestPlan: { answered: false, endDate: '2026-09-20' }, link: link(4), planActive: true, planPendingReview: true }),
+        rosterLink({ latestPlan: { answered: false, endDate: '2026-09-24', timeZone: 'Europe/Madrid' }, link: link(1), planActive: true }),
+        rosterLink({ latestPlan: { answered: false, endDate: '2026-09-25', timeZone: 'Europe/Madrid' }, link: link(2), planActive: true }),
+        rosterLink({ latestPlan: { answered: true, endDate: '2026-09-20', timeZone: 'Europe/Madrid' }, link: link(3) }),
+        rosterLink({
+          latestPlan: { answered: false, endDate: '2026-09-20', timeZone: 'Europe/Madrid' },
+          link: link(4),
+          planActive: true,
+          planPendingReview: true
+        }),
         rosterLink({ link: link(5, 'paused'), onboarded: false })
       ]
     });
@@ -504,6 +509,18 @@ describe('CareController.clients', () => {
       ['paused', null]
     ]);
     expect(view.invitations).toEqual([{ email: 'nueva@example.com', expiresAt: NOW.toISOString() }]);
+  });
+
+  it("reads a check-in as due on the client's own day, in the zone their profile keeps", async () => {
+    // 00:30 on the 25th in Madrid, still the 24th in UTC and in New York.
+    const late = new Date('2026-09-24T22:30:00.000Z');
+    const closing = (timeZone: string | null) => rosterLink({ latestPlan: { answered: false, endDate: '2026-09-25', timeZone }, planActive: true });
+
+    roster.mockResolvedValue({ invitations: [], links: [closing('Europe/Madrid'), closing(null), closing('America/New_York')] });
+
+    const view = await CareController.clients(PRO, late);
+
+    expect(view.clients.map(client => client.stage)).toEqual(['check_in_due', 'check_in_due', 'plan_under_way']);
   });
 
   it('names no client id, and writes no row of its own beyond what the repository writes in its snapshot', async () => {

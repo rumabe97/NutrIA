@@ -4,7 +4,7 @@ import { LIVED_PLAN_STATUSES } from 'core/entities/Plan';
 import { PlanRepository } from '#repositories/Plan';
 import { ProfileRepository } from '#repositories/Profile';
 import { ProgressRepository } from '#repositories/Progress';
-import { requireProfileConsent } from 'core/controllers/Profile';
+import { personToday, requireProfileConsent } from 'core/controllers/Profile';
 
 import type { DifficultyAnswer, HungerAnswer } from 'core/entities/CheckIn';
 import type { Goal } from 'core/entities/Profile';
@@ -134,7 +134,7 @@ export const ProgressController = {
   async logWeight(userId: string, input: LogWeight): Promise<WeightView> {
     await requireProfileConsent(userId);
 
-    const loggedOn = input.loggedOn ?? new Date().toISOString().slice(0, 10);
+    const loggedOn = input.loggedOn ?? (await personToday(userId));
 
     await ProgressRepository.upsertWeight(userId, loggedOn, input.weightKg);
 
@@ -147,7 +147,8 @@ export const ProgressController = {
    * marked and what the check-in said. Nothing here is collected for this
    * screen; it is the weights, the marks and the check-ins, shown.
    */
-  async summary(userId: string, today = new Date().toISOString().slice(0, 10)): Promise<ProgressSummaryView> {
+  async summary(userId: string, day?: string): Promise<ProgressSummaryView> {
+    const today = day ?? (await personToday(userId));
     const [entries, goal, chain, marks, checkIns] = await Promise.all([
       ProgressRepository.findRecent(userId, HISTORY_LIMIT),
       ProfileRepository.findActiveGoal(userId),

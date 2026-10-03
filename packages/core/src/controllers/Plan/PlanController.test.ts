@@ -5,6 +5,7 @@ import { ConflictError, InputParseError, NotFoundError, ProfileConsentRequiredEr
 import { PlanController, PlanJobController } from './PlanController';
 
 import type { MealSizeView } from 'core/controllers/Profile';
+import type { personToday } from '../Profile/PersonDay';
 
 type Job = { id: string; error: string | null; errorDetail: string | null; planId: string | null; status: string; step: string | null };
 type ChainRow = { id: string; endDate: string; opens?: boolean; redo: boolean; replacedRedos: number; status: string; version: number };
@@ -26,7 +27,7 @@ const findHistory = vi.fn<(userId: string, limit: number, offset: number) => Pro
 const release = vi.fn<(jobId: string) => Promise<void>>();
 const requireProfileConsent = vi.fn<(userId: string) => Promise<void>>(async () => undefined);
 const mealSize = vi.fn<(userId: string) => Promise<MealSizeView | null>>(async () => null);
-const setMealStatus = vi.fn<(userId: string, mealId: string, status: string) => Promise<'closed' | 'done' | 'missing'>>();
+const setMealStatus = vi.fn<(userId: string, mealId: string, status: string, today: string) => Promise<'closed' | 'done' | 'future' | 'missing'>>();
 
 vi.mock('#repositories/Plan', () => ({
   PlanJobRepository: {
@@ -47,7 +48,7 @@ vi.mock('#repositories/Plan', () => ({
     findScheduled: (u: string) => findScheduled(u),
     findScheduledDue: (latest: string) => findScheduledDue(latest),
     isPublishable: (u: string) => isPublishable(u),
-    setMealStatus: (u: string, m: string, s: string) => setMealStatus(u, m, s)
+    setMealStatus: (u: string, m: string, s: string, t: string) => setMealStatus(u, m, s, t)
   }
 }));
 
@@ -59,7 +60,9 @@ vi.mock('#repositories/User', () => ({ UserRepository: { tierOf: (u: string) => 
 
 // Nobody in this file is away. The pause is its own suite; here it must not be
 // the reason a mark is refused, or these tests would pass for the wrong reason.
-vi.mock('core/controllers/Profile', () => ({
+vi.mock('core/controllers/Profile', async () => ({
+  // The real one, over the mocked profile below: the person's day is part of what is tested.
+  personToday: (await vi.importActual<{ personToday: typeof personToday }>('../Profile/PersonDay')).personToday,
   ProfileController: { mealSize: (u: string) => mealSize(u) },
   requireProfileConsent: (u: string) => requireProfileConsent(u)
 }));
@@ -116,7 +119,20 @@ describe('PlanController.setMealStatus — the past is read-only', () => {
     setMealStatus.mockResolvedValue('done');
 
     await expect(PlanController.setMealStatus('usr-1', 'meal-1', 'completed')).resolves.toBeUndefined();
-    expect(setMealStatus).toHaveBeenCalledWith('usr-1', 'meal-1', 'completed');
+    expect(setMealStatus).toHaveBeenCalledWith('usr-1', 'meal-1', 'completed', expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
+  });
+
+  it("decides with the person's day: at 22:30 UTC, Madrid's tomorrow is already today", async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-02T22:30:00Z'), toFake: ['Date'] });
+    setMealStatus.mockResolvedValue('done');
+
+    try {
+      await PlanController.setMealStatus('usr-1', 'meal-1', 'completed');
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(setMealStatus).toHaveBeenCalledWith('usr-1', 'meal-1', 'completed', '2026-10-03');
   });
 
   it('answers not-found for a meal that is not theirs', async () => {
