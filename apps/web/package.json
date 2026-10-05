@@ -22,21 +22,21 @@
     "@better-auth/passkey": "^1.7.7",
     "better-auth": "^1.7.7",
     "core": "workspace:*",
-    "next": "^16.3.6",
+    "next": "^16.3.8",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "ui": "workspace:*",
     "uqr": "0.1.3"
   },
   "devDependencies": {
-    "@types/node": "^26.6.3",
+    "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitest/coverage-istanbul": "^5.0.2",
+    "@vitest/coverage-istanbul": "^5.0.3",
     "eslint": "^9.39.2",
     "eslint-configuration": "workspace:*",
     "prettier": "^3.9.9",
     "typescript-configuration": "workspace:*",
-    "vitest": "^5.0.2"
+    "vitest": "^5.0.3"
   }
 }
