@@ -598,6 +598,7 @@ export function heldMinimums(
   const read = pool.map(dish => ({ dish, served: mealServings(servingGroups(dish, catalogue, servingsOf(dish))) }));
   const onMains = (test: (served: MealServings) => boolean) =>
     read.filter(({ dish, served }) => test(served) && dish.slots.some(slot => MAIN_SLOTS.has(slot)));
+
   const check = (
     name: FloorName,
     groupOf: (groups: PlacementGroups) => boolean,
@@ -614,6 +615,7 @@ export function heldMinimums(
       of: placement => (placement.groups ? groupOf(placement.groups) : (has.get(placement.dishSlug) ?? false))
     };
   };
+
   const checks: FloorCheck[] = [];
 
   if (supply.legume) {

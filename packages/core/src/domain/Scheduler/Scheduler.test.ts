@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   axisFilter,
+  bandNeededExceptions,
   pickReplacement,
   PLAN_DAYS,
   PLATE_GRAMS_MAX,
@@ -1365,6 +1366,130 @@ describe('schedulePlan — the maximums of PRD 019 held (019 phase 3)', () => {
     expect(daysOf('processed').length).toBeLessThanOrEqual(BALANCE_CAPS.processed);
     expect(running(daysOf('processed')), `processed meat on days ${daysOf('processed').join(', ')}`).toBe(false);
     expect(daysOf('fishOrShellfish').length).toBeLessThanOrEqual(BALANCE_CAPS.fishAndShellfish);
+  });
+});
+
+describe('schedulePlan — the minimums of PRD 019 met (019 phase 4)', () => {
+  // The same composition everywhere, so fit ties and the pool's order decides:
+  // neutral dishes first at every lunch and dinner, then the legumes and the
+  // fish. Without the minimums held, this serves none of either.
+  const bases = [
+    'base',
+    'patata',
+    'calabacin',
+    'lentejas-cocidas',
+    'garbanzos-cocidos',
+    'alubias-blancas-cocidas',
+    'alubias-pintas-cocidas',
+    'merluza',
+    'sardina'
+  ];
+  const minimumsCatalogue = makeCatalogue(
+    bases.map((slug, index) =>
+      makeCatalogueIngredient({ id: `n-${index}`, classes: slug === 'merluza' || slug === 'sardina' ? ['animal', 'fish'] : [], name: slug, slug })
+    )
+  );
+  const SHARE = { breakfast: 0.28, dinner: 0.34, lunch: 0.37 } as const;
+  const dish = (slot: keyof typeof SHARE, base: string, n: number) =>
+    makeDish({
+      ingredients: [
+        { grams: 150, slug: base },
+        { grams: Math.round((TARGETS.kcal * SHARE[slot]) / 2) - 150, slug: 'base' }
+      ],
+      name: `${slot} ${base} ${n}`,
+      slots: [slot],
+      slug: `${slot}-${base}-${n}`
+    });
+  const eachOf = (slot: keyof typeof SHARE, bases2: readonly string[], count: number) =>
+    bases2.flatMap(base => Array.from({ length: count }, (_none, n) => dish(slot, base, n)));
+  const legumes = ['lentejas-cocidas', 'garbanzos-cocidos', 'alubias-blancas-cocidas', 'alubias-pintas-cocidas'];
+  const pool = [
+    ...eachOf('breakfast', ['patata', 'calabacin'], 6),
+    ...eachOf('lunch', ['patata', 'calabacin'], 10),
+    ...eachOf('lunch', legumes, 2),
+    ...eachOf('dinner', ['patata', 'calabacin'], 10),
+    ...eachOf('dinner', ['merluza'], 4),
+    ...eachOf('dinner', ['sardina'], 3)
+  ];
+
+  it('serves the legumes, fish and oily fish its pool can supply, up to the table’s minimums', () => {
+    const result = schedulePlan({
+      catalogue: minimumsCatalogue,
+      minimumKcal: MINIMUM_KCAL,
+      pool,
+      targets: TARGETS,
+      weights: weightsFor(shapeFor(3, false))
+    });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const served = (group: 'fish' | 'legume' | 'oilyFish') =>
+      result.assignment.days.flatMap(day =>
+        day.meals.filter(meal => MAIN_SLOTS.has(meal.slot) && placementGroups(meal.ingredients, minimumsCatalogue)[group])
+      ).length;
+
+    expect(served('legume')).toBeGreaterThanOrEqual(8);
+    expect(served('fish')).toBeGreaterThanOrEqual(6);
+    expect(served('oilyFish')).toBeGreaterThanOrEqual(2);
+
+    // Nothing short of a minimum, so the bands needed no exception to it.
+    expect(
+      bandNeededExceptions(
+        { catalogue: minimumsCatalogue, minimumKcal: MINIMUM_KCAL, pool, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) },
+        result.assignment
+      ).minimums
+    ).toEqual({});
+  });
+
+  it('asks for no more than the pool supplies: no fish in it, no fish minimum, and the plan is unchanged by the rule', () => {
+    const noFish = pool.filter(candidate => !/merluza|sardina/.test(candidate.slug));
+    const result = schedulePlan({
+      catalogue: minimumsCatalogue,
+      minimumKcal: MINIMUM_KCAL,
+      pool: noFish,
+      targets: TARGETS,
+      weights: weightsFor(shapeFor(3, false))
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('keeps a minimum the replaced meal carried when the rest of the plan does not meet it without it', () => {
+    const lunch = (slug: string, ingredient: string) =>
+      makeDish({
+        ingredients: [
+          { grams: 150, slug: ingredient },
+          { grams: 200, slug: 'base' }
+        ],
+        slots: ['lunch'],
+        slug
+      });
+    const candidates = [
+      lunch('lunch-a-neutral', 'patata'),
+      lunch('lunch-b-neutral', 'calabacin'),
+      ...legumes.map((legume, index) => lunch(`lunch-legume-${index}`, legume))
+    ];
+    const kept = placementGroups([{ grams: 150, slug: 'lentejas-cocidas' }], minimumsCatalogue);
+    // Three of the four legumes this pool supplies are on the plan already, on other days.
+    const placed = [1, 2, 3].map(dayIndex => ({ dayIndex, dishSlug: `elsewhere-${dayIndex}`, groups: kept, slot: 'lunch' as const }));
+    const swap = (replaced: typeof kept | undefined) =>
+      pickReplacement({
+        budget: { carbsG: 60, fatG: 20, kcal: 600, proteinG: 30 },
+        catalogue: minimumsCatalogue,
+        dayIndex: 8,
+        placed,
+        plateMinimumKcal: 0,
+        pool: candidates,
+        replaced,
+        slot: 'lunch'
+      });
+
+    expect(swap(undefined)?.dish.slug).toMatch(/neutral$/);
+    expect(swap(kept)?.dish.slug).toMatch(/^lunch-legume-/);
   });
 });
 

@@ -28,7 +28,7 @@
  *
  * Usage (from the repository root, against the local Postgres `pnpm db:local` runs —
  * never Neon):
- *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds]]
+ *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds] [--exceptions]]
  *
  * `--flag <name>` names a scheduler flag to measure with on (project 016). The
  * one that exists is `accompaniments`: each profile's larder (`larderFor`, the
@@ -51,6 +51,12 @@
  * provider. Each plan is scored for balance against PRD 019's table
  * (`core/domain/Balance`), and the report is per profile, per goal and per
  * rule. `--compare` does not read a rotate file.
+ *
+ * `--exceptions` (019 phase 4, with `--rotate`) adds, per plan, which of its
+ * exceptions to the table's maximums and minimums the bands needed and which
+ * they did not (`bandNeededExceptions`): the meals past a cap or short of a
+ * floor, and how many no single swap could have removed with the day kept inside
+ * its bands. It runs after the scheduling clock stops.
  *
  * Every plan, plain or rotated, carries its balance score and its protein per
  * kg at each meal (`balance`, `proteinPerKg`).
@@ -87,7 +93,7 @@ import {
   PATTERN_EXCLUDED_SLUGS,
   resolvePreferences
 } from 'core/domain/Preference';
-import { PLAN_DAYS, PLATE_GRAMS_MAX, PLATE_LIMIT, plateGramsMax, schedulePlan, SERVING_PREFERENCE } from 'core/domain/Scheduler';
+import { bandNeededExceptions, PLAN_DAYS, PLATE_GRAMS_MAX, PLATE_LIMIT, plateGramsMax, schedulePlan, SERVING_PREFERENCE } from 'core/domain/Scheduler';
 import { bestEffortExclusions, dishSafety, normaliseForMatching, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
 import {
   DISHES_NEEDED_PER_SLOT,
@@ -233,7 +239,7 @@ const BAND_KINDS = new Set(['carbs_out_of_band', 'fat_out_of_band', 'kcal_out_of
 // CLI
 // ---------------------------------------------------------------------------
 function parseArgs(argv) {
-  const options = { compare: null, flags: [], json: null, locale: 'es-ES', only: null, rotate: null, start: '2026-10-05' };
+  const options = { compare: null, exceptions: false, flags: [], json: null, locale: 'es-ES', only: null, rotate: null, start: '2026-10-05' };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -248,6 +254,8 @@ function parseArgs(argv) {
       options.only = argv[(index += 1)];
     } else if (arg === '--start') {
       options.start = argv[(index += 1)];
+    } else if (arg === '--exceptions') {
+      options.exceptions = true;
     } else if (arg === '--rotate') {
       const seeds = /^\d+$/.test(argv[index + 1] ?? '') ? Number(argv[(index += 1)]) : 10;
 
@@ -1117,17 +1125,17 @@ async function measureRotations(profile, shared, options) {
   // uncapped rotation, and what decides which rules apply to them.
   const everything = await RecipeController.reusablePool(slots, context);
   const supply = balanceSupply(everything, context.catalogue);
-  const schedule = pool =>
-    schedulePlan({
-      accompaniments,
-      catalogue: context.catalogue,
-      dayTargets,
-      minimumKcal: minimumDailyKcal(profile.target.sex),
-      monthOf,
-      pool,
-      targets,
-      weights
-    });
+  const inputFor = pool => ({
+    accompaniments,
+    catalogue: context.catalogue,
+    dayTargets,
+    minimumKcal: minimumDailyKcal(profile.target.sex),
+    monthOf,
+    pool,
+    targets,
+    weights
+  });
+  const schedule = pool => schedulePlan(inputFor(pool));
   const check = assignment =>
     validatePlan({
       assignment,
@@ -1153,10 +1161,12 @@ async function measureRotations(profile, shared, options) {
     const started = performance.now();
     let scheduled = schedule(reusable);
     let fallback = null;
+    let usedPool = reusable;
 
     if (!scheduled.ok) {
       scheduled = schedule(everything);
       fallback = 'full_library';
+      usedPool = everything;
     }
 
     if (!scheduled.ok) {
@@ -1173,6 +1183,7 @@ async function measureRotations(profile, shared, options) {
         scheduled = retried;
         violations = check(retried.assignment);
         fallback = 'full_library';
+        usedPool = everything;
       }
     }
 
@@ -1190,14 +1201,18 @@ async function measureRotations(profile, shared, options) {
           scheduled = retried;
           violations = retriedViolations;
           fallback = 'wider_rotation';
+          usedPool = wider;
         }
       }
     }
 
     const scheduleMs = Math.round(performance.now() - started);
     const daysOutside = new Set(violations.filter(violation => BAND_KINDS.has(violation.kind)).map(violation => violation.dayIndex));
+    // After the clock stopped: which exceptions to the table the bands needed (019 phase 4).
+    const exceptions = options.exceptions ? bandNeededExceptions(inputFor(usedPool), scheduled.assignment) : undefined;
 
     plans.push({
+      exceptions,
       balance: balanceOf({ catalogue: context.catalogue, days: scheduled.assignment.days, plantBased: isPlantBased(profile), supply }),
       blocking: violations.filter(isBlocking).length,
       daysInsideAll4: PLAN_DAYS - daysOutside.size,
@@ -1268,8 +1283,25 @@ function summariseRotations(results) {
     (goals[profile.goal] ??= []).push(profile.score.median);
   }
 
+  // Exceptions to the table (`--exceptions`): per group, plans broken, meals broken, meals the bands needed.
+  const exceptions = { maximums: {}, minimums: {} };
+
+  for (const plan of allPlans.filter(entry => entry.exceptions)) {
+    for (const kind of ['maximums', 'minimums']) {
+      for (const [group, { count, needed }] of Object.entries(plan.exceptions[kind])) {
+        const total = (exceptions[kind][group] ??= { count: 0, needed: 0, plans: 0 });
+
+        total.count += count;
+        total.needed += needed;
+        total.plans += 1;
+      }
+    }
+  }
+
   return {
     days: { inside: allPlans.reduce((sum, plan) => sum + plan.daysInsideAll4, 0), of: allPlans.length * PLAN_DAYS },
+    exceptions: allPlans.some(plan => plan.exceptions) ? exceptions : null,
+    scheduleMs: allPlans.reduce((sum, plan) => sum + plan.scheduleMs, 0),
     goals: Object.fromEntries(
       Object.entries(goals).map(([goal, scores]) => [
         goal,
@@ -1321,6 +1353,17 @@ function printRotations(results, summary) {
     console.log(`  ${rule.padEnd(17)} ${met}/${applies}${applies > 0 ? ` (${Math.round((met / applies) * 100)}%)` : ''}`);
   }
 
+  if (summary.exceptions) {
+    console.log('\nExceptions to the table (plans / meals past a maximum or short of a minimum / of those, the bands needed):');
+
+    for (const kind of ['maximums', 'minimums']) {
+      for (const [group, { count, needed, plans }] of Object.entries(summary.exceptions[kind])) {
+        console.log(`  ${kind === 'maximums' ? 'max' : 'min'} ${group.padEnd(17)} ${plans} plans, ${count} meals, ${needed} needed by the bands`);
+      }
+    }
+  }
+
+  console.log(`\nTime in schedulePlan, all plans: ${summary.scheduleMs} ms`);
   console.log("\nScore by goal (mean of the profiles' median scores):");
 
   for (const [goal, { meanOfMedians, profiles }] of Object.entries(summary.goals)) {
