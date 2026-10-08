@@ -31,7 +31,7 @@ const store: { account: Row[]; rateLimit: Row[]; session: Row[]; user: Row[]; ve
   user: [],
   verification: []
 };
-const mails: { kind: 'existing' | 'verify'; to: string }[] = [];
+const mails: { kind: 'existing' | 'reset' | 'verify'; to: string }[] = [];
 
 jest.unstable_mockModule('better-auth/adapters/drizzle', () => ({ drizzleAdapter: () => memoryAdapter(store) }));
 jest.unstable_mockModule('database', () => ({ database: () => ({}) }));
@@ -42,6 +42,13 @@ jest.unstable_mockModule('./SelfService.js', () => ({
 jest.unstable_mockModule('./VerificationMail.js', () => ({
   sendVerificationMail: async (_mailer: unknown, { to }: { to: string }) => {
     mails.push({ kind: 'verify', to });
+
+    return Promise.resolve();
+  }
+}));
+jest.unstable_mockModule('./PasswordResetMail.js', () => ({
+  sendPasswordResetMail: async (_mailer: unknown, { to }: { to: string }) => {
+    mails.push({ kind: 'reset', to });
 
     return Promise.resolve();
   }
@@ -278,5 +285,38 @@ describe('sign-up reveals nothing', () => {
     await drain();
 
     expect(lines.join('\n')).not.toMatch(/ana@example/i);
+  });
+
+  it('gives a reset link the same hour, written out', () => {
+    expect(build().options.emailAndPassword.resetPasswordTokenExpiresIn).toBe(MAIL_BUDGET.windowMs / 1000);
+  });
+
+  it('mails an address three resets an hour at most, however often one is asked for', async () => {
+    const auth = build();
+    await signUp(auth, EXISTING, 'Ana');
+    await drain();
+    mails.length = 0;
+
+    const answers = [];
+
+    for (let i = 0; i < 4; i += 1) {
+      const response = await auth.handler(
+        new Request(`http://localhost:3001${auth.options.basePath}/request-password-reset`, {
+          body: JSON.stringify({ email: EXISTING }),
+          headers: { 'content-type': 'application/json', origin: ORIGIN },
+          method: 'POST'
+        })
+      );
+
+      answers.push(response.status);
+    }
+
+    await drain();
+    expect(answers).toEqual([200, 200, 200, 200]);
+    expect(mails).toEqual([
+      { kind: 'reset', to: EXISTING },
+      { kind: 'reset', to: EXISTING },
+      { kind: 'reset', to: EXISTING }
+    ]);
   });
 });

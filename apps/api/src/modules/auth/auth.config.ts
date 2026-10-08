@@ -25,6 +25,7 @@ import { sendPasskeyAddedMail } from './services/PasskeyMail.js';
 import { sendPasswordChangedMail } from './services/PasswordChangedMail.js';
 import { sendPasswordResetMail } from './services/PasswordResetMail.js';
 import { signInBrake } from './services/SignInBrake.js';
+import { resetConfirmsAddress } from './services/ResetConfirmsAddress.js';
 import { signUpFloor } from './services/SignUpFloor.js';
 import {
   BACKUP_CODE_COUNT,
@@ -105,9 +106,6 @@ export function createAuth(
   // A sign-up answers no earlier than its floor, a new address and an existing one alike (PLAN 011 phase 8).
   const floor = signUpFloor();
   const security = {
-    addressConfirmed: async (account: { id: string; email: string }) => {
-      await onAddressConfirmed(account, selfService);
-    },
     background,
     brake,
     floor,
@@ -119,7 +117,13 @@ export function createAuth(
     mailTwoFactor: async ({ id, acceptLanguage, email, event, userAgent }: TwoFactorNotice) =>
       sendTwoFactorMail(mailer, { acceptLanguage, appUrl: env.APP_URL, event, to: email, userAgent, userId: id }),
     mailTwoFactorRemoval: async ({ id, email, event }: TwoFactorRemovalNotice) =>
-      sendTwoFactorRemovalMail(mailer, { appUrl: env.APP_URL, event, to: email, userId: id })
+      sendTwoFactorRemovalMail(mailer, { appUrl: env.APP_URL, event, to: email, userId: id }),
+    resetConfirmation: resetConfirmsAddress({
+      addressConfirmed: async account => {
+        await onAddressConfirmed(account, selfService);
+      },
+      background
+    })
   };
 
   /*
@@ -316,6 +320,8 @@ export function createAuth(
        * and a passkey needs a confirmed address to be added.
        */
       requireEmailVerification: true,
+      // A reset link lives the mail budget's hour too, written out rather than left to the default (PLAN 011 phase 8).
+      resetPasswordTokenExpiresIn: MAIL_BUDGET.windowMs / 1000,
       /*
        * A reset is somebody proving the address is theirs, often because
        * somebody else got there first: signed up with it, never confirmed it,

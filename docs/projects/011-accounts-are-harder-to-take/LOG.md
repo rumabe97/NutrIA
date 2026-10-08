@@ -804,3 +804,20 @@
     made the account. This is variant A, since a completed reset confirms the address.
   - P2-15, a sweep of unconfirmed accounts, is in the PLAN as a pending follow-up.
 
+
+## Phase 8 — the invariant review's last three P3s (2026-10-08)
+
+- **Executor**: opus 5.5 (`backend`, resumed from a WIP commit after a machine crash).
+- **A reset confirms the address after the sessions are revoked**
+  (`services/ResetConfirmsAddress.ts`). Better Auth 1.7.7 calls `onPasswordReset` before
+  `revokeSessionsOnPasswordReset` deletes the account's sessions, so confirming there left,
+  for a moment, a confirmed address with a session from before the proof. `onPasswordReset`
+  now only remembers the account against its request; `hooks.after`, on a 2xx
+  `/reset-password`, confirms it. What confirming runs (the account opens itself, or the
+  owner is told) goes to `BackgroundTaskService`: the reset never waits for that mail. A
+  call through `auth.api` has no request and is confirmed at once. Pinned by
+  `AccountSecurity.spec.ts`: no session is left when the address is confirmed.
+- **`resetPasswordTokenExpiresIn`** is written out as `MAIL_BUDGET.windowMs / 1000`, as
+  `emailVerification.expiresIn` already was; a spec in `SignUp.spec.ts` ties the two.
+- **The reset budget**: four `/request-password-reset` for one address answer 200 four
+  times and send three mails (`SignUp.spec.ts`).

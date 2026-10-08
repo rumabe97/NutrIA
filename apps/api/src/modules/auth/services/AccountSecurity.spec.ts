@@ -315,8 +315,34 @@ describe('what follows a password change, a closed session and a sign-in', () =>
       expect((await call(auth, '/reset-password', { body: { newPassword: NEW_PASSWORD, token }, userAgent: IPHONE })).status).toBe(200);
 
       expect(store.user[0]?.emailVerified).toBe(true);
+      // What confirming runs goes after the response: the reset never waits for the owner's mail.
+      expect(addressesConfirmed).toEqual([]);
+      await drain();
       expect(addressesConfirmed).toEqual([ACCOUNT.email]);
       expect((await signIn(auth, IPHONE, NEW_PASSWORD)).status).toBe(200);
+    });
+
+    it('confirms only once Better Auth has revoked the sessions from before the proof', async () => {
+      const auth = build();
+      // A session an unconfirmed account still holds from before phase 8.
+      await signUp(auth);
+      store.user[0]!.emailVerified = false;
+      expect(store.session).toHaveLength(1);
+
+      let sessionsAtConfirmation = -1;
+
+      writes.confirmAddressByReset.mockImplementation(async () => {
+        sessionsAtConfirmation = store.session.length;
+
+        return Promise.resolve(true);
+      });
+      await auth.api.requestPasswordReset({ body: { email: ACCOUNT.email } });
+      await drain();
+      const token = new URL(resetUrls.at(-1) ?? '').pathname.split('/').at(-1) ?? '';
+
+      await call(auth, '/reset-password', { body: { newPassword: NEW_PASSWORD, token }, userAgent: IPHONE });
+
+      expect(sessionsAtConfirmation).toBe(0);
     });
 
     it('runs nothing of confirming for an address already confirmed', async () => {
@@ -327,6 +353,7 @@ describe('what follows a password change, a closed session and a sign-in', () =>
       const token = new URL(resetUrls.at(-1) ?? '').pathname.split('/').at(-1) ?? '';
 
       await call(auth, '/reset-password', { body: { newPassword: NEW_PASSWORD, token }, userAgent: IPHONE });
+      await drain();
 
       expect(writes.confirmAddressByReset).toHaveBeenCalledTimes(1);
       expect(addressesConfirmed).toEqual([]);

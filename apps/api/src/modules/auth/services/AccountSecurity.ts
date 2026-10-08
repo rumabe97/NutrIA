@@ -12,6 +12,7 @@ import type { BackgroundTaskService } from '../../../shared/services/index.js';
 import type { CompromisedCheck, Context } from './PasswordPolicy.js';
 import type { PasskeyDeps } from './Passkey.js';
 import type { SignInBrake } from './SignInBrake.js';
+import type { ResetConfirmation } from './ResetConfirmsAddress.js';
 import type { SignUpFloor } from './SignUpFloor.js';
 import type { TwoFactorDeps } from './TwoFactor.js';
 import type { PasswordChangedVia, SessionsRevokedScope } from 'core/entities/Audit';
@@ -28,8 +29,6 @@ export type PasswordChangedNotice = {
 
 export type AccountSecurityDeps = PasskeyDeps &
   TwoFactorDeps & {
-    /** What confirming an address runs (`SelfService.onAddressConfirmed`), for an address a reset just confirmed (PLAN 011 phase 8). */
-    readonly addressConfirmed: (account: { id: string; email: string }) => Promise<void>;
     readonly background: Pick<BackgroundTaskService, 'run'>;
     /** The per-address brake on password sign-in (PLAN 011 phase 7): cleared by a sign-in and by a reset. */
     readonly brake: Pick<SignInBrake, 'signedIn'>;
@@ -39,9 +38,12 @@ export type AccountSecurityDeps = PasskeyDeps &
     readonly isCompromised: CompromisedCheck | null;
     /** Sends "your password has changed"; run in the background, never awaited by a route. */
     readonly mailPasswordChanged: (notice: PasswordChangedNotice) => Promise<void>;
+    /** A completed reset confirms the address, after the sessions are revoked (`ResetConfirmsAddress.ts`, PLAN 011 phase 8). */
+    readonly resetConfirmation: ResetConfirmation;
   };
 
 const CHANGE_PASSWORD = '/change-password';
+const RESET_PASSWORD = '/reset-password';
 const REVOKE_ONE = '/revoke-session';
 const SIGN_IN = '/sign-in/email';
 
@@ -186,6 +188,8 @@ async function notTheCallersSession(context: Context): Promise<{ status: true } 
  *   user — Better Auth scoped the deletion to that user already. A
  *   `/revoke-session` for a token that is not the caller's is answered by
  *   `hooks.before` and never gets here, so a `one` row is a session that went.
+ * - `/reset-password`: the address confirmed, if a reset just proved it
+ *   (`ResetConfirmsAddress.ts`, PLAN 011 phase 8).
  * - `/sign-in/email`: the address's brake cleared, awaited — the next
  *   attempt starts from nothing — whether or not a second factor follows,
  *   since the password is what the brake guards. Then the password just
@@ -252,6 +256,12 @@ export function accountSecurityAfter(deps: AccountSecurityDeps) {
       return;
     }
 
+    if (path === RESET_PASSWORD) {
+      await deps.resetConfirmation.after(context);
+
+      return;
+    }
+
     if (path !== SIGN_IN) {
       return;
     }
@@ -285,26 +295,15 @@ export function accountSecurityAfter(deps: AccountSecurityDeps) {
  * about whether an address has an account.
  *
  * Whoever reset holds the mailbox, so:
- * - the address is confirmed, if it was not (PLAN 011 phase 8), with what
- *   confirming one runs — the account opens itself or the owner is told.
- *   Better Auth's reset does not, and an unconfirmed account cannot sign in
- *   with its password: the person whose address a stranger signed up first,
- *   with a password of the stranger's, resets it and signs in with the new
- *   one. A failure here leaves the address as it was and one line: the
- *   password did change, and the next sign-in sends a link;
+ * - the address will be confirmed, if it was not (PLAN 011 phase 8) — by the
+ *   after-hook, once Better Auth has revoked the sessions
+ *   (`ResetConfirmsAddress.ts`); here the account is only remembered;
  * - the address's sign-in brake is cleared (PLAN 011 phase 7): they must not
  *   wait out a brake somebody else's guesses at the old password left.
  */
 export function onPasswordReset(deps: AccountSecurityDeps) {
   return async ({ user }: { user: { id: string; email: string } }, request?: Request): Promise<void> => {
-    try {
-      if (await UserController.confirmAddressByReset(user.id)) {
-        await deps.addressConfirmed(user);
-      }
-    } catch {
-      logger.error(`address_not_confirmed_on_reset ${JSON.stringify({ userId: user.id })}`);
-    }
-
+    await deps.resetConfirmation.remember(user, request);
     await deps.brake.signedIn(user.email);
     await passwordChanged(deps, { ...headersOf(request), id: user.id, email: user.email }, 'reset');
   };
