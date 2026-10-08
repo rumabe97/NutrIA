@@ -163,4 +163,10 @@
 - **Notes for the next phase**:
   - Meat (54 and 60 of 130), eggs (45 and 71) and fish + shellfish (79 and 69 of 140) are still broken on about half the plans, by 2 to 3 meals at the median. The bands outrank the maximums, and a rotation of 19 dishes a slot often has nothing else that keeps a day inside them; most visibly, objetivo-bajo-3-comidas serves fish at 12.5 meals at the median, off. The evaluator does not yet tell an exception the bands needed from one they did not, which PRD criterion 3 asks for. Phase 4's reservation calendar gives the minimums' legumes those meals; phase 6's protein per meal changes which plates the bands need; counting the band-needed exceptions belongs with phase 4's `meetFloors`.
   - Eggs are counted at every meal, breakfast included, by the egg.
+- **Lead's decisions** (2026-10-08, delegated by the owner):
+  - The merge gate is met: every goal above the baseline with accompaniments on, every day in band, 0 allergens, time within +10%. #216 and #224 ship together.
+  - PRD criterion 3 is partly met and accepted for now; phase 4's  adds the count of exceptions the bands needed against those they did not.
+  - patron-vegetariano's dip with accompaniments on (median 57% → 50%) is accepted; it is a phase 5 acceptance check, since phase 5 owns fruit and vegetables.
+  - 1,958/1,960 days off with  equals the baseline and is accepted.
+  - Decision  approved as drafted.
 
