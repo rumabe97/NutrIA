@@ -14,6 +14,7 @@ import {
   createApp,
   deleteAccounts,
   dish,
+  enableTotp,
   generateAndWait,
   httpServer,
   openPractice,
@@ -423,6 +424,8 @@ describe('accompaniments, end to end', () => {
 
     owner = await account('owner');
     await UserController.grantAdmin(owner.email);
+    owner = await enableTotp(app, owner);
+    made.push(owner.cookie);
     // Whatever an earlier, interrupted run left behind.
     await setFlag('accompaniments', false);
 
@@ -654,6 +657,8 @@ describe('accompaniments, end to end', () => {
         .expect(201);
       await acceptAgreement(app, pro);
       await openPractice(pro.id);
+      pro = await enableTotp(app, pro);
+      made.push(pro.cookie);
 
       const before = sent.length;
 

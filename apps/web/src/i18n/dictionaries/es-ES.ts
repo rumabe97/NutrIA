@@ -2377,6 +2377,7 @@ export const esES = {
         heading: 'Seguridad',
         list: [
           'Protege tu acceso: una contraseña que no uses en otro sitio, o entra con Google. No dejes la sesión abierta en un ordenador compartido.',
+          'Si tu cuenta tiene contraseña, la verificación en dos pasos con una app de autenticación es obligatoria: sin ella no se abren los datos de tus pacientes, y una llave de acceso no la sustituye mientras tu cuenta tenga contraseña. La activas en tu perfil, en Seguridad. Si entras solo con Google, mantén activada la verificación en dos pasos de tu cuenta de Google: nosotros no podemos comprobarla.',
           'No hagas capturas ni copias de la ficha salvo para tu historia clínica, y guárdalas con la misma protección que el resto de tu documentación clínica.',
           'Si crees que alguien ha entrado en tu cuenta o ha visto datos de un paciente que no debía, escríbenos a {email} en cuanto lo sepas, y en todo caso en 24 horas. Nosotros valoraremos si hay que avisar a la Agencia Española de Protección de Datos y a los pacientes; si la brecha es tuya, fuera de NutrIA, esa obligación es tuya.'
         ],
@@ -2758,6 +2759,18 @@ export const esES = {
     weightTitle: 'Tu peso'
   },
 
+  secondFactorRequired: {
+    action: 'Ir a Seguridad',
+    console: [
+      'Para entrar en la consola, tu cuenta necesita la verificación en dos pasos: la consola muestra datos de todas las cuentas, y tu contraseña sola no basta para abrirla.',
+      'Actívala en tu perfil, en Seguridad, con una app de autenticación, y vuelve aquí. Mientras tu cuenta tenga contraseña, una llave de acceso no la sustituye.'
+    ],
+    practice: [
+      'Para ver los datos de tus pacientes, tu cuenta necesita la verificación en dos pasos: son datos de salud, y tu contraseña sola no basta para abrirlos.',
+      'Actívala en tu perfil, en Seguridad, con una app de autenticación, y vuelve aquí: tu consulta estará abierta. Mientras tu cuenta tenga contraseña, una llave de acceso no la sustituye.'
+    ],
+    title: 'Activa la verificación en dos pasos'
+  },
   security: {
     browserUnknown: 'Navegador',
     changePassword: 'Cambiar contraseña',
@@ -3069,7 +3082,10 @@ export const esES = {
     done: 'Terminar',
     download: 'Descargar (.txt)',
     downloading: 'Descargando {file}',
-    enabled: 'Verificación en dos pasos activada. Te lo confirmamos por correo.',
+    enabled:
+      'Verificación en dos pasos activada. Hemos cerrado tus demás sesiones y te lo confirmamos por correo. Revisa también tus llaves de acceso, aquí en Seguridad, y quita las que no reconozcas.',
+    enabledSessionsOpen:
+      'Verificación en dos pasos activada; te lo confirmamos por correo. No hemos podido cerrar tus demás sesiones: ciérralas aquí en Seguridad con «Cerrar todas las demás», y revisa también tus llaves de acceso y quita las que no reconozcas.',
     expired: 'Ha pasado demasiado tiempo. Vuelve a acceder.',
     fileDate: 'Generados el {date}',
     fileName: 'nutria-codigos-respaldo.txt',

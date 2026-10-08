@@ -17,7 +17,8 @@ const ALICE: SessionUser = {
   emailVerified: true,
   name: 'Alice',
   passwordChangeRequired: false,
-  role: 'user'
+  role: 'user',
+  twoFactorEnabled: false
 };
 const PLAN = '11111111-2222-4333-8444-555555555555';
 

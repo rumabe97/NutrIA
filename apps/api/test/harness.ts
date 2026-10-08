@@ -286,13 +286,26 @@ export async function register(app: INestApplication, email: string): Promise<Ac
   const password = 'correct-horse-battery-staple-9';
   const server = httpServer(app);
 
-  await request(server)
-    .post(`/${PREFIX}/auth/sign-up/email`)
-    .send({ email, name: email.split('@')[0], password })
-    .expect(200);
+  // Paced: every `/auth/*` call of a suite spends one allowance of the API's own limiter, and the privileged
+  // accounts' TOTP (`enableTotp`) spends two more each.
+  const signUp = await paced(() =>
+    request(server)
+      .post(`/${PREFIX}/auth/sign-up/email`)
+      .send({ email, name: email.split('@')[0], password })
+  );
+
+  if (signUp.status !== 200) {
+    throw new Error(`Sign-up refused for ${email}: ${signUp.status}`);
+  }
+
   await activate(email);
 
-  const signIn: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password }).expect(200);
+  const signIn: Response = await paced(() => request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password }));
+
+  if (signIn.status !== 200) {
+    throw new Error(`Sign-in refused for ${email}: ${signIn.status}`);
+  }
+
   const cookie = (signIn.headers['set-cookie'] as unknown as string[]).join('; ');
   const me: Response = await request(server).get(`/${PREFIX}/users/me`).set('Cookie', cookie).expect(200);
 
@@ -419,9 +432,17 @@ export async function deleteAccounts(app: INestApplication, cookies: readonly st
  * only signed up never had its link opened.
  *
  * Silently returns when the sign-in fails: the account is already gone, which
- * a second cleanup run against the same database must tolerate.
+ * a second cleanup run against the same database must tolerate. An account
+ * with TOTP on is challenged rather than refused: with its `totpURI` the
+ * challenge is finished with a code, and without one this throws — the
+ * account would otherwise stay behind with nothing said.
  */
-export async function deleteAccountByEmail(app: INestApplication, email: string, password = 'correct-horse-battery-staple-9'): Promise<void> {
+export async function deleteAccountByEmail(
+  app: INestApplication,
+  email: string,
+  password = 'correct-horse-battery-staple-9',
+  totpURI?: string
+): Promise<void> {
   const server = httpServer(app);
 
   await UserController.confirmAddress(email);
@@ -433,7 +454,15 @@ export async function deleteAccountByEmail(app: INestApplication, email: string,
     return;
   }
 
-  const cookie = (signIn.headers['set-cookie'] as unknown as string[]).join('; ');
+  let cookie = (signIn.headers['set-cookie'] as unknown as string[]).join('; ');
+
+  if ((signIn.body as { twoFactorRedirect?: boolean }).twoFactorRedirect) {
+    if (!totpURI) {
+      throw new Error(`${email} has TOTP on: deleteAccountByEmail needs its totpURI`);
+    }
+
+    cookie = await finishChallenge(app, new CookieJar().take(signIn).header, totpURI);
+  }
 
   await paced(() => request(server).delete(`/${PREFIX}/users/me`).set('Cookie', cookie));
 }
@@ -454,6 +483,96 @@ export async function unconfirmAddress(email: string): Promise<void> {
   if (unconfirmed.length !== 1) {
     throw new Error(`No account to unconfirm for ${email}`);
   }
+}
+
+/**
+ * Finishes a password sign-in's TOTP challenge (`challenge` is the cookie it
+ * left) and answers the session's cookie. The server accepts each step's code
+ * once (PLAN 011 phase 4) and this does not know which it took last, so it
+ * types the next step's code and, if that one is spent, waits for the clock's
+ * next step and types the one after.
+ */
+async function finishChallenge(app: INestApplication, challenge: string, totpURI: string): Promise<string> {
+  const server = httpServer(app);
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const verified = await paced(() =>
+      request(server)
+        .post(`/${PREFIX}/auth/two-factor/verify-totp`)
+        .set('Cookie', challenge)
+        .send({ code: totpCode(totpURI, 1) })
+    );
+
+    if (verified.status === 200) {
+      return (verified.headers['set-cookie'] as unknown as string[]).join('; ');
+    }
+
+    await pause(30_000 - (Date.now() % 30_000) + 50);
+  }
+
+  throw new Error('The TOTP challenge was not finished');
+}
+
+/**
+ * A second session for an account with TOTP on, as somebody signing in again
+ * on another device: the password, then a code. For a suite that needs a
+ * session that existed before something changed the account.
+ */
+export async function signInWithTotp(app: INestApplication, account: TotpAccount, password = 'correct-horse-battery-staple-9'): Promise<string> {
+  const signIn: Response = await paced(() => request(httpServer(app)).post(`/${PREFIX}/auth/sign-in/email`).send({ email: account.email, password }));
+
+  if (signIn.status !== 200 || !(signIn.body as { twoFactorRedirect?: boolean }).twoFactorRedirect) {
+    throw new Error(`Expected a TOTP challenge for ${account.email}: ${signIn.status}`);
+  }
+
+  return finishChallenge(app, new CookieJar().take(signIn).header, account.totpURI);
+}
+
+/** An account with the authenticator app on, and the URI a suite types its codes from. */
+export type TotpAccount = Account & {
+  /** What the confirmation answered: whether the account's other sessions were closed (`closeOtherSessions`). */
+  readonly otherSessionsClosed?: boolean;
+  readonly totpURI: string;
+};
+
+/**
+ * Turns the authenticator app on for an account, the way the person does in
+ * "Seguridad": `/two-factor/enable` with the password, then the first right
+ * code at `/two-factor/verify-totp`. Every privileged account with a password
+ * needs it (PLAN 011 phase 6) — the admin for any console route, a
+ * professional for any client route — so a suite that makes one calls this
+ * straight after `grantAdmin` or the grant.
+ *
+ * **Use the account it answers, not the one it was given.** The confirmation
+ * rotates the session — and closes the account's other sessions — so the old
+ * cookie is gone, and a cleanup list holding it deletes nothing. The account's
+ * next password sign-in asks for a code (`signInWithTotp`; `deleteAccountByEmail`
+ * takes `totpURI` for it).
+ */
+export async function enableTotp(app: INestApplication, account: Account, password = 'correct-horse-battery-staple-9'): Promise<TotpAccount> {
+  const server = httpServer(app);
+  const enabled = await paced(() => request(server).post(`/${PREFIX}/auth/two-factor/enable`).set('Cookie', account.cookie).send({ password }));
+
+  if (enabled.status !== 200) {
+    throw new Error(`Could not start TOTP for ${account.email}: ${enabled.status}`);
+  }
+
+  const { totpURI } = enabled.body as { totpURI: string };
+  // The code inside the closure: a retry after a wait types the code of its own moment.
+  const verified = await paced(() =>
+    request(server)
+      .post(`/${PREFIX}/auth/two-factor/verify-totp`)
+      .set('Cookie', account.cookie)
+      .send({ code: totpCode(totpURI) })
+  );
+
+  if (verified.status !== 200) {
+    throw new Error(`Could not confirm TOTP for ${account.email}: ${verified.status}`);
+  }
+
+  const { otherSessionsClosed } = verified.body as { otherSessionsClosed?: boolean };
+
+  return { ...account, cookie: (verified.headers['set-cookie'] as unknown as string[]).join('; '), otherSessionsClosed, totpURI };
 }
 
 /**

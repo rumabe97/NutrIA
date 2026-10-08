@@ -6,7 +6,7 @@ import { UNAUDITED } from 'core/entities/Audit';
 import { signInBrakeKey } from 'core/domain/SignInBrake';
 import { database } from 'database';
 
-import { createApp, deleteAccountByEmail, deleteAccounts, httpServer, PREFIX, ScriptedAiClient, unconfirmAddress } from './harness.js';
+import { createApp, deleteAccountByEmail, deleteAccounts, enableTotp, httpServer, PREFIX, ScriptedAiClient, unconfirmAddress } from './harness.js';
 
 import type { INestApplication } from '@nestjs/common';
 import type { Response } from 'supertest';
@@ -273,12 +273,18 @@ describe('access: two locks, and the shape of a denial', () => {
     // An admin mutation about this account, so the trail (0071) has a row
     // naming it to lose — through a second, admin account of the suite's own.
     const ownerEmail = `locks-delete-owner-${stamp}@e2e.invalid`;
-    const ownerCookie = await signUp(ownerEmail);
+    const signedUp = await signUp(ownerEmail);
 
     // The admin session needs both its own locks open too, like anybody else's.
     await UserController.confirmAddress(ownerEmail);
     await UserController.activate({ email: ownerEmail }, UNAUDITED);
     await UserController.grantAdmin(ownerEmail);
+
+    // And TOTP on (PLAN 011 phase 6): the console is shut to an admin with a password and no second factor.
+    // The confirmation rotates the session, so the new one goes into `made` too.
+    const ownerCookie = (await enableTotp(app, { id: '', cookie: signedUp, email: ownerEmail })).cookie;
+
+    made.push(ownerCookie);
 
     const me: Response = await request(server).get(`/${PREFIX}/users/me`).set('Cookie', cookie).expect(200);
     const targetId = (me.body as { id: string }).id;

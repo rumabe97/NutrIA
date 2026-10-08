@@ -14,6 +14,7 @@ import {
   completeOnboarding,
   createApp,
   dish,
+  enableTotp,
   generateAndWait,
   giveProfileConsent,
   httpServer,
@@ -149,7 +150,8 @@ describe('care review', () => {
     await request(server()).patch(`/${PREFIX}/admin/settings`).set('Cookie', owner.cookie).send({ enabled, flag: 'professional' }).expect(200);
   }
 
-  async function grant(who: Account): Promise<void> {
+  /** Grants, accepts, opens — and turns TOTP on (PLAN 011 phase 6), which rotates the session: use the account it answers. */
+  async function grant(who: Account): Promise<Account> {
     await request(server())
       .post(`/${PREFIX}/admin/accounts/${who.id}/professional`)
       .set('Cookie', owner.cookie)
@@ -159,6 +161,12 @@ describe('care review', () => {
     await acceptAgreement(app, who);
     // The client routes need a paid practice from Phase 7 on (`0061`); this suite is about the workspace, not paying for it.
     await openPractice(who.id);
+
+    const enabled = await enableTotp(app, who);
+
+    made.push(enabled.cookie);
+
+    return enabled;
   }
 
   /** The token in the newest mail to `to`, waiting for the background task that sends it. */
@@ -397,12 +405,14 @@ describe('care review', () => {
     proD = await account('pro-d');
     proE = await account('pro-e');
     await UserController.grantAdmin(owner.email);
+    owner = await enableTotp(app, owner);
+    made.push(owner.cookie);
     await setSwitch(true);
-    await grant(proA);
-    await grant(proB);
-    await grant(proC);
-    await grant(proD);
-    await grant(proE);
+    proA = await grant(proA);
+    proB = await grant(proB);
+    proC = await grant(proC);
+    proD = await grant(proD);
+    proE = await grant(proE);
 
     lived = await account('lived');
     fresh = await account('fresh');
@@ -565,10 +575,10 @@ describe('care review', () => {
        * professional of its own too, so those two do not spend A's hourly generation
        * limit, which the later cases rely on.
        */
-      const spender = await account('pro-spender');
+      let spender = await account('pro-spender');
       const spent = await account('spent');
 
-      await grant(spender);
+      spender = await grant(spender);
 
       await completeOnboarding(app, spent);
       expect((await generateAndWait(app, spent)).status).toBe('succeeded');
@@ -1032,9 +1042,9 @@ describe('care review', () => {
     }
 
     it('with review on, generates into review: the new plan waits, the ended one stays active', async () => {
-      const proOn = await account('pro-ended-on');
+      let proOn = await account('pro-ended-on');
 
-      await grant(proOn);
+      proOn = await grant(proOn);
 
       const { activeId, client, linkId } = await endedFortnightClient(proOn, 'ended-on');
 
@@ -1064,9 +1074,9 @@ describe('care review', () => {
     });
 
     it('with review off, the plan is active at once and the ended one is completed', async () => {
-      const proOff = await account('pro-ended-off');
+      let proOff = await account('pro-ended-off');
 
-      await grant(proOff);
+      proOff = await grant(proOff);
 
       const { activeId, client, linkId } = await endedFortnightClient(proOff, 'ended-off');
 
@@ -1097,9 +1107,9 @@ describe('care review', () => {
     });
 
     it('a fortnight still running is still the 404: writes nothing, spends no allowance', async () => {
-      const proRunning = await account('pro-still-running');
+      let proRunning = await account('pro-still-running');
 
-      await grant(proRunning);
+      proRunning = await grant(proRunning);
 
       const client = await account('still-running');
 
@@ -1124,9 +1134,9 @@ describe('care review', () => {
      * run, the shape the loser and the trail take is the same either way, and that is the point.
      */
     it('a race between the client and the professional makes one plan, one charge — the loser the same 409 "already generating"', async () => {
-      const proRace = await account('pro-race');
+      let proRace = await account('pro-race');
 
-      await grant(proRace);
+      proRace = await grant(proRace);
 
       const { activeId, client, linkId } = await endedFortnightClient(proRace, 'raced');
       const before = (await reviewRows(client.id)).length;
@@ -1194,7 +1204,7 @@ describe('care review', () => {
 
     beforeAll(async () => {
       professional = await account('pro-reconsent');
-      await grant(professional);
+      professional = await grant(professional);
 
       client = await account('reconsent-client');
       await completeOnboarding(app, client);

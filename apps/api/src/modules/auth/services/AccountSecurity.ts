@@ -223,9 +223,7 @@ export function accountSecurityAfter(deps: AccountSecurityDeps) {
     const path = context.path ?? '';
 
     if (path.startsWith('/two-factor/')) {
-      await twoFactorAfter(deps, context, returned);
-
-      return;
+      return twoFactorAfter(deps, context, returned);
     }
 
     if (path.startsWith('/passkey/')) {

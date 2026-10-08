@@ -8,7 +8,8 @@ const RECOVER = 'https://nutria.example/recuperar';
 const AT = new Date('2026-10-01T13:05:00.000Z');
 const IPHONE_SAFARI = { browser: 'safari', system: 'iphone' } as const;
 const EVENTS: TwoFactorEvent[] = [
-  { kind: 'enabled' },
+  { kind: 'enabled', otherSessionsClosed: true },
+  { kind: 'enabled', otherSessionsClosed: false },
   { kind: 'disabled' },
   { kind: 'backup-code-used', remaining: 4 },
   { kind: 'backup-codes-regenerated' }
@@ -35,7 +36,10 @@ function mail(event: TwoFactorEvent, locale: 'en-GB' | 'es-ES' = 'es-ES') {
 
 describe('twoFactorChangedEmail', () => {
   it('says which change in the subject, in both languages, each with its own kind for the log', () => {
-    expect(mail({ kind: 'enabled' })).toMatchObject({ kind: 'two-factor-enabled', subject: 'Has activado la verificación en dos pasos' });
+    expect(mail({ kind: 'enabled', otherSessionsClosed: true })).toMatchObject({
+      kind: 'two-factor-enabled',
+      subject: 'Has activado la verificación en dos pasos'
+    });
     expect(mail({ kind: 'disabled' })).toMatchObject({ kind: 'two-factor-disabled', subject: 'Has desactivado la verificación en dos pasos' });
     expect(mail({ kind: 'backup-code-used', remaining: 4 })).toMatchObject({
       kind: 'backup-code-used',
@@ -45,7 +49,7 @@ describe('twoFactorChangedEmail', () => {
       kind: 'backup-codes-regenerated',
       subject: 'Has generado códigos de respaldo nuevos; los anteriores ya no sirven'
     });
-    expect(mail({ kind: 'enabled' }, 'en-GB').subject).toBe('You turned on two-step verification');
+    expect(mail({ kind: 'enabled', otherSessionsClosed: true }, 'en-GB').subject).toBe('You turned on two-step verification');
     expect(mail({ kind: 'backup-code-used', remaining: 1 }, 'en-GB').subject).toBe('You used a backup code (1 left)');
   });
 
@@ -57,11 +61,37 @@ describe('twoFactorChangedEmail', () => {
   });
 
   it('sends a person who did not do it to reset the password, with the link in both bodies', () => {
-    const sent = mail({ kind: 'enabled' });
+    const sent = mail({ kind: 'enabled', otherSessionsClosed: true });
 
     expect(sent.text).toContain('Si no has sido tú, alguien conoce tu contraseña');
     expect(sent.text).toContain(RECOVER);
     expect(sent.html).toContain(`href="${RECOVER}"`);
+  });
+
+  /*
+   * PLAN 011 phase 6, delta invariant review: the other sessions are said to be closed only when they were, and the
+   * passkeys are always to be checked — a session opened with the password alone before could have added one.
+   */
+  it('says the other sessions were closed only when they were, and asks to check the passkeys either way', () => {
+    const closed = mail({ kind: 'enabled', otherSessionsClosed: true }).text;
+    const open = mail({ kind: 'enabled', otherSessionsClosed: false }).text;
+
+    expect(closed).toContain('se han cerrado las demás sesiones de la cuenta');
+    expect(closed).toContain('Revisa también tus llaves de acceso');
+    expect(open).not.toContain('se han cerrado');
+    expect(open).toContain('No hemos podido cerrar las demás sesiones de la cuenta');
+    expect(open).toContain('«Cerrar todas las demás»');
+    expect(open).toContain('tus llaves de acceso');
+
+    const closedEn = mail({ kind: 'enabled', otherSessionsClosed: true }, 'en-GB').text;
+    const openEn = mail({ kind: 'enabled', otherSessionsClosed: false }, 'en-GB').text;
+
+    expect(closedEn).toContain('every other session of the account was closed');
+    expect(closedEn).toContain('Check your passkeys too');
+    expect(openEn).not.toContain('was closed');
+    expect(openEn).toContain("We could not close the account's other sessions");
+    expect(openEn).toContain('“Sign out all the others”');
+    expect(openEn).toContain('passkeys');
   });
 
   it.each(['es-ES', 'en-GB'] as const)('says no word of health in %s (M14)', locale => {

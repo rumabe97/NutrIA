@@ -15,8 +15,11 @@
 > **Almacenamiento**: `POST /care/practice/agreement { version }` escribe
 > `agreementVersion` y `agreementAcceptedAt` en `professionals` (ver
 > [`analisis.md` § 11](../analisis.md#11-lo-que-hay-que-construir-para-el-004-y-quién)).
-> **Versión**: `PROFESSIONAL_AGREEMENT_VERSION = '1.0.0'`. Cualquier cambio de fondo en
-> este texto o en el 04 la sube y vuelve a pedirse.
+> **Versión**: `PROFESSIONAL_AGREEMENT_VERSION = '1.1.0'`, en vigor
+> (`core/entities/Professional`). Cualquier cambio de fondo en este texto o en el 04 la
+> sube y vuelve a pedirse. **1.1.0** (2026-10-03, proyecto 011 fase 6): § 8, la viñeta
+> ⟦dos-pasos-obligatoria⟧, en `practiceAgreement` de `es-ES.ts` y `en-GB.ts`. **1.0.0**:
+> la primera.
 >
 > **Marcadores**: `{name}` y `{email}` de `legalIdentity.ts` (el titular de NutrIA).
 
@@ -94,10 +97,13 @@ Solo de los pacientes que acepten tu invitación, y mientras el enlace siga acti
 ### 8. Seguridad
 
 - Protege tu acceso: una contraseña que no uses en otro sitio, o entra con Google. No dejes la sesión abierta en un ordenador compartido.
+- ⟦dos-pasos-obligatoria⟧ Si tu cuenta tiene contraseña, la verificación en dos pasos con una app de autenticación es obligatoria: sin ella no se abren los datos de tus pacientes, y una llave de acceso no la sustituye mientras tu cuenta tenga contraseña. La activas en tu perfil, en Seguridad. Si entras solo con Google, mantén activada la verificación en dos pasos de tu cuenta de Google: nosotros no podemos comprobarla. ⟦fin⟧
 - No hagas capturas ni copias de la ficha salvo para tu historia clínica, y guárdalas con la misma protección que el resto de tu documentación clínica.
 - Si crees que alguien ha entrado en tu cuenta o ha visto datos de un paciente que no debía, escríbenos a {email} en cuanto lo sepas, y en todo caso en 24 horas. Nosotros valoraremos si hay que avisar a la Agencia Española de Protección de Datos y a los pacientes; si la brecha es tuya, fuera de NutrIA, esa obligación es tuya.
 
 <!-- Fuente: RGPD art. 32 (seguridad), 33 (notificación a la autoridad en 72 horas por cada responsable de su brecha) y 34 (comunicación al interesado); Ley 41/2002 art. 17.6 (medidas de seguridad en la documentación clínica). -->
+
+<!-- ⟦dos-pasos-obligatoria⟧ (2026-10-03, proyecto 011 fase 6; no se publican las marcas). Se publica con la fase 6 en producción, no antes: describe lo que hacen `ProfessionalGuard` y `core/domain/SecondFactor` (`secondFactorMissing`: cuenta con contraseña y verificación apagada → 404 en toda ruta de pacientes; la página de la consulta lo dice, `secondFactorRequired`). Fuente: RGPD art. 32.1 (medidas apropiadas al riesgo: el profesional ve datos de salud, art. 9, de varias personas; EIPD R8) y 32.4 no aplica (el profesional no actúa bajo la autoridad de NutrIA: es responsable independiente, § 4), por eso la frase sobre Google es una obligación contractual del acuerdo, no una instrucción; art. 13.2.e (DOUE L 119, 4.5.2016, texto en español leído el 2026-10-03: «si el interesado está obligado a facilitar los datos personales y está informado de las posibles consecuencias de que no facilitar tales datos»; aquí, que la consulta no abre). «No podemos comprobarla»: NutrIA no recibe de Google si su verificación está activada; no afirma nada sobre la política de Google. Versión: añadir una condición de acceso a un servicio de pago entre empresas es «algo importante» en el sentido del § 10 (Ley 7/1998 arts. 5 y 7; Código Civil art. 1256): `PROFESSIONAL_AGREEMENT_VERSION` → `1.1.0` y se pide aceptar de nuevo — **a confirmar con un abogado**; hoy cuesta nada, porque el único profesional en producción es la cuenta del propietario (LOG del 011, fase 6). -->
 
 ### 9. Usos prohibidos
 
@@ -187,6 +193,7 @@ Only for clients who accept your invitation, and only while the link is active:
 ### 8. Security
 
 - Protect your access: a password you do not use anywhere else, or sign in with Google. Do not leave the session open on a shared computer.
+- ⟦dos-pasos-obligatoria⟧ If your account has a password, two-step verification with an authenticator app is required: without it your clients' data does not open, and a passkey does not replace it while your account has a password. You turn it on in your profile, under Security. If you sign in only with Google, keep your Google account's two-step verification on: we cannot check it. ⟦fin⟧
 - Do not take screenshots or copies of a client's page except for your clinical record, and keep them with the same protection as the rest of your clinical documentation.
 - If you think someone has got into your account or seen a client's data they should not have, write to {email} as soon as you know, and in any case within 24 hours. We will assess whether the Spanish Data Protection Agency and the clients must be told; if the breach is yours, outside NutrIA, that duty is yours.
 

@@ -11,17 +11,20 @@ import { activationToken } from '../src/modules/auth/services/ActivationLink.js'
 
 import {
   auditCount,
+  auditRowsAboutSubject,
   completeOnboarding,
   createApp,
   deleteAccountByEmail,
   deleteAccounts,
+  enableTotp,
   generateAndWait,
   httpServer,
   POOL,
   PREFIX,
   register,
   ScriptedAiClient,
-  SEEDED
+  SEEDED,
+  signInWithTotp
 } from './harness.js';
 
 import type { Account } from './harness.js';
@@ -307,6 +310,9 @@ describe('admin', () => {
       .send({ email: waiting, name: 'Waiting', password: 'correct-horse-battery-staple-9' })
       .expect(200);
     await UserController.grantAdmin(owner.email);
+    // The console is shut to an admin with a password and no TOTP (PLAN 011 phase 6); the confirmation rotates the session.
+    owner = await enableTotp(app, owner);
+    made.push(owner.cookie);
   });
 
   afterAll(async () => {
@@ -317,6 +323,117 @@ describe('admin', () => {
     }
 
     await app?.close();
+  });
+
+  /*
+   * PLAN 011 phase 6 (PRD 11): the console reads every account, so an admin who
+   * can sign in with a password must have the authenticator app on. Without it
+   * every console route is the guard's 404, the same a stranger gets; `/users/me`
+   * still answers what the web's gate reads to say what to do. An admin with no
+   * password — Google only — is never blocked.
+   */
+  describe('an admin’s second factor', () => {
+    const NOT_FOUND = { code: 'NOT_FOUND', message: 'Not Found', statusCode: 404 };
+
+    async function anotherAdmin(label: string): Promise<Account> {
+      const who = await register(app, `admin-2fa-${label}-${Date.now()}@e2e.invalid`);
+
+      made.push(who.cookie);
+      await UserController.grantAdmin(who.email);
+
+      return who;
+    }
+
+    it('shuts every console route to an admin with a password and no TOTP, with the stranger’s 404, and opens them once it is on', async () => {
+      const server = httpServer(app);
+      const admin = await anotherAdmin('off');
+
+      for (const route of ROUTES) {
+        const refused: Response = await request(server).get(`/${PREFIX}/admin/${route}`).set('Cookie', admin.cookie);
+
+        expect({ body: refused.body as unknown, route, status: refused.status }).toEqual({ body: NOT_FOUND, route, status: 404 });
+      }
+
+      await request(server).post(`/${PREFIX}/admin/accounts/${ordinary.id}/activate`).set('Cookie', admin.cookie).expect(404);
+      // What the web's console gate reads to say what to do instead.
+      expect((await request(server).get(`/${PREFIX}/users/me`).set('Cookie', admin.cookie).expect(200)).body).toMatchObject({
+        hasPassword: true,
+        role: 'admin',
+        twoFactorEnabled: false
+      });
+
+      const enabled = await enableTotp(app, admin);
+
+      made.push(enabled.cookie);
+
+      for (const route of ROUTES) {
+        await request(server).get(`/${PREFIX}/admin/${route}`).set('Cookie', enabled.cookie).expect(200);
+      }
+    });
+
+    it('shuts a session that already existed on the very next request once TOTP is turned off', async () => {
+      const server = httpServer(app);
+      const enabled = await enableTotp(app, await anotherAdmin('turned-off'));
+      // Opened on another device while the factor was on, before it went off: the flag is read afresh, not carried.
+      const elsewhere = await signInWithTotp(app, enabled);
+
+      made.push(enabled.cookie, elsewhere);
+      await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', elsewhere).expect(200);
+      await request(server)
+        .post(`/${PREFIX}/auth/two-factor/disable`)
+        .set('Cookie', enabled.cookie)
+        .send({ password: 'correct-horse-battery-staple-9' })
+        .expect(200);
+
+      const refused: Response = await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', elsewhere);
+
+      expect([refused.status, refused.body]).toEqual([404, NOT_FOUND]);
+      // Refused by the rule, not signed out: turning the factor off closes no session.
+      await request(server).get(`/${PREFIX}/users/me`).set('Cookie', elsewhere).expect(200);
+    });
+
+    /* The legal review of phase 6: a session opened with the password alone must not ride the factor in. */
+    it('closes every other session when TOTP goes on, so one opened earlier with the password alone never reaches the console', async () => {
+      const server = httpServer(app);
+      const admin = await anotherAdmin('stolen');
+      const signedIn: Response = await request(server)
+        .post(`/${PREFIX}/auth/sign-in/email`)
+        .send({ email: admin.email, password: 'correct-horse-battery-staple-9' })
+        .expect(200);
+      const stolen = (signedIn.headers['set-cookie'] as unknown as string[]).join('; ');
+
+      await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', stolen).expect(404);
+      // Live before: so the 404 afterwards is the close, not a cookie that never worked.
+      await request(server).get(`/${PREFIX}/users/me`).set('Cookie', stolen).expect(200);
+
+      const enabled = await enableTotp(app, admin);
+
+      made.push(enabled.cookie);
+      // Through the real driver, not the unit specs' memory adapter: the delete's count reached the answer and the trail.
+      expect(enabled.otherSessionsClosed).toBe(true);
+      expect((await auditRowsAboutSubject(admin.id)).filter(row => row.action === 'auth.sessions_revoked').map(row => row.metadata)).toEqual([
+        { scope: 'others' }
+      ]);
+      await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', enabled.cookie).expect(200);
+      await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', stolen).expect(404);
+      // Closed, not merely refused: the session itself is gone.
+      await request(server).get(`/${PREFIX}/users/me`).set('Cookie', stolen).expect(404);
+    });
+
+    it('never blocks an admin with no password — a Google-only account’s second factor is Google’s', async () => {
+      const admin = await anotherAdmin('google');
+
+      // What a Google-only account is to the rule: no `credential` account. The session stays as it was.
+      const sql = (
+        database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> }
+      ).$client;
+
+      await sql`delete from account where user_id = ${admin.id} and provider_id = 'credential'`;
+
+      for (const route of ROUTES) {
+        await request(httpServer(app)).get(`/${PREFIX}/admin/${route}`).set('Cookie', admin.cookie).expect(200);
+      }
+    });
   });
 
   it('does not exist for an ordinary account', async () => {

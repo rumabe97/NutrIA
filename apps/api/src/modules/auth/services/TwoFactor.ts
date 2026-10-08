@@ -307,13 +307,68 @@ export async function cancelPendingRemoval(
 }
 
 /**
+ * Turning the factor on closes every other session of the account (PLAN 011
+ * phase 6, the legal review's finding). The flag rides every session's user
+ * row, so a session somebody opened earlier with the password alone would
+ * pass the privileged accounts' rule the moment the factor went on — the very
+ * door the rule shuts. Only the one the plugin just made for this request
+ * (`keep`) survives, as on `/change-password` (`AccountSecurity.ts`).
+ *
+ * One `DELETE` of every session of the account but `keep`, never a list
+ * first: Better Auth's `listSessions` stops at 100 rows, in no order, and a
+ * session opened between the list and the delete would survive (delta
+ * invariant review, P1). The raw adapter skips Better Auth's secondary
+ * storage, which is right only because there is none (no `secondaryStorage`
+ * in `auth.config.ts`, as there is no `cookieCache`): adding one means
+ * clearing it here too. The count includes expired rows not yet swept, so
+ * the row may be written when only those went. Awaited, before the answer, and tried twice, as
+ * `forgetPasskeys` is. Whether it went is what this answers: the mail and the
+ * web's confirmation say the other sessions were closed only when they were.
+ *
+ * Two lines, never a 500 — the factor did turn on: `two_factor_sessions_not_closed`
+ * when the delete failed twice, `sessions_revoked_unrecorded` when it went but
+ * its `auth.sessions_revoked {scope:'others'}` row (written only when any
+ * went) did not.
+ */
+async function closeOtherSessions(context: Context, userId: string, keep: string): Promise<boolean> {
+  const close = async (): Promise<number> =>
+    context.context.adapter.deleteMany({
+      model: 'session',
+      where: [
+        { field: 'userId', value: userId },
+        { field: 'token', operator: 'ne', value: keep }
+      ]
+    });
+  let closed: number;
+
+  try {
+    closed = await close().catch(close);
+  } catch {
+    logger.error(`two_factor_sessions_not_closed ${JSON.stringify({ userId })}`);
+
+    return false;
+  }
+
+  if (closed > 0) {
+    await UserController.sessionsRevoked(userId, 'others').catch(() => {
+      logger.error(`sessions_revoked_unrecorded ${JSON.stringify({ scope: 'others', userId })}`);
+    });
+  }
+
+  return true;
+}
+
+/**
  * After the plugin, on a 2xx only (called from `accountSecurityAfter`):
  *
  * - `/two-factor/verify-totp` from a session whose account had the factor off:
  *   that is the factor turning on — the first correct code after `/enable`,
  *   never `/enable` itself, which only stores an unverified secret. The plugin
- *   has rotated the session to one whose user has it on. A challenge (no
- *   session before the request) is a sign-in and writes nothing here.
+ *   has rotated the session to one whose user has it on; every other session
+ *   of the account is closed (`closeOtherSessions`), and the plugin's answer
+ *   gains `otherSessionsClosed`, which the web's confirmation reads. A
+ *   challenge (no session before the request) is a sign-in and writes nothing
+ *   here.
  * - `/two-factor/disable`: off, for the session's own account, when it was on.
  * - `/two-factor/generate-backup-codes`: ten new codes, the old ones dead —
  *   a row and a mail, so nobody holding the session and the password can
@@ -323,7 +378,7 @@ export async function cancelPendingRemoval(
  * - Both verify routes: a pending removal of the factor is cancelled
  *   (`cancelPendingRemoval`).
  */
-export async function twoFactorAfter(deps: TwoFactorDeps, context: Context, returned: unknown): Promise<void> {
+export async function twoFactorAfter(deps: TwoFactorDeps, context: Context, returned: unknown): Promise<unknown> {
   const path = context.path ?? '';
 
   if (path === VERIFY_TOTP) {
@@ -331,12 +386,17 @@ export async function twoFactorAfter(deps: TwoFactorDeps, context: Context, retu
     const after = context.context.newSession;
 
     if (before?.session && before.user.twoFactorEnabled !== true && after?.user.twoFactorEnabled === true) {
-      await changed(deps, context, { id: after.user.id, email: after.user.email }, { kind: 'enabled' });
+      const otherSessionsClosed = await closeOtherSessions(context, after.user.id, after.session.token);
+
+      await changed(deps, context, { id: after.user.id, email: after.user.email }, { kind: 'enabled', otherSessionsClosed });
+      await cancelPendingRemoval(deps, answeredUser(returned));
+
+      return context.json({ ...record(returned), otherSessionsClosed });
     }
 
     await cancelPendingRemoval(deps, answeredUser(returned));
 
-    return;
+    return undefined;
   }
 
   if (path === DISABLE) {

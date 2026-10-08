@@ -117,6 +117,7 @@
 **Código**
 - [ ] **P0-1** — El cliente puede activar y desactivar la línea de salud desde su perfil sin terminar el enlace; cada cambio deja fila en el rastro; desactivar cierra el acceso en la siguiente petición. Test de extremo a extremo que la retira a mitad de sesión.
 - [ ] **P1-1** — Aceptación del profesional: `PROFESSIONAL_AGREEMENT_VERSION`, columnas en `professionals`, `ProfessionalGuard` la exige, `POST /care/practice/agreement`, pantalla en `/consulta` ([`analisis.md` § 11](./analisis.md#11-lo-que-hay-que-construir-para-el-004-y-quién)). Test: un profesional sin aceptar recibe 404 en toda ruta de clientes y en la compra.
+- [ ] **011 fase 6** — Antes de que un profesional real acepte el acuerdo: (backend) activar la verificación en dos pasos cierra las demás sesiones de la cuenta, con prueba de extremo a extremo — **hecho** en la fase 6 (`168f12f0`, PR #214; [`eipd.md`](./eipd.md) R8 b); (backend + frontend) acuerdo § 8 con la viñeta ⟦dos-pasos-obligatoria⟧ y `PROFESSIONAL_AGREEMENT_VERSION = '1.1.0'` ([`textos/01`](./textos/01-acuerdo-profesional.md)) — **hecho** en la fase 6 (`44924577`, PR #214). La casilla se marca cuando el PR esté fusionado y desplegado.
 - [ ] **P1-3** — Página de invitación con los textos nuevos; `CARE_CONSENT_VERSION = '2.0.0'`; ningún enlace real aceptado con `1.0.0`.
 - [ ] **P1-2** — Correo de invitación con el párrafo del art. 14.
 - [ ] Correo de alta al profesional ([`textos/06`](./textos/06-correos.md) § B).

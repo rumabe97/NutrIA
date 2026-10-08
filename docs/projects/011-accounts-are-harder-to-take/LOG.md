@@ -521,6 +521,163 @@
 - Merged as #210 and deployed. Migration 0059 is applied.
 - **Human-verify:** the owner added a passkey in Perfil › Seguridad and signed in with Face ID on his iPhone: "funciona, por lo menos en iPhone". The iOS version was not recorded. Android and desktop are not yet checked.
 
+## Phase 6 — Mandatory for professionals and the admin (2026-10-03)
+
+- **Executor**: opus 5.5 @ high (`backend`, named `backend-011p6`), on
+  `agent/privileged-2fa/backend-011p6`. For this phase the lead allowed it to edit
+  `apps/web` (the workspace copy and the console's gate) and `apps/api/test`.
+- **Owner gate, cleared**:
+  - The owner, 2026-10-03: "Activado el 2FA, no tengo nutricionista".
+  - A read-only production check confirmed both halves. The one admin account has a
+    password and `two_factor_enabled = true`. The only `professionals` row is that same
+    account.
+  - So no professional is active with a password and no second factor (the phase's
+    stop signal), and the admin half ships with the professionals' half.
+- **Result**: done, pending the invariant and legal reviews.
+- **The rule, as written** (`core/domain/SecondFactor`, `secondFactorMissing`):
+  - An account with a `credential` account must have `twoFactorEnabled`.
+  - An account with only provider accounts passes.
+  - `UserController.needsSecondFactor(user)` asks it from the session's user. The flag
+    rides the session (`SessionGuard` copies it to `request.user`), so an account with
+    the factor on costs no query. Only an account with it off is asked whether it has a
+    password, and only in `ProfessionalGuard` and `AdminGuard`.
+  - **Professionals**: every client route is the guard's 404. The `@BeforePractice()`
+    routes stay open: the workspace's page and accepting the agreement.
+    `GET /care/practice` adds `secondFactorRequired`, and `/consulta` shows
+    `SecondFactorRequired` in place of the workspace, before the agreement.
+  - **The admin**: `AdminGuard` (now async) answers the same 404 on every
+    `@Roles('admin')` route. The web's console gate applies the same function to
+    `/users/me` (`role`, `hasPassword`, `twoFactorEnabled`) and shows
+    `SecondFactorRequired` instead of the console.
+- **Decision: a passkey does not stand in for TOTP on a password account** (the lead's
+  view, confirmed here). `0083` makes a user-verified passkey's own sign-in two factors,
+  but it guards nothing at the password door beside it. So a privileged account with a
+  password, a passkey and no TOTP is refused, however it signed in. With TOTP on, a
+  passkey sign-in passes with no code, as `0083` § Consequences says. The rule asks
+  about the account, never about how the session was opened. The copy says "mientras tu
+  cuenta tenga contraseña, una llave de acceso no la sustituye", and never promises that
+  every sign-in asks for the code.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api
+    --filter=web`: green. The API has 1510 unit specs.
+  - `pnpm --filter api build`: green.
+  - The end-to-end suites ran on local Postgres (`NUTRIA_LOCAL_PG=1`), one run at a
+    time, all green:
+    - professionals 25;
+    - admin, access, two-factor, two-factor-removal, care-review, billing and
+      social-sign-in: 258 together;
+    - care and care-practice: 107;
+    - audit, text-cap, the five picture suites, dish-pictures, plan-scheduled-care,
+      accompaniments and passkeys: 142.
+  - New end-to-end cases:
+    - professionals: client routes shut with the guard's 404 byte for byte, the page
+      open with `secondFactorRequired: true`; opened by TOTP and shut again on the next
+      request after `/two-factor/disable`; a professional with no `credential` account
+      never blocked;
+    - admin: console routes shut with the stranger's 404, `/users/me` saying what the
+      web reads, opened by TOTP; an admin with no password never blocked;
+    - passkeys: an admin with a password and a passkey but no TOTP is refused after a
+      passkey sign-in, and let in by a passkey sign-in with no code once TOTP is on.
+- **Harness**:
+  - `enableTotp(app, account, password?)` turns TOTP on through `/two-factor/enable` and
+    the first `/verify-totp`. It answers the account with its rotated cookie: the old
+    one is gone.
+  - Every suite that makes an admin or a working professional calls it and puts the
+    new cookie in its cleanup list.
+  - `register` is now paced: the two extra `/auth/*` calls per privileged account
+    pushed `care.e2e-spec.ts` past the API's own 120-a-minute limiter.
+  - `care-practice`'s "deletes a professional who pays" deletes from the confirmed
+    session. A password sign-in would now be challenged.
+- **Deviations from plan**: none in scope. The plan names `Session.guard.ts`,
+  `Professional.guard.ts` and `Admin.guard.ts`; the practice view's field and the web's
+  console gate are how "copy that says what to do" reaches each page.
+- **Not changed, to note**:
+  - Billing's practice checkout and the Stripe test-mode check (`role === 'admin'`) are
+    not behind these guards. They read no health data.
+  - The owner's one-click activation link is `@Public()` and authorised by its token, not
+    the session.
+- **Advisor**: not consulted.
+- **After deploy**: the owner still reaches `/admin` (his account has TOTP on).
+- **Legal review, P2 applied** (`legal-p6`): turning TOTP on now closes every other
+  session of the account. The flag rides every session's user row, so a session opened
+  earlier with the password alone would otherwise have passed the privileged rule once
+  the factor went on.
+  - In `twoFactorAfter`, the confirmation that turns the factor on deletes every
+    session but the one the plugin just made, awaited, and writes
+    `auth.sessions_revoked {scope:'others'}` when any went. A failure is the line
+    `two_factor_sessions_not_closed {"userId"}`, not a 500.
+  - This applies to every account, not only privileged ones.
+  - The "enabled" mail and the web's confirmation say the other sessions were closed.
+  - Pinned by three specs in `TwoFactor.spec.ts` and by a `professionals.e2e-spec.ts`
+    case: a session signed in with the password before TOTP went on is gone afterwards.
+  - Rerun: two-factor, professionals, passkeys, two-factor-removal and care-practice,
+    126 tests, green. API unit specs: 1513.
+- **Legal review, agreement § 8** (`legal-p6`, `e1f79a94` on this branch; applied under
+  the owner's delegation of 2026-10-03):
+  - `practiceAgreement` § 8 in `es-ES.ts` and `en-GB.ts` carries the
+    ⟦dos-pasos-obligatoria⟧ bullet. A password account must have the authenticator app
+    on; a passkey does not replace it. A Google-only professional keeps Google's own
+    two-step verification on, which NutrIA cannot check.
+  - `PROFESSIONAL_AGREEMENT_VERSION` is `1.1.0`, so every professional is asked again.
+    Today that is only the owner's own account.
+- **Invariant review** (`invariant-reviewer-p6`): no P0 or P1. The P2s and P3s are
+  applied:
+  - **P2-1**: the "off again" checks now run on a session that already existed before
+    the factor went off, for a professional (`professionals.e2e-spec.ts`) and for the
+    admin (`admin.e2e-spec.ts`). Nothing else pins `cookieCache` off, and this is the
+    first place the flag decides who gets in.
+  - **P2-2**: `two-factor-removal.e2e-spec.ts` makes an admin with TOTP, carries out the
+    owner's removal through the cron, and checks that the admin's existing session gets
+    the guard's 404 on `/admin/accounts` while `/users/me` still answers.
+  - **P3-1**: `apps/api/AGENTS.md` names `CareService.practice` as the third caller of
+    the password lookup, and `docs/ARCHITECTURE.md` § Invariants gains a phase 6
+    paragraph.
+  - **P3-2**: `deleteAccountByEmail` finishes a TOTP challenge when given the account's
+    `totpURI`, and throws without it instead of leaving the account behind. New harness
+    helper `signInWithTotp`.
+  - **P3-3**: `enableTotp` types its code inside the retried request.
+- **Also**: an admin case for the session gap — a session opened with the password alone
+  before TOTP went on is closed (`admin.e2e-spec.ts`).
+- **Merged `origin/main`** (CSP report-only, phase 5 shipped). The local database had
+  been reset by another agent, so migrations were re-applied first. Rerun on local
+  Postgres, all green:
+  - professionals, admin, two-factor-removal, two-factor, passkeys and access: 179;
+  - care, care-practice, care-review, plan-scheduled-care, accompaniments and audit: 171.
+- **Delta invariant review on `75dab360`** (resumed after the machine crashed; one P1,
+  P2s and P3s, all applied):
+  - **P1, the close was capped and racy.** `closeOtherSessions` listed the sessions with
+    `internalAdapter.listSessions`, which Better Auth caps at 100 rows
+    (`defaultFindManyLimit`), in no order and expired rows included, then deleted that
+    list. An account with more than 100 sessions kept the rest, and a session opened
+    between the list and the delete survived. Now it is one `DELETE` through the adapter
+    (`userId = …` and `token <> the kept one`), uncapped, with the count back. A unit spec
+    with 150 other sessions proves it; on the old code the same spec leaves 50 alive. No
+    `session.delete` hooks and no secondary storage exist, so bypassing the internal
+    adapter loses nothing. `auth.sessions_revoked {scope:'others'}` is written only when
+    the count is above 0.
+  - **P2, fail open but honest.** The delete is tried twice, as `forgetPasskeys` is. When
+    it still fails, the factor stays on (not a 500). The enabling `/two-factor/verify-totp`
+    answer gains `otherSessionsClosed` (`twoFactorAfter` returns `context.json`, as
+    `Passkey.ts` does for the authenticate options). The "enabled" mail
+    (`TwoFactorEvent.enabled.otherSessionsClosed`) and the web's confirmation
+    (`twoFactor.enabled` / `enabledSessionsOpen`) say the sessions closed only when it is
+    `true`. Otherwise they send the person to "Cerrar todas las demás" in Seguridad. The
+    web treats a missing field as `false`.
+  - **P2, the passkey residual.** A session opened with the password alone before the
+    factor went on could have added a passkey, and closing
+    the session does not remove it; once TOTP is on, its sign-in passes (`0083`). The
+    "enabled" mail and both confirmations now ask the person to check their passkeys.
+    `apps/api/AGENTS.md` and `docs/ARCHITECTURE.md` name both residuals. "A session
+    opened with the password alone never passes the rule" was too broad and is gone.
+  - **P3, the lines.** `two_factor_sessions_not_closed` now means only that the delete
+    failed twice. A failed audit row after a delete that worked is
+    `sessions_revoked_unrecorded {scope:'others'}`, as in `AccountSecurity.ts`.
+  - **E2e preconditions.** The stolen cookie answers `/users/me` 200 before `enableTotp`,
+    in `professionals` and `admin`. In `admin`, `elsewhere` still answers `/users/me` 200
+    after `/disable`: refused by the rule, not signed out.
+  - **Legal P3.** `01-acuerdo-profesional.md` reads `PROFESSIONAL_AGREEMENT_VERSION =
+    '1.1.0'`, in force. `78118da3` had not changed that line.
+
 ## Phase 7 — A brake per account (2026-10-03)
 
 - **Executor**: opus 5.5 @ high (`backend`, one agent; the lead allowed it to edit

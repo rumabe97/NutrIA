@@ -14,6 +14,7 @@ import {
   acceptAgreement,
   completeOnboarding,
   createApp,
+  enableTotp,
   generateAndWait,
   httpServer,
   openPractice,
@@ -164,7 +165,8 @@ describe('care', () => {
     await request(server()).patch(`/${PREFIX}/admin/settings`).set('Cookie', owner.cookie).send({ enabled, flag: 'professional' }).expect(200);
   }
 
-  async function grant(who: Account): Promise<void> {
+  /** Grants, accepts, opens — and turns TOTP on (PLAN 011 phase 6), which rotates the session: use the account it answers. */
+  async function grant(who: Account): Promise<Account> {
     await request(server())
       .post(`/${PREFIX}/admin/accounts/${who.id}/professional`)
       .set('Cookie', owner.cookie)
@@ -174,6 +176,12 @@ describe('care', () => {
     await acceptAgreement(app, who);
     // The client routes need a paid practice from Phase 7 on (`0061`); this suite is about the workspace, not paying for it.
     await openPractice(who.id);
+
+    const enabled = await enableTotp(app, who);
+
+    made.push(enabled.cookie);
+
+    return enabled;
   }
 
   /** The token in the newest mail to `to`, waiting for the background task that sends it. */
@@ -269,9 +277,11 @@ describe('care', () => {
     client = await account('client');
     stranger = await account('stranger');
     await UserController.grantAdmin(owner.email);
+    owner = await enableTotp(app, owner);
+    made.push(owner.cookie);
     await setSwitch(true);
-    await grant(pro);
-    await grant(otherPro);
+    pro = await grant(pro);
+    otherPro = await grant(otherPro);
   });
 
   afterAll(async () => {
@@ -590,10 +600,10 @@ describe('care', () => {
 
     it('marks a link stored under a previous consent version as not current (P1-3)', async () => {
       // A dedicated professional: `pro`'s own link counts are asserted exactly, below and in `ending`, and this link is never ended.
-      const dedicated = await account('consent-stale-pro');
+      let dedicated = await account('consent-stale-pro');
       const dated = await account('consent-stale');
 
-      await grant(dedicated);
+      dedicated = await grant(dedicated);
       const { token } = await invite(dedicated, dated.email);
       const accepted = await accept(dated, token, { consentVersion: CARE_CONSENT_VERSION, sharesHealth: false });
       const linkId = (accepted.body as CareLinkView).id;
@@ -718,10 +728,10 @@ describe('care', () => {
 
   describe('a grant taken back', () => {
     it('closes the invitations it sent and its side of the link; the client keeps theirs', async () => {
-      const revoked = await account('pro-revoked');
+      let revoked = await account('pro-revoked');
       const theirs = await account('client-c');
 
-      await grant(revoked);
+      revoked = await grant(revoked);
       const linked = await invite(revoked, theirs.email);
       const accepted = await accept(theirs, linked.token);
 
@@ -764,10 +774,10 @@ describe('care', () => {
 
   describe('expired invitations', () => {
     it('are deleted when anybody writes the next one, whoever sent them', async () => {
-      const sweeper = await account('pro-sweep');
+      let sweeper = await account('pro-sweep');
       const earlier = new Date(Date.now() - 15 * DAY_MS);
 
-      await grant(sweeper);
+      sweeper = await grant(sweeper);
       // Written fifteen days ago, by the clock the controller is handed: it expired yesterday.
       await CareController.invite({ id: sweeper.id, email: sweeper.email }, { email: address('stale') }, earlier);
       expect(await invitationsTo(address('stale'))).toHaveLength(1);
@@ -781,10 +791,10 @@ describe('care', () => {
 
     /** cf87d75: the daily sweep (`/cron/reminders`, `ExpiredInvitationsService`) — the case nobody invites anybody to trigger the door's own cleanup. */
     it('are also deleted by the daily sweep, whoever sent them, even when nobody writes another one', async () => {
-      const sweeper = await account('pro-sweep-daily');
+      let sweeper = await account('pro-sweep-daily');
       const earlier = new Date(Date.now() - 15 * DAY_MS);
 
-      await grant(sweeper);
+      sweeper = await grant(sweeper);
       // Live first: `CareRepository.invite` sweeps expired rows itself on every call (the case above),
       // so writing the stale one after it — with nothing invited afterwards — is what isolates the daily
       // sweep's own deletion from that opportunistic one.
@@ -885,10 +895,10 @@ describe('care', () => {
     });
 
     it('takes the professional’s link rows and invitations with it and leaves the client’s account as it was', async () => {
-      const leavingPro = await account('pro-gone');
+      let leavingPro = await account('pro-gone');
       const kept = await account('client-kept');
 
-      await grant(leavingPro);
+      leavingPro = await grant(leavingPro);
       await request(server()).patch(`/${PREFIX}/profile`).set('Cookie', kept.cookie).send({ displayName: 'Kept' }).expect(200);
 
       const { token } = await invite(leavingPro, kept.email);
@@ -1063,8 +1073,8 @@ describe('care', () => {
     beforeAll(async () => {
       readerA = await account('reader-a');
       readerB = await account('reader-b');
-      await grant(readerA);
-      await grant(readerB);
+      readerA = await grant(readerA);
+      readerB = await grant(readerB);
 
       onboarding = await account('reader-onboarding');
       awaiting = await account('reader-awaiting');
@@ -1452,10 +1462,10 @@ describe('care', () => {
       });
 
       it('closes when the grant is taken back while the link is active', async () => {
-        const revoked = await account('reader-revoked');
+        let revoked = await account('reader-revoked');
         const client = await account('reader-revoked-client');
 
-        await grant(revoked);
+        revoked = await grant(revoked);
         const linkId = await link(revoked, client);
 
         await overview(revoked, linkId).expect(200);
@@ -1560,10 +1570,10 @@ describe('care', () => {
      */
     describe('the agreement, held by the repository itself', () => {
       it('closes a read through CareController.withClient once the accepted version is no longer current, with the practice open and the link active', async () => {
-        const stalePro = await account('reader-stale-read');
+        let stalePro = await account('reader-stale-read');
         const staleClient = await account('reader-stale-read-client');
 
-        await grant(stalePro);
+        stalePro = await grant(stalePro);
         const linkId = await link(stalePro, staleClient);
 
         await overview(stalePro, linkId).expect(200);
@@ -1583,9 +1593,9 @@ describe('care', () => {
       });
 
       it('refuses CareController.invite the same way, and inserts nothing', async () => {
-        const stalePro = await account('reader-stale-invite');
+        let stalePro = await account('reader-stale-invite');
 
-        await grant(stalePro);
+        stalePro = await grant(stalePro);
         await tables()`update professionals set agreement_version = '0.9.0' where user_id = ${stalePro.id}`;
 
         const target = address('reader-stale-invite-target');
@@ -1626,10 +1636,10 @@ describe('care', () => {
       });
 
       it('is null once the professional’s grant is revoked, even though the link row stays active', async () => {
-        const revokedPro = await account('checkin-pro-revoked');
+        let revokedPro = await account('checkin-pro-revoked');
         const revokedClient = await account('checkin-pro-revoked-client');
 
-        await grant(revokedPro);
+        revokedPro = await grant(revokedPro);
         const linkId = await link(revokedPro, revokedClient);
 
         await expect(CareController.activeProfessional(revokedClient.id)).resolves.toEqual({ id: revokedPro.id, email: revokedPro.email });
@@ -1643,10 +1653,10 @@ describe('care', () => {
 
       /** cf87d75 (invariant-reviewer, legal-b): `withClient`'s own two conditions, asked here too. */
       it('is null once the accepted agreement is no longer current, even though the link row stays active', async () => {
-        const stalePro = await account('checkin-pro-stale-agreement');
+        let stalePro = await account('checkin-pro-stale-agreement');
         const staleClient = await account('checkin-pro-stale-agreement-client');
 
-        await grant(stalePro);
+        stalePro = await grant(stalePro);
         const linkId = await link(stalePro, staleClient);
 
         await expect(CareController.activeProfessional(staleClient.id)).resolves.toEqual({ id: stalePro.id, email: stalePro.email });
@@ -1658,10 +1668,10 @@ describe('care', () => {
       });
 
       it('is null once the practice is no longer open, even though the link row stays active', async () => {
-        const lapsedPro = await account('checkin-pro-lapsed');
+        let lapsedPro = await account('checkin-pro-lapsed');
         const lapsedClient = await account('checkin-pro-lapsed-client');
 
-        await grant(lapsedPro);
+        lapsedPro = await grant(lapsedPro);
         const linkId = await link(lapsedPro, lapsedClient);
 
         await tables()`update professionals set practice_open = false where user_id = ${lapsedPro.id}`;
@@ -1723,10 +1733,10 @@ describe('care', () => {
 
     describe('deleting an account (PRD 14)', () => {
       it('deleting the professional keeps the client’s trail, with the name they had and no account behind it', async () => {
-        const leaving = await account('reader-leaving');
+        let leaving = await account('reader-leaving');
         const client = await account('reader-stays');
 
-        await grant(leaving);
+        leaving = await grant(leaving);
         const linkId = await link(leaving, client);
 
         await roster(leaving);
@@ -1828,8 +1838,8 @@ describe('care', () => {
       beforeAll(async () => {
         setter = await account('targets-pro');
         otherSetter = await account('targets-pro-b');
-        await grant(setter);
-        await grant(otherSetter);
+        setter = await grant(setter);
+        otherSetter = await grant(otherSetter);
 
         supervised = await account('targets-client');
         otherClient = await account('targets-theirs');
@@ -2064,10 +2074,10 @@ describe('care', () => {
       });
 
       it('reads as the client’s own once the professional who set it deletes their account, and the figures stay', async () => {
-        const leaving = await account('targets-pro-gone');
+        let leaving = await account('targets-pro-gone');
         const kept = await account('targets-kept');
 
-        await grant(leaving);
+        leaving = await grant(leaving);
         await completeOnboarding(app, kept);
 
         const linkId = await link(leaving, kept);

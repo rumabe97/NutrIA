@@ -206,9 +206,14 @@ export function TwoFactorCard({ email, enabled: enabledAtLoad }: TwoFactorCardPr
       {step.kind === 'scan' ? (
         <TwoFactorSetup
           onCancel={() => back('enable')}
-          onConfirmed={() => {
+          onConfirmed={otherSessionsClosed => {
             setEnabled(true);
-            setStep({ codes: step.backupCodes, kind: 'codes', said: t.enabled, title: t.codesTitleEnabled });
+            setStep({
+              codes: step.backupCodes,
+              kind: 'codes',
+              said: otherSessionsClosed ? t.enabled : t.enabledSessionsOpen,
+              title: t.codesTitleEnabled
+            });
           }}
           totpUri={step.totpUri}
         />
