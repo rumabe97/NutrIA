@@ -11,11 +11,13 @@ import {
   isProcessedMeat,
   isVegetable,
   isWholeGrain,
+  LEGUME_KINDS_WANTED,
   legumeDryGrams,
   mealGroups,
   mealServings,
   meatColour,
   placementGroups,
+  poolAsks,
   POOL_RESERVE,
   proteinPerKgBySlot,
   reserveGroups,
@@ -303,6 +305,60 @@ describe('reserveGroups', () => {
     const reserved = reserveGroups([...lentils, chicken], 'lunch', catalogue);
 
     expect(reserved.every(dish => dish.slug.startsWith('lentejas'))).toBe(true);
+  });
+});
+
+describe('poolAsks', () => {
+  const main = (slug: string, ingredients: CandidateDish['ingredients'], slots: readonly MealSlot[] = ['lunch', 'dinner']) =>
+    makeDish({ ingredients, slots: [...slots], slug });
+  const lentils = Array.from({ length: 6 }, (_, index) => main(`lentejas-${index}`, [{ grams: 100, slug: 'lentejas-cocidas' }]));
+  const salmon = main('salmon', [{ grams: 120, slug: 'salmon' }]);
+  const brown = Array.from({ length: 3 }, (_, index) => main(`integral-${index}`, [{ grams: 150, slug: 'arroz-integral-cocido' }]));
+  const everything = [...catalogue.values()];
+  const asked = (asks: ReturnType<typeof poolAsks>) => Object.fromEntries(asks.map(ask => [ask.group, ask.count]));
+
+  it('asks an empty lunch for what the reserve keeps, the thinnest first', () => {
+    const asks = poolAsks([], 'lunch', catalogue, everything);
+
+    expect(asks.map(ask => ask.group)).toEqual(['legume', 'wholeGrain', 'oilyFish']);
+    expect(asked(asks)).toEqual({
+      legume: POOL_RESERVE.lunch.legumes,
+      oilyFish: POOL_RESERVE.lunch.oilyFish,
+      wholeGrain: POOL_RESERVE.lunch.wholeGrain
+    });
+    // Nothing held, so no kind to steer away from.
+    expect(asks[0]?.heldKinds).toEqual([]);
+  });
+
+  it('asks a lunch with enough legumes of one kind for more kinds, naming the one it holds', () => {
+    const asks = poolAsks([...lentils, salmon, ...brown], 'lunch', catalogue, everything);
+
+    expect(asks).toEqual([{ count: LEGUME_KINDS_WANTED - 1, group: 'legume', heldKinds: ['lentejas'] }]);
+  });
+
+  it('asks dinner for its own share of legumes, never for kinds, and nothing a full slot already holds', () => {
+    const asks = poolAsks([lentils[0] as CandidateDish, salmon, ...brown], 'dinner', catalogue, everything);
+
+    expect(asks).toEqual([{ count: POOL_RESERVE.dinner.legumes - 1, group: 'legume', heldKinds: [] }]);
+  });
+
+  it('counts only the dishes of the slot asked about', () => {
+    const breakfastOnly = lentils.map(dish => ({ ...dish, slots: ['breakfast' as const] }));
+
+    expect(asked(poolAsks(breakfastOnly, 'lunch', catalogue, everything)).legume).toBe(POOL_RESERVE.lunch.legumes);
+  });
+
+  it('never asks for a group the catalogue the request is shown has no row of, as for somebody with no fish', () => {
+    const noFish = everything.filter(row => !row.classes.includes('fish'));
+    const noPulses = everything.filter(row => legumeDryGrams(row.slug, 1) === null);
+
+    expect(poolAsks([], 'lunch', catalogue, noFish).map(ask => ask.group)).toEqual(['legume', 'wholeGrain']);
+    expect(poolAsks([], 'dinner', catalogue, noPulses).map(ask => ask.group)).toEqual(['wholeGrain', 'oilyFish']);
+  });
+
+  it('asks nothing outside lunch and dinner', () => {
+    expect(poolAsks([], 'breakfast', catalogue, everything)).toEqual([]);
+    expect(poolAsks([], 'afternoon_snack', catalogue, everything)).toEqual([]);
   });
 });
 
