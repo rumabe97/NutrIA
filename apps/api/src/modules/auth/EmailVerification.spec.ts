@@ -65,13 +65,14 @@ const VICTIMS_PASSWORD = 'otra-frase-de-caballos-azules';
 
 type Auth = ReturnType<typeof createAuth>;
 
-function build(): Auth {
+function build(extra: Record<string, string> = {}): Auth {
   const env = validateEnv({
     APP_URL: ORIGIN,
     BETTER_AUTH_SECRET: 'a'.repeat(32),
     BETTER_AUTH_URL: 'http://localhost:3001',
     DATABASE_URL: 'postgresql://user:pass@host/db',
-    NODE_ENV: 'test'
+    NODE_ENV: 'test',
+    ...extra
   });
 
   return createAuth(
@@ -172,6 +173,18 @@ describe('confirming an address', () => {
 
     expect(options.emailVerification?.autoSignInAfterVerification).toBe(false);
     expect(options.emailAndPassword?.revokeSessionsOnPasswordReset).toBe(true);
+  });
+
+  it('never joins a provider to an account it was not linked to, even one whose address the link confirmed', () => {
+    // With a provider configured, which is when linking is on at all (`0058`, amended).
+    const { options } = build({ GOOGLE_OAUTH_CLIENT_ID: 'nutria.apps.googleusercontent.com', GOOGLE_OAUTH_CLIENT_SECRET: 'not-a-secret' });
+
+    expect(options.account?.accountLinking?.disableImplicitLinking).toBe(true);
+    expect(options.account?.accountLinking?.trustedProviders ?? []).toEqual([]);
+  });
+
+  it('has no change of address, whose confirmation opens a session whatever `autoSignInAfterVerification` says', () => {
+    expect(build().options.user?.changeEmail?.enabled).toBeFalsy();
   });
 
   it('confirms the address for whoever opens the link, gives them no session, and a reset ends the stranger’s', async () => {

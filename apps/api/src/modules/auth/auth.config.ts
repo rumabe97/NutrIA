@@ -111,19 +111,29 @@ export function createAuth(
   return betterAuth({
     account: {
       /*
-       * Linking exists only while a provider does (`0058`), and only ever in one
-       * shape: somebody who signed up with a password and later arrives through
-       * Google with the same address is the same person, not a second account.
+       * Never implicit (`0058`, amended 2026-10-08). A provider that arrives
+       * with the address of an account it is not linked to is refused with
+       * `account_not_linked`, and the sign-in page sends the person to the
+       * password or a reset. Accounts linked before stay linked: a provider's
+       * own account row is found first, so they keep signing in.
        *
-       * Two conditions, both Better Auth's and both left at their strict
-       * setting. The provider must itself say the address is verified — no
-       * provider is listed as trusted, which would waive that. And the local
-       * account must have confirmed its address already
-       * (`requireLocalEmailVerified`, on by default): otherwise anybody could
-       * sign up with a stranger's address and a password of their own, wait for
-       * the stranger to arrive through Google, and walk into their health data.
+       * "Same address, same person" assumed that whoever confirmed the address
+       * also chose the password. They need not have. A stranger signs the
+       * victim's address up with a password of their own; the victim opens the
+       * confirmation link, which marks the address confirmed on the stranger's
+       * account; then the victim presses "Continuar con Google", Better Auth
+       * joins Google to that account and opens a session, the victim enters
+       * health data, and the stranger reads it with the password. Neither
+       * `requireLocalEmailVerified` nor the provider vouching for the address
+       * tells the two people apart, so no condition on linking can — only not
+       * linking. `enabled` stays on while a provider is, for the explicit,
+       * signed-in `linkSocial`, which nothing in the web app offers yet.
+       *
+       * No provider is listed as trusted either, which would waive the
+       * provider's own verified-address check. Pinned by
+       * `EmailVerification.spec.ts` and `social-sign-in.e2e-spec.ts`.
        */
-      accountLinking: { enabled: providers.length > 0 },
+      accountLinking: { disableImplicitLinking: true, enabled: providers.length > 0 },
       // Nothing is ever called on anybody's behalf, but the adapter keeps what
       // the provider hands back. At rest it is ciphertext.
       encryptOAuthTokens: true
