@@ -278,9 +278,9 @@ export function createAuth(
        * Sign-up reveals nothing (PLAN 011 phase 8, `0074`): it never opens a
        * session, so Better Auth answers an address that already has an
        * account with the same 200 and a synthetic user, instead of 422. A new
-       * person signs in by opening the confirmation link
-       * (`autoSignInAfterVerification`); the owner of an existing address is
-       * mailed instead (`onExistingUserSignUp`).
+       * person confirms the address through the mailed link, then signs in
+       * (the link opens no session, `autoSignInAfterVerification` below); the
+       * owner of an existing address is mailed instead (`onExistingUserSignUp`).
        */
       autoSignIn: false,
       /*
@@ -317,7 +317,7 @@ export function createAuth(
        * a session at sign-up for a new address, and none for an existing one,
        * was the difference that told a stranger which addresses have an
        * account. So the form ends on "check your email" for every address, and
-       * a new person is signed in by the confirmation link.
+       * a new person confirms the address, then signs in.
        *
        * And no password sign-in before the address is confirmed (PLAN 011
        * phase 8, amended). Otherwise sign-up then sign-in is the same oracle:
@@ -335,8 +335,9 @@ export function createAuth(
       resetPasswordTokenExpiresIn: MAIL_BUDGET.windowMs / 1000,
       /*
        * A reset is somebody proving the address is theirs, often because
-       * somebody else got there first: signed up with it, never confirmed it,
-       * and still holds a session. That session must not outlive the proof —
+       * somebody else got there first: signed up with it with a password of
+       * their own and, once the owner's link confirmed the address, signed in
+       * with it. That session must not outlive the proof —
        * more so now that "reset the password" is what the sign-in page says to
        * a person whose address was taken before they arrived through a
        * provider (`0058`).
