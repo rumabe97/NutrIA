@@ -46,3 +46,20 @@
 - **Notes**:
   - Alternatives of a cooked grain stay in cooked grams. Their names say "cocido", so they read consistently (P3, left).
   - The owner asked for the fuller answer next: plate + accompaniments, normal-serving dishes, a meal-count hint and per-food ceilings. That is project 016, under an `architect` study.
+
+## Closing (2026-10-08)
+
+- **Closed** on 2026-10-08 at the owner's request, after the closing audit
+  ([`closing-audit-2026-10-08.md`](../000-workspace/closing-audit-2026-10-08.md)).
+  Anything found later is a new change, not a reopening.
+- **Shipped:** #188, the gram ceiling, dry weights and `0078`.
+- **PRD criteria:** 1, 2, 4, 5 and 6 met (phase 1 above).
+- **Criterion 3 was measured and missed, then superseded.**
+  - The owner ran the read-only production simulation on 2026-10-02, recorded in project
+    016's phase 0.
+  - With the flat 750 g ceiling it gave 11/14 days in band on the whole library, below the
+    12/14 asked.
+  - That miss reordered project 016. 016 brought the same simulation to 13/14, and 017
+    brought the reference library to 196/196.
+- **Not recorded on its own:** the owner's phone check of the dry line on `/plan/comida`
+  and `/compra`. It has been in production since 2026-10-02, and 016 built on it.

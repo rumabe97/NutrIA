@@ -6,7 +6,7 @@
 > `/plan-project`, from the owner's brief of 2026-10-01; approved by the owner.
 > Write repo-relative: no absolute paths, no references to other private repos.
 
-- **Status**: approved
+- **Status**: done — closed 2026-10-08 (owner's request; audit in 000-workspace/closing-audit-2026-10-08.md)
 - **Roadmap item**: none — asked by users through the owner. It replaces project 013's item 9.
 
 ## Problem

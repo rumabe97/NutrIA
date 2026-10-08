@@ -5,7 +5,7 @@
 > **Audience**: humans and agents. **Committed**: yes. **Written by**: an agent via
 > `/plan-project` — approved by the owner before the plan is written.
 
-- **Status**: approved
+- **Status**: done — closed 2026-10-08 (owner's request; audit in 000-workspace/closing-audit-2026-10-08.md)
 - **Roadmap item**: [`ROADMAP.md`](../../ROADMAP.md) § Next, item 1 — "A user receives a real 14-day plan."
 
 ## Problem

@@ -52,3 +52,17 @@
   - Item 9's backend is uncommitted in `.claude/worktrees/backend-traditional-spanish`.
   - Its web part is on `agent/traditional-spanish/frontend` after ee8f20e6, and its e2e is d1164f23.
   - The owner's new request (always offer a start date, with a scheduled plan) needs a plan amendment first.
+
+## Closing (2026-10-08)
+
+- **Closed** on 2026-10-08 at the owner's request, after the closing audit
+  ([`closing-audit-2026-10-08.md`](../000-workspace/closing-audit-2026-10-08.md)).
+  Anything found later is a new change, not a reopening.
+- **Shipped:**
+  - #187: items 1–8, migration 0052 and `0077`;
+  - #209: a dish whose cuisine family is foreign (Turca, Cubana…) is refused too.
+- **Item 9 is superseded.** The owner asked for the start date on every generation. It
+  became project 015 (#189, #191), which reused this item's work. The notes above about
+  an uncommitted worktree are stale. PRD criterion 8 is marked superseded, as 015's
+  criterion 7 asked.
+- **PRD criteria:** 1–7 met on #187 (LOG above).

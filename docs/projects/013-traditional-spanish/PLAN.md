@@ -8,7 +8,7 @@
 > planner agent via `/plan-project`; approved by the owner before execution starts.
 > Write repo-relative: no absolute paths, no references to other private repos.
 
-- **Status**: approved
+- **Status**: done — closed 2026-10-08 (owner's request; audit in 000-workspace/closing-audit-2026-10-08.md)
 - **Type**: standard
 - **PRD**: ./PRD.md
 - **Routing profile**: tiered, with this phase at `quality-max`. It changes AI output validation (`PoolBuilder`), which AGENTS.md § Model routing puts at that floor whatever the profile.
@@ -73,7 +73,7 @@
 
 ### Phase 1 — Traditional Spanish, end to end
 
-- [ ] in progress
+- [x] done — PR #187 (items 1–8); item 9, the start date, superseded by project 015 (#189, #191)
 - **Dispatch**: opus @ high — `/execute-project 013 phase 1`, run as `/team`:
   - `backend-high`: steps 1–5 and 8;
   - `frontend`: steps 6–7;

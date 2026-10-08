@@ -324,3 +324,20 @@
   dish, remove) he did not say one by one.
 - **Next, by the owner's word the same day**: refine the judge, with that rejection as its case.
 
+
+## Closing (2026-10-08)
+
+- **Closed** on 2026-10-08 at the owner's request, after the closing audit
+  ([`closing-audit-2026-10-08.md`](../000-workspace/closing-audit-2026-10-08.md)). The
+  three phases were done and the last confirmed by hand on 2026-09-30. This entry only
+  sets the status. Anything found later is a new change, not a reopening.
+- **Shipped:**
+  - #172: phase 1, the mail when pictures fail;
+  - #173: phase 2, the private candidate;
+  - #174: phase 3, accept against the judge, and remove;
+  - #175: phase 3 recorded as verified, and project 010 planned.
+- **Left over, not blocking:**
+  - a VoiceOver pass on the phone over the accept and remove dialogs, and the touch
+    targets and reflow at 320 px, never measured;
+  - `legal`'s five-minute lawyer question on how `picture.accepted` weighs if somebody
+    claims a harm.
