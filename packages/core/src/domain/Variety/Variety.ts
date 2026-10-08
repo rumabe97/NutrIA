@@ -65,13 +65,17 @@ function gapBetween(slot: MealSlot, other: MealSlot): number {
 }
 
 /**
- * The groups of PRD 019's maximums a meal is a serving of, as served (`mealServings`),
- * and the eggs on it: what a held maximum counts of a meal the pool may not hold.
+ * The groups of PRD 019's maximums and minimums a meal is a serving of, as served
+ * (`mealServings`), and the eggs on it: what a held maximum or minimum counts of a
+ * meal the pool may not hold.
  */
 export type PlacementGroups = {
   readonly eggs: number;
+  readonly fish: boolean;
   readonly fishOrShellfish: boolean;
+  readonly legume: boolean;
   readonly meat: boolean;
+  readonly oilyFish: boolean;
   readonly processed: boolean;
   readonly redMeat: boolean;
 };

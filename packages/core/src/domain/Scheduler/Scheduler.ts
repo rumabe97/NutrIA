@@ -1,5 +1,5 @@
 import { NO_ACCOMPANIMENT, setsBeside } from 'core/domain/Accompaniment';
-import { heldMaximums } from 'core/domain/Balance';
+import { floorCount, heldMaximums, heldMinimums } from 'core/domain/Balance';
 import { addMacros, composePerServing, scaleIngredients, scaleMacros, sumMacros } from 'core/domain/Composition';
 import {
   canPlace,
@@ -31,7 +31,8 @@ import { dishGroups, outOfSeasonFruit } from 'core/domain/MealFit';
 import { PLAN_TOLERANCE } from 'core/domain/PlanValidation';
 import { plateFoodMax, plateFoods } from 'core/domain/PlateFood';
 import type { AccompanimentPortion, AccompanimentSet, Larder } from 'core/domain/Accompaniment';
-import type { KindCheck, KindMeal, KindTally, Leaning, Placement } from 'core/domain/Variety';
+import type { FloorCheck, FloorName } from 'core/domain/Balance';
+import type { KindCheck, KindMeal, KindTally, Leaning, Placement, PlacementGroups } from 'core/domain/Variety';
 import type { PlateFood } from 'core/domain/PlateFood';
 import type { CandidateDish, Catalogue, Macros, MealSlot, PlanAssignment, PlanDayAssignment, ScheduledMeal, SwapAxis } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
@@ -517,6 +518,20 @@ const HELD_KIND_WEIGHT = 100;
 const HELD_MAXIMUM_WEIGHT = 30;
 
 /**
+ * What a day pays for each meal the reservation calendar (`floorCalendar`)
+ * owes a minimum of PRD 019's table — a legume, a fish, an oily fish
+ * (`heldMinimums`, `0085`) — that it does not carry. The maximums' tier: above
+ * any fit a swap can buy, so the minimum is held whenever another dish keeps
+ * the day as close to its bands, and below the starch and legume caps and the
+ * bands themselves. Without it `improveDay` swaps the reserved legume out in
+ * its first round for a better fit.
+ */
+const HELD_MINIMUM_WEIGHT = 30;
+
+/** Swaps `meetFloors` may make: a fortnight misses a handful of meals of a minimum, not dozens. */
+const MAX_FLOOR_SWAPS = 12;
+
+/**
  * How close two days' band misses (`bandMiss`) must be for `improveDay` to call
  * them equal and let fit and the variety rules' prices decide between them.
  */
@@ -665,13 +680,15 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
   const cap = proteinCap(slots.length * days);
   // Pasta, rice and grains, the same legume and the same snack, priced at the protein rule's weight wherever they are (`kindRules`).
   const indexes = input.dayIndexes ?? Array.from({ length: days }, (_none, offset) => offset + 1);
-  const kinds = kindRules(
+  const planned = kindRules(
     input.pool,
     input.catalogue,
     days,
     slots.filter(slot => MAIN_SLOTS.has(slot)).length,
     sizedAt(perServing, slotBudgets(input.weights, targetsOn(input, indexes[0] ?? 1), input.accompaniments !== undefined))
   );
+  // Which lunches and dinners owe which minimum (`floorCalendar`, `0085`).
+  const kinds: KindRules = { ...planned, calendar: floorCalendar(planned.floors, slots, indexes, input.placed ?? []) };
 
   // The days that are not being laid out go in first, so every `canPlace` below
   // sees the whole plan rather than only the part of it this call is building.
@@ -712,8 +729,13 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
       const underCap = sized.filter(dish => !breaksHeld(dish.slug, slot, dayIndex, heldPlaced, kinds));
 
       const kindsPlaced = kinds.checks.map(check => kindMeals(placed, check));
+      // The minimum this meal owes (`floorCalendar`), served from the dishes that carry it when any does.
+      const owes = kinds.calendar.get(calendarKey(dayIndex, slot));
+      const owing = owes ? kinds.floors.find(floor => floor.name === owes) : undefined;
+      const available = underCap.length > 0 ? underCap : sized;
+      const carrying = owing ? available.filter(dish => owing.has.get(dish.slug)) : [];
       const chosen = pickBest(
-        underCap.length > 0 ? underCap : sized,
+        carrying.length > 0 ? carrying : available,
         budget,
         perServing,
         placed,
@@ -752,8 +774,9 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
 
   const spread = spreadAcrossDays(built, input.placed ?? [], proteins, kinds, seasonal, input.minimumKcal, sidesOn);
   const repaired = repairOutOfBand(spread, input, input.placed ?? [], perServing, { cap, kinds, proteins, seasonal }, sidesOn);
+  const floored = meetFloors(repaired, input, input.placed ?? [], perServing, kinds, seasonal, sidesOn);
   const distinct = holdSideStarches(
-    enforceDistinctDays(repaired, input, input.placed ?? [], proteins, cap, kinds, seasonal, sidesOn),
+    enforceDistinctDays(floored, input, input.placed ?? [], proteins, cap, kinds, seasonal, sidesOn),
     input,
     input.placed ?? [],
     kinds,
@@ -856,6 +879,12 @@ export function pickReplacement(input: {
   readonly month?: number;
   readonly placed: readonly Placement[];
   /**
+   * The groups of the meal being replaced (`placementGroups`): a minimum of
+   * PRD 019's table that meal was a serving of, and that the rest of the plan
+   * does not meet without it, is kept by the new dish when any can (`0085`).
+   */
+  readonly replaced?: PlacementGroups;
+  /**
    * The least energy this plate may carry: the person's floor, less what the
    * day's other meals deliver. Zero or less for a day the rest of which clears
    * the floor alone, which is nearly everybody's. Required, like the scheduler's
@@ -914,6 +943,16 @@ export function pickReplacement(input: {
     2 * Number(breaksHeld(dish.slug, input.slot, input.dayIndex, heldPlaced, kinds)) +
     Number(kindsCrowded(dish.slug, input.slot, input.dayIndex, maximumsPlaced, kinds.maximums, kinds.days) > 0);
 
+  // The minimums the replaced meal was a serving of, and the rest of the plan falls short of without it.
+  const kept = input.replaced
+    ? kinds.floors.filter(
+        floor =>
+          floor.of({ dayIndex: input.dayIndex, dishSlug: '', groups: input.replaced, slot: input.slot }) &&
+          floorCount(floor, input.placed) < floor.floor
+      )
+    : [];
+  const losesFloor = (dish: CandidateDish): number => Number(kept.length > 0 && !kept.every(floor => floor.has.get(dish.slug)));
+
   const dish = input.pool
     .filter(
       candidate => candidate.slots.includes(input.slot) && passes(candidate) && canPlace(candidate.slug, input.slot, input.dayIndex, input.placed)
@@ -921,6 +960,7 @@ export function pickReplacement(input: {
     .sort(
       (a, b) =>
         pastCap(a) - pastCap(b) ||
+        losesFloor(a) - losesFloor(b) ||
         rank(a) - rank(b) ||
         costOf(a.slug) + kindsCost(a) - (costOf(b.slug) + kindsCost(b)) ||
         a.slug.localeCompare(b.slug)
@@ -1257,8 +1297,12 @@ type ProteinIndex = ReadonlyMap<string, string | null>;
  * they are scaled to, and `servingsOf` the size each dish is read at.
  */
 type KindRules = {
+  /** Which minimum each lunch or dinner owes, by `${dayIndex}|${slot}` (`floorCalendar`); empty until `schedulePlan` has laid it out. */
+  readonly calendar: Calendar;
   readonly checks: readonly KindCheck[];
   readonly days: number;
+  /** PRD 019's minimums (`heldMinimums`), capped by what the pool supplies. */
+  readonly floors: readonly FloorCheck[];
   readonly held: readonly KindCheck[];
   /** `kindsKey` by slot and dish, since the same dishes are asked about every round of every day. */
   readonly keys: Map<MealSlot, Map<string, string | null>>;
@@ -1279,8 +1323,10 @@ function kindRules(
   const legumes = legumeIndex(pool);
 
   return {
+    calendar: new Map(),
     checks: [starch, legumeCheck(legumes), snackCheck(pool, catalogue)],
     days,
+    floors: heldMinimums(pool, catalogue, mainSlots * days, servingsOf),
     held: [starch, legumeCapCheck(legumes)],
     keys: new Map(),
     maximums: heldMaximums(pool, catalogue, mainSlots, servingsOf),
@@ -1305,6 +1351,81 @@ function sizedAt(perServing: ReadonlyMap<string, PerServing>, budgets: ReadonlyM
 
     return sizes.length > 0 ? Math.max(...sizes) : 1;
   };
+}
+
+/** Which minimums a lunch or dinner owes, by `${dayIndex}|${slot}`: see `floorCalendar`. */
+type Calendar = ReadonlyMap<string, FloorName>;
+
+const calendarKey = (dayIndex: number, slot: MealSlot): string => `${dayIndex}|${slot}`;
+
+/**
+ * The reservation calendar of PRD 019's minimums (019 phase 4, `0085`): which
+ * lunches and dinners of the plan owe a legume, a fish, an oily fish. Each
+ * minimum owes what it still lacks after the meals already placed (a rebuild
+ * keeps the rest of the plan), spread evenly across the days being laid out
+ * so no stretch of the plan holds them all: legumes at lunch first, fish at
+ * dinner first (a Spanish legume stew does not dine, `0079`), oily fish on
+ * evenly-chosen fish meals. A meal owes one group; a minimum with fewer
+ * meals than it owes leaves the rest to `meetFloors`. Deterministic: the same
+ * pool and days always give the same calendar.
+ */
+function floorCalendar(
+  floors: readonly FloorCheck[],
+  slots: readonly MealSlot[],
+  dayIndexes: readonly number[],
+  placed: readonly Placement[]
+): Calendar {
+  const mains = slots.filter(slot => MAIN_SLOTS.has(slot));
+  const calendar = new Map<string, FloorName>();
+  const free = (order: readonly MealSlot[]): string[] =>
+    order.flatMap(slot => (mains.includes(slot) ? dayIndexes.map(dayIndex => calendarKey(dayIndex, slot)) : [])).filter(key => !calendar.has(key));
+  // `count` of the cells, spread evenly through them; the cells keep their order.
+  const spread = (cells: readonly string[], count: number): string[] =>
+    count <= 0 || cells.length === 0
+      ? []
+      : Array.from(
+          { length: Math.min(count, cells.length) },
+          (_none, index) => cells[Math.floor(((index + 0.5) * cells.length) / Math.min(count, cells.length))] as string
+        );
+  const owed = (name: FloorName): number => {
+    const floor = floors.find(entry => entry.name === name);
+
+    return floor ? Math.max(0, floor.floor - floorCount(floor, placed)) : 0;
+  };
+  const lunchFirst = (['lunch', 'dinner'] as const).filter(slot => mains.includes(slot));
+  const dinnerFirst = [...lunchFirst].reverse();
+
+  // The cells are taken in order of the slot, then the day: lunch cells of every day, then dinner's.
+  const place = (name: FloorName, cells: readonly string[]): void => {
+    for (const key of cells) {
+      calendar.set(key, name);
+    }
+  };
+
+  place('legumes', spread(free(lunchFirst), owed('legumes')));
+
+  const fishCells = spread(free(dinnerFirst), owed('fish'));
+  const oilyOwed = owed('oilyFish');
+  // The oily fish are some of the fish meals; when the fish minimum is met already, any free dinner.
+  const oilyCells = spread(fishCells.length >= oilyOwed ? fishCells : free(dinnerFirst), oilyOwed);
+
+  place('fish', fishCells);
+  place('oilyFish', oilyCells);
+
+  return calendar;
+}
+
+/** How many meals of these picks lack the minimum their cell of the calendar owes. */
+function floorLack(kinds: KindRules, dayIndex: number, picks: readonly { readonly dish: CandidateDish; readonly slot: MealSlot }[]): number {
+  if (kinds.calendar.size === 0) {
+    return 0;
+  }
+
+  return picks.reduce((lack, pick) => {
+    const owes = kinds.calendar.get(calendarKey(dayIndex, pick.slot));
+
+    return lack + (owes && !kinds.floors.some(floor => floor.name === owes && floor.has.get(pick.dish.slug)) ? 1 : 0);
+  }, 0);
 }
 
 /** How many of these placements break a held rule (`KindRules.held`). */
@@ -1357,14 +1478,18 @@ function kindsKey(kinds: KindRules, slug: string, slot: MealSlot): string | null
 
   if (key === undefined) {
     const checks = [...kinds.checks, ...kinds.held, ...kinds.maximums];
+    // A minimum's group is a kind too: the calendar prices a day for lacking it.
+    const groups = MAIN_SLOTS.has(slot) ? kinds.floors.filter(floor => floor.has.get(slug)).map(floor => floor.name) : [];
 
-    key = checks.some(check => countsFor(check, slug, slot))
-      ? checks
-          .map(check =>
-            countsFor(check, slug, slot) ? `${check.index.get(slug) ?? ''}*${check.weight?.({ dayIndex: 0, dishSlug: slug, slot }) ?? 1}` : ''
-          )
-          .join('|')
-      : null;
+    key =
+      checks.some(check => countsFor(check, slug, slot)) || groups.length > 0
+        ? [
+            ...checks.map(check =>
+              countsFor(check, slug, slot) ? `${check.index.get(slug) ?? ''}*${check.weight?.({ dayIndex: 0, dishSlug: slug, slot }) ?? 1}` : ''
+            ),
+            groups.join('+')
+          ].join('|')
+        : null;
     atSlot.set(slug, key);
     kinds.keys.set(slot, atSlot);
   }
@@ -2261,7 +2386,7 @@ function improveDay(
     const placements = day.map(entry => ({ dayIndex, dishSlug: entry.dish.slug, slot: entry.slot }));
 
     return {
-      maximums: excessOf(kinds.maximums, maximumsElsewhere, placements) * HELD_MAXIMUM_WEIGHT,
+      maximums: excessOf(kinds.maximums, maximumsElsewhere, placements) * HELD_MAXIMUM_WEIGHT + floorLack(kinds, dayIndex, day) * HELD_MINIMUM_WEIGHT,
       rest:
         excessOf(kinds.checks, kindsElsewhere, placements) * PROTEIN_SWAP_WEIGHT + excessOf(kinds.held, heldElsewhere, placements) * HELD_KIND_WEIGHT
     };
@@ -2830,6 +2955,7 @@ function repairOutOfBand(
         (repeats + kindsExcess([...others, ...placements], kinds.checks, kinds.days)) * PROTEIN_SWAP_WEIGHT +
         pastHeld([...others, ...placements], kinds) * HELD_KIND_WEIGHT +
         kindsExcess([...others, ...placements], kinds.maximums, kinds.days) * HELD_MAXIMUM_WEIGHT +
+        floorLack(kinds, start.dayIndex, picks) * HELD_MINIMUM_WEIGHT +
         dayReuseCost(picks, start.dayIndex, others)
       );
     };
@@ -2900,6 +3026,153 @@ function repairOutOfBand(
     }
 
     current[position] = day;
+  }
+
+  return current;
+}
+
+/** Candidates `meetFloors` sizes for one day, after the cheap screen. */
+const FLOOR_SHORTLIST = 24;
+
+/**
+ * The last word on PRD 019's minimums (019 phase 4, `0085`): after the days
+ * are laid out, sized and repaired, a plan still short of the legumes, fish or
+ * oily fish its pool can supply takes them one meal at a time. A lunch or
+ * dinner is swapped for a dish of a short group when the swap
+ *
+ * - lowers the plan's total shortfall (so it never trades one minimum for
+ *   another),
+ * - leaves its day as inside its bands as it was — a day inside stays inside,
+ *   a day outside no further outside (the bands outrank every minimum), and
+ *   keeps the floor, the order of its meals and its energy as `repairOutOfBand`
+ *   holds them,
+ * - breaks no held rule and no maximum it did not already break.
+ *
+ * Days that owe the missing group on the calendar go first. Run before the
+ * distinct-days pass and the side-starch pass, so they clean up after it. A
+ * plan that meets its minimums is the plan it was.
+ */
+function meetFloors(
+  days: readonly BuiltDay[],
+  input: SchedulerInput,
+  fixed: readonly Placement[],
+  perServing: ReadonlyMap<string, PerServing>,
+  kinds: KindRules,
+  seasonal: Seasonal,
+  sidesOn?: (dayIndex: number) => Sides
+): readonly BuiltDay[] {
+  if (kinds.floors.length === 0) {
+    return days;
+  }
+
+  const current = [...days];
+  const placementsOf = (day: BuiltDay, picks: readonly Pick[] = day.picks): Placement[] =>
+    picks.map(pick => ({ dayIndex: day.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }));
+  const planOf = (without?: BuiltDay): Placement[] => [...fixed, ...current.flatMap(day => (day === without ? [] : placementsOf(day)))];
+  const shortfallOf = (placements: readonly Placement[]): number =>
+    kinds.floors.reduce((sum, floor) => sum + Math.max(0, floor.floor - floorCount(floor, placements)), 0);
+  const missOf = (picks: readonly Pick[], day: BuiltDay): number =>
+    bandMiss(deliveredTotals(picks), day.targets) + floorMiss(deliveredKcal(picks), input.minimumKcal);
+
+  for (let swaps = 0; swaps < MAX_FLOOR_SWAPS; swaps += 1) {
+    const all = planOf();
+    const before = shortfallOf(all);
+
+    if (before === 0) {
+      break;
+    }
+
+    const short = kinds.floors.filter(floor => floorCount(floor, all) < floor.floor);
+    const heldBefore = pastHeld(all, kinds);
+    const maximumsBefore = kindsExcess(all, kinds.maximums, kinds.days);
+    // The days that owe a group they lack go first, then the rest in order.
+    const order = current
+      .map((day, position) => ({ lack: floorLack(kinds, day.dayIndex, day.picks), position }))
+      .sort((a, b) => b.lack - a.lack || a.position - b.position);
+    let made = false;
+
+    for (const { position } of order) {
+      const day = current[position] as BuiltDay;
+      const others = planOf(day);
+      const start = missOf(day.picks, day);
+      const screened: { readonly quick: number; readonly swapped: Pick[] }[] = [];
+
+      for (const [index, pick] of day.picks.entries()) {
+        if (!MAIN_SLOTS.has(pick.slot)) {
+          continue;
+        }
+
+        const budget = day.budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
+        const rest = [
+          ...others,
+          ...placementsOf(
+            day,
+            day.picks.filter((_entry, at) => at !== index)
+          )
+        ];
+
+        for (const candidate of input.pool) {
+          const base = perServing.get(candidate.slug);
+
+          if (
+            !base ||
+            candidate.slug === pick.dish.slug ||
+            !candidate.slots.includes(pick.slot) ||
+            !short.some(floor => floor.has.get(candidate.slug)) ||
+            !fitsPlate(base, budget, pick.slot) ||
+            !seasonal(candidate.slug, day.dayIndex) ||
+            !canPlace(candidate.slug, pick.slot, day.dayIndex, rest)
+          ) {
+            continue;
+          }
+
+          const swapped = day.picks.map((entry, at) =>
+            at === index ? { ...entry, base, dish: candidate, servings: servingsFor(base, budget, pick.slot), set: undefined } : entry
+          );
+
+          if (shortfallOf([...others, ...placementsOf(day, swapped)]) >= before) {
+            continue;
+          }
+
+          screened.push({ quick: bandMiss(totalsOf(swapped), day.targets) * BAND_MISS_WEIGHT + dayFitCost(swapped, day.targets), swapped });
+        }
+      }
+
+      let best: { readonly cost: number; readonly picks: readonly Pick[] } | undefined;
+
+      for (const entry of screened.sort((a, b) => a.quick - b.quick).slice(0, FLOOR_SHORTLIST)) {
+        const sized = balancedDay(entry.swapped, day.targets, day.budgets, input.minimumKcal, true, sidesOn?.(day.dayIndex));
+        const after = [...others, ...placementsOf(day, sized.picks)];
+
+        if (
+          missOf(sized.picks, day) > Math.max(start, SPREAD_EPSILON) + SPREAD_EPSILON ||
+          inversionsOf(sized.picks, day.budgets) > inversionsOf(day.picks, day.budgets) + SPREAD_EPSILON ||
+          floorMiss(deliveredKcal(sized.picks), input.minimumKcal) > floorMiss(deliveredKcal(day.picks), input.minimumKcal) + SPREAD_EPSILON ||
+          energyMiss(sized.picks, day.targets) > energyMiss(day.picks, day.targets) + SPREAD_EPSILON ||
+          shortfallOf(after) >= before ||
+          pastHeld(after, kinds) > heldBefore ||
+          kindsExcess(after, kinds.maximums, kinds.days) > maximumsBefore
+        ) {
+          continue;
+        }
+
+        const cost = dayFitCost(sized.picks, day.targets);
+
+        if (!best || cost < best.cost) {
+          best = { cost, picks: sized.picks };
+        }
+      }
+
+      if (best) {
+        current[position] = { ...day, picks: best.picks };
+        made = true;
+        break;
+      }
+    }
+
+    if (!made) {
+      break;
+    }
   }
 
   return current;

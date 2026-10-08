@@ -1,8 +1,8 @@
 import { dishGroups, FOOD_GROUP_SLUGS, FRESH_FRUIT_SLUGS } from 'core/domain/MealFit';
-import { BREAD_SLUGS, legumeKind, MAIN_SLOTS, STARCH_RULES, starchBase } from 'core/domain/Variety';
+import { BREAD_SLUGS, LEGUME_RULES, legumeKind, MAIN_SLOTS, STARCH_RULES, starchBase } from 'core/domain/Variety';
 import { toDry } from 'core/domain/Yield';
 
-import type { KindCheck, PlacementGroups } from 'core/domain/Variety';
+import type { KindCheck, Placement, PlacementGroups } from 'core/domain/Variety';
 import type { CandidateDish, Catalogue, MealSlot, PlanDayAssignment, ScheduledMeal } from 'core/entities/Plan';
 
 /**
@@ -460,7 +460,16 @@ export function placementGroups(items: readonly { readonly grams: number; readon
   const groups = mealGroups(items, catalogue);
   const served = mealServings(groups);
 
-  return { eggs: groups.eggs, fishOrShellfish: served.fishOrShellfish, meat: served.meat, processed: served.processed, redMeat: served.redMeat };
+  return {
+    eggs: groups.eggs,
+    fish: served.fish,
+    fishOrShellfish: served.fishOrShellfish,
+    legume: served.legume,
+    meat: served.meat,
+    oilyFish: served.oilyFish,
+    processed: served.processed,
+    redMeat: served.redMeat
+  };
 }
 
 /** An egg on a plate counts as one; less than half of one, as none. */
@@ -544,6 +553,117 @@ export function heldMaximums(
   }
 
   return checks;
+}
+
+/** The minimums the scheduler holds (019 phase 4, `0085`). */
+export type FloorName = 'fish' | 'legumes' | 'oilyFish';
+
+/**
+ * One minimum of PRD 019's table as the scheduler holds it: how many lunches
+ * and dinners of the plan must be a serving of the group, what the person's
+ * pool can supply of it, and which meals are. `of` reads a placement's own
+ * groups first (a swap, a rebuild: the pool may not hold the meal), then the
+ * pool's index.
+ */
+export type FloorCheck = {
+  /** Lunches and dinners the plan must carry, never more than the pool can supply. */
+  readonly floor: number;
+  /** Pool dishes that are a serving of the group, as served (`servingsOf`). */
+  readonly has: ReadonlyMap<string, boolean>;
+  readonly name: FloorName;
+  readonly of: (placement: Placement) => boolean;
+};
+
+/**
+ * The minimums of PRD 019's table as rules the scheduler holds (019 phase 4,
+ * `0010` § 3.2, `0085`): legumes at 8 lunches and dinners of 28, fish at 6, oily
+ * fish at 2 of those. Each is capped by what the person's filtered pool can
+ * supply, so a dislike, an allergy or a way of eating that removes a group
+ * leaves no rule (`0010` § 3.3):
+ *
+ * - legumes: as many as the pool's legume dishes allow with the same legume
+ *   three times at most (`LEGUME_RULES`), a dish counting once;
+ * - fish and oily fish: the pool's dishes of each, a dish counting once.
+ *
+ * `mains` is how many lunches and dinners the plan has; `servingsOf` is the
+ * size each dish is read at, as for `heldMaximums`.
+ */
+export function heldMinimums(
+  pool: readonly CandidateDish[],
+  catalogue: Catalogue,
+  mains: number,
+  servingsOf: (dish: CandidateDish) => number = () => 1
+): readonly FloorCheck[] {
+  const supply = balanceSupply(pool, catalogue);
+  const read = pool.map(dish => ({ dish, served: mealServings(servingGroups(dish, catalogue, servingsOf(dish))) }));
+  const onMains = (test: (served: MealServings) => boolean) =>
+    read.filter(({ dish, served }) => test(served) && dish.slots.some(slot => MAIN_SLOTS.has(slot)));
+  const check = (
+    name: FloorName,
+    groupOf: (groups: PlacementGroups) => boolean,
+    test: (served: MealServings) => boolean,
+    supplied: number,
+    figure: number
+  ): FloorCheck => {
+    const has = new Map(read.map(({ dish, served }) => [dish.slug, test(served)]));
+
+    return {
+      floor: Math.min(scaledToMains(figure, mains), supplied),
+      has,
+      name,
+      of: placement => (placement.groups ? groupOf(placement.groups) : (has.get(placement.dishSlug) ?? false))
+    };
+  };
+  const checks: FloorCheck[] = [];
+
+  if (supply.legume) {
+    const perKind = new Map<string, number>();
+
+    for (const { dish } of onMains(served => served.legume)) {
+      const kind = legumeKind(dish) ?? dish.slug;
+
+      perKind.set(kind, (perKind.get(kind) ?? 0) + 1);
+    }
+
+    const each = scaledToMains(LEGUME_RULES.perFortnight, mains);
+    const supplied = [...perKind.values()].reduce((sum, count) => sum + Math.min(count, each), 0);
+
+    checks.push(
+      check(
+        'legumes',
+        groups => groups.legume,
+        served => served.legume,
+        supplied,
+        8
+      )
+    );
+  }
+
+  if (supply.fish) {
+    checks.push(
+      check(
+        'fish',
+        groups => groups.fish,
+        served => served.fish,
+        onMains(served => served.fish).length,
+        6
+      ),
+      check(
+        'oilyFish',
+        groups => groups.oilyFish,
+        served => served.oilyFish,
+        onMains(served => served.oilyFish).length,
+        2
+      )
+    );
+  }
+
+  return checks.filter(floor => floor.floor > 0);
+}
+
+/** How many of these meals (lunches and dinners) are a serving of the floor's group. */
+export function floorCount(floor: FloorCheck, placements: readonly Placement[]): number {
+  return placements.reduce((sum, placement) => sum + (MAIN_SLOTS.has(placement.slot) && floor.of(placement) ? 1 : 0), 0);
 }
 
 /**

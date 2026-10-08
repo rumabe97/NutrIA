@@ -359,7 +359,16 @@ describe('heldMaximums', () => {
     const kept = placementGroups([{ grams: 150, slug: 'filete-de-ternera' }], catalogue);
     const keptOn = (dayIndex: number) => ({ dayIndex, dishSlug: 'no-longer-in-the-pool', groups: kept, slot: 'lunch' as const });
 
-    expect(kept).toEqual({ eggs: 0, fishOrShellfish: false, meat: true, processed: false, redMeat: true });
+    expect(kept).toEqual({
+      eggs: 0,
+      fish: false,
+      fishOrShellfish: false,
+      legume: false,
+      meat: true,
+      oilyFish: false,
+      processed: false,
+      redMeat: true
+    });
     expect(kindsExcess([keptOn(1), keptOn(4)], checks, 14)).toBe(0);
     expect(kindsExcess([keptOn(1), keptOn(4), keptOn(7)], checks, 14)).toBe(1);
     expect(byKind(checks).get('meat')?.rule.perFortnight).toBe(BALANCE_CAPS.meat / 2);

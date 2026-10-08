@@ -181,6 +181,8 @@ export class MealSwapService {
       month: Number(anchor.day.date.slice(5, 7)),
       placed,
       plateMinimumKcal,
+      // A minimum of PRD 019's table the old plate carried is kept by the new one when any dish can (`0085`).
+      replaced: placementGroups(current.ingredients, context.catalogue),
       slot: current.slot
     };
 
