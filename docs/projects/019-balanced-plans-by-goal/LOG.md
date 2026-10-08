@@ -209,7 +209,7 @@
     - processed meat 77 / 10, 98 / 24;
     - eggs 308 / 72, 264 / 48 (counted by the egg);
     - legumes short 5 / 0, 5 / 0; fish short 3 / 2, 4 / 0; oily fish short 5 / 1, 15 / 1.
-  - Specs: `heldMinimums` 4, `schedulePlan` meeting the minimums 3 (served from a pool whose order puts none first; the exceptions count; a swap keeping its minimum). Core 3,814 tests green.
+  - Specs: `heldMinimums` 4, `schedulePlan` meeting the minimums 4 (served from a pool whose order puts none first; asked for no fish where the pool has none; a swap keeping its minimum; the exceptions count, avoidable and forced). Core 3,815 tests green; gate `--full` green.
 - **Gate**: days in band, allergens and time met. Goal scores: every goal off but healthy eating (65 → 64), and every goal on but maintenance (59 → 58) and healthy eating (56 → 55), are above phase 3. The three single points are medians of ten plans flipping on one rule of thirteen in profiles the minimums do not touch (patron-vegetariano has no fish and meets its legumes already; its median fell on whole grain), and they moved between variants of the weights while the minimums held. Not tuned away; for the lead to accept or send back.
 - **Deviations from plan**:
   - Decision `0085`, not `0084` (phase 3's). Drafted for the lead, who records it.
