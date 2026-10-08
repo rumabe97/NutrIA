@@ -817,3 +817,29 @@
   401 and the victim's new one 200). It fails on `true`. `VerificationMail.spec.ts`: a
   link lands on `/verificar-email` whatever the client asked.
 
+- **Second round — the same attack through Google (2026-10-08)**: the invariant review of
+  #218 found a P0, live in production. The link no longer signs anybody in, but it still
+  marks the address confirmed on the stranger's account. Then:
+  1. the victim presses "Continuar con Google";
+  2. Better Auth's implicit linking (`link-account.mjs`: the provider vouches for the
+     address, and `requireLocalEmailVerified` is now satisfied) joins Google into the
+     stranger's account and opens a session;
+  3. the victim enters health data, and the stranger reads it with the password.
+  - **Fix** (the lead, under the owner's delegation of 2026-10-03, the reviewer's
+    recommendation; `backend-hotfix`, the previous owner gone):
+    `accountLinking.disableImplicitLinking: true`. A provider arriving with the address
+    of an account it is not linked to gets `account_not_linked`, confirmed or not;
+    accounts already linked keep signing in. `0058` amended. The sign-in page's copy for
+    that code no longer says "unconfirmed" or "after that you can sign in this way too":
+    it says the account signs in with a password, to use it or reset it — nothing Google,
+    which has just proved the address, did not already establish.
+  - **Pinned**: `EmailVerification.spec.ts` — `disableImplicitLinking === true` with
+    Google configured, no trusted providers, and `user.changeEmail.enabled` falsy
+    (Better Auth's change-email branch of `/verify-email` opens a session whatever
+    `autoSignInAfterVerification` says). `social-sign-in.e2e-spec.ts` — the old "same
+    address, same person" case now expects `account_not_linked`, no session and no
+    `google` row; a new case plays the attack: sign-up, the link opened cookieless,
+    Google.
+  - **Residual, P2, not built**: a reset does not clear a TOTP the stranger turned on, so
+    the victim is locked out (not exposed) until the owner's 48-hour removal. PLAN,
+    "Follow-up — A reset does not clear a second factor a stranger turned on".

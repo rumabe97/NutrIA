@@ -620,6 +620,22 @@ records what was decided.
   - After deploy: `/local-probe` walk with zero violations; `curl -sI` shows the enforcing
     header; `/` still cached.
 
+### Follow-up — A reset does not clear a second factor a stranger turned on
+
+- [ ] pending — not built. Added 2026-10-08 from the invariant review of hotfix #218 (P2),
+  under the owner's delegation of 2026-10-03. Not scheduled into a phase yet.
+- **The gap**: a stranger signs the victim's address up with a password of their own and
+  turns on TOTP. The victim opens the confirmation link, then resets the password, as
+  `/verificar-email` and the refused-Google copy tell them to. The reset ends the
+  stranger's sessions and password (`revokeSessionsOnPasswordReset`), but the factor stays:
+  the victim's sign-in is asked for a code only the stranger holds. They are locked out,
+  not exposed — nothing they enter is reachable — until the owner's 48-hour removal
+  (phase 4).
+- **Options to weigh when it is planned**: refuse turning the factor on before the address
+  is confirmed; or have a reset clear a factor that was turned on before the address was
+  confirmed (audited, mailed). Either needs `invariant-reviewer`; the second touches
+  credentials in a hook, which `0058` avoided on purpose.
+
 ## Hand-off
 
 - **Report `0007` is the design**: its line references were read on `09ed8323`. When a
@@ -627,6 +643,7 @@ records what was decided.
 - **Better Auth's routes and plugins are used, not re-implemented.** Hashing, tokens, TOTP,
   backup-code encryption and session rotation stay Better Auth's. Our code is hooks,
   guards, rules and screens. Never `allowPasswordless`, never `trustedProviders`, never
+  implicit account linking (`disableImplicitLinking: true`, `0058` amended), never
   `freshAge: 0`, never the password in `DELETE /users/me` (`apps/api/AGENTS.md`, `0058`).
 - **Every denial is a 404.** The only new 409 is `PASSWORD_CHANGE_REQUIRED` (phase 2),
   added to the documented exceptions. Every new user-scoped table cascades on `user.id`.

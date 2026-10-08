@@ -1,6 +1,6 @@
 # 0058 — Somebody can arrive through Google or Apple, and an unconfirmed address is never joined
 
-**Status**: accepted · **Date**: 2026-09-21 · **Deciders**: owner, agent
+**Status**: accepted · **Date**: 2026-09-21 · **Deciders**: owner, agent · **Amended**: 2026-10-08 (implicit linking is off)
 
 ## Context
 
@@ -105,3 +105,44 @@ is turned by a hook that runs when the confirmation link is clicked. Account lin
 - A third provider is: its variables and their rule in `Env.validation`, an entry in
   `SocialProviders.ts`, a mark and a name in the web app. `parseProviders` drops a provider
   the web app cannot draw, so the API may go first.
+
+## Amendment — 2026-10-08 — a provider is never joined to an account by its address
+
+**Deciders**: the lead, under the owner's delegation of 2026-10-03, on the recommendation of
+the invariant review of hotfix #218.
+
+`account.accountLinking.disableImplicitLinking` is `true`. A provider that arrives with the
+address of an account it is not already linked to is refused with `account_not_linked`,
+whether or not that account confirmed its address, and the sign-in page says to sign in
+with the password or reset it. "Same address, same person", above, no longer holds.
+
+**Why.** It assumed that whoever confirmed the address also chose the password, and
+`requireLocalEmailVerified` was the lock that made it true. It is not: the confirmation
+link proves the mailbox, not who signed up. A stranger signs the victim's address up with
+a password of their own. The victim opens the confirmation link — which, since hotfix
+#218, signs nobody in, but still marks the address confirmed on the stranger's account.
+Then the victim presses "Continuar con Google": the provider vouches for the address, the
+local account has confirmed it, so Better Auth joined Google into the stranger's account
+and opened a session. The victim entered health data there, and the stranger read it with
+the password. No condition on linking tells the two people apart; only not linking does.
+
+**What stays.**
+
+- Accounts already linked keep signing in through their provider: its own account row is
+  found before any address is compared.
+- Linking stays `enabled` while a provider is configured, so an explicit, signed-in
+  `linkSocial` remains possible; nothing in the web app offers it yet. Better Auth refuses
+  it when the provider does not vouch for the address or the address differs from the
+  session's.
+- No provider is listed as trusted.
+
+**Cost.** Somebody who made a password account and later presses "Continuar con Google" is
+refused instead of joined, and is told to use the password or reset it. A way to add a
+provider from "Seguridad", signed in, is the friendly answer if anybody asks for it.
+
+**Residual, not built**: a reset does not clear a second factor the stranger turned on, so
+the victim is locked out until the owner's 48-hour removal (PLAN 011, "Follow-up — A reset
+does not clear a second factor a stranger turned on").
+
+Pinned by `EmailVerification.spec.ts` (the option) and `social-sign-in.e2e-spec.ts` (a
+confirmed password account and the pre-hijack, both refused, no session, no `google` row).
