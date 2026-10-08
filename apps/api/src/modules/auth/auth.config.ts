@@ -178,7 +178,9 @@ export function createAuth(
            * the implicit link at the provider's callback would otherwise open
            * a full session for an account with the factor on, with no code
            * (`services/TwoFactor.ts`, `refusesLinkPastTheFactor`). `false`
-           * makes Better Auth answer "unable to link account".
+           * makes Better Auth answer "unable to link account". Since
+           * `disableImplicitLinking` (above) that link never starts; this
+           * stays as the second lock behind it.
            */
           before: async (linked: { providerId?: unknown; userId?: unknown }, context: Parameters<typeof refusesLinkPastTheFactor>[1]) =>
             (await refusesLinkPastTheFactor(linked, context)) ? false : undefined
