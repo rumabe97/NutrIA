@@ -424,3 +424,22 @@
   sentences back into `/privacidad`; fat sat +1.5% on average on plan 12 (dish mix, `decisions/LOG.md`)
   — to be measured on the production library only if it recurs near +5%.
 - **Project 005 is complete.**
+
+## Closing (2026-10-08)
+
+- **Closed** on 2026-10-08 at the owner's request, after the closing audit
+  ([`closing-audit-2026-10-08.md`](../000-workspace/closing-audit-2026-10-08.md)). The
+  project was already complete (phase 7's human-verify, 2026-09-26, and #124). This entry
+  only sets its status. Anything found later is a new change, not a reopening.
+- **Shipped:**
+  - #109: phase 1;
+  - #110: phase 2;
+  - #111: phase 3;
+  - #112: phase 4;
+  - #113: phase 5;
+  - #114: phase 6;
+  - #117: phase 7;
+  - #118–#122: the switch to Gemma through OpenRouter and its follow-ups;
+  - #124: the project recorded as done.
+- **Left open, for the owner, not this project's:** the OpenRouter DPA before the real
+  launch, and the two DPA sentences back into `/privacidad` after it.
