@@ -1377,6 +1377,7 @@ describe('schedulePlan — the minimums of PRD 019 met (019 phase 4)', () => {
     'base',
     'patata',
     'calabacin',
+    'pechuga-de-pollo',
     'lentejas-cocidas',
     'garbanzos-cocidos',
     'alubias-blancas-cocidas',
@@ -1386,7 +1387,12 @@ describe('schedulePlan — the minimums of PRD 019 met (019 phase 4)', () => {
   ];
   const minimumsCatalogue = makeCatalogue(
     bases.map((slug, index) =>
-      makeCatalogueIngredient({ id: `n-${index}`, classes: slug === 'merluza' || slug === 'sardina' ? ['animal', 'fish'] : [], name: slug, slug })
+      makeCatalogueIngredient({
+        id: `n-${index}`,
+        classes: slug === 'merluza' || slug === 'sardina' ? ['animal', 'fish'] : slug === 'pechuga-de-pollo' ? ['animal', 'meat'] : [],
+        name: slug,
+        slug
+      })
     )
   );
   const SHARE = { breakfast: 0.28, dinner: 0.34, lunch: 0.37 } as const;
@@ -1443,6 +1449,44 @@ describe('schedulePlan — the minimums of PRD 019 met (019 phase 4)', () => {
         result.assignment
       ).minimums
     ).toEqual({});
+  });
+
+  it('counts the exceptions the bands needed: none where another dish keeps the day inside them, all where none does', () => {
+    const chicken = [...eachOf('lunch', ['pechuga-de-pollo'], 10), ...eachOf('dinner', ['pechuga-de-pollo'], 10)];
+    const only = [...eachOf('breakfast', ['patata', 'calabacin'], 6), ...chicken];
+    const input = { catalogue: minimumsCatalogue, minimumKcal: MINIMUM_KCAL, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) };
+    const planned = schedulePlan({ ...input, pool });
+
+    expect(planned.ok).toBe(true);
+
+    if (!planned.ok) {
+      return;
+    }
+
+    // The plan, with chicken at all 28 lunches and dinners: 22 past the six, and no legume or fish.
+    const assignment = {
+      days: planned.assignment.days.map(day => ({
+        ...day,
+        meals: day.meals.map(meal =>
+          MAIN_SLOTS.has(meal.slot)
+            ? { ...meal, dish: chicken.filter(entry => entry.slots.includes(meal.slot))[day.dayIndex % 10] as CandidateDish }
+            : meal
+        )
+      }))
+    };
+    // With the whole pool to choose from, a day stays inside its bands without the chicken.
+    const avoidable = bandNeededExceptions({ ...input, pool: [...pool, ...chicken] }, assignment);
+
+    expect(avoidable.maximums.meat?.count).toBeGreaterThan(0);
+    expect(avoidable.maximums.meat?.needed).toBe(0);
+    expect(avoidable.minimums.legumes?.count).toBeGreaterThan(0);
+    expect(avoidable.minimums.legumes?.needed).toBe(0);
+
+    // With nothing else to serve, every one of them was needed; no legume to give, no minimum to ask for.
+    const forced = bandNeededExceptions({ ...input, pool: only }, assignment);
+
+    expect(forced.maximums.meat?.needed).toBe(forced.maximums.meat?.count);
+    expect(forced.minimums).toEqual({});
   });
 
   it('asks for no more than the pool supplies: no fish in it, no fish minimum, and the plan is unchanged by the rule', () => {

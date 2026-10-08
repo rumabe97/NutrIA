@@ -422,5 +422,15 @@ describe('heldMinimums', () => {
     ];
 
     expect(floorCount(fish, placements)).toBe(2);
+
+    const oily = byName(heldMinimums([hake, salmon, chicken], catalogue, 28)).get('oilyFish') as NonNullable<ReturnType<typeof heldMinimums>[number]>;
+    const keptOily = {
+      dayIndex: 5,
+      dishSlug: 'no-longer-in-the-pool',
+      groups: placementGroups([{ grams: 150, slug: 'sardina' }], catalogue),
+      slot: 'dinner' as const
+    };
+
+    expect(floorCount(oily, [keptOily, ...placements])).toBe(1);
   });
 });
