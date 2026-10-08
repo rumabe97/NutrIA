@@ -3361,6 +3361,9 @@ function meetSides(
   const missOf = (picks: readonly Pick[], day: BuiltDay): number =>
     bandMiss(deliveredTotals(picks), day.targets) + floorMiss(deliveredKcal(picks), input.minimumKcal);
 
+  // The sets of a meal, by what decides them: a day's second round asks again for the meal it did not change.
+  const known = new Map<string, readonly AccompanimentSet[]>();
+
   return days.map(day => {
     const sides = sidesOn(day.dayIndex);
     const month = offer.monthOf(day.dayIndex);
@@ -3385,7 +3388,15 @@ function meetSides(
           continue;
         }
 
-        for (const set of sideSets(offer.larder, input.catalogue, pick.dish, pick.slot, month, base, budget)) {
+        const key = `${pick.dish.slug}|${pick.slot}|${month}|${budget.kcal}|${budget.proteinG}|${budget.carbsG}|${budget.fatG}`;
+        let offered = known.get(key);
+
+        if (!offered) {
+          offered = sideSets(offer.larder, input.catalogue, pick.dish, pick.slot, month, base, budget);
+          known.set(key, offered);
+        }
+
+        for (const set of offered) {
           if (set === pick.set) {
             continue;
           }
@@ -3449,15 +3460,20 @@ function sideSets(
   base: PerServing,
   budget: SlotBudget
 ): readonly AccompanimentSet[] {
+  // The plate at the size the budget asks of it, before any set: close enough to rank by, and no set priced yet.
+  const plate = scaleIngredients(dish.ingredients, (base.kcal > 0 ? budget.kcal / base.kcal : 1) / dish.servings);
   const lackOf = (set: AccompanimentSet): number => {
-    const servings = servingsBeside(set, base, budget, slot);
-    const groups = mealGroups([...scaleIngredients(dish.ingredients, (servings ?? 1) / dish.servings), ...set.items], catalogue);
+    const groups = mealGroups([...plate, ...set.items], catalogue);
 
     return Math.max(0, 1 - groups.vegetables / BALANCE_GRAMS.vegetables) + Math.max(0, FRUIT_PER_DAY - groups.fruitPortions) / FRUIT_PER_DAY / 2;
   };
+  const nearest = setsBeside(larder, dish, slot, month, bestPortions(base, budget, slot))
+    .map((set, index) => ({ index, lack: lackOf(set), set }))
+    .sort((a, b) => a.lack - b.lack || a.index - b.index)
+    .slice(0, SIDE_SETS * 3);
 
-  return setsBeside(larder, dish, slot, month, bestPortions(base, budget, slot))
-    .map((set, index) => ({ cost: setCost(set, base, budget, slot), index, lack: lackOf(set), set }))
+  return nearest
+    .map(entry => ({ ...entry, cost: setCost(entry.set, base, budget, slot) }))
     .filter(entry => Number.isFinite(entry.cost))
     .sort((a, b) => a.lack - b.lack || a.cost - b.cost || a.index - b.index)
     .slice(0, SIDE_SETS)
