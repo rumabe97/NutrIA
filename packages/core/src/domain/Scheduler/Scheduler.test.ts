@@ -13,7 +13,7 @@ import {
   SERVING_BOUNDS,
   SHARE_BAND
 } from 'core/domain/Scheduler';
-import { shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
+import { proteinWeightsFor, shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { PLATE_FOOD_MAX, plateFoodMax } from 'core/domain/PlateFood';
 import { BALANCE_CAPS, placementGroups } from 'core/domain/Balance';
 
@@ -1366,6 +1366,153 @@ describe('schedulePlan — the maximums of PRD 019 held (019 phase 3)', () => {
     expect(daysOf('processed').length).toBeLessThanOrEqual(BALANCE_CAPS.processed);
     expect(running(daysOf('processed')), `processed meat on days ${daysOf('processed').join(', ')}`).toBe(false);
     expect(daysOf('fishOrShellfish').length).toBeLessThanOrEqual(BALANCE_CAPS.fishAndShellfish);
+  });
+});
+
+describe('schedulePlan — protein by slot for the goal (019 phase 6)', () => {
+  // Breakfasts, lunches and dinners of the same energy, some rich in protein
+  // and some in bread: the budget of each slot decides which a slot takes.
+  const foods = [
+    { carbs: 49, fat: 3.2, kcal: 265, protein: 9, slug: 'pan' },
+    { carbs: 0, fat: 3.6, kcal: 165, protein: 31, slug: 'pollo-proteico' },
+    { carbs: 28, fat: 0.3, kcal: 130, protein: 2.7, slug: 'arroz-proteico' }
+  ];
+  const proteinCatalogue = makeCatalogue(
+    foods.map((food, index) =>
+      makeCatalogueIngredient({
+        id: `p-${index}`,
+        carbsPer100g: food.carbs,
+        fatPer100g: food.fat,
+        kcalPer100g: food.kcal,
+        name: food.slug,
+        proteinPer100g: food.protein,
+        slug: food.slug
+      })
+    )
+  );
+  const SHARE = { breakfast: 0.28, dinner: 0.34, lunch: 0.37 } as const;
+  // Each slot's dishes, from all bread to mostly chicken, at the slot's energy.
+  const pool = (['breakfast', 'lunch', 'dinner'] as const).flatMap(slot =>
+    Array.from({ length: 10 }, (_none, n) => {
+      const kcal = (TARGETS.kcal * SHARE[slot]) / 1.0;
+      const chicken = Math.round((n / 9) * ((kcal * 0.8) / 1.65));
+      const bread = Math.round((kcal - chicken * 1.65) / 2.65);
+
+      return makeDish({
+        ingredients: [
+          { grams: Math.max(chicken, 1), slug: 'pollo-proteico' },
+          { grams: Math.max(bread, 1), slug: 'pan' }
+        ],
+        name: `${slot} ${n}`,
+        slots: [slot],
+        slug: `${slot}-${n}`
+      });
+    })
+  );
+
+  const breakfastProtein = (goal: string) => {
+    const weights = weightsFor(shapeFor(3, false));
+    const result = schedulePlan({
+      catalogue: proteinCatalogue,
+      minimumKcal: MINIMUM_KCAL,
+      pool,
+      proteinWeights: proteinWeightsFor(goal, weights),
+      targets: TARGETS,
+      weights
+    });
+
+    expect(result.ok).toBe(true);
+
+    return result.ok
+      ? result.assignment.days.reduce((sum, day) => sum + (day.meals.find(meal => meal.slot === 'breakfast')?.macros.proteinG ?? 0), 0)
+      : 0;
+  };
+
+  it('names a leaner split of the protein only for somebody building muscle', () => {
+    const weights = weightsFor(shapeFor(5, true));
+
+    expect(proteinWeightsFor('maintenance', weights)).toBeUndefined();
+    expect(proteinWeightsFor(undefined, weights)).toBeUndefined();
+
+    const lean = proteinWeightsFor('muscle_gain', weights) as NonNullable<ReturnType<typeof proteinWeightsFor>>;
+
+    expect(lean.get('breakfast')).toBeCloseTo((weights.get('breakfast') as number) * 1.5);
+    expect(lean.get('lunch')).toBe(weights.get('lunch'));
+    expect(lean.get('morning_snack')).toBeCloseTo((weights.get('morning_snack') as number) * 2);
+  });
+
+  it('gives a breakfast more of the day’s protein to somebody building muscle than to anybody else', () => {
+    expect(breakfastProtein('muscle_gain')).toBeGreaterThan(breakfastProtein('maintenance'));
+  });
+});
+
+describe('schedulePlan — a maximum repaired one meal at a time (019 phase 5a)', () => {
+  // A pool of random dishes of beef, chicken, hake, courgette and potato on a
+  // neutral base (a seeded generator, the same every run). The day-by-day
+  // improvement leaves meat at seven lunches and dinners in this one; a swap
+  // of one of them for a dish of another group fixes the plan with every day
+  // kept inside its bands, which is `meetCaps`'s to do.
+  const bases: readonly (readonly [string, Partial<CatalogueIngredient>])[] = [
+    ['filete-de-ternera', { classes: ['animal', 'meat'] }],
+    ['pechuga-de-pollo', { classes: ['animal', 'meat'] }],
+    ['merluza', { classes: ['animal', 'fish'] }],
+    ['calabacin', {}],
+    ['patata', {}],
+    ['base', {}]
+  ];
+  const capsCatalogue = makeCatalogue(bases.map(([slug, rest], index) => makeCatalogueIngredient({ id: `c-${index}`, name: slug, slug, ...rest })));
+  const SHARE = { breakfast: 0.28, dinner: 0.34, lunch: 0.37 } as const;
+  const pool = (() => {
+    let state = 11 * 7919;
+
+    const random = () => {
+      state = (state * 1_103_515_245 + 12_345) % 2_147_483_648;
+
+      return state / 2_147_483_648;
+    };
+
+    return (['breakfast', 'lunch', 'dinner'] as const).flatMap(slot =>
+      Array.from({ length: slot === 'breakfast' ? 8 : 16 }, (_none, n) => {
+        const base = slot === 'breakfast' ? 'patata' : (bases[Math.floor(random() * 5)] as (typeof bases)[number])[0];
+        const grams = Math.round(100 + random() * 80);
+
+        return makeDish({
+          ingredients: [
+            { grams, slug: base },
+            { grams: Math.round((TARGETS.kcal * SHARE[slot]) / 2) - grams + Math.round((random() - 0.5) * 120), slug: 'base' }
+          ],
+          name: `${slot} ${n}`,
+          slots: [slot],
+          slug: `${slot}-${n}`
+        });
+      })
+    );
+  })();
+
+  it('serves meat no more than its six where a swap keeps every day inside its bands', () => {
+    const targets = TARGETS;
+    const result = schedulePlan({ catalogue: capsCatalogue, minimumKcal: MINIMUM_KCAL, pool, targets, weights: weightsFor(shapeFor(3, false)) });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const meat = result.assignment.days.flatMap(day =>
+      day.meals.filter(meal => MAIN_SLOTS.has(meal.slot) && placementGroups(meal.ingredients, capsCatalogue).meat)
+    );
+    const violations = validatePlan({
+      assignment: result.assignment,
+      expectedDays: PLAN_DAYS,
+      expectedSlots: [...weightsFor(shapeFor(3, false)).keys()],
+      sex: 'male',
+      targets,
+      weightKg: 70
+    });
+
+    expect(meat.length).toBeLessThanOrEqual(BALANCE_CAPS.meat);
+    expect(violations.filter(isBlocking)).toEqual([]);
   });
 });
 

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { buildShoppingList, unresolvedSlugs } from 'core/domain/ShoppingList';
-import { DEFAULT_MEAL_SHAPE, slotsIn, weightsFor } from 'core/domain/MealShape';
+import { DEFAULT_MEAL_SHAPE, proteinWeightsFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { dishSafety } from 'core/domain/Safety';
 import { loadedTargets } from 'core/domain/Event';
 import { schedulePlan } from 'core/domain/Scheduler';
@@ -174,6 +174,7 @@ export class PlanLoadRebuildService {
       monthOf,
       placed,
       pool,
+      proteinWeights: proteinWeightsFor(profile.goal?.type, weightsFor(shape)),
       targets: base,
       weights: weightsFor(shape)
     });

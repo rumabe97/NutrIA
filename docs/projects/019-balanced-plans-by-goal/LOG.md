@@ -220,3 +220,53 @@
   - Fish + shellfish ≤ 8 held on fewer plans off (79 → 73): six fish meals plus the two or three shellfish meals a pool serves beside them pass eight. The classifier says 213 of those meals were not needed by the bands (off). A repair pass for a maximum, the mirror of `meetFloors`, is the next lever; so are meat (141 broken, 4 needed) and eggs (308 broken, 72 needed). The classifier asks each meal alone, so it is an upper bound on what a pass could repair.
   - `PlacementGroups` has three more fields; anything that builds one by hand (a spec) must name them.
   - Vegetables and fruit are phase 5's: they did not move.
+
+## Phase 5a — The maximums repaired (2026-10-08)
+
+- **Executor**: Opus 5.5 (agent `backend`). Phase 5 is split in two at the lead's request: 5a here, 5b (vegetables, fruit, fibre and whole grain through accompaniments) next.
+- **Result**: done.
+- **What changed**: `meetCaps`, the mirror of `meetFloors`, as one generic pass (`repairToRule`) for both: a plan still past a maximum swaps a lunch or dinner of a broken group for another dish, one meal at a time, only if the total excess falls, no other rule (the minimums included) gets worse, and the day stays as inside its bands as it was. Run after `meetFloors`, before the distinct-days and side-starch passes. `meetFloors` now skips a day a round found nothing for.
+- **Evidence** (871 recipes, `--rotate 10`, phase 4 as the baseline; files `docs/local/019-p4-*`, `019-t1-{off,on}`, `019-c5e-*`):
+  - **Rules held, off / on (phase 4 → 5a)**: fish + shellfish ≤ 8: 73 → 99, 69 → 83 (of 140); meat 71 → 96, 69 → 86 (of 130); red meat 113 → 121, 99 → 107; eggs 45 → 62, 75 → 83; processed 88 → 89, 85 → 86; legumes 135 → 136, 132 → 132; fish 116 → 116, 112 → 112; whole grain 21 → 23, 21 → 28; starches 109 → 110, 87 → 86; fruit, vegetables, fibre unchanged.
+  - **Score by goal, off / on (phase 4 → 5a)**: off weight loss 58 → 66, muscle gain 54 → 62, maintenance 61 → 64, healthy eating 64 → 65, performance 62 → 58; on 55 → 61, 62 → 62, 58 → 63, 55 → 57, 62 → 62. With accompaniments on, no goal is below phase 4; off, performance is four under (its median on quincena-con-evento).
+  - **Days in band**: 1,958/1,960 off and 1,960/1,960 on, as phase 4. 0 allergens.
+  - **Time**: alternating builds, off: 5a 44,497 and 43,924 ms against phase 4's 41,224 and 41,527 (+7%); on 57,548 against 54,197 (+6%). Within +10%. A shortlist of 12 cost +15%; one of 6 and the goal alone screened first (not all four metrics) is the version kept.
+  - **Exceptions left (meals broken / needed by the bands, off, on)**: fish + shellfish 136 / 23, 201 / 11; meat 88 / 3, 108 / 8; red 8 / 1, 40 / 5; processed 72 / 12, 93 / 25; eggs 129 / 34, 181 / 36. What remains is mostly what one swap cannot fix without breaking another rule.
+  - Core 3,815 tests green, gate `--full` green. No spec was added that fails without the pass: the existing maximums specs hold either way, because the improvement passes already hold a fixture's caps; the evidence is the evaluator's.
+- **Deviations from plan**: none new; the plan's 5 is split at the lead's direction. Decision `0086` drafted.
+- **Notes for the next phase**: 5b needs a catalogue check of vegetable and fruit sides per profile before it is built.
+
+## Phase 5b — Vegetables and fruit through the accompaniments (2026-10-08)
+
+- **Executor**: Opus 5.5 (agent `backend`).
+- **Result**: done for vegetables and fruit; whole grain moved modestly; fibre was already met.
+- **What changed**: `meetSides` (see decision `0087`): after the days are sized and repaired, a day short of the table's vegetables or fruit (`sideLack`) is offered the sets that carry them (`sideSets`) at each lunch and dinner, and takes one when the day sized again with it stays as inside its bands, keeps its floor, order and energy, and is nearer the table. Only with accompaniments on; off, the code path is the one of 5a. `offeredSets` now shares its per-role pruning (`bestPortions`).
+- **Catalogue check before building** (`ACCOMPANIMENTS`): Spanish/other family 24 vegetable sides at lunch/dinner (most over 150 g, many month-limited), Italian 5, Asian 7, Latin 5, Arab 6 (some under 150 g: hummus, kimchi, guacamole, miso soup, pico de gallo); 20 fresh fruits (120–200 g, seasonal) and 3 yogurts at any meal; 5 breads, 2 whole-grain (pan-integral, pan-de-centeno). Supply is not the limit; the selection was.
+- **Evidence** (871 recipes, `--rotate 10`, accompaniments on; 5a = `019-u2-on`, 5b = `019-u3-on`):
+  - **Rules held (5a → 5b, of 140)**: 150 g at 80% of mains 31 → 74; at every main 0 → 4; fruit 28 → 73; whole grain 28 → 39; starches 86 → 90; red meat 107 → 109; eggs 83 → 86; fish + shellfish 83 → 85; legumes 132, fish 112, fibre 130 unchanged; oily fish 106 → 104.
+  - **Score by goal (weight loss, muscle gain, maintenance, healthy eating, performance)**: 61/62/63/57/62 → 62/69/67/69/65. No goal below.
+  - **patron-vegetariano** (median score 43 → 71): whole grain met on 1 → 5 of 10 plans, fruit 4 → 10, 150 g at 80% of mains 3 → 9.
+  - **quincena-con-evento** (the event profile): median score 62 → 65; fruit met on 0 → 5 of 10 plans, whole grain 1 → 2; 150 g at 80% of mains stays 0 (its mains take no vegetable set inside the bands).
+  - **Side share and limits** (plain run, accompaniments on, per profile, kcal share of a meal the sides carry, mean / max): 5a means 19.6–27.1%, max 35.0%; 5b means 22.2–25.8%, max 34.9%. The 35% share holds (`sidesWithinShare` filters every size of every set, forced ones included), plates outside `PLATE_LIMIT` 0 in both, over the per-food and gram ceilings 0 in both. Season and the allergy gate are unchanged: `sideSets` draws from the same `setsBeside` and larder. The dish's own vegetables are counted as served first (`sideLack` sums plate and set rows), so a side never displaces them.
+  - **Days in band**: 1,960/1,960. 0 allergens.
+  - **Time**: `schedulePlan` summed over the 140 plans, 56,980 ms (5a) → 60,713 (5b), +6.5%; against phase 3's 54,514, +11%. The machine's run-to-run noise on this figure is about ±5%. **Accepted by the lead (2026-10-08, delegated by the owner):** the cumulative +11% is within run noise.
+  - Off: unchanged from 5a, by construction.
+  - Core 3,815 tests green, gate `--full` green. A spec fails without the pass: on the accompaniments fixture (two main meals, 1.1×) it asks for 14 of 28 mains with 150 g of vegetables and 3 of 14 days with two fruits, against 11 and 1 without `meetSides`.
+- **Deviations from plan**: the pass runs after the day is sized instead of pricing the lack inside the day's search (`0087`, alternatives).
+- **Not met**: PRD 5's "vegetables at every main" holds on 4 of 140 plans (74 at 80% of mains). Profiles whose meals take no accompaniments (patron-kosher, patron-sin-gluten, bajo-3-comidas, imc-alto-2-comidas in part) are unchanged: their per-meal budgets are under `ACCOMPANIED_FROM_KCAL`, or no set closes the lack inside the bands. A swap (`pickReplacement`) composes its set by fit and does not read the lack.
+- **Notes for the next phase**: phase 6 moves protein per meal and so which plates the bands need. Whole-grain bread preference and `pickReplacement` reading `sideLack` are open.
+
+## Phase 6 — Protein per meal by goal (2026-10-08)
+
+- **Executor**: Opus 5.5 (agent `backend`).
+- **Result**: done for the scheduler; the prompt's per-slot protein (`briefFor`) is left to phase 7.
+- **What changed**: `proteinWeightsFor` (`core/domain/MealShape`) and an optional `SchedulerInput.proteinWeights`: for `muscle_gain` the breakfast and supper carry 1.5 times and the snacks 2 times their energy share of the day's protein; every other goal splits the protein as the energy. `slotBudgets` divides the protein by those weights and the rest by the energy's. Generation and the event rebuild pass it from the goal; the evaluator too. Decision `0088`.
+- **Evidence** (871 recipes, `--rotate 10`; before = `019-u3-*` and `019-t1-*`, after = `019-v1-*`):
+  - **objetivo-alto-5-comidas, accompaniments on, g/kg a meal (mean, lowest of the fortnight's meals)**: breakfast 0.42 (0.22) → 0.46 (0.21); morning snack 0.15 (0.09) → 0.17 (0.09); afternoon snack 0.16 (0.08) → 0.21 (0.07); lunch 0.60 → 0.55; dinner 0.56 → 0.51.
+  - **Score by goal, on**: muscle gain 69 → 77; the other four unchanged (62, 67, 69, 65). Off: all five unchanged (66, 62, 64, 65, 58).
+  - **Days in band**: 1,958 off and 1,960 on, as before. 0 allergens.
+  - **Time**: 44,497 → 44,847 ms off (+1%), 60,713 → 56,752 on (run noise).
+  - Specs: `proteinWeightsFor` and a plan whose breakfast carries more protein for muscle gain than for maintenance; core green, gate `--full` green.
+- **Criterion 6**: the mean breakfast is 0.46 g/kg, above 0.3, in every muscle-gain plan; the lowest breakfast of a fortnight is not (0.21): some days have no breakfast that carries it inside the bands. The report's metric (every meal at 0.4 g/kg) is not met: lunch and dinner average 0.55 and 0.51, breakfast 0.46, the snacks 0.17 and 0.21.
+- **Deviations from plan**: `briefFor` is not changed (decision `0088`, alternatives): the prompt version moves in phase 7. The report's 0.25 g/kg minimum for the other goals is not built.
+- **Notes for the next phase**: phase 7 asks the generator for protein snacks and breakfasts and moves `briefFor` with the version; `proteinWeightsFor` is the function it reads.
