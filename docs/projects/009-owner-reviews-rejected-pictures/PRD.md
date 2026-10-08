@@ -7,7 +7,7 @@
 > report [`0005`](../../reference/architecture/0005-imagenes-fallidas-aviso-y-revision-a-mano-2026-09-30.md) —
 > approved by the owner before the plan is written.
 
-- **Status**: approved — by the owner, 2026-09-30
+- **Status**: done — closed 2026-10-08 (owner's request; audit in 000-workspace/closing-audit-2026-10-08.md)
 - **Roadmap item**: [`docs/ROADMAP.md`](../../ROADMAP.md) — a follow-up to
   [`006-realistic-dish-pictures`](../006-realistic-dish-pictures/) and to the failure
   reasons and manual retry of 2026-09-30 (#168), asked for by the owner on 2026-09-30

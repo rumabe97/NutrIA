@@ -337,3 +337,18 @@
   available now but should run against a **throwaway** one — they create and delete
   accounts, and would write scripted test dishes into the shared recipe library that later
   plans would then reuse.
+
+## Closing (2026-10-08)
+
+- **Closed** on 2026-10-08 at the owner's request, after the closing audit
+  ([`closing-audit-2026-10-08.md`](../000-workspace/closing-audit-2026-10-08.md)).
+  Anything found later is a new change, not a reopening.
+- **Phase 7's open step is superseded.** It waited on the owner to run the end-to-end
+  suites against a throwaway database. Since `dc9e9a57` (2026-09-09), CI runs
+  `pnpm --filter api test:e2e` on every push against a `postgres:17` container that dies
+  with the job. `generation` and `allergy-safety` are among its suites. Their first run
+  found the free-text allergy gap, fixed in `0052156e` (`0004` amended).
+- **Shipped:** the foundation (#1) and the phases logged above, all on 2026-09-07. Phase 6
+  was confirmed by the owner the same day.
+- **PRD criteria:** 1, 3, 11 and 13, the ones phase 7 was to prove, run on every pull
+  request since.
