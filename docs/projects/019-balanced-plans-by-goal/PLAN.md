@@ -53,13 +53,14 @@ Every phase is measured on the reference library (`0080`) with `--rotate`, and m
 
 ### Phase 4 — Minimums
 
-- [ ] pending
+- [x] done (2026-10-08; see LOG)
 - **Dispatch**: opus @ high. Deviation: new mechanism.
 - **Covers**: PRD 4.
 - **Steps**:
   1. Add a reservation calendar for the minimum groups (legumes ≥ 8, fish ≥ 6 with oily ≥ 2), each capped by what the pool can supply.
   2. Add a final `meetFloors` repair pass that never trades a day out of band.
-  3. Record decision `0084`.
+  3. Record decision `0085` (`0084` is phase 3's).
+  4. Count, in the evaluator, the exceptions to the table's maximums and minimums that the bands needed and the ones they did not (`--exceptions`).
 
 ### Phase 5 — Vegetables, fruit, fibre and whole grain through accompaniments
 

@@ -170,3 +170,53 @@
   - 1,958/1,960 days off with `--rotate` equals the baseline and is accepted.
   - Decision `0084` approved as drafted (`docs/decisions/0084-hold-the-food-group-maximums-below-the-starch-caps-and-the-bands.md`).
 
+
+## Phase 4 — Minimums (2026-10-08)
+
+- **Executor**: Opus 5.5 (agent `backend`).
+- **Result**: done for the mechanism; two goal scores are one point under phase 3's with accompaniments on — see the gate.
+- **What changed**:
+  - `heldMinimums` (`core/domain/Balance`): legumes ≥ 8, fish ≥ 6, oily fish ≥ 2 of 28 lunches and dinners (scaled to the plan's mains), each capped by what the person's filtered pool supplies — legumes by the dishes of each legume at three a kind, fish and oily fish by the pool's dishes — so a group the pool cannot serve has no minimum. `PlacementGroups` now names `fish`, `legume` and `oilyFish`, so a swap and an event rebuild read a kept meal's minimums as served.
+  - `floorCalendar` (scheduler): which lunches and dinners owe which group, spread evenly over the days being laid out, lunch first for legumes and dinner first for fish, oily fish on some of the fish meals. It reserves three quarters of what a minimum still lacks (`CALENDAR_SHARE`). A meal that owes a group is first served from the dishes that carry it, when one fits within `FLOOR_FIT_TOLERANCE` (0.35) of the best fit and is not beside its own legume.
+  - The shortfall is priced at `HELD_MINIMUM_WEIGHT` (20), below the maximums' 30, in `improveDay` (paid only by a day inside its bands, and not credited to a swap that raises a priced variety rule) and `repairOutOfBand`.
+  - `meetFloors`: the final repair pass, before the distinct-days and side-starch passes. Never trades a day: a swap is kept only if it lowers the plan's total shortfall, leaves its day as inside its bands as it was, keeps the floor, order and energy, and breaks no held rule, priced rule or maximum it did not already break.
+  - `pickReplacement` takes `replaced` (the old plate's groups) and keeps a minimum that plate carried when the rest of the plan falls short without it; `MealSwap` passes it.
+  - `bandNeededExceptions` and the evaluator's `--exceptions`: per plan, the meals past a maximum or short of a minimum and how many no single swap could have removed with the day kept inside its bands (PRD criterion 3). It runs after the scheduling clock stops.
+- **Evidence** (871 recipes, local Postgres, `--rotate 10`; phase 3 re-measured today from `main` on the same machine, files `docs/local/019-p3r-{off,on}.json`, phase 4 `019-p4-{off,on}.json`, exceptions `019-p4e-{off,on}.json`):
+  - **Rules held, off / on (phase 3 → phase 4)**:
+    - legumes 128 → 135, 112 → 132 (of 140);
+    - fish 84 → 116, 99 → 112 (of 120);
+    - oily fish 103 → 116, 98 → 105;
+    - fish + shellfish ≤ 8: 79 → 73, 69 → 69;
+    - meat 54 → 71, 60 → 69 (of 130);
+    - red meat 105 → 113, 108 → 99;
+    - processed 86 → 88, 89 → 85;
+    - eggs 45 → 45, 71 → 75;
+    - starches 114 → 109, 83 → 87;
+    - vegetables at every main 0 → 0, 1 → 0; at 80% of mains 5 → 6, 31 → 34;
+    - fruit 0 → 0, 24 → 27;
+    - whole grain 18 → 21, 23 → 21;
+    - fibre 130 throughout.
+  - **Score by goal** (mean of median scores, phase 3 → phase 4):
+    - off: weight loss 50 → 58, muscle gain 46 → 54, maintenance 56 → 61, healthy eating 65 → 64, performance 54 → 62;
+    - on: weight loss 51 → 55, muscle gain 54 → 62, maintenance 59 → 58, healthy eating 56 → 55, performance 58 → 62.
+  - **Days in band**: 1,958/1,960 off (phase 3: 1,958), 1,960/1,960 on (1,960). 0 allergens.
+  - **Time**: `schedulePlan` summed over the 140 plans, one run each on the same machine: off 40,793 ms against 41,846 (−3%), on 54,197 against 54,514 (−1%). Within +10%.
+  - **Exceptions the bands needed** (`--exceptions`; meals broken / of those, needed by the bands; off, on):
+    - fish + shellfish 213 / 20, 280 / 9;
+    - meat 141 / 4, 168 / 7;
+    - red meat 27 / 1, 70 / 4;
+    - processed meat 77 / 10, 98 / 24;
+    - eggs 308 / 72, 264 / 48 (counted by the egg);
+    - legumes short 5 / 0, 5 / 0; fish short 3 / 2, 4 / 0; oily fish short 5 / 1, 15 / 1.
+  - Specs: `heldMinimums` 4, `schedulePlan` meeting the minimums 3 (served from a pool whose order puts none first; the exceptions count; a swap keeping its minimum). Core 3,814 tests green.
+- **Gate**: days in band, allergens and time met. Goal scores: every goal off but healthy eating (65 → 64), and every goal on but maintenance (59 → 58) and healthy eating (56 → 55), are above phase 3. The three single points are medians of ten plans flipping on one rule of thirteen in profiles the minimums do not touch (patron-vegetariano has no fish and meets its legumes already; its median fell on whole grain), and they moved between variants of the weights while the minimums held. Not tuned away; for the lead to accept or send back.
+- **Deviations from plan**:
+  - Decision `0085`, not `0084` (phase 3's). Drafted for the lead, who records it.
+  - The calendar reserves three quarters of the lack, not all of it: reserved in full, one profile (tres-comidas-proteina-alta) lost six days from their bands that three quarters did not. Both are chaotic at this size (an unrelated variant moved it from 138 to 134 to 140), so the share was chosen on the whole library, not that profile.
+  - The minimum is priced at 20, below the maximums' 30, so a fish bought for the minimum is not bought with a shellfish past the cap. At 30 fish and shellfish held on fewer plans.
+- **Decisions**: `0085`, drafted.
+- **Notes for the next phase**:
+  - Fish + shellfish ≤ 8 held on fewer plans off (79 → 73): six fish meals plus the two or three shellfish meals a pool serves beside them pass eight. The classifier says 213 of those meals were not needed by the bands (off). A repair pass for a maximum, the mirror of `meetFloors`, is the next lever; so are meat (141 broken, 4 needed) and eggs (308 broken, 72 needed). The classifier asks each meal alone, so it is an upper bound on what a pass could repair.
+  - `PlacementGroups` has three more fields; anything that builds one by hand (a spec) must name them.
+  - Vegetables and fruit are phase 5's: they did not move.
