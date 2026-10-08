@@ -82,7 +82,8 @@
   - Every dish is read per serving with phase 1's recognition. Only lunch and dinner are reserved.
   - `RecipeController.reusablePool` passes the reservation whenever it rotates, so production (`PlanGeneration`) and the evaluator's `--rotate` both get it. The whole-library and `wider_rotation` rescues are unchanged.
   - The reservation draws only from the person's filtered library: someone who dislikes fish has none in it and is reserved none (owner, 017). There is no fish minimum for them.
-- **Evidence** (reference library, 871 recipes, local Postgres, no reset needed; `--rotate 10`, against `docs/local/019-base-{off,on}.json`; new runs in `docs/local/019-p2-{off,on}.json`):
+- **Evidence** (corrected 2026-10-08, see below; local Postgres, `--rotate 10`):
+  - **Correction.** The figures first written here were taken on 898 recipes, not the reference 871: 27 more `ai` rows (20 breakfasts, 5 lunches, 2 dinners) had reached the local database. They were measured again on 871, back to back with the baseline, each built from its own commit: the baseline is phase 1 on the same `main` as phase 2 (`a3b60114` with `40525c6e` reverted), not the files of phase 1, whose `main` was older. Files (gitignored): `docs/local/019-p1-{off,on}.json` and `docs/local/019-p2-{off,on}.json`; the 898 runs are kept as `docs/local/019-p2-898-{off,on}.json`.
   - **Rotation offer, 140 rotations** (phase 2's metric):
 
     | Offer at lunch and dinner | Before | After |
@@ -93,25 +94,25 @@
     | Fewest fish dishes, among the 12 profiles that eat fish | 2 | 6 |
     | Rotations short of 6 fish dishes, among those 12 profiles | 12 | 0 |
 
-  - **Days in band**: 1,958/1,960 off (baseline 1,958), 1,960/1,960 on (baseline 1,959). 0 allergens. `wider_rotation` needed in 103 plans off (baseline 110) and 27 on (baseline 35), and every one was rescued.
+  - **Days in band**: 1,959/1,960 off (baseline 1,958), 1,959/1,960 on (baseline 1,959). 0 allergens. `wider_rotation` needed in 102 plans off (baseline 110) and 33 on (baseline 35), and every one was rescued.
   - **Rules held, off / on (baseline → phase 2)**:
-    - legumes 112 → 116, 83 → 109 (of 140);
-    - fish 82 → 84, 93 → 93 (of 120);
-    - oily fish 108 → 110, 95 → 101;
-    - fish + shellfish ≤ 8: 72 → 73, 68 → 69;
-    - meat 39 → 44, 41 → 55 (of 130);
-    - red meat 56 → 68, 60 → 63;
-    - processed 25 → 40, 41 → 47;
-    - eggs 43 → 34, 67 → 36;
-    - starches 106 → 108, 65 → 72;
-    - vegetables at every main 0 → 0, 1 → 1; at 80% of mains 7 → 4, 33 → 23;
-    - fruit 0 → 0, 25 → 9;
-    - whole grain 7 → 34, 8 → 33;
+    - legumes 113 → 122, 83 → 107 (of 140);
+    - fish 81 → 77, 93 → 95 (of 120);
+    - oily fish 108 → 103, 95 → 97;
+    - fish + shellfish ≤ 8: 73 → 76, 68 → 65;
+    - meat 39 → 44, 39 → 55 (of 130);
+    - red meat 56 → 70, 59 → 73;
+    - processed 26 → 25, 40 → 43;
+    - eggs 41 → 37, 69 → 54;
+    - starches 106 → 105, 64 → 67;
+    - vegetables at every main 0 → 0, 1 → 0; at 80% of mains 7 → 7, 34 → 32;
+    - fruit 0 → 0, 25 → 23;
+    - whole grain 7 → 13, 8 → 25;
     - fibre 130 → 130, 130 → 130.
   - **Score by goal** (mean of median scores, baseline → phase 2):
-    - off: weight loss 43 → 47, muscle gain 42 → 46, maintenance 45 → 49, healthy eating 53 → 56, performance 35 → 46;
-    - on: weight loss 43 → 44, muscle gain 35 → 31, maintenance 45 → 47, healthy eating 55 → 55, performance 42 → 35.
-  - **Time**: `schedulePlan` summed over the 140 plans, run back to back with phase 1's build from a scratch worktree, alternating, on a machine shared with other agents. On the quiet runs:
+    - off: weight loss 43 → 42, muscle gain 42 → 38, maintenance 45 → 47, healthy eating 51 → 55, performance 35 → 46;
+    - on: weight loss 43 → 44, muscle gain 35 → 35, maintenance 45 → 52, healthy eating 55 → 50, performance 42 → 46.
+  - **Time** (taken on the 898-recipe library, not measured again): `schedulePlan` summed over the 140 plans, run back to back with phase 1's build from a scratch worktree, alternating, on a machine shared with other agents. On the quiet runs:
     - off 84,252 ms against 84,810 (−1%);
     - on, medians of five pairs, 59,391 against 58,350 (+2%).
     - Within +10%.
@@ -121,5 +122,45 @@
 - **Decisions**: none new; `0084` comes with phase 4's minimums.
 - **Notes for the next phase**:
   - The pool now carries what the minimums need, but the scheduler still serves fewer: objetivo-bajo-3-comidas has ≥ 6 legume dishes in every rotation and serves a median of 4–5. That gap is phase 4's.
-  - More whole-grain and legume dishes in the pool pushed out some egg, fruit and vegetable dishes. Eggs ≤ 8 fell (110 → 70 of 260) and fruit fell with accompaniments on (25 → 9). The egg cap is phase 3's; fruit and vegetables are phase 5's.
-  - On with accompaniments, muscle gain and performance (one profile each) lost score through eggs and fruit; nothing lost days.
+  - More whole-grain and legume dishes in the pool pushed out some egg, fruit and vegetable dishes. Eggs ≤ 8 fell (110 → 91 of 260) and fruit fell with accompaniments on (25 → 23). The egg cap is phase 3's; fruit and vegetables are phase 5's.
+  - Three goals scored below the baseline somewhere: weight loss and muscle gain off, healthy eating on (patron-vegetariano 57% → 43%, patron-kosher 62% → 58%); nothing lost days. Phase 2 merges with phase 3, which brings every goal above it.
+
+## Phase 3 — Maximums held (2026-10-08)
+
+- **Executor**: Opus 5.5 (agent `backend-019p3`; resumed after a crash from the previous agent's work in progress).
+- **Result**: done for the mechanism; PRD criterion 3 (every maximum on every plan, or the exception counted) is not met yet — see the notes.
+- **What changed**:
+  - `heldMaximums` (`core/domain/Balance`): the PRD table's maximums as `KindCheck`s, each over one kind named for its group so the cap is the group's — fish and shellfish ≤ 8, meat ≤ 6 (12 with no fish in the pool), red meat ≤ 4 and never on days running, processed meat ≤ 2 at any meal and never on days running, eggs ≤ 8 counted by the egg (`KindCheck.weight`), not for a pool with neither meat nor fish. Main-meal caps scale to the plan's main meals. A dish is read at the servings the first pick gives it, as the score reads a plate as served.
+  - The scheduler holds them at `HELD_MAXIMUM_WEIGHT` (30): above any fit, below pasta's and rice's four and a legume's three (`HELD_KIND_WEIGHT`, 100), and below the bands, in `improveDay`, `repairOutOfBand` and `pickReplacement`. They are not filtered at the first pick. A day outside its bands screens its swaps without the maximums' price, so the dish that brings it inside still reaches the sizing.
+  - A swap and an event rebuild name each kept meal's groups as served (`Placement.groups`, `placementGroups`), since the pool may no longer hold those dishes.
+  - A rice or grain side counts towards `STARCH_RULES` (`holdSideStarches`): last, a day whose side breaks the rule is sized again with that side kept off, and takes it only when the day stays as close to its bands and its energy.
+  - Speed: the kind rules are priced against a tally of the rest of the plan taken once per day (`kindTally`, `kindExcessWith`), and each dish's kinds are cached per slot. Plans identical to the uncached build.
+- **Evidence** (871 recipes, local Postgres, `--rotate 10`, baseline = phase 1 on the same `main`; files `docs/local/019-{p1,p2,p3}-{off,on}.json`):
+  - **Rules held, off / on (baseline → phase 2 → phase 3)**:
+    - legumes 113 → 122 → 128, 83 → 107 → 112 (of 140);
+    - fish 81 → 77 → 84, 93 → 95 → 99 (of 120);
+    - oily fish 108 → 103 → 103, 95 → 97 → 98;
+    - fish + shellfish ≤ 8: 73 → 76 → 79, 68 → 65 → 69;
+    - meat 39 → 44 → 54, 39 → 55 → 60 (of 130);
+    - red meat 56 → 70 → 105, 59 → 73 → 108;
+    - processed 26 → 25 → 86, 40 → 43 → 89;
+    - eggs 41 → 37 → 45, 69 → 54 → 71;
+    - starches 106 → 105 → 114, 64 → 67 → 83;
+    - vegetables at every main 0 → 0 → 0, 1 → 0 → 1; at 80% of mains 7 → 7 → 5, 34 → 32 → 31;
+    - fruit 0 → 0 → 0, 25 → 23 → 24;
+    - whole grain 7 → 13 → 18, 8 → 25 → 23;
+    - fibre 130 throughout.
+  - **Score by goal** (mean of median scores, baseline → phase 2 → phase 3):
+    - off: weight loss 43 → 42 → 50, muscle gain 42 → 38 → 46, maintenance 45 → 47 → 56, healthy eating 51 → 55 → 65, performance 35 → 46 → 54;
+    - on: weight loss 43 → 44 → 51, muscle gain 35 → 35 → 54, maintenance 45 → 52 → 59, healthy eating 55 → 50 → 56, performance 42 → 46 → 58.
+    - Every goal is above the baseline, off and on. One profile is below it on: patron-vegetariano, median 57% → 50%, its mean score 54% both; one plan fewer meets fruit and none vegetables at every main, which are phase 5's.
+  - **Days in band**: `--rotate`, 1,958/1,960 off (baseline 1,958), 1,960/1,960 on (baseline 1,959); `wider_rotation` in 106 plans off and 34 on, every one rescued, `full_library` never. Whole library, no rotation: 196/196 off and on, as the baseline. 0 allergens. No variety violations.
+  - **Time**: `schedulePlan` summed over the 140 plans, three pairs run alternately against the baseline's build: off 38,469 / 41,435, 38,555 / 41,651, 38,889 / 42,072 ms (+8%); on 52,941 / 54,759, 53,983 / 55,119, 53,127 / 55,409 ms (+3%). Within +10%. Before the tally, off was +12%.
+  - Specs: `heldMaximums` 4, `kindExcessWith` 1, a weighted check 1, `schedulePlan` holding the maximums on a pool that serves meat eight times without them 1, a rice side held to the starch rule 1. Two fixture plans re-pinned, with what moved written beside them.
+- **Deviations from plan**:
+  - The maximums are held below pasta's and rice's rules, not at their price: at one price, a meat past its six was traded for a rice past its four, and the starch cap held on fewer plans.
+  - Decision `0084` is drafted for the lead, who records it.
+- **Notes for the next phase**:
+  - Meat (54 and 60 of 130), eggs (45 and 71) and fish + shellfish (79 and 69 of 140) are still broken on about half the plans, by 2 to 3 meals at the median. The bands outrank the maximums, and a rotation of 19 dishes a slot often has nothing else that keeps a day inside them; most visibly, objetivo-bajo-3-comidas serves fish at 12.5 meals at the median, off. The evaluator does not yet tell an exception the bands needed from one they did not, which PRD criterion 3 asks for. Phase 4's reservation calendar gives the minimums' legumes those meals; phase 6's protein per meal changes which plates the bands need; counting the band-needed exceptions belongs with phase 4's `meetFloors`.
+  - Eggs are counted at every meal, breakfast included, by the egg.
+
