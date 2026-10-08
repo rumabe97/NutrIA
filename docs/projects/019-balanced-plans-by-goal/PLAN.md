@@ -68,7 +68,7 @@ Every phase is measured on the reference library (`0080`) with `--rotate`, and m
 
 ### Phase 5b — Vegetables, fruit, fibre and whole grain through accompaniments
 
-- [ ] pending
+- [x] done (2026-10-08; see LOG)
 - **Dispatch**: opus @ medium.
 - **Covers**: PRD 5.
 

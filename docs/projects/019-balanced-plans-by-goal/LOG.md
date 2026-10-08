@@ -235,3 +235,21 @@
   - Core 3,815 tests green, gate `--full` green. No spec was added that fails without the pass: the existing maximums specs hold either way, because the improvement passes already hold a fixture's caps; the evidence is the evaluator's.
 - **Deviations from plan**: none new; the plan's 5 is split at the lead's direction. Decision `0086` drafted.
 - **Notes for the next phase**: 5b needs a catalogue check of vegetable and fruit sides per profile before it is built.
+
+## Phase 5b — Vegetables and fruit through the accompaniments (2026-10-08)
+
+- **Executor**: Opus 5.5 (agent `backend`).
+- **Result**: done for vegetables and fruit; whole grain moved modestly; fibre was already met.
+- **What changed**: `meetSides` (see decision `0087`): after the days are sized and repaired, a day short of the table's vegetables or fruit (`sideLack`) is offered the sets that carry them (`sideSets`) at each lunch and dinner, and takes one when the day sized again with it stays as inside its bands, keeps its floor, order and energy, and is nearer the table. Only with accompaniments on; off, the code path is the one of 5a. `offeredSets` now shares its per-role pruning (`bestPortions`).
+- **Catalogue check before building** (`ACCOMPANIMENTS`): Spanish/other family 24 vegetable sides at lunch/dinner (most over 150 g, many month-limited), Italian 5, Asian 7, Latin 5, Arab 6 (some under 150 g: hummus, kimchi, guacamole, miso soup, pico de gallo); 20 fresh fruits (120–200 g, seasonal) and 3 yogurts at any meal; 5 breads, 2 whole-grain (pan-integral, pan-de-centeno). Supply is not the limit; the selection was.
+- **Evidence** (871 recipes, `--rotate 10`, accompaniments on; 5a = `019-u2-on`, 5b = `019-u3-on`):
+  - **Rules held (5a → 5b, of 140)**: 150 g at 80% of mains 31 → 74; at every main 0 → 4; fruit 28 → 73; whole grain 28 → 39; starches 86 → 90; red meat 107 → 109; eggs 83 → 86; fish + shellfish 83 → 85; legumes 132, fish 112, fibre 130 unchanged; oily fish 106 → 104.
+  - **Score by goal (weight loss, muscle gain, maintenance, healthy eating, performance)**: 61/62/63/57/62 → 62/69/67/69/65. No goal below.
+  - **patron-vegetariano** (median score 43 → 71): whole grain met on 1 → 5 of 10 plans, fruit 4 → 10, 150 g at 80% of mains 3 → 9.
+  - **Days in band**: 1,960/1,960. 0 allergens.
+  - **Time**: `schedulePlan` summed over the 140 plans, 56,980 ms (5a) → 60,713 (5b), +6.5%; against phase 3's 54,514, +11%. The machine's run-to-run noise on this figure is about ±5%.
+  - Off: unchanged from 5a, by construction.
+  - Core 3,815 tests green, gate `--full` green. No new spec fails without the pass: the accompaniment specs pin plans with the flag off or by their own invariants; the evidence is the evaluator's.
+- **Deviations from plan**: the pass runs after the day is sized instead of pricing the lack inside the day's search (`0087`, alternatives).
+- **Not met**: PRD 5's "vegetables at every main" holds on 4 of 140 plans (74 at 80% of mains). Profiles whose meals take no accompaniments (patron-kosher, patron-sin-gluten, bajo-3-comidas, imc-alto-2-comidas in part) are unchanged: their per-meal budgets are under `ACCOMPANIED_FROM_KCAL`, or no set closes the lack inside the bands. A swap (`pickReplacement`) composes its set by fit and does not read the lack.
+- **Notes for the next phase**: phase 6 moves protein per meal and so which plates the bands need. Whole-grain bread preference and `pickReplacement` reading `sideLack` are open.

@@ -3375,9 +3375,9 @@ function meetSides(
       const screened: {
         readonly lack: number;
         readonly quick: number;
-        readonly swapped: Pick[];
         readonly set: AccompanimentSet;
         readonly slot: MealSlot;
+        readonly swapped: Pick[];
       }[] = [];
 
       for (const [index, pick] of picks.entries()) {
@@ -3462,11 +3462,13 @@ function sideSets(
 ): readonly AccompanimentSet[] {
   // The plate at the size the budget asks of it, before any set: close enough to rank by, and no set priced yet.
   const plate = scaleIngredients(dish.ingredients, (base.kcal > 0 ? budget.kcal / base.kcal : 1) / dish.servings);
+
   const lackOf = (set: AccompanimentSet): number => {
     const groups = mealGroups([...plate, ...set.items], catalogue);
 
     return Math.max(0, 1 - groups.vegetables / BALANCE_GRAMS.vegetables) + Math.max(0, FRUIT_PER_DAY - groups.fruitPortions) / FRUIT_PER_DAY / 2;
   };
+
   const nearest = setsBeside(larder, dish, slot, month, bestPortions(base, budget, slot))
     .map((set, index) => ({ index, lack: lackOf(set), set }))
     .sort((a, b) => a.lack - b.lack || a.index - b.index)
