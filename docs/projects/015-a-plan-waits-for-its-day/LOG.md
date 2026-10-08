@@ -71,3 +71,17 @@
   - The midnight-crossing cut heals on read.
   - Next-plan screens are `/plan/proximo` and `/compra/proxima`, so the offline copy is never overwritten.
 - **Decisions**: `decisions/LOG.md` lines of 2026-10-02 (the project, and the care-path publish).
+
+## Closing (2026-10-08)
+
+- **Closed** on 2026-10-08 at the owner's request, after the closing audit
+  ([`closing-audit-2026-10-08.md`](../000-workspace/closing-audit-2026-10-08.md)).
+  Anything found later is a new change, not a reopening.
+- **Shipped:**
+  - #189: phase 1, migration 0053;
+  - #191: phase 2, migration 0054.
+- **PRD criterion 7, finished in the closing change:** project 013's start-date item is
+  marked superseded, and `ARCHITECTURE.md` names the `scheduled` state beside the review
+  state.
+- **Handed on, not this project's:** the migrate step sets no `lock_timeout` (P2 of phase
+  1's review), a task for the deploy recipe.

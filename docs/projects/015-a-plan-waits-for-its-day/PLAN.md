@@ -8,7 +8,7 @@
 > planner agent via `/plan-project`; approved by the owner before execution starts.
 > Write repo-relative: no absolute paths, no references to other private repos.
 
-- **Status**: approved
+- **Status**: done — closed 2026-10-08 (owner's request; audit in 000-workspace/closing-audit-2026-10-08.md)
 - **Type**: standard
 - **PRD**: ./PRD.md
 - **Routing profile**: tiered
@@ -40,7 +40,7 @@ Each is adapted to the rule below, not taken as is.
 
 ### Phase 1 — The `scheduled` status exists, and the review index no longer depends on the status list
 
-- [x] done
+- [x] done — PR #189
 - **Dispatch**: sonnet @ medium — `/execute-project 015 phase 1`. The `migration-reviewer` (opus · high) reviews.
 - **Goal**:
   - Rewrite `meal_plans_one_pending_review_per_user` as `WHERE status = 'pending_review'`. That value is already committed, so this is safe in one migration: drop the index and create it again.
@@ -57,7 +57,7 @@ Each is adapted to the rule below, not taken as is.
 
 ### Phase 2 — A plan waits for its day
 
-- [x] done
+- [x] done — PR #191
 - **Dispatch**: opus @ high — `/execute-project 015 phase 2`, run as `/team`:
   - `backend-high`: the allowance rule, generation, activation, the repository, vacations, events, the cron, and a migration adding `meal_plans_one_scheduled_per_user`;
   - `frontend`: the chooser, `/inicio`, `/compra`;
