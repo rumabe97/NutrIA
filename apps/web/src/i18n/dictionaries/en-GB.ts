@@ -1160,7 +1160,7 @@ export const enGB: Dictionary = {
     signUpPending: 'Creating your account…',
     socialFailed: 'We could not complete the sign-in. Try again, or sign in with your email.',
     socialNotLinked:
-      'There is already an account with that address, and it has not been confirmed yet. Sign in with your password and confirm the email, or reset the password. After that you can sign in this way too.',
+      'There is already an account with that address, and it signs in with a password. Sign in with it or, if you do not have it, reset it with “Forgotten your password?”.',
     tooManyAttempts: 'Too many attempts in a row. Wait a moment and try again.',
     toSignIn: 'Sign in',
     toSignUp: 'Create one',

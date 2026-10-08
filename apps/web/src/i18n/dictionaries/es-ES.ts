@@ -1195,7 +1195,7 @@ export const esES = {
     signUpPending: 'Creando tu cuenta…',
     socialFailed: 'No hemos podido completar el acceso. Inténtalo de nuevo o entra con tu correo.',
     socialNotLinked:
-      'Ya hay una cuenta con esa dirección y aún no está confirmada. Entra con tu contraseña y confirma el correo, o restablece la contraseña. Después podrás entrar también así.',
+      'Ya hay una cuenta con esa dirección que entra con contraseña. Entra con ella o, si no la tienes, restablécela en «¿Has olvidado tu contraseña?».',
     tooManyAttempts: 'Demasiados intentos seguidos. Espera un momento y vuelve a probar.',
     toSignIn: 'Accede',
     toSignUp: 'Crea la tuya',
