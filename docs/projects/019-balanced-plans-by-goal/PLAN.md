@@ -68,9 +68,18 @@ Every phase is measured on the reference library (`0080`) with `--rotate`, and m
 
 ### Phase 5b — Vegetables, fruit, fibre and whole grain through accompaniments
 
-- [ ] pending
+- [x] done (2026-10-08; see LOG)
 - **Dispatch**: opus @ medium.
 - **Covers**: PRD 5.
+
+### Follow-ups from phase 5
+
+Recorded by the lead's direction (2026-10-08); none is a phase of its own yet.
+
+- `pickReplacement` should choose its set by the table too (`sideLack`), so a swap does not lose the vegetable.
+- A whole-grain-bread bias in the set search: whole grain moved only through the bread a day happened to take.
+- Profiles whose meals fall under `ACCOMPANIED_FROM_KCAL` (patron-kosher, patron-sin-gluten, some of imc-alto-2-comidas and objetivo-bajo-3-comidas) get vegetables and fruit only from their dishes. That is phase 7's prompt work.
+- A two-meal trade pass for the maximums a single swap cannot fix without breaking another rule (`0086`).
 
 ### Phase 6 — Protein per meal by goal
 
