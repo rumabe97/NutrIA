@@ -459,6 +459,15 @@ the client by default, inside `PlanRepository`, not per route. Publishing is one
 transaction — complete the old `active` plan, set this one `active` — so the client never
 sees both or neither.
 
+**A plan whose day has not come waits as `scheduled`** (project 015). A generation takes a
+start from today to today + 7. A plan that starts after today is saved `scheduled`, and
+the running plan stays `active` and untouched. A second partial unique index allows at most
+one `scheduled` plan per user; generating again replaces it, and that counts as a redo. On
+its start date the scheduled plan becomes `active` and the old one `completed`, done by a
+daily cron at 23:05 UTC and again on every read of the active plan, so a missed cron
+strands nobody. A start on or before the running plan's end cuts that plan short and
+counts as a redo; a start after it is the next fortnight and is free.
+
 **Every route body has a Zod schema**, applied through `ZodValidationPipe`. An unvalidated
 body reaches the service as whatever was sent, and unknown keys are stripped rather than
 forwarded to a repository. The schema is named by a DTO in the module's `dto/in`, bound

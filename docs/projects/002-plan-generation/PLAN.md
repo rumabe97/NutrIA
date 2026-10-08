@@ -6,7 +6,7 @@
 > change and the deviation is recorded in LOG.md.
 > **Audience**: agents primarily, humans review. **Committed**: yes.
 
-- **Status**: in progress
+- **Status**: done — closed 2026-10-08 (owner's request; audit in 000-workspace/closing-audit-2026-10-08.md)
 - **Type**: standard
 - **PRD**: [./PRD.md](./PRD.md) — every acceptance criterion maps to at least one phase; the map is at the end of this file.
 - **Routing profile**: `tiered`. Phase 3 deviates to `quality-max` (fable) because it is AI
@@ -203,7 +203,7 @@ dishes as well as generated ones.)*
 
 ### Phase 7 — End-to-end verification and documentation
 
-- [ ] in progress — specs written and type-checked; **blocked at the `owner-gated` step**, which needs a throwaway `DATABASE_URL` (see ROADMAP § Now)
+- [x] done — specs in #1 (`92b40258`); the `owner-gated` run is superseded: since `dc9e9a57` (2026-09-09) CI runs `test:e2e` on every push against a throwaway `postgres:17`, and the first run found the free-text allergy gap fixed in `0052156e` (closing audit, 2026-10-08)
 - **Dispatch**: sonnet @ medium — `/execute-project 002 phase 7`
 - **Goal**: prove the loop against a real database, and leave the docs true.
 - **Scope**: `apps/api/test/`, `docs/`.
