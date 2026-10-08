@@ -163,3 +163,35 @@ describe('isPreferredDish — the three reasons a dish goes first', () => {
     expect(isPreferredDish(dish('a', 'mediterranea', ['salmon']), {})).toBe(false);
   });
 });
+
+describe('rotatePool with a reservation (019 phase 2)', () => {
+  const rotation = { avoidSlugs: nothingAvoided, seed: 'user-a:1' };
+  const dishes = library(40, ['lunch']);
+
+  it('takes the reserved dishes first and fills the rest as before, in the shuffled order', () => {
+    const reserved = dishes.slice(30, 33);
+    const pool = rotatePool(dishes, ['lunch'], rotation, 10, inSlot => inSlot.filter(dish => reserved.includes(dish)));
+    const order = seededShuffle(dishes, rotation.seed).map(dish => dish.slug);
+
+    expect(pool).toHaveLength(10);
+    expect(pool.map(dish => dish.slug)).toEqual(expect.arrayContaining(reserved.map(dish => dish.slug)));
+    expect(pool.map(dish => dish.slug)).toEqual([...pool.map(dish => dish.slug)].sort((a, b) => order.indexOf(a) - order.indexOf(b)));
+  });
+
+  it('is the plain pick when the reservation holds nothing, and tells it what an earlier slot took', () => {
+    const seen: number[] = [];
+    const both = library(30, ['lunch', 'dinner']);
+    const pool = rotatePool(both, ['lunch', 'dinner'], rotation, 10, (_inSlot, _slot, taken) => {
+      seen.push(taken.size);
+
+      return [];
+    });
+
+    expect(pool.map(dish => dish.slug).sort()).toEqual(
+      rotatePool(both, ['lunch', 'dinner'], rotation, 10)
+        .map(dish => dish.slug)
+        .sort()
+    );
+    expect(seen).toEqual([0, 10]);
+  });
+});

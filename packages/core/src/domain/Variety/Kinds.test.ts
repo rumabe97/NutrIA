@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { kindAtCap, kindCap, kindCrowded, kindExcess, kindMeals, kindPastCap, kindsCrowded, kindsExcess } from 'core/domain/Variety';
+import {
+  kindAtCap,
+  kindCap,
+  kindCrowded,
+  kindExcess,
+  kindExcessWith,
+  kindMeals,
+  kindPastCap,
+  kindsCrowded,
+  kindsExcess,
+  kindTally
+} from 'core/domain/Variety';
 
 import type { KindCheck, KindMeal, KindRule } from 'core/domain/Variety';
 
@@ -96,5 +107,36 @@ describe('kind rules', () => {
     expect(kindsCrowded('cuenco', 'morning_snack', 9, [[1, 3, 5].map(day => meal('yogur', day))], [check], 14)).toBe(1);
     expect(kindsCrowded('cuenco', 'breakfast', 9, [[1, 3, 5].map(day => meal('yogur', day))], [check], 14)).toBe(0);
     expect(kindsCrowded('tosta', 'morning_snack', 9, [[1, 3, 5].map(day => meal('yogur', day))], [check], 14)).toBe(0);
+  });
+
+  it('count a weighted meal as many times as it weighs, at the cap and in the excess', () => {
+    const check: KindCheck = {
+      index: new Map([
+        ['tortilla', 'eggs'],
+        ['revuelto', 'eggs']
+      ]),
+      rule: { apart: false, perFortnight: 8 },
+      weight: placement => (placement.dishSlug === 'tortilla' ? 3 : 1)
+    };
+    const placed = [1, 3].map(dayIndex => ({ dayIndex, dishSlug: 'tortilla', slot: 'dinner' as const }));
+
+    expect(kindMeals(placed, check)).toHaveLength(6);
+    expect(kindsCrowded('revuelto', 'breakfast', 5, [kindMeals(placed, check)], [check], 14)).toBe(0);
+    expect(kindsCrowded('tortilla', 'dinner', 5, [kindMeals(placed, check)], [check], 14)).toBe(1);
+    expect(kindsExcess([...placed, { dayIndex: 5, dishSlug: 'tortilla', slot: 'dinner' }], [check], 14)).toBe(1);
+    expect(kindCrowded('eggs', 5, kindMeals(placed, check), 14, check.rule, 2)).toBe(false);
+    expect(kindCrowded('eggs', 5, kindMeals(placed, check), 14, check.rule, 3)).toBe(true);
+  });
+  it('count the excess of the rest of the plan once, and the kinds a day brings again, to the same figure', () => {
+    const rest = [meal('pasta', 1), meal('pasta', 3), meal('pasta', 4), meal('arroz', 2), meal('arroz', 9), meal('quinoa', 12)];
+    const days = [[], [meal('pasta', 5)], [meal('arroz', 10), meal('arroz', 10)], [meal('pasta', 2), meal('cuscus', 8)], [meal('quinoa', 13)]];
+
+    for (const rule of [APART, LOOSE]) {
+      const base = kindExcess(rest, 14, rule);
+
+      for (const day of days) {
+        expect(kindExcessWith(kindTally(rest), base, day, 14, rule)).toBe(kindExcess([...rest, ...day], 14, rule));
+      }
+    }
   });
 });

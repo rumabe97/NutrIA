@@ -1,8 +1,9 @@
 import { dishGroups, FOOD_GROUP_SLUGS, FRESH_FRUIT_SLUGS } from 'core/domain/MealFit';
-import { BREAD_SLUGS, MAIN_SLOTS, STARCH_RULES, starchBase } from 'core/domain/Variety';
+import { BREAD_SLUGS, legumeKind, MAIN_SLOTS, STARCH_RULES, starchBase } from 'core/domain/Variety';
 import { toDry } from 'core/domain/Yield';
 
-import type { CandidateDish, Catalogue, PlanDayAssignment, ScheduledMeal } from 'core/entities/Plan';
+import type { KindCheck, PlacementGroups } from 'core/domain/Variety';
+import type { CandidateDish, Catalogue, MealSlot, PlanDayAssignment, ScheduledMeal } from 'core/entities/Plan';
 
 /**
  * How balanced a fortnight is by food group (project 019, architect report
@@ -10,8 +11,9 @@ import type { CandidateDish, Catalogue, PlanDayAssignment, ScheduledMeal } from 
  * capped starches, vegetables, fruit, whole grain and fibre, each against the
  * fortnightly table of PRD 019 (AESAN 2022, EFSA, WHO).
  *
- * Phase 1 only measures: nothing here is read by the scheduler yet. Every
- * group is read off the catalogue, never off a dish's name or what a model
+ * Phase 1 measured; phase 2's rotation reserves groups with it
+ * (`reserveGroups`) and phase 3's scheduler holds the maximums
+ * (`heldMaximums`). Every group is read off the catalogue, never off a dish's name or what a model
  * said (`0004`), and in grams **as served** — the plate scaled to its
  * servings and what goes beside it — because the frequency is of what the
  * person eats. The thresholds are half an AESAN serving, so a garnish never
@@ -447,6 +449,196 @@ export function balanceSupply(pool: readonly Pick<CandidateDish, 'ingredients' |
 }
 
 /**
+ * The maximums of PRD 019's table, a fortnight of 28 lunches and dinners
+ * (eggs: a fortnight, every meal). Meat's is doubled for a person whose pool
+ * holds no fish (`0010` § 3.3): the protein has to come from somewhere.
+ */
+export const BALANCE_CAPS = { eggs: 8, fishAndShellfish: 8, meat: 6, meatWithoutFish: 12, processed: 2, redMeat: 4 } as const;
+
+/** What one meal is of the groups the maximums count, from its rows as served. */
+export function placementGroups(items: readonly { readonly grams: number; readonly slug: string }[], catalogue: Catalogue): PlacementGroups {
+  const groups = mealGroups(items, catalogue);
+  const served = mealServings(groups);
+
+  return { eggs: groups.eggs, fishOrShellfish: served.fishOrShellfish, meat: served.meat, processed: served.processed, redMeat: served.redMeat };
+}
+
+/** An egg on a plate counts as one; less than half of one, as none. */
+function eggsCounted(eggs: number): number {
+  return Math.round(eggs);
+}
+
+/**
+ * The maximums of PRD 019 as rules the scheduler holds (019 phase 3, `0010`
+ * § 3.1, `0084`): `KindCheck`s like pasta's and rice's (`0081`, `0082`), each
+ * over one kind named for its group, so the cap is the group's and not a
+ * dish's. The scheduler holds them below pasta's and rice's
+ * (`HELD_MAXIMUM_WEIGHT`).
+ *
+ * - fish and shellfish together at most 8 lunches and dinners;
+ * - meat at most 6 (12 when the pool has no fish), red at most 4 and never on
+ *   two days running;
+ * - processed meat at most 2 at any meal, never on two days running;
+ * - eggs at most 8, counted by the egg at any meal — not for somebody whose
+ *   pool has neither meat nor fish, for whom the egg is the protein.
+ *
+ * Each dish is read at `servingsOf` servings — the size the scheduler
+ * serves it at, since the score counts a plate as served: 40 g of chicken a
+ * serving is a portion of meat at a serving and a half. A placement that names
+ * its groups (`Placement.groups`) is read off them, as served. The table's
+ * figures are for two mains a day:
+ * `mainSlots` scales the main-meal caps to a plan with one, as the score's
+ * `scaledToMains` does. A group the pool cannot serve has no rule to hold.
+ */
+export function heldMaximums(
+  pool: readonly CandidateDish[],
+  catalogue: Catalogue,
+  mainSlots: number,
+  servingsOf: (dish: CandidateDish) => number = () => 1
+): readonly KindCheck[] {
+  const read = new Map(pool.map(dish => [dish.slug, servingGroups(dish, catalogue, servingsOf(dish))]));
+  const supply = balanceSupply(pool, catalogue);
+  const perMains = (figure: number): number => (figure * Math.max(mainSlots, 1)) / 2;
+  const kindOf = (name: string, test: (served: MealServings) => boolean): KindCheck['index'] =>
+    new Map([...read].map(([slug, groups]) => [slug, test(mealServings(groups)) ? name : null]));
+  const named =
+    (name: string, test: (groups: PlacementGroups) => boolean) =>
+    (placement: { readonly groups?: PlacementGroups }): string | null | undefined =>
+      placement.groups === undefined ? undefined : test(placement.groups) ? name : null;
+
+  const checks: KindCheck[] = [
+    {
+      index: kindOf('fishAndShellfish', served => served.fishOrShellfish),
+      named: named('fishAndShellfish', groups => groups.fishOrShellfish),
+      rule: { apart: false, perFortnight: perMains(BALANCE_CAPS.fishAndShellfish) },
+      slots: MAIN_SLOTS
+    },
+    {
+      index: kindOf('meat', served => served.meat),
+      named: named('meat', groups => groups.meat),
+      rule: { apart: false, perFortnight: perMains(supply.fish ? BALANCE_CAPS.meat : BALANCE_CAPS.meatWithoutFish) },
+      slots: MAIN_SLOTS
+    },
+    {
+      index: kindOf('redMeat', served => served.redMeat),
+      named: named('redMeat', groups => groups.redMeat),
+      rule: { apart: true, perFortnight: perMains(BALANCE_CAPS.redMeat) },
+      slots: MAIN_SLOTS
+    },
+    {
+      index: kindOf('processed', served => served.processed),
+      named: named('processed', groups => groups.processed),
+      rule: { apart: true, perFortnight: perMains(BALANCE_CAPS.processed) }
+    }
+  ];
+
+  if (supply.meat || supply.fish) {
+    const eggs = new Map([...read].map(([slug, groups]) => [slug, eggsCounted(groups.eggs)]));
+
+    checks.push({
+      index: new Map([...eggs].map(([slug, count]) => [slug, count > 0 ? 'eggs' : null])),
+      named: named('eggs', groups => eggsCounted(groups.eggs) > 0),
+      rule: { apart: false, perFortnight: BALANCE_CAPS.eggs },
+      weight: placement => (placement.groups ? eggsCounted(placement.groups.eggs) : (eggs.get(placement.dishSlug) ?? 0))
+    });
+  }
+
+  return checks;
+}
+
+/**
+ * What a slot's rotation keeps for the groups the fortnight's table needs
+ * (019 phase 2, `0010` § 3.2 point 1): the minimums of the PRD table are 8
+ * legumes of more than one kind, 6 fish with 2 oily, and half the cereal
+ * whole, over 28 mains. Without this the rotation shuffles 19 dishes a meal
+ * blind to groups, and in a quarter of the measured rotations the pool held
+ * two legume kinds or fewer — a minimum the scheduler could not meet whatever
+ * it chose. Lunch carries the legumes, since a Spanish legume stew does not
+ * dine (`0079`); dinner keeps a couple, the light forms where there are any.
+ */
+export const POOL_RESERVE: Readonly<
+  Record<'dinner' | 'lunch', { readonly fish: number; readonly legumes: number; readonly oilyFish: number; readonly wholeGrain: number }>
+> = { dinner: { fish: 3, legumes: 2, oilyFish: 1, wholeGrain: 3 }, lunch: { fish: 3, legumes: 6, oilyFish: 1, wholeGrain: 3 } };
+
+/** A dish's groups for one serving, as the rotation reads them, or for `served` servings. */
+function servingGroups(dish: Pick<CandidateDish, 'ingredients' | 'servings'>, catalogue: Catalogue, served = 1): MealGroups {
+  const servings = dish.servings > 0 ? dish.servings : 1;
+
+  return mealGroups(
+    dish.ingredients.map(item => ({ grams: (item.grams * served) / servings, slug: item.slug })),
+    catalogue
+  );
+}
+
+/** The cereal of a serving is mostly whole, and there is a plate's worth of it (`FOOD_GROUP_GRAMS`, 20 g dry). */
+const WHOLE_GRAIN_DISH_GRAMS = 20;
+
+/**
+ * The dishes a slot's rotation takes first, from that slot's dishes in their
+ * shuffled order (`rotatePool`'s `reserve`), so the reservation is the
+ * person's own pick and changes with the seed:
+ *
+ * - legumes, one of each kind in turn before a second of any, so the cap of
+ *   three a kind (`LEGUME_RULES`) never makes the minimum impossible;
+ * - fish, the oily first;
+ * - whole grain.
+ *
+ * A dish an earlier slot already took is reserved last, so lunch and dinner
+ * reserve different dishes where the library has them: a fish served at both
+ * would be one fish dish in the fortnight's offer, not two.
+ *
+ * Only what the slot holds: the library has already been filtered by the
+ * person's allergies, way of eating and dislikes, so somebody who does not
+ * like fish is reserved none and given no fish to eat (owner, 017). Lunch and
+ * dinner only; every other meal is shuffled as before.
+ */
+export function reserveGroups(
+  inSlot: readonly CandidateDish[],
+  slot: MealSlot,
+  catalogue: Catalogue,
+  taken: ReadonlySet<string> = new Set()
+): readonly CandidateDish[] {
+  if (slot !== 'lunch' && slot !== 'dinner') {
+    return [];
+  }
+
+  const quota = POOL_RESERVE[slot];
+  const fresh = [...inSlot.filter(dish => !taken.has(dish.slug)), ...inSlot.filter(dish => taken.has(dish.slug))];
+  const read = fresh.map(dish => ({ dish, groups: servingGroups(dish, catalogue) }));
+  const byKind = new Map<string, CandidateDish[]>();
+
+  for (const { dish, groups } of read) {
+    if (mealServings(groups).legume) {
+      const kind = legumeKind(dish) ?? dish.slug;
+
+      byKind.set(kind, [...(byKind.get(kind) ?? []), dish]);
+    }
+  }
+
+  const legumes: CandidateDish[] = [];
+
+  for (let round = 0; legumes.length < quota.legumes && [...byKind.values()].some(list => list.length > round); round += 1) {
+    for (const list of byKind.values()) {
+      const dish = list[round];
+
+      if (dish && legumes.length < quota.legumes) {
+        legumes.push(dish);
+      }
+    }
+  }
+
+  const fish = read.filter(({ groups }) => mealServings(groups).fish);
+  const oily = fish.filter(({ groups }) => mealServings(groups).oilyFish).slice(0, quota.oilyFish);
+  const fishPicked = [...new Set([...oily, ...fish].map(entry => entry.dish))].slice(0, quota.fish);
+  const wholeGrain = read
+    .filter(({ groups }) => groups.wholeGrainDry >= WHOLE_GRAIN_DISH_GRAMS && groups.wholeGrainDry * 2 >= groups.cerealDry)
+    .slice(0, quota.wholeGrain)
+    .map(entry => entry.dish);
+
+  return [...new Set([...legumes, ...fishPicked, ...wholeGrain])];
+}
+
+/**
  * The rules of the table, in the order the LOG reports them. Vegetables are
  * judged two ways (owner's delegation of 2026-10-03): `vegetables` is the
  * PRD's rule, ≥ 150 g at every lunch and dinner, and is the one scored;
@@ -630,18 +822,34 @@ export function balanceOf({ catalogue, days, plantBased, supply }: BalanceInput)
   const cap = (figure: number) => scaledToMains(figure, mains);
   const starchCap = cap(STARCH_RULES.perFortnight);
   const starchMost = Math.max(0, ...Object.values(starches));
+  const meatCap = supply.fish ? BALANCE_CAPS.meat : BALANCE_CAPS.meatWithoutFish;
 
   const rules: Record<BalanceRule, RuleResult> = {
-    eggs: { applies: !plantBased, limit: 8, met: eggs <= 8, value: eggs },
+    eggs: { applies: !plantBased, limit: BALANCE_CAPS.eggs, met: eggs <= BALANCE_CAPS.eggs, value: eggs },
     fibre: { applies: true, limit: 25, met: fibrePerDay >= 25, value: fibrePerDay },
     fish: { applies: supply.fish, limit: cap(6), met: fish >= cap(6), value: fish },
-    fishAndShellfish: { applies: true, limit: cap(8), met: seafood <= cap(8), value: seafood },
+    fishAndShellfish: {
+      applies: true,
+      limit: cap(BALANCE_CAPS.fishAndShellfish),
+      met: seafood <= cap(BALANCE_CAPS.fishAndShellfish),
+      value: seafood
+    },
     fruit: { applies: true, limit: 2, met: fruitPerDay >= 2, value: fruitPerDay },
     legumes: { applies: supply.legume, limit: cap(8), met: legumes >= cap(8), value: legumes },
-    meat: { applies: supply.meat, limit: cap(supply.fish ? 6 : 12), met: meat <= cap(supply.fish ? 6 : 12), value: meat },
+    meat: { applies: supply.meat, limit: cap(meatCap), met: meat <= cap(meatCap), value: meat },
     oilyFish: { applies: supply.fish, limit: cap(2), met: oilyFish >= cap(2), value: oilyFish },
-    processed: { applies: supply.processed, limit: cap(2), met: processed <= cap(2) && runs(processedDays) === 0, value: processed },
-    redMeat: { applies: supply.meat, limit: cap(4), met: redMeat <= cap(4) && runs(redDays) === 0, value: redMeat },
+    processed: {
+      applies: supply.processed,
+      limit: cap(BALANCE_CAPS.processed),
+      met: processed <= cap(BALANCE_CAPS.processed) && runs(processedDays) === 0,
+      value: processed
+    },
+    redMeat: {
+      applies: supply.meat,
+      limit: cap(BALANCE_CAPS.redMeat),
+      met: redMeat <= cap(BALANCE_CAPS.redMeat) && runs(redDays) === 0,
+      value: redMeat
+    },
     starches: { applies: true, limit: starchCap, met: starchMost <= starchCap, value: starchMost },
     vegetables: { applies: mains > 0, limit: 1, met: mains > 0 && vegetableMains === mains, value: vegetableMainsShare },
     vegetablesMostMains: { applies: mains > 0, limit: 0.8, met: vegetableMainsShare >= 0.8, value: vegetableMainsShare },
