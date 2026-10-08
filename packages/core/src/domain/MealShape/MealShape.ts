@@ -56,6 +56,27 @@ export function weightsFor(shape: MealShape): ReadonlyMap<MealSlot, number> {
 }
 
 /**
+ * How much more of the day's protein a slot carries than of its energy, for
+ * somebody building muscle (019 phase 6, `0088`): protein is used best spread
+ * over every meal, 0.3–0.4 g/kg a time, and a breakfast or a snack that follows
+ * the energy split carries a third of that.
+ */
+const MUSCLE_PROTEIN_LEAN: Partial<Record<MealSlot, number>> = { afternoon_snack: 2, breakfast: 1.5, morning_snack: 2, supper: 1.5 };
+
+/**
+ * The slots' shares of the day's *protein* when they differ from their shares
+ * of its energy: undefined for every goal but `muscle_gain`, whose breakfast,
+ * snacks and supper carry more of it (`MUSCLE_PROTEIN_LEAN`). Unnormalised,
+ * like `weightsFor`.
+ */
+export function proteinWeightsFor(
+  goal: string | null | undefined,
+  weights: ReadonlyMap<MealSlot, number>
+): ReadonlyMap<MealSlot, number> | undefined {
+  return goal === 'muscle_gain' ? new Map([...weights].map(([slot, weight]) => [slot, weight * (MUSCLE_PROTEIN_LEAN[slot] ?? 1)])) : undefined;
+}
+
+/**
  * Each eaten slot's energy, in kcal, for this shape and these targets.
  * Unrounded, and the scheduler's own arithmetic (`slotBudgets`) to the last
  * operation — `(kcal × weight) ÷ total`, not `kcal × (weight ÷ total)` — so the

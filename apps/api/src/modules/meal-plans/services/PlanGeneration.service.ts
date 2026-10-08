@@ -6,7 +6,7 @@ import { buildShoppingList, unresolvedSlugs } from 'core/domain/ShoppingList';
 import { dishSafety } from 'core/domain/Safety';
 import { leaningSlugs } from 'core/domain/Preference';
 import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
-import { DEFAULT_MEAL_SHAPE, slotsIn, weightsFor } from 'core/domain/MealShape';
+import { DEFAULT_MEAL_SHAPE, proteinWeightsFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { isBlocking, planBandMiss, planQuality, validatePlan } from 'core/domain/PlanValidation';
 import { eventOn, loadedTargets } from 'core/domain/Event';
 import { minimumDailyKcal, targetViolations } from 'core/domain/Nutrition';
@@ -143,6 +143,8 @@ export class PlanGenerationService {
     const shape = profile.preferences?.mealShape ?? DEFAULT_MEAL_SHAPE;
     const weights = weightsFor(shape);
     const slots = slotsIn(shape);
+    // A person building muscle has more of the day's protein at breakfast and between meals (019 phase 6, `0088`).
+    const proteinWeights = proteinWeightsFor(profile.goal?.type, weights);
 
     // Laid out from its first day, one day after another, which is what a
     // fortnight is — and what lets an event's date become a day index before
@@ -255,6 +257,7 @@ export class PlanGenerationService {
       : {};
 
     let scheduled = schedulePlan({
+      proteinWeights,
       ...sides,
       catalogue: context.catalogue,
       dayTargets: loads.dayTargets,
@@ -285,6 +288,7 @@ export class PlanGenerationService {
 
       this.logger.warn(`Retrying with the full library (${widened.length} dishes, last fortnight included)`);
       scheduled = schedulePlan({
+        proteinWeights,
         ...sides,
         catalogue: context.catalogue,
         dayTargets: loads.dayTargets,
@@ -341,6 +345,7 @@ export class PlanGenerationService {
       this.logger.warn(`Plan rejected by validation (${summarise(violations.filter(isBlocking))}); retrying with the full library`);
 
       const retried = schedulePlan({
+        proteinWeights,
         ...sides,
         catalogue: context.catalogue,
         dayTargets: loads.dayTargets,
@@ -383,6 +388,7 @@ export class PlanGenerationService {
       const rest = rotatePool(everything, slots, rotation, Number.POSITIVE_INFINITY);
       const wider = [...new Map([...built.dishes, ...rest].map(dish => [dish.slug, dish])).values()];
       const retried = schedulePlan({
+        proteinWeights,
         ...sides,
         catalogue: context.catalogue,
         dayTargets: loads.dayTargets,

@@ -53,23 +53,37 @@ Every phase is measured on the reference library (`0080`) with `--rotate`, and m
 
 ### Phase 4 — Minimums
 
-- [ ] pending
+- [x] done (2026-10-08; see LOG)
 - **Dispatch**: opus @ high. Deviation: new mechanism.
 - **Covers**: PRD 4.
 - **Steps**:
   1. Add a reservation calendar for the minimum groups (legumes ≥ 8, fish ≥ 6 with oily ≥ 2), each capped by what the pool can supply.
   2. Add a final `meetFloors` repair pass that never trades a day out of band.
-  3. Record decision `0084`.
+  3. Record decision `0085` (`0084` is phase 3's).
+  4. Count, in the evaluator, the exceptions to the table's maximums and minimums that the bands needed and the ones they did not (`--exceptions`).
 
-### Phase 5 — Vegetables, fruit, fibre and whole grain through accompaniments
+### Phase 5a — The maximums repaired (`meetCaps`)
 
-- [ ] pending
+- [x] done (2026-10-08; see LOG)
+
+### Phase 5b — Vegetables, fruit, fibre and whole grain through accompaniments
+
+- [x] done (2026-10-08; see LOG)
 - **Dispatch**: opus @ medium.
 - **Covers**: PRD 5.
 
+### Follow-ups from phase 5
+
+Recorded by the lead's direction (2026-10-08); none is a phase of its own yet.
+
+- `pickReplacement` should choose its set by the table too (`sideLack`), so a swap does not lose the vegetable.
+- A whole-grain-bread bias in the set search: whole grain moved only through the bread a day happened to take.
+- Profiles whose meals fall under `ACCOMPANIED_FROM_KCAL` (patron-kosher, patron-sin-gluten, some of imc-alto-2-comidas and objetivo-bajo-3-comidas) get vegetables and fruit only from their dishes. That is phase 7's prompt work.
+- A two-meal trade pass for the maximums a single swap cannot fix without breaking another rule (`0086`).
+
 ### Phase 6 — Protein per meal by goal
 
-- [ ] pending
+- [x] done (2026-10-08; see LOG)
 - **Dispatch**: opus @ medium.
 - **Covers**: PRD 6.
 - **Steps**: per-slot protein weights in `slotBudgets` and `briefFor` by goal.

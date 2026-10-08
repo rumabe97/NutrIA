@@ -553,3 +553,29 @@ describe('the scheduler with accompaniments on — phase 4', () => {
     }
   });
 });
+
+describe('vegetables and fruit beside the plate (019 phase 5b)', () => {
+  it('brings 150 g of vegetables to more of the mains and two fruits to more of the days than the day’s own search does', async () => {
+    const { mealGroups } = await import('core/domain/Balance');
+    const assignment = planWithSides(TWO_MEALS, 1.1);
+    let vegetableMains = 0;
+    let fruitDays = 0;
+
+    for (const day of assignment.days) {
+      let fruit = 0;
+
+      for (const meal of day.meals) {
+        const groups = mealGroups(meal.ingredients, withSides);
+
+        fruit += groups.fruitPortions;
+        vegetableMains += (meal.slot === 'lunch' || meal.slot === 'dinner') && groups.vegetables >= 150 ? 1 : 0;
+      }
+
+      fruitDays += fruit >= 2 ? 1 : 0;
+    }
+
+    // Without `meetSides`, this pool has 11 of 28 mains and 1 of 14 days.
+    expect(vegetableMains).toBeGreaterThanOrEqual(14);
+    expect(fruitDays).toBeGreaterThanOrEqual(3);
+  });
+});

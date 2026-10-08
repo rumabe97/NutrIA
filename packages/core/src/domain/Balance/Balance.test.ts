@@ -4,7 +4,9 @@ import {
   BALANCE_CAPS,
   balanceOf,
   balanceSupply,
+  floorCount,
   heldMaximums,
+  heldMinimums,
   isOilyFish,
   isProcessedMeat,
   isVegetable,
@@ -29,6 +31,7 @@ const catalogue = makeCatalogue([
   makeCatalogueIngredient({ id: 'i-hummus', slug: 'hummus' }),
   makeCatalogueIngredient({ id: 'i-fabada', classes: ['animal', 'meat', 'pork'], slug: 'fabada-en-lata' }),
   makeCatalogueIngredient({ id: 'i-merluza', category: 'protein', classes: ['animal', 'fish'], slug: 'merluza' }),
+  makeCatalogueIngredient({ id: 'i-sardina', category: 'protein', classes: ['animal', 'fish'], slug: 'sardina' }),
   makeCatalogueIngredient({ id: 'i-salmon', category: 'protein', classes: ['animal', 'fish'], slug: 'salmon' }),
   makeCatalogueIngredient({ id: 'i-gambas', category: 'protein', classes: ['animal', 'shellfish'], slug: 'gambas' }),
   makeCatalogueIngredient({ id: 'i-pollo', category: 'protein', classes: ['animal', 'meat'], slug: 'pechuga-de-pollo' }),
@@ -359,9 +362,75 @@ describe('heldMaximums', () => {
     const kept = placementGroups([{ grams: 150, slug: 'filete-de-ternera' }], catalogue);
     const keptOn = (dayIndex: number) => ({ dayIndex, dishSlug: 'no-longer-in-the-pool', groups: kept, slot: 'lunch' as const });
 
-    expect(kept).toEqual({ eggs: 0, fishOrShellfish: false, meat: true, processed: false, redMeat: true });
+    expect(kept).toEqual({
+      eggs: 0,
+      fish: false,
+      fishOrShellfish: false,
+      legume: false,
+      meat: true,
+      oilyFish: false,
+      processed: false,
+      redMeat: true
+    });
     expect(kindsExcess([keptOn(1), keptOn(4)], checks, 14)).toBe(0);
     expect(kindsExcess([keptOn(1), keptOn(4), keptOn(7)], checks, 14)).toBe(1);
     expect(byKind(checks).get('meat')?.rule.perFortnight).toBe(BALANCE_CAPS.meat / 2);
+  });
+});
+
+describe('heldMinimums', () => {
+  const main = (slug: string, ingredients: CandidateDish['ingredients']) => makeDish({ ingredients, slots: ['lunch', 'dinner'], slug });
+  const lentils = Array.from({ length: 5 }, (_, index) => main(`lentejas-${index}`, [{ grams: 100, slug: 'lentejas-cocidas' }]));
+  const hake = main('merluza', [{ grams: 150, slug: 'merluza' }]);
+  const salmon = main('sardinas', [{ grams: 150, slug: 'sardina' }]);
+  const chicken = main('pollo', [{ grams: 150, slug: 'pechuga-de-pollo' }]);
+  const byName = (checks: ReturnType<typeof heldMinimums>) => new Map(checks.map(check => [check.name, check]));
+
+  it('caps the legume minimum by what the pool can supply: the same legume three times at most, a dish once', () => {
+    const checks = byName(heldMinimums([...lentils, chicken], catalogue, 28));
+
+    // Five dishes of one legume, three a fortnight each: three, not eight.
+    expect(checks.get('legumes')?.floor).toBe(3);
+    expect(byName(heldMinimums([lentils[0] as CandidateDish, chicken], catalogue, 28)).get('legumes')?.floor).toBe(1);
+  });
+
+  it('asks for eight legumes, six fish and two oily fish of 28 lunches and dinners where the pool has the dishes, scaled to the plan', () => {
+    const kinds = ['lentejas-cocidas', 'garbanzos-cocidos', 'alubias-blancas-cocidas', 'alubias-pintas-cocidas'].flatMap(slug =>
+      [0, 1, 2].map(n => main(`${slug}-${n}`, [{ grams: 100, slug }]))
+    );
+    const fish = [hake, salmon, ...[0, 1, 2, 3, 4].map(n => main(`merluza-${n}`, [{ grams: 150, slug: 'merluza' }]))];
+    const checks = byName(heldMinimums([...kinds, ...fish], catalogue, 28));
+
+    expect([...checks.keys()]).toEqual(['legumes', 'fish', 'oilyFish']);
+    expect([checks.get('legumes')?.floor, checks.get('fish')?.floor, checks.get('oilyFish')?.floor]).toEqual([8, 6, 1]);
+    expect(byName(heldMinimums([...kinds, ...fish], catalogue, 14)).get('legumes')?.floor).toBe(4);
+  });
+
+  it('leaves no fish minimum for a pool with none, as for somebody who does not like it', () => {
+    expect([...byName(heldMinimums([...lentils, chicken], catalogue, 28)).keys()]).toEqual(['legumes']);
+    expect(heldMinimums([chicken], catalogue, 28)).toEqual([]);
+  });
+
+  it('counts a kept meal by the groups it names, a pool dish by the pool', () => {
+    const fish = byName(heldMinimums([hake, salmon, chicken], catalogue, 28)).get('fish') as NonNullable<ReturnType<typeof heldMinimums>[number]>;
+    const kept = placementGroups([{ grams: 150, slug: 'merluza' }], catalogue);
+    const placements = [
+      { dayIndex: 1, dishSlug: 'merluza', slot: 'lunch' as const },
+      { dayIndex: 2, dishSlug: 'no-longer-in-the-pool', groups: kept, slot: 'dinner' as const },
+      { dayIndex: 3, dishSlug: 'pollo', slot: 'lunch' as const },
+      { dayIndex: 4, dishSlug: 'merluza', slot: 'breakfast' as const }
+    ];
+
+    expect(floorCount(fish, placements)).toBe(2);
+
+    const oily = byName(heldMinimums([hake, salmon, chicken], catalogue, 28)).get('oilyFish') as NonNullable<ReturnType<typeof heldMinimums>[number]>;
+    const keptOily = {
+      dayIndex: 5,
+      dishSlug: 'no-longer-in-the-pool',
+      groups: placementGroups([{ grams: 150, slug: 'sardina' }], catalogue),
+      slot: 'dinner' as const
+    };
+
+    expect(floorCount(oily, [keptOily, ...placements])).toBe(1);
   });
 });
