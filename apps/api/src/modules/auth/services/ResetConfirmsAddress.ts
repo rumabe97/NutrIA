@@ -36,10 +36,12 @@ export type ResetConfirmation = {
  * the owner is told, which `addressConfirmed` sends after the response: the
  * reset never waits for the owner's mail.
  *
- * Keyed on the request; a call through `auth.api` has none and is confirmed at
- * once, as there is no route after it. A failure leaves the address as it was
- * and one line naming the account only: the password did change, and the next
- * sign-in sends a link.
+ * Keyed on the request. A call through `auth.api` has none, and confirms
+ * nothing: there is no after-hook to wait for, and confirming in
+ * `onPasswordReset` would do it before the sessions go — the order the review
+ * shut. That account signs in as any unconfirmed one does, and the sign-in
+ * sends a link. A failure leaves the address as it was and one line naming the
+ * account only: the password did change, and the next sign-in sends a link.
  */
 export function resetConfirmsAddress(deps: { readonly addressConfirmed: (account: Account) => Promise<void> }): ResetConfirmation {
   const pending = new WeakMap<Request, Account>();
@@ -63,14 +65,12 @@ export function resetConfirmsAddress(deps: { readonly addressConfirmed: (account
         await confirm(account);
       }
     },
-    async remember(account, request) {
+    remember(account, request) {
       if (request) {
         pending.set(request, account);
-
-        return;
       }
 
-      await confirm(account);
+      return Promise.resolve();
     }
   };
 }
