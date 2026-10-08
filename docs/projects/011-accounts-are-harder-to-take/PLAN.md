@@ -181,7 +181,7 @@ records what was decided.
 
 ### Phase 2 — "Seguridad" in /perfil
 
-- [ ] in progress
+- [x] done — #184 (2026-10-01)
 - **Dispatch**: opus @ high — `/execute-project 011 phase 2`, as a `/team` (`backend`,
   `frontend`, `tests`). `quality-max`. Reviews: `invariant-reviewer`, `migration-reviewer`,
   `accessibility` with `/local-probe`, `legal` (retention).
@@ -251,7 +251,7 @@ records what was decided.
 
 ### Phase 3 — Optional second factor: an authenticator app
 
-- [ ] in progress
+- [x] done — #185 (2026-10-01)
 - **Dispatch**: opus @ high — `/execute-project 011 phase 3`, as a `/team` (`backend`,
   `frontend`, `tests`). `quality-max`. Reviews: `invariant-reviewer`, `migration-reviewer`,
   `accessibility` with `/local-probe`. — human-verify: the owner turns it on in his
@@ -429,7 +429,7 @@ records what was decided.
 
 ### Phase 6 — Mandatory for professionals and the admin
 
-- [ ] pending
+- [x] done — #214
 - **Dispatch**: opus @ high — `/execute-project 011 phase 6`. `quality-max`: it changes who
   may read health data. Reviews: `invariant-reviewer`, `legal` (EIPD R8). — owner-gated:
   the admin half ships only after the owner has turned on his own TOTP and kept his codes,
@@ -466,7 +466,7 @@ records what was decided.
 
 ### Phase 7 — A brake per account
 
-- [ ] pending
+- [x] done — #213
 - **Dispatch**: opus @ high — `/execute-project 011 phase 7`, as a `/team` (`backend`,
   `tests`). `quality-max`. Reviews: `invariant-reviewer`, `migration-reviewer`.
 - **Goal**: many failed sign-ins for one address slow down, from however many IPs, without
@@ -503,7 +503,7 @@ records what was decided.
 
 ### Phase 8 — Sign-up reveals nothing
 
-- [ ] pending
+- [ ] in progress — #217. Hotfix #218, found by this phase's invariant review and merged to `main` first: the confirmation link signs nobody in (`autoSignInAfterVerification: false`) and a provider never links into an existing account (`disableImplicitLinking: true`)
 - **Dispatch**: opus @ high — `/execute-project 011 phase 8`, as a `/team` (`backend`,
   `frontend`, `tests`). `quality-max`. Reviews: `invariant-reviewer`, `accessibility` with
   `/local-probe`.
@@ -517,7 +517,9 @@ records what was decided.
   - `apps/web`:
     - `RegisterScreen.tsx` drops the "already registered" branch and, after sign-up,
       shows "revisa tu correo" for every address;
-    - `autoSignInAfterVerification` stays on, so the link signs the person in;
+    - `autoSignInAfterVerification` is off since the hotfix (LOG, "Hotfix — the confirmation
+      link signed in whoever opened it"): the link confirms and lands on "Correo
+      confirmado. Ahora inicia sesión" (`/verificar-email`);
     - the copy says that on iPhone the link opens in Safari, and that in the installed
       app they then sign in;
     - dictionaries.
@@ -544,6 +546,8 @@ records what was decided.
     - **not shipped to production until the lead confirms**: the owner first OKs a read-only
       count of the unconfirmed production accounts, who from this change can no longer sign
       in with their password until they open a link.
+      **Confirmed 2026-10-08**: the owner OK'd the count; production has 0 unconfirmed
+      accounts (8 users, all confirmed), so the change locks nobody out.
   - **Pending follow-up, not built in phase 8** (`legal`, P2-15, 2026-10-03): a 30-day sweep
     of unconfirmed accounts with no session and no data. Phase 8 lets anybody create an
     unconfirmed account for any address; nothing ever deletes one that nobody confirms. To
@@ -598,7 +602,7 @@ records what was decided.
 
 ### Phase 9 — A Content Security Policy, report-only
 
-- [ ] pending
+- [x] done — #212
 - **Dispatch**: opus @ high — `/execute-project 011 phase 9`, as a `/team` (`frontend`,
   `backend`). Below the auth floor is allowed here: the lead may price it lower, with a
   line in the LOG. Reviews: `seo` (the landing page stays static and cached),
@@ -644,6 +648,22 @@ records what was decided.
   - After deploy: `/local-probe` walk with zero violations; `curl -sI` shows the enforcing
     header; `/` still cached.
 
+### Follow-up — A reset does not clear a second factor a stranger turned on
+
+- [ ] pending — not built. Added 2026-10-08 from the invariant review of hotfix #218 (P2),
+  under the owner's delegation of 2026-10-03. Not scheduled into a phase yet.
+- **The gap**: a stranger signs the victim's address up with a password of their own and
+  turns on TOTP. The victim opens the confirmation link, then resets the password, as
+  `/verificar-email` and the refused-Google copy tell them to. The reset ends the
+  stranger's sessions and password (`revokeSessionsOnPasswordReset`), but the factor stays:
+  the victim's sign-in is asked for a code only the stranger holds. They are locked out,
+  not exposed — nothing they enter is reachable — until the owner's 48-hour removal
+  (phase 4).
+- **Options to weigh when it is planned**: refuse turning the factor on before the address
+  is confirmed; or have a reset clear a factor that was turned on before the address was
+  confirmed (audited, mailed). Either needs `invariant-reviewer`; the second touches
+  credentials in a hook, which `0058` avoided on purpose.
+
 ## Hand-off
 
 - **Report `0007` is the design**: its line references were read on `09ed8323`. When a
@@ -651,6 +671,7 @@ records what was decided.
 - **Better Auth's routes and plugins are used, not re-implemented.** Hashing, tokens, TOTP,
   backup-code encryption and session rotation stay Better Auth's. Our code is hooks,
   guards, rules and screens. Never `allowPasswordless`, never `trustedProviders`, never
+  implicit account linking (`disableImplicitLinking: true`, `0058` amended), never
   `freshAge: 0`, never the password in `DELETE /users/me` (`apps/api/AGENTS.md`, `0058`).
 - **Every denial is a 404.** The only new 409 is `PASSWORD_CHANGE_REQUIRED` (phase 2),
   added to the documented exceptions. Every new user-scoped table cascades on `user.id`.

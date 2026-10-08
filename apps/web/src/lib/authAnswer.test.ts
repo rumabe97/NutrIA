@@ -10,11 +10,11 @@ describe('signUpOutcome', () => {
   it('ends every accepted sign-up on the same conditional "an email will reach you", in both languages', () => {
     expect(signUpOutcome(null, EMAIL, esES)).toEqual({
       kind: 'sent',
-      message: `Si ${EMAIL} es correcta, te llegará un correo en unos minutos. Abre el enlace para entrar.`
+      message: `Si ${EMAIL} es correcta, te llegará un correo en unos minutos. Abre el enlace, confirma tu correo y luego inicia sesión.`
     });
     expect(signUpOutcome(null, EMAIL, enGB)).toEqual({
       kind: 'sent',
-      message: `If ${EMAIL} is right, an email will reach you in a few minutes. Open the link to sign in.`
+      message: `If ${EMAIL} is right, an email will reach you in a few minutes. Open the link, confirm your email, then sign in.`
     });
   });
 

@@ -30,9 +30,11 @@ import type { SocialProvider } from 'lib/sign-in-providers';
  * What to say to somebody a provider sent back without a session (`0058`).
  *
  * Better Auth returns them to this page with `?error=`. Two codes are worth
- * their own words. `account_not_linked` is an address that already has an
- * account nobody confirmed: joining them would hand the account to whoever
- * arrives, so the way in is the password, and the page says so. `access_denied`
+ * their own words. `account_not_linked` is an address that already has a
+ * password account the provider was never linked to: joining them could put
+ * the address's owner into an account a stranger made with it and still holds
+ * the password of (`0058`, amended), so the way in is the password or a reset, and the page says so —
+ * nothing the provider, which just proved the address, did not. `access_denied`
  * is somebody pressing Cancel at the provider, which is not an error and gets no
  * red box. Everything else is one sentence that offers the form.
  */

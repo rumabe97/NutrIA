@@ -1142,7 +1142,6 @@ export const esES = {
     createAccountSubtitle: 'Unos minutos de preguntas y tendrás tu primer plan de catorce días.',
     email: 'Correo electrónico',
     forgotPassword: '¿Has olvidado tu contraseña?',
-    goToAccount: 'Ir a mi cuenta',
     haveAccount: '¿Ya tienes cuenta?',
     invalidCredentials:
       'Correo o contraseña incorrectos. Si aún no has confirmado tu dirección y la contraseña era la buena, te enviamos el enlace de nuevo (como mucho tres veces por hora; mira también en el correo no deseado).',
@@ -1174,9 +1173,10 @@ export const esES = {
     passwordTooShort: 'La contraseña debe tener al menos {count} caracteres.',
     pendingBody: 'Estamos abriendo NutrIA poco a poco. Activaremos tu cuenta ({email}) en cuanto podamos y te avisaremos por correo.',
     pendingCheck: 'Volver a comprobar',
-    pendingConfirmBody: 'Te hemos enviado un enlace a {email}. Ábrelo y entras: no hace falta nada más.',
+    pendingConfirmBody:
+      'Te hemos enviado un enlace a {email}. Ábrelo y vuelve aquí, o inicia sesión en el dispositivo donde lo abras: no hace falta nada más.',
     pendingConfirmTitle: 'Confirma tu correo',
-    pendingConfirmWaitBody: 'Te hemos enviado un enlace a {email}. Confírmalo y podrás entrar en cuanto abramos tu cuenta.',
+    pendingConfirmWaitBody: 'Te hemos enviado un enlace a {email}. Confírmalo y, en cuanto abramos tu cuenta, inicia sesión para empezar.',
     pendingSignOut: 'Cerrar sesión',
     pendingTitle: 'Cuenta pendiente de activación',
     recoverSent: 'Si existe una cuenta con ese correo, te hemos enviado un enlace para restablecer la contraseña. Caduca en una hora.',
@@ -1194,19 +1194,23 @@ export const esES = {
     signUp: 'Crear mi plan',
     signUpFailed: 'No hemos podido crear la cuenta. Inténtalo de nuevo.',
     signUpPending: 'Creando tu cuenta…',
-    signUpSent: 'Si {email} es correcta, te llegará un correo en unos minutos. Abre el enlace para entrar.',
+    signUpSent: 'Si {email} es correcta, te llegará un correo en unos minutos. Abre el enlace, confirma tu correo y luego inicia sesión.',
     signUpSentInstalled:
-      'En iPhone el enlace se abre en Safari. Si usas NutrIA desde la pantalla de inicio, vuelve después a la app y entra con tu correo y tu contraseña.',
+      'En iPhone el enlace se abre en Safari. Confirma allí tu correo y, si usas NutrIA desde la pantalla de inicio, vuelve después a la app e inicia sesión con tu correo y tu contraseña.',
     socialFailed: 'No hemos podido completar el acceso. Inténtalo de nuevo o entra con tu correo.',
     socialNotLinked:
-      'Ya hay una cuenta con esa dirección y aún no está confirmada. Ábrela con el enlace de confirmación que te enviamos: si no lo encuentras, entra con tu correo y tu contraseña y te enviaremos otro. Después podrás entrar también así.',
+      'Ya hay una cuenta con esa dirección que entra con contraseña. Entra con ella o, si no la tienes, restablécela en «¿Has olvidado tu contraseña?».',
     tooManyAttempts: 'Demasiados intentos seguidos. Espera un momento y vuelve a probar.',
     toSignIn: 'Accede',
     toSignUp: 'Crea la tuya',
     useAnotherEmail: 'Usar otro correo',
-    verifyBody: 'Te hemos enviado un enlace de confirmación. Ábrelo desde este dispositivo para activar tu cuenta.',
-    verifyMeanwhile: 'Mientras tanto puedes seguir configurando tu perfil: tu plan se generará cuando termines.',
-    verifyTitle: 'Confirma tu correo'
+    verifyBody: 'Ahora inicia sesión con tu correo y tu contraseña.',
+    verifyFailedBody: 'Puede que haya caducado o que ya lo hayas usado. Si ya confirmaste tu correo, inicia sesión.',
+    verifyFailedTitle: 'Este enlace ya no sirve',
+    verifyNotYours: '¿No creaste tú la cuenta, o no sabes su contraseña? No la adivines:',
+    verifyReset: 'restablécela, y se cerrará cualquier otra sesión abierta en ella.',
+    verifySignIn: 'Iniciar sesión',
+    verifyTitle: 'Correo confirmado'
   },
 
   care: {
@@ -2110,7 +2114,7 @@ export const esES = {
       title: 'Crear tu cuenta'
     },
     '/restablecer': { title: 'Elegir una contraseña nueva' },
-    '/verificar-email': { title: 'Confirmar tu correo' }
+    '/verificar-email': { title: 'Correo confirmado' }
   },
 
   passkeys: {

@@ -961,7 +961,6 @@
     made the account. This is variant A, since a completed reset confirms the address.
   - P2-15, a sweep of unconfirmed accounts, is in the PLAN as a pending follow-up.
 
-
 ## Phase 8 — the invariant review's last three P3s (2026-10-08)
 
 - **Executor**: opus 5.5 (`backend`, resumed from a WIP commit after a machine crash).
@@ -981,3 +980,81 @@
   `emailVerification.expiresIn` already was; a spec in `SignUp.spec.ts` ties the two.
 - **The reset budget**: four `/request-password-reset` for one address answer 200 four
   times and send three mails (`SignUp.spec.ts`).
+
+## Hotfix — the confirmation link signed in whoever opened it (2026-10-03)
+
+- **Found by**: the phase 8 invariant review, as a P0 already on `main`. Fixed by
+  `backend` (`backend-011p6`) on `fix/verify-no-auto-sign-in`, outside phase 8's own
+  scope; the lead assigned the web and e2e halves to it too.
+- **The attack**: `emailVerification.autoSignInAfterVerification` was `true`.
+  1. A stranger signs the victim's address up with a password of their own; Better Auth
+     mails the victim the confirmation link.
+  2. The victim opens it and is signed into the stranger's account. Onboarding asks for
+     health data, and the victim enters it.
+  3. The stranger, who holds the password (and still the session sign-up gave), reads
+     it.
+- **The fix**:
+  - `autoSignInAfterVerification: false`. The link proves the mailbox and nothing more.
+  - Every confirmation link lands on the web's `/verificar-email` (`VERIFIED_PAGE` in
+    `VerificationMail.ts`, set before `absoluteCallback`), whatever `callbackURL` the
+    client sent. Links already in mailboxes carry `callbackURL=/` and land on the home
+    page, signed out: harmless, and they still confirm.
+  - `/verificar-email` was orphaned (sign-up has gone to `/onboarding` for a while). It is
+    now "Correo confirmado" / "Ahora inicia sesión con tu correo y tu contraseña", with a
+    link to sign in and, for somebody who did not make the account or does not know its
+    password, a link to reset it. Focus goes to the heading on arrival. A refused link
+    (Better Auth's `?error=…`) says "Este enlace ya no sirve". The page stays static:
+    the confirmed copy is the `Suspense` fallback, and only `?error` changes it.
+  - The pending screen no longer says "Ábrelo y entras".
+  - The way back in for the victim: they reset the password. `revokeSessionsOnPasswordReset`
+    was already `true`, so the reset ends every session the stranger had, and the
+    stranger's password stops working.
+- **Not affected**: change-email is not enabled (its branch of `/verify-email` mints a
+  session regardless). There is no native app and no deep link; the PWA opens the link
+  in the browser, which now asks to sign in.
+- **What phase 8 must keep**: PLAN phase 8 said "`autoSignInAfterVerification` stays on";
+  amended. With phase 8's `autoSignIn: false` on sign-up too, a new account signs in
+  after confirming.
+- **Pinned**: `EmailVerification.spec.ts` (the two options, and the attack end to end
+  on the real `createAuth`: the link gives the victim no session, the stranger's
+  session survives the confirmation and dies at the reset, the stranger's password is
+  401 and the victim's new one 200). It fails on `true`. `VerificationMail.spec.ts`: a
+  link lands on `/verificar-email` whatever the client asked.
+
+- **Second round — the same attack through Google (2026-10-08)**: the invariant review of
+  #218 found a P0, live in production. The link no longer signs anybody in, but it still
+  marks the address confirmed on the stranger's account. Then:
+  1. the victim presses "Continuar con Google";
+  2. Better Auth's implicit linking (`link-account.mjs`: the provider vouches for the
+     address, and `requireLocalEmailVerified` is now satisfied) joins Google into the
+     stranger's account and opens a session;
+  3. the victim enters health data, and the stranger reads it with the password.
+  - **Fix** (the lead, under the owner's delegation of 2026-10-03, the reviewer's
+    recommendation; `backend-hotfix`, the previous owner gone):
+    `accountLinking.disableImplicitLinking: true`. A provider arriving with the address
+    of an account it is not linked to gets `account_not_linked`, confirmed or not;
+    accounts already linked keep signing in. `0058` amended. The sign-in page's copy for
+    that code no longer says "unconfirmed" or "after that you can sign in this way too":
+    it says the account signs in with a password, to use it or reset it — nothing Google,
+    which has just proved the address, did not already establish.
+  - **Pinned**: `EmailVerification.spec.ts` — `disableImplicitLinking === true` with
+    Google configured, no trusted providers, and `user.changeEmail.enabled` falsy
+    (Better Auth's change-email branch of `/verify-email` opens a session whatever
+    `autoSignInAfterVerification` says). `social-sign-in.e2e-spec.ts` — the old "same
+    address, same person" case now expects `account_not_linked`, no session and no
+    `google` row; a new case plays the attack: sign-up, the link opened cookieless,
+    Google.
+  - **Residual, P2, not built**: a reset does not clear a TOTP the stranger turned on, so
+    the victim is locked out (not exposed) until the owner's 48-hour removal. PLAN,
+    "Follow-up — A reset does not clear a second factor a stranger turned on".
+
+## Phase 8 — the production count, and main merged (2026-10-08)
+
+- **The read-only count** the PLAN made a condition of shipping `requireEmailVerification`:
+  the owner approved it, and the lead ran it. Production has **0 unconfirmed accounts** (8
+  users, all confirmed), so phase 8 locks nobody out of a password sign-in. #217 may ship
+  once the delta review passes.
+- **Main merged** (#214, #219, then hotfix #218). With the link no longer signing anybody in,
+  `auth.signUpSent` and `auth.signUpSentInstalled` (es/en) say: open the link, confirm the
+  address, then sign in. `socialNotLinked` takes #218's copy (an account that signs in with a
+  password), since implicit linking is now off whether the address is confirmed or not.
