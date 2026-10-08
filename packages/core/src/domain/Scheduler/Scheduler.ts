@@ -1,13 +1,17 @@
 import { NO_ACCOMPANIMENT, setsBeside } from 'core/domain/Accompaniment';
+import { heldMaximums } from 'core/domain/Balance';
 import { addMacros, composePerServing, scaleIngredients, scaleMacros, sumMacros } from 'core/domain/Composition';
 import {
   canPlace,
   countsFor,
   isPreferredDish,
+  kindCrowded,
   kindExcess,
+  kindExcessWith,
   kindMeals,
   kindsCrowded,
   kindsExcess,
+  kindTally,
   legumeCapCheck,
   legumeCheck,
   legumeIndex,
@@ -19,14 +23,15 @@ import {
   PROTEIN_RULES,
   proteinCap,
   snackCheck,
+  STARCH_RULES,
   starchCheck,
   starchIndex
 } from 'core/domain/Variety';
-import { outOfSeasonFruit } from 'core/domain/MealFit';
+import { dishGroups, outOfSeasonFruit } from 'core/domain/MealFit';
 import { PLAN_TOLERANCE } from 'core/domain/PlanValidation';
 import { plateFoodMax, plateFoods } from 'core/domain/PlateFood';
 import type { AccompanimentPortion, AccompanimentSet, Larder } from 'core/domain/Accompaniment';
-import type { KindCheck, KindMeal, Leaning, Placement } from 'core/domain/Variety';
+import type { KindCheck, KindMeal, KindTally, Leaning, Placement } from 'core/domain/Variety';
 import type { PlateFood } from 'core/domain/PlateFood';
 import type { CandidateDish, Catalogue, Macros, MealSlot, PlanAssignment, PlanDayAssignment, ScheduledMeal, SwapAxis } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
@@ -499,6 +504,19 @@ const PROTEIN_SWAP_WEIGHT = 0.15;
 const HELD_KIND_WEIGHT = 100;
 
 /**
+ * What a day pays for each meal past one of PRD 019's maximums — fish and
+ * shellfish, meat, red and processed meat, eggs (`heldMaximums`, `0084`) —
+ * still more than any fit a swap can buy, so they are held whenever another
+ * dish keeps the day as close to its bands; but under a third of
+ * `HELD_KIND_WEIGHT`, so the scheduler never buys one back with pasta past
+ * its four or a fourth legume. Held at one price with them, a meat past its
+ * six traded for a rice past its four was a wash the fit decided, and the
+ * starch cap held on fewer plans than before the maximums (019 phase 3,
+ * accompaniments on).
+ */
+const HELD_MAXIMUM_WEIGHT = 30;
+
+/**
  * How close two days' band misses (`bandMiss`) must be for `improveDay` to call
  * them equal and let fit and the variety rules' prices decide between them.
  */
@@ -646,8 +664,14 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
   // Over the whole fortnight, even when only some of its days are laid out here.
   const cap = proteinCap(slots.length * days);
   // Pasta, rice and grains, the same legume and the same snack, priced at the protein rule's weight wherever they are (`kindRules`).
-  const kinds = kindRules(input.pool, input.catalogue, days);
   const indexes = input.dayIndexes ?? Array.from({ length: days }, (_none, offset) => offset + 1);
+  const kinds = kindRules(
+    input.pool,
+    input.catalogue,
+    days,
+    slots.filter(slot => MAIN_SLOTS.has(slot)).length,
+    sizedAt(perServing, slotBudgets(input.weights, targetsOn(input, indexes[0] ?? 1), input.accompaniments !== undefined))
+  );
 
   // The days that are not being laid out go in first, so every `canPlace` below
   // sees the whole plan rather than only the part of it this call is building.
@@ -682,6 +706,8 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
       // No pasta, rice or grains past their four or beside their own, and no
       // legume past its three, while another dish can be served here
       // (`HELD_KIND_WEIGHT`, `0081`, `0082`); when none can, the rule gives.
+      // The maximums of PRD 019 are not filtered here but held from
+      // `improveDay` on (`HELD_MAXIMUM_WEIGHT`, `0084`).
       const heldPlaced = kinds.held.map(check => kindMeals(placed, check));
       const underCap = sized.filter(dish => !breaksHeld(dish.slug, slot, dayIndex, heldPlaced, kinds));
 
@@ -726,7 +752,13 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
 
   const spread = spreadAcrossDays(built, input.placed ?? [], proteins, kinds, seasonal, input.minimumKcal, sidesOn);
   const repaired = repairOutOfBand(spread, input, input.placed ?? [], perServing, { cap, kinds, proteins, seasonal }, sidesOn);
-  const distinct = enforceDistinctDays(repaired, input, input.placed ?? [], proteins, cap, kinds, seasonal, sidesOn);
+  const distinct = holdSideStarches(
+    enforceDistinctDays(repaired, input, input.placed ?? [], proteins, cap, kinds, seasonal, sidesOn),
+    input,
+    input.placed ?? [],
+    kinds,
+    sidesOn
+  );
 
   const assignedDays: PlanDayAssignment[] = distinct.map(day => {
     const meals: ScheduledMeal[] = day.picks.map(pick => {
@@ -868,14 +900,19 @@ export function pickReplacement(input: {
   // Pasta, rice, grains or a legume the plan already has that day, the day
   // either side or as often as its rule allows (`STARCH_RULES`, `LEGUME_RULES`),
   // priced as the scheduler prices it. The plan's own meals are never in a
-  // swap's pool, so their bases and legumes come from `placed`.
-  const kinds = kindRules(input.pool, input.catalogue, PLAN_DAYS);
+  // swap's pool, so their bases, legumes and groups come from `placed`.
+  const mainSlots = new Set([input.slot, ...input.placed.map(placement => placement.slot)].filter(slot => MAIN_SLOTS.has(slot))).size;
+  const kinds = kindRules(input.pool, input.catalogue, PLAN_DAYS, mainSlots, sizedAt(perServing, new Map([[input.slot, budget]])));
   const kindsPlaced = kinds.checks.map(check => kindMeals(input.placed, check));
   const kindsCost = (dish: CandidateDish): number =>
     kindsCrowded(dish.slug, input.slot, input.dayIndex, kindsPlaced, kinds.checks, PLAN_DAYS) * PROTEIN_REPEAT_WEIGHT;
   // Past a held rule only when no other dish passes (`0081`, `0082`): a swap has no bands to weigh against it.
+  // The maximums of PRD 019 the same way, after them (`HELD_MAXIMUM_WEIGHT`).
   const heldPlaced = kinds.held.map(check => kindMeals(input.placed, check));
-  const pastCap = (dish: CandidateDish): number => Number(breaksHeld(dish.slug, input.slot, input.dayIndex, heldPlaced, kinds));
+  const maximumsPlaced = kinds.maximums.map(check => kindMeals(input.placed, check));
+  const pastCap = (dish: CandidateDish): number =>
+    2 * Number(breaksHeld(dish.slug, input.slot, input.dayIndex, heldPlaced, kinds)) +
+    Number(kindsCrowded(dish.slug, input.slot, input.dayIndex, maximumsPlaced, kinds.maximums, kinds.days) > 0);
 
   const dish = input.pool
     .filter(
@@ -1214,15 +1251,60 @@ type ProteinIndex = ReadonlyMap<string, string | null>;
  * `held` are the rules held, not priced, on top (`HELD_KIND_WEIGHT`): pasta,
  * rice and grains whole — four a fortnight, never on days running (`0081`,
  * `0082`) — and a legume's three a fortnight (`0082`); a legume's days running
- * stay priced with the rest.
+ * stay priced with the rest. `maximums` are PRD 019's of fish and shellfish,
+ * meat, red and processed meat and eggs (`heldMaximums`, `0084`), held below
+ * them; `mainSlots` is how many of the plan's meals are lunch or dinner, which
+ * they are scaled to, and `servingsOf` the size each dish is read at.
  */
-type KindRules = { readonly checks: readonly KindCheck[]; readonly days: number; readonly held: readonly KindCheck[] };
+type KindRules = {
+  readonly checks: readonly KindCheck[];
+  readonly days: number;
+  readonly held: readonly KindCheck[];
+  /** `kindsKey` by slot and dish, since the same dishes are asked about every round of every day. */
+  readonly keys: Map<MealSlot, Map<string, string | null>>;
+  /** PRD 019's maximums (`heldMaximums`), held at `HELD_MAXIMUM_WEIGHT`. */
+  readonly maximums: readonly KindCheck[];
+  /** `STARCH_RULES`, which a rice or grain beside the plate counts towards too (`holdSideStarches`). */
+  readonly starch: KindCheck;
+};
 
-function kindRules(pool: readonly CandidateDish[], catalogue: Catalogue, days: number): KindRules {
+function kindRules(
+  pool: readonly CandidateDish[],
+  catalogue: Catalogue,
+  days: number,
+  mainSlots: number,
+  servingsOf: (dish: CandidateDish) => number
+): KindRules {
   const starch = starchCheck(starchIndex(pool));
   const legumes = legumeIndex(pool);
 
-  return { checks: [starch, legumeCheck(legumes), snackCheck(pool, catalogue)], days, held: [starch, legumeCapCheck(legumes)] };
+  return {
+    checks: [starch, legumeCheck(legumes), snackCheck(pool, catalogue)],
+    days,
+    held: [starch, legumeCapCheck(legumes)],
+    keys: new Map(),
+    maximums: heldMaximums(pool, catalogue, mainSlots, servingsOf),
+    starch
+  };
+}
+
+/**
+ * How many servings a dish is served at, as the first pick sizes it
+ * (`servingsFor`), at the largest of its meals' budgets: what the maximums
+ * read a dish as (`heldMaximums`), since the balance score counts a plate as
+ * served — 40 g of chicken a serving is a portion of meat at a serving and a half.
+ */
+function sizedAt(perServing: ReadonlyMap<string, PerServing>, budgets: ReadonlyMap<MealSlot, SlotBudget>): (dish: CandidateDish) => number {
+  return dish => {
+    const base = perServing.get(dish.slug);
+    const sizes = dish.slots.flatMap(slot => {
+      const budget = budgets.get(slot);
+
+      return base && budget ? [servingsFor(base, budget, slot)] : [];
+    });
+
+    return sizes.length > 0 ? Math.max(...sizes) : 1;
+  };
 }
 
 /** How many of these placements break a held rule (`KindRules.held`). */
@@ -1263,14 +1345,31 @@ function seasonFor(input: SchedulerInput): Seasonal {
   };
 }
 
-/** Whether a dish at a slot has any kind the rules count — only a swap that brings one in or takes one out can move their cost. */
-function countsForAny(kinds: KindRules, slug: string, slot: MealSlot): boolean {
-  return kinds.checks.some(check => countsFor(check, slug, slot));
-}
+/**
+ * What the kind rules see of a dish at a slot: its kind under each, priced,
+ * held and the maximums, and how many times it counts — or null when no rule
+ * counts it, since only a swap that brings a counted kind in or takes one out
+ * can move their cost.
+ */
+function kindsKey(kinds: KindRules, slug: string, slot: MealSlot): string | null {
+  const atSlot = kinds.keys.get(slot) ?? new Map<string, string | null>();
+  let key = atSlot.get(slug);
 
-/** What the kind rules see of a dish at a slot: its kind under each, or nothing. */
-function kindsKey(kinds: KindRules, slug: string, slot: MealSlot): string {
-  return kinds.checks.map(check => (countsFor(check, slug, slot) ? (check.index.get(slug) ?? '') : '')).join('|');
+  if (key === undefined) {
+    const checks = [...kinds.checks, ...kinds.held, ...kinds.maximums];
+
+    key = checks.some(check => countsFor(check, slug, slot))
+      ? checks
+          .map(check =>
+            countsFor(check, slug, slot) ? `${check.index.get(slug) ?? ''}*${check.weight?.({ dayIndex: 0, dishSlug: slug, slot }) ?? 1}` : ''
+          )
+          .join('|')
+      : null;
+    atSlot.set(slug, key);
+    kinds.keys.set(slot, atSlot);
+  }
+
+  return key;
 }
 
 function proteinIndex(pool: readonly CandidateDish[], catalogue: Catalogue): ProteinIndex {
@@ -2134,25 +2233,38 @@ function improveDay(
   const proteinOf = (slug: string): string | null => protein.proteins.get(slug) ?? null;
   // Pasta, rice, grains and legumes against the rest of the plan, at the protein rule's weight.
   const { kinds } = protein;
-  const kindsElsewhere = kinds.checks.map(check => kindMeals(others, check));
-  const heldElsewhere = kinds.held.map(check => kindMeals(others, check));
+  // The rest of the plan does not move here, so each rule's count of it is
+  // taken once and only the day's own kinds are counted again (`kindExcessWith`).
+  const tallied = (checks: readonly KindCheck[]) =>
+    checks.map(check => {
+      const meals = kindMeals(others, check);
 
-  // The held rules are held at `HELD_KIND_WEIGHT` on top: only the bands outrank them.
-  const kindsOf = (day: readonly Pick[]): number => {
+      return { base: kindExcess(meals, kinds.days, check.rule), tally: kindTally(meals) };
+    });
+  const kindsElsewhere = tallied(kinds.checks);
+  const heldElsewhere = tallied(kinds.held);
+  const maximumsElsewhere = tallied(kinds.maximums);
+  const excessOf = (
+    checks: readonly KindCheck[],
+    elsewhere: readonly { readonly base: number; readonly tally: KindTally }[],
+    placements: readonly Placement[]
+  ): number =>
+    checks.reduce((sum, check, position) => {
+      const rest = elsewhere[position] as { readonly base: number; readonly tally: KindTally };
+
+      return sum + kindExcessWith(rest.tally, rest.base, kindMeals(placements, check), kinds.days, check.rule);
+    }, 0);
+
+  // The held rules are held at `HELD_KIND_WEIGHT` on top, the maximums at
+  // `HELD_MAXIMUM_WEIGHT`: only the bands outrank them.
+  const kindsOf = (day: readonly Pick[]): { readonly maximums: number; readonly rest: number } => {
     const placements = day.map(entry => ({ dayIndex, dishSlug: entry.dish.slug, slot: entry.slot }));
 
-    return (
-      kinds.checks.reduce(
-        (sum, check, position) => sum + kindExcess([...(kindsElsewhere[position] ?? []), ...kindMeals(placements, check)], kinds.days, check.rule),
-        0
-      ) *
-        PROTEIN_SWAP_WEIGHT +
-      kinds.held.reduce(
-        (sum, check, position) => sum + kindExcess([...(heldElsewhere[position] ?? []), ...kindMeals(placements, check)], kinds.days, check.rule),
-        0
-      ) *
-        HELD_KIND_WEIGHT
-    );
+    return {
+      maximums: excessOf(kinds.maximums, maximumsElsewhere, placements) * HELD_MAXIMUM_WEIGHT,
+      rest:
+        excessOf(kinds.checks, kindsElsewhere, placements) * PROTEIN_SWAP_WEIGHT + excessOf(kinds.held, heldElsewhere, placements) * HELD_KIND_WEIGHT
+    };
   };
 
   const targets = targetsOn(input, dayIndex);
@@ -2209,10 +2321,15 @@ function improveDay(
     // Priced the same way the candidates will be, or a swap could "win" against
     // a day that was never sized.
     const kindsNow = kindsOf(current);
-    const kindsPriced = new Map<string, number>();
+    const kindsPriced = new Map<string, { readonly maximums: number; readonly rest: number }>();
     const now = sized(current);
     let bestMiss = now.miss;
-    let bestCost = now.cost + repeatsOf(today) + dayReuseCost(current, dayIndex, others) + kindsNow;
+    let bestCost = now.cost + repeatsOf(today) + dayReuseCost(current, dayIndex, others) + kindsNow.maximums + kindsNow.rest;
+    // A day outside its bands screens its swaps without the maximums' price, or
+    // the one dish that brings it inside — the eggs of a pool whose fat is all
+    // in eggs, past their eight — never reaches the sizing below, which judges
+    // the bands first. Inside them, the maximums' price screens too.
+    const screensMaximums = now.miss <= BAND_TIE;
     let bestDay: readonly Pick[] | undefined;
     const shortlist: { readonly cost: number; readonly extra: number; readonly swapped: readonly Pick[] }[] = [];
     // Each meal's `reuseCost` as it stands, so a candidate's day is summed as
@@ -2261,8 +2378,10 @@ function improveDay(
         // priced once per meal and kind (`kindsKey`), not once per candidate.
         let kindsCost = kindsNow;
 
-        if (countsForAny(kinds, candidate.slug, pick.slot) || countsForAny(kinds, pick.dish.slug, pick.slot)) {
-          const key = `${index}|${kindsKey(kinds, candidate.slug, pick.slot)}`;
+        const candidateKey = kindsKey(kinds, candidate.slug, pick.slot);
+
+        if (candidateKey !== null || kindsKey(kinds, pick.dish.slug, pick.slot) !== null) {
+          const key = `${index}|${candidateKey ?? ''}`;
 
           kindsCost = kindsPriced.get(key) ?? kindsOf(swapped);
           kindsPriced.set(key, kindsCost);
@@ -2272,9 +2391,9 @@ function improveDay(
           (sum, cost, position) => sum + (position === index ? reuseCost(candidate.slug, pick.slot, dayIndex, others) : cost),
           0
         );
-        const extra = repeats + reuse + kindsCost;
+        const extra = repeats + reuse + kindsCost.maximums + kindsCost.rest;
 
-        shortlist.push({ cost: dayFitCost(swapped, targets) + extra, extra, swapped });
+        shortlist.push({ cost: dayFitCost(swapped, targets) + extra - (screensMaximums ? 0 : kindsCost.maximums), extra, swapped });
       }
     }
 
@@ -2710,6 +2829,7 @@ function repairOutOfBand(
       return (
         (repeats + kindsExcess([...others, ...placements], kinds.checks, kinds.days)) * PROTEIN_SWAP_WEIGHT +
         pastHeld([...others, ...placements], kinds) * HELD_KIND_WEIGHT +
+        kindsExcess([...others, ...placements], kinds.maximums, kinds.days) * HELD_MAXIMUM_WEIGHT +
         dayReuseCost(picks, start.dayIndex, others)
       );
     };
@@ -2939,6 +3059,114 @@ function enforceDistinctDays(
     } else {
       // The pool left no choice — recorded by `varietyViolations`, not thrown away.
       seen.add(signature);
+    }
+  }
+
+  return current;
+}
+
+const CAPPED_STARCHES: ReadonlySet<string> = new Set(STARCH_RULES.capped);
+const SIDE_STARCHES = new WeakMap<AccompanimentSet, readonly string[]>();
+
+/** The pasta, rice or grains a set carries beside the plate, read as the balance score reads them (`dishGroups` of its rows). */
+function sideStarches(set: AccompanimentSet | undefined): readonly string[] {
+  if (!set || set.items.length === 0) {
+    return [];
+  }
+
+  let bases = SIDE_STARCHES.get(set);
+
+  if (!bases) {
+    bases = [...dishGroups({ ingredients: set.items })].filter(group => CAPPED_STARCHES.has(group));
+    SIDE_STARCHES.set(set, bases);
+  }
+
+  return bases;
+}
+
+/**
+ * A rice or grain beside the plate counts towards `STARCH_RULES` like the
+ * plate's own (PRD 019): a lentil stew with rice beside it is a rice that day.
+ * The set is chosen with the day's sizes (`balancedDay`), which see no other
+ * day, so the rule is held here, last: a day whose side breaks it — a fifth
+ * rice, a rice the day after a rice, a second on one day — is sized again with
+ * those sides kept off it, and takes that only when the day is as close to its
+ * bands (`BAND_TIE`) and no further from its energy, as `enforceDistinctDays`
+ * accepts a repair. Plates are never changed here, and
+ * a day the bands need the side on keeps it (`0081`: the macros win).
+ */
+function holdSideStarches(
+  days: readonly BuiltDay[],
+  input: SchedulerInput,
+  fixed: readonly Placement[],
+  kinds: KindRules,
+  sidesOn?: (dayIndex: number) => Sides
+): readonly BuiltDay[] {
+  if (!sidesOn) {
+    return days;
+  }
+
+  const { starch } = kinds;
+  const current = [...days];
+  const placementsOf = (day: BuiltDay): Placement[] => day.picks.map(pick => ({ dayIndex: day.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }));
+  const sidesOf = (day: BuiltDay, picks: readonly Pick[] = day.picks): KindMeal[] =>
+    picks.flatMap(pick => sideStarches(pick.set).map(kind => ({ dayIndex: day.dayIndex, kind })));
+  const missOf = (picks: readonly Pick[], day: BuiltDay): number =>
+    bandMiss(deliveredTotals(picks), day.targets) + floorMiss(deliveredKcal(picks), input.minimumKcal);
+
+  for (const [position, day] of current.entries()) {
+    if (!day.picks.some(pick => sideStarches(pick.set).length > 0)) {
+      continue;
+    }
+
+    const elsewhere = [
+      ...kindMeals(fixed, starch),
+      ...current.flatMap((other, at) => (at === position ? [] : [...kindMeals(placementsOf(other), starch), ...sidesOf(other)]))
+    ];
+    const plates = kindMeals(placementsOf(day), starch);
+    const excess = (picks: readonly Pick[]): number => kindExcess([...elsewhere, ...plates, ...sidesOf(day, picks)], kinds.days, starch.rule);
+    const before = excess(day.picks);
+
+    if (before <= kindExcess([...elsewhere, ...plates], kinds.days, starch.rule)) {
+      continue;
+    }
+
+    // Each base a side may not bring to each meal: first whatever the rest of
+    // the plan crowds out of the whole day; then, for two of one base on one
+    // day, the second, past the sides of the day's earlier meals.
+    const crowdedBy = (others: readonly KindMeal[]): Set<string> =>
+      new Set(STARCH_RULES.capped.filter(base => kindCrowded(base, day.dayIndex, [...elsewhere, ...plates, ...others], kinds.days, starch.rule)));
+    const wholeDay = crowdedBy([]);
+    const attempts = [
+      new Map(day.picks.map(pick => [pick.slot, wholeDay])),
+      new Map(day.picks.map((pick, at) => [pick.slot, crowdedBy(sidesOf(day, day.picks.slice(0, at)))]))
+    ];
+    const sides = sidesOn(day.dayIndex);
+
+    for (const blocked of attempts) {
+      const blocks = (pick: Pick, set: AccompanimentSet | undefined): boolean => sideStarches(set).some(base => blocked.get(pick.slot)?.has(base));
+      const held: Sides = { setsOf: (pick, budget) => sides.setsOf(pick, budget)?.filter(set => !blocks(pick, set)) ?? null };
+      // The search keeps the day it is given on a tie, so it starts without the
+      // side: the plate a little bigger by what the side carried.
+      const bare = day.picks.map(pick =>
+        blocks(pick, pick.set) && pick.base.kcal > 0
+          ? { ...pick, servings: quantiseServings(pick.servings + (pick.set?.macros.kcal ?? 0) / pick.base.kcal), set: undefined }
+          : pick
+      );
+      const sized = balancedDay(bare, day.targets, day.budgets, input.minimumKcal, true, held).picks;
+
+      if (
+        excess(sized) < before &&
+        // Equally inside, as `improveDay` calls two days equal (`BAND_TIE`): a
+        // macro already outside, the energy too, may move by a hundredth, and
+        // none may leave its band.
+        missOf(sized, day) <= missOf(day.picks, day) + BAND_TIE &&
+        inversionsOf(sized, day.budgets) <= inversionsOf(day.picks, day.budgets) + SPREAD_EPSILON &&
+        energyMiss(sized, day.targets) <= energyMiss(day.picks, day.targets) + BAND_TIE
+      ) {
+        current[position] = { ...day, picks: sized };
+        break;
+      }
     }
   }
 

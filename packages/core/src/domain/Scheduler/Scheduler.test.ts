@@ -14,6 +14,7 @@ import {
 } from 'core/domain/Scheduler';
 import { shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { PLATE_FOOD_MAX, plateFoodMax } from 'core/domain/PlateFood';
+import { BALANCE_CAPS, placementGroups } from 'core/domain/Balance';
 
 /** The old question, asked of the new answer: "N meals, snacks or not" is still how a test wants to describe a day. */
 function slotsForTest(mealsPerDay: number, includesSnacks: boolean) {
@@ -1303,18 +1304,83 @@ describe('schedulePlan — pasta and rice four times a fortnight, never on days 
   });
 });
 
+describe('schedulePlan — the maximums of PRD 019 held (019 phase 3)', () => {
+  // Every food the same composition, so fit ties everywhere and the pool's
+  // order decides — beef and ham first at every lunch and dinner, then
+  // chicken, prawns and hake, then plates of no group the maximums count:
+  // 150 g of each on a neutral base. Without the maximums held, this serves
+  // meat eight times.
+  const bases: readonly (readonly [string, Partial<CatalogueIngredient>])[] = [
+    ['filete-de-ternera', { classes: ['animal', 'meat'] }],
+    ['jamon-serrano', { classes: ['animal', 'meat', 'pork'] }],
+    ['pechuga-de-pollo', { classes: ['animal', 'meat'] }],
+    ['gambas', { classes: ['animal', 'shellfish'] }],
+    ['merluza', { classes: ['animal', 'fish'] }],
+    ['patata', {}],
+    ['calabacin', {}],
+    ['base', {}]
+  ];
+  const groupsCatalogue = makeCatalogue(bases.map(([slug, rest], index) => makeCatalogueIngredient({ id: `m-${index}`, name: slug, slug, ...rest })));
+  const SHARE = { breakfast: 0.28, dinner: 0.34, lunch: 0.37 } as const;
+  const pool = (['breakfast', 'lunch', 'dinner'] as const).flatMap(slot =>
+    (slot === 'breakfast' ? bases.slice(5, 7) : bases.slice(0, 7)).flatMap(([base]) =>
+      Array.from({ length: 6 }, (_none, n) =>
+        makeDish({
+          ingredients: [
+            { grams: 150, slug: base },
+            { grams: Math.round((TARGETS.kcal * SHARE[slot]) / 2) - 150 + n * 5, slug: 'base' }
+          ],
+          name: `${slot} ${base} ${n}`,
+          slots: [slot],
+          slug: `${slot}-${base}-${n}`
+        })
+      )
+    )
+  );
+
+  it('serves meat, red and processed meat and fish with shellfish no more than their maximums, red and processed never on days running', () => {
+    const result = schedulePlan({
+      catalogue: groupsCatalogue,
+      minimumKcal: MINIMUM_KCAL,
+      pool,
+      targets: TARGETS,
+      weights: weightsFor(shapeFor(3, false))
+    });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const daysOf = (group: 'fishOrShellfish' | 'meat' | 'processed' | 'redMeat') =>
+      result.assignment.days.flatMap(day =>
+        day.meals.filter(meal => placementGroups(meal.ingredients, groupsCatalogue)[group]).map(() => day.dayIndex)
+      );
+    const running = (days: readonly number[]) => days.some(day => days.includes(day + 1));
+
+    expect(daysOf('meat').length).toBeLessThanOrEqual(BALANCE_CAPS.meat);
+    expect(daysOf('redMeat').length).toBeLessThanOrEqual(BALANCE_CAPS.redMeat);
+    expect(running(daysOf('redMeat')), `red meat on days ${daysOf('redMeat').join(', ')}`).toBe(false);
+    expect(daysOf('processed').length).toBeLessThanOrEqual(BALANCE_CAPS.processed);
+    expect(running(daysOf('processed')), `processed meat on days ${daysOf('processed').join(', ')}`).toBe(false);
+    expect(daysOf('fishOrShellfish').length).toBeLessThanOrEqual(BALANCE_CAPS.fishAndShellfish);
+  });
+});
+
 describe('schedulePlan — rice beside rice and a fourth legume held like the starch cap (0082)', () => {
   // Day 4 is rebuilt, and its lunch is one of two plates of the same macros:
-  // chicken with rice or white beans, or pork with potato. The pork is a fourth
+  // chicken with rice or white beans, or turkey with potato. The turkey is a fourth
   // in its week and already served on day 12, so it pays more in priced rules
   // (0.15 + 0.05) than one rule broken by the other (0.15): priced, the rice
-  // went beside day 3's rice and the beans past their three.
+  // went beside day 3's rice and the beans past their three. White meat, five
+  // times: within the maximums of 019 phase 3, which pork would have broken.
   const SHARE = { breakfast: 0.28, dinner: 0.34, lunch: 0.37 } as const;
   const plate = (slot: keyof typeof SHARE, n: number) => Math.round((TARGETS.kcal * SHARE[slot]) / 2) + n * 5;
   const catalogue = makeCatalogue([
     ...['base', 'arroz-largo-crudo', 'alubias-blancas-cocidas', 'patata'].map(slug => makeCatalogueIngredient({ id: slug, slug })),
     makeCatalogueIngredient({ id: 'pollo', category: 'protein', slug: 'pechuga-de-pollo' }),
-    makeCatalogueIngredient({ id: 'cerdo', category: 'protein', classes: ['animal', 'meat', 'pork'], slug: 'lomo-de-cerdo' }),
+    makeCatalogueIngredient({ id: 'pavo', category: 'protein', classes: ['animal', 'meat'], slug: 'pechuga-de-pavo' }),
     makeCatalogueIngredient({ id: 'merluza', category: 'protein', slug: 'merluza' })
   ]);
   const dish = (slot: keyof typeof SHARE, slug: string, n: number, ...items: string[]) =>
@@ -1323,24 +1389,24 @@ describe('schedulePlan — rice beside rice and a fourth legume held like the st
       slots: [slot],
       slug
     });
-  const porkLunch = dish('lunch', 'lunch-pork-potato', 0, 'lomo-de-cerdo', 'patata');
+  const turkeyLunch = dish('lunch', 'lunch-turkey-potato', 0, 'pechuga-de-pavo', 'patata');
   const neutral = [
     ...[0, 1, 2].map(n => dish('breakfast', `breakfast-${n}`, n)),
     ...[0, 1, 2].map(n => dish('dinner', `dinner-hake-${n}`, n, 'merluza')),
-    ...[0, 1, 2].map(n => dish('dinner', `dinner-pork-${n}`, n, 'lomo-de-cerdo'))
+    ...[0, 1, 2].map(n => dish('dinner', `dinner-turkey-${n}`, n, 'pechuga-de-pavo'))
   ];
   const slots = ['breakfast', 'lunch', 'dinner'] as const;
-  // Every other day kept, from meals the pool no longer holds — but for pork at
-  // the dinners of days 1–3 and the pork lunch on day 12, which the pool does.
+  // Every other day kept, from meals the pool no longer holds — but for turkey at
+  // the dinners of days 1–3 and the turkey lunch on day 12, which the pool does.
   const kept = (named: (dayIndex: number, slot: (typeof slots)[number]) => { legume?: string; starch?: 'rice' }) =>
     [1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].flatMap(dayIndex =>
       slots.map(slot => ({
         dayIndex,
         dishSlug:
           slot === 'dinner' && dayIndex <= 3
-            ? `dinner-pork-${dayIndex - 1}`
+            ? `dinner-turkey-${dayIndex - 1}`
             : slot === 'lunch' && dayIndex === 12
-              ? porkLunch.slug
+              ? turkeyLunch.slug
               : `kept-${slot}-${dayIndex}`,
         slot,
         ...named(dayIndex, slot)
@@ -1365,10 +1431,10 @@ describe('schedulePlan — rice beside rice and a fourth legume held like the st
     const rice = dish('lunch', 'lunch-chicken-rice', 0, 'pechuga-de-pollo', 'arroz-largo-crudo');
     const riceOnDay3 = kept((dayIndex, slot) => (dayIndex === 3 && slot === 'lunch' ? { starch: 'rice' } : {}));
 
-    expect(lunchOnDay4([rice, porkLunch], riceOnDay3)).toEqual([porkLunch.slug]);
+    expect(lunchOnDay4([rice, turkeyLunch], riceOnDay3)).toEqual([turkeyLunch.slug]);
     expect(
       lunchOnDay4(
-        [rice, porkLunch],
+        [rice, turkeyLunch],
         kept(() => ({}))
       )
     ).toEqual([rice.slug]);
@@ -1380,8 +1446,8 @@ describe('schedulePlan — rice beside rice and a fourth legume held like the st
     const beansOn = (...days: number[]) =>
       kept((dayIndex, slot) => (slot === 'dinner' && days.includes(dayIndex) ? { legume: 'alubias-blancas' } : {}));
 
-    expect(lunchOnDay4([beans, porkLunch], beansOn(8, 10, 13))).toEqual([porkLunch.slug]);
-    expect(lunchOnDay4([beans, porkLunch], beansOn(8, 13))).toEqual([beans.slug]);
+    expect(lunchOnDay4([beans, turkeyLunch], beansOn(8, 10, 13))).toEqual([turkeyLunch.slug]);
+    expect(lunchOnDay4([beans, turkeyLunch], beansOn(8, 13))).toEqual([beans.slug]);
     expect(lunchOnDay4([beans], beansOn(8, 10, 13))).toEqual([beans.slug]);
   });
 });
