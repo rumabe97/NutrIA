@@ -648,6 +648,19 @@ records what was decided.
   - After deploy: `/local-probe` walk with zero violations; `curl -sI` shows the enforcing
     header; `/` still cached.
 
+### Follow-up — The refused-provider copy assumes a password account
+
+- [ ] pending — not built; **fix before Apple goes live**. Added 2026-10-08 from the
+  review of hotfix #218 (P3).
+- **The gap**: `socialNotLinked` (both dictionaries) says the account "entra con
+  contraseña". Since implicit linking is off (`0058`, amended), the same
+  `account_not_linked` also reaches somebody whose account was born through Google and who
+  arrives through Apple with the same address — an account with no password, where the
+  copy points to the wrong door. Harmless while Apple is dark.
+- **Shape of the fix**: copy that names no credential ("Ya hay una cuenta con esa
+  dirección. Entra como la creaste o restablece la contraseña…"), still revealing nothing
+  the provider has not just proved. `frontend` owns it; `SignInForm.tsx` reads the code.
+
 ### Follow-up — A reset does not clear a second factor a stranger turned on
 
 - [ ] pending — not built. Added 2026-10-08 from the invariant review of hotfix #218 (P2),
