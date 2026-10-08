@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  BALANCE_CAPS,
   balanceOf,
   balanceSupply,
+  heldMaximums,
   isOilyFish,
   isProcessedMeat,
   isVegetable,
@@ -11,11 +13,13 @@ import {
   mealGroups,
   mealServings,
   meatColour,
+  placementGroups,
   POOL_RESERVE,
   proteinPerKgBySlot,
   reserveGroups,
   scaledToMains
 } from 'core/domain/Balance';
+import { kindMeals, kindsCrowded, kindsExcess } from 'core/domain/Variety';
 import { makeCatalogue, makeCatalogueIngredient, makeDish } from '#test/fixtures';
 
 import type { CandidateDish, MealSlot, PlanDayAssignment, ScheduledMeal } from 'core/entities/Plan';
@@ -296,5 +300,68 @@ describe('reserveGroups', () => {
     const reserved = reserveGroups([...lentils, chicken], 'lunch', catalogue);
 
     expect(reserved.every(dish => dish.slug.startsWith('lentejas'))).toBe(true);
+  });
+});
+
+describe('heldMaximums', () => {
+  const main = (slug: string, ingredients: CandidateDish['ingredients']) => makeDish({ ingredients, slots: ['lunch', 'dinner'], slug });
+  const hake = main('merluza', [{ grams: 120, slug: 'merluza' }]);
+  const prawns = main('gambas', [{ grams: 120, slug: 'gambas' }]);
+  const chicken = main('pollo', [{ grams: 150, slug: 'pechuga-de-pollo' }]);
+  const beef = main('ternera', [{ grams: 150, slug: 'filete-de-ternera' }]);
+  const ham = makeDish({ ingredients: [{ grams: 40, slug: 'jamon-serrano' }], slots: ['breakfast'], slug: 'tostada-jamon' });
+  const omelette = makeDish({ ingredients: [{ grams: 165, slug: 'huevo' }], slots: ['breakfast', 'dinner'], slug: 'tortilla' });
+  const lentils = main('lentejas', [{ grams: 200, slug: 'lentejas-cocidas' }]);
+  const byKind = (checks: ReturnType<typeof heldMaximums>) =>
+    new Map(checks.map(check => [[...check.index.values()].find(kind => kind) ?? '', check]));
+  const on = (slug: string, slot: MealSlot, ...days: number[]) => days.map(dayIndex => ({ dayIndex, dishSlug: slug, slot }));
+
+  it('names each group as one kind, so the cap is the group’s: fish and shellfish together, red meat inside meat', () => {
+    const checks = byKind(heldMaximums([hake, prawns, chicken, beef, ham, omelette, lentils], catalogue, 2));
+    const seafood = checks.get('fishAndShellfish');
+    const meat = checks.get('meat');
+
+    expect([...checks.keys()]).toEqual(['fishAndShellfish', 'meat', 'redMeat', 'processed', 'eggs']);
+    expect(seafood?.index.get('gambas')).toBe('fishAndShellfish');
+    expect(seafood?.index.get('pollo')).toBeNull();
+    expect(meat?.index.get('ternera')).toBe('meat');
+    expect(checks.get('redMeat')?.index.get('pollo')).toBeNull();
+    expect(checks.get('processed')?.slots).toBeUndefined();
+    expect(meat?.rule.perFortnight).toBe(BALANCE_CAPS.meat);
+  });
+
+  it('holds red meat four times and never on days running; processed meat twice at any meal, apart', () => {
+    const checks = [...heldMaximums([hake, chicken, beef, ham], catalogue, 2)];
+    const beefOn = on('ternera', 'lunch', 1, 4, 7);
+
+    expect(kindsExcess(beefOn, checks, 14)).toBe(0);
+    expect(kindsExcess([...beefOn, ...on('ternera', 'dinner', 10)], checks, 14)).toBe(0);
+    // A fifth, and a fifth beside the fourth: past the cap once, on days running once.
+    expect(kindsExcess([...beefOn, ...on('ternera', 'dinner', 10, 11)], checks, 14)).toBe(2);
+    expect(kindsExcess(on('ternera', 'lunch', 3, 4), checks, 14)).toBe(1);
+    expect(kindsExcess(on('tostada-jamon', 'breakfast', 2, 9), checks, 14)).toBe(0);
+    expect(kindsExcess(on('tostada-jamon', 'breakfast', 2, 3), checks, 14)).toBe(1);
+  });
+
+  it('counts eggs by the egg, and holds none for somebody whose pool has neither meat nor fish', () => {
+    const eggs = byKind(heldMaximums([hake, chicken, omelette], catalogue, 2)).get('eggs');
+    const twice = on('tortilla', 'dinner', 1, 5);
+
+    expect(eggs?.weight?.({ dayIndex: 1, dishSlug: 'tortilla', slot: 'dinner' })).toBe(3);
+    expect(
+      kindsCrowded('tortilla', 'breakfast', 9, [kindMeals(twice, eggs as NonNullable<typeof eggs>)], [eggs as NonNullable<typeof eggs>], 14)
+    ).toBe(1);
+    expect(byKind(heldMaximums([lentils, omelette], catalogue, 2)).has('eggs')).toBe(false);
+  });
+
+  it('reads a kept meal by the groups it names, and scales the main-meal caps to one main a day', () => {
+    const checks = [...heldMaximums([hake, chicken], catalogue, 1)];
+    const kept = placementGroups([{ grams: 150, slug: 'filete-de-ternera' }], catalogue);
+    const keptOn = (dayIndex: number) => ({ dayIndex, dishSlug: 'no-longer-in-the-pool', groups: kept, slot: 'lunch' as const });
+
+    expect(kept).toEqual({ eggs: 0, fishOrShellfish: false, meat: true, processed: false, redMeat: true });
+    expect(kindsExcess([keptOn(1), keptOn(4)], checks, 14)).toBe(0);
+    expect(kindsExcess([keptOn(1), keptOn(4), keptOn(7)], checks, 14)).toBe(1);
+    expect(byKind(checks).get('meat')?.rule.perFortnight).toBe(BALANCE_CAPS.meat / 2);
   });
 });

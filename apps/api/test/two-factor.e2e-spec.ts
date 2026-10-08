@@ -1080,7 +1080,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
   });
 
   describe('what the invariant review closed', () => {
-    it('an implicit Google link into a password account with the factor on is refused: no session, no account row, no new user', async () => {
+    it('a Google arrival at a password account with the factor on is refused: no session, no account row, no new user', async () => {
       jest.spyOn(SettingsController, 'automaticActivation').mockResolvedValue(true);
 
       const { id, email, uri } = await withFactor('sara', 'Sara Ortiz');
@@ -1089,13 +1089,14 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       await sql()`delete from session where user_id = ${id}`;
       expect(await providerAccounts(id)).toEqual(['credential']);
 
-      // The address is confirmed and Google vouches for it: without the factor, `social-sign-in` shows this joining.
+      // The address is confirmed and Google vouches for it. Implicit linking is off (`0058`, amended 2026-10-08), and
+      // `refusesLinkPastTheFactor` stands behind it ("unable_to_link_account") should it ever come back.
       const back = await throughGoogle(email, sub);
       const location = new URL(String(back.headers.location));
 
       expect(back.status).toBe(302);
       expect(location.origin + location.pathname).toBe(`${APP}/acceder`);
-      expect(location.searchParams.get('error')).toBe('unable_to_link_account');
+      expect(location.searchParams.get('error')).toBe('account_not_linked');
       expect(new CookieJar().take(back).has('session_token')).toBe(false);
       expect(await sessionsOf(id)).toBe(0);
       expect(await providerAccounts(id)).toEqual(['credential']);
@@ -1126,9 +1127,9 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
 
       const { id, email } = await account('zoe', 'Zoe Navas');
       const sub = `g-two-factor-joined-${String(stamp)}`;
-      const joined = await throughGoogle(email, sub);
+      // Joined on purpose, signed in, the factor off: arriving by the address alone joins nothing (`0058`, amended).
+      const joined = await throughGoogle(email, sub, (await signedIn(email)).header);
 
-      // Joined as `social-sign-in` shows: same address, confirmed, the factor off.
       expect(joined.status).toBe(302);
       expect(String(joined.headers.location)).toBe(`${APP}/inicio`);
       expect(await providerAccounts(id)).toEqual(['credential', 'google']);

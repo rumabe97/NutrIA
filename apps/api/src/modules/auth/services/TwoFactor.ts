@@ -454,7 +454,9 @@ export async function twoFactorAfter(deps: TwoFactorDeps, context: Context, retu
  * account has the factor on and the request carries no session of that
  * account; Better Auth then answers "unable to link account" and the web its
  * generic social failure. An explicit link from a signed-in session, a new
- * account and an account without the factor are untouched.
+ * account and an account without the factor are untouched. Implicit linking
+ * has been off since `0058` was amended (2026-10-08), so this is the second
+ * lock behind it, kept in case it ever comes back.
  */
 export async function refusesLinkPastTheFactor(
   linked: { providerId?: unknown; userId?: unknown },

@@ -43,7 +43,7 @@ Every phase is measured on the reference library (`0080`) with `--rotate`, and m
 
 ### Phase 3 — Maximums held
 
-- [ ] pending
+- [x] done (2026-10-08; see LOG)
 - **Dispatch**: opus @ medium.
 - **Covers**: PRD 3.
 - **Steps**:
