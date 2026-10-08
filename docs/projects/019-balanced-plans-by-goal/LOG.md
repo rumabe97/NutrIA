@@ -220,3 +220,18 @@
   - Fish + shellfish ≤ 8 held on fewer plans off (79 → 73): six fish meals plus the two or three shellfish meals a pool serves beside them pass eight. The classifier says 213 of those meals were not needed by the bands (off). A repair pass for a maximum, the mirror of `meetFloors`, is the next lever; so are meat (141 broken, 4 needed) and eggs (308 broken, 72 needed). The classifier asks each meal alone, so it is an upper bound on what a pass could repair.
   - `PlacementGroups` has three more fields; anything that builds one by hand (a spec) must name them.
   - Vegetables and fruit are phase 5's: they did not move.
+
+## Phase 5a — The maximums repaired (2026-10-08)
+
+- **Executor**: Opus 5.5 (agent `backend`). Phase 5 is split in two at the lead's request: 5a here, 5b (vegetables, fruit, fibre and whole grain through accompaniments) next.
+- **Result**: done.
+- **What changed**: `meetCaps`, the mirror of `meetFloors`, as one generic pass (`repairToRule`) for both: a plan still past a maximum swaps a lunch or dinner of a broken group for another dish, one meal at a time, only if the total excess falls, no other rule (the minimums included) gets worse, and the day stays as inside its bands as it was. Run after `meetFloors`, before the distinct-days and side-starch passes. `meetFloors` now skips a day a round found nothing for.
+- **Evidence** (871 recipes, `--rotate 10`, phase 4 as the baseline; files `docs/local/019-p4-*`, `019-t1-{off,on}`, `019-c5e-*`):
+  - **Rules held, off / on (phase 4 → 5a)**: fish + shellfish ≤ 8: 73 → 99, 69 → 83 (of 140); meat 71 → 96, 69 → 86 (of 130); red meat 113 → 121, 99 → 107; eggs 45 → 62, 75 → 83; processed 88 → 89, 85 → 86; legumes 135 → 136, 132 → 132; fish 116 → 116, 112 → 112; whole grain 21 → 23, 21 → 28; starches 109 → 110, 87 → 86; fruit, vegetables, fibre unchanged.
+  - **Score by goal, off / on (phase 4 → 5a)**: off weight loss 58 → 66, muscle gain 54 → 62, maintenance 61 → 64, healthy eating 64 → 65, performance 62 → 58; on 55 → 61, 62 → 62, 58 → 63, 55 → 57, 62 → 62. With accompaniments on, no goal is below phase 4; off, performance is four under (its median on quincena-con-evento).
+  - **Days in band**: 1,958/1,960 off and 1,960/1,960 on, as phase 4. 0 allergens.
+  - **Time**: alternating builds, off: 5a 44,497 and 43,924 ms against phase 4's 41,224 and 41,527 (+7%); on 57,548 against 54,197 (+6%). Within +10%. A shortlist of 12 cost +15%; one of 6 and the goal alone screened first (not all four metrics) is the version kept.
+  - **Exceptions left (meals broken / needed by the bands, off, on)**: fish + shellfish 136 / 23, 201 / 11; meat 88 / 3, 108 / 8; red 8 / 1, 40 / 5; processed 72 / 12, 93 / 25; eggs 129 / 34, 181 / 36. What remains is mostly what one swap cannot fix without breaking another rule.
+  - Core 3,815 tests green, gate `--full` green. No spec was added that fails without the pass: the existing maximums specs hold either way, because the improvement passes already hold a fixture's caps; the evidence is the evaluator's.
+- **Deviations from plan**: none new; the plan's 5 is split at the lead's direction. Decision `0086` drafted.
+- **Notes for the next phase**: 5b needs a catalogue check of vegetable and fruit sides per profile before it is built.

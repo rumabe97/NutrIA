@@ -62,7 +62,11 @@ Every phase is measured on the reference library (`0080`) with `--rotate`, and m
   3. Record decision `0085` (`0084` is phase 3's).
   4. Count, in the evaluator, the exceptions to the table's maximums and minimums that the bands needed and the ones they did not (`--exceptions`).
 
-### Phase 5 — Vegetables, fruit, fibre and whole grain through accompaniments
+### Phase 5a — The maximums repaired (`meetCaps`)
+
+- [x] done (2026-10-08; see LOG)
+
+### Phase 5b — Vegetables, fruit, fibre and whole grain through accompaniments
 
 - [ ] pending
 - **Dispatch**: opus @ medium.

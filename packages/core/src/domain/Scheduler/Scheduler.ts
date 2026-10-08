@@ -3091,7 +3091,7 @@ function repairOutOfBand(
 const FLOOR_SHORTLIST = 24;
 
 /** The same for `meetCaps`, which asks every day with a broken group and so keeps it shorter. */
-const CAP_SHORTLIST = 12;
+const CAP_SHORTLIST = 6;
 
 /** Swaps `meetCaps` may make: a fortnight breaks a cap by a handful of meals, eggs by the egg a few more. */
 const MAX_CAP_SWAPS = 16;
@@ -3163,6 +3163,11 @@ function repairToRule(
   const placementsOf = (day: BuiltDay, picks: readonly Pick[] = day.picks): Placement[] =>
     picks.map(pick => ({ dayIndex: day.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }));
   const planOf = (without?: BuiltDay): Placement[] => [...fixed, ...current.flatMap(day => (day === without ? [] : placementsOf(day)))];
+  // The rule being repaired alone: what screens a candidate before it is sized.
+  const goalOf = (placements: readonly Placement[]): number =>
+    goal === 'floors'
+      ? kinds.floors.reduce((sum, floor) => sum + Math.max(0, floor.floor - floorCount(floor, placements)), 0)
+      : kindsExcess(placements, kinds.maximums, kinds.days);
   const metricsOf = (placements: readonly Placement[]): RuleMetrics => ({
     checks: kindsExcess(placements, kinds.checks, kinds.days),
     floors: kinds.floors.reduce((sum, floor) => sum + Math.max(0, floor.floor - floorCount(floor, placements)), 0),
@@ -3235,7 +3240,7 @@ function repairToRule(
             at === index ? { ...entry, base, dish: candidate, servings: servingsFor(base, budget, pick.slot), set: undefined } : entry
           );
 
-          if (metricsOf([...others, ...placementsOf(day, swapped)])[goal] >= before[goal]) {
+          if (goalOf([...others, ...placementsOf(day, swapped)]) >= before[goal]) {
             continue;
           }
 
