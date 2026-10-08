@@ -165,8 +165,8 @@
   - Eggs are counted at every meal, breakfast included, by the egg.
 - **Lead's decisions** (2026-10-08, delegated by the owner):
   - The merge gate is met: every goal above the baseline with accompaniments on, every day in band, 0 allergens, time within +10%. #216 and #224 ship together.
-  - PRD criterion 3 is partly met and accepted for now; phase 4's  adds the count of exceptions the bands needed against those they did not.
+  - PRD criterion 3 is partly met and accepted for now; phase 4's `meetFloors` adds the count of exceptions the bands needed against those they did not.
   - patron-vegetariano's dip with accompaniments on (median 57% → 50%) is accepted; it is a phase 5 acceptance check, since phase 5 owns fruit and vegetables.
-  - 1,958/1,960 days off with  equals the baseline and is accepted.
-  - Decision  approved as drafted.
+  - 1,958/1,960 days off with `--rotate` equals the baseline and is accepted.
+  - Decision `0084` approved as drafted (`docs/decisions/0084-hold-the-food-group-maximums-below-the-starch-caps-and-the-bands.md`).
 
