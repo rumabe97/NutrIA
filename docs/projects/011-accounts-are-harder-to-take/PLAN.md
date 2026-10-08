@@ -517,7 +517,9 @@ records what was decided.
   - `apps/web`:
     - `RegisterScreen.tsx` drops the "already registered" branch and, after sign-up,
       shows "revisa tu correo" for every address;
-    - `autoSignInAfterVerification` stays on, so the link signs the person in;
+    - `autoSignInAfterVerification` is off since the hotfix (LOG, "Hotfix — the confirmation
+      link signed in whoever opened it"): the link confirms and lands on "Correo
+      confirmado. Ahora inicia sesión" (`/verificar-email`);
     - the copy says that on iPhone the link opens in Safari, and that in the installed
       app they then sign in;
     - dictionaries.
@@ -618,6 +620,35 @@ records what was decided.
   - After deploy: `/local-probe` walk with zero violations; `curl -sI` shows the enforcing
     header; `/` still cached.
 
+### Follow-up — The refused-provider copy assumes a password account
+
+- [ ] pending — not built; **fix before Apple goes live**. Added 2026-10-08 from the
+  review of hotfix #218 (P3).
+- **The gap**: `socialNotLinked` (both dictionaries) says the account "entra con
+  contraseña". Since implicit linking is off (`0058`, amended), the same
+  `account_not_linked` also reaches somebody whose account was born through Google and who
+  arrives through Apple with the same address — an account with no password, where the
+  copy points to the wrong door. Harmless while Apple is dark.
+- **Shape of the fix**: copy that names no credential ("Ya hay una cuenta con esa
+  dirección. Entra como la creaste o restablece la contraseña…"), still revealing nothing
+  the provider has not just proved. `frontend` owns it; `SignInForm.tsx` reads the code.
+
+### Follow-up — A reset does not clear a second factor a stranger turned on
+
+- [ ] pending — not built. Added 2026-10-08 from the invariant review of hotfix #218 (P2),
+  under the owner's delegation of 2026-10-03. Not scheduled into a phase yet.
+- **The gap**: a stranger signs the victim's address up with a password of their own and
+  turns on TOTP. The victim opens the confirmation link, then resets the password, as
+  `/verificar-email` and the refused-Google copy tell them to. The reset ends the
+  stranger's sessions and password (`revokeSessionsOnPasswordReset`), but the factor stays:
+  the victim's sign-in is asked for a code only the stranger holds. They are locked out,
+  not exposed — nothing they enter is reachable — until the owner's 48-hour removal
+  (phase 4).
+- **Options to weigh when it is planned**: refuse turning the factor on before the address
+  is confirmed; or have a reset clear a factor that was turned on before the address was
+  confirmed (audited, mailed). Either needs `invariant-reviewer`; the second touches
+  credentials in a hook, which `0058` avoided on purpose.
+
 ## Hand-off
 
 - **Report `0007` is the design**: its line references were read on `09ed8323`. When a
@@ -625,6 +656,7 @@ records what was decided.
 - **Better Auth's routes and plugins are used, not re-implemented.** Hashing, tokens, TOTP,
   backup-code encryption and session rotation stay Better Auth's. Our code is hooks,
   guards, rules and screens. Never `allowPasswordless`, never `trustedProviders`, never
+  implicit account linking (`disableImplicitLinking: true`, `0058` amended), never
   `freshAge: 0`, never the password in `DELETE /users/me` (`apps/api/AGENTS.md`, `0058`).
 - **Every denial is a 404.** The only new 409 is `PASSWORD_CHANGE_REQUIRED` (phase 2),
   added to the documented exceptions. Every new user-scoped table cascades on `user.id`.
