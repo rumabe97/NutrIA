@@ -79,6 +79,12 @@ export const FRESH_DISHES_PER_SLOT = Math.ceil(DISHES_NEEDED_PER_SLOT * FRESH_SH
  */
 const REUSED_DISHES_PER_SLOT = DISHES_NEEDED_PER_SLOT;
 
+/**
+ * The dishes a slot takes first, chosen from that slot's dishes in shuffled
+ * order, knowing which dishes an earlier slot already took: see `rotatePool`.
+ */
+export type PoolReserve = (inSlot: readonly CandidateDish[], slot: MealSlot, taken: ReadonlySet<string>) => readonly CandidateDish[];
+
 export type Rotation = {
   /** Slugs this user was served last fortnight, and dishes they disliked. Never offered. */
   readonly avoidSlugs: ReadonlySet<string>;
@@ -189,12 +195,18 @@ export function seededShuffle<T>(items: readonly T[], seed: string): T[] {
  *    are. A dish that suits several slots counts towards each.
  *
  * Reuse is still preferred over generation (0006). This decides *which* reuse.
+ *
+ * `reserve` (project 019 phase 2) names, per slot, the dishes taken before the
+ * rest: given that slot's dishes in shuffled order, it returns the ones the
+ * fortnight's food groups need (`reserveGroups`), and they come first; the
+ * rest fill the slot as before. Without it, the pick is what it always was.
  */
 export function rotatePool(
   dishes: readonly CandidateDish[],
   slots: readonly MealSlot[],
   rotation: Rotation,
-  perSlot: number = REUSED_DISHES_PER_SLOT
+  perSlot: number = REUSED_DISHES_PER_SLOT,
+  reserve?: PoolReserve
 ): CandidateDish[] {
   const eligible = seededShuffle(
     dishes.filter(dish => !rotation.avoidSlugs.has(dish.slug)),
@@ -208,14 +220,13 @@ export function rotatePool(
 
   for (const slot of slots) {
     let count = 0;
+    const inSlot = shuffled.filter(dish => dish.slots.includes(slot));
+    const reserved = reserve ? reserve(inSlot, slot, new Set(taken.keys())) : [];
+    const ordered = reserved.length > 0 ? [...new Set([...reserved, ...inSlot])] : inSlot;
 
-    for (const dish of shuffled) {
+    for (const dish of ordered) {
       if (count >= perSlot) {
         break;
-      }
-
-      if (!dish.slots.includes(slot)) {
-        continue;
       }
 
       if (!taken.has(dish.slug)) {
@@ -226,5 +237,6 @@ export function rotatePool(
     }
   }
 
-  return [...taken.values()];
+  // In shuffled order, whatever was reserved: the pick changes, never the order it is handed over in.
+  return reserve ? shuffled.filter(dish => taken.has(dish.slug)) : [...taken.values()];
 }
