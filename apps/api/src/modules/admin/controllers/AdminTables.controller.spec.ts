@@ -46,7 +46,15 @@ describe('the people tables', () => {
           provide: APP_GUARD,
           useValue: {
             canActivate: (context: { switchToHttp: () => { getRequest: () => { user?: unknown } } }) => {
-              context.switchToHttp().getRequest().user = { id: 'usr-1', activated: true, email: 'a@b.invalid', emailVerified: true, name: 'A', role };
+              context.switchToHttp().getRequest().user = {
+                id: 'usr-1',
+                activated: true,
+                email: 'a@b.invalid',
+                emailVerified: true,
+                name: 'A',
+                role,
+                twoFactorEnabled: true
+              };
 
               return true;
             }

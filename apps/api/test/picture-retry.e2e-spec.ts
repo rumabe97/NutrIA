@@ -20,6 +20,7 @@ import {
   completeOnboarding,
   createApp,
   deleteAccounts,
+  enableTotp,
   generateAndWait,
   httpServer,
   latestAuditRow,
@@ -199,8 +200,9 @@ describe('picture retry and failure reasons', () => {
     cappedApp = await createApp(new ScriptedAiClient([]), builder => stubbed(builder).overrideProvider(AI_PICTURE_CAP).useValue(0));
 
     owner = await register(app, `picture-retry-owner-${stamp}@e2e.invalid`);
-    made.push(owner.cookie);
     await UserController.grantAdmin(owner.email);
+    owner = await enableTotp(app, owner);
+    made.push(owner.cookie);
 
     ordinary = await register(app, `picture-retry-ordinary-${stamp}@e2e.invalid`);
     made.push(ordinary.cookie);

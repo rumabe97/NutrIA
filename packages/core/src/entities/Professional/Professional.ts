@@ -24,7 +24,8 @@ export type GrantProfessional = z.infer<typeof grantProfessionalSchema>;
  * web app's dictionary, as `CARE_CONSENT_VERSION` is: a stored version that is
  * not this one asks again, and accepting an older one is refused at the door.
  */
-export const PROFESSIONAL_AGREEMENT_VERSION = '1.0.0';
+// 1.1.0 (PLAN 011 phase 6): § 8 makes two-step verification mandatory for a password account.
+export const PROFESSIONAL_AGREEMENT_VERSION = '1.1.0';
 
 /** The professional's acceptance: the current version, and nothing else. */
 export const acceptAgreementSchema = z.object({ version: z.literal(PROFESSIONAL_AGREEMENT_VERSION) });

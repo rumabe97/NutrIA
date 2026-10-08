@@ -242,6 +242,13 @@ export interface CarePracticeStandingView {
  */
 export interface CarePracticeView extends CarePracticeStandingView {
   billing: PracticeOfferView;
+  /**
+   * True while the professional can sign in with a password and has not turned
+   * the authenticator app on (PLAN 011 phase 6, `secondFactorMissing`): no
+   * client route opens, and the page says to turn it on in "Seguridad". The
+   * API adds it from the session, as it adds `billing`.
+   */
+  secondFactorRequired: boolean;
 }
 
 /**

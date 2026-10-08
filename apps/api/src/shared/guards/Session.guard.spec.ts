@@ -16,6 +16,7 @@ type Session = {
     name: string;
     passwordCompromisedAt?: Date | null;
     role?: string;
+    twoFactorEnabled?: boolean;
   };
 } | null;
 
@@ -69,8 +70,20 @@ describe('SessionGuard', () => {
       emailVerified: true,
       name: 'Ada',
       passwordChangeRequired: false,
-      role: 'user'
+      role: 'user',
+      twoFactorEnabled: false
     });
+  });
+
+  it('carries the second factor from the session’s user row, with no query of its own (PLAN 011 phase 6)', async () => {
+    const request: Record<string, unknown> = { headers: {} };
+    const { guard } = makeGuard({
+      user: { id: 'usr_4', activatedAt: new Date(), email: 'a@b.c', emailVerified: true, name: 'A', twoFactorEnabled: true }
+    });
+
+    await guard.canActivate(makeContext(request));
+
+    expect((request.user as { twoFactorEnabled: boolean }).twoFactorEnabled).toBe(true);
   });
 
   it('says a password must be changed while the row carries the breach mark, re-read with the session (PLAN 011 phase 2)', async () => {

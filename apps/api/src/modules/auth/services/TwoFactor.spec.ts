@@ -40,7 +40,34 @@ const mails: { event: TwoFactorEvent; to: string; userId: string }[] = [];
 const sentOtps: unknown[] = [];
 const removalMails: { event: TwoFactorRemovalEvent; to: string; userId: string }[] = [];
 
-jest.unstable_mockModule('better-auth/adapters/drizzle', () => ({ drizzleAdapter: () => memoryAdapter(store) }));
+type Where = { field: string; operator?: string; value: unknown };
+type Adapter = { deleteMany: (query: { model: string; where?: Where[] }) => Promise<number> };
+
+/** The next this many deletes of "every session but one" (`closeOtherSessions`) fail, as a dropped connection would. */
+const closing = { failures: 0 };
+
+jest.unstable_mockModule('better-auth/adapters/drizzle', () => ({
+  drizzleAdapter: () => {
+    const memory = memoryAdapter(store) as unknown as (options: unknown) => Adapter;
+
+    return (options: unknown): Adapter => {
+      const adapter = memory(options);
+
+      return {
+        ...adapter,
+        deleteMany: async query => {
+          if (closing.failures > 0 && query.model === 'session' && query.where?.some(clause => clause.operator === 'ne')) {
+            closing.failures -= 1;
+
+            throw new Error('down');
+          }
+
+          return adapter.deleteMany(query);
+        }
+      };
+    };
+  }
+}));
 jest.unstable_mockModule('database', () => ({ database: () => ({}) }));
 jest.unstable_mockModule('./SelfService.js', () => ({
   onAccountCreated: async () => Promise.resolve(),
@@ -227,6 +254,7 @@ describe('the second factor', () => {
   let analytics: jest.SpiedFunction<typeof AnalyticsController.record>;
   let claimTotpStep: jest.SpiedFunction<typeof TwoFactorController.claimTotpStep>;
   let cancelRemovalByAccount: jest.SpiedFunction<typeof TwoFactorController.cancelRemovalByAccount>;
+  let sessionsRevoked: jest.SpiedFunction<typeof UserController.sessionsRevoked>;
   const logged: string[] = [];
 
   beforeEach(() => {
@@ -240,11 +268,12 @@ describe('the second factor', () => {
     sentOtps.length = 0;
     tasks.length = 0;
     logged.length = 0;
+    closing.failures = 0;
     twoFactorChanged = jest.spyOn(UserController, 'twoFactorChanged').mockResolvedValue(undefined);
     backupCodeUsed = jest.spyOn(UserController, 'backupCodeUsed').mockResolvedValue(undefined);
     backupCodesRegenerated = jest.spyOn(UserController, 'backupCodesRegenerated').mockResolvedValue(undefined);
     jest.spyOn(UserController, 'passwordChanged').mockResolvedValue(0);
-    jest.spyOn(UserController, 'sessionsRevoked').mockResolvedValue(undefined);
+    sessionsRevoked = jest.spyOn(UserController, 'sessionsRevoked').mockResolvedValue(undefined);
     analytics = jest.spyOn(AnalyticsController, 'record').mockResolvedValue(undefined);
     jest.spyOn(AnalyticsController, 'recordUse').mockResolvedValue(undefined);
     // The replay rule's claim (PLAN 011 phase 4), as `TwoFactorRepository.claimTotpStep`'s guarded UPDATE does it, on the store's row.
@@ -343,15 +372,176 @@ describe('the second factor', () => {
       const userId = store.user[0]?.id as string;
 
       expect(verified.status).toBe(200);
+      expect(verified.body).toMatchObject({ otherSessionsClosed: true, token: expect.any(String) });
       expect(store.user[0]?.twoFactorEnabled).toBe(true);
       expect(twoFactorChanged).toHaveBeenCalledTimes(1);
       expect(twoFactorChanged).toHaveBeenCalledWith(userId, true);
       expect(mails).toEqual([]);
       await drain();
-      expect(mails).toEqual([{ event: { kind: 'enabled' }, to: ACCOUNT.email, userId }]);
+      expect(mails).toEqual([{ event: { kind: 'enabled', otherSessionsClosed: true }, to: ACCOUNT.email, userId }]);
       // The rotation of the session the person already had is not a visit.
       expect(sessionsStarted()).toHaveLength(1);
       await expect(sessionOf(auth, browser)).resolves.toMatchObject({ user: { twoFactorEnabled: true } });
+    });
+  });
+
+  /*
+   * PLAN 011 phase 6, the legal review: the flag rides every session's user row, so a session somebody opened
+   * with the password alone before the factor went on would pass the privileged accounts' rule afterwards.
+   */
+  describe('turning it on closes the other sessions', () => {
+    it('leaves only the session that confirmed it, and writes auth.sessions_revoked {scope: others}', async () => {
+      const auth = build();
+      const confirming = await signUp(auth);
+      const elsewhere = new Browser();
+
+      expect((await call(auth, elsewhere, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD })).status).toBe(200);
+      await expect(sessionOf(auth, elsewhere)).resolves.not.toBeNull();
+
+      const uri = (await call(auth, confirming, '/two-factor/enable', { password: PASSWORD })).body?.totpURI as string;
+
+      // `/enable` alone turns nothing on, and closes nothing.
+      await expect(sessionOf(auth, elsewhere)).resolves.not.toBeNull();
+      expect((await call(auth, confirming, '/two-factor/verify-totp', { code: totp(uri) })).status).toBe(200);
+
+      await expect(sessionOf(auth, elsewhere)).resolves.toBeNull();
+      await expect(sessionOf(auth, confirming)).resolves.toMatchObject({ user: { twoFactorEnabled: true } });
+      expect(store.session).toHaveLength(1);
+      expect(sessionsRevoked.mock.calls).toEqual([[store.user[0]?.id, 'others']]);
+    });
+
+    it('writes no row when there was no other session to close', async () => {
+      const auth = build();
+
+      await withFactor(auth);
+
+      expect(store.session).toHaveLength(1);
+      expect(sessionsRevoked).not.toHaveBeenCalled();
+    });
+
+    /*
+     * Delta invariant review, P1: Better Auth's `listSessions` stops at 100 rows, so a list-then-delete would leave
+     * the rest alive. Here the account has 150 others — some expired, inserted in no order — and one DELETE takes all.
+     */
+    it('closes every other session however many there are, in one delete that lists none first', async () => {
+      const auth = build();
+      const confirming = await signUp(auth);
+      const uri = (await call(auth, confirming, '/two-factor/enable', { password: PASSWORD })).body?.totpURI as string;
+      const userId = store.user[0]?.id as string;
+      const now = Date.now();
+
+      for (let index = 0; index < 150; index += 1) {
+        const at = new Date(now - index * 60_000);
+
+        store.session.push({
+          id: `other-${index}`,
+          createdAt: at,
+          expiresAt: new Date(index % 3 === 0 ? now - 1000 : now + 86_400_000),
+          ipAddress: null,
+          token: `other-token-${index}`,
+          updatedAt: at,
+          userAgent: null,
+          userId
+        });
+      }
+
+      // A session of somebody else's account is never touched.
+      store.session.push({
+        id: 'stranger',
+        createdAt: new Date(),
+        expiresAt: new Date(now + 86_400_000),
+        token: 'stranger-token',
+        updatedAt: new Date(),
+        userId: 'someone-else'
+      });
+
+      const verified = await call(auth, confirming, '/two-factor/verify-totp', { code: totp(uri) });
+
+      expect(verified.status).toBe(200);
+      expect(verified.body).toMatchObject({ otherSessionsClosed: true });
+      expect(store.session.map(row => row.userId)).toEqual(expect.arrayContaining([userId, 'someone-else']));
+      expect(store.session).toHaveLength(2);
+      await expect(sessionOf(auth, confirming)).resolves.toMatchObject({ user: { twoFactorEnabled: true } });
+      expect(sessionsRevoked.mock.calls).toEqual([[userId, 'others']]);
+    });
+
+    it('tries the delete again once when it fails, and says nothing went wrong when the second one works', async () => {
+      const auth = build();
+      const confirming = await signUp(auth);
+      const elsewhere = new Browser();
+
+      await call(auth, elsewhere, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
+
+      const uri = (await call(auth, confirming, '/two-factor/enable', { password: PASSWORD })).body?.totpURI as string;
+
+      closing.failures = 1;
+
+      const verified = await call(auth, confirming, '/two-factor/verify-totp', { code: totp(uri) });
+
+      expect(verified.body).toMatchObject({ otherSessionsClosed: true });
+      await expect(sessionOf(auth, elsewhere)).resolves.toBeNull();
+      expect(closing.failures).toBe(0);
+      expect(logged.filter(line => line.includes('not_closed') || line.includes('unrecorded'))).toEqual([]);
+      await drain();
+      expect(mails.map(mail => mail.event)).toEqual([{ kind: 'enabled', otherSessionsClosed: true }]);
+    });
+
+    it('still turns the factor on when the delete fails twice, and neither the answer nor the mail says the sessions closed', async () => {
+      const auth = build();
+      const confirming = await signUp(auth);
+      const elsewhere = new Browser();
+
+      await call(auth, elsewhere, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
+
+      const uri = (await call(auth, confirming, '/two-factor/enable', { password: PASSWORD })).body?.totpURI as string;
+
+      closing.failures = 2;
+
+      const verified = await call(auth, confirming, '/two-factor/verify-totp', { code: totp(uri) });
+
+      expect(verified.status).toBe(200);
+      expect(verified.body).toMatchObject({ otherSessionsClosed: false, token: expect.any(String) });
+      expect(store.user[0]?.twoFactorEnabled).toBe(true);
+      await expect(sessionOf(auth, elsewhere)).resolves.not.toBeNull();
+      expect(sessionsRevoked).not.toHaveBeenCalled();
+      expect(logged.filter(line => line.includes('two_factor_sessions_not_closed') || line.includes('unrecorded'))).toEqual([
+        `two_factor_sessions_not_closed ${JSON.stringify({ userId: store.user[0]?.id })}`
+      ]);
+      await drain();
+      expect(mails.map(mail => mail.event)).toEqual([{ kind: 'enabled', otherSessionsClosed: false }]);
+    });
+
+    it('says the sessions closed when they did but their row could not be written, with its own line', async () => {
+      const auth = build();
+      const confirming = await signUp(auth);
+      const uri = (await call(auth, confirming, '/two-factor/enable', { password: PASSWORD })).body?.totpURI as string;
+      const elsewhere = new Browser();
+
+      await call(auth, elsewhere, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
+      sessionsRevoked.mockRejectedValueOnce(new Error('down'));
+
+      const verified = await call(auth, confirming, '/two-factor/verify-totp', { code: totp(uri) });
+
+      expect(verified.status).toBe(200);
+      expect(verified.body).toMatchObject({ otherSessionsClosed: true });
+      expect(store.user[0]?.twoFactorEnabled).toBe(true);
+      await expect(sessionOf(auth, elsewhere)).resolves.toBeNull();
+      expect(logged.filter(line => line.includes('two_factor_sessions_not_closed') || line.includes('unrecorded'))).toEqual([
+        `sessions_revoked_unrecorded ${JSON.stringify({ scope: 'others', userId: store.user[0]?.id })}`
+      ]);
+    });
+
+    it('adds nothing to the answer of a code typed to sign in', async () => {
+      const auth = build();
+      const { uri } = await withFactor(auth);
+      const signingIn = new Browser();
+
+      await call(auth, signingIn, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
+
+      const verified = await call(auth, signingIn, '/two-factor/verify-totp', { code: nextTotp(uri) });
+
+      expect(verified.status).toBe(200);
+      expect(verified.body).not.toHaveProperty('otherSessionsClosed');
     });
   });
 

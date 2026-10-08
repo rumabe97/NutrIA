@@ -52,7 +52,8 @@ export class SessionGuard implements CanActivate {
       emailVerified: session.user.emailVerified,
       name: session.user.name,
       passwordChangeRequired: (session.user as { passwordCompromisedAt?: Date | string | null }).passwordCompromisedAt != null,
-      role: (session.user as { role?: 'admin' | 'user' }).role ?? 'user'
+      role: (session.user as { role?: 'admin' | 'user' }).role ?? 'user',
+      twoFactorEnabled: (session.user as { twoFactorEnabled?: boolean | null }).twoFactorEnabled === true
     };
 
     return true;

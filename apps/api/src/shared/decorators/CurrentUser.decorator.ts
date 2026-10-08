@@ -13,6 +13,12 @@ export type SessionUser = {
   /** A sign-in found the password breached and it has not been changed since (PLAN 011 phase 2). `PasswordChangeGuard` reads it. */
   readonly passwordChangeRequired: boolean;
   readonly role: 'admin' | 'user';
+  /**
+   * The authenticator app is on (PLAN 011 phase 3); it rides the session's user
+   * row, so it costs no query. `ProfessionalGuard` and `AdminGuard` read it for
+   * the privileged accounts' rule (phase 6).
+   */
+  readonly twoFactorEnabled: boolean;
 };
 
 /** `SessionGuard` is the only writer of this property. */

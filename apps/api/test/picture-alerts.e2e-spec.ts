@@ -18,7 +18,18 @@ import { PictureJudgeClient } from '../src/modules/ai/clients/PictureJudgeClient
 import { PictureStore } from '../src/modules/ai/clients/PictureStore.js';
 import { StubPictureImageClient, StubPictureJudgeClient, StubPictureStore } from '../src/modules/ai/clients/StubPictureClients.js';
 
-import { completeOnboarding, createApp, deleteAccounts, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import {
+  completeOnboarding,
+  createApp,
+  deleteAccounts,
+  enableTotp,
+  generateAndWait,
+  httpServer,
+  POOL,
+  PREFIX,
+  register,
+  ScriptedAiClient
+} from './harness.js';
 
 import type { Account } from './harness.js';
 import type { DrawnPicture } from '../src/modules/ai/clients/PictureImageClient.js';
@@ -312,8 +323,9 @@ describe('the owner is told that dish pictures failed (0072, phase 1)', () => {
       where recipe_id::text = any(${failedLately.map(row => row.recipeId)})`;
 
     admin = await register(silent, `picture-alerts-admin-${stamp}@e2e.invalid`);
-    made.push(admin.cookie);
     await UserController.grantAdmin(admin.email);
+    admin = await enableTotp(silent, admin);
+    made.push(admin.cookie);
 
     // One generation, so the library holds recipes even on a database seeded without any.
     const planner = await register(silent, `picture-alerts-planner-${stamp}@e2e.invalid`);

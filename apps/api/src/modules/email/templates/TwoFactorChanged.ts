@@ -7,12 +7,15 @@ import type { EmailKind, EmailLocale, RenderedEmail } from './Layout.js';
 /** The product's clock: the person reads the hour as it was where the product lives. */
 const TIME_ZONE = 'Europe/Madrid';
 
-/** What happened to the account's second factor (PLAN 011 phase 3). */
+/**
+ * What happened to the account's second factor (PLAN 011 phase 3). Turning it on also closes the account's other
+ * sessions (phase 6); `otherSessionsClosed` is whether that worked, so the mail never says it did when it did not.
+ */
 export type TwoFactorEvent =
   | { readonly kind: 'backup-code-used'; readonly remaining: number }
   | { readonly kind: 'backup-codes-regenerated' }
   | { readonly kind: 'disabled' }
-  | { readonly kind: 'enabled' };
+  | { readonly kind: 'enabled'; readonly otherSessionsClosed: boolean };
 
 const KINDS: Record<TwoFactorEvent['kind'], EmailKind> = {
   'backup-code-used': 'backup-code-used',
@@ -36,6 +39,9 @@ type Copy = {
  * code (N left)", "You generated new backup codes" (PLAN 011 phase 3). Like the password mail: when, roughly from
  * what — a browser and a system family, never an address — and what to do if
  * it was not them, which is to change the password somebody else must know.
+ * Turning it on also asks the person to look at their passkeys: a session
+ * opened with the password alone before the factor went on could have added
+ * one, and closing that session does not remove it.
  * Never the secret, a code, or anything of the account's contents: no word of
  * health (M14), no name, no plan.
  */
@@ -63,7 +69,9 @@ const COPY: Record<EmailLocale, Copy> = {
 
       switch (event.kind) {
         case 'enabled':
-          return `Two-step verification was turned on ${on}. Signing in with the password now also asks for a code from the authenticator app.`;
+          return event.otherSessionsClosed
+            ? `Two-step verification was turned on ${on}. Signing in with the password now also asks for a code from the authenticator app, and every other session of the account was closed. Check your passkeys too, in your profile under Security, and remove any you do not recognise.`
+            : `Two-step verification was turned on ${on}. Signing in with the password now also asks for a code from the authenticator app. We could not close the account's other sessions: close them yourself in your profile, under Security, with “Sign out all the others”, and check your passkeys there too, removing any you do not recognise.`;
         case 'disabled':
           return `Two-step verification was turned off ${on}. Signing in now asks for the password alone.`;
         case 'backup-code-used':
@@ -97,7 +105,9 @@ const COPY: Record<EmailLocale, Copy> = {
 
       switch (event.kind) {
         case 'enabled':
-          return `La verificación en dos pasos ${of} se activó ${at}. Para entrar con la contraseña, ahora también se pide un código de la app de autenticación.`;
+          return event.otherSessionsClosed
+            ? `La verificación en dos pasos ${of} se activó ${at}. Para entrar con la contraseña, ahora también se pide un código de la app de autenticación, y se han cerrado las demás sesiones de la cuenta. Revisa también tus llaves de acceso en tu perfil, en Seguridad, y quita las que no reconozcas.`
+            : `La verificación en dos pasos ${of} se activó ${at}. Para entrar con la contraseña, ahora también se pide un código de la app de autenticación. No hemos podido cerrar las demás sesiones de la cuenta: ciérralas tú en tu perfil, en Seguridad, con «Cerrar todas las demás», y revisa allí también tus llaves de acceso y quita las que no reconozcas.`;
         case 'disabled':
           return `La verificación en dos pasos ${of} se desactivó ${at}. Para entrar, ahora basta con la contraseña.`;
         case 'backup-code-used':
