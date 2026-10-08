@@ -17,8 +17,8 @@ import {
   mealServings,
   meatColour,
   placementGroups,
-  poolAsks,
   POOL_RESERVE,
+  poolAsks,
   proteinPerKgBySlot,
   reserveGroups,
   scaledToMains

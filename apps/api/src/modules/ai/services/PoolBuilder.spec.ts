@@ -6,12 +6,13 @@ import { DISHES_NEEDED_PER_SLOT, FRESH_DISHES_PER_SLOT } from 'core/domain/Varie
 import { toCatalogue } from 'core/entities/Plan';
 
 import { AiCallError } from '../clients/AiClient.js';
-import { DISHES_PER_REQUEST, PoolBuilder, requestSizes, shortfall } from './PoolBuilder.service.js';
+import { DISHES_PER_REQUEST, PoolBuilder, requestSizes, shortfall, spreadAsks } from './PoolBuilder.service.js';
 
 import type { AiClient, AiRequest, AiResponse } from '../clients/AiClient.js';
 import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
 import type { GeneratedPool } from '../prompts/pool.schema.js';
 import type { GenerationContext } from 'core/controllers/Recipe';
+import type { PoolAsk } from 'core/domain/Balance';
 
 const GLUTEN = 'allergen-gluten';
 const MILK = 'allergen-milk';
@@ -1189,6 +1190,126 @@ describe('PoolBuilder — the catalogue each request is shown', () => {
 function dish2(slug: string): CandidateDish {
   return { ...dish(slug, SLOTS), slug };
 }
+
+describe('spreadAsks', () => {
+  const legume: PoolAsk = { count: 6, group: 'legume', heldKinds: ['lentejas'] };
+  const wholeGrain: PoolAsk = { count: 3, group: 'wholeGrain', heldKinds: [] };
+  const oilyFish: PoolAsk = { count: 1, group: 'oilyFish', heldKinds: [] };
+  const groups = (asks: readonly PoolAsk[]) => asks.map(ask => `${ask.count} ${ask.group}`);
+
+  it('deals each lacking group once before any twice, and leaves one dish of three free', () => {
+    expect(spreadAsks([legume, wholeGrain, oilyFish], [3, 3, 1]).map(groups)).toEqual([
+      ['1 legume', '1 wholeGrain'],
+      ['1 oilyFish', '1 legume'],
+      ['1 wholeGrain']
+    ]);
+  });
+
+  it('keeps what an ask says beside its count', () => {
+    expect(spreadAsks([legume], [3])).toEqual([[{ ...legume, count: 2 }]]);
+  });
+
+  it('never asks a later round’s one request for more than a first-round request carries', () => {
+    expect(spreadAsks([legume, wholeGrain, oilyFish], [7]).map(groups)).toEqual([['1 legume', '1 wholeGrain']]);
+  });
+
+  it('asks nothing when nothing lacks, and nothing of a request that asks for nothing', () => {
+    expect(spreadAsks([], [3, 3, 1])).toEqual([[], [], []]);
+    expect(spreadAsks([legume], [])).toEqual([]);
+  });
+});
+
+/**
+ * Prompt 4.7.0 (project 019 phase 7): a whole plan's lunch and dinner
+ * requests say how many of their dishes are of a group the slot's pool
+ * lacks, read off what the pool holds and what the request is shown.
+ */
+describe('PoolBuilder — the food groups a pool lacks', () => {
+  const FISH = 'allergen-fish';
+  const preferences = {
+    avoidNames: [],
+    cookingTimeMinutes: 30,
+    cuisines: [],
+    dietaryPatterns: [],
+    dislikedNames: [],
+    goal: null,
+    likedFoods: [],
+    lovedNames: [],
+    month: 1,
+    slotShares: new Map(),
+    targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
+  };
+  const rows: readonly CatalogueIngredient[] = [
+    ...CATALOGUE,
+    { ...ingredient('lentejas-cocidas'), category: 'protein' },
+    { ...ingredient('arroz-integral-cocido') },
+    { ...ingredient('salmon', [{ allergenId: FISH, presence: 'contains' }]), category: 'protein', classes: ['animal', 'fish'] }
+  ];
+  const withGroups = (overrides?: Partial<GenerationContext['safety']>): GenerationContext => ({
+    ...context(overrides),
+    catalogue: toCatalogue(rows)
+  });
+  const prompts = (generate: jest.Mock) => generate.mock.calls.map(([request]) => (request as AiRequest<unknown>).prompt);
+  const asksIn = (prompt: string) => /\n {2}Of these: (.*)\.\n/.exec(prompt)?.[1] ?? null;
+
+  it('asks the first round’s lunch requests for legumes, whole grain and oily fish, between them', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({ context: withGroups(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
+
+    // The stub answers nothing, so later rounds ask again: the first round is the first calls.
+    const asked = prompts(generate).slice(0, FIRST_ROUND_PER_SLOT).map(asksIn);
+
+    expect(asked.length).toBe(FIRST_ROUND_PER_SLOT);
+    expect(asked.join('; ')).toContain('on legumes (25 g dry a serving)');
+    expect(asked.join('; ')).toContain('on a whole grain');
+    expect(asked.join('; ')).toContain('on an oily fish');
+  });
+
+  it('never asks for fish when the person is allergic to it, since no fish is shown', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({
+      context: withGroups({ allergenIds: new Set([FISH]) }),
+      feature: 'plan',
+      preferences,
+      reusable: [],
+      slots: ['lunch', 'dinner']
+    });
+
+    for (const prompt of prompts(generate)) {
+      expect(prompt).not.toContain('on an oily fish');
+      expect(prompt).not.toMatch(/\bsalmon\b/);
+    }
+  });
+
+  it('asks a slot nothing its pool already holds', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+    const lunch = (slug: string, slugs: readonly string[]) => ({ ...dish(slug, ['lunch'], slugs), slug });
+    const reusable = [
+      ...['a', 'b', 'c', 'd', 'e', 'f'].map(name => lunch(`lentejas-${name}`, ['lentejas-cocidas'])),
+      ...['a', 'b', 'c'].map(name => lunch(`integral-${name}`, ['arroz-integral-cocido'])),
+      lunch('salmon-asado', ['salmon'])
+    ];
+
+    await new PoolBuilder(client).build({ context: withGroups(), feature: 'plan', freshFloorPerSlot: 3, preferences, reusable, slots: ['lunch'] });
+
+    // Six lentil dishes are enough legumes, but one kind: two more kinds asked, and nothing else.
+    expect(asksIn(prompts(generate)[0] ?? '')).toBe('2 on legumes (25 g dry a serving), not lentejas');
+  });
+
+  it('asks a meal swap for no group: it replaces one meal, not the fortnight', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({ context: withGroups(), feature: 'swap', needPerSlot: 3, preferences, reusable: [], slots: ['lunch'] });
+
+    expect(generate).toHaveBeenCalled();
+
+    for (const prompt of prompts(generate)) {
+      expect(asksIn(prompt)).toBeNull();
+    }
+  });
+});
 
 describe('PoolBuilder — telling a broken provider from an absent one', () => {
   const preferences = {

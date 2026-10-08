@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { DEFAULT_MEAL_SHAPE, weightsFor } from 'core/domain/MealShape';
+import { DEFAULT_MEAL_SHAPE, proteinWeightsFor, weightsFor } from 'core/domain/MealShape';
 import { mealCatalogue, offersPulses } from 'core/domain/MealFit';
 import { SERVING_KCAL_CAP } from 'core/domain/Serving';
 
@@ -9,6 +9,7 @@ import type { Goal } from 'core/entities/Profile';
 import type { CatalogueIngredient, IngredientCategory, MealSlot } from 'core/entities/Plan';
 import type { CheckInForGeneration } from 'core/controllers/CheckIn';
 import type { NutritionTargets } from 'core/entities/Nutrition';
+import type { PoolAsk } from 'core/domain/Balance';
 import type { PromptContext } from './PoolPrompt.js';
 
 /** A day whose lunch and dinner sit under their 650 kcal cap (4.6.0), so a brief is the share itself. */
@@ -172,13 +173,29 @@ function devCatalogue(): { readonly rows: readonly CatalogueIngredient[]; readon
 }
 
 /** What the pool builder does for one request: `mealCatalogue` and `offersPulses` over what the person may eat, then the prompt. */
-function builtAsTheBuilderDoes(slot: MealSlot, patterns: readonly string[], rows: readonly CatalogueIngredient[], used: ReadonlySet<string>): string {
+function builtAsTheBuilderDoes(
+  slot: MealSlot,
+  patterns: readonly string[],
+  rows: readonly CatalogueIngredient[],
+  used: ReadonlySet<string>,
+  asks: readonly PoolAsk[] = []
+): string {
   const shown = mealCatalogue(rows, slot, patterns, { month: 1, seed: 'job-1', used });
 
   return buildPoolPrompt(context({ dietaryPatterns: patterns, month: 1, needBySlot: new Map([[slot, 6]]) }), shown, {
+    asks,
     pulses: offersPulses(rows, slot, patterns)
   });
 }
+
+/**
+ * The longest asks a request carries (`spreadAsks`: two dishes of three):
+ * legumes of a kind other than the two the pool holds, and a whole grain.
+ */
+const LONGEST_ASKS: readonly PoolAsk[] = [
+  { count: 1, group: 'legume', heldKinds: ['alubias-blancas', 'garbanzos'] },
+  { count: 1, group: 'wholeGrain', heldKinds: [] }
+];
 
 describe('buildPoolPrompt', () => {
   /**
@@ -519,7 +536,8 @@ describe('buildPoolPrompt', () => {
     const catalogue = [row('tomate', 'produce'), row('merluza', 'protein'), row('arroz', 'pantry')];
 
     it('names the sides the plan sets beside a lunch or a dinner, vegetables and starch among them, and no longer asks for them', () => {
-      const prompt = buildPoolPrompt(person, catalogue);
+      // A lunch past `ACCOMPANIED_FROM_KCAL` takes sides; under it, 4.7.0 says nothing goes beside it.
+      const prompt = buildPoolPrompt({ ...person, targets: { ...person.targets, kcal: 2400 } }, catalogue);
 
       expect(prompt).not.toContain('a plate with bread, fruit or dairy beside it');
       expect(prompt).toContain(
@@ -558,6 +576,122 @@ describe('buildPoolPrompt', () => {
         'LIKES: tomate, merluza',
         'DO NOT REPEAT THESE ALREADY-PROPOSED DISHES: pisto-manchego'
       ]);
+    });
+  });
+
+  /**
+   * 4.7.0 (project 019 phase 7): the food groups a balanced fortnight needs,
+   * asked inside the request already made, and the protein of each meal by
+   * the goal, as the scheduler divides it (`0088`).
+   */
+  describe('a balanced fortnight (4.7.0)', () => {
+    const shape = weightsFor(DEFAULT_MEAL_SHAPE);
+    const total = [...shape.values()].reduce((sum, weight) => sum + weight, 0);
+    const at = (slot: MealSlot, overrides: Partial<PromptContext> = {}, offer?: Parameters<typeof buildPoolPrompt>[2]) =>
+      buildPoolPrompt(context({ needBySlot: new Map([[slot, 3]]), ...overrides }), [], offer);
+
+    it('briefs a muscle-gain breakfast and snacks more of the day’s protein than of its energy, as the scheduler does', () => {
+      const lean = proteinWeightsFor('muscle_gain', shape) ?? shape;
+      const leanTotal = [...lean.values()].reduce((sum, weight) => sum + weight, 0);
+
+      for (const slot of shape.keys()) {
+        const muscle = briefIn(at(slot, { goal: 'muscle_gain' }), slot);
+        const upkeep = briefIn(at(slot, { goal: 'maintenance' }), slot);
+
+        expect(muscle.proteinG).toBe(Math.round((TARGETS.proteinG * (lean.get(slot) ?? 0)) / leanTotal));
+        expect(upkeep.proteinG).toBe(Math.round((TARGETS.proteinG * (shape.get(slot) ?? 0)) / total));
+        // Only the protein moves: the energy and the other figures are the energy's share, whatever the goal.
+        expect({ ...muscle, proteinG: 0 }).toEqual({ ...upkeep, proteinG: 0 });
+      }
+
+      expect(briefIn(at('breakfast', { goal: 'muscle_gain' }), 'breakfast').proteinG).toBeGreaterThan(
+        briefIn(at('breakfast', { goal: 'maintenance' }), 'breakfast').proteinG
+      );
+      expect(briefIn(at('lunch', { goal: 'muscle_gain' }), 'lunch').proteinG).toBeLessThan(
+        briefIn(at('lunch', { goal: 'maintenance' }), 'lunch').proteinG
+      );
+    });
+
+    it('still briefs a muscle-gain day whose meals add up to its protein', () => {
+      const slots = [...shape.keys()];
+      const protein = slots.reduce((sum, slot) => sum + briefIn(at(slot, { goal: 'muscle_gain' }), slot).proteinG, 0);
+
+      expect(Math.abs(protein - TARGETS.proteinG)).toBeLessThanOrEqual(slots.length);
+    });
+
+    it('straddles the goal’s protein, and states it for an event day too', () => {
+      const breakfast = briefIn(at('breakfast', { goal: 'muscle_gain' }), 'breakfast');
+      const loaded = at('breakfast', { goal: 'muscle_gain', loadedTargets: [{ ...TARGETS, carbsG: 300 }] });
+
+      expect(at('breakfast', { goal: 'muscle_gain' })).toContain(`half between ${breakfast.proteinG} and`);
+      expect(loaded).toContain(` · ${breakfast.proteinG} g protein · ${Math.round((300 * (shape.get('breakfast') ?? 0)) / total)} g carbohydrate`);
+    });
+
+    it('asks a lunch for the groups its pool lacks, inside the request, naming the legume kinds it already holds', () => {
+      const prompt = at('lunch', {}, { asks: LONGEST_ASKS, pulses: true });
+
+      expect(prompt).toContain('- lunch: 3 distinct dishes');
+      expect(prompt).toContain('\n  Of these: 1 on legumes (25 g dry a serving), not alubias blancas or garbanzos; 1 on a whole grain.\n');
+      expect(prompt.indexOf('Of these:')).toBeGreaterThan(prompt.indexOf('DISHES NEEDED:'));
+    });
+
+    it('asks a dinner for legumes in the light forms a dinner takes, never stewed, and for oily fish', () => {
+      const prompt = at(
+        'dinner',
+        {},
+        {
+          asks: [
+            { count: 1, group: 'legume', heldKinds: [] },
+            { count: 1, group: 'oilyFish', heldKinds: [] }
+          ],
+          pulses: false
+        }
+      );
+
+      expect(prompt).toContain('Of these: 1 on legumes, light (warm salad, cream, hummus), never stewed; 1 on an oily fish.');
+    });
+
+    it('says nothing of groups when the pool lacks none', () => {
+      expect(at('lunch')).not.toContain('Of these:');
+    });
+
+    it('tells a lunch or a dinner the plan sets no sides beside to carry its own vegetables, and one it does not', () => {
+      // 1,900 kcal: the default lunch is 646 kcal, under `ACCOMPANIED_FROM_KCAL`; at 2,400 it is 816.
+      const alone = at('lunch');
+      const sided = at('lunch', { targets: { ...TARGETS, kcal: 2400 } });
+
+      expect(alone).toContain('Nothing is served beside this meal: the dish carries 150 g of vegetables a serving.');
+      expect(alone).not.toContain('The plan adds sides');
+      expect(sided).toContain('The plan adds sides to lunch and dinner');
+      expect(sided).not.toContain('Nothing is served beside this meal');
+    });
+
+    it('asks breakfast and the snacks for fruit only when neither main meal takes sides', () => {
+      const alone = at('breakfast');
+      const sided = at('breakfast', { targets: { ...TARGETS, kcal: 2400 } });
+
+      expect(alone).toContain('Lunch and dinner come with no sides: 2 of these with 120–150 g of fresh fruit a serving.');
+      // And is not told, two sections above, that the plan adds sides to them.
+      expect(alone).not.toContain('The plan adds sides');
+      expect(alone).toContain('one serving is one plate for one. Prefer half vegetables');
+      expect(sided).toContain('The plan adds sides to lunch and dinner');
+      expect(at('afternoon_snack')).toContain('2 of these with 120–150 g of fresh fruit');
+      expect(sided).not.toContain('fresh fruit a serving');
+      // Never asked of a lunch or a dinner.
+      expect(at('lunch')).not.toContain('fresh fruit a serving');
+    });
+
+    it('tells only a snack how a snack is built', () => {
+      expect(at('afternoon_snack')).toContain('- A snack follows the same split as the day');
+      expect(at('supper')).toContain('- A snack follows the same split as the day');
+      expect(at('lunch')).not.toContain('- A snack follows the same split as the day');
+      expect(at('breakfast')).not.toContain('- A snack follows the same split as the day');
+    });
+
+    it('asks for whole grains over refined, for every goal', () => {
+      for (const goal of [null, 'weight_loss', 'muscle_gain', 'maintenance', 'performance', 'healthy_eating'] as const) {
+        expect(at('dinner', { goal })).toContain('vegetables, legumes, fruit, whole grains over refined.');
+      }
     });
   });
 
@@ -694,6 +828,24 @@ describe('buildPoolPrompt — one meal’s catalogue', () => {
     );
     const after = builtAsTheBuilderDoes('lunch', [], rows, used.get('lunch') ?? new Set());
 
+    expect(after.length / before.length).toBeLessThanOrEqual(0.55);
+  });
+
+  /**
+   * 4.7.0: the group lines go inside the request, under the same budget —
+   * at their longest: every group asked, legumes of another kind than two
+   * named, and a lunch the plan sets no sides beside (the standard day's
+   * lunch is under `ACCOMPANIED_FROM_KCAL`).
+   */
+  it('keeps the standard lunch prompt at most 55% of 3.4.0’s with every group line it can carry', () => {
+    const before = buildPoolPrompt(
+      context({ month: 1 }),
+      rows.map(ingredient => ({ ...ingredient, mealSlots: [], seasonMonths: [] }))
+    );
+    const after = builtAsTheBuilderDoes('lunch', [], rows, used.get('lunch') ?? new Set(), LONGEST_ASKS);
+
+    expect(after).toContain('Nothing is served beside this meal');
+    expect(after).toContain('not alubias blancas or garbanzos');
     expect(after.length / before.length).toBeLessThanOrEqual(0.55);
   });
 

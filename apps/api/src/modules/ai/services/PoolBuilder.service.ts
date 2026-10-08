@@ -5,6 +5,7 @@ import { fitSlots, mealCatalogue, offersPulses, repairSlug } from 'core/domain/M
 import { cleanSteps, methodMentions } from 'core/domain/Method';
 import { breaksDishRule, breaksPatternDish, withinTime } from 'core/domain/Preference';
 import { isOversized, OVERSIZED_FACTOR, servingCap } from 'core/domain/Serving';
+import { poolAsks } from 'core/domain/Balance';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
 import { AI_MODEL_BUDGET, AI_OUTPUT_CAP } from '../ai.config.js';
@@ -19,6 +20,7 @@ import type { AiCallFailure, AiCallRecord, CandidateDish, CatalogueIngredient, D
 import type { GeneratedDish } from '../prompts/pool.schema.js';
 import type { GenerationContext } from 'core/controllers/Recipe';
 import type { LibraryUsage } from 'core/domain/MealFit';
+import type { PoolAsk } from 'core/domain/Balance';
 import type { PromptContext } from '../prompts/PoolPrompt.js';
 
 const MAX_ATTEMPTS = 3;
@@ -288,10 +290,20 @@ export class PoolBuilder {
       // cover the gap, usually after refusals, and multiplying requests into
       // a provider that has just refused is how a rate limit becomes an
       // outage.
+      //
+      // A whole plan's lunch and dinner requests also say how many of their
+      // dishes are of a food group the slot's pool lacks (`poolAsks`, prompt
+      // 4.7.0), read off what the pool holds now, so a later round asks only
+      // for what the first did not bring. A swap asks for one meal, not for
+      // the fortnight's groups.
       const requests = wanted.flatMap(slot => {
         const count = needBySlot.get(slot) ?? 0;
+        const sizes = attempt === 1 ? requestSizes(count) : [count];
+        const asks =
+          feature === 'plan' ? poolAsks([...accepted.values()], slot, context.catalogue, shown.get(slot)?.catalogue ?? []) : [];
+        const spread = spreadAsks(asks, sizes);
 
-        return (attempt === 1 ? requestSizes(count) : [count]).map(size => ({ size, slot }));
+        return sizes.map((size, index) => ({ asks: spread[index] ?? [], size, slot }));
       });
 
       // Which slots a round asks for, in what requests, and how much time it
@@ -311,7 +323,7 @@ export class PoolBuilder {
       // backfill covers the dish it cost.
       const excludeSlugs = [...accepted.keys()];
       const rounds = await Promise.allSettled(
-        requests.map(({ size, slot }) =>
+        requests.map(({ asks, size, slot }) =>
           this.ai.generate({
             feature,
             // A model that writes far more dishes than it was asked for is cut
@@ -321,7 +333,7 @@ export class PoolBuilder {
             prompt: buildPoolPrompt(
               { ...preferences, excludeSlugs, language: languageName(context.locale), needBySlot: new Map([[slot, size]]) },
               shown.get(slot)?.catalogue ?? [],
-              shown.get(slot)?.offer
+              { asks, pulses: shown.get(slot)?.offer.pulses ?? true }
             ),
             schema: wirePoolSchema,
             session,
@@ -802,6 +814,34 @@ function mergeBySlug<T extends { readonly grams: number; readonly slug: string }
 /** A slot's shortfall as the requests that ask for it, largest first: 7 → 3, 3, 1; nothing short → none. */
 export function requestSizes(count: number, size: number = DISHES_PER_REQUEST): readonly number[] {
   return Array.from({ length: Math.ceil(Math.max(count, 0) / size) }, (_unused, index) => Math.min(size, count - index * size));
+}
+
+/**
+ * A slot's asks (`poolAsks`) dealt over its requests, one dish at a time in
+ * turn across the groups — so each lacking group is asked somewhere before
+ * any is asked twice — and never every dish of a request: one of three is
+ * left free for the variety the rest of the prompt asks for, and never more
+ * than a first-round request carries, which bounds the prompt (PRD 005's
+ * 55%). A request of one dish may be asked for one group. What does not fit is left to the next
+ * plan; the scheduler holds the minimums with whatever the pool has.
+ */
+export function spreadAsks(asks: readonly PoolAsk[], sizes: readonly number[]): readonly (readonly PoolAsk[])[] {
+  const queue: PoolAsk[] = [];
+
+  for (let round = 0; asks.some(ask => ask.count > round); round += 1) {
+    queue.push(...asks.filter(ask => ask.count > round));
+  }
+
+  return sizes.map(size => {
+    const taken = queue.splice(0, size > 1 ? Math.min(size, DISHES_PER_REQUEST) - 1 : size);
+    const counts = new Map<PoolAsk, number>();
+
+    for (const ask of taken) {
+      counts.set(ask, (counts.get(ask) ?? 0) + 1);
+    }
+
+    return [...counts].map(([ask, count]) => ({ ...ask, count }));
+  });
 }
 
 /**

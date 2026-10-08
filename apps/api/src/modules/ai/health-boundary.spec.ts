@@ -237,6 +237,25 @@ describe('the free-text and belief boundary around the AI module', () => {
     expect(sent).toContain('arroz');
   });
 
+  /*
+   * 4.7.0's group asks are read off the pool and the catalogue a request is
+   * shown, never off why a group is missing, and say nothing but the group:
+   * no condition, no belief, no word the person typed.
+   */
+  it.each([[[]], [['kosher']], [['gluten_free']], [['vegetarian']]])(
+    'asks only for a food group, in its own words, for a person who eats %j',
+    async patterns => {
+      const sent = await everyRequest(patterns);
+      const asks = [...sent.matchAll(/Of these: ([^\\]*)\./g)].flatMap(match => (match[1] ?? '').split('; '));
+
+      expect(asks.length).toBeGreaterThan(0);
+
+      for (const ask of asks) {
+        expect(ask).toMatch(/^\d+ on (legumes( \(25 g dry a serving\)(, not [a-z ]+)?|, light \(warm salad, cream, hummus\), never stewed)|a whole grain|an oily fish)$/);
+      }
+    }
+  );
+
   it('still carries the structured answers a plan is designed from', async () => {
     const sent = await everyRequest(['vegetarian']);
 
