@@ -90,7 +90,7 @@ Recorded by the lead's direction (2026-10-08); none is a phase of its own yet.
 
 ### Phase 7 — Prompt 4.7.0
 
-- [ ] pending
+- [x] done (2026-10-08; see LOG)
 - **Dispatch**: opus @ high, plus `invariant-reviewer` (AI output).
 - **Covers**: PRD 7.
 - **Steps**:
