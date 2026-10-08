@@ -6,7 +6,7 @@
 > change and the deviation is recorded in LOG.md.
 > **Audience**: agents primarily, humans review. **Committed**: yes.
 
-- **Status**: approved — by the owner, 2026-09-27
+- **Status**: done — closed 2026-10-08 (owner's request; audit in 000-workspace/closing-audit-2026-10-08.md)
 - **Type**: standard
 - **PRD**: [./PRD.md](./PRD.md). Every acceptance criterion is mapped at the end of this file.
 - **Routing profile**: `tiered`. Deviations:
@@ -392,7 +392,7 @@ which supersedes `0010`.
 
 ### Phase 6 — Go-live
 
-- [ ] in progress — live since 2026-09-28; waiting on the first week's spend review and the C2PA check on a served file
+- [x] done — PR #132; live since 2026-09-28; the first week's spend and the C2PA check on a served file done on 2026-10-08 (LOG)
 - **Dispatch**: opus @ medium — `/execute-project 006 phase 6`.
   - `owner-gated`: create the Blob store, set the environment variables, read Google
     Cloud's generative-AI terms, switch the flag on.

@@ -11,7 +11,8 @@
 
 The milestone is met, and has been in production since 2026-09-07.
 
-*Delivered:*
+*Delivered and closed* (the closing audit of 2026-10-08 is in
+[`000-workspace/closing-audit-2026-10-08.md`](./projects/000-workspace/closing-audit-2026-10-08.md)):
 
 - [`001-workspace-kickoff`](./projects/001-workspace-kickoff/) — landing page,
   authentication, the ten-step onboarding, the profile, computed daily targets, the
@@ -19,49 +20,79 @@ The milestone is met, and has been in production since 2026-09-07.
 - [`002-plan-generation`](./projects/002-plan-generation/) — confirmed working end to
   end by the owner against a live database and a real AI provider. Its first
   end-to-end run found a real safety gap in free-text allergies, fixed in `0004`'s
-  amendment.
-- [`003-trust-depth-and-polish`](./projects/003-trust-depth-and-polish/) — all eight
-  phases, logged 2026-09-07: overridable targets, onboarding that resumes and is
-  enforced server-side, a deeper profile (free-text allergens, conditions, medications,
-  supplements), English throughout, and a design pass.
-
-*In progress:*
-
+  amendment. Closed 2026-10-08.
+- [`005-meal-and-season-catalogue`](./projects/005-meal-and-season-catalogue/) — each
+  ingredient names its meals and its season, a dish is served only at the meals its
+  ingredients belong to, and generation runs on paid, no-training models through
+  OpenRouter (#109–#124). Closed 2026-10-08.
 - [`006-realistic-dish-pictures`](./projects/006-realistic-dish-pictures/) — a realistic
   picture of each dish, drawn the first time its meal page is opened, true to the recipe,
-  marked as AI and kept in Vercel Blob (`0066`). The owner asked for it on 2026-09-26;
-  two pilots on 2026-09-27 chose the model and the prompt.
+  marked as AI and kept in Vercel Blob (`0066`; #127–#132). Live since 2026-09-28; the
+  first week cost 3.78 $ against the 10 $ cap, and a served file carries its C2PA
+  manifest. Closed 2026-10-08.
 - [`007-admin-console`](./projects/007-admin-console/) — `/admin` is a console of twelve
   pages in six groups, with its own navigation, server-rendered charts, searchable tables
-  and a 7 / 30 / 90-day period; it still reads nobody (`0068`, `0069`). Asked for by the
-  owner on 2026-09-28; all nine phases shipped (#144–#154) and the owner closed it on
-  2026-09-29. Along the way it surfaced and fixed the oversized AI dishes (`0070`).
+  and a 7 / 30 / 90-day period; it still reads nobody (`0068`, `0069`; #144–#154). Closed
+  by the owner on 2026-09-29. Along the way it surfaced and fixed the oversized AI dishes
+  (`0070`).
 - [`008-console-watches-quality-and-spend`](./projects/008-console-watches-quality-and-spend/) —
   the console watches rather than shows: catalogue and plan quality, text-AI spend against
   a 5 USD cap, an audit log of admin actions, "active" that means used, retention, the
   sweep, crons and mail, consents, and a daily mail to the owner when something is off
-  (`0071`). Asked for by the owner on 2026-09-29; all seven phases and their follow-ups
-  shipped the same day (#155–#163), and the owner closed it on 2026-09-29. Still to do,
-  time-bound: review plan quality and retention with real data from mid-October, compare
-  the text-spend gauge with OpenRouter after a month, and remove the mail-link activation
-  route once its tokens expire (~2026-10-29).
+  (`0071`; #155–#163). Closed by the owner on 2026-09-29. Still to do, time-bound: review
+  plan quality and retention with real data from mid-October, compare the text-spend gauge
+  with OpenRouter after a month, and remove the mail-link activation route once its tokens
+  expire (~2026-10-29).
 - [`009-owner-reviews-rejected-pictures`](./projects/009-owner-reviews-rejected-pictures/) —
   the owner is mailed when dish pictures fail; a picture the judge rejected waits seven days
-  in a private store where only he can see it; and he can publish it against the judge, in
-  two steps and on the record, or take it back (`0072`). Asked for by the owner on
-  2026-09-30; all three phases shipped the same day (#172–#174) and he confirmed the last
-  one by hand.
+  in a private store only the owner can see, and can be published against the judge, in
+  two steps and on the record, or taken back (`0072`; #172–#174). Closed 2026-10-08.
+- [`012-a-plate-a-person-can-eat`](./projects/012-a-plate-a-person-can-eat/) — protein on a
+  reference weight that does not grow with excess body fat, and a hard limit on each
+  plate's share of the day (`0076`; #186).
+- [`013-traditional-spanish`](./projects/013-traditional-spanish/) — traditional Spanish is
+  a way of eating, enforced in code (`0077`; #187, #209). Closed 2026-10-08.
+- [`014-a-plate-that-weighs-what-it-should`](./projects/014-a-plate-that-weighs-what-it-should/) —
+  a gram ceiling per plate, and cooked grains read and bought dry (`0078`; #188). Closed
+  2026-10-08.
+- [`015-a-plan-waits-for-its-day`](./projects/015-a-plan-waits-for-its-day/) — every
+  generation offers a start date, and a plan that starts later waits as `scheduled` while
+  the current one runs (#189, #191). Closed 2026-10-08.
+- [`016-a-spanish-meal`](./projects/016-a-spanish-meal/) — a meal is a dish at a normal
+  serving with accompaniments chosen in code beside it (#190, #192–#197).
+- [`017-every-day-in-band`](./projects/017-every-day-in-band/) — every day within ±5% on
+  all four macros on the reference library (196/196), starch counted and pasta, rice and
+  grains capped (`0081`; #201–#203).
+- [`018-more-accompaniments`](./projects/018-more-accompaniments/) — 39 new accompaniments
+  across the Spanish, Asian, Latin and Arab families (#206, #207). Closed 2026-10-08.
+
+*Open:*
+
+- [`003-trust-depth-and-polish`](./projects/003-trust-depth-and-polish/) — overridable
+  targets, onboarding that resumes and is enforced server-side, a deeper profile, English
+  throughout, and a design pass. All shipped; one owner check is left before it closes:
+  the signed-in screens walked in English, looking for Spanish.
+- [`004-dietitian-workspace`](./projects/004-dietitian-workspace/) — the professional's
+  practice (§ 9 below; #82–#102). All ten phases shipped. Left for the owner: phase 9's
+  check on a phone and a laptop, and the go-live, deferred with payments.
 - [`010-the-judge-knows-a-dishs-own-form`](./projects/010-the-judge-knows-a-dishs-own-form/) —
-  the picture judge stops rejecting a dish's own form — corn-flour pancakes read as wheat
-  ones — for every kind of dish, keeps what it said for the next refinement, and lets any
-  published picture be removed (`0073`, report `0006`). Asked for by the owner on
-  2026-09-30; planned, not started.
+  the picture judge stops rejecting a dish's own form, keeps what it said, and lets any
+  published picture be removed (`0073`; #176–#178, #180, #181). Phase 6, a read-only review of the
+  judge in production, is left; its gate of about 60 new pictures is very likely met.
+- [`011-accounts-are-harder-to-take`](./projects/011-accounts-are-harder-to-take/) —
+  strong passwords, a second factor, passkeys, a sign-in brake and a Content Security
+  Policy (#183–#185, #205, #210, #212–#214, and the hotfix #218). Phase 8 is in #217;
+  phases 7b and 10 are pending.
+- [`019-balanced-plans-by-goal`](./projects/019-balanced-plans-by-goal/) — every plan
+  follows a fortnightly food-group table and every goal gets what it needs, with every day
+  still within ±5%. Phase 1 shipped (#215); phases 2–3 are shipping (#216, #224); phases
+  4–7 are next.
 
-The end-to-end suites stand at 14 suites and 88 tests, run against a throwaway database
-with a scripted model (`apps/api/test/README.md`), and on every pull request against a
-Postgres container that dies with the job.
+The end-to-end suites stand at 49 suites, run against a throwaway database with a
+scripted model (`apps/api/test/README.md`), and on every pull request against a Postgres
+container that dies with the job.
 
-Nothing here is blocked on the owner any more. The environment this section used to
+The environment this section used to
 list as missing — a Neon project, a session secret, the migration, the seed, an AI
 key — has been in place since 2026-09-07, and `docs/reference/deployment.md` is where
 that setup lives now rather than here.

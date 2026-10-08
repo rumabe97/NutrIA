@@ -6,7 +6,7 @@
 > `/plan-project`, from the owner's brief of 2026-10-01; approved by the owner.
 > Write repo-relative: no absolute paths, no references to other private repos.
 
-- **Status**: approved
+- **Status**: done — closed 2026-10-08 (owner's request; audit in 000-workspace/closing-audit-2026-10-08.md)
 - **Roadmap item**: none — a quick project at the owner's request, from a real user's complaints
 
 ## Problem
@@ -106,6 +106,9 @@ A dish with no stated cuisine, or "mediterránea", passes on its ingredients alo
 7. **Legal and docs.** `/privacidad` and the consent texts do not change, because the model does not receive the pattern (`legal` confirmed the consent finding; owner decision 2026-10-01). Decision `0077` records the definition and the lists, and `docs/ARCHITECTURE.md` mentions the pattern.
 
 ## Added 2026-10-01 (owner): a plan can start on a chosen day
+
+> **Superseded** by [project 015](../015-a-plan-waits-for-its-day/PRD.md), which offers the
+> start date on every generation (#189, #191). Criterion 8 below is kept as written.
 
 The owner was asked for this: when a plan is made, it should not have to start at once, so the person can shop for it first. The owner chose the simple version.
 

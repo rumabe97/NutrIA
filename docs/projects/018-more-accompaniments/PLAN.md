@@ -5,7 +5,7 @@
 > **Audience**: agents primarily, humans review. **Committed**: yes. **Written by**: the
 > lead via `/plan-project`; approved by the owner's delegation of 2026-10-03.
 
-- **Status**: delivered (2026-10-03)
+- **Status**: done — delivered 2026-10-03, closed 2026-10-08 (owner's request; audit in 000-workspace/closing-audit-2026-10-08.md)
 - **Type**: standard
 - **PRD**: ./PRD.md
 - **Routing profile**: tiered
@@ -20,7 +20,7 @@ Starts after project 017 is merged, since 017 changes the scheduler these sides 
 
 ### Phase 1 — The batch, drafted
 
-- [x] done (2026-10-03) — report `0009`, 42 entries, 39 accepted (LOG)
+- [x] done (2026-10-03, PR #206) — report `0009`, 42 entries, 39 accepted (LOG)
 - **Dispatch**: opus @ high — `architect` — `/execute-project 018 phase 1`.
 - **Covers**: PRD criteria 1 and 2 (the design side).
 - **Steps**:
@@ -38,7 +38,7 @@ Starts after project 017 is merged, since 017 changes the scheduler these sides 
 
 ### Phase 2 — Missing ingredients
 
-- [x] done (2026-10-03) — scope as the LOG's phase 1 review set it: celery links on the broths (migration 0058, after project 011's 0057) and the side threshold; no missing ingredient
+- [x] done (2026-10-03, PR #206) — scope as the LOG's phase 1 review set it: celery links on the broths (migration 0058, after project 011's 0057) and the side threshold; no missing ingredient
 - **Dispatch**: opus @ medium — `backend` plus `migration-reviewer` (opus @ high) — `/execute-project 018 phase 2`. Skipped, with a LOG line, if phase 1 lists none.
 - **Covers**: PRD criterion 2.
 - **Steps**:
@@ -52,7 +52,7 @@ Starts after project 017 is merged, since 017 changes the scheduler these sides 
 
 ### Phase 3 — The entries, live
 
-- [x] done (2026-10-03) — 39 entries; each role pruned to its six best portions before the sets are built (time −2.8 % against phase 2, +32 % unpruned); foreign-only sides out of the `traditional_spanish` larder; see the LOG
+- [x] done (2026-10-03, PR #207) — 39 entries; each role pruned to its six best portions before the sets are built (time −2.8 % against phase 2, +32 % unpruned); foreign-only sides out of the `traditional_spanish` larder; see the LOG
 - **Dispatch**: opus @ medium — `backend` and `frontend` (web phrases), `plan-evaluator` — `/execute-project 018 phase 3`.
 - **Covers**: PRD criteria 1, 3, 4 and 5.
 - **Steps**:
