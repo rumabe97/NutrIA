@@ -255,3 +255,18 @@
 - **Deviations from plan**: the pass runs after the day is sized instead of pricing the lack inside the day's search (`0087`, alternatives).
 - **Not met**: PRD 5's "vegetables at every main" holds on 4 of 140 plans (74 at 80% of mains). Profiles whose meals take no accompaniments (patron-kosher, patron-sin-gluten, bajo-3-comidas, imc-alto-2-comidas in part) are unchanged: their per-meal budgets are under `ACCOMPANIED_FROM_KCAL`, or no set closes the lack inside the bands. A swap (`pickReplacement`) composes its set by fit and does not read the lack.
 - **Notes for the next phase**: phase 6 moves protein per meal and so which plates the bands need. Whole-grain bread preference and `pickReplacement` reading `sideLack` are open.
+
+## Phase 6 — Protein per meal by goal (2026-10-08)
+
+- **Executor**: Opus 5.5 (agent `backend`).
+- **Result**: done for the scheduler; the prompt's per-slot protein (`briefFor`) is left to phase 7.
+- **What changed**: `proteinWeightsFor` (`core/domain/MealShape`) and an optional `SchedulerInput.proteinWeights`: for `muscle_gain` the breakfast and supper carry 1.5 times and the snacks 2 times their energy share of the day's protein; every other goal splits the protein as the energy. `slotBudgets` divides the protein by those weights and the rest by the energy's. Generation and the event rebuild pass it from the goal; the evaluator too. Decision `0088`.
+- **Evidence** (871 recipes, `--rotate 10`; before = `019-u3-*` and `019-t1-*`, after = `019-v1-*`):
+  - **objetivo-alto-5-comidas, accompaniments on, g/kg a meal (mean, lowest of the fortnight's meals)**: breakfast 0.42 (0.22) → 0.46 (0.21); morning snack 0.15 (0.09) → 0.17 (0.09); afternoon snack 0.16 (0.08) → 0.21 (0.07); lunch 0.60 → 0.55; dinner 0.56 → 0.51.
+  - **Score by goal, on**: muscle gain 69 → 77; the other four unchanged (62, 67, 69, 65). Off: all five unchanged (66, 62, 64, 65, 58).
+  - **Days in band**: 1,958 off and 1,960 on, as before. 0 allergens.
+  - **Time**: 44,497 → 44,847 ms off (+1%), 60,713 → 56,752 on (run noise).
+  - Specs: `proteinWeightsFor` and a plan whose breakfast carries more protein for muscle gain than for maintenance; core green, gate `--full` green.
+- **Criterion 6**: the mean breakfast is 0.46 g/kg, above 0.3, in every muscle-gain plan; the lowest breakfast of a fortnight is not (0.21): some days have no breakfast that carries it inside the bands. The report's metric (every meal at 0.4 g/kg) is not met: lunch and dinner average 0.55 and 0.51, breakfast 0.46, the snacks 0.17 and 0.21.
+- **Deviations from plan**: `briefFor` is not changed (decision `0088`, alternatives): the prompt version moves in phase 7. The report's 0.25 g/kg minimum for the other goals is not built.
+- **Notes for the next phase**: phase 7 asks the generator for protein snacks and breakfasts and moves `briefFor` with the version; `proteinWeightsFor` is the function it reads.

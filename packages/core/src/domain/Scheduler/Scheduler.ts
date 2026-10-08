@@ -667,6 +667,8 @@ export type SchedulerInput = {
    */
   readonly placed?: readonly Placement[];
   readonly pool: readonly CandidateDish[];
+  /** Each slot's share of the day's protein when it is not its share of the energy (`proteinWeightsFor`, `0088`). */
+  readonly proteinWeights?: ReadonlyMap<MealSlot, number>;
   readonly targets: NutritionTargets;
   /** Each eaten slot's share of the day, unnormalised — see `weightsFor` (`0036`). */
   readonly weights: ReadonlyMap<MealSlot, number>;
@@ -713,7 +715,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
     input.catalogue,
     days,
     slots.filter(slot => MAIN_SLOTS.has(slot)).length,
-    sizedAt(perServing, slotBudgets(input.weights, targetsOn(input, indexes[0] ?? 1), input.accompaniments !== undefined))
+    sizedAt(perServing, slotBudgets(input.weights, targetsOn(input, indexes[0] ?? 1), input.accompaniments !== undefined, input.proteinWeights))
   );
   // Which lunches and dinners owe which minimum (`floorCalendar`, `0085`).
   const kinds: KindRules = { ...planned, calendar: floorCalendar(planned.floors, slots, indexes, input.placed ?? []) };
@@ -729,7 +731,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
     // Per day rather than once: a day that eats for an event has its own targets
     // (`0043`), and the budgets are what turn targets into a plate.
     const targets = targetsOn(input, dayIndex);
-    const budgets = slotBudgets(input.weights, targets, input.accompaniments !== undefined);
+    const budgets = slotBudgets(input.weights, targets, input.accompaniments !== undefined, input.proteinWeights);
 
     const picks: { base: PerServing; dish: CandidateDish; servings: number; slot: MealSlot; sortOrder: number }[] = [];
 
@@ -1121,8 +1123,14 @@ export function axisFilter(
  * because validation never checked the split either. Found on a real plan, not
  * in a test (`0045`).
  */
-function slotBudgets(weights: ReadonlyMap<MealSlot, number>, targets: NutritionTargets, flatGrams = false): ReadonlyMap<MealSlot, SlotBudget> {
+function slotBudgets(
+  weights: ReadonlyMap<MealSlot, number>,
+  targets: NutritionTargets,
+  flatGrams = false,
+  proteinWeights: ReadonlyMap<MealSlot, number> = weights
+): ReadonlyMap<MealSlot, SlotBudget> {
   const total = [...weights.values()].reduce((sum, weight) => sum + weight, 0) || 1;
+  const proteinTotal = [...proteinWeights.values()].reduce((sum, weight) => sum + weight, 0) || 1;
 
   return new Map(
     [...weights].map(([slot, weight]) => [
@@ -1133,7 +1141,7 @@ function slotBudgets(weights: ReadonlyMap<MealSlot, number>, targets: NutritionT
         // With accompaniments on, the flat ceiling again — see `SlotBudget.gramsMax`.
         ...(flatGrams ? { gramsMax: PLATE_GRAMS_MAX[slot] } : {}),
         kcal: (targets.kcal * weight) / total,
-        proteinG: (targets.proteinG * weight) / total
+        proteinG: (targets.proteinG * (proteinWeights.get(slot) ?? weight)) / proteinTotal
       }
     ])
   );
@@ -3517,7 +3525,7 @@ export function bandNeededExceptions(input: SchedulerInput, assignment: PlanAssi
     input.catalogue,
     planDays,
     slots.filter(slot => MAIN_SLOTS.has(slot)).length,
-    sizedAt(perServing, slotBudgets(input.weights, targetsOn(input, first), accompanied))
+    sizedAt(perServing, slotBudgets(input.weights, targetsOn(input, first), accompanied, input.proteinWeights))
   );
   const seasonal = seasonFor(input);
   const sidesOn = sidesFor(input.accompaniments, new Map());
@@ -3526,7 +3534,7 @@ export function bandNeededExceptions(input: SchedulerInput, assignment: PlanAssi
     const targets = targetsOn(input, day.dayIndex);
 
     return {
-      budgets: slotBudgets(input.weights, targets, accompanied),
+      budgets: slotBudgets(input.weights, targets, accompanied, input.proteinWeights),
       dayIndex: day.dayIndex,
       picks: day.meals.flatMap(meal => {
         const dish = byslug.get(meal.dish.slug);

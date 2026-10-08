@@ -79,7 +79,7 @@ import { BALANCE_RULES, balanceOf, balanceSupply, mealGroups, mealServings, prot
 import { larderFor } from 'core/domain/Accompaniment';
 import { SafetyController } from 'core/controllers/Safety';
 import { cuisineFamily, dishGroups, groupFits, isSnackOrBreakfastDish, outOfSeasonFruit } from 'core/domain/MealFit';
-import { DEFAULT_MEAL_SHAPE, shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
+import { DEFAULT_MEAL_SHAPE, proteinWeightsFor, shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { loadedTargets } from 'core/domain/Event';
 import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
 import { isBlocking, PLAN_TOLERANCE, planBandMiss, validatePlan } from 'core/domain/PlanValidation';
@@ -486,7 +486,10 @@ function planInputs(profile, context, options) {
     ? { larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }), monthOf }
     : undefined;
 
-  return { accompaniments, dayTargets, monthOf, slots, targets, weights };
+  // The protein split by the person's goal (019 phase 6, `0088`): their own, as generation passes it.
+  const proteinWeights = proteinWeightsFor(profile.target.goal, weights);
+
+  return { accompaniments, dayTargets, monthOf, proteinWeights, slots, targets, weights };
 }
 
 /** Every declared allergen on a plate of the plan, re-checked meal by meal as `PlanGenerationService.assertPlanIsSafe` does. */
@@ -529,7 +532,7 @@ async function measureProfile(profile, shared, options) {
     return { measured: false, note: inputs.note, slug: profile.slug };
   }
 
-  const { accompaniments, dayTargets, monthOf, slots, targets, weights } = inputs;
+  const { accompaniments, dayTargets, monthOf, proteinWeights, slots, targets, weights } = inputs;
 
   const pool = await RecipeController.reusablePool(slots, context);
   // What the library can serve each meal for this person, after `fitSlots`
@@ -553,6 +556,7 @@ async function measureProfile(profile, shared, options) {
     minimumKcal: minimumDailyKcal(profile.target.sex),
     monthOf,
     pool,
+    proteinWeights,
     targets,
     weights
   });
@@ -1120,7 +1124,7 @@ async function measureRotations(profile, shared, options) {
     return { measured: false, note: inputs.note, slug: profile.slug };
   }
 
-  const { accompaniments, dayTargets, monthOf, slots, targets, weights } = inputs;
+  const { accompaniments, dayTargets, monthOf, proteinWeights, slots, targets, weights } = inputs;
   // The person's whole filtered library: the full-library rescue, the tail of the
   // uncapped rotation, and what decides which rules apply to them.
   const everything = await RecipeController.reusablePool(slots, context);
@@ -1132,6 +1136,7 @@ async function measureRotations(profile, shared, options) {
     minimumKcal: minimumDailyKcal(profile.target.sex),
     monthOf,
     pool,
+    proteinWeights,
     targets,
     weights
   });

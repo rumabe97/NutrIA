@@ -83,7 +83,7 @@ Recorded by the lead's direction (2026-10-08); none is a phase of its own yet.
 
 ### Phase 6 — Protein per meal by goal
 
-- [ ] pending
+- [x] done (2026-10-08; see LOG)
 - **Dispatch**: opus @ medium.
 - **Covers**: PRD 6.
 - **Steps**: per-slot protein weights in `slotBudgets` and `briefFor` by goal.
