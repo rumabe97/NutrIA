@@ -8,7 +8,7 @@
 > planner agent via `/plan-project`; approved by the owner before execution starts.
 > Write repo-relative: no absolute paths, no references to other private repos.
 
-- **Status**: approved
+- **Status**: done — closed 2026-10-08 (owner's request; audit in 000-workspace/closing-audit-2026-10-08.md)
 - **Type**: standard
 - **PRD**: ./PRD.md
 - **Routing profile**: tiered
@@ -40,7 +40,7 @@
 
 ### Phase 1 — The gram ceiling and dry weights, end to end
 
-- [x] done
+- [x] done — PR #188
 - **Dispatch**: opus @ medium — `/execute-project 014 phase 1`, run as `/team`:
   - `backend` (opus · medium): items 1–2, 4, the core half of 3, and 5;
   - `frontend` (sonnet · medium): the web half of 3;
