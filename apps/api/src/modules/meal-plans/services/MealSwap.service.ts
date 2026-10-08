@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { dishSafety, normaliseForMatching } from 'core/domain/Safety';
 import { accompanimentRows, larderFor } from 'core/domain/Accompaniment';
+import { placementGroups } from 'core/domain/Balance';
 import { buildShoppingList } from 'core/domain/ShoppingList';
 import { axisFilter, pickReplacement } from 'core/domain/Scheduler';
 import { minimumDailyKcal } from 'core/domain/Nutrition';
@@ -112,10 +113,18 @@ export class MealSwapService {
     }
 
     // The rest of the plan, as the variety rules see it: the meal being replaced
-    // is out, so its own dish may not come straight back into the same slot.
+    // is out, so its own dish may not come straight back into the same slot. Its
+    // groups as served, for the maximums of PRD 019 (`heldMaximums`).
     const placed: Placement[] = meals
       .filter(meal => meal.id !== mealId)
-      .map(meal => ({ dayIndex: meal.dayIndex, dishSlug: meal.recipeSlug, legume: meal.legume, slot: meal.slot, starch: meal.starch }));
+      .map(meal => ({
+        dayIndex: meal.dayIndex,
+        dishSlug: meal.recipeSlug,
+        groups: placementGroups(meal.ingredients, context.catalogue),
+        legume: meal.legume,
+        slot: meal.slot,
+        starch: meal.starch
+      }));
     const inPlan = new Set(meals.map(meal => meal.recipeSlug));
     const disliked = new Set(verdicts.disliked.map(dish => dish.slug));
     // The meal's own planned figures are the budget: the day's totals stay where

@@ -64,10 +64,24 @@ function gapBetween(slot: MealSlot, other: MealSlot): number {
   return slot === other ? VARIETY_RULES.minDaysBetweenSameSlot : VARIETY_RULES.minDaysBetween;
 }
 
+/**
+ * The groups of PRD 019's maximums a meal is a serving of, as served (`mealServings`),
+ * and the eggs on it: what a held maximum counts of a meal the pool may not hold.
+ */
+export type PlacementGroups = {
+  readonly eggs: number;
+  readonly fishOrShellfish: boolean;
+  readonly meat: boolean;
+  readonly processed: boolean;
+  readonly redMeat: boolean;
+};
+
 /** Placements made so far, in the order the scheduler made them. */
 export type Placement = {
   readonly dayIndex: number;
   readonly dishSlug: string;
+  /** The meal's groups, when the caller knows them and the pool may not hold the dish — a swap, a rebuild (019 phase 3). */
+  readonly groups?: PlacementGroups;
   /** The dish's legume, the same way (`legumeKind`, `LEGUME_RULES`). */
   readonly legume?: string | null;
   readonly slot: MealSlot;

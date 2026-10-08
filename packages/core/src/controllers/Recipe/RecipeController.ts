@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { fitSlots, libraryUsage, SECOND_CUT_SLOTS } from 'core/domain/MealFit';
 import { hasUsableMethod } from 'core/domain/Method';
 import { rotatePool } from 'core/domain/Variety';
+import { reserveGroups } from 'core/domain/Balance';
 import { bestEffortExclusions, dishSafety, mentionsUnresolvedAllergy } from 'core/domain/Safety';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { ProfileRepository } from '#repositories/Profile';
@@ -973,7 +974,12 @@ export const RecipeController = {
     // Without a rotation every user is handed the whole safe library in the same
     // order, and the deterministic scheduler then hands them the same plan. With
     // one, each user gets their own dozen per slot, minus last fortnight's.
-    return rotation ? rotatePool(usable, slots, rotation) : usable;
+    // A rotation keeps, first, the dishes the fortnight's food groups need
+    // (019 phase 2): legumes of several kinds, fish, whole grain — from what
+    // this person's filters left, never beyond it.
+    return rotation
+      ? rotatePool(usable, slots, rotation, undefined, (inSlot, slot, taken) => reserveGroups(inSlot, slot, context.catalogue, taken))
+      : usable;
   },
 
   async rewriteSteps(recipeId: string, steps: readonly RecipeStep[], stepsVersion: string): Promise<void> {

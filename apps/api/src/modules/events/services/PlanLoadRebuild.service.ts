@@ -14,6 +14,7 @@ import { personToday, ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
 import { SettingsController } from 'core/controllers/Settings';
 import { accompanimentRows, larderFor } from 'core/domain/Accompaniment';
+import { placementGroups } from 'core/domain/Balance';
 
 import type { EventView } from 'core/controllers/Event';
 import type { MealCompositionView } from 'core/controllers/Plan';
@@ -148,6 +149,7 @@ export class PlanLoadRebuildService {
     const placed: Placement[] = kept.map(meal => ({
       dayIndex: meal.dayIndex,
       dishSlug: meal.recipeSlug,
+      groups: placementGroups(meal.ingredients, context.catalogue),
       legume: meal.legume,
       slot: meal.slot,
       starch: meal.starch

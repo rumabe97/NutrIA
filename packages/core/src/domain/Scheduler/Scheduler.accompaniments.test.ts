@@ -156,6 +156,14 @@ const TWO_MEALS: MealShape = { afternoon_snack: 'off', breakfast: 'off', dinner:
 // the spread pass is repaired by a swap sized to them (`repairOutOfBand`). On
 // this toy pool, three meals 4 to 5 days of 14 inside 5% on all four, the two
 // main meals' worst day 15.2% to 14.4%, five meals unchanged at 11.
+// Two moved with 019 phase 3: PRD 019's maximums are held (`heldMaximums`),
+// and on this pool of ten foods the only meat is chicken and an egg dish is
+// counted by the egg, so the caps bite early. Days inside 5% on all
+// four unchanged (5, 11 and 2 of 14). Five meals: worst energy day 10.6% to
+// 5.9%. The two main meals: the worst day trades 10.9% over its carbohydrate
+// for 19.9% over its protein, and days 9 and 14 serve the same three dishes,
+// no repair keeping the day as close to its bands. The reference library is
+// the measure: 196/196 days, off and on, and no identical days.
 describe('the scheduler with accompaniments off — the plans it always made', () => {
   it('three meals, an ordinary target', () => {
     expect(plan(shapeFor(3, false), 1)).toBe('6709f8bdb9c8a4010ad2c40954d61c01926c7c5377b57c81c88753a1eb38b289');
@@ -164,11 +172,11 @@ describe('the scheduler with accompaniments off — the plans it always made', (
   // Moved in 017 phase 2 (group D): the snacks of these shapes are now held to
   // three of a kind a fortnight (`SNACK_RULES`), and every fixture snack is one kind.
   it('five meals, a high target', () => {
-    expect(plan(shapeFor(5, true), 1.8)).toBe('5b1af8e2de89f231cbb62b63b3b9745a401dc5e3589c010521fe724aa07f9224');
+    expect(plan(shapeFor(5, true), 1.8)).toBe('801e3ae9e01b00059acc6f242f731a080264f90ef66baab56f86e91ad096380a');
   });
 
   it('two big main meals and a light snack', () => {
-    expect(plan(TWO_MEALS, 1.1)).toBe('d4356b054cb9cceb516b49097272dd773f65c25e6f2f07043770e25c29672dae');
+    expect(plan(TWO_MEALS, 1.1)).toBe('b4a48021a523eeb7259dc9f7a77aaa697f47c9b21356e2107e00056e2b49d4b0');
   });
 
   it('a swap', () => {
@@ -292,6 +300,54 @@ describe('the scheduler with accompaniments on', () => {
       expect(day.totals.kcal).toBeCloseTo(kcal, 1);
       // A fixture of ten foods, held to a fixture's band.
       expect(Math.abs(day.totals.kcal - scaled(1.1).kcal) / scaled(1.1).kcal).toBeLessThan(0.1);
+    }
+  });
+
+  // A rice beside the plate counts towards the starch rule like the plate's own
+  // (019 phase 3): plates of chicken and vegetables, Japanese, so rice is a
+  // starch the larder offers beside them at every big lunch and dinner — and
+  // 60 g of bread here carries what 50 g of rice does, so a day loses nothing
+  // in its bands by taking the bread instead.
+  const breadLikeRice: Catalogue = toCatalogue([
+    ...plates,
+    ...sides.map(row =>
+      row.slug === 'pan-blanco' ? { ...row, carbsPer100g: 65, fatPer100g: 0.58, fiberPer100g: 1.67, kcalPer100g: 300, proteinPer100g: 5.83 } : row
+    )
+  ]);
+
+  it('holds a rice beside the plate to the starch rule, and moves no day further from its energy', () => {
+    const random = lcg(19);
+    const mains = (['lunch', 'dinner'] as const).flatMap(slot =>
+      Array.from({ length: 24 }, (_none, index) => ({
+        cookMinutes: 10,
+        cuisine: 'japonesa',
+        difficulty: 'easy' as const,
+        ingredients: [
+          { grams: Math.round(120 + random() * 80), slug: 'pollo' },
+          { grams: Math.round(100 + random() * 150), slug: 'verdura' },
+          { grams: Math.round(5 + random() * 10), slug: 'aceite' }
+        ],
+        name: `${slot} ${index}`,
+        prepMinutes: 5,
+        servings: 1,
+        slots: [slot],
+        slug: `${slot}-${index}`,
+        steps: [{ text: 'Cocinar.' }]
+      }))
+    );
+    const assignment = planWithSides(TWO_MEALS, 1.1, diner({ catalogue: breadLikeRice }), [...mains, ...pool(['morning_snack'])]);
+    const riceDays = assignment.days.flatMap(day =>
+      day.meals.filter(meal => (meal.accompaniments ?? []).some(side => side.key.startsWith('arroz'))).map(() => day.dayIndex)
+    );
+
+    expect(riceDays.length).toBeGreaterThan(0);
+    expect(riceDays.length).toBeLessThanOrEqual(4);
+    expect(riceDays.filter((day, index) => index > 0 && day - (riceDays[index - 1] as number) <= 1)).toEqual([]);
+
+    // Plates with no carbohydrate of their own leave two days 12% under their
+    // energy whatever goes beside them; the hold moves none further.
+    for (const day of assignment.days) {
+      expect(Math.abs(day.totals.kcal - scaled(1.1).kcal) / scaled(1.1).kcal).toBeLessThan(0.13);
     }
   });
 
