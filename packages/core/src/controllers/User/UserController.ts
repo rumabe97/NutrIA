@@ -244,6 +244,15 @@ export const UserController = {
   },
 
   /**
+   * A completed password reset proved the mailbox, as the verification link
+   * does (PLAN 011 phase 8): true when the address was unconfirmed until now,
+   * so the caller runs what confirming an address runs.
+   */
+  async confirmAddressByReset(id: string): Promise<boolean> {
+    return UserRepository.confirmAddressByReset(id);
+  },
+
+  /**
    * The daily sweep (`/cron/sweep-verifications`): every expired verification
    * row is deleted, now that Better Auth no longer prunes them on each lookup.
    * Answers how many went.

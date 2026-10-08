@@ -198,8 +198,13 @@ describe('confirming an address', () => {
     const auth = build();
     const stranger = new Browser();
 
+    // Sign-up opens no session (phase 8), and an unconfirmed address cannot sign in with its password.
     expect((await call(auth, stranger, '/sign-up/email', { email: EMAIL, name: 'Nadie', password: STRANGERS_PASSWORD })).status).toBe(200);
-    expect(await signedIn(auth, stranger)).toBe(true);
+    expect(await signedIn(auth, stranger)).toBe(false);
+    expect(store.session).toHaveLength(0);
+    expect((await call(auth, stranger, '/sign-in/email', { email: EMAIL, password: STRANGERS_PASSWORD })).status).toBe(401);
+    expect(await signedIn(auth, stranger)).toBe(false);
+    expect(store.session).toHaveLength(0);
 
     // The owner of the mailbox opens the link, from another device.
     const victim = new Browser();
@@ -209,7 +214,9 @@ describe('confirming an address', () => {
     expect(victim.hasSession()).toBe(false);
     expect(await signedIn(auth, victim)).toBe(false);
     expect(store.user[0]?.emailVerified).toBe(true);
-    // Confirming ends nothing: the reset does.
+    expect(store.session).toHaveLength(0);
+    // The address is confirmed now, so the stranger's password lets them in: the reset is what ends it.
+    expect((await call(auth, stranger, '/sign-in/email', { email: EMAIL, password: STRANGERS_PASSWORD })).status).toBe(200);
     expect(await signedIn(auth, stranger)).toBe(true);
 
     // The password is not theirs, so the owner resets it.

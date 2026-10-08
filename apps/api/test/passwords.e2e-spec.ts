@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 import { hashPassword } from 'better-auth/crypto';
 
+import { UserController } from 'core/controllers/User';
 import { database } from 'database';
 
 import { createApp, deleteAccountByEmail, httpServer, PREFIX, ScriptedAiClient } from './harness.js';
@@ -66,6 +67,13 @@ describe('passwords: the length, and nothing of the account in it', () => {
     sent.push(password);
 
     return request(server()).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name, password });
+  }
+
+  /** A password sign-in, the address confirmed first as its link would: an unconfirmed account cannot sign in (PLAN 011 phase 8). */
+  async function signIn(email: string, password: string, status: number): Promise<Response> {
+    await UserController.confirmAddress(email);
+
+    return request(server()).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password }).expect(status);
   }
 
   async function accountsWith(email: string): Promise<number> {
@@ -236,7 +244,7 @@ describe('passwords: the length, and nothing of the account in it', () => {
       expect(accepted.status).toBe(200);
       expect(await accountsWith(email)).toBe(1);
 
-      await request(server()).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: CLEAN_TWELVE }).expect(200);
+      await signIn(email, CLEAN_TWELVE, 200);
     });
   });
 
@@ -295,7 +303,7 @@ describe('passwords: the length, and nothing of the account in it', () => {
         return request(server()).post(`/${PREFIX}/auth/reset-password`).query({ token: query }).send({ newPassword, token: body });
       };
 
-      const stillOriginal = () => request(server()).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: original }).expect(200);
+      const stillOriginal = () => signIn(email, original, 200);
 
       it('checks the password against the account the query token belongs to when the body token is empty', async () => {
         expectRefusal(await resetWithQuery('quintanilla-quintanilla-1', '', token), 'PASSWORD_HAS_CONTEXT', ['quintanilla']);
@@ -323,8 +331,8 @@ describe('passwords: the length, and nothing of the account in it', () => {
 
       expect(accepted.status).toBe(200);
 
-      await request(server()).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: renewed }).expect(200);
-      await request(server()).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: original }).expect(401);
+      await signIn(email, renewed, 200);
+      await signIn(email, original, 401);
 
       // Spent now, by the reset that went through.
       const again = await reset('another-clean-phrase-2');
@@ -409,7 +417,7 @@ describe('passwords: the length, and nothing of the account in it', () => {
       }
 
       expect(await passwordHash()).toBe(hash);
-      await request(server()).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: original }).expect(200);
+      await signIn(email, original, 200);
     });
   });
 
@@ -443,9 +451,9 @@ describe('passwords: the length, and nothing of the account in it', () => {
     beforeAll(async () => {
       await signUp(email, 'Casilda Ybarra', current).expect(200);
 
-      const signIn = await request(server()).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: current }).expect(200);
+      const signedIn = await signIn(email, current, 200);
 
-      cookie = cookiesOf(signIn);
+      cookie = cookiesOf(signedIn);
     });
 
     // Better Auth allows three changes in ten seconds: these are the three.
@@ -461,7 +469,7 @@ describe('passwords: the length, and nothing of the account in it', () => {
       const accepted = await change('amber-lantern-quietly-7');
 
       expect(accepted.status).toBe(200);
-      await request(server()).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: 'amber-lantern-quietly-7' }).expect(200);
+      await signIn(email, 'amber-lantern-quietly-7', 200);
     });
   });
 
@@ -478,7 +486,7 @@ describe('passwords: the length, and nothing of the account in it', () => {
       // Written on the table: no door sets such a password any more, which is the point.
       await sql()`update account set password = ${await hashPassword(legacy)} where user_id = ${userId} and provider_id = 'credential'`;
 
-      await request(server()).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: legacy }).expect(200);
+      await signIn(email, legacy, 200);
     });
   });
 

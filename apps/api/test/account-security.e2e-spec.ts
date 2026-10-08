@@ -6,7 +6,7 @@ import { UserController } from 'core/controllers/User';
 import { database } from 'database';
 
 import { EmailService } from '../src/modules/email/services/index.js';
-import { activate, createApp, deleteAccountByEmail, httpServer, PREFIX, ScriptedAiClient } from './harness.js';
+import { activate, createApp, deleteAccountByEmail, httpServer, PREFIX, ScriptedAiClient, unconfirmAddress } from './harness.js';
 import { hibpAttempts, hibpTripwireInstalled } from './hibp-tripwire.js';
 
 import type { INestApplication } from '@nestjs/common';
@@ -577,7 +577,13 @@ describe('account security: the password, the sessions, and a password found bre
 
     it('comes after both locks: an unconfirmed address first, then an unopened account, then the mark', async () => {
       const { id, email } = await signUp('irene', 'Irene Gallardo');
+
+      // Signed in confirmed, then put back: an unconfirmed account cannot sign in with its password (PLAN 011 phase 8).
+      await UserController.confirmAddress(email);
+
       const session = await signIn(email);
+
+      await unconfirmAddress(email);
 
       await mark(id);
       expect(code(await get('profile', session.cookie).expect(409))).toBe('EMAIL_NOT_VERIFIED');

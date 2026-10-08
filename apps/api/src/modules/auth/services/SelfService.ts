@@ -3,6 +3,7 @@ import { UserController } from 'core/controllers/User';
 
 import { notifyOwnerOfWaitingAccount } from './AccountWaitingMail.js';
 
+import type { BackgroundTaskService } from '../../../shared/services/index.js';
 import type { EmailService } from '../../email/services/Email.service.js';
 
 /**
@@ -47,10 +48,15 @@ async function activateIfAutomatic(userId: string): Promise<boolean> {
  * sign-up said "an account is waiting" for accounts that were about to open
  * themselves a minute later. This is the moment an account actually lands in
  * the queue, so this is when the queue is worth reporting.
+ *
+ * With `background`, the owner's notice goes after the response and only the
+ * opening is awaited: a password reset must not wait for the owner's mail
+ * (PLAN 011 phase 8), but the next request may already need the account open.
  */
 export async function onAddressConfirmed(
   account: { readonly id: string; readonly email: string },
   deps: {
+    readonly background?: Pick<BackgroundTaskService, 'run'>;
     readonly link: (path: string) => string;
     readonly mailer: Pick<EmailService, 'configured' | 'send'>;
     readonly ownerEmail: string | undefined;
@@ -60,7 +66,13 @@ export async function onAddressConfirmed(
     return 'opened';
   }
 
-  await notifyOwnerOfWaitingAccount(deps.mailer, deps.ownerEmail, deps.link);
+  const notify = async () => notifyOwnerOfWaitingAccount(deps.mailer, deps.ownerEmail, deps.link);
+
+  if (deps.background) {
+    deps.background.run('owner-notified-of-waiting-account', notify);
+  } else {
+    await notify();
+  }
 
   return 'waiting';
 }
