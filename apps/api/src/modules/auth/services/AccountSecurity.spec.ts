@@ -34,11 +34,14 @@ jest.unstable_mockModule('better-auth/adapters/drizzle', () => ({ drizzleAdapter
 jest.unstable_mockModule('better-auth/plugins/haveibeenpwned', () => ({ isPasswordCompromised }));
 jest.unstable_mockModule('database', () => ({ database: () => ({}) }));
 const addressesConfirmed: string[] = [];
+/** Whether each `onAddressConfirmed` was handed somewhere to send the owner's notice after the response. */
+const ownerNoticeLater: boolean[] = [];
 
 jest.unstable_mockModule('./SelfService.js', () => ({
   onAccountCreated: async () => Promise.resolve(),
-  onAddressConfirmed: async ({ email }: { email: string }) => {
+  onAddressConfirmed: async ({ email }: { email: string }, { background }: { background?: unknown }) => {
     addressesConfirmed.push(email);
+    ownerNoticeLater.push(background !== undefined);
 
     return Promise.resolve('waiting');
   }
@@ -185,6 +188,7 @@ describe('what follows a password change, a closed session and a sign-in', () =>
     resetUrls.length = 0;
     mails.length = 0;
     addressesConfirmed.length = 0;
+    ownerNoticeLater.length = 0;
     tasks.length = 0;
     isPasswordCompromised.mockReset();
     isPasswordCompromised.mockResolvedValue(false);
@@ -315,10 +319,9 @@ describe('what follows a password change, a closed session and a sign-in', () =>
       expect((await call(auth, '/reset-password', { body: { newPassword: NEW_PASSWORD, token }, userAgent: IPHONE })).status).toBe(200);
 
       expect(store.user[0]?.emailVerified).toBe(true);
-      // What confirming runs goes after the response: the reset never waits for the owner's mail.
-      expect(addressesConfirmed).toEqual([]);
-      await drain();
+      // The account opens before the answer, the next request may need it; the owner's mail goes after it.
       expect(addressesConfirmed).toEqual([ACCOUNT.email]);
+      expect(ownerNoticeLater).toEqual([true]);
       expect((await signIn(auth, IPHONE, NEW_PASSWORD)).status).toBe(200);
     });
 

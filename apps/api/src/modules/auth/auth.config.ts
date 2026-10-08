@@ -120,9 +120,8 @@ export function createAuth(
       sendTwoFactorRemovalMail(mailer, { appUrl: env.APP_URL, event, to: email, userId: id }),
     resetConfirmation: resetConfirmsAddress({
       addressConfirmed: async account => {
-        await onAddressConfirmed(account, selfService);
-      },
-      background
+        await onAddressConfirmed(account, { ...selfService, background });
+      }
     })
   };
 

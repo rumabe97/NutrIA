@@ -970,10 +970,13 @@
   `revokeSessionsOnPasswordReset` deletes the account's sessions, so confirming there left,
   for a moment, a confirmed address with a session from before the proof. `onPasswordReset`
   now only remembers the account against its request; `hooks.after`, on a 2xx
-  `/reset-password`, confirms it. What confirming runs (the account opens itself, or the
-  owner is told) goes to `BackgroundTaskService`: the reset never waits for that mail. A
-  call through `auth.api` has no request and is confirmed at once. Pinned by
-  `AccountSecurity.spec.ts`: no session is left when the address is confirmed.
+  `/reset-password`, confirms it. What confirming runs splits in two: the account opens
+  itself before the answer, since the next request may need it open; the owner's notice of a
+  waiting account goes to `BackgroundTaskService` (`onAddressConfirmed` takes an optional
+  `background`), so the reset never waits for that mail. The link's own confirmation still
+  sends that notice inline. A call through `auth.api` has no request and is confirmed at
+  once. Pinned by `AccountSecurity.spec.ts` (no session is left when the address is
+  confirmed; the notice is handed to the background) and `SelfService.spec.ts`.
 - **`resetPasswordTokenExpiresIn`** is written out as `MAIL_BUDGET.windowMs / 1000`, as
   `emailVerification.expiresIn` already was; a spec in `SignUp.spec.ts` ties the two.
 - **The reset budget**: four `/request-password-reset` for one address answer 200 four

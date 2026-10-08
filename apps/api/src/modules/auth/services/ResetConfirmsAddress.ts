@@ -2,7 +2,6 @@ import { Logger } from '@nestjs/common';
 
 import { UserController } from 'core/controllers/User';
 
-import type { BackgroundTaskService } from '../../../shared/services/index.js';
 import type { Context } from './PasswordPolicy.js';
 
 const RESET = '/reset-password';
@@ -33,24 +32,22 @@ export type ResetConfirmation = {
  * Auth calls that before `revokeSessionsOnPasswordReset` deletes the account's
  * sessions, and an address must not be confirmed while a session from before
  * the proof is still alive. Confirming it runs what confirming one runs — the
- * account opens itself, or the owner is told — in the background: the reset
- * never waits for the owner's mail.
+ * account opens itself, awaited, since the next request may need it open; or
+ * the owner is told, which `addressConfirmed` sends after the response: the
+ * reset never waits for the owner's mail.
  *
  * Keyed on the request; a call through `auth.api` has none and is confirmed at
  * once, as there is no route after it. A failure leaves the address as it was
  * and one line naming the account only: the password did change, and the next
  * sign-in sends a link.
  */
-export function resetConfirmsAddress(deps: {
-  readonly addressConfirmed: (account: Account) => Promise<void>;
-  readonly background: Pick<BackgroundTaskService, 'run'>;
-}): ResetConfirmation {
+export function resetConfirmsAddress(deps: { readonly addressConfirmed: (account: Account) => Promise<void> }): ResetConfirmation {
   const pending = new WeakMap<Request, Account>();
 
   async function confirm(account: Account): Promise<void> {
     try {
       if (await UserController.confirmAddressByReset(account.id)) {
-        deps.background.run('address-confirmed-by-reset', async () => deps.addressConfirmed(account));
+        await deps.addressConfirmed(account);
       }
     } catch {
       logger.error(`address_not_confirmed_on_reset ${JSON.stringify({ userId: account.id })}`);

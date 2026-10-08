@@ -50,6 +50,19 @@ describe('onAddressConfirmed', () => {
     expect(dependencies.mailer.send).toHaveBeenCalledTimes(1);
   });
 
+  it('opens the account at once but leaves the owner\'s mail to the background when given one', async () => {
+    jest.spyOn(SettingsController, 'automaticActivation').mockResolvedValue(false);
+    const dependencies = deps();
+    const later: ((() => Promise<unknown>) | Promise<unknown>)[] = [];
+    const background = { run: jest.fn((_label: string, work: (() => Promise<unknown>) | Promise<unknown>) => void later.push(work)) };
+
+    await expect(onAddressConfirmed(ACCOUNT, { ...dependencies, background })).resolves.toBe('waiting');
+    expect(dependencies.mailer.send).not.toHaveBeenCalled();
+
+    await Promise.all(later.map(async work => (typeof work === 'function' ? work() : work)));
+    expect(dependencies.mailer.send).toHaveBeenCalledTimes(1);
+  });
+
   it('falls back to waiting, not to an error, when the settings read breaks', async () => {
     jest.spyOn(SettingsController, 'automaticActivation').mockRejectedValue(new Error('no database'));
 
