@@ -9,6 +9,28 @@ import type { EmailService } from '../../email/services/Email.service.js';
 const LINK_TO_LOG: ReadonlySet<Env['NODE_ENV']> = new Set(['development', 'test']);
 
 /**
+ * The web page every confirmation link lands on, whatever the client asked for
+ * at sign-up: it says the address is confirmed and that the next step is to
+ * sign in. Opening the link signs nobody in (`autoSignInAfterVerification` is
+ * off), so landing anywhere that expects a session would be a dead end. Better
+ * Auth sends a refused link (`?error=…`) to the same page, which says so.
+ */
+export const VERIFIED_PAGE = '/verificar-email';
+
+/** The issued link with its `callbackURL` set to `VERIFIED_PAGE`, before `absoluteCallback` puts it on the web's host and language. */
+export function landOnVerifiedPage(url: string): string {
+  try {
+    const parsed = new URL(url);
+
+    parsed.searchParams.set('callbackURL', VERIFIED_PAGE);
+
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
  * Better Auth's `sendVerificationEmail` hook, as a function that can be
  * exercised without standing up Better Auth.
  *
@@ -19,9 +41,9 @@ const LINK_TO_LOG: ReadonlySet<Env['NODE_ENV']> = new Set(['development', 'test'
  *
  * With no mail configured the link goes to the log in development and test:
  * that is what makes sign-up work locally. Nowhere else. The link carries the
- * verification token, and with `autoSignInAfterVerification` on, opening it is
- * a signed-in session for that account — so on any other host the line says a
- * confirmation was due and nothing more.
+ * verification token: opening it confirms the address, and may open the
+ * account (`0031`), though it signs nobody in — so on any other host the line
+ * says a confirmation was due and nothing more.
  *
  * Which host this is comes from the validated `Env` the caller holds, never
  * from `process.env`. `Env.validation.ts` refuses to boot a production
@@ -41,7 +63,7 @@ export async function sendVerificationMail(
   }: { acceptLanguage: string | null; appUrl: string; nodeEnv: Env['NODE_ENV']; to: string; url: string; userId: string }
 ): Promise<void> {
   const locale = await recipientLocale(userId, acceptLanguage);
-  const url = absoluteCallback(issued, appUrl, locale);
+  const url = absoluteCallback(landOnVerifiedPage(issued), appUrl, locale);
 
   if (!mailer.configured) {
     console.info(
