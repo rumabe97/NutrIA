@@ -50,7 +50,7 @@ describe('onAddressConfirmed', () => {
     expect(dependencies.mailer.send).toHaveBeenCalledTimes(1);
   });
 
-  it('opens the account at once but leaves the owner\'s mail to the background when given one', async () => {
+  it("opens the account at once but leaves the owner's mail to the background when given one", async () => {
     jest.spyOn(SettingsController, 'automaticActivation').mockResolvedValue(false);
     const dependencies = deps();
     const later: ((() => Promise<unknown>) | Promise<unknown>)[] = [];

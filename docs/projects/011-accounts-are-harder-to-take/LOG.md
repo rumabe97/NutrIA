@@ -1058,3 +1058,21 @@
   `auth.signUpSent` and `auth.signUpSentInstalled` (es/en) say: open the link, confirm the
   address, then sign in. `socialNotLinked` takes #218's copy (an account that signs in with a
   password), since implicit linking is now off whether the address is confirmed or not.
+
+## Phase 8 — the delta review, and what stays open (2026-10-08)
+
+- **Delta review of #217 passed**: no P0 or P1. Its two P3s are fixed: a reset with no
+  request (an `auth.api` call) confirms nothing, since only the after-hook runs once the
+  sessions are gone (`ResetConfirmsAddress.ts`, pinned by its spec); and `apps/api/AGENTS.md`
+  § Security invariants carries a "Sign-up reveals nothing" bullet. `EmailVerification.spec.ts`
+  (from #218) now plays phase 8's order: no session at sign-up, 401 before confirmation,
+  none from the link, the stranger's password working only once the address is confirmed,
+  and the reset ending it.
+- **Known residual, not fixed here**: the TOTP lockout through a stranger's factor (P2) —
+  PLAN, "Follow-up — A reset does not clear a second factor a stranger turned on". Phase 8
+  narrows it without closing it: the stranger can no longer sign in, so cannot turn a factor
+  on, before the address is confirmed; but between the owner's opening the link and their
+  reset, the stranger's password works and the factor can be turned on. The owner is then
+  locked out, not exposed, until the 48-hour removal (phase 4).
+- CI's `api#format` failure on a6ccac1b (`SelfService.spec.ts`) fixed with Prettier; main
+  (#223) merged.
