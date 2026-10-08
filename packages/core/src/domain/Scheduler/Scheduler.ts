@@ -804,7 +804,15 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
 
   const spread = spreadAcrossDays(built, input.placed ?? [], proteins, kinds, seasonal, input.minimumKcal, sidesOn);
   const repaired = repairOutOfBand(spread, input, input.placed ?? [], perServing, { cap, kinds, proteins, seasonal }, sidesOn);
-  const floored = meetFloors(repaired, input, input.placed ?? [], perServing, kinds, seasonal, sidesOn);
+  const floored = meetCaps(
+    meetFloors(repaired, input, input.placed ?? [], perServing, kinds, seasonal, sidesOn),
+    input,
+    input.placed ?? [],
+    perServing,
+    kinds,
+    seasonal,
+    sidesOn
+  );
   const distinct = holdSideStarches(
     enforceDistinctDays(floored, input, input.placed ?? [], proteins, cap, kinds, seasonal, sidesOn),
     input,
@@ -3082,6 +3090,12 @@ function repairOutOfBand(
 /** Candidates `meetFloors` sizes for one day, after the cheap screen. */
 const FLOOR_SHORTLIST = 24;
 
+/** The same for `meetCaps`, which asks every day with a broken group and so keeps it shorter. */
+const CAP_SHORTLIST = 12;
+
+/** Swaps `meetCaps` may make: a fortnight breaks a cap by a handful of meals, eggs by the egg a few more. */
+const MAX_CAP_SWAPS = 16;
+
 /**
  * The last word on PRD 019's minimums (019 phase 4, `0085`): after the days
  * are laid out, sized and repaired, a plan still short of the legumes, fish or
@@ -3109,35 +3123,77 @@ function meetFloors(
   seasonal: Seasonal,
   sidesOn?: (dayIndex: number) => Sides
 ): readonly BuiltDay[] {
-  if (kinds.floors.length === 0) {
-    return days;
-  }
+  return kinds.floors.length === 0 ? days : repairToRule('floors', days, input, fixed, perServing, kinds, seasonal, sidesOn);
+}
 
+/**
+ * The mirror of `meetFloors` (019 phase 5a, `0086`): a plan still past one of
+ * PRD 019's maximums takes a dish outside the broken group, one lunch or
+ * dinner at a time, under the same conditions — the plan's total excess falls,
+ * no other rule gets worse (the minimums included), and the day stays as
+ * inside its bands as it was. A maximum the bands needed stays broken, and
+ * `bandNeededExceptions` counts it.
+ */
+function meetCaps(
+  days: readonly BuiltDay[],
+  input: SchedulerInput,
+  fixed: readonly Placement[],
+  perServing: ReadonlyMap<string, PerServing>,
+  kinds: KindRules,
+  seasonal: Seasonal,
+  sidesOn?: (dayIndex: number) => Sides
+): readonly BuiltDay[] {
+  return kinds.maximums.length === 0 ? days : repairToRule('maximums', days, input, fixed, perServing, kinds, seasonal, sidesOn);
+}
+
+/** What a plan owes the rules `repairToRule` weighs: the minimums' shortfall, and the excess of the maximums, the held rules and the priced ones. */
+type RuleMetrics = { readonly checks: number; readonly floors: number; readonly held: number; readonly maximums: number };
+
+function repairToRule(
+  goal: 'floors' | 'maximums',
+  days: readonly BuiltDay[],
+  input: SchedulerInput,
+  fixed: readonly Placement[],
+  perServing: ReadonlyMap<string, PerServing>,
+  kinds: KindRules,
+  seasonal: Seasonal,
+  sidesOn?: (dayIndex: number) => Sides
+): readonly BuiltDay[] {
   const current = [...days];
   const placementsOf = (day: BuiltDay, picks: readonly Pick[] = day.picks): Placement[] =>
     picks.map(pick => ({ dayIndex: day.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }));
   const planOf = (without?: BuiltDay): Placement[] => [...fixed, ...current.flatMap(day => (day === without ? [] : placementsOf(day)))];
-  const shortfallOf = (placements: readonly Placement[]): number =>
-    kinds.floors.reduce((sum, floor) => sum + Math.max(0, floor.floor - floorCount(floor, placements)), 0);
+  const metricsOf = (placements: readonly Placement[]): RuleMetrics => ({
+    checks: kindsExcess(placements, kinds.checks, kinds.days),
+    floors: kinds.floors.reduce((sum, floor) => sum + Math.max(0, floor.floor - floorCount(floor, placements)), 0),
+    held: pastHeld(placements, kinds),
+    maximums: kindsExcess(placements, kinds.maximums, kinds.days)
+  });
   const missOf = (picks: readonly Pick[], day: BuiltDay): number =>
     bandMiss(deliveredTotals(picks), day.targets) + floorMiss(deliveredKcal(picks), input.minimumKcal);
+  // The days a round found nothing for are not asked again: a plan that cannot be repaired costs a round, not a round a swap.
+  const exhausted = new Set<BuiltDay>();
 
-  for (let swaps = 0; swaps < MAX_FLOOR_SWAPS; swaps += 1) {
+  for (let swaps = 0; swaps < (goal === 'floors' ? MAX_FLOOR_SWAPS : MAX_CAP_SWAPS); swaps += 1) {
     const all = planOf();
-    const before = shortfallOf(all);
+    const before = metricsOf(all);
 
-    if (before === 0) {
+    if (before[goal] === 0) {
       break;
     }
 
     const short = kinds.floors.filter(floor => floorCount(floor, all) < floor.floor);
-    const heldBefore = pastHeld(all, kinds);
-    const checksBefore = kindsExcess(all, kinds.checks, kinds.days);
-    const maximumsBefore = kindsExcess(all, kinds.maximums, kinds.days);
-    // The days that owe a group they lack go first, then the rest in order.
+    const broken = kinds.maximums.filter(check => kindsExcess(all, [check], kinds.days) > 0);
+    // A meal of a broken group: what a repair of the maximums takes out.
+    const inBroken = (pick: Pick): boolean =>
+      broken.some(check => countsFor(check, pick.dish.slug, pick.slot) && check.index.get(pick.dish.slug) !== null);
+    // The days that owe a group they lack, or serve the most of a broken one, go first.
+    const weight = (day: BuiltDay): number =>
+      goal === 'floors' ? floorLack(kinds, day.dayIndex, day.picks) : day.picks.filter(pick => MAIN_SLOTS.has(pick.slot) && inBroken(pick)).length;
     const order = current
-      .map((day, position) => ({ lack: floorLack(kinds, day.dayIndex, day.picks), position }))
-      .sort((a, b) => b.lack - a.lack || a.position - b.position);
+      .map((day, position) => ({ position, weight: weight(day) }))
+      .filter(entry => !exhausted.has(current[entry.position] as BuiltDay) && (goal === 'floors' || entry.weight > 0))
+      .sort((a, b) => b.weight - a.weight || a.position - b.position);
     let made = false;
 
     for (const { position } of order) {
@@ -3147,7 +3203,7 @@ function meetFloors(
       const screened: { readonly quick: number; readonly swapped: Pick[] }[] = [];
 
       for (const [index, pick] of day.picks.entries()) {
-        if (!MAIN_SLOTS.has(pick.slot)) {
+        if (!MAIN_SLOTS.has(pick.slot) || (goal === 'maximums' && !inBroken(pick))) {
           continue;
         }
 
@@ -3167,7 +3223,7 @@ function meetFloors(
             !base ||
             candidate.slug === pick.dish.slug ||
             !candidate.slots.includes(pick.slot) ||
-            !short.some(floor => floor.has.get(candidate.slug)) ||
+            (goal === 'floors' && !short.some(floor => floor.has.get(candidate.slug))) ||
             !fitsPlate(base, budget, pick.slot) ||
             !seasonal(candidate.slug, day.dayIndex) ||
             !canPlace(candidate.slug, pick.slot, day.dayIndex, rest)
@@ -3179,7 +3235,7 @@ function meetFloors(
             at === index ? { ...entry, base, dish: candidate, servings: servingsFor(base, budget, pick.slot), set: undefined } : entry
           );
 
-          if (shortfallOf([...others, ...placementsOf(day, swapped)]) >= before) {
+          if (metricsOf([...others, ...placementsOf(day, swapped)])[goal] >= before[goal]) {
             continue;
           }
 
@@ -3189,19 +3245,20 @@ function meetFloors(
 
       let best: { readonly cost: number; readonly picks: readonly Pick[] } | undefined;
 
-      for (const entry of screened.sort((a, b) => a.quick - b.quick).slice(0, FLOOR_SHORTLIST)) {
+      for (const entry of screened.sort((a, b) => a.quick - b.quick).slice(0, goal === 'floors' ? FLOOR_SHORTLIST : CAP_SHORTLIST)) {
         const sized = balancedDay(entry.swapped, day.targets, day.budgets, input.minimumKcal, true, sidesOn?.(day.dayIndex));
-        const after = [...others, ...placementsOf(day, sized.picks)];
+        const after = metricsOf([...others, ...placementsOf(day, sized.picks)]);
 
         if (
           missOf(sized.picks, day) > Math.max(start, SPREAD_EPSILON) + SPREAD_EPSILON ||
           inversionsOf(sized.picks, day.budgets) > inversionsOf(day.picks, day.budgets) + SPREAD_EPSILON ||
           floorMiss(deliveredKcal(sized.picks), input.minimumKcal) > floorMiss(deliveredKcal(day.picks), input.minimumKcal) + SPREAD_EPSILON ||
           energyMiss(sized.picks, day.targets) > energyMiss(day.picks, day.targets) + SPREAD_EPSILON ||
-          shortfallOf(after) >= before ||
-          pastHeld(after, kinds) > heldBefore ||
-          kindsExcess(after, kinds.checks, kinds.days) > checksBefore ||
-          kindsExcess(after, kinds.maximums, kinds.days) > maximumsBefore
+          after[goal] >= before[goal] ||
+          after.held > before.held ||
+          after.checks > before.checks ||
+          after.floors > before.floors ||
+          after.maximums > before.maximums
         ) {
           continue;
         }
@@ -3218,6 +3275,8 @@ function meetFloors(
         made = true;
         break;
       }
+
+      exhausted.add(day);
     }
 
     if (!made) {
