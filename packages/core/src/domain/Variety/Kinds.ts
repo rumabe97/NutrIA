@@ -22,14 +22,11 @@ export function kindCap(rule: KindRule, days: number): number {
   return Math.max(1, Math.ceil((rule.perFortnight * days) / 14));
 }
 
-/**
- * How many meals break `rule` in these: each past the plan's cap and, for a
- * rule that keeps a kind apart, each second one on a day and each day that
- * follows a day of the same kind. Counted by the meal, as `PROTEIN_RULES`'
- * excess is.
- */
-export function kindExcess(meals: readonly KindMeal[], days: number, rule: KindRule): number {
-  const cap = kindCap(rule, days);
+/** Meals counted by kind, then by day: what `kindExcess` reads of them. */
+export type KindTally = ReadonlyMap<string, ReadonlyMap<number, number>>;
+
+/** These meals as a `KindTally`. */
+export function kindTally(meals: readonly KindMeal[]): KindTally {
   const byKind = new Map<string, Map<number, number>>();
 
   for (const meal of meals) {
@@ -39,20 +36,65 @@ export function kindExcess(meals: readonly KindMeal[], days: number, rule: KindR
     byKind.set(meal.kind, byDay);
   }
 
+  return byKind;
+}
+
+/** `kindExcess` of one kind's meals, by day. */
+function excessOfKind(byDay: ReadonlyMap<number, number>, cap: number, rule: KindRule): number {
+  let total = 0;
   let excess = 0;
 
-  for (const byDay of byKind.values()) {
-    let total = 0;
+  for (const [dayIndex, count] of byDay) {
+    total += count;
 
-    for (const [dayIndex, count] of byDay) {
-      total += count;
+    if (rule.apart) {
+      excess += count - 1 + (byDay.has(dayIndex - 1) ? 1 : 0);
+    }
+  }
 
-      if (rule.apart) {
-        excess += count - 1 + (byDay.has(dayIndex - 1) ? 1 : 0);
-      }
+  return excess + Math.max(0, total - cap);
+}
+
+/**
+ * How many meals break `rule` in these: each past the plan's cap and, for a
+ * rule that keeps a kind apart, each second one on a day and each day that
+ * follows a day of the same kind. Counted by the meal, as `PROTEIN_RULES`'
+ * excess is.
+ */
+export function kindExcess(meals: readonly KindMeal[], days: number, rule: KindRule): number {
+  const cap = kindCap(rule, days);
+  let excess = 0;
+
+  for (const byDay of kindTally(meals).values()) {
+    excess += excessOfKind(byDay, cap, rule);
+  }
+
+  return excess;
+}
+
+/**
+ * `kindExcess` of `tally`'s meals and `extra` together, given `kindExcess` of
+ * `tally`'s alone (`base`): the excess is a sum over kinds, so only the kinds
+ * `extra` brings are counted again. For a search that prices many days against
+ * one unchanging rest of the plan.
+ */
+export function kindExcessWith(tally: KindTally, base: number, extra: readonly KindMeal[], days: number, rule: KindRule): number {
+  if (extra.length === 0) {
+    return base;
+  }
+
+  const cap = kindCap(rule, days);
+  let excess = base;
+
+  for (const [kind, added] of kindTally(extra)) {
+    const before = tally.get(kind);
+    const byDay = new Map(before);
+
+    for (const [dayIndex, count] of added) {
+      byDay.set(dayIndex, (byDay.get(dayIndex) ?? 0) + count);
     }
 
-    excess += Math.max(0, total - cap);
+    excess += excessOfKind(byDay, cap, rule) - (before ? excessOfKind(before, cap, rule) : 0);
   }
 
   return excess;
@@ -76,8 +118,19 @@ export function kindAtCap(kind: string | null | undefined, meals: readonly KindM
   return kind !== null && kind !== undefined && meals.filter(meal => meal.kind === kind).length >= kindCap(rule, days);
 }
 
-/** Whether a meal of `kind` on `dayIndex` would add to `kindExcess` over `meals`: at its cap or, kept apart, beside one of its kind. */
-export function kindCrowded(kind: string | null | undefined, dayIndex: number, meals: readonly KindMeal[], days: number, rule: KindRule): boolean {
+/**
+ * Whether a meal of `kind` on `dayIndex` would add to `kindExcess` over `meals`:
+ * past its cap or, kept apart, beside one of its kind. A meal that counts
+ * `weight` times (`KindCheck.weight`) passes the cap when it adds that many.
+ */
+export function kindCrowded(
+  kind: string | null | undefined,
+  dayIndex: number,
+  meals: readonly KindMeal[],
+  days: number,
+  rule: KindRule,
+  weight = 1
+): boolean {
   if (kind === null || kind === undefined) {
     return false;
   }
@@ -94,7 +147,7 @@ export function kindCrowded(kind: string | null | undefined, dayIndex: number, m
     }
   }
 
-  return total >= kindCap(rule, days);
+  return total + weight > kindCap(rule, days);
 }
 
 /** Each pool dish's kind under one rule, by slug; null for a dish the rule does not count. */
@@ -112,6 +165,13 @@ export type KindCheck = {
   readonly named?: (placement: Placement) => string | null | undefined;
   readonly rule: KindRule;
   readonly slots?: ReadonlySet<MealSlot>;
+  /**
+   * How many times a meal counts towards the cap, one when absent: the eggs
+   * on a plate count by the egg (019 phase 3), a three-egg omelette as
+   * three. Only for a rule that keeps no kind apart, since a meal counted
+   * twice would read as two on one day.
+   */
+  readonly weight?: (placement: Placement) => number;
 };
 
 /** Placements as one check reads them, keeping only the meals with a kind it counts. */
@@ -127,7 +187,11 @@ export function kindMeals(placements: readonly Placement[], check: KindCheck): K
     const kind = named === undefined ? (check.index.get(placement.dishSlug) ?? null) : named;
 
     if (kind !== null) {
-      meals.push({ dayIndex: placement.dayIndex, kind });
+      const times = check.weight?.(placement) ?? 1;
+
+      for (let time = 0; time < times; time += 1) {
+        meals.push({ dayIndex: placement.dayIndex, kind });
+      }
     }
   }
 
@@ -151,7 +215,9 @@ export function kindsCrowded(
   let crowded = 0;
 
   for (const [position, check] of checks.entries()) {
-    if (countsFor(check, slug, slot) && kindCrowded(check.index.get(slug), dayIndex, elsewhere[position] ?? [], days, check.rule)) {
+    const weight = check.weight?.({ dayIndex, dishSlug: slug, slot }) ?? 1;
+
+    if (countsFor(check, slug, slot) && kindCrowded(check.index.get(slug), dayIndex, elsewhere[position] ?? [], days, check.rule, weight)) {
       crowded += 1;
     }
   }
