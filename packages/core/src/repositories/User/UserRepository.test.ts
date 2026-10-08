@@ -404,6 +404,27 @@ describe('UserRepository.forgetExpiredVerifications', () => {
  * PLAN 011 phase 2: the breach mark is a timestamp, set once by a sign-in and
  * cleared by a change, the clearing in the same transaction as its audit row.
  */
+describe('UserRepository.confirmAddressByReset', () => {
+  beforeEach(() => {
+    updated = [];
+    updateSet = undefined;
+    updateWhere = undefined;
+  });
+
+  it('confirms only that account, and only while it is unconfirmed', async () => {
+    updated = [{ id: 'usr-1' }];
+
+    await expect(UserRepository.confirmAddressByReset('usr-1')).resolves.toBe(true);
+    expect(updateSet).toMatchObject({ emailVerified: true });
+    expect(Object.keys(updateSet ?? {}).sort()).toEqual(['emailVerified', 'updatedAt']);
+    expect(render(updateWhere)).toEqual({ params: ['usr-1', false], sql: '("user"."id" = $1 and "user"."email_verified" = $2)' });
+  });
+
+  it('answers false for an address already confirmed', async () => {
+    await expect(UserRepository.confirmAddressByReset('usr-1')).resolves.toBe(false);
+  });
+});
+
 describe('UserRepository.markPasswordCompromised', () => {
   beforeEach(() => {
     updated = [];
