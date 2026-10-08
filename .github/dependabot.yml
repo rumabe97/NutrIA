@@ -44,6 +44,12 @@ updates:
       # this major, and the next one is a migration, not an update.
       - dependency-name: eslint
         update-types: ['version-update:semver-major']
+      # Follows @better-auth/passkey, not npm. apps/api lists it only so the inferred type of
+      # `createAuth` can name the plugin's WebAuthn types (the TS2883 note in knip.config.ts),
+      # and the plugin depends on ^13: with 14 at the top level, `nest build` fails with TS2883
+      # (#221). Lift this when @better-auth/passkey moves to simplewebauthn 14.
+      - dependency-name: '@simplewebauthn/server'
+        update-types: ['version-update:semver-major']
     commit-message:
       prefix: deps
 
