@@ -246,6 +246,8 @@
   - **Rules held (5a → 5b, of 140)**: 150 g at 80% of mains 31 → 74; at every main 0 → 4; fruit 28 → 73; whole grain 28 → 39; starches 86 → 90; red meat 107 → 109; eggs 83 → 86; fish + shellfish 83 → 85; legumes 132, fish 112, fibre 130 unchanged; oily fish 106 → 104.
   - **Score by goal (weight loss, muscle gain, maintenance, healthy eating, performance)**: 61/62/63/57/62 → 62/69/67/69/65. No goal below.
   - **patron-vegetariano** (median score 43 → 71): whole grain met on 1 → 5 of 10 plans, fruit 4 → 10, 150 g at 80% of mains 3 → 9.
+  - **quincena-con-evento** (the event profile): median score 62 → 65; fruit met on 0 → 5 of 10 plans, whole grain 1 → 2; 150 g at 80% of mains stays 0 (its mains take no vegetable set inside the bands).
+  - **Side share and limits** (plain run, accompaniments on, per profile, kcal share of a meal the sides carry, mean / max): 5a means 19.6–27.1%, max 35.0%; 5b means 22.2–25.8%, max 34.9%. The 35% share holds (`sidesWithinShare` filters every size of every set, forced ones included), plates outside `PLATE_LIMIT` 0 in both, over the per-food and gram ceilings 0 in both. Season and the allergy gate are unchanged: `sideSets` draws from the same `setsBeside` and larder. The dish's own vegetables are counted as served first (`sideLack` sums plate and set rows), so a side never displaces them.
   - **Days in band**: 1,960/1,960. 0 allergens.
   - **Time**: `schedulePlan` summed over the 140 plans, 56,980 ms (5a) → 60,713 (5b), +6.5%; against phase 3's 54,514, +11%. The machine's run-to-run noise on this figure is about ±5%.
   - Off: unchanged from 5a, by construction.
