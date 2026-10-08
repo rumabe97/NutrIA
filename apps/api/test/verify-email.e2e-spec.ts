@@ -16,8 +16,8 @@ import type { Response } from 'supertest';
  * The attack it shuts, played through: a stranger signs the victim's address
  * up with a password of their own; the victim opens the link from another
  * client. The victim gets no session — the link lands on `/verificar-email`,
- * "confirmed, now sign in" — and the stranger's session survives the
- * confirmation. The victim, not knowing the password, resets it: every session
+ * "confirmed, now sign in" — and the stranger, now able to sign in with
+ * their password, does. The victim, not knowing the password, resets it: every session
  * the stranger had is gone, the stranger's password is refused, and only the
  * victim's new one gets in. So nothing the victim enters from then on is
  * reachable by the stranger.
@@ -61,15 +61,15 @@ describe('verify-email: the confirmation link signs nobody in', () => {
   it('confirms the address with no session, lands on the confirmation page, and the reset ends the stranger’s sessions', async () => {
     const spy = jest.spyOn(console, 'info').mockImplementation(() => undefined);
     let link: URL;
-    let stranger: string;
     let id: string;
 
     try {
       const signedUp = await post('auth/sign-up/email', { email, name: 'Nadie', password: STRANGERS_PASSWORD });
 
       expect(signedUp.status).toBe(200);
-      stranger = cookieOf(signedUp);
-      expect(await me(stranger)).toBe(200);
+      // Sign-up gives no session, and the password is refused until the address is confirmed.
+      expect(await me(cookieOf(signedUp))).toBe(404);
+      expect((await post('auth/sign-in/email', { email, password: STRANGERS_PASSWORD })).status).toBe(401);
 
       const [row] = await sql()<{ id: string }>`select id from "user" where email = ${email}`;
 
@@ -104,10 +104,16 @@ describe('verify-email: the confirmation link signs nobody in', () => {
     const [confirmed] = await sql()<{ emailVerified: boolean }>`select email_verified as "emailVerified" from "user" where id = ${id}`;
 
     expect(confirmed?.emailVerified).toBe(true);
-    // No session was made for anybody by opening it: the stranger's own, from sign-up, is the only one.
-    await expect(sql()<{ n: number }>`select count(*)::int as n from session where user_id = ${id}`).resolves.toEqual([{ n: 1 }]);
-    // Confirming ends nothing; the reset does.
+    // No session was made for anybody by opening it.
+    await expect(sql()<{ n: number }>`select count(*)::int as n from session where user_id = ${id}`).resolves.toEqual([{ n: 0 }]);
+
+    // Confirmed, the stranger can sign in with their password; confirming ended nothing, the reset does.
+    const strangerIn = await post('auth/sign-in/email', { email, password: STRANGERS_PASSWORD });
+
+    expect(strangerIn.status).toBe(200);
+    const stranger = cookieOf(strangerIn);
     expect(await me(stranger)).toBe(200);
+    await expect(sql()<{ n: number }>`select count(*)::int as n from session where user_id = ${id}`).resolves.toEqual([{ n: 1 }]);
 
     // A refused link lands on the same page, saying so.
     const forged: Response = await request(httpServer(app)).get(

@@ -46,8 +46,9 @@ bucket behind the web's rewrite. That last finding is a hypothesis, not measured
   - The required factor is TOTP. Better Auth challenges only a password sign-in, so a
     passkey does not stand in for it. A Google-only account in either role is not blocked.
 - **Sign-up reveals nothing.** It answers the same for a new and an existing address. The
-  existing one gets an email instead, and a new person signs in by confirming the
-  address, not at sign-up.
+  existing one gets an email instead, and a new person confirms the address, then signs
+  in — never at sign-up, and never by opening the link (amended 2026-10-08, hotfix #218:
+  the link proves the mailbox and opens no session).
 - **The limits.** The rate limit must see each client's IP, which is measured in
   production before anything else rests on it. A per-account brake slows repeated
   failures for one address, stored as an HMAC; it never locks an account hard.

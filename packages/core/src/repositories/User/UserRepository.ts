@@ -262,6 +262,31 @@ export const UserRepository = {
   },
 
   /**
+   * Marks the account's password as found in the breach corpus (PLAN 011
+   * phase 2), once: a mark already set keeps its first instant. A third
+   * write to a table Better Auth owns, and only of a column it does not read.
+   * Answers whether this call set it.
+   */
+  /**
+   * A completed password reset proved the mailbox (PLAN 011 phase 8): the
+   * address is confirmed, on that account only, and only while it was not —
+   * true when this was the moment it became confirmed.
+   */
+  async confirmAddressByReset(id: string): Promise<boolean> {
+    try {
+      const rows = await database()
+        .update(user)
+        .set({ emailVerified: true, updatedAt: new Date() })
+        .where(and(eq(user.id, id), eq(user.emailVerified, false)))
+        .returning({ id: user.id });
+
+      return rows.length > 0;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
    * A page of accounts, **newest first**, and how many there are in total.
    *
    * Newest first because the useful end is the recent one: the account waiting
@@ -419,12 +444,6 @@ export const UserRepository = {
     }
   },
 
-  /**
-   * Marks the account's password as found in the breach corpus (PLAN 011
-   * phase 2), once: a mark already set keeps its first instant. A third
-   * write to a table Better Auth owns, and only of a column it does not read.
-   * Answers whether this call set it.
-   */
   async markPasswordCompromised(id: string, at: Date): Promise<boolean> {
     try {
       const rows = await database()

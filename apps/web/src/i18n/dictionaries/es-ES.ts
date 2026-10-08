@@ -1084,6 +1084,7 @@ export const esES = {
       'care-invitation': 'Invitación de vínculo',
       'check-in-reminder': 'Aviso de check-in',
       'checkin-submitted': 'Check-in enviado',
+      'existing-account-sign-up': 'Alta con un correo que ya tiene cuenta',
       'owner-alert': 'Aviso al propietario',
       'owner-digest': 'Resumen diario al propietario',
       'owner-picture-alert': 'Aviso de imágenes al propietario',
@@ -1140,10 +1141,10 @@ export const esES = {
     createAccount: 'Crea tu cuenta',
     createAccountSubtitle: 'Unos minutos de preguntas y tendrás tu primer plan de catorce días.',
     email: 'Correo electrónico',
-    emailTaken: 'Ya existe una cuenta con ese correo.',
     forgotPassword: '¿Has olvidado tu contraseña?',
     haveAccount: '¿Ya tienes cuenta?',
-    invalidCredentials: 'Correo o contraseña incorrectos.',
+    invalidCredentials:
+      'Correo o contraseña incorrectos. Si aún no has confirmado tu dirección y la contraseña era la buena, te enviamos el enlace de nuevo (como mucho tres veces por hora; mira también en el correo no deseado).',
     invalidLink: 'Este enlace no es válido o ha caducado.',
     legalAge: 'Necesitas tener al menos 18 años para crear una cuenta.',
     legalNotice: 'Al crear tu cuenta aceptas las {terms}. Cómo tratamos tus datos te lo explica la {privacy}.',
@@ -1193,12 +1194,16 @@ export const esES = {
     signUp: 'Crear mi plan',
     signUpFailed: 'No hemos podido crear la cuenta. Inténtalo de nuevo.',
     signUpPending: 'Creando tu cuenta…',
+    signUpSent: 'Si {email} es correcta, te llegará un correo en unos minutos. Abre el enlace, confirma tu correo y luego inicia sesión.',
+    signUpSentInstalled:
+      'En iPhone el enlace se abre en Safari. Confirma allí tu correo y, si usas NutrIA desde la pantalla de inicio, vuelve después a la app e inicia sesión con tu correo y tu contraseña.',
     socialFailed: 'No hemos podido completar el acceso. Inténtalo de nuevo o entra con tu correo.',
     socialNotLinked:
       'Ya hay una cuenta con esa dirección que entra con contraseña. Entra con ella o, si no la tienes, restablécela en «¿Has olvidado tu contraseña?».',
     tooManyAttempts: 'Demasiados intentos seguidos. Espera un momento y vuelve a probar.',
     toSignIn: 'Accede',
     toSignUp: 'Crea la tuya',
+    useAnotherEmail: 'Usar otro correo',
     verifyBody: 'Ahora inicia sesión con tu correo y tu contraseña.',
     verifyFailedBody: 'Puede que haya caducado o que ya lo hayas usado. Si ya confirmaste tu correo, inicia sesión.',
     verifyFailedTitle: 'Este enlace ya no sirve',
@@ -2491,6 +2496,7 @@ export const esES = {
           'Cómo llevas el plan: qué comidas marcas como hechas o saltadas, tus valoraciones y comentarios de los platos, tu peso a lo largo del tiempo y tus check-ins quincenales. Para que el siguiente plan lo tenga en cuenta.',
           'Pagos: si contratas Premium, Stripe cobra y nosotros guardamos solo el identificador de tu suscripción y su estado. Nunca vemos el número de tu tarjeta.',
           'Seguridad de tu cuenta: anotamos cuándo cambias o restableces tu contraseña y cuándo cierras sesiones, con la fecha y sin tu dirección IP. Para que podamos ver qué pasó si alguien entra en tu cuenta.',
+          'Frenos contra el abuso: para que nadie adivine contraseñas ni llene un buzón con correos nuestros, contamos, por cada dirección de correo, los intentos fallidos de entrar con contraseña y los correos de confirmación, de recuperación de contraseña y de aviso que le enviamos y, por cada dirección IP, las peticiones a las páginas de tu cuenta (entrar, crear una cuenta, recuperar la contraseña…). De tu correo no guardamos la dirección, sino una huella hecha con una clave secreta nuestra. Lo contamos igual tenga cuenta o no la dirección, y no se borra al borrar la tuya: caduca solo, como mucho dos días después del último intento o correo; lo de las IP deja de contar al minuto y se borra poco después.',
           'Verificación en dos pasos, solo si la activas: el secreto de tu aplicación de autenticación y tus códigos de respaldo, cifrados, los intentos fallidos de código y, en el registro de seguridad, cuándo la activas, la desactivas o usas un código de respaldo. Si la desactivas, borramos el secreto y los códigos. Si pierdes el teléfono y los códigos de respaldo, puedes pedirnos, desde la dirección de tu cuenta, que la quitemos: te avisamos por correo al momento, entre 48 y 72 horas después se quita y, si entras antes con un código o con una llave de acceso, se cancela (si al entrar con tu contraseña no te pide el código, escríbenos desde esa dirección y la cancelamos); en el registro de seguridad queda anotado. Para que, aunque alguien sepa tu contraseña, no entre en tu cuenta.',
           'Llaves de acceso, solo si añades una: su identificador y su clave pública; lo que tu dispositivo nos dice de ella, como si se sincroniza entre tus dispositivos, cómo se conecta o qué tipo de aparato o aplicación la guarda; el nombre de tu navegador y sistema con el que la guardamos; cuándo la añadiste y, en el registro de seguridad, cuándo se añade o se quita una. La parte secreta de la llave, tu Face ID, tu huella y el código de tu dispositivo nunca nos llegan: la llave se queda en tu dispositivo o, si sincronizas tus llaves (por ejemplo, con iCloud o Google), en el servicio que tú eliges para ello. La borramos si la quitas, o al cambiar o restablecer la contraseña. Para que puedas entrar sin contraseña.',
           'Uso del producto: registramos, ligado a tu cuenta, cuándo abres sesión y cuándo pides cambiar un plato, sin más detalle. Para saber si el producto funciona.',
@@ -2509,7 +2515,7 @@ export const esES = {
         paragraphs: [
           'Para darte el servicio que pides (contrato): tu cuenta, tu perfil, tus planes, tus pagos y los correos del servicio.',
           'Con tu consentimiento explícito: tus alergias e intolerancias, tu cuerpo y tu objetivo y tu forma de comer, que nos das con una casilla propia al crear tu perfil. Sin ellos no podemos hacer un plan seguro para ti, por eso sin ese consentimiento no generamos planes; puedes retirarlo cuando quieras borrando esos datos desde tu perfil. Tus enfermedades, tu medicación y tus suplementos, con un consentimiento aparte, opcional. Cada consentimiento se guarda con su fecha y la versión del texto que aceptaste.',
-          'Por nuestro interés legítimo: registrar el uso del producto y los errores técnicos para que funcione, sin datos de salud. Puedes oponerte escribiéndonos.',
+          'Por nuestro interés legítimo: registrar el uso del producto y los errores técnicos para que funcione, sin datos de salud, y proteger las cuentas: el registro de seguridad, los frenos contra el abuso y los avisos de seguridad que te enviamos. Puedes oponerte escribiéndonos.',
           'Por obligación legal: conservar lo que la ley fiscal exige de los pagos (lo hace Stripe).'
         ]
       },

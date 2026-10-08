@@ -21,7 +21,8 @@ import {
   POOL,
   PREFIX,
   register,
-  ScriptedAiClient
+  ScriptedAiClient,
+  unconfirmAddress
 } from './harness.js';
 import { EmailService } from '../src/modules/email/services/index.js';
 
@@ -467,8 +468,13 @@ describe('care', () => {
       await request(server()).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name: 'Unconfirmed', password: PASSWORD }).expect(200);
       await UserController.activate({ email }, UNAUDITED);
 
+      // Signed in confirmed, then put back: an unconfirmed account cannot sign in with its password (PLAN 011 phase 8).
+      await UserController.confirmAddress(email);
+
       const signIn: Response = await request(server()).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: PASSWORD }).expect(200);
       const cookie = (signIn.headers['set-cookie'] as unknown as string[]).join('; ');
+
+      await unconfirmAddress(email);
 
       made.push(cookie);
 

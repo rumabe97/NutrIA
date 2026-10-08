@@ -1,0 +1,1 @@
+export { MailBudgetRepository } from './MailBudgetRepository';

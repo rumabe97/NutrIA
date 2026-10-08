@@ -1,7 +1,6 @@
 'use client';
-import { Fragment, useId, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 import styles from 'components/AuthForm/AuthForm.module.css';
@@ -18,27 +17,26 @@ import { SocialSignIn } from 'components/SocialSignIn';
 
 import { PASSWORD_MIN_LENGTH } from 'core/entities/Password';
 
+import { arriveAtSent, signUpOutcome } from 'lib/authAnswer';
 import { forgetOfflineCopies } from 'lib/offline';
 import { PASSWORD_RULES, passwordLengthRefusal, passwordRefusalMessage } from 'lib/newPassword';
 import { signUp } from 'lib/auth-client';
 
-import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { FormEvent } from 'react';
 import type { SocialProvider } from 'lib/sign-in-providers';
 
-function signUpFailure(status: number, dictionary: Dictionary): string {
-  if (status === 422) {
-    return dictionary.auth.emailTaken;
-  }
-
-  return status === 429 ? dictionary.auth.tooManyAttempts : dictionary.auth.signUpFailed;
-}
-
 export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readonly SocialProvider[] }>) {
-  const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
   const [error, setError] = useState<string>();
+  // "An email will reach you": from then on the screen says only that, whoever the address belongs to.
+  const [sent, setSent] = useState<string>();
+  // What was typed, kept for the way back from "check your email": the form remounts with it.
+  const [typed, setTyped] = useState<{ email: string; name: string }>({ email: '', name: '' });
+  const sentHeading = useRef<HTMLHeadingElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  // Back from "check your email": focus goes to the address, the field the person came back to fix.
+  const [cameBack, setCameBack] = useState(false);
   // A refused password is said on the field too, next to the button: the alert at the top
   // is announced, but at 320px it is off-screen when the button is pressed.
   const [passwordError, setPasswordError] = useState<string>();
@@ -49,6 +47,15 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
   const [passwordLength, setPasswordLength] = useState(0);
   const hintId = useId();
   const levelId = useId();
+
+  // The form gave way to "check your email" on the same page: focus and the tab's title follow it.
+  useEffect(() => (sent ? arriveAtSent(sentHeading.current, dictionary.auth.checkEmail, document) : undefined), [sent, dictionary]);
+
+  useEffect(() => {
+    if (cameBack && !sent) {
+      (formRef.current?.elements.namedItem('email') as HTMLInputElement | null)?.focus();
+    }
+  }, [cameBack, sent]);
 
   function refusePassword(message: string) {
     setError(message);
@@ -74,32 +81,69 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
 
     setPending(true);
 
-    const { error: signUpError } = await signUp.email({ email: String(form.get('email')), name: String(form.get('name')), password });
+    const email = String(form.get('email'));
+    const name = String(form.get('name'));
+
+    setTyped({ email, name });
+
+    const { error: signUpError } = await signUp.email({ email, name, password });
 
     setPending(false);
 
-    if (signUpError) {
-      // A refused password says why, by its code, on the field and in the alert.
-      const refusal = passwordRefusalMessage(signUpError.code, dictionary);
+    // A refused password says why, on the field and in the alert; anything else
+    // refused is a wait (429) or the generic failure — never "email taken": the
+    // API answers an address with an account as it answers a new one (PLAN 011
+    // phase 8, `lib/authAnswer`).
+    const outcome = signUpOutcome(signUpError ? { code: signUpError.code, status: signUpError.status } : null, email, dictionary);
 
-      if (refusal) {
-        refusePassword(refusal);
+    if (outcome.kind === 'password') {
+      refusePassword(outcome.message);
 
-        return;
-      }
+      return;
+    }
 
-      // Better Auth distinguishes "email already registered" from everything
-      // else. Both are shown as-is: at sign-*up* an existing address is
-      // information the visitor already has, and hiding it only produces a
-      // confusing dead end. Its rate limit answers 429: that one is a wait, not a failure.
-      setError(signUpFailure(signUpError.status, dictionary));
+    if (outcome.kind === 'refused') {
+      setError(outcome.message);
 
       return;
     }
 
     // A new account on a device somebody else used: their copies go first (`0053`).
     await forgetOfflineCopies();
-    router.push('/onboarding');
+    // Sign-up opens no session: the same "check your email" for every address, new or
+    // not. The mail says the rest — the link that signs a new person in, or to the
+    // owner of an existing account, that somebody tried.
+    setSent(outcome.message);
+  }
+
+  if (sent) {
+    return (
+      <Fragment>
+        <h1 className={styles.title} ref={sentHeading} tabIndex={-1}>
+          {dictionary.auth.checkEmail}
+        </h1>
+        <p className={styles.success}>{sent}</p>
+        <Text size="sm" style={{ marginTop: 'var(--space-05)' }} tone="secondary">
+          {dictionary.auth.signUpSentInstalled}
+        </Text>
+        <div className={styles.footer}>
+          {/* Back to the form, the address as it was typed: the way out of a typo. */}
+          <Button
+            onClick={() => {
+              setCameBack(true);
+              setSent(undefined);
+            }}
+            type="button"
+            variant="secondary"
+          >
+            {dictionary.auth.useAnotherEmail}
+          </Button>
+          <Link className={styles.link} href={withLocale('/acceder', locale)}>
+            {dictionary.auth.backToSignIn}
+          </Link>
+        </div>
+      </Fragment>
+    );
   }
 
   return (
@@ -115,15 +159,15 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
       {/* A new account lands on onboarding whichever way it was made. */}
       <SocialSignIn next="/onboarding" providers={providers} />
 
-      <form className={styles.form} noValidate={true} onSubmit={onSubmit}>
+      <form className={styles.form} noValidate={true} onSubmit={onSubmit} ref={formRef}>
         {error ? (
           <p className={styles.error} key={attempt} role="alert">
             {error}
           </p>
         ) : null}
 
-        <Input autoComplete="name" label={dictionary.auth.name} name="name" required={true} type="text" />
-        <Input autoComplete="email" label={dictionary.auth.email} name="email" required={true} type="email" />
+        <Input autoComplete="name" defaultValue={typed.name} label={dictionary.auth.name} name="name" required={true} type="text" />
+        <Input autoComplete="email" defaultValue={typed.email} label={dictionary.auth.email} name="email" required={true} type="email" />
         <Input
           autoComplete="new-password"
           describedBy={`${hintId} ${levelId}`}

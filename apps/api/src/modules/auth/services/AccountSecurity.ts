@@ -6,11 +6,14 @@ import { UserController } from 'core/controllers/User';
 import { breachedOrPass, checkNewPassword, record, text } from './PasswordPolicy.js';
 import { passkeyAfter, passkeyBefore } from './Passkey.js';
 import { twoFactorAfter, twoFactorBefore } from './TwoFactor.js';
+import { unconfirmedAsInvalid } from './UnconfirmedSignIn.js';
 
 import type { BackgroundTaskService } from '../../../shared/services/index.js';
 import type { CompromisedCheck, Context } from './PasswordPolicy.js';
 import type { PasskeyDeps } from './Passkey.js';
 import type { SignInBrake } from './SignInBrake.js';
+import type { ResetConfirmation } from './ResetConfirmsAddress.js';
+import type { SignUpFloor } from './SignUpFloor.js';
 import type { TwoFactorDeps } from './TwoFactor.js';
 import type { PasswordChangedVia, SessionsRevokedScope } from 'core/entities/Audit';
 
@@ -29,13 +32,18 @@ export type AccountSecurityDeps = PasskeyDeps &
     readonly background: Pick<BackgroundTaskService, 'run'>;
     /** The per-address brake on password sign-in (PLAN 011 phase 7): cleared by a sign-in and by a reset. */
     readonly brake: Pick<SignInBrake, 'signedIn'>;
+    /** The time floor on `/sign-up/email` (PLAN 011 phase 8): held here, started by `accountSecurityBefore`. */
+    readonly floor: Pick<SignUpFloor, 'hold'>;
     /** Null where HIBP must not be called — under `NODE_ENV=test`. */
     readonly isCompromised: CompromisedCheck | null;
     /** Sends "your password has changed"; run in the background, never awaited by a route. */
     readonly mailPasswordChanged: (notice: PasswordChangedNotice) => Promise<void>;
+    /** A completed reset confirms the address, after the sessions are revoked (`ResetConfirmsAddress.ts`, PLAN 011 phase 8). */
+    readonly resetConfirmation: ResetConfirmation;
   };
 
 const CHANGE_PASSWORD = '/change-password';
+const RESET_PASSWORD = '/reset-password';
 const REVOKE_ONE = '/revoke-session';
 const SIGN_IN = '/sign-in/email';
 
@@ -117,12 +125,14 @@ async function passwordChanged(
  * no email OTP (`TwoFactor.ts`). On `/passkey/*`, another account's passkey is
  * the 404 and a registration mints no session (`Passkey.ts`).
  */
-export function accountSecurityBefore(isCompromised: CompromisedCheck | null, brake: Pick<SignInBrake, 'before'>) {
+export function accountSecurityBefore(isCompromised: CompromisedCheck | null, brake: Pick<SignInBrake, 'before'>, floor: Pick<SignUpFloor, 'start'>) {
   const check = checkNewPassword(isCompromised);
 
   return createAuthMiddleware(async context => {
     await brake.before(context);
     await check(context);
+    // The sign-up floor's clock starts once the password has passed (`SignUpFloor.ts`).
+    floor.start(context);
     await twoFactorBefore(context);
 
     const passkey = await passkeyBefore(context);
@@ -167,7 +177,9 @@ async function notTheCallersSession(context: Context): Promise<{ status: true } 
 
 /**
  * Better Auth's `hooks.after`, on a 2xx only — a refused change, revoke or
- * sign-in leaves no trace here.
+ * sign-in leaves no trace here. The one refusal it touches is an unconfirmed
+ * account's right password, answered as a wrong one (`UnconfirmedSignIn.ts`,
+ * PLAN 011 phase 8).
  *
  * - `/change-password`: the mark cleared, `auth.password_changed {via:'change'}`,
  *   every passkey removed, the mail.
@@ -176,6 +188,8 @@ async function notTheCallersSession(context: Context): Promise<{ status: true } 
  *   user — Better Auth scoped the deletion to that user already. A
  *   `/revoke-session` for a token that is not the caller's is answered by
  *   `hooks.before` and never gets here, so a `one` row is a session that went.
+ * - `/reset-password`: the address confirmed, if a reset just proved it
+ *   (`ResetConfirmsAddress.ts`, PLAN 011 phase 8).
  * - `/sign-in/email`: the address's brake cleared, awaited — the next
  *   attempt starts from nothing — whether or not a second factor follows,
  *   since the password is what the brake guards. Then the password just
@@ -195,8 +209,15 @@ export function accountSecurityAfter(deps: AccountSecurityDeps) {
   return createAuthMiddleware(async context => {
     const returned: unknown = context.context.returned;
 
-    if (returned === undefined || isAPIError(returned)) {
+    // A sign-up answers no earlier than its floor, whatever the answer (`SignUpFloor.ts`).
+    await deps.floor.hold(context);
+
+    if (returned === undefined) {
       return;
+    }
+
+    if (isAPIError(returned)) {
+      return unconfirmedAsInvalid(context);
     }
 
     const path = context.path ?? '';
@@ -233,6 +254,12 @@ export function accountSecurityAfter(deps: AccountSecurityDeps) {
       return;
     }
 
+    if (path === RESET_PASSWORD) {
+      await deps.resetConfirmation.after(context);
+
+      return;
+    }
+
     if (path !== SIGN_IN) {
       return;
     }
@@ -265,12 +292,16 @@ export function accountSecurityAfter(deps: AccountSecurityDeps) {
  * every passkey removed, the mail. Runs only after a valid token set the password, so it says nothing
  * about whether an address has an account.
  *
- * The address's sign-in brake is cleared too (PLAN 011 phase 7): whoever reset
- * holds the mailbox, and must not wait out a brake somebody else's guesses at
- * the old password left.
+ * Whoever reset holds the mailbox, so:
+ * - the address will be confirmed, if it was not (PLAN 011 phase 8) — by the
+ *   after-hook, once Better Auth has revoked the sessions
+ *   (`ResetConfirmsAddress.ts`); here the account is only remembered;
+ * - the address's sign-in brake is cleared (PLAN 011 phase 7): they must not
+ *   wait out a brake somebody else's guesses at the old password left.
  */
 export function onPasswordReset(deps: AccountSecurityDeps) {
   return async ({ user }: { user: { id: string; email: string } }, request?: Request): Promise<void> => {
+    await deps.resetConfirmation.remember(user, request);
     await deps.brake.signedIn(user.email);
     await passwordChanged(deps, { ...headersOf(request), id: user.id, email: user.email }, 'reset');
   };
