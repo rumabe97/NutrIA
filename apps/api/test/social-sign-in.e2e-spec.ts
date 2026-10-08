@@ -19,8 +19,10 @@ import type { Response } from 'supertest';
  * the code for tokens — is answered here with an identity the test chose, which
  * is the only part of the exchange this service decides anything about. What
  * is proved is everything after it: that an account born confirmed passes the
- * first lock and meets the second like everybody else, and above all that an
- * address nobody confirmed is never joined to whoever arrives with it.
+ * first lock and meets the second like everybody else, and above all that a
+ * provider is never joined to an account it was not linked to — not one nobody
+ * confirmed, and not one whose address its owner confirmed by opening the link
+ * a stranger's sign-up sent them (`0058`, amended 2026-10-08).
  *
  * Requires a real database — see ./README.md.
  */
@@ -29,6 +31,7 @@ const GOOGLE = { clientId: 'nutria-e2e.apps.googleusercontent.com', clientSecret
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const APP = 'http://localhost:3000';
 
+type Sql = <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]>;
 type Identity = { readonly email: string; readonly emailVerified: boolean; readonly name: string; readonly sub: string };
 
 function part(value: unknown): string {
@@ -58,6 +61,7 @@ describe('social sign-in: arriving through a provider', () => {
   const realFetch = globalThis.fetch;
   const sessions: string[] = [];
   const stamp = Date.now();
+  const sql = (): Sql => (database() as unknown as { readonly $client: Sql }).$client;
 
   function cookiesOf(response: Response): string {
     return ((response.headers['set-cookie'] as unknown as string[] | undefined) ?? []).map(cookie => cookie.split(';')[0]).join('; ');
@@ -90,15 +94,46 @@ describe('social sign-in: arriving through a provider', () => {
 
   /** The terms' record of one account, read from the row (`0071`). */
   async function termsOf(email: string): Promise<{ at: Date | null; version: string | null } | undefined> {
-    const sql = (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> })
-      .$client;
-
     return (
-      await sql<{
+      await sql()<{
         at: Date | null;
         version: string | null;
       }>`select terms_version as version, terms_accepted_at as at from "user" where email = ${email}`
     )[0];
+  }
+
+  /** How many Google account rows the account with this address holds. */
+  async function googleRowsOf(email: string): Promise<number> {
+    const [row] = await sql()<{ n: number }>`
+      select count(*)::int as n from account a join "user" u on u.id = a.user_id where u.email = ${email} and a.provider_id = 'google'`;
+
+    return row?.n ?? 0;
+  }
+
+  async function confirmedOf(email: string): Promise<boolean | undefined> {
+    return (await sql()<{ confirmed: boolean }>`select email_verified as confirmed from "user" where email = ${email}`)[0]?.confirmed;
+  }
+
+  /**
+   * The confirmation link of a new account. With no SMTP and `NODE_ENV=test`,
+   * `VerificationMail.ts` logs it, in the background, as `verify-email.e2e-spec.ts` reads it.
+   */
+  async function verificationLinkOf(email: string, info: { mock: { calls: unknown[][] } }): Promise<URL> {
+    const [row] = await sql()<{ id: string }>`select id from "user" where email = ${email}`;
+    const logged = () => info.mock.calls.find(call => typeof call[0] === 'string' && call[0].includes(`verification url for ${row?.id}:`));
+    const deadline = Date.now() + 5_000;
+
+    while (!logged() && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    const line = logged();
+
+    if (!line) {
+      throw new Error('No verification url was logged for the new account within 5 s');
+    }
+
+    return new URL(String(line[0]).split(': ').slice(1).join(': ').trim());
   }
 
   async function me(cookie: string): Promise<{ id: string; activated: boolean; email: string; emailVerified: boolean }> {
@@ -213,7 +248,7 @@ describe('social sign-in: arriving through a provider', () => {
     expect(second.id).toBe(first.id);
   });
 
-  it('joins a password account that confirmed its address: same address, same person', async () => {
+  it('never joins a password account, even one that confirmed its address: the way in is its password (`0058`, amended)', async () => {
     const email = `social-link-${stamp}@e2e.invalid`;
     const server = httpServer(app);
 
@@ -222,15 +257,49 @@ describe('social sign-in: arriving through a provider', () => {
     await UserController.activate({ email }, UNAUDITED);
 
     const signIn: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: PASSWORD }).expect(200);
-    const byPassword = await me(cookiesOf(signIn));
-    const recorded = await termsOf(email);
 
-    expect(recorded?.version).toBe(TERMS_VERSION);
-    const byGoogle = await me((await arriveThroughGoogle({ email, emailVerified: true, name: 'Barbara', sub: `g-link-${stamp}` })).cookie);
+    sessions.push(cookiesOf(signIn));
 
-    expect(byGoogle.id).toBe(byPassword.id);
-    // Joining is not creating: the record is what the password sign-up wrote, to the instant.
-    expect(await termsOf(email)).toEqual(recorded);
+    const { cookie, location } = await arriveThroughGoogle({ email, emailVerified: true, name: 'Barbara', sub: `g-link-${stamp}` });
+
+    expect(new URL(location).origin + new URL(location).pathname).toBe(`${APP}/acceder`);
+    expect(new URL(location).searchParams.get('error')).toBe('account_not_linked');
+    expect(cookie).not.toContain('session_token');
+    await expect(googleRowsOf(email)).resolves.toBe(0);
+  });
+
+  it('never joins the account a stranger made with somebody’s address, after that somebody opened its link', async () => {
+    jest.spyOn(SettingsController, 'automaticActivation').mockResolvedValue(true);
+
+    const email = `social-prehijack-${stamp}@e2e.invalid`;
+    const server = httpServer(app);
+    const spy = jest.spyOn(console, 'info').mockImplementation(() => undefined);
+    let link: URL;
+
+    try {
+      // A stranger signs the victim's address up with a password of their own…
+      const signedUp: Response = await request(server)
+        .post(`/${PREFIX}/auth/sign-up/email`)
+        .send({ email, name: 'Mallory', password: PASSWORD })
+        .expect(200);
+
+      sessions.push(cookiesOf(signedUp));
+      link = await verificationLinkOf(email, spy);
+    } finally {
+      spy.mockRestore();
+    }
+
+    // …the victim opens the mailed link from their own client, with no cookie, which confirms the address…
+    await request(server).get(`${link.pathname}${link.search}`).expect(302);
+    await expect(confirmedOf(email)).resolves.toBe(true);
+
+    // …and then arrives through Google. Joining here would put them in the stranger's account.
+    const { cookie, location } = await arriveThroughGoogle({ email, emailVerified: true, name: 'Victim', sub: `g-prehijack-${stamp}` });
+
+    expect(new URL(location).origin + new URL(location).pathname).toBe(`${APP}/acceder`);
+    expect(new URL(location).searchParams.get('error')).toBe('account_not_linked');
+    expect(cookie).not.toContain('session_token');
+    await expect(googleRowsOf(email)).resolves.toBe(0);
   });
 
   it('never joins an account nobody confirmed — whoever signed up with that address chose its password', async () => {

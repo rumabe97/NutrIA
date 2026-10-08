@@ -1,38 +1,18 @@
-import { Fragment } from 'react';
+import { Suspense } from 'react';
 
-import Link from 'next/link';
-
-import styles from 'components/AuthForm/AuthForm.module.css';
-
-import { dictionaryFor } from 'i18n/server';
-import { Text } from 'ui/components/Text';
-
-import type { Locale } from 'i18n/config';
+import { EmailConfirmed, EmailConfirmedFromLink } from 'components/EmailConfirmed';
 
 /**
- * The landing spot after sign-up. Verification itself happens on the API — the
- * emailed link hits Better Auth's own endpoint — so this page only explains
- * what to do next.
+ * Where every confirmation link lands (`VerificationMail.ts`, `VERIFIED_PAGE`).
+ * Verification itself happens on the API — the mailed link hits Better Auth's
+ * own endpoint, which redirects here — and signs nobody in, so this page says
+ * the address is confirmed and the next step is to sign in. Static: the
+ * confirmed page is the fallback, and only a refused link (`?error`) changes it.
  */
-export function VerifyEmailScreen({ locale }: Readonly<{ locale: Locale }>) {
-  const dictionary = dictionaryFor(locale);
-
+export function VerifyEmailScreen() {
   return (
-    <Fragment>
-      <h1 className={styles.title}>{dictionary.auth.verifyTitle}</h1>
-      <p className={styles.success}>{dictionary.auth.verifyBody}</p>
-
-      <Text size="sm" style={{ marginTop: 'var(--space-05)' }} tone="secondary">
-        {dictionary.auth.verifyMeanwhile}
-      </Text>
-
-      <div className={styles.footer}>
-        {/* The signed-in screens have no English URL of their own — the account's
-            own preference carries the language from here on. */}
-        <Link className={styles.link} href="/inicio">
-          {dictionary.auth.goToAccount}
-        </Link>
-      </div>
-    </Fragment>
+    <Suspense fallback={<EmailConfirmed refused={false} />}>
+      <EmailConfirmedFromLink />
+    </Suspense>
   );
 }

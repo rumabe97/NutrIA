@@ -44,7 +44,23 @@ describe('sendVerificationMail', () => {
 
     expect(message?.to).toBe('ana@example.com');
     expect(message?.subject).toBe('Confirm your address for NutrIA');
-    expect(message?.text).toContain('verify-email?token=tok&callbackURL=https%3A%2F%2Fnutria.example%2Fen%2Fcuenta');
+    expect(message?.text).toContain('verify-email?token=tok&callbackURL=https%3A%2F%2Fnutria.example%2Fen%2Fverificar-email');
+  });
+
+  /* Hotfix, 011 phase 8: opening the link signs nobody in, so it always lands on the page that says to sign in. */
+  it('lands every link on the confirmation page, whatever the client asked for', async () => {
+    const stub = mailer(true);
+
+    await sendVerificationMail(stub, {
+      ...request,
+      url: 'https://nutria.example/api/v1/auth/verify-email?token=tok&callbackURL=https%3A%2F%2Fevil.example%2Fx'
+    });
+
+    const text = stub.send.mock.calls[0]?.[0]?.text ?? '';
+
+    expect(text).toContain('callbackURL=https%3A%2F%2Fnutria.example%2Fverificar-email');
+    expect(text).not.toContain('evil.example');
+    expect(text).toContain('token=tok');
   });
 
   it('falls back to Spanish when the request names no supported language', async () => {
@@ -64,7 +80,7 @@ describe('sendVerificationMail', () => {
     const message = stub.send.mock.calls[0]?.[0];
 
     expect(message?.subject).toBe('Confirm your address for NutrIA');
-    expect(message?.text).toContain('%2Fen%2Fcuenta');
+    expect(message?.text).toContain('%2Fen%2Fverificar-email');
   });
 
   it.each(['development', 'test'] as const)('logs the link instead when no mail is configured in %s, without the address', async nodeEnv => {
@@ -76,7 +92,7 @@ describe('sendVerificationMail', () => {
     const line = info.mock.calls.map(call => String(call[0])).find(entry => entry.includes('verification')) ?? '';
 
     expect(line).toContain('user_1');
-    expect(line).toContain('verify-email?token=tok&callbackURL=https%3A%2F%2Fnutria.example%2Fcuenta');
+    expect(line).toContain('verify-email?token=tok&callbackURL=https%3A%2F%2Fnutria.example%2Fverificar-email');
     expect(line).not.toContain('ana@example.com');
   });
 
