@@ -1369,6 +1369,76 @@ describe('schedulePlan — the maximums of PRD 019 held (019 phase 3)', () => {
   });
 });
 
+describe('schedulePlan — a maximum repaired one meal at a time (019 phase 5a)', () => {
+  // A pool of random dishes of beef, chicken, hake, courgette and potato on a
+  // neutral base (a seeded generator, the same every run). The day-by-day
+  // improvement leaves meat at seven lunches and dinners in this one; a swap
+  // of one of them for a dish of another group fixes the plan with every day
+  // kept inside its bands, which is `meetCaps`'s to do.
+  const bases: readonly (readonly [string, Partial<CatalogueIngredient>])[] = [
+    ['filete-de-ternera', { classes: ['animal', 'meat'] }],
+    ['pechuga-de-pollo', { classes: ['animal', 'meat'] }],
+    ['merluza', { classes: ['animal', 'fish'] }],
+    ['calabacin', {}],
+    ['patata', {}],
+    ['base', {}]
+  ];
+  const capsCatalogue = makeCatalogue(bases.map(([slug, rest], index) => makeCatalogueIngredient({ id: `c-${index}`, name: slug, slug, ...rest })));
+  const SHARE = { breakfast: 0.28, dinner: 0.34, lunch: 0.37 } as const;
+  const pool = (() => {
+    let state = 11 * 7919;
+
+    const random = () => {
+      state = (state * 1_103_515_245 + 12_345) % 2_147_483_648;
+
+      return state / 2_147_483_648;
+    };
+
+    return (['breakfast', 'lunch', 'dinner'] as const).flatMap(slot =>
+      Array.from({ length: slot === 'breakfast' ? 8 : 16 }, (_none, n) => {
+        const base = slot === 'breakfast' ? 'patata' : (bases[Math.floor(random() * 5)] as (typeof bases)[number])[0];
+        const grams = Math.round(100 + random() * 80);
+
+        return makeDish({
+          ingredients: [
+            { grams, slug: base },
+            { grams: Math.round((TARGETS.kcal * SHARE[slot]) / 2) - grams + Math.round((random() - 0.5) * 120), slug: 'base' }
+          ],
+          name: `${slot} ${n}`,
+          slots: [slot],
+          slug: `${slot}-${n}`
+        });
+      })
+    );
+  })();
+
+  it('serves meat no more than its six where a swap keeps every day inside its bands', () => {
+    const targets = TARGETS;
+    const result = schedulePlan({ catalogue: capsCatalogue, minimumKcal: MINIMUM_KCAL, pool, targets, weights: weightsFor(shapeFor(3, false)) });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const meat = result.assignment.days.flatMap(day =>
+      day.meals.filter(meal => MAIN_SLOTS.has(meal.slot) && placementGroups(meal.ingredients, capsCatalogue).meat)
+    );
+    const violations = validatePlan({
+      assignment: result.assignment,
+      expectedDays: PLAN_DAYS,
+      expectedSlots: [...weightsFor(shapeFor(3, false)).keys()],
+      sex: 'male',
+      targets,
+      weightKg: 70
+    });
+
+    expect(meat.length).toBeLessThanOrEqual(BALANCE_CAPS.meat);
+    expect(violations.filter(isBlocking)).toEqual([]);
+  });
+});
+
 describe('schedulePlan — the minimums of PRD 019 met (019 phase 4)', () => {
   // The same composition everywhere, so fit ties and the pool's order decides:
   // neutral dishes first at every lunch and dinner, then the legumes and the
