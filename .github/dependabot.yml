@@ -39,6 +39,12 @@ updates:
         update-types: [major]
       minor-and-patch:
         update-types: [minor, patch]
+      # Security updates come as ONE pull request too: each advisory used to open its own,
+      # and every merge left the others (and every open branch) behind main, so a handful of
+      # one-line lockfile bumps cost an afternoon of re-runs.
+      security:
+        applies-to: security-updates
+        patterns: ['*']
     ignore:
       # Pinned by hand in `pnpm up:latest`: the shared lint configuration is written for
       # this major, and the next one is a migration, not an update.
