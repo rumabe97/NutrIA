@@ -530,3 +530,24 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
 - 39 new accompaniments: 18 Spanish, 4 Asian, 6 Latin, 5 Arab and 6 desserts for every family. 196/196 days in band, off and on; 0 allergens.
 - The scheduler combines each role's six best sides, so schedulePlan is about 3 % faster than before the batch. Distinct sides per fortnight rose from 145 to 197 across the 14 profiles.
 - Open for the lead: `FOREIGN_CUISINES` lacks cuisine values `cuisineFamily` reads as foreign ("turca", "cubana"...). The sides are now guarded in the larder; the dishes are not (018 LOG, phase 3).
+
+## 2026-10-08 — Eight older projects closed
+
+- At the owner's request, the eleven older projects still open were audited. The audit is
+  [`closing-audit-2026-10-08.md`](./closing-audit-2026-10-08.md).
+- **Closed (done):**
+  - 002 plan generation: phase 7's end-to-end run is done by CI since 2026-09-09;
+  - 005 meal and season catalogue (#109–#117, #124);
+  - 006 realistic dish pictures (#127–#132): the week-1 spend and the C2PA check on a
+    served file are done;
+  - 009 owner reviews rejected pictures (#172–#174);
+  - 013 traditional Spanish (#187, #209): its start-date item became 015;
+  - 014 a plate that weighs what it should (#188): criterion 3 was missed and superseded
+    by 016 and 017;
+  - 015 a plan waits for its day (#189, #191);
+  - 018 more accompaniments (#206, #207).
+- **Left open:**
+  - 003 waits on one owner check: the signed-in screens walked in English.
+  - 004 waits on phase 9's human-verify and on its go-live, deferred with payments.
+  - 010 has phase 6 left, a read-only production review. Its gate of about 60 new
+    pictures is very likely met. Phase 4's human-verify is not recorded.

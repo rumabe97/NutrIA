@@ -144,3 +144,19 @@
   - `docs/local/018-p3-{off,on}.json`;
   - core: 122 files, 3,684 tests green at the final code;
   - the gate result is in the hand-back.
+
+## Closing (2026-10-08)
+
+- **Closed** on 2026-10-08 at the owner's request, after the closing audit
+  ([`closing-audit-2026-10-08.md`](../000-workspace/closing-audit-2026-10-08.md)). The
+  project was delivered on 2026-10-03. Anything found later is a new change, not a
+  reopening.
+- **Shipped:**
+  - #206: phases 1 and 2 (report `0009`, migration 0058);
+  - #207: phase 3, 39 entries live.
+- **PRD criteria:** all five met (phase 3 above).
+- **The item handed to the lead is fixed.** `FOREIGN_CUISINES` lacked cuisine values
+  `cuisineFamily` reads as foreign ("turca", "cubana"…). #209 (2026-10-03) refuses such a
+  dish for traditional Spanish.
+- **Not looked into, older than 018:** `objetivo-bajo-3-comidas`, `patron-kosher` and
+  `patron-sin-gluten` take no side at lunch or dinner.

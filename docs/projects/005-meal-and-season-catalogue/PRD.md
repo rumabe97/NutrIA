@@ -6,7 +6,7 @@
 > `/plan-project`, from the owner's decisions of 2026-09-25 — approved by the owner before
 > the plan is written.
 
-- **Status**: approved — by the owner, 2026-09-25, adding generation on the free models
+- **Status**: done — closed 2026-10-08 (owner's request; audit in 000-workspace/closing-audit-2026-10-08.md)
   as the project's last part
 - **Roadmap item**: [`docs/ROADMAP.md` § 7. Generation through a gateway](../../ROADMAP.md) —
   the follow-ups measured after it went out
