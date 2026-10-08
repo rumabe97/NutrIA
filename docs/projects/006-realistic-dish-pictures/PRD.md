@@ -6,7 +6,7 @@
 > `/plan-project`, from the owner's decisions of 2026-09-26 and 2026-09-27 — approved by the
 > owner before the plan is written.
 
-- **Status**: approved — by the owner, 2026-09-27
+- **Status**: done — closed 2026-10-08 (owner's request; audit in 000-workspace/closing-audit-2026-10-08.md)
 - **Roadmap item**: [`docs/ROADMAP.md` § Now, in progress](../../ROADMAP.md)
 
 ## Problem

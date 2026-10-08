@@ -256,3 +256,37 @@
   - The OpenRouter pilot key is to be revoked by the owner.
   - `AI_ILLUSTRATIONS` and `GOOGLE_API_KEY` still exist as Vercel variables on the API
     project. No code reads them since phase 3, so the owner may delete them.
+
+## Phase 6 — the two open checks (2026-10-08)
+
+- **Executor**: the lead (Opus 5.5), reading production read-only.
+- **Result**: done. Both items left open on 2026-09-28 are closed.
+- **Week-1 spend (2026-10-08).**
+  - 3.78 $ since launch over 328 calls.
+  - 88 pictures ready, 0 failed, about 0.043 $ per served picture.
+  - October is tracking to 3–4 $ against the 10 $ cap, and spend is decaying.
+  - 8 dishes were re-drawn after a judge rejection, with at most 3 attempts and no loops.
+- **C2PA on a served file (2026-10-08).**
+  - The JPEG is served as `image/jpeg` with `cache-control: public, max-age=31536000`.
+  - It has one APP11/JUMBF segment with a c2pa claim, signature, actions and
+    `trainedAlgorithmicMedia`, signed by the Google C2PA Core Generator Library.
+- **Not itemised:** the calibration watch-list of phase 6 step 5 (noodles, horchata with
+  nuts, free-from pairs). Project 010 phase 6 reads the judge's answers in production.
+
+## Closing (2026-10-08)
+
+- **Closed** on 2026-10-08 at the owner's request, after the closing audit
+  ([`closing-audit-2026-10-08.md`](../000-workspace/closing-audit-2026-10-08.md)).
+  Anything found later is a new change, not a reopening.
+- **Shipped:**
+  - #126: the plan;
+  - #127: phase 1;
+  - #128: phase 2;
+  - #129: phase 3;
+  - #130: phase 4;
+  - #131: phase 5;
+  - #132: phase 6, live on 2026-09-28.
+- **PRD criterion 10:** the flag is on, the owner saw the pictures on the iPhone
+  (2026-09-28), the first week's spend is read and a served file carries its C2PA manifest.
+- **Left open, for the owner:** revoke the OpenRouter pilot key, and delete the unused
+  `AI_ILLUSTRATIONS` and `GOOGLE_API_KEY` variables on the API project, if not done yet.
