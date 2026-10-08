@@ -181,7 +181,7 @@ records what was decided.
 
 ### Phase 2 — "Seguridad" in /perfil
 
-- [ ] in progress
+- [x] done — #184 (2026-10-01)
 - **Dispatch**: opus @ high — `/execute-project 011 phase 2`, as a `/team` (`backend`,
   `frontend`, `tests`). `quality-max`. Reviews: `invariant-reviewer`, `migration-reviewer`,
   `accessibility` with `/local-probe`, `legal` (retention).
@@ -251,7 +251,7 @@ records what was decided.
 
 ### Phase 3 — Optional second factor: an authenticator app
 
-- [ ] in progress
+- [x] done — #185 (2026-10-01)
 - **Dispatch**: opus @ high — `/execute-project 011 phase 3`, as a `/team` (`backend`,
   `frontend`, `tests`). `quality-max`. Reviews: `invariant-reviewer`, `migration-reviewer`,
   `accessibility` with `/local-probe`. — human-verify: the owner turns it on in his
@@ -429,7 +429,7 @@ records what was decided.
 
 ### Phase 6 — Mandatory for professionals and the admin
 
-- [ ] pending
+- [x] done — #214
 - **Dispatch**: opus @ high — `/execute-project 011 phase 6`. `quality-max`: it changes who
   may read health data. Reviews: `invariant-reviewer`, `legal` (EIPD R8). — owner-gated:
   the admin half ships only after the owner has turned on his own TOTP and kept his codes,
@@ -466,7 +466,7 @@ records what was decided.
 
 ### Phase 7 — A brake per account
 
-- [ ] pending
+- [x] done — #213
 - **Dispatch**: opus @ high — `/execute-project 011 phase 7`, as a `/team` (`backend`,
   `tests`). `quality-max`. Reviews: `invariant-reviewer`, `migration-reviewer`.
 - **Goal**: many failed sign-ins for one address slow down, from however many IPs, without
@@ -503,7 +503,7 @@ records what was decided.
 
 ### Phase 8 — Sign-up reveals nothing
 
-- [ ] pending
+- [ ] in progress — #217. Hotfix #218, found by this phase's invariant review and merged to `main` first: the confirmation link signs nobody in (`autoSignInAfterVerification: false`) and a provider never links into an existing account (`disableImplicitLinking: true`)
 - **Dispatch**: opus @ high — `/execute-project 011 phase 8`, as a `/team` (`backend`,
   `frontend`, `tests`). `quality-max`. Reviews: `invariant-reviewer`, `accessibility` with
   `/local-probe`.
@@ -525,6 +525,34 @@ records what was decided.
     - dictionaries.
   - `apps/api/test/**`: a case in `access.e2e-spec.ts`; `harness.ts` already signs in after
     sign-up and must keep working.
+  - **Amended 2026-10-03** (the lead, under the owner's delegation of 2026-10-03; LOG,
+    phase 8): sign-up *then sign-in* was still an oracle. A stranger signs up an address
+    with a password of their own, then signs in with it: 200 where the address was new,
+    401 where it already had an account. So:
+    - `emailAndPassword.requireEmailVerification: true`. Better Auth's 403
+      `EMAIL_NOT_VERIFIED` for an unconfirmed account's right password is rewritten by
+      `hooks.after` into its own 401 `INVALID_EMAIL_OR_PASSWORD`, the same in status, body
+      and headers (`services/UnconfirmedSignIn.ts`);
+    - the per-address brake moves exactly as for a wrong password: the attempt counts, and
+      only a 2xx clears it;
+    - `emailVerification.sendOnSignIn: true`: that person gets a fresh link, after the
+      response, never a confirmed account;
+    - every link, and the "somebody tried" mail, within a budget of three per address per
+      hour (`core/domain/MailBudget`, rows in Better Auth's `verification` table, no
+      migration);
+    - the web's 401 copy says, for everybody, what an unconfirmed person must do;
+    - an e2e pins it: the new-address and existing-address probes give the same answer and
+      the same `sign_in_failure` row;
+    - **not shipped to production until the lead confirms**: the owner first OKs a read-only
+      count of the unconfirmed production accounts, who from this change can no longer sign
+      in with their password until they open a link.
+      **Confirmed 2026-10-08**: the owner OK'd the count; production has 0 unconfirmed
+      accounts (8 users, all confirmed), so the change locks nobody out.
+  - **Pending follow-up, not built in phase 8** (`legal`, P2-15, 2026-10-03): a 30-day sweep
+    of unconfirmed accounts with no session and no data. Phase 8 lets anybody create an
+    unconfirmed account for any address; nothing ever deletes one that nobody confirms. To
+    be planned: what "no data" means (no profile, no plan, no audit row), the notice, and
+    whether the daily cron carries it.
 - **Steps**:
   1. Confirm in Better Auth 's installed source (the version phase 5 left) that the
      response body and status are identical for both cases, and measure the timing
@@ -574,7 +602,7 @@ records what was decided.
 
 ### Phase 9 — A Content Security Policy, report-only
 
-- [ ] pending
+- [x] done — #212
 - **Dispatch**: opus @ high — `/execute-project 011 phase 9`, as a `/team` (`frontend`,
   `backend`). Below the auth floor is allowed here: the lead may price it lower, with a
   line in the LOG. Reviews: `seo` (the landing page stays static and cached),

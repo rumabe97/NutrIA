@@ -777,6 +777,210 @@
 - **Decisions**: none new.
 - **Advisor**: not consulted.
 
+## Phase 8 — Sign-up reveals nothing (2026-10-03)
+
+- **Executor**: opus 5.5 (`backend`, one agent, resumed after a machine crash from the WIP
+  commit; the lead allowed it to edit `apps/web`'s `RegisterScreen`, `SignInForm` and
+  dictionaries and `apps/api/test` for this phase).
+- **Result**: partial — built, unit and local e2e green; the invariant review, CI,
+  `/local-probe` and the owner's iPhone check are still to come. **The
+  `requireEmailVerification` part is not to reach production until the lead confirms**,
+  after the owner OKs a read-only count of the unconfirmed production accounts.
+- **What was built** (the plan's scope):
+  - `autoSignIn: false`: sign-up opens no session for anybody, and Better Auth answers an
+    address that already has an account with its 200 and a synthetic user
+    (`customSyntheticUser` adds the terms' record, so both answers carry the same fields).
+  - `onExistingUserSignUp` mails that address "somebody tried to create an account with
+    your address" (`ExistingAccountSignUp`, es/en), after the response.
+  - `RegisterScreen` drops the 422 branch and ends on "check your email" for every address,
+    with the iPhone note (the link opens in Safari; the installed app then signs in).
+- **Amendment** (who decided: the lead, under the owner's delegation of 2026-10-03; the
+  plan amended in the same change): **sign-up then sign-in was still an oracle.** A
+  stranger signs up an address with a password of their own, then signs in with it: 200
+  where the address was new (their own unconfirmed account), 401 where it already had one.
+  - `requireEmailVerification: true`. Better Auth answers an unconfirmed account's right
+    password 403 `EMAIL_NOT_VERIFIED`; `hooks.after` makes it Better Auth's own 401
+    `INVALID_EMAIL_OR_PASSWORD` (`services/UnconfirmedSignIn.ts`). Found in Better Auth
+    1.7.7's dispatch: over HTTP the response keeps the *status of the error the route
+    threw*, whatever an after-hook returns in its place, so the hook answers a finished
+    `Response` built as better-call builds a thrown error's (status, its text,
+    `Content-Type`, the JSON body); through `auth.api` it throws the error.
+  - State identical too: the brake (phase 7) counted the attempt before the route ran, and
+    only a 2xx clears it, so an unconfirmed right password is +1 and the row stays.
+  - `sendOnSignIn: true`: that person gets a fresh link, after the response. Better Auth
+    sends it only when the address is unconfirmed, so a confirmed account never gets one.
+  - **Mail budget, new.** Better Auth's only limit on a verification mail is per IP (3 a
+    minute on `/send-verification-email`), and `sendOnSignIn` does not even pass through
+    that route. With the brake letting about ten attempts per quarter hour through, a
+    stranger holding the password of an account they made with somebody's address could
+    mail that address hundreds of times a day. So every confirmation link, and the
+    "somebody tried" mail, is held to **three per address per hour, per kind**
+    (`core/domain/MailBudget`): the existing rule's three, over the life of a link, per
+    address instead of per IP. The rows are HMAC-keyed (`mail-budget:<key>`) in Better
+    Auth's `verification` table, decided under a transaction-scoped advisory lock, expired
+    by `expiresAt` and swept by the daily `/cron/sweep-verifications`: no migration. It
+    runs in the background task, so nothing a client sees or times changes; it fails open
+    with `mail_budget_unavailable`.
+  - The web's 401 copy says, for everybody, what an unconfirmed person must do;
+    `socialNotLinked` no longer sends them to a password sign-in that cannot succeed.
+  - Google, passkeys and the harness are unaffected: Better Auth reads this flag only in
+    `/sign-in/email` (the social link reads the provider's own option); a passkey needs a
+    confirmed address to be added; `register()` confirms before it signs in.
+- **Unit specs that signed in an unconfirmed account** now confirm it in their memory store
+  first (`AccountSecurity`, `TwoFactor`, `PasswordPolicy`, `Passkey`, `SessionRenewal`,
+  `AccountDeletion`, `SignInBrake`). E2E suites that test the address lock sign in
+  confirmed and put the address back (`harness.ts` `unconfirmAddress`): no route makes an
+  unconfirmed session any more, but one from before this change, or one through a
+  provider that would not vouch for the address, still exists. `deleteAccountByEmail`
+  confirms before its sign-in.
+- **The lead's two checks on the budget**: the HMAC label is `mail-budget:<kind>:`, not
+  the brake's `sign-in-brake:`, so a budget key and a brake key for one address cannot be
+  matched across tables. The rows are not in `rate_limit` but in `verification`, with the
+  key and a count only (no address). They expire at the end of their hour, and the daily
+  `/cron/sweep-verifications` deletes every row whose `expiresAt` has passed. Better
+  Auth's own cleanup is off (`verification.disableCleanup`).
+- **Timing** (step 1, measured locally: 25 rounds alternating, on the real app over
+  supertest, local Postgres). Medians, min in brackets:
+  - sign-up, new address 93.6 ms (85.9), existing address 85.6 ms (78.3). The
+    existing-address branch is not slower: its mail already goes after the response. The
+    **new** branch is ~8 ms slower here (the row, the credential, `onAccountCreated`, inline).
+    On Neon that is a few more round trips, so it is a residual timing signal, not padded in
+    this change (see the hand-off).
+  - sign-in with the stranger's password, new (unconfirmed, right password) 90.8 ms
+    (82.6), existing (wrong password) 91.3 ms (84.3): no difference.
+- **Evidence**:
+  - `sh .claude/skills/ship/scripts/gate.sh --full`: green. That covers migrations, lint,
+    types, coverage, the web build, static pages, format, dead code and leaks.
+  - New tests:
+    - core: `MailBudget.test.ts`, `MailBudgetRepository.test.ts` (the lock, the read, the
+      insert/update SQL), `MailBudgetController.test.ts`.
+    - api: `MailBudget.spec.ts`. `SignInBrake.spec.ts` gains 4 cases: an unconfirmed right
+      password equals a wrong one to the byte with a fresh link; the new-address and
+      existing-address probes give the same answer and brake rows; the tenth such attempt
+      brakes; and the `auth.api` path throws the same 401. `SignUp.spec.ts` gains the
+      budget case: five sign-ups, three mails.
+    - web: `lib/authAnswer.test.ts`.
+  - End-to-end on the local Postgres, all 48 suites in band: 697/699. The two failures:
+    - `care` (an unconfirmed squatter's session): fixed, then green on rerun.
+    - `admin` "never name who made a dish": finds no `source='ai'` dish with `created_by`
+      in the library. That is data state from the shared local library, not this change;
+      it still fails alone and is reported to the lead.
+  - `access.e2e` pins the oracle: the stranger's sign-in with their own password gives the
+    same status, body and headers, and the same `sign_in_failure` row
+    `{count: 1, next_allowed_at: null}`, for a new and an existing address. A fresh link
+    goes to the new one only.
+- **Decisions**: the mail budget (the lead, under the owner's delegation, 2026-10-03).
+- **Advisor**: not consulted.
+
+## Phase 8 — two additions after the hand-off (2026-10-03)
+
+- **Executor**: opus 5.5 (`backend`, the same agent).
+- **Who decided**: the lead, under the owner's delegation of 2026-10-03. Both close
+  differences the hand-off listed.
+- **A time floor on `/sign-up/email`** (`services/SignUpFloor.ts`):
+  - Every sign-up answers no earlier than **500 ms**, the floor Better Auth itself keeps
+    on `/send-verification-email`. A refused password is not held: its answer is the same
+    for every address.
+  - The new-address branch was ~8 ms slower locally (the row, the credential and
+    `onAccountCreated`, inline). On Neon that is a few round trips, well under the floor.
+  - The clock starts in `hooks.before` once the password checks have passed, not at the
+    request. HIBP can take up to two seconds (`HIBP_TIMEOUT_MS`), the same for any
+    address; counting it would let a slow HIBP push one branch past the floor and not the
+    other. So the floor covers exactly the part that depends on the address.
+  - `hooks.after` waits out what is left, whatever the answer.
+  - Keyed on the request: HTTP only, since a call through `auth.api` has no request and no
+    stranger can make one.
+  - On under `NODE_ENV=test` too, as the brake is. The unit suites took ~50 s with it.
+  - Pinned by:
+    - `SignUpFloor.spec.ts` (fake clock: what is left of the floor, nothing past it, no
+      other route, no `auth.api` call, nothing before the clock started);
+    - `SignUp.spec.ts`: on the real Better Auth over HTTP, both branches take at least the
+      floor.
+- **A completed reset confirms the address** (`onPasswordReset`):
+  - Better Auth 1.7.7's reset does not: `routes/password.mjs` never touches
+    `emailVerified`.
+  - Now `UserController.confirmAddressByReset` sets it, on that account and only while it
+    was unconfirmed. When it does, it runs what confirming an address runs
+    (`onAddressConfirmed`: the account opens itself, or the owner is told).
+  - A failure leaves the address as it was, writes one line
+    (`address_not_confirmed_on_reset`, the account id only), and the reset still answers
+    200.
+  - This closes the squatter case: a stranger signs up somebody's address with their own
+    password, never confirms; the owner resets and signs in with the new password.
+  - Pinned by:
+    - `AccountSecurity.spec.ts` (3 cases: confirmed, then signs in; an already confirmed
+      address runs nothing; a failure still resets);
+    - `UserRepository.test.ts` (the `WHERE` holds `email_verified = false`);
+    - `access.e2e-spec.ts`: the squatter signs up, the owner resets, the new password gets
+      200 and the squatter's gets 401.
+- **Test-only rate rule**: `/request-password-reset` joins the paths raised under
+  `NODE_ENV=test`. Its three-a-minute per-IP rule was shared, in one run, by the reset
+  suites and the squatter's reset in `access`. No suite asserts that 429.
+
+## Phase 8 — the invariant, accessibility and legal reviews applied (2026-10-03)
+
+- **Executor**: opus 5.5 (`backend`, the same agent). Routing by the lead; the
+  invariant review's P0 (`autoSignInAfterVerification`, already on main) goes to main
+  as a separate hotfix by `backend-011p6`, not here.
+- **Invariant review**:
+  - **P1, `/send-verification-email` timing**: Better Auth awaits our
+    `sendVerificationEmail` on the anonymous resend and only pads it to 500 ms. So the
+    budget's lookup and SMTP made an unconfirmed address slower than an unknown or a
+    confirmed one. The callback now hands budget and SMTP to `BackgroundTaskService` and
+    returns at once. Pinned by `VerificationResend.spec.ts`: with SMTP that never answers,
+    an unconfirmed address answers at the floor, like an unknown one.
+  - **P1, sign-up floor**: `SIGN_UP_FLOOR_MS` is now **800 ms**. The slow branch's tail on
+    Neon could not be measured here, so the floor is set with margin over the ~95 ms
+    measured locally. Raise it if production timing ever shows a sign-up near it.
+  - **P2**: a third budget kind, `reset`, for the reset mail. Better Auth already sends it
+    after the response, so the answer is unchanged.
+  - **P3**: `emailVerification.expiresIn` is written out as `MAIL_BUDGET.windowMs / 1000`
+    (3600). A spec ties the two.
+  - **P3**: a spec shows that no address reaches any log line, Nest's or the console's, on
+    an existing-address sign-up.
+- **Accessibility review** (static read):
+  - "Check your email" focuses its heading and titles the tab (`lib/authAnswer`
+    `arriveAtSent`, tested with fakes). The old title comes back on the way out.
+  - "Usar otro correo" returns to the form with the name and address as typed, and focuses
+    the address field.
+  - The sign-in alert remounts per submit (`key={attempt}`).
+  - A 401 sits on the password field (`aria-invalid`, described by it), and the alert is
+    kept for a wait or an outage (`signInRefusal` answers `where`, tested).
+  - Secondary text measured: 4.9:1 light and 6.9:1 dark against the page.
+  - Not tested: the focus and the key in a DOM. `apps/web`'s vitest runs in node with no
+    testing library; the probe is the check.
+- **Legal review**:
+  - The ⟦frenos⟧ item and the widened legitimate-interest paragraph go into `/privacidad`
+    (es/en), exactly as `legal` wrote them. `privacy.updated` already reads 3 October
+    2026. There is no privacy version constant to bump.
+  - `auth.signUpSent` and `auth.invalidCredentials` no longer claim a mail was sent: the
+    first is conditional ("si {email} es correcta, te llegará…"), the second names the
+    three-an-hour limit. Reconciled with the accessibility wording ("si aún no has
+    confirmado tu dirección…"); neither says an account exists.
+  - The "somebody tried" mail gains, before the reset link, the line for somebody who never
+    made the account. This is variant A, since a completed reset confirms the address.
+  - P2-15, a sweep of unconfirmed accounts, is in the PLAN as a pending follow-up.
+
+## Phase 8 — the invariant review's last three P3s (2026-10-08)
+
+- **Executor**: opus 5.5 (`backend`, resumed from a WIP commit after a machine crash).
+- **A reset confirms the address after the sessions are revoked**
+  (`services/ResetConfirmsAddress.ts`). Better Auth 1.7.7 calls `onPasswordReset` before
+  `revokeSessionsOnPasswordReset` deletes the account's sessions, so confirming there left,
+  for a moment, a confirmed address with a session from before the proof. `onPasswordReset`
+  now only remembers the account against its request; `hooks.after`, on a 2xx
+  `/reset-password`, confirms it. What confirming runs splits in two: the account opens
+  itself before the answer, since the next request may need it open; the owner's notice of a
+  waiting account goes to `BackgroundTaskService` (`onAddressConfirmed` takes an optional
+  `background`), so the reset never waits for that mail. The link's own confirmation still
+  sends that notice inline. A call through `auth.api` has no request and is confirmed at
+  once. Pinned by `AccountSecurity.spec.ts` (no session is left when the address is
+  confirmed; the notice is handed to the background) and `SelfService.spec.ts`.
+- **`resetPasswordTokenExpiresIn`** is written out as `MAIL_BUDGET.windowMs / 1000`, as
+  `emailVerification.expiresIn` already was; a spec in `SignUp.spec.ts` ties the two.
+- **The reset budget**: four `/request-password-reset` for one address answer 200 four
+  times and send three mails (`SignUp.spec.ts`).
+
 ## Hotfix — the confirmation link signed in whoever opened it (2026-10-03)
 
 - **Found by**: the phase 8 invariant review, as a P0 already on `main`. Fixed by
@@ -843,3 +1047,32 @@
   - **Residual, P2, not built**: a reset does not clear a TOTP the stranger turned on, so
     the victim is locked out (not exposed) until the owner's 48-hour removal. PLAN,
     "Follow-up — A reset does not clear a second factor a stranger turned on".
+
+## Phase 8 — the production count, and main merged (2026-10-08)
+
+- **The read-only count** the PLAN made a condition of shipping `requireEmailVerification`:
+  the owner approved it, and the lead ran it. Production has **0 unconfirmed accounts** (8
+  users, all confirmed), so phase 8 locks nobody out of a password sign-in. #217 may ship
+  once the delta review passes.
+- **Main merged** (#214, #219, then hotfix #218). With the link no longer signing anybody in,
+  `auth.signUpSent` and `auth.signUpSentInstalled` (es/en) say: open the link, confirm the
+  address, then sign in. `socialNotLinked` takes #218's copy (an account that signs in with a
+  password), since implicit linking is now off whether the address is confirmed or not.
+
+## Phase 8 — the delta review, and what stays open (2026-10-08)
+
+- **Delta review of #217 passed**: no P0 or P1. Its two P3s are fixed: a reset with no
+  request (an `auth.api` call) confirms nothing, since only the after-hook runs once the
+  sessions are gone (`ResetConfirmsAddress.ts`, pinned by its spec); and `apps/api/AGENTS.md`
+  § Security invariants carries a "Sign-up reveals nothing" bullet. `EmailVerification.spec.ts`
+  (from #218) now plays phase 8's order: no session at sign-up, 401 before confirmation,
+  none from the link, the stranger's password working only once the address is confirmed,
+  and the reset ending it.
+- **Known residual, not fixed here**: the TOTP lockout through a stranger's factor (P2) —
+  PLAN, "Follow-up — A reset does not clear a second factor a stranger turned on". Phase 8
+  narrows it without closing it: the stranger can no longer sign in, so cannot turn a factor
+  on, before the address is confirmed; but between the owner's opening the link and their
+  reset, the stranger's password works and the factor can be turned on. The owner is then
+  locked out, not exposed, until the 48-hour removal (phase 4).
+- CI's `api#format` failure on a6ccac1b (`SelfService.spec.ts`) fixed with Prettier; main
+  (#223) merged.

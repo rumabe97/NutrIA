@@ -25,6 +25,7 @@ export type EmailKind =
   | 'care-invitation'
   | 'check-in-reminder'
   | 'checkin-submitted'
+  | 'existing-account-sign-up'
   | 'owner-alert'
   | 'owner-digest'
   | 'owner-picture-alert'

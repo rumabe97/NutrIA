@@ -16,10 +16,10 @@ import { LegalNotice } from 'components/LegalNotice';
 import { SocialSignIn } from 'components/SocialSignIn';
 
 import { forgetOfflineCopies } from 'lib/offline';
-import { interpolate } from 'lib/format';
 import { ownPath } from 'lib/ownPath';
 import { passkeyAutofillAvailable, passkeySignInRefusal, passkeysSupported, unchanging } from 'lib/passkey';
 import { signIn } from 'lib/auth-client';
+import { signInRefusal } from 'lib/authAnswer';
 import { syncLocaleFromProfile } from 'lib/locale-sync';
 
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
@@ -57,6 +57,10 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
   const locale = useLocale();
   const params = useSearchParams();
   const [error, setError] = useState<string | undefined>(() => arrivalError(params.get('error'), dictionary));
+  // A 401 is said on the password field, where the person goes back to (PLAN 011 phase 8).
+  const [passwordError, setPasswordError] = useState<string>();
+  // Each submit remounts the alert, so the same refusal twice is announced twice.
+  const [attempt, setAttempt] = useState(0);
   const [pending, setPending] = useState(false);
   const passkeys = useSyncExternalStore(unchanging, passkeysSupported, () => false);
   const [passkeyPending, setPasskeyPending] = useState(false);
@@ -145,7 +149,9 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(undefined);
+    setPasswordError(undefined);
     setPasskeyError(undefined);
+    setAttempt(previous => previous + 1);
     setPending(true);
 
     const form = new FormData(event.currentTarget);
@@ -154,20 +160,12 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
     if (signInError) {
       setPending(false);
 
-      // One message for wrong password and unknown account alike: telling them
-      // apart turns this form into an account-enumeration oracle. A 429 is a
-      // wait — the per-IP limit or the per-address brake, the same answer for
-      // an address with an account and one without (PLAN 011 phase 7). Anything
-      // else that is *not* a refusal — the service down, a rejected origin, a
-      // database the API cannot reach — says so instead: for a whole afternoon
-      // those read as "wrong password" and sent the owner looking in the wrong place.
-      setError(
-        signInError.status === 401
-          ? dictionary.auth.invalidCredentials
-          : signInError.status === 429
-            ? dictionary.auth.signInPaused
-            : interpolate(dictionary.auth.signInUnavailable, { status: signInError.status })
-      );
+      // One message for a wrong password, an unknown address and an unconfirmed account's
+      // right password, on the password field; a wait or an outage in the alert
+      // (`lib/authAnswer`, PLAN 011 phases 7 and 8).
+      const refusal = signInRefusal(signInError.status, dictionary);
+
+      (refusal.where === 'password' ? setPasswordError : setError)(refusal.message);
 
       return;
     }
@@ -197,14 +195,22 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
 
       <form className={styles.form} noValidate={true} onSubmit={onSubmit}>
         {error ? (
-          <p className={styles.error} role="alert">
+          <p className={styles.error} key={attempt} role="alert">
             {error}
           </p>
         ) : null}
 
         {/* `webauthn` last: the browser offers this site's passkeys among the field's suggestions. */}
         <Input autoComplete="username webauthn" label={dictionary.auth.email} name="email" required={true} type="email" />
-        <Input autoComplete="current-password" label={dictionary.auth.password} name="password" required={true} type="password" />
+        <Input
+          autoComplete="current-password"
+          error={passwordError}
+          label={dictionary.auth.password}
+          name="password"
+          onChange={() => setPasswordError(undefined)}
+          required={true}
+          type="password"
+        />
 
         <Link className={`${styles.link} ${styles.forgot}`} href="/recuperar">
           {dictionary.auth.forgotPassword}

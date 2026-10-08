@@ -355,3 +355,46 @@ Lo que afirma, contra el código (nada es falso; de las dos imprecisiones P3 que
 (3) `detail`, «Platos con el dibujo devuelto desde el aviso anterior: {total}»: cuenta platos cuya fila sigue devuelta al leer, uno por plato (AdminAlertController.ts:238), y el total es la suma de los dos motivos (OwnerAlert.ts:117). Como en M, el primer aviso cuenta 24 h (P3, aceptable).
 (4) «Esos platos no cuentan como fallidos: se dibujan en la siguiente visita, cuando el proveedor vuelva a aceptar peticiones»: cierto (no entran en M, AdminAlertController.ts:237; la consola los lee como sin imagen; el intento devuelto no gasta intentos del plato ni abre la espera de 7 días).
 (5) `again`, «durante 6 horas»: OwnerAlerts.service.ts:172. Un solo reclamo para los dos motivos: un 429 suelto silencia durante 6 h también el aviso de un pago rechazado que llegue después; ese pago sale en el siguiente aviso, con su recuento, porque cada uno cuenta desde el anterior. -->
+
+---
+
+## O. «Alguien ha intentado crear una cuenta con tu correo» (tal como está — proyecto 011 fase 8, PR #217)
+
+> **No soy abogado.** Documentado tal como está construido en `feat/011-p8-signup`
+> (`4f36ec5`), verdad una vez fusionado. Análisis en
+> [`../analisis.md` § 4.1 ter](../analisis.md).
+
+**Plantilla**: `apps/api/src/modules/email/templates/ExistingAccountSignUp.ts`, `EmailKind`
+`existing-account-sign-up`. **Destinatario**: la dirección de la cuenta que ya existe, y
+nadie más (`ExistingAccountMail.ts`). **Cuándo**: alguien pide crear una cuenta con esa
+dirección; Better Auth contesta al que lo pide lo mismo que a una dirección nueva y llama a
+`onExistingUserSignUp`, en segundo plano. **Límite**: tres por dirección y hora
+(`MailBudget`, tipo `existing-account`); el cuarto no sale. **Idioma**: el guardado en la
+cuenta; si no, el de la petición. **Marcadores**: los dos enlaces, `{signInUrl}` (`/acceder`)
+y `{recoverUrl}` (`/recuperar`), con el prefijo del idioma.
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `Alguien ha intentado crear una cuenta con tu correo` | `Somebody tried to create an account with your address` |
+| `what` | `Alguien ha intentado crear una cuenta de NutrIA con esta dirección, que ya tiene una. Si has sido tú, no necesitas otra: entra con la que ya tienes.` | `Somebody tried to create a NutrIA account with this address, which already has one. If it was you, you do not need another: sign in with the one you have.` |
+| `button` | `Entrar` → `{signInUrl}` | `Sign in` → `{signInUrl}` |
+| `google` | `Si creaste la cuenta con Google, entra con Google.` | `If you created the account with Google, sign in with Google.` |
+| `reset` | `Si no recuerdas la contraseña, puedes poner una nueva aquí:` + `{recoverUrl}` | `If you have forgotten your password, you can set a new one here:` + `{recoverUrl}` |
+| `notYou` | `Si no has sido tú, no tienes que hacer nada: no se ha creado ninguna cuenta y no ha cambiado nada de la tuya.` | `If it was not you, there is nothing to do: no account was created and nothing of yours changed.` |
+| `linkFallback` | `Si el botón no funciona, copia esta dirección en tu navegador:` + `{signInUrl}` | `If the button does not work, copy this address into your browser:` + `{signInUrl}` |
+
+**Veredicto**: se puede enviar tal cual. Una mejora P3, abajo.
+
+<!-- Fuente: RGPD art. 6.1.f con el considerando 49 (EUR-Lex: «Constituye un interés legítimo del responsable del tratamiento interesado el tratamiento de datos personales en la medida estrictamente necesaria y proporcionada para garantizar la seguridad de la red y de la información…») y art. 32.1; para la persona de la cuenta, también 6.1.b. No es comunicación comercial: LSSI (BOE-A-2002-13758, consolidado a 23/01/2025), anexo, letra f (la dirigida a la promoción de bienes, servicios o la imagen de una empresa); el art. 21.1 prohíbe las «publicitarias o promocionales» no solicitadas, y este correo no promociona nada: no necesita consentimiento ni baja, y no se puede desactivar (como «tu contraseña ha cambiado», analisis.md § 4.1 bis). Minimización (art. 5.1.c): nada de quien lo intentó (ni nombre tecleado, ni hora, ni dispositivo, ni IP) — el nombre lo eligió un extraño y podría ser cualquier cosa; la persona no lo necesita para actuar. Ninguna palabra de salud (M14). Art. 13: dentro de «avisos de seguridad de tu cuenta… que no se pueden desactivar» de `/privacidad` («Con quién compartimos», proveedor de correo); el «como» presenta ejemplos, no una lista cerrada. Lo que afirma, contra el código: «no se ha creado ninguna cuenta»: cierto, Better Auth devuelve un usuario sintético y no escribe nada (`better-auth/dist/api/routes/sign-up.mjs:200-202`, 1.7.6); «no ha cambiado nada de la tuya»: cierto, la única fila nueva es la del presupuesto de correos, que es de una huella de la dirección, no de la cuenta; «si creaste la cuenta con Google, entra con Google»: un consejo, no una afirmación sobre la cuenta (el correo es el mismo para todas, y no dice si la cuenta tiene contraseña). Traza: `console.info` con el id de la cuenta, nunca la dirección; `mail_sent` con el tipo y sin usuario (`Email.service.ts:118-119`). -->
+
+**P3 — a quien la cuenta se la creó otra persona.** Si la cuenta existente la creó un
+extraño con esta dirección y nunca la confirmó, quien recibe el correo lee «ya tiene una» y
+no sabe de qué cuenta se trata. La salida es el enlace de `reset`. Frase nueva, antes de
+`reset`, en dos variantes según lo que se fusione:
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `notRemembered` (nuevo), si restablecer confirma la dirección | `Si no recuerdas haber creado una cuenta, puede que alguien la creara con tu dirección: pon una contraseña nueva en el enlace de abajo y entra con ella.` | `If you do not remember creating an account, somebody may have created one with your address: set a new password with the link below and sign in with it.` |
+| `notRemembered` (nuevo), si no la confirma | la misma, más `; te enviaremos un enlace para confirmar que la dirección es tuya.` | the same, plus `; we will send you a link to confirm the address is yours.` |
+
+<!-- Cuál es verdad: en `4f36ec5` restablecer NO confirma la dirección (Better Auth 1.7.6, `dist/api/routes/password.mjs`, no toca `emailVerified`): al entrar con la contraseña nueva, la cuenta sin confirmar recibe el 401 y un enlace (`sendOnSignIn`), y el enlace abre la sesión (`autoSignInAfterVerification`) — segunda variante. El 2026-10-03 `backend-011p8` tiene en su árbol de trabajo, sin commit, `onPasswordReset` → `UserController.confirmAddressByReset` (confirma la dirección al restablecer, solo si no lo estaba) — con eso, primera variante. En los dos casos restablecer cierra las sesiones del otro (`revokeSessionsOnPasswordReset: true`) y borra el freno. No prometo «quien la creó ya no podrá entrar»: si activó un segundo factor en esa cuenta, la frase sería más de lo que el código garantiza sin comprobarlo. -->
