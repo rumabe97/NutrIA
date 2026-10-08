@@ -8,6 +8,8 @@ import { UserController } from 'core/controllers/User';
 import { validateEnv } from '../../config/Env.validation.js';
 import { BackgroundTaskService } from '../../shared/services/index.js';
 
+import type { BetterAuthOptions } from 'better-auth';
+
 /**
  * Opening the confirmation link signs nobody in (hotfix, PLAN 011 phase 8
  * invariant review).
@@ -177,14 +179,19 @@ describe('confirming an address', () => {
 
   it('never joins a provider to an account it was not linked to, even one whose address the link confirmed', () => {
     // With a provider configured, which is when linking is on at all (`0058`, amended).
-    const { options } = build({ GOOGLE_OAUTH_CLIENT_ID: 'nutria.apps.googleusercontent.com', GOOGLE_OAUTH_CLIENT_SECRET: 'not-a-secret' });
+    const options: BetterAuthOptions = build({
+      GOOGLE_OAUTH_CLIENT_ID: 'nutria.apps.googleusercontent.com',
+      GOOGLE_OAUTH_CLIENT_SECRET: 'not-a-secret'
+    }).options;
 
     expect(options.account?.accountLinking?.disableImplicitLinking).toBe(true);
     expect(options.account?.accountLinking?.trustedProviders ?? []).toEqual([]);
   });
 
   it('has no change of address, whose confirmation opens a session whatever `autoSignInAfterVerification` says', () => {
-    expect(build().options.user?.changeEmail?.enabled).toBeFalsy();
+    const options: BetterAuthOptions = build().options;
+
+    expect(options.user?.changeEmail?.enabled).toBeFalsy();
   });
 
   it('confirms the address for whoever opens the link, gives them no session, and a reset ends the stranger’s', async () => {
