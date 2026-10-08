@@ -60,6 +60,8 @@ describe('social sign-in: arriving through a provider', () => {
   let arriving: Identity;
   const realFetch = globalThis.fetch;
   const sessions: string[] = [];
+  // Accounts made by sign-up, which gives no session now: removed by address.
+  const addresses: string[] = [];
   const stamp = Date.now();
   const sql = (): Sql => (database() as unknown as { readonly $client: Sql }).$client;
 
@@ -179,6 +181,10 @@ describe('social sign-in: arriving through a provider', () => {
       await request(httpServer(app)).delete(`/${PREFIX}/users/me`).set('Cookie', cookie);
     }
 
+    for (const address of addresses) {
+      await deleteAccountByEmail(app, address, PASSWORD);
+    }
+
     globalThis.fetch = realFetch;
     delete process.env.GOOGLE_OAUTH_CLIENT_ID;
     delete process.env.GOOGLE_OAUTH_CLIENT_SECRET;
@@ -278,12 +284,9 @@ describe('social sign-in: arriving through a provider', () => {
 
     try {
       // A stranger signs the victim's address up with a password of their own…
-      const signedUp: Response = await request(server)
-        .post(`/${PREFIX}/auth/sign-up/email`)
-        .send({ email, name: 'Mallory', password: PASSWORD })
-        .expect(200);
+      await request(server).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name: 'Mallory', password: PASSWORD }).expect(200);
 
-      sessions.push(cookiesOf(signedUp));
+      addresses.push(email);
       link = await verificationLinkOf(email, spy);
     } finally {
       spy.mockRestore();
