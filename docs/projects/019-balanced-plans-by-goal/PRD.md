@@ -4,7 +4,7 @@
 > **Audience**: humans and agents. **Committed**: yes. **Written by**: the lead via
 > `/plan-project`, from the owner's request and architect report `0010`; approved by the owner on 2026-10-03.
 
-- **Status**: approved
+- **Status**: done — delivered and closed 2026-10-09 (owner's delegation of 2026-10-03; closing entry in LOG.md)
 - **Roadmap item**: follow-up to projects 016–018
 
 ## Problem

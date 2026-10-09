@@ -288,3 +288,30 @@
 - **Not measured**: the plan evaluator does not call the generator, so 4.7.0 cannot move its numbers; the asks fill the library over time (`0013`). Whether a model writes the asked dish needs the paid sample.
 - **Notes**: "The plan adds sides to lunch and dinner" stays as 4.6.0 wrote it for a person whose main takes sides, whatever the accompaniments flag says, as before. A first-round request carries at most two asks, so a slot short of all three groups is asked for them across its requests, not in each.
 
+
+## Closing (2026-10-09)
+
+- **Closed by the lead** under the owner's delegation of 2026-10-03. Every phase is shipped and in production. Anything found later is a new change, not a reopening.
+- **Shipped:**
+  - #215: phase 1;
+  - #216 and #224: phases 2 and 3;
+  - #229: phases 4, 5a and 5b;
+  - #235: phase 6;
+  - #241: phase 7, prompt 4.7.0, after an invariant review whose findings were all fixed in the PR.
+- **PRD criteria:**
+  1. Met (phase 1).
+  2. Met (phase 2).
+  3. Partly met, accepted: the maximums are repaired by `meetCaps` (`0086`), and the exceptions the bands needed are counted (`--exceptions`). Meat, eggs and fish + shellfish still exceed on some plans when no swap keeps the day in band.
+  4. Mostly met. With accompaniments on: legumes on 132/140 plans and fish on 112/120.
+  5. Partly met, accepted:
+     - vegetables at 80% of mains on 74/140 plans;
+     - fruit on 73/140;
+     - vegetables at every main on only 4/140.
+     Profiles below `ACCOMPANIED_FROM_KCAL` now get vegetables and fruit asked of their dishes (4.7.0). That shows only as the library fills.
+  6. Met on the mean (muscle-gain breakfast 0.46 g/kg). The lowest breakfast of a fortnight is 0.21, and the report's "every meal ≥ 0.4 g/kg" is not met (accepted).
+  7. Met: 4.7.0, asks inside the existing requests, worst case 0.549 of 3.4.0 against 0.55.
+  8. Days in band as the baseline, 0 allergens. `schedulePlan` +11% cumulative against +10%, accepted as run noise (phase 5b).
+- **Scores by goal, accompaniments on, phase 3 → 6:** muscle gain 69 → 77; the other goals 62, 67, 69, 65.
+- **Left, not phases of this project:**
+  - the follow-ups from phase 5 in PLAN.md;
+  - the paid sample of report `0010` § 5 (whether a model writes the asked dish), which waits for the owner's yes.
