@@ -77,12 +77,13 @@ The milestone is met, and has been in production since 2026-09-07.
   showed the judge blocking nothing, the exemption never firing, and the real case being a
   garnish the drawing invents — which the owner sent to its own change.
 
-*Open:*
-
 - [`003-trust-depth-and-polish`](./projects/003-trust-depth-and-polish/) — overridable
   targets, onboarding that resumes and is enforced server-side, a deeper profile, English
-  throughout, and a design pass. All shipped; one owner check is left before it closes:
-  the signed-in screens walked in English, looking for Spanish.
+  throughout, and a design pass. Closed 2026-10-09: the owner walked the signed-in screens
+  in English and found no Spanish, which was the last check it waited on.
+
+*Open:*
+
 - [`004-dietitian-workspace`](./projects/004-dietitian-workspace/) — the professional's
   practice (§ 9 below; #82–#102). All ten phases shipped. Left for the owner: phase 9's
   check on a phone and a laptop, and the go-live, deferred with payments.
