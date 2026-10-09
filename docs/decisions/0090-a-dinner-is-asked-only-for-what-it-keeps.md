@@ -10,13 +10,14 @@
 Prompt 4.7.0 (`0088`'s line, 2026-10-08) asks a lunch or dinner short of `POOL_RESERVE` for a
 legume, a whole grain or an oily fish, worded the same at both meals except for legumes
 ("light, never stewed" at dinner). The paid sample of 2026-10-09 (5 plans, 65 requests,
-0.0654 USD) showed the model writes every asked group — 13 of 13 plan-and-group pairs — but
-`PoolBuilder` kept none of it at dinner in 6 of the 9 dinner cells that were asked: `fitSlots`
-(Table 2 of `0079`) refuses rice, pasta, quinoa and the other grains, and stewed pulses, at a
-Spanish dinner, and the 4.7.0 wording invites exactly those dishes ("salmón con arroz
-integral", "ensalada templada de lentejas", "tostas de hummus de garbanzos"). The ask and the
-rule that judges the dish disagreed, so the generator spent requests and a dinner slot on a
-dish `PoolBuilder` would then discard as `wrong_meal`.
+0.0654 USD) showed the model writes every asked group — 13 of 13 plan-and-group pairs, and
+all 13 of the dinner-and-group pairs among them — but `PoolBuilder` kept nothing in 6 of 24
+meal cells, every one of them a dinner: `fitSlots` (Table 2 of `0079`) refuses rice, pasta,
+quinoa and the other grains, and stewed pulses, at a Spanish dinner, and the 4.7.0 wording
+invites exactly those dishes ("salmón con arroz integral", "ensalada templada de lentejas",
+"tostas de hummus de garbanzos"). The ask and the rule that judges the dish disagreed, so the
+generator spent requests and a dinner slot on a dish `PoolBuilder` would then discard as
+`wrong_meal`.
 
 ## Decision
 
@@ -51,8 +52,8 @@ dish `PoolBuilder` would then discard as `wrong_meal`.
 ## Consequences
 
 - The paid sample's dinner cells (`docs/projects/019-balanced-plans-by-goal/LOG.md`, "Phase 7
-  — prompt 4.7.1") are the number this record rests on; a second paid sample against 4.7.1 is
-  the rerun recorded in the same entry.
+  — prompt 4.7.1") are the number this record rests on; a second, dinner-only paid sample
+  against 4.7.1 belongs in the same entry once somebody with a working provider key runs it.
 - The standard dinner prompt (no asks) is untouched; a dinner with asks is longer than 4.7.0's
   since it now names forms, and `PoolPrompt.spec.ts` holds the two longest combinations
   (legumes and a whole grain; an oily fish and a whole grain) to PRD 005's 55% of 3.4.0.
