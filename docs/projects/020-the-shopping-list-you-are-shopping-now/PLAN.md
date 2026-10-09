@@ -44,7 +44,7 @@ change arrives last:
 
 ### Phase 1 — The domain knows which day each gram is for
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 020 phase 1`
 - **Goal**: `packages/core` can say what a chosen set of days needs of each ingredient, by
   the same rules the whole-plan list already follows.
@@ -86,15 +86,20 @@ change arrives last:
      `checked`. Additive only, no lock beyond the add, reversible by dropping the column.
   2. Store the per-day breakdown the list is built from, so a read does not re-walk the
      plan: a `perDay jsonb` column on the row, written by the same code that writes
-     `totalGrams`. Justify the shape in the LOG if a table is chosen instead.
+     `totalGrams`. Justify the shape in the LOG if a table is chosen instead. Every writer
+     must give its days their own dates — `MealCompositionView` already carries `date`,
+     generation maps `dayIndex` → `date` — or phase 1 files the day under a placeholder key
+     no range can choose, and the fortnight reads short.
   3. `replaceGeneratedItems` carries `boughtGrams` across a rebuild where it carries
      `checked` today, keyed on `ingredientId`, capped at the new `totalGrams`.
   4. Write path: the entity's write schema accepts `{ boughtGrams }` **or** `{ checked }`.
      Writing one derives the other, by `0091`: `checked = boughtGrams >= totalGrams`;
      `checked: true` sets `boughtGrams = totalGrams`, `false` sets it to 0. Cap at
      `totalGrams`, floor at 0, server-side, whatever the client sends.
-  5. Read path: `ShoppingListView`'s rows gain `boughtGrams` and `perDay`. The DTO casts the
-     numerics as the existing fields do.
+  5. Read path: `ShoppingListView`'s rows gain `boughtGrams`, `perDay`, `dryRounded` and
+     `gramsPerUnit`. The last two are what `rangeQuantity` cannot recover from a stored row
+     — see phase 1's LOG entry — and may be folded into the `perDay` payload instead. The
+     DTO casts the numerics as the existing fields do.
   6. Ownership is untouched: the write still joins item → list → plan filtered by
      `userId` and `visible()`.
 - **Acceptance criteria**: PRD 3, 7, 10. A spec proves a `checked` write from an old client
