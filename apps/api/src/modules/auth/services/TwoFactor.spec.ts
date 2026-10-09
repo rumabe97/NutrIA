@@ -612,7 +612,7 @@ describe('the second factor', () => {
       await call(auth, browser, '/two-factor/verify-totp', { code: nextTotp(uri) });
 
       expect(rememberDevice).toHaveBeenCalledTimes(1);
-      expect(rememberDevice).toHaveBeenCalledWith(store.user[0]?.id, null);
+      expect(rememberDevice).toHaveBeenCalledWith(String(store.user[0]?.id), null);
       expect(browser.has('sign_in_device')).toBe(true);
     });
 
