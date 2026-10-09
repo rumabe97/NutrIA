@@ -23,6 +23,7 @@ describe('buildPicturePrompt', () => {
       [
         'A realistic photograph of one serving of a home-cooked dish, "Lentejas estofadas con ternera y zanahoria" (Spanish name).',
         'The only foods in the dish, from most to least: cooked lentils (most of the plate); beef (a generous portion); carrot (a portion).',
+        'Add no spread, sauce, topping, seed or garnish that is not one of these foods.',
         'Show each food as it looks in this dish once cooked (mixed, stewed, layered or set, as the dish name says), not as separate raw items.',
         'garlic only as seasoning cooked into the dish.',
         'Seasonings such as extra virgin olive oil, salt, vegetable stock are used in cooking and are not shown as separate items.',
@@ -93,7 +94,11 @@ describe('buildPicturePrompt', () => {
   });
 
   it('carries a version a stored picture can record', () => {
-    expect(PICTURE_PROMPT_VERSION).toBe('2.0.0');
+    expect(PICTURE_PROMPT_VERSION).toBe('2.0.1');
+  });
+
+  it('tells the model to add nothing beyond the foods listed (owner, 2026-10-09)', () => {
+    expect(buildPicturePrompt(lentils)).toContain('Add no spread, sauce, topping, seed or garnish that is not one of these foods.');
   });
 });
 

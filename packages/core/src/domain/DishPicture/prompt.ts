@@ -8,8 +8,20 @@
  * picture is stored once and shown to everyone who eats the dish.
  */
 
-/** Bump when the words change: a stored picture records the version that drew it. */
-export const PICTURE_PROMPT_VERSION = '2.0.0';
+/**
+ * Bumped whenever the wording changes: a stored picture records the version
+ * that drew it.
+ *
+ * 2.0.1 (owner, 2026-10-09): tells the model to add no spread, sauce, topping,
+ * seed or garnish beyond the foods listed. This was the single most common
+ * rejection in production — peanut butter drawn onto a dish whose spread is
+ * jam, three of eleven stored rejections, and the one picture the owner had
+ * to accept by hand after project 010's rule shipped. The judge was right to
+ * reject it; the drawing was what was wrong. Only this call, its prompt and
+ * `PICTURE_PROMPT_VERSION` change — the judge's two calls, their prompts and
+ * what they are told do not (project 010's hand-off).
+ */
+export const PICTURE_PROMPT_VERSION = '2.0.1';
 
 /** One ingredient as the prompt sees it: `name` is the English one when the catalogue has it. */
 export type PictureRecipeIngredient = { readonly grams: number; readonly name: string; readonly slug: string };
@@ -94,6 +106,7 @@ export function buildPicturePrompt(recipe: PictureRecipe): string {
     `A realistic photograph of one serving of a home-cooked dish, "${recipe.name}" (Spanish name).`,
     BLENDED.test(recipe.name) ? 'It is served blended: a smooth, creamy dish in a bowl, with any whole pieces resting on top.' : '',
     `The only foods in the dish, from most to least: ${foods.join('; ')}.`,
+    'Add no spread, sauce, topping, seed or garnish that is not one of these foods.',
     liquid.length > 0 ? `It is cooked with ${names(liquid)}, which is part of the dish, not a separate glass.` : '',
     'Show each food as it looks in this dish once cooked (mixed, stewed, layered or set, as the dish name says), not as separate raw items.',
     aromatic.length > 0 ? `${names(aromatic)} only as seasoning cooked into the dish.` : '',
