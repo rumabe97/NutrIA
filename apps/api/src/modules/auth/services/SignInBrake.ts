@@ -7,6 +7,7 @@ import { signInBrakeKey } from 'core/domain/SignInBrake';
 import { record, text } from './PasswordPolicy.js';
 
 import type { Context } from './PasswordPolicy.js';
+import type { SignInDevices } from './SignInDevice.js';
 
 const SIGN_IN = '/sign-in/email';
 
@@ -44,12 +45,18 @@ export type SignInBrake = {
  *   an address somebody else is braking.
  * - Clearing on a correct password is itself a signal: an address whose row
  *   was cleared between two probes had an owner who signed in. Accepted (LOG).
+ * - A browser that has signed in to that account before is not braked: its
+ *   device cookie (`SignInDevice.ts`, PLAN 011 phase 7b) skips both the 429
+ *   and the count, so an attacker who knows an address can no longer keep its
+ *   owner out from the browser the owner has always used. The per-IP limit,
+ *   the password and the second factor's lock still apply to it. A cookie for
+ *   any other account, an expired one and no cookie at all change nothing.
  * - It fails open: if its row cannot be read or written, the sign-in goes on
  *   behind Better Auth's own per-IP limit, and the line
  *   `sign_in_brake_unavailable` says so. A brake that broke must not lock
  *   everybody out. The line never carries the address or its key.
  */
-export function signInBrake(secret: string): SignInBrake {
+export function signInBrake(secret: string, devices: Pick<SignInDevices, 'exempts'>): SignInBrake {
   const keyOf = (email: string): string => signInBrakeKey(email, secret);
 
   return {
@@ -61,6 +68,11 @@ export function signInBrake(secret: string): SignInBrake {
       const email = text(record(context.body).email);
 
       if (!email) {
+        return;
+      }
+
+      // Only a cookie earned for this very account passes; nothing is looked up about the typed address itself.
+      if (await devices.exempts(context, email)) {
         return;
       }
 

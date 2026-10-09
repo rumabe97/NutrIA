@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { createAuthMiddleware, getSessionFromCtx, isAPIError } from 'better-auth/api';
 
+import { SignInDeviceController } from 'core/controllers/SignInDevice';
 import { UserController } from 'core/controllers/User';
 
 import { breachedOrPass, checkNewPassword, record, text } from './PasswordPolicy.js';
@@ -105,6 +106,13 @@ async function passwordChanged(
       passkeysRemoved = await UserController.forgetPasskeys(notice.id);
     } catch {
       logger.error(`passkeys_not_removed ${JSON.stringify({ userId: notice.id })}`);
+    }
+
+    // The browsers that skip the sign-in brake must not outlive the password either (PLAN 011 phase 7b).
+    try {
+      await SignInDeviceController.forgetAll(notice.id);
+    } catch {
+      logger.error(`sign_in_devices_not_removed ${JSON.stringify({ userId: notice.id })}`);
     }
   }
 

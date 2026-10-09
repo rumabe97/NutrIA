@@ -5,6 +5,7 @@ import { Logger } from '@nestjs/common';
 import { memoryAdapter } from 'better-auth/adapters/memory';
 
 import { AnalyticsController } from 'core/controllers/Analytics';
+import { SignInDeviceController } from 'core/controllers/SignInDevice';
 import { TwoFactorController } from 'core/controllers/TwoFactor';
 import { UserController } from 'core/controllers/User';
 
@@ -267,6 +268,7 @@ describe('the second factor', () => {
   let claimTotpStep: jest.SpiedFunction<typeof TwoFactorController.claimTotpStep>;
   let cancelRemovalByAccount: jest.SpiedFunction<typeof TwoFactorController.cancelRemovalByAccount>;
   let sessionsRevoked: jest.SpiedFunction<typeof UserController.sessionsRevoked>;
+  let rememberDevice: jest.SpiedFunction<typeof SignInDeviceController.remember>;
   const logged: string[] = [];
 
   beforeEach(() => {
@@ -302,6 +304,8 @@ describe('the second factor', () => {
       return Promise.resolve(true);
     });
     cancelRemovalByAccount = jest.spyOn(TwoFactorController, 'cancelRemovalByAccount').mockResolvedValue(null);
+    // The browser's device cookie (PLAN 011 phase 7b): the rows are `packages/core`'s; here, only when one is earned.
+    rememberDevice = jest.spyOn(SignInDeviceController, 'remember').mockResolvedValue('device-token');
 
     const keep = (...parts: unknown[]) => {
       logged.push(parts.map(part => (typeof part === 'string' ? part : JSON.stringify(part))).join(' '));
@@ -591,6 +595,64 @@ describe('the second factor', () => {
       await expect(sessionOf(auth, browser)).resolves.toMatchObject({ user: { email: ACCOUNT.email } });
       expect(sessionsStarted()).toEqual([['session_started', store.user[0]?.id]]);
       expect(twoFactorChanged).not.toHaveBeenCalled();
+    });
+
+    /* PLAN 011 phase 7b: the device cookie that exempts a browser from the per-address brake is earned by a completed sign-in. */
+    it('earns the device cookie only when the code finishes the sign-in, not when the password alone is right', async () => {
+      const auth = build();
+      const { uri } = await withFactor(auth);
+      rememberDevice.mockClear();
+      const browser = new Browser();
+
+      await call(auth, browser, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
+
+      expect(rememberDevice).not.toHaveBeenCalled();
+      expect(browser.has('sign_in_device')).toBe(false);
+
+      await call(auth, browser, '/two-factor/verify-totp', { code: nextTotp(uri) });
+
+      expect(rememberDevice).toHaveBeenCalledTimes(1);
+      expect(rememberDevice).toHaveBeenCalledWith(store.user[0]?.id, null);
+      expect(browser.has('sign_in_device')).toBe(true);
+    });
+
+    it('earns it from a backup code too, and never from a wrong code', async () => {
+      const auth = build();
+      const { codes } = await withFactor(auth);
+      rememberDevice.mockClear();
+      const browser = new Browser();
+
+      await call(auth, browser, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
+      expect((await call(auth, browser, '/two-factor/verify-backup-code', { code: 'not-a-backup-code' })).status).toBe(401);
+      expect(rememberDevice).not.toHaveBeenCalled();
+
+      expect((await call(auth, browser, '/two-factor/verify-backup-code', { code: codes[0] })).status).toBe(200);
+      expect(rememberDevice).toHaveBeenCalledTimes(1);
+    });
+
+    it('earns none from the code that turns the factor on: somebody already signed in opens nothing new', async () => {
+      const auth = build();
+      const browser = await signUp(auth);
+      const enabled = await call(auth, browser, '/two-factor/enable', { password: PASSWORD });
+      rememberDevice.mockClear();
+
+      await call(auth, browser, '/two-factor/verify-totp', { code: totp(enabled.body?.totpURI as string) });
+
+      expect(rememberDevice).not.toHaveBeenCalled();
+    });
+
+    it('earns it when a trusted device signs in with no code: the sign-in is complete', async () => {
+      const auth = build();
+      const { uri } = await withFactor(auth);
+      const browser = new Browser();
+      await call(auth, browser, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
+      await call(auth, browser, '/two-factor/verify-totp', { code: nextTotp(uri), trustDevice: true });
+      await call(auth, browser, '/sign-out', {});
+      rememberDevice.mockClear();
+
+      await call(auth, browser, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
+
+      expect(rememberDevice).toHaveBeenCalledTimes(1);
     });
 
     it('lets a trusted device in with no code, counted once', async () => {

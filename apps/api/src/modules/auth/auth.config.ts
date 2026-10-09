@@ -25,6 +25,7 @@ import { sendPasskeyAddedMail } from './services/PasskeyMail.js';
 import { sendPasswordChangedMail } from './services/PasswordChangedMail.js';
 import { sendPasswordResetMail } from './services/PasswordResetMail.js';
 import { signInBrake } from './services/SignInBrake.js';
+import { deviceOnSignIn, signInDevices } from './services/SignInDevice.js';
 import { resetConfirmsAddress } from './services/ResetConfirmsAddress.js';
 import { signUpFloor } from './services/SignUpFloor.js';
 import {
@@ -100,7 +101,8 @@ export function createAuth(
   // HIBP is never called under `NODE_ENV=test`: the suites must not reach the network.
   const isCompromised = env.NODE_ENV === 'test' ? null : isPasswordCompromised;
   // On under `NODE_ENV=test` as well: the suites sign in with addresses of their own.
-  const brake = signInBrake(env.BETTER_AUTH_SECRET);
+  // A browser that signed in before is not braked (PLAN 011 phase 7b): the cookie is set on a completed sign-in and read by the brake.
+  const brake = signInBrake(env.BETTER_AUTH_SECRET, signInDevices);
   // Three mails of a kind per address per hour from the doors anybody can knock at (PLAN 011 phase 8).
   const budget = mailBudget(env.BETTER_AUTH_SECRET);
   // A sign-up answers no earlier than its floor, a new address and an existing one alike (PLAN 011 phase 8).
@@ -438,7 +440,9 @@ export function createAuth(
     },
     /*
      * Before: a password sign-in is counted against its address, and answered
-     * 429 while the address waits (`services/SignInBrake.ts`, PLAN 011 phase 7).
+     * 429 while the address waits (`services/SignInBrake.ts`, PLAN 011 phase 7),
+     * unless the browser holds the device cookie a completed sign-in to that
+     * very account set (`services/SignInDevice.ts`, phase 7b).
      * A new password — sign-up, reset, change — holding a word the
      * account gives away, or one HIBP knows, is refused (`services/PasswordPolicy.ts`);
      * HIBP fails open, and the context check stays on under test. And a change
@@ -468,6 +472,8 @@ export function createAuth(
       twoFactor({ backupCodeOptions: { amount: BACKUP_CODE_COUNT }, issuer: TWO_FACTOR_ISSUER, trustDeviceMaxAge: TRUST_DEVICE_MAX_AGE }),
       // After `twoFactor`, so it sees what the plugin left of the sign-in's session.
       sessionStartedOnSignIn(),
+      // The cookie that exempts this browser from the per-address brake, earned by a completed sign-in (PLAN 011 phase 7b, `services/SignInDevice.ts`).
+      deviceOnSignIn(signInDevices),
       /*
        * Passkeys (PLAN 011 phase 5, `0083`): Face ID or iCloud Keychain, bound
        * to the web's own host (`passkeyOptions`, from `APP_URL`). Added only by
