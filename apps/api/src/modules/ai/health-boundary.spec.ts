@@ -251,7 +251,9 @@ describe('the free-text and belief boundary around the AI module', () => {
       expect(asks.length).toBeGreaterThan(0);
 
       for (const ask of asks) {
-        expect(ask).toMatch(/^\d+ on (legumes( \(25 g dry a serving\)(, not [a-z ]+)?|, light \(warm salad, cream, hummus\), never stewed)|a whole grain|an oily fish)$/);
+        expect(ask).toMatch(
+          /^\d+ on (legumes( \(25 g dry a serving\)(, not [a-z ]+)?|, light \(warm salad, cream, hummus\), never stewed)|a whole grain|an oily fish)$/
+        );
       }
     }
   );

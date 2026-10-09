@@ -299,8 +299,7 @@ export class PoolBuilder {
       const requests = wanted.flatMap(slot => {
         const count = needBySlot.get(slot) ?? 0;
         const sizes = attempt === 1 ? requestSizes(count) : [count];
-        const asks =
-          feature === 'plan' ? poolAsks([...accepted.values()], slot, context.catalogue, shown.get(slot)?.catalogue ?? []) : [];
+        const asks = feature === 'plan' ? poolAsks([...accepted.values()], slot, context.catalogue, shown.get(slot)?.catalogue ?? []) : [];
         const spread = spreadAsks(asks, sizes);
 
         return sizes.map((size, index) => ({ asks: spread[index] ?? [], size, slot }));
