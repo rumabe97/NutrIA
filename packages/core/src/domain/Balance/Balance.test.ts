@@ -353,7 +353,45 @@ describe('poolAsks', () => {
     const noPulses = everything.filter(row => legumeDryGrams(row.slug, 1) === null);
 
     expect(poolAsks([], 'lunch', catalogue, noFish).map(ask => ask.group)).toEqual(['legume', 'wholeGrain']);
-    expect(poolAsks([], 'dinner', catalogue, noPulses).map(ask => ask.group)).toEqual(['wholeGrain', 'oilyFish']);
+    // At dinner brown rice is a whole grain `fitSlots` refuses, so only the fish is left to ask for.
+    expect(poolAsks([], 'dinner', catalogue, noPulses).map(ask => ask.group)).toEqual(['oilyFish']);
+  });
+
+  describe('at dinner, only for what fitSlots keeps (prompt 4.7.1)', () => {
+    const rows = (...slugs: string[]) => slugs.map(slug => ({ slug }));
+    const lunchDishes = rows(
+      'lentejas-cocidas',
+      'garbanzos-cocidos',
+      'pasta-de-garbanzos',
+      'arroz-integral-cocido',
+      'quinoa-cruda',
+      'pasta-integral-seca',
+      'salmon'
+    );
+    const groups = (asks: ReturnType<typeof poolAsks>) => asks.map(ask => ask.group);
+
+    it('asks an omnivore’s dinner for no legume or whole grain the catalogue only offers as lunch dishes, and still asks lunch', () => {
+      expect(groups(poolAsks([], 'dinner', catalogue, lunchDishes))).toEqual(['oilyFish']);
+      expect(groups(poolAsks([], 'lunch', catalogue, lunchDishes))).toEqual(['legume', 'wholeGrain', 'oilyFish']);
+    });
+
+    it('asks a dinner for legumes once the catalogue shows edamame, tofu or tempeh, and for whole grain once it shows bread or a wrap', () => {
+      for (const form of ['edamame-congelado', 'tofu-firme', 'tempeh']) {
+        expect(groups(poolAsks([], 'dinner', catalogue, [...lunchDishes, ...rows(form)]))).toEqual(['legume', 'oilyFish']);
+      }
+
+      for (const form of ['pan-integral', 'wrap-integral', 'pan-de-molde-integral']) {
+        expect(groups(poolAsks([], 'dinner', catalogue, [...lunchDishes, ...rows(form)]))).toEqual(['wholeGrain', 'oilyFish']);
+      }
+    });
+
+    it('asks a vegan’s or vegetarian’s dinner for legumes from the stewed pulses too, but never for brown rice or quinoa', () => {
+      for (const pattern of ['vegan', 'vegetarian']) {
+        expect(groups(poolAsks([], 'dinner', catalogue, lunchDishes, [pattern]))).toEqual(['legume', 'oilyFish']);
+      }
+
+      expect(groups(poolAsks([], 'dinner', catalogue, lunchDishes, ['gluten_free']))).toEqual(['oilyFish']);
+    });
   });
 
   it('asks nothing outside lunch and dinner', () => {

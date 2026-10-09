@@ -26,7 +26,7 @@ import type { Catalogue, CatalogueIngredient, MealSlot } from 'core/entities/Pla
  * Without it a vegan's or vegetarian's dinner protein would rest on tofu,
  * tempeh and seitan alone, since the pulses are lunch-only for everybody else.
  */
-const PLANT_BASED_PATTERNS: ReadonlySet<string> = new Set(['vegan', 'vegetarian']);
+export const PLANT_BASED_PATTERNS: ReadonlySet<string> = new Set(['vegan', 'vegetarian']);
 
 /** A plant protein: the protein aisle, with nothing of animal origin (`animal` is implied by every other class). */
 function isPlantProtein(ingredient: CatalogueIngredient): boolean {

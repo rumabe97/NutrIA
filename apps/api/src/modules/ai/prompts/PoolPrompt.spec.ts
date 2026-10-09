@@ -1,5 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { DEFAULT_MEAL_SHAPE, proteinWeightsFor, weightsFor } from 'core/domain/MealShape';
+import { DINNER_FORMS } from 'core/domain/Balance';
 import { mealCatalogue, offersPulses } from 'core/domain/MealFit';
 import { SERVING_KCAL_CAP } from 'core/domain/Serving';
 
@@ -636,20 +637,66 @@ describe('buildPoolPrompt', () => {
       expect(prompt.indexOf('Of these:')).toBeGreaterThan(prompt.indexOf('DISHES NEEDED:'));
     });
 
-    it('asks a dinner for legumes in the light forms a dinner takes, never stewed, and for oily fish', () => {
-      const prompt = at(
-        'dinner',
-        {},
-        {
-          asks: [
-            { count: 1, group: 'legume', heldKinds: [] },
-            { count: 1, group: 'oilyFish', heldKinds: [] }
-          ],
-          pulses: false
-        }
-      );
+    /**
+     * 4.7.1: what a dinner is asked for is what `fitSlots` keeps at a dinner.
+     * The forms the wording names are `DINNER_FORMS`, which
+     * `Balance.dinner.seed.test.ts` serves through `fitSlots` on the real seed.
+     */
+    describe('a dinner’s asks name only what fitSlots keeps at dinner (4.7.1)', () => {
+      const asks: readonly PoolAsk[] = [
+        { count: 1, group: 'legume', heldKinds: [] },
+        { count: 1, group: 'wholeGrain', heldKinds: [] },
+        { count: 1, group: 'oilyFish', heldKinds: [] }
+      ];
+      const dinnerAsks = (overrides: Partial<PromptContext> = {}) =>
+        /\n {2}Of these: (.*)\.\n/.exec(at('dinner', overrides, { asks, pulses: false }))?.[1] ?? '';
+      const lunchAsks = /\n {2}Of these: (.*)\.\n/.exec(at('lunch', {}, { asks, pulses: true }))?.[1] ?? '';
 
-      expect(prompt).toContain('Of these: 1 on legumes, light (warm salad, cream, hummus), never stewed; 1 on an oily fish.');
+      it('asks an omnivore for legumes as edamame, tofu or tempeh, and says the stewed pulses are lunch dishes', () => {
+        const line = dinnerAsks();
+
+        expect(line).toContain('1 on legumes as edamame, tofu or tempeh (lentils, chickpeas and beans are lunch dishes, never at dinner)');
+
+        for (const word of Object.keys(DINNER_FORMS.legume)) {
+          expect(line).toContain(word);
+        }
+
+        // The 4.7.0 wording invited the dishes the code refuses.
+        expect(line).not.toContain('hummus');
+        expect(line).not.toContain('warm salad');
+      });
+
+      it('asks for a whole grain as bread, toast or a wrap, never rice, pasta or quinoa, and never names oats', () => {
+        const line = dinnerAsks();
+        const grain = /1 on a whole grain[^;]*/.exec(line)?.[0] ?? '';
+
+        expect(grain).toContain('wholemeal bread, toast or a wrap');
+        expect(grain).toContain('(never rice, pasta or quinoa at dinner)');
+        expect(Object.keys(DINNER_FORMS.wholeGrain).every(form => grain.includes(form))).toBe(true);
+        // What it allows is said before the parenthesis; no refused grain is named as a form to use.
+        expect(grain.split('(')[0]).not.toMatch(/rice|pasta|quinoa|oat|avena/i);
+        expect(line).not.toMatch(/oat|avena/i);
+      });
+
+      it('asks for an oily fish with no rice, pasta or other grain beside it', () => {
+        expect(dinnerAsks()).toContain('1 on an oily fish, with no rice, pasta or other grain beside it');
+        // Table 2 keeps potato at a Spanish dinner: it is not forbidden.
+        expect(dinnerAsks()).not.toContain('potato');
+      });
+
+      it('keeps the light legume forms for somebody vegan or vegetarian, for whom a pulse fits every meal', () => {
+        for (const pattern of ['vegan', 'vegetarian']) {
+          const line = dinnerAsks({ dietaryPatterns: [pattern] });
+
+          expect(line).toContain('1 on legumes, light (warm salad, cream, hummus), never stewed');
+          // Their rice and quinoa are refused all the same.
+          expect(line).toContain('(never rice, pasta or quinoa at dinner)');
+        }
+      });
+
+      it('leaves lunch’s asks as they were', () => {
+        expect(lunchAsks).toBe('1 on legumes (25 g dry a serving); 1 on a whole grain; 1 on an oily fish');
+      });
     });
 
     it('says nothing of groups when the pool lacks none', () => {
@@ -854,6 +901,26 @@ describe('buildPoolPrompt — one meal’s catalogue', () => {
 
     expect(after).toContain('Nothing is served beside this meal');
     expect(after).toContain('not alubias blancas or otras alubias');
+    expect(after.length / before.length).toBeLessThanOrEqual(0.55);
+  });
+
+  /**
+   * 4.7.1: the dinner asks are longer than lunch's (they name the forms), so the
+   * standard dinner is held to the same 55% with the longest ones a request
+   * carries: legumes and a whole grain, or fish and one of them.
+   */
+  it.each([
+    ['legumes and a whole grain', ['legume', 'wholeGrain']],
+    ['an oily fish and a whole grain', ['oilyFish', 'wholeGrain']]
+  ] as const)('keeps the standard dinner prompt at most 55%% of 3.4.0’s asked for %s', (_label, groups) => {
+    const before = buildPoolPrompt(
+      context({ month: 1 }),
+      rows.map(ingredient => ({ ...ingredient, mealSlots: [], seasonMonths: [] }))
+    );
+    const asks = groups.map(group => ({ count: 1, group, heldKinds: [] }));
+    const after = builtAsTheBuilderDoes('dinner', [], rows, used.get('dinner') ?? new Set(), asks);
+
+    expect(after).toContain('Of these:');
     expect(after.length / before.length).toBeLessThanOrEqual(0.55);
   });
 

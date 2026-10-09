@@ -1327,6 +1327,48 @@ describe('PoolBuilder — the food groups a pool lacks', () => {
     expect(asksIn(prompts(generate)[0] ?? '')).toBe('2 on legumes (25 g dry a serving), not lentejas');
   });
 
+  /**
+   * 4.7.1: a dinner is asked for a legume or a whole grain only when the
+   * request shows a row `fitSlots` keeps at dinner. The fixture's catalogue has
+   * no meal lists, so it shows lentils and brown rice at dinner as well as at
+   * lunch; the dinner must not be asked for them.
+   */
+  it('leaves the legumes and whole grain to lunch when dinner is shown only rows Table 2 keeps at lunch', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({ context: withGroups(), feature: 'plan', preferences, reusable: [], slots: ['lunch', 'dinner'] });
+
+    const bySlot = (slot: string) =>
+      prompts(generate)
+        .filter(prompt => prompt.includes(`- ${slot}: `))
+        .map(asksIn)
+        .join('; ');
+
+    expect(bySlot('lunch')).toContain('on legumes');
+    expect(bySlot('lunch')).toContain('on a whole grain');
+    expect(bySlot('dinner')).not.toContain('on legumes');
+    expect(bySlot('dinner')).not.toContain('on a whole grain');
+    expect(bySlot('dinner')).toContain('on an oily fish, with no rice, pasta or other grain beside it');
+  });
+
+  it('asks a dinner for legumes and whole grain in the forms it keeps, once the request is shown one', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+    const forms: readonly CatalogueIngredient[] = [{ ...ingredient('tofu-firme'), category: 'protein' }, { ...ingredient('pan-integral') }];
+
+    await new PoolBuilder(client).build({
+      context: { ...withGroups(), catalogue: toCatalogue([...rows, ...forms]) },
+      feature: 'plan',
+      preferences,
+      reusable: [],
+      slots: ['dinner']
+    });
+
+    const asked = prompts(generate).slice(0, FIRST_ROUND_PER_SLOT).map(asksIn).join('; ');
+
+    expect(asked).toContain('on legumes as edamame, tofu or tempeh');
+    expect(asked).toContain('on a whole grain as wholemeal bread, toast or a wrap');
+  });
+
   it('asks a meal swap for no group: it replaces one meal, not the fortnight', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
