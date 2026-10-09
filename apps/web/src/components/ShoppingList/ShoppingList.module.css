@@ -65,3 +65,11 @@
   margin-top: var(--gap-region);
   padding: var(--space-05);
 }
+
+/* What a row could not say on its own: shown here, and spoken by the region above. */
+.notice {
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-control);
+  margin-top: var(--space-03);
+  padding: var(--space-03) var(--space-04);
+}

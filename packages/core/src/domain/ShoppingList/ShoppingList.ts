@@ -267,8 +267,15 @@ export function unresolvedSlugs(assignment: ShoppingSource, catalogue: Catalogue
  * and rounding down would leave a plan short. Everything else stays in its base
  * unit; formatting 1,200 g as "1,2 kg" is presentation, and belongs in the UI
  * rather than in a stored `measurement_unit` the enum has no `kg` member for.
+ *
+ * Exported because the screen needs it for a number this module does not
+ * compute: what is **left** of a row that is partly bought (project 020 phase
+ * 4). That remainder is a subtraction, not a range, so it takes no dry round-up
+ * — the need was rounded once when the range was summed, and rounding the
+ * leftover again would invent grams. One copy of the unit rules all the same,
+ * which is `0091`'s point.
  */
-function toDisplay(totalGrams: number, defaultUnit: ShoppingDraftItem['displayUnit'], gramsPerUnit: number | null) {
+export function toDisplay(totalGrams: number, defaultUnit: ShoppingDraftItem['displayUnit'], gramsPerUnit: number | null) {
   if ((defaultUnit === 'unit' || defaultUnit === 'slice') && gramsPerUnit && gramsPerUnit > 0) {
     return { quantity: Math.ceil(totalGrams / gramsPerUnit), unit: defaultUnit };
   }

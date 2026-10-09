@@ -410,3 +410,134 @@
   - `/compra` has one address and takes its language from the account, so there is no
     `/en/compra`; the English copy needs an account whose locale is `en-GB` and the locale
     cookie the switcher writes, not a prefixed URL.
+
+## Phase 4 — A mark is an amount, in the aisle with no signal (2026-10-09)
+
+- **Executor**: opus @ medium, run directly. Both reviews the phase names were spawned on
+  opus: `invariant-reviewer` (the offline write path) and `accessibility` (the
+  partly-bought row). Neither edited anything.
+- **Result**: done.
+- **Evidence**:
+  - `sh .claude/skills/ship/scripts/gate.sh --full` — green from the top.
+  - `pnpm --filter web test` 289 (254 before), `ts:check` and `lint` clean.
+  - **The supermarket with no signal, in a real browser, against a real database.**
+    Playwright's `setOffline` does not move `navigator.onLine` here, so the network was cut
+    the documented way — the web server stopped:
+
+    | | |
+    | --- | --- |
+    | Online | 0 of 129 in the trolley |
+    | Server stopped, three rows marked | 3 of 129; the queue holds three entries, each `{ boughtGrams, checked }` |
+    | **Range narrowed with no network at all** | 3 of 87, and the first row goes 322.6 g → 178.8 g |
+    | Server back | queue drained to 0, and the database holds the three amounts |
+
+    That is PRD 6 end to end: with no signal the filter, the quantities and the marks all
+    work, and the marks reach the server when it returns.
+  - **The three states, in one screenshot** (`partly-390-dark.png`): a partly-bought row
+    with an indeterminate box reading "178,8 g por comprar" and no strike-through; two done
+    rows struck through; untouched rows with their plain quantity. The progress reads
+    "2 de 129" — a half-bought row is not in the trolley, which is what the review judged
+    correct for that sentence.
+  - **The P0 reproduced and then fixed, in the browser**: a row bought in full (50.6 g)
+    read for a single day (needs 2.8 g). Tapping to unmark leaves the box checked — as it
+    must, 47.8 g still covers 2.8 g — but now says why, announced and on screen, and
+    **writes nothing**: the server still reads 50.6 g where the old code would have stored
+    47.8 g.
+  - PRD 3 and 4 are the unit specs on the queue and the row's arithmetic; PRD 6 is the
+    table above.
+- **Reviews**: one P0, one P1, seven P2 and several P3 between them. No finding was left
+  unfixed except the ones named below as the owner's.
+  - **P0 (`accessibility`) — unmarking was a dead gesture that still wrote.** Where more is
+    bought than the days on screen need, giving back this range's share still covers the
+    range: the box springs back, nothing moves, and the PATCH has gone. Verified before
+    acting by running the plan's own arithmetic: **one dead tap from a week view of a
+    fortnight, eleven from a single day**, each one a write. The arithmetic is the approved
+    plan's and was not touched; what was missing was feedback. The gesture is now refused
+    with a reason — "Ya hay 50,6 g comprados, más de lo que necesitan estos días. Elige un
+    rango más amplio para devolverlo" — through the one live region phase 3 already
+    mounted, and visibly, since a sighted reader's tap went nowhere too.
+  - **P1 (`invariant-reviewer`) — a flush in progress could silently undo a newer mark.**
+    `flushMarks` iterated a snapshot frozen at flush start and `ShoppingItem` sent directly,
+    outside it. Unmark a row while a post-reconnect flush drains twenty rows on supermarket
+    3G and the older amount lands after yours, on the server and on screen — the exact
+    failure `0055` exists to prevent, and the amendment in this very change re-asserts.
+    Deterministic, not a race. Fixed in both halves: every write goes through the queue, so
+    one is in the air per device, and the flush re-reads each entry at send time and drains
+    again for anything queued while it drained. What had been proved before was only that
+    the *queue* keeps the newest — never that the newest reaches the *server* last.
+  - **P1 (`accessibility`) — the visible "700 g de 1,2 kg" had no verb**, so the remainder
+    could be read as the part already bought. Now "700 g por comprar", which is also
+    agreement-free in Spanish ("1 ud. por comprar", where "Quedan 1 ud." would not agree).
+  - **P2 — a 401, 403 or 429 dropped every waiting mark.** `status < 500` was too wide:
+    `0055` drops a mark because the list was rebuilt or is not theirs, and an expired cookie
+    is neither. Only 400, 404, 409 and 422 are final now. **The probe demonstrated this by
+    accident**: the first run loaded the page on `127.0.0.1` while the build calls
+    `localhost`, so every write went cookie-less and got a 401 — and the three marks
+    survived. Under the old rule they would have been destroyed in silence.
+  - **P2 — the v1 key was dropped even when the migrated queue failed to persist**, so a
+    device with no room lost exactly the marks the migration exists to save. `persist` now
+    reports whether it stored, and the old key goes only on success.
+  - **P2 — a stored entry was trusted on `typeof === 'object'` alone**, so
+    `{ boughtGrams: null }` would flow into the row's arithmetic and out to the server, and
+    the item id went into the URL unescaped. Both validated and escaped.
+  - **P2 — the quantity was announced twice per row.** Fixed by the better of the two
+    offered fixes: one node inside the `<label>`, seen and announced, instead of a hidden
+    one plus a visible one that could drift apart. The row's right-hand quarter stops being
+    dead space, which `ShoppingItem.module.css` already claimed it was not.
+  - **P2 — the share text said "what is left" and sent the range's whole need**, so whoever
+    was sent to the shop would buy the part already in the trolley a second time. Now
+    formatted at click time from what the device knows, which is where `boughtOf` already
+    is — `ShoppingList` does not subscribe to the marks, so doing it earlier would go stale.
+  - **A P3 that was this executor's own debris**: the stale "Ticks an item off the shopping
+    list" JSDoc left stacked above the new one in `PlanController` by phase 2's edit.
+    Deleted. Out of scope, and declared so here: leaving documentation that is known to be
+    wrong because of a scope technicality is worse than a three-line cleanup.
+- **Deviations from plan**: four.
+  1. **One `export` keyword in `packages/core/src/domain/ShoppingList/`** — `toDisplay`, for
+     what is **left** of a half-bought row. A second copy of the countable-rounding rule in
+     the web is exactly what `0091` says must not exist. The remainder takes no dry
+     round-up: the need was rounded once when the range was summed, and rounding the
+     leftover again would invent grams. Scope amended.
+  2. **The queue's callers are four, not one.** Progress, the share text and the offline
+     flush all read it, so `tick*` became `mark*` across them. The storage key stays exactly
+     as the plan spells it, `nutria-pending-ticks-v2`, which leaves a seam — a key named
+     for ticks holding marks — kept on purpose because the plan is the contract and phase
+     5 or the owner may grep for that string.
+  3. **The P0's fix refuses a write the plan's arithmetic would have made.** The arithmetic
+     is untouched; what changed is that it is not applied when it cannot change this
+     range's state. That is a guard, not a redesign, but it is a behaviour the plan did not
+     specify and it is recorded as a deviation rather than slipped in.
+  4. **A defect found writing the specs, not by a review**: `forgetPendingMarks` dropped
+     only the v2 key, so a mark queued by the previous build could be resurrected into the
+     next session by a reload. A session change now drops both keys.
+- **Decisions**: [`0055`](../../decisions/0055-a-tick-in-the-aisle-waits-for-the-signal.md)
+  amended — a tick is now an amount, every one of its rules unchanged and re-proved by
+  spec — with a line in `docs/decisions/LOG.md`.
+- **For the owner, named and not decided here**:
+  - **Clearing a row from a narrow range still cannot be done in that range.** It is the
+    consequence of the arithmetic chosen on 2026-10-09 ("unmarking subtracts the range's
+    share"), not a defect, and the screen now says so instead of swallowing the tap. If
+    that is not what was wanted, it is a product decision and a small follow-up.
+  - **A partly-bought row cannot be cleared in one gesture** either: a checkbox offers
+    "mark done", so clearing a partial goes through a purchase nobody made. Recoverable in
+    two taps; a second control would be a design change.
+  - **`PlanSwitch`'s contrast and the missing visible legend** from phase 3 are still open.
+- **Notes for the next phase**:
+  - **The dual send's reason changed, and the record now says so** — corrected in this
+    change, in all four places that carried the closed one (`pendingTicks.ts`, its spec,
+    this project's PLAN and `docs/decisions/LOG.md`). The plan justified both fields
+    because the API live during this build's deploy would answer an amount alone with a
+    400; phase 2 reaching production closed that window, and what remains is insurance
+    against a *rollback* of it. Kept for the one release the plan commits to, and free —
+    the current API prefers the amount. What it covers is narrower than it sounds, and is
+    recorded: the pre-phase-2 schema is non-strict, so a reverted API strips the amount and
+    reads the tick. The mark survives a rollback; **the amount does not**, and a partial
+    shop would land as nothing bought. `0091`'s own "for one release" sentence is about the
+    old *web build* against the new API and stays as written.
+  - `confirmed` holds the amount that was *asked*, not the one the server stored. They
+    agree today because the server caps and the client caps the same way, but the client
+    cannot otherwise learn that the server capped it when a row shrank mid-visit. **Having
+    the route answer the stored amount closes it completely**, which is phase 5's to take
+    or to leave.
+  - Two tabs marking the same row offline can still lose one (the cache is stale until the
+    `storage` event lands). Pre-existing, offline-only, and unchanged by this phase.

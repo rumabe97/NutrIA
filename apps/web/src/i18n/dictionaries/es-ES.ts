@@ -2816,9 +2816,11 @@ export const esES = {
   },
 
   shopping: {
+    boughtBeyondRange: 'Ya hay {bought} comprados, más de lo que necesitan estos días. Elige un rango más amplio para devolverlo.',
     emptyBody: 'La lista se genera junto con tu plan, ya sumada y agrupada por pasillo.',
     emptyCta: 'Ver mi plan',
     emptyTitle: 'Todavía no hay lista',
+    leftToBuy: '{left} por comprar',
     nearby: 'Supermercados cerca',
     nearbyOpens: ' (se abre en la app de mapas)',
     nearbyQuery: 'supermercado',

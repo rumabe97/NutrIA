@@ -4,16 +4,25 @@ import { useState, useSyncExternalStore } from 'react';
 import styles from './ShoppingActions.module.css';
 
 import { Button, buttonClassName } from 'ui/components/Button';
-import { useDictionary } from 'i18n/LocaleProvider';
+import { toDisplay } from 'core/domain/ShoppingList';
+import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { useOffline } from 'components/OfflineProvider';
 
+import { boughtOf } from 'lib/pendingTicks';
+import { formatQuantity } from 'lib/format';
 import { nearbyShopsUrl, shoppingListText } from 'lib/shoppingShare';
-import { tickOf } from 'lib/pendingTicks';
 
 import type { ShareGroup } from 'lib/shoppingShare';
 
-type Item = ShareGroup['items'][number] & { readonly checked: boolean };
+type Item = ShareGroup['items'][number] & {
+  readonly boughtGrams: number;
+  readonly displayUnit: Parameters<typeof toDisplay>[1];
+  readonly gramsPerUnit: number | null;
+  /** What the days on screen need of this row (`0091`). */
+  readonly neededGrams: number;
+  readonly totalGrams: number;
+};
 
 type Group = { readonly items: readonly Item[]; readonly label: string };
 
@@ -40,6 +49,7 @@ function noUserAgent(): string {
  */
 export function ShoppingActions({ groups }: Readonly<{ groups: readonly Group[] }>) {
   const dictionary = useDictionary();
+  const locale = useLocale();
   const t = dictionary.shopping;
   const { offline } = useOffline();
   // Empty on the server, so hydration draws what the server did and the map link follows.
@@ -47,9 +57,29 @@ export function ShoppingActions({ groups }: Readonly<{ groups: readonly Group[] 
   const [note, setNote] = useState<string>();
 
   async function share() {
-    // What this device knows counts, including ticks still waiting for a connection (`0055`).
-    const checked = new Map(groups.flatMap(group => group.items.map(item => [item.id, item.checked] as const)));
-    const text = shoppingListText(t.shareTitle, groups, id => tickOf(id) ?? checked.get(id) ?? false);
+    // What this device knows counts, including marks still waiting for a connection (`0055`).
+    // A row leaves the message once the days on screen are covered; one half
+    // bought stays, carrying **what is left** rather than what the range needs —
+    // whoever is sent to the shop would otherwise buy the part already in the
+    // trolley a second time.
+    const left = groups.map(group => ({
+      ...group,
+      items: group.items.map(item => {
+        const remaining = Math.max(item.neededGrams - boughtOf(item.id, item), 0);
+
+        return remaining >= item.neededGrams
+          ? item
+          : {
+              ...item,
+              quantity: formatQuantity(toDisplay(remaining, item.displayUnit, item.gramsPerUnit).quantity, item.displayUnit, locale, dictionary)
+            };
+      })
+    }));
+    const text = shoppingListText(t.shareTitle, left, id => {
+      const row = left.flatMap(group => group.items).find(item => item.id === id);
+
+      return row !== undefined && row.neededGrams > 0 && boughtOf(id, row) >= row.neededGrams;
+    });
 
     if (!text) {
       setNote(t.shareNothing);

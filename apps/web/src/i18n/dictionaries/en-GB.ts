@@ -2773,9 +2773,11 @@ export const enGB: Dictionary = {
   },
 
   shopping: {
+    boughtBeyondRange: '{bought} are already bought, more than these days need. Choose a wider range to give it back.',
     emptyBody: 'The list is generated with your plan, already added up and grouped by aisle.',
     emptyCta: 'See my plan',
     emptyTitle: 'No list yet',
+    leftToBuy: '{left} left to buy',
     nearby: 'Supermarkets nearby',
     nearbyOpens: ' (opens in your maps app)',
     nearbyQuery: 'supermarket',

@@ -56,6 +56,8 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
   // Only once the reader has picked something. Without this, hydration swapping
   // the server's range for this device's would announce a range nobody chose.
   const [announce, setAnnounce] = useState(false);
+  // Something a row could not say itself — said once, in the one region already mounted.
+  const [notice, setNotice] = useState('');
   const days = planDays(list.items);
   const range = resolveRange(stored, days);
   const chosen = daysIn(range, days);
@@ -72,9 +74,13 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
   const shareGroups = groups.map(group => ({
     items: group.items.map(item => ({
       id: item.id,
-      checked: item.checked,
+      boughtGrams: item.boughtGrams,
+      displayUnit: item.range.displayUnit,
+      gramsPerUnit: item.gramsPerUnit,
       name: item.name,
-      quantity: formatQuantity(item.range.displayQuantity, item.range.displayUnit, locale, dictionary)
+      neededGrams: item.range.totalGrams,
+      quantity: formatQuantity(item.range.displayQuantity, item.range.displayUnit, locale, dictionary),
+      totalGrams: item.totalGrams
     })),
     label: categoryLabel(group.category, dictionary)
   }));
@@ -94,7 +100,7 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
         are thought unreliable.
       */}
       <div aria-atomic="true" aria-live="polite" className="visually-hidden">
-        {announce ? announcement : ''}
+        {notice === '' ? (announce ? announcement : '') : notice}
       </div>
 
       {/* No breakdown, no filter: every list stored before the days travelled with
@@ -104,15 +110,24 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
           days={days}
           onChange={next => {
             setAnnounce(true);
+            setNotice('');
             rememberRange(next);
           }}
           value={range}
         />
       ) : null}
 
-      {/* Counted on the device, so a tick still waiting for a connection counts too (`0055`). */}
+      {notice === '' ? null : (
+        <Text className={styles.notice} size="sm" tone="secondary">
+          {notice}
+        </Text>
+      )}
+
+      {/* Counted on the device, so a mark still waiting for a connection counts too (`0055`). */}
       <div className={styles.progress}>
-        <ShoppingProgress items={shown} />
+        <ShoppingProgress
+          items={shown.map(item => ({ id: item.id, boughtGrams: item.boughtGrams, neededGrams: item.range.totalGrams, totalGrams: item.totalGrams }))}
+        />
       </div>
 
       {/* In the aisles' order and the reader's words, so a message reads like the list on screen. */}
@@ -152,12 +167,16 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
           <ul className={styles.items}>
             {group.items.map(item => (
               <ShoppingItem
-                checked={item.checked}
+                boughtGrams={item.boughtGrams}
                 displayQuantity={item.range.displayQuantity}
                 displayUnit={item.range.displayUnit}
+                gramsPerUnit={item.gramsPerUnit}
                 id={item.id}
                 key={item.id}
                 name={item.name}
+                neededGrams={item.range.totalGrams}
+                onNotice={setNotice}
+                totalGrams={item.totalGrams}
               />
             ))}
           </ul>
