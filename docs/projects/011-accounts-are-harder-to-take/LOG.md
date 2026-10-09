@@ -1076,3 +1076,102 @@
   locked out, not exposed, until the 48-hour removal (phase 4).
 - CI's `api#format` failure on a6ccac1b (`SelfService.spec.ts`) fixed with Prettier; main
   (#223) merged.
+
+## Phase 7b — A browser that signed in before is not braked (2026-10-09)
+
+- **Executor**: opus 5.5 @ high (`backend`, one agent, on `feat/011-p7b-device-cookie`).
+  It does not own `apps/api/test/`, so the end-to-end suite below is **not written**: main
+  routes it to `tests`.
+- **Result**: built, unit specs green; the end-to-end cases, the invariant review and CI are
+  still to come. No migration.
+- **What was built**:
+  - `core/domain/SignInDevice` (the cookie's life, ten browsers per account, a 256-bit
+    token, the address match), `SignInDeviceController` and `SignInDeviceRepository`.
+  - **The cookie** `sign_in_device`, through Better Auth's `createAuthCookie`, so it has the
+    session cookie's attributes: `HttpOnly`, `SameSite=Lax`, `Secure` and `__Secure-`
+    prefixed in production, `Path=/`, `Max-Age` ninety days, renewed by each sign-in from
+    that browser. The value is the opaque token only: no address, no account id.
+  - **The rows**: Better Auth's `verification` table, as trusted devices and the mail budget
+    use it. `identifier` is `sign-in-device:` + the SHA-256 of the token, `value` is the
+    account the cookie was earned for, `expiresAt` ends it; the daily sweep deletes the
+    expired ones. At most the newest ten per account (a client that signs in without
+    keeping the cookie cannot grow the table). **No table, so no migration.**
+  - **`hooks.before` on `/sign-in/email`** (`SignInBrake.before`): before it counts, it asks
+    `SignInDeviceController.exempts(cookie, typedAddress)` — one join of the row to `user`,
+    true only when the cookie's account owns the typed address (case-insensitively). Then
+    the attempt is neither refused nor counted. Anything else — no cookie, a made-up or
+    expired one, a cookie for another account, an address with no account, a failing
+    lookup (logged `sign_in_device_unavailable`, never the address) — falls through to
+    the brake unchanged, so the 429 and its `Retry-After` / `X-Retry-After` are the ones a
+    request with no cookie gets, for a known and an unknown address alike.
+  - **`deviceOnSignIn`**, a plugin listed after `twoFactor` (as `sessionStartedOnSignIn`):
+    its after-hook runs once the two-factor plugin has had its say, so a session still
+    `newSession` is real. It matches `/sign-in/email` and the two routes that finish a
+    challenge (`/two-factor/verify-totp`, `/verify-backup-code`) when no session was open
+    before them. A right password whose code is not yet proved earns nothing; the code
+    that finishes it, a backup code, and a trusted device skipping the code earn the
+    cookie. The code that turns the factor on (a session already open) earns none.
+    Passkeys and Google earn none: they are not braked.
+  - **Invalidation**: `UserRepository.passwordChanged` deletes the account's device rows in
+    the transaction that clears the breach mark, the trusted devices and the passkeys; the
+    API retries on its own if the transaction fails (`sign_in_devices_not_removed` if that
+    fails too). The browser keeps a cookie that points at nothing. Closing sessions does not
+    end them.
+- **Deviations from plan** (plan amended in the same change):
+  - **No table.** The plan allowed "an opaque token in the database"; it is in the table
+    Better Auth already gives trusted devices, so the phase has no migration and
+    `migration-reviewer` has nothing to read.
+  - **Earned when a sign-in completes**, not when the password is right (the plan said "on a
+    successful password sign-in"): for an account with a second factor the sign-in is not
+    complete until the factor is proved.
+  - **The cookie's attempts are not counted**, not just not refused: its typos would
+    lengthen the wait of clients that have none.
+- **Known limits, stated for the reviewers**:
+  - A stolen browser with the cookie is braked only by the per-IP limit until the password
+    changes. The cookie waives the per-address brake and nothing else: the password, the
+    per-IP limit and the two-factor plugin's lock stand.
+  - A person on a new browser, or after a password change, still waits out a brake somebody
+    else built; a passkey, Google or a reset are their ways in, as before.
+  - Phase 7's P1-b (clearing the row on a success leaks slowly that an address has an
+    account) is unchanged.
+  - Rows of a deleted account stay until they expire; they hold a digest and an id that no
+    longer names anyone.
+  - `/privacidad`'s list of cookies, if it has one, should name `sign_in_device` (the lead,
+    with `legal`).
+- **Evidence** (the gate is below):
+  - `core`: `SignInDevice.test.ts`, `SignInDeviceController.test.ts`,
+    `SignInDeviceRepository.test.ts` (the SQL of each statement, the digest never the token,
+    a driver message never out) and `UserRepository.test.ts` (the password change deletes
+    `sign-in-device:%` rows of that account only).
+  - `api`: `SignInDevice.spec.ts` over HTTP on the real `createAuth` — the cookie's
+    attributes and `Secure` in production, none on a wrong password or a braked attempt,
+    renewal, a cookie for another account; a braked address lets the cookie's browser in
+    while another client gets 429; the cookie still faces the password (401); its typos are
+    not counted; **it does not exempt another address** (the 429 is equal to the one with no
+    cookie, to the byte, and equal for an address with no account); made-up, empty,
+    malformed cookies give the bare 429; a failing lookup brakes; case-insensitive;
+    a reset whose transaction fails still ends the cookies. `TwoFactor.spec.ts`: a challenge
+    earns nothing, the code and a backup code earn it, the code that turns the factor on does
+    not, a trusted device does.
+- **End-to-end cases still to write** (`apps/api/test`, for `tests`; a new
+  `sign-in-device.e2e-spec.ts` or beside `sign-in-brake.e2e-spec.ts`, distinct addresses and
+  distinct `X-Forwarded-For`):
+  1. Ana signs in with her password: the response sets `sign_in_device` (`HttpOnly`,
+     `SameSite=Lax`); the `verification` table holds one `sign-in-device:<64 hex>` row with
+     `value` = her id, and neither the token nor an address appears in any row.
+  2. Another client fails ten times for her address and is answered 429 with `Retry-After`;
+     Ana's browser, with the cookie, signs in with the right password and gets 200 and a
+     session; the other client with the right password still gets 429.
+  3. The cookie does not exempt a different address: Bea's address braked by another client,
+     Ana's cookie on Bea's sign-in gets the same 429 (status, body, `Retry-After`,
+     `X-Retry-After`) as with no cookie; the same for an address with no account.
+  4. The cookie's holder with a wrong password gets 401, and the address's `sign_in_failure`
+     count does not move.
+  5. After Ana changes her password (`/change-password`) or resets it, her old cookie no
+     longer exempts: a braked address answers it 429, and her device rows are gone.
+  6. An account with TOTP on: the right password alone sets no cookie (the challenge), the
+     code that finishes it does.
+  7. The cron sweep deletes an expired device row and keeps a live one.
+- **Decisions**: [`0089`](../../decisions/0089-a-browser-that-signed-in-before-is-not-braked.md)
+  (the lead's delegation of 2026-10-03, the recommended option on each choice).
+- **Advisor**: not consulted.
