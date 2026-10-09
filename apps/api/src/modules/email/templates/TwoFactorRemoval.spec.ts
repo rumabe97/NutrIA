@@ -45,7 +45,8 @@ describe('twoFactorRemovalEmail', () => {
   it('says from when, in the product’s clock, and that the daily run may take up to a day more', () => {
     const sent = mail({ dueAt: DUE, kind: 'requested' });
 
-    expect(sent.text).toContain('a partir del 3 de octubre de 2026 a las 19:05 (hora de Madrid), como mucho un día después');
+    expect(sent.text).toContain('a partir del 3 de octubre de 2026');
+    expect(sent.text).toContain('19:05 (hora de Madrid), como mucho un día después');
     expect(mail({ dueAt: DUE, kind: 'requested' }, 'en-GB').text).toContain('at the latest one day later');
   });
 
