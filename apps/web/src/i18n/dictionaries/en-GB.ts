@@ -1164,7 +1164,7 @@ export const enGB: Dictionary = {
       'On iPhone the link opens in Safari. Confirm your email there and, if you use NutrIA from your home screen, go back to the app afterwards and sign in with your email and password.',
     socialFailed: 'We could not complete the sign-in. Try again, or sign in with your email.',
     socialNotLinked:
-      'There is already an account with that address, and it signs in with a password. Sign in with it or, if you do not have it, reset it with “Forgotten your password?”.',
+      'There is already an account with that address. Sign in the way you created it, or, if that was with a password, reset it with “Forgotten your password?”.',
     tooManyAttempts: 'Too many attempts in a row. Wait a moment and try again.',
     toSignIn: 'Sign in',
     toSignUp: 'Create one',
