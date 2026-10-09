@@ -312,19 +312,24 @@ describe('care review', () => {
     expect((await progressOf(who)).fortnights.map(row => row.planId)).not.toContain(plan.id);
 
     // The waiting plan's list has rows; ticking one is the same 404, and leaves it as it was.
-    const [item] = await tables()<{ id: string; checked: boolean }>`
-      select i.id, i.checked from shopping_list_items i join shopping_lists l on l.id = i.list_id where l.plan_id = ${plan.id} limit 1`;
+    // An amount sent beside the tick (`0091`) is refused the same way, and `boughtGrams` is left
+    // standing too — the door shuts on the whole write, not on whichever field would have won.
+    const [item] = await tables()<{ id: string; boughtGrams: string; checked: boolean }>`
+      select i.id, i.bought_grams as "boughtGrams", i.checked from shopping_list_items i
+      join shopping_lists l on l.id = i.list_id where l.plan_id = ${plan.id} limit 1`;
 
     expect(item).toBeDefined();
     await request(server())
       .patch(`/${PREFIX}/shopping-lists/items/${item?.id ?? ''}`)
       .set('Cookie', who.cookie)
-      .send({ checked: !item?.checked })
+      .send({ boughtGrams: Number(item?.boughtGrams ?? 0) + 250, checked: !item?.checked })
       .expect(404);
 
-    const [after] = await tables()<{ checked: boolean }>`select checked from shopping_list_items where id = ${item?.id ?? ''}`;
+    const [after] = await tables()<{ boughtGrams: string; checked: boolean }>`
+      select bought_grams as "boughtGrams", checked from shopping_list_items where id = ${item?.id ?? ''}`;
 
     expect(after?.checked).toBe(item?.checked);
+    expect(after?.boughtGrams).toBe(item?.boughtGrams);
     expect((await activeOf(who))?.id).not.toBe(plan.id);
     expect((await checkInOf(who)).plan?.id).not.toBe(plan.id);
   }

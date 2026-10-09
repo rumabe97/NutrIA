@@ -109,12 +109,16 @@ that setup lives now rather than here.
    five a plan, list rebuilt), complete / skip (done, `0016`), the quicker / no cooking /
    more protein and vegetarian axes on a swap (done, `0022`). Cheaper waits for a price per
    ingredient.
-2. **A user can shop from it.** Done: consolidated list per plan, grouped by aisle, editable,
-   rebuilt on every swap, always matching the active plan. Next, planned as
+2. **A user can shop from it.** Done: consolidated list per plan, grouped by aisle,
+   rebuilt on every swap, always matching the active plan — and, since
    [`020-the-shopping-list-you-are-shopping-now`](./projects/020-the-shopping-list-you-are-shopping-now/)
-   (PRD approved 2026-10-09, queued): the reader chooses the fortnight, a week or any days,
-   and what is bought is an amount rather than a tick, so one shop reads correctly under
-   every filter (`0091`).
+   (done 2026-10-09, `0091`), **shopped the way people actually shop**: the reader chooses
+   the fortnight, either week or any days, and the rows, quantities, progress and share
+   text are those days'. What is bought is an **amount** rather than a tick, so one shop
+   reads correctly under every filter — buy the week's 500 g of the fortnight's 1.2 kg and
+   the row still owes 700 g — and a half-bought row says what is left. All of it works in
+   a supermarket with no signal, and the marks reach the server when it returns (`0053`,
+   `0055`). Typing an amount by hand was deliberately left out; the column exists for it.
 3. **The loop closes.** Weight tracking (done), eaten / skipped on each meal (done, `0016`),
    the fortnightly check-in feeding the next plan (done, `0018`), a progress screen over
    the data already kept (done, `0020`), plan history, read-only (done, `0021`).

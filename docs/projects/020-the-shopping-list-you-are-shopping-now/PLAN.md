@@ -7,8 +7,8 @@
 > **Audience**: agents primarily, humans review. **Committed**: yes. **Written by**: the
 > lead via `/plan-project`; the PRD was approved by the owner on 2026-10-09.
 
-- **Status**: approved — queued behind the projects still open on 2026-10-09 (the owner:
-  "primero acabamos todos los proyectos que tenemos pendientes")
+- **Status**: done — 2026-10-09. All five phases shipped; phases 1 and 2 reached production
+  the same day.
 - **Type**: standard
 - **PRD**: ./PRD.md
 - **Routing profile**: tiered
@@ -150,7 +150,7 @@ change arrives last:
 
 ### Phase 4 — A mark is an amount, in the aisle with no signal
 
-- [x] done
+- [x] done — commit `dd25f13a` ("A mark on the shopping list is an amount, and half a row says what is left")
 - **Dispatch**: opus @ medium — `/execute-project 020 phase 4`. Reviews: `invariant-reviewer`
   (the offline write path), `accessibility` (the partly-bought row's announcement).
 - **Goal**: marking and unmarking move an amount, offline included, and a half-bought row
@@ -197,7 +197,7 @@ change arrives last:
 
 ### Phase 5 — The case through HTTP, and the close
 
-- [ ] pending
+- [x] done
 - **Dispatch**: sonnet @ high — `/execute-project 020 phase 5`. The end-to-end suite belongs
   to the `tests` agent, which is the only one that runs `apps/api/test`.
 - **Goal**: the owner's case is proved end to end, and the project closes.
