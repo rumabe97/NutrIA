@@ -345,6 +345,28 @@
 - **For the owner**: run `/execute-project 010 phase 6` again when about 60 dishes have been
   drawn since 2026-10-01, or on 2026-10-15.
 
+## Phase 6 — What the rule did in production (2026-10-09)
+
+- **Executor**: Opus 5.5 (the lead). The owner authorised the read on 2026-10-09, twice, after the auto-mode classifier had refused it once; it ran from the main checkout inside `sql.begin('read only')`, which the engine enforces, over `recipe_images` and `recipe_image_calls` only. No user table was read, and no address, id or host was printed.
+- **Result**: done. The gate was met and passed: **73 pictures drawn since the rule went live on 2026-10-01**, against the 60 the gate asked for.
+- **The numbers, all read 2026-10-09 from production:**
+  - **Pictures**: 93 rows — 91 `ready`, 2 `failed`.
+  - **The judge blocks nothing.** Both failures carry `reason: model_refused`, and the recorded text is the provider answering 429 ("Provider returned error — provider: DeepInfra") on the judge call. Neither is a verdict about the picture. **No dish is held back by the judge today.**
+  - **Judge calls since 2026-10-01**: 71 `seen` and 71 `matched` (0.0307 and 0.0179 USD), plus 2 `error`.
+  - **Month's spend**: 2.4575 USD on 73 drawings and 0.0486 USD on 144 judge calls — 2.51 USD against the 10 USD cap (`0066`).
+  - **The own-form exemption has never fired**: 0 rows carry an `own_form:` note, eight days after it shipped. The case it was built for has not occurred in production.
+  - **Three pictures were accepted by hand**, two on 2026-09-30 (gluten) and one on 2026-10-04, after the rule shipped (peanuts).
+  - **Eleven rejected attempts are stored with their notes**, and they tell one story that is not the one phase 2 fixed: the drawing adds a food the recipe does not contain, and that food carries an allergen. Peanut butter on a dish whose spread is jam, 3 times; a "creamy base" read as gluten, 2; seeded bread and black sesame (sesame, tree nuts); meatballs (eggs, gluten, milk); a "grain base" (gluten); cheese (milk). The hand-accepted picture of 2026-10-04 is the same case.
+  - **`missing_main` appears twice**, never as the only reason: both times beside an added allergen (`missing_main:Kefir`, `missing_main:Egg white`).
+  - **Lactose and "may contain" appear zero times**; so does the tofu scramble. PRD § out-of-scope had guessed at both; production has no instance of either.
+- **The owner's four decisions, 2026-10-09**, from those numbers:
+  1. **The invented garnish**: tell the drawing call not to put anything on the plate that the recipe does not contain. By this project's own hand-off rule ("the two calls are not touched… a change there is a different project") it does **not** ship inside 010; it is recorded in the workspace task lane and ships as its own change.
+  2. **The own-form exemption stays** exactly as it is. That it never fires means the case is rarer than it looked, not that the rule is wrong; it is written, tested and costs nothing to keep.
+  3. **Lactose and "may contain" stay as they are.** No production case asks for a change, and the allergen layer is the last place to change on a guess.
+  4. **`missing_main` stops rejecting on its own**: it stays as a counted note so the console still shows it, but it no longer fails a picture by itself. It has never been the real reason, and a picture missing a visible main is ugly, not unsafe.
+- **PRD criterion 12**: met. The rule's effect is measured, and what was left out of scope was decided against real numbers rather than guesses.
+- **Evidence**: the read's output stayed in the session scratchpad; the counts above are what it returned. Nothing was written to production.
+
 ## Phase 6 follow-up — `missing_main` stops rejecting on its own (2026-10-09)
 
 - **Executor**: `backend` (sonnet, medium), carrying out decision 4 of the "What the rule

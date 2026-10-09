@@ -7,7 +7,7 @@
 > report [`0006`](../../reference/architecture/0006-afinar-el-juez-de-imagenes-2026-09-30.md) —
 > approved by the owner before the plan is written.
 
-- **Status**: approved — by the owner, 2026-09-30
+- **Status**: done — delivered and closed 2026-10-09 (the owner decided phase 6's four questions that day)
 - **Roadmap item**: [`docs/ROADMAP.md`](../../ROADMAP.md) — a follow-up to
   [`006-realistic-dish-pictures`](../006-realistic-dish-pictures/) and
   [`009-owner-reviews-rejected-pictures`](../009-owner-reviews-rejected-pictures/), asked
