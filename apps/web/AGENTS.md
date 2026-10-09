@@ -415,12 +415,22 @@ number up with there, and tabular digits read as slightly wrong in running text.
   **1.06:1 in light and 1.02:1 in dark** — decoration, not information. Give the chosen
   one a border in `--color-brand-09` (4.56:1 and 4.36:1 against that track, clearing
   1.4.11's 3:1), with `border: 1px solid transparent` on its siblings so nothing shifts,
-  and let the weight change with it so the state never rests on colour alone. `PlanSwitch`
+  and let the weight change with it so the state never rests on colour alone. **Measure
+  both sides**: 1.4.11 cares about every surface a 1px edge touches, so check it against
+  the card inside it as well as the track outside (4.84:1 and 4.45:1 there) — the inside
+  is the half that gets forgotten. `PlanSwitch`
   and `ShoppingRange` both had this defect and both now carry the fix; `ChipGroup` uses
   `--color-brand-fill` for the same job, which is the same idea with a different step.
   The rule that filled things never use `--color-brand-09` is about a **fill under a white
   label** — a 1px edge carries no label, and the house already strokes a selected radio
   with it (`ui/components/RadioGroup`).
+- **Wrapping a control silently halves the space around it.** A `margin-block` on an
+  inline-level box (an `inline-flex` pill track, say) does not collapse; the moment it
+  gains a wrapper and becomes block-level, its margin collapses with its neighbour's and
+  the gap halves. It happened here when `PlanSwitch` gained a visible label: 24px became
+  12px, leaving the next control's label nearly equidistant between two controls. No test
+  catches it and a screenshot does not show it unless you already know to measure, so the
+  rule is to look at the spacing whenever a wrapper appears.
 - **And give it a `forced-colors` block.** That mode erases every background, so a state
   drawn only with one disappears entirely: the track takes an `outline`, the chosen one a
   `border: 1px solid Highlight`. A system colour sticks without `forced-color-adjust`.
