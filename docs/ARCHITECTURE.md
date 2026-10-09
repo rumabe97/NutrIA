@@ -394,6 +394,26 @@ relative to the person's own share, so `0070`'s big eaters still get their 2–4
 real meal plan without it met a 180 g protein target with 1,700-kcal lunches beside
 250-kcal dinners.
 
+**The shopping list is read by range and bought by amount** (`0091`). It stays one row per
+ingredient per plan — a range changes the quantity a row shows, never its identity — and
+each row carries the grams **every day of the plan** owes it. The reader picks the
+fortnight, either week or any days, and the quantities are recomputed from that breakdown
+by one domain function used by the server and by the browser alike (`rangeQuantity` in
+`core/domain/ShoppingList`), so the two cannot disagree: sum the chosen days, *then* convert
+cooked grains to dry and round up to the 5 g step, *then* convert to the unit the row is
+read in. Rounding per day and adding after would over-buy by up to 70 g an ingredient and
+would make an unfiltered list stop being the list it was. A row's stored total is that same
+breakdown summed by that same function, so a range over the whole plan cannot drift from it.
+
+What is bought is an **amount** in grams, not a tick, which is what makes a partial shop
+representable: buy the week's 500 g of the fortnight's 1.2 kg and the row still owes 700 g,
+whichever range it is read in. The write caps at the row's own need and floors at zero in
+one statement, and derives `checked` — kept one release for the build live during a
+deploy — from the rounded amount. A regeneration, a swap or an event rebuild carries the
+amount across, capped at the new need. The filter never reaches the address bar: `/compra`'s
+offline copy is keyed by path (`0053`), so the choice lives on the device, and the marks
+queue there too (`0055`, amended: a tick is now an amount).
+
 **A plate also has a weight ceiling, and cooked grains read dry** (`0078`). No plate weighs
 more than `PLATE_GRAMS_MAX`: 750 g at breakfast, lunch and dinner, and 250 g at the snacks
 and supper. It is enforced through the same `withinPlateLimit` as the energy limit, and the

@@ -5,7 +5,7 @@
 > **Audience**: humans and agents. **Committed**: yes. **Written by**: the lead via
 > `/plan-project`, from the owner's request of 2026-10-09.
 
-- **Status**: approved — the owner approved it on 2026-10-09; execution is queued behind the projects still open that day
+- **Status**: done — approved by the owner on 2026-10-09 and delivered the same day; every criterion is answered in [`LOG.md`](./LOG.md)'s closing entry
 - **Roadmap item**: [`ROADMAP.md` § Next, item 2 — "A user can shop from it"](../../ROADMAP.md)
 
 ## Problem

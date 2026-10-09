@@ -541,3 +541,99 @@
     or to leave.
   - Two tabs marking the same row offline can still lose one (the cache is stale until the
     `storage` event lands). Pre-existing, offline-only, and unchanged by this phase.
+
+## Phase 5 — The case through HTTP, and the close (2026-10-09)
+
+- **Executor**: the end-to-end suite by the `tests` agent on **sonnet @ high**
+  (`tests-high`), which the plan names and which is the only agent that runs
+  `apps/api/test`. The documentation and this closing entry by the lead, opus @ medium —
+  the LOG is the executing agent's to write, and the closing is the project's, not a
+  suite's.
+- **Result**: done. The project closes.
+- **Evidence**:
+  - `pnpm --filter api test:e2e -- shopping-range` — **6 of 6**, run by the lead as well as
+    by the agent.
+  - The neighbours the plan names: `sign-in-brake`, `swaps` and `care-review` — **43 of 43**.
+    Recorded honestly: the first trio run failed one `swaps` case, which then passed alone
+    (3/3) and passed again in the trio. These suites share one database and create and
+    delete accounts as they go; it was a collision, not a defect, and it is named here
+    rather than quietly re-run.
+  - `sh .claude/skills/ship/scripts/gate.sh --full` — green from the top.
+  - **Nothing was loosened to make it pass**, which was the instruction and is worth
+    recording: the suite derives the week's share from the row's own `perDay` through
+    `rangeQuantity` — the very function the server computes with — instead of hard-coding
+    a gram figure that the next generated plan would break; it asserts the swap's carry by
+    the cap *formula* rather than an observed number; and where a generated plan might not
+    produce a row that splits between the weeks, it throws a sentence saying so instead of
+    forcing one.
+- **The PRD, criterion by criterion.** This is the answer the plan asks for.
+  1. **The reader chooses the fortnight, a week or any days, and the rows and quantities
+     are exactly those days'.** Done (phase 3), seen in a real browser at 320, 390 and
+     1280 px in both schemes, and driven: 132 rows → 91 → 79 as the range narrows.
+  2. **A range's quantity is the domain's, with the dry conversion and the 5 g round-up
+     applied after the range is summed, never per day; an unfiltered list equals today's.**
+     Done (phase 1), true *by construction* — the stored total is the breakdown summed by
+     the same function a range uses — and proved on real data: 352.5 g (week 1) + 215.7 g
+     (week 2) = 568.2 g, exactly the fortnight's figure.
+  3. **Bought is an amount, never below zero nor above the need.** Done (phase 2), proved
+     over HTTP by the cap and floor cases, and by eight cases rehearsed against real
+     Postgres before that.
+  4. **The owner's case.** Done, proved end to end this phase: mark the week, read the
+     fortnight's remainder; unmark, back to the fortnight's own figure; mark the fortnight,
+     and the week reads done.
+  5. **Progress and the share text count the chosen range.** Done (phase 3 for the count,
+     phase 4 for the share text, which until review was sending the range's whole need for
+     a half-bought row and so would have had somebody buy it twice).
+  6. **With no signal the filter, the quantities and the marks all work, and the marks
+     reach the server when it returns under `0055`'s rules.** Done, and proved with the
+     network actually cut: three rows marked with the server stopped, the range narrowed
+     with no network at all, and the queue drained into the database when it came back.
+  7. **A swap, an event rebuild or a regeneration keeps the amount, capped at the new
+     need.** Done (phase 2), proved over HTTP this phase by the cap formula.
+  8. **The filter the reader left is the one they find on that device, and a session change
+     clears it.** Done (phase 3): `localStorage`, dropped in `forgetOfflineCopies` beside
+     the pending marks.
+  9. **No regression: `gate --full` green, the end-to-end suites green, and the
+     accessibility review passes on the new control.** Done. The accessibility review
+     passed on the control (phase 3) and on the row (phase 4), with every P0 and P1 fixed
+     in the same change.
+  10. **Ownership unchanged: nobody reads or writes another account's list, and a plan
+      under dietitian review stays invisible.** Done. `invariant-reviewer` verified the
+      walk in the SQL Drizzle actually emits, and this phase proves both over HTTP: a
+      stranger's amount is a 404 with the row untouched, and an amount against a plan under
+      review is a 404 with `boughtGrams` left standing — a gap in `care-review`'s own
+      helper, which until now only checked the tick.
+- **Accepted waivers** — things this project chose not to do, each with its reason:
+  - **Typing an amount by hand** was out of scope from the PRD. The column exists; it is a
+    small follow-up if the owner wants it.
+  - **Clearing a row from a range narrower than what is bought** cannot be done in that
+    range. It follows from the arithmetic the owner chose on 2026-10-09 — unmarking says
+    "not these days", not "nothing at all" — and since phase 4 the screen says so instead
+    of swallowing the tap.
+  - **A half-bought row takes two taps to clear**, because a checkbox offers one action.
+  - **`PlanSwitch` carries the same chosen-pill contrast defect** the range control was
+    fixed for (1.06:1 light, 1.02:1 dark), in code this project did not touch, and **the
+    preset row has no visible legend** — on `/compra` with a scheduled plan that leaves two
+    near-identical rows, one navigating and one filtering. Both reported to the owner, with
+    the reviewer's argument that if they are ever unified it is by bringing `PlanSwitch`
+    up, not this down.
+  - **Two tabs marking the same row offline can still lose one.** Pre-existing,
+    offline-only, unchanged.
+  - **Whether VoiceOver on iOS speaks the live region and the indeterminate state** is the
+    one thing no desktop browser can answer. If the mixed state is silent that is **not** a
+    defect: the row's accessible name distinguishes all three states by itself, which is
+    why the native control was chosen over the invalid `aria-checked="mixed"`.
+- **Decisions**: none created this phase.
+  [`0091`](../../decisions/0091-the-shopping-list-is-read-by-range-and-bought-by-amount.md)
+  is the project's record, amended once on two points of fact;
+  [`0055`](../../decisions/0055-a-tick-in-the-aisle-waits-for-the-signal.md) amended by it.
+- **Documentation**: `ROADMAP.md` § Next item 2 now reads as done and says what changed;
+  `PRODUCT.md`'s shopping-list line says it is read by range and bought by amount;
+  `ARCHITECTURE.md` gains the passage it was missing — one row per ingredient, the
+  breakdown travelling with it, one domain function for the server and the browser alike,
+  and the order that cannot be altered.
+- **Deviations from plan**: one. **The `tests` agent worked in the main checkout, not a
+  worktree.** A worktree carries no `.env` and the end-to-end harness needs it; nothing
+  else was being edited under `apps/api/test`, so there was no collision for a worktree to
+  prevent. Recorded rather than hidden, because the team's standing rule is a worktree per
+  agent.

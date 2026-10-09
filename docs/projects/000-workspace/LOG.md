@@ -621,3 +621,29 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   when CI started running them on every pull request.
 - Open projects after today: 004, blocked on the payments decision of 2026-09-25, and 011,
   whose phase 10 cannot run before 2026-10-15.
+
+## 2026-10-09 — Project 020 closed: the shopping list you are shopping now
+
+- Planned and delivered the same day, five phases: the domain learned which day each gram
+  is for; the row gained an amount bought and the days on the wire, with migration `0061`;
+  the reader got the range control; a mark became an amount, offline queue included; and
+  the owner's case was proved over HTTP.
+- **What changed for the person using it.** The list was always the whole fortnight —
+  1.2 kg of chicken, 2 kg of potatoes, quantities nobody shops by. Now they choose the
+  fortnight, either week or any days, and what is bought is an amount rather than a tick,
+  so a partial shop reads correctly under every filter: buy the week's 500 g and the row
+  still owes 700 g. All of it works in a supermarket with no signal.
+- **Phases 1 and 2 reached production on the day** (`5faead3f`, `4df600d4`), migration
+  `0061` running against production during the API's build without incident; phase 3
+  followed (`73373367`). Phases 4 and 5 are the owner's to merge.
+- **The reviews earned their keep, and the record says so.** A P0 (unmarking from a narrow
+  range was a dead gesture that still wrote — eleven times over from a single day's view),
+  two P1s (a flush in progress could silently undo a newer mark; the derived `checked`
+  could disagree with the stored amount by a rounding step), and a 401 that would have
+  thrown away a whole aisle of waiting marks. Each one was verified against the code before
+  it was acted on, and two reviewer claims turned out to be stale or self-contradicting and
+  were corrected back rather than obeyed.
+- Open after today: 004, blocked on the payments decision of 2026-09-25, and 011, whose
+  phase 10 cannot run before 2026-10-15. Left with the owner from 020: whether to allow
+  typing an amount by hand, `PlanSwitch`'s contrast, the preset row's missing visible
+  legend, and one minute with VoiceOver on an iPhone.
