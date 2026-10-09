@@ -127,7 +127,14 @@ jobs:
     # with the run enforces that rather than asking for it.
     services:
       postgres:
-        image: postgres:17
+        # The same official image, from AWS's public mirror rather than Docker
+        # Hub. Hub rate-limits anonymous pulls per IP, and GitHub's runners share
+        # those IPs: on 2026-10-09 a day of eight end-to-end runs exhausted it,
+        # and the job began dying in fifteen seconds with `toomanyrequests`
+        # before a single test ran. ECR Public has no anonymous limit worth
+        # hitting, and needs no secret — a Hub token would work too, at the cost
+        # of a credential to keep.
+        image: public.ecr.aws/docker/library/postgres:17
         env:
           POSTGRES_DB: nutria_e2e
           POSTGRES_PASSWORD: postgres
