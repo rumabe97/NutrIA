@@ -27,10 +27,11 @@ import type { BetterAuthOptions } from 'better-auth';
  */
 type Row = Record<string, unknown>;
 
-const store: { account: Row[]; rateLimit: Row[]; session: Row[]; user: Row[]; verification: Row[] } = {
+const store: { account: Row[]; rateLimit: Row[]; session: Row[]; twoFactor: Row[]; user: Row[]; verification: Row[] } = {
   account: [],
   rateLimit: [],
   session: [],
+  twoFactor: [],
   user: [],
   verification: []
 };
@@ -234,5 +235,58 @@ describe('confirming an address', () => {
 
     expect((await call(auth, back, '/sign-in/email', { email: EMAIL, password: VICTIMS_PASSWORD })).status).toBe(200);
     expect(await signedIn(auth, back)).toBe(true);
+  });
+
+  /**
+   * PLAN 011, "Follow-up — A reset does not clear a second factor a stranger
+   * turned on": does a stranger ever hold a session on the squatted account
+   * before its address is confirmed, which is the only door `/two-factor/enable`
+   * has?
+   *
+   * No session exists to call it from while the account is unconfirmed — not
+   * at sign-up (`autoSignIn: false`), not with the stranger's own right
+   * password (`requireEmailVerification`, `UnconfirmedSignIn`), not from the
+   * confirmation link itself (`autoSignInAfterVerification: false`). So
+   * `/two-factor/enable` is the route's bare 401 at every one of those points,
+   * and no `twoFactor` row is ever written. The gate is address confirmation,
+   * not anything else: the moment a session exists — which this test's own
+   * sign-in gate proves can only happen once the address is confirmed —
+   * `/enable` succeeds like any other account's. That remaining window (the
+   * owner opened the link but has not yet reset) is the known residual the
+   * LOG records (phase 8, "the delta review, and what stays open"), bounded by
+   * the reset and the owner's 48-hour removal (phase 4) — not a session on an
+   * *unconfirmed* account, which is what this test holds closed.
+   */
+  it('never lets the factor onto the account before its address is confirmed', async () => {
+    const auth = build();
+    const stranger = new Browser();
+
+    await call(auth, stranger, '/sign-up/email', { email: EMAIL, name: 'Nadie', password: STRANGERS_PASSWORD });
+    expect((await call(auth, stranger, '/two-factor/enable', { password: STRANGERS_PASSWORD })).status).toBe(401);
+    expect(store.twoFactor).toEqual([]);
+
+    // The unconfirmed account's own right password is a 401 too (phase 8): still no session to enable from.
+    expect((await call(auth, stranger, '/sign-in/email', { email: EMAIL, password: STRANGERS_PASSWORD })).status).toBe(401);
+    expect(await signedIn(auth, stranger)).toBe(false);
+    expect((await call(auth, stranger, '/two-factor/enable', { password: STRANGERS_PASSWORD })).status).toBe(401);
+    expect(store.twoFactor).toEqual([]);
+
+    // The owner opens the confirmation link: it signs nobody in, so the factor is still unreachable.
+    const victim = new Browser();
+
+    await call(auth, victim, await linkIn(links.verification));
+    expect(store.user[0]?.emailVerified).toBe(true);
+    expect(await signedIn(auth, victim)).toBe(false);
+    expect((await call(auth, stranger, '/two-factor/enable', { password: STRANGERS_PASSWORD })).status).toBe(401);
+    expect(store.twoFactor).toEqual([]);
+
+    // Only once a session exists — which, by every assertion above, needs the address confirmed first — does `/enable` succeed.
+    expect((await call(auth, stranger, '/sign-in/email', { email: EMAIL, password: STRANGERS_PASSWORD })).status).toBe(200);
+    expect(await signedIn(auth, stranger)).toBe(true);
+
+    const enabled = await call(auth, stranger, '/two-factor/enable', { password: STRANGERS_PASSWORD });
+
+    expect(enabled.status).toBe(200);
+    expect(store.twoFactor).toHaveLength(1);
   });
 });
