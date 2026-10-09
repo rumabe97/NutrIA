@@ -564,18 +564,27 @@ describe('UserRepository.spendGrant', () => {
  * confirmed account's data would have left.
  */
 describe('staleUnconfirmedWhere', () => {
-  it('is unconfirmed, older than the cutoff, with no session, profile, plan or audit row — four correlated sub-selects, nothing joined', () => {
+  it('is unconfirmed, never opened by the owner, older than the cutoff, with no session, profile, plan or audit row — four correlated sub-selects, nothing joined', () => {
     const cutoff = new Date('2026-09-09T00:00:00.000Z');
     const { params, sql } = render(staleUnconfirmedWhere(cutoff));
 
     expect(sql).toBe(
-      '("user"."email_verified" = $1 and "user"."created_at" < $2 and ' +
+      '("user"."email_verified" = $1 and "user"."activated_at" is null and "user"."created_at" < $2 and ' +
         'not exists (select 1 from "session" where "session"."user_id" = "user"."id") and ' +
         'not exists (select 1 from "profiles" where "profiles"."user_id" = "user"."id") and ' +
         'not exists (select 1 from "meal_plans" where "meal_plans"."user_id" = "user"."id") and ' +
         'not exists (select 1 from "audit_logs" where "audit_logs"."actor_id" = "user"."id" or "audit_logs"."subject_user_id" = "user"."id"))'
     );
     expect(params).toEqual([false, cutoff.toISOString()]);
+  });
+
+  it('never sweeps an account the owner opened, which is the one state an audit row does not cover', () => {
+    const { sql } = render(staleUnconfirmedWhere(new Date('2026-09-09T00:00:00.000Z')));
+
+    // An account opened before `0071` wrote no audit row, and before phase 8 an
+    // unconfirmed account could sign in, so its session could since have expired:
+    // without this clause such a person, waiting in the queue, would be a candidate.
+    expect(sql).toContain('"user"."activated_at" is null');
   });
 });
 

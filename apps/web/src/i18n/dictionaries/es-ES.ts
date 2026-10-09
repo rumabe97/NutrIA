@@ -2566,7 +2566,8 @@ export const esES = {
         heading: 'Cuánto tiempo guardamos tus datos',
         paragraphs: [
           'Mientras tu cuenta exista. Al borrarla, todo lo que hay en ella se borra al momento: perfil, alergias, salud, planes, listas de la compra, progreso y consentimientos.',
-          'El registro de seguridad de tu cuenta se guarda mientras exista tu cuenta; al borrarla deja de estar ligado a ti.',
+          'Si alguien crea una cuenta con una dirección y nadie la confirma, la borramos a los treinta días del alta: el nombre, el correo y la contraseña con los que se creó desaparecen. Solo la borramos si no hay nada más en ella: ninguna sesión, ningún perfil, ningún plan y ninguna actividad anotada en nuestros registros. Después queda solo una anotación de que ese día se borró una cuenta sin confirmar, sin el correo, sin el nombre y sin nada que lleve a nadie. En cuanto confirmas tu dirección, tu cuenta se queda mientras tú quieras.',
+          'El registro de seguridad de tu cuenta se guarda mientras exista tu cuenta; al borrarla deja de estar ligado a ti. Además se borra a los 12 meses.',
           'Nuestro proveedor de base de datos guarda, por su cuenta, un historial breve para poder recuperarnos de un fallo; puedes pedirnos el plazo exacto en {email}.',
           'Si contrataste Premium, Stripe conserva los datos de facturación el tiempo que le exige la ley, aunque borres tu cuenta.'
         ]

@@ -171,6 +171,13 @@ const HAS_AUDIT_ROW = sql`exists (select 1 from ${auditLogs} where ${auditLogs.a
  * and none of the four above. Exported for its spec, the way `accountFilters`
  * is.
  *
+ * An account the owner opened is never swept, whatever else is true of it
+ * (`isNull(activatedAt)`): opening one is a deliberate act, and a person
+ * waiting in the queue who never confirmed — reachable before phase 8, when an
+ * unconfirmed account could still sign in — would otherwise be a candidate once
+ * their session expired, since an account opened before `0071` wrote no audit
+ * row (`legal`'s P2, 2026-10-09).
+ *
  * Four tables and nothing wider on purpose: every one of them is reachable
  * only from a session (`profiles`, `mealPlans` and `auditLogs` are all
  * written by routes `VerifiedEmailGuard` gates), and an unconfirmed account
@@ -179,7 +186,15 @@ const HAS_AUDIT_ROW = sql`exists (select 1 from ${auditLogs} where ${auditLogs.a
  * does not exist, at the cost of a join this sweep does not need.
  */
 export function staleUnconfirmedWhere(cutoff: Date): SQL | undefined {
-  return and(eq(user.emailVerified, false), lt(user.createdAt, cutoff), not(HAS_SESSION), not(HAS_PROFILE), not(HAS_PLAN), not(HAS_AUDIT_ROW));
+  return and(
+    eq(user.emailVerified, false),
+    isNull(user.activatedAt),
+    lt(user.createdAt, cutoff),
+    not(HAS_SESSION),
+    not(HAS_PROFILE),
+    not(HAS_PLAN),
+    not(HAS_AUDIT_ROW)
+  );
 }
 
 /**

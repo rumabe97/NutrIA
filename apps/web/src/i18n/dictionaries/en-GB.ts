@@ -2523,7 +2523,8 @@ export const enGB: Dictionary = {
         heading: 'How long we keep your data',
         paragraphs: [
           'While your account exists. When you delete it, everything in it is deleted at once: profile, allergies, health, plans, shopping lists, progress and consents.',
-          'The security record of your account is kept while your account exists; when you delete it, it stops being linked to you.',
+          'If somebody creates an account with an address and nobody confirms it, we delete it thirty days after the sign-up: the name, the email address and the password it was created with are gone. We only delete it if there is nothing else in it: no session, no profile, no plan and no activity recorded in our records. What is left is a single note saying that an unconfirmed account was deleted that day, with no email address, no name and nothing that leads to anybody. Once you confirm your address, your account stays for as long as you want it.',
+          'The security record of your account is kept while your account exists; when you delete it, it stops being linked to you. It is also deleted after 12 months.',
           'Our database provider keeps, on its own, a short history to let us recover from a fault; you can ask us for the exact window at {email}.',
           'If you subscribed to Premium, Stripe keeps billing data for as long as the law requires, even if you delete your account.'
         ]

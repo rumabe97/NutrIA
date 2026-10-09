@@ -28,7 +28,8 @@ const COPY: Record<EmailLocale, { button: string; ignore: string; intro: string;
   },
   'es-ES': {
     button: 'Confirmar mi correo',
-    ignore: 'Si no te has registrado, no confirmes nada: ignora este mensaje y, al mes, borramos el correo que nadie confirma junto con su registro.',
+    ignore:
+      'Si no te has registrado, no confirmes nada: ignora este mensaje y, a los treinta días, borramos el correo que nadie confirma junto con su registro.',
     intro: 'Confirma este correo para que sepamos que es tuyo.',
     linkFallback: 'Si el botón no funciona, copia esta dirección en tu navegador:',
     next: 'NutrIA se está abriendo poco a poco. En cuanto activemos tu cuenta podrás entrar y empezar; esto no volverá a pedírtelo.',
