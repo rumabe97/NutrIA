@@ -6,6 +6,7 @@ import { twoFactor } from 'better-auth/plugins/two-factor';
 
 import { AnalyticsController } from 'core/controllers/Analytics';
 import { CareController } from 'core/controllers/Care';
+import { UserController } from 'core/controllers/User';
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from 'core/entities/Password';
 import { TERMS_VERSION } from 'core/entities/User';
 import { MAIL_BUDGET } from 'core/domain/MailBudget';
@@ -578,6 +579,8 @@ export function createAuth(
         beforeDelete: async (deleted: { id: string; email: string }) => {
           await billing.cancelEverything(deleted.id);
           await CareController.forgetAddress(deleted.email);
+          // Trusted devices and sign-in device cookies name the id without a foreign key: they go now, best effort — a miss only costs them their expiry (PLAN 011 phase 7b).
+          await UserController.forgetDevices(deleted.id).catch(() => undefined);
         },
         enabled: true
       }

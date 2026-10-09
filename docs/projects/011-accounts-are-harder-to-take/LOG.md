@@ -1115,8 +1115,10 @@
   - **Invalidation**: `UserRepository.passwordChanged` deletes the account's device rows in
     the transaction that clears the breach mark, the trusted devices and the passkeys; the
     API retries on its own if the transaction fails (`sign_in_devices_not_removed` if that
-    fails too). The browser keeps a cookie that points at nothing. Closing sessions does not
-    end them.
+    fails too). The browser keeps a cookie that points at nothing. Closing every other
+    session or all of them ends them too (review P2: `UserController.sessionsRevoked`),
+    and deleting the account deletes them with the trusted devices (`legal` P2:
+    `UserController.forgetDevices` in `beforeDelete`, best effort).
 - **Deviations from plan** (plan amended in the same change):
   - **No table.** The plan allowed "an opaque token in the database"; it is in the table
     Better Auth already gives trusted devices, so the phase has no migration and
@@ -1124,18 +1126,19 @@
   - **Earned when a sign-in completes**, not when the password is right (the plan said "on a
     successful password sign-in"): for an account with a second factor the sign-in is not
     complete until the factor is proved.
-  - **The cookie's attempts are not counted**, not just not refused: its typos would
-    lengthen the wait of clients that have none.
+  - **The cookie's attempts are counted under a key of its own** (amended after the
+    invariant review, P2): not against the address, whose wait they would lengthen, but
+    by the same rule under an HMAC of the cookie's token, so a stolen cookie is held to the
+    brake's rate rather than the per-IP limit alone. The exempt success clears that key and
+    leaves the address's row alone.
 - **Known limits, stated for the reviewers**:
   - A stolen browser with the cookie is braked only by the per-IP limit until the password
-    changes. The cookie waives the per-address brake and nothing else: the password, the
-    per-IP limit and the two-factor plugin's lock stand.
+    changes, closes sessions or deletes the account. The cookie waives the address's wait
+    and nothing else: the password, the per-IP limit and the two-factor plugin's lock stand.
   - A person on a new browser, or after a password change, still waits out a brake somebody
     else built; a passkey, Google or a reset are their ways in, as before.
   - Phase 7's P1-b (clearing the row on a success leaks slowly that an address has an
     account) is unchanged.
-  - Rows of a deleted account stay until they expire; they hold a digest and an id that no
-    longer names anyone.
   - `/privacidad`'s list of cookies, if it has one, should name `sign_in_device` (the lead,
     with `legal`).
 - **Evidence**:

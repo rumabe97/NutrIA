@@ -275,7 +275,7 @@ export function accountSecurityAfter(deps: AccountSecurityDeps) {
     const email = text(record(context.body).email);
 
     if (email) {
-      await deps.brake.signedIn(email);
+      await deps.brake.signedIn(email, context.request);
     }
 
     if (deps.isCompromised) {

@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
 
 const DAY_SECONDS = 24 * 60 * 60;
 
@@ -37,4 +37,15 @@ export function isSameAddress(accountEmail: string, typedEmail: string): boolean
 /** When a cookie issued or renewed at `now` ends. */
 export function signInDeviceExpiry(now: Date): Date {
   return new Date(now.getTime() + SIGN_IN_DEVICE.maxAgeSeconds * 1000);
+}
+
+/**
+ * The key a device's own attempts are counted under, in the same brake as an
+ * address's (`core/domain/SignInBrake`): an HMAC of the cookie's token with the
+ * auth secret, under a label of its own. The token is a bearer secret, so a
+ * stolen cookie must not be a licence to guess without limit: a browser that
+ * holds one is exempt from the *address's* wait, never from its own.
+ */
+export function signInDeviceBrakeKey(token: string, secret: string): string {
+  return createHmac('sha256', secret).update(`sign-in-device-brake:${token}`).digest('hex');
 }

@@ -7,8 +7,8 @@ import { MailBudgetController } from 'core/controllers/MailBudget';
 import { SignInBrakeController } from 'core/controllers/SignInBrake';
 import { SignInDeviceController } from 'core/controllers/SignInDevice';
 import { UserController } from 'core/controllers/User';
-import { decideAttempt } from 'core/domain/SignInBrake';
-import { isSameAddress, newSignInDeviceToken } from 'core/domain/SignInDevice';
+import { decideAttempt, signInBrakeKey } from 'core/domain/SignInBrake';
+import { isSameAddress, newSignInDeviceToken, signInDeviceBrakeKey } from 'core/domain/SignInDevice';
 
 import { validateEnv } from '../../../config/Env.validation.js';
 
@@ -61,6 +61,17 @@ const WRONG = 'not-the-password-at-all-9';
 const ANA = { email: 'ana@example.invalid', name: 'Ana' };
 const BEA = { email: 'bea@example.invalid', name: 'Bea' };
 const STRANGER = 'nadie@example.invalid';
+const SECRET = 'a'.repeat(32);
+const NEW_PASSWORD = 'otra-frase-de-caballos-azules';
+
+/** The key the brake counts an address under, and the key it counts a device cookie's token under. */
+function addressKey(email: string): string {
+  return signInBrakeKey(email, SECRET);
+}
+
+function deviceKey(cookie: string): string {
+  return signInDeviceBrakeKey(cookie.split('=')[1] ?? '', SECRET);
+}
 
 /** The brake's table, by key, and the clock its decisions read. */
 const brakeRows = new Map<string, SignInAttempts>();
@@ -69,10 +80,14 @@ const devices = new Map<string, string>();
 let now = new Date('2026-10-09T10:00:00.000Z');
 const lines: string[] = [];
 
+function advance(ms: number): void {
+  now = new Date(now.getTime() + ms);
+}
+
 function build(): ReturnType<typeof createAuth> {
   const env = validateEnv({
     APP_URL: ORIGIN,
-    BETTER_AUTH_SECRET: 'a'.repeat(32),
+    BETTER_AUTH_SECRET: SECRET,
     BETTER_AUTH_URL: 'http://localhost:3001',
     DATABASE_URL: 'postgresql://user:pass@host/db',
     NODE_ENV: 'test'
@@ -92,6 +107,8 @@ type Answer = {
   /** The device cookie this answer set, whole, as the browser will read it. */
   device: string | null;
   retryAfter: string | null;
+  /** The session cookie this answer set, as `name=value`. */
+  session: string | null;
   status: number;
   xRetryAfter: string | null;
 };
@@ -111,6 +128,7 @@ async function call(auth: Auth, path: string, body: unknown, cookie?: string | n
     body: text ? (JSON.parse(text) as Record<string, unknown>) : null,
     device: response.headers.getSetCookie().find(line => /sign_in_device=/.test(line)) ?? null,
     retryAfter: response.headers.get('retry-after'),
+    session: (response.headers.getSetCookie().find(line => /session_token=[^;]/.test(line)) ?? '').split(';')[0] || null,
     status: response.status,
     xRetryAfter: response.headers.get('x-retry-after')
   };
@@ -192,7 +210,16 @@ describe('the device cookie that exempts a browser from the per-address brake', 
     forgetAll = jest.spyOn(SignInDeviceController, 'forgetAll').mockResolvedValue(0);
     jest.spyOn(AnalyticsController, 'record').mockResolvedValue(undefined);
     jest.spyOn(MailBudgetController, 'spend').mockResolvedValue(true);
-    jest.spyOn(UserController, 'passwordChanged').mockResolvedValue(0);
+    // The transaction's own effect on the device rows (`UserRepository.passwordChanged`, proved at SQL level in `packages/core`).
+    jest.spyOn(UserController, 'passwordChanged').mockImplementation(async userId => {
+      for (const [token, owner] of devices) {
+        if (owner === userId) {
+          devices.delete(token);
+        }
+      }
+
+      return Promise.resolve(0);
+    });
 
     const capture = (...args: unknown[]) => {
       lines.push(args.map(arg => (typeof arg === 'string' ? arg : JSON.stringify(arg))).join(' '));
@@ -332,19 +359,65 @@ describe('the device cookie that exempts a browser from the per-address brake', 
       expect(wrong.body).toMatchObject({ code: 'INVALID_EMAIL_OR_PASSWORD' });
     });
 
-    it('does not count that browser’s attempts: its typos do not lengthen anybody’s wait', async () => {
+    it('counts that browser’s attempts under a key of its own: its typos slow only that browser, and the address’s wait does not move', async () => {
       const auth = build();
       await signUp(auth, ANA);
       const mine = jar(await signIn(auth, ANA.email, PASSWORD));
 
       await fail(auth, ANA.email, 10);
-      const before = [...brakeRows.values()].map(row => ({ ...row }));
+      const address = { ...brakeRows.get(addressKey(ANA.email)) };
 
       for (let i = 0; i < 5; i += 1) {
         expect((await signIn(auth, ANA.email, WRONG, mine)).status).toBe(401);
       }
 
-      expect([...brakeRows.values()]).toEqual(before);
+      expect(brakeRows.get(addressKey(ANA.email))).toEqual(address);
+      expect(brakeRows.get(deviceKey(mine))?.count).toBe(5);
+      expect([...brakeRows.keys()].every(key => /^[0-9a-f]{64}$/.test(key))).toBe(true);
+    });
+
+    it('holds a stolen cookie to the brake’s rate: ten wrong passwords, then the same 429 and wait as anybody, in its own bucket', async () => {
+      const auth = build();
+      await signUp(auth, ANA);
+      const stolen = jar(await signIn(auth, ANA.email, PASSWORD));
+
+      await fail(auth, ANA.email, 10);
+      advance(60_000);
+
+      for (let i = 0; i < 10; i += 1) {
+        expect((await signIn(auth, ANA.email, WRONG, stolen)).status).toBe(401);
+      }
+
+      const braked = await signIn(auth, ANA.email, PASSWORD, stolen);
+
+      expect(braked).toMatchObject({ device: null, retryAfter: '30', status: 429, xRetryAfter: '30' });
+      expect(braked.body).toEqual({ code: 'TOO_MANY_ATTEMPTS', message: 'Too many attempts. Try again later.' });
+    });
+
+    it('clears the device’s count and leaves the address’s wait alone when the owner signs in: an attacker is not given a fresh window', async () => {
+      const auth = build();
+      await signUp(auth, ANA);
+      const mine = jar(await signIn(auth, ANA.email, PASSWORD));
+
+      await fail(auth, ANA.email, 10);
+      await signIn(auth, ANA.email, WRONG, mine);
+      const address = { ...brakeRows.get(addressKey(ANA.email)) };
+
+      expect((await signIn(auth, ANA.email, PASSWORD, mine)).status).toBe(200);
+
+      expect(brakeRows.has(deviceKey(mine))).toBe(false);
+      expect(brakeRows.get(addressKey(ANA.email))).toEqual(address);
+      expect((await signIn(auth, ANA.email, PASSWORD)).status).toBe(429);
+    });
+
+    it('still clears the address’s count on a sign-in with no cookie, as before', async () => {
+      const auth = build();
+      await signUp(auth, ANA);
+
+      await fail(auth, ANA.email, 3);
+      expect(brakeRows.has(addressKey(ANA.email))).toBe(true);
+      expect((await signIn(auth, ANA.email, PASSWORD)).status).toBe(200);
+      expect(brakeRows.has(addressKey(ANA.email))).toBe(false);
     });
 
     it('does not exempt another address: a cookie earned for Ana leaves Bea’s braked address 429, to the byte', async () => {
@@ -418,6 +491,25 @@ describe('the device cookie that exempts a browser from the per-address brake', 
   });
 
   describe('losing it', () => {
+    it('ends with a change of the password: the old cookie is braked like anybody, with the 429 a cookieless request gets', async () => {
+      const auth = build();
+      await signUp(auth, ANA);
+      const earned = await signIn(auth, ANA.email, PASSWORD);
+      const mine = jar(earned);
+      const changed = await call(auth, '/change-password', { currentPassword: PASSWORD, newPassword: NEW_PASSWORD }, `${earned.session}; ${mine}`);
+
+      expect(changed.status).toBe(200);
+      expect(devices.size).toBe(0);
+
+      await fail(auth, ANA.email, 10);
+
+      const withOld = await signIn(auth, ANA.email, NEW_PASSWORD, mine);
+      const bare = await signIn(auth, ANA.email, NEW_PASSWORD);
+
+      expect(withOld).toEqual(bare);
+      expect(withOld.status).toBe(429);
+    });
+
     it('ends with a reset of the password when the transaction that clears the rest fails: the cookies are removed on their own', async () => {
       const auth = build();
       await signUp(auth, ANA);

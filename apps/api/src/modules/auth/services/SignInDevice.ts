@@ -18,12 +18,12 @@ const logger = new Logger('SignInDevice');
 
 export type SignInDevices = {
   /**
-   * `hooks.before` on `/sign-in/email`: whether the request carries a device
-   * cookie earned for the account that owns `email`. Never throws: if it
-   * cannot tell, the answer is no, and the brake applies as it would to
-   * anybody.
+   * `hooks.before` on `/sign-in/email`: the cookie's token if the request
+   * carries a device cookie earned for the account that owns `email`, else
+   * null. Never throws: if it cannot tell, the answer is null, and the brake
+   * applies as it would to anybody.
    */
-  readonly exempts: (context: Context, email: string) => Promise<boolean>;
+  readonly exempts: (context: Context, email: string) => Promise<string | null>;
   /**
    * A completed sign-in for `userId`, the account Better Auth just signed in
    * (never a body's): the browser's cookie is renewed or a new one issued and
@@ -42,8 +42,10 @@ export type SignInDevices = {
  * - It is `HttpOnly`, `SameSite=Lax` and `Secure` under production, the very
  *   attributes of the session cookie (`advanced.defaultCookieAttributes`), and
  *   lives ninety days from the last sign-in that used it.
- * - It waives one thing: the per-address brake (`SignInBrake.ts`). Better
- *   Auth's per-IP limit, the password, and the second factor with its own
+ * - It waives one thing: the address's wait (`SignInBrake.ts`). The browser's
+ *   attempts are counted under a key of its own (`signInDeviceBrakeKey`), by the
+ *   same rule, so a stolen cookie is held to the brake's rate and the owner's
+ *   typos slow only that browser. Better Auth's per-IP limit, the password, and the second factor with its own
  *   lock all still apply — an account with the factor on earns the cookie
  *   only once the factor is also proved.
  * - It is the account's, not the address's: a cookie earned for one account
@@ -61,11 +63,11 @@ export const signInDevices: SignInDevices = {
     const token = context.getCookie(deviceCookie(context).name);
 
     try {
-      return await SignInDeviceController.exempts(token ?? null, email);
+      return token && (await SignInDeviceController.exempts(token, email)) ? token : null;
     } catch {
       logger.error('sign_in_device_unavailable');
 
-      return false;
+      return null;
     }
   },
 

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { isSameAddress, newSignInDeviceToken, SIGN_IN_DEVICE, signInDeviceExpiry } from './SignInDevice';
+import { signInBrakeKey } from 'core/domain/SignInBrake';
+
+import { isSameAddress, newSignInDeviceToken, SIGN_IN_DEVICE, signInDeviceBrakeKey, signInDeviceExpiry } from './SignInDevice';
 
 describe('newSignInDeviceToken', () => {
   it('is 256 random bits in URL-safe characters, and never the same twice', () => {
@@ -30,5 +32,22 @@ describe('signInDeviceExpiry', () => {
   it('ends the cookie ninety days after it was issued or renewed', () => {
     expect(SIGN_IN_DEVICE.maxAgeSeconds).toBe(90 * 24 * 60 * 60);
     expect(signInDeviceExpiry(new Date('2026-10-09T10:00:00.000Z'))).toEqual(new Date('2027-01-07T10:00:00.000Z'));
+  });
+});
+
+describe('signInDeviceBrakeKey', () => {
+  const SECRET = 'a'.repeat(32);
+
+  it('is a 64-hex HMAC that names neither the token nor an address, and differs per token and per secret', () => {
+    const key = signInDeviceBrakeKey('token-1', SECRET);
+
+    expect(key).toMatch(/^[0-9a-f]{64}$/);
+    expect(key).not.toContain('token-1');
+    expect(signInDeviceBrakeKey('token-2', SECRET)).not.toBe(key);
+    expect(signInDeviceBrakeKey('token-1', 'b'.repeat(32))).not.toBe(key);
+  });
+
+  it('never collides with the key an address is counted under, whatever the label’s text', () => {
+    expect(signInDeviceBrakeKey('ana@example.com', SECRET)).not.toBe(signInBrakeKey('ana@example.com', SECRET));
   });
 });
