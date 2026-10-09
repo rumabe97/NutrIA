@@ -1,4 +1,4 @@
-import { dishGroups, FOOD_GROUP_SLUGS, FRESH_FRUIT_SLUGS } from 'core/domain/MealFit';
+import { dishGroups, FOOD_GROUP_SLUGS, FRESH_FRUIT_SLUGS, PLANT_BASED_PATTERNS, rowFitsMeal } from 'core/domain/MealFit';
 import { BREAD_SLUGS, LEGUME_RULES, legumeKind, MAIN_SLOTS, STARCH_RULES, starchBase } from 'core/domain/Variety';
 import { toDry } from 'core/domain/Yield';
 
@@ -770,6 +770,21 @@ export function reserveGroups(
  */
 export const LEGUME_KINDS_WANTED = 3;
 
+/**
+ * The forms a dinner asked for a legume or a whole grain may take for somebody
+ * who is not plant-based, by the word the prompt uses for each (prompt 4.7.1),
+ * and the catalogue rows behind the word. Each is a row `fitSlots` keeps in a
+ * dinner (Table 2 of `0079` and the meal lists of `0062`): none of the five
+ * groups, and not on a list that keeps it at lunch or at breakfast. A spec
+ * serves a dinner of each through `fitSlots`, so the prompt cannot name a form
+ * the code then refuses. Oats are not here: the lists keep them to breakfast
+ * and the snacks.
+ */
+export const DINNER_FORMS = {
+  legume: { edamame: ['edamame-cocido', 'edamame-congelado'], tempeh: ['tempeh'], tofu: ['tofu-ahumado', 'tofu-firme', 'tofu-sedoso'] },
+  wholeGrain: { bread: ['pan-de-hamburguesa-integral', 'pan-de-molde-integral', 'pan-integral'], wrap: ['wrap-integral'] }
+} as const;
+
 /** A group the generator is asked for inside a request it already makes (019 phase 7). */
 export type PoolAskGroup = 'legume' | 'oilyFish' | 'wholeGrain';
 
@@ -795,19 +810,26 @@ export type PoolAsk = {
  * A group is asked for only when `shown`, the catalogue the request is shown,
  * has a row of it: a person whose pool holds no fish because of an allergy,
  * a dislike or the way they eat is never asked for one, and the ask is read
- * off what the model may use, never off why. Nothing outside lunch and dinner.
+ * off what the model may use, never off why. At dinner the row must also be
+ * one `fitSlots` keeps there (`rowFitsMeal`, Table 2 of `0079`): the legume or
+ * whole grain a dinner is asked for has to be buildable from rows that stay —
+ * edamame, tofu or tempeh, bread or a wrap — or the ask is left to lunch (prompt
+ * 4.7.1; 5 of 5 sampled plans lost their dinner rice, quinoa and lentil dishes
+ * as `wrong_meal`). Nothing outside lunch and dinner.
  */
 export function poolAsks(
   pool: readonly CandidateDish[],
   slot: MealSlot,
   catalogue: Catalogue,
-  shown: readonly { readonly slug: string }[]
+  shown: readonly { readonly slug: string }[],
+  dietaryPatterns: readonly string[] = []
 ): readonly PoolAsk[] {
   if (slot !== 'lunch' && slot !== 'dinner') {
     return [];
   }
 
   const quota = POOL_RESERVE[slot];
+  const plantBased = dietaryPatterns.some(pattern => PLANT_BASED_PATTERNS.has(pattern));
   const read = pool.filter(dish => dish.slots.includes(slot)).map(dish => ({ dish, groups: servingGroups(dish, catalogue) }));
   const legumes = read.filter(({ groups }) => mealServings(groups).legume);
   // A legume dish with no stewed pulse (hummus, tofu) is a kind of its own, as `reserveGroups` counts it, but has no kind to name.
@@ -820,9 +842,9 @@ export function poolAsks(
     wholeGrain: quota.wholeGrain - read.filter(({ groups }) => isWholeGrainDish(groups)).length
   };
   const offered: Record<PoolAskGroup, boolean> = {
-    legume: shown.some(row => legumeDryGrams(row.slug, 1) !== null),
+    legume: shown.some(row => legumeDryGrams(row.slug, 1) !== null && rowFitsMeal(row.slug, slot, plantBased)),
     oilyFish: shown.some(row => isOilyFish(row.slug)),
-    wholeGrain: shown.some(row => isWholeGrain(row.slug))
+    wholeGrain: shown.some(row => isWholeGrain(row.slug) && rowFitsMeal(row.slug, slot, plantBased))
   };
   const order: readonly PoolAskGroup[] = ['legume', 'wholeGrain', 'oilyFish'];
 

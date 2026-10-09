@@ -1,6 +1,6 @@
 import { ACCOMPANIED_FROM_KCAL } from 'core/domain/Scheduler';
 import { DEFAULT_MEAL_SHAPE, proteinWeightsFor, weightsFor } from 'core/domain/MealShape';
-import { FRESH_FRUIT_SLUGS } from 'core/domain/MealFit';
+import { FRESH_FRUIT_SLUGS, PLANT_BASED_PATTERNS } from 'core/domain/MealFit';
 import { INGREDIENT_CATEGORIES, SNACK_SLOTS } from 'core/entities/Plan';
 import { normaliseForMatching } from 'core/domain/Safety';
 import { SERVING_KCAL_CAP, servingFactor } from 'core/domain/Serving';
@@ -212,8 +212,19 @@ import type { PoolAsk } from 'core/domain/Balance';
  * fat rules are one, the lean sources list is shorter, and the protein-source
  * line drops "sized to its protein figure", which the first composition rule
  * says.
+ * 4.7.1: the dinner asks name only what `fitSlots` keeps at a dinner (Table 2
+ * of `0079`). The paid sample of 2026-10-09 (5 plans, 65 requests) showed the
+ * model writes every asked group, but 20 of 161 dishes — all dinners, built on
+ * brown rice, quinoa, lentils, chickpeas or hummus made of them — were refused
+ * as `wrong_meal`. So at dinner a legume is asked for as edamame, tofu or
+ * tempeh, with lentils, chickpeas and beans named as lunch dishes (a vegan's or
+ * vegetarian's keeps the light forms of 4.7.0: a pulse is theirs at every
+ * meal); a whole grain as wholemeal bread, toast or a wrap, never rice, pasta
+ * or quinoa; an oily fish with no rice, pasta or other grain beside it. And
+ * `poolAsks` asks a dinner for a group only when the request shows a row of it
+ * that stays, so the ask goes to lunch where a catalogue has none.
  */
-export const PROMPT_VERSION = '4.7.0';
+export const PROMPT_VERSION = '4.7.1';
 
 /**
  * The version of the rules for *writing steps*, stamped on every recipe and
@@ -749,16 +760,23 @@ function orList(items: readonly string[]): string {
  * dish; at dinner in the forms a dinner takes, as a vegetarian's dinner is
  * told (`PLANT_BASED_DINNER`).
  */
-function askLine(ask: PoolAsk, slot: MealSlot): string {
+function askLine(ask: PoolAsk, slot: MealSlot, plantBased: boolean): string {
   switch (ask.group) {
     case 'legume':
-      return slot === 'dinner'
+      if (slot !== 'dinner') {
+        return `${ask.count} on legumes (25 g dry a serving)${ask.heldKinds.length > 0 ? `, not ${orList(ask.heldKinds.map(kindName))}` : ''}`;
+      }
+
+      // Lentils, chickpeas and beans are lunch dishes for everybody who is not plant-based (`fitSlots`, `0079`).
+      return plantBased
         ? `${ask.count} on legumes, light (warm salad, cream, hummus), never stewed`
-        : `${ask.count} on legumes (25 g dry a serving)${ask.heldKinds.length > 0 ? `, not ${orList(ask.heldKinds.map(kindName))}` : ''}`;
+        : `${ask.count} on legumes as edamame, tofu or tempeh (lentils, chickpeas and beans are lunch dishes, never at dinner)`;
     case 'oilyFish':
-      return `${ask.count} on an oily fish`;
+      return slot === 'dinner' ? `${ask.count} on an oily fish, with no rice, pasta or other grain beside it` : `${ask.count} on an oily fish`;
     case 'wholeGrain':
-      return `${ask.count} on a whole grain`;
+      return slot === 'dinner'
+        ? `${ask.count} on a whole grain as wholemeal bread, toast or a wrap (never rice, pasta or quinoa at dinner)`
+        : `${ask.count} on a whole grain`;
   }
 }
 
@@ -784,7 +802,8 @@ function groupLines(
   asks: readonly PoolAsk[],
   fruit: boolean
 ): string {
-  const own = asks.length > 0 ? `\n  Of these: ${asks.map(ask => askLine(ask, slot)).join('; ')}.` : '';
+  const plantBased = context.dietaryPatterns.some(pattern => PLANT_BASED_PATTERNS.has(pattern));
+  const own = asks.length > 0 ? `\n  Of these: ${asks.map(ask => askLine(ask, slot, plantBased)).join('; ')}.` : '';
   // Only where the request shows a fresh fruit, as `poolAsks` asks only for a group its catalogue holds.
   const fruitless = fruit && !MAINS.has(slot) && ![...shares].some(([main, share]) => takesSides(context.targets, main, share));
 

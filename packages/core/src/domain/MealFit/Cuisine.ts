@@ -251,3 +251,22 @@ const FAMILY_FIT: Readonly<Record<Exclude<CuisineFamily, 'other'>, Readonly<Reco
 export function groupFits(family: CuisineFamily, group: FoodGroup, slot: MealSlot): boolean {
   return FAMILY_FIT[family === 'other' ? 'spanish' : family][group].includes(slot);
 }
+
+/**
+ * Whether Table 2 lets this catalogue row stand in a dish served at this meal
+ * when the dish's cuisine says nothing — `other`, judged Spanish, which is how
+ * a model's "Mediterránea" or "Moderna" is read. A row outside the five groups
+ * restricts nothing; a pulse for somebody plant-based is no group at all
+ * (`fitSlots` ignores it). Used to ask the generator only for what `fitSlots`
+ * will keep (019 phase 7, prompt 4.7.1): a dinner asked for rice, quinoa or
+ * lentils comes back refused.
+ */
+export function rowFitsMeal(slug: string, slot: MealSlot, plantBased = false): boolean {
+  const group = foodGroupOf(slug);
+
+  if (group === null || (plantBased && group === 'pulses')) {
+    return true;
+  }
+
+  return groupFits('other', group, slot);
+}
