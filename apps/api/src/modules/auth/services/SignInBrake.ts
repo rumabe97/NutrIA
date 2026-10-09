@@ -3,10 +3,12 @@ import { APIError } from 'better-auth/api';
 
 import { SignInBrakeController } from 'core/controllers/SignInBrake';
 import { signInBrakeKey } from 'core/domain/SignInBrake';
+import { signInDeviceBrakeKey } from 'core/domain/SignInDevice';
 
 import { record, text } from './PasswordPolicy.js';
 
 import type { Context } from './PasswordPolicy.js';
+import type { SignInDevices } from './SignInDevice.js';
 
 const SIGN_IN = '/sign-in/email';
 
@@ -18,8 +20,12 @@ const logger = new Logger('SignInBrake');
 export type SignInBrake = {
   /** `hooks.before` on `/sign-in/email`: counts the attempt, or answers 429 with `Retry-After` while the address waits. */
   readonly before: (context: Context) => Promise<void>;
-  /** The address proved its password — a sign-in, or a reset by its mailbox: its count goes. Never throws. */
-  readonly signedIn: (email: string) => Promise<void>;
+  /**
+   * The address proved its password — a sign-in, or a reset by its mailbox: its count goes. Never throws.
+   * `request` is the sign-in's own: when `before` exempted it, only the device's count goes — the address's
+   * wait is somebody else's to have built, and an owner's sign-in does not give an attacker a fresh window.
+   */
+  readonly signedIn: (email: string, request?: object | null) => Promise<void>;
 };
 
 /**
@@ -44,13 +50,25 @@ export type SignInBrake = {
  *   an address somebody else is braking.
  * - Clearing on a correct password is itself a signal: an address whose row
  *   was cleared between two probes had an owner who signed in. Accepted (LOG).
+ * - A browser that has signed in to that account before is not braked: its
+ *   device cookie (`SignInDevice.ts`, PLAN 011 phase 7b) skips both the 429
+ *   address's wait, so an attacker who knows an address can no longer keep its
+ *   owner out from the browser the owner has always used. Its attempts are
+ *   counted instead under a key of its own (an HMAC of the cookie's token),
+ *   by the same rule: a stolen cookie is a bearer token, and must not be a
+ *   licence to guess at the speed of the per-IP limit alone. Its success
+ *   clears that key, never the address's. The per-IP limit, the password and
+ *   the second factor's lock still apply. A cookie for any other account, an
+ *   expired one and no cookie at all change nothing.
  * - It fails open: if its row cannot be read or written, the sign-in goes on
  *   behind Better Auth's own per-IP limit, and the line
  *   `sign_in_brake_unavailable` says so. A brake that broke must not lock
  *   everybody out. The line never carries the address or its key.
  */
-export function signInBrake(secret: string): SignInBrake {
+export function signInBrake(secret: string, devices: Pick<SignInDevices, 'exempts'>): SignInBrake {
   const keyOf = (email: string): string => signInBrakeKey(email, secret);
+  // The requests `before` exempted, and the device key each is counted under; read by `signedIn`.
+  const exempted = new WeakMap<object, string>();
 
   return {
     async before(context) {
@@ -64,10 +82,18 @@ export function signInBrake(secret: string): SignInBrake {
         return;
       }
 
+      // Only a cookie earned for this very account is counted apart; nothing is looked up about the typed address itself.
+      const token = await devices.exempts(context, email);
+      const key = token ? signInDeviceBrakeKey(token, secret) : keyOf(email);
+
+      if (token && context.request) {
+        exempted.set(context.request, key);
+      }
+
       let decision;
 
       try {
-        decision = await SignInBrakeController.attempt(keyOf(email));
+        decision = await SignInBrakeController.attempt(key);
       } catch {
         logger.error('sign_in_brake_unavailable');
 
@@ -86,8 +112,8 @@ export function signInBrake(secret: string): SignInBrake {
       }
     },
 
-    async signedIn(email) {
-      await SignInBrakeController.signedIn(keyOf(email)).catch(() => {
+    async signedIn(email, request) {
+      await SignInBrakeController.signedIn((request && exempted.get(request)) ?? keyOf(email)).catch(() => {
         logger.error('sign_in_brake_uncleared');
       });
     }

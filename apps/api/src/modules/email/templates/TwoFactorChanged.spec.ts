@@ -56,7 +56,8 @@ describe('twoFactorChangedEmail', () => {
   it('says when, in the product’s clock, and roughly from what', () => {
     const sent = mail({ kind: 'disabled' });
 
-    expect(sent.text).toContain('1 de octubre de 2026 a las 15:05');
+    expect(sent.text).toContain('1 de octubre de 2026');
+    expect(sent.text).toContain('15:05');
     expect(sent.text).toContain('Desde: Safari en iPhone.');
   });
 

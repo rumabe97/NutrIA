@@ -2,6 +2,7 @@ import { accountQuerySchema } from 'core/entities/AdminQuery';
 import { AuditRepository } from '#repositories/Audit';
 import { NotFoundError } from 'core/entities/Error';
 import { UNAUDITED } from 'core/entities/Audit';
+import { SignInDeviceRepository } from '#repositories/SignInDevice';
 import { UserRepository } from '#repositories/User';
 import { secondFactorMissing } from 'core/domain/SecondFactor';
 
@@ -253,6 +254,16 @@ export const UserController = {
   },
 
   /**
+   * The account is being deleted: the rows that name its id without a foreign key — trusted devices and
+   * sign-in device cookies, both in Better Auth's `verification` table — go with it, rather than waiting
+   * out their expiry. Deleted by the account's own id, so it says nothing about any address.
+   */
+  async forgetDevices(userId: string): Promise<void> {
+    await UserRepository.forgetTrustedDevices(userId);
+    await SignInDeviceRepository.forgetAll(userId);
+  },
+
+  /**
    * The daily sweep (`/cron/sweep-verifications`): every expired verification
    * row is deleted, now that Better Auth no longer prunes them on each lookup.
    * Answers how many went.
@@ -364,6 +375,8 @@ export const UserController = {
     // Closing every other session, or all of them, also stops trusting every device to skip the second factor (PLAN 011 phase 3).
     if (scope !== 'one') {
       await UserRepository.forgetTrustedDevices(userId);
+      // And the browsers that skip the address's sign-in brake (PLAN 011 phase 7b): a lost laptop's must not outlive the sessions closed for it.
+      await SignInDeviceRepository.forgetAll(userId);
     }
 
     await AuditRepository.record({ action: 'auth.sessions_revoked', actorId: userId, entity: 'session', metadata: { scope }, subjectUserId: userId });

@@ -22,6 +22,7 @@ const forgetExpiredVerifications = vi.fn<(now: Date) => Promise<number>>();
 const hasPassword = vi.fn<(id: string) => Promise<boolean>>();
 const markPasswordCompromised = vi.fn<(id: string, at: Date) => Promise<boolean>>();
 const forgetTrustedDevices = vi.fn<(id: string) => Promise<number>>();
+const forgetSignInDevices = vi.fn<(id: string) => Promise<number>>();
 const passwordChanged = vi.fn<(id: string, record: (tx: unknown, passkeysRemoved: number) => Promise<void>) => Promise<number>>();
 const forgetPasskeys = vi.fn<(id: string, record: (tx: unknown, passkeysRemoved: number) => Promise<void>) => Promise<number>>();
 const confirmAddressByReset = vi.fn<(id: string) => Promise<boolean>>();
@@ -43,6 +44,7 @@ vi.mock('#repositories/User', () => ({
     spendGrant: (identifier: string, id: string, now: Date) => spendGrant(identifier, id, now)
   }
 }));
+vi.mock('#repositories/SignInDevice', () => ({ SignInDeviceRepository: { forgetAll: (id: string) => forgetSignInDevices(id) } }));
 vi.mock('#repositories/Audit', () => ({ AuditRepository: { record: (entry: unknown, tx?: unknown) => record(entry, tx) } }));
 
 /*
@@ -226,6 +228,7 @@ describe('UserController.sessionsRevoked', () => {
   beforeEach(() => {
     record.mockReset();
     forgetTrustedDevices.mockReset();
+    forgetSignInDevices.mockReset();
   });
 
   it('stops trusting the account’s devices when others or all sessions close, not when one does', async () => {
@@ -236,6 +239,14 @@ describe('UserController.sessionsRevoked', () => {
     expect(forgetTrustedDevices.mock.calls).toEqual([['usr-1'], ['usr-1']]);
   });
 
+  it('ends the account’s sign-in device cookies under the same rule (PLAN 011 phase 7b): a lost laptop’s browser goes with its sessions', async () => {
+    await UserController.sessionsRevoked('usr-1', 'one');
+    await UserController.sessionsRevoked('usr-1', 'others');
+    await UserController.sessionsRevoked('usr-1', 'all');
+
+    expect(forgetSignInDevices.mock.calls).toEqual([['usr-1'], ['usr-1']]);
+  });
+
   it.each(['one', 'others', 'all'] as const)('writes one auth.sessions_revoked row {scope: %s}, the scope and nothing else', async scope => {
     await UserController.sessionsRevoked('usr-1', scope);
 
@@ -243,6 +254,20 @@ describe('UserController.sessionsRevoked', () => {
       { action: 'auth.sessions_revoked', actorId: 'usr-1', entity: 'session', metadata: { scope }, subjectUserId: 'usr-1' },
       undefined
     );
+  });
+});
+
+describe('UserController.forgetDevices', () => {
+  beforeEach(() => {
+    forgetTrustedDevices.mockReset();
+    forgetSignInDevices.mockReset();
+  });
+
+  it('ends both kinds of device row of the account being deleted, by its own id', async () => {
+    await UserController.forgetDevices('usr-1');
+
+    expect(forgetTrustedDevices.mock.calls).toEqual([['usr-1']]);
+    expect(forgetSignInDevices.mock.calls).toEqual([['usr-1']]);
   });
 });
 
