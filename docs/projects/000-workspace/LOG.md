@@ -551,3 +551,34 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   - 004 waits on phase 9's human-verify and on its go-live, deferred with payments.
   - 010 has phase 6 left, a read-only production review. Its gate of about 60 new
     pictures is very likely met. Phase 4's human-verify is not recorded.
+
+## 2026-10-09 — Owner checks collected into one document
+
+- [`owner-checks-2026-10-09.md`](./owner-checks-2026-10-09.md) gathers every check left
+  that only the owner can make, across the three projects the 2026-10-08 audit left open
+  (003, 010, 004), so he can clear them in one sitting instead of hunting through three
+  plans and logs. Ordered quickest first; notes which one needs his yes before an agent
+  reads production, and what exactly it would read; leaves 004's phase 9 check as a note,
+  not a task, since it waits on the same deferred payments work as its go-live.
+
+## 2026-10-09 — Project 019 closed
+
+- Balanced plans by goal is delivered and closed (#215, #216, #224, #229, #235, #241), under the owner's delegation of 2026-10-03.
+- The PRD criteria and the accepted waivers are in its LOG's closing entry.
+- Left outside the project:
+  - the follow-ups from phase 5;
+  - the paid sample of 4.7.0's asks, which the owner approved the same day: it passed, cost
+    0.0654 USD, and found the dinner asks refused by Table 2, fixed as prompt 4.7.1 (#247).
+- Next: 011 phase 10, which cannot run before 2026-10-15 — it needs a week of real
+  report-only CSP reports first.
+
+## 2026-10-09 — Project 020 planned: the shopping list you are shopping now
+
+- The owner, the same day: the list should cover the fortnight, a week or chosen days, and a
+  product marked bought under one filter must show what is left under another.
+- PRD approved by him on 2026-10-09; the plan is five phases, routing `tiered`. Execution is
+  queued: he asked to finish the projects still open first.
+- The four product choices he made: marking only, no typed amounts; unmarking subtracts the
+  range's share; chosen days as individual boxes; the filter remembered per device.
+- Decision [`0091`](../../decisions/0091-the-shopping-list-is-read-by-range-and-bought-by-amount.md)
+  carries the shape and why the two obvious alternatives were refused.

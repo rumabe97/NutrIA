@@ -1200,7 +1200,7 @@ export const esES = {
       'En iPhone el enlace se abre en Safari. Confirma allí tu correo y, si usas NutrIA desde la pantalla de inicio, vuelve después a la app e inicia sesión con tu correo y tu contraseña.',
     socialFailed: 'No hemos podido completar el acceso. Inténtalo de nuevo o entra con tu correo.',
     socialNotLinked:
-      'Ya hay una cuenta con esa dirección que entra con contraseña. Entra con ella o, si no la tienes, restablécela en «¿Has olvidado tu contraseña?».',
+      'Ya hay una cuenta con esa dirección. Entra como la creaste o, si fue con contraseña, restablécela en «¿Has olvidado tu contraseña?».',
     tooManyAttempts: 'Demasiados intentos seguidos. Espera un momento y vuelve a probar.',
     toSignIn: 'Accede',
     toSignUp: 'Crea la tuya',

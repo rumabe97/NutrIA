@@ -1182,6 +1182,17 @@
   (the lead's delegation of 2026-10-03, the recommended option on each choice).
 - **Advisor**: not consulted.
 
+## Follow-up — The refused-provider copy names no credential (2026-10-09)
+
+- **Executor**: Sonnet (agent `frontend` at low effort), under the owner's delegation of 2026-10-03. Shipped in #248.
+- **Result**: done. Copy only; no screen, component or stylesheet changed, so the `apple-web-design` review does not apply.
+- **The gap it closes**: `socialNotLinked` told the reader their account "entra con contraseña". With implicit linking off (`0058`, amended), the same `account_not_linked` code also reaches somebody whose account was born through Google and who arrives through Apple with the same address — an account with no password, where that copy pointed at the wrong door. Harmless while Apple is dark, which is why it was fixed before Apple goes live rather than after.
+- **What changed**: the string now names no credential, and mentions the reset only as a condition.
+  - es-ES: "Ya hay una cuenta con esa dirección. Entra como la creaste o, si fue con contraseña, restablécela en «¿Has olvidado tu contraseña?»."
+  - en-GB: "There is already an account with that address. Sign in the way you created it, or, if that was with a password, reset it with “Forgotten your password?”."
+  - The comment in `SignInForm.tsx`, which explains which codes reach this copy, follows it.
+- **Still reveals nothing new**: the provider has just proved the address to itself, so "there is already an account with that address" tells the reader only what the refusal already told them.
+- **Evidence**: lint, types and tests green for `web` and `ui`; formatted.
 ## Follow-up — a stranger cannot hold a session on an unconfirmed account; the post-confirmation window named, not closed (2026-10-09)
 
 - **Executor**: opus 5.5 (`backend`, one agent), under the owner's delegation of 2026-10-03.
@@ -1298,4 +1309,3 @@
 - **The claim is true because of the sweep above**: an address nobody confirms, with no session, profile, plan or audit row, is deleted after thirty days (`0092`). The two ship in the same change for that reason.
 - **Evidence**: `pnpm --filter api test -- --testPathPatterns "modules/email"` 13 suites, 111 tests green; `pnpm --filter api lint` and `format` clean; `pnpm --filter web ts:check` green.
 - **Not done**: `/privacidad` needs the retention line for the sweep; the lead routes it to `legal` separately.
-

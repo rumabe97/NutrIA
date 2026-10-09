@@ -3,7 +3,7 @@
 > **Purpose**: the phased technical execution plan. `/execute-project` follows this literally.
 > **Audience**: agents primarily. **Committed**: yes. **Written by**: the lead via `/plan-project`; approved with the PRD on 2026-10-03.
 
-- **Status**: approved
+- **Status**: done — delivered and closed 2026-10-09 (owner's delegation of 2026-10-03; closing entry in LOG.md)
 - **Type**: standard
 - **PRD**: ./PRD.md
 - **Routing profile**: tiered

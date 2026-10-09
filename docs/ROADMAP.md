@@ -65,6 +65,11 @@ The milestone is met, and has been in production since 2026-09-07.
   grains capped (`0081`; #201–#203).
 - [`018-more-accompaniments`](./projects/018-more-accompaniments/) — 39 new accompaniments
   across the Spanish, Asian, Latin and Arab families (#206, #207). Closed 2026-10-08.
+- [`019-balanced-plans-by-goal`](./projects/019-balanced-plans-by-goal/) — every plan
+  follows a fortnightly food-group table and each goal gets what it needs, every day still
+  within ±5%: groups guaranteed in the pool, maximums held and repaired, minimums,
+  vegetables and fruit through accompaniments, protein per meal by goal, and prompt 4.7.0
+  (`0084`–`0088`; #215, #216, #224, #229, #235, #241). Closed 2026-10-09.
 
 *Open:*
 
@@ -81,12 +86,8 @@ The milestone is met, and has been in production since 2026-09-07.
   judge in production, is left; its gate of about 60 new pictures is very likely met.
 - [`011-accounts-are-harder-to-take`](./projects/011-accounts-are-harder-to-take/) —
   strong passwords, a second factor, passkeys, a sign-in brake and a Content Security
-  Policy (#183–#185, #205, #210, #212–#214, and the hotfix #218). Phase 8 is in #217;
-  phases 7b and 10 are pending.
-- [`019-balanced-plans-by-goal`](./projects/019-balanced-plans-by-goal/) — every plan
-  follows a fortnightly food-group table and every goal gets what it needs, with every day
-  still within ±5%. Phase 1 shipped (#215); phases 2–3 are shipping (#216, #224); phases
-  4–7 are next.
+  Policy (#183–#185, #205, #210, #212–#214, #217, and the hotfix #218). Phases 7b
+  and 10 are pending.
 
 The end-to-end suites stand at 49 suites, run against a throwaway database with a
 scripted model (`apps/api/test/README.md`), and on every pull request against a Postgres
@@ -105,7 +106,11 @@ that setup lives now rather than here.
    more protein and vegetarian axes on a swap (done, `0022`). Cheaper waits for a price per
    ingredient.
 2. **A user can shop from it.** Done: consolidated list per plan, grouped by aisle, editable,
-   rebuilt on every swap, always matching the active plan.
+   rebuilt on every swap, always matching the active plan. Next, planned as
+   [`020-the-shopping-list-you-are-shopping-now`](./projects/020-the-shopping-list-you-are-shopping-now/)
+   (PRD approved 2026-10-09, queued): the reader chooses the fortnight, a week or any days,
+   and what is bought is an amount rather than a tick, so one shop reads correctly under
+   every filter (`0091`).
 3. **The loop closes.** Weight tracking (done), eaten / skipped on each meal (done, `0016`),
    the fortnightly check-in feeding the next plan (done, `0018`), a progress screen over
    the data already kept (done, `0020`), plan history, read-only (done, `0021`).

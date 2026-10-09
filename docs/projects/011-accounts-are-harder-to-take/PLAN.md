@@ -652,8 +652,8 @@ records what was decided.
 
 ### Follow-up — The refused-provider copy assumes a password account
 
-- [ ] pending — not built; **fix before Apple goes live**. Added 2026-10-08 from the
-  review of hotfix #218 (P3).
+- [x] done (2026-10-09; #248; see LOG) — was: pending, **fix before Apple goes live**.
+  Added 2026-10-08 from the review of hotfix #218 (P3).
 - **The gap**: `socialNotLinked` (both dictionaries) says the account "entra con
   contraseña". Since implicit linking is off (`0058`, amended), the same
   `account_not_linked` also reaches somebody whose account was born through Google and who
