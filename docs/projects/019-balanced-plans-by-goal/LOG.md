@@ -337,3 +337,35 @@
   3. Alternatively, stop asking omnivores for these three at dinner and let lunch carry them (`POOL_RESERVE` already gives dinner 2 legumes, 1 oily fish and 3 whole grain); at lunch every asked cell kept at least one dish, in every plan that asked.
   4. A vegetarian or vegan dinner is fine for legumes (5 of 9 kept), but rice and quinoa bowls are still `wrong_meal`; the same bread-or-oats wording fixes that.
 - **Not measured / limits**: one sample, one seed, one model; the thinned pools are a simulation, and the library of production may or may not look like them; a second round is not paid for here, so what the asks bring over several plans is still `0013`'s question. The scripts live outside the repository (session scratchpad) and write nothing but their JSON results there.
+
+## Closing (2026-10-09)
+
+- **Closed by the lead** under the owner's delegation of 2026-10-03. Every phase is shipped and in production. Anything found later is a new change, not a reopening.
+- **Shipped:**
+  - #215: phase 1;
+  - #216 and #224: phases 2 and 3;
+  - #229: phases 4, 5a and 5b;
+  - #235: phase 6;
+  - #241: phase 7, prompt 4.7.0, after an invariant review whose findings were all fixed in the PR.
+- **PRD criteria:**
+  1. Met (phase 1).
+  2. Met (phase 2).
+  3. Partly met, accepted: the maximums are repaired by `meetCaps` (`0086`), and the exceptions the bands needed are counted (`--exceptions`). Meat, eggs and fish + shellfish still exceed on some plans when no swap keeps the day in band.
+  4. Mostly met. With accompaniments on: legumes on 132/140 plans and fish on 112/120.
+  5. Partly met, accepted:
+     - vegetables at 80% of mains on 74/140 plans;
+     - fruit on 73/140;
+     - vegetables at every main on only 4/140.
+     Profiles below `ACCOMPANIED_FROM_KCAL` now get vegetables and fruit asked of their dishes (4.7.0). That shows only as the library fills.
+  6. Met on the mean (muscle-gain breakfast 0.46 g/kg). The lowest breakfast of a fortnight is 0.21, and the report's "every meal ≥ 0.4 g/kg" is not met (accepted).
+  7. Met: 4.7.0, asks inside the existing requests, worst case 0.549 of 3.4.0 against 0.55.
+     The paid sample of 2026-10-09 (0.0654 USD, entry above) adds that the model writes every asked
+     group, 13/13 pairs, and that `PoolBuilder` keeps them at lunch but not at dinner, where Table 2
+     refuses the dishes 4.7.0's wording invites. Prompt 4.7.1 asks at dinner only for what a dinner
+     keeps.
+  8. Days in band as the baseline, 0 allergens. `schedulePlan` +11% cumulative against +10%, accepted as run noise (phase 5b).
+- **Scores by goal, accompaniments on, phase 3 → 6:** muscle gain 69 → 77; the other goals 62, 67, 69, 65.
+- **The paid sample of report `0010` § 5 is done** (2026-10-09, the owner's yes that day): the model writes the asked group every time. It cost 0.0654 USD of a 1.00 USD cap.
+- **Left, not phases of this project:**
+  - the follow-ups from phase 5 in PLAN.md;
+  - watching, as the library fills, whether the asks reach the plans people receive. On today's library only 1 of the evaluator's 13 profiles carries an ask at all.
