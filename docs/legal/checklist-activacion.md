@@ -31,6 +31,11 @@
 - [ ] (P3, no bloquea) Las dos frases de la web que el presupuesto puede volver falsas (`auth.signUpSent`, `auth.invalidCredentials`) y la frase nueva del correo § O de [`textos/06`](./textos/06-correos.md) (`analisis.md` § 9, P3).
 - [ ] `/condiciones` **no** cambia: el contrato se sigue celebrando al pulsar; si alguien quiere decir allí que hay que confirmar el correo, sube `TERMS_VERSION` (`0071`).
 
+## 0 sexies. Antes de llevar a producción el navegador que ya entró (proyecto 011 fase 7b, PR #242, `0089`)
+
+- [ ] El añadido ⟦navegador-conocido⟧ a la viñeta «Frenos contra el abuso» y la frase de «Cookies» de [`textos/02`](./textos/02-politica-privacidad.md) en `privacy` (es-ES y en-GB), **en el mismo cambio** que el PR, con `privacy.updated` = la fecha de ese día. Sin correo de aviso; ninguna versión que subir.
+- [ ] El texto describe el PR tras su revisión de invariantes: freno propio del navegador, la cookie anulada al cerrar las demás sesiones o todas, y las filas borradas con la cuenta (`UserController.forgetDevices`). Si alguna de las tres no llega a producción, el texto no se publica así ([`analisis.md`](./analisis.md) § 4.1 quater).
+
 ## 0 bis. Antes de poner `AI_PROVIDER=openrouter` en producción (`0064`)
 
 > Producción corre con `AI_PROVIDER=stub` desde el 2026-09-26: no sale nada a ningún
