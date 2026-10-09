@@ -548,11 +548,9 @@ records what was decided.
       in with their password until they open a link.
       **Confirmed 2026-10-08**: the owner OK'd the count; production has 0 unconfirmed
       accounts (8 users, all confirmed), so the change locks nobody out.
-  - **Pending follow-up, not built in phase 8** (`legal`, P2-15, 2026-10-03): a 30-day sweep
-    of unconfirmed accounts with no session and no data. Phase 8 lets anybody create an
-    unconfirmed account for any address; nothing ever deletes one that nobody confirms. To
-    be planned: what "no data" means (no profile, no plan, no audit row), the notice, and
-    whether the daily cron carries it.
+  - **Follow-up built 2026-10-09** (`legal`, P2-15, 2026-10-03): the 30-day sweep of an
+    unconfirmed account with no session and no data — see "Follow-up — the 30-day sweep of
+    unconfirmed accounts" below, and `0092`.
 - **Steps**:
   1. Confirm in Better Auth 's installed source (the version phase 5 left) that the
      response body and status are identical for both cases, and measure the timing
@@ -667,19 +665,57 @@ records what was decided.
 
 ### Follow-up — A reset does not clear a second factor a stranger turned on
 
-- [ ] pending — not built. Added 2026-10-08 from the invariant review of hotfix #218 (P2),
-  under the owner's delegation of 2026-10-03. Not scheduled into a phase yet.
-- **The gap**: a stranger signs the victim's address up with a password of their own and
-  turns on TOTP. The victim opens the confirmation link, then resets the password, as
-  `/verificar-email` and the refused-Google copy tell them to. The reset ends the
-  stranger's sessions and password (`revokeSessionsOnPasswordReset`), but the factor stays:
-  the victim's sign-in is asked for a code only the stranger holds. They are locked out,
-  not exposed — nothing they enter is reachable — until the owner's 48-hour removal
+- [x] closed by phase 8, for the vector this follow-up names — **a session on an
+  *unconfirmed* account** — verified 2026-10-09 under the owner's delegation of
+  2026-10-03; see LOG, "Follow-up — a stranger cannot hold a session on an unconfirmed
+  account; the post-confirmation window named, not closed". Added 2026-10-08 from the
+  invariant review of hotfix #218 (P2).
+- **The gap, as it was found**: a stranger signs the victim's address up with a password of
+  their own and turns on TOTP. The victim opens the confirmation link, then resets the
+  password, as `/verificar-email` and the refused-Google copy tell them to. The reset ends
+  the stranger's sessions and password (`revokeSessionsOnPasswordReset`), but the factor
+  stays: the victim's sign-in is asked for a code only the stranger holds. They are locked
+  out, not exposed — nothing they enter is reachable — until the owner's 48-hour removal
   (phase 4).
-- **Options to weigh when it is planned**: refuse turning the factor on before the address
-  is confirmed; or have a reset clear a factor that was turned on before the address was
-  confirmed (audited, mailed). Either needs `invariant-reviewer`; the second touches
-  credentials in a hook, which `0058` avoided on purpose.
+- **What is actually closed**: no path — `/sign-in/email` on the stranger's own right
+  password, Google or Apple (blocked regardless of confirmation by
+  `disableImplicitLinking`, and neither provider can be the stranger without owning the
+  victim's provider account), the confirmation link itself
+  (`autoSignInAfterVerification: false`), a passkey registration (needs an existing
+  confirmed session), or `auth.api` — ever gives a stranger a session on an account whose
+  address is unconfirmed. `/two-factor/enable` has no other door: with no session it is the
+  route's bare 401, so the factor cannot be turned on before confirmation. No admin
+  impersonation plugin exists. Regression:
+  `apps/api/src/modules/auth/EmailVerification.spec.ts`, "never lets the factor onto the
+  account before its address is confirmed".
+- **What stays open, named rather than fixed**: the window *after* the victim opens the
+  confirmation link and *before* their reset lands. The address is confirmed there, and the
+  stranger's own password still works, so they can sign in and turn TOTP on inside it — the
+  delta review (LOG, phase 8) already called this out: "narrows it without closing it."
+  Neither of the plan's two options closes this window: "refuse before confirmed" is a
+  no-op once the address is already confirmed, which it is throughout this window; the
+  other touches credentials in a hook, which `0058` avoided on purpose. Bounded by the
+  reset (which a prompt and the owner's notice push the victim toward) and, failing that,
+  the owner's 48-hour removal (phase 4). Left as a known, accepted residual — reopen only
+  with a different mechanism (e.g. a grace period on `/two-factor/enable` right after a
+  confirmation the session's own sign-in did not predate) if the owner decides the race is
+  worth closing.
+
+### Follow-up — the 30-day sweep of unconfirmed accounts
+
+- [x] done — built 2026-10-09 under the owner's delegation of 2026-10-03 (`legal` P2-15).
+  See LOG, "Follow-up — the 30-day sweep of unconfirmed accounts", and `0092`.
+- **The gap**: phase 8 makes sign-up answer identically for a new and an existing address,
+  so anybody can leave an unconfirmed account on any address; nothing ever deleted one that
+  nobody confirmed.
+- **What was built**: `UserController.sweepUnconfirmedAccounts`, carried by the existing
+  `/cron/sweep-verifications` (no new cron, no migration): an account unconfirmed for more
+  than thirty days, holding no session, no `profiles` row, no `meal_plans` row and no
+  `audit_logs` row, is deleted in one `DELETE … WHERE … RETURNING`, with one
+  `auth.unconfirmed_account_swept` audit row per account (no actor, no address, no IP),
+  written in the same transaction as its own delete.
+- **For `legal`**: `/privacidad` needs a retention line for this (the lead routes the exact
+  wording from the LOG entry).
 
 ## Hand-off
 
