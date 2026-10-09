@@ -285,6 +285,13 @@ one. `components/OfflineCopy` keeps the copies fresh and says when one is on scr
   sent at once, and sent again when a connection may be back (`OfflineCopy`). A new offline
   action would follow the same pattern. Until one does, everything else needs a connection,
   and the offline notice says so.
+- **A cached screen's own state never goes in the address.** The copy is keyed by path, so
+  `?semana=1` or `/compra/semana-1` is a page the worker never stored and a shopper with no
+  signal gets the browser's "not connected" page instead of their list. State that belongs
+  to the reader rather than to the data — which days the shopping list is filtered to
+  (`lib/shoppingRange`, `0091`) — lives on the device and is restored after hydration, never
+  in the URL. Anything stored that way is dropped in `forgetOfflineCopies()` with the rest,
+  because it belongs to one session (`forgetRange` beside `forgetPendingTicks`).
 - Offline, draw a link only when `useOffline().available(path)` says it opens. Anything
   else leads to the browser's "not connected" page. The menu and `MealRow` already do this.
 - Adding a screen to `OFFLINE_PATHS` means storing more personal data on the device. Only

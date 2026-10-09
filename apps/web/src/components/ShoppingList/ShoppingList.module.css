@@ -48,3 +48,20 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+/*
+ * The filtered-empty state: nothing left in the days on screen, which is not
+ * the same as nothing on the list. It says which it is and offers the way back,
+ * because a reader who filtered themselves into an empty screen should not have
+ * to work out how to leave it.
+ */
+.empty {
+  align-items: flex-start;
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-control);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-03);
+  margin-top: var(--gap-region);
+  padding: var(--space-05);
+}

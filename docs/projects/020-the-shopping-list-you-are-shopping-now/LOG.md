@@ -259,3 +259,154 @@
     empty-breakdown fallback: they read as the whole plan's need under every range, so every
     list in production today stays correct and simply is not filterable until its plan is
     regenerated, swapped or rebuilt. Nothing needs backfilling for the screen to be right.
+
+## Phase 3 — Pick your days (2026-10-09)
+
+- **Executor**: opus @ medium, run directly — the **Dispatch** line is this session's own
+  model and effort. The review the phase names was spawned as an `accessibility` agent on
+  opus. It edited nothing; every fix below is this executor's.
+- **Result**: done.
+- **Evidence**:
+  - `sh .claude/skills/ship/scripts/gate.sh --full` — green from the top, after the probe's
+    own fixes landed.
+  - `pnpm --filter web test` 254 (240 before), `ts:check` and `lint` clean.
+  - **`/local-probe` on `/compra` at 320, 390 and 1280 px, light and dark**: six of six
+    200, **zero sideways overflow**, correct `h1`, no hints to judge. The probe needed a
+    plan, which a throwaway account does not have — see the deviations.
+  - **The filter was driven, not just photographed.** A screenshot says a page fits, not
+    that it works, so the real control was clicked in the real production build and the
+    screen read before and after:
+
+    | Range | Rows | Avocado | Subtitle | Live region |
+    | --- | --- | --- | --- | --- |
+    | Fortnight | 132 | 568.2 g | "los catorce días" | `""` |
+    | Week 1 | 91 | 352.5 g | "la primera semana" | "Lista para la primera semana: 91 cosas que comprar." |
+    | Week 2 | 79 | 215.7 g | "la segunda semana" | "Lista para la segunda semana: 79 cosas que comprar." |
+
+    **352.5 + 215.7 = 568.2**, exactly the fortnight's figure — PRD 2's identity holding on
+    a real plan through the whole stack, not on a fixture. The live region is empty on load
+    and fills only after a change, which is the `announce` flag doing its job. Unticking
+    every day leaves 0 rows, the subtitle says "los días que has elegido", the region says
+    "No has elegido ningún día." and the way back appears; it does not appear while rows
+    exist.
+  - PRD 1 and 5 are that table. PRD 8: the choice survives in `localStorage` and is dropped
+    with the rest of this device's state on a session change (`forgetRange` beside
+    `forgetPendingTicks`). PRD 9: gate green and the accessibility review passed, below.
+  - **Offline (step 8), stated as the plan asks**: the filter never becomes an address. It
+    is radios in a `fieldset`, not tabs and not links, and `/compra` keeps its exact path —
+    no query string, no new segment — so the copy the service worker stored by path
+    (`0053`) is still the copy it serves. Both allow-lists are untouched.
+- **Review**: `accessibility` found two P1, three P2 and no P0. All fixed in this change:
+  - **P1 — picking a range was never announced** (WCAG 4.1.3). A blind shopper heard
+    "Semana 1, radio, seleccionado" and nothing about the nineteen rows that had just left;
+    the sentence naming the range sits *above* the control, already behind them. Fixed with
+    an always-mounted `aria-live="polite" aria-atomic="true"` region that starts empty,
+    following `CareAccessLog`'s precedent. The reviewer's reasoning for why the `announce`
+    flag is load-bearing was the part this executor would have missed: without it,
+    hydration swapping the server's range for the device's would announce a range nobody
+    chose.
+  - **P1 — the "show the fortnight" button threw focus to `<body>`**, because it unmounts
+    the instant it is pressed. Focus now lands on the fortnight segment, which announces
+    itself.
+  - **P2 — the `role="status"` sentence entered the DOM already holding its text**, which
+    is the case where nothing is read, worst on VoiceOver/Safari — the owner's device. The
+    visible sentence is plain text now; the region above is what speaks.
+  - **P2 — the chosen segment had no visible boundary**: measured `--surface-card` on
+    `--surface-sunken` at **1.06:1 light and 1.02:1 dark**, verified independently here.
+    With the native radio at `opacity: 0` there was no native mark carrying the state
+    either, unlike the day checkboxes. Fixed with a `--color-brand-09` border: **4.56:1
+    light, 4.36:1 dark**, clearing 1.4.11's 3:1, with the weight and text colour changing
+    too so the state never rests on colour alone.
+  - **P2 — forced colours erased the control.** Both backgrounds become Canvas, both text
+    colours CanvasText, and `opacity` is not forced, so what was left was four words in a
+    row with one semibold. The chosen segment now takes a `Highlight` border and the track
+    an `outline`. The verdict on the `opacity: 0` radio is narrower than feared and worth
+    recording: it stays focusable, operable and correctly announced — forced colours does
+    not touch the accessibility tree — so only the *seeing* broke.
+  - **Judged and not done**: a visible `legend`. The cure needs the flex moved to an inner
+    element so the UA does not fight a visible `<legend>`, and the control is already named
+    for assistive tech, named again by the subtitle, and now announced after every change.
+    It goes to the owner as a P3 with the reviewer's sharper point attached: on `/compra`
+    with a scheduled plan, `PlanSwitch` sits 12px above wearing the same pill recipe, so
+    there are two near-identical rows — one navigating, one filtering — and neither carries
+    a visible label. That is a property of the pair, not of this component.
+  - **Reported, not fixed**: `PlanSwitch` has the same 1.06:1 / 1.02:1 contrast defect, in
+    code this phase did not touch. Per `apps/web/AGENTS.md` § Design review that is the
+    owner's call unless it is a P0, and it is not: there the chosen pill also carries
+    `aria-current`, the subtitle and the URL, and misreading it costs one tap — where
+    misreading this filter means buying a week's food for a fortnight. If they are ever
+    unified, the direction is to bring `PlanSwitch` up to this.
+- **Deviations from plan**: five, with the plan amended in this same change where it matters.
+  1. **A new file the scope did not name**, `apps/web/src/lib/shoppingRange.ts`: the range's
+     own pure logic and its per-device memory, which belongs beside `pendingTicks.ts`
+     rather than inside any of the three lib files the scope listed. Scope amended.
+  2. **`ShoppingList` became a client component** rather than gaining a client child. It is
+     the smallest shape that works: the range decides the rows, the quantities, the
+     progress, the share text and the subtitle, so a server parent would have had almost
+     nothing left to render. Next still server-renders it, so the cached copy is unchanged.
+  3. **The probe needed a plan, which the skill gates behind the owner's word.** A
+     throwaway account has none, and `/compra` without one renders the page's existing
+     empty state — exercising nothing of this phase. The owner chose, on 2026-10-09, to
+     have one generated for the throwaway account through the API's own route on the local
+     Postgres (`AI_PROVIDER=stub`, the local library of 871 recipes, nothing written by
+     hand, account deleted afterwards). It worked: 132 rows, and the first row came back
+     carrying `perDay` with 8 dated days and `boughtGrams: 0` — incidentally the first live
+     confirmation that phase 2's writers date their days correctly.
+  4. **Two states the plan left open**, decided here and worth naming: picking "days"
+     starts from the days already on screen, so the list never blinks empty on the way to a
+     narrower range; and the day checkboxes appear only once "days" is chosen, because
+     fourteen checkboxes nobody asked for would be the loudest thing on a screen whose job
+     is a list.
+  5. **Unticking the last day is a state, not an error.** The first implementation treated
+     an empty day list like stale dates and snapped back to the fortnight — which would
+     have hidden the very checkboxes the reader was using. It now falls back only when the
+     stored dates belong to *another* plan. Found reviewing this executor's own work before
+     the agent saw it, along with a live region wrapping a button, an empty state offered
+     to a reader already seeing the whole plan, and a duplicated CSS rule.
+- **What the probe found that no check could**: at 390 px the four preset labels broke
+  mid-phrase ("Semana / 1", "Elegir / días"). About 202 px of room for about 245 px of
+  Spanish labels, with the unbreakable "Quincena" holding its width while the rest gave
+  way. The wrap breakpoint moved from 23rem to **27rem**, so a 390 px phone (24.4 rem) gets
+  the two-by-two layout at ~169 px a segment and every label keeps its line.
+
+  It was found here by looking at the screenshot — the `accessibility` agent had named this
+  finding three times without delivering it, and sent it only after the fix had shipped. Its
+  version, when it arrived, prescribed the same 27rem and added the part worth keeping:
+  **ragged is the smaller half.** The chosen segment is semibold and therefore wider, so
+  *which* labels wrap changes as you pick — the control's height moves under the reader's
+  thumb and shifts the list below. And nothing scrolls sideways, because a flex item's
+  `min-width: auto` is the floor, so the probe's own line stays green: this is a class of
+  defect only a screenshot can catch.
+- **What this review is and is not**, in its own words at hand-back: it ran no build, no
+  probe and no gate, so every figure in it was read off the tokens and the markup rather
+  than measured in a browser. The one part confirmed against a real render is the 390 px
+  arithmetic, which the probe's screenshot settled. Its contrast numbers were separately
+  recomputed here from the token values before any of them were acted on.
+- **One finding left for phase 4, not dropped**: `ShoppingItem.tsx:57-61`, where the
+  quantity `<span>` sits outside the `<label>`, so the checkbox is named "Aguacate" and
+  nothing more. It was true before this phase, and this phase makes it matter more — the
+  omitted quantity now changes with the range, so one row announces the same name for a
+  week's amount and a fortnight's. Phase 4's step 4 already owned it and now says so
+  explicitly; it is the phase that makes the amount the thing being announced, so fixing it
+  earlier would mean writing that name twice.
+- **Still only the owner's iPhone can answer** (`accessibility`, and it is right): whether
+  the new live region is actually spoken by VoiceOver on iOS when a range is picked. An
+  iOS/Safari live region is the one that most often stays silent, which is exactly why this
+  one is mounted from the start and filled afterwards rather than inserted with its text —
+  but a desktop Chrome cannot prove that, and this project's reader is on a phone.
+- **Decisions**: none created.
+  [`0091`](../../decisions/0091-the-shopping-list-is-read-by-range-and-bought-by-amount.md)
+  is the record this phase implements.
+- **Notes for the next phase**:
+  - **Phase 4 must send `{ boughtGrams, checked }` — both — for one release**, already
+    written into its steps: a build sending the amount alone reaches the API still live
+    during its own deploy, gets a 400, and `0055` drops the queued mark with no trace.
+  - **A privacy note carried from phase 2's review**: `perDay` puts *which day you eat
+    what* into the payload the service-worker cache already holds. The v2 queue must stay
+    ids-and-amounts and must still clear on a session change.
+  - **Driving the control in a test clicks the label, not the input.** `.presetLabel` sits
+    above the stretched radio, so an automated click on the input is intercepted — by the
+    label, which is inside it, so a real pointer or finger works exactly as expected.
+  - `/compra` has one address and takes its language from the account, so there is no
+    `/en/compra`; the English copy needs an account whose locale is `en-GB` and the locale
+    cookie the switcher writes, not a prefixed URL.
