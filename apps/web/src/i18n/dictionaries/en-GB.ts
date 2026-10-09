@@ -1174,7 +1174,7 @@ export const enGB: Dictionary = {
     verifyFailedBody: 'It may have expired or already been used. If you have already confirmed your email, sign in.',
     verifyFailedTitle: 'This link no longer works',
     verifyNotYours: 'Did you not create the account, or do you not know its password? Do not guess it:',
-    verifyReset: 'reset it, and any other session open on it will be closed.',
+    verifyReset: 'reset it right now, and any other session open on it will be closed.',
     verifySignIn: 'Sign in',
     verifyTitle: 'Email confirmed'
   },

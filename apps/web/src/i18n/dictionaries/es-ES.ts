@@ -1209,7 +1209,7 @@ export const esES = {
     verifyFailedBody: 'Puede que haya caducado o que ya lo hayas usado. Si ya confirmaste tu correo, inicia sesión.',
     verifyFailedTitle: 'Este enlace ya no sirve',
     verifyNotYours: '¿No creaste tú la cuenta, o no sabes su contraseña? No la adivines:',
-    verifyReset: 'restablécela, y se cerrará cualquier otra sesión abierta en ella.',
+    verifyReset: 'restablécela ahora mismo, y se cerrará cualquier otra sesión abierta en ella.',
     verifySignIn: 'Iniciar sesión',
     verifyTitle: 'Correo confirmado'
   },

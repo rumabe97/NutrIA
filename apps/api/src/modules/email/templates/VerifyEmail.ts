@@ -5,6 +5,12 @@ import type { EmailLocale, RenderedEmail } from './Layout.js';
 /**
  * Confirms that an address is real, and nothing else (`0030`).
  *
+ * The ignore line tells somebody who did not sign up not to confirm, because
+ * confirming is what opens the one window a squatter has (`0092`, and the
+ * residual named in project 011's LOG): once the address is confirmed, the
+ * stranger's own password works until the reset lands, and a second factor can
+ * be turned on inside it. Ignored, the account is swept after thirty days.
+ *
  * It cannot open the account — that is the owner's switch, on a different
  * column — so the copy says what clicking does and what still has to happen.
  * Promising access here and then showing a waiting screen would be worse than
@@ -13,7 +19,8 @@ import type { EmailLocale, RenderedEmail } from './Layout.js';
 const COPY: Record<EmailLocale, { button: string; ignore: string; intro: string; linkFallback: string; next: string; subject: string }> = {
   'en-GB': {
     button: 'Confirm my address',
-    ignore: 'If you did not sign up, ignore this message and nothing happens.',
+    ignore:
+      'If you did not sign up, do not confirm anything: ignore this message, and we delete an address nobody confirms, with its sign-up, after thirty days.',
     intro: 'Confirm this address so we know it is yours.',
     linkFallback: 'If the button does not work, copy this address into your browser:',
     next: 'NutrIA is opening a few accounts at a time. Once yours is opened you can sign in and start; we will not ask for this again.',
@@ -21,7 +28,7 @@ const COPY: Record<EmailLocale, { button: string; ignore: string; intro: string;
   },
   'es-ES': {
     button: 'Confirmar mi correo',
-    ignore: 'Si no te has registrado, ignora este mensaje: no pasa nada.',
+    ignore: 'Si no te has registrado, no confirmes nada: ignora este mensaje y, al mes, borramos el correo que nadie confirma junto con su registro.',
     intro: 'Confirma este correo para que sepamos que es tuyo.',
     linkFallback: 'Si el botón no funciona, copia esta dirección en tu navegador:',
     next: 'NutrIA se está abriendo poco a poco. En cuanto activemos tu cuenta podrás entrar y empezar; esto no volverá a pedírtelo.',

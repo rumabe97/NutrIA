@@ -1285,3 +1285,17 @@
   no confirmation makes unlikely but not impossible).
 - **Advisor**: not consulted a second time — the design followed directly from the first
   consultation and the existing `0059`/`0071` audit pattern.
+
+## Follow-up — the confirmation mail tells a stranger's victim not to confirm (2026-10-09)
+
+- **Executor**: Opus 5.5 (the lead), at the owner's word on 2026-10-09: "Si hazlo."
+- **Why**: the residual named above has one entrance — the victim confirming an address they never signed up for. The old copy said "Si no te has registrado, ignora este mensaje: no pasa nada", which was true of the message and false of the account: nothing deleted it, and the invitation to confirm first and reset after is what opens the window where the stranger's password still works.
+- **What changed**: copy only, in the confirmation mail and on the page the link lands on.
+  - `VerifyEmail.ts`, es-ES: "Si no te has registrado, no confirmes nada: ignora este mensaje y, al mes, borramos el correo que nadie confirma junto con su registro."
+  - en-GB: "If you did not sign up, do not confirm anything: ignore this message, and we delete an address nobody confirms, with its sign-up, after thirty days."
+  - `verifyReset` (both dictionaries) says to reset **now**, for somebody who confirmed before reading the mail's warning: the window is minutes, not days.
+  - The template's docblock records why the ignore line is worded that way, so a later edit does not undo it.
+- **The claim is true because of the sweep above**: an address nobody confirms, with no session, profile, plan or audit row, is deleted after thirty days (`0092`). The two ship in the same change for that reason.
+- **Evidence**: `pnpm --filter api test -- --testPathPatterns "modules/email"` 13 suites, 111 tests green; `pnpm --filter api lint` and `format` clean; `pnpm --filter web ts:check` green.
+- **Not done**: `/privacidad` needs the retention line for the sweep; the lead routes it to `legal` separately.
+
