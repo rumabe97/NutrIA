@@ -551,3 +551,14 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   - 004 waits on phase 9's human-verify and on its go-live, deferred with payments.
   - 010 has phase 6 left, a read-only production review. Its gate of about 60 new
     pictures is very likely met. Phase 4's human-verify is not recorded.
+
+## 2026-10-09 — Project 020 planned: the shopping list you are shopping now
+
+- The owner, the same day: the list should cover the fortnight, a week or chosen days, and a
+  product marked bought under one filter must show what is left under another.
+- PRD approved by him on 2026-10-09; the plan is five phases, routing `tiered`. Execution is
+  queued: he asked to finish the projects still open first.
+- The four product choices he made: marking only, no typed amounts; unmarking subtracts the
+  range's share; chosen days as individual boxes; the filter remembered per device.
+- Decision [`0091`](../../decisions/0091-the-shopping-list-is-read-by-range-and-bought-by-amount.md)
+  carries the shape and why the two obvious alternatives were refused.

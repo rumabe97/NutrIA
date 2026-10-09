@@ -105,7 +105,11 @@ that setup lives now rather than here.
    more protein and vegetarian axes on a swap (done, `0022`). Cheaper waits for a price per
    ingredient.
 2. **A user can shop from it.** Done: consolidated list per plan, grouped by aisle, editable,
-   rebuilt on every swap, always matching the active plan.
+   rebuilt on every swap, always matching the active plan. Next, planned as
+   [`020-the-shopping-list-you-are-shopping-now`](./projects/020-the-shopping-list-you-are-shopping-now/)
+   (PRD approved 2026-10-09, queued): the reader chooses the fortnight, a week or any days,
+   and what is bought is an amount rather than a tick, so one shop reads correctly under
+   every filter (`0091`).
 3. **The loop closes.** Weight tracking (done), eaten / skipped on each meal (done, `0016`),
    the fortnightly check-in feeding the next plan (done, `0018`), a progress screen over
    the data already kept (done, `0020`), plan history, read-only (done, `0021`).
