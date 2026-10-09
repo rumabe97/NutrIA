@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
 
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
@@ -88,6 +88,12 @@ function tokenOf(line: string | undefined): string {
   return pairOf(line).split('=').slice(1).join('=');
 }
 
+function deviceKeyOf(token: string): string {
+  return createHmac('sha256', process.env['BETTER_AUTH_SECRET'] ?? '')
+    .update(`sign-in-device-brake:${token}`)
+    .digest('hex');
+}
+
 function digestOf(token: string): string {
   return `sign-in-device:${createHash('sha256').update(token).digest('hex')}`;
 }
@@ -136,6 +142,12 @@ describe('a browser that signed in before is not braked', () => {
       select count, next_allowed_at from sign_in_failure where key = ${keyOf(email)}`;
 
     return row;
+  }
+
+  async function countOf(key: string): Promise<number | undefined> {
+    const [row] = await sql()<{ count: number }>`select count from sign_in_failure where key = ${key}`;
+
+    return row?.count;
   }
 
   /** Somebody with no cookie guesses at the address until it waits: the wrong passwords, then the 429. */
@@ -280,19 +292,28 @@ describe('a browser that signed in before is not braked', () => {
     expect(await devicesOf(ana.id)).toEqual([digestOf(anaToken)]);
   });
 
-  it('does not count the typos of a browser that signed in before, and answers each 401', async () => {
-    for (let attempt = 0; attempt < 12; attempt += 1) {
+  it('counts the typos of a browser that signed in before under its own key, never the address’s', async () => {
+    const deviceKey = deviceKeyOf(anaToken);
+
+    brakeKeys.push(deviceKey);
+
+    for (let attempt = 0; attempt < 9; attempt += 1) {
       const wrong = await signIn(ana.email, WRONG, ana.jar);
 
       expect(wrong.status).toBe(401);
       expect(hasSession(wrong)).toBe(false);
     }
 
-    // Twelve wrong passwords would have braked the address at the tenth: no row at all.
+    // Nine wrong passwords: the address has no row at all, the browser has its own.
     expect(await brakeRow(ana.email)).toBeUndefined();
+    expect(await countOf(deviceKey)).toBe(9);
+
+    // Its right password gets in and clears that row.
+    expect((await signIn(ana.email, PASSWORD, ana.jar)).status).toBe(200);
+    expect(await countOf(deviceKey)).toBeUndefined();
   });
 
-  it('still lets the cookie in when the address is braked, and still answers 429 to anybody else', async () => {
+  it('still lets the cookie in when the address is braked, answers everybody else 429, and leaves the address’s wait as it was', async () => {
     await brake(ana.email);
 
     const stranger = await signIn(ana.email, PASSWORD);
@@ -305,21 +326,28 @@ describe('a browser that signed in before is not braked', () => {
     // Another browser of hers, signed in to nothing yet, is a stranger too: no cookie, no way past.
     expect((await signIn(ana.email, PASSWORD, new CookieJar())).status).toBe(429);
 
+    const waiting = await brakeRow(ana.email);
     const owner = await signIn(ana.email, PASSWORD, ana.jar);
 
     expect(owner.status).toBe(200);
     expect(hasSession(owner)).toBe(true);
     expect(tokenOf(deviceLine(owner))).toBe(anaToken);
+
+    // The owner's success clears the browser's key, not the address's: an attacker gets no fresh window from it.
+    expect(await brakeRow(ana.email)).toEqual(waiting);
+    expect((await signIn(ana.email, PASSWORD)).status).toBe(429);
   });
 
-  it('answers a wrong password to the cookie with 401, and the address’s count does not move', async () => {
+  it('answers a wrong password to the cookie with 401, never moves the address’s count, and brakes the stolen cookie on its own', async () => {
     await brake(ana.email);
 
+    const deviceKey = deviceKeyOf(anaToken);
     const before = await brakeRow(ana.email);
 
     expect(before?.count).toBeGreaterThanOrEqual(10);
 
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    // The tenth attempt in the window still runs, the eleventh is the device's own 429.
+    for (let attempt = 0; attempt < 10; attempt += 1) {
       const wrong = await signIn(ana.email, WRONG, ana.jar);
 
       expect(wrong.status).toBe(401);
@@ -327,9 +355,24 @@ describe('a browser that signed in before is not braked', () => {
       expect(hasSession(wrong)).toBe(false);
     }
 
+    expect(await countOf(deviceKey)).toBe(10);
+
+    const braked = await signIn(ana.email, WRONG, ana.jar);
+
+    expect(braked.status).toBe(429);
+    expect(braked.body).toEqual({ code: 'TOO_MANY_ATTEMPTS', message: 'Too many attempts. Try again later.' });
+    expect(Number(braked.headers['retry-after'])).toBeGreaterThan(0);
+    expect(braked.headers['x-retry-after']).toBe(braked.headers['retry-after']);
+    // Even the right password waits behind it: the cookie is a bearer token, not a licence to guess.
+    expect(hasSession(await signIn(ana.email, PASSWORD, ana.jar))).toBe(false);
+
+    // The address's own row never moved, and the table holds an HMAC for the device, not the token.
     expect(await brakeRow(ana.email)).toEqual(before);
-    // The braked address stays braked for a stranger.
-    expect((await signIn(ana.email, PASSWORD)).status).toBe(429);
+    expect(deviceKey).toMatch(/^[0-9a-f]{64}$/);
+    expect(deviceKey).not.toContain(anaToken);
+
+    // Let the wait run out for the cleanup and the cases below: a device row is gone with its key.
+    await sql()`delete from sign_in_failure where key = ${deviceKey}`;
   });
 
   it('does not exempt another address: the 429 is the one no cookie gets, with an account or without', async () => {
@@ -525,6 +568,53 @@ describe('a browser that signed in before is not braked', () => {
       expect(past.status).toBe(200);
       expect((past.body as { twoFactorRedirect?: boolean }).twoFactorRedirect).toBe(true);
       expect(hasSession(past)).toBe(false);
+    });
+  });
+
+  describe('closing sessions', () => {
+    it('ends the cookies when the other sessions or all of them are closed', async () => {
+      const fay = await accountWithBrowser('fay');
+
+      expect(await devicesOf(fay.id)).toHaveLength(1);
+
+      // A second browser of hers: a second device.
+      const other = new CookieJar();
+
+      expect((await signIn(fay.email, PASSWORD, other)).status).toBe(200);
+      expect(await devicesOf(fay.id)).toHaveLength(2);
+
+      const closeOthers = await paced(() => request(server()).post(`/${PREFIX}/auth/revoke-other-sessions`).set('Cookie', fay.jar.header).send({}));
+
+      expect(closeOthers.status).toBe(200);
+      expect(await devicesOf(fay.id)).toEqual([]);
+
+      // Signing in again earns a new one; closing every session ends it as well.
+      const again = new CookieJar();
+
+      expect((await signIn(fay.email, PASSWORD, again)).status).toBe(200);
+      expect(await devicesOf(fay.id)).toHaveLength(1);
+
+      const closeAll = await paced(() => request(server()).post(`/${PREFIX}/auth/revoke-sessions`).set('Cookie', again.header).send({}));
+
+      expect(closeAll.status).toBe(200);
+      expect(await devicesOf(fay.id)).toEqual([]);
+
+      // The browser keeps a cookie that points at nothing: braked like anybody.
+      await brake(fay.email);
+      expect((await signIn(fay.email, PASSWORD, again)).status).toBe(429);
+    });
+  });
+
+  describe('deleting the account', () => {
+    it('takes its device rows with it', async () => {
+      const gus = await accountWithBrowser('gus');
+
+      expect(await devicesOf(gus.id)).toHaveLength(1);
+
+      const deleted = await paced(() => request(server()).delete(`/${PREFIX}/users/me`).set('Cookie', gus.jar.header));
+
+      expect(deleted.status).toBeLessThan(300);
+      expect(await devicesOf(gus.id)).toEqual([]);
     });
   });
 
