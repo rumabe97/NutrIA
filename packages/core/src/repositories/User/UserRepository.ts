@@ -7,6 +7,7 @@ import { database } from 'database';
 import { mealPlans } from 'database/schema/plan';
 import { onboardingState } from 'database/schema/profile';
 import { professionals } from 'database/schema/professional';
+import { signInDevicesOf } from '#repositories/SignInDevice';
 import { account, passkey, user, verification } from 'database/schema/auth';
 
 import { ACTIVE_EVENTS } from 'core/entities/Analytics';
@@ -468,6 +469,11 @@ export const UserRepository = {
    * 011 phase 3): a password changed because somebody else may know it must
    * not leave that somebody's browser skipping the second factor.
    *
+   * So does every device cookie that exempts a browser from the per-address
+   * sign-in brake (PLAN 011 phase 7b): a stolen browser must not outlive the
+   * password that throws its holder out. The cookie stays in the browser and
+   * points at nothing.
+   *
    * Every passkey of the account goes too, in the same transaction (PLAN 011
    * phase 5, `0083`): a key somebody added from a stolen session must not
    * outlive the change or the reset that throws them out. Returns how many
@@ -478,6 +484,8 @@ export const UserRepository = {
       return await database().transaction(async tx => {
         await tx.update(user).set({ passwordCompromisedAt: null }).where(eq(user.id, id));
         await tx.delete(verification).where(trustedDevicesOf(id));
+        // The browsers that skip the per-address brake go too (PLAN 011 phase 7b): a stolen one must not outlive the password.
+        await tx.delete(verification).where(signInDevicesOf(id));
 
         const removed = (await tx.delete(passkey).where(eq(passkey.userId, id)).returning({ id: passkey.id })).length;
 
