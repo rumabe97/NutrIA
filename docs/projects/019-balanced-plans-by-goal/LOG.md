@@ -363,3 +363,35 @@
 - **Spend is unchanged**: 0.0654 of the 1.00 USD cap the owner approved on 2026-10-09 is still the total spent; the 0.80 stop-line is untouched. Nothing was called.
 - **A second, independent constraint for whoever writes the script**: a script's bare `core`/`database` imports resolve relative to *that script's own file path*, never the process's working directory — confirmed empirically here (an `import` from a session-scratchpad path threw `ERR_MODULE_NOT_FOUND` for `core`). The driver has to sit somewhere under `apps/api`'s own tree (its node_modules carries the workspace's symlinks) for those imports to resolve; keep it untracked and delete it when done, writing only its JSON results to the scratchpad, as the paid sample above did.
 - **Method for that rerun**, so it measures the same thing this entry describes rather than a different question: call the real `PoolBuilder.build` (as `apps/api/src/modules/ai/services/PoolBuilder.service.ts` exports it) with `feature: 'plan'`, `slots: ['dinner']`, and `reusable: []` — an empty pool, not a reproduction of the original sample's bespoke "thinning", so `poolAsks` is guaranteed to ask for the full `POOL_RESERVE` quota of every group on every profile tried, which is the strongest test of whether the model reaches for the named forms. Build each profile's `GenerationContext` the way `apps/api/scripts/evaluate-plans.mjs`'s `contextFor` builds it (reuse or copy it) over a representative subset of dietary configurations — plain omnivore, a vegan or vegetarian pattern, gluten-free, traditional Spanish — rather than needing all thirteen of that script's profiles. Call through a real `StructuredAiClient` built from `resolveModel`/`resolveCallSettings` (`apps/api/src/modules/ai/ai.config.ts`) with the production route of `0064`: `AI_PROVIDER=openrouter`, `AI_MODEL=google/gemma-4-31b-it`, `AI_FALLBACK_MODELS=['deepseek/deepseek-v4.1-flash']`, `AI_PROVIDER_ONLY=['deepinfra','coreweave']`, `AI_REASONING_EFFORT=none`, never Gemini, never a gateway. Read-only against the local Postgres (`pnpm db:local`, `NUTRIA_LOCAL_PG=1`), never Neon, never production. Score each returned dish exactly as `fitSlots` and `poolAsks`' own group tests would, and record, per profile, what was asked, written and kept, and the cost.
+
+## Closing (2026-10-09)
+
+- **Closed by the lead** under the owner's delegation of 2026-10-03. Every phase is shipped and in production. Anything found later is a new change, not a reopening.
+- **Shipped:**
+  - #215: phase 1;
+  - #216 and #224: phases 2 and 3;
+  - #229: phases 4, 5a and 5b;
+  - #235: phase 6;
+  - #241: phase 7, prompt 4.7.0, after an invariant review whose findings were all fixed in the PR.
+- **PRD criteria:**
+  1. Met (phase 1).
+  2. Met (phase 2).
+  3. Partly met, accepted: the maximums are repaired by `meetCaps` (`0086`), and the exceptions the bands needed are counted (`--exceptions`). Meat, eggs and fish + shellfish still exceed on some plans when no swap keeps the day in band.
+  4. Mostly met. With accompaniments on: legumes on 132/140 plans and fish on 112/120.
+  5. Partly met, accepted:
+     - vegetables at 80% of mains on 74/140 plans;
+     - fruit on 73/140;
+     - vegetables at every main on only 4/140.
+     Profiles below `ACCOMPANIED_FROM_KCAL` now get vegetables and fruit asked of their dishes (4.7.0). That shows only as the library fills.
+  6. Met on the mean (muscle-gain breakfast 0.46 g/kg). The lowest breakfast of a fortnight is 0.21, and the report's "every meal ≥ 0.4 g/kg" is not met (accepted).
+  7. Met: 4.7.0, asks inside the existing requests, worst case 0.549 of 3.4.0 against 0.55.
+     The paid sample of 2026-10-09 (0.0654 USD, entry above) adds that the model writes every asked
+     group, 13/13 pairs, and that `PoolBuilder` keeps them at lunch but not at dinner, where Table 2
+     refuses the dishes 4.7.0's wording invites. Prompt 4.7.1 (#247, the entry above) asks at
+     dinner only for what a dinner keeps.
+  8. Days in band as the baseline, 0 allergens. `schedulePlan` +11% cumulative against +10%, accepted as run noise (phase 5b).
+- **Scores by goal, accompaniments on, phase 3 → 6:** muscle gain 69 → 77; the other goals 62, 67, 69, 65.
+- **The paid sample of report `0010` § 5 is done** (2026-10-09, the owner's yes that day): the model writes the asked group every time. It cost 0.0654 USD of a 1.00 USD cap.
+- **Left, not phases of this project:**
+  - the follow-ups from phase 5 in PLAN.md;
+  - watching, as the library fills, whether the asks reach the plans people receive. On today's library only 1 of the evaluator's 13 profiles carries an ask at all.

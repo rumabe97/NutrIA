@@ -551,3 +551,12 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   - 004 waits on phase 9's human-verify and on its go-live, deferred with payments.
   - 010 has phase 6 left, a read-only production review. Its gate of about 60 new
     pictures is very likely met. Phase 4's human-verify is not recorded.
+
+## 2026-10-09 — Project 019 closed
+
+- Balanced plans by goal is delivered and closed (#215, #216, #224, #229, #235, #241), under the owner's delegation of 2026-10-03.
+- The PRD criteria and the accepted waivers are in its LOG's closing entry.
+- Left outside the project:
+  - the follow-ups from phase 5;
+  - the paid sample of 4.7.0's asks, which waits for the owner.
+- Next: 011 phases 7b and 10.
