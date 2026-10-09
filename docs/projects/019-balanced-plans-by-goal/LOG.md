@@ -288,3 +288,52 @@
 - **Not measured**: the plan evaluator does not call the generator, so 4.7.0 cannot move its numbers; the asks fill the library over time (`0013`). Whether a model writes the asked dish needs the paid sample.
 - **Notes**: "The plan adds sides to lunch and dinner" stays as 4.6.0 wrote it for a person whose main takes sides, whatever the accompaniments flag says, as before. A first-round request carries at most two asks, so a slot short of all three groups is asked for them across its requests, not in each.
 
+
+## Phase 7 — paid sample (2026-10-09)
+
+- **Executor**: Opus 5.5 (agent `sample-019p7`); approved by the owner and priced by the lead the same day: 5 plans, 1.00 USD cap, stop at 0.80.
+- **Question** (report `0010` § 5, phase 7): with prompt 4.7.0 (#241, main `bb60befc`), does the real model write at least one dish of the asked food group in each plan? Pass: at least one dish of each asked group in every plan.
+- **Method**: the API's own pieces, built fresh from main: `PoolBuilder.build` (feature `plan`), `buildPoolPrompt` with `poolAsks`/`spreadAsks`, `POOL_SYSTEM_PROMPT`, `wirePoolSchema`, the output cap and the `StructuredAiClient` over `resolveModel`. One plan = one profile's **first round only** (a later call is refused before any request is made). The production route of `0064` as amended on 2026-09-26: `google/gemma-4-31b-it`, reasoning `none`, fallback `deepseek/deepseek-v4.1-flash`, providers `deepinfra` and `coreweave`, `zdr` and `data_collection: deny` on every request. No Gemini, no gateway. Library, catalogue and rotation from the local Postgres (`pnpm db:local`) inside one read-only transaction; the analytics row a call writes was switched off; nothing was written to any database. A dish counts for a group by the scheduler's own rules (`mealGroups` and `mealServings` for legume and oily fish, the whole-grain dish test of `poolAsks`); each dish went through the builder's real gates (`generatedDishSchema`, slug repair, the allergy gate, unwanted, foreign food, `fitSlots`).
+- **The profiles are not all the evaluator's own, and the pools of four are thinned.** On the local library only **1 of the evaluator's 13 profiles** carries asks in its first round (`patron-tradicional-espanola`, dinner: legumes and whole grain); `POOL_RESERVE` in the rotation already holds the groups for the rest, so `poolAsks` returns nothing. Nine extra diet-and-goal profiles were tried: none carried asks either. So four plans ran on the evaluator's profiles with the legume, whole-grain and oily-fish dishes that a lunch or a dinner could serve **taken out of the rotation's pool** (17 to 20 dishes), which is a cold library, what a new account or a thin cell looks like. The requests are the real builder's; the pool is not production's. `patron-vegetariano` was thinned of legumes and whole grain only (fish is not offered).
+- **Result, per plan** (all 65 requests answered by Gemma 4 31B on CoreWeave; no fallback; no error; the slowest request 69 s):
+
+| Plan | Pool | Requests | Dishes | Kept | Rejected | Tokens in / out | Cost (USD) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `objetivo-bajo-3-comidas` (SYNTHETIC; weight loss) | thinned, 20 out | 9 | 25 | 18 | 3 wrong meal, 2 unknown slug, 2 duplicate | 45,615 / 14,222 | 0.0094 |
+| `objetivo-alto-5-comidas` (SYNTHETIC; muscle gain) | thinned, 18 out | 16 | 39 | 32 | 3 wrong meal, 3 unknown slug, 1 foreign food | 97,484 / 18,806 | 0.0161 |
+| `patron-vegetariano` (SYNTHETIC; healthy eating) | thinned, 18 out | 15 | 37 | 32 | 5 wrong meal | 81,127 / 21,101 | 0.0153 |
+| `patron-sin-gluten` (SYNTHETIC; weight loss) | thinned, 17 out | 13 | 32 | 22 | 5 wrong meal, 3 unknown slug, 2 foreign food | 69,837 / 16,177 | 0.0125 |
+| `patron-tradicional-espanola` (NATURAL; maintenance) | as it is | 12 | 28 | 23 | 4 wrong meal, 1 unknown slug | 70,908 / 14,777 | 0.0121 |
+| **Total** | | **65** | **161** | **127** | 20 wrong meal, 9 unknown slug, 3 foreign food, 2 duplicate | 364,971 / 85,083 | **0.0654** |
+
+  No dish failed `generatedDishSchema`, the allergy gate or the unwanted check (0 of 161). The 0.0654 USD is 6.5% of the cap.
+
+- **Groups asked and written** (asked = what `spreadAsks` put in the requests; written = dishes of that group the model returned in that meal's requests, by the scheduler's rules; kept = of those, the ones that passed every gate):
+
+| Plan | Meal | Legumes asked / written / kept | Whole grain | Oily fish |
+| --- | --- | --- | --- | --- |
+| bajo-3 (synthetic) | lunch | 3 / 3 / 2 | 2 / 5 / 4 | 1 / 1 / 1 |
+| bajo-3 (synthetic) | dinner | 2 / 2 / 1 | 3 / 3 / 1 | 1 / 2 / 1 |
+| alto-5 (synthetic) | lunch | 3 / 3 / 3 | 3 / 5 / 4 | 1 / 1 / 1 |
+| alto-5 (synthetic) | dinner | 2 / 2 / 1 | 2 / 5 / **0** | 1 / 1 / **0** |
+| vegetariano (synthetic) | lunch | 6 / 10 / 10 | 3 / 7 / 7 | not asked |
+| vegetariano (synthetic) | dinner | 2 / 9 / 5 | 3 / 6 / 1 | not asked |
+| sin-gluten (synthetic) | lunch | 3 / 3 / 2 | 3 / 4 / 4 | 1 / 1 / 1 |
+| sin-gluten (synthetic) | dinner | 2 / 2 / **0** | 2 / 2 / **0** | 1 / 2 / **0** |
+| tradicional (natural) | dinner | 2 / 2 / **0** | 2 / 4 / 1 | not asked |
+
+- **Verdict**:
+  - **The stated pass is met: 5 of 5 plans.** In every plan, each asked group was written by the model at least once (13 of 13 plan-and-group pairs, and 24 of 24 meal cells; it wrote more than it was asked in most). It never ignored a group.
+  - **Kept is weaker: 18 of 24 meal cells, and 12 of 13 plan-and-group pairs.** The dinner cells that kept nothing lost their dishes to `wrong_meal` (`fitSlots`, Table 2 of `0079`) and, in two cells of `objetivo-alto-5-comidas` and `patron-sin-gluten`, to an unknown slug; none to the model ignoring the ask. All 20 `wrong_meal` rejections of the sample are dinner dishes. The one pair with nothing kept is the legumes of `patron-tradicional-espanola` (the lunch legume dish in that plan was not asked for).
+  - The pattern is the same in all five plans. At a Spanish dinner Table 2 does not let rice, pasta, the other grains, potato or stewed pulses stay (stewed pulses are the one exception, for somebody vegan or vegetarian, and a vegetarian's rice and quinoa bowls were still refused). The dinner asks of 4.7.0 produce exactly those dishes: "salmón con arroz integral", "bacalao con quinoa", "ensalada templada de lentejas, de alubias blancas, de garbanzos", "tostas de hummus de garbanzos". What survives a dinner is edamame or tofu for legumes, bread (sandwiches, tostas) for whole grain, and tuna or salmon with no grain beside it for oily fish.
+  - Unknown slugs (9) and foreign food (3) are the usual drift, as before the asks; none of the rejected dishes was allergenic.
+- **Natural plan and synthetic plans, read apart** (the lead accepted the thinning on 2026-10-09 on condition that they are reported separately):
+  - **Natural** (`patron-tradicional-espanola`, the rotation as production builds it): asks only at dinner, 2 legumes and 2 whole grain. The model wrote 2 legume dishes and 4 whole-grain dishes; kept 0 legumes (both `wrong_meal` at dinner, white-bean and cod salads) and 1 whole grain (a sandwich). 28 dishes, 23 kept, 0.0121 USD. Written: pass; kept in the asked meal: 1 of 2 groups.
+  - **Synthetic** (the four thinned plans, 133 of the 161 dishes): written 11 of 11 plan-and-group pairs; kept in the asked meal 11 of 11 at plan level and 17 of 22 meal cells. The figures say what the prompt does with a cold library, not what production's plans receive today.
+  - **On today's library almost no first round carries asks.** Of the evaluator's 13 profiles, 1 does; nine more diet-and-goal combinations tried carried none. The rotation's `POOL_RESERVE` already holds the groups, so `poolAsks` has nothing to ask. Phase 7's asks therefore only act where the library is thin (a new account, a narrow way of eating, a dislike that removes a group), and the paid number above is about that case.
+- **What to change in the prompt (for the lead to decide; nothing was changed here)**:
+  1. At dinner, for a person who is not vegan or vegetarian, ask for legumes only as edamame, tofu or tempeh, and say that lentils, chickpeas, beans and hummus are lunch dishes. Today's "light (warm salad, cream, hummus), never stewed" invites exactly the dishes the code removes.
+  2. At dinner, ask for whole grain as bread (wholemeal sandwich, tostas, wrap) or oats, and say it is not rice, pasta or quinoa; the same sentence belongs to the oily-fish ask ("with no rice, pasta or potato beside it").
+  3. Alternatively, stop asking omnivores for these three at dinner and let lunch carry them (`POOL_RESERVE` already gives dinner 2 legumes, 1 oily fish and 3 whole grain); at lunch every asked cell kept at least one dish, in every plan that asked.
+  4. A vegetarian or vegan dinner is fine for legumes (5 of 9 kept), but rice and quinoa bowls are still `wrong_meal`; the same bread-or-oats wording fixes that.
+- **Not measured / limits**: one sample, one seed, one model; the thinned pools are a simulation, and the library of production may or may not look like them; a second round is not paid for here, so what the asks bring over several plans is still `0013`'s question. The scripts live outside the repository (session scratchpad) and write nothing but their JSON results there.
