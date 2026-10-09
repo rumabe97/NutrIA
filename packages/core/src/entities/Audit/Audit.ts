@@ -10,7 +10,9 @@ import type { TwoFactorRemovalCancelledBy } from 'core/entities/TwoFactor';
  * the acts a person does to their own account's security (PLAN 011 phases 2
  * and 3): changing the password, closing sessions, turning the second factor
  * on or off, spending a backup code and generating new ones; the owner's
- * removal of a lost second factor (phase 4); and adding or removing a passkey (phase 5). Nothing else writes here, and nothing here is a free-form string a caller
+ * removal of a lost second factor (phase 4); adding or removing a passkey (phase 5); and the
+ * daily sweep of an account whose address nobody ever confirmed (the "30-day sweep"
+ * follow-up). Nothing else writes here, and nothing here is a free-form string a caller
  * invents — a new admin mutation is a new name added to this list, reviewed,
  * not a string typed at the call site.
  */
@@ -37,7 +39,8 @@ export const AUDIT_ACTIONS = [
   'auth.2fa_removal_cancelled',
   'auth.2fa_removed_by_owner',
   'auth.passkey_added',
-  'auth.passkey_removed'
+  'auth.passkey_removed',
+  'auth.unconfirmed_account_swept'
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -51,6 +54,20 @@ export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 export const AUTH_AUDIT_PREFIX = 'auth.';
 
 export const AUTH_AUDIT_RETENTION_MONTHS = 12;
+
+/**
+ * How long an account whose address nobody ever confirmed is kept (PLAN 011,
+ * "Follow-up — the 30-day sweep of unconfirmed accounts", `legal` P2-15):
+ * thirty days from sign-up, and only when it also holds no session, no
+ * profile, no plan and no audit row — `UserRepository.deleteStaleUnconfirmed`
+ * checks all four in the one `DELETE`, so an account that ever got far enough
+ * to have one is never a candidate. An unconfirmed account cannot sign in
+ * (PLAN 011 phase 8, `requireEmailVerification`), so none of those four can
+ * exist without the address having been confirmed first — the checks are
+ * belt-and-braces on an invariant proven elsewhere, not the only thing
+ * standing in the way.
+ */
+export const UNCONFIRMED_ACCOUNT_RETENTION_DAYS = 30;
 
 /** How an account came to be activated — never the request body, only this. */
 export const ACCOUNT_ACTIVATION_VIA = ['console', 'mail_link', 'automatic'] as const;
@@ -127,6 +144,17 @@ export interface AuditMetadataByAction {
   'auth.password_changed': { readonly via: PasswordChangedVia };
   /** The person closed sessions of their own (PLAN 011 phase 2): which ones, in a closed word. Never a token, an IP, a user agent or a session id. */
   'auth.sessions_revoked': { readonly scope: SessionsRevokedScope };
+  /**
+   * The daily sweep deleted an account whose address nobody ever confirmed,
+   * thirty days on, with no session, profile, plan or audit row (PLAN 011,
+   * "Follow-up — the 30-day sweep of unconfirmed accounts"). No actor — the
+   * cron, not a person. `subjectUserId` names the account and is set to
+   * `null` by its own cascade the instant this row's transaction deletes it
+   * (`auditLogs.subjectUserId` is `onDelete: 'set null'`, not `cascade`), so
+   * the row outlives the account with nothing left to identify it by: never
+   * an address, never anything else.
+   */
+  'auth.unconfirmed_account_swept': Record<string, never>;
   'feedback.handled': Record<string, never>;
   'feedback.reopened': Record<string, never>;
   /** The owner published a picture the judge rejected (`0072`): the allergen keys the judge flagged and the owner overrode — catalogue keys, never a path, never a model's words. */

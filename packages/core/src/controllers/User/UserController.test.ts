@@ -27,11 +27,13 @@ const passwordChanged = vi.fn<(id: string, record: (tx: unknown, passkeysRemoved
 const forgetPasskeys = vi.fn<(id: string, record: (tx: unknown, passkeysRemoved: number) => Promise<void>) => Promise<number>>();
 const confirmAddressByReset = vi.fn<(id: string) => Promise<boolean>>();
 const spendGrant = vi.fn<(identifier: string, id: string, now: Date) => Promise<boolean>>();
+const deleteStaleUnconfirmed = vi.fn<(cutoff: Date, record: (tx: unknown, id: string) => Promise<void>) => Promise<readonly string[]>>();
 
 vi.mock('#repositories/User', () => ({
   UserRepository: {
     activate: (match: { id?: string; email?: string }, r?: (tx: unknown, subjectUserId: string) => Promise<void>) => activate(match, r),
     confirmAddressByReset: (id: string) => confirmAddressByReset(id),
+    deleteStaleUnconfirmed: (cutoff: Date, r: (tx: unknown, id: string) => Promise<void>) => deleteStaleUnconfirmed(cutoff, r),
     findAll: (query: AccountQuery) => findAll(query),
     findById: (id: string) => findById(id),
     forgetExpiredVerifications: (now: Date) => forgetExpiredVerifications(now),
@@ -503,6 +505,56 @@ describe('UserController.activate', () => {
 
     expect(activate).toHaveBeenCalledWith({ email: 'a@example.com' }, undefined);
     expect(record).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * PLAN 011, "Follow-up — the 30-day sweep of unconfirmed accounts": the daily cron's own
+ * call, with no actor — the cutoff is this controller's own clock, not the caller's.
+ */
+describe('UserController.sweepUnconfirmedAccounts', () => {
+  beforeEach(() => {
+    deleteStaleUnconfirmed.mockReset();
+    record.mockReset();
+  });
+
+  it('asks the repository for thirty days before now, and answers the ids it deleted', async () => {
+    deleteStaleUnconfirmed.mockResolvedValue(['usr-1', 'usr-2']);
+
+    const result = await UserController.sweepUnconfirmedAccounts(new Date('2026-10-09T10:00:00.000Z'));
+
+    expect(result).toEqual(['usr-1', 'usr-2']);
+    expect(deleteStaleUnconfirmed).toHaveBeenCalledWith(new Date('2026-09-09T10:00:00.000Z'), expect.anything());
+  });
+
+  it('defaults the clock to now, the way the audit trail’s own retention does', async () => {
+    deleteStaleUnconfirmed.mockResolvedValue([]);
+
+    await UserController.sweepUnconfirmedAccounts();
+
+    expect(deleteStaleUnconfirmed).toHaveBeenCalledTimes(1);
+  });
+
+  it('records a null actor, naming the account, for each id the repository deleted', async () => {
+    deleteStaleUnconfirmed.mockImplementation(async (_cutoff, r) => {
+      await r(undefined, 'usr-1');
+      await r(undefined, 'usr-2');
+
+      return ['usr-1', 'usr-2'];
+    });
+
+    await UserController.sweepUnconfirmedAccounts(new Date('2026-10-09T10:00:00.000Z'));
+
+    expect(record).toHaveBeenNthCalledWith(
+      1,
+      { action: 'auth.unconfirmed_account_swept', actorId: null, entity: 'user', metadata: {}, subjectUserId: 'usr-1' },
+      undefined
+    );
+    expect(record).toHaveBeenNthCalledWith(
+      2,
+      { action: 'auth.unconfirmed_account_swept', actorId: null, entity: 'user', metadata: {}, subjectUserId: 'usr-2' },
+      undefined
+    );
   });
 });
 

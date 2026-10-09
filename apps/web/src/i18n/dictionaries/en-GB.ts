@@ -194,6 +194,7 @@ export const enGB: Dictionary = {
       'auth.passkey_removed': 'Passkey removed',
       'auth.password_changed': 'Password changed',
       'auth.sessions_revoked': 'Sessions signed out',
+      'auth.unconfirmed_account_swept': 'Unconfirmed account deleted',
       'feedback.handled': 'Message marked seen',
       'feedback.reopened': 'Message reopened',
       'picture.accepted': 'Rejected dish picture accepted by hand, against the checker',
@@ -1173,7 +1174,7 @@ export const enGB: Dictionary = {
     verifyFailedBody: 'It may have expired or already been used. If you have already confirmed your email, sign in.',
     verifyFailedTitle: 'This link no longer works',
     verifyNotYours: 'Did you not create the account, or do you not know its password? Do not guess it:',
-    verifyReset: 'reset it, and any other session open on it will be closed.',
+    verifyReset: 'reset it right now, and any other session open on it will be closed.',
     verifySignIn: 'Sign in',
     verifyTitle: 'Email confirmed'
   },

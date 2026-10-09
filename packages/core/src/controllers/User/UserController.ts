@@ -1,7 +1,7 @@
 import { accountQuerySchema } from 'core/entities/AdminQuery';
 import { AuditRepository } from '#repositories/Audit';
 import { NotFoundError } from 'core/entities/Error';
-import { UNAUDITED } from 'core/entities/Audit';
+import { UNAUDITED, UNCONFIRMED_ACCOUNT_RETENTION_DAYS } from 'core/entities/Audit';
 import { SignInDeviceRepository } from '#repositories/SignInDevice';
 import { UserRepository } from '#repositories/User';
 import { secondFactorMissing } from 'core/domain/SecondFactor';
@@ -9,7 +9,7 @@ import { secondFactorMissing } from 'core/domain/SecondFactor';
 import type { ActivationAudit, PasswordChangedVia, SessionsRevokedScope } from 'core/entities/Audit';
 import type { AccountQuery } from 'core/entities/AdminQuery';
 import type { Transaction } from '#repositories/Audit';
-import type { AccountRow, RecordActivationAudit, RecordTierAudit } from '#repositories/User';
+import type { AccountRow, RecordActivationAudit, RecordTierAudit, RecordUnconfirmedSweepAudit } from '#repositories/User';
 import type { User, UserTier } from 'core/entities/User';
 
 /**
@@ -418,6 +418,25 @@ export const UserController = {
    */
   async spendGrant(identifier: string, userId: string): Promise<boolean> {
     return UserRepository.spendGrant(identifier, userId, new Date());
+  },
+
+  /**
+   * The 30-day sweep of an account nobody ever confirmed (PLAN 011,
+   * "Follow-up — the 30-day sweep of unconfirmed accounts", `legal` P2-15):
+   * run by the daily cron, with no actor. The cutoff is computed here from
+   * `now`, the way `AuditController.forgetExpiredAuthRows` computes its own
+   * — `AuthRetentionService` carries no clock of its own either. Returns the
+   * ids actually deleted, for the run's own count; never anything else about
+   * them.
+   */
+  async sweepUnconfirmedAccounts(now: Date = new Date()): Promise<readonly string[]> {
+    const cutoff = new Date(now.getTime() - UNCONFIRMED_ACCOUNT_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+
+    const record: RecordUnconfirmedSweepAudit = async (tx, id) => {
+      await AuditRepository.record({ action: 'auth.unconfirmed_account_swept', actorId: null, entity: 'user', metadata: {}, subjectUserId: id }, tx);
+    };
+
+    return UserRepository.deleteStaleUnconfirmed(cutoff, record);
   },
 
   /**

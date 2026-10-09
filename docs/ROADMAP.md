@@ -71,6 +71,12 @@ The milestone is met, and has been in production since 2026-09-07.
   vegetables and fruit through accompaniments, protein per meal by goal, and prompt 4.7.0
   (`0084`–`0088`; #215, #216, #224, #229, #235, #241). Closed 2026-10-09.
 
+- [`010-the-judge-knows-a-dishs-own-form`](./projects/010-the-judge-knows-a-dishs-own-form/) —
+  the picture judge stops rejecting a dish's own form, keeps what it said, and lets any
+  published picture be removed (`0073`; #176–#178, #180, #181). Closed 2026-10-09: production
+  showed the judge blocking nothing, the exemption never firing, and the real case being a
+  garnish the drawing invents — which the owner sent to its own change.
+
 - [`003-trust-depth-and-polish`](./projects/003-trust-depth-and-polish/) — overridable
   targets, onboarding that resumes and is enforced server-side, a deeper profile, English
   throughout, and a design pass. Closed 2026-10-09: the owner walked the signed-in screens
@@ -81,14 +87,11 @@ The milestone is met, and has been in production since 2026-09-07.
 - [`004-dietitian-workspace`](./projects/004-dietitian-workspace/) — the professional's
   practice (§ 9 below; #82–#102). All ten phases shipped. Left for the owner: phase 9's
   check on a phone and a laptop, and the go-live, deferred with payments.
-- [`010-the-judge-knows-a-dishs-own-form`](./projects/010-the-judge-knows-a-dishs-own-form/) —
-  the picture judge stops rejecting a dish's own form, keeps what it said, and lets any
-  published picture be removed (`0073`; #176–#178, #180, #181). Phase 6, a read-only review of the
-  judge in production, is left; its gate of about 60 new pictures is very likely met.
 - [`011-accounts-are-harder-to-take`](./projects/011-accounts-are-harder-to-take/) —
   strong passwords, a second factor, passkeys, a sign-in brake and a Content Security
-  Policy (#183–#185, #205, #210, #212–#214, #217, and the hotfix #218). Phases 7b
-  and 10 are pending.
+  Policy (#183–#185, #205, #210, #212–#214, #217, #242, #248, and the hotfix #218). Phase 10
+  is left, and cannot run before 2026-10-15: it needs a week of real report-only reports
+  before the policy enforces.
 
 The end-to-end suites stand at 49 suites, run against a throwaway database with a
 scripted model (`apps/api/test/README.md`), and on every pull request against a Postgres

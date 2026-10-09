@@ -30,7 +30,7 @@ describe('the cron routes', () => {
   const sweep = jest.fn(async () => Promise.resolve({ considered: 0, failed: 0, pushed: 0, sent: 0 }));
   const forget = jest.fn(async () => Promise.resolve());
   const forgetVerifications = jest.fn(async () => Promise.resolve(0));
-  const forgetAuth = jest.fn(async () => Promise.resolve({ authAuditRows: 0, signInFailures: 0 }));
+  const forgetAuth = jest.fn(async () => Promise.resolve({ authAuditRows: 0, signInFailures: 0, unconfirmedAccounts: 0 }));
   const activate = jest.fn(async () => Promise.resolve({ activated: 0, failed: 0 }));
   const removeTwoFactors = jest.fn(async () => Promise.resolve({ failed: 0, removed: 0 }));
   const record = jest.fn(async (_job: string, _counts: Readonly<Record<string, 'cap' | number>>) => Promise.resolve());
@@ -404,12 +404,12 @@ describe('the cron routes', () => {
   /* PLAN 011 phase 7: then the quiet sign-in brake rows and the auth audit rows past twelve months. */
   it('deletes the expired verification rows on its own route, then the authentication retention, and answers how many', async () => {
     forgetVerifications.mockResolvedValueOnce(5);
-    forgetAuth.mockResolvedValueOnce({ authAuditRows: 4, signInFailures: 3 });
+    forgetAuth.mockResolvedValueOnce({ authAuditRows: 4, signInFailures: 3, unconfirmedAccounts: 2 });
     const server = await boot(SECRET);
 
     const response = await request(server).get('/cron/sweep-verifications').set('Authorization', bearer(SECRET)).expect(200);
 
-    expect(response.body).toEqual({ authAuditRows: 4, deleted: 5, signInFailures: 3 });
+    expect(response.body).toEqual({ authAuditRows: 4, deleted: 5, signInFailures: 3, unconfirmedAccounts: 2 });
     expect(forgetVerifications).toHaveBeenCalledTimes(1);
     expect(forgetAuth).toHaveBeenCalledTimes(1);
     expect(forget).not.toHaveBeenCalled();
@@ -417,7 +417,7 @@ describe('the cron routes', () => {
     expect(rewriteOutdated).not.toHaveBeenCalled();
     // 0071: the run says it finished, with its count, so the console's silent-cron watch sees it.
     expect(record).toHaveBeenCalledTimes(1);
-    expect(record).toHaveBeenCalledWith('verifications', { authAuditRows: 4, deleted: 5, signInFailures: 3 });
+    expect(record).toHaveBeenCalledWith('verifications', { authAuditRows: 4, deleted: 5, signInFailures: 3, unconfirmedAccounts: 2 });
   });
 
   it('records no verification sweep that did not finish', async () => {

@@ -1,14 +1,14 @@
 import { and, asc, count, desc, eq, getTableName, gt, inArray, isNotNull, isNull, like, lt, not, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
-import { analyticsEvents, twoFactorRemovals } from 'database/schema/platform';
+import { analyticsEvents, auditLogs, twoFactorRemovals } from 'database/schema/platform';
 import { contains, ordered } from '#repositories/Search';
 import { database } from 'database';
 import { mealPlans } from 'database/schema/plan';
-import { onboardingState } from 'database/schema/profile';
+import { onboardingState, profiles } from 'database/schema/profile';
 import { professionals } from 'database/schema/professional';
 import { signInDevicesOf } from '#repositories/SignInDevice';
-import { account, passkey, user, verification } from 'database/schema/auth';
+import { account, passkey, session, user, verification } from 'database/schema/auth';
 
 import { ACTIVE_EVENTS } from 'core/entities/Analytics';
 import { DatabaseOperationError } from 'core/entities/Error';
@@ -52,6 +52,15 @@ export type RecordPasswordAudit = (tx: Transaction, passkeysRemoved: number) => 
 
 /** `forgetPasskeys`' watcher: one row per passkey the transaction removed. */
 export type RecordPasskeysForgotten = (tx: Transaction, passkeysRemoved: number) => Promise<void>;
+
+/**
+ * `deleteStaleUnconfirmed`'s watcher: one row per account the `DELETE`
+ * actually removed, written inside the same transaction — called with the id
+ * the `RETURNING` found, before the row's own cascade clears that id from
+ * whatever it names (PLAN 011, "Follow-up — the 30-day sweep of unconfirmed
+ * accounts").
+ */
+export type RecordUnconfirmedSweepAudit = (tx: Transaction, id: string) => Promise<void>;
 
 /**
  * One account on the owner's table: the row's own columns, and four
@@ -143,6 +152,34 @@ function either(answer: 'no' | 'yes' | undefined, condition: SQL): SQL | undefin
   }
 
   return answer === 'yes' ? condition : not(condition);
+}
+
+/**
+ * The four things that would make an account somebody's rather than an
+ * address somebody typed (PLAN 011, "Follow-up — the 30-day sweep of
+ * unconfirmed accounts"): correlated sub-selects against the outer `user`
+ * row, the same shape as `IS_PROFESSIONAL` and `ONBOARDED` above.
+ */
+const HAS_SESSION = sql`exists (select 1 from ${session} where ${session.userId} = ${ACCOUNT_ID})`;
+const HAS_PROFILE = sql`exists (select 1 from ${profiles} where ${profiles.userId} = ${ACCOUNT_ID})`;
+const HAS_PLAN = sql`exists (select 1 from ${mealPlans} where ${mealPlans.userId} = ${ACCOUNT_ID})`;
+const HAS_AUDIT_ROW = sql`exists (select 1 from ${auditLogs} where ${auditLogs.actorId} = ${ACCOUNT_ID} or ${auditLogs.subjectUserId} = ${ACCOUNT_ID})`;
+
+/**
+ * The 30-day sweep's `WHERE` (PLAN 011, "Follow-up — the 30-day sweep of
+ * unconfirmed accounts", `legal` P2-15): unconfirmed, older than `cutoff`,
+ * and none of the four above. Exported for its spec, the way `accountFilters`
+ * is.
+ *
+ * Four tables and nothing wider on purpose: every one of them is reachable
+ * only from a session (`profiles`, `mealPlans` and `auditLogs` are all
+ * written by routes `VerifiedEmailGuard` gates), and an unconfirmed account
+ * has never held one (`requireEmailVerification`, PLAN 011 phase 8) — so
+ * widening this to every user-owned table would guard against a path that
+ * does not exist, at the cost of a join this sweep does not need.
+ */
+export function staleUnconfirmedWhere(cutoff: Date): SQL | undefined {
+  return and(eq(user.emailVerified, false), lt(user.createdAt, cutoff), not(HAS_SESSION), not(HAS_PROFILE), not(HAS_PLAN), not(HAS_AUDIT_ROW));
 }
 
 /**
@@ -282,6 +319,40 @@ export const UserRepository = {
         .returning({ id: user.id });
 
       return rows.length > 0;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * The 30-day sweep of an account nobody ever confirmed (PLAN 011,
+   * "Follow-up — the 30-day sweep of unconfirmed accounts", `legal` P2-15):
+   * unconfirmed, older than `cutoff`, and holding none of the four things
+   * that would make it somebody's account rather than an address somebody
+   * typed — a session, a profile, a plan, or an audit row naming it as actor
+   * or subject (`staleUnconfirmedWhere`). One `DELETE … WHERE … RETURNING`,
+   * so the check and the removal are the same statement: nothing can create
+   * a session or a profile for a row in the instant between a read and a
+   * write, because there is no such instant.
+   *
+   * `record`, called once per id the `RETURNING` found, inside this same
+   * transaction: a deletion that is not also that row did not happen
+   * (`0059`/`0071`'s pattern). `auditLogs.subjectUserId` is `onDelete: 'set
+   * null'`, so the row written here outlives the delete that follows it in
+   * the same transaction — it is written before the account disappears and
+   * reads back with no id once it has, never before.
+   */
+  async deleteStaleUnconfirmed(cutoff: Date, record: RecordUnconfirmedSweepAudit): Promise<readonly string[]> {
+    try {
+      return await database().transaction(async tx => {
+        const rows = await tx.delete(user).where(staleUnconfirmedWhere(cutoff)).returning({ id: user.id });
+
+        for (const row of rows) {
+          await record(tx, row.id);
+        }
+
+        return rows.map(row => row.id);
+      });
     } catch (error: unknown) {
       throw wrap(error);
     }
