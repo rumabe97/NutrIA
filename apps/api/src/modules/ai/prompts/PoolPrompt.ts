@@ -1,4 +1,6 @@
-import { DEFAULT_MEAL_SHAPE, weightsFor } from 'core/domain/MealShape';
+import { ACCOMPANIED_FROM_KCAL } from 'core/domain/Scheduler';
+import { DEFAULT_MEAL_SHAPE, proteinWeightsFor, weightsFor } from 'core/domain/MealShape';
+import { FRESH_FRUIT_SLUGS } from 'core/domain/MealFit';
 import { INGREDIENT_CATEGORIES, SNACK_SLOTS } from 'core/entities/Plan';
 import { normaliseForMatching } from 'core/domain/Safety';
 import { SERVING_KCAL_CAP, servingFactor } from 'core/domain/Serving';
@@ -7,6 +9,7 @@ import type { CatalogueIngredient, IngredientCategory, MealSlot } from 'core/ent
 import type { CheckInForGeneration } from 'core/controllers/CheckIn';
 import type { Goal } from 'core/entities/Profile';
 import type { NutritionTargets } from 'core/entities/Nutrition';
+import type { PoolAsk } from 'core/domain/Balance';
 
 /**
  * Bumped whenever the wording changes, and recorded in `generation_metadata`.
@@ -184,8 +187,33 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * which said what the brief already shows. Beyond the lower cap, only the
  * fixed text changed: what the prompt says about the person is 4.5.0's, word
  * for word, and `traditional_spanish` is still never named (`0077`).
+ * 4.7.0: the food groups of a balanced fortnight (project 019, architect
+ * report `0010` § 4.4). The scheduler holds the table's minimums and
+ * maximums, but can only serve what the pool holds, and the library is thin
+ * in a few cells: legumes at a Spanish dinner, legume kinds beyond chickpeas
+ * and lentils, whole grain at dinner. So a lunch's or a dinner's request now
+ * says, inside the request already made, how many of its dishes are built on
+ * legumes (another kind, at lunch, when the pool holds fewer than three; in
+ * light forms, never stewed, at dinner), on a whole grain or on an oily fish —
+ * only what that slot's pool lacks of the rotation's reserve, and only a
+ * group the request's catalogue has a row of (`poolAsks`), never more than
+ * two dishes of three (`spreadAsks`). The fibre rule asks for whole grains
+ * over refined, for every goal. A lunch or a dinner at or under
+ * `ACCOMPANIED_FROM_KCAL` gets no sides from the plan (`0079`), so "Real
+ * portions" stops saying it does and asks the dish for its own vegetables,
+ * 150 g a serving; and when neither main takes sides, breakfast and the
+ * snacks are asked for fresh fruit, the only place it can come from. The
+ * protein of each meal follows the goal, as the scheduler's budgets have
+ * since `0088`: a muscle-gain breakfast, supper and snacks are briefed more
+ * of the day's protein, lunch and dinner less (`proteinWeightsFor`); every
+ * other goal's numbers are 4.6.0's. To keep the lunch request inside PRD
+ * 005's 55% of 3.4.0 with the longest asks it can carry, the snack rule is
+ * told only to a snack's request (one meal a request since `0016`), the two
+ * fat rules are one, the lean sources list is shorter, and the protein-source
+ * line drops "sized to its protein figure", which the first composition rule
+ * says.
  */
-export const PROMPT_VERSION = '4.6.0';
+export const PROMPT_VERSION = '4.7.0';
 
 /**
  * The version of the rules for *writing steps*, stamped on every recipe and
@@ -528,23 +556,37 @@ const GOAL_GUIDANCE: Record<Goal['type'], string> = {
  * the one macro at nine calories a gram, so it is where a dish overshoots, and
  * the one to add last.
  */
-const COMPOSITION_RULES = [
-  'HOW TO BUILD EACH DISH TO ITS NUMBERS:',
-  '- Protein is a figure to land on, not a minimum. A dish 20% over its protein is as far off as one 20% under, and the day cannot absorb it: the other meals cannot give protein back. Give the protein source the grams its figure asks for, and let starch and vegetables carry the rest of the plate.',
-  '- Straddle the numbers. Across the dishes of one meal, land about half a little under each figure and half a little over — within a tenth either way — never all on the same side. The days are built by combining your dishes, and a set that runs high on protein makes every day run high.',
-  '- Energy: protein and carbohydrate carry 4 kcal per gram, fat carries 9. Ten grams of oil is 90 kcal — the easiest way to overshoot a dish, and the last thing to add.',
-  '- Weigh the fat. Oil, butter, cheese, nuts, seeds, avocado, cured meats and oily fish are dense: give each an exact gram amount that fits the fat target, not a generous splash.',
-  '- When the split asks for a lot of carbohydrate, build the plate on a starch — rice, pasta, couscous, potato, bread, oats, legumes — and add fruit to breakfasts and snacks.',
-  '- When it asks for a lot of protein and little fat, reach for the lean sources their way of eating allows: poultry breast, white fish, tuna in water, eggs and whites, fresh cheese, skyr or natural yoghurt, legumes, tofu, tempeh, soy yoghurt.',
-  '- When it asks for little carbohydrate, build the plate on vegetables and protein, with a small starch or none, and let olive oil, nuts or avocado carry the energy the split gives to fat.',
-  '- If a dish is short of energy, add starch or protein first — whichever the split is short of — and fat only if the fat target has room. A large brief is a large plate; a small brief is a full plate of lighter food, never a smaller portion of a rich one.',
-  '- A snack follows the same split as the day, scaled down. A snack of nuts alone is three quarters fat; pair it with fruit, dairy or bread.',
-  '- Fibre: at least two plant components in a main dish — vegetables, legumes, whole grains, fruit.',
-  '- Weigh each ingredient as it is named. A slug that says cooked (cocido, cocida) is weighed cooked; one that says raw or dry (crudo, seco) — or says neither, for rice, pasta, grains and pulses — is weighed dry, as bought. Dry rice or pasta roughly triples in weight when cooked: 80 g dry is a normal plate, 250 g dry is three.',
-  '- Real portions. Grams cover the declared servings; one serving is one plate for one. The plan adds sides to lunch and dinner (bread, salad, vegetables, rice, fruit, dairy). Prefer half vegetables, a quarter protein, a quarter starch, never above the numbers.',
-  '- One serving has a ceiling. A person who eats more is served more servings of the same dish, and the plan sizes that. Never build one serving past its numbers.',
-  ''
-];
+function compositionRules(sides: string, snack: boolean): readonly string[] {
+  const rules: readonly (string | null)[] = [
+    'HOW TO BUILD EACH DISH TO ITS NUMBERS:',
+    '- Protein is a figure to land on, not a minimum. A dish 20% over its protein is as far off as one 20% under, and the day cannot absorb it: the other meals cannot give protein back. Give the protein source the grams its figure asks for, and let starch and vegetables carry the rest of the plate.',
+    '- Straddle the numbers. Across the dishes of one meal, land about half a little under each figure and half a little over — within a tenth either way — never all on the same side. The days are built by combining your dishes, and a set that runs high on protein makes every day run high.',
+    '- Energy: protein and carbohydrate carry 4 kcal per gram, fat carries 9, so ten grams of oil is 90 kcal. Weigh the fat — oil, butter, cheese, nuts, seeds, avocado, cured meats, oily fish — to the gram its target allows, never a splash, and add it last.',
+    '- When the split asks for a lot of carbohydrate, build the plate on a starch — rice, pasta, couscous, potato, bread, oats, legumes — and add fruit to breakfasts and snacks.',
+    '- When it asks for a lot of protein and little fat, reach for the lean sources their way of eating allows: poultry breast, white fish, tuna in water, egg whites, fresh cheese, skyr, natural or soy yoghurt, legumes, tofu, tempeh.',
+    '- When it asks for little carbohydrate, build the plate on vegetables and protein, with a small starch or none, and let olive oil, nuts or avocado carry the energy the split gives to fat.',
+    '- If a dish is short of energy, add starch or protein first — whichever the split is short of — and fat only if the fat target has room. A large brief is a large plate; a small brief is a full plate of lighter food, never a smaller portion of a rich one.',
+    // Since `0016` a request asks for one meal: a lunch is not told how to build a snack (4.7.0).
+    snack
+      ? '- A snack follows the same split as the day, scaled down. A snack of nuts alone is three quarters fat; pair it with fruit, dairy or bread.'
+      : null,
+    '- Fibre: at least two plant components in a main dish — vegetables, legumes, fruit, whole grains over refined.',
+    '- Weigh each ingredient as it is named. A slug that says cooked (cocido, cocida) is weighed cooked; one that says raw or dry (crudo, seco) — or says neither, for rice, pasta, grains and pulses — is weighed dry, as bought. Dry rice or pasta roughly triples in weight when cooked: 80 g dry is a normal plate, 250 g dry is three.',
+    `- Real portions. Grams cover the declared servings; one serving is one plate for one. ${sides}Prefer half vegetables, a quarter protein, a quarter starch, never above the numbers.`,
+    '- One serving has a ceiling. A person who eats more is served more servings of the same dish, and the plan sizes that. Never build one serving past its numbers.',
+    ''
+  ];
+
+  return rules.filter((rule): rule is string => rule !== null);
+}
+
+/**
+ * What "Real portions" says goes beside the dish (4.6.0); what it says to a
+ * lunch or a dinner nothing goes beside (4.7.0); and to breakfast or a snack
+ * of somebody whose lunch and dinner take no sides, nothing about them.
+ */
+const SIDES_ADDED = 'The plan adds sides to lunch and dinner (bread, salad, vegetables, rice, fruit, dairy). ';
+const NO_SIDES = 'Nothing is served beside this meal: the dish carries 150 g of vegetables a serving. ';
 
 /**
  * What kind of food a meal is, where the numbers alone led a model astray
@@ -587,15 +629,21 @@ function characterOf(slot: MealSlot, patterns: readonly string[]): string | null
 
 type SlotBrief = { readonly carbsG: number; readonly fatG: number; readonly fiberG: number; readonly kcal: number; readonly proteinG: number };
 
+/** One slot's share of the day's energy, and of its protein, which differs only by goal (`0088`). */
+type SlotShare = { readonly energy: number; readonly protein: number };
+
 /**
  * A day's targets, scaled to one slot's share of it — and to one serving's
  * ceiling at that meal (`0070`, `servingFactor`). One factor for all five
- * figures, so the split is the day's whatever the size; a person whose share
- * is larger than one plate eats more than one serving of it.
+ * figures, so a person whose share is larger than one plate eats more than
+ * one serving of it. The protein is the slot's share of the day's protein,
+ * the rest its share of the energy, as the scheduler's `slotBudgets` divides
+ * them (4.7.0): for every goal but building muscle the two are one share,
+ * and the split is the day's.
  */
-function briefFor(targets: NutritionTargets, share: number, slot: MealSlot): SlotBrief & { readonly capped: boolean } {
-  const factor = servingFactor(targets.kcal * share, slot);
-  const scale = share * factor;
+function briefFor(targets: NutritionTargets, share: SlotShare, slot: MealSlot): SlotBrief & { readonly capped: boolean } {
+  const factor = servingFactor(targets.kcal * share.energy, slot);
+  const scale = share.energy * factor;
 
   return {
     capped: factor < 1,
@@ -603,7 +651,7 @@ function briefFor(targets: NutritionTargets, share: number, slot: MealSlot): Slo
     fatG: Math.round(targets.fatG * scale),
     fiberG: Math.round(targets.fiberG * scale),
     kcal: Math.round(targets.kcal * scale),
-    proteinG: Math.round(targets.proteinG * scale)
+    proteinG: Math.round(targets.proteinG * share.protein * factor)
   };
 }
 
@@ -627,8 +675,11 @@ function numbersOf(brief: SlotBrief): string {
  * request, which is the mistake 3.0.0 exists to fix. A requested slot the shape
  * does not eat (the shape changed after the request was planned) joins at its
  * normal size rather than being briefed as a dish of nothing.
+ *
+ * The protein's share is the goal's (`proteinWeightsFor`, 4.7.0), normalised
+ * the same way; for every goal but building muscle it is the energy's.
  */
-function sharesOf(context: PromptContext): ReadonlyMap<MealSlot, number> {
+function sharesOf(context: PromptContext): ReadonlyMap<MealSlot, SlotShare> {
   const raw = new Map(context.slotShares.size > 0 ? context.slotShares : weightsFor(DEFAULT_MEAL_SHAPE));
 
   for (const slot of context.needBySlot.keys()) {
@@ -637,10 +688,14 @@ function sharesOf(context: PromptContext): ReadonlyMap<MealSlot, number> {
     }
   }
 
+  const protein = proteinWeightsFor(context.goal, raw) ?? raw;
   const total = [...raw.values()].reduce((sum, share) => sum + share, 0) || 1;
+  const proteinTotal = [...protein.values()].reduce((sum, share) => sum + share, 0) || 1;
 
-  return new Map([...raw].map(([slot, share]) => [slot, share / total]));
+  return new Map([...raw].map(([slot, share]) => [slot, { energy: share / total, protein: (protein.get(slot) ?? share) / proteinTotal }]));
 }
+
+const NO_SHARE: SlotShare = { energy: 0, protein: 0 };
 
 /**
  * The days this fortnight that eat for an event, as a design request.
@@ -649,7 +704,7 @@ function sharesOf(context: PromptContext): ReadonlyMap<MealSlot, number> {
  * nothing at their split leaves them short however it sizes the plates. So a
  * share of the dishes is asked for at that split too.
  */
-function loadedLines(context: PromptContext, slot: MealSlot, share: number, count: number): readonly string[] {
+function loadedLines(context: PromptContext, slot: MealSlot, share: SlotShare, count: number): readonly string[] {
   const loaded = context.loadedTargets ?? [];
 
   if (loaded.length === 0 || count < 2) {
@@ -666,11 +721,75 @@ function loadedLines(context: PromptContext, slot: MealSlot, share: number, coun
   ];
 }
 
-/** What the builder knows about the catalogue a request is shown that the rows alone do not say. */
+/** What the builder knows about the catalogue a request is shown, and the pool it fills, that the rows alone do not say. */
 export type CatalogueOffer = {
+  /**
+   * How many of this request's dishes are asked to be of a food group the
+   * slot's pool lacks (`poolAsks`, 4.7.0): never more than the request's
+   * dishes, and only groups its catalogue has a row of.
+   */
+  readonly asks?: readonly PoolAsk[];
   /** Whether the meal offers the pulses lunch does (`offersPulses`); legumes are named as a main protein only then. */
   readonly pulses: boolean;
 };
+
+/** A legume kind as `pulseKind` names it, the way a cook says it: `alubias-blancas` → "alubias blancas". */
+function kindName(kind: string): string {
+  return kind.replaceAll('-', ' ');
+}
+
+/** "a, b or c" */
+function orList(items: readonly string[]): string {
+  return items.length > 1 ? `${items.slice(0, -1).join(', ')} or ${items.at(-1)}` : (items[0] ?? '');
+}
+
+/**
+ * One ask as the request says it (4.7.0). Legumes at 25 g dry a serving,
+ * the table's threshold (`BALANCE_GRAMS.legume`), so a garnish is not the
+ * dish; at dinner in the forms a dinner takes, as a vegetarian's dinner is
+ * told (`PLANT_BASED_DINNER`).
+ */
+function askLine(ask: PoolAsk, slot: MealSlot): string {
+  switch (ask.group) {
+    case 'legume':
+      return slot === 'dinner'
+        ? `${ask.count} on legumes, light (warm salad, cream, hummus), never stewed`
+        : `${ask.count} on legumes (25 g dry a serving)${ask.heldKinds.length > 0 ? `, not ${orList(ask.heldKinds.map(kindName))}` : ''}`;
+    case 'oilyFish':
+      return `${ask.count} on an oily fish`;
+    case 'wholeGrain':
+      return `${ask.count} on a whole grain`;
+  }
+}
+
+const MAINS: ReadonlySet<MealSlot> = new Set(['lunch', 'dinner']);
+
+/** Whether a main meal's share of the day is past `ACCOMPANIED_FROM_KCAL`, so the plan sets sides beside it — the scheduler's own test. */
+function takesSides(targets: NutritionTargets, slot: MealSlot, share: SlotShare): boolean {
+  return MAINS.has(slot) && targets.kcal * share.energy > ACCOMPANIED_FROM_KCAL;
+}
+
+/**
+ * What a meal's dishes carry for the groups a fortnight needs (4.7.0): what
+ * the pool lacks (`asks`), and the fruit no side will bring — when neither
+ * main takes sides, breakfast and the snacks are the only place it can come
+ * from. (A main the plan sets no sides beside is told so in "Real portions".)
+ * Read off the targets and the meal shape the brief already shows.
+ */
+function groupLines(
+  context: PromptContext,
+  shares: ReadonlyMap<MealSlot, SlotShare>,
+  slot: MealSlot,
+  count: number,
+  asks: readonly PoolAsk[],
+  fruit: boolean
+): string {
+  const own = asks.length > 0 ? `\n  Of these: ${asks.map(ask => askLine(ask, slot)).join('; ')}.` : '';
+  // Only where the request shows a fresh fruit, as `poolAsks` asks only for a group its catalogue holds.
+  const fruitless = fruit && !MAINS.has(slot) && ![...shares].some(([main, share]) => takesSides(context.targets, main, share));
+
+  return fruitless ? `${own}\n  Lunch and dinner come with no sides: ${Math.ceil(count / 2)} of these with 120–150 g of fresh fruit a serving.` : own;
+}
 
 /**
  * One request's prompt. `safeIngredients` is the catalogue this request is
@@ -685,6 +804,7 @@ export function buildPoolPrompt(
   const shares = sharesOf(context);
   const wanted = [...context.needBySlot.entries()].filter(([, count]) => count > 0);
   const patterns = context.dietaryPatterns.filter(pattern => NAMEABLE_PATTERNS.has(pattern));
+  const fruit = safeIngredients.some(ingredient => FRESH_FRUIT_SLUGS.has(ingredient.slug));
 
   // Per serving, per slot, on all four macros and fibre. A model told only a
   // daily figure — or only energy and protein — writes dishes that hit those
@@ -692,7 +812,7 @@ export function buildPoolPrompt(
   // fix a dish's composition afterwards (`0045`).
   const needs = wanted
     .map(([slot, count]) => {
-      const brief = briefFor(context.targets, shares.get(slot) ?? 0, slot);
+      const brief = briefFor(context.targets, shares.get(slot) ?? NO_SHARE, slot);
       const character = characterOf(slot, patterns);
       const shape = character ? `\n  ${character}` : '';
       // Their share of the day at this meal is more than one plate (`0070`):
@@ -705,12 +825,18 @@ export function buildPoolPrompt(
       // main dishes still came back at 16–20% protein against a 17% day.
       const straddle = `\n  Protein: half the set between ${Math.round(brief.proteinG * 0.9)} and ${brief.proteinG} g, half between ${brief.proteinG} and ${Math.round(brief.proteinG * 1.1)} g — not all at the top.`;
 
-      return `- ${SLOT_LABEL[slot]}: ${count} distinct dishes, each ${numbersOf(brief)} per serving.${straddle}${more}${shape}`;
+      const groups = groupLines(context, shares, slot, count, offer.asks ?? [], fruit);
+
+      return `- ${SLOT_LABEL[slot]}: ${count} distinct dishes, each ${numbersOf(brief)} per serving.${straddle}${more}${groups}${shape}`;
     })
     .join('\n');
 
+  // A lunch or a dinner the plan sets no sides beside carries its own vegetables (4.7.0).
+  const alone = wanted.some(([slot]) => MAINS.has(slot) && !takesSides(context.targets, slot, shares.get(slot) ?? NO_SHARE));
+  const sided = [...shares].some(([slot, share]) => takesSides(context.targets, slot, share));
+  const sides = alone ? NO_SIDES : sided ? SIDES_ADDED : '';
   const firstSlot = wanted[0];
-  const loaded = firstSlot ? loadedLines(context, firstSlot[0], shares.get(firstSlot[0]) ?? 0, firstSlot[1]) : [];
+  const loaded = firstSlot ? loadedLines(context, firstSlot[0], shares.get(firstSlot[0]) ?? NO_SHARE, firstSlot[1]) : [];
   const catalogue = catalogueByAisle(safeIngredients, context.month);
   const cuisines = oneLineList(context.cuisines.filter(cuisine => NAMEABLE_CUISINES.has(normaliseForMatching(cuisine))));
   const likes = oneLineList(context.likedFoods);
@@ -732,9 +858,12 @@ export function buildPoolPrompt(
       `- The split: ${splitOf(context.targets)}. Every dish should sit close to this split on its own, so any combination of them lands on the day.`,
       context.goal ? `- ${GOAL_GUIDANCE[context.goal]}` : null,
       '',
-      'Every main dish carries a protein source — meat, fish, egg, dairy or legumes — sized to its protein figure. Energy, protein, carbohydrate and fat are each held to 5% of target on every day, over and under: a dish that hits the protein and misses the split is the wrong dish.',
+      'Every main dish carries a protein source — meat, fish, egg, dairy or legumes. Energy, protein, carbohydrate and fat are each held to 5% of target on every day, over and under: a dish that hits the protein and misses the split is the wrong dish.',
       '',
-      ...COMPOSITION_RULES,
+      ...compositionRules(
+        sides,
+        wanted.some(([slot]) => slot === 'supper' || SNACK_SLOTS.includes(slot))
+      ),
       'WHAT MAKES A DISH GOOD ENOUGH TO SEND BACK:',
       '- A name a cook would recognise, describing the dish — not a list of its ingredients.',
       '- Seasoning. The catalogue has salt, paprika, cumin, oregano, cinnamon, bay, garlic, lemon,',

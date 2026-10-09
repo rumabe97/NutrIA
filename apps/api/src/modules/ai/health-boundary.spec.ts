@@ -4,6 +4,8 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { dirname, join } from 'node:path';
 
 import { buildPicturePrompt } from 'core/domain/DishPicture';
+import { FOOD_GROUP_SLUGS } from 'core/domain/MealFit';
+import { pulseKind } from 'core/domain/Variety';
 import { resolvePreferences } from 'core/domain/Preference';
 import { toCatalogue } from 'core/entities/Plan';
 
@@ -236,6 +238,31 @@ describe('the free-text and belief boundary around the AI module', () => {
     expect(sent).not.toContain(excluded);
     expect(sent).toContain('arroz');
   });
+
+  /** The legume kinds an ask may name: `pulseKind`'s vocabulary, as `kindName` writes it, and nothing a person typed. */
+  const KINDS = [...new Set([...FOOD_GROUP_SLUGS.pulses].map(slug => (pulseKind(slug) ?? slug).replaceAll('-', ' ')))].join('|');
+  const ASK_GRAMMAR = new RegExp(
+    `^\\d+ on (legumes( \\(25 g dry a serving\\)(, not (${KINDS})(( or |, )(${KINDS}))*)?|, light \\(warm salad, cream, hummus\\), never stewed)|a whole grain|an oily fish)$`
+  );
+
+  /*
+   * 4.7.0's group asks are read off the pool and the catalogue a request is
+   * shown, never off why a group is missing, and say nothing but the group:
+   * no condition, no belief, no word the person typed.
+   */
+  it.each([[[]], [['kosher']], [['gluten_free']], [['vegetarian']]])(
+    'asks only for a food group, in its own words, for a person who eats %j',
+    async patterns => {
+      const sent = await everyRequest(patterns);
+      const asks = [...sent.matchAll(/Of these: ([^\\]*)\./g)].flatMap(match => (match[1] ?? '').split('; '));
+
+      expect(asks.length).toBeGreaterThan(0);
+
+      for (const ask of asks) {
+        expect(ask).toMatch(ASK_GRAMMAR);
+      }
+    }
+  );
 
   it('still carries the structured answers a plan is designed from', async () => {
     const sent = await everyRequest(['vegetarian']);

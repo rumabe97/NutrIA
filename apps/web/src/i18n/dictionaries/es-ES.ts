@@ -1941,7 +1941,7 @@ export const esES = {
       dietaryPatternsHint:
         'Quitamos el cerdo, el alcohol y la gelatina (y, en kosher, el marisco y la carne con lácteos). La carne certificada depende de dónde la compres. «Tradicional española» deja solo cocina casera española: fuera tofu, seitán, quinoa, salsas asiáticas o tacos.',
       disliked: 'Alimentos que no quieres ver',
-      dislikedHint: 'No volverán a aparecer en tus planes.',
+      dislikedHint: 'No volverán a aparecer en tus planes. «Pescado» no incluye el marisco: si tampoco lo quieres, añade «marisco».',
       displayName: '¿Cómo quieres que te llamemos?',
       goalType: '¿Qué quieres conseguir?',
       heightCm: 'Altura (cm)',

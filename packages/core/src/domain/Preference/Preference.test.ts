@@ -97,6 +97,22 @@ describe('resolvePreferences — a dislike names a food, not one row', () => {
     ).toEqual(['i-yogur-griego-natural']);
   });
 
+  /*
+   * The preferences form says "pescado" leaves shellfish in and to add
+   * "marisco" (019 phase 7): both halves of that sentence are this rule, in
+   * either language the form is written in.
+   */
+  it('keeps shellfish out of "pescado" and takes it out with "marisco", and the same in English', () => {
+    const excluded = (label: string) =>
+      ids(resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: [], dislikedLabels: [label], ingredients: CATALOGUE }));
+
+    expect(excluded('pescado')).not.toContain('i-gambas');
+    expect(excluded('marisco')).toEqual(['i-gambas']);
+    expect(excluded('Fish')).toEqual(excluded('pescado'));
+    expect(excluded('shellfish')).toEqual(['i-gambas']);
+    expect(excluded('fish and shellfish')).toEqual([...excluded('pescado'), 'i-gambas'].sort());
+  });
+
   it('reports what it could not resolve rather than pretending to enforce it', () => {
     const result = resolvePreferences({
       allergenIdsByKey: new Map(),

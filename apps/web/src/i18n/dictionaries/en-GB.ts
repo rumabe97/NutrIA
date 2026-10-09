@@ -1907,7 +1907,7 @@ export const enGB: Dictionary = {
       dietaryPatternsHint:
         'We take out pork, alcohol and gelatine (and, for kosher, shellfish and meat with dairy). Certified meat depends on where you buy it. “Traditional Spanish” leaves only home-style Spanish cooking: no tofu, seitan, quinoa, Asian sauces or tacos.',
       disliked: 'Foods you don’t want to see',
-      dislikedHint: 'They will not appear in your plans again.',
+      dislikedHint: 'They will not appear in your plans again. “Fish” does not include shellfish: if you do not want that either, add “shellfish”.',
       displayName: 'What should we call you?',
       goalType: 'What do you want to achieve?',
       heightCm: 'Height (cm)',

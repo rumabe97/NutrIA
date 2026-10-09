@@ -469,7 +469,11 @@ const GROUP_LABELS: ReadonlyMap<string, readonly FoodClass[]> = new Map([
   ['mariscos', ['shellfish']],
   ['pescado', ['fish']],
   ['pescados', ['fish']],
-  ['pescado y marisco', ['fish', 'shellfish']]
+  ['pescado y marisco', ['fish', 'shellfish']],
+  // The preferences form tells an English reader "fish" leaves shellfish in, and to add it (019 phase 7).
+  ['fish', ['fish']],
+  ['fish and shellfish', ['fish', 'shellfish']],
+  ['shellfish', ['shellfish']]
 ]);
 
 /**
