@@ -194,6 +194,7 @@ export const enGB: Dictionary = {
       'auth.passkey_removed': 'Passkey removed',
       'auth.password_changed': 'Password changed',
       'auth.sessions_revoked': 'Sessions signed out',
+      'auth.unconfirmed_account_swept': 'Unconfirmed account deleted',
       'feedback.handled': 'Message marked seen',
       'feedback.reopened': 'Message reopened',
       'picture.accepted': 'Rejected dish picture accepted by hand, against the checker',

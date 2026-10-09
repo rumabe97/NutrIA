@@ -206,6 +206,7 @@ export const esES = {
       'auth.passkey_removed': 'Llave de acceso quitada',
       'auth.password_changed': 'Contraseña cambiada',
       'auth.sessions_revoked': 'Sesiones cerradas',
+      'auth.unconfirmed_account_swept': 'Cuenta sin confirmar eliminada',
       'feedback.handled': 'Mensaje marcado como visto',
       'feedback.reopened': 'Mensaje reabierto',
       'picture.accepted': 'Imagen rechazada de un plato aceptada a mano, contra el revisor',
