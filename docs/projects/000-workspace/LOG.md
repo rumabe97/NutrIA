@@ -552,6 +552,15 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   - 010 has phase 6 left, a read-only production review. Its gate of about 60 new
     pictures is very likely met. Phase 4's human-verify is not recorded.
 
+## 2026-10-09 — Owner checks collected into one document
+
+- [`owner-checks-2026-10-09.md`](./owner-checks-2026-10-09.md) gathers every check left
+  that only the owner can make, across the three projects the 2026-10-08 audit left open
+  (003, 010, 004), so he can clear them in one sitting instead of hunting through three
+  plans and logs. Ordered quickest first; notes which one needs his yes before an agent
+  reads production, and what exactly it would read; leaves 004's phase 9 check as a note,
+  not a task, since it waits on the same deferred payments work as its go-live.
+
 ## 2026-10-09 — Project 019 closed
 
 - Balanced plans by goal is delivered and closed (#215, #216, #224, #229, #235, #241), under the owner's delegation of 2026-10-03.
