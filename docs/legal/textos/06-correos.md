@@ -398,3 +398,53 @@ no sabe de qué cuenta se trata. La salida es el enlace de `reset`. Frase nueva,
 | `notRemembered` (nuevo), si no la confirma | la misma, más `; te enviaremos un enlace para confirmar que la dirección es tuya.` | the same, plus `; we will send you a link to confirm the address is yours.` |
 
 <!-- Cuál es verdad: en `4f36ec5` restablecer NO confirma la dirección (Better Auth 1.7.6, `dist/api/routes/password.mjs`, no toca `emailVerified`): al entrar con la contraseña nueva, la cuenta sin confirmar recibe el 401 y un enlace (`sendOnSignIn`), y el enlace abre la sesión (`autoSignInAfterVerification`) — segunda variante. El 2026-10-03 `backend-011p8` tiene en su árbol de trabajo, sin commit, `onPasswordReset` → `UserController.confirmAddressByReset` (confirma la dirección al restablecer, solo si no lo estaba) — con eso, primera variante. En los dos casos restablecer cierra las sesiones del otro (`revokeSessionsOnPasswordReset: true`) y borra el freno. No prometo «quien la creó ya no podrá entrar»: si activó un segundo factor en esa cuenta, la frase sería más de lo que el código garantiza sin comprobarlo. -->
+
+---
+
+## P. Correo de confirmación de la dirección (tal como está — proyecto 011, seguimiento del barrido, `0092`, PR #250)
+
+> **No soy abogado.** Documentado **tal como está construido** en `main` (`fbab7b1b`), no
+> como borrador. Entra en este documento porque desde #250 lleva una **promesa de
+> conservación**: dice durante cuánto tiempo se guarda una cuenta que nadie confirma, y eso
+> es información del art. 13.2.a dada en el momento de la recogida. Análisis en
+> [`../analisis.md` § 4.1 quinquies](../analisis.md).
+
+**Plantilla**: `apps/api/src/modules/email/templates/VerifyEmail.ts`, `EmailKind`
+`verify-email`. **Destinatario**: la dirección que se acaba de dar de alta. **Cuándo**: al
+crear la cuenta, y otra vez en cada intento de entrar con la contraseña mientras siga sin
+confirmar (`emailVerification.sendOnSignIn`). **Límite**: tres por dirección y hora
+(`MailBudget`, tipo `verification`). **Marcador**: `{url}`, el enlace con el JWT de
+confirmación (caduca a la hora). El enlace **no abre sesión**
+(`autoSignInAfterVerification: false`) y **no abre la cuenta**: activarla es cosa del
+propietario.
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `Confirma tu correo en NutrIA` | `Confirm your address for NutrIA` |
+| `intro` | `Confirma este correo para que sepamos que es tuyo.` | `Confirm this address so we know it is yours.` |
+| `button` | `Confirmar mi correo` → `{url}` | `Confirm my address` → `{url}` |
+| `next` | `NutrIA se está abriendo poco a poco. En cuanto activemos tu cuenta podrás entrar y empezar; esto no volverá a pedírtelo.` | `NutrIA is opening a few accounts at a time. Once yours is opened you can sign in and start; we will not ask for this again.` |
+| `ignore` | `Si no te has registrado, no confirmes nada: ignora este mensaje y, al mes, borramos el correo que nadie confirma junto con su registro.` | `If you did not sign up, do not confirm anything: ignore this message, and we delete an address nobody confirms, with its sign-up, after thirty days.` |
+| `linkFallback` | `Si el botón no funciona, copia esta dirección en tu navegador:` + `{url}` | `If the button does not work, copy this address into your browser:` + `{url}` |
+
+**Veredicto**: se puede enviar tal cual, y la promesa de `ignore` es verdad del código
+(#250). Dos cosas, abajo: una corrección P3 de redacción y el límite que hay que conocer.
+
+<!-- Fuente: RGPD art. 13.2.a (el plazo de conservación o los criterios para determinarlo — informado aquí en el momento de la recogida, y por eso la política tiene que decir lo mismo: ⟦barrido-sin-confirmar⟧ de 02); art. 5.1.a (lealtad y transparencia: dos textos del mismo producto no pueden decir plazos distintos del mismo dato); art. 5.1.e y 17.1.a (lo que justifica el borrado); art. 32.1.b y 25 (confirmar antes de entrar es la medida que impide que un extraño escriba en una cuenta a nombre de otra dirección). No es comunicación comercial: LSSI (BOE-A-2002-13758, consolidado a 23/01/2025), anexo, letra f — es un mensaje de servicio, base art. 6.1.b. Código leído en `fbab7b1b`: `UNCONFIRMED_ACCOUNT_RETENTION_DAYS = 30` (`packages/core/src/entities/Audit/Audit.ts:70`), `staleUnconfirmedWhere` (`packages/core/src/repositories/User/UserRepository.ts:181`), cron `5 8 * * *` (`apps/api/vercel.json`); `account` en cascada con `user` (`packages/database/src/schemas/auth.schema.ts:96-98`), y el enlace es un JWT firmado, no una fila (Better Auth 1.7.7, `dist/api/routes/email-verification.mjs:14-20`), así que «borramos el correo … junto con su registro» es literal. El docblock de la plantilla ya recoge por qué la línea `ignore` está redactada así; una edición posterior que la suavice vuelve a abrir el residuo que `0092` cierra. -->
+
+**P3 — «al mes» no es «a los treinta días».** El inglés dice `after thirty days` y el
+código son treinta días exactos; «al mes» son 28, 30 o 31 según el mes, y la política va a
+publicar «a los treinta días» en los dos idiomas. Cambio propuesto, solo el español:
+
+| Campo | es-ES (propuesto) |
+| --- | --- |
+| `ignore` | `Si no te has registrado, no confirmes nada: ignora este mensaje y, a los treinta días, borramos el correo que nadie confirma junto con su registro.` |
+
+**El límite que hay que conocer.** La promesa no vale para una cuenta que el propietario
+haya **abierto** desde la consola sin estar confirmada: abrirla escribe una fila de rastro
+(`account.activated` con `subjectUserId`) y eso la saca del barrido para siempre
+(`../analisis.md` § 4.1 quinquies). No se arregla en el correo —enumerar excepciones en una
+línea que tiene que leerse en dos segundos lo empeora—, sino en la operativa: el
+propietario activa solo cuentas confirmadas (casilla del
+[`../checklist-activacion.md`](../checklist-activacion.md) § 0 septies) y, si se quiere en
+el código, la consola no deja activar una cuenta con `emailVerified = false`.

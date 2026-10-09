@@ -5,7 +5,7 @@
 > **Audience**: humans and agents. **Committed**: yes. **Written by**: an agent via
 > `/plan-project` — approved by the owner before the plan is written.
 
-- **Status**: approved
+- **Status**: done — delivered and closed 2026-10-09, the owner's English walk being the last check
 - **Roadmap item**: [`ROADMAP.md`](../../ROADMAP.md) — a new milestone, *"a product a
   stranger would trust"*, sitting between the plan engine and meal interaction.
 

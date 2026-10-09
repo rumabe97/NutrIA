@@ -610,3 +610,14 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   re-run and unmoved (65 accepted, 3 controls rejected), `gate --full`
   green. Only the drawing call changed; the judge's two calls, their
   prompts and models are untouched.
+
+## 2026-10-09 — Project 003 closed
+
+- The owner walked the signed-in screens in English and found no Spanish, which was the one
+  check the project still waited on: "Ya he recorrido el 3 y está bien".
+- Its other three open phases were ticked with their reasons written down rather than
+  re-walked: the onboarding screens were rebuilt since their walk, the design pass has been
+  reworked twice and reviewed since, and the end-to-end suites stopped being owner-gated
+  when CI started running them on every pull request.
+- Open projects after today: 004, blocked on the payments decision of 2026-09-25, and 011,
+  whose phase 10 cannot run before 2026-10-15.
