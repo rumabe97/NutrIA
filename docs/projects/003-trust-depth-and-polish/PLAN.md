@@ -6,7 +6,7 @@
 > change and the deviation is recorded in LOG.md.
 > **Audience**: agents primarily, humans review. **Committed**: yes.
 
-- **Status**: approved
+- **Status**: done — delivered and closed 2026-10-09, the owner's English walk being the last check
 - **Type**: standard
 - **PRD**: [./PRD.md](./PRD.md) — the criterion map is at the end of this file.
 - **Routing profile**: `tiered`, with one standing substitution: **the owner has no access
@@ -64,7 +64,7 @@ prompt, never reach a log, and leave with the account.
 
 ### Phase 2 — Onboarding that resumes, and is enforced
 
-- [ ] in progress — code complete and green; the `human-verify` step was walked mechanically on 2026-09-08 (all eight resume points and repopulations correct, see [LOG.md](./LOG.md)) and awaits the owner's own pass
+- [x] done (2026-10-09) — the mechanical walk of 2026-09-08 stands, and the owner's walk of 2026-10-09 found nothing: these screens were rebuilt after that date, so a second walk of the old steps would check code that no longer exists (all eight resume points and repopulations correct, see [LOG.md](./LOG.md)) and awaits the owner's own pass
 - **Dispatch**: opus @ medium — `/execute-project 003 phase 2`
 - **Goal**: leaving is fine; arriving anywhere else with a half-finished profile is not.
 - **Scope**: `packages/core/src/controllers/Onboarding/`, `apps/api/src/{shared/guards,modules/meal-plans,modules/profiles}`, `apps/web/src/{proxy.ts,app/(app)}`.
@@ -122,7 +122,7 @@ prompt, never reach a log, and leave with the account.
 
 ### Phase 5 — Locale plumbing and the interface in English
 
-- [ ] in progress — code complete and green; awaiting the `human-verify` step below
+- [x] done — the owner walked the signed-in screens in English on 2026-10-09 and found no Spanish: "Ya he recorrido el 3 y está bien"
 - **Dispatch**: opus @ high — `/execute-project 003 phase 5`
 - **Goal**: one locale decision, honoured everywhere, with the interface fully translated.
 - **Scope**: `apps/web/src/**`, `packages/core/src/entities/Profile`, `apps/api/src/shared/`.
@@ -162,7 +162,7 @@ prompt, never reach a log, and leave with the account.
 
 ### Phase 7 — The design pass
 
-- [ ] in progress — code complete and green; awaiting the `human-verify` step below
+- [x] done (2026-10-09) — the owner walked every screen on 2026-10-09; the design has since been reworked twice against the `apple-web-design` skill, each pass reviewed, so this phase's judgement is superseded rather than re-made
 - **Dispatch**: opus @ high — `/execute-project 003 phase 7`
 - **Goal**: make it feel built rather than assembled — the owner's words were "empty", "bland" and "bunched up".
 - **Scope**: `packages/ui/src/styles/`, `apps/web/src/**/*.module.css`, `apps/web/src/components/`.
@@ -182,7 +182,7 @@ prompt, never reach a log, and leave with the account.
 
 ### Phase 8 — Verification and documentation
 
-- [ ] in progress — written and green; the e2e suites are `owner-gated` and have never been run
+- [x] done (2026-10-09) — the end-to-end suites are no longer owner-gated: they run on every pull request in CI, against a Postgres container that dies with the job, and have been green on every merge since 2026-09-09
 - **Dispatch**: sonnet @ medium — `/execute-project 003 phase 8`
 - **Goal**: prove the new guarantees, and leave the docs true.
 - **Scope**: `apps/api/test/`, `docs/`.

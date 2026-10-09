@@ -582,3 +582,14 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   range's share; chosen days as individual boxes; the filter remembered per device.
 - Decision [`0091`](../../decisions/0091-the-shopping-list-is-read-by-range-and-bought-by-amount.md)
   carries the shape and why the two obvious alternatives were refused.
+
+## 2026-10-09 — Project 003 closed
+
+- The owner walked the signed-in screens in English and found no Spanish, which was the one
+  check the project still waited on: "Ya he recorrido el 3 y está bien".
+- Its other three open phases were ticked with their reasons written down rather than
+  re-walked: the onboarding screens were rebuilt since their walk, the design pass has been
+  reworked twice and reviewed since, and the end-to-end suites stopped being owner-gated
+  when CI started running them on every pull request.
+- Open projects after today: 004, blocked on the payments decision of 2026-09-25, and 011,
+  whose phase 10 cannot run before 2026-10-15.

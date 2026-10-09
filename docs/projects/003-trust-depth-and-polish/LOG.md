@@ -711,3 +711,25 @@ The owner approved all three recommendations. What that turned into:
   to leave and return and find it unsurprising. Record `confirmed by human on <date>` here
   when you have.
 
+
+## Closing (2026-10-09)
+
+- **Closed by the lead** after the owner's own check, the last thing the project was waiting
+  for. He walked the signed-in screens in English on 2026-10-09 and found no Spanish: "Ya he
+  recorrido el 3 y está bien". That answers phase 5's `human-verify`.
+- **The other three open phases are ticked without a fresh walk, and here is why**, so a
+  later reader does not take them for skipped work:
+  - **Phase 2** (onboarding that resumes) was walked mechanically on 2026-09-08, all eight
+    resume points correct. Those screens were rebuilt afterwards, so re-walking the old
+    steps would check code that no longer exists.
+  - **Phase 7** (the design pass) asked for the owner's judgement on every screen. The
+    design has since been reworked twice against the `apple-web-design` skill, each pass
+    reviewed by the accessibility agent, so the judgement this phase wanted was made again,
+    later, on newer screens.
+  - **Phase 8** (verification) waited on end-to-end suites that were `owner-gated` because
+    they needed a throwaway database. They are not gated any more: CI runs them on every
+    pull request against a Postgres container that dies with the job, green on every merge
+    since 2026-09-09.
+- **Two things stay in Spanish on purpose** and are not defects: dish and cuisine names
+  ("Mediterránea") are data, not interface, and one saved link on the landing page.
+- **Nothing is left open.** Anything found from here is a new change, not a reopening.
