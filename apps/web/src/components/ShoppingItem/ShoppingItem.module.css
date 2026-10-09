@@ -1,9 +1,5 @@
 .item {
-  align-items: center;
   border-bottom: 1px solid var(--border-01);
-  display: flex;
-  gap: var(--space-04);
-  justify-content: space-between;
   padding-block: var(--space-03);
 }
 
@@ -29,9 +25,10 @@
   align-items: center;
   cursor: pointer;
   display: flex;
-  /* The whole row is the target, not the box: this is used one-handed, walking. */
-  flex: 1;
   gap: var(--space-03);
+  /* The whole row is the target, not the box: this is used one-handed, walking.
+     The quantity sits inside it now, so the right-hand end is no longer dead. */
+  justify-content: space-between;
   min-block-size: var(--label-floor);
 }
 
@@ -44,6 +41,7 @@
 }
 
 .name {
+  flex: 1;
   font-size: var(--font-size-03);
   min-inline-size: 0;
   overflow-wrap: anywhere;
@@ -73,17 +71,27 @@
  */
 @media (width < 17rem) {
   /* No row gap: a wrapped quantity belongs to its name, not halfway to the next item. */
-  .item {
+  .label {
     flex-wrap: wrap;
     row-gap: 0;
   }
 
-  .label {
-    flex-basis: auto;
+  .name {
+    flex-basis: 100%;
   }
 
   /* Under the name, not at the far edge where it reads as the next row's. */
   .quantity {
     margin-inline-start: calc(1.15rem + var(--space-03));
   }
+}
+
+/*
+ * Half bought is not done: no strike-through and no dimming, because the row
+ * still has something to find and a struck-through line reads as finished. The
+ * native indeterminate mark carries the state; what changes here is only that
+ * the remainder is the figure worth reading.
+ */
+.item[data-partly='true'] .quantity {
+  font-weight: var(--font-weight-medium);
 }

@@ -9,7 +9,7 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { useOffline } from 'components/OfflineProvider';
 
-import { flushTicks } from 'lib/pendingTicks';
+import { flushMarks } from 'lib/pendingTicks';
 import { formatInstant, interpolate } from 'lib/format';
 import { refreshOfflineCopies } from 'lib/offline';
 
@@ -38,7 +38,7 @@ export function OfflineCopy() {
     // opening a screen, on reconnecting, and on coming back to the app. The
     // stored copies are then refreshed, so they no longer show them unticked.
     function flush() {
-      void flushTicks().then(sent => {
+      void flushMarks().then(sent => {
         if (sent > 0) {
           void refreshOfflineCopies(true);
         }

@@ -119,3 +119,45 @@ describe('resolveRange', () => {
     expect(resolveRange(WHOLE_PLAN, FORTNIGHT)).toBe(WHOLE_PLAN);
   });
 });
+
+/*
+ * The gesture a narrow range cannot express (found by `accessibility` as a P0).
+ * A row marked across the fortnight, unmarked from one week: giving back the
+ * week's share still leaves more than the week needs, so the box springs back
+ * and nothing on screen moves. From a single day's view that is eleven taps
+ * that each change nothing and each reach the server.
+ */
+describe('unmarking from a range narrower than what is bought', () => {
+  /** The row's own arithmetic, as `ShoppingItem` does it. */
+  function unmark(bought: number, needed: number) {
+    const amount = Math.max(bought - needed, 0);
+
+    return { amount, refused: needed > 0 && amount >= needed, stillDone: needed > 0 && amount >= needed };
+  }
+
+  it('would leave the row done after giving back a week of a fortnight', () => {
+    expect(unmark(1200, 500).stillDone).toBe(true);
+  });
+
+  it('would do it eleven times over from one day of a fortnight', () => {
+    let bought = 1200;
+    let dead = 0;
+
+    while (unmark(bought, 100).stillDone) {
+      bought = unmark(bought, 100).amount;
+      dead += 1;
+    }
+
+    expect(dead).toBe(11);
+  });
+
+  it('is refused instead, exactly when the give-back would still cover the range', () => {
+    expect(unmark(1200, 500).refused).toBe(true);
+    expect(unmark(700, 500).refused).toBe(false);
+    expect(unmark(500, 500).refused).toBe(false);
+  });
+
+  it('never refuses a row whose range needs nothing, which cannot be marked either', () => {
+    expect(unmark(0, 0).refused).toBe(false);
+  });
+});

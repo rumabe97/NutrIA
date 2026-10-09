@@ -2,6 +2,16 @@
 
 **Status**: accepted · **Date**: 2026-09-13 · **Deciders**: owner, agent
 
+**Amended 2026-10-09** by [`0091`](./0091-the-shopping-list-is-read-by-range-and-bought-by-amount.md)
+(project 020 phase 4): **a tick is now an amount.** Every rule below holds exactly as
+written — the last mark for a row wins, a 4xx drops it, a 5xx keeps it, the flush stops at
+the first that finds no connection, and a session change clears the queue — and all of
+them are proved again in `pendingTicks.test.ts`. What changed is only what an entry
+*holds*: the request body, not a boolean. The key moved to `nutria-pending-ticks-v2`, the
+v1 key is read once so a tick queued by the previous build is not lost to the deploy and
+is then dropped, and a v1 entry goes out as the tick it was — only the server knows a
+row's whole need, so it is the server that turns a tick into grams.
+
 ## Context
 
 `0053` made the shopping list readable offline, but a tick made offline undid itself a
@@ -12,9 +22,9 @@ drops. The owner took it as the next step ("Va, continúa").
 ## Decision
 
 - **Every tick is queued on the device first, then sent at once.** The queue lives in
-  `localStorage` (`nutria-pending-ticks-v1`, `apps/web/src/lib/pendingTicks.ts`). It holds
-  one entry per item, and the last tick wins: ticking and unticking offline leaves one
-  answer to send, not a history of changes.
+  `localStorage` (`nutria-pending-ticks-v2` since the amendment above, `v1` before it;
+  `apps/web/src/lib/pendingTicks.ts`). It holds one entry per item, and the last tick wins:
+  ticking and unticking offline leaves one answer to send, not a history of changes.
 - **It is sent again when a connection may be back**: on opening any signed-in screen, on
   reconnecting, and on returning to the app. Ticks go one at a time, one flush at a time,
   and the first that finds no connection stops the flush. Once any tick is sent, the

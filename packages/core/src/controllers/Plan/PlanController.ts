@@ -838,14 +838,6 @@ export const PlanController = {
   },
 
   /**
-   * Ticks an item off the shopping list.
-   *
-   * A read-only list was the honest state while nothing could be written; now
-   * that something can, this is the whole of it. Deliberately not a "clear all"
-   * or a quantity edit: those are separate decisions, and a control that does
-   * more than it says is worse than one that does less.
-   */
-  /**
    * Records how much of a row has been bought (`0091`), from an amount or from
    * the tick it replaced. The cap at the row's own need and the floor at zero
    * are the repository's single statement; this layer only turns "no row of

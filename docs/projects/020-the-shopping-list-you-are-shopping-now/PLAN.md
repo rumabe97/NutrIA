@@ -113,7 +113,7 @@ change arrives last:
 
 ### Phase 3 — Pick your days
 
-- [x] done
+- [x] done — commit `73373367` ("You choose which days the shopping list is for")
 - **Dispatch**: opus @ medium — `/execute-project 020 phase 3`. Reviews: `accessibility`.
   Use the `apple-web-design` skill, as every UI change does.
 - **Goal**: the reader chooses the fortnight, a week or any days, and the list, the
@@ -150,23 +150,32 @@ change arrives last:
 
 ### Phase 4 — A mark is an amount, in the aisle with no signal
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 020 phase 4`. Reviews: `invariant-reviewer`
   (the offline write path), `accessibility` (the partly-bought row's announcement).
 - **Goal**: marking and unmarking move an amount, offline included, and a half-bought row
   says what is left.
-- **Scope**: `apps/web/src/components/ShoppingItem/`, `apps/web/src/lib/pendingTicks.ts`,
-  the dictionaries, and `docs/decisions/0055-*.md` (amendment).
+- **Scope**: `apps/web/src/components/Shopping*` and `components/OfflineCopy/`,
+  `apps/web/src/lib/{pendingTicks,offline}.ts`, the dictionaries, and
+  `docs/decisions/0055-*.md` (amendment). Plus one `export` keyword in
+  `packages/core/src/domain/ShoppingList/`: the screen needs `toDisplay` for what is
+  **left** of a half-bought row, and a second copy of the countable-rounding rule in the
+  web is exactly what `0091` says must not exist. The extra web components are the queue's
+  other callers — progress, the share text and the offline flush all read it.
 - **Steps**:
   1. Marking sends `max(bought, needed(range))`; unmarking sends
      `max(0, bought - needed(range))`. The row's three states are untouched, partly bought
      (showing `needed(range) - bought`) and done.
-     **It sends `{ boughtGrams, checked }` — both — for one release.** While this build
-     deploys, its writes reach the API still live, whose body schema predates phase 2 and
-     answers `{ boughtGrams }` alone with a 400; by `0055` a 4xx drops the entry from the
-     offline queue, so the mark would vanish with no trace. `boughtAsk` already prefers the
-     amount when both arrive, so sending both is correct against either API. Found by
-     `migration-reviewer` on phase 2.
+     **It sends `{ boughtGrams, checked }` — both — for one release.** Found by
+     `migration-reviewer` on phase 2, when the reason was that the API still live during
+     this build's deploy would answer `{ boughtGrams }` alone with a 400 and `0055` would
+     drop the mark with no trace. **That window closed when phase 2 reached production**
+     (`invariant-reviewer`, phase 4): what the tick now buys is insurance against a
+     *rollback* of that release. Worth keeping for the one release, and free — `boughtAsk`
+     prefers the amount on the current API. What it covers is narrower than it sounds: the
+     pre-phase-2 schema is non-strict, so a reverted API strips the amount and reads the
+     tick, and a partial shop (700 g of 1.2 kg, sending `checked: false`) lands as nothing
+     bought. The mark survives a rollback; the amount does not.
   2. The queue holds an amount per row. Move the key to `nutria-pending-ticks-v2`, read the
      v1 key once so a tick made offline before the deploy is not lost, then drop it.
   3. `0055`'s rules are unchanged and must be re-proved by spec: the newest entry for a row

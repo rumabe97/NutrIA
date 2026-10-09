@@ -281,10 +281,20 @@ is plain JavaScript with no build step, and it is tested by loading the file its
 `components/OfflineProvider` answers whether the screen is live and what opens without
 one. `components/OfflineCopy` keeps the copies fresh and says when one is on screen.
 
-- Ticks on the shopping list go through `lib/pendingTicks` (`0055`): queued on the device,
-  sent at once, and sent again when a connection may be back (`OfflineCopy`). A new offline
-  action would follow the same pattern. Until one does, everything else needs a connection,
-  and the offline notice says so.
+- Marks on the shopping list go through `lib/pendingTicks` (`0055`, amended by `0091`: a
+  mark is an amount, not a tick): queued on the device, sent at once, and sent again when a
+  connection may be back (`OfflineCopy`). A new offline action would follow the same
+  pattern. Until one does, everything else needs a connection, and the offline notice says
+  so.
+- **A component queues and flushes; it never sends.** `queueMark` then `flushMarks`, never
+  `sendMark` directly — one write to a row in the air per device. A component that sends
+  its own write sits outside the serialiser, and a flush already draining (twenty rows on
+  supermarket 3G is many seconds) will land its older, snapshotted body *after* the newer
+  one: the row re-marks itself on the server and on screen, seconds after the person
+  undid it. That is the failure `0055` exists to prevent, it is deterministic rather than a
+  race, and it was shipped and caught in review once already (project 020 phase 4). For the
+  same reason `flushMarks` re-reads each entry at send time instead of trusting the list it
+  started with.
 - **A cached screen's own state never goes in the address.** The copy is keyed by path, so
   `?semana=1` or `/compra/semana-1` is a page the worker never stored and a shopper with no
   signal gets the browser's "not connected" page instead of their list. State that belongs
