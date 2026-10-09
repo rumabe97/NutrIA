@@ -582,3 +582,24 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   range's share; chosen days as individual boxes; the filter remembered per device.
 - Decision [`0091`](../../decisions/0091-the-shopping-list-is-read-by-range-and-bought-by-amount.md)
   carries the shape and why the two obvious alternatives were refused.
+
+## 2026-10-09 — Project 010 closed, and a task it handed over
+
+- Phase 6's read of production happened with the owner's authorisation, and phase 4's check
+  was confirmed by him the same day. Project 010 is closed; its numbers and his four
+  decisions are in that project's LOG.
+- The headline: the judge blocks nothing in production, the own-form exemption has never
+  fired in eight days, and the real failure is a garnish the drawing invents — three of
+  eleven stored rejections, and the one picture he had to accept by hand after the rule
+  shipped.
+
+### Task — the drawing call is told to put nothing on the plate the recipe lacks
+
+- **Decided by the owner on 2026-10-09** from phase 6's numbers; recorded here rather than in
+  project 010 because that project's hand-off reserves any change to the two calls for a
+  change of its own ("the two calls are not touched… a change there is a different project").
+- **What it is**: one line in the picture prompt — no spread, sauce, topping or seed that the
+  recipe does not list — with its version bumped, and the pilot's floor re-run (65 accepted
+  with their notes, 3 controls rejected).
+- **Why it is worth a change**: peanut butter drawn onto a dish whose spread is jam is the
+  single most common rejection in production, and it is the drawing's fault, not the judge's.
