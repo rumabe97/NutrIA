@@ -845,6 +845,15 @@ export function judgePicture(input: {
 
   const rejecting = extras.filter(extra => extra.specific && !extra.generic && extra.amount !== 'trace' && extra.foreignAllergens.length > 0);
   const status = new Map(match.ingredients.map(ingredient => [ingredient.slug, ingredient.status]));
+  /*
+   * A main the judge did not see is counted (`missing_main:`, read by the
+   * console) and never rejects on its own — it never has, since this file's
+   * first version. The owner ratified that as a decision on 2026-10-09,
+   * against a week of production: the note appeared twice and never alone,
+   * always beside an added allergen that rejected the picture anyway. A
+   * picture missing a visible main is ugly, not unsafe, so `missing` plays no
+   * part in `rejecting` above, whatever the match call answers.
+   */
   const missing = pictureParts(recipe).mains.filter(main => status.get(main.slug) === 'not_seen');
   // The dish's own form is named, even when nothing else of its name maps: it is not an unknown food.
   const unmapped = extras.filter(extra => extra.specific && !extra.generic && extra.mappedTo.length === 0 && !ownForms.includes(extra.name));
