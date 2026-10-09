@@ -7,7 +7,7 @@
 > **Audience**: agents primarily, humans review. **Committed**: yes.
 > **Written by**: an agent via `/plan-project`.
 
-- **Status**: approved — by the owner, 2026-09-30
+- **Status**: done — delivered and closed 2026-10-09 (the owner decided phase 6's four questions that day)
 - **Type**: standard
 - **PRD**: [./PRD.md](./PRD.md). Every acceptance criterion is mapped at the end of this file.
 - **Routing profile**: `tiered`, with **every code phase at `quality-max` (opus @ high)**:
@@ -198,7 +198,8 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
 
 ### Phase 4 — Any published picture can be removed
 
-- [ ] in progress
+- [x] done — human-verify confirmed by the owner on 2026-10-09 ("funcionan bien"): a
+  judge-accepted picture's review screen offers "Retirar".
 - **Dispatch**: opus @ high — `/execute-project 010 phase 4`. `quality-max`: it changes who
   may take back what. Reviews: `invariant-reviewer`, `accessibility` with `/local-probe`,
   `legal`. — human-verify: the owner opens a dish whose picture the judge accepted and
@@ -281,7 +282,9 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
 
 ### Phase 6 — Production, after it ships
 
-- [ ] in progress — waiting on its gate: about 60 dishes drawn with the final rule (live since `09ed832`, 2026-10-01) or 2026-10-15, whichever comes first
+- [x] done (2026-10-09; see LOG) — its gate was met: 73 pictures drawn since the rule went
+  live on 2026-10-01, against the 60 it asked for. The owner authorised the read that day
+  and decided the four open questions from its numbers.
 - **Dispatch**: opus @ medium — `/execute-project 010 phase 6`. No code; reads production
   read-only. — owner-gated: phases 2 to 5 shipped, and either about 60 dishes drawn with
   the new rule or two weeks gone, whichever comes first.
