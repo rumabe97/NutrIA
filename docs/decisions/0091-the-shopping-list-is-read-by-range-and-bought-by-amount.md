@@ -6,6 +6,15 @@
 - **Amends**: [`0055`](./0055-a-tick-in-the-aisle-waits-for-the-signal.md) (a tick becomes an
   amount), and leaves [`0053`](./0053-the-shopping-list-survives-the-supermarket.md) and
   [`0078`](./0078-a-plate-has-a-gram-ceiling-and-cooked-grains-read-dry.md) in force.
+- **Amended 2026-10-09**, building project 020 phase 2, on two points of fact that agents
+  `invariant-reviewer` and `migration-reviewer` both checked in the code. The reason for
+  keeping `checked` said "and the admin console reads it": it does not. `shopping_lists` and
+  `shopping_list_items` have exactly one reader and writer, `PlanRepository`, and the only
+  screen that reads the flag is the web shopping list — so the deploy window is the whole
+  reason, and the release that stops the old build reaching production is the release the
+  column can go. A sentence like that one, left standing, is how a column outlives its
+  reason. The second point: this record said a row is done when `bought >= needed` **and**
+  untouched at zero, which both hold at a zero need; the rule below now says which wins.
 
 ## Context
 
@@ -48,9 +57,10 @@ Three shapes were available.
   untouched at zero, and partly bought in between, where what it shows is
   `needed(range) - bought`.
 - **`checked` stays, derived**, for one release: the old web build runs against the new API
-  while a deploy is in flight, and the admin console reads it. A write of `boughtGrams` sets
-  `checked` to whether the whole plan's need is covered; a write of `checked` sets
-  `boughtGrams` to the whole need or to zero.
+  while a deploy is in flight. A write of `boughtGrams` sets `checked` to whether the whole
+  plan's need is covered; a write of `checked` sets `boughtGrams` to the whole need or to
+  zero. A row that needs nothing reads **untouched**, not done — of the two sentences above
+  that both apply at a zero need, "untouched at zero" is the honest one.
 - **The offline queue carries amounts.** Its key moves to `nutria-pending-ticks-v2`, one
   entry per row holding the amount last chosen on this device, and `0055`'s rules are
   otherwise unchanged: the newest entry for a row wins, a 4xx drops it, a 5xx keeps it, and

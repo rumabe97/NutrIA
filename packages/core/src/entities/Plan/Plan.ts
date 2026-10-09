@@ -202,8 +202,14 @@ export type ShoppingItemDraft = {
   readonly category: IngredientCategory;
   readonly displayQuantity: number;
   readonly displayUnit: MeasurementUnit;
+  /** Whether a range's sum of this row is rounded up to the 5 g step (`0078`) — see `core/domain/ShoppingList`. */
+  readonly dryRounded: boolean;
+  /** What one unit of a countable weighs, so a range can be counted in units; null for anything sold by weight. */
+  readonly gramsPerUnit: number | null;
   readonly ingredientId: string;
   readonly name: string;
+  /** What each day of the plan owes this row, the day's own date against unrounded grams (`0091`). */
+  readonly perDay: Readonly<Record<string, number>>;
   readonly totalGrams: number;
 };
 
@@ -238,8 +244,20 @@ export type PlanDraft = {
   readonly today: string;
 };
 
-/** The only field a shopping-list item exposes for writing. */
-export const setShoppingItemSchema = z.object({ checked: z.boolean() });
+/**
+ * What a shopping-list item exposes for writing: an amount bought, or the tick
+ * that amount replaced (`0091`).
+ *
+ * Both are accepted, and one derives the other, because the web build live
+ * during a deploy still sends `checked` — `checked: true` means the whole plan's
+ * need, `false` means nothing. At least one must be present; when both are, the
+ * amount wins, since it is the finer claim. The server caps the amount at the
+ * row's own `totalGrams` and floors it at zero whatever arrives here, so this
+ * bound only keeps a nonsense number out of the arithmetic.
+ */
+export const setShoppingItemSchema = z
+  .object({ boughtGrams: z.number().nonnegative().max(1_000_000).optional(), checked: z.boolean().optional() })
+  .refine(body => body.boughtGrams !== undefined || body.checked !== undefined, { message: 'Send boughtGrams or checked' });
 
 export type SetShoppingItem = z.infer<typeof setShoppingItemSchema>;
 

@@ -44,7 +44,7 @@ change arrives last:
 
 ### Phase 1 — The domain knows which day each gram is for
 
-- [x] done
+- [x] done — commit `5faead3f` ("A shopping list row knows which day each gram is for")
 - **Dispatch**: opus @ medium — `/execute-project 020 phase 1`
 - **Goal**: `packages/core` can say what a chosen set of days needs of each ingredient, by
   the same rules the whole-plan list already follows.
@@ -71,7 +71,7 @@ change arrives last:
 
 ### Phase 2 — An amount bought, and the days on the wire
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 020 phase 2`. Reviews: `migration-reviewer`
   (opus @ high, the floor for any migration), `invariant-reviewer`.
 - **Goal**: the API stores an amount, serves the per-day breakdown, and the build that is
@@ -79,7 +79,10 @@ change arrives last:
 - **Scope**: `packages/database/src/schemas/shopping.schema.ts` and a new migration;
   `packages/core/src/{entities,repositories,controllers}/Plan/`;
   `apps/api/src/modules/shopping-lists/` and the shopping route of
-  `apps/api/src/modules/meal-plans/`.
+  `apps/api/src/modules/meal-plans/`; and **the three places that build a list** —
+  `meal-plans/services/{PlanGeneration,MealSwap}.service.ts` and
+  `events/services/PlanLoadRebuild.service.ts` — which must give their days dates and carry
+  the new fields through, or a swap and an event rebuild write a list no range can filter.
 - **Steps**:
   1. Migration: add `boughtGrams numeric(9,2) NOT NULL DEFAULT 0` to
      `shopping_list_items`, and backfill `boughtGrams = totalGrams` where `checked`. Keep
@@ -155,6 +158,12 @@ change arrives last:
   1. Marking sends `max(bought, needed(range))`; unmarking sends
      `max(0, bought - needed(range))`. The row's three states are untouched, partly bought
      (showing `needed(range) - bought`) and done.
+     **It sends `{ boughtGrams, checked }` — both — for one release.** While this build
+     deploys, its writes reach the API still live, whose body schema predates phase 2 and
+     answers `{ boughtGrams }` alone with a 400; by `0055` a 4xx drops the entry from the
+     offline queue, so the mark would vanish with no trace. `boughtAsk` already prefers the
+     amount when both arrive, so sending both is correct against either API. Found by
+     `migration-reviewer` on phase 2.
   2. The queue holds an amount per row. Move the key to `nutria-pending-ticks-v2`, read the
      v1 key once so a tick made offline before the deploy is not lost, then drop it.
   3. `0055`'s rules are unchanged and must be re-proved by spec: the newest entry for a row
@@ -186,6 +195,18 @@ change arrives last:
      the amount survived, capped at the new need.
   2. One case for the old client: a `{ checked: true }` write still works.
   3. One case for another account's item: 404.
+  3b. **The four cases phase 2 could not cover, found by `invariant-reviewer`**: today's
+     suites only ever send a tick (`fortnight.e2e-spec.ts`, `care-review.e2e-spec.ts`), so
+     an **amount** has no HTTP coverage at all. (a) An amount from a stranger → 404 **and
+     the row unchanged**. (b) An amount against a plan under review → 404 with
+     `boughtGrams` untouched (`0060`) — `care-review.e2e-spec.ts`'s helper should send an
+     amount beside the tick. (c) The cap: `{ boughtGrams: 999999 }` on a 1,200 g row stores
+     1,200. (d) The derived `checked` over HTTP: an amount equal to the need reads back
+     `checked: true`, zero reads back `false` — the boolean the live build depends on
+     mid-deploy. (e) The rounding the same reviewer found: `{ boughtGrams: 99.999 }` on a
+     100 g row reads back `boughtGrams: 100` **and** `checked: true`, never the one state
+     `0091` forbids. Until these land, the bound is proved only by a hand-run rehearsal
+     against the local Postgres, recorded in phase 2's LOG entry.
   4. Update `ROADMAP.md` § Next item 2, `PRODUCT.md` and `ARCHITECTURE.md` to describe the
      list as it now is.
   5. Close: PRD and PLAN status to done, the LOG's closing entry with each criterion and any

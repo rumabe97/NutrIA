@@ -266,8 +266,11 @@ export class MealSwapService {
         category: item.category,
         displayQuantity: item.displayQuantity,
         displayUnit: item.displayUnit,
+        dryRounded: item.dryRounded,
+        gramsPerUnit: item.gramsPerUnit,
         ingredientId: item.ingredientId,
         name: item.name,
+        perDay: item.perDay,
         totalGrams: item.totalGrams
       })),
       review
@@ -278,12 +281,19 @@ export class MealSwapService {
   }
 }
 
-function groupByDay(meals: readonly MealCompositionView[]): readonly { readonly meals: readonly MealCompositionView[] }[] {
-  const days = new Map<number, MealCompositionView[]>();
+/**
+ * One entry per day, each carrying that day's own date — what the shopping
+ * list keys its per-day breakdown by (`0091`). A day with no date could not be
+ * filtered.
+ */
+function groupByDay(meals: readonly MealCompositionView[]): readonly { readonly date: string; readonly meals: readonly MealCompositionView[] }[] {
+  const days = new Map<number, { date: string; meals: MealCompositionView[] }>();
 
   for (const meal of meals) {
-    days.set(meal.dayIndex, [...(days.get(meal.dayIndex) ?? []), meal]);
+    const day = days.get(meal.dayIndex) ?? { date: meal.date, meals: [] };
+
+    days.set(meal.dayIndex, { date: day.date, meals: [...day.meals, meal] });
   }
 
-  return [...days.values()].map(entries => ({ meals: entries }));
+  return [...days.values()];
 }

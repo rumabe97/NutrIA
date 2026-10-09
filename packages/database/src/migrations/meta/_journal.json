@@ -428,6 +428,13 @@
       "when": 1791037945548,
       "tag": "0060_a_sign_in_brake_per_address",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1791556504838,
+      "tag": "0061_a_shopping_row_is_bought_by_amount",
+      "breakpoints": true
     }
   ]
 }
