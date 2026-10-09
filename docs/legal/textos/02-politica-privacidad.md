@@ -69,7 +69,7 @@
 >   aviso. Fuente y porqué en [`analisis.md` § 4.1 ter](../analisis.md).
 >
 > - **⟦navegador-conocido⟧** (2026-10-09, proyecto 011 fase 7b, decisión `0089`, PR #242;
->   las marcas no se publican; en inglés ⟦known-browser⟧): la cookie `sign_in_device`, que
+>   las marcas no se publican; en inglés ⟦known-browser⟧, y en la línea inglesa de «Cookies» ⟦two-step⟧ = ⟦dos-pasos⟧ y ⟦passkeys⟧ = ⟦llaves-de-acceso⟧, ya publicadas): la cookie `sign_in_device`, que
 >   libra del freno por dirección al navegador que ya entró con la contraseña. Un añadido a
 >   la viñeta ⟦frenos⟧ y una frase en «Cookies», **en el mismo cambio** que lleva el PR
 >   #242 a producción, con `privacy.updated` = la fecha de ese día; antes, no. La frase
