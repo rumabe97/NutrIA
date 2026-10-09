@@ -552,6 +552,17 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   - 010 has phase 6 left, a read-only production review. Its gate of about 60 new
     pictures is very likely met. Phase 4's human-verify is not recorded.
 
+## 2026-10-09 — Project 019 closed
+
+- Balanced plans by goal is delivered and closed (#215, #216, #224, #229, #235, #241), under the owner's delegation of 2026-10-03.
+- The PRD criteria and the accepted waivers are in its LOG's closing entry.
+- Left outside the project:
+  - the follow-ups from phase 5;
+  - the paid sample of 4.7.0's asks, which the owner approved the same day: it passed, cost
+    0.0654 USD, and found the dinner asks refused by Table 2, fixed as prompt 4.7.1 (#247).
+- Next: 011 phase 10, which cannot run before 2026-10-15 — it needs a week of real
+  report-only CSP reports first.
+
 ## 2026-10-09 — Project 020 planned: the shopping list you are shopping now
 
 - The owner, the same day: the list should cover the fortnight, a week or chosen days, and a

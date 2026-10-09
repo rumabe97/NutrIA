@@ -3,6 +3,7 @@ import { memoryAdapter } from 'better-auth/adapters/memory';
 
 import { AnalyticsController } from 'core/controllers/Analytics';
 import { CareController } from 'core/controllers/Care';
+import { UserController } from 'core/controllers/User';
 import { ReauthenticationRequiredError } from 'core/entities/Error';
 
 import { validateEnv } from '../../../config/Env.validation.js';
@@ -53,6 +54,7 @@ const env = validateEnv({
 describe('deleting an account through UsersService.remove, on the real Better Auth', () => {
   const cancelEverything = jest.fn(async (_userId: string) => Promise.resolve());
   let forgetAddress: jest.SpiedFunction<typeof CareController.forgetAddress>;
+  let forgetDevices: jest.SpiedFunction<typeof UserController.forgetDevices>;
 
   beforeEach(() => {
     for (const rows of Object.values(store)) {
@@ -63,6 +65,7 @@ describe('deleting an account through UsersService.remove, on the real Better Au
     jest.spyOn(AnalyticsController, 'record').mockResolvedValue(undefined);
     jest.spyOn(AnalyticsController, 'recordUse').mockResolvedValue(undefined);
     forgetAddress = jest.spyOn(CareController, 'forgetAddress').mockResolvedValue(undefined);
+    forgetDevices = jest.spyOn(UserController, 'forgetDevices').mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -95,6 +98,7 @@ describe('deleting an account through UsersService.remove, on the real Better Au
 
     expect(cancelEverything).not.toHaveBeenCalled();
     expect(forgetAddress).not.toHaveBeenCalled();
+    expect(forgetDevices).not.toHaveBeenCalled();
     expect(store.user).toHaveLength(1);
     expect(store.session).toHaveLength(1);
     expect(store.account).toHaveLength(1);
@@ -110,5 +114,17 @@ describe('deleting an account through UsersService.remove, on the real Better Au
     expect(cancelEverything.mock.invocationCallOrder[0]).toBeLessThan(forgetAddress.mock.invocationCallOrder[0] ?? 0);
     expect(store.user).toHaveLength(0);
     expect(store.session).toHaveLength(0);
+  });
+
+  it('forgets the account’s device rows by its own id as it goes, and a failure there does not keep the account', async () => {
+    const { cookie, service } = await signedIn();
+    const id = String(store.user[0]?.id);
+
+    forgetDevices.mockRejectedValue(new Error('database down'));
+
+    await expect(service.remove({ cookie })).resolves.toBeUndefined();
+
+    expect(forgetDevices).toHaveBeenCalledWith(id);
+    expect(store.user).toHaveLength(0);
   });
 });

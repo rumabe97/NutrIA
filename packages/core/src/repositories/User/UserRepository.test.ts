@@ -490,6 +490,20 @@ describe('UserRepository.passwordChanged', () => {
     });
   });
 
+  it('ends every device cookie of that account in the same transaction, and nobody else’s (PLAN 011 phase 7b)', async () => {
+    await UserRepository.passwordChanged(
+      'usr-1',
+      vi.fn(async () => {})
+    );
+
+    const devices = txDeleted.filter(entry => entry.table === verification).map(entry => render(entry.where));
+
+    expect(devices).toContainEqual({
+      params: ['usr-1', 'sign-in-device:%'],
+      sql: '("verification"."value" = $1 and "verification"."identifier" like $2)'
+    });
+  });
+
   it('rejects, wrapped, when the row cannot be written', async () => {
     const record = vi.fn(async () => {
       throw new Error('database unavailable');

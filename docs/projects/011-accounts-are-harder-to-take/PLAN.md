@@ -572,8 +572,12 @@ records what was decided.
 
 ### Phase 7b — A browser that signed in before is not braked
 
-- [ ] pending — added 2026-10-03 from phase 7's invariant review (P1-a), owner's
-  delegation of 2026-10-03. Runs after phase 8.
+- [x] done — added 2026-10-03 from phase 7's invariant review (P1-a), owner's
+  delegation of 2026-10-03. Runs after phase 8. Built 2026-10-09 (PR on
+  `feat/011-p7b-device-cookie`); the end-to-end cases are listed in the LOG, phase 7b.
+  Amended in execution: no table and no migration (the cookie's rows live in Better
+  Auth's `verification` table, like trusted devices); the cookie is earned when a
+  sign-in completes, a second-factor account's included (LOG, phase 7b).
 - **Dispatch**: opus @ high, as a `/team` (`backend`, `tests`). `quality-max`. Reviews:
   `invariant-reviewer`, `migration-reviewer` if it needs a table.
 - **Goal**: an attacker who knows an address can no longer keep its owner out. Today they
