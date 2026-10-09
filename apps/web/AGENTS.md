@@ -410,6 +410,20 @@ number up with there, and tabular digits read as slightly wrong in running text.
   `secondary` with `aria-pressed`; `tertiary` for a quiet action; `destructive` for the
   one that deletes. Filled things use `--color-brand-fill`, never `--color-brand-09`: the
   fill is what clears 4.5:1 under a white label in both schemes.
+- **A chosen state carried by a surface swap alone is invisible.** `--surface-card` on
+  `--surface-sunken` is the natural pairing for a segmented control, and it measures
+  **1.06:1 in light and 1.02:1 in dark** — decoration, not information. Give the chosen
+  one a border in `--color-brand-09` (4.56:1 and 4.36:1 against that track, clearing
+  1.4.11's 3:1), with `border: 1px solid transparent` on its siblings so nothing shifts,
+  and let the weight change with it so the state never rests on colour alone. `PlanSwitch`
+  and `ShoppingRange` both had this defect and both now carry the fix; `ChipGroup` uses
+  `--color-brand-fill` for the same job, which is the same idea with a different step.
+  The rule that filled things never use `--color-brand-09` is about a **fill under a white
+  label** — a 1px edge carries no label, and the house already strokes a selected radio
+  with it (`ui/components/RadioGroup`).
+- **And give it a `forced-colors` block.** That mode erases every background, so a state
+  drawn only with one disappears entirely: the track takes an `outline`, the chosen one a
+  `border: 1px solid Highlight`. A system colour sticks without `forced-color-adjust`.
 - **Radii are semantic**: `--radius-control` (inputs, buttons, chips that are not pills,
   notices), `--radius-card`, `--radius-sheet` (dialogs, the hero preview). Not the numeric
   scale.

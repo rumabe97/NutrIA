@@ -1,13 +1,26 @@
+.root {
+  margin-block: var(--space-03);
+}
+
+.legend {
+  color: var(--foreground-02);
+  display: block;
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-medium);
+  padding-bottom: var(--space-02);
+}
+
 .switch {
   background-color: var(--surface-sunken);
   border-radius: var(--radius-full);
   display: inline-flex;
-  margin-block: var(--space-03);
   padding: var(--space-01);
 }
 
 .link {
   align-items: center;
+  /* Transparent on both, so the chosen one's border costs no layout shift. */
+  border: 1px solid transparent;
   border-radius: var(--radius-full);
   color: var(--foreground-02);
   display: inline-flex;
@@ -29,8 +42,34 @@
   outline-offset: var(--focus-ring-offset);
 }
 
+/*
+ * The page you are on needs a boundary somebody can see. The raised surface
+ * alone measures 1.06:1 against the track in light and 1.02:1 in dark —
+ * decoration, not information — and everything else saying which side you are
+ * on was a text colour and one weight step at 14px. The brand border is 4.56:1
+ * and 4.36:1 against that track, clearing 1.4.11's 3:1, and the weight changes
+ * with it so the state never rests on colour alone. The range control below
+ * this one was fixed the same way; they are a pair and should read as one.
+ */
 .link[aria-current='page'] {
   background-color: var(--surface-card);
+  border-color: var(--color-brand-09);
   color: var(--foreground-01);
   font-weight: var(--font-weight-semibold);
+}
+
+/*
+ * Forced colours erase every background, and with them the chosen pill. The
+ * whole border is declared here rather than only its colour: leaning on the
+ * transparent one above to survive the mode would be a bet, and this is the
+ * only cue left. `Highlight` is the system's own colour for a chosen thing.
+ */
+@media (forced-colors: active) {
+  .switch {
+    outline: 1px solid;
+  }
+
+  .link[aria-current='page'] {
+    border: 1px solid Highlight;
+  }
 }

@@ -58,22 +58,33 @@ export function ShoppingRange({ days, onChange, value }: ShoppingRangeProps) {
 
   return (
     <div className={styles.root}>
-      <fieldset className={styles.presets}>
-        <legend className="visually-hidden">{t.rangeLegend}</legend>
-        {presets.map(preset => (
-          <label className={styles.preset} key={preset.choice}>
-            <input
-              checked={value.choice === preset.choice}
-              className={styles.radio}
-              id={`shopping-range-${preset.choice}`}
-              name="shopping-range"
-              onChange={() => pick(preset.choice)}
-              type="radio"
-              value={preset.choice}
-            />
-            <span className={styles.presetLabel}>{preset.label}</span>
-          </label>
-        ))}
+      {/*
+        The legend is visible, not hidden. On `/compra` with a plan waiting for
+        its day, the plan switch sits twelve pixels above this wearing the same
+        pill recipe: two near-identical rows, one that navigates and one that
+        filters, and "Actual / Próximo" reads as another time range if nothing
+        says otherwise. The `<legend>` stays on the `<fieldset>` and the flex
+        moves to the track inside it — a visible legend is laid out by the UA in
+        its own way, and it fights a flex parent.
+      */}
+      <fieldset className={styles.group}>
+        <legend className={styles.legend}>{t.rangeLegend}</legend>
+        <div className={styles.presets}>
+          {presets.map(preset => (
+            <label className={styles.preset} key={preset.choice}>
+              <input
+                checked={value.choice === preset.choice}
+                className={styles.radio}
+                id={`shopping-range-${preset.choice}`}
+                name="shopping-range"
+                onChange={() => pick(preset.choice)}
+                type="radio"
+                value={preset.choice}
+              />
+              <span className={styles.presetLabel}>{preset.label}</span>
+            </label>
+          ))}
+        </div>
       </fieldset>
 
       {value.choice === 'days' ? (
