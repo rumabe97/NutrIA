@@ -1138,7 +1138,10 @@
     longer names anyone.
   - `/privacidad`'s list of cookies, if it has one, should name `sign_in_device` (the lead,
     with `legal`).
-- **Evidence** (the gate is below):
+- **Evidence**:
+  - `gate.sh --full` green (migrations, lint, types, coverage, web build, static pages,
+    format, dead code, leaks): core 3856 tests, database 53, api 1602, ui 490, web 240.
+    Not run: the end-to-end suite (not mine; the cases are below).
   - `core`: `SignInDevice.test.ts`, `SignInDeviceController.test.ts`,
     `SignInDeviceRepository.test.ts` (the SQL of each statement, the digest never the token,
     a driver message never out) and `UserRepository.test.ts` (the password change deletes
