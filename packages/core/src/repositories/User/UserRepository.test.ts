@@ -5,7 +5,7 @@ import { passkey, user, verification } from 'database/schema/auth';
 
 import { accountQuerySchema } from 'core/entities/AdminQuery';
 
-import { ACCOUNT_COLUMNS, accountFilters, accountOrder, UserRepository } from './UserRepository';
+import { ACCOUNT_COLUMNS, accountFilters, accountOrder, staleUnconfirmedWhere, UserRepository } from './UserRepository';
 
 import type { AccountQuery } from 'core/entities/AdminQuery';
 import type { SQL } from 'drizzle-orm';
@@ -555,5 +555,53 @@ describe('UserRepository.spendGrant', () => {
       params: ['passkey-grant-s1', 'usr-1', now.toISOString()],
       sql: '("verification"."identifier" = $1 and "verification"."value" = $2 and "verification"."expires_at" > $3)'
     });
+  });
+});
+
+/*
+ * PLAN 011, "Follow-up — the 30-day sweep of unconfirmed accounts": unconfirmed, older
+ * than the cutoff, and matching none of the four correlated sub-selects a session, a
+ * confirmed account's data would have left.
+ */
+describe('staleUnconfirmedWhere', () => {
+  it('is unconfirmed, older than the cutoff, with no session, profile, plan or audit row — four correlated sub-selects, nothing joined', () => {
+    const cutoff = new Date('2026-09-09T00:00:00.000Z');
+    const { params, sql } = render(staleUnconfirmedWhere(cutoff));
+
+    expect(sql).toBe(
+      '("user"."email_verified" = $1 and "user"."created_at" < $2 and ' +
+        'not exists (select 1 from "session" where "session"."user_id" = "user"."id") and ' +
+        'not exists (select 1 from "profiles" where "profiles"."user_id" = "user"."id") and ' +
+        'not exists (select 1 from "meal_plans" where "meal_plans"."user_id" = "user"."id") and ' +
+        'not exists (select 1 from "audit_logs" where "audit_logs"."actor_id" = "user"."id" or "audit_logs"."subject_user_id" = "user"."id"))'
+    );
+    expect(params).toEqual([false, cutoff.toISOString()]);
+  });
+});
+
+describe('UserRepository.deleteStaleUnconfirmed', () => {
+  beforeEach(() => {
+    txDeleted = [];
+  });
+
+  it('deletes by staleUnconfirmedWhere, in one transaction, and writes the caller’s row for each id the RETURNING found', async () => {
+    const cutoff = new Date('2026-09-09T00:00:00.000Z');
+    const record = vi.fn(async (_tx: unknown, _id: string) => {});
+
+    await expect(UserRepository.deleteStaleUnconfirmed(cutoff, record)).resolves.toEqual(['p-1', 'p-2']);
+
+    const removal = txDeleted.find(entry => entry.table === user);
+
+    expect(render(removal?.where)).toEqual(render(staleUnconfirmedWhere(cutoff)));
+    expect(record).toHaveBeenNthCalledWith(1, expect.anything(), 'p-1');
+    expect(record).toHaveBeenNthCalledWith(2, expect.anything(), 'p-2');
+  });
+
+  it('rejects, wrapped, when the row cannot be written', async () => {
+    const record = vi.fn(async () => {
+      throw new Error('database unavailable');
+    });
+
+    await expect(UserRepository.deleteStaleUnconfirmed(new Date('2026-09-09T00:00:00.000Z'), record)).rejects.toThrow();
   });
 });

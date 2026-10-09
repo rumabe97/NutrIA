@@ -1193,3 +1193,119 @@
   - The comment in `SignInForm.tsx`, which explains which codes reach this copy, follows it.
 - **Still reveals nothing new**: the provider has just proved the address to itself, so "there is already an account with that address" tells the reader only what the refusal already told them.
 - **Evidence**: lint, types and tests green for `web` and `ui`; formatted.
+## Follow-up — a stranger cannot hold a session on an unconfirmed account; the post-confirmation window named, not closed (2026-10-09)
+
+- **Executor**: opus 5.5 (`backend`, one agent), under the owner's delegation of 2026-10-03.
+- **Question asked**: does phase 8 (#217) already close "A reset does not clear a second
+  factor a stranger turned on" — specifically, can a stranger who squats an address ever
+  hold a session on that *unconfirmed* account, which is the only way to reach
+  `/two-factor/enable`?
+- **Answer: yes, closed, for that vector.** Read in the code, every path that could mint a
+  session was checked:
+  - `/sign-in/email` on the stranger's own right password answers Better Auth's own 401
+    while the address is unconfirmed (`requireEmailVerification`, `UnconfirmedSignIn.ts`) —
+    no session, whatever the password.
+  - Google and Apple cannot link into the squatted account regardless of confirmation
+    (`accountLinking.disableImplicitLinking: true`); the attack also needs the stranger to
+    *be* the victim's Google/Apple identity, which they are not.
+  - The confirmation link itself mints no session (`autoSignInAfterVerification: false`,
+    hotfix #218).
+  - Adding a passkey needs an existing confirmed session (phase 5) — no door of its own.
+  - No `admin` plugin, no impersonation path, exists in `auth.config.ts`.
+  - `/two-factor/enable` has no session-free path: with none, it is the plugin's own 401.
+  - So `/two-factor/enable` is unreachable for an unconfirmed account by any route.
+- **Regression**: `apps/api/src/modules/auth/EmailVerification.spec.ts`, "never lets the
+  factor onto the account before its address is confirmed" — sign-up, a direct `/enable`
+  attempt (401, no `twoFactor` row), the stranger's own right password while unconfirmed
+  (401), the confirmation link (still no session), `/enable` again (still 401, still no
+  row); only once the address is confirmed *and* a session exists does `/enable` succeed
+  (200, one `twoFactor` row) — proving the sign-in gate, not anything else, is what stands
+  in the way.
+- **What stays open, and is not what this follow-up's narrow question was about**: the
+  window between the victim opening the confirmation link and completing their reset. The
+  address is confirmed there, and the stranger's own password still works, so they can sign
+  in and turn TOTP on inside it. The delta review already named this precisely (LOG, phase
+  8, "the delta review, and what stays open": "narrows it without closing it… between the
+  owner's opening the link and their reset, the stranger's password works and the factor
+  can be turned on"). Neither of the PLAN's two listed options actually closes this
+  window: "refuse before confirmed" is a no-op here because the address is already
+  confirmed by the time any session exists in this window; the other option touches
+  credentials in a hook, which `0058` avoided on purpose. Left as a known, accepted
+  residual, bounded by the reset itself and, failing that, the owner's 48-hour removal
+  (phase 4).
+- **Evidence**: `pnpm --filter api test` — `EmailVerification.spec.ts`, 5/5 (one new).
+  `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api` green.
+- **Decisions**: none new for this half; `0092` covers the sweep below.
+- **Advisor**: consulted once, before building anything — confirmed the narrow claim is
+  provably true and that the plan's first fix option is a no-op against the real residual;
+  recommended closing the follow-up as answered rather than building a control that
+  controls nothing, and naming the residual precisely instead of burying it.
+
+## Follow-up — the 30-day sweep of unconfirmed accounts (2026-10-09)
+
+- **Executor**: opus 5.5 (`backend`, one agent), under the owner's delegation of 2026-10-03.
+- **What was built**:
+  - `core/entities/Audit`: `UNCONFIRMED_ACCOUNT_RETENTION_DAYS` (30), and a new, closed-list
+    audit action `auth.unconfirmed_account_swept` (no actor, empty metadata).
+  - `UserRepository.staleUnconfirmedWhere(cutoff)`: unconfirmed, older than `cutoff`, and
+    none of four correlated `NOT EXISTS` sub-selects against the outer `user` row — a
+    session, a `profiles` row, a `meal_plans` row, an `audit_logs` row naming it as actor or
+    subject — the same shape as the account screen's `professional`/`onboarded` filters
+    (`sql` templates, no live query-builder object, so it is a pure function exported for
+    its own spec, the way `accountFilters` is).
+  - `UserRepository.deleteStaleUnconfirmed(cutoff, record)`: one `DELETE … WHERE … RETURNING`
+    inside a transaction; `record` is called once per id the `RETURNING` found, before the
+    account disappears.
+  - `UserController.sweepUnconfirmedAccounts(now)`: computes the cutoff from `now` itself
+    (as `AuditController.forgetExpiredAuthRows` does its own), builds the audit closure —
+    `auth.unconfirmed_account_swept`, `actorId: null`, `subjectUserId: <the deleted id>` —
+    and calls the repository. `audit_logs.actorId`/`subjectUserId` are `onDelete: 'set
+    null'`, not `cascade`, so the row written inside the same transaction as the delete
+    survives it, with that column read back `null`: no address, no IP, nothing left to
+    identify the account by.
+  - `AuthRetentionService.forget` gains the third step, after the brake's quiet rows and the
+    auth audit purge; `AuthRetentionRun`/`VerificationSweepDto` gain `unconfirmedAccounts`.
+    Carried by the existing `/cron/sweep-verifications` — no new route, no new
+    `vercel.json` entry, no migration.
+- **Why four tables and nothing wider**: every one of them is reachable only from a
+  session (`VerifiedEmailGuard` gates the routes that write `profiles` and `meal_plans`),
+  and an unconfirmed account has never held one (see the follow-up above). The four checks
+  are belt-and-braces on that invariant, not an exhaustive scan of every user-owned table —
+  deliberately narrower than "every table", named in `0092`'s alternatives.
+- **Evidence**:
+  - `core`: `UserRepository.test.ts` — `staleUnconfirmedWhere` (the exact SQL, rendered),
+    `UserRepository.deleteStaleUnconfirmed` (deletes by it in one transaction, writes the
+    caller's row per id, rejects wrapped on failure). `UserController.test.ts` —
+    `sweepUnconfirmedAccounts` (the cutoff is `now` minus thirty days, defaults to `new
+    Date()`, records a null actor naming each deleted id).
+  - `api`: `AuthRetention.spec.ts` extended (all three counts, a failure of the new step
+    still fails the run). `Cron.controller.spec.ts` extended (`unconfirmedAccounts` in the
+    route's answer and the run record).
+  - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api`: green —
+    core 133 files / 3873 tests, database 5/53, api 123/1634.
+  - `pnpm --filter api format`, `pnpm --filter core format`, `pnpm --filter database
+    format`: clean. `pnpm check:leaks`: clean.
+- **Decisions**: [`0092`](../../decisions/0092-sweep-an-account-whose-address-nobody-ever-confirmed-after-thirty-days.md)
+  (the lead's delegation of 2026-10-03, the recommended option on each choice).
+- **For `legal` and the lead**: `/privacidad` needs a retention line — an account whose
+  address is never confirmed is deleted after thirty days, together with its sign-up
+  record, provided it holds no profile, plan or session and generated no account activity
+  beyond the sign-up itself.
+- **Not built here**: a warning mail before the sweep deletes an account (out of scope;
+  a future follow-up if this surprises a real person in practice, which thirty days with
+  no confirmation makes unlikely but not impossible).
+- **Advisor**: not consulted a second time — the design followed directly from the first
+  consultation and the existing `0059`/`0071` audit pattern.
+
+## Follow-up — the confirmation mail tells a stranger's victim not to confirm (2026-10-09)
+
+- **Executor**: Opus 5.5 (the lead), at the owner's word on 2026-10-09: "Si hazlo."
+- **Why**: the residual named above has one entrance — the victim confirming an address they never signed up for. The old copy said "Si no te has registrado, ignora este mensaje: no pasa nada", which was true of the message and false of the account: nothing deleted it, and the invitation to confirm first and reset after is what opens the window where the stranger's password still works.
+- **What changed**: copy only, in the confirmation mail and on the page the link lands on.
+  - `VerifyEmail.ts`, es-ES: "Si no te has registrado, no confirmes nada: ignora este mensaje y, al mes, borramos el correo que nadie confirma junto con su registro."
+  - en-GB: "If you did not sign up, do not confirm anything: ignore this message, and we delete an address nobody confirms, with its sign-up, after thirty days."
+  - `verifyReset` (both dictionaries) says to reset **now**, for somebody who confirmed before reading the mail's warning: the window is minutes, not days.
+  - The template's docblock records why the ignore line is worded that way, so a later edit does not undo it.
+- **The claim is true because of the sweep above**: an address nobody confirms, with no session, profile, plan or audit row, is deleted after thirty days (`0092`). The two ship in the same change for that reason.
+- **Evidence**: `pnpm --filter api test -- --testPathPatterns "modules/email"` 13 suites, 111 tests green; `pnpm --filter api lint` and `format` clean; `pnpm --filter web ts:check` green.
+- **Not done**: `/privacidad` needs the retention line for the sweep; the lead routes it to `legal` separately.

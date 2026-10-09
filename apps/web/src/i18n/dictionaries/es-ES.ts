@@ -206,6 +206,7 @@ export const esES = {
       'auth.passkey_removed': 'Llave de acceso quitada',
       'auth.password_changed': 'Contraseña cambiada',
       'auth.sessions_revoked': 'Sesiones cerradas',
+      'auth.unconfirmed_account_swept': 'Cuenta sin confirmar eliminada',
       'feedback.handled': 'Mensaje marcado como visto',
       'feedback.reopened': 'Mensaje reabierto',
       'picture.accepted': 'Imagen rechazada de un plato aceptada a mano, contra el revisor',
@@ -1208,7 +1209,7 @@ export const esES = {
     verifyFailedBody: 'Puede que haya caducado o que ya lo hayas usado. Si ya confirmaste tu correo, inicia sesión.',
     verifyFailedTitle: 'Este enlace ya no sirve',
     verifyNotYours: '¿No creaste tú la cuenta, o no sabes su contraseña? No la adivines:',
-    verifyReset: 'restablécela, y se cerrará cualquier otra sesión abierta en ella.',
+    verifyReset: 'restablécela ahora mismo, y se cerrará cualquier otra sesión abierta en ella.',
     verifySignIn: 'Iniciar sesión',
     verifyTitle: 'Correo confirmado'
   },
