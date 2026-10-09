@@ -179,6 +179,20 @@ describe('judgePicture — what is only a note', () => {
     expect(verdict.notes).toEqual(['missing_main:Firm tofu', 'plastic_cgi', 'blur', 'non_food', 'extra_dish']);
   });
 
+  it('rejects a picture missing a main only for an added allergen, never for the missing main itself (owner, 2026-10-09)', () => {
+    const verdict = judge({
+      match: {
+        extras: ['shrimp'],
+        ingredients: ALL_SEEN.map(ingredient => (ingredient.slug === 'tofu-firme' ? { ...ingredient, matched: [], status: 'not_seen' } : ingredient))
+      },
+      seen: { foods: [...ownFoods.filter(food => food.name !== 'firm tofu'), { amount: 'main', name: 'shrimp', specific: true }] }
+    });
+
+    expect(verdict.accepted).toBe(false);
+    expect(verdict.notes).toContain('missing_main:Firm tofu');
+    expect(verdict.notes).toContain('extra_allergen:shrimp=crustaceans');
+  });
+
   it('reads a picture said to be CGI as plastic whatever its realism score', () => {
     expect(
       judge({ match: { extras: [], ingredients: ALL_SEEN }, seen: { foods: ownFoods, plasticOrCgi: true, realism: 5, sharpness: 5 } }).notes
