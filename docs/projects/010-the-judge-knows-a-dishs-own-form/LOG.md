@@ -344,3 +344,44 @@
   before phase 5 reached production — so no dish has yet been drawn with the final rule.
 - **For the owner**: run `/execute-project 010 phase 6` again when about 60 dishes have been
   drawn since 2026-10-01, or on 2026-10-15.
+
+## Phase 6 follow-up — `missing_main` stops rejecting on its own (2026-10-09)
+
+- **Executor**: `backend` (sonnet, medium), carrying out decision 4 of the "What the rule
+  did in production (2026-10-09)" entry recorded on `docs/close-010` (PR #251), not yet on
+  `main` when this entry was written. That entry's numbers: `missing_main` appeared twice
+  in production, never as the only reason — both times beside an added allergen that
+  rejected the picture anyway.
+- **The owner's reasoning, repeated here**: a picture missing a visible main is ugly, not
+  unsafe. It should never fail a picture by itself; it stays a counted note so the console
+  still shows it.
+- **Result**: done — and the contract did not move. Reading `judgePicture` in
+  `packages/core/src/domain/DishPicture/judge.ts` shows `accepted` was always
+  `rejecting.length === 0`, and `rejecting` was always built only from extras carrying a
+  foreign allergen; `missing` (the `missing_main:` note) has never been part of it, back to
+  this file's first version (`4b70ff76`, project 006 phase 2). `PictureReason.ts`'s own
+  comment already said as much ("`judgePicture` rejects only for `extra_allergen:`"). So
+  the owner's decision ratifies standing behaviour rather than changing it — the question
+  was simply never decided until now (PRD § out of scope: "`missing_main` as a reason to
+  reject, or as a count on the console").
+- **What changed**: a comment at the `missing` computation in `judge.ts`, naming the
+  2026-10-09 decision and the production counts (no dish name, no slug) so a future reader
+  does not mistake the omission for an oversight; one pinning unit test in `judge.test.ts`
+  for the combined case the task calls out — a picture missing its main *and* showing an
+  added allergen is still rejected, for the allergen, not for the missing main.
+- **Evidence**: `pnpm --filter core build` green. Targeted run —
+  `judge.test.ts`, `judge.catalogue.test.ts`, `judge.holes.test.ts`, `judge.forms.test.ts`,
+  `judge.reverse.test.ts`, `judge.pilot.test.ts` — 6 files, 796 tests, all green. The
+  pilot's floor (PRD 2, repeated in the hand-off) holds unmoved: 65 faithful pictures
+  accepted with their notes, 3 controls rejected — all three controls already combine a
+  missing main with an added allergen, and are pinned as rejected for the allergen.
+- **Deviations from plan**: none. No decision record was added under `docs/decisions/`:
+  the judge's contract did not change in a way a future reader could not infer — the
+  file's own top-of-file doc comment already says a picture "is rejected only when it
+  clearly shows an extra food… Everything else is a note." One line was added to
+  `docs/decisions/LOG.md` instead, per the task's own rule for a non-contract-changing
+  decision.
+- **Notes for the next reader**: this entry and PR #251's "Phase 6 — What the rule did in
+  production" entry describe the same production read; PR #251 is the source of the
+  numbers, this one is the change that carries out its decision 4. The two LOG entries are
+  independent appends and should both survive a merge of either branch.
