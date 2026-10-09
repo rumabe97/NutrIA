@@ -71,7 +71,7 @@ change arrives last:
 
 ### Phase 2 — An amount bought, and the days on the wire
 
-- [x] done
+- [x] done — commit `4df600d4` ("A shopping row is bought by amount, and each day's share is on the wire")
 - **Dispatch**: opus @ medium — `/execute-project 020 phase 2`. Reviews: `migration-reviewer`
   (opus @ high, the floor for any migration), `invariant-reviewer`.
 - **Goal**: the API stores an amount, serves the per-day breakdown, and the build that is
@@ -113,13 +113,16 @@ change arrives last:
 
 ### Phase 3 — Pick your days
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 020 phase 3`. Reviews: `accessibility`.
   Use the `apple-web-design` skill, as every UI change does.
 - **Goal**: the reader chooses the fortnight, a week or any days, and the list, the
   quantities and the progress follow — with no network and no write-path change.
 - **Scope**: `apps/web/src/app/(app)/compra/`, `apps/web/src/components/Shopping*`,
-  `apps/web/src/lib/{format,shoppingShare,offline}.ts`, both i18n dictionaries.
+  `apps/web/src/lib/{format,shoppingShare,offline}.ts`, both i18n dictionaries, and a new
+  `apps/web/src/lib/shoppingRange.ts` — the range's own pure logic and its per-device
+  memory, which belongs beside `pendingTicks.ts` rather than inside any of the three files
+  the scope first named.
 - **Steps**:
   1. A client component holds the range: `fortnight | week1 | week2 | days`, and for `days`
      the set of chosen plan dates. It reads the rows and their `perDay` from the server
@@ -170,7 +173,12 @@ change arrives last:
      wins, a 4xx drops it, a 5xx keeps it, the flush stops at the first kept entry, a
      session change clears the queue.
   4. The screen reader hears the amount left, not only "checked" — the row's accessible name
-     carries it.
+     carries it. **Confirmed as a live defect by `accessibility` on phase 3**
+     (`ShoppingItem.tsx:57-61`): the quantity `<span>` sits outside the `<label>`, so the
+     checkbox is named "Aguacate" and nothing more — and since phase 3 the quantity it
+     omits changes with the range, so the same row announces the same name for a week's
+     amount and a fortnight's. Left to this phase on purpose: it is the phase that makes
+     the amount the thing being announced.
   5. Amend `0055` in the same change: one line in its text and an `Amended 2026-…` note,
      pointing at `0091`.
 - **Acceptance criteria**: PRD 3, 4, 6. A spec reproduces the owner's case through the

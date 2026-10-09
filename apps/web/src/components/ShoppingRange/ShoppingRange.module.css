@@ -1,0 +1,197 @@
+.root {
+  margin-block: var(--space-03);
+}
+
+/*
+ * A segmented control, the same material as the plan switch beside it: one
+ * sunken track holding the choices, the chosen one lifted onto a card surface.
+ * It is a fieldset because the choices are radios — the filter is a reading of
+ * this page, never a different address (`0053`).
+ */
+.presets {
+  background-color: var(--surface-sunken);
+  border: none;
+  border-radius: var(--radius-full);
+  display: flex;
+  gap: var(--space-01);
+  margin: 0;
+  padding: var(--space-01);
+}
+
+.preset {
+  align-items: center;
+  /* Transparent on every segment so the chosen one's border costs no layout shift. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  color: var(--foreground-02);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 1;
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+  justify-content: center;
+  padding: var(--space-01) var(--space-04);
+  /* The stretched input below is positioned against this. */
+  position: relative;
+  text-align: center;
+}
+
+/*
+ * The native dot is taken off the flow, not out of the accessibility tree: it
+ * still takes focus, still answers the arrow keys, and still announces itself
+ * as a radio. The chosen state is carried by the segment's own fill below, so
+ * the control never relies on a mark nobody can see.
+ */
+.radio {
+  block-size: 100%;
+  cursor: pointer;
+  inline-size: 100%;
+  margin: 0;
+  opacity: 0;
+  position: absolute;
+}
+
+/*
+ * The chosen segment needs a boundary somebody can see. The raised surface
+ * alone is 1.06:1 against the track in light and 1.02:1 in dark — invisible —
+ * and the native radio is `opacity: 0`, so unlike the day checkboxes below
+ * there is no native mark carrying the state either. The brand border is
+ * 4.56:1 light and 4.36:1 dark against the track, clearing 1.4.11's 3:1, and
+ * the weight and text colour change with it so the state never rests on colour
+ * alone (1.4.1).
+ */
+.preset:has(.radio:checked) {
+  background-color: var(--surface-card);
+  border-color: var(--color-brand-09);
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-semibold);
+}
+
+.preset:has(.radio:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.presetLabel {
+  /* Above the stretched input, so the label is what a pointer lands on. */
+  position: relative;
+}
+
+.days {
+  border: none;
+  margin: var(--space-04) 0 0;
+  padding: 0;
+}
+
+.daysLegend {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-medium);
+  padding: 0 0 var(--space-02);
+}
+
+.dayList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02);
+}
+
+.day {
+  align-items: center;
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: var(--font-size-02);
+  gap: var(--space-02);
+  padding: var(--space-02) var(--space-03);
+}
+
+.day:has(.checkbox:checked) {
+  background-color: var(--surface-card);
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-medium);
+}
+
+.day:has(.checkbox:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Native and visible: a day is a checkbox and reads like one. */
+.checkbox {
+  accent-color: var(--color-brand-fill);
+  block-size: 1rem;
+  cursor: pointer;
+  flex: 0 0 auto;
+  inline-size: 1rem;
+  margin: 0;
+}
+
+.dayLabel {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* A finger gets the full target on both controls. */
+@media (pointer: coarse) {
+  .preset,
+  .day {
+    min-block-size: var(--target-min);
+  }
+}
+
+/*
+ * Narrow screens, read as a rem query so the reader's own text size counts: the
+ * presets stop sharing one row and wrap into two, each still full-width enough
+ * to hit. Nothing is hidden — a choice you cannot reach is worse than a taller
+ * control.
+ *
+ * 27rem rather than something tighter because of what four segments do to a
+ * 390px phone (24.4rem): about 202px of room for about 245px of Spanish labels,
+ * so "Semana 1", "Semana 2" and "Elegir días" break mid-phrase while the
+ * unbreakable "Quincena" holds its width. Ragged is the smaller half of it —
+ * the chosen segment is semibold, and therefore wider, so *which* labels wrap
+ * changes as you pick: the control's height moves under the reader's thumb and
+ * shifts the list below it. Nothing scrolls sideways (a flex item's
+ * `min-width: auto` is the floor), so no check catches this; only the
+ * screenshot does. Two by two, each segment is about 169px at 390px and every
+ * label keeps its line.
+ */
+@media (width < 27rem) {
+  .presets {
+    border-radius: var(--radius-control);
+    flex-wrap: wrap;
+  }
+
+  .preset {
+    border-radius: var(--radius-control);
+    flex-basis: calc(50% - var(--space-01));
+  }
+}
+
+/*
+ * Forced colours erase every background, and with them both the track and the
+ * chosen segment's fill — and `opacity` is not forced, so the radio stays
+ * invisible too. What would be left is four words in a row, one of them
+ * semibold.
+ *
+ * The whole border is declared here, not just its colour: leaning on the
+ * `transparent` border outside this block to survive the mode would be a bet,
+ * and this is the only cue left. `Highlight` is the system's own colour for a
+ * selected thing, so it reads as selection rather than as an edge. A
+ * system-coloured border sticks without `forced-color-adjust: none`, so nothing
+ * here opts out of the mode — and the track's edge is an `outline` because the
+ * track has no border to grow into and one would shift the control by 2px.
+ *
+ * The native day checkboxes below need nothing: the UA paints those itself.
+ */
+@media (forced-colors: active) {
+  .presets {
+    outline: 1px solid;
+  }
+
+  .preset:has(.radio:checked) {
+    border: 1px solid Highlight;
+  }
+}

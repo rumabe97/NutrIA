@@ -1,4 +1,5 @@
 import { forgetPendingTicks } from './pendingTicks';
+import { forgetRange } from './shoppingRange';
 
 /**
  * The page's half of the offline copies (`0053`). The other half is
@@ -75,6 +76,8 @@ export async function storedPages(): Promise<ReadonlySet<string>> {
 export async function forgetOfflineCopies(): Promise<void> {
   // Ticks still waiting for a connection belong to the session that made them (`0055`).
   forgetPendingTicks();
+  // So does the days the list was last read for: it names one plan's dates (`0091`).
+  forgetRange();
 
   if ('serviceWorker' in navigator) {
     try {
