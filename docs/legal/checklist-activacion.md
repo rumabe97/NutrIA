@@ -33,8 +33,8 @@
 
 ## 0 sexies. Antes de llevar a producción el navegador que ya entró (proyecto 011 fase 7b, PR #242, `0089`)
 
-- [ ] El añadido ⟦navegador-conocido⟧ a la viñeta «Frenos contra el abuso» y la frase de «Cookies» de [`textos/02`](./textos/02-politica-privacidad.md) en `privacy` (es-ES y en-GB), **en el mismo cambio** que el PR, con `privacy.updated` = la fecha de ese día. Variante A del borrado de la cuenta, salvo que el PR borre esas filas al borrar la cuenta (entonces la B). Sin correo de aviso; ninguna versión que subir.
-- [ ] (P2, no bloquea) `deleteUser.beforeDelete` borra las filas `sign-in-device:*` y las de «confiar en este dispositivo» de la cuenta ([`analisis.md`](./analisis.md) § 4.1 quater). Si llega en otro cambio, ese cambio pasa la frase a la variante B y actualiza `privacy.updated`.
+- [ ] El añadido ⟦navegador-conocido⟧ a la viñeta «Frenos contra el abuso» y la frase de «Cookies» de [`textos/02`](./textos/02-politica-privacidad.md) en `privacy` (es-ES y en-GB), **en el mismo cambio** que el PR, con `privacy.updated` = la fecha de ese día. Sin correo de aviso; ninguna versión que subir.
+- [ ] El texto describe el PR tras su revisión de invariantes: freno propio del navegador, la cookie anulada al cerrar las demás sesiones o todas, y las filas borradas con la cuenta (`UserController.forgetDevices`). Si alguna de las tres no llega a producción, el texto no se publica así ([`analisis.md`](./analisis.md) § 4.1 quater).
 
 ## 0 bis. Antes de poner `AI_PROVIDER=openrouter` en producción (`0064`)
 
