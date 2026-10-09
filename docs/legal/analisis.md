@@ -18,6 +18,10 @@
 > **Revisión 2026-10-03 — el alta no revela nada** (proyecto 011, fases 7 y 8; PR #217,
 > rama `feat/011-p8-signup`, commit leído `4f36ec5`): §§ 3, 4.1, 4.1 ter (nuevo), 9 (P2-14,
 > P2-15, P3) y 10 (punto 13).
+>
+> **Revisión 2026-10-09 — el navegador que ya entró** (proyecto 011, fase 7b, `0089`;
+> PR #242, rama `feat/011-p7b-device-cookie`, commit leído `3243cc7` y los cambios de la
+> revisión de invariantes del mismo día): §§ 4.1, 4.1 quater (nuevo) y 10 (punto 14).
 
 ## 0. Resumen en diez líneas
 
@@ -392,6 +396,7 @@ cuenta así: el propietario debe comprobarlo).
 | `audit_logs`, filas `auth.*` (`auth.password_changed`, `auth.sessions_revoked`; 011 fase 2) | **12 meses**, y al borrar la cuenta la fila queda sin persona (`actorId` y `subjectUserId` a `NULL`). Las demás filas de `audit_logs` (administración) siguen sin plazo. Ver § 4.1 bis | **Pendiente**: la purga la construye una fase posterior del 011 |
 | `sign_in_failure` (freno por dirección, 011 fase 7): huella HMAC de la dirección, recuento, ventana | se borra al entrar con la contraseña buena o al restablecerla; si no, el barrido diario la borra tras un día sin intentos (como mucho unos dos días desde el último). **No** se borra al borrar la cuenta (no tiene FK, a propósito). Ver § 4.1 ter | ✔ código; **política: P2-14** |
 | Presupuesto de correos (011 fase 8): filas `mail-budget:<huella>` en `verification`, recuento | caduca a la hora; el barrido diario (08:05 UTC) la borra: como mucho unas 25 h. Tampoco se borra con la cuenta. Ver § 4.1 ter | ✔ código; **política: P2-14** |
+| Navegador que ya entró (011 fase 7b, `0089`): cookie `sign_in_device` (256 bits al azar) en el navegador; en `verification`, `sign-in-device:<sha256 del código>` con el id de la cuenta; diez por cuenta como mucho | 90 días desde la última entrada con contraseña desde ese navegador; al momento al cambiar o restablecer la contraseña, al cerrar las demás sesiones o todas, y al borrar la cuenta; las caducadas, el barrido diario. Los fallos desde ese navegador van a `sign_in_failure` con clave propia (HMAC del código), con el plazo del freno. Ver § 4.1 quater | ✔ código; **política: ⟦navegador-conocido⟧** |
 | `rate_limit` de Better Auth: `ip\|ruta`, recuento, última petición | deja de contar al acabar su ventana (10-60 s) y Better Auth la borra cuando llega la siguiente petición que abre ventana | ✔ código; **política: P2-14** |
 | Cuentas sin confirmar creadas con la dirección de otra persona | indefinido: no hay barrido | **P2-15** |
 | Pagos (Stripe) | lo que exija la ley a Stripe; con *Managed Payments*, a Link como vendedor | ✔ política |
@@ -460,6 +465,24 @@ cuenta así: el propietario debe comprobarlo).
 **Dos frases de la web que pueden no ser verdad** (no son textos legales; P3, a `backend-011p8`): `auth.signUpSent` («Te hemos escrito a {email}») y `auth.invalidCredentials` («te acabamos de enviar el enlace de nuevo») son falsas cuando el presupuesto retiene el correo (cuarto de la hora). Propuesta en § 9, P3.
 
 **¿EIPD?** No hay tratamiento nuevo de salud ni criterio nuevo de la lista de la AEPD; se actualiza M13 y se añade el riesgo de enumeración a R10 ([`eipd.md`](./eipd.md), versión 0.4).
+
+### 4.1 quater El navegador que ya entró no se frena (proyecto 011, fase 7b, `0089`; 2026-10-09)
+
+*No soy abogado; esto es análisis para que el propietario lo revise con uno.*
+
+**Qué hace el código** (PR #242, `3243cc7`). Al terminar una entrada con contraseña (con el segundo factor, si la cuenta lo tiene y lo pide), el navegador recibe la cookie `sign_in_device`: propia, `HttpOnly`, `SameSite=Lax`, `Secure` y `__Secure-` en producción, con 256 bits al azar, sin dirección ni id, 90 días que se renuevan en cada entrada con contraseña desde ese navegador. El servidor guarda en `verification` la huella SHA-256 del código y el id de la cuenta, diez por cuenta como mucho. En la siguiente entrada con contraseña, si la cookie es de la cuenta dueña de la dirección tecleada, sus fallos no cuentan para el freno de la dirección (§ 4.1 ter), sino para un freno propio de ese navegador, con los mismos límites (clave HMAC del código en `sign_in_failure`, sin dirección ni id); acertar borra esa clave, nunca la de la dirección. El límite por IP, la contraseña y el segundo factor siguen. Cambiar o restablecer la contraseña, cerrar las demás sesiones o todas (también al activar el segundo factor) y borrar la cuenta borran todas las de la cuenta. Llaves de acceso y Google no la ponen.
+
+**LSSI art. 22.2: exenta.** Es una cookie «de seguridad del usuario» (AEPD, Guía de cookies, mayo 2024, § 1, nota 13: «las cookies utilizadas para detectar intentos erróneos y reiterados de conexión»; GT29, WP194, § 3.3: «other similar mechanisms designed to protect the login system from abuses»). No es una cookie de sesión persistente del § 3.2 del WP194 (las que no están exentas sin casilla), porque no deja entrar a nadie: sin la contraseña y el segundo factor no hay sesión, una cookie mala recibe el mismo 429 que ninguna, y una robada no da más intentos (su navegador tiene su propio freno). Solo impide que la espera que otro ha provocado contra la dirección castigue a quien ya entró desde ese navegador: protege el servicio que la persona pidió (entrar a su cuenta), y a la persona, no al sitio. No tiene otro uso. Se informa de ella en `/privacidad` (la guía recomienda hacerlo «al menos con carácter genérico»), sin casilla ni banner. **[abogado]** (§ 10, punto 14 a).
+
+**Plazo: 90 días, proporcionado.** El WP194 espera que las de seguridad duren más que la sesión (§ 3.3) y las exime «for a limited persistent duration» (§ 5); la guía pide el mínimo según la finalidad (§ 2.3.b). La cookie solo actúa cuando hay que volver a escribir la contraseña, es decir, cuando la sesión (30 días, renovada con el uso) ha caducado: con menos de 30 días no estaría nunca cuando hace falta; 90 son tres vidas de sesión, y al caducar quedan las salidas de siempre (esperar como mucho 15 minutos, una llave, Google, restablecer). **[abogado]** (§ 10, punto 14 b); si prefiere menos, 30 o 60 días es una constante (`SIGN_IN_DEVICE.maxAgeSeconds`) y dos frases de la política.
+
+**RGPD.** La fila (huella + id de la cuenta) es dato seudonimizado para NutrIA (art. 4.5, cons. 26), no de categoría especial. Base: art. 6.1.f con el cons. 49 y art. 32.1, la misma que el freno del que es parte; la ponderación del § 4.1 ter vale y aquí pesa todavía más a favor, porque la medida beneficia a la propia persona. El párrafo publicado de interés legítimo («proteger las cuentas: … los frenos contra el abuso») ya la cubre; no hay finalidad nueva (art. 13.3 no entra). Oposición (art. 21.1): basta con borrar la cookie del navegador, y escribirnos sigue valiendo. Minimización (5.1.c): ni dirección, ni IP, ni agente; diez por cuenta.
+
+**El borrado de la cuenta.** Pedido el 2026-10-09 (P2) y hecho en el mismo PR: `deleteUser.beforeDelete` llama a `UserController.forgetDevices`, que borra estas filas y las de «confiar en este dispositivo» (`trustedDevicesOf`), que tenían la misma forma. A diferencia de las del freno, no hay razón de seguridad para dejarlas: se borran por el id de la propia cuenta y no dicen nada de ninguna dirección; un id de cuenta que sobrevive a su borrado sería seudonimización, no anonimato (la línea del § 4.1 bis). Es «best effort» (`.catch`): si falla, la fila caduca a los 90 días con un id que ya no lleva a nadie; riesgo residual aceptable. Las filas del freno propio del navegador no llevan cuenta y caducan como las del freno.
+
+**¿Cambia `/privacidad`?** Sí: un añadido a la viñeta de los frenos (qué se guarda, cuánto, cuándo se anula) y una frase en «Cookies», el mismo día que el PR llegue a producción, porque la persona no la pide y el art. 13.1 exige decirlo desde la recogida. **No es un cambio «importante»**: sin dato de salud, sin destinatario ni transferencia nuevos, sin finalidad nueva. Se actualiza `privacy.updated`, sin correo; no hay versión de consentimiento ni de condiciones que subir.
+
+**¿EIPD?** No: nada de salud y ningún criterio nuevo de la lista de la AEPD. Es una medida más de M13 (frenos con huella); el riesgo que añade lo cerró la revisión de invariantes: un navegador robado con la cookie tiene su propio freno, con los mismos límites, y cerrar las demás sesiones lo anula.
 
 ### 4.2 Transferencias internacionales (arts. 44-49)
 
@@ -955,6 +978,11 @@ Una hora, en este orden:
     informando solo en `/privacidad` (art. 14.5.b, art. 11.1)? (b) ¿Es razonable no borrar
     esas filas con la cuenta, sino dejarlas caducar (como mucho unos dos días)? Mi lectura:
     sí a las dos (§ 4.1 ter). Cinco minutos.
+14. **El navegador que ya entró** (2026-10-09, 011 fase 7b, `0089`): (a) ¿está exenta
+    del art. 22.2 LSSI, sin casilla, una cookie de seguridad que la persona no marca, que no
+    deja entrar a nadie y solo evita que el ataque de otro la frene a ella (WP194 § 3.3 frente
+    a § 3.2)? (b) ¿Son 90 días, renovados en cada entrada con contraseña, una duración
+    «limitada»? Mi lectura: sí a las dos (§ 4.1 quater). Cinco minutos.
 
 ---
 
