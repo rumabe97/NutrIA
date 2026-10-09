@@ -110,12 +110,12 @@ describe('DishPictureService.draw — a picture that is kept', () => {
 
     expect(store.stored).toHaveLength(1);
     expect(store.stored[0]?.bytes).toBe(STUB_PICTURE);
-    expect(store.stored[0]?.path).toMatch(new RegExp(`^dish-pictures/${RECIPE}/2\\.0\\.0-[0-9a-f-]{36}\\.jpg$`));
+    expect(store.stored[0]?.path).toMatch(new RegExp(`^dish-pictures/${RECIPE}/2\\.0\\.1-[0-9a-f-]{36}\\.jpg$`));
     expect(complete).toHaveBeenCalledWith(CLAIM, {
       attempts: 1,
       judged: expect.objectContaining({ attempts: [expect.objectContaining({ attempt: 1, verdict: { accepted: true, notes: [] } })] }),
       model: 'stub/picture',
-      promptVersion: '2.0.0',
+      promptVersion: '2.0.1',
       provenance: { c2pa: true, judge: [], notes: [], trainedAlgorithmicMedia: true },
       url: expect.stringMatching(/^data:image\/jpeg;base64,/)
     });
@@ -269,7 +269,7 @@ describe('DishPictureService.draw — a picture that is not kept', () => {
 
 /* PRD 009, criteria 2 and 7 (`0072`): the last rejected picture waits, privately, only when the drawing ends failed. */
 describe('DishPictureService.draw — a rejected picture kept for the owner', () => {
-  const CANDIDATE_PATH = new RegExp(`^dish-picture-candidates/${RECIPE}/2\\.0\\.0-[0-9a-f-]{36}\\.jpg$`);
+  const CANDIDATE_PATH = new RegExp(`^dish-picture-candidates/${RECIPE}/2\\.0\\.1-[0-9a-f-]{36}\\.jpg$`);
 
   /** A signed picture that is not the stub's: the same marks, one byte more. */
   const picture = (last: number) => new Uint8Array([...STUB_PICTURE, last]);
@@ -310,7 +310,7 @@ describe('DishPictureService.draw — a rejected picture kept for the owner', ()
       judged: expect.objectContaining({ attempts: expect.any(Array) }),
       provenance: {
         // The judge's closed data: allergen keys and catalogue slugs. Its word for the food ("shrimp") is not here.
-        candidate: { extras: [{ foreignAllergens: ['crustaceans'], mappedTo: ['gambas'] }], model: 'stub/picture', path, promptVersion: '2.0.0' },
+        candidate: { extras: [{ foreignAllergens: ['crustaceans'], mappedTo: ['gambas'] }], model: 'stub/picture', path, promptVersion: '2.0.1' },
         notes: expect.arrayContaining([expect.stringMatching(/^3:rejected:extra_allergen/)]),
         // Phase 1's mail counts by this: a candidate beside it changes nothing.
         reason: 'judge_allergen'
