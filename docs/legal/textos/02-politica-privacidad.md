@@ -78,6 +78,28 @@
 >   «importante»: sin correo de aviso, sin versión que subir. Fuente y porqué en
 >   [`analisis.md` § 4.1 quater](../analisis.md).
 >
+> - **⟦barrido-sin-confirmar⟧** (2026-10-09, proyecto 011, seguimiento del 30-day sweep,
+>   decisión `0092`, PR #250; en inglés ⟦unconfirmed-sweep⟧; las marcas no se publican):
+>   la cuenta cuya dirección nadie confirmó se borra a los treinta días del alta si no
+>   tiene nada más. Un párrafo nuevo en «Cuánto tiempo guardamos tus datos», en los dos
+>   idiomas. Se publica **en el mismo cambio que lleve #250 a producción o, si ya está
+>   desplegado, en el primero que salga** — y, en todo caso, antes de que el cron diario
+>   (08:05 UTC) borre la primera cuenta: el correo de confirmación ya se lo promete a quien
+>   lo recibe ([`06`](./06-correos.md) § P, `VerifyEmail.ts`), y la política es el documento al
+>   que remite el art. 13. `privacy.updated` en vivo ya es 9 de octubre de 2026: si se
+>   publica hoy, no cambia; otro día, la fecha de ese día. **No es un cambio «importante»**
+>   (plazo más corto, ningún dato, destinatario, transferencia ni fin nuevo): sin correo de
+>   aviso, sin versión de consentimiento ni `TERMS_VERSION` que subir. Fuente y porqué en
+>   [`analisis.md` § 4.1 quinquies](../analisis.md).
+>
+> - **⟦si purga-seguridad⟧ ya se puede publicar** (revisado el 2026-10-09): la purga diaria
+>   de las filas `auth.*` de más de doce meses está en el código desde la fase 7
+>   (`AuditController.forgetExpiredAuthRows`, #213, `6b260239`, 2026-10-03) y la lleva el
+>   mismo cron diario. En cuanto el lead confirme que #213 está desplegado, la frase
+>   «Además se borra a los 12 meses» sale del condicional y puede ir en el mismo cambio de
+>   diccionario que ⟦barrido-sin-confirmar⟧ (casilla § 0 quater del
+>   [`checklist-activacion.md`](../checklist-activacion.md)).
+>
 > **D5 (2026-09-29)**: cuando la fase 7 del proyecto 008 guarde la versión de las
 > condiciones, la línea «Cuenta» de «Qué datos recogemos» la nombra
 > ([`../2026-09-29-aceptacion-de-los-textos-legales.md`](../2026-09-29-aceptacion-de-los-textos-legales.md) § 6.B);
@@ -234,6 +256,7 @@ Algunos de estos proveedores son empresas de Estados Unidos o tratan datos allí
 ### Cuánto tiempo guardamos tus datos
 
 - Mientras tu cuenta exista. Al borrarla, todo lo que hay en ella se borra al momento: perfil, alergias, salud, planes, listas, progreso, consentimientos, enlaces con tu dietista y el registro de accesos. Antes cancelamos cualquier suscripción que tengas.
+- ⟦barrido-sin-confirmar⟧ Si alguien crea una cuenta con una dirección y nadie la confirma, la borramos a los treinta días del alta: el nombre, el correo y la contraseña con los que se creó desaparecen. Solo la borramos si no hay nada más en ella: ninguna sesión, ningún perfil, ningún plan y ninguna actividad anotada en nuestros registros. Después queda solo una anotación de que ese día se borró una cuenta sin confirmar, sin el correo, sin el nombre y sin nada que lleve a nadie. En cuanto confirmas tu dirección, tu cuenta se queda mientras tú quieras. ⟦fin⟧
 - Una invitación se borra en cuanto la aceptas o la rechazas; si no respondes, caduca a los 14 días y se borra, con tu dirección, como muy tarde al día siguiente.
 - ⟦registro-seguridad⟧ El registro de seguridad de tu cuenta se guarda mientras exista tu cuenta; al borrarla deja de estar ligado a ti. ⟦si purga-seguridad⟧ Además se borra a los 12 meses. ⟦fin⟧
 - El registro de uso del producto se borra a los 24 meses y los registros técnicos de la generación de planes a los 12. ⟦publicar cuando exista la purga (P2-4)⟧
@@ -242,6 +265,8 @@ Algunos de estos proveedores son empresas de Estados Unidos o tratan datos allí
 - Stripe conserva los datos de facturación el tiempo que le exige la ley, aunque borres tu cuenta.
 
 <!-- Fuente: RGPD art. 13.2.a y 5.1.e; auth.config.ts:212-231 (borrado); care.schema.ts:14-24 (invitaciones); care.schema.ts:122 (nombre del profesional); deployment.md § 8 (la ventana {n} está sin anotar: el propietario la toma de la consola de Neon; mientras falte, «puedes pedirnos el plazo exacto en {email}» —lo que publicó frontend— es una sustitución aceptable, porque el art. 13.2.a admite «los criterios utilizados para determinar este plazo» y no inventa un número). La frase actual «se elimina automáticamente pasado ese plazo» es falsa para la exportación manual (P1-6). -->
+
+<!-- Fuente ⟦barrido-sin-confirmar⟧ (2026-10-09, proyecto 011, seguimiento «the 30-day sweep of unconfirmed accounts», decisión `0092`, PR #250, `fbab7b1b`): RGPD art. 13.2.a — el art. 13.2.a obliga a informar «el plazo durante el cual se conservarán los datos personales o, cuando no sea posible, los criterios utilizados para determinar este plazo» (texto del DOUE en BOE, `DOUE-L-2016-80807`), y aquí las cuatro condiciones SON los criterios: por eso el párrafo las enumera y no publica solo «treinta días». Art. 5.1.e («mantenidos de forma que se permita la identificación de los interesados durante no más tiempo del necesario para los fines del tratamiento») y 5.1.c (minimización): el plazo es lo que justifica el barrido, no un favor. Art. 17.1.a (los datos «ya no sean necesarios en relación con los fines para los que fueron recogidos»). Considerando 26, última frase («los principios de protección de datos no deben aplicarse a la información anónima»): lo que sobrevive al borrado es la fila de `audit_logs` con `actorId` y `subjectUserId` a `NULL` por `onDelete: 'set null'` (`platform.schema.ts:106,111`), `entityId` a `null` (`AuditRepository.ts:122`), `metadata` `{}` y sin `ipHash` — acción, fecha y nada más, así que la frase «sin nada que lleve a nadie» es cierta. Código leído en `fbab7b1b`: `UNCONFIRMED_ACCOUNT_RETENTION_DAYS = 30` (`core/entities/Audit/Audit.ts:70`), `staleUnconfirmedWhere` (`core/repositories/User/UserRepository.ts:181`: `emailVerified = false`, `createdAt < cutoff`, y `NOT EXISTS` de sesión, `profiles`, `meal_plans` y `audit_logs` como actor o sujeto), `deleteStaleUnconfirmed` (`:345`, un `DELETE … RETURNING` en transacción), `UserController.sweepUnconfirmedAccounts` (`:432`), `AuthRetentionService.forget` (`apps/api/src/modules/auth/services/AuthRetention.service.ts:32`), cron `/cron/sweep-verifications` (`apps/api/vercel.json`, `5 8 * * *`). «El nombre, el correo y la contraseña con los que se creó desaparecen»: la fila de `account` (con `password`) cuelga de `user` con `onDelete: 'cascade'` (`auth.schema.ts:96-98`), y el enlace de confirmación es un JWT firmado, no una fila (Better Auth 1.7.7, `dist/api/routes/email-verification.mjs:14-20`), así que no queda ninguna fila con la dirección. Lo que **no** se borra y ya está publicado: las huellas de los frenos y del presupuesto de correos («no se borra al borrar la tuya: caduca solo…», viñeta ⟦frenos⟧) y las copias de seguridad. Coherencia con el correo de confirmación: `VerifyEmail.ts` promete lo mismo en los dos idiomas (`ignore`), así que el párrafo no puede faltar sin que la política diga menos que el correo (art. 5.1.a, lealtad y transparencia). LOPDGDD art. 32 (bloqueo), BOE-A-2018-16673 consolidada a 27/12/2025: cuestión abierta, no bloqueante, en [`analisis.md` § 4.1 quinquies](../analisis.md) y § 10 punto 15. EN, para el diccionario inglés, en la sección inglesa de este documento. -->
 
 ### Tus derechos
 
@@ -383,7 +408,9 @@ Some of these providers are US companies or process data there: Vercel, Neon, St
 ### How long we keep your data
 
 - While your account exists. When you delete it, everything in it is deleted at once: profile, allergies, health, plans, lists, progress, consents, links with your dietitian and the access record. Before that, we cancel any subscription you have.
+- ⟦unconfirmed-sweep⟧ If somebody creates an account with an address and nobody confirms it, we delete it thirty days after the sign-up: the name, the email address and the password it was created with are gone. We only delete it if there is nothing else in it: no session, no profile, no plan and no activity recorded in our records. What is left is a single note saying that an unconfirmed account was deleted that day, with no email address, no name and nothing that leads to anybody. Once you confirm your address, your account stays for as long as you want it. ⟦end⟧
 - An invitation is deleted as soon as you accept or decline it; if you do not answer, it expires after 14 days and is deleted, with your address, by the following day at the latest.
+- ⟦security-record⟧ The security record of your account is kept while your account exists; when you delete it, it stops being linked to you. ⟦if purge⟧ It is also deleted after 12 months. ⟦end⟧
 - The product-use record is deleted after 24 months and the technical records of plan generation after 12. ⟦publish once the purge exists (P2-4)⟧
 - **Backups**: our database provider keeps a history to recover from a failure, which is deleted automatically after {n} days. ⟦if backups⟧ We also make encrypted manual copies that are deleted after 30 days. Data you delete may remain in those copies until they expire; we do not use it for anything else.
 - **If you were a dietitian on NutrIA**, your name stays in your former clients' access record, because knowing who saw their data is their right.

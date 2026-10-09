@@ -23,6 +23,7 @@
 ## 0 quater. Antes de publicar «se borra a los 12 meses» en `/privacidad` (proyecto 011)
 
 - [ ] La purga diaria de `audit_logs` (`action LIKE 'auth.%'`, `createdAt` de más de 12 meses) está en producción: fase 7 del 011, en el cron diario de fallos de inicio de sesión. Con prueba de que no borra filas de administración (`analisis.md` § 4.1 bis). Solo entonces se publica la frase marcada ⟦si purga-seguridad⟧ de [`textos/02`](./textos/02-politica-privacidad.md). Hasta entonces la política dice solo «mientras exista tu cuenta».
+  - **Revisado el 2026-10-09**: el código está desde el 2026-10-03 (`AuditController.forgetExpiredAuthRows`, PR #213, `6b260239`), con su prueba de que solo toca `auth.*`, y lo lleva el mismo cron diario. **Falta solo que el lead confirme que #213 está desplegado**; con eso, la casilla se marca y la frase «Además se borra a los 12 meses» puede salir en el mismo cambio de diccionario que ⟦barrido-sin-confirmar⟧ (§ 0 septies), con la misma `privacy.updated`. En inglés: «The security record of your account is kept while your account exists; when you delete it, it stops being linked to you. It is also deleted after 12 months.»
 
 ## 0 quinquies. Antes de llevar a producción el alta que no revela nada (proyecto 011 fase 8, PR #217)
 
@@ -35,6 +36,29 @@
 
 - [ ] El añadido ⟦navegador-conocido⟧ a la viñeta «Frenos contra el abuso» y la frase de «Cookies» de [`textos/02`](./textos/02-politica-privacidad.md) en `privacy` (es-ES y en-GB), **en el mismo cambio** que el PR, con `privacy.updated` = la fecha de ese día. Sin correo de aviso; ninguna versión que subir.
 - [ ] El texto describe el PR tras su revisión de invariantes: freno propio del navegador, la cookie anulada al cerrar las demás sesiones o todas, y las filas borradas con la cuenta (`UserController.forgetDevices`). Si alguna de las tres no llega a producción, el texto no se publica así ([`analisis.md`](./analisis.md) § 4.1 quater).
+
+## 0 septies. Antes de que el barrido borre la primera cuenta sin confirmar (proyecto 011, seguimiento, `0092`, PR #250)
+
+> **El barrido no tiene flag ni interruptor**: va dentro del cron diario
+> `/api/v1/cron/sweep-verifications` (08:05 UTC), así que corre con el despliegue de #250,
+> que ya está en `main`. Lo urgente, por tanto, no es un aviso a nadie: es el orden —
+> el texto publicado antes de la primera cuenta borrada. Detalle y fuentes en
+> [`analisis.md` § 4.1 quinquies](./analisis.md).
+
+- [ ] (lead) **Saber si #250 está desplegado** y, si lo está, a qué hora corrió o va a correr el cron. Si corre antes de que el texto esté en vivo, la política habrá llegado tarde a un borrado que el correo de confirmación ya promete: anotarlo y publicar el texto ese mismo día (no es una brecha; es un plazo informado tarde).
+- [ ] (frontend) El párrafo ⟦barrido-sin-confirmar⟧ de [`textos/02`](./textos/02-politica-privacidad.md) en `privacy` (es-ES y en-GB), sección «Cuánto tiempo guardamos tus datos» / «How long we keep your data», en el **primer** cambio que salga. `privacy.updated` en vivo ya es «9 de octubre de 2026» / «9 October 2026»: si se publica hoy, no se toca; otro día, la fecha de ese día.
+- [ ] (propietario, **solo lectura**) Antes de la primera carrera: cuántas cuentas de producción tienen `emailVerified = false`, más de treinta días y nada dentro (ni sesión, ni perfil, ni plan, ni fila de rastro). La primera carrera las borra **todas de golpe**, y algunas pueden ser de personas reales que se dieron de alta antes de que el correo prometiera este plazo. La casilla equivalente del § 0 quinquies (fase 8) pedía ya este recuento y sigue sin marcar: sirve la misma consulta.
+- [ ] (propietario, **recomendado, no exigido**) Si son más de unas pocas, escribirles una vez con un enlace de confirmación antes de dejar correr el cron (mensaje de servicio, art. 6.1.b). Si decide no hacerlo, anotar la decisión y la fecha.
+- [ ] (propietario) **Operativa, desde hoy: activar solo cuentas confirmadas.** Abrir una cuenta sin confirmar le escribe una fila de rastro y la saca del barrido para siempre, de modo que la promesa del correo deja de ser verdad para ella (`analisis.md` § 4.1 quinquies y § 9, P3). El filtro `confirmed` de Cuentas, en `/admin`, dice cuáles lo están.
+- [ ] (backend, P2 — no bloquea el texto) `staleUnconfirmedWhere` mira además `user.activatedAt` (`isNull`), para no depender de que la activación dejara rastro: las activaciones anteriores a `0071` (finales de septiembre de 2026) no lo dejaron. Enviado a `backend`.
+- [ ] (backend, P3 — no bloquea) El correo de confirmación dice «al mes» en español y «after thirty days» en inglés (`VerifyEmail.ts`, clave `ignore`): que el español diga «a los treinta días», como el inglés y como la política. Enviado a `backend`.
+- [ ] (propietario) Después de la primera carrera: mirar en Ajustes › Registro de acciones las filas «Cuenta sin confirmar eliminada» y comprobar que **no llevan ni autor ni cuenta**. Si alguna lleva algo que identifique, parar el cron y avisar a `legal`.
+
+> **Nada que versionar y nadie a quien avisar**: el cambio no es «importante» (plazo más
+> corto, ningún dato, destinatario, transferencia ni fin nuevo), así que no hay correo de
+> aviso ni consentimiento que volver a pedir, y no se mueve `HEALTH_CONSENT_VERSION`,
+> `CARE_CONSENT_VERSION`, `PROFESSIONAL_AGREEMENT_VERSION` ni `TERMS_VERSION`.
+> `/condiciones` **no** cambia (`analisis.md` § 4.1 quinquies).
 
 ## 0 bis. Antes de poner `AI_PROVIDER=openrouter` en producción (`0064`)
 
