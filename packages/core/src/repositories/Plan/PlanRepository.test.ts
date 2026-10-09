@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { PlanRepository, refusesProfessionalSave, saveShape } from './PlanRepository';
+import { boughtAsk, carriedBought, PlanRepository, refusesProfessionalSave, saveShape } from './PlanRepository';
 
 /** What each `select … for update` answers, in order, and every write the transaction made. */
 const selects: unknown[][] = [];
@@ -209,5 +209,63 @@ describe('PlanRepository.activateDue — on its day, once', () => {
 
     await expect(PlanRepository.activateDue('usr-1', '2026-10-05')).resolves.toBe(false);
     expect(writes).toHaveLength(0);
+  });
+});
+
+/**
+ * What a shop already done survives (`0091`).
+ *
+ * The ownership walk in the write's own statement is covered end to end; the
+ * bound an amount is held to — `ROUND(LEAST(GREATEST(…)))` against the row it
+ * lands on — is **not** covered over HTTP yet, because today's suites only ever
+ * send a tick. Project 020 phase 5 owns those four cases; until they land, what
+ * proves the bound is a hand-run rehearsal against the local Postgres, recorded
+ * in that project's LOG.
+ */
+describe('carriedBought — a rebuild keeps what was bought, capped at the new need', () => {
+  it('carries the amount through a rebuild that leaves the row the same size', () => {
+    expect(carriedBought(500, 1200)).toEqual({ boughtGrams: 500, checked: false });
+  });
+
+  it('caps it at the new need when a swap shrinks the row', () => {
+    expect(carriedBought(1200, 800)).toEqual({ boughtGrams: 800, checked: true });
+  });
+
+  it('reads as bought when the amount covers the new need exactly', () => {
+    expect(carriedBought(800, 800)).toEqual({ boughtGrams: 800, checked: true });
+  });
+
+  it('starts a row nobody had bought at zero — an ingredient new to the plan', () => {
+    expect(carriedBought(undefined, 600)).toEqual({ boughtGrams: 0, checked: false });
+  });
+
+  it('never carries a negative amount, whatever a row holds', () => {
+    expect(carriedBought(-50, 600)).toEqual({ boughtGrams: 0, checked: false });
+  });
+});
+
+describe('boughtAsk — an amount, or the tick it replaced', () => {
+  it('takes an amount as what it says', () => {
+    expect(boughtAsk({ boughtGrams: 500 })).toEqual({ grams: 500, kind: 'amount' });
+  });
+
+  it('reads an old client’s tick as the whole plan’s need', () => {
+    expect(boughtAsk({ checked: true })).toEqual({ kind: 'all' });
+  });
+
+  it('reads an old client’s untick as nothing bought', () => {
+    expect(boughtAsk({ checked: false })).toEqual({ kind: 'none' });
+  });
+
+  it('lets the amount win when both arrive — it is the finer claim', () => {
+    expect(boughtAsk({ boughtGrams: 300, checked: true })).toEqual({ grams: 300, kind: 'amount' });
+    expect(boughtAsk({ boughtGrams: 0, checked: true })).toEqual({ grams: 0, kind: 'amount' });
+  });
+});
+
+describe('carriedBought — a row that needs nothing is untouched, not bought', () => {
+  it('leaves a zero-need row unticked, the one place 0091’s two sentences collide', () => {
+    expect(carriedBought(0, 0)).toEqual({ boughtGrams: 0, checked: false });
+    expect(carriedBought(undefined, 0)).toEqual({ boughtGrams: 0, checked: false });
   });
 });

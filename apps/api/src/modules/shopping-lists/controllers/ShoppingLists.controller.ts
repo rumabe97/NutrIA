@@ -9,12 +9,12 @@ import type { SessionUser } from '../../../shared/index.js';
 import type { ShoppingListDto } from '../dto/out/index.js';
 
 /**
- * Reading the active plan's list, and ticking items off it.
+ * Reading the active plan's list, and recording what has been bought off it.
  *
- * Ticking is all that is writable, and deliberately so: editing quantities and
- * adding rows change what the list *says the plan needs*, which is a different
- * claim and needs its own thinking. A checkbox only records what the shopper has
- * already picked up.
+ * What is bought is all that is writable, and deliberately so: editing
+ * quantities and adding rows change what the list *says the plan needs*, which
+ * is a different claim and needs its own thinking. An amount only records what
+ * the shopper has already picked up (`0091`).
  */
 @ApiTags('shopping-lists')
 @Controller('shopping-lists')
@@ -28,15 +28,18 @@ export class ShoppingListsController {
     return this.lists.active(user.id, locale);
   }
 
-  @ApiNoContentResponse({ description: 'Ticked, or put back.' })
-  @ApiOperation({ summary: 'Tick an item off, or put it back. An item on another account’s list is not found.' })
+  @ApiNoContentResponse({ description: 'Recorded.' })
+  @ApiOperation({
+    summary:
+      'Record how much of an item has been bought — an amount in grams, or the tick it replaced. Capped at what the plan needs. An item on another account’s list is not found.'
+  })
   @HttpCode(HttpStatus.NO_CONTENT)
   @Patch('items/:id')
-  async setChecked(
+  async setBought(
     @CurrentUser() user: SessionUser,
     @Param('id', ParseUUIDPipe) id: string,
     @ZodBody(SetShoppingItemDto) body: SetShoppingItemDto
   ): Promise<void> {
-    await this.lists.setChecked(user.id, id, body);
+    await this.lists.setBought(user.id, id, body);
   }
 }

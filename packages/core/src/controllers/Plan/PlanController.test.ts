@@ -28,6 +28,23 @@ const release = vi.fn<(jobId: string) => Promise<void>>();
 const requireProfileConsent = vi.fn<(userId: string) => Promise<void>>(async () => undefined);
 const mealSize = vi.fn<(userId: string) => Promise<MealSizeView | null>>(async () => null);
 const setMealStatus = vi.fn<(userId: string, mealId: string, status: string, today: string) => Promise<'closed' | 'done' | 'future' | 'missing'>>();
+type StoredItem = {
+  id: string;
+  boughtGrams: string;
+  category: string | null;
+  checked: boolean;
+  displayQuantity: string;
+  displayUnit: string;
+  dryRounded: boolean;
+  gramsPerUnit: string | null;
+  name: string;
+  perDay: Record<string, number> | null;
+  totalGrams: string;
+};
+const findById = vi.fn<(userId: string, planId: string) => Promise<ChainRow | undefined>>();
+const findShoppingList =
+  vi.fn<(planId: string, locale?: string) => Promise<{ id: string; items: readonly StoredItem[]; planId: string } | undefined>>();
+const setItemBought = vi.fn<(userId: string, itemId: string, asked: unknown) => Promise<boolean>>();
 
 vi.mock('#repositories/Plan', () => ({
   PlanJobRepository: {
@@ -42,12 +59,15 @@ vi.mock('#repositories/Plan', () => ({
     activateDue: (...args: Parameters<typeof activateDue>) => activateDue(...args),
     countSwaps: () => Promise.resolve(0),
     findActive: (u: string) => findActive(u),
+    findById: (...args: Parameters<typeof findById>) => findById(...args),
     findChain: (...args: Parameters<typeof findChain>) => findChain(...args),
     findHistory: (u: string, l: number, o: number) => findHistory(u, l, o),
     findPending: (u: string) => findPending(u),
     findScheduled: (u: string) => findScheduled(u),
     findScheduledDue: (latest: string) => findScheduledDue(latest),
+    findShoppingList: (...args: Parameters<typeof findShoppingList>) => findShoppingList(...args),
     isPublishable: (u: string) => isPublishable(u),
+    setItemBought: (...args: Parameters<typeof setItemBought>) => setItemBought(...args),
     setMealStatus: (u: string, m: string, s: string, t: string) => setMealStatus(u, m, s, t)
   }
 }));
@@ -708,5 +728,86 @@ describe('PlanController.cutComposition — what a plan cut short keeps (project
 
     findActive.mockResolvedValue({ id: 'plan-a', endDate: '2026-10-04', redo: false, replacedRedos: 0, status: 'active', version: 1 });
     await expect(PlanController.cutComposition('usr-1', '2026-10-05')).resolves.toBeNull();
+  });
+});
+
+/**
+ * The list a range is read from (`0091`): every row carries what each day owes
+ * it, whether its sum is rounded dry, and what a unit of it weighs — the three
+ * things `rangeQuantity` cannot recover from a stored row.
+ */
+describe('PlanController — the shopping list carries what a range is computed from', () => {
+  const stored = {
+    id: 'itm-1',
+    boughtGrams: '500.00',
+    category: 'produce',
+    checked: false,
+    displayQuantity: '1200.00',
+    displayUnit: 'g',
+    dryRounded: false,
+    gramsPerUnit: null,
+    name: 'Pollo',
+    perDay: { '2026-03-01': 600, '2026-03-08': 600 },
+    totalGrams: '1200.00'
+  };
+
+  beforeEach(() => {
+    findById.mockResolvedValue({ id: 'pln-1', endDate: '2026-03-14', redo: false, replacedRedos: 0, status: 'active', version: 1 });
+  });
+
+  it('presents the amount bought, the breakdown, the dry flag and the grams per unit, as numbers', async () => {
+    findShoppingList.mockResolvedValue({ id: 'lst-1', items: [stored], planId: 'pln-1' });
+
+    const list = await PlanController.getShoppingList('usr-1', 'pln-1');
+
+    expect(list.items[0]).toEqual({
+      id: 'itm-1',
+      boughtGrams: 500,
+      category: 'produce',
+      checked: false,
+      displayQuantity: 1200,
+      displayUnit: 'g',
+      dryRounded: false,
+      gramsPerUnit: null,
+      name: 'Pollo',
+      perDay: { '2026-03-01': 600, '2026-03-08': 600 },
+      totalGrams: 1200
+    });
+  });
+
+  it('reads a row with no breakdown as no days rather than null, so every reader treats it the same way', async () => {
+    findShoppingList.mockResolvedValue({ id: 'lst-1', items: [{ ...stored, gramsPerUnit: '58.00', perDay: null }], planId: 'pln-1' });
+
+    const list = await PlanController.getShoppingList('usr-1', 'pln-1');
+
+    expect(list.items[0]).toMatchObject({ gramsPerUnit: 58, perDay: {} });
+  });
+
+  it('answers not found for a plan that is not this account’s', async () => {
+    findById.mockResolvedValue(undefined);
+
+    await expect(PlanController.getShoppingList('usr-1', 'pln-1')).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe('PlanController.setShoppingItemBought — an amount, or the tick it replaced', () => {
+  it('passes what was asked straight to the write, which bounds it against the row', async () => {
+    setItemBought.mockResolvedValue(true);
+
+    await expect(PlanController.setShoppingItemBought('usr-1', 'itm-1', { boughtGrams: 500 })).resolves.toBeUndefined();
+    expect(setItemBought).toHaveBeenCalledWith('usr-1', 'itm-1', { boughtGrams: 500 });
+  });
+
+  it('still takes an old client’s tick', async () => {
+    setItemBought.mockResolvedValue(true);
+
+    await PlanController.setShoppingItemBought('usr-1', 'itm-1', { checked: true });
+    expect(setItemBought).toHaveBeenCalledWith('usr-1', 'itm-1', { checked: true });
+  });
+
+  it('answers not found when the row is not this account’s — the write updated nothing', async () => {
+    setItemBought.mockResolvedValue(false);
+
+    await expect(PlanController.setShoppingItemBought('usr-1', 'itm-1', { boughtGrams: 1 })).rejects.toBeInstanceOf(NotFoundError);
   });
 });

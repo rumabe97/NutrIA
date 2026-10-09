@@ -11,7 +11,16 @@ import { shoppingListItems, shoppingLists } from 'database/schema/shopping';
 
 import { ConflictError, DatabaseOperationError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
 import { FALLBACK_LOCALE } from '#repositories/Recipe';
-import type { Macros, MealAccompanimentDraft, MealSlot, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
+import type {
+  Macros,
+  MealAccompanimentDraft,
+  MealSlot,
+  MealStatus,
+  PlanDraft,
+  RecipeDraft,
+  SetShoppingItem,
+  ShoppingItemDraft
+} from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { RecordAccess } from '#repositories/Care';
 
@@ -363,9 +372,12 @@ export const PlanRepository = {
                 category: item.category,
                 displayQuantity: String(item.displayQuantity),
                 displayUnit: item.displayUnit,
+                dryRounded: item.dryRounded,
+                gramsPerUnit: item.gramsPerUnit === null ? null : String(item.gramsPerUnit),
                 ingredientId: item.ingredientId,
                 listId: list.id,
                 name: item.name,
+                perDay: item.perDay,
                 totalGrams: String(item.totalGrams)
               }))
             );
@@ -1046,14 +1058,24 @@ export const PlanRepository = {
   },
 
   /**
-   * Ticks or unticks one item.
+   * Records how much of one row has been bought (`0091`), from an amount or
+   * from the tick it replaced.
    *
    * Ownership is resolved *inside* the statement, by walking item → list → plan →
    * user, so an item id belonging to another account updates nothing and the
    * caller sees "not found" rather than a refusal. The same rule as every other
    * user-scoped write: the id from the path is never trusted on its own.
+   *
+   * Mode: one statement, and the **cap and the floor are in it**. `LEAST`/
+   * `GREATEST` against the row's own `total_grams` means the bound is applied
+   * to the row the write lands on, whatever a client sent and whatever the row
+   * holds by the time it lands — a read-then-clamp-then-write would be three
+   * statements against three snapshots, and two phones in a supermarket are
+   * exactly the case that has. `checked` is derived here and nowhere else, so
+   * the boolean the web build live during a deploy still reads can never
+   * disagree with the amount.
    */
-  async setItemChecked(userId: string, itemId: string, checked: boolean): Promise<boolean> {
+  async setItemBought(userId: string, itemId: string, asked: SetShoppingItem): Promise<boolean> {
     try {
       const owned = database()
         .select({ id: shoppingListItems.id })
@@ -1062,9 +1084,29 @@ export const PlanRepository = {
         .innerJoin(mealPlans, eq(mealPlans.id, shoppingLists.planId))
         .where(and(eq(shoppingListItems.id, itemId), eq(mealPlans.userId, userId), visible()));
 
+      const ask = boughtAsk(asked);
+      const wanted = ask.kind === 'amount' ? sql`${String(ask.grams)}::numeric` : ask.kind === 'all' ? sql`${shoppingListItems.totalGrams}` : sql`0`;
+      // `ROUND(…, 2)` is not cosmetic: the column is `numeric(9,2)`, so Postgres
+      // rounds on assignment, and a `checked` derived from the *unrounded*
+      // expression can disagree with the amount actually stored. 99.999 g asked
+      // of a 100 g row stores 100.00 and would derive `checked = false` — a row
+      // fully bought that says it is not, which is the one state `0091` says
+      // cannot exist. Rounding first means the comparison reads the number the
+      // row will hold.
+      const bought = sql`ROUND(LEAST(GREATEST(${wanted}, 0), ${shoppingListItems.totalGrams}), 2)`;
+
       const updated = await database()
         .update(shoppingListItems)
-        .set({ checked, updatedAt: new Date() })
+        // `AND total_grams > 0` resolves the one place `0091`'s two sentences
+        // collide: a row that needs nothing satisfies "done when bought >=
+        // needed" and "untouched at zero" at the same time. Untouched is the
+        // honest reading — nobody bought it — and a row that claimed a shop
+        // nobody made would be a lie to the one screen that reads this flag.
+        .set({
+          boughtGrams: bought,
+          checked: sql`${bought} >= ${shoppingListItems.totalGrams} AND ${shoppingListItems.totalGrams} > 0`,
+          updatedAt: new Date()
+        })
         .where(inArray(shoppingListItems.id, owned))
         .returning({ id: shoppingListItems.id });
 
@@ -1360,13 +1402,51 @@ export type MealAccompanimentRead = {
 };
 
 /**
+ * What a rebuild carries onto a row it rewrites (`0091`): the amount already
+ * bought, never more than what the plan now needs of it, with the tick derived
+ * from the two.
+ *
+ * Capped because a swap or an event can shrink a row — a fortnight that needed
+ * 1.2 kg of chicken may need 800 g after it, and leaving 1.2 kg bought would
+ * say somebody has more than the plan asks for. Floored because a stored
+ * amount is never negative and this is the one place a rebuild could introduce
+ * one. Exported, and pure, so the rule is provable without a database — the SQL
+ * around it (the list rebuilt in one transaction) is covered end to end, while
+ * an **amount** through HTTP is not yet: project 020 phase 5 owns those cases.
+ */
+export function carriedBought(bought: number | undefined, totalGrams: number): { readonly boughtGrams: number; readonly checked: boolean } {
+  const carried = Math.min(Math.max(bought ?? 0, 0), totalGrams);
+
+  // `totalGrams > 0` for the same reason the write derives it that way: a row
+  // that needs nothing is untouched, not bought.
+  return { boughtGrams: carried, checked: carried >= totalGrams && totalGrams > 0 };
+}
+
+/**
+ * What a write asks of a row (`0091`), before the row's own need bounds it.
+ *
+ * An amount is the finer claim and wins when both arrive. A tick is what the
+ * web build live during a deploy still sends, and means the whole plan's need
+ * (`all`) or none of it (`none`) — which is exactly what `checked` asserted
+ * when it was the only truth. Pure and exported for the same reason as
+ * `carriedBought`: the clamp is SQL, the choice is not.
+ */
+export function boughtAsk(asked: SetShoppingItem): { readonly grams: number; readonly kind: 'amount' } | { readonly kind: 'all' | 'none' } {
+  if (asked.boughtGrams !== undefined) {
+    return { grams: asked.boughtGrams, kind: 'amount' };
+  }
+
+  return { kind: asked.checked ? 'all' : 'none' };
+}
+
+/**
  * Rewrites everything the plan put on the shopping list, leaving alone
  * everything the person did (`0015`).
  *
  * The list is rebuilt from the whole plan rather than patched, because
  * quantities aggregate across meals — two meals using tomato are one line. What
- * they had already ticked stays ticked when the ingredient is still on the
- * list; items they added by hand are never touched.
+ * they had already bought stays bought when the ingredient is still on the
+ * list (`0091`); items they added by hand are never touched.
  *
  * Shared by the swap and the mid-plan rebuild, because "the list matches the
  * active plan" is one rule, and two copies of it are two chances to break it.
@@ -1382,12 +1462,15 @@ async function replaceGeneratedItems(tx: Transaction, planId: string, shoppingIt
     .select({
       id: shoppingListItems.id,
       addedManually: shoppingListItems.addedManually,
-      checked: shoppingListItems.checked,
+      boughtGrams: shoppingListItems.boughtGrams,
       ingredientId: shoppingListItems.ingredientId
     })
     .from(shoppingListItems)
     .where(eq(shoppingListItems.listId, list.id));
-  const ticked = new Set(existing.filter(item => item.checked && item.ingredientId).map(item => item.ingredientId));
+  // What was already bought, carried across the rebuild by ingredient (`0091`),
+  // where the tick used to be carried. A shop already done is not undone by a
+  // swap or an event.
+  const bought = new Map(existing.filter(item => item.ingredientId).map(item => [item.ingredientId, Number(item.boughtGrams)]));
   const generated = existing.filter(item => !item.addedManually).map(item => item.id);
 
   if (generated.length > 0) {
@@ -1395,20 +1478,26 @@ async function replaceGeneratedItems(tx: Transaction, planId: string, shoppingIt
   }
 
   if (shoppingItems.length > 0) {
-    await tx
-      .insert(shoppingListItems)
-      .values(
-        shoppingItems.map(item => ({
+    await tx.insert(shoppingListItems).values(
+      shoppingItems.map(item => {
+        const carried = carriedBought(bought.get(item.ingredientId), item.totalGrams);
+
+        return {
+          boughtGrams: String(carried.boughtGrams),
           category: item.category,
-          checked: ticked.has(item.ingredientId),
+          checked: carried.checked,
           displayQuantity: String(item.displayQuantity),
           displayUnit: item.displayUnit,
+          dryRounded: item.dryRounded,
+          gramsPerUnit: item.gramsPerUnit === null ? null : String(item.gramsPerUnit),
           ingredientId: item.ingredientId,
           listId: list.id,
           name: item.name,
+          perDay: item.perDay,
           totalGrams: String(item.totalGrams)
-        }))
-      );
+        };
+      })
+    );
   }
 }
 

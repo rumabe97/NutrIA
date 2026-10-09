@@ -203,6 +203,14 @@ writing an unknown one is not, and `0044` is the worked example: `packages/core`
 already dropped the value one release earlier, so nothing racing the migration could still
 produce it.
 
+**A long data step cannot be made shorter by splitting the file.** drizzle wraps **every
+pending migration file in one transaction**, so the `ACCESS EXCLUSIVE` an `ALTER TABLE …
+ADD COLUMN` takes is held until the last statement of the last pending file commits — a
+backfill in a "separate" migration still runs inside the same lock. Shortening it takes two
+**deploys**: the DDL merged and `Ready`, the backfill merged after. `0061` is the worked
+example, and says so in its own comment; at a few thousand rows it is a non-event, which is
+why it ships as one file. Learned from `migration-reviewer` on project 020 phase 2.
+
 **A statement that can destroy data, or fail on the rows already there, needs a person's
 line.** `node scripts/check-migrations.mjs` runs in CI's required check and refuses a new
 migration that drops a table or a column, changes a type, renames, truncates, deletes

@@ -39,6 +39,7 @@ import type {
   MealStatus,
   PlanDraft,
   RecipeDraft,
+  SetShoppingItem,
   ShoppingItemDraft
 } from 'core/entities/Plan';
 import type { CountedStanding, MealSwapStanding, PlanRedoStanding, StartMeaning, Tier } from 'core/domain/Allowance';
@@ -145,11 +146,25 @@ export interface PlanSummaryView {
  */
 export interface ShoppingListItemView {
   id: string;
+  /** How much of this row is already bought, in grams (`0091`). Zero, the whole need, or anything between. */
+  boughtGrams: number;
   category: string | null;
+  /** Derived from `boughtGrams`: the whole plan's need is covered. Kept for one release (`0091`). */
   checked: boolean;
   displayQuantity: number;
   displayUnit: string;
+  /** Whether a range's sum of this row is rounded up to the 5 g step (`0078`). */
+  dryRounded: boolean;
+  /** What one unit of a countable weighs; null for anything sold by weight. */
+  gramsPerUnit: number | null;
   name: string;
+  /**
+   * What each day of the plan owes this row — the day's own date against
+   * unrounded grams. Empty for a row that belongs to no day (one typed in by
+   * hand, or one stored before the breakdown existed), which then reads as the
+   * whole plan's need under every range.
+   */
+  perDay: Readonly<Record<string, number>>;
   totalGrams: number;
 }
 
@@ -644,11 +659,17 @@ export const PlanController = {
       id: list.id,
       items: list.items.map(item => ({
         id: item.id,
+        boughtGrams: Number(item.boughtGrams),
         category: item.category,
         checked: item.checked,
         displayQuantity: Number(item.displayQuantity),
         displayUnit: item.displayUnit,
+        dryRounded: item.dryRounded,
+        gramsPerUnit: item.gramsPerUnit === null ? null : Number(item.gramsPerUnit),
         name: item.name,
+        // Null is the absence of a breakdown, and every reader of this view
+        // treats "no days" the same way; an empty object says it once here.
+        perDay: item.perDay ?? {},
         totalGrams: Number(item.totalGrams)
       })),
       planId: list.planId
@@ -824,8 +845,14 @@ export const PlanController = {
    * or a quantity edit: those are separate decisions, and a control that does
    * more than it says is worse than one that does less.
    */
-  async setShoppingItemChecked(userId: string, itemId: string, checked: boolean): Promise<void> {
-    if (!(await PlanRepository.setItemChecked(userId, itemId, checked))) {
+  /**
+   * Records how much of a row has been bought (`0091`), from an amount or from
+   * the tick it replaced. The cap at the row's own need and the floor at zero
+   * are the repository's single statement; this layer only turns "no row of
+   * yours" into the 404 the route answers with.
+   */
+  async setShoppingItemBought(userId: string, itemId: string, asked: SetShoppingItem): Promise<void> {
+    if (!(await PlanRepository.setItemBought(userId, itemId, asked))) {
       throw new NotFoundError('Shopping list item not found');
     }
   },

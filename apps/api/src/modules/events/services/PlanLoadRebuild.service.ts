@@ -231,9 +231,33 @@ export class PlanLoadRebuildService {
       return [];
     }
 
+    // The days remade carry the dates the plan already gave them, the way the
+    // days kept carry theirs: the list keys its per-day breakdown by the date
+    // (`0091`).
+    //
+    // A day with no date is refused rather than written. Every index here comes
+    // from this plan's own meals, so the lookup cannot miss — but if it ever
+    // did, that day's grams would be filed under a placeholder key, which is
+    // worse than it sounds: the row's breakdown would be *partly* dated, so it
+    // would not take `rangeQuantity`'s empty-breakdown fallback, and the row
+    // would read short under every date range while its total stayed right. A
+    // list that quietly under-buys is the one failure this project cannot have,
+    // so this joins the refusals above: nothing is written, and the log says
+    // why.
+    const dateOf = new Map(plan.days.map(day => [day.dayIndex, day.date]));
+    const undated = scheduled.assignment.days.filter(day => !dateOf.has(day.dayIndex)).map(day => day.dayIndex);
+
+    if (undated.length > 0) {
+      this.logger.error(`Rebuilt days of plan ${plan.id} are not among its own days (${undated.join(', ')}); untouched`);
+
+      return [];
+    }
+
+    const remade = scheduled.assignment.days.map(day => ({ ...day, date: dateOf.get(day.dayIndex) }));
+
     // The list is the whole plan's, rebuilt from the days kept and the days
     // remade, the way a swap does it (`0015`): quantities add across meals.
-    const shopping = buildShoppingList({ days: [...groupByDay(kept), ...scheduled.assignment.days] }, context.catalogue, context.locale);
+    const shopping = buildShoppingList({ days: [...groupByDay(kept), ...remade] }, context.catalogue, context.locale);
 
     try {
       await PlanController.rebuildLoadedDays(
@@ -256,8 +280,11 @@ export class PlanLoadRebuildService {
           category: item.category,
           displayQuantity: item.displayQuantity,
           displayUnit: item.displayUnit,
+          dryRounded: item.dryRounded,
+          gramsPerUnit: item.gramsPerUnit,
           ingredientId: item.ingredientId,
           name: item.name,
+          perDay: item.perDay,
           totalGrams: item.totalGrams
         }))
       );
@@ -289,12 +316,19 @@ function sameSlots(slots: readonly MealSlot[], meals: readonly MealCompositionVi
   return eaten.size === slots.length && slots.every(slot => eaten.has(slot));
 }
 
-function groupByDay(meals: readonly MealCompositionView[]): readonly { readonly meals: readonly MealCompositionView[] }[] {
-  const days = new Map<number, MealCompositionView[]>();
+/**
+ * One entry per day, each carrying that day's own date — what the shopping
+ * list keys its per-day breakdown by (`0091`). A day with no date could not be
+ * filtered.
+ */
+function groupByDay(meals: readonly MealCompositionView[]): readonly { readonly date: string; readonly meals: readonly MealCompositionView[] }[] {
+  const days = new Map<number, { date: string; meals: MealCompositionView[] }>();
 
   for (const meal of meals) {
-    days.set(meal.dayIndex, [...(days.get(meal.dayIndex) ?? []), meal]);
+    const day = days.get(meal.dayIndex) ?? { date: meal.date, meals: [] };
+
+    days.set(meal.dayIndex, { date: day.date, meals: [...day.meals, meal] });
   }
 
-  return [...days.values()].map(entries => ({ meals: entries }));
+  return [...days.values()];
 }

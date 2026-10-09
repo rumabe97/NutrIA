@@ -455,7 +455,7 @@ export class PlanGenerationService {
       throw new GenerationError('GENERATION_INVALID_PLAN', `unresolved ingredients: ${missing.join(', ')}`);
     }
 
-    const shopping = buildShoppingList(scheduled.assignment, context.catalogue, context.locale);
+    const shopping = buildShoppingList(withDates(scheduled.assignment, start), context.catalogue, context.locale);
     // A plan that waits for its day may cut the one under way (project 015):
     // that plan's list is rebuilt from the days it keeps, saved with the cut.
     const cutShoppingItems = dates.start > dates.today ? await this.cutListFor(userId, dates.start, context) : undefined;
@@ -698,27 +698,48 @@ export class PlanGenerationService {
   }
 }
 
-/** A built list as a plan stores it. */
+/**
+ * The assignment with each day's own date attached, which is what the shopping
+ * list keys its per-day breakdown by (`0091`). The same arithmetic `toDraft`
+ * uses for `plan_days`, so the list's days and the plan's days can never name
+ * different dates.
+ */
+function withDates(assignment: PlanAssignment, start: Date) {
+  return { days: assignment.days.map(day => ({ ...day, date: isoDate(addDays(start, day.dayIndex - 1)) })) };
+}
+
+/** A built list as a plan stores it, the per-day breakdown a range is read from included (`0091`). */
 function toShoppingItems(shopping: ReturnType<typeof buildShoppingList>): PlanDraft['shoppingItems'] {
   return shopping.items.map(item => ({
     category: item.category,
     displayQuantity: item.displayQuantity,
     displayUnit: item.displayUnit,
+    dryRounded: item.dryRounded,
+    gramsPerUnit: item.gramsPerUnit,
     ingredientId: item.ingredientId,
     name: item.name,
+    perDay: item.perDay,
     totalGrams: item.totalGrams
   }));
 }
 
-/** A plan's meals, one entry per day, as the list builder reads them. */
-function byDay<T extends { readonly dayIndex: number }>(meals: readonly T[]): readonly { readonly meals: readonly T[] }[] {
-  const days = new Map<number, T[]>();
+/**
+ * A plan's meals, one entry per day with that day's own date, as the list
+ * builder reads them. The date is what the breakdown is keyed by (`0091`), so a
+ * day without one could not be filtered.
+ */
+function byDay<T extends { readonly date: string; readonly dayIndex: number }>(
+  meals: readonly T[]
+): readonly { readonly date: string; readonly meals: readonly T[] }[] {
+  const days = new Map<number, { date: string; meals: T[] }>();
 
   for (const meal of meals) {
-    days.set(meal.dayIndex, [...(days.get(meal.dayIndex) ?? []), meal]);
+    const day = days.get(meal.dayIndex) ?? { date: meal.date, meals: [] };
+
+    days.set(meal.dayIndex, { date: day.date, meals: [...day.meals, meal] });
   }
 
-  return [...days.values()].map(entries => ({ meals: entries }));
+  return [...days.values()];
 }
 
 /**

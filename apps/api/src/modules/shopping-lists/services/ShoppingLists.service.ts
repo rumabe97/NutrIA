@@ -23,7 +23,7 @@ export class ShoppingListsService {
     return PlanController.getShoppingList(userId, plan.id, locale);
   }
 
-  async setChecked(userId: string, itemId: string, body: SetShoppingItemDto): Promise<void> {
-    await PlanController.setShoppingItemChecked(userId, itemId, body.checked);
+  async setBought(userId: string, itemId: string, body: SetShoppingItemDto): Promise<void> {
+    await PlanController.setShoppingItemBought(userId, itemId, body);
   }
 }
