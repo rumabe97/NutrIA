@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildShoppingList, unresolvedSlugs } from 'core/domain/ShoppingList';
+import { buildShoppingList, rangeList, rangeQuantity, unresolvedSlugs } from 'core/domain/ShoppingList';
 import { makeCatalogue, makeCatalogueIngredient, makeDish } from '#test/fixtures';
 import type { PlanAssignment, ScheduledMeal } from 'core/entities/Plan';
+import type { ShoppingRangeRow } from 'core/domain/ShoppingList';
 
 const catalogue = makeCatalogue([
   makeCatalogueIngredient({ id: 'ing-tomate', category: 'produce', name: 'Tomate', slug: 'tomate' }),
@@ -18,6 +19,20 @@ function meal(ingredients: readonly { grams: number; slug: string }[]): Schedule
 
 function assignment(...meals: readonly ScheduledMeal[]): PlanAssignment {
   return { days: meals.map((entry, index) => ({ dayIndex: index + 1, meals: [entry], totals: entry.macros })) };
+}
+
+/** The plan's first day is 2026-03-01, so the dates read as a fortnight's would. */
+function dated(...meals: readonly ScheduledMeal[]) {
+  return { days: meals.map((entry, index) => ({ date: day(index + 1), dayIndex: index + 1, meals: [entry], totals: entry.macros })) };
+}
+
+function day(index: number): string {
+  return `2026-03-${String(index).padStart(2, '0')}`;
+}
+
+/** Every day the plan has, which is what an unfiltered list covers. */
+function allDays(row: ShoppingRangeRow): readonly string[] {
+  return Object.keys(row.perDay);
 }
 
 describe('buildShoppingList', () => {
@@ -184,5 +199,214 @@ describe('buildShoppingList — cooked grains are bought dry (0078)', () => {
     const draft = buildShoppingList(assignment(meal([{ grams: 213, slug: 'lentejas-cocidas' }])), grains);
 
     expect(draft.items[0]).toMatchObject({ name: 'Lentejas cocidas', slug: 'lentejas-cocidas', totalGrams: 213 });
+  });
+});
+
+describe("buildShoppingList — every day's share travels with the row (0091)", () => {
+  it("files each day's grams under the day's own date", () => {
+    const draft = buildShoppingList(dated(meal([{ grams: 100, slug: 'tomate' }]), meal([{ grams: 150, slug: 'tomate' }])), catalogue);
+
+    expect(draft.items[0]?.perDay).toEqual({ '2026-03-01': 100, '2026-03-02': 150 });
+  });
+
+  it("adds a day's repeats into that day's one entry", () => {
+    const draft = buildShoppingList(
+      dated(
+        meal([
+          { grams: 50, slug: 'arroz' },
+          { grams: 70, slug: 'arroz' }
+        ])
+      ),
+      catalogue
+    );
+
+    expect(draft.items[0]?.perDay).toEqual({ '2026-03-01': 120 });
+  });
+
+  it('files a day with no date under a key no range can choose, and still counts it into the total', () => {
+    const draft = buildShoppingList(assignment(meal([{ grams: 100, slug: 'tomate' }]), meal([{ grams: 150, slug: 'tomate' }])), catalogue);
+    const row = draft.items[0];
+
+    expect(row?.perDay).toEqual({ 'day-1': 100, 'day-2': 150 });
+    expect(row?.totalGrams).toBe(250);
+    expect(row && rangeQuantity(row, [day(1), day(2)]).totalGrams).toBe(0);
+  });
+
+  it('marks the rows that hold dry weight, and only those', () => {
+    const grains = makeCatalogue([
+      makeCatalogueIngredient({ id: 'ing-pasta-cocida', category: 'pantry', name: 'Pasta cocida', slug: 'pasta-cocida' }),
+      makeCatalogueIngredient({ id: 'ing-lentejas', category: 'pantry', name: 'Lentejas cocidas', slug: 'lentejas-cocidas' })
+    ]);
+    const draft = buildShoppingList(
+      dated(
+        meal([
+          { grams: 250, slug: 'pasta-cocida' },
+          { grams: 200, slug: 'lentejas-cocidas' }
+        ])
+      ),
+      grains
+    );
+
+    expect(draft.items.map(item => [item.slug, item.dryRounded])).toEqual([
+      ['lentejas-cocidas', false],
+      ['pasta-cocida', true]
+    ]);
+  });
+
+  it('carries the grams per unit a countable is read in, which the quantity alone cannot say', () => {
+    const draft = buildShoppingList(dated(meal([{ grams: 150, slug: 'huevo' }]), meal([{ grams: 100, slug: 'tomate' }])), catalogue);
+
+    expect(draft.items.map(item => [item.slug, item.gramsPerUnit])).toEqual([
+      ['tomate', null],
+      ['huevo', 58]
+    ]);
+  });
+});
+
+describe('rangeQuantity', () => {
+  const grains = makeCatalogue([
+    makeCatalogueIngredient({ id: 'ing-cuscus-cocido', category: 'pantry', name: 'Cuscús cocido', slug: 'cuscus-cocido' }),
+    makeCatalogueIngredient({ id: 'ing-cuscus-crudo', category: 'pantry', name: 'Cuscús', slug: 'cuscus-crudo' }),
+    makeCatalogueIngredient({ id: 'ing-pasta-cocida', category: 'pantry', name: 'Pasta cocida', slug: 'pasta-cocida' })
+  ]);
+
+  it('over every day of the plan is the stored total, for every kind of row', () => {
+    const everything = buildShoppingList(
+      dated(
+        meal([
+          { grams: 150, slug: 'huevo' },
+          { grams: 100, slug: 'pan' },
+          { grams: 250, slug: 'leche' },
+          { grams: 2400, slug: 'arroz' },
+          { grams: 100, slug: 'tomate' }
+        ]),
+        meal([
+          { grams: 59, slug: 'huevo' },
+          { grams: 137, slug: 'tomate' }
+        ])
+      ),
+      catalogue
+    );
+    const dry = buildShoppingList(
+      dated(
+        meal([
+          { grams: 600, slug: 'cuscus-cocido' },
+          { grams: 250, slug: 'pasta-cocida' }
+        ]),
+        meal([
+          { grams: 100, slug: 'cuscus-crudo' },
+          { grams: 50, slug: 'pasta-cocida' }
+        ])
+      ),
+      grains
+    );
+
+    for (const row of [...everything.items, ...dry.items]) {
+      expect(rangeQuantity(row, allDays(row))).toEqual({
+        displayQuantity: row.displayQuantity,
+        displayUnit: row.displayUnit,
+        totalGrams: row.totalGrams
+      });
+    }
+  });
+
+  it("holds the owner's case: 500 g in week 1, 700 g in week 2, 1.2 kg over the fortnight", () => {
+    // 100 g on days 1–5 and on days 8–14; nothing on days 6 and 7.
+    const plan = {
+      days: Array.from({ length: 14 }, (_, index) => ({
+        date: day(index + 1),
+        meals: [meal(index < 5 || index >= 7 ? [{ grams: 100, slug: 'tomate' }] : [])]
+      }))
+    };
+    const row = buildShoppingList(plan, catalogue).items[0];
+    const week1 = Array.from({ length: 7 }, (_, index) => day(index + 1));
+    const week2 = Array.from({ length: 7 }, (_, index) => day(index + 8));
+
+    expect(row?.totalGrams).toBe(1200);
+    expect(row && rangeQuantity(row, week1)).toEqual({ displayQuantity: 500, displayUnit: 'g', totalGrams: 500 });
+    expect(row && rangeQuantity(row, week2)).toEqual({ displayQuantity: 700, displayUnit: 'g', totalGrams: 700 });
+    expect(row && rangeQuantity(row, [...week1, ...week2]).totalGrams).toBe(1200);
+  });
+
+  it('rounds dry weight up once, after the range is summed — never per day (0078)', () => {
+    // 50 g of cooked pasta a day is 21.74 g dry: three days are 65.2 g → 70 g,
+    // where rounding each day to 25 g first would buy 75 g.
+    const row = buildShoppingList(dated(...Array.from({ length: 3 }, () => meal([{ grams: 50, slug: 'pasta-cocida' }]))), grains).items[0];
+
+    expect(row?.totalGrams).toBe(70);
+    expect(row && rangeQuantity(row, [day(1)]).totalGrams).toBe(25);
+    expect(row && rangeQuantity(row, [day(1), day(2)]).totalGrams).toBe(45);
+  });
+
+  it('rounds a countable up for the range, not for the plan', () => {
+    const row = buildShoppingList(dated(...Array.from({ length: 3 }, () => meal([{ grams: 50, slug: 'huevo' }]))), catalogue).items[0];
+
+    expect(row?.displayQuantity).toBe(3);
+    // 100 g of the range's own need is still two eggs.
+    expect(row && rangeQuantity(row, [day(1), day(2)]).displayQuantity).toBe(2);
+  });
+
+  it('counts a day named twice once', () => {
+    const row = buildShoppingList(dated(meal([{ grams: 100, slug: 'tomate' }])), catalogue).items[0];
+
+    expect(row && rangeQuantity(row, [day(1), day(1)]).totalGrams).toBe(100);
+  });
+
+  it('is nothing to buy when no day is chosen', () => {
+    const row = buildShoppingList(dated(meal([{ grams: 150, slug: 'huevo' }])), catalogue).items[0];
+
+    expect(row && rangeQuantity(row, [])).toEqual({ displayQuantity: 0, displayUnit: 'unit', totalGrams: 0 });
+  });
+
+  it('shows a row with no breakdown as the whole plan needs it — a hand-added row belongs to no day', () => {
+    const manual: ShoppingRangeRow = { displayQuantity: 2, displayUnit: 'unit', dryRounded: false, gramsPerUnit: 58, perDay: {}, totalGrams: 116 };
+
+    expect(rangeQuantity(manual, [day(1)])).toEqual({ displayQuantity: 2, displayUnit: 'unit', totalGrams: 116 });
+  });
+
+  it('keeps ml in ml and grams in grams for a range', () => {
+    const draft = buildShoppingList(dated(meal([{ grams: 250, slug: 'leche' }]), meal([{ grams: 100, slug: 'leche' }])), catalogue);
+    const row = draft.items[0];
+
+    expect(row && rangeQuantity(row, [day(2)])).toEqual({ displayQuantity: 100, displayUnit: 'ml', totalGrams: 100 });
+  });
+});
+
+describe('rangeList', () => {
+  it("shows only the rows the chosen days need, each with that range beside the plan's own", () => {
+    const draft = buildShoppingList(dated(meal([{ grams: 100, slug: 'tomate' }]), meal([{ grams: 200, slug: 'arroz' }])), catalogue);
+    const rows = rangeList(draft, [day(1)]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ range: { displayQuantity: 100, displayUnit: 'g', totalGrams: 100 }, slug: 'tomate', totalGrams: 100 });
+  });
+
+  it("keeps the order it was given, which is the caller's own aisle order", () => {
+    const draft = buildShoppingList(
+      dated(
+        meal([
+          { grams: 100, slug: 'arroz' },
+          { grams: 100, slug: 'pan' },
+          { grams: 100, slug: 'tomate' },
+          { grams: 100, slug: 'leche' },
+          { grams: 100, slug: 'huevo' }
+        ])
+      ),
+      catalogue
+    );
+
+    expect(rangeList(draft, [day(1)]).map(item => item.category)).toEqual(draft.items.map(item => item.category));
+  });
+
+  it('is empty when no day is chosen', () => {
+    const draft = buildShoppingList(dated(meal([{ grams: 100, slug: 'tomate' }])), catalogue);
+
+    expect(rangeList(draft, [])).toEqual([]);
+  });
+
+  it('keeps a row with no breakdown under every range', () => {
+    const manual: ShoppingRangeRow = { displayQuantity: 1, displayUnit: 'g', dryRounded: false, gramsPerUnit: null, perDay: {}, totalGrams: 300 };
+
+    expect(rangeList({ items: [manual] }, [day(1)])).toEqual([{ ...manual, range: { displayQuantity: 1, displayUnit: 'g', totalGrams: 300 } }]);
   });
 });
