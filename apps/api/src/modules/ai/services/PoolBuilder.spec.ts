@@ -1283,6 +1283,35 @@ describe('PoolBuilder — the food groups a pool lacks', () => {
     }
   });
 
+  it.each([
+    ['dislikes "pescado"', [], ['pescado']],
+    ['eats vegetarian', ['vegetarian'], []]
+  ])(
+    'never asks for fish when the person %s, since no fish is shown',
+    async (_who, dietaryPatterns: readonly string[], dislikedLabels: readonly string[]) => {
+      const { client, generate } = stubClient([{ dishes: [] }]);
+
+      await new PoolBuilder(client).build({
+        context: {
+          ...withGroups(),
+          dietaryPatterns,
+          preferences: resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns, dislikedLabels, ingredients: rows })
+        },
+        feature: 'plan',
+        preferences: { ...preferences, dietaryPatterns },
+        reusable: [],
+        slots: ['lunch', 'dinner']
+      });
+
+      expect(generate).toHaveBeenCalled();
+
+      for (const prompt of prompts(generate)) {
+        expect(prompt).not.toContain('on an oily fish');
+        expect(prompt).not.toMatch(/\bsalmon\b/);
+      }
+    }
+  );
+
   it('asks a slot nothing its pool already holds', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
     const lunch = (slug: string, slugs: readonly string[]) => ({ ...dish(slug, ['lunch'], slugs), slug });
