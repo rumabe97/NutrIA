@@ -397,6 +397,37 @@ describe('a browser that signed in before is not braked', () => {
     });
   });
 
+  describe('a change of password, then a braked address', () => {
+    it('answers the old cookie the very 429 a request with no cookie gets', async () => {
+      const eve = await accountWithBrowser('eve');
+      const renewed = 'lantern-orchard-copper-7';
+      const changed = await paced(() =>
+        request(server())
+          .post(`/${PREFIX}/auth/change-password`)
+          .set('Cookie', eve.jar.header)
+          .send({ currentPassword: PASSWORD, newPassword: renewed })
+      );
+
+      expect(changed.status).toBe(200);
+      eve.jar.take(changed);
+      made[made.findIndex(account => account.email === eve.email)] = { email: eve.email, password: renewed };
+
+      await brake(eve.email);
+
+      const bare = await signIn(eve.email, renewed);
+      const withCookie = await signIn(eve.email, renewed, eve.jar);
+
+      expect(bare.status).toBe(429);
+      expect(withCookie.status).toBe(429);
+      expect(withCookie.body).toEqual(bare.body);
+      expect(Object.keys(withCookie.headers).sort()).toEqual(Object.keys(bare.headers).sort());
+      expect(Math.abs(Number(withCookie.headers['retry-after']) - Number(bare.headers['retry-after']))).toBeLessThanOrEqual(1);
+      expect(withCookie.headers['x-retry-after']).toBe(withCookie.headers['retry-after']);
+      expect(hasSession(withCookie)).toBe(false);
+      expect(deviceLine(withCookie)).toBeUndefined();
+    });
+  });
+
   describe('a reset of the password', () => {
     it('ends the cookies of the account, and the old one no longer gets in past a brake', async () => {
       const dani = await accountWithBrowser('dani');
