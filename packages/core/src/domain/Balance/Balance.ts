@@ -695,6 +695,10 @@ function servingGroups(dish: Pick<CandidateDish, 'ingredients' | 'servings'>, ca
 /** The cereal of a serving is mostly whole, and there is a plate's worth of it (`FOOD_GROUP_GRAMS`, 20 g dry). */
 const WHOLE_GRAIN_DISH_GRAMS = 20;
 
+function isWholeGrainDish(groups: MealGroups): boolean {
+  return groups.wholeGrainDry >= WHOLE_GRAIN_DISH_GRAMS && groups.wholeGrainDry * 2 >= groups.cerealDry;
+}
+
 /**
  * The dishes a slot's rotation takes first, from that slot's dishes in their
  * shuffled order (`rotatePool`'s `reserve`), so the reservation is the
@@ -753,11 +757,78 @@ export function reserveGroups(
   const oily = fish.filter(({ groups }) => mealServings(groups).oilyFish).slice(0, quota.oilyFish);
   const fishPicked = [...new Set([...oily, ...fish].map(entry => entry.dish))].slice(0, quota.fish);
   const wholeGrain = read
-    .filter(({ groups }) => groups.wholeGrainDry >= WHOLE_GRAIN_DISH_GRAMS && groups.wholeGrainDry * 2 >= groups.cerealDry)
+    .filter(({ groups }) => isWholeGrainDish(groups))
     .slice(0, quota.wholeGrain)
     .map(entry => entry.dish);
 
   return [...new Set([...legumes, ...fishPicked, ...wholeGrain])];
+}
+
+/**
+ * The legume kinds a lunch's pool needs for the fortnight's eight legumes to
+ * fit under three of a kind (`LEGUME_RULES`): ceil(8 ÷ 3).
+ */
+export const LEGUME_KINDS_WANTED = 3;
+
+/** A group the generator is asked for inside a request it already makes (019 phase 7). */
+export type PoolAskGroup = 'legume' | 'oilyFish' | 'wholeGrain';
+
+export type PoolAsk = {
+  readonly count: number;
+  readonly group: PoolAskGroup;
+  /**
+   * For a legume at lunch, the kinds the slot already holds when it holds
+   * fewer than `LEGUME_KINDS_WANTED`, so the dish asked for is another;
+   * empty otherwise.
+   */
+  readonly heldKinds: readonly string[];
+};
+
+/**
+ * What a lunch's or a dinner's pool still lacks of `POOL_RESERVE`, as asks
+ * for the generator inside the requests it already makes (019 phase 7,
+ * `0010` § 4.4): no extra call. The thin cells of the library are the ones
+ * asked for — a legume at dinner (in the light forms a dinner takes, which
+ * the prompt says), legumes of another kind at lunch, whole grain, oily fish.
+ * In that order, the thinnest first.
+ *
+ * A group is asked for only when `shown`, the catalogue the request is shown,
+ * has a row of it: a person whose pool holds no fish because of an allergy,
+ * a dislike or the way they eat is never asked for one, and the ask is read
+ * off what the model may use, never off why. Nothing outside lunch and dinner.
+ */
+export function poolAsks(
+  pool: readonly CandidateDish[],
+  slot: MealSlot,
+  catalogue: Catalogue,
+  shown: readonly { readonly slug: string }[]
+): readonly PoolAsk[] {
+  if (slot !== 'lunch' && slot !== 'dinner') {
+    return [];
+  }
+
+  const quota = POOL_RESERVE[slot];
+  const read = pool.filter(dish => dish.slots.includes(slot)).map(dish => ({ dish, groups: servingGroups(dish, catalogue) }));
+  const legumes = read.filter(({ groups }) => mealServings(groups).legume);
+  // A legume dish with no stewed pulse (hummus, tofu) is a kind of its own, as `reserveGroups` counts it, but has no kind to name.
+  const kinds = new Set(legumes.map(({ dish }) => legumeKind(dish) ?? dish.slug));
+  const named = [...new Set(legumes.map(({ dish }) => legumeKind(dish)))].filter((kind): kind is string => kind !== null).sort();
+  const fewKinds = slot === 'lunch' ? Math.max(0, LEGUME_KINDS_WANTED - kinds.size) : 0;
+  const lacks: Record<PoolAskGroup, number> = {
+    legume: Math.max(quota.legumes - legumes.length, fewKinds),
+    oilyFish: quota.oilyFish - read.filter(({ groups }) => mealServings(groups).oilyFish).length,
+    wholeGrain: quota.wholeGrain - read.filter(({ groups }) => isWholeGrainDish(groups)).length
+  };
+  const offered: Record<PoolAskGroup, boolean> = {
+    legume: shown.some(row => legumeDryGrams(row.slug, 1) !== null),
+    oilyFish: shown.some(row => isOilyFish(row.slug)),
+    wholeGrain: shown.some(row => isWholeGrain(row.slug))
+  };
+  const order: readonly PoolAskGroup[] = ['legume', 'wholeGrain', 'oilyFish'];
+
+  return order
+    .filter(group => offered[group] && lacks[group] > 0)
+    .map(group => ({ count: lacks[group], group, heldKinds: group === 'legume' && fewKinds > 0 ? named : [] }));
 }
 
 /**
