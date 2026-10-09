@@ -1309,3 +1309,16 @@
 - **The claim is true because of the sweep above**: an address nobody confirms, with no session, profile, plan or audit row, is deleted after thirty days (`0092`). The two ship in the same change for that reason.
 - **Evidence**: `pnpm --filter api test -- --testPathPatterns "modules/email"` 13 suites, 111 tests green; `pnpm --filter api lint` and `format` clean; `pnpm --filter web ts:check` green.
 - **Not done**: `/privacidad` needs the retention line for the sweep; the lead routes it to `legal` separately.
+
+## Follow-up — the sweep spares an account the owner opened, and /privacidad says the period (2026-10-09)
+
+- **Executor**: Opus 5.5 (the lead), from `legal`'s review of the sweep (#255) the same day.
+- **The bug `legal` found (P2), and why it mattered**: `staleUnconfirmedWhere` kept an opened account out of the sweep only because opening one writes an `account.activated` audit row — true since `0071`, late September 2026, and not before. An account opened earlier, never confirmed, with no profile and no plan, whose 30-day session had since expired, had no audit row and **was** a candidate. That state is reachable for a real person: before phase 8 an unconfirmed account could still sign in. Deleting an account the owner deliberately opened is wrong whatever the law allows.
+- **The fix**: `isNull(user.activatedAt)` in the filter, with the reason in the function's own doc comment and two specs — the rendered SQL, and one that pins the clause on its own so a later edit cannot drop it quietly.
+- **The period is now published**, because the confirmation mail promises it to whoever receives it and the policy has to say the same (art. 5.1 a); `legal`'s § 4.1 quinquies). Both dictionaries gain the retention paragraph with its four conditions, not a bare "thirty days", which would be false for an account that holds something (art. 13.2 a) allows the criteria instead of a number, and the conditions are the criteria).
+- **Also published, free in the same change**: the twelve-month purge of the `auth.*` audit rows, in the code since #213 and deployed, which `legal`'s checklist § 0 quater had been holding.
+- **The mail's two languages now agree** (`legal`'s P3): the Spanish said "al mes" where the English said "thirty days" and the code says thirty. It now says "a los treinta días".
+- **Not an "importante" change** (`legal`): a shorter period, no new data, recipient, transfer or purpose. No mail to anybody, and no consent version moves. `privacy.updated` already reads 9 October 2026.
+- **Timing**: the sweep has no flag and rides the daily cron at 08:05 UTC, so its first run is 2026-10-10. The text ships before it. Nothing is at risk in that run either way: the phase 8 check of 2026-10-08 found 0 unconfirmed accounts in production, out of 8.
+- **Evidence**: `pnpm --filter core exec vitest run src/repositories/User/UserRepository.test.ts` 41 tests green; `pnpm --filter web ts:check` green; both dictionaries formatted.
+- **Left for the owner**, recorded in `legal`'s checklist § 0 septies: from now on open only confirmed accounts, because opening an unconfirmed one takes it out of the sweep for good and makes the mail's promise untrue for it. The `confirmed` filter in `/admin` shows which are which.

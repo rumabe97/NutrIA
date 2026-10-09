@@ -603,3 +603,10 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   with their notes, 3 controls rejected).
 - **Why it is worth a change**: peanut butter drawn onto a dish whose spread is jam is the
   single most common rejection in production, and it is the drawing's fault, not the judge's.
+- **Done** (PR #254, 2026-10-09): one line added to `buildPicturePrompt`
+  (`packages/core/src/domain/DishPicture/prompt.ts`) — no spread, sauce,
+  topping, seed or garnish beyond the foods the recipe lists —
+  `PICTURE_PROMPT_VERSION` bumped `2.0.0` → `2.0.1`, the pilot's floor
+  re-run and unmoved (65 accepted, 3 controls rejected), `gate --full`
+  green. Only the drawing call changed; the judge's two calls, their
+  prompts and models are untouched.
