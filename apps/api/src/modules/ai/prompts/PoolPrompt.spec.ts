@@ -190,10 +190,11 @@ function builtAsTheBuilderDoes(
 
 /**
  * The longest asks a request carries (`spreadAsks`: two dishes of three):
- * legumes of a kind other than the two the pool holds, and a whole grain.
+ * legumes of a kind other than the two longest kinds `pulseKind` names, and a
+ * whole grain.
  */
 const LONGEST_ASKS: readonly PoolAsk[] = [
-  { count: 1, group: 'legume', heldKinds: ['alubias-blancas', 'garbanzos'] },
+  { count: 1, group: 'legume', heldKinds: ['alubias-blancas', 'otras-alubias'] },
   { count: 1, group: 'wholeGrain', heldKinds: [] }
 ];
 
@@ -631,7 +632,7 @@ describe('buildPoolPrompt', () => {
       const prompt = at('lunch', {}, { asks: LONGEST_ASKS, pulses: true });
 
       expect(prompt).toContain('- lunch: 3 distinct dishes');
-      expect(prompt).toContain('\n  Of these: 1 on legumes (25 g dry a serving), not alubias blancas or garbanzos; 1 on a whole grain.\n');
+      expect(prompt).toContain('\n  Of these: 1 on legumes (25 g dry a serving), not alubias blancas or otras alubias; 1 on a whole grain.\n');
       expect(prompt.indexOf('Of these:')).toBeGreaterThan(prompt.indexOf('DISHES NEEDED:'));
     });
 
@@ -666,19 +667,25 @@ describe('buildPoolPrompt', () => {
       expect(sided).not.toContain('Nothing is served beside this meal');
     });
 
-    it('asks breakfast and the snacks for fruit only when neither main meal takes sides', () => {
-      const alone = at('breakfast');
-      const sided = at('breakfast', { targets: { ...TARGETS, kcal: 2400 } });
+    it('asks breakfast and the snacks for fruit only when neither main meal takes sides, and only where a fresh fruit is shown', () => {
+      const fruit = [row('manzana')];
+      const shown = (slot: MealSlot, overrides: Partial<PromptContext> = {}) =>
+        buildPoolPrompt(context({ needBySlot: new Map([[slot, 3]]), ...overrides }), fruit);
+      const alone = shown('breakfast');
+      const sided = shown('breakfast', { targets: { ...TARGETS, kcal: 2400 } });
+
+      // As `poolAsks` asks for no group the catalogue lacks: somebody shown no fresh fruit is asked for none.
+      expect(at('breakfast')).not.toContain('fresh fruit a serving');
 
       expect(alone).toContain('Lunch and dinner come with no sides: 2 of these with 120–150 g of fresh fruit a serving.');
       // And is not told, two sections above, that the plan adds sides to them.
       expect(alone).not.toContain('The plan adds sides');
       expect(alone).toContain('one serving is one plate for one. Prefer half vegetables');
       expect(sided).toContain('The plan adds sides to lunch and dinner');
-      expect(at('afternoon_snack')).toContain('2 of these with 120–150 g of fresh fruit');
+      expect(shown('afternoon_snack')).toContain('2 of these with 120–150 g of fresh fruit');
       expect(sided).not.toContain('fresh fruit a serving');
       // Never asked of a lunch or a dinner.
-      expect(at('lunch')).not.toContain('fresh fruit a serving');
+      expect(shown('lunch')).not.toContain('fresh fruit a serving');
     });
 
     it('tells only a snack how a snack is built', () => {
@@ -832,10 +839,11 @@ describe('buildPoolPrompt — one meal’s catalogue', () => {
   });
 
   /**
-   * 4.7.0: the group lines go inside the request, under the same budget —
-   * at their longest: every group asked, legumes of another kind than two
-   * named, and a lunch the plan sets no sides beside (the standard day's
-   * lunch is under `ACCOMPANIED_FROM_KCAL`).
+   * 4.7.0: the group lines go inside the request, under the same budget, on
+   * PRD 005's standard lunch: with the longest asks a request carries (two
+   * of three dishes: legumes naming the two longest kinds, and a whole
+   * grain). The standard day's lunch is under `ACCOMPANIED_FROM_KCAL`, so it
+   * carries the no-sides sentence, as that day's prompt does.
    */
   it('keeps the standard lunch prompt at most 55% of 3.4.0’s with every group line it can carry', () => {
     const before = buildPoolPrompt(
@@ -845,7 +853,7 @@ describe('buildPoolPrompt — one meal’s catalogue', () => {
     const after = builtAsTheBuilderDoes('lunch', [], rows, used.get('lunch') ?? new Set(), LONGEST_ASKS);
 
     expect(after).toContain('Nothing is served beside this meal');
-    expect(after).toContain('not alubias blancas or garbanzos');
+    expect(after).toContain('not alubias blancas or otras alubias');
     expect(after.length / before.length).toBeLessThanOrEqual(0.55);
   });
 

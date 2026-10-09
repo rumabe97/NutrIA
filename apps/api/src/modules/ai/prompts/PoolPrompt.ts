@@ -1,5 +1,6 @@
 import { ACCOMPANIED_FROM_KCAL } from 'core/domain/Scheduler';
 import { DEFAULT_MEAL_SHAPE, proteinWeightsFor, weightsFor } from 'core/domain/MealShape';
+import { FRESH_FRUIT_SLUGS } from 'core/domain/MealFit';
 import { INGREDIENT_CATEGORIES, SNACK_SLOTS } from 'core/entities/Plan';
 import { normaliseForMatching } from 'core/domain/Safety';
 import { SERVING_KCAL_CAP, servingFactor } from 'core/domain/Serving';
@@ -780,10 +781,12 @@ function groupLines(
   shares: ReadonlyMap<MealSlot, SlotShare>,
   slot: MealSlot,
   count: number,
-  asks: readonly PoolAsk[]
+  asks: readonly PoolAsk[],
+  fruit: boolean
 ): string {
   const own = asks.length > 0 ? `\n  Of these: ${asks.map(ask => askLine(ask, slot)).join('; ')}.` : '';
-  const fruitless = !MAINS.has(slot) && ![...shares].some(([main, share]) => takesSides(context.targets, main, share));
+  // Only where the request shows a fresh fruit, as `poolAsks` asks only for a group its catalogue holds.
+  const fruitless = fruit && !MAINS.has(slot) && ![...shares].some(([main, share]) => takesSides(context.targets, main, share));
 
   return fruitless ? `${own}\n  Lunch and dinner come with no sides: ${Math.ceil(count / 2)} of these with 120–150 g of fresh fruit a serving.` : own;
 }
@@ -801,6 +804,7 @@ export function buildPoolPrompt(
   const shares = sharesOf(context);
   const wanted = [...context.needBySlot.entries()].filter(([, count]) => count > 0);
   const patterns = context.dietaryPatterns.filter(pattern => NAMEABLE_PATTERNS.has(pattern));
+  const fruit = safeIngredients.some(ingredient => FRESH_FRUIT_SLUGS.has(ingredient.slug));
 
   // Per serving, per slot, on all four macros and fibre. A model told only a
   // daily figure — or only energy and protein — writes dishes that hit those
@@ -821,7 +825,7 @@ export function buildPoolPrompt(
       // main dishes still came back at 16–20% protein against a 17% day.
       const straddle = `\n  Protein: half the set between ${Math.round(brief.proteinG * 0.9)} and ${brief.proteinG} g, half between ${brief.proteinG} and ${Math.round(brief.proteinG * 1.1)} g — not all at the top.`;
 
-      const groups = groupLines(context, shares, slot, count, offer.asks ?? []);
+      const groups = groupLines(context, shares, slot, count, offer.asks ?? [], fruit);
 
       return `- ${SLOT_LABEL[slot]}: ${count} distinct dishes, each ${numbersOf(brief)} per serving.${straddle}${more}${groups}${shape}`;
     })
