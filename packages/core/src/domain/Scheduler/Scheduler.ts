@@ -214,17 +214,29 @@ const PLATE_EPSILON = 1e-9;
 
 /**
  * Accompaniments (project 016, `0079` Table 3, design A of `0008`): what goes
- * beside a big main meal — bread, a salad, a piece of fruit — chosen inside
- * the day's portion search, so the plate is sized knowing what is beside it.
+ * beside a main meal — bread, a salad, a piece of fruit — chosen inside the
+ * day's portion search, so the plate is sized knowing what is beside it.
  *
- * Only lunch and dinner (`MAIN_SLOTS`), and only when their share of the day
- * is past `ACCOMPANIED_FROM_KCAL`: below it a plate is a meal on its own, and a
- * person who eats five times on an ordinary target pays nothing in search.
- * Each such meal is offered `ACCOMPANIMENT_SETS` sets, "none" always among
- * them, the best at closing that meal's gap (`rankedSets`), so a three-meal
- * day prices (9 × 6)² × 9 = 26,244 combinations, under `BALANCE_MAX_COMBOS`.
+ * **Every lunch and dinner** (`MAIN_SLOTS`), and no other slot. It was every
+ * one past 700 kcal until `0093`: below that a plate was taken to be a meal on
+ * its own, and a person eating five times on an ordinary target paid nothing in
+ * search. `0087` asks for 150 g of vegetables at every main and two fruit a
+ * day, and both arrive mostly beside the plate — so the people that rule meant
+ * to spare were the ones it left with no vegetables and a third of the fruit.
+ * What is left of it is the zero: a meal with no budget takes nothing.
  */
 export const ACCOMPANIED_FROM_KCAL = 0;
+
+/**
+ * Sets offered beside one main, "none" always among them, the best at closing
+ * that meal's gap (`rankedSets`).
+ *
+ * Ten rather than six since `0093`: at six, almost none of the sets a meal was
+ * offered carried a vegetable, and the day could not choose one however much
+ * its cost wanted to. `BALANCE_MAX_COMBOS` is unchanged, so the four extra sets
+ * are paid for in window width — a three-meal day solves `(10s)² × s ≤ 59,049`
+ * and gets eight quarter-steps a plate where six sets left it nine.
+ */
 export const ACCOMPANIMENT_SETS = 10;
 
 /**
