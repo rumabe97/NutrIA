@@ -70,7 +70,8 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
   const shown = groups.flatMap(group => group.items);
   const emptied = chosen.length === 0 ? t.rangeNoDays : t.rangeEmpty;
   // What the region says: why the screen is empty, or what the range now holds.
-  const announcement = shown.length === 0 ? emptied : interpolate(t.rangeAnnounced, { count: shown.length, range: rangeName(range.choice, t) });
+  const announcement =
+    shown.length === 0 ? emptied : interpolate(t.rangeAnnounced, { count: shown.length, range: rangeName(range.choice, t, days.length) });
   const shareGroups = groups.map(group => ({
     items: group.items.map(item => ({
       id: item.id,
@@ -89,7 +90,6 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
     <Fragment>
       <h1 className={styles.title}>{t.title}</h1>
       {switcher}
-      <Text tone="secondary">{interpolate(subtitle, { range: rangeName(range.choice, t) })}</Text>
 
       {/*
         Picking a range changes the rows, the quantities and the count, and a
@@ -116,6 +116,11 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
           value={range}
         />
       ) : null}
+
+      {/* After the control, not before it: since the range filter this sentence
+          says what the days on screen cover, and a line that answers a question
+          the reader has not been asked yet reads as a claim about the whole plan. */}
+      <Text tone="secondary">{interpolate(subtitle, { range: rangeName(range.choice, t, days.length) })}</Text>
 
       {notice === '' ? null : (
         <Text className={styles.notice} size="sm" tone="secondary">
@@ -186,8 +191,15 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
   );
 }
 
-/** What the subtitle calls each range, so the screen never claims days it is not showing. */
-function rangeName(choice: RangeChoice, t: Dictionary['shopping']): string {
+/**
+ * What the subtitle calls each range, so the screen never claims days it is not
+ * showing.
+ *
+ * The whole plan is named by its own length rather than by a number written
+ * into the dictionary: a plan cut short by one waiting for its day (project
+ * 015) is five days, and "the fortnight" was a lie on it.
+ */
+function rangeName(choice: RangeChoice, t: Dictionary['shopping'], count: number): string {
   if (choice === 'week1') {
     return t.rangeNameWeek1;
   }
@@ -196,5 +208,5 @@ function rangeName(choice: RangeChoice, t: Dictionary['shopping']): string {
     return t.rangeNameWeek2;
   }
 
-  return choice === 'days' ? t.rangeNameDays : t.rangeNameWhole;
+  return choice === 'days' ? t.rangeNameDays : interpolate(t.rangeNameWhole, { count });
 }

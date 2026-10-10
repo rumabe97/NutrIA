@@ -1,20 +1,42 @@
+/*
+ * A wider gap above than below: this control's label must belong to the track
+ * under it and not to the plan switch over it. The switch's own margin became a
+ * block one when it gained a label, and two block margins collapse — twelve
+ * pixels either side would leave the label floating between two controls.
+ */
 .root {
-  margin-block: var(--space-03);
+  margin-block: var(--space-05) var(--space-03);
 }
 
 /*
- * A segmented control, the same material as the plan switch beside it: one
- * sunken track holding the choices, the chosen one lifted onto a card surface.
- * It is a fieldset because the choices are radios — the filter is a reading of
- * this page, never a different address (`0053`).
+ * The fieldset carries the label and nothing else; the track inside it is what
+ * holds the choices. A visible `<legend>` is laid out by the UA in its own way
+ * and fights a flex parent, so the flex lives one level in.
+ */
+.group {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.legend {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-medium);
+  padding: 0 0 var(--space-02);
+}
+
+/*
+ * A segmented control, the same material as the plan switch above it: one
+ * sunken track holding the choices, the chosen one lifted onto a card surface
+ * and ringed in the brand colour. The choices are radios — the filter is a
+ * reading of this page, never a different address (`0053`).
  */
 .presets {
   background-color: var(--surface-sunken);
-  border: none;
   border-radius: var(--radius-full);
   display: flex;
   gap: var(--space-01);
-  margin: 0;
   padding: var(--space-01);
 }
 
@@ -148,9 +170,9 @@
  * control.
  *
  * 27rem rather than something tighter because of what four segments do to a
- * 390px phone (24.4rem): about 202px of room for about 245px of Spanish labels,
- * so "Semana 1", "Semana 2" and "Elegir días" break mid-phrase while the
- * unbreakable "Quincena" holds its width. Ragged is the smaller half of it —
+ * 390px phone (24.4rem): about 202px of room for the Spanish labels, so
+ * "Semana 1", "Semana 2" and "Elegir días" break mid-phrase. Ragged is the
+ * smaller half of it —
  * the chosen segment is semibold, and therefore wider, so *which* labels wrap
  * changes as you pick: the control's height moves under the reader's thumb and
  * shifts the list below it. Nothing scrolls sideways (a flex item's
