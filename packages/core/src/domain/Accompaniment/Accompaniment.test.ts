@@ -364,7 +364,8 @@ describe('the meals of Table 3', () => {
 
   it.each([
     ['pan-blanco', ['breakfast', 'lunch', 'dinner']],
-    ['naranja', ['breakfast', 'lunch', 'dinner']],
+    // A piece of fruit, and only a piece of fruit, may also go beside a snack (`0095`).
+    ['naranja', ['breakfast', 'lunch', 'dinner', 'morning_snack', 'afternoon_snack']],
     ['nueces', ['breakfast']],
     ['queso-de-burgos', ['breakfast']],
     ['hummus', ['lunch', 'dinner']],

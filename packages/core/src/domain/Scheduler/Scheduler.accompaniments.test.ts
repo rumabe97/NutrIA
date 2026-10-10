@@ -238,6 +238,11 @@ const withSides: Catalogue = toCatalogue([
   ...sides
 ]);
 
+/** Table 3's fruit, by key: the only thing a snack may be offered (`0095`). */
+const FRUIT_SIDES = new Set(
+  ACCOMPANIMENTS.filter(entry => entry.role === 'dessert' && entry.slots.includes('morning_snack')).map(entry => entry.key)
+);
+
 function diner(overrides: Partial<AccompanimentDiner> = {}): AccompanimentDiner {
   return { catalogue: withSides, preferences: NO_PREFERENCE_EXCLUSIONS, safety: toSafetyProfile([], []), ...overrides };
 }
@@ -385,7 +390,7 @@ describe('the scheduler with accompaniments on', () => {
    * What is left of the rule is the slot: nothing goes beside a breakfast, a
    * snack or a supper, whatever its share of the day.
    */
-  it('offers a side at every lunch and dinner, and at no other meal', () => {
+  it('offers a side at every lunch and dinner, and at no meal that is not a snack', () => {
     const shape = shapeFor(5, true);
     const shares = mealShareKcal(shape, scaled(1));
 
@@ -394,8 +399,17 @@ describe('the scheduler with accompaniments on', () => {
 
     const meals = planWithSides(shape, 1).days.flatMap(day => day.meals);
 
-    for (const meal of meals.filter(entry => entry.slot !== 'lunch' && entry.slot !== 'dinner')) {
+    // A snack may be given a piece of fruit afterwards (`0095`, `meetSides`); a breakfast
+    // and a supper may not, though Table 3 has written sides for a breakfast since 016.
+    for (const meal of meals.filter(entry => entry.slot === 'breakfast' || entry.slot === 'supper')) {
       expect(meal.accompaniments, meal.slot).toEqual([]);
+    }
+
+    for (const meal of meals.filter(entry => entry.slot === 'morning_snack' || entry.slot === 'afternoon_snack')) {
+      // Nothing but fruit: Table 3 gives a snack no bread, no salad and no starch.
+      for (const side of meal.accompaniments ?? []) {
+        expect(FRUIT_SIDES.has(side.key), `${meal.slot} took ${side.key}`).toBe(true);
+      }
     }
 
     expect(meals.some(meal => (meal.accompaniments ?? []).length > 0)).toBe(true);
