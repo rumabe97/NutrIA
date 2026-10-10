@@ -217,15 +217,32 @@ const PLATE_EPSILON = 1e-9;
  * beside a main meal — bread, a salad, a piece of fruit — chosen inside the
  * day's portion search, so the plate is sized knowing what is beside it.
  *
- * **Every lunch and dinner** (`MAIN_SLOTS`), and no other slot. It was every
- * one past 700 kcal until `0093`: below that a plate was taken to be a meal on
- * its own, and a person eating five times on an ordinary target paid nothing in
- * search. `0087` asks for 150 g of vegetables at every main and two fruit a
- * day, and both arrive mostly beside the plate — so the people that rule meant
- * to spare were the ones it left with no vegetables and a third of the fruit.
- * What is left of it is the zero: a meal with no budget takes nothing.
+ * Every lunch and dinner, and the two snacks (`ACCOMPANIED_SLOTS`). It was
+ * every main past 700 kcal until `0093`: below that a plate was taken to be a
+ * meal on its own, and a person eating five times on an ordinary target paid
+ * nothing in search. `0087` asks for 150 g of vegetables at every main and two
+ * fruit a day, and both arrive mostly beside the plate — so the people that
+ * rule meant to spare were the ones it left with no vegetables and a third of
+ * the fruit. What is left of it is the zero: a meal with no budget takes
+ * nothing.
  */
 export const ACCOMPANIED_FROM_KCAL = 0;
+
+/**
+ * The meals something may go beside (`0095`). Lunch and dinner take whatever
+ * Table 3 lets their cuisine have; a snack takes only what Table 3 gives a
+ * snack, which is a piece of fruit and nothing else.
+ *
+ * The snacks are here because two fruit a day cannot come from two mains alone:
+ * a dessert is the first thing a day drops to stay inside its bands, and on the
+ * owner's own shape — a large mid-morning snack, lunch, dinner — the rule held
+ * on **none of ten** plans at any pace. Breakfast is deliberately **not** here,
+ * though Table 3 has written sides for it since project 016: nobody has asked
+ * for them, and the four entries that only a breakfast could take have never
+ * been reachable, so turning them on is a change to make on purpose and not as
+ * a side effect of this one.
+ */
+const ACCOMPANIED_SLOTS: ReadonlySet<MealSlot> = new Set([...MAIN_SLOTS, 'morning_snack', 'afternoon_snack']);
 
 /**
  * Sets offered beside one main, "none" always among them, the best at closing
@@ -238,6 +255,22 @@ export const ACCOMPANIED_FROM_KCAL = 0;
  * and gets eight quarter-steps a plate where six sets left it nine.
  */
 export const ACCOMPANIMENT_SETS = 10;
+
+/**
+ * Sets offered beside a snack (`0095`). Three and "none", where a main is
+ * offered ten.
+ *
+ * `BALANCE_MAX_COMBOS` does not move for a meal more, so every set a snack is
+ * offered is paid for in the width of every plate's window: at a main's ten,
+ * a three-meal day solves `(10s)² × 7s` and its plates fall from eight quarter
+ * steps to four — and the day loses more to being unable to size itself than
+ * it gains in fruit. Measured on the owner's shape: fruit held on four plans of
+ * ten where it had held on none, and meat fell from eight to two.
+ *
+ * A snack is offered fruit and nothing else, and one piece of fruit is much
+ * like another: the three best are the whole of the choice worth pricing.
+ */
+const SNACK_ACCOMPANIMENT_SETS = 5;
 
 /**
  * Accompaniments accompany; they do not replace the dish (016 phase 4). With
@@ -329,7 +362,28 @@ export type AccompanimentOffer = {
 };
 
 /** The offer, bound to one day: the sets a pick of that day may take, or null for a meal that takes none. */
-type Sides = { readonly setsOf: (pick: Pick, budget: SlotBudget) => readonly AccompanimentSet[] | null };
+/**
+ * What a meal may be offered, in two answers, because the two are asked by
+ * passes with different room to spare (`0095`).
+ *
+ * `setsOf` is what the day's own search may choose from, and it is lunch and
+ * dinner alone. Every set a meal is offered multiplies the combinations the day
+ * prices, and `BALANCE_MAX_COMBOS` does not move for a meal more, so the sets a
+ * snack would be offered are paid for by every plate's window: offering a snack
+ * its fruit inside the search cost three of 1,960 days their macro band, which
+ * is not for sale.
+ *
+ * `repair` is what `meetSides` may *add* afterwards, and that includes a
+ * snack's fruit. It can afford to, because it pins the one set it is trying and
+ * keeps a day only when the day, sized again around it, is as inside its bands
+ * as it was — so a fruit that costs a band is simply not taken.
+ */
+type Sides = {
+  /** What `meetSides` may add afterwards: the mains, and a piece of fruit beside a snack. */
+  readonly repair: (pick: Pick, budget: SlotBudget) => readonly AccompanimentSet[] | null;
+  /** What the day's own search chooses from: lunch and dinner. */
+  readonly setsOf: (pick: Pick, budget: SlotBudget) => readonly AccompanimentSet[] | null;
+};
 
 function sidesFor(offer: AccompanimentOffer | undefined, cache: Map<string, readonly AccompanimentSet[]>): ((dayIndex: number) => Sides) | undefined {
   if (!offer) {
@@ -339,23 +393,23 @@ function sidesFor(offer: AccompanimentOffer | undefined, cache: Map<string, read
   return dayIndex => {
     const month = offer.monthOf(dayIndex);
 
-    return {
-      setsOf: (pick, budget) => {
-        if (!MAIN_SLOTS.has(pick.slot) || budget.kcal <= ACCOMPANIED_FROM_KCAL) {
-          return null;
-        }
-
-        const key = `${pick.dish.slug}|${pick.slot}|${month}|${budget.kcal}|${budget.proteinG}|${budget.carbsG}|${budget.fatG}`;
-        let sets = cache.get(key);
-
-        if (!sets) {
-          sets = offeredSets(offer.larder, pick.dish, pick.slot, month, pick.base, budget);
-          cache.set(key, sets);
-        }
-
-        return sets;
+    const offered = (pick: Pick, budget: SlotBudget, slots: ReadonlySet<MealSlot>): readonly AccompanimentSet[] | null => {
+      if (!slots.has(pick.slot) || budget.kcal <= ACCOMPANIED_FROM_KCAL) {
+        return null;
       }
+
+      const key = `${pick.dish.slug}|${pick.slot}|${month}|${budget.kcal}|${budget.proteinG}|${budget.carbsG}|${budget.fatG}`;
+      let sets = cache.get(key);
+
+      if (!sets) {
+        sets = offeredSets(offer.larder, pick.dish, pick.slot, month, pick.base, budget);
+        cache.set(key, sets);
+      }
+
+      return sets;
     };
+
+    return { repair: (pick, budget) => offered(pick, budget, ACCOMPANIED_SLOTS), setsOf: (pick, budget) => offered(pick, budget, MAIN_SLOTS) };
   };
 }
 
@@ -419,11 +473,12 @@ function bestPortions(
  * table order.
  */
 function rankedSets(sets: readonly AccompanimentSet[], base: PerServing, budget: SlotBudget, slot: MealSlot): readonly AccompanimentSet[] {
+  const most = MAIN_SLOTS.has(slot) ? ACCOMPANIMENT_SETS : SNACK_ACCOMPANIMENT_SETS;
   const priced = sets
     .map((set, index) => ({ cost: setCost(set, base, budget, slot), index, set }))
     .filter(entry => Number.isFinite(entry.cost) || entry.set === NO_ACCOMPANIMENT)
     .sort((a, b) => a.cost - b.cost || a.index - b.index);
-  const kept = priced.slice(0, ACCOMPANIMENT_SETS);
+  const kept = priced.slice(0, most);
 
   if (!kept.some(entry => entry.set === NO_ACCOMPANIMENT)) {
     kept.splice(kept.length - 1, 1, { cost: 0, index: -1, set: NO_ACCOMPANIMENT });
@@ -1087,7 +1142,7 @@ export function pickReplacement(input: {
 
   const offer = input.accompaniments;
   const sets =
-    offer && MAIN_SLOTS.has(input.slot) && budget.kcal > ACCOMPANIED_FROM_KCAL
+    offer && ACCOMPANIED_SLOTS.has(input.slot) && budget.kcal > ACCOMPANIED_FROM_KCAL
       ? offeredSets(offer.larder, dish, input.slot, offer.month, base, budget)
       : [];
   // The best of the offered sets, priced as `rankedSets` priced them; "none" when it is the best or the only one.
@@ -3525,7 +3580,7 @@ function meetSides(
         const budget = day.budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
         const base = perServing.get(pick.dish.slug);
 
-        if (!base || !sides.setsOf(pick, budget)) {
+        if (!base || !sides.repair(pick, budget)) {
           continue;
         }
 
@@ -3556,7 +3611,10 @@ function meetSides(
       let best: { readonly cost: number; readonly lack: number; readonly picks: readonly Pick[] } | undefined;
 
       for (const entry of screened.sort((a, b) => a.lack - b.lack || a.quick - b.quick).slice(0, SIDE_SHORTLIST)) {
-        const forced: Sides = { setsOf: (pick, budget) => (pick.slot === entry.slot ? [entry.set] : sides.setsOf(pick, budget)) };
+        const forced: Sides = {
+          repair: sides.repair,
+          setsOf: (pick, budget) => (pick.slot === entry.slot ? [entry.set] : sides.setsOf(pick, budget))
+        };
         const sized = balancedDay(entry.swapped, day.targets, day.budgets, input.minimumKcal, true, forced);
         const sizedLack = sideLack(sized.picks, input.catalogue);
 
@@ -4036,7 +4094,12 @@ function holdSideStarches(
 
     for (const blocked of attempts) {
       const blocks = (pick: Pick, set: AccompanimentSet | undefined): boolean => sideStarches(set).some(base => blocked.get(pick.slot)?.has(base));
-      const held: Sides = { setsOf: (pick, budget) => sides.setsOf(pick, budget)?.filter(set => !blocks(pick, set)) ?? null };
+      // One filter for both answers, so what this pass holds back it holds back whoever asks.
+      const without =
+        (offer: Sides['setsOf']): Sides['setsOf'] =>
+        (pick, budget) =>
+          offer(pick, budget)?.filter(set => !blocks(pick, set)) ?? null;
+      const held: Sides = { repair: without(sides.repair), setsOf: without(sides.setsOf) };
       // The search keeps the day it is given on a tie, so it starts without the
       // side: the plate a little bigger by what the side carried.
       const bare = day.picks.map(pick =>
