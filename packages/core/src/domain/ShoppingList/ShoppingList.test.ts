@@ -410,3 +410,33 @@ describe('rangeList', () => {
     expect(rangeList({ items: [manual] }, [day(1)])).toEqual([{ ...manual, range: { displayQuantity: 1, displayUnit: 'g', totalGrams: 300 } }]);
   });
 });
+
+/*
+ * The list every account had on the day the breakdown shipped: generated before
+ * it existed, so not one row carries a day. The plan then has no days at all,
+ * which is not the same as a reader choosing none — and reading it as "nothing
+ * chosen" hid every row of every list in production (seen on the owner's phone,
+ * 2026-10-10: "0 de 0 ya en el carro" over an empty screen).
+ */
+describe('a list stored before the days travelled with it', () => {
+  const stored: ShoppingRangeRow = { displayQuantity: 1200, displayUnit: 'g', dryRounded: false, gramsPerUnit: null, perDay: {}, totalGrams: 1200 };
+
+  it('shows its stored quantity when the plan it belongs to has no days to choose from', () => {
+    expect(rangeQuantity(stored, [])).toEqual({ displayQuantity: 1200, displayUnit: 'g', totalGrams: 1200 });
+  });
+
+  it('is still in the list rather than filtered out of it', () => {
+    expect(rangeList({ items: [stored] }, [])).toHaveLength(1);
+  });
+
+  it('keeps showing it whichever days are named, because it belongs to none of them', () => {
+    expect(rangeQuantity(stored, ['2026-03-01']).totalGrams).toBe(1200);
+  });
+
+  /* A row that does have days still reads as nothing when none of them is chosen. */
+  it('does not excuse a row that has days from an empty choice', () => {
+    const dated: ShoppingRangeRow = { ...stored, perDay: { '2026-03-01': 1200 } };
+
+    expect(rangeQuantity(dated, []).totalGrams).toBe(0);
+  });
+});

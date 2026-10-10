@@ -158,21 +158,31 @@ export function buildShoppingList(assignment: ShoppingSource, catalogue: Catalog
  * Two edges are defined rather than left to each caller, because the server and
  * the screen both call this and must not disagree:
  *
- * - **No days chosen is nothing to buy**, for every row.
- * - **A row with no breakdown shows its stored quantity, whatever the range.**
- *   A row somebody typed in themselves belongs to no day, and a row stored
- *   before the breakdown existed has none either. Neither may be hidden from a
- *   reader walking a supermarket, so both read as the whole plan's need.
+ * - **A row with no breakdown shows its stored quantity, whatever the range** —
+ *   including a range of no days at all. A row somebody typed in themselves
+ *   belongs to no day, and a row stored before the breakdown existed has none
+ *   either. Neither may be hidden from a reader walking a supermarket, so both
+ *   read as the whole plan's need.
+ * - **No days chosen is nothing to buy**, for every row that *has* days. A plan
+ *   whose rows carry no days offers none to choose, which is not the same as a
+ *   reader choosing none, and the first rule above is what tells them apart.
  */
 export function rangeQuantity(row: ShoppingRangeRow, days: Iterable<string>): RangeQuantity {
   const chosen = new Set(days);
 
-  if (chosen.size === 0) {
-    return { displayQuantity: 0, displayUnit: row.displayUnit, totalGrams: 0 };
-  }
-
+  // A row with no breakdown is answered **first**, before the empty range, and
+  // the order is the whole of this: a list stored before the breakdown existed
+  // has no dated row, so its plan offers no days, so every range over it is
+  // empty — and asking "did the reader choose nothing?" ahead of "does this row
+  // belong to any day?" answered zero for every row and hid the entire list.
+  // That shipped, and it emptied the shopping list of every account whose plan
+  // predated the change (2026-10-10).
   if (Object.keys(row.perDay).length === 0) {
     return { displayQuantity: row.displayQuantity, displayUnit: row.displayUnit, totalGrams: row.totalGrams };
+  }
+
+  if (chosen.size === 0) {
+    return { displayQuantity: 0, displayUnit: row.displayUnit, totalGrams: 0 };
   }
 
   return quantityOf(sumDays(row.perDay, chosen), row.dryRounded, row.displayUnit, row.gramsPerUnit);
