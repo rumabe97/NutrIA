@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
-import { ACCOMPANIED_FROM_KCAL, ACCOMPANIMENT_MAX_SHARE, pickReplacement, PLATE_GRAMS_MAX, plateGramsMax, schedulePlan } from 'core/domain/Scheduler';
+import { ACCOMPANIMENT_MAX_SHARE, pickReplacement, PLATE_GRAMS_MAX, plateGramsMax, schedulePlan } from 'core/domain/Scheduler';
 import { ACCOMPANIMENTS, larderFor } from 'core/domain/Accompaniment';
 import { addMacros, composePerServing, scaleMacros } from 'core/domain/Composition';
 import { mealShareKcal, shapeFor, weightsFor } from 'core/domain/MealShape';
@@ -335,7 +335,18 @@ describe('the scheduler with accompaniments on', () => {
         steps: [{ text: 'Cocinar.' }]
       }))
     );
-    const assignment = planWithSides(TWO_MEALS, 1.1, diner({ catalogue: breadLikeRice }), [...mains, ...pool(['morning_snack'])]);
+    // Without the wholemeal roll the starches beside a plate are all refined, so
+    // the rice competes on the macros alone — which is the rule under test here.
+    // With it offered, `REFINED_SIDE_WEIGHT` turns every one of these meals into
+    // a `pan-integral` and there is no side rice left to hold (`0087`).
+    const noWholemeal = {
+      ...NO_PREFERENCE_EXCLUSIONS,
+      excludedIngredientIds: new Set([breadLikeRice.get('pan-integral')?.id].filter((id): id is string => id !== undefined))
+    };
+    const assignment = planWithSides(TWO_MEALS, 1.1, diner({ catalogue: breadLikeRice, preferences: noWholemeal }), [
+      ...mains,
+      ...pool(['morning_snack'])
+    ]);
     const riceDays = assignment.days.flatMap(day =>
       day.meals.filter(meal => (meal.accompaniments ?? []).some(side => side.key.startsWith('arroz'))).map(() => day.dayIndex)
     );
@@ -361,15 +372,33 @@ describe('the scheduler with accompaniments on', () => {
     }
   });
 
-  it('offers nothing beside a meal of 700 kcal or less', () => {
+  /**
+   * `ACCOMPANIED_FROM_KCAL` used to be 700, and a meal below it was left alone:
+   * a plate that size was a meal on its own, and a person who ate five times on
+   * an ordinary target paid nothing in search. `0087` asks for 150 g of
+   * vegetables at **every** lunch and dinner and two fruit a day, and most of
+   * both arrive beside the plate — so the two could not both stand. The ones
+   * who lost were the people this rule was meant to spare: five meals on 1,800
+   * kcal put every one of them under 700, and their plans carried no vegetables
+   * from a side at all and a third of the fruit of a two-meal day.
+   *
+   * What is left of the rule is the slot: nothing goes beside a breakfast, a
+   * snack or a supper, whatever its share of the day.
+   */
+  it('offers a side at every lunch and dinner, and at no other meal', () => {
     const shape = shapeFor(5, true);
     const shares = mealShareKcal(shape, scaled(1));
 
-    expect(Math.max(...[...shares.values()])).toBeLessThanOrEqual(ACCOMPANIED_FROM_KCAL);
+    // Five meals on this target: every one of them is a meal the old rule left alone.
+    expect(Math.max(...[...shares.values()])).toBeLessThanOrEqual(700);
 
-    for (const meal of planWithSides(shape, 1).days.flatMap(day => day.meals)) {
-      expect(meal.accompaniments).toEqual([]);
+    const meals = planWithSides(shape, 1).days.flatMap(day => day.meals);
+
+    for (const meal of meals.filter(entry => entry.slot !== 'lunch' && entry.slot !== 'dinner')) {
+      expect(meal.accompaniments, meal.slot).toEqual([]);
     }
+
+    expect(meals.some(meal => (meal.accompaniments ?? []).length > 0)).toBe(true);
   });
 
   it('never puts milk on the table of somebody allergic to it — plate or side', () => {

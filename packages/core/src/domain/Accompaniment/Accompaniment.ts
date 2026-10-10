@@ -1,3 +1,4 @@
+import { mealGroups } from 'core/domain/Balance';
 import { composeMacros, scaleMacros } from 'core/domain/Composition';
 import { cuisineFamily, dishGroups, foodGroupOf, groupFits } from 'core/domain/MealFit';
 import { breaksDishRule, FOREIGN_FAMILIES } from 'core/domain/Preference';
@@ -646,10 +647,28 @@ export const ACCOMPANIMENTS: readonly Accompaniment[] = [
   )
 ];
 
+/**
+ * What a portion or a set carries of the two groups the table asks for by the
+ * day rather than by the fortnight (`0087`): vegetables in grams, fruit in
+ * portions. Read off the catalogue once, where the catalogue is already at hand
+ * (`larderFor`), so the day's search can price a side's vegetables without a
+ * catalogue lookup inside its hot loop.
+ */
+export type AccompanimentGroups = {
+  /** Cereal, dry, whole or refined — what the whole-grain share is measured against. */
+  readonly cerealDryG: number;
+  readonly fruitPortions: number;
+  readonly vegetablesG: number;
+  /** The part of `cerealDryG` that is whole grain. */
+  readonly wholeDryG: number;
+};
+
 /** One accompaniment at one portion, with what it carries. */
 export type AccompanimentPortion = {
   readonly accompaniment: Accompaniment;
   readonly grams: number;
+  /** Its vegetables and fruit, for `0087`'s two rules — see `AccompanimentGroups`. */
+  readonly groups: AccompanimentGroups;
   readonly items: readonly AccompanimentItem[];
   /** Rounded to a tenth, as `scaleMacros` rounds a plate. */
   readonly macros: Macros;
@@ -657,6 +676,8 @@ export type AccompanimentPortion = {
 
 /** What goes beside one plate: nothing, or one portion of up to three accompaniments, one per role. */
 export type AccompanimentSet = {
+  /** Its portions' vegetables and fruit, summed — see `AccompanimentGroups`. */
+  readonly groups: AccompanimentGroups;
   /** Every row of every portion, in role order — what enters `meal.ingredients`. */
   readonly items: readonly AccompanimentItem[];
   /** Summed from the portions' rounded macros, so a plate plus its set adds as the plan adds. */
@@ -664,7 +685,12 @@ export type AccompanimentSet = {
   readonly portions: readonly AccompanimentPortion[];
 };
 
-export const NO_ACCOMPANIMENT: AccompanimentSet = { items: [], macros: { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 }, portions: [] };
+export const NO_ACCOMPANIMENT: AccompanimentSet = {
+  groups: { cerealDryG: 0, fruitPortions: 0, vegetablesG: 0, wholeDryG: 0 },
+  items: [],
+  macros: { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 },
+  portions: []
+};
 
 /**
  * Whoever is eating: what the gate, their way of eating and their dislikes allow.
@@ -726,7 +752,20 @@ export function larderFor(diner: AccompanimentDiner): Larder {
       const composed = composeMacros(items, diner.catalogue);
 
       if (composed.ok) {
-        portions.push({ accompaniment, grams: items.reduce((sum, item) => sum + item.grams, 0), items, macros: scaleMacros(composed.macros, 1) });
+        const groups = mealGroups(items, diner.catalogue);
+
+        portions.push({
+          accompaniment,
+          grams: items.reduce((sum, item) => sum + item.grams, 0),
+          groups: {
+            cerealDryG: groups.cerealDry,
+            fruitPortions: groups.fruitPortions,
+            vegetablesG: groups.vegetables,
+            wholeDryG: groups.wholeGrainDry
+          },
+          items,
+          macros: scaleMacros(composed.macros, 1)
+        });
       }
     }
   }
@@ -907,6 +946,12 @@ function toSet(portions: readonly AccompanimentPortion[]): AccompanimentSet {
   const sum = (key: keyof Macros): number => Math.round(portions.reduce((total, portion) => total + portion.macros[key] * 10, 0)) / 10;
 
   return {
+    groups: {
+      cerealDryG: portions.reduce((total, portion) => total + portion.groups.cerealDryG, 0),
+      fruitPortions: portions.reduce((total, portion) => total + portion.groups.fruitPortions, 0),
+      vegetablesG: portions.reduce((total, portion) => total + portion.groups.vegetablesG, 0),
+      wholeDryG: portions.reduce((total, portion) => total + portion.groups.wholeDryG, 0)
+    },
     items: portions.flatMap(portion => portion.items),
     macros: { carbsG: sum('carbsG'), fatG: sum('fatG'), fiberG: sum('fiberG'), kcal: sum('kcal'), proteinG: sum('proteinG') },
     portions

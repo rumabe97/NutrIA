@@ -224,7 +224,7 @@ import type { PoolAsk } from 'core/domain/Balance';
  * `poolAsks` asks a dinner for a group only when the request shows a row of it
  * that stays, so the ask goes to lunch where a catalogue has none.
  */
-export const PROMPT_VERSION = '4.7.1';
+export const PROMPT_VERSION = '4.8.0';
 
 /**
  * The version of the rules for *writing steps*, stamped on every recipe and
@@ -596,8 +596,18 @@ function compositionRules(sides: string, snack: boolean): readonly string[] {
  * lunch or a dinner nothing goes beside (4.7.0); and to breakfast or a snack
  * of somebody whose lunch and dinner take no sides, nothing about them.
  */
-const SIDES_ADDED = 'The plan adds sides to lunch and dinner (bread, salad, vegetables, rice, fruit, dairy). ';
-const NO_SIDES = 'Nothing is served beside this meal: the dish carries 150 g of vegetables a serving. ';
+/**
+ * 4.8.0: both halves of it, to every lunch and dinner. Until 4.7.1 a main was
+ * told one or the other — sides are added, *or* carry your own 150 g of
+ * vegetables — and which it heard depended on its share of the day being past
+ * `ACCOMPANIED_FROM_KCAL`. Since `0087` asks for those 150 g at **every** main
+ * and a side cannot always bring them (on a small day there is no room inside
+ * the macro bands for one: 86 of 87 candidates were refused for the bands
+ * alone), the dish is asked for them whether or not something goes beside it.
+ * The library it is drafting for carries them on 41% of its mains today.
+ */
+const SIDES_ADDED =
+  'The plan adds sides to lunch and dinner (bread, salad, vegetables, rice, fruit, dairy), and the dish carries 150 g of vegetables. ';
 
 /**
  * What kind of food a meal is, where the numbers alone led a model astray
@@ -789,10 +799,13 @@ function takesSides(targets: NutritionTargets, slot: MealSlot, share: SlotShare)
 
 /**
  * What a meal's dishes carry for the groups a fortnight needs (4.7.0): what
- * the pool lacks (`asks`), and the fruit no side will bring — when neither
- * main takes sides, breakfast and the snacks are the only place it can come
- * from. (A main the plan sets no sides beside is told so in "Real portions".)
- * Read off the targets and the meal shape the brief already shows.
+ * the pool lacks (`asks`), and the fruit the day still owes.
+ *
+ * 4.8.0 asks breakfast and the snacks for it whatever the mains do. It used to
+ * ask only when neither main took sides, which since `0087` is never — and the
+ * two fruit a day are the rule the plans miss most after the vegetables, on a
+ * third of them, because two mains with a fruit dessert are the whole of the
+ * day's supply and a dessert is the first thing a tight day drops.
  */
 function groupLines(
   context: PromptContext,
@@ -805,9 +818,9 @@ function groupLines(
   const plantBased = context.dietaryPatterns.some(pattern => PLANT_BASED_PATTERNS.has(pattern));
   const own = asks.length > 0 ? `\n  Of these: ${asks.map(ask => askLine(ask, slot, plantBased)).join('; ')}.` : '';
   // Only where the request shows a fresh fruit, as `poolAsks` asks only for a group its catalogue holds.
-  const fruitless = fruit && !MAINS.has(slot) && ![...shares].some(([main, share]) => takesSides(context.targets, main, share));
+  const wantsFruit = fruit && !MAINS.has(slot);
 
-  return fruitless ? `${own}\n  Lunch and dinner come with no sides: ${Math.ceil(count / 2)} of these with 120–150 g of fresh fruit a serving.` : own;
+  return wantsFruit ? `${own}\n  Two fruit a day are needed: ${Math.ceil(count / 2)} of these with 120–150 g of fresh fruit a serving.` : own;
 }
 
 /**
@@ -850,10 +863,9 @@ export function buildPoolPrompt(
     })
     .join('\n');
 
-  // A lunch or a dinner the plan sets no sides beside carries its own vegetables (4.7.0).
-  const alone = wanted.some(([slot]) => MAINS.has(slot) && !takesSides(context.targets, slot, shares.get(slot) ?? NO_SHARE));
+  // Every lunch and dinner takes sides and carries its own vegetables (4.8.0).
   const sided = [...shares].some(([slot, share]) => takesSides(context.targets, slot, share));
-  const sides = alone ? NO_SIDES : sided ? SIDES_ADDED : '';
+  const sides = sided ? SIDES_ADDED : '';
   const firstSlot = wanted[0];
   const loaded = firstSlot ? loadedLines(context, firstSlot[0], shares.get(firstSlot[0]) ?? NO_SHARE, firstSlot[1]) : [];
   const catalogue = catalogueByAisle(safeIngredients, context.month);

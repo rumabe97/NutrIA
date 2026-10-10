@@ -214,18 +214,30 @@ const PLATE_EPSILON = 1e-9;
 
 /**
  * Accompaniments (project 016, `0079` Table 3, design A of `0008`): what goes
- * beside a big main meal — bread, a salad, a piece of fruit — chosen inside
- * the day's portion search, so the plate is sized knowing what is beside it.
+ * beside a main meal — bread, a salad, a piece of fruit — chosen inside the
+ * day's portion search, so the plate is sized knowing what is beside it.
  *
- * Only lunch and dinner (`MAIN_SLOTS`), and only when their share of the day
- * is past `ACCOMPANIED_FROM_KCAL`: below it a plate is a meal on its own, and a
- * person who eats five times on an ordinary target pays nothing in search.
- * Each such meal is offered `ACCOMPANIMENT_SETS` sets, "none" always among
- * them, the best at closing that meal's gap (`rankedSets`), so a three-meal
- * day prices (9 × 6)² × 9 = 26,244 combinations, under `BALANCE_MAX_COMBOS`.
+ * **Every lunch and dinner** (`MAIN_SLOTS`), and no other slot. It was every
+ * one past 700 kcal until `0093`: below that a plate was taken to be a meal on
+ * its own, and a person eating five times on an ordinary target paid nothing in
+ * search. `0087` asks for 150 g of vegetables at every main and two fruit a
+ * day, and both arrive mostly beside the plate — so the people that rule meant
+ * to spare were the ones it left with no vegetables and a third of the fruit.
+ * What is left of it is the zero: a meal with no budget takes nothing.
  */
-export const ACCOMPANIED_FROM_KCAL = 700;
-export const ACCOMPANIMENT_SETS = 6;
+export const ACCOMPANIED_FROM_KCAL = 0;
+
+/**
+ * Sets offered beside one main, "none" always among them, the best at closing
+ * that meal's gap (`rankedSets`).
+ *
+ * Ten rather than six since `0093`: at six, almost none of the sets a meal was
+ * offered carried a vegetable, and the day could not choose one however much
+ * its cost wanted to. `BALANCE_MAX_COMBOS` is unchanged, so the four extra sets
+ * are paid for in window width — a three-meal day solves `(10s)² × s ≤ 59,049`
+ * and gets eight quarter-steps a plate where six sets left it nine.
+ */
+export const ACCOMPANIMENT_SETS = 10;
 
 /**
  * Accompaniments accompany; they do not replace the dish (016 phase 4). With
@@ -252,6 +264,52 @@ function sidesWithinShare(perServing: PerServing, servings: number, besideKcal: 
  */
 export const SERVING_PREFERENCE = { max: 1.5, min: 0.75 } as const;
 const SERVING_PREFERENCE_WEIGHT = 0.1;
+
+/**
+ * What a lunch or dinner short of the table's 150 g of vegetables costs when a
+ * set is priced (`0087`, 019 phase 5b). The two rules the table asks for by the
+ * day — vegetables at every main, two fruit a day — are carried mostly by what
+ * goes beside the plate, and `setCost` ranked sets on the macros alone: of the
+ * sets a meal was offered, nearly none carried a vegetable, so the day's search
+ * could not choose one however much it wanted to, and `meetSides` afterwards
+ * had nothing to repair with.
+ *
+ * Priced here rather than in the day's own cost on purpose: this narrows
+ * **which sets are offered**, leaving `balancedDay`'s search and its bound
+ * untouched, and "none" stays in every offer (`rankedSets`) so a meal that
+ * cannot afford a vegetable still has somewhere to go. Below the bands by
+ * construction — a set that takes a day out of band is never chosen, whatever
+ * its vegetables.
+ */
+const SIDE_LACK_WEIGHT = 0.5;
+
+/**
+ * What a lunch or dinner owes the table on vegetables: nothing once it carries
+ * the 150 g, and the whole price until then (`0087`).
+ *
+ * A step, not a distance, because the rule is a step: a main at 75 g of
+ * vegetables keeps the rule no better than one at nothing. Priced as a distance
+ * it was worse than nothing — the half portion of a vegetable side fits a
+ * day's macros better than the whole one, so the search bought the half, paid
+ * less, and still broke the rule, which it did on a fifth more plans than
+ * before the sides were offered at all.
+ */
+function vegetablesLack(vegetablesG: number): number {
+  return vegetablesG + PLATE_EPSILON >= BALANCE_GRAMS.vegetables ? 0 : 1;
+}
+
+/**
+ * What a side's refined cereal costs, as the share of its cereal that is not
+ * whole (`0087`: half a plan's cereal whole, over its lunches and dinners).
+ *
+ * Small, because it decides between sides that are the same meal either way: a
+ * white roll and a wholemeal one differ by almost nothing on the macros, so a
+ * nudge is enough to turn one into the other. It is the sides that needed it —
+ * the dish library is 48% whole on its own, while of the thirteen cereal sides
+ * Table 3 offers only two are whole, so offering a side at every main (`0087`)
+ * dragged the share down where it used to leave it alone.
+ */
+const REFINED_SIDE_WEIGHT = 0.25;
 
 /** What a serving outside `SERVING_PREFERENCE` costs, before its weight. */
 function servingMiss(servings: number): number {
@@ -332,7 +390,7 @@ function bestPortions(
   return portions => {
     const priced = portions
       .map((portion, index) => ({
-        cost: setCost({ items: portion.items, macros: portion.macros, portions: [portion] }, base, budget, slot),
+        cost: setCost({ groups: portion.groups, items: portion.items, macros: portion.macros, portions: [portion] }, base, budget, slot),
         index,
         portion
       }))
@@ -389,7 +447,15 @@ function setCost(set: AccompanimentSet, base: PerServing, budget: SlotBudget, sl
     return Number.POSITIVE_INFINITY;
   }
 
-  return fitCost(addMacros(scaleMacros(base, servings), set.macros), budget) + servingMiss(servings) * SERVING_PREFERENCE_WEIGHT;
+  const vegetables = MAIN_SLOTS.has(slot) ? vegetablesLack(base.vegetablesG * servings + set.groups.vegetablesG) : 0;
+  const refined = set.groups.cerealDryG > 0 ? (set.groups.cerealDryG - set.groups.wholeDryG) / set.groups.cerealDryG : 0;
+
+  return (
+    fitCost(addMacros(scaleMacros(base, servings), set.macros), budget) +
+    servingMiss(servings) * SERVING_PREFERENCE_WEIGHT +
+    vegetables * SIDE_LACK_WEIGHT +
+    refined * REFINED_SIDE_WEIGHT
+  );
 }
 
 /**
@@ -1304,7 +1370,14 @@ function fitCost(macros: Macros, budget: SlotBudget): number {
  * One serving of a dish: its macros, what it weighs on the plate — cooked, as
  * the recipe stores it — and the grams of each `PLATE_FOOD_MAX` food in it.
  */
-type PerServing = Macros & { readonly foods: Readonly<Partial<Record<PlateFood, number>>>; readonly grams: number };
+type PerServing = Macros & {
+  readonly foods: Readonly<Partial<Record<PlateFood, number>>>;
+  /** Fruit portions on the plate itself, per serving (`0087`). */
+  readonly fruitPortions: number;
+  readonly grams: number;
+  /** Grams of vegetables on the plate itself, per serving (`0087`). */
+  readonly vegetablesG: number;
+};
 
 /**
  * Per-serving macros and grams for every dish whose ingredients all resolve. A
@@ -1322,8 +1395,15 @@ function perServingIndex(pool: readonly CandidateDish[], catalogue: Catalogue): 
       const servings = dish.servings || 1;
       const grams = dish.ingredients.reduce((sum, item) => sum + item.grams, 0) / servings;
       const foods = Object.fromEntries(Object.entries(plateFoods(dish.ingredients, catalogue)).map(([food, total]) => [food, total / servings]));
+      const groups = mealGroups(dish.ingredients, catalogue);
 
-      index.set(dish.slug, { ...composed.macros, foods, grams });
+      index.set(dish.slug, {
+        ...composed.macros,
+        foods,
+        fruitPortions: groups.fruitPortions / servings,
+        grams,
+        vegetablesG: groups.vegetables / servings
+      });
     }
   }
 
@@ -1768,6 +1848,14 @@ function mealKcal(pick: Pick, servings: number, set: AccompanimentSet | undefine
 type Term = {
   /** What the set beside it carries, zero for none. */
   readonly beside: Macros;
+  /** Fruit portions the meal carries, plate and set together — counted at every slot (`0087`). */
+  readonly fruit: number;
+  /**
+   * How far this lunch or dinner is from the table's 150 g of vegetables, as a
+   * share of it — zero for a meal that has them, and for every other slot
+   * (`0087`, `SIDE_LACK_WEIGHT`).
+   */
+  readonly lack: number;
   /** The meal's energy: the plate and what is beside it. */
   readonly meal: number;
   readonly misses: number;
@@ -1779,9 +1867,9 @@ type Term = {
 };
 
 /** A day's cost so far, summed meal by meal. */
-type DaySums = Macros & { readonly misses: number; readonly strays: number; readonly tenths: number };
+type DaySums = Macros & { readonly fruit: number; readonly lacks: number; readonly misses: number; readonly strays: number; readonly tenths: number };
 
-const NO_SUMS: DaySums = { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, misses: 0, proteinG: 0, strays: 0, tenths: 0 };
+const NO_SUMS: DaySums = { carbsG: 0, fatG: 0, fiberG: 0, fruit: 0, kcal: 0, lacks: 0, misses: 0, proteinG: 0, strays: 0, tenths: 0 };
 
 /** The sums with one more meal: plate first, then what is beside it, as a day has always added them. */
 function addTerm(sums: DaySums, term: Term): DaySums {
@@ -1789,7 +1877,9 @@ function addTerm(sums: DaySums, term: Term): DaySums {
     carbsG: sums.carbsG + term.plate.carbsG + term.beside.carbsG,
     fatG: sums.fatG + term.plate.fatG + term.beside.fatG,
     fiberG: sums.fiberG + term.plate.fiberG + term.beside.fiberG,
+    fruit: sums.fruit + term.fruit,
     kcal: sums.kcal + term.plate.kcal + term.beside.kcal,
+    lacks: sums.lacks + term.lack,
     misses: sums.misses + term.misses,
     proteinG: sums.proteinG + term.plate.proteinG + term.beside.proteinG,
     strays: sums.strays + term.stray,
@@ -1802,7 +1892,16 @@ function addTerm(sums: DaySums, term: Term): DaySums {
  * they take: each macro's least and most, the most tenths of energy, and the
  * least strays and serving misses. What `balancedDay` bounds a branch by.
  */
-type RemainingRange = { readonly high: Macros; readonly low: Macros; readonly misses: number; readonly strays: number; readonly tenths: number };
+type RemainingRange = {
+  /** The most fruit the meals from here on can still carry — a ceiling, as `tenths` is for energy. */
+  readonly fruit: number;
+  readonly high: Macros;
+  readonly lacks: number;
+  readonly low: Macros;
+  readonly misses: number;
+  readonly strays: number;
+  readonly tenths: number;
+};
 
 /**
  * How far a bound may sit above the cost it bounds and still prune, relative
@@ -1817,12 +1916,14 @@ const MACRO_KEYS = ['carbsG', 'fatG', 'fiberG', 'kcal', 'proteinG'] as const;
 /** `RemainingRange` from every meal onwards, the last one empty. */
 function remainingRanges(options: readonly (readonly { readonly term: Term }[])[]): readonly RemainingRange[] {
   const zero: Macros = { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 };
-  const ranges: RemainingRange[] = [{ high: zero, low: zero, misses: 0, strays: 0, tenths: 0 }];
+  const ranges: RemainingRange[] = [{ fruit: 0, high: zero, lacks: 0, low: zero, misses: 0, strays: 0, tenths: 0 }];
 
   for (let index = options.length - 1; index >= 0; index -= 1) {
     const after = ranges[0] as RemainingRange;
     const high = { ...after.high };
     const low = { ...after.low };
+    let fruit = Number.NEGATIVE_INFINITY;
+    let lacks = Number.POSITIVE_INFINITY;
     let misses = Number.POSITIVE_INFINITY;
     let strays = Number.POSITIVE_INFINITY;
     let tenths = Number.NEGATIVE_INFINITY;
@@ -1850,6 +1951,8 @@ function remainingRanges(options: readonly (readonly { readonly term: Term }[])[
         least[key] = Math.min(least[key], added);
       }
 
+      fruit = Math.max(fruit, term.fruit);
+      lacks = Math.min(lacks, term.lack);
       misses = Math.min(misses, term.misses);
       strays = Math.min(strays, term.stray);
       tenths = Math.max(tenths, term.tenths);
@@ -1860,7 +1963,15 @@ function remainingRanges(options: readonly (readonly { readonly term: Term }[])[
       low[key] += least[key];
     }
 
-    ranges.unshift({ high, low, misses: after.misses + misses, strays: after.strays + strays, tenths: after.tenths + tenths });
+    ranges.unshift({
+      fruit: after.fruit + fruit,
+      high,
+      lacks: after.lacks + lacks,
+      low,
+      misses: after.misses + misses,
+      strays: after.strays + strays,
+      tenths: after.tenths + tenths
+    });
   }
 
   return ranges;
@@ -2019,7 +2130,8 @@ function balancedDay(
   // once per option of the search, not again at every combination holding it.
   const termOf = (index: number, factor: number, set: AccompanimentSet | undefined): Term => {
     const pick = picks[index] as Pick;
-    const beside = (set ?? pick.set)?.macros;
+    const chosen = set ?? pick.set;
+    const beside = chosen?.macros;
     const plate = pick.base.kcal * factor;
     const meal = plate + (beside?.kcal ?? 0);
     const budget = shares[index] ?? 0;
@@ -2033,6 +2145,8 @@ function balancedDay(
         kcal: beside?.kcal ?? 0,
         proteinG: beside?.proteinG ?? 0
       },
+      fruit: pick.base.fruitPortions * factor + (chosen?.groups.fruitPortions ?? 0),
+      lack: MAIN_SLOTS.has(pick.slot) ? vegetablesLack(pick.base.vegetablesG * factor + (chosen?.groups.vegetablesG ?? 0)) : 0,
       meal,
       misses: servingMiss(factor),
       plate: {
@@ -2060,7 +2174,7 @@ function balancedDay(
       kcals[index] = term.meal;
     }
 
-    return closingCost(sums.carbsG, sums.fatG, sums.fiberG, sums.kcal, sums.misses, sums.proteinG, sums.strays, sums.tenths);
+    return closingCost(sums.carbsG, sums.fatG, sums.fiberG, sums.fruit, sums.kcal, sums.lacks, sums.misses, sums.proteinG, sums.strays, sums.tenths);
   };
 
   // The day's cost once every meal's term is summed and `kcals` holds each meal's
@@ -2069,7 +2183,9 @@ function balancedDay(
     carbsG: number,
     fatG: number,
     fiberG: number,
+    fruit: number,
     kcal: number,
+    lacks: number,
     misses: number,
     proteinG: number,
     strays: number,
@@ -2096,6 +2212,8 @@ function balancedDay(
       inversions * (banded ? ORDER_OUTRANKS_BANDS : SHARE_INVERSION_WEIGHT) +
       strays * SHARE_BAND_WEIGHT +
       (sides ? misses * SERVING_PREFERENCE_WEIGHT : 0) +
+      (sides && banded ? lacks * SIDE_LACK_WEIGHT : 0) +
+      (sides && banded ? (Math.max(0, FRUIT_PER_DAY - fruit) / FRUIT_PER_DAY) * SIDE_LACK_WEIGHT : 0) +
       floorMiss(tenths / 10, minimumKcal) * FLOOR_OUTRANKS_ORDER
     );
   };
@@ -2210,6 +2328,8 @@ function balancedDay(
       return (
         (sums.strays + range.strays) * SHARE_BAND_WEIGHT +
         (sides ? (sums.misses + range.misses) * SERVING_PREFERENCE_WEIGHT : 0) +
+        (sides && banded ? (sums.lacks + range.lacks) * SIDE_LACK_WEIGHT : 0) +
+        (sides && banded ? (Math.max(0, FRUIT_PER_DAY - sums.fruit - range.fruit) / FRUIT_PER_DAY) * SIDE_LACK_WEIGHT : 0) +
         (reachable < minimumKcal ? floorMiss(reachable, minimumKcal) * FLOOR_OUTRANKS_ORDER : 0)
       );
     };
@@ -2280,7 +2400,18 @@ function balancedDay(
 
     const visit = (index: number, sums: DaySums): void => {
       if (index === picks.length) {
-        const cost = closingCost(sums.carbsG, sums.fatG, sums.fiberG, sums.kcal, sums.misses, sums.proteinG, sums.strays, sums.tenths);
+        const cost = closingCost(
+          sums.carbsG,
+          sums.fatG,
+          sums.fiberG,
+          sums.fruit,
+          sums.kcal,
+          sums.lacks,
+          sums.misses,
+          sums.proteinG,
+          sums.strays,
+          sums.tenths
+        );
 
         if (cost < bestCost) {
           bestCost = cost;
@@ -2318,7 +2449,9 @@ function balancedDay(
               sums.carbsG + plate.carbsG + beside.carbsG,
               sums.fatG + plate.fatG + beside.fatG,
               sums.fiberG + plate.fiberG + beside.fiberG,
+              sums.fruit + option.term.fruit,
               sums.kcal + plate.kcal + beside.kcal,
+              sums.lacks + option.term.lack,
               sums.misses + option.term.misses,
               sums.proteinG + plate.proteinG + beside.proteinG,
               sums.strays + option.term.stray,

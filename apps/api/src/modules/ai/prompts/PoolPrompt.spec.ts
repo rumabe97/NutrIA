@@ -543,7 +543,7 @@ describe('buildPoolPrompt', () => {
 
       expect(prompt).not.toContain('a plate with bread, fruit or dairy beside it');
       expect(prompt).toContain(
-        'one serving is one plate for one. The plan adds sides to lunch and dinner (bread, salad, vegetables, rice, fruit, dairy).'
+        'one serving is one plate for one. The plan adds sides to lunch and dinner (bread, salad, vegetables, rice, fruit, dairy), and the dish carries 150 g of vegetables.'
       );
     });
 
@@ -703,36 +703,47 @@ describe('buildPoolPrompt', () => {
       expect(at('lunch')).not.toContain('Of these:');
     });
 
-    it('tells a lunch or a dinner the plan sets no sides beside to carry its own vegetables, and one it does not', () => {
-      // 1,900 kcal: the default lunch is 646 kcal, under `ACCOMPANIED_FROM_KCAL`; at 2,400 it is 816.
-      const alone = at('lunch');
-      const sided = at('lunch', { targets: { ...TARGETS, kcal: 2400 } });
-
-      expect(alone).toContain('Nothing is served beside this meal: the dish carries 150 g of vegetables a serving.');
-      expect(alone).not.toContain('The plan adds sides');
-      expect(sided).toContain('The plan adds sides to lunch and dinner');
-      expect(sided).not.toContain('Nothing is served beside this meal');
+    /**
+     * 4.8.0: both halves, to every main, whatever its share of the day. Until
+     * 4.7.1 a lunch of 646 kcal was told nothing went beside it and a lunch of
+     * 816 kcal that sides were added — and the small one was never asked for
+     * sides at all. `0087` asks for 150 g of vegetables at every lunch and
+     * dinner, and the day it is hardest to bring one on is exactly the small
+     * one, so the dish is asked for them either way.
+     */
+    it('tells every lunch and dinner that sides are added and the dish still carries its own vegetables', () => {
+      // 1,900 kcal: the default lunch is 646 kcal; at 2,400 it is 816. Both hear the same thing now.
+      for (const prompt of [at('lunch'), at('lunch', { targets: { ...TARGETS, kcal: 2400 } }), at('dinner')]) {
+        expect(prompt).toContain('The plan adds sides to lunch and dinner');
+        expect(prompt).toContain('the dish carries 150 g of vegetables.');
+        expect(prompt).not.toContain('Nothing is served beside this meal');
+      }
     });
 
-    it('asks breakfast and the snacks for fruit only when neither main meal takes sides, and only where a fresh fruit is shown', () => {
+    /**
+     * 4.8.0 asks for it whatever the mains do. The old condition — neither main
+     * takes sides — is never true since `0087`, and the two fruit a day are the
+     * rule the plans miss most after the vegetables: two mains with a dessert
+     * are the day's whole supply, and a dessert is the first thing a tight day
+     * drops.
+     */
+    it('asks breakfast and the snacks for fruit wherever a fresh fruit is shown, whatever the mains take', () => {
       const fruit = [row('manzana')];
       const shown = (slot: MealSlot, overrides: Partial<PromptContext> = {}) =>
         buildPoolPrompt(context({ needBySlot: new Map([[slot, 3]]), ...overrides }), fruit);
-      const alone = shown('breakfast');
-      const sided = shown('breakfast', { targets: { ...TARGETS, kcal: 2400 } });
 
       // As `poolAsks` asks for no group the catalogue lacks: somebody shown no fresh fruit is asked for none.
       expect(at('breakfast')).not.toContain('fresh fruit a serving');
 
-      expect(alone).toContain('Lunch and dinner come with no sides: 2 of these with 120–150 g of fresh fruit a serving.');
-      // And is not told, two sections above, that the plan adds sides to them.
-      expect(alone).not.toContain('The plan adds sides');
-      expect(alone).toContain('one serving is one plate for one. Prefer half vegetables');
-      expect(sided).toContain('The plan adds sides to lunch and dinner');
-      expect(shown('afternoon_snack')).toContain('2 of these with 120–150 g of fresh fruit');
-      expect(sided).not.toContain('fresh fruit a serving');
-      // Never asked of a lunch or a dinner.
+      for (const prompt of [shown('breakfast'), shown('breakfast', { targets: { ...TARGETS, kcal: 2400 } }), shown('afternoon_snack')]) {
+        expect(prompt).toContain('Two fruit a day are needed: 2 of these with 120–150 g of fresh fruit a serving.');
+      }
+
+      // The sides sentence now sits between the two, as it already did on a bigger target.
+      expect(shown('breakfast')).toContain('Prefer half vegetables');
+      // Never asked of a lunch or a dinner: their fruit is the dessert beside the plate.
       expect(shown('lunch')).not.toContain('fresh fruit a serving');
+      expect(shown('dinner')).not.toContain('fresh fruit a serving');
     });
 
     it('tells only a snack how a snack is built', () => {
@@ -889,8 +900,12 @@ describe('buildPoolPrompt — one meal’s catalogue', () => {
    * 4.7.0: the group lines go inside the request, under the same budget, on
    * PRD 005's standard lunch: with the longest asks a request carries (two
    * of three dishes: legumes naming the two longest kinds, and a whole
-   * grain). The standard day's lunch is under `ACCOMPANIED_FROM_KCAL`, so it
-   * carries the no-sides sentence, as that day's prompt does.
+   * grain), and 4.8.0's sides sentence, which every main carries.
+   *
+   * The budget was 55% until 4.8.0 asked every main for its own 150 g of
+   * vegetables — eleven words that no main used to hear, on the longest
+   * request there is. It buys 0.03 of a point and the guard keeps its job: the
+   * prompt is still 44% shorter than 3.4.0's.
    */
   it('keeps the standard lunch prompt at most 55% of 3.4.0’s with every group line it can carry', () => {
     const before = buildPoolPrompt(
@@ -899,9 +914,9 @@ describe('buildPoolPrompt — one meal’s catalogue', () => {
     );
     const after = builtAsTheBuilderDoes('lunch', [], rows, used.get('lunch') ?? new Set(), LONGEST_ASKS);
 
-    expect(after).toContain('Nothing is served beside this meal');
+    expect(after).toContain('the dish carries 150 g of vegetables.');
     expect(after).toContain('not alubias blancas or otras alubias');
-    expect(after.length / before.length).toBeLessThanOrEqual(0.55);
+    expect(after.length / before.length).toBeLessThanOrEqual(0.56);
   });
 
   /**
