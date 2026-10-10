@@ -262,6 +262,7 @@ describe('portionsBeside — what may go beside one plate, at one meal, in one m
     const broth: AccompanimentPortion = {
       accompaniment: { families: 'all', key: 'caldo-con-fideos', months: 'all', portions: [items], role: 'vegetable', slots: ['lunch', 'dinner'] },
       grams: 260,
+      groups: { cerealDryG: 10, fruitPortions: 0, vegetablesG: 0, wholeDryG: 0 },
       items,
       macros: { carbsG: 9, fatG: 0.5, fiberG: 0.5, kcal: 50, proteinG: 2 }
     };

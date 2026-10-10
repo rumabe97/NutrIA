@@ -389,6 +389,32 @@ Two sections: presenters, then the static controller object. Import only the rep
 
 ---
 
+## Pricing a rule in the scheduler
+
+`schedulePlan` holds the macro bands hard and **prices** everything else — the food-group
+maximums and minimums, the starch and legume caps, the vegetables and fruit of `0087`.
+Three things a new price must respect (`0093`).
+
+- **A rule that is a step is priced as a step.** `0087` wants 150 g of vegetables at a
+  main; a main at 75 g keeps it no better than one at nothing. Priced as the distance to
+  150 g it came out *worse than no price at all*, because a half portion of a vegetable
+  side fits a day's macros better than a whole one: the search bought the half, paid less
+  and still broke the rule. Ask what the rule answers — yes or no, or how far — and price
+  that shape, not the shape that is easier to differentiate.
+- **A new term goes in five places or the search quietly stops working.** `balancedDay`'s
+  day cost is summed bit-exactly and pruned by a branch-and-bound. A term belongs in
+  `Term`, `DaySums`, `addTerm`, `closingCost` **and** `lowestBelow` — bounded by the least
+  it can still add (as `strays` is) or by the most it can still remove (as `tenths` is for
+  the energy floor). Leave it out of the bound and the bound stops being admissible: the
+  search prunes branches that held the cheapest day, and nothing fails.
+- **No price outranks `BAND_MISS_WEIGHT`, and a group price only applies to a banded day.**
+  Every macro of every day inside 5% is the product's promise and the condition of all this
+  work. Measured: the same vegetables term at four times its weight bought nine points of
+  the rule and took a day out of its band, and the same term in the *unbanded* first build
+  did it on the thinnest pool there is. Run the evaluator (`--rotate 10 --flag
+  accompaniments`) and read `Days inside 5% on all four macros` before anything else; one
+  day short is a failure whatever the rule gained.
+
 ## ⛔ Anti-patterns
 
 ### 1. Database calls in controllers
