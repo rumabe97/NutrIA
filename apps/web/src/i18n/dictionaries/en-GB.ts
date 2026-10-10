@@ -637,7 +637,9 @@ export const enGB: Dictionary = {
       other: 'Any other case, including old rows that did not record the reason.',
       owner_removed:
         'You removed a published picture: the checker had accepted it, or you had by hand. Not a drawing that failed: the dish waits at least 7 days before it is drawn again on its own.',
-      payment_refused: 'The provider’s account cannot pay for another call (error 402, spent key or quota). Not the dish’s fault.'
+      payment_refused: 'The provider’s account cannot pay for another call (error 402, spent key or quota). Not the dish’s fault.',
+      rate_limited:
+        'The provider asked for a slower pace (a 429). Not your account and not your quota: its own speed limit, and it passes. The judge waits and tries again before giving the drawing back.'
     },
     reasons: {
       call_failed: 'The call failed',
@@ -648,7 +650,8 @@ export const enGB: Dictionary = {
       no_provenance: 'No C2PA signature',
       other: 'Other reason',
       owner_removed: 'You removed it by hand',
-      payment_refused: 'The provider cannot charge'
+      payment_refused: 'The provider cannot charge',
+      rate_limited: 'The provider asked for a slower pace'
     },
     releasedEmpty: 'No picture was given back in this period.',
     releasedListLabel: 'Pictures given back by reason',

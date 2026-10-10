@@ -45,7 +45,10 @@ describe('pictureReasonOf', () => {
     ['OpenRouter /images answered 402: Key limit exceeded', 'payment_refused'],
     ['judge: OpenRouter /chat/completions answered 402: Key limit exceeded', 'payment_refused'],
     ['RESOURCE_EXHAUSTED: quota exceeded', 'payment_refused'],
-    ['OpenRouter /images answered 429: Too many requests', 'model_refused']
+    ['OpenRouter /images answered 429: Too many requests', 'rate_limited'],
+    // A 429 that names a spent key is the key, not the pace: the words are read first.
+    ['OpenRouter /images answered 429: Key limit exceeded', 'payment_refused'],
+    ['OpenRouter /images answered 403: policy', 'model_refused']
   ])('reads a released row that says “%s” as %s', (released, expected) => {
     expect(pictureReasonOf({ released })).toBe(expected);
   });
@@ -54,7 +57,10 @@ describe('pictureReasonOf', () => {
 describe('reasonOfCall', () => {
   it('goes by the status when it has one, and by the words only for a spent budget', () => {
     expect(reasonOfCall({ message: 'x', status: 402 })).toBe('payment_refused');
-    expect(reasonOfCall({ message: 'x', status: 429 })).toBe('model_refused');
+    // A pace, not an empty account: the two used to be one reason and one mail (`0094`).
+    expect(reasonOfCall({ message: 'x', status: 429 })).toBe('rate_limited');
+    expect(reasonOfCall({ message: 'Key limit exceeded', status: 429 })).toBe('payment_refused');
+    expect(reasonOfCall({ message: 'x', status: 403 })).toBe('model_refused');
     expect(reasonOfCall({ message: 'x', status: 500 })).toBe('call_failed');
     expect(reasonOfCall({ message: 'Key limit exceeded', status: null })).toBe('payment_refused');
     expect(reasonOfCall({ message: 'unheard of', status: null })).toBe('other');

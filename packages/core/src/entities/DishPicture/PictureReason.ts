@@ -8,8 +8,9 @@ import type { PictureProvenance } from './DishPicture';
  * - `judge_allergen`: the judge saw a food carrying an allergen the dish lacks (the only thing that rejects a picture).
  * - `judge_rejected`: the judge rejected it for another reason.
  * - `no_provenance`: the file came back without its C2PA manifest, so it is never kept.
- * - `model_refused`: the provider turned the request away (a 4xx other than 402 — a rate limit, a policy).
+ * - `model_refused`: the provider turned the request away (a 4xx that is neither 402 nor 429 — a policy, a bad request).
  * - `payment_refused`: the account cannot pay for another call (402, a spent key or quota).
+ * - `rate_limited`: the provider asked for a slower pace (429, naming no spent key). It passes; a drawing is given back, never failed.
  * - `call_failed`: a call that ended without an answer we could use (timeout, 5xx, unreadable answer).
  * - `cap_reached`: the month's picture spend reached its cap.
  * - `owner_removed`: the owner took back a picture accepted by hand (`0072`). Not a drawing that failed: the owner's own act.
@@ -21,6 +22,7 @@ export const PICTURE_REASONS = [
   'no_provenance',
   'model_refused',
   'payment_refused',
+  'rate_limited',
   'call_failed',
   'cap_reached',
   'owner_removed',
@@ -51,6 +53,11 @@ export function reasonOfCall(call: { readonly message: string; readonly status: 
 
   if (status === 402 || /key limit|exceeded your current quota|resource_exhausted|quota exceeded|insufficient_quota|billing/i.test(call.message)) {
     return 'payment_refused';
+  }
+
+  // Read after the words above, so a 429 that names a spent key stays a payment, not a pace.
+  if (status === 429) {
+    return 'rate_limited';
   }
 
   if (status !== null && status >= 400 && status < 500) {
@@ -103,8 +110,11 @@ function reasonOfRelease(why: string): PictureReason {
     return 'other';
   }
 
-  // Besides the cap, only a refusal (`isRefusal`) ever released a drawing: a 402 or a spent key or quota pays nothing more; any other 4xx is the provider's no.
-  return reasonOfCall({ message: why, status: null }) === 'payment_refused' ? 'payment_refused' : 'model_refused';
+  // Besides the cap, only a refusal (`isRefusal`) ever released a drawing: a 402, a spent key or
+  // quota pays nothing more, a 429 is a pace, and any other 4xx is the provider's own no.
+  const reason = reasonOfCall({ message: why, status: null });
+
+  return reason === 'payment_refused' || reason === 'rate_limited' ? reason : 'model_refused';
 }
 
 /**

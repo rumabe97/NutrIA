@@ -561,14 +561,15 @@ describe('the owner is told that dish pictures failed (0072, phase 1)', () => {
       expect(await claims(REFUSED)).toHaveLength(1);
 
       // Past the 6 h, with one more, the two given back since the mail go in one.
-      // A rate limit (a 429) is given back too, as `model_refused`, and goes in the same mail.
-      await seed(third.id, new Date(told.getTime() + 6.5 * HOUR), 'model_refused', true);
+      // A rate limit (a 429) is given back too and goes in the same mail — but as its own
+      // reason since `0094`, because a pace the provider asked for is not an empty account.
+      await seed(third.id, new Date(told.getTime() + 6.5 * HOUR), 'rate_limited', true);
       await alerts.pictureFailures(new Date(told.getTime() + 7 * HOUR));
       expect(pictureMails()).toHaveLength(2);
       expect(pictureMails()[1]?.subject).toBe(REFUSED_SUBJECT);
       expect(pictureMails()[1]?.text).toContain('desde el aviso anterior: 2.');
       expect(pictureMails()[1]?.text).toContain('El proveedor no puede cobrar: 1');
-      expect(pictureMails()[1]?.text).toContain('El modelo rechazó la petición: 1');
+      expect(pictureMails()[1]?.text).toContain('El proveedor pidió bajar el ritmo: 1');
       expect(await claims(REFUSED)).toHaveLength(2);
       expect(await claims(FAILED)).toEqual([]);
     }, 60_000);

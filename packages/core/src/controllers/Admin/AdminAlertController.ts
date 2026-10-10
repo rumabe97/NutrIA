@@ -76,7 +76,7 @@ export type OwnerDigest = {
 export const PICTURE_ALERT_KINDS = { failed: 'picture-failed', refused: 'picture-payment-refused' } as const;
 
 /** The reasons a drawing is given back for that the owner is mailed about: the provider's no. The month's cap is not one. */
-const REFUSALS: readonly PictureReason[] = ['payment_refused', 'model_refused'];
+const REFUSALS: readonly PictureReason[] = ['payment_refused', 'model_refused', 'rate_limited'];
 
 /**
  * What the pictures' mails say, as numbers. A reason is one of `PICTURE_REASONS`: no
@@ -88,7 +88,9 @@ export type PictureFailures = {
   /**
    * Dishes whose drawing the provider turned away and gave back since the last
    * `picture-payment-refused` mail, by reason: `payment_refused` (a 402, a spent key or
-   * quota) or `model_refused` (a rate limit, the only other refusal that gives a claim back).
+   * quota), `rate_limited` (a 429, the provider's pace and nothing to do with the account)
+   * or `model_refused` (any other 4xx). The mail names which, because they are not the same
+   * news: only the first is about money (`0094`).
    */
   readonly refused: readonly PictureReasonCount[];
 };
