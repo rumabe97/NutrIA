@@ -112,13 +112,15 @@ above all of them.
   Legumes 94% → 92% and red meat 88% → 89% moved by a plan or two, which is noise at ten
   seeds. **The vegetarian profile keeps the whole table**, on the median plan and on nine of
   its ten seeds.
-- **One profile of the fourteen lost ground: gluten-free, 77% → 65%.** It is the thinnest
-  pool measured (157 ingredients excluded), and what it shows is the shape of every trade
-  here: it gained whole grain (50% → 70%) and gained *nothing* on vegetables, which stay at
-  0% because its larder has almost no gluten-free side to bring them, while the room that
-  bought the whole grain came out of its protein caps (meat 90% → 60%, processed 100% →
-  60%). On a pool that thin every constraint added displaces another. It is the first thing
-  to revisit, and the lever is its larder, not its weights.
+- **Twelve profiles of the fourteen improved; two lost ground**, and they show the shape of
+  every trade here. Gluten-free, 77% → 65%, is the thinnest pool measured (157 ingredients
+  excluded): it gained whole grain (50% → 70%) and gained *nothing* on vegetables, which
+  stay at 0% because its larder has almost no gluten-free side to bring them, while the room
+  that bought the whole grain came out of its protein caps (meat 90% → 60%, processed 100% →
+  60%). Three-meals-high-protein, 64% → 59%, traded the same way: vegetables 0% → 60% and
+  whole grain 40% → 80% against its starch and processed caps. On a pool that thin every
+  constraint added displaces another, and the lever for both is their larder, not the
+  weights.
 - Scheduling costs about three times as long with sides on (15 s → 105 s for 140 plans).
   Every main now prices sets it used to skip. Well inside the generation budget.
 - **The table still does not hold everywhere, and the rest is data, not scheduling.** Two
