@@ -43,6 +43,8 @@ export type Accompaniment = {
 };
 
 const BLD: readonly MealSlot[] = ['breakfast', 'lunch', 'dinner'];
+/** Where a piece of fruit may go (`0095`): the meals of `BLD`, and the two snacks a fruit is the whole of. */
+const FRUIT_SLOTS: readonly MealSlot[] = ['breakfast', 'lunch', 'dinner', 'morning_snack', 'afternoon_snack'];
 const LD: readonly MealSlot[] = ['lunch', 'dinner'];
 const SUMMER = [6, 7, 8, 9];
 const SPANISH: readonly CuisineFamily[] = ['spanish', 'other'];
@@ -58,7 +60,7 @@ function bread(slug: string): Accompaniment {
 }
 
 function fruit(slug: string, grams: number): Accompaniment {
-  return { families: 'all', key: slug, months: 'catalogue', portions: [[{ grams, slug }]], role: 'dessert', slots: BLD };
+  return { families: 'all', key: slug, months: 'catalogue', portions: [[{ grams, slug }]], role: 'dessert', slots: FRUIT_SLOTS };
 }
 
 function composed(
