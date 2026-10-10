@@ -218,7 +218,9 @@ describe('the owner’s immediate alerts', () => {
     const mail = ownerAlertEmail({ alert: ALERTS[5] as OwnerAlert, link });
 
     expect(mail.subject).toBe('NutrIA — el proveedor de imágenes rechaza las peticiones');
-    expect(mail.text).toContain('la clave de imágenes no puede pagar o ha llegado a su límite de uso');
+    // The three reasons this mail covers are not the same news, and only one of them is about money (`0094`).
+    expect(mail.text).toContain('"no puede cobrar" es que la clave no puede pagar o agotó su cuota');
+    expect(mail.text).toContain('"pidió bajar el ritmo" es un límite de velocidad suyo, pasajero y ajeno a tu cuenta');
     expect(mail.text).toContain(
       'Platos con el dibujo devuelto desde el aviso anterior: 3. Por motivo: El proveedor no puede cobrar: 2; El modelo rechazó la petición: 1.'
     );

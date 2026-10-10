@@ -675,7 +675,7 @@ describe('DishPictureService.draw — stopping without blaming the dish', () => 
 
   it.each([
     ['a key past its limit (402)', new PictureCallError('OpenRouter /images answered 402: Key limit exceeded', 402), 'payment_refused'],
-    ['a rate limit (429)', new PictureCallError('OpenRouter /images answered 429: Too many requests', 429), 'model_refused'],
+    ['a rate limit (429)', new PictureCallError('OpenRouter /images answered 429: Too many requests', 429), 'rate_limited'],
     ['a quota in the provider’s words', new Error('RESOURCE_EXHAUSTED: quota exceeded'), 'payment_refused']
   ])('gives the claim back on %s, recording the refusal at no cost', async (_case, refusal, reason) => {
     const images = drawing(async () => Promise.reject(refusal));
@@ -688,6 +688,50 @@ describe('DishPictureService.draw — stopping without blaming the dish', () => 
     expect(fail).not.toHaveBeenCalled();
     expect(calls[0]?.costUsd).toBe(refusal instanceof PictureCallError ? 0 : IMAGE_COST_FLOOR_USD);
   });
+
+  /**
+   * The drawing is paid for by the time the judge runs — 0.0337 $ against a judge
+   * call's 0.0007 $ — so a 429 there used to throw away the expensive half of the
+   * attempt to save the cheap one (`0094`). It waits and asks again instead.
+   */
+  it('waits out a rate limit on the judge rather than giving the drawn picture back', async () => {
+    let seen = 0;
+    const accepting = new StubPictureJudgeClient();
+    const judge = Object.assign(new StubPictureJudgeClient(), {
+      see: async () => {
+        seen += 1;
+
+        if (seen === 1) {
+          throw new PictureCallError('OpenRouter /chat/completions answered 429: Too many requests', 429);
+        }
+
+        return accepting.see();
+      }
+    });
+    const images = drawing(async () => new StubPictureImageClient().draw());
+
+    await expect(service({ images, judge }).pictures.draw(CLAIM)).resolves.toBe('accepted');
+
+    expect(seen).toBe(2);
+    // The picture was drawn once and kept: the rate limit cost a judge call, not a drawing.
+    expect(images.draw).toHaveBeenCalledTimes(1);
+    expect(release).not.toHaveBeenCalled();
+    expect(fail).not.toHaveBeenCalled();
+    expect(calls.filter(call => call.kind === 'judge' && call.outcome === 'error')).toHaveLength(1);
+  });
+
+  it('gives the drawing back when the judge is rate limited past its waits', async () => {
+    const judge = Object.assign(new StubPictureJudgeClient(), {
+      see: async () => {
+        throw new PictureCallError('OpenRouter /chat/completions answered 429: Too many requests', 429);
+      }
+    });
+
+    await expect(service({ judge }).pictures.draw(CLAIM)).resolves.toBe('released');
+
+    expect(release).toHaveBeenCalledWith(CLAIM, expect.objectContaining({ attempts: 0, reason: 'rate_limited' }));
+    expect(fail).not.toHaveBeenCalled();
+  }, 20_000);
 
   it('keeps the attempts the dish already used when the claim is given back', async () => {
     let calls = 0;

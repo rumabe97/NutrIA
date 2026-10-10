@@ -100,6 +100,47 @@ export function isRefusal(error: unknown): boolean {
 }
 
 /**
+ * Whether a failed call is the provider saying "not so fast" rather than "no":
+ * a 429 that names no spent key or quota. A rate limit passes, and the same
+ * call a moment later usually works.
+ */
+export function isRateLimit(error: unknown): boolean {
+  return error instanceof PictureCallError && error.status === 429 && !/key limit|quota|billing|insufficient/i.test(error.message);
+}
+
+/**
+ * How long a judge call waits out a rate limit, and how many times (`0094`).
+ *
+ * Only the judge, and only a rate limit. By the time the judge runs, the
+ * picture is drawn and **paid for** — 0.0337 $ against a judge call's 0.0007 $,
+ * forty-eight times more — so giving the drawing back over a 429 throws away
+ * the expensive half of the attempt to save the cheap one. Production, over the
+ * three days to 2026-10-10: 21 pictures drawn, 11 judged, ten given back, every
+ * one of them a 429 from the judge's provider and not one of them a 402.
+ *
+ * Two waits, seven seconds in all, inside the attempt's own minute
+ * (`ATTEMPT_MIN_MS`): long enough for a passing limit, far too short to sit on
+ * a provider that is down.
+ */
+const JUDGE_RATE_LIMIT_WAITS_MS: readonly number[] = [2_000, 5_000];
+
+/** Waits, unless the drawing's time is already up — the caller checks the signal again when it returns. */
+function waitFor(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise<void>(resolve => {
+    const timer = setTimeout(resolve, ms);
+
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      { once: true }
+    );
+  });
+}
+
+/**
  * What a failed call may have cost: nothing when OpenRouter turned it away
  * (4xx), the floor when nobody knows whether the model ran — a timeout, a
  * 5xx, an answer that could not be read.
@@ -348,11 +389,11 @@ export class DishPictureService {
       RecipeController.recordPictureCall({ costUsd: costUsd ?? JUDGE_COST_FLOOR_USD, kind: 'judge', model, outcome, recipeId });
 
     try {
-      const seen = await this.judge.see({ bytes, contentType: 'image/jpeg' }, signal);
+      const seen = await this.pastRateLimit(() => this.judge.see({ bytes, contentType: 'image/jpeg' }, signal), record, signal);
 
       await record(seen.costUsd, seen.model, 'seen');
 
-      const match = await this.judge.match(seen.result.foods, inputs.recipe.ingredients, signal);
+      const match = await this.pastRateLimit(() => this.judge.match(seen.result.foods, inputs.recipe.ingredients, signal), record, signal);
 
       await record(match.costUsd, match.model, 'matched');
 
@@ -360,9 +401,37 @@ export class DishPictureService {
 
       return { judgement: pictureJudgement({ at: new Date(), match: match.result, number, seen: seen.result, verdict }), verdict };
     } catch (error: unknown) {
-      await record(failedCallCost(error, JUDGE_COST_FLOOR_USD), 'judge', 'error');
-
+      // Recorded by `pastRateLimit`, which every judge call goes through — once each, failed or not.
       return { kind: isRefusal(error) ? 'refused' : 'failed', note: `judge: ${describe(error)}`, reason: reasonOf(error) };
+    }
+  }
+
+  /**
+   * One judge call, waiting out a rate limit rather than giving the drawing
+   * back over one (`JUDGE_RATE_LIMIT_WAITS_MS`, `0094`). Every attempt is
+   * recorded, the failures included, so the console still counts what the
+   * provider did. Anything that is not a rate limit is raised at once: a 402
+   * does not pass by waiting, and neither does a policy.
+   */
+  private async pastRateLimit<T>(
+    call: () => Promise<T>,
+    record: (costUsd: number | null, model: string, outcome: string) => Promise<unknown>,
+    signal: AbortSignal
+  ): Promise<T> {
+    for (let waited = 0; ; waited += 1) {
+      try {
+        return await call();
+      } catch (error: unknown) {
+        await record(failedCallCost(error, JUDGE_COST_FLOOR_USD), 'judge', 'error');
+
+        const wait = JUDGE_RATE_LIMIT_WAITS_MS[waited];
+
+        if (wait === undefined || !isRateLimit(error) || signal.aborted) {
+          throw error;
+        }
+
+        await waitFor(wait, signal);
+      }
     }
   }
 

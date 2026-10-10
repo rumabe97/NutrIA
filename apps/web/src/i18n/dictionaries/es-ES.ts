@@ -670,7 +670,9 @@ export const esES = {
       other: 'Cualquier otro caso, incluidas filas antiguas que no guardaron el motivo.',
       owner_removed:
         'Retiraste una imagen publicada: la había aceptado el revisor o la aceptaste tú a mano. No es un dibujo que fallara: el plato espera al menos 7 días antes de volver a dibujarse solo.',
-      payment_refused: 'La cuenta del proveedor no puede pagar otra llamada (error 402, clave o cuota agotada). No es culpa del plato.'
+      payment_refused: 'La cuenta del proveedor no puede pagar otra llamada (error 402, clave o cuota agotada). No es culpa del plato.',
+      rate_limited:
+        'El proveedor pidió bajar el ritmo (error 429). No es tu cuenta ni tu cuota: es su límite de velocidad, y pasa solo. El juez reintenta antes de devolver el dibujo.'
     },
     reasons: {
       call_failed: 'La llamada falló',
@@ -681,7 +683,8 @@ export const esES = {
       no_provenance: 'Sin firma C2PA',
       other: 'Otro motivo',
       owner_removed: 'La retiraste a mano',
-      payment_refused: 'El proveedor no puede cobrar'
+      payment_refused: 'El proveedor no puede cobrar',
+      rate_limited: 'El proveedor pidió bajar el ritmo'
     },
     releasedEmpty: 'Ninguna imagen se ha devuelto en este periodo.',
     releasedListLabel: 'Imágenes devueltas por motivo',

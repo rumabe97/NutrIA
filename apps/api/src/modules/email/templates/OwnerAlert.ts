@@ -58,7 +58,8 @@ const REASON: Readonly<Record<PictureReason, string>> = {
   other: 'Otro motivo',
   // Never in a mail: the failed pictures' count leaves the owner's own removals out (`AdminAlertController.pictureFailures`).
   owner_removed: 'Retirada a mano',
-  payment_refused: 'El proveedor no puede cobrar'
+  payment_refused: 'El proveedor no puede cobrar',
+  rate_limited: 'El proveedor pidió bajar el ritmo'
 };
 
 /** A reason's label; anything outside the closed set is "another reason", never shown as it came. */
@@ -123,7 +124,7 @@ function copyOf(alert: OwnerAlert, link: (path: string) => string): Copy {
         button: 'Abrir las imágenes',
         detail: `Platos con el dibujo devuelto desde el aviso anterior: ${total}. ${byReason(alert.reasons)} Esos platos no cuentan como fallidos: se dibujan en la siguiente visita, cuando el proveedor vuelva a aceptar peticiones.`,
         intro:
-          'El proveedor de las imágenes está rechazando las peticiones: la clave de imágenes no puede pagar o ha llegado a su límite de uso. Mientras dure, los dibujos que rechace se devuelven sin dibujar.',
+          'El proveedor está devolviendo peticiones de los dibujos. El motivo va debajo, y no son lo mismo: "no puede cobrar" es que la clave no puede pagar o agotó su cuota; "pidió bajar el ritmo" es un límite de velocidad suyo, pasajero y ajeno a tu cuenta; "rechazó la petición" es su propia negativa. Mientras dure, los dibujos que devuelva se devuelven sin dibujar.',
         subject: 'NutrIA — el proveedor de imágenes rechaza las peticiones',
         url: link('/admin/catalogo/imagenes')
       };
