@@ -87,8 +87,9 @@ and never deducted from what a plan must supply.
 - A personalised **14-day plan**: every day, every meal, with recipes and quantities.
 - Completing, skipping, favouriting, disliking and **replacing** meals.
 - A **shopping list** generated from the active plan, consolidated and grouped — read for
-  the fortnight, a week or any days you pick, with what is bought kept as an amount so a
-  partial shop reads correctly under every filter, and usable with no signal.
+  the fortnight, a week or any days you pick, with what is bought kept as an amount — marked
+  with the box or typed into the row — so a partial shop reads correctly under every filter,
+  and usable with no signal.
 - Progress tracking: weight, adherence, and how the fortnight actually felt.
 - A **biweekly check-in** that feeds the next plan.
 - Plan history, kept forever and never overwritten.

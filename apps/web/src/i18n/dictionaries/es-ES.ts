@@ -2819,6 +2819,12 @@ export const esES = {
   },
 
   shopping: {
+    amountEdit: 'Cambiar lo comprado: {name}',
+    amountHint: 'De {total} en total.',
+    amountLabel: 'Cuánto has comprado, en {unit}',
+    amountSave: 'Guardar',
+    amountSaved: '{name}: guardado. Quedan {left}.',
+    amountSavedAll: '{name}: completo, no queda nada.',
     boughtBeyondRange: 'Ya hay {bought} comprados, más de lo que necesitan estos días. Elige un rango más amplio para devolverlo.',
     emptyBody: 'La lista se genera junto con tu plan, ya sumada y agrupada por pasillo.',
     emptyCta: 'Ver mi plan',

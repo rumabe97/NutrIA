@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildShoppingList, rangeList, rangeQuantity, unresolvedSlugs } from 'core/domain/ShoppingList';
+import { buildShoppingList, fromDisplay, rangeList, rangeQuantity, toDisplay, unresolvedSlugs } from 'core/domain/ShoppingList';
 import { makeCatalogue, makeCatalogueIngredient, makeDish } from '#test/fixtures';
 import type { PlanAssignment, ScheduledMeal } from 'core/entities/Plan';
 import type { ShoppingRangeRow } from 'core/domain/ShoppingList';
@@ -438,5 +438,49 @@ describe('a list stored before the days travelled with it', () => {
     const dated: ShoppingRangeRow = { ...stored, perDay: { '2026-03-01': 1200 } };
 
     expect(rangeQuantity(dated, []).totalGrams).toBe(0);
+  });
+});
+
+describe('fromDisplay — what somebody typed, in grams (0096)', () => {
+  it('is the inverse of toDisplay for a countable, so what is typed is what is read back', () => {
+    // Seven eggs of 58 g: the figure the shop floor types, the figure the list shows again.
+    for (const eggs of [1, 3, 7]) {
+      const grams = fromDisplay(eggs, 'unit', 58, 600);
+
+      expect(grams).toBe(eggs * 58);
+      expect(toDisplay(grams, 'unit', 58).quantity).toBe(eggs);
+    }
+  });
+
+  it('takes grams and millilitres as they are typed', () => {
+    expect(fromDisplay(400, 'g', null, 1200)).toBe(400);
+    expect(fromDisplay(250, 'ml', null, 1000)).toBe(250);
+  });
+
+  it('never rounds up what was typed, where a range is rounded up when it is summed (0078)', () => {
+    // 402 g is 402 g. The 5 g step belongs to what a shop owes, not to what a scale said.
+    expect(fromDisplay(402, 'g', null, 1200)).toBe(402);
+    expect(fromDisplay(403.4, 'g', null, 1200)).toBe(403);
+  });
+
+  it('caps at the whole plan’s need, as the server does', () => {
+    expect(fromDisplay(5000, 'g', null, 1200)).toBe(1200);
+    // A countable whose ceiling was rounded up to a whole unit cannot type past the need.
+    expect(fromDisplay(3, 'unit', 58, 170)).toBe(170);
+  });
+
+  it('reads nothing, a negative and a number that is not one as nothing bought', () => {
+    expect(fromDisplay(0, 'g', null, 1200)).toBe(0);
+    expect(fromDisplay(-40, 'g', null, 1200)).toBe(0);
+    expect(fromDisplay(Number.NaN, 'g', null, 1200)).toBe(0);
+  });
+
+  it('agrees with the box: typing the whole need is the same amount ticking it sends', () => {
+    const totalGrams = 1200;
+    const neededGrams = 1200;
+    // What `ShoppingItem.mark(true)` computes for an untouched row.
+    const ticked = Math.min(Math.max(0, neededGrams), totalGrams);
+
+    expect(fromDisplay(1200, 'g', null, totalGrams)).toBe(ticked);
   });
 });

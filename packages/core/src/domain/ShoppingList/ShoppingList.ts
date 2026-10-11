@@ -285,6 +285,34 @@ export function unresolvedSlugs(assignment: ShoppingSource, catalogue: Catalogue
  * leftover again would invent grams. One copy of the unit rules all the same,
  * which is `0091`'s point.
  */
+/**
+ * What somebody typed, in grams: the inverse of `toDisplay`, and the only place
+ * the two are allowed to disagree about a unit (`0096`).
+ *
+ * Rounded, never rounded **up**. `0078`'s 5 g step is applied once, when a
+ * range is summed into what a shop still owes; applying it again to a figure
+ * somebody read off a scale would invent grams they did not buy. Capped at the
+ * plan's whole need, as the server caps it, so what the screen shows before the
+ * round trip is what the round trip will agree with.
+ *
+ * Three eggs typed are 174 g stored and three eggs read back, because
+ * `toDisplay` divides by the same `gramsPerUnit` it multiplied by here.
+ */
+export function fromDisplay(
+  quantity: number,
+  defaultUnit: ShoppingDraftItem['displayUnit'],
+  gramsPerUnit: number | null,
+  totalGrams: number
+): number {
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    return 0;
+  }
+
+  const perUnit = (defaultUnit === 'unit' || defaultUnit === 'slice') && gramsPerUnit && gramsPerUnit > 0 ? gramsPerUnit : 1;
+
+  return Math.min(Math.round(quantity * perUnit), Math.max(totalGrams, 0));
+}
+
 export function toDisplay(totalGrams: number, defaultUnit: ShoppingDraftItem['displayUnit'], gramsPerUnit: number | null) {
   if ((defaultUnit === 'unit' || defaultUnit === 'slice') && gramsPerUnit && gramsPerUnit > 0) {
     return { quantity: Math.ceil(totalGrams / gramsPerUnit), unit: defaultUnit };
