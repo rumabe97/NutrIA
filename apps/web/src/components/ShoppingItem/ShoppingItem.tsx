@@ -1,9 +1,9 @@
 'use client';
-import { useSyncExternalStore } from 'react';
+import { useId, useRef, useState, useSyncExternalStore } from 'react';
 
 import styles from './ShoppingItem.module.css';
 
-import { toDisplay } from 'core/domain/ShoppingList';
+import { fromDisplay, toDisplay } from 'core/domain/ShoppingList';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { boughtOf, flushMarks, queueMark, subscribeToMarks } from 'lib/pendingTicks';
@@ -50,6 +50,19 @@ interface ShoppingItemProps {
  * Only a mark the server refuses — an item no longer on their list — is put
  * back, and silently: the visible state *is* the message here, and a toast over
  * a list you are reading one-handed is worse than the thing it reports.
+ *
+ * **The amount can also be typed** (`0096`). The box says "all of these days";
+ * typing says how much is actually in the trolley, which is the half a box
+ * cannot express. It is behind a disclosure rather than always on screen: a
+ * list is a hundred rows long and almost every one of them is a tick, so a
+ * field on each would cost every reader a second tab stop and a taller row to
+ * serve the rare case.
+ *
+ * What is typed is **what is bought of the whole plan**, not of the days on
+ * screen — `bought` is the plan's own accumulator and the row recomputes what
+ * these days still need from it. Framed against the range instead, somebody who
+ * bought 500 g last week would be typing into a number that means something
+ * different each time the filter moves.
  */
 export function ShoppingItem({
   id,
@@ -64,6 +77,12 @@ export function ShoppingItem({
 }: ShoppingItemProps) {
   const dictionary = useDictionary();
   const locale = useLocale();
+  const amountId = useId();
+  const hintId = useId();
+  const [editing, setEditing] = useState(false);
+  const [typed, setTyped] = useState('');
+  const input = useRef<HTMLInputElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
   // What this device knows that the page may not: a mark still waiting, or one
   // confirmed since the page loaded. The server's figure until it knows better.
   const bought = useSyncExternalStore(
@@ -80,6 +99,56 @@ export function ShoppingItem({
   // once when the range was summed, and rounding the leftover would invent grams.
   const remaining = toDisplay(left, displayUnit, gramsPerUnit);
   const leftQuantity = formatQuantity(remaining.quantity, remaining.unit, locale, dictionary);
+  const whole = toDisplay(totalGrams, displayUnit, gramsPerUnit);
+  // The stored unit, never the formatted one: `formatQuantity` says "1,2 kg"
+  // where the row is stored in grams, and a field labelled kg would take "2" as
+  // two grams.
+  const unitName =
+    displayUnit === 'unit'
+      ? dictionary.units.unit
+      : displayUnit === 'slice'
+        ? dictionary.units.slice
+        : displayUnit === 'ml'
+          ? dictionary.units.millilitre
+          : dictionary.units.gram;
+
+  function open() {
+    setTyped(String(toDisplay(bought, displayUnit, gramsPerUnit).quantity));
+    setEditing(true);
+    // After the field exists. Focus belongs on it: the reader asked for it.
+    window.requestAnimationFrame(() => input.current?.focus());
+  }
+
+  function close() {
+    setEditing(false);
+    toggle.current?.focus();
+  }
+
+  function save(event: { preventDefault: () => void }) {
+    event.preventDefault();
+
+    const value = Number(typed.replace(',', '.'));
+
+    if (!Number.isFinite(value) || value < 0) {
+      return;
+    }
+
+    const amount = fromDisplay(value, displayUnit, gramsPerUnit, totalGrams);
+    const over = Math.max(neededGrams - amount, 0);
+    const still = toDisplay(over, displayUnit, gramsPerUnit);
+
+    queueMark(id, { boughtGrams: amount, checked: amount >= totalGrams && totalGrams > 0 });
+    void flushMarks();
+    // Said out loud, through the list's one live region: the row changes under
+    // a reader who cannot see it change.
+    onNotice(
+      interpolate(over > 0 ? dictionary.shopping.amountSaved : dictionary.shopping.amountSavedAll, {
+        left: formatQuantity(still.quantity, still.unit, locale, dictionary),
+        name
+      })
+    );
+    close();
+  }
 
   function mark(next: boolean) {
     // Capped at the whole plan's need and floored at zero here as well as on the
@@ -151,6 +220,58 @@ export function ShoppingItem({
         */}
         <span className={styles.quantity}>{partly ? interpolate(dictionary.shopping.leftToBuy, { left: leftQuantity }) : quantity}</span>
       </label>
+      {/*
+        Outside the label, never inside it: a label names one control, and a
+        second interactive element in it belongs to neither. Named per row,
+        because a hundred buttons all called "Cambiar" tell a screen reader
+        nothing about which row it is on.
+      */}
+      <button
+        aria-controls={amountId}
+        aria-expanded={editing}
+        aria-label={interpolate(dictionary.shopping.amountEdit, { name })}
+        className={styles.edit}
+        onClick={() => (editing ? close() : open())}
+        ref={toggle}
+        type="button"
+      >
+        <svg aria-hidden="true" fill="none" focusable="false" height="18" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24" width="18">
+          <path d="M4 20h4L19 9a2 2 0 0 0-3-3L5 17v3Z" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {editing ? (
+        <form className={styles.amount} id={amountId} onSubmit={save}>
+          <label className={styles.amountLabel} htmlFor={`${amountId}-field`}>
+            {interpolate(dictionary.shopping.amountLabel, { unit: unitName })}
+          </label>
+          <input
+            aria-describedby={hintId}
+            className={styles.amountField}
+            id={`${amountId}-field`}
+            inputMode="numeric"
+            max={whole.quantity}
+            min={0}
+            onChange={event => setTyped(event.target.value)}
+            // Esc gives up and puts the reader back where they were, which is
+            // the one key a native dialog would have given for free.
+            onKeyDown={event => {
+              if (event.key === 'Escape') {
+                close();
+              }
+            }}
+            ref={input}
+            step={1}
+            type="number"
+            value={typed}
+          />
+          <button className={styles.amountSave} type="submit">
+            {dictionary.shopping.amountSave}
+          </button>
+          <span className={styles.amountHint} id={hintId}>
+            {interpolate(dictionary.shopping.amountHint, { total: formatQuantity(whole.quantity, whole.unit, locale, dictionary) })}
+          </span>
+        </form>
+      ) : null}
     </li>
   );
 }

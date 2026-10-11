@@ -118,7 +118,9 @@ that setup lives now rather than here.
    reads correctly under every filter — buy the week's 500 g of the fortnight's 1.2 kg and
    the row still owes 700 g — and a half-bought row says what is left. All of it works in
    a supermarket with no signal, and the marks reach the server when it returns (`0053`,
-   `0055`). Typing an amount by hand was deliberately left out; the column exists for it.
+   `0055`). Since [`0096`](./decisions/0096-what-is-bought-can-be-typed.md) the amount can
+   also be **typed**: what a box cannot say — four hundred grams of the seven hundred — is
+   said in the row's own field.
 3. **The loop closes.** Weight tracking (done), eaten / skipped on each meal (done, `0016`),
    the fortnightly check-in feeding the next plan (done, `0018`), a progress screen over
    the data already kept (done, `0020`), plan history, read-only (done, `0021`).

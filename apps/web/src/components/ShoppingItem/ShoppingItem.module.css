@@ -1,5 +1,14 @@
 .item {
+  /*
+   * The row and its disclosure sit side by side; the field, when it is open,
+   * takes the whole width underneath. A grid rather than a flex row so the
+   * field cannot be squeezed by a long name.
+   */
+  align-items: center;
   border-bottom: 1px solid var(--border-01);
+  column-gap: var(--space-02);
+  display: grid;
+  grid-template-columns: 1fr auto;
   padding-block: var(--space-03);
 }
 
@@ -94,4 +103,118 @@
  */
 .item[data-partly='true'] .quantity {
   font-weight: var(--font-weight-medium);
+}
+
+/*
+ * Typing what is in the trolley (`0096`).
+ *
+ * The disclosure is quiet on purpose: a hundred rows, and almost every one of
+ * them is a tick. It carries no label of its own on screen — the row beside it
+ * is the label, and its accessible name names the row — so the list reads as it
+ * always did until somebody needs the field.
+ */
+.edit {
+  align-items: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--foreground-02);
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  min-block-size: 1.75rem;
+  min-inline-size: 1.75rem;
+  padding: 0;
+}
+
+.edit:hover {
+  color: var(--foreground-01);
+}
+
+.edit:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Open, it is the thing the field belongs to: it stays visible as such. */
+.edit[aria-expanded='true'] {
+  border-color: var(--border-interactive);
+  color: var(--foreground-01);
+}
+
+@media (pointer: coarse) {
+  .edit {
+    min-block-size: var(--target-min);
+    min-inline-size: var(--target-min);
+  }
+}
+
+.amount {
+  align-items: center;
+  column-gap: var(--space-02);
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: auto 1fr auto;
+  margin-block-start: var(--space-03);
+  row-gap: var(--space-01);
+}
+
+.amountLabel {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  grid-column: 1 / -1;
+}
+
+.amountField {
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-control);
+  font-size: var(--font-size-03);
+  font-variant-numeric: tabular-nums;
+  inline-size: 100%;
+  max-inline-size: 7rem;
+  min-block-size: var(--target-min);
+  padding-inline: var(--space-03);
+}
+
+.amountField:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.amountSave {
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-control);
+  color: var(--foreground-01);
+  cursor: pointer;
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+  min-block-size: var(--target-min);
+  padding-inline: var(--space-04);
+}
+
+.amountSave:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.amountHint {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  grid-column: 1 / -1;
+}
+
+/*
+ * The field is one line on a phone too, but a long "Guardar" and a wide number
+ * would collide at the narrowest text sizes: the button drops under them rather
+ * than squeezing the field somebody is typing into.
+ */
+@media (width < 17rem) {
+  .amount {
+    grid-template-columns: 1fr;
+  }
+
+  .amountField {
+    max-inline-size: none;
+  }
 }

@@ -2776,6 +2776,12 @@ export const enGB: Dictionary = {
   },
 
   shopping: {
+    amountEdit: 'Change what is bought: {name}',
+    amountHint: '{total} in all.',
+    amountLabel: 'How much you bought, in {unit}',
+    amountSave: 'Save',
+    amountSaved: '{name}: saved. {left} still to buy.',
+    amountSavedAll: '{name}: done, nothing left.',
     boughtBeyondRange: '{bought} are already bought, more than these days need. Choose a wider range to give it back.',
     emptyBody: 'The list is generated with your plan, already added up and grouped by aisle.',
     emptyCta: 'See my plan',
