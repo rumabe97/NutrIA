@@ -443,6 +443,22 @@ describe('traditional Spanish, end to end', () => {
 
     // If this ever stops holding, the case above proves nothing: the foreign
     // dishes were never picked, so their absence says nothing about the rule.
-    expect(violations(await plates(control.id)).length).toBeGreaterThan(0);
+    //
+    // **A red here is a re-run, not a bisect.** The control's plan is seeded by
+    // its own account's id (`PlanGeneration`: `${userId}:${version}`), and the
+    // harness makes that account through the API, so the seed is a fresh random
+    // one every run: whether a foreign dish lands on one of its plates is a
+    // draw. It failed twice in a row on one branch on 2026-10-09 and passed on
+    // the third with not a line changed, and on 2026-10-11 it was run nine times
+    // against the local library without failing once — so what varies is the
+    // library CI builds, not this code. Making it deterministic needs a seam for
+    // the plan's seed that does not exist yet; until then, re-run.
+    const drawn = violations(await plates(control.id));
+
+    if (drawn.length === 0) {
+      throw new Error('The control drew no foreign plate. This is the known draw, not a regression: re-run before bisecting.');
+    }
+
+    expect(drawn.length).toBeGreaterThan(0);
   }, 200_000);
 });
