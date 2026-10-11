@@ -637,3 +637,14 @@
   else was being edited under `apps/api/test`, so there was no collision for a worktree to
   prevent. Recorded rather than hidden, because the team's standing rule is a worktree per
   agent.
+
+## Closed by the owner — VoiceOver on the device, 2026-10-11
+
+The one thing no desktop browser could answer, left open at phase 5 and named again in the
+closing entry: **confirmed by the owner on his iPhone on 2026-10-11**, in his words "funciona
+todo". The live region is spoken when a range is picked, and a half-bought row reads as its
+three states say it should.
+
+Nothing changes in the code because of it. It is recorded because the question was recorded:
+the project's last open item is now closed, and the waiver that said "if the mixed state is
+silent that is not a defect" was never needed.
