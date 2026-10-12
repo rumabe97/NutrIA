@@ -191,6 +191,31 @@ export const esES = {
   },
 
   /* `/admin/ajustes/registro` (`0071`): quién hizo cada mutación de cuenta o de ajuste, y cuándo. */
+  adminAllowances: {
+    bounds: 'De fábrica {shipped}. Entre {floor} y {ceiling}.',
+    costEvents: 'Declarar un día que come distinto no cuesta nada: es planificación, no una llamada al modelo.',
+    costMidPlan: 'Rehacer los días de una quincena en marcha se sirve de la biblioteca y no gasta generación.',
+    costRedos: 'Lo único que cuesta dinero: unos 0,24 $ por replanificación, casi todo en las fotos de sus platos nuevos.',
+    costSwaps: 'Un cambio se sirve casi siempre de la biblioteca y no cuesta nada.',
+    free: 'Gratis',
+    intro:
+      'Cuántos usos permite cada suscripción. Un número fuera de sus límites se rechaza, no se recorta, y mientras nadie mueva uno vale el que trae el código.',
+    labelEvents: 'Días que comen distinto, por plan',
+    labelMidPlan: 'Días que comen distinto añadidos a una quincena en marcha',
+    labelRedos: 'Replanificaciones por quincena',
+    labelSwaps: 'Cambios de comida, por plan',
+    premium: 'Premium',
+    save: 'Guardar',
+    spend:
+      'Sale del presupuesto de fotos del mes, que es uno para todos: al llegar al tope deja de dibujar para todo el mundo, no solo para quien gastó.',
+    spendLink: 'Ver el gasto en imágenes',
+    title: 'Qué permite cada suscripción',
+    whole: 'Tiene que ser un número entero.',
+    whyEvents: 'Más de 7 no hace nada: una carga dura de uno a tres días y dos no pueden compartir día, así que en una quincena caben siete.',
+    whyMidPlan: 'Una quincena no se puede rehacer por más días de los que admite, así que esto también se resuelve contra los de ese mismo plan.',
+    whyRedos: 'Seis por quincena son doce al mes: entre 3 y 6 $ de fotos de una sola cuenta, contra un mes de 10 $ que comparten todas.',
+    whySwaps: 'Veintiocho son las comidas y cenas de una quincena; por encima de eso el límite ya no nombra nada.'
+  },
   adminAudit: {
     actions: {
       'account.activated': 'Cuenta activada',
@@ -216,12 +241,15 @@ export const esES = {
       'professional.granted': 'Perfil profesional concedido',
       'professional.revoked': 'Perfil profesional revocado',
       'push.test_sent': 'Aviso de prueba enviado',
+      'setting.allowance_changed': 'Límite de suscripción cambiado',
       'setting.changed': 'Ajuste cambiado'
     },
     /** `picture.accepted`: what the judge had flagged, followed by the catalogue's names for those allergens. */
     allergensOverridden: 'El revisor había señalado:',
     allergensOverriddenNone: 'El revisor no había señalado ningún alérgeno',
     /** `auth.backup_code_used`: how many codes the person has left. */
+    allowanceChange: '{name}, {tier}: de {from} a {value}',
+    allowanceUnset: '{name}, {tier}: de {from} a {value}, el valor que trae el código',
     backupCodesLeft: 'Le quedan {remaining}',
     caption: 'Acciones',
     columns: { account: 'Cuenta', action: 'Acción', actor: 'Quién', date: 'Fecha', detail: 'Detalle' },
@@ -2666,7 +2694,7 @@ export const esES = {
     premiumMonthly: 'Mensual · {price} al mes',
     premiumPastDue: 'No se ha podido cobrar la última cuota. Stripe lo volverá a intentar; actualiza la tarjeta para no perder premium.',
     premiumPitch:
-      'Tres replanificaciones por quincena en vez de una, veinte cambios de comida por plan en vez de cinco, diez eventos por plan en vez de tres, y hasta tres eventos añadidos con el plan ya empezado.',
+      'Tres replanificaciones por quincena en vez de una, veinte cambios de comida por plan en vez de cinco, siete eventos por plan en vez de tres, y hasta tres eventos añadidos con el plan ya empezado.',
     premiumRenews: 'Tienes premium. Se renueva el {date}.',
     premiumSafety: 'La seguridad alimentaria —alergias, intolerancias y nutrientes— es la misma con premium y sin él.',
     premiumTestMode: 'Modo de prueba: no se cobra nada de verdad. Usa la tarjeta 4242 4242 4242 4242, cualquier fecha futura y cualquier CVC.',

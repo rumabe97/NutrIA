@@ -136,7 +136,15 @@ for (const path of paths) {
 
         return {
           h1: [...document.querySelectorAll('h1')].map(node => node.textContent?.trim()),
-          overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          // The document's own scroll misses content that is *clipped* rather than scrolled:
+          // `html`/`body` carry `overflow-x: clip`, so a block wider than the screen cuts its
+          // words off and `documentElement.scrollWidth` never moves. `body.scrollWidth` still
+          // reports what the content asked for, and a table with its own scroller does not
+          // reach it. The wider of the two is the honest answer.
+          overflow: Math.max(
+            document.documentElement.scrollWidth - document.documentElement.clientWidth,
+            document.body.scrollWidth - document.documentElement.clientWidth
+          ),
           small
         };
       }, TARGET_MIN);

@@ -1,10 +1,12 @@
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 
 import styles from './page.module.css';
 
 import { getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
+import { AllowanceField } from 'components/AllowanceField';
 import { Card } from 'components/Card';
 import { FlagSwitch } from 'components/FlagSwitch';
 import { PushTestButton } from 'components/PushTestButton';
@@ -13,8 +15,8 @@ import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../consoleMetadata';
 
+import type { AllowancesView, SettingsView } from 'core/controllers/Settings';
 import type { Metadata } from 'next';
-import type { SettingsView } from 'core/controllers/Settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,15 +33,29 @@ export async function generateMetadata(): Promise<Metadata> {
  * missing answer is the same 404 here — whatever the gate above has done yet.
  */
 export default async function AdminSettingsPage() {
-  const [dictionary, settings] = await Promise.all([getDictionary(), serverApi<SettingsView>('/admin/settings')]);
+  const [dictionary, settings, allowances] = await Promise.all([
+    getDictionary(),
+    serverApi<SettingsView>('/admin/settings'),
+    serverApi<AllowancesView>('/admin/settings/allowances')
+  ]);
 
-  if (!settings) {
+  if (!settings || !allowances) {
     notFound();
   }
 
   const t = dictionary.admin;
   const words = dictionary.adminSettings;
+  const limits = dictionary.adminAllowances;
   const { flags } = settings;
+  // The four, in the order the console reads them rather than the registry's:
+  // what people use most first, and the one that spends money last, where its
+  // warning is the last thing read before it is moved.
+  const rows = [
+    { cost: limits.costSwaps, label: limits.labelSwaps, name: 'mealSwapsPerPlan', why: limits.whySwaps },
+    { cost: limits.costEvents, label: limits.labelEvents, name: 'eventsPerPlan', why: limits.whyEvents },
+    { cost: limits.costMidPlan, label: limits.labelMidPlan, name: 'midPlanEventsPerPlan', why: limits.whyMidPlan },
+    { cost: limits.costRedos, label: limits.labelRedos, name: 'planRedosPerFortnight', why: limits.whyRedos }
+  ] as const;
 
   return (
     <div className={styles.page}>
@@ -104,6 +120,54 @@ export default async function AdminSettingsPage() {
               onHint={t.accompanimentsHint}
             />
           </li>
+        </Card>
+      </section>
+
+      {/*
+        What each subscription allows (`0097`). The numbers live in the code as
+        the default and the fallback; these fields move them, inside bounds the
+        console is not told but shown — each with the reason it is the bound,
+        because a ceiling with no reason beside it is how ten events were
+        written for a fortnight that admits seven.
+      */}
+      <section aria-labelledby="ajustes-limites" className={styles.group}>
+        <h2 className={styles.subtitle} id="ajustes-limites">
+          {limits.title}
+        </h2>
+        <Text className={styles.intro} tone="secondary">
+          {limits.intro}
+        </Text>
+        <Card as="ul" className={styles.rows}>
+          {rows.map(row => (
+            <li className={styles.row} key={row.name}>
+              <Text size="sm">{row.label}</Text>
+              <Text size="xs" tone="tertiary">
+                {row.cost}
+              </Text>
+              <Text size="xs" tone="tertiary">
+                {row.why}
+              </Text>
+              {row.name === 'planRedosPerFortnight' ? (
+                <Text size="xs" tone="tertiary">
+                  {limits.spend} <Link href="/admin/catalogo/imagenes">{limits.spendLink}</Link>
+                </Text>
+              ) : null}
+              <div className={styles.tiers}>
+                {(['free', 'premium'] as const).map(tier => (
+                  <AllowanceField
+                    ceiling={allowances.bounds[row.name].ceiling}
+                    floor={allowances.bounds[row.name].floor}
+                    key={tier}
+                    label={tier === 'free' ? limits.free : limits.premium}
+                    name={row.name}
+                    shipped={allowances.shipped[tier][row.name]}
+                    tier={tier}
+                    value={allowances.effective[tier][row.name]}
+                  />
+                ))}
+              </div>
+            </li>
+          ))}
         </Card>
       </section>
 

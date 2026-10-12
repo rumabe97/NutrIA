@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ALLOWANCE_BOUNDS,
   ALLOWANCES,
   allowancesFor,
   eventStanding,
@@ -8,6 +9,7 @@ import {
   midPlanEventStanding,
   planRedoStanding,
   redosInFortnight,
+  resolveAllowances,
   startMeaning
 } from 'core/domain/Allowance';
 
@@ -63,14 +65,15 @@ describe('mealSwapStanding', () => {
 describe('eventStanding — days that eat for something, per fortnight', () => {
   it('is three a plan on the free tier and ten on premium', () => {
     expect(allowancesFor('free').eventsPerPlan).toBe(3);
-    expect(allowancesFor('premium').eventsPerPlan).toBe(10);
+    expect(allowancesFor('premium').eventsPerPlan).toBe(7);
   });
 
   it('allows up to the limit and not one past it', () => {
     expect(eventStanding(2)).toEqual({ allowed: true, limit: 3, remaining: 1, used: 2 });
     expect(eventStanding(3)).toMatchObject({ allowed: false, remaining: 0 });
-    expect(eventStanding(9, 'premium')).toMatchObject({ allowed: true, remaining: 1 });
-    expect(eventStanding(10, 'premium')).toMatchObject({ allowed: false, remaining: 0 });
+    // Seven, not ten: an eighth event cannot have a loaded day in a fortnight (`0097`).
+    expect(eventStanding(6, allowancesFor('premium'))).toMatchObject({ allowed: true, remaining: 1 });
+    expect(eventStanding(7, allowancesFor('premium'))).toMatchObject({ allowed: false, remaining: 0 });
   });
 });
 
@@ -86,8 +89,8 @@ describe('midPlanEventStanding — rebuilding the fortnight under way', () => {
    */
   it('never allows a free account one, and stops premium at its number', () => {
     expect(midPlanEventStanding(0)).toEqual({ allowed: false, limit: 0, remaining: 0, used: 0 });
-    expect(midPlanEventStanding(2, 'premium')).toEqual({ allowed: true, limit: 3, remaining: 1, used: 2 });
-    expect(midPlanEventStanding(3, 'premium')).toMatchObject({ allowed: false, remaining: 0 });
+    expect(midPlanEventStanding(2, allowancesFor('premium'))).toEqual({ allowed: true, limit: 3, remaining: 1, used: 2 });
+    expect(midPlanEventStanding(3, allowancesFor('premium'))).toMatchObject({ allowed: false, remaining: 0 });
   });
 });
 
@@ -111,11 +114,11 @@ describe('allowancesFor', () => {
   });
 
   it('is what the standings count against', () => {
-    expect(mealSwapStanding(6, 'premium')).toMatchObject({ allowed: true, limit: allowancesFor('premium').mealSwapsPerPlan });
-    expect(mealSwapStanding(6, 'free')).toMatchObject({ allowed: false, limit: allowancesFor('free').mealSwapsPerPlan });
+    expect(mealSwapStanding(6, allowancesFor('premium'))).toMatchObject({ allowed: true, limit: allowancesFor('premium').mealSwapsPerPlan });
+    expect(mealSwapStanding(6, allowancesFor('free'))).toMatchObject({ allowed: false, limit: allowancesFor('free').mealSwapsPerPlan });
 
-    expect(planRedoStanding({ endDate: '2026-09-20' }, 1, '2026-09-09', 'premium')).toMatchObject({ allowed: true });
-    expect(planRedoStanding({ endDate: '2026-09-20' }, 1, '2026-09-09', 'free')).toMatchObject({ allowed: false });
+    expect(planRedoStanding({ endDate: '2026-09-20' }, 1, '2026-09-09', allowancesFor('premium'))).toMatchObject({ allowed: true });
+    expect(planRedoStanding({ endDate: '2026-09-20' }, 1, '2026-09-09', allowancesFor('free'))).toMatchObject({ allowed: false });
   });
 
   /* A caller that forgets to say which tier gets the free one, not the generous one. */
@@ -158,5 +161,108 @@ describe('redosInFortnight — a plan that replaced the next fortnight’s opene
   it('counts it and its carried redos, and stops there: it opened that fortnight', () => {
     expect(redosInFortnight([{ opens: true, redo: true, replacedRedos: 1 }, { redo: true }, { redo: false }])).toBe(2);
     expect(redosInFortnight([{ redo: true }, { opens: true, redo: true }, { redo: true }])).toBe(2);
+  });
+});
+
+describe('resolveAllowances — what the console stored, believed or not (0097)', () => {
+  const stored = (tier: string, name: string, value: number) => ({ name, tier, value });
+
+  it('is the shipped table when the console has stored nothing', () => {
+    expect(resolveAllowances()).toEqual({ free: allowancesFor('free'), premium: allowancesFor('premium') });
+  });
+
+  it('takes a whole number inside its bounds', () => {
+    const { free, premium } = resolveAllowances([stored('free', 'eventsPerPlan', 1), stored('premium', 'eventsPerPlan', 4)]);
+
+    expect(free.eventsPerPlan).toBe(1);
+    expect(premium.eventsPerPlan).toBe(4);
+  });
+
+  /** Rule 1: the fallback is the shipped number, never the nearest bound — a typo may not grant. */
+  it.each([
+    ['above its ceiling', 999],
+    ['below its floor', -1],
+    ['not a whole number', 2.5],
+    ['not a number at all', Number.NaN]
+  ])('reads a value that is %s as the shipped default, not as the bound', (_case, value) => {
+    expect(resolveAllowances([stored('premium', 'mealSwapsPerPlan', value)]).premium.mealSwapsPerPlan).toBe(
+      allowancesFor('premium').mealSwapsPerPlan
+    );
+  });
+
+  it('ignores a row naming a limit this version does not have', () => {
+    expect(resolveAllowances([stored('free', 'somethingElse', 99)])).toEqual({ free: allowancesFor('free'), premium: allowancesFor('premium') });
+  });
+
+  /** Rule 2, and the ordering that makes a write-time refusal alone insufficient. */
+  it('never answers premium below free, however the two were stored', () => {
+    // Free raised after premium was set: valid when written, invalid now.
+    const { free, premium } = resolveAllowances([stored('premium', 'planRedosPerFortnight', 2), stored('free', 'planRedosPerFortnight', 5)]);
+
+    expect(free.planRedosPerFortnight).toBe(5);
+    expect(premium.planRedosPerFortnight).toBe(5);
+  });
+
+  it('does not let a free value outside its bounds drag premium up with it', () => {
+    // Free's 50 is refused (rule 1) before the pair rule reads it, so premium keeps its own.
+    const { free, premium } = resolveAllowances([stored('free', 'mealSwapsPerPlan', 50), stored('premium', 'mealSwapsPerPlan', 10)]);
+
+    expect(free.mealSwapsPerPlan).toBe(allowancesFor('free').mealSwapsPerPlan);
+    expect(premium.mealSwapsPerPlan).toBe(10);
+  });
+
+  /** Rule 3, per tier and after the pair rule. */
+  it('holds mid-plan events to that tier’s own events', () => {
+    const { free, premium } = resolveAllowances([
+      stored('free', 'eventsPerPlan', 1),
+      stored('free', 'midPlanEventsPerPlan', 4),
+      stored('premium', 'eventsPerPlan', 2),
+      stored('premium', 'midPlanEventsPerPlan', 6)
+    ]);
+
+    expect(free.midPlanEventsPerPlan).toBe(1);
+    expect(premium.midPlanEventsPerPlan).toBe(2);
+  });
+
+  /**
+   * The ordering that `invariant-reviewer` found: read against free's *unclamped*
+   * mid-plan number, premium would keep five while the admin had just set three,
+   * and the write-time check could not catch it because it compares the clamped one.
+   */
+  it('does not let a free number free itself never gets hold premium up', () => {
+    const { free, premium } = resolveAllowances([
+      stored('free', 'eventsPerPlan', 0),
+      stored('free', 'midPlanEventsPerPlan', 5),
+      stored('premium', 'midPlanEventsPerPlan', 3)
+    ]);
+
+    expect(free.midPlanEventsPerPlan).toBe(0);
+    expect(premium.midPlanEventsPerPlan).toBe(3);
+  });
+
+  it('zero is a value, not an absence: it makes a thing premium-only', () => {
+    const { free } = resolveAllowances([stored('free', 'mealSwapsPerPlan', 0)]);
+
+    expect(free.mealSwapsPerPlan).toBe(0);
+    expect(mealSwapStanding(0, { ...allowancesFor('free'), mealSwapsPerPlan: 0 })).toEqual({ allowed: false, limit: 0, remaining: 0, used: 0 });
+  });
+});
+
+describe('ALLOWANCE_BOUNDS', () => {
+  it('ships every default inside its own bounds, for both tiers', () => {
+    for (const [name, bounds] of Object.entries(ALLOWANCE_BOUNDS)) {
+      for (const tier of ['free', 'premium'] as const) {
+        const shipped = allowancesFor(tier)[name as keyof typeof ALLOWANCES];
+
+        expect(shipped, `${tier}.${name}`).toBeGreaterThanOrEqual(bounds.floor);
+        expect(shipped, `${tier}.${name}`).toBeLessThanOrEqual(bounds.ceiling);
+      }
+    }
+  });
+
+  it('gives every ceiling a reason, because a ceiling with none is how ten events happened', () => {
+    for (const [name, bounds] of Object.entries(ALLOWANCE_BOUNDS)) {
+      expect(bounds.why.trim().length, name).toBeGreaterThan(20);
+    }
   });
 });

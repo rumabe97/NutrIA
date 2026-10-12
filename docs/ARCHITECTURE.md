@@ -122,6 +122,15 @@ Shapes worth knowing:
 
 ## Invariants
 
+**A limit a tier is allowed is read, never assumed** (`0097`). The four numbers live in
+`core/domain/Allowance` as the default and the fallback, and the console may store an
+override per tier. Three rules hold wherever one is read: a stored value that is missing,
+fractional or outside its registry bounds reads as the **shipped** number and never as the
+bound; premium is resolved to at least free on read, not only refused on write; and the
+number a repository enforces inside its transaction is the same resolved number the screen
+above it showed — a pre-check reading the console while the guard behind it reads the code is
+a limit that is promised and then refused.
+
 **Only `apps/api` opens a database connection.** No RLS sits behind it, so a query without
 its `userId` filter is a data leak rather than a slow query.
 

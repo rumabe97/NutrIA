@@ -1,0 +1,61 @@
+.root {
+  display: grid;
+  gap: var(--space-02);
+}
+
+.label {
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-medium);
+}
+
+.line {
+  align-items: center;
+  display: flex;
+  gap: var(--space-02);
+}
+
+.field {
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-control);
+  font-size: var(--font-size-03);
+  font-variant-numeric: tabular-nums;
+  inline-size: 5rem;
+  min-block-size: var(--target-min);
+  padding-inline: var(--space-03);
+}
+
+.field:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/*
+ * Disabled until the number differs from the one saved, so the button says
+ * whether there is anything to save — and never invites a write that changes
+ * nothing.
+ */
+.save {
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-control);
+  color: var(--foreground-01);
+  cursor: pointer;
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-medium);
+  min-block-size: var(--target-min);
+  padding-inline: var(--space-04);
+}
+
+.save:disabled {
+  color: var(--foreground-03);
+  cursor: default;
+}
+
+.save:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.error {
+  color: var(--color-error-text);
+}

@@ -98,9 +98,9 @@ export const EventController = {
       event,
       { from: window.from, to: addDays(window.to, MAX_DAYS_BEFORE) },
       async dated => {
-        const tier = await PlanController.tierOf(userId);
+        const limits = await PlanController.limitsOf(userId);
 
-        return eventStanding(eventsInWindow(dated, window).length, tier).allowed;
+        return eventStanding(eventsInWindow(dated, window).length, limits).allowed;
       }
     );
 
