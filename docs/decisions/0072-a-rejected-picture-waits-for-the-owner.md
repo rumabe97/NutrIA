@@ -22,7 +22,7 @@ stored" is written in four places.
 - Nothing can remove a published picture.
 
 The architect's report
-[`0005`](../reference/architecture/0005-imagenes-fallidas-aviso-y-revision-a-mano-2026-09-30.md)
+[`0005`](../reference/architecture/0005-failed-pictures-the-alert-and-the-manual-review-2026-09-30.md)
 measured each point against the code. The owner decided on 2026-09-30.
 
 ## Decision

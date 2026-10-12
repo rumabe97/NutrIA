@@ -1,237 +1,234 @@
-# 0009 — Más acompañamientos: el primer lote de 42
+# 0009 — More accompaniments: the first batch of 42
 
-> **Purpose**: borrador del agente `architect` para la fase 1 del proyecto 018 (más
-> acompañamientos). Contiene 42 acompañamientos nuevos, cada uno listo para pegar en
-> `core/domain/Accompaniment` y en el diccionario web, con sus macros calculadas del catálogo.
-> Incluye también las premisas del PRD que el código no sostiene y lo que falta en el
-> catálogo. El lead acepta o rechaza cada entrada y lo apunta en el LOG del proyecto.
-> **Audience**: el owner, el lead y los agentes de las fases 2 y 3. **Committed**: sí.
-> **Maintained by**: el agente `architect`. Una vez fusionado no se edita; una revisión
-> posterior es un informe nuevo.
+> **Purpose**: the `architect` agent's draft for phase 1 of project 018 (more accompaniments).
+> It holds 42 new accompaniments, each ready to paste into `core/domain/Accompaniment` and into
+> the web dictionary, with their macros computed from the catalogue. It also holds the PRD
+> premises the code does not support and what the catalogue is missing. The lead accepts or
+> rejects each entry and notes it in the project's LOG.
+> **Audience**: the owner, the lead and the agents of phases 2 and 3. **Committed**: yes.
+> **Maintained by**: the `architect` agent. Once merged it is not edited; a later review is a
+> new report.
 >
-> **Base**: la rama `agent/plan-018/lead-018` en `d99b4e82`, que es `main` con 017 fase 2
-> (#202) y el plan de 018.
+> **Base**: branch `agent/plan-018/lead-018` at `d99b4e82`, which is `main` with 017's phase 2
+> (#202) and 018's plan.
 >
-> **Números**: cada uno lleva su etiqueta: **medido** (dónde), **estimado** (con la
-> hipótesis) o **desconocido**. Las macros de las entradas las calculé con un script que
-> lee las filas del seed (`packages/database/src/seed/ingredients/*.ts`). Suma como
-> `composeMacros` (`core/domain/Composition/Composition.ts:18`) y redondea a la décima
-> como `round`. Son las cifras que el código dará, no una estimación.
+> **Numbers**: each carries its label: **measured** (where), **estimated** (with the
+> hypothesis) or **unknown**. The entries' macros were computed with a script that reads the
+> seed's rows (`packages/database/src/seed/ingredients/*.ts`). It sums like `composeMacros`
+> (`core/domain/Composition/Composition.ts:18`) and rounds to a tenth like `round`. They are
+> the figures the code will give, not an estimate.
 >
-> **Medición**: no hubo ninguna llamada a un modelo ni ninguna lectura de Neon. El único
-> servicio externo fue la API pública de USDA FoodData Central: tres búsquedas (palitos de
-> pan, tostadas melba y pimiento verde), de las que se usa una (`picos-de-pan`).
-> "En el catálogo" quiere decir en el seed (`packages/database/src/seed/ingredients/`), no
-> en una base de datos.
+> **Measurement**: there was no model call and no Neon read. The only external service was
+> USDA FoodData Central's public API: three searches (breadsticks, melba toast and green
+> pepper), of which one is used (`picos-de-pan`). "In the catalogue" means in the seed
+> (`packages/database/src/seed/ingredients/`), not in a database.
 
-## Veredicto
+## Verdict
 
-**Sí, con condiciones.** Hay 42 entradas listas:
-- 21 de familia española;
-- 4 asiáticas, 6 latinas y 5 árabes;
-- 6 postres para todas las familias.
+**Yes, on conditions.** There are 42 entries ready:
+- 21 of the Spanish family;
+- 4 Asian, 6 Latin American and 5 Arab;
+- 6 desserts for every family.
 
-Todas usan filas que ya están en el catálogo, y todas esas filas son USDA salvo una:
-`picos-de-pan` es BEDCA y queda condicionada. **No falta ningún slug.** Ninguna entrada
-española lleva una fila que `traditional_spanish` excluya. Toda línea de preparación nombra
-el aceite exacto de su ración.
+All of them use rows that are already in the catalogue, and all those rows are USDA except
+one: `picos-de-pan` is BEDCA and is conditional. **No slug is missing.** No Spanish entry
+carries a row `traditional_spanish` excludes. Every preparation line names the exact oil in its
+portion.
 
-**Decisión del lead (2026-10-03, por delegación del owner):** los acompañamientos se quedan
-en comida y cena, por diseño (`0079`: llenan las comidas principales grandes). El objetivo
-de "al menos 5 de desayuno" sale del PRD. Este informe ya lo aplica:
-- no hay ninguna entrada solo de desayuno. Retiré `tostada-con-aceite` y `avellanas` del
-  primer borrador;
-- esos dos huecos van a la familia más corta: la verdura latina gana `curtido` y
+**The lead's decision (2026-10-03, delegated by the owner):** accompaniments stay at lunch and
+dinner, by design (`0079`: they fill the large main meals). The "at least 5 for breakfast"
+goal leaves the PRD. This report already applies that:
+- there is no breakfast-only entry. I withdrew `tostada-con-aceite` and `avellanas` from the
+  first draft;
+- those two slots go to the shortest family: the Latin vegetables gain `curtido` and
   `ensalada-de-aguacate`;
-- una entrada lleva desayuno entre sus comidas solo si también es realista en comida y
-  cena, como el pan y la fruta de hoy. Son 9.
+- an entry carries breakfast among its meals only if it is also realistic at lunch and dinner,
+  like today's bread and fruit. There are 9.
 
-**Hallazgo al margen:** el planificador nunca sirve acompañamientos en el desayuno
-(`Scheduler.ts:272` y `:774`, `MAIN_SLOTS` en `Variety.ts:35`). Por eso las cuatro entradas
-de hoy que son solo de desayuno (`nueces`, `almendras`, `queso-de-burgos`, `requeson`)
-no llegan a ningún plan. Si se quitan o se quedan es cosa del lead; 018 no las toca.
+**A finding on the side:** the scheduler never serves accompaniments at breakfast
+(`Scheduler.ts:272` and `:774`, `MAIN_SLOTS` in `Variety.ts:35`). That is why today's four
+breakfast-only entries (`nueces`, `almendras`, `queso-de-burgos`, `requeson`) reach no plan.
+Whether they are removed or kept is the lead's; 018 does not touch them.
 
-Las condiciones:
+The conditions:
 
-1. **El tiempo de `schedulePlan` está en riesgo.** El número de conjuntos que el planificador
-   valora por plato, comida y día en la familia española pasa de 410 a 2.666 de media, ×6,5
-   (medido por combinatoria, sin los filtros de cada persona; ver § Riesgos). El PRD pide
-   no pasar de +10 %. Hay que medirlo al principio de la fase 3, con una señal de parada y
-   un remedio ya pensado.
-2. **Más entradas no garantizan más variedad.** El planificador elige el conjunto que mejor
-   cierra las macros y deshace empates por el orden de la tabla. No hay ningún coste por
-   repetir un acompañamiento (`rankedSets`, `Scheduler.ts:298`). Que suban los
-   acompañamientos distintos por quincena es una **hipótesis** que mide la fase 3. Si no
-   suben, falta una regla de repetición, que es un cambio del planificador.
-3. **`picos-de-pan` depende de re-fuentear su fila** de BEDCA a USDA (FDC 174929). Eso es
-   un `UPDATE` de una fila que ya existe, no el `INSERT … ON CONFLICT DO NOTHING` de la
-   fase 2. Mi recomendación: la entrada entra solo cuando lo haga la tarea pendiente de
-   re-fuentear las 14 filas BEDCA. Si no, se queda fuera de este lote.
-4. **`espinacas-a-la-catalana` lleva 5 g de piñones en comida y cena.** La respuesta 7 del
-   owner en `0079` dice que los frutos secos como acompañamiento son solo de desayuno.
-   Leo que habla del fruto seco servido como acompañamiento, no de la guarnición de una
-   verdura. Recomiendo aceptarla: es el caso de frutos de cáscara que la fase 3 necesita en
-   comida y cena. Pero choca con la letra de esa respuesta, así que la marco.
-5. **Los dos caldos no entran hasta que sus filas declaren el apio.** `caldo-de-pollo` y
-   `caldo-de-verduras` no tienen ningún alérgeno en el seed (`starter.ts:1060`, `:1071`).
-   En cambio, `pastilla-de-caldo-de-verduras` y `sopa-de-verduras-envasada` sí llevan
-   "puede contener apio". Un caldo de brick español casi siempre lleva apio. Como plato
-   aparte, el caldo llegaría a alguien alérgico al apio sin que nada lo pare. El arreglo:
-   añadir el enlace `celery` a las dos filas en la migración revisada de la fase 2. Eso
-   protege también a los platos que ya los usan. Hasta entonces, recomiendo rechazar las
-   dos entradas. Es un hallazgo de seguridad: va el primero en § Riesgos.
+1. **`schedulePlan`'s time is at risk.** The number of sets the scheduler prices per dish, meal
+   and day in the Spanish family goes from 410 to 2,666 on average, ×6.5 (measured by
+   combinatorics, without each person's filters; see § Risks). The PRD asks for no more than
+   +10%. It has to be measured at the start of phase 3, with a signal to stop and a remedy
+   already thought through.
+2. **More entries do not guarantee more variety.** The scheduler picks the set that best closes
+   the macros and breaks ties by the table's order. There is no cost at all for repeating an
+   accompaniment (`rankedSets`, `Scheduler.ts:298`). That distinct accompaniments per fortnight
+   rise is a **hypothesis** phase 3 measures. If they do not, a repetition rule is missing, and
+   that is a scheduler change.
+3. **`picos-de-pan` depends on re-sourcing its row** from BEDCA to USDA (FDC 174929). That is
+   an `UPDATE` of a row that already exists, not phase 2's `INSERT … ON CONFLICT DO NOTHING`.
+   My recommendation: the entry goes in only when the pending task of re-sourcing the 14 BEDCA
+   rows does. Otherwise it stays out of this batch.
+4. **`espinacas-a-la-catalana` carries 5 g of pine nuts at lunch and dinner.** The owner's
+   answer 7 in `0079` says nuts as an accompaniment are breakfast-only. I read that as being
+   about a nut served *as* an accompaniment, not about a vegetable's garnish. I recommend
+   accepting it: it is the tree-nut case phase 3 needs at lunch and dinner. But it clashes with
+   the letter of that answer, so I flag it.
+5. **The two broths do not go in until their rows declare celery.** `caldo-de-pollo` and
+   `caldo-de-verduras` have no allergen at all in the seed (`starter.ts:1060`, `:1071`).
+   `pastilla-de-caldo-de-verduras` and `sopa-de-verduras-envasada`, by contrast, do carry "may
+   contain celery". A Spanish carton broth nearly always carries celery. As a separate dish, the
+   broth would reach somebody allergic to celery with nothing stopping it. The fix: add the
+   `celery` link to both rows in phase 2's reviewed migration. That protects the dishes that
+   already use them too. Until then, I recommend rejecting both entries. It is a safety finding:
+   it goes first in § Risks.
 
-## Premisas revisadas
+## Premises checked
 
-| Premisa (PRD 018) | Estado | Evidencia |
+| Premise (PRD 018) | Status | Evidence |
 |---|---|---|
-| Faltan guarniciones españolas: cremas de verdura, caldo, pimientos asados, menestra, setas, pan integral, picos | **confirmada, salvo el pan integral**, que es **incorrecta** | `pan-integral` está en `ACCOMPANIMENTS` (`Accompaniment.ts:86`) y en la tabla 3a de `0079`. Lo demás no está |
-| Asiática, latina y árabe tienen 2–3 opciones cada una | **confirmada a medias** | Propias de cada familia: asiática 4 (`arroz-blanco`, `sopa-de-miso`, `ensalada-de-pepino`, `pak-choi-salteado`), latina 4 (`tortilla-de-maiz`, `arroz-rojo`, `pico-de-gallo`, `frijoles`), árabe 5 (`pan-de-pita`, `hummus`, `ensalada-marroqui`, `tabule`, `naranja-con-canela`). Las tres comparten además `ensalada-verde`, la fruta y el yogur. Por papel son 1–3, y eso es lo que el PRD quiere decir |
-| El desayuno gana al menos 5 | **incorrecta como variedad servida**; el lead retiró el objetivo | El desayuno no recibe acompañamientos (`Scheduler.ts:272`, `:774`; `MAIN_SLOTS` = comida y cena, `Variety.ts:35`). Lo mismo dice el plan de 016, línea 21: "at K = 6 per main slot". El lead lo confirmó como diseño el 2026-10-03 |
-| Los mismos acompañamientos vuelven en la quincena, y más entradas lo arreglan | **hipótesis** | La elección es por ajuste de macros, con empates por posición en la tabla, y no hay coste de repetición (`Scheduler.ts:291–310`). Se prueba con la cuenta de distintos por perfil y quincena que la fase 3 añade al evaluador |
-| Los acompañamientos actuales son "USDA salvo `queso-de-burgos`" (comentario en `Accompaniment.ts:74–82`) | **incorrecta** | En el seed, cinco filas que ya se usan son `manual`, no USDA: `requeson`, `pan-sin-gluten`, `alga-wakame`, `salsa-de-soja-baja-en-sal` y `vinagre-de-arroz`. No es BEDCA, pero tampoco es una fuente pública. Mi regla para el lote: solo filas USDA; ninguna `manual`; BEDCA nunca, salvo `picos-de-pan`, y esa queda condicionada |
-| Los filtros de la despensa (`larderFor`) cubren cualquier entrada nueva | **confirmada para alergias, intolerancias, formas de comer y gustos** | `larderFor` pasa cada fila por `dishSafety` y por `excludedIngredientIds` (`Accompaniment.ts:368–396`), y el conjunto se juzga otra vez con el plato para kosher (`setsBeside`, `:530`) |
-| "El tradicional español nunca recibe uno extranjero" lo garantiza la despensa | **incorrecta para 5 entradas** | `ensalada-de-zanahoria-marroqui`, `ensalada-de-remolacha`, `cuscus`, `datiles` y `elote` no llevan ninguna fila de la lista de `0077` (`Preference.ts:98`). Lo que los aparta es que solo se ofrecen junto a un plato de su familia (`portionsBeside`, `:483`), y que `traditional_spanish` rechaza los platos de cocina extranjera (`FOREIGN_CUISINES`, `Preference.ts:761–821`). La prueba de la fase 3 debe ir por `setsBeside` con un plato de esa familia, no solo por `larderFor` |
-| `schedulePlan` se queda dentro de +10 % | **hipótesis en riesgo** | Los conjuntos por clave de caché crecen ×6,5 en la familia española (§ Riesgos) |
-| Las reglas de grupo de `0079` (arroz, pasta, granos, patata, legumbre) se aplican al acompañamiento como al plato | **incorrecta en un detalle** | `itemGroups` (`Accompaniment.ts:446`) no tiene umbral de gramos; `dishGroups` sí (`FOOD_GROUP_GRAMS`, `Cuisine.ts:184`). Un acompañamiento con 10 g de fideos ya es "pasta": en una mesa española quedaría solo para la comida. Por eso no propongo "caldo con fideos". Ninguna entrada del lote depende de una cantidad pequeña de un grupo |
+| Spanish sides are missing: vegetable soups, broth, roasted peppers, menestra, mushrooms, wholemeal bread, breadsticks | **confirmed, except wholemeal bread**, which is **wrong** | `pan-integral` is in `ACCOMPANIMENTS` (`Accompaniment.ts:86`) and in `0079`'s table 3a. The rest is not there |
+| Asian, Latin and Arab have 2–3 options each | **half confirmed** | Each family's own: Asian 4 (`arroz-blanco`, `sopa-de-miso`, `ensalada-de-pepino`, `pak-choi-salteado`), Latin 4 (`tortilla-de-maiz`, `arroz-rojo`, `pico-de-gallo`, `frijoles`), Arab 5 (`pan-de-pita`, `hummus`, `ensalada-marroqui`, `tabule`, `naranja-con-canela`). All three also share `ensalada-verde`, the fruit and the yoghurt. By role they are 1–3, and that is what the PRD means |
+| Breakfast gains at least 5 | **wrong as variety served**; the lead withdrew the goal | Breakfast receives no accompaniments (`Scheduler.ts:272`, `:774`; `MAIN_SLOTS` = lunch and dinner, `Variety.ts:35`). 016's plan says the same, line 21: "at K = 6 per main slot". The lead confirmed it as design on 2026-10-03 |
+| The same accompaniments come back within the fortnight, and more entries fix it | **hypothesis** | The choice is by macro fit, with ties broken by position in the table, and there is no repetition cost (`Scheduler.ts:291–310`). It is tested with the count of distinct ones per profile and fortnight that phase 3 adds to the evaluator |
+| The current accompaniments are "USDA except `queso-de-burgos`" (the comment at `Accompaniment.ts:74–82`) | **wrong** | In the seed, five rows already in use are `manual`, not USDA: `requeson`, `pan-sin-gluten`, `alga-wakame`, `salsa-de-soja-baja-en-sal` and `vinagre-de-arroz`. It is not BEDCA, but it is not a public source either. My rule for the batch: USDA rows only; no `manual`; BEDCA never, except `picos-de-pan`, and that one is conditional |
+| The larder filters (`larderFor`) cover any new entry | **confirmed for allergies, intolerances, ways of eating and tastes** | `larderFor` passes every row through `dishSafety` and `excludedIngredientIds` (`Accompaniment.ts:368–396`), and the set is judged again with the plate for kosher (`setsBeside`, `:530`) |
+| "Traditional Spanish never receives a foreign one" is guaranteed by the larder | **wrong for 5 entries** | `ensalada-de-zanahoria-marroqui`, `ensalada-de-remolacha`, `cuscus`, `datiles` and `elote` carry no row from `0077`'s list (`Preference.ts:98`). What keeps them away is that they are only offered beside a dish of their own family (`portionsBeside`, `:483`), and that `traditional_spanish` rejects foreign-cuisine dishes (`FOREIGN_CUISINES`, `Preference.ts:761–821`). Phase 3's test must go through `setsBeside` with a dish of that family, not only through `larderFor` |
+| `schedulePlan` stays within +10% | **a hypothesis at risk** | The sets per cache key grow ×6.5 in the Spanish family (§ Risks) |
+| `0079`'s group rules (rice, pasta, grains, potato, legume) apply to an accompaniment as they do to a plate | **wrong in one detail** | `itemGroups` (`Accompaniment.ts:446`) has no grams threshold; `dishGroups` does (`FOOD_GROUP_GRAMS`, `Cuisine.ts:184`). An accompaniment with 10 g of noodles is already "pasta": on a Spanish table it would be left to lunch only. That is why I do not propose "broth with noodles". No entry in the batch depends on a small amount of a group |
 
-## Qué hay hoy
+## What is there today
 
-- **La lista**: 46 entradas en `ACCOMPANIMENTS` (`Accompaniment.ts:83–317`). Son 10
-  almidones, 15 verduras y 21 postres; 18 compuestas, con nombre en `COMPOSED_NAMES`
-  (`:566`) y preparación en `COMPOSED_PREPARATIONS` (`:594`). Cada una tiene su frase web
-  en `meal.accompanimentNames` (`apps/web/src/i18n/dictionaries/es-ES.ts:1706`, y el mismo
-  bloque en `en-GB.ts`). Si una clave no tiene frase, la pantalla muestra el nombre que manda
-  la API (`apps/web/src/lib/accompaniments.ts:18`).
-- **Cómo se filtra**:
-  - `larderFor` aplica la seguridad y las exclusiones de la persona.
-  - `portionsBeside` aplica la familia del plato, la comida, la tabla 2 de `0079` para el
-    grupo del propio acompañamiento, la temporada (filtro duro) y "no repetir lo que ya
-    lleva el plato": pan con pan, el mismo grupo, fruta con fruta.
-  - `setsBeside` vuelve a juzgar el conjunto con el plato.
-- **Cómo se elige**:
-  - Solo en comida y cena, y solo cuando esa comida pasa de 700 kcal
+- **The list**: 46 entries in `ACCOMPANIMENTS` (`Accompaniment.ts:83–317`). They are 10
+  starches, 15 vegetables and 21 desserts; 18 composed, with a name in `COMPOSED_NAMES`
+  (`:566`) and a preparation in `COMPOSED_PREPARATIONS` (`:594`). Each has its web phrase in
+  `meal.accompanimentNames` (`apps/web/src/i18n/dictionaries/es-ES.ts:1706`, and the same block
+  in `en-GB.ts`). If a key has no phrase, the screen shows the name the API sends
+  (`apps/web/src/lib/accompaniments.ts:18`).
+- **How it is filtered**:
+  - `larderFor` applies the person's safety and exclusions.
+  - `portionsBeside` applies the dish's family, the meal, `0079`'s table 2 for the
+    accompaniment's own group, the season (a hard filter) and "do not repeat what the plate
+    already carries": bread with bread, the same group, fruit with fruit.
+  - `setsBeside` judges the set again with the plate.
+- **How it is chosen**:
+  - Only at lunch and dinner, and only when that meal passes 700 kcal
     (`ACCOMPANIED_FROM_KCAL`, `Scheduler.ts:213`).
-  - `setsOf` forma todos los conjuntos posibles: nada, o un almidón, una verdura y un
-    postre como mucho. Es el producto de los tres papeles (`:501`).
-  - `rankedSets` los valora todos y se queda con los 6 que mejor cierran el hueco de
-    macros (`:298`).
-  - Los acompañamientos no pueden pasar del 35 % de la energía de la comida
-    (`ACCOMPANIMENT_MAX_SHARE`, `:224`).
-  - La caché de conjuntos se guarda por plato, comida, mes y presupuesto del día (`:276`).
-- **Nombres**: una entrada es compuesta si tiene más de una fila o si su fila no se llama
-  como su clave (`isComposed`, `:684`). Las compuestas necesitan nombre y preparación en los
-  dos idiomas. Las simples toman el nombre del catálogo.
+  - `setsOf` forms every possible set: nothing, or at most one starch, one vegetable and one
+    dessert. It is the product of the three roles (`:501`).
+  - `rankedSets` prices them all and keeps the 6 that best close the macro gap (`:298`).
+  - The accompaniments may not pass 35% of the meal's energy (`ACCOMPANIMENT_MAX_SHARE`,
+    `:224`).
+  - The set cache is keyed by dish, meal, month and the day's budget (`:276`).
+- **Names**: an entry is composed if it has more than one row or if its row is not named like
+  its key (`isComposed`, `:684`). Composed ones need a name and a preparation in both
+  languages. Simple ones take the catalogue's name.
 
-## Cómo está hecho el lote
+## How the batch is made
 
-- **Ingredientes**: solo filas del catálogo con fuente `usda`, salvo `picos-de-pan`. Lo
-  comprueba el script, entrada por entrada (§ Comprobaciones).
-- **Raciones**: las de la AESAN que ya usa `0079`:
-  - verdura, 150–200 g de producto crudo; las cremas llevan más porque son sobre todo
-    agua de cocción, que no cuenta;
-  - fruta, 120–200 g;
-  - pan, 30–60 g;
-  - patata, 150 g.
-- **Aceite**: solo si la ración lo lleva, y entonces la frase dice exactamente cuánto. 5 g
-  es "una cucharadita" y 10 g "dos cucharaditas". Ninguna frase nombra otra grasa.
-- **Meses**: en una compuesta salen de cruzar los meses de sus filas frescas, con dos
-  excepciones declaradas, igual que hizo el gazpacho en `0079`:
-  - **Los caldos** (10–4): es lo que se toma en los meses fríos. Sus filas no tienen
-    temporada.
-  - **`pan-con-tomate`** (todo el año): lleva tomate triturado de bote, como `arroz-rojo`.
-- **Familias**:
-  - Las españolas usan `SPANISH` (española y "otras"). Tres de ellas son también italianas:
-    `tomate-alinado`, `alcachofas-a-la-plancha` y `esparragos-trigueros-a-la-plancha`.
-  - Las extranjeras, solo su familia.
-  - La fruta, el yogur con miel y la macedonia, todas las familias, como las simples de
-    hoy.
-- **Forma**: cada entrada va como literal de TypeScript con las ayudas del propio fichero
-  (`composed`, `fruit`, `BLD`, `LD`, `SPANISH`, `SUMMER`), más su nombre, su preparación y
-  sus frases web. La fase 3 solo tiene que pegar y ordenar las claves. Comprobé que los
-  literales se evalúan y que dan exactamente las entradas de las tablas.
-- **Leyenda de las tablas**: comidas D desayuno, C comida, Ce cena. Las macros son por
-  ración: kcal, proteína, hidratos, grasa y fibra en gramos. "Clases" son las del catálogo
-  que ningún alérgeno revela (`meat`, `animal`), las que leen vegetarianos, veganos y kosher.
+- **Ingredients**: only catalogue rows with source `usda`, except `picos-de-pan`. The script
+  checks it, entry by entry (§ Checks).
+- **Portions**: AESAN's, the ones `0079` already uses:
+  - vegetables, 150–200 g of raw produce; the soups carry more because they are mostly cooking
+    water, which does not count;
+  - fruit, 120–200 g;
+  - bread, 30–60 g;
+  - potato, 150 g.
+- **Oil**: only if the portion carries it, and then the phrase says exactly how much. 5 g is "a
+  teaspoon" and 10 g "two teaspoons". No phrase names another fat.
+- **Months**: on a composed entry they come from intersecting its fresh rows' months, with two
+  declared exceptions, as the gazpacho did in `0079`:
+  - **The broths** (10–4): it is what is drunk in the cold months. Their rows have no season.
+  - **`pan-con-tomate`** (all year): it uses jarred crushed tomato, like `arroz-rojo`.
+- **Families**:
+  - The Spanish ones use `SPANISH` (Spanish and "other"). Three of them are also Italian:
+    `tomate-alinado`, `alcachofas-a-la-plancha` and `esparragos-trigueros-a-la-plancha`.
+  - The foreign ones, their family only.
+  - The fruit, the yoghurt with honey and the fruit salad, every family, like today's simple
+    ones.
+- **Shape**: every entry comes as a TypeScript literal using the file's own helpers
+  (`composed`, `fruit`, `BLD`, `LD`, `SPANISH`, `SUMMER`), plus its name, its preparation and
+  its web phrases. Phase 3 only has to paste and sort the keys. I checked that the literals
+  evaluate and that they give exactly the entries in the tables.
+- **The tables' legend**: meals B breakfast, L lunch, D dinner. The macros are per portion:
+  kcal, protein, carbohydrate, fat and fibre in grams. "Classes" are the catalogue classes no
+  allergen reveals (`meat`, `animal`), the ones vegetarians, vegans and kosher read.
 
-## Propuesta
+## Proposal
 
-### 1. Familia española (21)
+### 1. The Spanish family (21)
 
-Son guarniciones de casa, de las que se ponen en una mesa española:
-- **tres cremas**: calabacín en verano, calabaza en otoño e invierno, puerros todo el año;
-- **dos caldos**;
-- **verduras de temporada** para cada época:
-  - pimientos asados y escalivada a final de verano;
-  - acelgas, coliflor y espinacas en invierno;
-  - alcachofas y trigueros en primavera;
-- **menestra, champiñones y zanahorias aliñadas** todo el año;
-- **dos patatas**: cocida y en puré;
-- **salmorejo** en verano;
-- **pan con tomate** y **picos**.
+They are home sides, the kind that go on a Spanish table:
+- **three soups**: courgette in summer, pumpkin in autumn and winter, leeks all year;
+- **two broths**;
+- **seasonal vegetables** for each time of year:
+  - roasted peppers and escalivada at the end of summer;
+  - chard, cauliflower and spinach in winter;
+  - artichokes and green asparagus in spring;
+- **menestra, mushrooms and dressed carrots** all year;
+- **two potatoes**: boiled and mashed;
+- **salmorejo** in summer;
+- **pan con tomate** and **breadsticks**.
 
-Con ellas, las opciones de verdura junto a un plato español pasan de 2–5 a 11–18 según el
-mes. Hoy, de octubre a mayo, son 2 o 3, porque solo `ensalada-verde` es de todo el año
-(medido por combinatoria sobre la lista, sin filtros de persona).
+With them, the vegetable options beside a Spanish dish go from 2–5 to 11–18 depending on the
+month. Today, from October to May, they are 2 or 3, because only `ensalada-verde` is
+all-year (measured by combinatorics over the list, with no per-person filters).
 
-Notas por entrada:
-- **`crema-de-puerros`, `patata-cocida`, `pure-de-patata`** son del grupo patata (`0079`,
-  tabla 2). En la mesa española encajan en comida y cena, pero no se ofrecen junto a un
-  plato que ya lleve 100 g o más de patata por ración (`Accompaniment.ts:485`). Es lo que
-  se quiere.
-- **`caldo-de-pollo`** tiene la clase `meat`: vegetarianos y veganos no lo reciben y
-  tienen `caldo-de-verduras`. Para kosher, `setsBeside` impide servirlo con un yogur
-  (`Accompaniment.ts:542`). Los dos caldos aportan 15 kcal: sirven para variar, no para
-  cerrar macros (§ Riesgos, punto 4). **No deben entrar hasta que sus filas declaren el
-  apio** (condición 5 del veredicto).
-- **`salmorejo`** lleva 30 g de pan y es el caso de gluten en comida y cena. Como su papel
-  es verdura, el filtro "pan junto a pan" no lo mira: puede salir con pan en el papel de
-  almidón. Son 60–90 g de pan entre los dos, dentro de la ración de la AESAN.
-- **`espinacas-a-la-catalana`**: ver la condición 4 del veredicto (frutos de cáscara en
-  comida y cena).
-- **`pan-con-tomate`** lleva tomate triturado de bote, así que es de todo el año, como
-  `arroz-rojo`. Va en desayuno, comida y cena, como el pan: el pa amb tomàquet es también
-  de la cena catalana. Lleva gluten.
-- **`menestra-de-verduras`** usa las filas congeladas USDA (judía verde, guisantes,
-  coliflor), así que es de todo el año. La menestra de temporada (alcachofa, habas y
-  guisantes frescos) solo coincidiría en mayo. Las filas `menestra-congelada` y
-  `alcachofas-congeladas` son `manual` y no las uso.
-- **`picos-de-pan`** es condicional: ver la condición 3 y § Filas que faltan. Le doy dos
-  raciones, 20 y 30 g, en vez de las 30 y 60 g de `bread()`. 60 g de picos son unas
+Notes per entry:
+- **`crema-de-puerros`, `patata-cocida`, `pure-de-patata`** are of the potato group (`0079`,
+  table 2). On a Spanish table they fit at lunch and dinner, but they are not offered beside a
+  dish that already carries 100 g or more of potato per serving (`Accompaniment.ts:485`). That
+  is what is wanted.
+- **`caldo-de-pollo`** has the `meat` class: vegetarians and vegans do not receive it and have
+  `caldo-de-verduras`. For kosher, `setsBeside` stops it being served with a yoghurt
+  (`Accompaniment.ts:542`). Both broths contribute 15 kcal: they are there for variety, not to
+  close macros (§ Risks, point 4). **They must not go in until their rows declare celery**
+  (the verdict's condition 5).
+- **`salmorejo`** carries 30 g of bread and is the gluten case at lunch and dinner. Since its
+  role is vegetable, the "bread beside bread" filter does not look at it: it can come out with
+  bread in the starch role. That is 60–90 g of bread between the two, within AESAN's serving.
+- **`espinacas-a-la-catalana`**: see the verdict's condition 4 (tree nuts at lunch and
+  dinner).
+- **`pan-con-tomate`** uses jarred crushed tomato, so it is all-year, like `arroz-rojo`. It
+  goes at breakfast, lunch and dinner, like bread: pa amb tomàquet is also a Catalan dinner.
+  It carries gluten.
+- **`menestra-de-verduras`** uses the USDA frozen rows (green beans, peas, cauliflower), so it
+  is all-year. A seasonal menestra (artichoke, broad beans and fresh peas) would only line up
+  in May. The `menestra-congelada` and `alcachofas-congeladas` rows are `manual` and I do not
+  use them.
+- **`picos-de-pan`** is conditional: see condition 3 and § Rows that are missing. I give it two
+  portions, 20 and 30 g, instead of `bread()`'s 30 and 60 g. 60 g of breadsticks is some
   250 kcal.
-- **Lo que dejé fuera**:
-  - **pimientos de Padrón**: su fila es `manual`; con la de pimiento verde USDA serían
-    otra entrada que re-fuentear;
-  - **pisto y pipirrana**: más plato que guarnición, o casi iguales a lo que ya hay en
-    verano;
-  - **caldo con fideos**: por el detalle de `itemGroups`;
-  - **setas variadas**: los champiñones ya cubren "setas" y cada verdura de todo el año
-    encarece el planificador (§ Riesgos).
+- **What I left out**:
+  - **pimientos de Padrón**: its row is `manual`; with the USDA green pepper row they would be
+    another entry to re-source;
+  - **pisto and pipirrana**: more a dish than a side, or nearly identical to what summer
+    already has;
+  - **broth with noodles**: because of the `itemGroups` detail;
+  - **mixed mushrooms**: the button mushrooms already cover "mushrooms" and every all-year
+    vegetable makes the scheduler more expensive (§ Risks).
 
-| Clave | Papel | Familias | Comidas | Meses | Ración | kcal | P | HC | G | Fibra | Alérgenos | Clases |
+| Key | Role | Families | Meals | Months | Portion | kcal | P | C | F | Fibre | Allergens | Classes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `crema-de-calabacin` | vegetable | spanish, other | C Ce | 5, 6, 7, 8, 9 | 295.5 g | 102.7 | 3.4 | 11.5 | 5.8 | 3.2 | — | — |
-| `crema-de-calabaza` | vegetable | spanish, other | C Ce | 9, 10, 11, 12, 1, 2, 3 | 325.5 g | 137.6 | 3.2 | 22.9 | 5.4 | 2.9 | — | — |
-| `crema-de-puerros` | vegetable | spanish, other | C Ce | todo el año | 225.5 g | 187 | 3.6 | 32.9 | 5.5 | 4.2 | — | — |
-| `caldo-de-pollo` | vegetable | spanish, other | C Ce | 10, 11, 12, 1, 2, 3, 4 | 250 g | 15 | 1.5 | 1 | 0.5 | 0 | — | meat |
-| `caldo-de-verduras` | vegetable | spanish, other | C Ce | 10, 11, 12, 1, 2, 3, 4 | 250 g | 15 | 0.5 | 2.5 | 0.3 | 0 | — | — |
-| `pimientos-asados` | vegetable | spanish, other | C Ce | 7, 8, 9, 10 | 157.5 g | 86.2 | 1.6 | 9.7 | 5.5 | 3.2 | — | — |
-| `menestra-de-verduras` | vegetable | spanish, other | C Ce | todo el año | 177.5 g | 116.7 | 3.9 | 15.1 | 5.4 | 4.8 | — | — |
-| `champinones-al-ajillo` | vegetable | spanish, other | C Ce | todo el año | 162.5 g | 84.2 | 5 | 6.5 | 5.5 | 1.7 | — | — |
-| `tomate-alinado` | vegetable | spanish, other, italian | C Ce | 6, 7, 8, 9 | 189.5 g | 79.2 | 1.8 | 7.5 | 5.4 | 2.3 | — | — |
-| `escalivada` | vegetable | spanish, other | C Ce | 7, 8, 9, 10 | 225.5 g | 106 | 2.2 | 14.4 | 5.5 | 5.4 | — | — |
-| `espinacas-a-la-catalana` | vegetable | spanish, other | C Ce | 10, 11, 12, 1, 2, 3, 4, 5, 6 | 172.5 g | 145.4 | 5.5 | 14.7 | 9.1 | 3.9 | tree_nuts | — |
-| `acelgas-rehogadas` | vegetable | spanish, other | C Ce | 8, 9, 10, 11, 12, 1, 2, 3, 4, 5 | 209 g | 88.1 | 3.9 | 8.7 | 5.5 | 3.4 | — | — |
-| `coliflor-al-ajoarriero` | vegetable | spanish, other | C Ce | 9, 10, 11, 12, 1, 2, 3, 4 | 162.5 g | 89.6 | 3.2 | 9 | 5.6 | 3.4 | — | — |
-| `alcachofas-a-la-plancha` | vegetable | spanish, other, italian | C Ce | 12, 1, 2, 3, 4, 5 | 160.5 g | 116.2 | 5 | 16.2 | 5.2 | 8.2 | — | — |
-| `esparragos-trigueros-a-la-plancha` | vegetable | spanish, other, italian | C Ce | 3, 4, 5, 6, 9 | 155.5 g | 74.2 | 3.3 | 5.9 | 5.2 | 3.2 | — | — |
-| `zanahorias-alinadas` | vegetable | spanish, other | C Ce | todo el año | 133.5 g | 100.5 | 1.3 | 12.8 | 5.4 | 3.7 | — | — |
-| `patata-cocida` | starch | spanish, other | C Ce | todo el año | 157.5 g | 160.4 | 3.1 | 26.4 | 5.2 | 3.2 | — | — |
-| `pure-de-patata` | starch | spanish, other | C Ce | todo el año | 195.5 g | 179.7 | 4.3 | 28.2 | 6 | 3.2 | lactose, milk | — |
-| `salmorejo` | vegetable | spanish, other | C Ce | 6, 7, 8, 9 | 243 g | 214.4 | 4.6 | 24.8 | 11.6 | 3.3 | gluten | — |
-| `picos-de-pan` | starch | spanish, other | D C Ce | todo el año | 20 g | 79.8 | 2.2 | 14.6 | 1.4 | 0.7 | gluten | — |
+| `crema-de-calabacin` | vegetable | spanish, other | L D | 5, 6, 7, 8, 9 | 295.5 g | 102.7 | 3.4 | 11.5 | 5.8 | 3.2 | — | — |
+| `crema-de-calabaza` | vegetable | spanish, other | L D | 9, 10, 11, 12, 1, 2, 3 | 325.5 g | 137.6 | 3.2 | 22.9 | 5.4 | 2.9 | — | — |
+| `crema-de-puerros` | vegetable | spanish, other | L D | all year | 225.5 g | 187 | 3.6 | 32.9 | 5.5 | 4.2 | — | — |
+| `caldo-de-pollo` | vegetable | spanish, other | L D | 10, 11, 12, 1, 2, 3, 4 | 250 g | 15 | 1.5 | 1 | 0.5 | 0 | — | meat |
+| `caldo-de-verduras` | vegetable | spanish, other | L D | 10, 11, 12, 1, 2, 3, 4 | 250 g | 15 | 0.5 | 2.5 | 0.3 | 0 | — | — |
+| `pimientos-asados` | vegetable | spanish, other | L D | 7, 8, 9, 10 | 157.5 g | 86.2 | 1.6 | 9.7 | 5.5 | 3.2 | — | — |
+| `menestra-de-verduras` | vegetable | spanish, other | L D | all year | 177.5 g | 116.7 | 3.9 | 15.1 | 5.4 | 4.8 | — | — |
+| `champinones-al-ajillo` | vegetable | spanish, other | L D | all year | 162.5 g | 84.2 | 5 | 6.5 | 5.5 | 1.7 | — | — |
+| `tomate-alinado` | vegetable | spanish, other, italian | L D | 6, 7, 8, 9 | 189.5 g | 79.2 | 1.8 | 7.5 | 5.4 | 2.3 | — | — |
+| `escalivada` | vegetable | spanish, other | L D | 7, 8, 9, 10 | 225.5 g | 106 | 2.2 | 14.4 | 5.5 | 5.4 | — | — |
+| `espinacas-a-la-catalana` | vegetable | spanish, other | L D | 10, 11, 12, 1, 2, 3, 4, 5, 6 | 172.5 g | 145.4 | 5.5 | 14.7 | 9.1 | 3.9 | tree_nuts | — |
+| `acelgas-rehogadas` | vegetable | spanish, other | L D | 8, 9, 10, 11, 12, 1, 2, 3, 4, 5 | 209 g | 88.1 | 3.9 | 8.7 | 5.5 | 3.4 | — | — |
+| `coliflor-al-ajoarriero` | vegetable | spanish, other | L D | 9, 10, 11, 12, 1, 2, 3, 4 | 162.5 g | 89.6 | 3.2 | 9 | 5.6 | 3.4 | — | — |
+| `alcachofas-a-la-plancha` | vegetable | spanish, other, italian | L D | 12, 1, 2, 3, 4, 5 | 160.5 g | 116.2 | 5 | 16.2 | 5.2 | 8.2 | — | — |
+| `esparragos-trigueros-a-la-plancha` | vegetable | spanish, other, italian | L D | 3, 4, 5, 6, 9 | 155.5 g | 74.2 | 3.3 | 5.9 | 5.2 | 3.2 | — | — |
+| `zanahorias-alinadas` | vegetable | spanish, other | L D | all year | 133.5 g | 100.5 | 1.3 | 12.8 | 5.4 | 3.7 | — | — |
+| `patata-cocida` | starch | spanish, other | L D | all year | 157.5 g | 160.4 | 3.1 | 26.4 | 5.2 | 3.2 | — | — |
+| `pure-de-patata` | starch | spanish, other | L D | all year | 195.5 g | 179.7 | 4.3 | 28.2 | 6 | 3.2 | lactose, milk | — |
+| `salmorejo` | vegetable | spanish, other | L D | 6, 7, 8, 9 | 243 g | 214.4 | 4.6 | 24.8 | 11.6 | 3.3 | gluten | — |
+| `picos-de-pan` | starch | spanish, other | B L D | all year | 20 g | 79.8 | 2.2 | 14.6 | 1.4 | 0.7 | gluten | — |
 |  | | | | | 30 g | 119.7 | 3.3 | 21.9 | 2.1 | 1.1 |  |  |
-| `pan-con-tomate` | starch | spanish, other | D C Ce | todo el año | 95.5 g | 204.4 | 5.1 | 30.9 | 7.1 | 2.2 | gluten | — |
+| `pan-con-tomate` | starch | spanish, other | B L D | all year | 95.5 g | 204.4 | 5.1 | 30.9 | 7.1 | 2.2 | gluten | — |
 
 `ACCOMPANIMENTS`:
 
@@ -596,7 +593,7 @@ Notas por entrada:
   },
 ```
 
-`meal.accompanimentNames` (web, `es-ES` y `en-GB`):
+`meal.accompanimentNames` (web, `es-ES` and `en-GB`):
 
 ```ts
 // es-ES
@@ -644,23 +641,23 @@ Notas por entrada:
       'picos-de-pan': 'breadsticks ({grams})',
       'pan-con-tomate': 'bread with tomato',
 ```
-### 2. Asiática (4)
+### 2. Asian (4)
 
-- **Qué entra**:
-  - un segundo arroz: el jazmín, para la cocina tailandesa y vietnamita;
-  - tres guarniciones que se ponen de verdad al lado del plato: edamame, espinacas con
-    sésamo (el *gomae* japonés) y kimchi.
-- **Verdura**: pasa de 2–3 opciones a 5–6.
-- **`arroz-jazmin`**: es del grupo arroz. La mesa asiática lo admite en comida y cena, pero
-  no junto a un plato de arroz (`Accompaniment.ts:485`).
-- **`espinacas-con-sesamo`**: usa `salsa-de-soja` (USDA; soja y gluten) y no
-  `salsa-de-soja-baja-en-sal`, que es `manual`. Es el segundo caso de gluten del lote.
-- **`kimchi`**: su fila lleva trazas de pescado y crustáceos. Quien marcó esas trazas no
-  lo recibe. Aporta 9 kcal (§ Riesgos, punto 4).
-- **`edamame`**: lleva soja y 11 g de proteína. Va en el papel de verdura, como la sopa de
-  miso.
+- **What goes in**:
+  - a second rice: jasmine, for Thai and Vietnamese cooking;
+  - three sides that really do go beside the plate: edamame, sesame spinach (the Japanese
+    *gomae*) and kimchi.
+- **Vegetables**: from 2–3 options to 5–6.
+- **`arroz-jazmin`**: it is of the rice group. The Asian table allows it at lunch and dinner,
+  but not beside a rice dish (`Accompaniment.ts:485`).
+- **`espinacas-con-sesamo`**: it uses `salsa-de-soja` (USDA; soy and gluten) and not
+  `salsa-de-soja-baja-en-sal`, which is `manual`. It is the batch's second gluten case.
+- **`kimchi`**: its row carries traces of fish and crustaceans. Anybody who declared those
+  traces does not receive it. It contributes 9 kcal (§ Risks, point 4).
+- **`edamame`**: it carries soy and 11 g of protein. It goes in the vegetable role, like the
+  miso soup.
 
-| Clave | Filas de `0077` que lleva (`traditional_spanish`) |
+| Key | Rows from `0077` it carries (`traditional_spanish`) |
 |---|---|
 | `arroz-jazmin` | `arroz-jazmin-crudo` |
 | `edamame` | `edamame-congelado` |
@@ -668,12 +665,12 @@ Notas por entrada:
 | `kimchi` | `kimchi` |
 
 
-| Clave | Papel | Familias | Comidas | Meses | Ración | kcal | P | HC | G | Fibra | Alérgenos | Clases |
+| Key | Role | Families | Meals | Months | Portion | kcal | P | C | F | Fibre | Allergens | Classes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `arroz-jazmin` | starch | asian | C Ce | todo el año | 50 g | 182.5 | 3.6 | 40 | 0.4 | 0.7 | — | — |
-| `edamame` | vegetable | asian | C Ce | todo el año | 101 g | 109 | 11.2 | 7.6 | 4.7 | 4.8 | soy | — |
-| `espinacas-con-sesamo` | vegetable | asian | C Ce | 10, 11, 12, 1, 2, 3, 4, 5, 6 | 160 g | 65.8 | 5.6 | 6.8 | 3.1 | 3.9 | gluten, sesame, soy | — |
-| `kimchi` | vegetable | asian | C Ce | todo el año | 60 g | 9 | 0.7 | 1.4 | 0.3 | 1 | crustaceans (trazas), fish (trazas) | — |
+| `arroz-jazmin` | starch | asian | L D | all year | 50 g | 182.5 | 3.6 | 40 | 0.4 | 0.7 | — | — |
+| `edamame` | vegetable | asian | L D | all year | 101 g | 109 | 11.2 | 7.6 | 4.7 | 4.8 | soy | — |
+| `espinacas-con-sesamo` | vegetable | asian | L D | 10, 11, 12, 1, 2, 3, 4, 5, 6 | 160 g | 65.8 | 5.6 | 6.8 | 3.1 | 3.9 | gluten, sesame, soy | — |
+| `kimchi` | vegetable | asian | L D | all year | 60 g | 9 | 0.7 | 1.4 | 0.3 | 1 | crustaceans (trazas), fish (trazas) | — |
 
 `ACCOMPANIMENTS`:
 
@@ -743,7 +740,7 @@ Notas por entrada:
   },
 ```
 
-`meal.accompanimentNames` (web, `es-ES` y `en-GB`):
+`meal.accompanimentNames` (web, `es-ES` and `en-GB`):
 
 ```ts
 // es-ES
@@ -757,39 +754,39 @@ Notas por entrada:
       'espinacas-con-sesamo': 'sesame spinach',
       kimchi: 'kimchi ({grams})',
 ```
-### 3. Mexicana y latina (6)
+### 3. Mexican and Latin American (6)
 
-- **Qué entra**:
-  - tres almidones de la mesa latina que no son ni tortilla ni arroz: yuca con mojo
-    (Cuba, Colombia), plátano macho al horno y elote (México, en verano);
-  - tres verduras: guacamole todo el año, curtido (la col en vinagre salvadoreña) de
-    septiembre a marzo, y ensalada de aguacate de noviembre a abril.
-- **La verdura latina era la más corta**, con 2–3 opciones según el mes. Por eso recibe
-  los dos huecos que dejó el desayuno. Pasa a 3–5 opciones. Invierno era lo más flojo: solo
-  `frijoles` y `ensalada-verde`, y ahí entran el curtido y la ensalada de aguacate. En el
-  catálogo no hay filas USDA de nopal ni de chayote.
-- **`ensalada-de-aguacate` y `guacamole`** comparten el aguacate. Como solo va una verdura
-  por conjunto, nunca coinciden en la misma comida. Pero el lead puede preferir una sola.
-- **`curtido`** no lleva aceite, y su frase no lo nombra. Es la verdura más ligera del
-  lote que no es un caldo: 47 kcal.
-- **`yuca-con-mojo`**: `yuca` es del grupo patata. La mesa latina la admite en comida y
-  cena (`Cuisine.ts:236`).
-- **`elote`**: `mazorca-de-maiz` no tiene grupo. 150 g de grano es una mazorca grande
+- **What goes in**:
+  - three starches of the Latin table that are neither a tortilla nor rice: cassava with mojo
+    (Cuba, Colombia), baked plantain and elote (Mexico, in summer);
+  - three vegetables: guacamole all year, curtido (the Salvadoran pickled cabbage) from
+    September to March, and avocado salad from November to April.
+- **The Latin vegetables were the shortest**, with 2–3 options depending on the month. That is
+  why they get the two slots breakfast left. They go to 3–5 options. Winter was the weakest:
+  only `frijoles` and `ensalada-verde`, and that is where the curtido and the avocado salad go.
+  The catalogue has no USDA rows for nopal or chayote.
+- **`ensalada-de-aguacate` and `guacamole`** share the avocado. Since only one vegetable goes
+  per set, they never coincide in the same meal. But the lead may prefer just one.
+- **`curtido`** carries no oil, and its phrase does not name any. It is the lightest vegetable
+  in the batch that is not a broth: 47 kcal.
+- **`yuca-con-mojo`**: `yuca` is of the potato group. The Latin table allows it at lunch and
+  dinner (`Cuisine.ts:236`).
+- **`elote`**: `mazorca-de-maiz` has no group. 150 g of kernels is a large cob
   (`gramsPerUnit` 150).
-- **Lo que las aparta del tradicional español**: `yuca`, `platano-macho` y `guacamole`
-  están en la lista de `0077`. `elote`, `curtido` y `ensalada-de-aguacate` no llevan
-  ninguna fila de esa lista (el aguacate se queda, por decisión del owner); las aparta la
-  familia (ver § Premisas revisadas).
+- **What keeps them away from traditional Spanish**: `yuca`, `platano-macho` and `guacamole`
+  are on `0077`'s list. `elote`, `curtido` and `ensalada-de-aguacate` carry no row from that
+  list (the avocado stays, by the owner's decision); what keeps them away is the family (see
+  § Premises checked).
 
 
-| Clave | Papel | Familias | Comidas | Meses | Ración | kcal | P | HC | G | Fibra | Alérgenos | Clases |
+| Key | Role | Families | Meals | Months | Portion | kcal | P | C | F | Fibre | Allergens | Classes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `yuca-con-mojo` | starch | latin | C Ce | todo el año | 132.5 g | 240.7 | 1.8 | 46.9 | 5.4 | 2.3 | — | — |
-| `platano-macho-al-horno` | starch | latin | C Ce | todo el año | 125.5 g | 226.6 | 1.4 | 44 | 5.1 | 2.6 | — | — |
-| `elote` | starch | latin | C Ce | 7, 8, 9 | 156 g | 132.1 | 5 | 28.9 | 2.2 | 3.3 | — | — |
-| `guacamole` | vegetable | latin | C Ce | todo el año | 60 g | 94.2 | 1.1 | 3.6 | 8.4 | 3 | — | — |
-| `curtido` | vegetable | latin | C Ce | 9, 10, 11, 12, 1, 2, 3 | 156 g | 46.7 | 1.8 | 10.5 | 0.2 | 3.8 | — | — |
-| `ensalada-de-aguacate` | vegetable | latin | C Ce | 11, 12, 1, 2, 3, 4 | 88.5 g | 118.2 | 1.6 | 7.5 | 10.3 | 5.1 | — | — |
+| `yuca-con-mojo` | starch | latin | L D | all year | 132.5 g | 240.7 | 1.8 | 46.9 | 5.4 | 2.3 | — | — |
+| `platano-macho-al-horno` | starch | latin | L D | all year | 125.5 g | 226.6 | 1.4 | 44 | 5.1 | 2.6 | — | — |
+| `elote` | starch | latin | L D | 7, 8, 9 | 156 g | 132.1 | 5 | 28.9 | 2.2 | 3.3 | — | — |
+| `guacamole` | vegetable | latin | L D | all year | 60 g | 94.2 | 1.1 | 3.6 | 8.4 | 3 | — | — |
+| `curtido` | vegetable | latin | L D | 9, 10, 11, 12, 1, 2, 3 | 156 g | 46.7 | 1.8 | 10.5 | 0.2 | 3.8 | — | — |
+| `ensalada-de-aguacate` | vegetable | latin | L D | 11, 12, 1, 2, 3, 4 | 88.5 g | 118.2 | 1.6 | 7.5 | 10.3 | 5.1 | — | — |
 
 `ACCOMPANIMENTS`:
 
@@ -902,7 +899,7 @@ Notas por entrada:
   },
 ```
 
-`meal.accompanimentNames` (web, `es-ES` y `en-GB`):
+`meal.accompanimentNames` (web, `es-ES` and `en-GB`):
 
 ```ts
 // es-ES
@@ -920,30 +917,30 @@ Notas por entrada:
       curtido: 'curtido slaw',
       'ensalada-de-aguacate': 'avocado salad',
 ```
-### 4. Árabe y magrebí (5)
+### 4. Arab and Maghrebi (5)
 
-- **Qué entra**:
-  - el cuscús, que en Marruecos se come a mediodía;
-  - mutabal (berenjena asada con tahini) en verano;
-  - dos ensaladas de todo el año, zanahoria y remolacha, para que la mesa árabe no se quede
-    en `hummus` y `ensalada-verde` de octubre a mayo;
-  - dátiles como postre.
-- **`cuscus`**: es del grupo de granos. La mesa árabe lo admite solo en comida
-  (`Cuisine.ts:233`), y la entrada se declara `['lunch']`, igual que `tabule`.
-- **`mutabal`**: lleva sésamo (tahini). No lleva aceite, y su frase no lo nombra.
-- **`datiles`**: postre de la familia árabe en desayuno, comida y cena. Una ración de 30 g
-  son 3–4 dátiles (`gramsPerUnit` 8) y 85 kcal.
-- **El tradicional español**: `ensalada-de-zanahoria-marroqui`, `ensalada-de-remolacha`,
-  `cuscus` y `datiles` no llevan ninguna fila de `0077`. Lo que los aparta es la familia del
-  plato.
+- **What goes in**:
+  - couscous, which in Morocco is eaten at midday;
+  - mutabal (roasted aubergine with tahini) in summer;
+  - two all-year salads, carrot and beetroot, so the Arab table is not left with `hummus` and
+    `ensalada-verde` from October to May;
+  - dates as a dessert.
+- **`cuscus`**: it is of the grains group. The Arab table allows it at lunch only
+  (`Cuisine.ts:233`), and the entry declares `['lunch']`, like `tabule`.
+- **`mutabal`**: it carries sesame (tahini). It carries no oil, and its phrase does not name
+  any.
+- **`datiles`**: an Arab-family dessert at breakfast, lunch and dinner. A 30 g portion is 3–4
+  dates (`gramsPerUnit` 8) and 85 kcal.
+- **Traditional Spanish**: `ensalada-de-zanahoria-marroqui`, `ensalada-de-remolacha`, `cuscus`
+  and `datiles` carry no row from `0077`. What keeps them away is the dish's family.
 
-| Clave | Papel | Familias | Comidas | Meses | Ración | kcal | P | HC | G | Fibra | Alérgenos | Clases |
+| Key | Role | Families | Meals | Months | Portion | kcal | P | C | F | Fibre | Allergens | Classes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `cuscus` | starch | arab | C | todo el año | 50.5 g | 188 | 6.4 | 38.7 | 0.3 | 2.5 | gluten | — |
-| `mutabal` | vegetable | arab | C Ce | 6, 7, 8, 9, 10 | 167.5 g | 101.4 | 3.4 | 12.1 | 5.7 | 5.6 | sesame | — |
-| `ensalada-de-zanahoria-marroqui` | vegetable | arab | C Ce | todo el año | 141 g | 100 | 1.4 | 13 | 5.4 | 3.9 | — | — |
-| `ensalada-de-remolacha` | vegetable | arab | C Ce | todo el año | 136 g | 102.1 | 2.3 | 13 | 5.4 | 2.8 | — | — |
-| `datiles` | dessert | arab | D C Ce | todo el año | 30 g | 84.6 | 0.8 | 22.5 | 0.1 | 2.4 | — | — |
+| `cuscus` | starch | arab | C | all year | 50.5 g | 188 | 6.4 | 38.7 | 0.3 | 2.5 | gluten | — |
+| `mutabal` | vegetable | arab | L D | 6, 7, 8, 9, 10 | 167.5 g | 101.4 | 3.4 | 12.1 | 5.7 | 5.6 | sesame | — |
+| `ensalada-de-zanahoria-marroqui` | vegetable | arab | L D | all year | 141 g | 100 | 1.4 | 13 | 5.4 | 3.9 | — | — |
+| `ensalada-de-remolacha` | vegetable | arab | L D | all year | 136 g | 102.1 | 2.3 | 13 | 5.4 | 2.8 | — | — |
+| `datiles` | dessert | arab | B L D | all year | 30 g | 84.6 | 0.8 | 22.5 | 0.1 | 2.4 | — | — |
 
 `ACCOMPANIMENTS`:
 
@@ -1040,7 +1037,7 @@ Notas por entrada:
   },
 ```
 
-`meal.accompanimentNames` (web, `es-ES` y `en-GB`):
+`meal.accompanimentNames` (web, `es-ES` and `en-GB`):
 
 ```ts
 // es-ES
@@ -1056,32 +1053,32 @@ Notas por entrada:
       'ensalada-de-remolacha': 'beetroot salad',
       datiles: 'dates ({grams})',
 ```
-### 5. Postres para todas las familias (6)
+### 5. Desserts for every family (6)
 
-Por decisión del lead, ninguna entrada es solo de desayuno. Estas seis llevan desayuno
-entre sus comidas porque son realistas también en comida y cena, como la fruta y el yogur
-de hoy. Pero las que se verán son las de comida y cena.
+By the lead's decision, no entry is breakfast-only. These six carry breakfast among their
+meals because they are realistic at lunch and dinner too, like today's fruit and yoghurt. But
+the ones that will be seen are the lunch and dinner ones.
 
-- **Las cuatro frutas** llenan los meses más flojos:
-  - el níspero (4–5), la cereza (5–7) y el albaricoque (5–8) entran en primavera. En abril
-    hoy solo hay 7 postres en la mesa española.
-  - la granada (10–11) entra en otoño.
-  - Las cuatro ya están en el conjunto `FRUIT` de `Accompaniment.ts:399`, así que el filtro
-    "fruta junto a fruta" ya las conoce.
-- **`yogur-con-miel`** lleva leche. La miel tiene la clase `animal`, así que un vegano no
-  lo recibe. Kosher no lo pone junto a carne (`setsBeside`).
-- **`macedonia`** lleva naranja, manzana y plátano. Sus meses son el cruce de los de la
-  naranja y la manzana.
+- **The four fruits** fill the thinnest months:
+  - the loquat (4–5), the cherry (5–7) and the apricot (5–8) come in in spring. In April there
+    are only 7 desserts on the Spanish table today.
+  - the pomegranate (10–11) comes in in autumn.
+  - All four are already in the `FRUIT` set of `Accompaniment.ts:399`, so the "fruit beside
+    fruit" filter already knows them.
+- **`yogur-con-miel`** carries milk. Honey has the `animal` class, so a vegan does not receive
+  it. Kosher does not put it beside meat (`setsBeside`).
+- **`macedonia`** carries orange, apple and banana. Its months are the intersection of the
+  orange's and the apple's.
 
 
-| Clave | Papel | Familias | Comidas | Meses | Ración | kcal | P | HC | G | Fibra | Alérgenos | Clases |
+| Key | Role | Families | Meals | Months | Portion | kcal | P | C | F | Fibre | Allergens | Classes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `yogur-con-miel` | dessert | todas | D C Ce | todo el año | 135 g | 100.4 | 7.2 | 17.9 | 0.3 | 0 | lactose, milk | animal |
-| `macedonia` | dessert | todas | D C Ce | 11, 12, 1, 2, 3 | 180 g | 107.4 | 1.3 | 26.7 | 0.3 | 4.4 | — | — |
-| `nispero` | dessert | todas | D C Ce | catálogo | 150 g | 70.5 | 0.6 | 18.2 | 0.3 | 2.6 | — | — |
-| `cereza` | dessert | todas | D C Ce | catálogo | 150 g | 94.5 | 1.7 | 24 | 0.3 | 3.2 | — | — |
-| `albaricoque` | dessert | todas | D C Ce | catálogo | 140 g | 67.2 | 2 | 15.5 | 0.6 | 2.8 | — | — |
-| `granada` | dessert | todas | D C Ce | catálogo | 150 g | 124.5 | 2.6 | 28.1 | 1.8 | 6 | — | — |
+| `yogur-con-miel` | dessert | every family | B L D | all year | 135 g | 100.4 | 7.2 | 17.9 | 0.3 | 0 | lactose, milk | animal |
+| `macedonia` | dessert | every family | B L D | 11, 12, 1, 2, 3 | 180 g | 107.4 | 1.3 | 26.7 | 0.3 | 4.4 | — | — |
+| `nispero` | dessert | every family | B L D | catálogo | 150 g | 70.5 | 0.6 | 18.2 | 0.3 | 2.6 | — | — |
+| `cereza` | dessert | every family | B L D | catálogo | 150 g | 94.5 | 1.7 | 24 | 0.3 | 3.2 | — | — |
+| `albaricoque` | dessert | every family | B L D | catálogo | 140 g | 67.2 | 2 | 15.5 | 0.6 | 2.8 | — | — |
+| `granada` | dessert | every family | B L D | catálogo | 150 g | 124.5 | 2.6 | 28.1 | 1.8 | 6 | — | — |
 
 `ACCOMPANIMENTS`:
 
@@ -1128,7 +1125,7 @@ de hoy. Pero las que se verán son las de comida y cena.
   },
 ```
 
-`meal.accompanimentNames` (web, `es-ES` y `en-GB`):
+`meal.accompanimentNames` (web, `es-ES` and `en-GB`):
 
 ```ts
 // es-ES
@@ -1146,268 +1143,263 @@ de hoy. Pero las que se verán son las de comida y cena.
       albaricoque: 'apricots ({grams})',
       granada: 'pomegranate seeds ({grams})',
 ```
-### 6. El lote entero
+### 6. The whole batch
 
-| | Almidón | Verdura | Postre | Total |
+| | Starch | Vegetable | Dessert | Total |
 |---|---|---|---|---|
-| Española (con "otras"; 3 también italianas) | 4 | 17 | 0 | 21 |
-| Asiática | 1 | 3 | 0 | 4 |
-| Mexicana y latina | 3 | 3 | 0 | 6 |
-| Árabe y magrebí | 1 | 3 | 1 | 5 |
-| Todas las familias | 0 | 0 | 6 | 6 |
+| Spanish (with "other"; 3 also Italian) | 4 | 17 | 0 | 21 |
+| Asian | 1 | 3 | 0 | 4 |
+| Mexican and Latin American | 3 | 3 | 0 | 6 |
+| Arab and Maghrebi | 1 | 3 | 1 | 5 |
+| Every family | 0 | 0 | 6 | 6 |
 | **Total** | **9** | **26** | **7** | **42** |
 
-Por comidas:
-- 32 son de comida y cena;
-- 9 de desayuno, comida y cena (pan, fruta, yogur, dátiles), que se sirven en comida y cena;
-- 1 solo de comida (`cuscus`);
-- ninguna solo de desayuno.
+By meal:
+- 32 are lunch and dinner;
+- 9 are breakfast, lunch and dinner (bread, fruit, yoghurt, dates), served at lunch and dinner;
+- 1 is lunch only (`cuscus`);
+- none is breakfast-only.
 
-Por tipo: 32 compuestas, 6 simples y 4 frutas.
+By kind: 32 composed, 6 simple and 4 fruit.
 
-La lista para aceptar o rechazar. El número entre paréntesis remite a la condición del
-veredicto.
+The list to accept or reject. The number in brackets refers to the verdict's condition.
 
 
-| # | Clave | Familia | Papel | Comidas | Meses | kcal | Alérgenos | Recomendación |
+| # | Key | Family | Role | Meals | Months | kcal | Allergens | Recommendation |
 |---|---|---|---|---|---|---|---|---|
-| 1 | `crema-de-calabacin` | española | vegetable | C Ce | 5, 6, 7, 8, 9 | 102.7 | — | aceptar |
-| 2 | `crema-de-calabaza` | española | vegetable | C Ce | 9, 10, 11, 12, 1, 2, 3 | 137.6 | — | aceptar |
-| 3 | `crema-de-puerros` | española | vegetable | C Ce | todo el año | 187 | — | aceptar |
-| 4 | `caldo-de-pollo` | española | vegetable | C Ce | 10, 11, 12, 1, 2, 3, 4 | 15 | — | condicional: apio (5) |
-| 5 | `caldo-de-verduras` | española | vegetable | C Ce | 10, 11, 12, 1, 2, 3, 4 | 15 | — | condicional: apio (5) |
-| 6 | `pimientos-asados` | española | vegetable | C Ce | 7, 8, 9, 10 | 86.2 | — | aceptar |
-| 7 | `menestra-de-verduras` | española | vegetable | C Ce | todo el año | 116.7 | — | aceptar |
-| 8 | `champinones-al-ajillo` | española | vegetable | C Ce | todo el año | 84.2 | — | aceptar |
-| 9 | `tomate-alinado` | española + italiana | vegetable | C Ce | 6, 7, 8, 9 | 79.2 | — | aceptar |
-| 10 | `escalivada` | española | vegetable | C Ce | 7, 8, 9, 10 | 106 | — | aceptar |
-| 11 | `espinacas-a-la-catalana` | española | vegetable | C Ce | 10, 11, 12, 1, 2, 3, 4, 5, 6 | 145.4 | tree_nuts | aceptar; choca con la respuesta 7 (4) |
-| 12 | `acelgas-rehogadas` | española | vegetable | C Ce | 8, 9, 10, 11, 12, 1, 2, 3, 4, 5 | 88.1 | — | aceptar |
-| 13 | `coliflor-al-ajoarriero` | española | vegetable | C Ce | 9, 10, 11, 12, 1, 2, 3, 4 | 89.6 | — | aceptar |
-| 14 | `alcachofas-a-la-plancha` | española + italiana | vegetable | C Ce | 12, 1, 2, 3, 4, 5 | 116.2 | — | aceptar |
-| 15 | `esparragos-trigueros-a-la-plancha` | española + italiana | vegetable | C Ce | 3, 4, 5, 6, 9 | 74.2 | — | aceptar |
-| 16 | `zanahorias-alinadas` | española | vegetable | C Ce | todo el año | 100.5 | — | aceptar |
-| 17 | `patata-cocida` | española | starch | C Ce | todo el año | 160.4 | — | aceptar |
-| 18 | `pure-de-patata` | española | starch | C Ce | todo el año | 179.7 | lactose, milk | aceptar |
-| 19 | `salmorejo` | española | vegetable | C Ce | 6, 7, 8, 9 | 214.4 | gluten | aceptar |
-| 20 | `picos-de-pan` | española | starch | D C Ce | todo el año | 79.8 / 119.7 | gluten | condicional: fila BEDCA (3) |
-| 21 | `pan-con-tomate` | española | starch | D C Ce | todo el año | 204.4 | gluten | aceptar |
-| 22 | `arroz-jazmin` | asian | starch | C Ce | todo el año | 182.5 | — | aceptar |
-| 23 | `edamame` | asian | vegetable | C Ce | todo el año | 109 | soy | aceptar |
-| 24 | `espinacas-con-sesamo` | asian | vegetable | C Ce | 10, 11, 12, 1, 2, 3, 4, 5, 6 | 65.8 | gluten, sesame, soy | aceptar |
-| 25 | `kimchi` | asian | vegetable | C Ce | todo el año | 9 | crustaceans (trazas), fish (trazas) | aceptar |
-| 26 | `yuca-con-mojo` | latin | starch | C Ce | todo el año | 240.7 | — | aceptar |
-| 27 | `platano-macho-al-horno` | latin | starch | C Ce | todo el año | 226.6 | — | aceptar |
-| 28 | `elote` | latin | starch | C Ce | 7, 8, 9 | 132.1 | — | aceptar |
-| 29 | `guacamole` | latin | vegetable | C Ce | todo el año | 94.2 | — | aceptar |
-| 30 | `curtido` | latin | vegetable | C Ce | 9, 10, 11, 12, 1, 2, 3 | 46.7 | — | aceptar |
-| 31 | `ensalada-de-aguacate` | latin | vegetable | C Ce | 11, 12, 1, 2, 3, 4 | 118.2 | — | aceptar |
-| 32 | `cuscus` | arab | starch | C | todo el año | 188 | gluten | aceptar |
-| 33 | `mutabal` | arab | vegetable | C Ce | 6, 7, 8, 9, 10 | 101.4 | sesame | aceptar |
-| 34 | `ensalada-de-zanahoria-marroqui` | arab | vegetable | C Ce | todo el año | 100 | — | aceptar |
-| 35 | `ensalada-de-remolacha` | arab | vegetable | C Ce | todo el año | 102.1 | — | aceptar |
-| 36 | `datiles` | arab | dessert | D C Ce | todo el año | 84.6 | — | aceptar |
-| 37 | `yogur-con-miel` | todas | dessert | D C Ce | todo el año | 100.4 | lactose, milk | aceptar |
-| 38 | `macedonia` | todas | dessert | D C Ce | 11, 12, 1, 2, 3 | 107.4 | — | aceptar |
-| 39 | `nispero` | todas | dessert | D C Ce | 4, 5 (catálogo) | 70.5 | — | aceptar |
-| 40 | `cereza` | todas | dessert | D C Ce | 5, 6, 7 (catálogo) | 94.5 | — | aceptar |
-| 41 | `albaricoque` | todas | dessert | D C Ce | 5, 6, 7, 8 (catálogo) | 67.2 | — | aceptar |
-| 42 | `granada` | todas | dessert | D C Ce | 10, 11 (catálogo) | 124.5 | — | aceptar |
+| 1 | `crema-de-calabacin` | Spanish | vegetable | L D | 5, 6, 7, 8, 9 | 102.7 | — | accept |
+| 2 | `crema-de-calabaza` | Spanish | vegetable | L D | 9, 10, 11, 12, 1, 2, 3 | 137.6 | — | accept |
+| 3 | `crema-de-puerros` | Spanish | vegetable | L D | all year | 187 | — | accept |
+| 4 | `caldo-de-pollo` | Spanish | vegetable | L D | 10, 11, 12, 1, 2, 3, 4 | 15 | — | conditional: celery (5) |
+| 5 | `caldo-de-verduras` | Spanish | vegetable | L D | 10, 11, 12, 1, 2, 3, 4 | 15 | — | conditional: celery (5) |
+| 6 | `pimientos-asados` | Spanish | vegetable | L D | 7, 8, 9, 10 | 86.2 | — | accept |
+| 7 | `menestra-de-verduras` | Spanish | vegetable | L D | all year | 116.7 | — | accept |
+| 8 | `champinones-al-ajillo` | Spanish | vegetable | L D | all year | 84.2 | — | accept |
+| 9 | `tomate-alinado` | española + italiana | vegetable | L D | 6, 7, 8, 9 | 79.2 | — | accept |
+| 10 | `escalivada` | Spanish | vegetable | L D | 7, 8, 9, 10 | 106 | — | accept |
+| 11 | `espinacas-a-la-catalana` | Spanish | vegetable | L D | 10, 11, 12, 1, 2, 3, 4, 5, 6 | 145.4 | tree_nuts | accept; it clashes with answer 7 (4) |
+| 12 | `acelgas-rehogadas` | Spanish | vegetable | L D | 8, 9, 10, 11, 12, 1, 2, 3, 4, 5 | 88.1 | — | accept |
+| 13 | `coliflor-al-ajoarriero` | Spanish | vegetable | L D | 9, 10, 11, 12, 1, 2, 3, 4 | 89.6 | — | accept |
+| 14 | `alcachofas-a-la-plancha` | española + italiana | vegetable | L D | 12, 1, 2, 3, 4, 5 | 116.2 | — | accept |
+| 15 | `esparragos-trigueros-a-la-plancha` | española + italiana | vegetable | L D | 3, 4, 5, 6, 9 | 74.2 | — | accept |
+| 16 | `zanahorias-alinadas` | Spanish | vegetable | L D | all year | 100.5 | — | accept |
+| 17 | `patata-cocida` | Spanish | starch | L D | all year | 160.4 | — | accept |
+| 18 | `pure-de-patata` | Spanish | starch | L D | all year | 179.7 | lactose, milk | accept |
+| 19 | `salmorejo` | Spanish | vegetable | L D | 6, 7, 8, 9 | 214.4 | gluten | accept |
+| 20 | `picos-de-pan` | Spanish | starch | B L D | all year | 79.8 / 119.7 | gluten | conditional: the BEDCA row (3) |
+| 21 | `pan-con-tomate` | Spanish | starch | B L D | all year | 204.4 | gluten | accept |
+| 22 | `arroz-jazmin` | asian | starch | L D | all year | 182.5 | — | accept |
+| 23 | `edamame` | asian | vegetable | L D | all year | 109 | soy | accept |
+| 24 | `espinacas-con-sesamo` | asian | vegetable | L D | 10, 11, 12, 1, 2, 3, 4, 5, 6 | 65.8 | gluten, sesame, soy | accept |
+| 25 | `kimchi` | asian | vegetable | L D | all year | 9 | crustaceans (trazas), fish (trazas) | accept |
+| 26 | `yuca-con-mojo` | latin | starch | L D | all year | 240.7 | — | accept |
+| 27 | `platano-macho-al-horno` | latin | starch | L D | all year | 226.6 | — | accept |
+| 28 | `elote` | latin | starch | L D | 7, 8, 9 | 132.1 | — | accept |
+| 29 | `guacamole` | latin | vegetable | L D | all year | 94.2 | — | accept |
+| 30 | `curtido` | latin | vegetable | L D | 9, 10, 11, 12, 1, 2, 3 | 46.7 | — | accept |
+| 31 | `ensalada-de-aguacate` | latin | vegetable | L D | 11, 12, 1, 2, 3, 4 | 118.2 | — | accept |
+| 32 | `cuscus` | arab | starch | C | all year | 188 | gluten | accept |
+| 33 | `mutabal` | arab | vegetable | L D | 6, 7, 8, 9, 10 | 101.4 | sesame | accept |
+| 34 | `ensalada-de-zanahoria-marroqui` | arab | vegetable | L D | all year | 100 | — | accept |
+| 35 | `ensalada-de-remolacha` | arab | vegetable | L D | all year | 102.1 | — | accept |
+| 36 | `datiles` | arab | dessert | B L D | all year | 84.6 | — | accept |
+| 37 | `yogur-con-miel` | every family | dessert | B L D | all year | 100.4 | lactose, milk | accept |
+| 38 | `macedonia` | every family | dessert | B L D | 11, 12, 1, 2, 3 | 107.4 | — | accept |
+| 39 | `nispero` | every family | dessert | B L D | 4, 5 (catálogo) | 70.5 | — | accept |
+| 40 | `cereza` | every family | dessert | B L D | 5, 6, 7 (catálogo) | 94.5 | — | accept |
+| 41 | `albaricoque` | every family | dessert | B L D | 5, 6, 7, 8 (catálogo) | 67.2 | — | accept |
+| 42 | `granada` | every family | dessert | B L D | 10, 11 (catálogo) | 124.5 | — | accept |
 
-## Filas que faltan
+## Rows that are missing
 
-**Ningún slug falta en el catálogo.** Las 42 entradas usan 64 filas distintas, todas en el
-seed. Hay dos cambios de datos que no son altas, y por eso no encajan en el
-`INSERT … ON CONFLICT (slug) DO NOTHING` que describe la fase 2:
+**No slug is missing from the catalogue.** The 42 entries use 64 distinct rows, all of them in
+the seed. There are two data changes that are not insertions, and so do not fit the
+`INSERT … ON CONFLICT (slug) DO NOTHING` phase 2 describes:
 
-1. **Re-fuentear `picos-de-pan`** (hoy BEDCA: 399 kcal, 11 g de proteína, 73 g de
-   hidratos, 7 g de grasa y 3,5 g de fibra por 100 g). Propuesta:
+1. **Re-source `picos-de-pan`** (today BEDCA: 399 kcal, 11 g of protein, 73 g of carbohydrate,
+   7 g of fat and 3.5 g of fibre per 100 g). The proposal:
 
-   | Campo | Valor |
+   | Field | Value |
    |---|---|
    | FDC id | **174929** (SR Legacy) |
-   | Descripción | Bread, sticks, plain |
-   | Por 100 g | 412 kcal · 12,0 g proteína · 68,4 g hidratos · 9,5 g grasa · 3,0 g fibra (medido: API de FoodData Central, 2026-10-03) |
-   | Alérgenos | `gluten` (contiene). Propongo además `sesame` como trazas: es una **hipótesis**, porque muchos picos españoles avisan "puede contener sésamo". Hay que comprobarlo en dos o tres etiquetas antes de la migración |
-   | Efecto | La ración de 30 g pasa de 119,7 a 123,6 kcal. Cambian también los platos que ya usen la fila |
+   | Description | Bread, sticks, plain |
+   | Per 100 g | 412 kcal · 12.0 g protein · 68.4 g carbohydrate · 9.5 g fat · 3.0 g fibre (measured: the FoodData Central API, 2026-10-03) |
+   | Allergens | `gluten` (contains). I also propose `sesame` as traces: it is a **hypothesis**, because many Spanish breadsticks warn "may contain sesame". It has to be checked on two or three labels before the migration |
+   | Effect | The 30 g portion goes from 119.7 to 123.6 kcal. The dishes that already use the row change too |
 
-   Es un `UPDATE` de una fila de producción, y es una de las 14 filas BEDCA cuya
-   re-fuente está en cola (`000-workspace` LOG). Recomiendo hacerlo dentro de esa tarea, no
-   aquí, y dejar `picos-de-pan` fuera de este lote hasta entonces.
-2. **Declarar el apio en los caldos** (condición 5): añadir el enlace `celery` a
-   `caldo-de-pollo` y a `caldo-de-verduras`. Recomiendo `contains` y no `may_contain`. La
-   fila es genérica, y el apio suele ir en la lista de ingredientes del caldo de brick, no
-   solo en las trazas. Que siempre sea así es una **hipótesis**: hay que leer tres
-   etiquetas de supermercado. Es un alta en la tabla de enlaces de alérgenos y puede ir en
-   la migración revisada de la fase 2, con su `ON CONFLICT DO NOTHING`.
+   It is an `UPDATE` of a production row, and it is one of the 14 BEDCA rows whose re-sourcing
+   is queued (`000-workspace` LOG). I recommend doing it inside that task, not here, and
+   leaving `picos-de-pan` out of this batch until then.
+2. **Declare the celery in the broths** (condition 5): add the `celery` link to
+   `caldo-de-pollo` and `caldo-de-verduras`. I recommend `contains` rather than `may_contain`.
+   The row is generic, and celery is usually in a carton broth's ingredient list, not only in
+   the traces. That it always is, is a **hypothesis**: three supermarket labels have to be
+   read. It is an insertion into the allergen link table and it can go in phase 2's reviewed
+   migration, with its `ON CONFLICT DO NOTHING`.
 
-Si el lead acepta los caldos, **la fase 2 no se salta**, aunque no falte ningún slug.
+If the lead accepts the broths, **phase 2 is not skipped**, even though no slug is missing.
 
-## Comprobaciones
+## Checks
 
-Las hice con un script sobre el seed. No hubo base de datos ni modelo.
+I ran them with a script over the seed. There was no database and no model.
 
-| Comprobación | Resultado |
+| Check | Result |
 |---|---|
-| Cada slug está en el catálogo | 42 de 42 entradas; 64 de 64 filas |
-| Fuente de cada fila | todas `usda`, salvo `picos-de-pan` (`bedca`). Ninguna `manual` |
-| Las entradas españolas no llevan ninguna fila de `traditional_spanish` (`Preference.ts:98`) | 0 de 21 |
-| El aceite de la frase coincide con el de la ración, en los dos idiomas | 32 de 32 compuestas |
-| Los literales dan exactamente las entradas de las tablas | 42 de 42; las 32 compuestas según `isComposed` tienen nombre y preparación |
-| Ningún grupo de la tabla 2 deja una celda muerta (familia × comida declarada que el código nunca ofrecería) | ninguna |
-| Los meses declarados salen de las filas frescas | sí, salvo los caldos y `pan-con-tomate` (declarados, ver § Cómo está hecho el lote) |
+| Every slug is in the catalogue | 42 of 42 entries; 64 of 64 rows |
+| Each row's source | all `usda`, except `picos-de-pan` (`bedca`). None `manual` |
+| The Spanish entries carry no `traditional_spanish` row (`Preference.ts:98`) | 0 of 21 |
+| The oil in the phrase matches the one in the portion, in both languages | 32 of 32 composed |
+| The literals give exactly the entries in the tables | 42 of 42; the 32 composed by `isComposed` have a name and a preparation |
+| No group from table 2 leaves a dead cell (a family × declared meal the code would never offer) | none |
+| The declared months come from the fresh rows | yes, except the broths and `pan-con-tomate` (declared, see § How the batch is made) |
 
-## Requisitos
+## Requirements
 
-- **Código (fase 3)**:
-  - pegar las entradas aceptadas en `ACCOMPANIMENTS`, `COMPOSED_NAMES` y
-    `COMPOSED_PREPARATIONS`, ordenando las claves como pida el linter;
-  - pegar sus frases en `meal.accompanimentNames`, en `es-ES` y `en-GB`;
-  - corregir el comentario de `Accompaniment.ts:74–82` ("USDA rows only"), que ya hoy no es
-    cierto;
-  - las pruebas del PRD, criterio 5:
-    - leche: `pure-de-patata` y `yogur-con-miel`;
-    - gluten: `salmorejo`, `pan-con-tomate` y `cuscus`;
-    - frutos de cáscara en comida y cena: `espinacas-a-la-catalana`;
-    - "tradicional español nunca recibe uno extranjero": por `setsBeside`, con un plato de
-      esa familia, y al menos con `ensalada-de-zanahoria-marroqui` o `elote`, que no llevan
-      ninguna fila de `0077`;
-  - la cuenta de acompañamientos distintos por perfil y quincena en el evaluador.
-- **Datos (fase 2)**: los dos enlaces de apio, si se aceptan los caldos. `picos-de-pan`
-  espera a la tarea BEDCA.
-- **Infraestructura y dinero**: nada. 0 €. Ninguna llamada a un modelo. La medición va en
-  `pnpm db:local` con `NUTRIA_LOCAL_PG=1`, nunca en Neon.
-- **Decisiones del lead** (el owner las delegó el 2026-10-03):
-  - aceptar o rechazar cada entrada;
+- **Code (phase 3)**:
+  - paste the accepted entries into `ACCOMPANIMENTS`, `COMPOSED_NAMES` and
+    `COMPOSED_PREPARATIONS`, ordering the keys as the linter asks;
+  - paste their phrases into `meal.accompanimentNames`, in `es-ES` and `en-GB`;
+  - fix the comment at `Accompaniment.ts:74–82` ("USDA rows only"), which is already untrue
+    today;
+  - the PRD's tests, criterion 5:
+    - milk: `pure-de-patata` and `yogur-con-miel`;
+    - gluten: `salmorejo`, `pan-con-tomate` and `cuscus`;
+    - tree nuts at lunch and dinner: `espinacas-a-la-catalana`;
+    - "traditional Spanish never receives a foreign one": through `setsBeside`, with a dish of
+      that family, and at least with `ensalada-de-zanahoria-marroqui` or `elote`, which carry
+      no `0077` row;
+  - the count of distinct accompaniments per profile and fortnight in the evaluator.
+- **Data (phase 2)**: the two celery links, if the broths are accepted. `picos-de-pan` waits
+  for the BEDCA task.
+- **Infrastructure and money**: none. €0. No model call. The measurement runs on
+  `pnpm db:local` with `NUTRIA_LOCAL_PG=1`, never on Neon.
+- **The lead's decisions** (the owner delegated them on 2026-10-03):
+  - accept or reject each entry;
   - `picos-de-pan` (3);
   - `espinacas-a-la-catalana` (4);
-  - los caldos (5);
-  - qué hacer si el tiempo pasa de +10 % (§ Riesgos, punto 3).
-- **Tiempo del owner**: ninguno.
+  - the broths (5);
+  - what to do if the time passes +10% (§ Risks, point 3).
+- **The owner's time**: none.
 
-## Riesgos
+## Risks
 
-1. **Seguridad: apio sin declarar en los caldos.**
-   - **Probabilidad**: alta. El caldo de brick suele llevar apio (**hipótesis**, por
-     comprobar en etiquetas).
-   - **A quién afecta**: a una persona alérgica al apio, que recibiría un tazón de caldo
-     sin que nada lo pare.
-   - **Cómo se vería**: no se ve en el código. Solo en la etiqueta.
-   - **Cómo se deshace**: no aceptar los caldos, o añadir el enlace en la fase 2. El enlace
-     protege también a los platos que ya usan esas filas.
-2. **Seguridad: alérgenos nuevos en la mesa.**
-   - **Qué entra**:
-     - frutos de cáscara en comida y cena (`espinacas-a-la-catalana`);
-     - sésamo (`mutabal`, `espinacas-con-sesamo`);
-     - soja (`edamame`, `espinacas-con-sesamo`);
-     - gluten (`salmorejo`, `pan-con-tomate`, `cuscus`,
-       `espinacas-con-sesamo`, `picos-de-pan`);
-     - leche (`pure-de-patata`, `yogur-con-miel`);
-     - trazas de pescado y crustáceos (`kimchi`).
-   - **Quién lo para**: todo pasa por el mismo `dishSafety` que juzga los platos. El único
-     riesgo real es que una fila del catálogo tenga mal un enlace.
-   - **Revisé las filas usadas**: solo encontré el caso del apio. Los piñones van marcados
-     como frutos de cáscara, aunque el anexo II del Reglamento 1169/2011 no los nombra. Es
-     la opción prudente y la dejo así.
-3. **Tiempo de `schedulePlan`.**
-   - **Cuánto crecen los conjuntos**: `setsOf` forma el producto de los tres papeles, y
-     `rankedSets` valora cada conjunto por cada clave de caché (plato, comida, mes y
-     presupuesto del día). La tabla de abajo está medida por combinatoria sobre la lista,
-     contando raciones (un pan tiene dos) y sin los filtros de cada persona ni del plato.
-     Por eso es un techo.
-   - **Lo que no sé**: qué parte del tiempo de `schedulePlan` se va en valorar conjuntos
-     (**desconocido**).
-   - **Señal de parada**: más de +10 % frente al cierre de 017 en la primera medición de la
-     fase 3.
-   - **Remedio**:
-     - podar cada papel antes del producto, por ejemplo quedarse con las 4 raciones de
-       cada papel que mejor cierran el hueco por sí solas. Es un cambio del planificador y
-       lo decide el lead;
-     - o entrar el lote en dos tandas: primero las de temporada y después las de todo el
-       año.
-   - **Cómo se deshace**: quitar entradas.
-4. **Acompañamientos casi sin energía.**
-   - **Cuáles**: los caldos (15 kcal) y `kimchi` (9 kcal).
-   - **El problema**: casi no mueven el coste de un conjunto, así que "X + caldo" empata
-     casi con "X".
-   - **Qué puede pasar** (**hipótesis**): que ocupen puestos del top 6 como casi duplicados,
-     o que se añadan casi siempre porque salen gratis.
-   - **Cómo se vería**: en el evaluador, la frecuencia de cada clave.
-   - **Cómo se deshace**: quitarlos, o darles una ración mayor.
-5. **La variedad no sube.** Es la hipótesis de la condición 2.
-   - **Cómo se vería**: la nueva cuenta de distintos del evaluador.
-   - **Remedio**: un coste por repetir acompañamiento. El PRD deja fuera las "reglas
-     nuevas", así que lo decide el lead.
-6. **El orden de la tabla decide los empates.** Una entrada añadida al final pierde todos
-   los empates frente a las de hoy. Dónde se pegan las entradas cambia los planes. La fase 3
-   debe colocarlas a propósito, junto a las de su papel y su familia como hace el fichero,
-   y medir.
+1. **Safety: undeclared celery in the broths.**
+   - **Likelihood**: high. Carton broth usually carries celery (**hypothesis**, to be checked
+     on labels).
+   - **Who it affects**: somebody allergic to celery, who would receive a bowl of broth with
+     nothing stopping it.
+   - **How it would show**: it does not show in the code. Only on the label.
+   - **How to undo it**: do not accept the broths, or add the link in phase 2. The link also
+     protects the dishes that already use those rows.
+2. **Safety: new allergens on the table.**
+   - **What comes in**:
+     - tree nuts at lunch and dinner (`espinacas-a-la-catalana`);
+     - sesame (`mutabal`, `espinacas-con-sesamo`);
+     - soy (`edamame`, `espinacas-con-sesamo`);
+     - gluten (`salmorejo`, `pan-con-tomate`, `cuscus`, `espinacas-con-sesamo`,
+       `picos-de-pan`);
+     - milk (`pure-de-patata`, `yogur-con-miel`);
+     - traces of fish and crustaceans (`kimchi`).
+   - **Who stops it**: everything goes through the same `dishSafety` that judges the plates.
+     The only real risk is a catalogue row with a wrong link.
+   - **I reviewed the rows used**: I only found the celery case. Pine nuts are marked as tree
+     nuts, even though annex II of Regulation 1169/2011 does not name them. It is the cautious
+     option and I leave it that way.
+3. **`schedulePlan`'s time.**
+   - **How much the sets grow**: `setsOf` forms the product of the three roles, and
+     `rankedSets` prices every set per cache key (dish, meal, month and the day's budget). The
+     table below is measured by combinatorics over the list, counting portions (a bread has
+     two) and without each person's or the dish's filters. So it is a ceiling.
+   - **What I do not know**: what share of `schedulePlan`'s time goes on pricing sets
+     (**unknown**).
+   - **Signal to stop**: more than +10% against 017's closing figure on phase 3's first
+     measurement.
+   - **Remedy**:
+     - prune each role before the product, for instance keeping the 4 portions of each role
+       that best close the gap on their own. It is a scheduler change and the lead decides it;
+     - or bring the batch in in two rounds: the seasonal ones first and the all-year ones
+       after.
+   - **How to undo it**: remove entries.
+4. **Accompaniments with almost no energy.**
+   - **Which**: the broths (15 kcal) and `kimchi` (9 kcal).
+   - **The problem**: they barely move a set's cost, so "X + broth" nearly ties with "X".
+   - **What could happen** (**hypothesis**): that they take top-6 places as near duplicates,
+     or that they are added nearly always because they come free.
+   - **How it would show**: in the evaluator, each key's frequency.
+   - **How to undo it**: remove them, or give them a larger portion.
+5. **Variety does not rise.** It is condition 2's hypothesis.
+   - **How it would show**: the evaluator's new count of distinct ones.
+   - **Remedy**: a cost for repeating an accompaniment. The PRD rules out "new rules", so the
+     lead decides.
+6. **The table's order decides the ties.** An entry added at the end loses every tie against
+   today's. Where the entries are pasted changes the plans. Phase 3 must place them
+   deliberately, beside the ones of their role and family as the file does, and measure.
 
-| Familia | Comida | Conjuntos hoy (media de 12 meses) | Con el lote (media) | Factor | Máximo con el lote (mes: almidón/verdura/postre, frente a hoy) |
+| Family | Meal | Sets today (the mean of 12 months) | With the batch (mean) | Factor | Maximum with the batch (month: starch/vegetable/dessert, against today) |
 |---|---|---|---|---|---|
-| española | comida y cena | 410 | 2.666 | ×6,5 | 2.940 (noviembre: 13/13/14; hoy 8/3/11) |
-| italiana | comida y cena | 245 | 437 | ×1,8 | 648 (junio: 8/5/11; hoy 8/3/8) |
-| asiática | comida y cena | 343 | 847 | ×2,5 | 990 (noviembre: 10/5/14; hoy 9/2/11) |
-| latina | comida y cena | 411 | 980 | ×2,4 | 1.260 (noviembre: 13/5/14; hoy 11/2/11) |
-| árabe | comida | 485 | 1.083 | ×2,2 | 1.344 (julio: 11/7/13; hoy 10/4/9) |
-| árabe | cena | 469 | 953 | ×2,0 | 1.120 (julio: 9/7/13; hoy 9/4/9) |
+| Spanish | lunch and dinner | 410 | 2,666 | ×6.5 | 2,940 (November: 13/13/14; today 8/3/11) |
+| Italian | lunch and dinner | 245 | 437 | ×1.8 | 648 (June: 8/5/11; today 8/3/8) |
+| Asian | lunch and dinner | 343 | 847 | ×2.5 | 990 (November: 10/5/14; today 9/2/11) |
+| Latin American | lunch and dinner | 411 | 980 | ×2.4 | 1,260 (November: 13/5/14; today 11/2/11) |
+| Arab | lunch | 485 | 1,083 | ×2.2 | 1,344 (July: 11/7/13; today 10/4/9) |
+| Arab | dinner | 469 | 953 | ×2.0 | 1,120 (July: 9/7/13; today 9/4/9) |
 
-El 77 % de la biblioteca es española (947 de 1.229 platos, `0079`), así que la cifra que
-importa es la primera fila.
+77% of the library is Spanish (947 of 1,229 dishes, `0079`), so the figure that matters is the
+first row.
 
-## Coste y esfuerzo
+## Cost and effort
 
-Todo es **estimado**, con un agente opus a esfuerzo medio, como dice el plan.
+Everything is **estimated**, with an opus agent at medium effort, as the plan says.
 
-| Trabajo | Esfuerzo | De qué depende |
+| Work | Effort | What it depends on |
 |---|---|---|
-| Fase 2: dos enlaces de apio y su revisión | 1–2 h de agente | de que se acepten los caldos |
-| Fase 3: pegar, nombres, frases web, comentario | 1–2 h | del número de entradas aceptadas |
-| Fase 3: pruebas y cuenta de distintos en el evaluador | 2–3 h | — |
-| Fase 3: medir sin y con el flag en la biblioteca de referencia | 1–3 h | del tiempo de `schedulePlan`, que no conozco |
-| Si hay que podar por papel | +2–4 h, y una decisión del lead | de la primera medición |
-| Dinero | 0 € | — |
+| Phase 2: two celery links and their review | 1–2 agent-hours | whether the broths are accepted |
+| Phase 3: pasting, names, web phrases, the comment | 1–2 h | the number of entries accepted |
+| Phase 3: tests and the distinct count in the evaluator | 2–3 h | — |
+| Phase 3: measuring with and without the flag over the reference library | 1–3 h | `schedulePlan`'s time, which I do not know |
+| If roles have to be pruned | +2–4 h, and a decision from the lead | the first measurement |
+| Money | €0 | — |
 
 ## Plan
 
-Va en fases pequeñas para el `PLAN` de 018, como enmienda a sus fases 2 y 3.
+It goes in small phases for 018's `PLAN`, as an amendment to its phases 2 and 3.
 
-1. **Fase 2, solo si se aceptan los caldos.**
-   - **Qué**: la migración con los dos enlaces `celery` y el seed igual.
-   - **Éxito**: `pnpm db:local reset --reference`, `check-migrations`, y el visto bueno de
-     `migration-reviewer`.
-   - **Parada**: el revisor la rechaza.
-   - `picos-de-pan` no va aquí.
-2. **Fase 3a: medir el tiempo antes que nada.**
-   - **Qué**: pegar las entradas aceptadas y correr el evaluador sin y con el flag, con
-     `ms` por perfil.
-   - **Éxito**: dentro de +10 % del cierre de 017.
-   - **Parada**: si pasa de +10 %, no seguir. Llevar al lead la poda por papel o la entrada
-     en dos tandas.
-3. **Fase 3b: lo demás de la fase 3.**
-   - **Qué**: las pruebas, los nombres, las frases web y la cuenta de distintos.
-   - **Éxito**: el criterio 4 del PRD (196/196 días en banda, 0 alérgenos, 0 snack en
-     comida principal, y que suban los distintos).
-   - **Parada**: un día perdido, un alérgeno, o que los distintos no suban. En ese caso, va
-     al lead como regla de repetición.
-4. **Fuera de 018, a decidir.**
-   - Re-fuentear `picos-de-pan` con la tarea BEDCA.
+1. **Phase 2, only if the broths are accepted.**
+   - **What**: the migration with the two `celery` links and the seed to match.
+   - **Success**: `pnpm db:local reset --reference`, `check-migrations`, and
+     `migration-reviewer`'s approval.
+   - **Stop**: the reviewer rejects it.
+   - `picos-de-pan` does not go here.
+2. **Phase 3a: measure the time before anything else.**
+   - **What**: paste the accepted entries and run the evaluator with and without the flag,
+     with `ms` per profile.
+   - **Success**: within +10% of 017's closing figure.
+   - **Stop**: if it passes +10%, do not go on. Take the per-role pruning or the two-round
+     entry to the lead.
+3. **Phase 3b: the rest of phase 3.**
+   - **What**: the tests, the names, the web phrases and the distinct count.
+   - **Success**: the PRD's criterion 4 (196/196 days in band, 0 allergens, 0 snacks in a main
+     meal, and the distinct count rising).
+   - **Stop**: a day lost, an allergen, or the distinct count not rising. In that case it goes
+     to the lead as a repetition rule.
+4. **Outside 018, to be decided.**
+   - Re-source `picos-de-pan` with the BEDCA task.
 
-## Qué no sé
+## What I do not know
 
-- **Qué parte de `schedulePlan` es valorar conjuntos.** Solo lo dice la fase 3a.
-- **Si las 64 filas están también en la base de datos.** Las comprobé contra el seed. Si
-  una fila del seed aún no hubiera llegado a producción, `larderFor` descartaría la entrada
-  sin decir nada (`Accompaniment.ts:374`): es seguro, pero no se ve. La fase 3a, sobre la
-  biblioteca de referencia, lo confirma con datos reales.
-- **Si suben los acompañamientos distintos por quincena.** Es una hipótesis. Lo dice la
-  cuenta nueva del evaluador.
-- **Si los caldos de brick españoles llevan siempre apio, y si los picos llevan trazas de
-  sésamo.** Se resuelve leyendo tres etiquetas de cada uno.
-- **Cuántas comidas pasan de 700 kcal en cada perfil.** Solo esas reciben acompañamientos,
-  así que eso pone el techo de la variedad que se puede ver. El evaluador ya da el reparto
-  de 0–3 acompañamientos por comida.
-- **Si "Bread, sticks, plain" (FDC 174929) es un buen sustituto de los picos.** Las cifras
-  están cerca de las de BEDCA (412 frente a 399 kcal). La receta de los picos andaluces
-  lleva aceite y puede tener algo más de grasa. Lo decide quien re-fuentee las 14 filas.
+- **What share of `schedulePlan` is pricing sets.** Only phase 3a says.
+- **Whether the 64 rows are also in the database.** I checked them against the seed. If a seed
+  row had not yet reached production, `larderFor` would discard the entry silently
+  (`Accompaniment.ts:374`): it is safe, but invisible. Phase 3a, over the reference library,
+  confirms it with real data.
+- **Whether distinct accompaniments per fortnight rise.** It is a hypothesis. The evaluator's
+  new count says.
+- **Whether Spanish carton broths always carry celery, and whether breadsticks carry traces of
+  sesame.** It is settled by reading three labels of each.
+- **How many meals pass 700 kcal in each profile.** Only those receive accompaniments, so that
+  sets the ceiling on the variety that can be seen. The evaluator already gives the spread of
+  0–3 accompaniments per meal.
+- **Whether "Bread, sticks, plain" (FDC 174929) is a good substitute for breadsticks.** The
+  figures are close to BEDCA's (412 against 399 kcal). The Andalusian breadstick recipe carries
+  oil and may have a little more fat. Whoever re-sources the 14 rows decides.
 

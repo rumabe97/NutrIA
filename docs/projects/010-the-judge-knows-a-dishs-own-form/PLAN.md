@@ -18,7 +18,7 @@
 ## Design summary
 
 The architect's report
-[`0006`](../../reference/architecture/0006-afinar-el-juez-de-imagenes-2026-09-30.md)
+[`0006`](../../reference/architecture/0006-tuning-the-picture-judge-2026-09-30.md)
 is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
 [`0073`](../../decisions/0073-a-dishs-own-form-is-not-an-extra-food.md) amends `0066` and
 `0072`.

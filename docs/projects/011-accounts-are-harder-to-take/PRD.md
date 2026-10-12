@@ -4,7 +4,7 @@
 > The plan must cover everything in here; the intent gate checks it.
 > **Audience**: humans and agents. **Committed**: yes. **Written by**: an agent via
 > `/plan-project`, from the owner's request and decisions of 2026-10-01 and the architect's
-> report [`0007`](../../reference/architecture/0007-seguridad-de-cuentas-2026-10-01.md) —
+> report [`0007`](../../reference/architecture/0007-account-security-2026-10-01.md) —
 > approved by the owner before the plan is written.
 
 - **Status**: approved — by the owner, 2026-10-01

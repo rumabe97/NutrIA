@@ -4,7 +4,7 @@
 > The plan must cover everything in here; the intent gate checks it.
 > **Audience**: humans and agents. **Committed**: yes. **Written by**: an agent via
 > `/plan-project`, from the owner's brief of 2026-10-02 and the `architect` report
-> [`0008`](../../reference/architecture/0008-una-comida-a-la-espanola-2026-10-02.md);
+> [`0008`](../../reference/architecture/0008-a-spanish-style-meal-2026-10-02.md);
 > approved by the owner.
 > Write repo-relative: no absolute paths, no references to other private repos.
 

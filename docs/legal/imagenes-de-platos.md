@@ -12,7 +12,7 @@
 >
 > **Fecha de corte**: 2026-09-27. **Leído**: el PRD en borrador
 > `docs/projects/006-realistic-dish-pictures/PRD.md` (rama del lead, sin fusionar), el
-> informe [`0003`](../reference/architecture/0003-imagenes-de-platos-2026-09-26.md), el código
+> informe [`0003`](../reference/architecture/0003-dish-pictures-2026-09-26.md), el código
 > de `main` en `7b28c5d` y el de la rama del lead en `4d48a1a`
 > (`apps/web/src/app/(app)/plan/comida/[id]/page.tsx:124-136`,
 > `apps/web/src/components/NextMeal/NextMeal.tsx:56-62`,

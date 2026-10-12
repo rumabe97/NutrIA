@@ -74,7 +74,7 @@ rather than after the first euro.
 
 | Thing | Cost | Label |
 | --- | --- | --- |
-| One plan generation (the model call) | **0.007–0.017 $** | **confirmed** — [`architecture/0002`](../architecture/0002-que-modelo-para-generar-2026-09-25.md) § 4.2, DeepSeek V4 Flash 0731 on DeepInfra fp8 at 0.06/0.18 $ per M tokens, prices read from OpenRouter's API |
+| One plan generation (the model call) | **0.007–0.017 $** | **confirmed** — [`architecture/0002`](../architecture/0002-which-model-generates-the-dishes-2026-09-25.md) § 4.2, DeepSeek V4 Flash 0731 on DeepInfra fp8 at 0.06/0.18 $ per M tokens, prices read from OpenRouter's API |
 | One dish picture | **0.0337 $** | **confirmed** — `IMAGE_COST_FLOOR_USD`, Vertex at 1K ([`0066`](../../decisions/0066-photograph-like-dish-pictures-drawn-on-first-view.md)) |
 | Drawing the new dishes of one plan, as designed | **0.70–1.10 $** | **estimated** — project 006's PRD, for *every* new dish of a plan |
 | **Drawing them as lived: pictures per generation** | **7.1 pictures, 0.237 $** | **confirmed** — production, the 30 days to 2026-10-12: 19 plans generated, 134 pictures drawn, 4.51 $ spent (counted by the lead through the Neon MCP, read-only) |

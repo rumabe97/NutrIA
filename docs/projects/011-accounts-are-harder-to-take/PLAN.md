@@ -20,7 +20,7 @@
 ## Design summary
 
 The architect's report
-[`0007`](../../reference/architecture/0007-seguridad-de-cuentas-2026-10-01.md) is the
+[`0007`](../../reference/architecture/0007-account-security-2026-10-01.md) is the
 design. Read its §§ 3–6 before any phase; every file and line it cites was read on
 `09ed8323`. Decision
 [`0074`](../../decisions/0074-accounts-are-guarded-by-a-server-password-rule-and-an-optional-second-factor.md)

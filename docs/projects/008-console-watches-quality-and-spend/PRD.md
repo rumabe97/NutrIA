@@ -4,7 +4,7 @@
 > The plan must cover everything in here; the intent gate checks it.
 > **Audience**: humans and agents. **Committed**: yes. **Written by**: an agent via
 > `/plan-project`, from the owner's request and decisions of 2026-09-29 and the architect's
-> report [`0004`](../../reference/architecture/0004-consola-seguimiento-2026-09-29.md) —
+> report [`0004`](../../reference/architecture/0004-a-console-that-watches-2026-09-29.md) —
 > approved by the owner before the plan is written.
 
 - **Status**: delivered — closed by the owner, 2026-09-29

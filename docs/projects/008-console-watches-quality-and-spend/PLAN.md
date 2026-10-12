@@ -22,7 +22,7 @@
 Recorded in [`0071`](../../decisions/0071-the-service-records-what-leaves-no-row-and-the-console-watches-it.md),
 which extends `0033` (the event list) and `0068` (the console). The source for every
 file:line below is the architect's report
-[`0004`](../../reference/architecture/0004-consola-seguimiento-2026-09-29.md), and §
+[`0004`](../../reference/architecture/0004-a-console-that-watches-2026-09-29.md), and §
 numbers refer to it. Read it before any phase.
 
 - **What gets recorded:**

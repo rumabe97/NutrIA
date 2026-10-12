@@ -18,7 +18,7 @@ Half of this already exists and is switched off
 ([`0010`](../../decisions/0010-illustrate-recipes-not-photograph-them.md)): `RecipeIllustrator`
 draws a 960 px WebP, stores it as `bytea` in `recipe_images` and serves it at
 `/recipes/:id/image`, and the web shows it on the dashboard card and the meal page (#123).
-Report [`0003`](../../reference/architecture/0003-imagenes-de-platos-2026-09-26.md) found
+Report [`0003`](../../reference/architecture/0003-dish-pictures-2026-09-26.md) found
 what stops it from shipping as it is:
 
 - **Storage.** Neon's free plan holds 0.5 GB and blocks writes when it is full, so a growing

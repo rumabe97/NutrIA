@@ -16,7 +16,7 @@ things changed.
 - **The no-training rule** ([`0064`](./0064-generation-runs-on-paid-no-training-models-through-openrouter.md))
   now covers every model call. The illustrator's direct Google client cannot be restricted
   to endpoints that keep nothing.
-- **Report [`0003`](../reference/architecture/0003-imagenes-de-platos-2026-09-26.md)
+- **Report [`0003`](../reference/architecture/0003-dish-pictures-2026-09-26.md)
   measured the costs of the old design.**
   - Drawing every new dish per plan costs about 0.70–1.10 $, which is ~100× the plan's
     text.

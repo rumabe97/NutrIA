@@ -4,7 +4,7 @@
 > The plan must cover everything in here; the intent gate checks it.
 > **Audience**: humans and agents. **Committed**: yes. **Written by**: an agent via
 > `/plan-project`, from the owner's request and decisions of 2026-09-30 and the architect's
-> report [`0006`](../../reference/architecture/0006-afinar-el-juez-de-imagenes-2026-09-30.md) —
+> report [`0006`](../../reference/architecture/0006-tuning-the-picture-judge-2026-09-30.md) —
 > approved by the owner before the plan is written.
 
 - **Status**: done — delivered and closed 2026-10-09 (the owner decided phase 6's four questions that day)

@@ -4,7 +4,7 @@
 > The plan must cover everything in here; the intent gate checks it.
 > **Audience**: humans and agents. **Committed**: yes. **Written by**: an agent via
 > `/plan-project`, from the owner's request and decisions of 2026-09-30 and the architect's
-> report [`0005`](../../reference/architecture/0005-imagenes-fallidas-aviso-y-revision-a-mano-2026-09-30.md) —
+> report [`0005`](../../reference/architecture/0005-failed-pictures-the-alert-and-the-manual-review-2026-09-30.md) —
 > approved by the owner before the plan is written.
 
 - **Status**: done — closed 2026-10-08 (owner's request; audit in 000-workspace/closing-audit-2026-10-08.md)
