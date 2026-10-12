@@ -77,6 +77,8 @@ const columnTier = vi.fn<(userId: string) => Promise<'free' | 'premium'>>();
 
 vi.mock('#repositories/Care', () => ({ CareRepository: { coveredByOpenPractice: (u: string) => coveredByOpenPractice(u) } }));
 vi.mock('#repositories/User', () => ({ UserRepository: { tierOf: (u: string) => columnTier(u) } }));
+// Nothing stored means the numbers the code ships, which is what every case below assumes (`0097`).
+vi.mock('#repositories/Settings', () => ({ SettingsRepository: { allowances: () => Promise.resolve([]) } }));
 
 // Nobody in this file is away. The pause is its own suite; here it must not be
 // the reason a mark is refused, or these tests would pass for the wrong reason.

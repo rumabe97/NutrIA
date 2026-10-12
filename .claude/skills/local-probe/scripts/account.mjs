@@ -4,8 +4,9 @@
 // exactly the way apps/api/test/harness.ts does it — that file is the source of truth for
 // the payloads, so when a step changes there, it changes here.
 //
-// Usage: node account.mjs create <cookie-file> [--admin]
-//            prints the address it made; --admin also makes it an admin, for the console
+// Usage: node account.mjs create <cookie-file> [--admin] [--two-factor]
+//            prints the address it made; --admin also makes it an admin, for the console,
+//            and --two-factor turns on the second factor the console demands of one
 //        node account.mjs delete <cookie-file>     deletes it through the API
 //        node account.mjs link <professional-cookie-file> <client-cookie-file>
 //            makes the first account a professional with an open practice, and links the
@@ -39,6 +40,7 @@
 // account's deletion takes both.
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
+import { createHmac } from 'node:crypto';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
 import { assertNotProduction, isLocalPg, readEnv, ROOT } from './guard.mjs';
@@ -49,16 +51,57 @@ const PASSWORD = 'correct-horse-battery-staple-9';
 
 const args = process.argv.slice(2);
 const admin = args.includes('--admin');
-const [action, cookieFile, clientCookieFile] = args.filter(arg => arg !== '--admin');
+const twoFactor = args.includes('--two-factor');
+const [action, cookieFile, clientCookieFile] = args.filter(arg => arg !== '--admin' && arg !== '--two-factor');
 
 if (
   !['create', 'delete', 'link', 'compromise', 'age'].includes(action) ||
   !cookieFile ||
   (action === 'link' && !clientCookieFile) ||
-  (admin && action !== 'create')
+  ((admin || twoFactor) && action !== 'create')
 ) {
-  console.error('usage: node account.mjs create <cookie-file> [--admin] | delete <cookie-file> | link <professional-cookie-file> <client-cookie-file> | compromise <cookie-file> | age <cookie-file>');
+  console.error('usage: node account.mjs create <cookie-file> [--admin] [--two-factor] | delete <cookie-file> | link <professional-cookie-file> <client-cookie-file> | compromise <cookie-file> | age <cookie-file>');
   process.exit(2);
+}
+
+const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+/** The six digits a TOTP app would show for this URI now — the harness's own, so the two cannot drift. */
+function totpCode(totpURI) {
+  const secret = new URL(totpURI).searchParams.get('secret');
+
+  if (!secret) {
+    throw new Error('no secret in the TOTP URI');
+  }
+
+  let bits = 0;
+  let value = 0;
+  const bytes = [];
+
+  for (const char of secret.replace(/=+$/, '').toUpperCase()) {
+    const index = BASE32.indexOf(char);
+
+    if (index < 0) {
+      throw new Error(`not base32: ${char}`);
+    }
+
+    value = (value << 5) | index;
+    bits += 5;
+
+    if (bits >= 8) {
+      bytes.push((value >>> (bits - 8)) & 0xff);
+      bits -= 8;
+    }
+  }
+
+  const counter = Buffer.alloc(8);
+
+  counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30_000)));
+
+  const digest = createHmac('sha1', Buffer.from(bytes)).update(counter).digest();
+  const offset = (digest[digest.length - 1] ?? 0) & 0x0f;
+
+  return String((digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).padStart(6, '0');
 }
 
 async function call(method, path, body, cookie) {
@@ -75,7 +118,7 @@ async function call(method, path, body, cookie) {
   return response;
 }
 
-assertNotProduction({ strict: action === 'link' || action === 'compromise' || action === 'age' || admin });
+assertNotProduction({ strict: action === 'link' || action === 'compromise' || action === 'age' || admin || twoFactor });
 
 // `core` reads the database from the environment, the same one the local API was given —
 // and only that one: the guard above checked apps/api/.env, so a DATABASE_URL already
@@ -228,6 +271,22 @@ if (admin) {
   }
 
   console.log(`[probe] ${email} is an admin until it is deleted`);
+}
+
+if (twoFactor) {
+  // The console refuses an admin without it (`0074`): it shows data from every
+  // account, and a password alone does not open that. So every console screen
+  // is unreachable to a probe until this runs — the same two calls a person
+  // makes in Seguridad, never a row written by hand.
+  const started = await call('POST', '/auth/two-factor/enable', { password: PASSWORD }, cookie);
+  const { totpURI } = await started.json();
+  const confirmed = await call('POST', '/auth/two-factor/verify-totp', { code: totpCode(totpURI) }, cookie);
+  // Confirming rotates the session and closes the account's others, so the
+  // cookie written at sign-up is dead from here: the file has to carry the new one.
+  const rotated = confirmed.headers.getSetCookie().join('; ');
+
+  writeFileSync(cookieFile, rotated);
+  console.log(`[probe] ${email} has a second factor; its cookie file now holds the session that confirmed it`);
 }
 
 console.log(`[probe] account ready: ${email}`);

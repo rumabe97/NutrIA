@@ -105,6 +105,23 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
       return interpolate(t.settingChange, { key: settingLabel(data.key), state: data.enabled ? t.state.on : t.state.off });
     }
 
+    if (
+      row.action === 'setting.allowance_changed' &&
+      typeof data.name === 'string' &&
+      typeof data.tier === 'string' &&
+      typeof data.value === 'number'
+    ) {
+      // Which limit, for which tier, from what to what — and whether it was put
+      // back to the number the code ships, which deletes the row and would
+      // otherwise read as somebody pinning that figure (`0097`).
+      return interpolate(data.unset === true ? t.allowanceUnset : t.allowanceChange, {
+        from: typeof data.from === 'number' ? String(data.from) : '—',
+        name: data.name,
+        tier: tierLabel(data.tier),
+        value: String(data.value)
+      });
+    }
+
     if (row.action === 'auth.password_changed' && (data.via === 'change' || data.via === 'reset')) {
       return t.passwordVia[data.via];
     }

@@ -63,3 +63,22 @@ ul.rows {
 .row + .row {
   border-block-start: 1px solid var(--border-01);
 }
+
+/* Free beside premium on a desktop, stacked on a phone: two numbers for the same
+   limit. The breakpoint is written out rather than left to `auto-fit`, which the
+   rest of this console uses: a field here is a number box and a Save button on one
+   line, and that line cannot be narrower than 11rem — so when the grid is measured
+   at its minimum, `auto-fit` asks for both columns (23rem) where the row has 19,
+   and the overflow is clipped rather than scrolled. Two columns only once a row is
+   wide enough to hold them. */
+.tiers {
+  display: grid;
+  gap: var(--space-04);
+  margin-block-start: var(--space-02);
+}
+
+@media (width >= 30rem) {
+  .tiers {
+    grid-template-columns: 1fr 1fr;
+  }
+}

@@ -56,8 +56,15 @@ node $S/probe.mjs --paths /perfil --views phone --schemes light   # narrower, fa
 ```
 
 Each line is one page in one viewport and scheme: the status, where it landed if it was
-redirected, how far it scrolls sideways, and its `h1`. It exits 1 on a 4xx/5xx, on any
+redirected, how far it overflows sideways — scrolled **or clipped**, which is how a block
+wider than the screen cuts its own words off in silence — and its `h1`. It exits 1 on a 4xx/5xx, on any
 sideways scroll, or when the page throws.
+
+A console page can also 404 **intermittently** on a local run and mean nothing: the rate
+limiter cannot resolve a client IP off localhost (it warns about it in the API log), falls
+back to one shared bucket for everybody, and a 429 on `/api/v1/users/me` reaches the
+console as "not an admin", which is a 404 by design. Count the 429s in `api.log` before
+believing a page is broken.
 
 `hint:` lines are for you to judge, not to obey. A control under 44 px on a touch viewport
 may have its target elsewhere, and the probe already counts a wrapping `<label>` (a
@@ -103,11 +110,16 @@ stop and tell the lead, and the lead extends this script (owner, 2026-09-25).
 ### An admin (the console under `/admin`)
 
 ```bash
-node $S/account.mjs create "$PROBE_DIR/admin.txt" --admin
+node $S/account.mjs create "$PROBE_DIR/admin.txt" --admin --two-factor
 node $S/account.mjs create "$PROBE_DIR/cookie.txt"
 node $S/probe.mjs --paths /admin,/admin/ajustes --cookie-file "$PROBE_DIR/admin.txt"
 node $S/probe.mjs --paths /admin/ajustes --cookie-file "$PROBE_DIR/cookie.txt"   # the console's 404
 ```
+
+**`--two-factor` is not optional for the console.** It refuses an admin without a second
+factor (`0074`), so `--admin` alone reaches the same 404 as anybody else — which looks
+exactly like a broken page. The flag turns it on through the API with the e2e harness's
+own TOTP, and only for a `@probe.invalid` address.
 
 `--admin` makes the new account an admin through `UserController.grantAdmin`, the
 runbook's own statement, and only for the `@probe.invalid` address it just made. Like

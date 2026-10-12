@@ -43,14 +43,171 @@ export type Allowances = {
 
 const BY_TIER: Readonly<Record<Tier, Allowances>> = {
   free: { eventsPerPlan: 3, mealSwapsPerPlan: 5, midPlanEventsPerPlan: 0, planRedosPerFortnight: 1 },
-  premium: { eventsPerPlan: 10, mealSwapsPerPlan: 20, midPlanEventsPerPlan: 3, planRedosPerFortnight: 3 }
+  // Seven events and not ten: the eighth was never possible. A load is one to
+  // three days and two events may not share one, so a fortnight admits seven —
+  // `0044` named that rule as the bound and then wrote ten anyway. Nobody loses
+  // anything they could reach, and the table stops promising what it cannot
+  // give. Every other number here is what it has always been; moving those is a
+  // product decision, and the console is where it will be made (`0097`).
+  premium: { eventsPerPlan: 7, mealSwapsPerPlan: 20, midPlanEventsPerPlan: 3, planRedosPerFortnight: 3 }
+};
+
+export type AllowanceName = keyof Allowances;
+
+export const ALLOWANCE_NAMES = [
+  'eventsPerPlan',
+  'mealSwapsPerPlan',
+  'midPlanEventsPerPlan',
+  'planRedosPerFortnight'
+] as const satisfies readonly AllowanceName[];
+
+/**
+ * What kind of number this is, which decides who may move it (`0097`).
+ *
+ * - `commercial`: its worst case is that somebody pays for something they could
+ *   have had free, or has a thinner product than they chose. Move it freely.
+ * - `financial`: moving it spends money from a pot everybody shares — the
+ *   month's pictures, under one cap that stops drawing for **everyone** when it
+ *   is reached. Movable, never without the spend in front of whoever moves it.
+ * - `structural`: moving it up spends the promise that every day of every plan
+ *   lands inside 5% on all four macros. The console cannot know what a raise
+ *   costs, and the failure is not an error — it is a day delivered with an
+ *   advisory, for everybody on that tier, found later. **A structural limit's
+ *   ceiling is the number shipped in the code**, so the console may only lower
+ *   it; raising one is a measurement and a deploy, never a click.
+ */
+export type AllowanceKind = 'commercial' | 'financial' | 'structural';
+
+export type AllowanceLimits = {
+  /** The highest the console may set it. For a `structural` one this is the shipped default. */
+  readonly ceiling: number;
+  readonly floor: number;
+  readonly kind: AllowanceKind;
+  /**
+   * Why the ceiling is the ceiling, in one line.
+   *
+   * For whoever reads the code or the API, and **not** the sentence the console
+   * renders: that one is in the dictionaries, in the reader's language. Both say
+   * the same thing on purpose — a reason that lived only in the console could be
+   * changed without the number it justifies.
+   */
+  readonly why: string;
+};
+
+/**
+ * The bounds the console may not leave, and the reason for each (`0097`).
+ *
+ * Written here rather than in the console so the answer is the same whoever
+ * asks — the route that writes, the page that renders and the resolution that
+ * reads all take their bounds from this table. A ceiling with no reason beside
+ * it is how `0044` set ten events on a fortnight that admits seven: the reason
+ * is what a future change has to argue with.
+ */
+export const ALLOWANCE_BOUNDS: Readonly<Record<AllowanceName, AllowanceLimits>> = {
+  eventsPerPlan: {
+    ceiling: 7,
+    floor: 0,
+    kind: 'commercial',
+    why: 'Above seven has no effect: a load is one to three days and two events may not share one, so a fortnight holds seven at most.'
+  },
+  mealSwapsPerPlan: {
+    ceiling: 28,
+    floor: 0,
+    kind: 'commercial',
+    why: 'Twenty-eight is a fortnight’s lunches and dinners; past that a swap limit names nothing.'
+  },
+  midPlanEventsPerPlan: {
+    ceiling: 7,
+    floor: 0,
+    kind: 'commercial',
+    why: 'A fortnight cannot be rebuilt for more events than it holds, so this resolves against that tier’s own events as well.'
+  },
+  planRedosPerFortnight: {
+    ceiling: 6,
+    floor: 0,
+    kind: 'financial',
+    why: 'Six a fortnight is twelve a month: about 3–6 $ of pictures for one account, against a 10 $ month shared by everybody.'
+  }
 };
 
 /** The free tier, still named for the callers whose answer does not depend on a person. */
 export const ALLOWANCES = BY_TIER.free;
 
+/** One limit as the settings table stores it, before anything has been believed about it. */
+export type StoredAllowance = { readonly name: string; readonly tier: string; readonly value: number };
+
+/** Whether a stored number may be believed: a whole number, inside its own bounds. */
+function believable(name: AllowanceName, value: number): boolean {
+  const bounds = ALLOWANCE_BOUNDS[name];
+
+  return Number.isInteger(value) && value >= bounds.floor && value <= bounds.ceiling;
+}
+
 /**
- * What this tier allows.
+ * What each tier is really allowed, from what the console has stored (`0097`).
+ *
+ * **The order matters and is the whole of the correctness here**, so it is
+ * written as steps rather than left to the reading:
+ *
+ * 1. **Each number on its own.** A stored value is believed when it is a whole
+ *    number inside its bounds, and otherwise the code's default is used —
+ *    *not* the nearest bound. Missing, unreadable, fractional, below the floor
+ *    and above the ceiling all mean the same thing: nobody has validly moved
+ *    this, so it is what shipped. Clamping up instead would turn a typo into a
+ *    grant, and `0042`'s rule is that the fallback is always the smaller number.
+ *    A row naming a limit this version does not have is ignored.
+ * 2. **Premium is never below free.** Resolved on read and not only refused on
+ *    write, because a pair that was valid when it was written is invalidated by
+ *    raising free afterwards, and nobody would be there to see it.
+ * 3. **Then the pairs that depend on each other.** Mid-plan events cannot
+ *    exceed the events that tier may declare at all, against *that tier's* own
+ *    events.
+ *
+ * Steps 2 and 3 are taken **per tier, free first**, and that order is load
+ * bearing rather than tidy. Read against free's *unclamped* mid-plan number,
+ * step 2 would raise premium to a figure free itself never gets — and the
+ * write-time pair check compares against the clamped one, so it could not catch
+ * it: an admin lowering premium's mid-plan events would be answered 200, the
+ * trail would record the change, and premium would keep the old number. Free is
+ * resolved in full first, and premium is then held above *that*.
+ */
+export function resolveAllowances(stored: readonly StoredAllowance[] = []): Readonly<Record<Tier, Allowances>> {
+  const believed = new Map<string, number>();
+
+  for (const row of stored) {
+    const name = ALLOWANCE_NAMES.find(known => known === row.name);
+
+    if (name && (row.tier === 'free' || row.tier === 'premium') && believable(name, row.value)) {
+      believed.set(`${row.tier}:${name}`, row.value);
+    }
+  }
+
+  // 1
+  const of = (tier: Tier, name: AllowanceName): number => believed.get(`${tier}:${name}`) ?? BY_TIER[tier][name];
+  const free: Allowances = {
+    eventsPerPlan: of('free', 'eventsPerPlan'),
+    mealSwapsPerPlan: of('free', 'mealSwapsPerPlan'),
+    midPlanEventsPerPlan: of('free', 'midPlanEventsPerPlan'),
+    planRedosPerFortnight: of('free', 'planRedosPerFortnight')
+  };
+  // 3, for free
+  const freeFinal: Allowances = { ...free, midPlanEventsPerPlan: Math.min(free.midPlanEventsPerPlan, free.eventsPerPlan) };
+  // 2, against the free that actually applies
+  const premium: Allowances = {
+    eventsPerPlan: Math.max(of('premium', 'eventsPerPlan'), freeFinal.eventsPerPlan),
+    mealSwapsPerPlan: Math.max(of('premium', 'mealSwapsPerPlan'), freeFinal.mealSwapsPerPlan),
+    midPlanEventsPerPlan: Math.max(of('premium', 'midPlanEventsPerPlan'), freeFinal.midPlanEventsPerPlan),
+    planRedosPerFortnight: Math.max(of('premium', 'planRedosPerFortnight'), freeFinal.planRedosPerFortnight)
+  };
+
+  // 3, for premium. It cannot drop below free's: premium's events are already at
+  // least free's, and free's mid-plan is already at most free's events.
+  return { free: freeFinal, premium: { ...premium, midPlanEventsPerPlan: Math.min(premium.midPlanEventsPerPlan, premium.eventsPerPlan) } };
+}
+
+/**
+ * What this tier allows **as shipped** — the default, and the fallback when the
+ * console has stored nothing believable (`resolveAllowances`, `0097`).
  *
  * An unknown tier falls back to free rather than throwing. This is read on the
  * path that decides whether somebody may spend a model call, and the failure
@@ -92,9 +249,9 @@ export function planRedoStanding(
   active: { readonly endDate: string } | undefined,
   redosUsed: number,
   today: string,
-  tier: Tier = 'free'
+  limits: Allowances = ALLOWANCES
 ): PlanRedoStanding {
-  const limit = allowancesFor(tier).planRedosPerFortnight;
+  const limit = limits.planRedosPerFortnight;
 
   if (!active || active.endDate < today) {
     return { allowed: true, kind: 'new_fortnight', limit, nextAt: null, used: 0 };
@@ -105,8 +262,8 @@ export function planRedoStanding(
   return { allowed, kind: 'redo', limit, nextAt: allowed ? null : dayAfter(active.endDate), used: redosUsed };
 }
 
-export function mealSwapStanding(used: number, tier: Tier = 'free'): MealSwapStanding {
-  return countDown(used, allowancesFor(tier).mealSwapsPerPlan);
+export function mealSwapStanding(used: number, limits: Allowances = ALLOWANCES): MealSwapStanding {
+  return countDown(used, limits.mealSwapsPerPlan);
 }
 
 /**
@@ -116,8 +273,8 @@ export function mealSwapStanding(used: number, tier: Tier = 'free'): MealSwapSta
  * event belongs to the fortnight its loaded days fall in, and that is the unit
  * the person experiences.
  */
-export function eventStanding(used: number, tier: Tier = 'free'): CountedStanding {
-  return countDown(used, allowancesFor(tier).eventsPerPlan);
+export function eventStanding(used: number, limits: Allowances = ALLOWANCES): CountedStanding {
+  return countDown(used, limits.eventsPerPlan);
 }
 
 /**
@@ -129,8 +286,8 @@ export function eventStanding(used: number, tier: Tier = 'free'): CountedStandin
  * still answers `allowed: false` with `limit: 0` rather than being absent, so
  * the screen has one thing to read whichever tier is asking.
  */
-export function midPlanEventStanding(used: number, tier: Tier = 'free'): CountedStanding {
-  return countDown(used, allowancesFor(tier).midPlanEventsPerPlan);
+export function midPlanEventStanding(used: number, limits: Allowances = ALLOWANCES): CountedStanding {
+  return countDown(used, limits.midPlanEventsPerPlan);
 }
 
 function countDown(used: number, limit: number): CountedStanding {
