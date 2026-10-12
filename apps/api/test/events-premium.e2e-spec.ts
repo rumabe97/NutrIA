@@ -78,8 +78,14 @@ const GLUTEN_FREE_BREAKFASTS = [
   dish('Yogur solo', ['breakfast'], [{ grams: 300, slug: SEEDED.yogur }])
 ];
 
-/** The premium numbers, as `0044` decided them. Written out so a change to the domain is a change to this file too. */
-const EVENTS_PER_PLAN = 10;
+/**
+ * The premium numbers, as `0044` decided them and `0097` corrected one of them.
+ * Written out so a change to the domain is a change to this file too — which is
+ * how the correction below was caught: ten was never reachable, because a load
+ * is one to three days and two events may not share one, so a fortnight holds
+ * seven.
+ */
+const EVENTS_PER_PLAN = 7;
 const MID_PLAN_EVENTS_PER_PLAN = 3;
 
 describe('events on premium', () => {
@@ -170,7 +176,7 @@ describe('events on premium', () => {
     await app?.close();
   });
 
-  it('says a premium fortnight may hold ten events and rebuild three of them', async () => {
+  it('says a premium fortnight may hold seven events and rebuild three of them', async () => {
     const standing = await allowances(athlete);
 
     expect(standing.tier).toBe('premium');
@@ -371,7 +377,7 @@ describe('events on premium', () => {
     const untouched = dayOn(await activePlan(athlete), addDays(on, -1));
     const response: Response = await declare(athlete, { ...shape, daysBefore: 1, name: 'Series', on }).expect(201);
 
-    // Not a 429: the fortnight may still hold the event (three of ten stand),
+    // Not a 429: the fortnight may still hold the event (three of seven stand),
     // and the event applies at the next generation. Every "no" of the rebuild
     // is the same "no" — an empty list — and the day is as it was (`0044`).
     expect((response.body as AddedEventDto).rebuiltDates).toEqual([]);

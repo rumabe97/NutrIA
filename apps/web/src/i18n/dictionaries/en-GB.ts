@@ -2652,7 +2652,7 @@ export const enGB: Dictionary = {
     premiumMonthly: 'Monthly · {price} a month',
     premiumPastDue: 'The last payment could not be taken. Stripe will try again; update your card to keep premium.',
     premiumPitch:
-      'Three plan redos a fortnight instead of one, twenty meal swaps a plan instead of five, ten events a plan instead of three, and up to three events added once a plan has started.',
+      'Three plan redos a fortnight instead of one, twenty meal swaps a plan instead of five, seven events a plan instead of three, and up to three events added once a plan has started.',
     premiumRenews: 'You have premium. It renews on {date}.',
     premiumSafety: 'Food safety — allergies, intolerances and nutrients — is the same with premium and without it.',
     premiumTestMode: 'Test mode: nothing is really charged. Use the card 4242 4242 4242 4242, any future date and any CVC.',
