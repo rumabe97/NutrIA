@@ -743,6 +743,12 @@ function dayReuseCost(picks: readonly Pick[], dayIndex: number, placed: readonly
   return picks.reduce((sum, pick) => sum + reuseCost(pick.dish.slug, pick.slot, dayIndex, placed), 0);
 }
 
+/** One fixed recurring meal, as a day of the fortnight sees it: this dish, in this slot. */
+export type PinnedMeal = {
+  readonly slot: MealSlot;
+  readonly slug: string;
+};
+
 export type SchedulerInput = {
   /** Accompaniments, when the flag is on; absent, none (`AccompanimentOffer`). */
   readonly accompaniments?: AccompanimentOffer;
@@ -787,6 +793,22 @@ export type SchedulerInput = {
    * untouched Monday does. Empty for a generation, which starts with nothing.
    */
   readonly placed?: readonly Placement[];
+  /**
+   * A dish somebody has fixed to one slot of a day, by day index — *"every
+   * Friday dinner is tortilla de patata"*, expanded to the fortnight's days by
+   * the caller, so the scheduler never has to know what a weekday is.
+   *
+   * At most one per day by construction: a map keyed by day index cannot hold
+   * two, and two pins on a three-meal day would leave the search one dish and
+   * the portions, which `0045` measured as not enough to reach four macros.
+   *
+   * A pin **outranks** variety, the repeat rules and the kind caps: it is the
+   * person's own decision and it is why they asked. It does **not** outrank the
+   * hard bounds — the pool it is drawn from (which is already past the allergy
+   * gate), the slot the dish declares, and `fitsPlate` — and a pin that fails
+   * any of those is simply not honoured that day, which is `honouredPin`.
+   */
+  readonly pinned?: ReadonlyMap<number, PinnedMeal>;
   readonly pool: readonly CandidateDish[];
   /** Each slot's share of the day's protein when it is not its share of the energy (`proteinWeightsFor`, `0088`). */
   readonly proteinWeights?: ReadonlyMap<MealSlot, number>;
@@ -795,9 +817,61 @@ export type SchedulerInput = {
   readonly weights: ReadonlyMap<MealSlot, number>;
 };
 
+/**
+ * The dish a day's pin asks for, when the hard bounds allow it — otherwise
+ * nothing, and the day is built as though no rule existed (`0097`'s precedence:
+ * safety and the bounds refuse a rule, variety yields to it).
+ *
+ * The three bounds, and why each is a bound rather than a preference. **The
+ * pool**: it is what the allergy gate, the dislikes and the person's diet have
+ * already left, so a dish that is not in it is one they may not be served. **The
+ * slot**: a dish that does not declare this meal has no portion rule for it. And
+ * **`fitsPlate`**: a dish that cannot be sized inside `PLATE_LIMIT` and under
+ * the slot's gram ceiling is not a candidate for the slot for anybody (`0076`,
+ * `0078`), and forcing it would serve a plate the product refuses to serve.
+ */
+function honouredPin(
+  pin: PinnedMeal | undefined,
+  slot: MealSlot,
+  budget: SlotBudget,
+  pool: readonly CandidateDish[],
+  perServing: ReadonlyMap<string, PerServing>
+): CandidateDish | undefined {
+  if (!pin || pin.slot !== slot) {
+    return undefined;
+  }
+
+  const dish = pool.find(candidate => candidate.slug === pin.slug && candidate.slots.includes(slot));
+  const base = dish ? perServing.get(dish.slug) : undefined;
+
+  return dish && base && fitsPlate(base, budget, slot) ? dish : undefined;
+}
+
 /** What a given day is built to hit: its own targets if it eats for something, the plan's otherwise. */
 function targetsOn(input: SchedulerInput, dayIndex: number): NutritionTargets {
   return input.dayTargets?.get(dayIndex) ?? input.targets;
+}
+
+/**
+ * Which of the pool's dishes a person could fix to this slot of this day — the
+ * ones `honouredPin` would accept, asked before anybody writes a rule rather
+ * than discovered on the day it is not kept.
+ *
+ * It exists because the refusal has to be sayable in advance. A screen that
+ * offers every dish and then quietly serves something else once a fortnight is
+ * worse than one that never offered it, and a measurement that pins dishes the
+ * scheduler was always going to refuse measures nothing.
+ */
+export function pinnable(input: SchedulerInput, dayIndex: number, slot: MealSlot): readonly CandidateDish[] {
+  const budget = slotBudgets(input.weights, targetsOn(input, dayIndex), input.accompaniments !== undefined, input.proteinWeights).get(slot);
+
+  if (!budget) {
+    return [];
+  }
+
+  const perServing = perServingIndex(input.pool, input.catalogue);
+
+  return input.pool.filter(dish => honouredPin({ slot, slug: dish.slug }, slot, budget, input.pool, perServing) !== undefined);
 }
 
 export type SchedulerShortfall = {
@@ -854,10 +928,25 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
     const targets = targetsOn(input, dayIndex);
     const budgets = slotBudgets(input.weights, targets, input.accompaniments !== undefined, input.proteinWeights);
 
-    const picks: { base: PerServing; dish: CandidateDish; servings: number; slot: MealSlot; sortOrder: number }[] = [];
+    const picks: Pick[] = [];
 
     for (const [sortOrder, slot] of slots.entries()) {
       const budget = budgets.get(slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
+      const pinned = honouredPin(input.pinned?.get(dayIndex), slot, budget, input.pool, perServing);
+
+      // A pin is not a candidate that wins; it is the end of the choosing for
+      // this slot. Nothing below runs — not the variety gate, not the kind caps,
+      // not the floors' preference — because all three are rules a person's own
+      // decision outranks, and because a pinned dish that lost a tie-break would
+      // be a rule the product took money for and did not keep.
+      if (pinned) {
+        const base = perServing.get(pinned.slug) as PerServing;
+
+        picks.push({ base, dish: pinned, pinned: true, servings: servingsFor(base, budget, slot), slot, sortOrder });
+        placed.push({ dayIndex, dishSlug: pinned.slug, slot });
+        continue;
+      }
+
       const eligible = input.pool
         .filter(dish => dish.slots.includes(slot))
         .filter(dish => perServing.has(dish.slug))
@@ -1888,6 +1977,13 @@ type Pick = {
   readonly base: PerServing;
   readonly dish: CandidateDish;
   readonly servings: number;
+  /**
+   * This plate is a fixed recurring meal and its *dish* is the person's, not the
+   * scheduler's. Every pass that would swap a dish skips it; every pass that
+   * sizes one treats it like any other plate — the person asked for tortilla on
+   * Friday, not for 300 g of it.
+   */
+  readonly pinned?: true;
   /** What is beside the plate, once the day's search has chosen it; absent is nothing. Cleared whenever the dish changes. */
   readonly set?: AccompanimentSet;
   readonly slot: MealSlot;
@@ -2713,6 +2809,11 @@ function improveDay(
     const repeatsPriced = new Map<string, number>();
 
     for (const [index, pick] of current.entries()) {
+      // A fixed meal's dish is not this pass's to improve on.
+      if (pick.pinned) {
+        continue;
+      }
+
       // Everything already on the plate today except the one being replaced.
       const siblings = current
         .filter((_entry, position) => position !== index)
@@ -3048,7 +3149,10 @@ function spreadAcrossDays(
           const otherIndex = other.picks.findIndex(pick => pick.slot === mine.slot);
           const theirs = other.picks[otherIndex];
 
-          if (!theirs || theirs.dish.slug === mine.dish.slug) {
+          // Both ends: an exchange moves two dishes, so a fixed meal is neither
+          // given away nor taken. `resized` below spreads the pick it replaces,
+          // and a pinned one must never hand its flag to another dish.
+          if (!theirs || theirs.dish.slug === mine.dish.slug || mine.pinned || theirs.pinned) {
             continue;
           }
 
@@ -3225,6 +3329,10 @@ function repairOutOfBand(
       const screened: { readonly quick: number; readonly swapped: Pick[] }[] = [];
 
       for (const [index, pick] of day.picks.entries()) {
+        if (pick.pinned) {
+          continue;
+        }
+
         const budget = day.budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
         const placed = [
           ...others,
@@ -3411,7 +3519,7 @@ function repairToRule(
       const screened: { readonly quick: number; readonly swapped: Pick[] }[] = [];
 
       for (const [index, pick] of day.picks.entries()) {
-        if (!MAIN_SLOTS.has(pick.slot) || (goal === 'maximums' && !inBroken(pick))) {
+        if (pick.pinned || !MAIN_SLOTS.has(pick.slot) || (goal === 'maximums' && !inBroken(pick))) {
           continue;
         }
 
@@ -3757,6 +3865,11 @@ export function bandNeededExceptions(input: SchedulerInput, assignment: PlanAssi
   // Whether any dish `accepts` could take this meal and leave its day inside its bands.
   const couldChange = (day: BuiltDay, index: number, accepts: (dish: CandidateDish) => boolean): boolean => {
     const pick = day.picks[index] as Pick;
+
+    if (pick.pinned) {
+      return false;
+    }
+
     const budget = day.budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
     const rest = [
       ...everything.filter(placement => placement.dayIndex !== day.dayIndex),
@@ -3947,6 +4060,11 @@ function enforceDistinctDays(
     let bestCost = Number.POSITIVE_INFINITY;
 
     for (const [position, pick] of day.picks.entries()) {
+      // Two days may serve the same fixed meal: that is what weekly means.
+      if (pick.pinned) {
+        continue;
+      }
+
       const budget = day.budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
       const siblings = day.picks
         .filter((_entry, at) => at !== position)
