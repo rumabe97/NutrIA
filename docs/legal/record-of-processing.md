@@ -62,7 +62,7 @@
 > for data that were already on the row ([`analysis.md` § 4.1 quinquies](./analysis.md)).
 >
 > **I am not a lawyer.** The periods and recipients marked "pending" depend on decisions in
-> [`analysis.md` § 9](./analysis.md#9-risks-ranked-by-what-can-happen-to-a-real-person).
+> [`analysis.md` § 9](./analysis.md#9-risks-ordered-by-what-can-happen-to-a-real-person).
 
 **Controller**: {name}, {email} (the full details are in the legal notice). **DPO** (*DPD*):
 not appointed.

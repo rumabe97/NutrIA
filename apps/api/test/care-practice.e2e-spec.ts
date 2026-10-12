@@ -611,7 +611,7 @@ describe('care-practice', () => {
       expect(on.stripe.bought.at(-1)?.subscription_data?.trial_period_days).toBeUndefined();
     });
 
-    /** P1-1 (`docs/legal/checklist-activacion.md` § 1): the grant alone is not enough to pay for the practice either. */
+    /** P1-1 (`docs/legal/go-live-checklist.md` § 1): the grant alone is not enough to pay for the practice either. */
     it('refuses the practice checkout until the agreement is accepted — any other version refused too — and sells it once it is', async () => {
       const pro = await professional('agreement', false);
       await UserController.grantAdmin(pro.email);

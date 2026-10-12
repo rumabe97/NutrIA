@@ -46,7 +46,7 @@ even by hand (§ 2, P3).
 | --- | --- | --- | --- |
 | P1 | Today only an accepted image is stored | **confirmed** | `apps/api/src/modules/ai/services/DishPicture.service.ts:154-155` and `:251-259`: the only `store.put` is in `keep()`. A rejected attempt's bytes are lost on returning from `attempt()` (`:219-225`: only a note and a reason come out) |
 | P2 | The images with a candidate are those of `judge_allergen`, `judge_rejected` and `no_provenance` | **wrong**, on three counts | (a) **`judge_rejected` cannot happen**: `judgePicture` rejects only when `rejecting` is not empty, and then it always writes `extra_allergen:` (`packages/core/src/domain/DishPicture/judge.ts:496`, `:502`, `:511`); `reasonOfRejection` reads it as `judge_allergen` (`packages/core/src/entities/DishPicture/PictureReason.ts:66-68`). **Every image the judge rejects is rejected for an allergen.** (b) There is a fourth case with a drawn image: the judge fails (timeout, 5xx) after the drawing (`DishPicture.service.ts:213-217`, `:243-247`): an image with C2PA that nobody judged. (c) The row's reason is the **last** attempt's (`:159`): a `call_failed` row can hold an image the judge rejected on attempt 1 |
-| P3 | An image with no C2PA must never be acceptable | **confirmed** | Code: `DishPicture.service.ts:207-211` ("a file without its C2PA manifest is never kept"). Legal: the signed C2PA is the metadata layer of art. 50.2 and of measure 1.1.1 of the Code (`docs/legal/imagenes-de-platos.md` § 1.5, § 2.3.2), and the live policy says "the files also carry an invisible, machine-readable mark" (§ 4.2 b, "no variants […] so the last sentence is true"). Accepting a file with no manifest makes that sentence false. The "without C2PA" path legal contemplates (§ 2.3.3) requires writing IPTC, different wording and a lawyer: it is not a button |
+| P3 | An image with no C2PA must never be acceptable | **confirmed** | Code: `DishPicture.service.ts:207-211` ("a file without its C2PA manifest is never kept"). Legal: the signed C2PA is the metadata layer of art. 50.2 and of measure 1.1.1 of the Code (`docs/legal/dish-pictures.md` § 1.5, § 2.3.2), and the live policy says "the files also carry an invisible, machine-readable mark" (§ 4.2 b, "no variants […] so the last sentence is true"). Accepting a file with no manifest makes that sentence false. The "without C2PA" path legal contemplates (§ 2.3.3) requires writing IPTC, different wording and a lawyer: it is not a button |
 | P4 | Vercel Blob allows storing something non-public | **confirmed, with a nuance that decides the design** | Access is a property of the **store**, not of the file: "Private storage requires a private Blob store" (Vercel docs, *Private Storage*, 2026-09-15). The current store is public (`apps/api/src/modules/ai/clients/VercelBlobPictureStore.ts:35`). Private = a second store. The installed SDK (`@vercel/blob` 2.8.0) already brings `get()` with `access: 'private'`. Stores are unlimited on every plan (*Blob Pricing*, 2026-09-23) |
 | P5 | The cleanup fits in the 03:30 cron | **confirmed** | `apps/api/src/modules/recipes/controllers/Cron.controller.ts:72-90`: there is already a step before the sweep with its own budget (`WATCH_BUDGET_MS`, `:19`, `:76-79`). `del()` is free; `list()` is an advanced operation and is not needed (§ 4.2) |
 | P6 | The mail fits in `owner-alerts` with its claim | **confirmed** | `apps/api/src/modules/owner-alerts/services/OwnerAlerts.service.ts:163-183` (`deliver(kind, since, mail)`) and `packages/core/src/repositories/Analytics/AnalyticsRepository.ts:42-80` (an advisory lock + a check + an insert). A `picture-failed` claim from "an hour ago" gives "at most one an hour" with no new deduplication code |
@@ -153,7 +153,7 @@ Alternatives rejected:
 
 **What is kept.** One candidate per dish: **the last image with C2PA that the judge rejected** in
 a drawing that ended `failed`. It is held in memory during the drawing (≤ 227 KB, **measured** in
-the pilot, `docs/legal/imagenes-de-platos.md` § 2.1) and uploaded **only if the drawing ends
+the pilot, `docs/legal/dish-pictures.md` § 2.1) and uploaded **only if the drawing ends
 failed**: a drawing that ends accepted or given back leaves nothing. If the upload fails, the dish
 fails as it does today, with no candidate: it never changes the outcome.
 
@@ -174,7 +174,7 @@ follows the public one's shape:
 | Option | Who can read the file | Verdict |
 | --- | --- | --- |
 | **A separate private store** | Only whoever has the store's token: the API | **Recommended.** "No public URL" is literal. The same cost (*Blob Pricing*: "priced the same for storage, operations, and uploads"). It needs an owner action in Vercel |
-| A random prefix in the current public store | Anybody with the link (`imagenes-de-platos.md` § 4.1: "accessible to anyone with the link") | Lost: that is obscurity, not privacy; a URL leaking into a log or a DTO publishes an image the judge rejected |
+| A random prefix in the current public store | Anybody with the link (`dish-pictures.md` § 4.1: "accessible to anyone with the link") | Lost: that is obscurity, not privacy; a URL leaking into a log or a DTO publishes an image the judge rejected |
 | A short-lived signed URL (`presignUrl`) | Anybody with the link, until it expires | Lost: it adds the surface of signed tokens to save a function hop that costs nothing here |
 | Bytes in Postgres | Only the API | Lost: `0066` took the bytes out of Neon over the quota |
 
@@ -299,7 +299,7 @@ shown"). That stops being true. The wording I propose, for the decision record a
 
 `0004` does not move: no safety decision passes to a prompt, and what somebody may eat is still
 decided by `findSafetyViolations` against the recipe. The vision judge was never that guarantee
-(`imagenes-de-platos.md`, the comment in § 3.3: "it reduces the risk, but it is not the
+(`dish-pictures.md`, the comment in § 3.3: "it reduces the risk, but it is not the
 guarantee").
 
 ### What risk accepting against the judge adds
@@ -467,7 +467,7 @@ in the mail (Q5); a picture-failures line in the 08:00 digest.
 
 ## 10. Notes for `legal`
 
-What `docs/legal/imagenes-de-platos.md` needs, in `legal`'s judgement:
+What `docs/legal/dish-pictures.md` needs, in `legal`'s judgement:
 
 1. **§ 4.2 b, the live policy**: "a model running on DeepInfra checks that the image does not show
    foods the recipe does not carry". It still describes what is done, but after phase 3 a
@@ -478,7 +478,7 @@ What `docs/legal/imagenes-de-platos.md` needs, in `legal`'s judgement:
    reachable from outside (prevented by the private store) and a file with no C2PA accepted by
    hand (prevented by the code, over the bytes).
 3. **§ 4.1, the flows table**: a row for the candidates — no personal data, a private Vercel Blob
-   store in `fra1`, 7 days. And the box in `checklist-activacion.md` § 0 ter: **the second store
+   store in `fra1`, 7 days. And the box in `go-live-checklist.md` § 0 ter: **the second store
    in `fra1` too**, or "in the European Union" stops being true for what is stored.
 4. **AI Act**: a candidate only the owner sees inside the console — is that an "exposure" under
    art. 50.4-50.5? My reading is no — it is made available to nobody — but the review page titles
@@ -525,8 +525,8 @@ What `docs/legal/imagenes-de-platos.md` needs, in `legal`'s judgement:
 - The code of `main` at `4aa4796`, at the paths cited.
 - `docs/decisions/0004`, `0028`, `0066`, `0068`, `0071`; `docs/decisions/LOG.md` (2026-09-27,
   2026-09-29, 2026-09-30).
-- `docs/legal/imagenes-de-platos.md` §§ 1.5, 2.1, 2.3, 3.3, 4.1, 4.2, 5;
-  `docs/legal/checklist-activacion.md` § 0 ter.
+- `docs/legal/dish-pictures.md` §§ 1.5, 2.1, 2.3, 3.3, 4.1, 4.2, 5;
+  `docs/legal/go-live-checklist.md` § 0 ter.
 - `docs/projects/006-realistic-dish-pictures/PRD.md` (criteria 5 and 6) and `LOG.md` (phases 2
   and 5).
 - `docs/reference/architecture/0003-dish-pictures-2026-09-26.md` (P5, § 7.1).

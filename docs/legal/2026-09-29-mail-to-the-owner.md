@@ -147,13 +147,13 @@ The alert (`OwnerAlert.ts`) has no footer; it does not need one.
 - **`0029`'s alert (`account-waiting`) does carry every sign-up's address** to the owner's
   mailbox, where it stays with no deadline. It is already covered by P2-10 (a consumer Gmail
   as the provider, with no DPA); what is missing is a period for those mails in the mailbox. A
-  P3 candidate for [`analysis.md` § 9](./analysis.md#9-risks-ranked-by-what-can-happen-to-a-real-person):
+  P3 candidate for [`analysis.md` § 9](./analysis.md#9-risks-ordered-by-what-can-happen-to-a-real-person):
   delete them once the account is activated or refused.
 - **The policy says** "nobody consults it [the database] except to fix a bug". An automatic
   read of aggregates does not make that less true; the console (`0068`) was already
   stretching it before this, and that is another matter.
 
-## 6. To confirm with a lawyer (add to [`analysis.md` § 10](./analysis.md#10-confirm-with-a-lawyer))
+## 6. To confirm with a lawyer (add to [`analysis.md` § 10](./analysis.md#10-to-confirm-with-a-lawyer))
 
 1. Does the relative reading (C-413/23 P) hold for saying that a count or a failure code, with
    no identifier, is anonymous information to the mail provider, even though the controller

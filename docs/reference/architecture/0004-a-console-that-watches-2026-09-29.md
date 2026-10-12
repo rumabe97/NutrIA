@@ -400,7 +400,7 @@ day that is 30–60 MB a month, ~1% of the 5 GB.
 - The professional's agreement: by version.
 - **Legal texts: no.** Passed to `legal`: should sign-up record versioned acceptance of
   `/condiciones` and `/privacidad`? The activation checklist
-  (`docs/legal/checklist-activacion.md:43`) handles changes by mailing a notice, not by asking for
+  (`docs/legal/go-live-checklist.md:43`) handles changes by mailing a notice, not by asking for
   acceptance again. If `legal` decides to record it, the console counts it with the same pattern,
   in a later phase.
 

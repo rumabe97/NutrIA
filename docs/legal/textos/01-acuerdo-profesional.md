@@ -14,7 +14,7 @@
 >
 > **Almacenamiento**: `POST /care/practice/agreement { version }` escribe
 > `agreementVersion` y `agreementAcceptedAt` en `professionals` (ver
-> [`analisis.md` § 11](../analisis.md#11-lo-que-hay-que-construir-para-el-004-y-quién)).
+> [`analysis.md` § 11](../analysis.md#11-what-has-to-be-built-for-004-and-by-whom)).
 > **Versión**: `PROFESSIONAL_AGREEMENT_VERSION = '1.1.0'`, en vigor
 > (`core/entities/Professional`). Cualquier cambio de fondo en este texto o en el 04 la
 > sube y vuelve a pedirse. **1.1.0** (2026-10-03, proyecto 011 fase 6): § 8, la viñeta
@@ -65,7 +65,7 @@ Solo de los pacientes que acepten tu invitación, y mientras el enlace siga acti
 - Si un paciente te pide ejercer un derecho sobre los datos que viven en NutrIA, le indicas que lo haga desde su perfil o escribiendo a {email}; si nos lo pide a nosotros sobre lo que tú guardas fuera, se lo diremos. Cada uno informa a los pacientes de lo suyo; NutrIA ya les informa, en la invitación y en su política de privacidad, de que te comunica sus datos y de qué datos son.
 - Si una autoridad o un tribunal considerara que decidimos juntos el tratamiento, este apartado es nuestro acuerdo de reparto de responsabilidades: NutrIA informa a los pacientes y atiende sus derechos sobre lo que vive en NutrIA, y es el punto de contacto; tú, sobre lo que guardas fuera. Sus aspectos esenciales están en la política de privacidad.
 
-<!-- Fuente: RGPD art. 4.7-4.8 (responsable, encargado), 6.1.a y 9.2.a (comunicación consentida), 9.2.h y 9.3 (uso del profesional), 26.1-2 (reparto si hubiera corresponsabilidad; «se pondrán a disposición del interesado los aspectos esenciales»), 28 (encargo, que aquí no hay); CEPD Directrices 07/2020 v2.0, apdos. 55, 70, 71; LOPDGDD DA 17ª.1 c) y e). Análisis: docs/legal/analisis.md § 2. -->
+<!-- Fuente: RGPD art. 4.7-4.8 (responsable, encargado), 6.1.a y 9.2.a (comunicación consentida), 9.2.h y 9.3 (uso del profesional), 26.1-2 (reparto si hubiera corresponsabilidad; «se pondrán a disposición del interesado los aspectos esenciales»), 28 (encargo, que aquí no hay); CEPD Directrices 07/2020 v2.0, apdos. 55, 70, 71; LOPDGDD DA 17ª.1 c) y e). Análisis: docs/legal/analysis.md § 2. -->
 
 ### 5. NutrIA es una herramienta, no una segunda opinión
 

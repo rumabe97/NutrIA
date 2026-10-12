@@ -841,7 +841,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   `GET /care/access-log` is the client's own trail, on `CareLinksController`: no switch, like
   their link, 100 rows a page (`?before=` the previous page's `next`).
   Every row carries the `linkId` it went through. `PATCH /care/links/me { sharesHealth }` is the
-  client's own switch for the health line, no switch and no end of the link (`docs/legal/analisis.md`
+  client's own switch for the health line, no switch and no end of the link (`docs/legal/analysis.md`
   P0-1): each change writes a `health` row, `granted` or `withdrawn`, in the same transaction, and
   `withClient` reads the link afresh, so off closes the health read on the next request. The trail
   reader skips an action or kind it does not know, so a value added later survives a rollback.

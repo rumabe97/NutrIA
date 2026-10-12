@@ -127,7 +127,7 @@ y aun así incumple el art. 7.3 en espíritu.
 
 `{privacy}` enlaza a `/privacidad#tu-dietista` (ancla a la sección nueva).
 
-<!-- Fuente: RGPD art. 13.1.a, c, e; 26.2 (aspectos esenciales del reparto, por si hubiera corresponsabilidad); analisis.md § 2. -->
+<!-- Fuente: RGPD art. 13.1.a, c, e; 26.2 (aspectos esenciales del reparto, por si hubiera corresponsabilidad); analysis.md § 2. -->
 
 ---
 

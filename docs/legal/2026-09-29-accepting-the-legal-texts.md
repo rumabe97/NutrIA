@@ -430,7 +430,7 @@ placeholders. `auth.legalAge` is drawn next, as on `/registro`.
 
 <!-- Fuente: Ley 7/1998 arts. 5.1 y 7.a; TRLGDCU art. 80.1.a; 0058 (Google y Apple crean la cuenta desde /acceder). Mientras Apple siga apagado, «o Apple» es verdad solo en el sentido de lo que el botón haría: si frontend prefiere, que la clave dependa de los proveedores activos como ya lo hace SocialSignIn; decisión suya. -->
 
-## 7. To confirm with a lawyer (add to [`analysis.md` § 10](./analysis.md#10-confirm-with-a-lawyer))
+## 7. To confirm with a lawyer (add to [`analysis.md` § 10](./analysis.md#10-to-confirm-with-a-lawyer))
 
 1. **The free account and the TRLGDCU's Book II.** Does the free account fall under art. 59.4,
    given that use of the product is recorded under legitimate interest? (§ 3.3)

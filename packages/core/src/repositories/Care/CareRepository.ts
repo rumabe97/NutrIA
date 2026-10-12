@@ -659,7 +659,7 @@ export const CareRepository = {
 
   /**
    * The client starts or stops sharing the health line on their own open link
-   * (`docs/legal/analisis.md` P0-1), without ending it. `clientId` is the
+   * (`docs/legal/analysis.md` P0-1), without ending it. `clientId` is the
    * session's and the ownership boundary; the link is whichever is `active` or
    * `paused` — there is at most one.
    *

@@ -2,7 +2,7 @@
 
 > **Purpose**: what has to be true before the `professional` flag is switched on and before
 > Stripe's *live* keys go in. Each box refers to the finding in
-> [`analysis.md` § 9](./analysis.md#9-risks-ranked-by-what-can-happen-to-a-real-person).
+> [`analysis.md` § 9](./analysis.md#9-risks-ordered-by-what-can-happen-to-a-real-person).
 > **Audience**: the owner and the lead. **Committed**: yes. **Maintained by**: the `legal`
 > agent.
 >
@@ -161,7 +161,7 @@
 **Organisation**
 - [ ] The owner checks every registration number in the relevant professional body's public register before granting, and notes the date of the check.
 - [ ] **A breach procedure** — written in [`breach-procedure.md`](./breach-procedure.md). It is ticked when the owner has filled in, outside the repository, every ⟦…⟧ (§ 9: access to the AEPD's portal, the providers' accounts, the devices, the gateway, where the register lives) and has **signed and dated** it.
-- [ ] An hour with the lawyer: points 1, 3 and 9 of [`analysis.md` § 10](./analysis.md#10-confirm-with-a-lawyer).
+- [ ] An hour with the lawyer: points 1, 3 and 9 of [`analysis.md` § 10](./analysis.md#10-to-confirm-with-a-lawyer).
 
 **The order of switching on** (the lead's decision, 2026-09-25: the switch first, the grants afterwards — the welcome mail links to `/consulta`, which only works with the switch on, and a switch with no grants shows nobody anything)
 
@@ -191,7 +191,7 @@
 - [ ] Collecting tax details for invoicing (`tax_id_collection`) if the accountant asks for it.
 
 **The hour with the lawyer**
-- [ ] Points 4, 5, 6 and 7 of [`analysis.md` § 10](./analysis.md#10-confirm-with-a-lawyer).
+- [ ] Points 4, 5, 6 and 7 of [`analysis.md` § 10](./analysis.md#10-to-confirm-with-a-lawyer).
 
 ## 3. With a date
 

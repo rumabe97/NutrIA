@@ -196,7 +196,7 @@
   3. Active people count `session_started` and `app_used` only, so a swap alone no
      longer moves last activity.
 - **D5 (step 7)**: `legal` answered
-  [`docs/legal/2026-09-29-aceptacion-de-los-textos-legales.md`](../../legal/2026-09-29-aceptacion-de-los-textos-legales.md).
+  [`docs/legal/2026-09-29-accepting-the-legal-texts.md`](../../legal/2026-09-29-accepting-the-legal-texts.md).
   - **Phase 7 runs, for the terms only.** The privacy policy is informed, not accepted.
     The plan's phase 7 is amended from its § 5.
   - It also found two P1s in production:
@@ -397,7 +397,7 @@
       (`invocationCallOrder`), and a failing alert never changes a failed job.
     - Its P3 on the index comment is fixed. Its P3 on `safeKind` is left: the kind list
       lives in `apps/api`, which core cannot import, and the only writer is typed.
-  - `legal` ([`docs/legal/2026-09-29-correos-al-propietario.md`](../../legal/2026-09-29-correos-al-propietario.md)):
+  - `legal` ([`docs/legal/2026-09-29-mail-to-the-owner.md`](../../legal/2026-09-29-mail-to-the-owner.md)):
     the three mails can ship. They carry no user's address, name, id or text. The
     privacy policy and the DPIA are unchanged, and the records of processing get a
     revision line. `06-correos.md` gains H–J. Its two clearer sentences for the digest's
@@ -415,7 +415,7 @@
     cannot report itself. Sentry cron monitoring or an outside check would cover it
     (owner's choice, later).
   - `legal` P3: the existing account-waiting mail (`0029`) puts each new user's address
-    in the owner's Gmail with no deletion deadline. It is a candidate for `analisis.md`
+    in the owner's Gmail with no deletion deadline. It is a candidate for `analysis.md`
     § 9.
   - The end-to-end cases for this phase land in their own change.
 
@@ -516,7 +516,7 @@
     no longer says no cron is scheduled.
   - **The account-waiting mail carries no address, name, id or token** (owner, 2026-09-29).
     It links to Cuentas' waiting accounts. The mail-link route stays until tokens already
-    sent expire; `docs/legal/checklist-activacion.md` dates their removal. Its failure log
+    sent expire; `docs/legal/go-live-checklist.md` dates their removal. Its failure log
     line keeps only the error's class.
   - **The terms notice's links open in a new tab**, and say so to screen readers.
 - **Evidence**:
@@ -556,5 +556,5 @@
   - After a month with `AI_TEXT_MONTHLY_CAP_USD` set, compare the gauge with OpenRouter's
     panel; a gap of more than 10 % is investigated before relying on the warnings.
   - Around 2026-10-29, remove `GET /admin/activate` and `ActivationLink`, once the tokens
-    already mailed have expired (`docs/legal/checklist-activacion.md`). The owner deletes
+    already mailed have expired (`docs/legal/go-live-checklist.md`). The owner deletes
     the old account-waiting mails.

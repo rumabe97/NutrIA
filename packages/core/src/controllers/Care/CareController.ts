@@ -851,7 +851,7 @@ export const CareController = {
 
   /**
    * The client starts or stops sharing the health line on their own link —
-   * `active` or `paused` — without ending it (`docs/legal/analisis.md` P0-1;
+   * `active` or `paused` — without ending it (`docs/legal/analysis.md` P0-1;
    * RGPD art. 7.3). The session's link and nobody else's: no link is a 404.
    *
    * Not behind the switch, like `myLink` and `end`: consent stays the client's

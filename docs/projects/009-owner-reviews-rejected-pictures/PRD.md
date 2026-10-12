@@ -75,7 +75,7 @@ A dish picture that fails is lost, and nobody is told.
 - The record:
   - a decision amending `0066`, since "a rejected picture is never stored" stops being
     true and is restated precisely;
-  - `legal`'s notes in `docs/legal/imagenes-de-platos.md`, and its checklist line for the
+  - `legal`'s notes in `docs/legal/dish-pictures.md`, and its checklist line for the
     second store.
 - No migration: the new data fits `recipe_images.provenance` (jsonb).
 

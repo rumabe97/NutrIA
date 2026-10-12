@@ -107,7 +107,7 @@ However it arrives (replying to your mail or to the system's):
 | The `two_factor_removal` row | The live request: who asked for it, when, when it falls due | While it is pending; the code deletes or closes it when it runs |
 | **Your inbox** | The request and your replies: they hold the person's address | **12 months** from the case being closed, and then they are deleted. They are not copied into any repository, issue or chat |
 
-<!-- Fuente: RGPD art. 5.1.e y 5.2; `analisis.md` § 4.1 bis (mismo plazo y mismas condiciones que las demás filas `auth.*`; la purga a 12 meses aún se construye: hasta que exista, `/privacidad` no publica el número); contrato 011 fase 4 (forma de las filas). El plazo de 12 meses para el correo es el de las filas, para que el correo no sobreviva a lo que lo explica. -->
+<!-- Fuente: RGPD art. 5.1.e y 5.2; `analysis.md` § 4.1 bis (mismo plazo y mismas condiciones que las demás filas `auth.*`; la purga a 12 meses aún se construye: hasta que exista, `/privacidad` no publica el número); contrato 011 fase 4 (forma de las filas). El plazo de 12 meses para el correo es el de las filas, para que el correo no sobreviva a lo que lo explica. -->
 
 ## 7. Legal basis
 

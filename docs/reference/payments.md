@@ -292,7 +292,7 @@ a tier, and needs a granted professional to prove it against:
 2. Allow switching between the two prices in the customer portal (above), in both modes.
 3. Set `STRIPE_PRACTICE_PRICES` on the `nutria-api` Vercel project, **Production**, with
    the live price ids.
-4. Before the switch, as `docs/legal/checklist-activacion.md` § 1 lists: the
+4. Before the switch, as `docs/legal/go-live-checklist.md` § 1 lists: the
    professional's agreement screen live, a read-only count of care links accepted under
    `CARE_CONSENT_VERSION` 1.0.0 (the owner ends and re-invites any live one), Gemini out of
    the models that generate for a professional's clients.

@@ -20,7 +20,7 @@ import type { SessionUser } from '../../../shared/index.js';
  * with the switch on or off — `null`, or a 404 for a link that is not theirs —
  * so leaving the switch off these routes tells nobody anything. The health
  * line is the same: the client's own consent, theirs to take back or give
- * whatever the switch says (`docs/legal/analisis.md` P0-1). The trail
+ * whatever the switch says (`docs/legal/analysis.md` P0-1). The trail
  * (`GET /care/access-log`) is the same: what a professional read about
  * somebody stays theirs to read, and an account nobody read gets an empty page.
  *

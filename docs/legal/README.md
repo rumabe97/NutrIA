@@ -4,7 +4,7 @@
 > cites the article and the consolidated version it rests on so that the owner — or the
 > lawyer he shows it to — can check it. Where a question depends on an interpretation, the
 > text says so and takes it to the
-> ["confirm with a lawyer"](./analysis.md#10-confirm-with-a-lawyer) list.
+> ["confirm with a lawyer"](./analysis.md#10-to-confirm-with-a-lawyer) list.
 >
 > **Purpose**: to supervise NutrIA against Spanish and EU law in force at 2026-09-25 and to
 > leave the texts the product needs drafted.

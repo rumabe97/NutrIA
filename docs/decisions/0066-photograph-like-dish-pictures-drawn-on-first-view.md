@@ -24,7 +24,7 @@ things changed.
 
 Two pilots on 2026-09-27 (20 dishes × 3 models, then 8 dishes, 2.59 $ in total, owner
 scoring blind on an iPhone) settled the model and the prompt. The `legal` review
-([`docs/legal/imagenes-de-platos.md`](../legal/imagenes-de-platos.md)) settled the marking.
+([`docs/legal/dish-pictures.md`](../legal/dish-pictures.md)) settled the marking.
 
 ## Decision
 

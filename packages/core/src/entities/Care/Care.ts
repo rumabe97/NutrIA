@@ -79,7 +79,7 @@ export type SetClientReview = z.infer<typeof setClientReviewSchema>;
 
 /**
  * The client starts or stops sharing the health line on their own link, without
- * ending it (`docs/legal/analisis.md` P0-1; RGPD art. 7.3): as easy to take
+ * ending it (`docs/legal/analysis.md` P0-1; RGPD art. 7.3): as easy to take
  * back as it was to give.
  */
 export const setLinkHealthSchema = z.object({ sharesHealth: z.boolean() });

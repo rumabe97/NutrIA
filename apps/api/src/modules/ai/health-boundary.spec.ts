@@ -107,7 +107,7 @@ describe('the health-data boundary around the AI module', () => {
 });
 
 /**
- * The second boundary (owner's decision, 2026-09-25; `docs/legal/analisis.md`
+ * The second boundary (owner's decision, 2026-09-25; `docs/legal/analysis.md`
  * P0-3): nothing a person typed and nothing that reveals a belief reaches a
  * model. Driven end to end — a profile full of their own words, through the
  * same `promptPreferences` and `PoolBuilder` a generation uses, to every request

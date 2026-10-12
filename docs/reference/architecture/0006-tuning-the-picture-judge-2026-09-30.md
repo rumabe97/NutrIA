@@ -122,7 +122,7 @@ recipe", says which allergens **can be seen**. That is true of a prawn, a peanut
 It is not true of a pancake, a meatball, a glass of something white or a slice of bread.
 
 `0004` does not come into play and does not move: what a person may eat is decided in code against
-the recipe. The judge protects something else, `imagenes-de-platos.md` § 5's IMG-2: that somebody
+the recipe. The judge protects something else, `dish-pictures.md` § 5's IMG-2: that somebody
 allergic to X does not see in the photo something that reads as X on a dish that does not carry
 it, and mistrust a safe dish.
 
@@ -570,7 +570,7 @@ one: that the three production dishes, retried, are accepted.
     dish's name is passed to the judge (it is recipe data, not the person's). `legal` should
     confirm.
   - *The terms*, § 3.3: unchanged under every option.
-  - *`imagenes-de-platos.md` § 5, IMG-2*: a third route has to be added — "the judge accepts a form
+  - *`dish-pictures.md` § 5, IMG-2*: a third route has to be added — "the judge accepts a form
     of the same family as the dish's" — with its mitigation (the `own_form` note, the closed
     table). IMG-1 does not change. IMG-16 weighs more (§ 8).
   - The line references to `judge.ts` in § 4.2 go stale.

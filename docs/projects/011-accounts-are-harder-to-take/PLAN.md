@@ -488,7 +488,7 @@ records what was decided.
     - on a 200 (and on a password reset): clear the row;
     - `NODE_ENV=test` keeps it on; suites use distinct addresses.
   - The `auth.*` audit purge (added 2026-10-01 from phase 2, `legal`'s retention in
-    `docs/legal/analisis.md` § 4.1 bis): the same daily cron also deletes `audit_logs`
+    `docs/legal/analysis.md` § 4.1 bis): the same daily cron also deletes `audit_logs`
     rows whose `action` starts with `auth.` and are older than 12 months. It touches no
     other action, and a spec proves it. Until it runs in production, `/privacidad` must not
     name the 12 months.
@@ -634,7 +634,7 @@ records what was decided.
   the owner says yes to reading the API's logs for `csp-report` lines through the Vercel
   MCP (read-only).
 - **Goal**: the CSP enforces, and the record of the project is complete.
-- **Scope**: `apps/web/next.config.js`; `docs/legal/eipd.md` (R8/M13: second factor,
+- **Scope**: `apps/web/next.config.js`; `docs/legal/dpia.md` (R8/M13: second factor,
   breached passwords, the per-account brake, the removal procedure) and anything else
   `legal` names; `apps/api/AGENTS.md`, `apps/web/AGENTS.md`; `docs/ROADMAP.md`;
   `docs/ARCHITECTURE.md` if the auth section names the factors; the LOG.

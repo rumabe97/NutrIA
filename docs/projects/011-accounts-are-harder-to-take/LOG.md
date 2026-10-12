@@ -239,9 +239,9 @@
     - Four P3s, fixed (`6b95768b`), plus a specificity tie on the stale-state button,
       fixed after.
   - **`legal`**:
-    - Retention for `auth.*` rows is 12 months (`docs/legal/analisis.md` § 4.1 bis). It
+    - Retention for `auth.*` rows is 12 months (`docs/legal/analysis.md` § 4.1 bis). It
       differs from `audit_logs`, which never purges, so the purge moves to phase 7, and
-      `checklist-activacion.md` § 0 quater makes it the condition for publishing the 12
+      `go-live-checklist.md` § 0 quater makes it the condition for publishing the 12
       months.
     - `/privacidad` gains a "Seguridad de tu cuenta" category, a mail-provider line naming
       security notices that cannot be turned off, a retention line, and the
@@ -396,7 +396,7 @@
 ## Phase 4 — owner's approval of the procedure, and the migration renumbered (2026-10-03)
 
 - **Owner decision**: the procedure in
-  [`docs/legal/procedimiento-quitar-segundo-factor.md`](../../legal/procedimiento-quitar-segundo-factor.md)
+  [`docs/legal/removing-a-second-factor.md`](../../legal/removing-a-second-factor.md)
   is approved as written. This is the plan's "owner-approves" step before the console
   action ships. (who decided: owner, delegated on 2026-10-03 — "las decisiones anótalas con
   lo más recomendado".)
@@ -1285,7 +1285,7 @@
     core 133 files / 3873 tests, database 5/53, api 123/1634.
   - `pnpm --filter api format`, `pnpm --filter core format`, `pnpm --filter database
     format`: clean. `pnpm check:leaks`: clean.
-- **Decisions**: [`0092`](../../decisions/0092-sweep-an-account-whose-address-nobody-ever-confirmed-after-thirty-days.md)
+- **Decisions**: [`0092`](../../decisions/0092-sweep-an-account-whose-address-nobody-ever-confirmed.md)
   (the lead's delegation of 2026-10-03, the recommended option on each choice).
 - **For `legal` and the lead**: `/privacidad` needs a retention line — an account whose
   address is never confirmed is deleted after thirty days, together with its sign-up

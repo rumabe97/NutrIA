@@ -12,7 +12,7 @@
 > **estimated** (with the hypothesis) or **unknown**. What was read: the code of `apps/api` (the
 > `auth` module, the guards, `CreateApp.ts`), of `apps/web` (the sign-in forms, `proxy.ts`,
 > `next.config.js`, `/perfil`), `packages/database`'s schema, the deployment documentation and the
-> legal parts it touches (`eipd.md`, the privacy policy), and **the installed code of Better Auth
+> legal parts it touches (`dpia.md`, the privacy policy), and **the installed code of Better Auth
 > 1.7.6** (`apps/api/node_modules/better-auth/dist`), because what each plugin does was read in its
 > source, not in its documentation.
 > What was measured: production's HTTP headers (two `HEAD`s, like any visit), four queries to the
@@ -89,7 +89,7 @@ Turnstile only if the data asks for it (it is a new processor, it goes through `
 | P7 | Migrations run against production in the API's *build* | **confirmed** | `apps/api/AGENTS.md:163` (`vercel-build` → `database migrate`) |
 | P8 | Strong passwords have to be enforced "when the password is changed" | **partly wrong**: **there is no password change**. Better Auth has the route (`/change-password`, `api/routes/update-user.mjs:76`), but nothing in the web calls it; `/perfil` has no security section (`app/(app)/perfil/page.tsx:1-40`, the imports). Today the password is set at sign-up (`RegisterScreen.tsx:49`) and at reset (`ResetPasswordForm.tsx:64`). Changing it from inside is a new feature | — |
 | P9 | Reauthentication exists for deleting the account (#179) | **confirmed** | `apps/api/AGENTS.md:99`: a `freshAge` of one day, 409 `REAUTHENTICATION_REQUIRED` |
-| P10 | Taking over a privileged account is especially serious | **confirmed, with a nuance**. The **admin** reads nobody's health (`0028`, `0068`): taking their account gives the account list with emails, the switches and the professional grant, but not health data directly. The **professional** does see the health of their linked patients: the DPIA has it as **R8** ("session or account theft, including a professional's with several patients", `docs/legal/eipd.md:131`, residual 3 with M13) | — |
+| P10 | Taking over a privileged account is especially serious | **confirmed, with a nuance**. The **admin** reads nobody's health (`0028`, `0068`): taking their account gives the account list with emails, the switches and the professional grant, but not health data directly. The **professional** does see the health of their linked patients: the DPIA has it as **R8** ("session or account theft, including a professional's with several patients", `docs/legal/dpia.md:131`, residual 3 with M13) | — |
 | P11 | (implicit) Better Auth's rate limiter protects sign-in | **hypothesis**. It is on and stores the counters in the database (`auth.config.ts:213-217`; default rules in `rate-limiter/index.mjs:302-315`: sign-up and sign-in 3 every 10 s, reset 3 a minute). **By IP**, and the IP may not be arriving (condition 1). It is checked as § 9 says | — |
 | P12 | (implicit) A second factor covers everybody | **wrong**: only password sign-in (`two-factor/index.mjs:246`). Google, Apple and, in the future, passkeys do not pass through it | — |
 

@@ -37,7 +37,7 @@ they receive to improve their models" and that "we are moving to providers that 
 the data". `legal`'s draft (`docs/legal/textos/02-politica-privacidad.md:20-21, 97`, variant A,
 ⟦ia-encargado⟧) promises providers "on our instructions, under contract, without using it to
 train or for anything of their own", and the DPIA lists as measure M3 "no training, zero
-retention" (`docs/legal/eipd.md:125`). This report is redone to keep that promise.
+retention" (`docs/legal/dpia.md:125`). This report is redone to keep that promise.
 
 **What else changed on review.** Three premises of the brief turned out to be incomplete (§ 2,
 P12–P14): free Gemini is out not because it trains, but because its terms forbid serving EEA
@@ -294,7 +294,7 @@ answered.
 
 **`/consulta` and P1-10**: with this combo, with no Gemini and nothing that trains, P1-10 is
 closed by the exit `legal` had already written ("take Gemini out of the combination",
-`docs/legal/analisis.md:479`). No separate model is needed for `/consulta` (this report's old
+`docs/legal/analysis.md:479`). No separate model is needed for `/consulta` (this report's old
 phase 4 disappears). What remains is for `legal` to review each model's terms (OpenRouter § 5.1,
 *Model Terms*) in case any carries a clinical clause like Gemini's.
 
@@ -403,7 +403,7 @@ the same combo, or empty.
      their own".
   6. Afterwards, **`/privacidad` moves to variant A** (`02-politica-privacidad.md:97`), the
      variant B sentence about transfers goes (`:118`), and the DPIA (M3), the record of
-     activities (row 2), `analisis.md` (P0-3, P1-10 and the sentence about free Gemini, P12) and
+     activities (row 2), `analysis.md` (P0-3, P1-10 and the sentence about free Gemini, P12) and
      the checklist are updated. In the meantime, variant B is still true: it claims more risk
      than there will be, not less.
 - **The owner's time**: § 8, phase 1 (≈ 30 min); reading 6 dishes from each candidate (30 min);

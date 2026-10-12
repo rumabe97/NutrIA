@@ -377,7 +377,7 @@ numbers refer to it. Read it before any phase.
   the notice is seen before every control that creates an account, and Consentimientos
   counts it.
 - **Source**: `legal`'s answer to D5,
-  [`docs/legal/2026-09-29-aceptacion-de-los-textos-legales.md`](../../legal/2026-09-29-aceptacion-de-los-textos-legales.md)
+  [`docs/legal/2026-09-29-accepting-the-legal-texts.md`](../../legal/2026-09-29-accepting-the-legal-texts.md)
   § 5 (what is built) and § 6 (the texts). The privacy policy is informed, never
   accepted: nothing is recorded for it, and the console never shows it as a consent.
 - **Scope**:

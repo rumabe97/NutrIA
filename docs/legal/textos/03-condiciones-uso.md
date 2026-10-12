@@ -13,13 +13,13 @@
 > columnas nulas en `user` (`termsVersion`, `termsAcceptedAt`), escritas por el servidor al
 > crear la cuenta; sin tabla nueva ni relleno. La 2.0.0 publica además la sección «Cómo se
 > celebra este contrato». Especificación completa en
-> [`../2026-09-29-aceptacion-de-los-textos-legales.md`](../2026-09-29-aceptacion-de-los-textos-legales.md) § 5 y § 6. Las condiciones actuales dicen que un cambio se avisa por
+> [`../2026-09-29-accepting-the-legal-texts.md`](../2026-09-29-accepting-the-legal-texts.md) § 5 y § 6. Las condiciones actuales dicen que un cambio se avisa por
 > correo antes de aplicarse (sección «Cambios en estas condiciones»): **este cambio debe
 > avisarse por correo a las cuentas existentes** antes de publicarlo.
 >
 > **Stripe *Managed Payments***: si sigue activo, Link es el vendedor de la suscripción y
 > sus términos rigen el cobro, el reembolso y parte del desistimiento. La sección C tiene
-> dos variantes. **[abogado]**: [`analisis.md` § 10, punto 4](../analisis.md#10-confirmar-con-un-abogado).
+> dos variantes. **[abogado]**: [`analysis.md` § 10, punto 4](../analysis.md#10-to-confirm-with-a-lawyer).
 
 ---
 
@@ -70,7 +70,7 @@ Publicar la segunda frase solo con la puerta de edad construida (P1-4).
 **list** (variante **con** *Managed Payments*): igual, pero la línea 5 empieza así y añade:
 `… La compra la vende Link, el servicio de Stripe que te cobra y te envía el recibo, en nuestro nombre; puedes pedir el desistimiento o un reembolso también a Link, en link.com.`
 
-<!-- Fuente: TRLGDCU art. 97.1.e («en el caso de… un contrato que incluya una suscripción, el precio incluirá el total de los costes por período de facturación»), 97.1.j (condiciones, plazo y procedimiento de desistimiento, y el formulario), 97.1.p (15 días antes del vencimiento, redacción de la Ley 10/2025), 102.1 (14 días), 104.a (para servicios, desde la celebración: damos más), 107 (devolución en 14 días por el mismo medio), 62.3 («en la misma forma en que lo celebró»); Directiva 2023/2673, art. 11 bis Directiva 2011/83 («desistir del contrato aquí»), aplicable desde el 19/6/2026 — España aún no lo ha incorporado al TRLGDCU (consolidado a 28/02/2026); se implanta de todas formas (analisis.md § 10, punto 7). {trialDays} es TRIAL_DAYS (hoy 7, 0056). El «30 días» del cambio de precio es propuesta, no exigencia legal: [abogado]. -->
+<!-- Fuente: TRLGDCU art. 97.1.e («en el caso de… un contrato que incluya una suscripción, el precio incluirá el total de los costes por período de facturación»), 97.1.j (condiciones, plazo y procedimiento de desistimiento, y el formulario), 97.1.p (15 días antes del vencimiento, redacción de la Ley 10/2025), 102.1 (14 días), 104.a (para servicios, desde la celebración: damos más), 107 (devolución en 14 días por el mismo medio), 62.3 («en la misma forma en que lo celebró»); Directiva 2023/2673, art. 11 bis Directiva 2011/83 («desistir del contrato aquí»), aplicable desde el 19/6/2026 — España aún no lo ha incorporado al TRLGDCU (consolidado a 28/02/2026); se implanta de todas formas (analysis.md § 10, punto 7). {trialDays} es TRIAL_DAYS (hoy 7, 0056). El «30 días» del cambio de precio es propuesta, no exigencia legal: [abogado]. -->
 
 ### Nota para el código
 
@@ -134,7 +134,7 @@ Publicar la segunda frase solo con la puerta de edad construida (P1-4).
 (`es-ES.ts:1694-1697`; `en-GB.ts:1688`), como segundo párrafo. Actualizar `terms.updated`.
 Se publica antes de encender el flag de las imágenes o el mismo día. Solo informa: no es un
 «cambio importante» y no exige correo previo. Texto, fuentes y porqué en
-[`imagenes-de-platos.md`](../imagenes-de-platos.md) § 3.3.
+[`dish-pictures.md`](../dish-pictures.md) § 3.3.
 
 | es-ES | en-GB |
 | --- | --- |
@@ -147,4 +147,4 @@ mostrar algo que el plato no lleva. Sigue siendo verdad como está; si el propie
 cambia la frase de `/privacidad` sobre el juez, conviene igualar esta en el mismo cambio,
 con `terms.updated`. **No se toma** (propietario, 2026-09-30): esta frase se queda como
 está. Texto y fuentes, por si se reabre, en
-[`imagenes-de-platos.md`](../imagenes-de-platos.md) § 4.4 («`/condiciones`»).
+[`dish-pictures.md`](../dish-pictures.md) § 4.4 («`/condiciones`»).
