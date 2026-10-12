@@ -4,6 +4,7 @@ import {
   axisFilter,
   bandNeededExceptions,
   pickReplacement,
+  pinnable,
   PLAN_DAYS,
   PLATE_GRAMS_MAX,
   PLATE_LIMIT,
@@ -3135,5 +3136,96 @@ describe('PLATE_FOOD_MAX — no plate holds more than about two servings of one 
         }
       }
     });
+  });
+});
+
+describe('a fixed recurring meal', () => {
+  const lunchOn = (days: readonly number[], slug: string) => new Map(days.map(day => [day, { slot: 'lunch' as const, slug }]));
+
+  const lunchOf = (result: ReturnType<typeof schedulePlan>, dayIndex: number) => {
+    if (!result.ok) {
+      throw new Error('the fixture was expected to schedule');
+    }
+
+    return result.assignment.days.find(day => day.dayIndex === dayIndex)?.meals.find(meal => meal.slot === 'lunch');
+  };
+
+  it('serves the dish the rule asks for, on the day it asks for', () => {
+    expect(lunchOf(schedule({ pinned: lunchOn([4], 'lunch-0') }), 4)?.dish.slug).toBe('lunch-0');
+  });
+
+  it('serves it on every day the rule names, where the variety rules would forbid the repeat', () => {
+    const free = schedule();
+    const pinned = schedule({ pinned: lunchOn([1, 3], 'lunch-0') });
+
+    // The control: nothing may repeat inside a week, so the same lunch twice in
+    // three days is a thing the scheduler cannot do on its own.
+    expect(lunchOf(free, 1)?.dish.slug).not.toBe(lunchOf(free, 3)?.dish.slug);
+    expect([lunchOf(pinned, 1)?.dish.slug, lunchOf(pinned, 3)?.dish.slug]).toEqual(['lunch-0', 'lunch-0']);
+  });
+
+  it('leaves every other slot of the day to the scheduler', () => {
+    const result = schedule({ pinned: lunchOn([4], 'lunch-0') });
+
+    expect(result.ok).toBe(true);
+
+    if (result.ok) {
+      const day = result.assignment.days.find(entry => entry.dayIndex === 4);
+
+      expect(day?.meals.map(meal => meal.slot)).toEqual(['breakfast', 'lunch', 'dinner']);
+      expect(day?.meals.filter(meal => meal.slot !== 'lunch').every(meal => meal.dish.slug !== 'lunch-0')).toBe(true);
+    }
+  });
+
+  it('sizes the pinned plate like any other, rather than serving it at one serving', () => {
+    const bigger = { ...TARGETS, carbsG: TARGETS.carbsG * 1.5, fatG: TARGETS.fatG * 1.5, kcal: TARGETS.kcal * 1.5, proteinG: TARGETS.proteinG * 1.5 };
+    const result = schedule({ dayTargets: new Map([[3, bigger]]), pinned: lunchOn([1, 3], 'lunch-0') });
+
+    // Same dish, two days, different targets: the person asked for this dish on
+    // both, not for the same weight of it.
+    expect(lunchOf(result, 3)?.servings).toBeGreaterThan(lunchOf(result, 1)?.servings as number);
+  });
+
+  it('is not honoured when the dish is not in the pool the person may be served', () => {
+    expect(lunchOf(schedule({ pinned: lunchOn([4], 'nada-de-esto') }), 4)?.dish.slug).not.toBe('nada-de-esto');
+  });
+
+  it('is not honoured when the dish does not declare the slot', () => {
+    expect(lunchOf(schedule({ pinned: lunchOn([4], 'breakfast-0') }), 4)?.dish.slug).not.toBe('breakfast-0');
+  });
+
+  it('is not honoured when the dish cannot be sized into the slot', () => {
+    const enormous = makeDish({ ingredients: [{ grams: 5000, slug: 'base' }], name: 'Fuente entera', slots: ['lunch'], slug: 'fuente-entera' });
+    const pool = [...makePool(slotsForTest(3, false)), enormous];
+    const served = lunchOf(schedule({ pinned: lunchOn([4], 'fuente-entera'), pool }), 4);
+
+    // Ten thousand kilocalories against a lunch's seven hundred: `fitsPlate`
+    // refuses it for everybody, and a rule does not make it servable.
+    expect(served?.dish.slug).not.toBe('fuente-entera');
+    expect(served?.dish.slug).toBeDefined();
+  });
+
+  it('answers which dishes a person could fix to a slot, and leaves out the ones it would refuse', () => {
+    const enormous = makeDish({ ingredients: [{ grams: 5000, slug: 'base' }], name: 'Fuente entera', slots: ['lunch'], slug: 'fuente-entera' });
+    const pool = [...makePool(slotsForTest(3, false)), enormous];
+    const offered = pinnable(
+      { catalogue, minimumKcal: MINIMUM_KCAL, pool, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) },
+      4,
+      'lunch'
+    ).map(dish => dish.slug);
+
+    expect(offered).toContain('lunch-0');
+    expect(offered).not.toContain('fuente-entera');
+    expect(offered).not.toContain('breakfast-0');
+  });
+
+  it('offers nothing for a slot the person does not eat', () => {
+    expect(
+      pinnable(
+        { catalogue, minimumKcal: MINIMUM_KCAL, pool: makePool(slotsForTest(3, false)), targets: TARGETS, weights: weightsFor(shapeFor(3, false)) },
+        1,
+        'supper'
+      )
+    ).toEqual([]);
   });
 });

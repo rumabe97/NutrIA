@@ -28,7 +28,7 @@
  *
  * Usage (from the repository root, against the local Postgres `pnpm db:local` runs —
  * never Neon):
- *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds] [--exceptions]]
+ *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds] [--exceptions]] [--pins N [--pin-slot <slot>]]
  *
  * `--flag <name>` names a scheduler flag to measure with on (project 016). The
  * one that exists is `accompaniments`: each profile's larder (`larderFor`, the
@@ -51,6 +51,16 @@
  * provider. Each plan is scored for balance against PRD 019's table
  * (`core/domain/Balance`), and the report is per profile, per goal and per
  * rule. `--compare` does not read a rotate file.
+ *
+ * `--pins N` (with `--rotate`) gives every profile N standing weekly fixed
+ * meals — *"every Friday dinner is tortilla de patata"* — and reports what they
+ * cost: how many day-slots served the dish the rule asks for, how many days that
+ * carried a rule missed a band and at which slot, and how many fell under the
+ * energy floor. A weekly rule lands on two days of every fourteen, so N rules
+ * constrain 2N days of every plan, for ever. `--pin-slot <slot>` forces every
+ * rule onto one slot, which is how the question "does a fixed lunch cost more
+ * than a fixed breakfast" is asked. The rules are written in `pinsFor`, which
+ * explains the three things that would otherwise measure something else.
  *
  * `--exceptions` (019 phase 4, with `--rotate`) adds, per plan, which of its
  * exceptions to the table's maximums and minimums the bands needed and which
@@ -81,6 +91,7 @@ import { SafetyController } from 'core/controllers/Safety';
 import { cuisineFamily, dishGroups, groupFits, isSnackOrBreakfastDish, outOfSeasonFruit } from 'core/domain/MealFit';
 import { DEFAULT_MEAL_SHAPE, proteinWeightsFor, shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { loadedTargets } from 'core/domain/Event';
+import { MEAL_SLOTS } from 'core/entities/Plan';
 import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
 import { isBlocking, PLAN_TOLERANCE, planBandMiss, validatePlan } from 'core/domain/PlanValidation';
 import {
@@ -93,7 +104,16 @@ import {
   PATTERN_EXCLUDED_SLUGS,
   resolvePreferences
 } from 'core/domain/Preference';
-import { bandNeededExceptions, PLAN_DAYS, PLATE_GRAMS_MAX, PLATE_LIMIT, plateGramsMax, schedulePlan, SERVING_PREFERENCE } from 'core/domain/Scheduler';
+import {
+  bandNeededExceptions,
+  pinnable,
+  PLAN_DAYS,
+  PLATE_GRAMS_MAX,
+  PLATE_LIMIT,
+  plateGramsMax,
+  schedulePlan,
+  SERVING_PREFERENCE
+} from 'core/domain/Scheduler';
 import { bestEffortExclusions, dishSafety, normaliseForMatching, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
 import {
   DISHES_NEEDED_PER_SLOT,
@@ -230,6 +250,132 @@ const PROFILES = [
 
 const KNOWN_FLAGS = new Set(['accompaniments']);
 
+// ---------------------------------------------------------------------------
+// Fixed recurring meals — the measurement that gates how many a tier may hold.
+//
+// *"Every Friday dinner is tortilla de patata."* A weekly rule lands on two days
+// of every fourteen, so `--pins N` constrains 2N of a plan's 14 days, for ever,
+// at every generation. What is being measured is what that costs: days still
+// inside 5% on all four macros, and which slot the lost ones pinned.
+//
+// The rules below are written in the order people name their routines — a
+// Friday dinner, a Sunday lunch, a midweek lunch, a weekday breakfast — because
+// the first rule a tier allows should be the one a person actually writes, and
+// a lunch pin costs more than a breakfast pin (a three-meal day carries about
+// 40% of its energy at lunch by design).
+// ---------------------------------------------------------------------------
+
+/** The day of the fortnight each successive rule takes; its second landing is seven days later. */
+const PIN_DAYS = [5, 7, 3, 1];
+
+/** The slot each successive rule takes, when `--pin-slot` does not force one and the person eats it. */
+const PIN_SLOTS = ['dinner', 'lunch', 'lunch', 'breakfast'];
+
+const PINNABLE_SLOTS = new Set(MEAL_SLOTS);
+
+/** Stable small integer from a rule's name, so different profiles write different rules. */
+function pinHash(text) {
+  let hash = 0;
+
+  for (const character of text) {
+    hash = (hash * 31 + character.codePointAt(0)) % 1_000_003;
+  }
+
+  return hash;
+}
+
+/**
+ * The standing rules one profile is measured with: `options.pins` of them, each
+ * on its own day, in a slot the person eats, holding a dish their own library
+ * can serve there.
+ *
+ * Three things this gets right, and each of them would otherwise measure
+ * something that is not the feature:
+ *
+ * - **The dish is chosen once, from the person's whole library** — not per seed
+ *   and not from the seed's rotation. A rule stands until the person removes it,
+ *   and `rotatePool` drops what was served last fortnight, so a dish chosen
+ *   inside the rotation would vanish from later seeds and quietly measure plans
+ *   with no rule in them.
+ * - **It is a middling candidate, not the best fit.** `pinnable` has already
+ *   kept only dishes that size into the slot; among those the pick is a hash of
+ *   the rule, so the scheduler is not handed the dish it would have chosen
+ *   anyway — which is the whole point of a person choosing instead.
+ * - **Never the day's only slot** (`0036` allows a one-meal day): a profile that
+ *   eats once a day writes no rules at all, and says so.
+ */
+function pinsFor(slots, everything, inputFor, options, profileSlug) {
+  if (options.pins === 0) {
+    return { map: new Map(), rules: [] };
+  }
+
+  if (slots.length < 2) {
+    return { map: new Map(), note: 'one-meal day: a rule would pin the whole day', rules: [] };
+  }
+
+  const map = new Map();
+  const rules = [];
+
+  for (let rule = 0; rule < options.pins; rule += 1) {
+    const wanted = options.pinSlot ?? PIN_SLOTS[rule];
+    const slot = slots.includes(wanted) ? wanted : slots[rule % slots.length];
+    const day = PIN_DAYS[rule];
+    const candidates = [...pinnable(inputFor(everything, new Map()), day, slot)].sort((a, b) => a.slug.localeCompare(b.slug));
+
+    if (candidates.length === 0) {
+      rules.push({ day, slot, slug: null, unwritable: 'no dish of this library sizes into this slot' });
+      continue;
+    }
+
+    // `--pin-no-starch`: the same rule, written over a dish that does not spend
+    // the fortnight's four pasta-rice-grain mains (`STARCH_RULES`, `0081`). It
+    // exists to tell two very different costs apart — what a fixed *meal* costs,
+    // and what a fixed *starch* costs — because a Spanish main carries rice or
+    // potato far more often than not, and the two are otherwise measured as one.
+    const plain = candidates.filter(dish => !isCappedStarch(starchBase(dish)));
+    const from = options.pinNoStarch && plain.length > 0 ? plain : candidates;
+    const chosen = from[pinHash(`${profileSlug}:${day}:${slot}`) % from.length];
+
+    rules.push({ day, slot, slug: chosen.slug });
+    map.set(day, { slot, slug: chosen.slug });
+    map.set(day + 7, { slot, slug: chosen.slug });
+  }
+
+  return { map, rules };
+}
+
+/**
+ * The pool a seed plans from, with the standing rules' dishes in it.
+ *
+ * A pinned dish is a forced candidate (`0097`), and a rotation that excluded it
+ * — which `rotatePool` does to everything served last fortnight — would have the
+ * scheduler refuse the rule for want of the dish rather than for want of room.
+ */
+function withPins(pool, pins, everything) {
+  const missing = [...new Set([...pins.values()].map(pin => pin.slug))].filter(slug => !pool.some(dish => dish.slug === slug));
+
+  return missing.length === 0 ? pool : [...pool, ...missing.flatMap(slug => everything.filter(dish => dish.slug === slug))];
+}
+
+/** What a finished plan did with its rules: kept, or refused that day and built without it. */
+function pinOutcome(assignment, pins) {
+  const refused = [];
+  let honoured = 0;
+
+  for (const [dayIndex, pin] of pins) {
+    const day = assignment.days.find(entry => entry.dayIndex === dayIndex);
+    const meal = day?.meals.find(entry => entry.slot === pin.slot);
+
+    if (meal?.dish.slug === pin.slug) {
+      honoured += 1;
+    } else {
+      refused.push({ dayIndex, slot: pin.slot });
+    }
+  }
+
+  return { honoured, refused };
+}
+
 /** Gnocchi's catalogue row: counted on its own line until the starch rule knows it (project 017). */
 const GNOCCHI_SLUG = 'noquis';
 
@@ -239,7 +385,19 @@ const BAND_KINDS = new Set(['carbs_out_of_band', 'fat_out_of_band', 'kcal_out_of
 // CLI
 // ---------------------------------------------------------------------------
 function parseArgs(argv) {
-  const options = { compare: null, exceptions: false, flags: [], json: null, locale: 'es-ES', only: null, rotate: null, start: '2026-10-05' };
+  const options = {
+    compare: null,
+    exceptions: false,
+    flags: [],
+    json: null,
+    locale: 'es-ES',
+    only: null,
+    pinNoStarch: false,
+    pinSlot: null,
+    pins: 0,
+    rotate: null,
+    start: '2026-10-05'
+  };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -256,6 +414,26 @@ function parseArgs(argv) {
       options.start = argv[(index += 1)];
     } else if (arg === '--exceptions') {
       options.exceptions = true;
+    } else if (arg === '--pins') {
+      const rules = Number(argv[(index += 1)]);
+
+      if (!Number.isInteger(rules) || rules < 0 || rules > PIN_DAYS.length) {
+        console.error(`--pins needs a whole number between 0 and ${PIN_DAYS.length}`);
+        process.exit(2);
+      }
+
+      options.pins = rules;
+    } else if (arg === '--pin-no-starch') {
+      options.pinNoStarch = true;
+    } else if (arg === '--pin-slot') {
+      const slot = argv[(index += 1)];
+
+      if (!PINNABLE_SLOTS.has(slot)) {
+        console.error(`--pin-slot needs one of ${[...PINNABLE_SLOTS].join(', ')}`);
+        process.exit(2);
+      }
+
+      options.pinSlot = slot;
     } else if (arg === '--rotate') {
       const seeds = /^\d+$/.test(argv[index + 1] ?? '') ? Number(argv[(index += 1)]) : 10;
 
@@ -1129,18 +1307,21 @@ async function measureRotations(profile, shared, options) {
   // uncapped rotation, and what decides which rules apply to them.
   const everything = await RecipeController.reusablePool(slots, context);
   const supply = balanceSupply(everything, context.catalogue);
-  const inputFor = pool => ({
+  const inputFor = (pool, pinned) => ({
     accompaniments,
     catalogue: context.catalogue,
     dayTargets,
     minimumKcal: minimumDailyKcal(profile.target.sex),
     monthOf,
-    pool,
+    pinned,
+    pool: pinned.size === 0 ? pool : withPins(pool, pinned, everything),
     proteinWeights,
     targets,
     weights
   });
-  const schedule = pool => schedulePlan(inputFor(pool));
+  // The rules are written once and stand over every seed, which is what weekly means.
+  const pins = pinsFor(slots, everything, inputFor, options, profile.slug);
+  const schedule = pool => schedulePlan(inputFor(pool, pins.map));
   const check = assignment =>
     validatePlan({
       assignment,
@@ -1214,7 +1395,9 @@ async function measureRotations(profile, shared, options) {
     const scheduleMs = Math.round(performance.now() - started);
     const daysOutside = new Set(violations.filter(violation => BAND_KINDS.has(violation.kind)).map(violation => violation.dayIndex));
     // After the clock stopped: which exceptions to the table the bands needed (019 phase 4).
-    const exceptions = options.exceptions ? bandNeededExceptions(inputFor(usedPool), scheduled.assignment) : undefined;
+    const exceptions = options.exceptions ? bandNeededExceptions(inputFor(usedPool, pins.map), scheduled.assignment) : undefined;
+    const outcome = pinOutcome(scheduled.assignment, pins.map);
+    const belowFloor = new Set(violations.filter(violation => violation.kind === 'below_minimum_kcal').map(violation => violation.dayIndex));
 
     plans.push({
       exceptions,
@@ -1225,6 +1408,12 @@ async function measureRotations(profile, shared, options) {
       measured: true,
       missedBand,
       offer: rotationOffer(reusable, context.catalogue),
+      pinnedDaysBelowFloor: [...belowFloor].filter(day => pins.map.has(day)).length,
+      // Which slot a lost day pinned is the whole shape of the answer: a fixed
+      // lunch takes about 40% of a three-meal day's energy, a fixed breakfast far less.
+      pinnedDaysOutside: [...daysOutside].filter(day => pins.map.has(day)).map(day => pins.map.get(day).slot),
+      pinsHonoured: outcome.honoured,
+      pinsRefused: outcome.refused,
       poolSize: reusable.length,
       proteinPerKg: proteinPerKgBySlot(scheduled.assignment.days, profile.target.weightKg),
       scheduleMs,
@@ -1233,7 +1422,16 @@ async function measureRotations(profile, shared, options) {
     });
   }
 
-  return { goal: profile.target.goal, measured: plans.every(plan => plan.measured), note, plans, slug: profile.slug, supply };
+  return {
+    goal: profile.target.goal,
+    measured: plans.every(plan => plan.measured),
+    note,
+    pinNote: pins.note,
+    pins: pins.rules,
+    plans,
+    slug: profile.slug,
+    supply
+  };
 }
 
 function median(values) {
@@ -1303,7 +1501,29 @@ function summariseRotations(results) {
     }
   }
 
+  // The fixed meals (`--pins`): what was asked of the plans, what they kept, and
+  // what the kept ones cost. A rule that was refused is not a rule that was free.
+  const pinned = {
+    bySlot: {},
+    daysBelowFloor: allPlans.reduce((sum, plan) => sum + (plan.pinnedDaysBelowFloor ?? 0), 0),
+    daysOutside: allPlans.flatMap(plan => plan.pinnedDaysOutside ?? []).length,
+    honoured: allPlans.reduce((sum, plan) => sum + (plan.pinsHonoured ?? 0), 0),
+    of: allPlans.reduce((sum, plan) => sum + (plan.pinsHonoured ?? 0) + (plan.pinsRefused?.length ?? 0), 0),
+    unwritable: results.flatMap(result => result.pins ?? []).filter(rule => rule.unwritable).length
+  };
+
+  for (const slot of allPlans.flatMap(plan => plan.pinnedDaysOutside ?? [])) {
+    pinned.bySlot[slot] = (pinned.bySlot[slot] ?? 0) + 1;
+  }
+
+  for (const plan of allPlans) {
+    for (const refusal of plan.pinsRefused ?? []) {
+      pinned.bySlot[`refused:${refusal.slot}`] = (pinned.bySlot[`refused:${refusal.slot}`] ?? 0) + 1;
+    }
+  }
+
   return {
+    pinned,
     days: { inside: allPlans.reduce((sum, plan) => sum + plan.daysInsideAll4, 0), of: allPlans.length * PLAN_DAYS },
     exceptions: allPlans.some(plan => plan.exceptions) ? exceptions : null,
     scheduleMs: allPlans.reduce((sum, plan) => sum + plan.scheduleMs, 0),
@@ -1373,6 +1593,22 @@ function printRotations(results, summary) {
 
   for (const [goal, { meanOfMedians, profiles }] of Object.entries(summary.goals)) {
     console.log(`  ${goal.padEnd(15)} ${Math.round(meanOfMedians * 100)}% (${profiles} profile${profiles === 1 ? '' : 's'})`);
+  }
+
+  if (summary.pinned.of > 0) {
+    const { bySlot, daysBelowFloor, daysOutside, honoured, of, unwritable } = summary.pinned;
+    const slots = Object.entries(bySlot)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([slot, count]) => `${slot} ${count}`)
+      .join(', ');
+
+    console.log(`\nFixed meals: ${honoured} of ${of} day-slots served the dish the rule asks for.`);
+    console.log(`  days that carried a rule and missed a band: ${daysOutside}${slots === '' ? '' : ` (${slots})`}`);
+    console.log(`  days that carried a rule and fell under the energy floor: ${daysBelowFloor}`);
+
+    if (unwritable > 0) {
+      console.log(`  rules no library could write: ${unwritable}`);
+    }
   }
 
   console.log(`\nDays inside 5% on all four macros: ${summary.days.inside} / ${summary.days.of}; plates with a declared allergen: ${summary.unsafe}`);

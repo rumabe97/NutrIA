@@ -415,6 +415,31 @@ Three things a new price must respect (`0093`).
   accompaniments`) and read `Days inside 5% on all four macros` before anything else; one
   day short is a failure whatever the rule gained.
 
+## A dish somebody fixed is not the scheduler's to change
+
+`SchedulerInput.pinned` is the recurring fixed meal — *"every Friday dinner is tortilla de
+patata"* — and it is the one input that takes a dish out of the search's hands.
+
+- **The pin is decided once, in the day's slot loop, and is the end of the choosing.** It
+  is not a candidate that wins a ranking: a rule the person paid for must not lose a
+  tie-break. `honouredPin` is where it is refused instead, and only ever for a **hard
+  bound** — the pool (which is the allergy gate's own answer), the slot the dish declares,
+  and `fitsPlate`. Variety, the repeat rules, the kind caps and the floors' preference all
+  yield to it.
+- **Every pass that swaps a dish must skip a pinned pick, and there are six of them**:
+  `improveDay`, `spreadAcrossDays` (**both ends** of the exchange — a pinned plate is
+  neither given away nor taken), `repairOutOfBand`, `repairToRule` (floors and maximums),
+  `enforceDistinctDays`, and `couldChange`, which is how `bandNeededExceptions` asks
+  whether a meal could have been another. A seventh pass that forgets the guard does not
+  fail a test: it serves somebody else's dinner on the day they fixed theirs, once a
+  fortnight, for ever.
+- **Never carry the flag onto another dish.** `spreadAcrossDays` builds its replacement by
+  spreading the pick it replaces, so a missed guard there would hand `pinned: true` to a
+  dish nobody fixed. The flag rides on the dish it pinned or on nothing.
+- **Sizing is not swapping.** `balanceDay`, `meetSides`, `holdSideStarches` and the portion
+  search treat a pinned plate exactly like any other, and must keep doing so: the person
+  asked for tortilla on Friday, not for 300 g of it.
+
 ## ⛔ Anti-patterns
 
 ### 1. Database calls in controllers
