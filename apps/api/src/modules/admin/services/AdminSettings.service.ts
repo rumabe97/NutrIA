@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 
 import { SettingsController } from 'core/controllers/Settings';
 
-import type { SetFlagDto } from '../dto/in/index.js';
-import type { AdminSettingsViewDto } from '../dto/out/index.js';
+import type { SetAllowanceDto, SetFlagDto } from '../dto/in/index.js';
+import type { AdminAllowancesViewDto, AdminSettingsViewDto } from '../dto/out/index.js';
 
 @Injectable()
 export class AdminSettingsService {
@@ -14,5 +14,13 @@ export class AdminSettingsService {
 
   async setFlag(body: SetFlagDto, actorId: string): Promise<AdminSettingsViewDto> {
     return SettingsController.setFlag(body.flag, body.enabled, actorId);
+  }
+
+  async allowances(): Promise<AdminAllowancesViewDto> {
+    return SettingsController.allowances();
+  }
+
+  async setAllowance(body: SetAllowanceDto, actorId: string): Promise<AdminAllowancesViewDto> {
+    return SettingsController.setAllowance(body, actorId);
   }
 }

@@ -23,6 +23,7 @@ export const AUDIT_ACTIONS = [
   'professional.revoked',
   'feedback.handled',
   'feedback.reopened',
+  'setting.allowance_changed',
   'setting.changed',
   'push.test_sent',
   'picture.retried',
@@ -170,6 +171,18 @@ export interface AuditMetadataByAction {
   'professional.granted': Record<string, never>;
   'professional.revoked': Record<string, never>;
   'push.test_sent': Record<string, never>;
+  /**
+   * A tier's limit moved from the console (`0097`): which, for which tier, from what to what
+   * — never who it affects. `unset` when it was put back to the number the code ships, which
+   * deletes the row: without it the trail cannot tell that from somebody pinning that figure.
+   */
+  'setting.allowance_changed': {
+    readonly from: number;
+    readonly name: string;
+    readonly tier: string;
+    readonly unset: boolean;
+    readonly value: number;
+  };
   'setting.changed': { readonly enabled: boolean; readonly key: string };
 }
 

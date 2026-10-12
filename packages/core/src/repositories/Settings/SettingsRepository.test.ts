@@ -3,11 +3,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsRepository } from './SettingsRepository';
 
 let upserted: Record<string, unknown> | undefined;
+let deleted = false;
 
 vi.mock('database', () => ({
   database: () => ({
     transaction: (fn: (tx: unknown) => Promise<unknown>) =>
       fn({
+        delete: () => ({
+          where: () => {
+            deleted = true;
+
+            return Promise.resolve(undefined);
+          }
+        }),
         insert: () => ({
           values: (values: Record<string, unknown>) => {
             upserted = values;
@@ -38,5 +46,38 @@ describe('SettingsRepository.set', () => {
     await expect(SettingsRepository.set('premium', false)).resolves.toBeUndefined();
 
     expect(upserted).toEqual({ enabled: false, key: 'premium' });
+  });
+});
+
+/**
+ * `setAllowance` (`0097`, rule 4): a limit put back to what the code ships has
+ * its row deleted rather than stored as a number that happens to match today.
+ * Stored, it would stop being the shipped number the day a release changed it.
+ */
+describe('SettingsRepository.setAllowance', () => {
+  beforeEach(() => {
+    upserted = undefined;
+    deleted = false;
+  });
+
+  it('stores a limit that differs from the shipped one, and writes the trail with it', async () => {
+    const trail = vi.fn(() => Promise.resolve(undefined));
+
+    await SettingsRepository.setAllowance('premium', 'mealSwapsPerPlan', 10, 20, trail);
+
+    expect(upserted).toMatchObject({ key: 'mealSwapsPerPlan', tier: 'premium', value: 10 });
+    expect(deleted).toBe(false);
+    expect(trail).toHaveBeenCalledTimes(1);
+  });
+
+  it('deletes the row when the limit is put back to what the code ships', async () => {
+    const trail = vi.fn(() => Promise.resolve(undefined));
+
+    await SettingsRepository.setAllowance('premium', 'mealSwapsPerPlan', 20, 20, trail);
+
+    expect(deleted).toBe(true);
+    expect(upserted).toBeUndefined();
+    // The trail still runs: putting a limit back is a change somebody made.
+    expect(trail).toHaveBeenCalledTimes(1);
   });
 });

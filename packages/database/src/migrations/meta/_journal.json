@@ -435,6 +435,13 @@
       "when": 1791556504838,
       "tag": "0061_a_shopping_row_is_bought_by_amount",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1791830401238,
+      "tag": "0062_each_tier_is_allowed_what_the_console_says",
+      "breakpoints": true
     }
   ]
 }

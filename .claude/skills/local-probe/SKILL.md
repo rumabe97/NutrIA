@@ -56,7 +56,8 @@ node $S/probe.mjs --paths /perfil --views phone --schemes light   # narrower, fa
 ```
 
 Each line is one page in one viewport and scheme: the status, where it landed if it was
-redirected, how far it scrolls sideways, and its `h1`. It exits 1 on a 4xx/5xx, on any
+redirected, how far it overflows sideways — scrolled **or clipped**, which is how a block
+wider than the screen cuts its own words off in silence — and its `h1`. It exits 1 on a 4xx/5xx, on any
 sideways scroll, or when the page throws.
 
 `hint:` lines are for you to judge, not to obey. A control under 44 px on a touch viewport

@@ -42,6 +42,8 @@ vi.mock('#repositories/Plan', () => ({ PlanRepository: { findActive: (u: string)
  */
 vi.mock('core/controllers/Settings', () => ({ SettingsController: { flags: () => Promise.resolve({ automaticActivation: true, premium: true }) } }));
 vi.mock('#repositories/User', () => ({ UserRepository: { tierOf: (u: string) => tierOf(u) } }));
+// Nothing stored means the numbers the code ships, which is what every case below assumes (`0097`).
+vi.mock('#repositories/Settings', () => ({ SettingsRepository: { allowances: () => Promise.resolve([]) } }));
 
 const TODAY = '2026-09-10';
 

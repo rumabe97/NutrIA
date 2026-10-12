@@ -66,7 +66,7 @@ import type { Response } from 'supertest';
  *
  * Requires a real database — see ./README.md.
  */
-const ROUTES = ['accounts', 'settings', 'analytics', 'ai', 'feedback', 'audit'];
+const ROUTES = ['accounts', 'settings', 'settings/allowances', 'analytics', 'ai', 'feedback', 'audit'];
 
 /** Gone in phase 9 step 1 (`0068` § Removed): no route answers them at all, admin session or not. */
 const REMOVED_ROUTES = ['overview', 'failures'];

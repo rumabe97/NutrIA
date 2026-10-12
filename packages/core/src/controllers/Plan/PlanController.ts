@@ -1,13 +1,13 @@
 import { ConflictError, InputParseError, MealInFutureError, NotFoundError, PlanPausedError, QuotaExceededError } from 'core/entities/Error';
 import { LIVED_PLAN_STATUSES } from 'core/entities/Plan';
 import {
-  allowancesFor,
   eventStanding,
   MAX_START_DAYS_AHEAD,
   mealSwapStanding,
   midPlanEventStanding,
   planRedoStanding,
   redosInFortnight,
+  resolveAllowances,
   startMeaning
 } from 'core/domain/Allowance';
 import { personDayKey } from 'core/domain/Period';
@@ -25,6 +25,7 @@ import { VacationRepository } from '#repositories/Vacation';
 import { isAway } from 'core/domain/Vacation';
 import { SafetyController } from 'core/controllers/Safety';
 import { SettingsController } from 'core/controllers/Settings';
+import { SettingsRepository } from '#repositories/Settings';
 import { RecipeController, toPictureStatus } from 'core/controllers/Recipe';
 import { alternativesFor } from 'core/domain/Substitution';
 import { toDry, withoutCooked } from 'core/domain/Yield';
@@ -42,7 +43,7 @@ import type {
   SetShoppingItem,
   ShoppingItemDraft
 } from 'core/entities/Plan';
-import type { CountedStanding, MealSwapStanding, PlanRedoStanding, StartMeaning, Tier } from 'core/domain/Allowance';
+import type { Allowances, CountedStanding, MealSwapStanding, PlanRedoStanding, StartMeaning, StoredAllowance, Tier } from 'core/domain/Allowance';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PlanWindow } from 'core/domain/Event';
 import type { RecordAccess } from '#repositories/Care';
@@ -416,15 +417,15 @@ export const PlanController = {
     await PlanController.activateDue(userId, await personToday(userId));
 
     const context = await startContext(userId, forGeneration);
-    const { active, tier, today } = context;
+    const { active, limits, tier, today } = context;
     const [swaps, events, mealSize] = await Promise.all([
       active ? PlanRepository.countSwaps(active.id) : 0,
-      PlanController.eventStanding(userId, planWindow(active, today), tier),
+      PlanController.eventStanding(userId, planWindow(active, today), limits),
       ProfileController.mealSize(userId)
     ]);
     // The counter is on the plan row and dies with the plan, which is what
     // "per plan" means; a plan that has ended is not one that can be rebuilt.
-    const midPlan = midPlanEventStanding(active && active.endDate >= today ? active.midPlanLoads : 0, tier);
+    const midPlan = midPlanEventStanding(active && active.endDate >= today ? active.midPlanLoads : 0, limits);
     const days = Array.from({ length: MAX_START_DAYS_AHEAD + 1 }, (_, offset) => addDays(context.today, offset));
     const afterActive = active ? addDays(active.endDate, 1) : null;
 
@@ -436,7 +437,7 @@ export const PlanController = {
         remaining: events.remaining
       },
       mealSize,
-      mealSwaps: mealSwapStanding(swaps, tier),
+      mealSwaps: mealSwapStanding(swaps, limits),
       planRedo: standingAt(context, context.today).standing,
       startOptions: days.map(date => {
         const { standing } = standingAt(context, date);
@@ -516,9 +517,9 @@ export const PlanController = {
    * Here rather than on `EventController` because that controller already
    * needs `tierOf` from this one, and a controller that imports back is a cycle.
    */
-  async eventStanding(userId: string, window: PlanWindow, tier?: Tier): Promise<CountedStanding> {
+  async eventStanding(userId: string, window: PlanWindow, limits: Allowances): Promise<CountedStanding> {
     const [resolved, dated] = await Promise.all([
-      tier ?? PlanController.tierOf(userId),
+      Promise.resolve(limits),
       // Widened by the longest load: an event just past the window's end can
       // still move days inside it. `eventsInWindow` then decides which do.
       EventRepository.findInRange(userId, window.from, addDays(window.to, MAX_DAYS_BEFORE))
@@ -676,6 +677,22 @@ export const PlanController = {
     };
   },
 
+  /**
+   * What this person is really allowed, which is their tier's numbers as the
+   * console has them (`0097`).
+   *
+   * One read of the eight-row table beside the tier's own, in parallel, because
+   * every caller that wants a limit has just asked which tier is asking. What
+   * the stored rows mean — believed, ignored, or resolved against each other —
+   * is `resolveAllowances`', and nothing about it is cached: the owner moving a
+   * number from his phone is answered by the next request, as a switch is.
+   */
+  async limitsOf(userId: string): Promise<Allowances> {
+    const [tier, stored] = await Promise.all([PlanController.tierOf(userId), storedLimits()]);
+
+    return resolveAllowances(stored)[tier];
+  },
+
   /** Newest first. A plan is replaced when the next lived plan began before it ended. */
   async listPlans(userId: string, limit = 20, offset = 0): Promise<readonly PlanSummaryView[]> {
     const rows = await PlanRepository.findHistory(userId, limit, offset);
@@ -712,9 +729,9 @@ export const PlanController = {
    * `allowances` counts the active plan's.
    */
   async mealSwapStanding(userId: string, planId: string): Promise<MealSwapStanding> {
-    const [swaps, tier] = await Promise.all([PlanRepository.countSwaps(planId), PlanController.tierOf(userId)]);
+    const [swaps, limits] = await Promise.all([PlanRepository.countSwaps(planId), PlanController.limitsOf(userId)]);
 
-    return mealSwapStanding(swaps, tier);
+    return mealSwapStanding(swaps, limits);
   },
 
   /**
@@ -806,7 +823,10 @@ export const PlanController = {
     await PlanRepository.rebuildLoadedDays(
       userId,
       planId,
-      { days, limit: allowancesFor(await PlanController.tierOf(userId)).midPlanEventsPerPlan },
+      // The number the repository enforces inside its own transaction, so it has to be
+      // the one in force and not the one the code ships (`0097`): the pre-check above
+      // reads the console, and a guard reading anything else refuses what it promised.
+      { days, limit: (await PlanController.limitsOf(userId)).midPlanEventsPerPlan },
       shoppingItems
     );
   },
@@ -883,7 +903,8 @@ export const PlanController = {
     await PlanRepository.swapMeal(
       userId,
       mealId,
-      { ...change, limit: allowancesFor(await PlanController.tierOf(userId)).mealSwapsPerPlan },
+      // Enforced inside the transaction, so the same rule: the limit in force (`0097`).
+      { ...change, limit: (await PlanController.limitsOf(userId)).mealSwapsPerPlan },
       shoppingItems,
       review
     );
@@ -1215,19 +1236,44 @@ type StartContext = {
   readonly current: { readonly version: number } | undefined;
   /** The fortnight a redo would redo: a pending plan that counts (`0060`) when a generation asks, else the active plan. */
   readonly ends: { readonly endDate: string; readonly version: number } | undefined;
+  /** This person's tier's numbers as the console has them, resolved once for the whole screen (`0097`). */
+  readonly limits: Allowances;
   readonly tier: Tier;
   readonly today: string;
   /** The plan waiting for its day (project 015), from the chain. */
   readonly waiting: ChainPlan | undefined;
 };
 
+/**
+ * What the console has stored, or nothing at all.
+ *
+ * A read that fails answers "nobody has moved anything", which is the shipped
+ * table — the smaller number, the direction `0042` requires of every fallback
+ * here. This is on the path that serves somebody their plan, and a table that
+ * is missing (a migration not yet run, a build rolled forward past one) must
+ * cost them their *overrides*, never their plan. The console's own read is not
+ * wrapped: there, a failure is the news.
+ */
+async function storedLimits(): Promise<readonly StoredAllowance[]> {
+  try {
+    return await SettingsRepository.allowances();
+  } catch {
+    return [];
+  }
+}
+
 async function startContext(userId: string, forGeneration: boolean): Promise<StartContext> {
-  const [active, chain, tier, today] = await Promise.all([
+  const [active, chain, tier, stored, today] = await Promise.all([
     PlanRepository.findActive(userId),
     PlanRepository.findChain(userId, true),
     PlanController.tierOf(userId),
+    storedLimits(),
     personToday(userId)
   ]);
+  // Resolved once for the whole screen: every standing below answers from the
+  // same numbers, so a limit moved between two of these reads cannot show a
+  // person one limit beside another (`0097`).
+  const limits = resolveAllowances(stored)[tier];
   // A plan waiting for review (`0060`) is the fortnight a redo would redo: it
   // was generated, and what it spent is spent, whether or not it is published —
   // while it can still be published. A plan stranded by a link that ended,
@@ -1239,7 +1285,16 @@ async function startContext(userId: string, forGeneration: boolean): Promise<Sta
   const counted = pending && (await pendingCounts(userId)) ? pending : undefined;
   const current = counted ?? active;
 
-  return { active, chain, current, ends: forGeneration ? current : active, tier, today, waiting: chain.find(plan => plan.status === 'scheduled') };
+  return {
+    active,
+    chain,
+    current,
+    ends: forGeneration ? current : active,
+    limits,
+    tier,
+    today,
+    waiting: chain.find(plan => plan.status === 'scheduled')
+  };
 }
 
 /**
@@ -1261,13 +1316,13 @@ function standingAt(
   start: string,
   chargeWaiting = true
 ): { readonly meaning: StartMeaning; readonly standing: PlanRedoStanding } {
-  const { chain, current, ends, tier, today } = context;
+  const { chain, current, ends, limits, today } = context;
   const waiting = chargeWaiting ? context.waiting : undefined;
   const meaning = startMeaning(ends, start, today, waiting !== undefined);
-  const limit = allowancesFor(tier).planRedosPerFortnight;
+  const limit = limits.planRedosPerFortnight;
 
   if (meaning.kind === 'new_fortnight') {
-    return { meaning, standing: planRedoStanding(undefined, 0, today, tier) };
+    return { meaning, standing: planRedoStanding(undefined, 0, today, limits) };
   }
 
   const countFrom = (plan: { readonly version: number } | undefined) =>

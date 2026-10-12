@@ -179,6 +179,31 @@ export const enGB: Dictionary = {
   },
 
   /* `/admin/ajustes/registro` (`0071`): who did each account or setting mutation, and when. */
+  adminAllowances: {
+    bounds: 'Ships as {shipped}. Between {floor} and {ceiling}.',
+    costEvents: 'Declaring a day that eats differently costs nothing: it is scheduling, not a model call.',
+    costMidPlan: 'Rebuilding the days of a fortnight already under way is served from the library and spends no generation.',
+    costRedos: 'The only one that spends money: about 0.24 $ a redo, nearly all of it the pictures of its fresh dishes.',
+    costSwaps: 'A swap is almost always served from the library and costs nothing.',
+    free: 'Free',
+    intro:
+      'How much each subscription allows. A number outside its bounds is refused rather than clamped, and until somebody moves one it is whatever the code ships.',
+    labelEvents: 'Days that eat for something, per plan',
+    labelMidPlan: 'Days that eat for something added to a fortnight under way',
+    labelRedos: 'Replannings per fortnight',
+    labelSwaps: 'Meal swaps, per plan',
+    premium: 'Premium',
+    save: 'Save',
+    spend:
+      'It comes out of the month’s picture budget, which is one budget for everybody: at the cap drawing stops for everyone, not only for whoever spent it.',
+    spendLink: 'See the picture spend',
+    title: 'What each subscription allows',
+    whole: 'It has to be a whole number.',
+    whyEvents: 'Above seven has no effect: a load is one to three days and two events may not share one, so a fortnight holds seven at most.',
+    whyMidPlan: 'A fortnight cannot be rebuilt for more days than it holds, so this resolves against that tier’s own events as well.',
+    whyRedos: 'Six a fortnight is twelve a month: about 3–6 $ of pictures for one account, against a 10 $ month shared by everybody.',
+    whySwaps: 'Twenty-eight is a fortnight’s lunches and dinners; past that a swap limit names nothing.'
+  },
   adminAudit: {
     actions: {
       'account.activated': 'Account activated',
@@ -204,11 +229,14 @@ export const enGB: Dictionary = {
       'professional.granted': 'Professional profile granted',
       'professional.revoked': 'Professional profile revoked',
       'push.test_sent': 'Test push sent',
+      'setting.allowance_changed': 'Subscription limit changed',
       'setting.changed': 'Setting changed'
     },
     allergensOverridden: 'The checker had flagged:',
     allergensOverriddenNone: 'The checker had flagged no allergen',
     /** `auth.backup_code_used`: how many codes the person has left. */
+    allowanceChange: '{name}, {tier}: from {from} to {value}',
+    allowanceUnset: '{name}, {tier}: from {from} back to {value}, the number the code ships',
     backupCodesLeft: '{remaining} left',
     caption: 'Actions',
     columns: { account: 'Account', action: 'Action', actor: 'Who', date: 'Date', detail: 'Detail' },

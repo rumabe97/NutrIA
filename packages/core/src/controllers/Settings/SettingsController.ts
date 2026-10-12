@@ -2,9 +2,13 @@ import { AuditRepository } from '#repositories/Audit';
 import { SettingsRepository } from '#repositories/Settings';
 import { UNAUDITED } from 'core/entities/Audit';
 
+import { ALLOWANCE_BOUNDS, allowancesFor, resolveAllowances } from 'core/domain/Allowance';
 import { FLAGS, flagsFor, flagsFrom } from 'core/domain/Flag';
+import { InputParseError } from 'core/entities/Error';
 
+import type { AllowanceLimits, AllowanceName, Allowances, Tier } from 'core/domain/Allowance';
 import type { FlagAudience, FlagName, FlagSet } from 'core/domain/Flag';
+import type { SetAllowance } from 'core/entities/Settings';
 
 /**
  * The switches the owner can throw while the service runs.
@@ -17,6 +21,20 @@ import type { FlagAudience, FlagName, FlagSet } from 'core/domain/Flag';
  */
 export type SettingsView = { readonly flags: Partial<FlagSet> };
 
+/**
+ * What the console needs to move a limit: what it is now, what it would be with
+ * nothing stored, and the bounds with the reason for each (`0097`).
+ *
+ * The shipped numbers travel with the effective ones so the page can say "back
+ * to what it ships" without knowing any number itself — the registry is the one
+ * authority, and a console that held its own copy would be a second one.
+ */
+export type AllowancesView = {
+  readonly bounds: Readonly<Record<AllowanceName, AllowanceLimits>>;
+  readonly effective: Readonly<Record<Tier, Allowances>>;
+  readonly shipped: Readonly<Record<Tier, Allowances>>;
+};
+
 export const SettingsController = {
   /**
    * Whether a big lunch or dinner gets bread, a salad or fruit beside it
@@ -24,6 +42,15 @@ export const SettingsController = {
    */
   async accompaniments(): Promise<boolean> {
     return SettingsRepository.isEnabled(FLAGS.accompaniments.key, FLAGS.accompaniments.fallback);
+  },
+
+  /** What each tier is allowed now, what it ships as, and the bounds the console may not leave (`0097`). */
+  async allowances(): Promise<AllowancesView> {
+    return {
+      bounds: ALLOWANCE_BOUNDS,
+      effective: resolveAllowances(await SettingsRepository.allowances()),
+      shipped: { free: allowancesFor('free'), premium: allowancesFor('premium') }
+    };
   },
 
   /**
@@ -56,6 +83,58 @@ export const SettingsController = {
   /** What an audience is allowed to see of them. */
   async read(audience: FlagAudience = 'signed-in'): Promise<SettingsView> {
     return { flags: flagsFor(await SettingsController.flags(), audience) };
+  },
+
+  /**
+   * Move one limit for one tier.
+   *
+   * Refused rather than clamped when it is outside the registry's bounds: a
+   * clamp answers a number nobody asked for, and the person moving it would
+   * read the clamped figure back as though it were their decision.
+   *
+   * Premium below free is refused here **as well as** resolved on read. The
+   * write-time refusal is the one that can explain itself; the read-time
+   * resolution is what covers the pair being invalidated afterwards by moving
+   * the other half of it, which no refusal can catch.
+   */
+  async setAllowance({ name, tier, value }: SetAllowance, actorId: string | typeof UNAUDITED): Promise<AllowancesView> {
+    const bounds = ALLOWANCE_BOUNDS[name];
+
+    if (value < bounds.floor || value > bounds.ceiling) {
+      throw new InputParseError('That is outside what this limit may be', { value: [bounds.why] });
+    }
+
+    const { effective } = await SettingsController.allowances();
+    const other = tier === 'free' ? effective.premium[name] : effective.free[name];
+
+    if ((tier === 'free' && value > other) || (tier === 'premium' && value < other)) {
+      throw new InputParseError('Premium may not allow less than free', {
+        value: [`Free is ${String(effective.free[name])} and premium is ${String(effective.premium[name])}; move the other one first.`]
+      });
+    }
+
+    await SettingsRepository.setAllowance(
+      tier,
+      name,
+      value,
+      allowancesFor(tier)[name],
+      actorId === UNAUDITED
+        ? undefined
+        : async tx => {
+            await AuditRepository.record(
+              {
+                action: 'setting.allowance_changed',
+                actorId,
+                entity: 'setting',
+                entityId: `allowance:${tier}:${name}`,
+                metadata: { from: effective[tier][name], name, tier, unset: value === allowancesFor(tier)[name], value }
+              },
+              tx
+            );
+          }
+    );
+
+    return SettingsController.allowances();
   },
 
   /**

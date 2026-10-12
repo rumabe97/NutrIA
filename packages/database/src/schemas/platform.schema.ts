@@ -1,7 +1,7 @@
-import { boolean, index, jsonb, pgTable, text, time, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, jsonb, pgTable, primaryKey, text, time, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 
 import { notificationChannel, notificationType } from './_enums';
-import { user } from './auth.schema';
+import { user, userTier } from './auth.schema';
 import { timestamps } from './_columns';
 import { userOwned, userOwnedSingleton } from './_utils';
 
@@ -151,3 +151,38 @@ export const appSettings = pgTable('app_settings', {
   key: text().primaryKey(),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow()
 });
+
+/**
+ * What each tier is allowed, when the owner has moved it from the console
+ * (`0097`). One row per tier per limit, and **only for limits somebody has
+ * moved**: a limit nobody has touched has no row, and is whatever the code
+ * ships.
+ *
+ * Deliberately not in `app_settings`, which holds a boolean: a switch and a
+ * number fail differently. A switch read wrong is on or off, and the registry
+ * says which way is safe; a number read wrong can be *larger*, which is a grant
+ * nobody made. So the key is not an enum here either — the authority on which
+ * limits exist is the code's registry (`ALLOWANCE_BOUNDS`), and a row naming a
+ * limit this version does not have is ignored rather than honoured, exactly as
+ * a renamed flag key reads as a switch nobody threw.
+ *
+ * Ignored is not deleted: a renamed or retired limit's old row sits here,
+ * unread, for good — nothing sweeps it — so a later release that reuses its
+ * name would read the stale value back as though somebody had just moved it.
+ * A *current* name has no such row forever: `setAllowance` deletes a row the
+ * moment its value is put back to what the code ships, which is what keeps
+ * this comment's "no row means the shipped number" true in both directions.
+ *
+ * Whether a stored number is believed at all is `resolveAllowances`': a value
+ * outside its bounds reads as the shipped default and never as the bound.
+ */
+export const tierAllowances = pgTable(
+  'tier_allowances',
+  {
+    key: text().notNull(),
+    tier: userTier().notNull(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    value: integer().notNull()
+  },
+  table => [primaryKey({ columns: [table.tier, table.key] })]
+);
