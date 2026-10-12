@@ -744,10 +744,7 @@ function dayReuseCost(picks: readonly Pick[], dayIndex: number, placed: readonly
 }
 
 /** One fixed recurring meal, as a day of the fortnight sees it: this dish, in this slot. */
-export type PinnedMeal = {
-  readonly slot: MealSlot;
-  readonly slug: string;
-};
+export type PinnedMeal = { readonly slot: MealSlot; readonly slug: string };
 
 export type SchedulerInput = {
   /** Accompaniments, when the flag is on; absent, none (`AccompanimentOffer`). */
@@ -786,14 +783,6 @@ export type SchedulerInput = {
    */
   readonly monthOf?: (dayIndex: number) => number;
   /**
-   * What is already on the plate and is *not* being laid out again.
-   *
-   * The variety rules are enforced against these exactly as against the days
-   * this call places, so a rebuilt Tuesday cannot serve the same dish the
-   * untouched Monday does. Empty for a generation, which starts with nothing.
-   */
-  readonly placed?: readonly Placement[];
-  /**
    * A dish somebody has fixed to one slot of a day, by day index — *"every
    * Friday dinner is tortilla de patata"*, expanded to the fortnight's days by
    * the caller, so the scheduler never has to know what a weekday is.
@@ -809,6 +798,14 @@ export type SchedulerInput = {
    * any of those is simply not honoured that day, which is `honouredPin`.
    */
   readonly pinned?: ReadonlyMap<number, PinnedMeal>;
+  /**
+   * What is already on the plate and is *not* being laid out again.
+   *
+   * The variety rules are enforced against these exactly as against the days
+   * this call places, so a rebuilt Tuesday cannot serve the same dish the
+   * untouched Monday does. Empty for a generation, which starts with nothing.
+   */
+  readonly placed?: readonly Placement[];
   readonly pool: readonly CandidateDish[];
   /** Each slot's share of the day's protein when it is not its share of the energy (`proteinWeightsFor`, `0088`). */
   readonly proteinWeights?: ReadonlyMap<MealSlot, number>;
@@ -1976,7 +1973,6 @@ function pickBest(
 type Pick = {
   readonly base: PerServing;
   readonly dish: CandidateDish;
-  readonly servings: number;
   /**
    * This plate is a fixed recurring meal and its *dish* is the person's, not the
    * scheduler's. Every pass that would swap a dish skips it; every pass that
@@ -1984,6 +1980,7 @@ type Pick = {
    * Friday, not for 300 g of it.
    */
   readonly pinned?: true;
+  readonly servings: number;
   /** What is beside the plate, once the day's search has chosen it; absent is nothing. Cleared whenever the dish changes. */
   readonly set?: AccompanimentSet;
   readonly slot: MealSlot;

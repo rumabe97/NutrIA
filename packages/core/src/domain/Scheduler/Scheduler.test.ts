@@ -3141,6 +3141,7 @@ describe('PLATE_FOOD_MAX — no plate holds more than about two servings of one 
 
 describe('a fixed recurring meal', () => {
   const lunchOn = (days: readonly number[], slug: string) => new Map(days.map(day => [day, { slot: 'lunch' as const, slug }]));
+
   const lunchOf = (result: ReturnType<typeof schedulePlan>, dayIndex: number) => {
     if (!result.ok) {
       throw new Error('the fixture was expected to schedule');
@@ -3220,7 +3221,11 @@ describe('a fixed recurring meal', () => {
 
   it('offers nothing for a slot the person does not eat', () => {
     expect(
-      pinnable({ catalogue, minimumKcal: MINIMUM_KCAL, pool: makePool(slotsForTest(3, false)), targets: TARGETS, weights: weightsFor(shapeFor(3, false)) }, 1, 'supper')
+      pinnable(
+        { catalogue, minimumKcal: MINIMUM_KCAL, pool: makePool(slotsForTest(3, false)), targets: TARGETS, weights: weightsFor(shapeFor(3, false)) },
+        1,
+        'supper'
+      )
     ).toEqual([]);
   });
 });
