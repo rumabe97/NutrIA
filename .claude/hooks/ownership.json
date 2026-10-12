@@ -55,5 +55,11 @@
       "docs/reference/architecture/"
     ],
     "except": []
+  },
+  "marketing": {
+    "owns": [
+      "docs/reference/marketing/"
+    ],
+    "except": []
   }
 }
