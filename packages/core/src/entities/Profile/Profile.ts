@@ -82,8 +82,20 @@ const AGE_YEARS = { max: 100, min: 18 } as const;
  * Bumped whenever the wording of the profile consent changes
  * (`docs/legal/textos/05-consentimientos-cliente.md` § A). A stored version that
  * differs is consent to a different notice, so it is asked again.
+ *
+ * **1.1.0 (2026-10-13): the dish request** (`0011` § 4 a). The paragraph above
+ * the checkbox promised the model receives "nada que escribas a mano", and a
+ * person may now type one dish name for it to read. That promise was shown at
+ * the moment of explicit consent, so narrowing it narrows what somebody agreed
+ * to — and `textos/05`'s own criterion, fixed on 2026-09-28, keys the version to
+ * the *processing* rather than to the wording: the sentence gets narrower, the
+ * processing gets wider.
+ *
+ * Asking again is also why no notice mail goes out: until somebody has read the
+ * new text they cannot generate, so the change never applies to anybody who has
+ * not seen it, and the policy's mail clause never triggers.
  */
-export const PROFILE_CONSENT_VERSION = '1.0.0';
+export const PROFILE_CONSENT_VERSION = '1.1.0';
 
 /** Giving the profile consent: the version the person read, and only the current one. */
 export const giveProfileConsentSchema = z.object({ version: z.literal(PROFILE_CONSENT_VERSION) });
