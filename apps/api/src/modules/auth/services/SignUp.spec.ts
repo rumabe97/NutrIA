@@ -138,6 +138,20 @@ function shape(body: string): Record<string, unknown> {
   };
 }
 
+/**
+ * Every sign-up here waits out the floor on purpose — `SIGN_UP_FLOOR_MS` is
+ * 800 ms, and that is the feature: an existing address and a new one must take
+ * the same time to answer, or the clock tells them apart.
+ *
+ * So these tests are slow by design, and Jest's five-second default was a
+ * budget one of them could not fit in: the three-mails case signs up six times,
+ * 4.8 s of mandated waiting, and passed locally with 200 ms to spare and failed
+ * on a shared runner under coverage (CI, 2026-10-13). A timeout tight enough to
+ * be broken by a busy machine measures the machine; this one is wide enough to
+ * stay about the code and still well under a hang.
+ */
+jest.setTimeout(30_000);
+
 describe('sign-up reveals nothing', () => {
   beforeEach(() => {
     for (const rows of Object.values(store)) {
