@@ -43,6 +43,13 @@ money; premium buys control rather than volume — and the two limits nobody can
 Three of the five numbers move. Two stay, and the audit below says why staying is a
 decision and not an omission.
 
+> **A sixth allowance is priced in its own file** (2026-10-13): the **dish request** — naming
+> a dish the library does not have and having the model write it — in
+> [`dish-requests.md`](./dish-requests.md). Free 0, premium 3 a calendar month, spent when a
+> dish is stored rather than when a request is made. It is the second `financial` number after
+> redos, the first whose money is too small to bound it, and the only one this audit's cost
+> table did not already cover.
+
 **Amended the same day** (owner, 2026-10-12: *"desde el panel del admin se tiene que poder
 configurar todo, cuántos usos tiene cada subscripción, ya sea free o premium"*): the table
 above stops being the law and becomes **the default shipped in code and the fallback** —
