@@ -1,4 +1,4 @@
-import { MAX_DISH_REQUEST } from 'core/domain/DishRequest';
+import { MAX_DISH_REQUEST, typedName } from 'core/domain/DishRequest';
 import { fixedMealSlotSchema, weekdaySchema } from 'core/entities/FixedMeal';
 import { z } from 'zod';
 
@@ -22,7 +22,9 @@ export const requestDishSchema = z.object({
     .trim()
     .min(1)
     .max(MAX_DISH_REQUEST)
-    .refine(value => !/[\n\r]/.test(value), { message: 'one line' }),
+    // One line and no quotes: the prompt interpolates this inside them, and a
+    // request that closes the quote is an instruction (`typedName`).
+    .refine(typedName, { message: `one line, no quotes, up to ${MAX_DISH_REQUEST} characters` }),
   slot: fixedMealSlotSchema,
   weekday: weekdaySchema
 });

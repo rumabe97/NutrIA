@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 
 import { daysFor } from 'core/entities/FixedMeal';
 import { DEFAULT_MEAL_SHAPE, proteinWeightsFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { actionable, whyNotFixable } from 'core/domain/FixableReason';
 import { ConflictError, InputParseError, QuotaExceededError } from 'core/entities/Error';
 import { DishRequestController } from 'core/controllers/DishRequest';
-import { dishVocabulary, MAX_DISH_REQUEST, storableName } from 'core/domain/DishRequest';
+import { dishVocabulary, MAX_DISH_REQUEST, storableName, storableProse, typedName } from 'core/domain/DishRequest';
 import { HealthController } from 'core/controllers/Health';
 import { UserController } from 'core/controllers/User';
 import { PoolBuilder } from '../../ai/services/PoolBuilder.service.js';
@@ -127,6 +128,8 @@ export class FixedMealsService {
     readonly context: Awaited<ReturnType<typeof RecipeController.generationContext>>;
     readonly dayIndex: number | undefined;
     readonly input: Parameters<typeof pinnable>[0] | undefined;
+    /** Everything the library holds for these slots, from the same read the pool came out of. */
+    readonly library: readonly CandidateDish[];
     readonly offered: readonly FixableDish[];
     readonly profile: Awaited<ReturnType<typeof ProfileController.getFullProfile>>;
     readonly slots: readonly MealSlot[];
@@ -154,12 +157,17 @@ export class FixedMealsService {
     // next — `defaultStart` is the day the chooser offers first (project 015).
     const [dayIndex] = daysFor(weekday, allowances.defaultStart, PLAN_DAYS);
 
+    // One read for both: the dishes this person may be served and everything the
+    // library holds for those slots. Asked apart they were the same thousand
+    // recipes read twice, on every pause in somebody's typing.
+    const { library, pool: servable } = await RecipeController.libraryAndPool(slots, context);
+
     if (dayIndex === undefined) {
-      return { context, dayIndex: undefined, input: undefined, offered: [], profile, slots, verdicts };
+      return { context, dayIndex: undefined, input: undefined, library, offered: [], profile, slots, verdicts };
     }
 
     const disliked = new Set(verdicts.disliked.map(dish => dish.slug));
-    const pool = (await RecipeController.reusablePool(slots, context)).filter(dish => !disliked.has(dish.slug));
+    const pool = servable.filter(dish => !disliked.has(dish.slug));
     const start = new Date(`${allowances.defaultStart}T00:00:00Z`);
 
     const monthOf = (index: number): number => {
@@ -190,6 +198,7 @@ export class FixedMealsService {
       context,
       dayIndex,
       input,
+      library,
       offered: [...offered]
         .map((dish: CandidateDish) => ({ id: dish.slug, name: dish.name, slug: dish.slug }))
         .sort((a, b) => a.name.localeCompare(b.name)),
@@ -220,9 +229,8 @@ export class FixedMealsService {
       return [];
     }
 
-    const { context, offered, slots, verdicts } = await this.offerFor(userId, weekday, slot);
+    const { context, library, offered, verdicts } = await this.offerFor(userId, weekday, slot);
     const offeredSlugs = new Set(offered.map(dish => dish.slug));
-    const library = await RecipeController.libraryFor(slots, context);
     const seen = new Set<string>();
     const reasons: NotOfferedDish[] = [];
 
@@ -280,8 +288,8 @@ export class FixedMealsService {
   async request(userId: string, weekday: Weekday, slot: MealSlot, name: string): Promise<FixableDish> {
     const asked = name.trim();
 
-    if (asked.length === 0 || asked.length > MAX_DISH_REQUEST || /[\n\r]/.test(asked)) {
-      throw new InputParseError('Write the name of a dish', { name: [`one line, up to ${MAX_DISH_REQUEST} characters`] });
+    if (!typedName(asked)) {
+      throw new InputParseError('Write the name of a dish', { name: [`one line, no quotes, up to ${MAX_DISH_REQUEST} characters`] });
     }
 
     if (!(await DishRequestController.standing(userId)).allowed) {
@@ -290,7 +298,7 @@ export class FixedMealsService {
       throw new QuotaExceededError('dish_request');
     }
 
-    const { context, dayIndex, input, profile, slots } = await this.offerFor(userId, weekday, slot);
+    const { context, dayIndex, input, library, profile } = await this.offerFor(userId, weekday, slot);
 
     if (!input || dayIndex === undefined) {
       throw new ConflictError('That meal does not fall in the fortnight you would generate next');
@@ -314,13 +322,17 @@ export class FixedMealsService {
         asked
       ),
       reusable: [],
-      session: `dish-request:${userId}`,
+      // Never the account's id: a session label reaches a log line and, behind a
+      // gateway, a provider's own log, where an id would be a per-account
+      // correlator. Every other caller labels an entity (a job, a meal, a
+      // recipe) and a request has none, so this is random.
+      session: `dish-request:${randomUUID()}`,
       slots: [slot]
     });
 
     const vocabulary = dishVocabulary(
       context.catalogue,
-      (await RecipeController.libraryFor(slots, context)).map(dish => dish.name)
+      library.map(dish => dish.name)
     );
     const health = await HealthController.get(userId);
     const person = {
@@ -344,6 +356,19 @@ export class FixedMealsService {
         // The model echoed the request into the name, or wrote something that is
         // not a dish's name. Nothing is stored: the library is shared and the
         // name goes to Google with the picture.
+        continue;
+      }
+
+      if (
+        !storableProse(
+          [...candidate.steps.flatMap(step => [step.text, step.cue ?? '']), candidate.cuisine ?? ''],
+          person
+        ).ok
+      ) {
+        // The name is a tenth of what is stored. The method is written by the
+        // same model under a prompt quoting the person's words, and it is kept
+        // verbatim in the same shared row — so it is read by the same gate
+        // (`invariant-reviewer`, 2026-10-13).
         continue;
       }
 

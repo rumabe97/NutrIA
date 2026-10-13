@@ -119,11 +119,24 @@ export const DishRequestRepository = {
             .returning({ id: recipes.id });
 
           if (!inserted) {
-            const [already] = await tx.select({ id: recipes.id }).from(recipes).where(eq(recipes.slug, draft.slug)).limit(1);
+            const [already] = await tx.select({ id: recipes.id, locale: recipes.locale }).from(recipes).where(eq(recipes.slug, draft.slug)).limit(1);
 
             // Somebody else's identical dish won the race, or the library
             // already held it. Its ingredients are already there — writing them
             // again would double every weight in the shopping list.
+            //
+            // **Only if it is a dish this person could be served.** `slug` is
+            // unique across the whole table and is *not* scoped by locale, so an
+            // English request for gazpacho collides with the Spanish row — and
+            // handing that back would tell somebody a dish exists which
+            // `reusablePool`, which is locale-scoped, will never offer them:
+            // they press "fix it" and get a 422 (`invariant-reviewer`,
+            // 2026-10-13). A refusal is the honest answer, and it is the one the
+            // screen already has a sentence for.
+            if (already && already.locale !== locale) {
+              throw new ConflictError('A dish of that name exists in another language');
+            }
+
             return already?.id;
           }
 

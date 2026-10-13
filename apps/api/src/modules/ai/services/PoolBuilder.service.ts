@@ -113,6 +113,23 @@ export type BuildPoolInput = {
   readonly slots: readonly MealSlot[];
 };
 
+/**
+ * How a dish is named in this build's own log lines.
+ *
+ * Every line about a rejected dish printed the name **the model wrote**, and for
+ * a dish request that name can echo the words a person typed — the one field in
+ * this product whose content a person writes and a model reads (`0100`). The
+ * typed string itself never reaches a log; its echo did, and a rejection is the
+ * ordinary case on that path rather than an edge, which is why
+ * `REQUEST_CANDIDATES` is three.
+ *
+ * So a dish request's lines carry the slot and the reason and no name at all.
+ * **Not the slug either**: the slug is made of the same words. The *stored*
+ * slug is another matter — it is derived from a name `storableName` has already
+ * passed.
+ */
+type DishNaming = (name: string) => string;
+
 /** The dish kept, or why it was dropped; and how many of its slugs were read as a near miss (`repairSlug`). */
 type Verdict = ({ readonly dish: CandidateDish } | { readonly reason: DishRejection }) & { readonly repaired: number };
 
@@ -164,6 +181,8 @@ export class PoolBuilder {
   }: BuildPoolInput): Promise<PoolResult> {
     const accepted = new Map<string, CandidateDish>(reusable.map(dish => [dish.slug, dish]));
     const generated: CandidateDish[] = [];
+    // Only this build's logs change; what is stored is gated elsewhere.
+    const named: DishNaming = feature === 'dish_request' ? () => 'a requested dish' : (name: string) => `"${name}"`;
     /*
      * The per-slot total this build converges to, over every round: what the
      * rotation handed over before any round ran, plus what covers it up to
@@ -414,7 +433,7 @@ export class PoolBuilder {
         let repaired = 0;
 
         for (const dish of dishes) {
-          const verdict = this.validate(dish, context, accepted, shown.get(slot)?.slugs ?? [], slot);
+          const verdict = this.validate(dish, context, accepted, shown.get(slot)?.slugs ?? [], slot, named);
 
           repaired += verdict.repaired;
 
@@ -516,7 +535,8 @@ export class PoolBuilder {
     context: GenerationContext,
     accepted: ReadonlyMap<string, CandidateDish>,
     shownSlugs: readonly string[],
-    requestedSlot: MealSlot
+    requestedSlot: MealSlot,
+    named: DishNaming
   ): Verdict {
     // The wire schema is deliberately loose so the provider can express it; the
     // bounds are enforced here, against the strict schema. Anything failing this
@@ -524,7 +544,7 @@ export class PoolBuilder {
     const parsed = generatedDishSchema.safeParse(raw);
 
     if (!parsed.success) {
-      this.logger.warn(`Dish "${raw.name}" rejected: ${parsed.error.issues.map(issue => `${issue.path.join('.')} ${issue.message}`).join('; ')}`);
+      this.logger.warn(`Dish ${named(raw.name)} rejected: ${parsed.error.issues.map(issue => `${issue.path.join('.')} ${issue.message}`).join('; ')}`);
 
       return { reason: 'schema', repaired: 0 };
     }
@@ -549,8 +569,9 @@ export class PoolBuilder {
       }
 
       repaired += 1;
-      // Slugs and the dish name, which the rejection lines already log — nothing of the person.
-      this.logger.log(`Dish "${parsed.data.name}": ingredient slug ${item.slug} read as ${meant}`);
+      // Slugs and the dish as the rejection lines name it — which, for a dish
+      // request, is no name at all (`DishNaming`).
+      this.logger.log(`Dish ${named(parsed.data.name)}: ingredient slug ${item.slug} read as ${meant}`);
 
       return { ...item, slug: meant };
     });
@@ -565,7 +586,7 @@ export class PoolBuilder {
       const merged = generatedDishSchema.safeParse({ ...parsed.data, ingredients: mergeBySlug(read) });
 
       if (!merged.success) {
-        this.logger.warn(`Dish "${parsed.data.name}" rejected: its repaired ingredients add up past the schema's bounds`);
+        this.logger.warn(`Dish ${named(parsed.data.name)} rejected: its repaired ingredients add up past the schema's bounds`);
 
         return { reason: 'schema', repaired };
       }
@@ -588,12 +609,12 @@ export class PoolBuilder {
     const steps = cleanSteps(data.steps, { ingredientNames: names, locale: context.locale });
 
     if (steps === null) {
-      this.logger.warn(`Dish "${data.name}" rejected: its method reads as English in a ${context.locale} request`);
+      this.logger.warn(`Dish ${named(data.name)} rejected: its method reads as English in a ${context.locale} request`);
 
       return { reason: 'wrong_language', repaired };
     }
 
-    return { ...this.judge({ ...data, steps: [...steps] }, slug, context, requestedSlot), repaired };
+    return { ...this.judge({ ...data, steps: [...steps] }, slug, context, requestedSlot, named), repaired };
   }
 
   /** Every gate after the catalogue's, on a dish whose slugs are final. */
@@ -601,19 +622,20 @@ export class PoolBuilder {
     dish: GeneratedDish,
     slug: string,
     context: GenerationContext,
-    requestedSlot: MealSlot
+    requestedSlot: MealSlot,
+    named: DishNaming
   ): { readonly dish: CandidateDish } | { readonly reason: DishRejection } {
     const safety = dishSafety(dish.ingredients, context.catalogue, context.safety);
 
     if (safety.kind === 'unknown_ingredients') {
-      this.logger.warn(`Dish "${dish.name}" rejected: unknown ingredient slugs ${safety.slugs.join(', ')}`);
+      this.logger.warn(`Dish ${named(dish.name)} rejected: unknown ingredient slugs ${safety.slugs.join(', ')}`);
 
       return { reason: 'unknown_ingredient' };
     }
 
     if (safety.kind === 'unsafe') {
       this.logger.error(
-        `Dish "${dish.name}" rejected by the allergy gate: ${safety.violations.map(violation => violation.ingredientName).join(', ')}`
+        `Dish ${named(dish.name)} rejected by the allergy gate: ${safety.violations.map(violation => violation.ingredientName).join(', ')}`
       );
 
       return { reason: 'allergen' };
@@ -624,7 +646,7 @@ export class PoolBuilder {
     const unwanted = unwantedIn(dish, context);
 
     if (unwanted.length > 0) {
-      this.logger.warn(`Dish "${dish.name}" rejected: ${unwanted.join(', ')} is ruled out by their way of eating or dislikes`);
+      this.logger.warn(`Dish ${named(dish.name)} rejected: ${unwanted.join(', ')} is ruled out by their way of eating or dislikes`);
 
       return { reason: 'unwanted' };
     }
@@ -632,7 +654,7 @@ export class PoolBuilder {
     // A rule on the whole dish, not on one ingredient: meat with dairy for
     // someone who keeps them apart. Never asked of the model, only enforced.
     if (breaksDishRule(dish.ingredients, context.catalogue, context.preferences)) {
-      this.logger.warn(`Dish "${dish.name}" rejected by a dish rule of their preferences`);
+      this.logger.warn(`Dish ${named(dish.name)} rejected by a dish rule of their preferences`);
 
       return { reason: 'unwanted' };
     }
@@ -640,7 +662,7 @@ export class PoolBuilder {
     // Foreign to their way of eating by its stated cuisine or its name
     // (`0077`): never told to the model, enforced here.
     if (breaksPatternDish(dish, context.preferences)) {
-      this.logger.warn(`Dish "${dish.name}" rejected: its cuisine or name is foreign to their way of eating`);
+      this.logger.warn(`Dish ${named(dish.name)} rejected: its cuisine or name is foreign to their way of eating`);
 
       return { reason: 'unwanted' };
     }
@@ -649,7 +671,7 @@ export class PoolBuilder {
     // what the prompt used to ask ("not in names, steps or garnishes"), now
     // checked here. The label is not logged: it is their words.
     if (mentionsUnresolvedAllergy(dish, context.safety.unenforceableLabels)) {
-      this.logger.warn(`Dish "${dish.name}" rejected: its name or method names an allergy we could not resolve`);
+      this.logger.warn(`Dish ${named(dish.name)} rejected: its name or method names an allergy we could not resolve`);
 
       return { reason: 'allergen' };
     }
@@ -657,7 +679,7 @@ export class PoolBuilder {
     // The prompt states the limit; this is what makes it true.
     if (!withinTime(dish, context.preferences.maxMinutesPerDish)) {
       this.logger.warn(
-        `Dish "${dish.name}" rejected: ${dish.prepMinutes + dish.cookMinutes} min, over their ${String(context.preferences.maxMinutesPerDish)} min limit and its margin`
+        `Dish ${named(dish.name)} rejected: ${dish.prepMinutes + dish.cookMinutes} min, over their ${String(context.preferences.maxMinutesPerDish)} min limit and its margin`
       );
 
       return { reason: 'over_time' };
@@ -676,7 +698,7 @@ export class PoolBuilder {
     }).foreign;
 
     if (foreign.length > 0) {
-      this.logger.warn(`Dish "${dish.name}" rejected: its method names ${foreign.join(', ')}, which it does not contain`);
+      this.logger.warn(`Dish ${named(dish.name)} rejected: its method names ${foreign.join(', ')}, which it does not contain`);
 
       return { reason: 'foreign_food' };
     }
@@ -716,7 +738,7 @@ export class PoolBuilder {
     }
 
     if (slots.length === 0) {
-      this.logger.warn(`Dish "${dish.name}" rejected: none of ${dish.slots.join(', ')} is a meal all of its ingredients belong to, for its cuisine`);
+      this.logger.warn(`Dish ${named(dish.name)} rejected: none of ${dish.slots.join(', ')} is a meal all of its ingredients belong to, for its cuisine`);
 
       return { reason: 'wrong_meal' };
     }
@@ -743,7 +765,7 @@ export class PoolBuilder {
     // formula. Not about the person: the caps are everyone's.
     if (isOversized(kept, context.catalogue)) {
       this.logger.warn(
-        `Dish "${dish.name}" rejected: one of its ${String(dish.servings)} servings is past ${String(servingCap(slots) * OVERSIZED_FACTOR)} kcal`
+        `Dish ${named(dish.name)} rejected: one of its ${String(dish.servings)} servings is past ${String(servingCap(slots) * OVERSIZED_FACTOR)} kcal`
       );
 
       return { reason: 'oversized' };

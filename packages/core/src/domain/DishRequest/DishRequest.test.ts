@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { dishVocabulary, MAX_DISH_REQUEST, storableName } from 'core/domain/DishRequest';
+import { dishVocabulary, MAX_DISH_REQUEST, storableName, storableProse } from 'core/domain/DishRequest';
 
 import type { Catalogue, CatalogueIngredient } from 'core/entities/Plan';
 
@@ -101,6 +101,28 @@ describe('storableName', () => {
   });
 
   /*
+   * Everything `normaliseForMatching` folds away used to pass word by word and
+   * be stored intact — and a stored name goes to Google verbatim in the picture
+   * prompt. Each of these came back `{ ok: true }` before the name had a
+   * charset (`invariant-reviewer`, 2026-10-13).
+   */
+  it('refuses a telephone, another script and an emoji, which the word match never saw', () => {
+    expect(storableName('Tortilla de patatas 600111222', VOCABULARY, NOBODY)).toEqual({ ok: false, reason: 'unknown_words' });
+    expect(storableName('Tortilla de patatas 600 111 222', VOCABULARY, NOBODY)).toEqual({ ok: false, reason: 'unknown_words' });
+    expect(storableName('Tortilla de patatas +34 600 111 222', VOCABULARY, NOBODY)).toEqual({ ok: false, reason: 'not_a_name' });
+    expect(storableName('Tortilla de patatas 我妈妈的', VOCABULARY, NOBODY)).toEqual({ ok: false, reason: 'not_a_name' });
+    expect(storableName('Tortilla de patatas Карл', VOCABULARY, NOBODY)).toEqual({ ok: false, reason: 'not_a_name' });
+    expect(storableName('Tortilla de patatas 😀😀', VOCABULARY, NOBODY)).toEqual({ ok: false, reason: 'not_a_name' });
+    // One number of up to three digits is what a dish name counts with; a
+    // sixteen-digit one is not counting anything.
+    expect(storableName('Tortilla de patatas 0000000000000000', VOCABULARY, NOBODY)).toEqual({ ok: false, reason: 'unknown_words' });
+  });
+
+  it('refuses the quotes the prompt interpolates the request inside', () => {
+    expect(storableName('Tortilla de patatas"', VOCABULARY, NOBODY)).toEqual({ ok: false, reason: 'not_a_name' });
+  });
+
+  /*
    * The cost of erring towards dropping, stated rather than hidden: a real dish
    * is refused for one word this product has never used. That is the right
    * direction — a refused dish is a sentence, a stored one is in front of
@@ -127,5 +149,37 @@ describe('storableName', () => {
 
   it('holds the length bound it publishes', () => {
     expect(storableName('a'.repeat(MAX_DISH_REQUEST + 1), VOCABULARY, NOBODY)).toEqual({ ok: false, reason: 'not_a_name' });
+  });
+});
+
+/*
+ * The half the name gate never covered: a recipe is ten steps of six hundred
+ * characters, written by the same model under a prompt quoting the person's
+ * words, and stored in the same shared table.
+ */
+describe('storableProse', () => {
+  const PERSON = { health: ['Diabetes tipo 2', 'Metformina'], name: 'Ana Velasco' };
+  const METHOD = ['Pela y trocea las patatas.', 'Cuaja la tortilla a fuego medio.'];
+
+  it('stores a method that speaks to whoever is cooking, which is how a recipe is written', () => {
+    expect(storableProse([...METHOD, 'Sala a tu gusto y sirve templado.', 'si te gusta más jugoso, retírala antes'], PERSON)).toEqual({ ok: true });
+  });
+
+  it('refuses a method that says this account’s own words', () => {
+    expect(storableProse([...METHOD, 'Usa poco aceite por la metformina.'], PERSON)).toEqual({ ok: false, reason: 'says_a_person' });
+    expect(storableProse([...METHOD, 'La receta de Velasco lleva más cebolla.'], PERSON)).toEqual({ ok: false, reason: 'says_a_person' });
+    // First person, which a method has no reason to use.
+    expect(storableProse([...METHOD, 'Como la hace mi madre.'], PERSON)).toEqual({ ok: false, reason: 'says_a_person' });
+  });
+
+  it('refuses a way to reach somebody, a telephone and a script we do not write recipes in', () => {
+    expect(storableProse([...METHOD, 'Escríbenos a ana@correo.com.'], PERSON)).toEqual({ ok: false, reason: 'not_a_name' });
+    expect(storableProse([...METHOD, 'Llama al 600111222.'], PERSON)).toEqual({ ok: false, reason: 'not_a_name' });
+    expect(storableProse([...METHOD, '把土豆切成块。'], PERSON)).toEqual({ ok: false, reason: 'not_a_name' });
+  });
+
+  it('reads the cuisine and the cues, not only the steps', () => {
+    expect(storableProse([...METHOD, 'hasta que cuaje', 'española'], PERSON)).toEqual({ ok: true });
+    expect(storableProse([...METHOD, 'hasta que a mi madre le guste'], PERSON)).toEqual({ ok: false, reason: 'says_a_person' });
   });
 });

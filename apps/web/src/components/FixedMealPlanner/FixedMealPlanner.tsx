@@ -217,7 +217,13 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
     }
 
     try {
-      const found = await api<readonly NotOffered[]>(`/fixed-meals/not-offered?weekday=${weekday}&slot=${slot}&q=${encodeURIComponent(value)}`);
+      // A read, sent as a POST: what somebody typed goes in the body, because a
+      // query string reaches the platform's access log and that log is not ours
+      // to redact.
+      const found = await api<readonly NotOffered[]>('/fixed-meals/not-offered', {
+        body: { query: value, slot, weekday: Number(weekday) },
+        method: 'POST'
+      });
 
       // An answer for "rioja" can land after "riojana" is on screen, and the
       // field is the only thing that says which question is still open.

@@ -35,8 +35,54 @@ import type { Catalogue } from 'core/entities/Plan';
  */
 export const MAX_DISH_REQUEST = 120;
 
+/**
+ * Whether what somebody typed is the shape of a request at all — one line,
+ * within the bound, and without the quotes the prompt wraps it in.
+ *
+ * The quote is not cosmetic. The request is interpolated into the prompt inside
+ * double quotes, and the comment there leans on that quoting to say the model is
+ * reading somebody's words rather than an instruction of ours — so a request
+ * ending the quote is an instruction (`invariant-reviewer`, 2026-10-13). The
+ * prompt strips them as well; this is the half that can say so to the person.
+ *
+ * One definition, read by the route's schema and by the service, because two
+ * places deciding what a request may look like is how they come to disagree.
+ */
+export function typedName(text: string): boolean {
+  const trimmed = text.trim();
+
+  return trimmed.length > 0 && trimmed.length <= MAX_DISH_REQUEST && !/["\n\r`]/.test(trimmed);
+}
+
 /** Why a model's dish may not be stored, for the caller to turn into a sentence. */
 export type DishNameRefusal = 'not_a_name' | 'says_a_person' | 'unknown_words';
+
+/**
+ * What a dish name may be written with: Latin letters and the accents Spanish
+ * and English need, digits, and the few marks a name uses to join them.
+ *
+ * Without it the vocabulary is blind to everything `normaliseForMatching` folds
+ * away — it flattens every character outside `[a-z0-9]` to a space, so a name
+ * carrying a telephone number, a line of Han or Cyrillic, or a row of emoji
+ * passed word by word and was **stored with those characters intact** and sent
+ * verbatim to Google in the picture prompt. The gate's whole principle is that
+ * it never trusts what the model wrote; this is where that stopped being true
+ * (`invariant-reviewer`, 2026-10-13).
+ *
+ * A closed set rather than a list of what to refuse: the two recipients are a
+ * shared library and a picture prompt, and both are better served by a name
+ * this product can read.
+ */
+const NAME_CHARACTERS = /^[\p{Script=Latin}0-9 ,&'’-]+$/u;
+
+/**
+ * The most digits a number in a dish name may have, and the most numbers.
+ *
+ * A name counts what is in it — *tortilla de 3 huevos*, *ensalada de 4 quesos*
+ * — and that is the whole of what a number does in one. Two numbers, or one
+ * past three digits, is a telephone, a date or an identifier.
+ */
+const NAME_DIGITS = 3;
 
 export type DishNameVerdict = { readonly ok: false; readonly reason: DishNameRefusal } | { readonly ok: true };
 
@@ -75,6 +121,13 @@ const SPEAKS_OF_A_PERSON = new Set([
   'yours',
   'yo'
 ]);
+
+/**
+ * The first person alone, for prose — the half of `SPEAKS_OF_A_PERSON` a method
+ * has no reason to use. The second person is left out on purpose: *"a tu
+ * gusto"* is how a recipe talks to whoever is cooking it.
+ */
+const SPEAKS_OF_THEIR_OWN = new Set(['conmigo', 'mi', 'mis', 'my', 'nuestra', 'nuestras', 'nuestro', 'nuestros', 'our', 'ours', 'yo']);
 
 /**
  * The words a dish name may be made of besides food: how it is cooked, how it
@@ -259,8 +312,9 @@ export function storableName(
   const trimmed = name.trim();
 
   // A dish name is a phrase: one line, no sentence punctuation, nothing that
-  // looks like a way to reach somebody.
-  if (trimmed.length === 0 || trimmed.length > MAX_DISH_REQUEST || /[\n\r?!¿¡@]|https?:/i.test(trimmed)) {
+  // looks like a way to reach somebody, and nothing written in characters this
+  // product does not serve food in.
+  if (trimmed.length === 0 || trimmed.length > MAX_DISH_REQUEST || /[\n\r?!¿¡@]|https?:/i.test(trimmed) || !NAME_CHARACTERS.test(trimmed)) {
     return { ok: false, reason: 'not_a_name' };
   }
 
@@ -278,5 +332,56 @@ export function storableName(
     }
   }
 
-  return said.every(word => vocabulary.has(stem(word)) || /^[0-9]+$/.test(word)) ? { ok: true } : { ok: false, reason: 'unknown_words' };
+  const numbers = said.filter(word => /^[0-9]+$/.test(word));
+  const counts = numbers.length === 1 && (numbers[0]?.length ?? 0) <= NAME_DIGITS;
+
+  return said.every(word => vocabulary.has(stem(word)) || (counts && /^[0-9]+$/.test(word)))
+    ? { ok: true }
+    : { ok: false, reason: 'unknown_words' };
+}
+
+/**
+ * Whether the **prose** a model wrote for a requested dish may be stored: its
+ * steps, their cues and its cuisine.
+ *
+ * `storableName` was the whole gate, and it covered a tenth of what is stored.
+ * A recipe is up to ten steps of six hundred characters, written by a model
+ * under a prompt that quotes the person's words — and stored verbatim in the
+ * same shared table, serving every account in that locale for ever. A request
+ * reading *"tortilla para mi madre, que toma metformina"* came back with a
+ * gated name and a method that could say it (`invariant-reviewer`, 2026-10-13).
+ *
+ * **The vocabulary is deliberately not applied here.** A method legitimately
+ * says *"a tu gusto"*, *"si te gusta más jugoso"* — second person is how a
+ * recipe speaks to whoever cooks it — and a word-for-word vocabulary would
+ * refuse half the library's methods. What is checked instead is what cannot be
+ * innocent in a method: this account's own words, a way to reach somebody, a
+ * number long enough to be a telephone, and letters from a script this product
+ * does not write recipes in.
+ *
+ * First person is included and second person is not, and that is the line: a
+ * method may address its cook, it has no reason to speak of *mi* anybody.
+ */
+export function storableProse(texts: readonly string[], person: { readonly health: readonly string[]; readonly name: string }): DishNameVerdict {
+  const theirs = new Set([...words(person.name), ...person.health.flatMap(entry => words(entry))].filter(word => word.length > 2));
+
+  for (const text of texts) {
+    if (/[@]|https?:/i.test(text) || /[0-9]{5,}/.test(text)) {
+      return { ok: false, reason: 'not_a_name' };
+    }
+
+    // Any letter left once the Latin ones are taken out is a script no recipe
+    // of ours is written in.
+    if (/\p{Letter}/u.test(text.replace(/\p{Script=Latin}/gu, ''))) {
+      return { ok: false, reason: 'not_a_name' };
+    }
+
+    for (const word of words(text)) {
+      if (SPEAKS_OF_THEIR_OWN.has(word) || theirs.has(word)) {
+        return { ok: false, reason: 'says_a_person' };
+      }
+    }
+  }
+
+  return { ok: true };
 }

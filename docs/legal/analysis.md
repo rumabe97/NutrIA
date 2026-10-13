@@ -917,15 +917,52 @@ the code at `c38d316d`:
 1. **Providers unchanged**: OpenRouter → DeepInfra/CoreWeave, ZDR, no training, `provider.only`
    (§ 4.4; P1-11 still open — the DPA text is not in hand, and that already blocks
    `AI_PROVIDER=openrouter` whatever this feature does).
-2. **The typed string is transient.** It is a prompt input and nothing else: never written to
-   any table, job row, log, error, analytics event or mail; never read back; never shown to
-   anybody. What is stored is the model's output, exactly as today.
+2. **The typed string is transient — and so is anything the model wrote before the gate of
+   condition 4 passed it.** The typed string is a prompt input and nothing else: never written
+   to any table, job row, log, error, analytics event or mail; never read back; never shown to
+   anybody. **The same rule covers the model's draft**, because the whole point of condition 4
+   is that the model may echo the request into what it writes: a log line that prints an
+   ungated draft name prints the person's words in exactly the case the gate exists to catch.
+   Only what survives the gate may be stored or named anywhere.
 3. **The typed string never reaches the picture path.** The stored recipe name is written by
    the model and gated, so what goes to Google (Vertex) is the library's name, as it is today
    for every generated dish.
-4. **An output gate on the stored name**, because the residual risk is the model echoing the
-   request into the name it writes: a name that carries anything beyond a dish is not stored.
-   Without this, condition 2 is cosmetic — the words come back out through the name.
+4. **An output gate on every string of the stored dish the model wrote** — not the name alone.
+   The residual risk is the model echoing the request into its output, and a stored dish is
+   not just a name: `steps[].text` (up to ten, 600 characters each), `steps[].cue` (160) and
+   `cuisine` (60) are model-written too (`apps/api/src/modules/ai/prompts/pool.schema.ts:73-88`)
+   and go into the same shared row unfiltered (`instructions: draft.steps`,
+   `packages/core/src/repositories/DishRequest/DishRequestRepository.ts:101-119`). The
+   asymmetry is worth keeping in mind: **only the name travels to Google** (condition 3), but
+   **all of them land in the shared library** — `RecipeRepository.findReusable` filters on
+   locale and meal slot and **not** on `source`, so a `source: 'user'` dish is served to every
+   other account like any other. Without this, condition 2 is cosmetic: the words come back out
+   through the method.
+   - The gate is not one check. A **closed-vocabulary** check belongs to the name only (a dish
+     name is a phrase made of food words); applied to a method it would refuse every real
+     recipe, because "hasta que los bordes se doren" is prose. What belongs on **every** stored
+     string is the targeted half: **this account's own name and its health words** —
+     conditions, medications, supplements — which must never come back out whatever the
+     vocabulary thinks, plus the shape checks (no address, no link). The pronoun set
+     (`SPEAKS_OF_A_PERSON`) stays on the name, where it costs nothing.
+   - The gate **cannot** move into `PoolBuilder`, and that is structural, not a preference:
+     `apps/api/src/modules/ai` may import nothing health-related (the boundary of `0004`, held
+     by `health-boundary.spec.ts`), and this gate needs the person's health words. So the
+     builder cannot gate — which is exactly why it must not *print* either.
+
+**Reviewed 2026-10-13**, after the branch `a-dish-the-library-does-not-have` was built against
+an earlier wording of these conditions: the invariant reviewer found that condition 4 then said
+"the stored name", while the harm named two bullets above is "person-derived text". The code
+implemented the condition faithfully (`storableName` gates `candidate.name` and nothing else,
+`FixedMeals.service.ts:343`) and the method went in unfiltered — a branch that satisfied the
+checklist and still put the person's words in the shared library. The wording above is the fix;
+the code's is `backend`'s. Two concrete breaches found in the same review, both **blocking**:
+the fourteen log lines of `PoolBuilder.service.ts` that print an ungated draft name (527, 553,
+568, 591, 609, 616, 627, 635, 643, 652, 660, 679, 719, 746), and the method with no gate at
+all. Until both are closed, the sentence drafted for `/privacidad` — «No guardamos lo que
+escribes… no queda en ningún registro» / "it is left in no record" — **must not be published**,
+because it would be false in precisely the case that matters, and it would also contradict the
+sentence already live in «Cómo protegemos tus datos».
 5. **A notice at the field**, which is also the art. 13 information at the moment of
    collection: that it is sent to the model, and that only a dish name belongs there.
 

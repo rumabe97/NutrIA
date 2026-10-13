@@ -4,6 +4,8 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { dirname, join } from 'node:path';
 
 import { buildPicturePrompt } from 'core/domain/DishPicture';
+import { dishVocabulary, storableName, storableProse } from 'core/domain/DishRequest';
+import { Logger } from '@nestjs/common';
 import { FOOD_GROUP_SLUGS } from 'core/domain/MealFit';
 import { pulseKind } from 'core/domain/Variety';
 import { resolvePreferences } from 'core/domain/Preference';
@@ -310,6 +312,110 @@ describe('the free-text and belief boundary around the AI module', () => {
     // A key added to what the prompt is told has to be added here, on purpose.
     expect(Object.keys(preferences).filter(key => !allowed.includes(key))).toEqual([]);
   });
+  /*
+   * The dish request is the one field a person writes into (report `0011` § 4 a),
+   * and the two places its words could come back out are a **shared** library
+   * and the picture prompt, which carries a dish's name verbatim to Google.
+   *
+   * This drives the real builder with a model that echoes the request into both
+   * the name and the method — which is the whole risk, and what an earlier
+   * version of this test only pretended to do: it never put the typed words
+   * into anything, so its assertion could not fail (`invariant-reviewer`,
+   * 2026-10-13).
+   *
+   * Three claims, in one run: the words reach the prompt (they are meant to),
+   * they reach **no log line**, and neither the name nor the method a model
+   * wrote with them in is storable.
+   */
+  it('lets a typed dish request reach the prompt and nothing else — not a log line, not the library', async () => {
+    const typed = 'SENTINEL-TYPED tortilla para mi madre, que toma metformina';
+    const lines: string[] = [];
+    const written: string[] = [];
+
+    for (const method of ['debug', 'error', 'log', 'warn'] as const) {
+      jest.spyOn(Logger.prototype, method).mockImplementation((message: unknown) => {
+        lines.push(String(message));
+      });
+    }
+
+    try {
+      const context: GenerationContext = {
+        catalogue: toCatalogue(catalogue),
+        dietaryPatterns: [],
+        locale: 'es-ES',
+        preferences: resolvePreferences({ allergenIdsByKey: ALLERGEN_IDS, dietaryPatterns: [], dislikedLabels: [], ingredients: catalogue }),
+        safety: {
+          allergenIds: new Set(),
+          crossContaminationAllergenIds: new Set(),
+          excludedIngredientIds: new Set(),
+          intoleranceAllergenIds: new Set(),
+          unenforceableLabels: []
+        }
+      };
+      // A model that answers with the request echoed into every field a name or
+      // a method could carry it in.
+      const echo = jest.fn(async <T>(request: AiRequest<T>): Promise<AiResponse<T>> => {
+        written.push(JSON.stringify(request));
+
+        return Promise.resolve({
+          object: {
+            dishes: [{ cuisine: typed, name: `Tortilla ${typed}`, steps: [{ text: `Como la hace ${typed}.` }] }]
+          } as T,
+          usage: { calls: 1, inputTokens: 1, model: 'stub', outputTokens: 1 }
+        });
+      });
+      const preferences = promptPreferences(
+        profileFullOfWords([]),
+        { disliked: [], liked: [] },
+        [],
+        { carbsG: 200, fatG: 60, fiberG: 28, kcal: 2000, proteinG: 150 },
+        '2026-01-12',
+        null,
+        null,
+        [],
+        typed
+      );
+
+      await new PoolBuilder({ generate: echo, isAvailable: true } as unknown as AiClient).build({
+        context,
+        feature: 'dish_request',
+        needPerSlot: 1,
+        preferences,
+        reusable: [],
+        slots: ['lunch']
+      });
+
+      // It is meant to be there, and nowhere else.
+      expect(written.join('\n')).toContain(typed);
+      expect(lines.length).toBeGreaterThan(0);
+      expect(lines.filter(line => line.includes('SENTINEL-TYPED') || line.includes('madre') || line.includes('metformina'))).toEqual([]);
+
+      // And the same build as a plan does print the name, so the silence above
+      // is this feature's rule and not an empty assertion.
+      lines.length = 0;
+
+      await new PoolBuilder({ generate: echo, isAvailable: true } as unknown as AiClient).build({
+        context,
+        feature: 'plan',
+        needPerSlot: 1,
+        preferences,
+        reusable: [],
+        slots: ['lunch']
+      });
+
+      expect(lines.filter(line => line.includes('SENTINEL-TYPED'))).not.toEqual([]);
+    } finally {
+      jest.restoreAllMocks();
+    }
+
+    // Nothing the model wrote with those words in it may be stored: the name by
+    // its vocabulary, the method by this account's own words.
+    const vocabulary = dishVocabulary(toCatalogue(catalogue), ['Tortilla de patatas']);
+    const person = { health: ['Metformina'], name: 'Probe' };
+
+    expect(storableName(`Tortilla ${typed}`, vocabulary, person)).toEqual({ ok: false, reason: 'says_a_person' });
+    expect(storableProse([`Como la hace ${typed}.`], person)).toEqual({ ok: false, reason: 'says_a_person' });
+  });
 });
 
 /**
@@ -367,42 +473,4 @@ describe('the person boundary around the dish pictures', () => {
     expect(bodies[0]).toContain('Arroz con pollo');
   });
 
-  /*
-   * The dish request is the one field a person writes into (report `0011` § 4 a), and
-   * the picture prompt carries a dish's **name** verbatim to Google. So the two
-   * must never meet: whatever somebody typed may reach the dish-design call and
-   * nothing else, and the name that does reach Google is one `storableName`
-   * already let through.
-   *
-   * Driven through the real prompt builder with a request smuggled into every
-   * field of the recipe a name could have come from.
-   */
-  it('never carries a typed dish request into the picture or the judge', async () => {
-    const typed = 'SENTINEL-TYPED tortilla para mi madre';
-    const bodies: string[] = [];
-    const fake = (async (input: Request | string | URL, init?: RequestInit) => {
-      bodies.push(String(init?.body));
-
-      return new Response(
-        String(input).endsWith('/images')
-          ? JSON.stringify({ data: [{ b64_json: Buffer.from([0xff, 0xd8, 0xff]).toString('base64') }], usage: { cost: 0.03 } })
-          : JSON.stringify({ choices: [{ message: { content: '{"foods": [], "extras": [], "ingredients": []}' } }] })
-      );
-    }) as unknown as typeof fetch;
-    const image = new OpenRouterImageClient(settings, [], fake, []);
-    const judge = new OpenRouterVisionJudgeClient(settings, [], fake);
-    // The picture is drawn from the stored recipe, which is all `PictureRecipe`
-    // can hold: a name and ingredients. Nothing in its shape can carry a
-    // request, and this is the test that says so if its shape ever changes.
-    const asStored: PictureRecipe = { ...recipe, name: 'Tortilla de patatas con cebolla' };
-
-    const picture = await image.draw(buildPicturePrompt(asStored));
-    const seen = await judge.see(picture);
-
-    await judge.match(seen.result.foods, asStored.ingredients);
-
-    expect(bodies).toHaveLength(3);
-    expect(bodies.filter(body => body.includes('SENTINEL-TYPED') || body.includes('madre'))).toEqual([]);
-    expect(typed).toContain('SENTINEL-TYPED');
-  });
 });
