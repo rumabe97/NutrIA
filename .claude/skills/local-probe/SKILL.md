@@ -126,6 +126,19 @@ runbook's own statement, and only for the `@probe.invalid` address it just made.
 `link`, it refuses to run unless `packages/database/.env` proves the local database is
 not production. The role goes when the account is deleted.
 
+### A premium account (the allowances a free one is told are premium)
+
+```bash
+node $S/account.mjs premium "$PROBE_DIR/cookie.txt"
+```
+
+`UserController.setTier` plus the global `premium` switch — the two calls
+`events-premium.e2e-spec.ts` makes, because the tier reads both and a premium row
+under a switch that is off is still a free account. Same `@probe.invalid` guard as
+`link`. The switch goes back off when the account is deleted, and the tier goes with
+it. Use it for a screen whose sentence depends on the tier: asking us to write a
+dish the library does not have is free-tier zero and premium three (`0011` § 4 a).
+
 ### A breached password, or an old session (011 phase 2)
 
 ```bash

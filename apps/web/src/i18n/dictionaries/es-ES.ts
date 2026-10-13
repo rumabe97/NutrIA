@@ -1548,6 +1548,21 @@ export const esES = {
   fixedMeals: {
     add: 'Fijar esta comida',
     added: 'Comida fijada. Entra en los planes que generes a partir de ahora.',
+    ask: 'Pídenoslo',
+    asked: 'Ya lo tienes: {name}. Ahora puedes fijarlo.',
+    askIntro:
+      'Escribimos el plato con sus ingredientes, sus pasos y sus calorías. Si encaja en esa comida, te lo ofrecemos para fijarlo, y se queda en la biblioteca.',
+    askLabel: 'Cómo se llama el plato',
+    askLeft: 'Te quedan {remaining} de {limit} este mes, y solo cuenta cuando llega un plato.',
+    askLeftOne: 'Te queda 1 de {limit} este mes, y solo cuenta cuando llega un plato.',
+    askNotAName: 'Escribe solo el nombre de un plato, en una línea.',
+    askNothing: 'No nos ha salido ningún plato que podamos servirte con ese nombre. Prueba a escribirlo de otra forma.',
+    askNotice:
+      'Escribe solo el nombre del plato. Se lo pedimos a la inteligencia artificial, así que no escribas ahí nada sobre ti: ni tu salud, ni tu nombre, ni para quién es.',
+    askPlaceholder: 'Patatas a la riojana',
+    askPremium: 'Pedirnos un plato que no está en la biblioteca es de premium.',
+    askSpent: 'Ya has pedido tus {limit} platos de este mes. El contador empieza de nuevo el día 1.',
+    askTitle: '¿No está tu plato?',
     change: 'Cambiar',
     count: '{count} platos encajan en esa comida ese día.',
     countOne: 'Un plato encaja en esa comida ese día.',
@@ -1568,6 +1583,20 @@ export const esES = {
     more: 'Ver {count} más',
     noMatch: 'Ningún plato se llama «{query}».',
     noneFit: 'Ningún plato de tu biblioteca encaja en esa comida ese día. Prueba con otra comida.',
+    reasonFix: {
+      disliked: 'Revisar lo que no quieres ver',
+      excluded: 'Revisar tu tipo de alimentación',
+      too_slow: 'Cambiar tus minutos para cocinar'
+    },
+    reasons: {
+      allergen: 'Lleva algo a lo que eres alérgico. No te lo vamos a ofrecer.',
+      disliked: 'Lo tienes entre los alimentos que no quieres ver.',
+      excluded: 'No encaja con tu tipo de alimentación.',
+      no_method: 'Nos falta la receta de este plato, así que no se lo servimos a nadie. Eso es cosa nuestra.',
+      too_big_or_small: 'No cabe en esa comida con tus cantidades. Suele encajar en otra.',
+      too_slow: 'Tarda más de lo que pusiste para cocinar.',
+      wrong_slot: 'No es un plato para esa comida.'
+    },
     remove: 'Quitar',
     removed: 'Quitada. Los planes que ya tienes no cambian.',
     removeFor: 'Quitar la comida fija de los {day} ({meal})',
@@ -1575,7 +1604,10 @@ export const esES = {
     searchPlaceholder: 'Busca por nombre: tortilla, lentejas, merluza…',
     slots: { afternoon_snack: 'Merienda', breakfast: 'Desayuno', dinner: 'Cena', lunch: 'Comida', morning_snack: 'Almuerzo', supper: 'Recena' },
     title: 'Comidas fijas',
-    weekdays: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+    tooSlowMinutes: 'Tarda más de los {minutes} min que pusiste para cocinar.',
+    weekdays: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
+    whyCount: 'Hay {count} platos con ese nombre que no podemos ofrecerte ahí:',
+    whyCountOne: 'Hay un plato con ese nombre que no podemos ofrecerte ahí:'
   },
 
   footer: {

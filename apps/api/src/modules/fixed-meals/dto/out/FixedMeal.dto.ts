@@ -5,7 +5,15 @@ import type { FixedMealsView } from 'core/controllers/FixedMeal';
 /** One standing rule: the weekday, the slot and the dish. */
 export type FixedMealDto = FixedMeal;
 
-/** The rules this account has, and how many more it may have — the shape every counted allowance answers in. */
+/**
+ * The rules this account has, how many more it may have, and what is left of
+ * this month's dish requests — each in the shape every counted allowance
+ * answers in.
+ *
+ * The two allowances travel together because they are read together: the screen
+ * says what is left of both before anybody chooses a day, and asking for a dish
+ * is the same screen's second half (`0011` § 4 a).
+ */
 export type FixedMealsDto = FixedMealsView;
 
 /**

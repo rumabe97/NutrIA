@@ -15,10 +15,17 @@
 -- breaks no insert that does not name it.
 --
 -- The index is for the one reader, the dish-request allowance, which counts a
--- month's `(created_by, source, created_at)` once per request. `recipes` is
--- about a thousand rows, so the SHARE lock `CREATE INDEX` takes is milliseconds
--- — but it does block writes to `recipes` while it runs, which is a generation
--- persisting its dishes, so it goes last and alone.
+-- month's `(created_by, source, created_at)` once per request. Drizzle runs
+-- every pending migration file inside one transaction, so the ACCESS EXCLUSIVE
+-- lock the first `ALTER TABLE` takes is held through COMMIT: the `CREATE INDEX`
+-- runs under it, not under a SHARE lock of its own, and `recipes` is closed to
+-- reads as well as writes for the whole file, not only while the index builds.
+-- At about a thousand rows that is still milliseconds, so the file is safe with
+-- the old build still up; the conclusion does not rest on the index going last.
+-- `CREATE INDEX CONCURRENTLY` is illegal inside a transaction block, so no
+-- future index on `recipes` can dodge this cost from inside the migrator —
+-- past the size where it would show, the way out is building it outside the
+-- migrator, as its own deploy.
 
 ALTER TABLE "recipes" ADD COLUMN "created_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "recipes" ALTER COLUMN "created_at" SET DEFAULT now();--> statement-breakpoint

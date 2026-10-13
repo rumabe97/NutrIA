@@ -139,3 +139,92 @@
   gap: var(--space-01);
   min-inline-size: 0;
 }
+
+/* What a search that found nothing says instead of nothing: the library's own
+   dishes of that name, and the one thing between each and this meal. Indented
+   by a rule rather than boxed — it belongs to the field above it, and a card
+   inside a card would read as a second subject. */
+.why {
+  border-inline-start: 2px solid var(--border-01);
+  display: grid;
+  flex: 1 1 100%;
+  gap: var(--space-02);
+  padding-inline-start: var(--space-03);
+}
+
+.reasons {
+  display: grid;
+  gap: var(--space-03);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* The dishes, then the one thing standing between them and this meal, then the
+   way back to the field that put it there — stacked, because each of the three
+   is a different kind of thing and a phone has no room to put them side by side. */
+.reason {
+  display: grid;
+  gap: var(--space-01);
+  justify-items: start;
+}
+
+.named {
+  display: grid;
+  gap: var(--space-01);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* As `ProfileSection`'s edit link, which is where these go: the same words, in
+   the same colour, leading to the same steps. */
+.fix {
+  align-items: center;
+  color: var(--color-brand-11);
+  display: inline-flex;
+  font-size: var(--font-size-03);
+  text-decoration: none;
+}
+
+.fix:hover {
+  text-decoration: underline;
+}
+
+/* A link in a list of links needs a real target on a phone; on a mouse it needs
+   the line height it has. */
+@media (pointer: coarse) {
+  .fix {
+    min-block-size: var(--target-min);
+  }
+}
+
+/* Asking us to write a dish the library does not have. A block of its own, with
+   the notice beside the field whose content leaves the product. */
+.ask {
+  display: grid;
+  flex: 1 1 100%;
+  gap: var(--space-02);
+}
+
+/* A sub-heading inside the card, one step under its title: this is a second
+   subject on the same card, and a reader scanning headings should find it. */
+.askTitle {
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}
+
+/* The field and the notice take the row; the button takes its own words. */
+.askButton {
+  justify-self: start;
+}
+
+/* The only standing notice on this screen. Not a hint — a hint is gone as soon
+   as there is text in the field, and this has to be readable while somebody
+   types into it. */
+.notice {
+  border-inline-start: 2px solid var(--border-01);
+  margin: 0;
+  padding-inline-start: var(--space-03);
+}

@@ -1,13 +1,26 @@
 import { ConflictError, NotFoundError } from 'core/entities/Error';
 import { countedStanding } from 'core/domain/Allowance';
+import { DishRequestController } from 'core/controllers/DishRequest';
 import { FixedMealRepository } from '#repositories/FixedMeal';
 import { PlanController } from 'core/controllers/Plan';
 
 import type { AddFixedMeal, FixedMeal, Weekday } from 'core/entities/FixedMeal';
 import type { CountedStanding } from 'core/domain/Allowance';
 
-/** The rules this account has, and how many more it may have. */
-export type FixedMealsView = { readonly rules: readonly FixedMeal[]; readonly standing: CountedStanding };
+/**
+ * The rules this account has, how many more it may have, and what is left of
+ * this month's dish requests.
+ *
+ * The second allowance travels with the first because the screen reads them
+ * together (`0011` § 4 a): asking us to write a dish is what somebody does when
+ * the library has nothing for that meal, and a free account has to be told it
+ * is premium *before* it types a dish's name rather than after.
+ */
+export type FixedMealsView = {
+  readonly dishRequests: CountedStanding;
+  readonly rules: readonly FixedMeal[];
+  readonly standing: CountedStanding;
+};
 
 export const FixedMealController = {
   /**
@@ -51,11 +64,15 @@ export const FixedMealController = {
     }
   },
 
-  /** What this account has fixed, and what is left of its allowance. */
+  /** What this account has fixed, and what is left of each of the two allowances its screen spends. */
   async standing(userId: string): Promise<FixedMealsView> {
-    const [rules, limits] = await Promise.all([FixedMealRepository.findByUser(userId), PlanController.limitsOf(userId)]);
+    const [rules, limits, dishRequests] = await Promise.all([
+      FixedMealRepository.findByUser(userId),
+      PlanController.limitsOf(userId),
+      DishRequestController.standing(userId)
+    ]);
 
-    return { rules, standing: countedStanding(rules.length, limits.fixedMeals) };
+    return { dishRequests, rules, standing: countedStanding(rules.length, limits.fixedMeals) };
   },
 
   /**

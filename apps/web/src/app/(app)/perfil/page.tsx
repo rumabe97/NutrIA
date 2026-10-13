@@ -100,9 +100,10 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
     // Unavailable unless payments are set up and open to this person (`0056`); then no card is drawn.
     serverApi<BillingStatusView>('/billing'),
     serverApi<readonly VacationView[]>('/vacations'),
-    // The standing fixed meals and what is left of the allowance (`0098`,
-    // `0099`). Null before onboarding is finished, which is also when the
-    // dishes that could be fixed have no answer — so no card is drawn.
+    // The standing fixed meals, what is left of the allowance (`0098`, `0099`)
+    // and what is left of this month's dish requests (`0011` § 4 a). Null
+    // before onboarding is finished, which is also when the dishes that could
+    // be fixed have no answer — so no card is drawn.
     serverApi<FixedMealsView>('/fixed-meals'),
     // Null with no active or paused link — not behind the `professional` switch,
     // because consent is revocable whatever it says.
@@ -157,7 +158,15 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
           <VacationPlanner trips={trips ?? []} />
 
           {fixedMeals && preferences ? (
-            <FixedMealPlanner rules={fixedMeals.rules} slots={slotsIn(preferences.mealShape)} standing={fixedMeals.standing} />
+            <FixedMealPlanner
+              // So that "it takes longer than you said" can say longer than
+              // what. It is the same answer the row above reads (`0011` § 2).
+              cookingMinutes={preferences.cookingTimeMinutes}
+              dishRequests={fixedMeals.dishRequests}
+              rules={fixedMeals.rules}
+              slots={slotsIn(preferences.mealShape)}
+              standing={fixedMeals.standing}
+            />
           ) : null}
 
           {billing?.available ? (

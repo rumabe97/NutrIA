@@ -1511,6 +1511,21 @@ export const enGB: Dictionary = {
   fixedMeals: {
     add: 'Fix this meal',
     added: 'Meal fixed. It applies to the plans you generate from now on.',
+    ask: 'Ask us for it',
+    asked: 'Here it is: {name}. You can fix it now.',
+    askIntro:
+      'We write the dish with its ingredients, its steps and its calories. If it fits that meal we offer it to you to fix, and it stays in the library.',
+    askLabel: 'What the dish is called',
+    askLeft: '{remaining} of {limit} left this month, and it only counts when a dish arrives.',
+    askLeftOne: '1 of {limit} left this month, and it only counts when a dish arrives.',
+    askNotAName: 'Write just the name of a dish, on one line.',
+    askNothing: 'No dish we could serve you came back for that name. Try writing it another way.',
+    askNotice:
+      'Write only the name of the dish. We ask the artificial intelligence for it, so do not write anything about yourself there: not your health, not your name, not who it is for.',
+    askPlaceholder: 'Potatoes with chorizo',
+    askPremium: 'Asking us for a dish the library does not have is premium.',
+    askSpent: 'You have asked for your {limit} dishes this month. The count starts again on the 1st.',
+    askTitle: 'Is your dish missing?',
     change: 'Change',
     count: '{count} dishes fit that meal on that day.',
     countOne: 'One dish fits that meal on that day.',
@@ -1530,6 +1545,16 @@ export const enGB: Dictionary = {
     more: 'Show {count} more',
     noMatch: 'No dish is called “{query}”.',
     noneFit: 'No dish in your library fits that meal on that day. Try another meal.',
+    reasonFix: { disliked: 'Review what you do not want to see', excluded: 'Review how you eat', too_slow: 'Change your cooking minutes' },
+    reasons: {
+      allergen: 'It has something in it you are allergic to. We will not offer it.',
+      disliked: 'It is among the foods you do not want to see.',
+      excluded: 'It does not fit the way you eat.',
+      no_method: 'We are missing this dish’s method, so we serve it to nobody. That one is ours.',
+      too_big_or_small: 'It does not fit that meal at your portions. It usually fits another one.',
+      too_slow: 'It takes longer than you said you can cook for.',
+      wrong_slot: 'It is not a dish for that meal.'
+    },
     remove: 'Remove',
     removed: 'Removed. The plans you already have do not change.',
     removeFor: 'Remove the meal fixed to {day} ({meal})',
@@ -1544,7 +1569,10 @@ export const enGB: Dictionary = {
       supper: 'Supper'
     },
     title: 'Fixed meals',
-    weekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    tooSlowMinutes: 'It takes longer than the {minutes} min you said you have.',
+    weekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    whyCount: 'There are {count} dishes by that name we cannot offer you there:',
+    whyCountOne: 'There is one dish by that name we cannot offer you there:'
   },
 
   footer: {

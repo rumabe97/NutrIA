@@ -57,6 +57,15 @@ export const DishRequestRepository = {
    * `source: 'user'` is the marker the count reads, and the only place it is
    * written. A dish the generator wrote is `'ai'`, and conflating them would
    * bill somebody for dishes they never asked for.
+   *
+   * **A dish the library already has is handed back, not stored twice.** Two
+   * accounts can ask for the same dish in the same month, and a generation can
+   * write it between the model's answer and this insert; `recipes.slug` is
+   * unique across the whole table, so without this the second one is a unique
+   * violation dressed up as a 500 — after the model call was paid for.
+   * `insertRecipes` has treated the same race as "a race to win harmlessly"
+   * since `0006`. Nothing is spent for it either: the allowance buys a dish,
+   * and that dish exists.
    */
   async storeWithinQuota(
     userId: string,
@@ -106,10 +115,16 @@ export const DishRequestRepository = {
               source: 'user' as const,
               stepsVersion: draft.stepsVersion
             })
+            .onConflictDoNothing({ target: recipes.slug })
             .returning({ id: recipes.id });
 
           if (!inserted) {
-            return undefined;
+            const [already] = await tx.select({ id: recipes.id }).from(recipes).where(eq(recipes.slug, draft.slug)).limit(1);
+
+            // Somebody else's identical dish won the race, or the library
+            // already held it. Its ingredients are already there — writing them
+            // again would double every weight in the shopping list.
+            return already?.id;
           }
 
           await tx.insert(recipeIngredients).values(
