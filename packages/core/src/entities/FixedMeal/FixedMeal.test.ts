@@ -26,10 +26,17 @@ describe('weekdayOf', () => {
 });
 
 describe('daysFor', () => {
-  it('lands a weekly rule on two days of a fortnight', () => {
-    expect(daysFor(0, MONDAY, 14)).toEqual([0, 7]);
-    expect(daysFor(4, MONDAY, 14)).toEqual([4, 11]);
-    expect(daysFor(6, MONDAY, 14)).toEqual([6, 13]);
+  /*
+   * One-based, as every day index in this product is: `schedulePlan` lays out
+   * `offset + 1` and a plan's days come back numbered from one. Written as
+   * offsets, every rule landed a day early and the first day's rule landed
+   * nowhere — and both halves were self-consistent, so only an end-to-end run
+   * against a real plan could see it.
+   */
+  it('lands a weekly rule on two days of a fortnight, numbered from one', () => {
+    expect(daysFor(0, MONDAY, 14)).toEqual([1, 8]);
+    expect(daysFor(4, MONDAY, 14)).toEqual([5, 12]);
+    expect(daysFor(6, MONDAY, 14)).toEqual([7, 14]);
   });
 
   it('counts from the plan’s own first day, which need not be a Monday (project 015)', () => {
@@ -37,17 +44,17 @@ describe('daysFor', () => {
     const thursday = '2026-10-08';
 
     expect(weekdayOf(thursday)).toBe(3);
-    expect(daysFor(4, thursday, 14)).toEqual([1, 8]);
-    expect(daysFor(3, thursday, 14)).toEqual([0, 7]);
+    expect(daysFor(4, thursday, 14)).toEqual([2, 9]);
+    expect(daysFor(3, thursday, 14)).toEqual([1, 8]);
     // The day *before* the start wraps to the next week rather than going negative.
-    expect(daysFor(2, thursday, 14)).toEqual([6, 13]);
+    expect(daysFor(2, thursday, 14)).toEqual([7, 14]);
   });
 
   it('lands on one day, or none, when the plan is shorter than a week', () => {
     // A redo cuts a fortnight short, so the count cannot assume two.
-    expect(daysFor(4, MONDAY, 5)).toEqual([4]);
+    expect(daysFor(4, MONDAY, 5)).toEqual([5]);
     expect(daysFor(6, MONDAY, 5)).toEqual([]);
-    expect(daysFor(0, MONDAY, 1)).toEqual([0]);
+    expect(daysFor(0, MONDAY, 1)).toEqual([1]);
     expect(daysFor(0, MONDAY, 0)).toEqual([]);
   });
 
@@ -55,7 +62,7 @@ describe('daysFor', () => {
     const start = '2026-10-08';
     const landing = [0, 1, 2, 3, 4, 5, 6].flatMap(weekday => daysFor(weekday as Weekday, start, 7));
 
-    expect([...landing].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect([...landing].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 
   /*

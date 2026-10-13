@@ -285,7 +285,13 @@ describe('PlanLoadRebuildService — a fortnight rebuilt for an event (0044)', (
     expect(new Date('2026-09-11T00:00:00Z').getUTCDay()).toBe(5);
 
     return (async () => {
-      const fixed = { id: '11111111-1111-4111-8111-111111111111', dishSlug: 'dinner-3', slot: 'dinner' as const, weekday: 4 as const };
+      const fixed = {
+        id: '11111111-1111-4111-8111-111111111111',
+        dishName: 'dinner 3',
+        dishSlug: 'dinner-3',
+        slot: 'dinner' as const,
+        weekday: 4 as const
+      };
       const { rebuild, service } = build({ fixedMeals: [fixed] });
 
       await expect(service.forEvent('usr-1', race(), TODAY)).resolves.toEqual(['2026-09-11']);

@@ -24,7 +24,13 @@ function backoff(attempt: number): number {
 }
 
 /** The row shape the schema parses: the rule, with the dish read back as its slug and its name. */
-function parsed(row: { readonly id: string; readonly dishName: string; readonly dishSlug: string; readonly slot: string; readonly weekday: number }): FixedMeal {
+function parsed(row: {
+  readonly id: string;
+  readonly dishName: string;
+  readonly dishSlug: string;
+  readonly slot: string;
+  readonly weekday: number;
+}): FixedMeal {
   return fixedMealSchema.parse(row);
 }
 

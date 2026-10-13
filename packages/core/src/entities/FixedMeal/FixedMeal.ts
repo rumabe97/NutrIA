@@ -54,7 +54,7 @@ const shape = {
  * a probe showed `arroz-integral-salteado-con-verduras-anacardos-y-jengibre` on
  * the profile.
  */
-export const fixedMealSchema = z.object({ dishName: z.string(), id: z.uuid(), ...shape });
+export const fixedMealSchema = z.object({ id: z.uuid(), dishName: z.string(), ...shape });
 
 export type FixedMeal = z.infer<typeof fixedMealSchema>;
 
@@ -81,6 +81,13 @@ export function weekdayOf(isoDate: string): Weekday {
  * Which day indexes of a plan starting on `startDate` and running `days` days a
  * rule for `weekday` lands on.
  *
+ * **One-based, as every day index in this product is**: `schedulePlan` lays out
+ * `offset + 1`, `monthOf` reads `dayIndex - 1`, and a plan's days come back
+ * numbered from one. Returning offsets instead put every rule a day early and
+ * the first day's rule on no day at all — which no unit test noticed, because
+ * each half was self-consistent, and which the end-to-end run caught by looking
+ * at what a real plan served on a real Friday.
+ *
  * A weekly rule over a fortnight lands on two days, and over a plan cut short by
  * a redo it may land on one — so this counts rather than assuming. It is the
  * caller's job (`0098`) precisely because the scheduler must not learn what a
@@ -92,7 +99,7 @@ export function daysFor(weekday: Weekday, startDate: string, days: number): read
   const landing: number[] = [];
 
   for (let index = offset; index < days; index += 7) {
-    landing.push(index);
+    landing.push(index + 1);
   }
 
   return landing;

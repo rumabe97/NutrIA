@@ -289,6 +289,28 @@ export class PlanGenerationService {
     // where it has to hold — a second rule on a day would silently replace the
     // first, which is exactly why `fixed_meals_user_weekday_unique` exists.
     const pinned = pinsFor(await FixedMealController.forPlan(userId), dates.start);
+
+    // **A pinned dish is a forced candidate, and the rotation must not be able
+    // to hide it.** `honouredPin` draws from the pool it is given, so a dish
+    // `rotatePool` held back — which it does to everything served last
+    // fortnight — would have the scheduler refuse the rule for want of the
+    // dish rather than for want of room: the rule silently does nothing, once a
+    // fortnight, for ever. The evaluator always injected them (`0098`,
+    // `withPins`); production did not, and an end-to-end run caught it serving
+    // congrio on somebody's fixed Friday.
+    const poolWithPins = async (pool: readonly CandidateDish[]): Promise<readonly CandidateDish[]> => {
+      const wanted = new Set([...pinned.values()].map(pin => pin.slug));
+      const missing = [...wanted].filter(slug => !pool.some(dish => dish.slug === slug));
+
+      if (missing.length === 0) {
+        return pool;
+      }
+
+      const library = await RecipeController.reusablePool(slots, context);
+
+      return [...pool, ...library.filter(dish => missing.includes(dish.slug))];
+    };
+
     const sides = (await SettingsController.accompaniments())
       ? { accompaniments: { larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }), monthOf } }
       : {};
@@ -301,7 +323,7 @@ export class PlanGenerationService {
       dayTargets: loads.dayTargets,
       minimumKcal,
       monthOf,
-      pool: built.dishes,
+      pool: await poolWithPins(built.dishes),
       targets,
       weights
     });
@@ -333,7 +355,7 @@ export class PlanGenerationService {
         dayTargets: loads.dayTargets,
         minimumKcal,
         monthOf,
-        pool: widened,
+        pool: await poolWithPins(widened),
         targets,
         weights
       });
@@ -391,7 +413,7 @@ export class PlanGenerationService {
         dayTargets: loads.dayTargets,
         minimumKcal,
         monthOf,
-        pool: await wholeLibrary(),
+        pool: await poolWithPins(await wholeLibrary()),
         targets,
         weights
       });
@@ -435,7 +457,7 @@ export class PlanGenerationService {
         dayTargets: loads.dayTargets,
         minimumKcal,
         monthOf,
-        pool: wider,
+        pool: await poolWithPins(wider),
         targets,
         weights
       });
