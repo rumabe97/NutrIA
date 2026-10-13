@@ -13,7 +13,7 @@ export type AuthRetentionRun = { readonly authAuditRows: number; readonly signIn
  *
  * - the sign-in brake's rows a day quiet, which by then brake nothing;
  * - the `auth.*` rows of the audit trail older than twelve months (`legal`'s
- *   retention, `docs/legal/analisis.md` § 4.1 bis), and no other action's;
+ *   retention, `docs/legal/analysis.md` § 4.1 bis), and no other action's;
  * - an account whose address nobody ever confirmed, thirty days on, holding
  *   no session, profile, plan or audit row — the "30-day sweep" follow-up,
  *   `legal` P2-15: anybody can sign a password up against any address, and

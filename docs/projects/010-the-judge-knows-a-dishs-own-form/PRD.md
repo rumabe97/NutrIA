@@ -4,7 +4,7 @@
 > The plan must cover everything in here; the intent gate checks it.
 > **Audience**: humans and agents. **Committed**: yes. **Written by**: an agent via
 > `/plan-project`, from the owner's request and decisions of 2026-09-30 and the architect's
-> report [`0006`](../../reference/architecture/0006-afinar-el-juez-de-imagenes-2026-09-30.md) —
+> report [`0006`](../../reference/architecture/0006-tuning-the-picture-judge-2026-09-30.md) —
 > approved by the owner before the plan is written.
 
 - **Status**: done — delivered and closed 2026-10-09 (the owner decided phase 6's four questions that day)
@@ -95,7 +95,7 @@ The picture judge rejects pictures that show the dish as it is.
   migration), and the rejections' notes kept by a hand-accept. They reach no screen: what
   a model wrote stays out of every answer, as today.
 - The record: a decision amending `0066` (and `0072` for the removal), `apps/api/AGENTS.md`,
-  the comments of the judge, and `legal`'s notes on `docs/legal/imagenes-de-platos.md`.
+  the comments of the judge, and `legal`'s notes on `docs/legal/dish-pictures.md`.
 - What the two model calls are asked does not change. No migration. No new cost.
 
 **Out**

@@ -145,9 +145,9 @@
     reflow are read from the code, not measured.
   - `invariant-reviewer`: no P0, no P1; two P2, fixed (below). `accessibility`: passes on a
     static read; one P2, fixed. `legal`: no P0–P2; its notes are in
-    `docs/legal/imagenes-de-platos.md` (§§ 1.6, 4.1, 4.3, 5) and `checklist-activacion.md`,
-    with `textos/06-correos.md` (entry M), `registro-actividades.md` and `eipd.md` brought
-    in line. It also corrected, in `analisis.md`, a row about `audit_logs` that had been
+    `docs/legal/dish-pictures.md` (§§ 1.6, 4.1, 4.3, 5) and `go-live-checklist.md`,
+    with `textos/06-correos.md` (entry M), `record-of-processing.md` and `dpia.md` brought
+    in line. It also corrected, in `analysis.md`, a row about `audit_logs` that had been
     untrue since project 008 — not this phase's, and in this change.
 - **What shipped**:
   - `PictureCandidateStore` (private Vercel Blob, and a stub in memory). A drawing that ends

@@ -339,6 +339,27 @@ doc — is written with the Write or Edit tool, not from a shell heredoc.
 
 ---
 
+## The repository is written in English; the product speaks Spanish
+
+**Everything this repository says to itself is in English** — every `.md`, every comment,
+every identifier, every test name, every commit message, every branch name, every log line a
+developer reads. Owner's instruction, 2026-10-13. A repository with two languages in it has
+two readerships and keeps neither: a reader has to know both to follow a thread from a
+decision record to the code that implements it.
+
+**What a *user* reads stays in the language they read it in**, and that is not an exception to
+the rule — it is product data rather than the repository's own voice:
+
+- `apps/web/src/i18n/dictionaries/es-ES.ts` — the Spanish interface. It *is* the Spanish.
+- `apps/api/src/modules/email/templates/` — mail sent to people who signed up in Spanish.
+- `docs/legal/textos/` — the texts published at `/privacidad` and `/condiciones`. Spanish law
+  requires them in Spanish, and the file is the source of what is served.
+- Dish names, ingredient names, slugs and the prompt vocabulary that asks a model for Spanish
+  food. These are data and database keys; a translation is a migration, not an edit.
+
+Quoting Spanish in English prose is fine and often necessary — a dish's name, a screen's path,
+something the owner said. The test is whether the sentence around it is English.
+
 ## Code conventions
 
 ### TypeScript

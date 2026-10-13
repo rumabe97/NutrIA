@@ -99,7 +99,7 @@ import type { PoolAsk } from 'core/domain/Balance';
  * brief asks for in the person's language, and stop asking for `0` minutes on an
  * instant step, which the rewrite brief asks to leave empty.
  * 4.0.0: nothing a person typed, and nothing that reveals a belief, reaches the
- * model (owner's decision, 2026-09-25; `docs/legal/analisis.md` P0-3). Gone: the
+ * model (owner's decision, 2026-09-25; `docs/legal/analysis.md` P0-3). Gone: the
  * allergies the catalogue could not resolve (now taken out of the catalogue in
  * code, `bestEffortExclusions`), the check-in comment, the breakfast, plate and
  * working-week notes, dislikes the catalogue could not resolve, and a halal or

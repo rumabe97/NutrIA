@@ -153,7 +153,7 @@ describe('CareRepository.end — the targets become the client’s own', () => {
 });
 
 /*
- * P0-1 (`docs/legal/analisis.md`): the client stops or starts sharing the health
+ * P0-1 (`docs/legal/analysis.md`): the client stops or starts sharing the health
  * line without ending the link, and each change leaves its row in the same
  * transaction. That Postgres keeps the two together is the end-to-end suite's.
  */

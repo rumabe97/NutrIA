@@ -50,33 +50,34 @@ report.
 
 ## What every report contains
 
-Write in Spanish, for the owner, in the plain register of the rest of `docs/`. Start with
-the verdict, then the evidence. Always:
+**Write in English**, like everything else in this repository (`AGENTS.md` § The repository
+is written in English), in the plain register of the rest of `docs/`. Start with the verdict,
+then the evidence. Always:
 
-1. **Veredicto** — one of *Sí*, *Sí, con condiciones* (list them), *No* (and what would
+1. **Verdict** — one of *Yes*, *Yes, on these conditions* (list them), *No* (and what would
    make it possible), in the first lines.
-2. **Premisas revisadas** — every premise of the proposal checked against the code and the
-   measurements, each marked **confirmada**, **incorrecta** (with the evidence) or
-   **hipótesis** (with how to test it).
-3. **Qué hay hoy** — how the relevant part really works, with `path:line` references.
-4. **Propuesta** — what you recommend instead or on top, and why this shape; the
-   alternatives considered and the one reason each lost.
-5. **Requisitos** — code, data, infrastructure, money, the owner's time, decisions he must
+2. **Premises checked** — every premise of the proposal checked against the code and the
+   measurements, each marked **confirmed**, **wrong** (with the evidence) or **hypothesis**
+   (with how to test it).
+3. **What is there today** — how the relevant part really works, with `path:line` references.
+4. **Proposal** — what you recommend instead or on top, and why this shape; the alternatives
+   considered and the one reason each lost.
+5. **Requirements** — code, data, infrastructure, money, the owner's time, decisions he must
    take.
-6. **Riesgos** — what could break, for whom, how likely, how you would see it, how to undo.
+6. **Risks** — what could break, for whom, how likely, how you would see it, how to undo.
    Safety, privacy and quota risks first.
-7. **Coste y esfuerzo** — in ranges, with the variables that drive them.
+7. **Cost and effort** — in ranges, with the variables that drive them.
 8. **Plan** — phases small enough to ship one at a time, each with its success metric and
    the signal to stop, ready to become a `/plan-project` PRD.
-9. **Qué no sé** — what only a measurement or the owner can settle.
+9. **What I do not know** — what only a measurement or the owner can settle.
 
-Label every number: **medido** (with where), **estimado** (with the hypothesis) or
-**desconocido**.
+Label every number: **measured** (with where), **estimated** (with the hypothesis) or
+**unknown**.
 
 ## Where it goes
 
 Your reports go under `docs/reference/architecture/`, one file per question:
-`NNNN-<tema>-YYYY-MM-DD.md` (the next number in that directory), opening with the purpose
+`NNNN-<topic-in-english>-YYYY-MM-DD.md` (the next number in that directory), opening with the purpose
 header every `docs/` file carries. That directory is the only place you write. You never edit
 code, configuration, other docs, plans or decisions: what should change there you say in the
 report and, when a finding belongs to a working agent, you send it to that agent by name. A

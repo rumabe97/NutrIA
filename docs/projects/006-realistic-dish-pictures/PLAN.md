@@ -332,7 +332,7 @@ which supersedes `0010`.
   - the `es-ES` and `en-GB` dictionaries;
   - `apps/web/src/app/api` proxies, if the status call needs one.
 - **Steps**:
-  1. Add the strings from [`docs/legal/imagenes-de-platos.md`](../../legal/imagenes-de-platos.md)
+  1. Add the strings from [`docs/legal/dish-pictures.md`](../../legal/dish-pictures.md)
      § 3:
      - `meal.pictureCaption` replaces `meal.illustration`;
      - `meal.pictureOf` replaces `meal.illustrationOf`;
@@ -372,7 +372,7 @@ which supersedes `0010`.
 - **Scope**:
   - merge the `legal` branch `agent/dish-pictures-legal/legal` (docs/legal only);
   - the `es-ES`/`en-GB` dictionary blocks of `/privacidad` and `/condiciones`, as
-    [`docs/legal/imagenes-de-platos.md`](../../legal/imagenes-de-platos.md) § 4 and
+    [`docs/legal/dish-pictures.md`](../../legal/dish-pictures.md) § 4 and
     `docs/legal/textos/02` and `03` specify. That covers:
     - the sentence about Google scoped to plan design;
     - the pictures paragraph naming Google Vertex;

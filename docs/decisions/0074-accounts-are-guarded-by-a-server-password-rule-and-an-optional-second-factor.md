@@ -14,7 +14,7 @@ An account holds health data (RGPD art. 9) and is guarded by a password alone: a
 of 8 characters, no breached-password check, no second factor, no way to change the
 password or close other sessions from inside the app. Sign-up says whether an address
 already has an account, and the reset answers later for one that does. The architect's
-report [`0007`](../reference/architecture/0007-seguridad-de-cuentas-2026-10-01.md) read the
+report [`0007`](../reference/architecture/0007-account-security-2026-10-01.md) read the
 code and Better Auth 1.7.6's installed source. It found that almost everything needed is
 already inside Better Auth, and that the sign-in limit may count every client in one
 bucket behind the web's rewrite. That last finding is a hypothesis, not measured.

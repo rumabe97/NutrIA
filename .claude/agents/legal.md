@@ -79,8 +79,12 @@ a lawyer** — a short list the owner can take to one in an hour.
 
 ## What you deliver
 
-Everything under `docs/legal/`, in Spanish (the product's language), with English only
-where the product shows English:
+Everything under `docs/legal/` **in English** — the analysis, the procedures, the records and
+the risk lists, like the rest of the repository (`AGENTS.md` § The repository is written in
+English). The one exception is `docs/legal/textos/`: those are the words a person is shown at
+`/privacidad` and `/condiciones`, Spanish law requires them in Spanish, and that file is the
+source of what is served — so they stay in the language they are published in, and an English
+product text is written in English for the same reason.
 
 - An **analysis** first — roles (who is controller, joint controller or processor for each
   flow, and why), legal basis per purpose, the art. 9 exception relied on, retention,

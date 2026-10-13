@@ -22,7 +22,7 @@ stored" is written in four places.
 - Nothing can remove a published picture.
 
 The architect's report
-[`0005`](../reference/architecture/0005-imagenes-fallidas-aviso-y-revision-a-mano-2026-09-30.md)
+[`0005`](../reference/architecture/0005-failed-pictures-the-alert-and-the-manual-review-2026-09-30.md)
 measured each point against the code. The owner decided on 2026-09-30.
 
 ## Decision
@@ -42,7 +42,7 @@ measured each point against the code. The owner decided on 2026-09-30.
   - A dish with a candidate is not drawn again until the candidate is accepted,
     discarded, retried or expired.
 - **A file without a C2PA manifest is never kept and never accepted**, by hand or
-  otherwise. The manifest is what marks the picture as AI-made (`imagenes-de-platos.md`
+  otherwise. The manifest is what marks the picture as AI-made (`dish-pictures.md`
   § 1.5, § 2.3.2).
 - **What the console shows of the judge** is allergen keys and catalogue ingredients,
   never the vision model's own words.

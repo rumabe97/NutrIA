@@ -4,7 +4,7 @@
 - **Date**: 2026-10-02
 - **Deciders**: owner ("en la mediterránea el arroz no encajaría en cena, pero en la asiática sí… acompañantes que no fuera solamente pan: ensaladas, en Asia ponen arroz… quiero que sea súper profesional"); agent `architect`: the tables, the sources, the measurement. The owner answered the nine open questions and decided that no BEDCA data is used anywhere
 - **Project**: docs/projects/016-a-spanish-meal (phase 2)
-- **Relates to**: [`0062`](./0062-each-meal-sees-its-own-foods-and-the-season.md) (meal lists — amended for five food groups, see Consequences), [`0063`](./0063-lunch-and-dinner-see-what-the-library-cooks-plus-a-rotating-sample.md), [`0077`](./0077-traditional-spanish-is-a-way-of-eating-enforced-in-code.md) (cuisine normalisation, `traditional_spanish`), [`0078`](./0078-a-plate-has-a-gram-ceiling-and-cooked-grains-read-dry.md) (yields), architect report [`0008`](../reference/architecture/0008-una-comida-a-la-espanola-2026-10-02.md) (accompaniments, design A). It replaces step 1 of plan phase 7 ("pasta, rice and couscous lunch-only by data migration").
+- **Relates to**: [`0062`](./0062-each-meal-sees-its-own-foods-and-the-season.md) (meal lists — amended for five food groups, see Consequences), [`0063`](./0063-lunch-and-dinner-see-what-the-library-cooks-plus-a-rotating-sample.md), [`0077`](./0077-traditional-spanish-is-a-way-of-eating-enforced-in-code.md) (cuisine normalisation, `traditional_spanish`), [`0078`](./0078-a-plate-has-a-gram-ceiling-and-cooked-grains-read-dry.md) (yields), architect report [`0008`](../reference/architecture/0008-a-spanish-style-meal-2026-10-02.md) (accompaniments, design A). It replaces step 1 of plan phase 7 ("pasta, rice and couscous lunch-only by data migration").
 
 ## In one minute
 

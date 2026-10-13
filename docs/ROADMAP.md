@@ -384,7 +384,7 @@ code:
 Added on 2026-10-01, the owner: "quiero mejorar la seguridad del usuario". The project is
 [`011-accounts-are-harder-to-take`](./projects/011-accounts-are-harder-to-take/), and the
 architect's report
-[`0007`](./reference/architecture/0007-seguridad-de-cuentas-2026-10-01.md) is its design.
+[`0007`](./reference/architecture/0007-account-security-2026-10-01.md) is its design.
 It covers:
 
 - strong passwords decided on the server, with breached passwords refused;

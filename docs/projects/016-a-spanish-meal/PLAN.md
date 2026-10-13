@@ -15,7 +15,7 @@
 
 ## Design summary
 
-The design is `0008` ([architect report](../../reference/architecture/0008-una-comida-a-la-espanola-2026-10-02.md)), followed literally. In short:
+The design is `0008` ([architect report](../../reference/architecture/0008-a-spanish-style-meal-2026-10-02.md)), followed literally. In short:
 
 - **A** is a child table `meal_accompaniments` and a fixed list in code (`core/domain/Accompaniment`, shaped like `Yield`).
   - Sets are chosen inside `balancedDay`, at K = 6 per main slot ("none" included), only when the slot's share is over 700 kcal.

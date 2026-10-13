@@ -822,7 +822,7 @@ describe('care routes', () => {
     });
   });
 
-  /* P0-1 (`docs/legal/analisis.md`): the health line, switched by the client on their own link. */
+  /* P0-1 (`docs/legal/analysis.md`): the health line, switched by the client on their own link. */
   describe('PATCH /care/links/me', () => {
     it('takes the yes or no alone, for the session’s own link — never a link id or another account from the body', async () => {
       const shared = { ...LINK, shares: [...CARE_SHARED, ...CARE_HEALTH_SHARED], sharesHealth: true };

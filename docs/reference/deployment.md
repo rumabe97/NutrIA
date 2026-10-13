@@ -171,7 +171,7 @@ one, and a preview that half-works is worse than none.
   already awake ([`0075`](../decisions/0075-expired-verification-rows-are-swept-daily-not-on-every-read.md)).
 - the second-factor removals, daily at 08:10 UTC, which carry out the owner's removals
   once their 48 h have passed (project 011 phase 4,
-  [`procedimiento-quitar-segundo-factor`](../legal/procedimiento-quitar-segundo-factor.md)).
+  [`procedimiento-quitar-segundo-factor`](../legal/removing-a-second-factor.md)).
 - the plan activation, daily at 23:05 UTC, after midnight in Madrid all year (project 015).
 
 There is no illustration sweep any more: a dish's picture is drawn the first time somebody

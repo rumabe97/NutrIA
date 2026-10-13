@@ -24,7 +24,7 @@ is wrong:
 - Admin actions are not recorded at all, although `audit_logs` exists and is empty.
 
 The architect's report
-[`0004`](../reference/architecture/0004-consola-seguimiento-2026-09-29.md) measured each
+[`0004`](../reference/architecture/0004-a-console-that-watches-2026-09-29.md) measured each
 point. The owner approved all of them on 2026-09-29, with D1–D4.
 
 ## Decision

@@ -376,7 +376,7 @@
   step of the old combo trained on the data.
 - **Decisions**: [`0064`](../../decisions/0064-generation-runs-on-paid-no-training-models-through-openrouter.md);
   `decisions/LOG.md` 2026-09-26.
-- **Before the switch (owner)** — `docs/legal/checklist-activacion.md` § 0 bis: OpenRouter's
+- **Before the switch (owner)** — `docs/legal/go-live-checklist.md` § 0 bis: OpenRouter's
   DPA in hand and confirmed for a paid account (P1-11); allowed providers DeepInfra and
   CoreWeave in the account (P1-12, **done by the owner 2026-09-26**); MiniMax removed as
   fallback, replaced by Gemma 4 31B (P1-13, 2026-09-26); the topic-tagging sample accepted with

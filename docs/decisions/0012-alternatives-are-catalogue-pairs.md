@@ -20,7 +20,7 @@ The first sounds richer and is worse on every axis that matters here:
 
 - **Safety.** A substitute the model names is free text. It carries no allergen
   links, so the one deterministic gate the product has — `isSafe` against
-  `ingredient_allergens` ([`0004`](./0004-ai-provider-and-deterministic-safety.md))
+  `ingredient_allergens` ([`0004`](./0004-deterministic-safety-layer.md))
   — cannot see it. A swap is exactly where a prompt-only rule leaks: the dish was
   checked, the "or instead" was not.
 - **Coverage.** It would exist only on dishes generated after the change. The

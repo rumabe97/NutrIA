@@ -270,7 +270,7 @@ const envObject = z.object({
    * model, by OpenRouter's slugs, comma-separated (`deepinfra,coreweave`).
    * `zdr: true` alone let one model go to 22 companies, one outside the EEA's
    * adequacy decisions; the privacy policy names this list, so a request may
-   * reach no one else (`docs/legal/analisis.md` § 4.4).
+   * reach no one else (`docs/legal/analysis.md` § 4.4).
    */
   AI_PROVIDER_ONLY: optional(z.string().transform(providerList)),
   /*

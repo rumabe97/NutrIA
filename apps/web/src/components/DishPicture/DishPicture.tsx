@@ -43,7 +43,7 @@ interface DishPictureProps {
  * plate, never a broken icon.
  *
  * The "IA" mark sits over the top-right corner of every picture shown (AI Act
- * art. 50; `docs/legal/imagenes-de-platos.md` § 3.2): on its own opaque ground so
+ * art. 50; `docs/legal/dish-pictures.md` § 3.2): on its own opaque ground so
  * it reads on any photograph, and named in full for a screen reader where the
  * picture itself is decorative, as on the card; a named picture's alt already
  * says it (§ 3.1). The plate has no mark — nothing synthetic is on screen.

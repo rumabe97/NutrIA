@@ -20,7 +20,7 @@ With `AI_PROVIDER=openrouter` the pool builder calls `https://openrouter.ai/api/
 - [ ] Training on inputs **off**, for paid and free models.
 - [ ] Zero data retention (ZDR) **on** for all models, and for the first-party Anthropic, OpenAI, Google and SpaceXAI endpoints.
 - [ ] The workspace data discount (OpenRouter using inputs/outputs) **off**.
-- [ ] **Allowed providers**: only `DeepInfra` and `CoreWeave` (US, ZDR, both serve both models) — the companies the privacy policy names (`docs/legal/analisis.md` P1-12). The code sends the same list as `provider.only` (`AI_PROVIDER_ONLY`, required).
+- [ ] **Allowed providers**: only `DeepInfra` and `CoreWeave` (US, ZDR, both serve both models) — the companies the privacy policy names (`docs/legal/analysis.md` P1-12). The code sends the same list as `provider.only` (`AI_PROVIDER_ONLY`, required).
 
 **Any change** to `AI_MODEL`, `AI_FALLBACK_MODELS`, `AI_PROVIDER_ONLY` or the account's allowed list goes through `/privacidad` first: the policy names the model and the companies that run it (`docs/legal/textos/02-politica-privacidad.md`, state 2), and `legal` reviews the change.
 

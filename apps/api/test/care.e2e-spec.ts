@@ -1492,7 +1492,7 @@ describe('care', () => {
       });
 
       /**
-       * P0-1 (`docs/legal/checklist-activacion.md` § 1): the client's own
+       * P0-1 (`docs/legal/go-live-checklist.md` § 1): the client's own
        * switch, not the professional's and not the end of the link — closes
        * only the health line, on the professional's very next request, and
        * comes back the same way.

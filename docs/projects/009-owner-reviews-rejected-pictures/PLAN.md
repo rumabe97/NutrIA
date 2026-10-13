@@ -18,7 +18,7 @@
 ## Design summary
 
 The architect's report
-[`0005`](../../reference/architecture/0005-imagenes-fallidas-aviso-y-revision-a-mano-2026-09-30.md)
+[`0005`](../../reference/architecture/0005-failed-pictures-the-alert-and-the-manual-review-2026-09-30.md)
 is the design; read its §§ 4–6 before any phase. Decision
 [`0072`](../../decisions/0072-a-rejected-picture-waits-for-the-owner.md) amends `0066`.
 

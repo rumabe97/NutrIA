@@ -414,7 +414,7 @@ describe('professionals', () => {
   });
 
   /**
-   * The professional's own agreement (P1-1, `docs/legal/checklist-activacion.md`
+   * The professional's own agreement (P1-1, `docs/legal/go-live-checklist.md`
    * § 1): a grant alone does not open the workspace, whatever the switch says —
    * the one route it must still leave open is the page that shows the
    * agreement to accept, `GET /care/practice`, and accepting it is itself the

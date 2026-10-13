@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /**
  * The version of `/condiciones` an account accepted when it was created
- * (`0071`, project 008 phase 7; `docs/legal/2026-09-29-aceptacion-de-los-textos-legales.md`
+ * (`0071`, project 008 phase 7; `docs/legal/2026-09-29-accepting-the-legal-texts.md`
  * § 5). The server writes it, in the same `INSERT` that creates the account —
  * for email, Google and Apple alike — and no request can send it.
  *

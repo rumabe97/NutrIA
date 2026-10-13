@@ -158,7 +158,7 @@
   - Polling goes through `GET /recipes/:id/picture-status` → `{status, url}`.
   - `/admin` needs a `dishPictures` toggle (the existing flag route) and the
     `GET /admin/pictures` line.
-  - `docs/legal/analisis.md` still names the removed route, for `legal`.
+  - `docs/legal/analysis.md` still names the removed route, for `legal`.
 
 ## Phase 4 — The meal page waits for its picture; every picture says it is AI (2026-09-28)
 
@@ -209,7 +209,7 @@
     `i18n/legal.test`.
   - `gate.sh --full`: green.
   - The private leak patterns match nothing in the added lines.
-- **What changed** in es-ES and en-GB, verbatim from `docs/legal/imagenes-de-platos.md`
+- **What changed** in es-ES and en-GB, verbatim from `docs/legal/dish-pictures.md`
   § 3.3 and § 4.2 a–c:
   - `/privacidad`:
     - the Google sentence is scoped to designing the dishes;

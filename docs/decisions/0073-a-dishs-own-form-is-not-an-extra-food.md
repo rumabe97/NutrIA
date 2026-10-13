@@ -21,7 +21,7 @@ rejects a picture that clearly shows a food carrying an allergen the dish lacks.
   meatballs, bread, milk, yogurt — the code gives it the allergens of that form's usual
   recipe. A picture shows the form, not what it is made of.
 - The architect's report
-  [`0006`](../reference/architecture/0006-afinar-el-juez-de-imagenes-2026-09-30.md)
+  [`0006`](../reference/architecture/0006-tuning-the-picture-judge-2026-09-30.md)
   measured it offline: 128 of the 500 dishes of the seed library carry something whose
   most natural name makes the rule reject a faithful picture. These rejections repeat on
   every attempt of the same dish.

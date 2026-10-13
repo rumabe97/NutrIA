@@ -4,7 +4,7 @@
 > The plan must cover everything in here; the intent gate checks it.
 > **Audience**: humans and agents. **Committed**: yes. **Written by**: an agent via
 > `/plan-project`, from the owner's request and decisions of 2026-09-30 and the architect's
-> report [`0005`](../../reference/architecture/0005-imagenes-fallidas-aviso-y-revision-a-mano-2026-09-30.md) —
+> report [`0005`](../../reference/architecture/0005-failed-pictures-the-alert-and-the-manual-review-2026-09-30.md) —
 > approved by the owner before the plan is written.
 
 - **Status**: done — closed 2026-10-08 (owner's request; audit in 000-workspace/closing-audit-2026-10-08.md)
@@ -75,7 +75,7 @@ A dish picture that fails is lost, and nobody is told.
 - The record:
   - a decision amending `0066`, since "a rejected picture is never stored" stops being
     true and is restated precisely;
-  - `legal`'s notes in `docs/legal/imagenes-de-platos.md`, and its checklist line for the
+  - `legal`'s notes in `docs/legal/dish-pictures.md`, and its checklist line for the
     second store.
 - No migration: the new data fits `recipe_images.provenance` (jsonb).
 

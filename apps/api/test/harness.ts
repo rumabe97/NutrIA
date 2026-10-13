@@ -625,7 +625,7 @@ export async function markLegacyOnboarding(userId: string, currentStep = 10): Pr
 
 /**
  * Accepts the professional's own agreement (P1-1,
- * `docs/legal/checklist-activacion.md` § 1) at the current version, through
+ * `docs/legal/go-live-checklist.md` § 1) at the current version, through
  * the route a professional's own screen calls — the door every workspace
  * route but `GET /care/practice` and the practice checkout keep shut until
  * it is open, the way `giveProfileConsent` opens the profile consent gate.

@@ -18,7 +18,7 @@ Half of this already exists and is switched off
 ([`0010`](../../decisions/0010-illustrate-recipes-not-photograph-them.md)): `RecipeIllustrator`
 draws a 960 px WebP, stores it as `bytea` in `recipe_images` and serves it at
 `/recipes/:id/image`, and the web shows it on the dashboard card and the meal page (#123).
-Report [`0003`](../../reference/architecture/0003-imagenes-de-platos-2026-09-26.md) found
+Report [`0003`](../../reference/architecture/0003-dish-pictures-2026-09-26.md) found
 what stops it from shipping as it is:
 
 - **Storage.** Neon's free plan holds 0.5 GB and blocks writes when it is full, so a growing
@@ -41,7 +41,7 @@ by an endpoint that keeps nothing. The owner scored the pictures blind:
 | Gemini 3.1 Flash Lite Image | 4.00 | 0 | ~4.5 s | 0.034 $ |
 | Seedream 5.0 Pro | 3.58 | 1 of 20 | ~36 s | 0.043 $ |
 
-The owner first chose MAI-Image-2.6. They then made Gemini the principal model: it is about five times faster, which matters when the picture is drawn while someone waits on the page. It never failed, and its mean score is close to MAI's. Gemini bills a fixed 0.0337 $ per picture: on Vertex it accepts only the 1K resolution, and the prompt's length barely counts. After the `legal` review ([`docs/legal/imagenes-de-platos.md`](../../legal/imagenes-de-platos.md)) the owner dropped MAI. It documents no C2PA manifest and no watermark, so NutrIA would have to mark its pictures itself. Gemini on Vertex signs its output with C2PA and also carries a SynthID watermark. **Mini pilot.** Same day, 8 dishes, about 0.32 $. Prompt v2 asked for a bigger plate, side light and a sauce sheen. Shown at real app size, the owner scored it no better than v1: v1 averaged 4.50 and v2 averaged 4.25–4.38. The same v1 pictures that had scored 3 in the first pilot now scored 4–5, so differences this small are noise. v2's bigger plate also gets its rim cut by the card crop. Serving the picture at 512, 768 or 1200 px made no visible difference on the iPhone. The raw Gemini JPEG delivered through OpenRouter keeps Google's signed C2PA manifest and IPTC `trainedAlgorithmicMedia` metadata, 171 KB on average, while any re-encode strips them. So the project uses prompt v1 and serves the raw file.
+The owner first chose MAI-Image-2.6. They then made Gemini the principal model: it is about five times faster, which matters when the picture is drawn while someone waits on the page. It never failed, and its mean score is close to MAI's. Gemini bills a fixed 0.0337 $ per picture: on Vertex it accepts only the 1K resolution, and the prompt's length barely counts. After the `legal` review ([`docs/legal/dish-pictures.md`](../../legal/dish-pictures.md)) the owner dropped MAI. It documents no C2PA manifest and no watermark, so NutrIA would have to mark its pictures itself. Gemini on Vertex signs its output with C2PA and also carries a SynthID watermark. **Mini pilot.** Same day, 8 dishes, about 0.32 $. Prompt v2 asked for a bigger plate, side light and a sauce sheen. Shown at real app size, the owner scored it no better than v1: v1 averaged 4.50 and v2 averaged 4.25–4.38. The same v1 pictures that had scored 3 in the first pilot now scored 4–5, so differences this small are noise. v2's bigger plate also gets its rim cut by the card crop. Serving the picture at 512, 768 or 1200 px made no visible difference on the iPhone. The raw Gemini JPEG delivered through OpenRouter keeps Google's signed C2PA manifest and IPTC `trainedAlgorithmicMedia` metadata, 171 KB on average, while any re-encode strips them. So the project uses prompt v1 and serves the raw file.
 
 ## Outcome
 
@@ -136,7 +136,7 @@ The owner first chose MAI-Image-2.6. They then made Gemini the principal model: 
 ## Open questions
 
 - **Label wording and privacy changes.** Done by `legal` on branch
-  `agent/dish-pictures-legal/legal` ([`docs/legal/imagenes-de-platos.md`](../../legal/imagenes-de-platos.md)).
+  `agent/dish-pictures-legal/legal` ([`docs/legal/dish-pictures.md`](../../legal/dish-pictures.md)).
   It merges with this project's docs, and the owner reads Google Cloud's generative-AI terms
   before the flag goes on.
 - **Retry cool-off for a dish that failed 3 times.** Proposed: 7 days.
