@@ -608,6 +608,55 @@ export const RecipeController = {
     }
   },
 
+  /**
+   * Dishes from the library this user may safely eat.
+   *
+   * Every candidate goes through `findSafetyViolations` — the same gate applied to
+   * model output. A recipe already existing is not evidence that it is safe for
+   * *this* person, and reuse would otherwise be a hole straight past the allergy
+   * layer. See `docs/decisions/0006-reuse-before-generating.md`.
+   *
+   * Dishes referencing an ingredient no longer in the catalogue are dropped: their
+   * macros could not be computed, so they cannot be scheduled.
+   *
+   * With a `rotation`, the library is then narrowed to this user's own pick — see
+   * `rotatePool` for why "reuse everything" meant "everyone gets the same plan".
+   *
+   * Dishes with no method are dropped too, and that gate is the only thing that
+   * lets a quality change ever reach an existing user. Reuse is preferred over
+   * generation by design ([`0006`](../../../../docs/decisions/0006-reuse-before-generating.md)),
+   * so a library built under an older prompt is served back for ever: the first
+   * plan generated after prompt 2.1.0 landed was 41 dishes, of which 3 were new.
+   * A recipe that never says how to cook it is the one defect worth spending a
+   * regeneration on, so it is the one this filter names.
+   */
+  /**
+   * Every dish in the library for these slots, **unfiltered** — the same fetch
+   * `reusablePool` makes, before anything is taken out of it (`0011` § 2).
+   *
+   * For the one question `reusablePool` cannot answer: *why* a dish somebody
+   * searched for is not offered. Its filters are a sieve, and a sieve cannot
+   * say what fell through — the dish the owner was looking for was in the
+   * library and the screen showed him a shorter list and said nothing.
+   *
+   * The slots are still fitted to the person (`0062` § 5), because "it is not a
+   * dish for this meal" is one of the answers and must be the person's answer
+   * and not the recipe's. **Nothing else is filtered**, which is the point, so
+   * this must never feed a pool: it holds dishes somebody is allergic to.
+   */
+  /**
+   * Whether this person's way of eating rules a dish out — the same predicate
+   * `reusablePool` filters with, exported so that saying *why* a dish is not
+   * offered (`0011` § 2) reads the one definition rather than a second copy
+   * that can drift from it.
+   */
+  excludes(
+    dish: { readonly cuisine: string | null; readonly ingredients: readonly { readonly slug: string }[]; readonly name: string },
+    context: GenerationContext
+  ): boolean {
+    return usesExcluded(dish, context);
+  },
+
   /** The drawing ended with nothing kept; the cool-off starts `now`. What its attempts were judged is kept, as `completePicture` keeps it. */
   async failPicture(
     claim: PictureClaim,
@@ -646,6 +695,12 @@ export const RecipeController = {
     }
 
     return context;
+  },
+
+  async libraryFor(slots: readonly MealSlot[], context: GenerationContext): Promise<readonly CandidateDish[]> {
+    const recipes = await RecipeRepository.findReusable(slots, REUSE_FETCH_LIMIT, context.locale);
+
+    return recipes.map(toCandidateDish).map(dish => ({ ...dish, slots: fitSlots(dish, context.catalogue, context.dietaryPatterns) }));
   },
 
   /**
@@ -928,28 +983,6 @@ export const RecipeController = {
     return { attempts: 0, claimedAt: now, recipeId };
   },
 
-  /**
-   * Dishes from the library this user may safely eat.
-   *
-   * Every candidate goes through `findSafetyViolations` — the same gate applied to
-   * model output. A recipe already existing is not evidence that it is safe for
-   * *this* person, and reuse would otherwise be a hole straight past the allergy
-   * layer. See `docs/decisions/0006-reuse-before-generating.md`.
-   *
-   * Dishes referencing an ingredient no longer in the catalogue are dropped: their
-   * macros could not be computed, so they cannot be scheduled.
-   *
-   * With a `rotation`, the library is then narrowed to this user's own pick — see
-   * `rotatePool` for why "reuse everything" meant "everyone gets the same plan".
-   *
-   * Dishes with no method are dropped too, and that gate is the only thing that
-   * lets a quality change ever reach an existing user. Reuse is preferred over
-   * generation by design ([`0006`](../../../../docs/decisions/0006-reuse-before-generating.md)),
-   * so a library built under an older prompt is served back for ever: the first
-   * plan generated after prompt 2.1.0 landed was 41 dishes, of which 3 were new.
-   * A recipe that never says how to cook it is the one defect worth spending a
-   * regeneration on, so it is the one this filter names.
-   */
   async reusablePool(slots: readonly MealSlot[], context: GenerationContext, rotation?: Rotation): Promise<readonly CandidateDish[]> {
     const recipes = await RecipeRepository.findReusable(slots, REUSE_FETCH_LIMIT, context.locale);
     const usable = recipes

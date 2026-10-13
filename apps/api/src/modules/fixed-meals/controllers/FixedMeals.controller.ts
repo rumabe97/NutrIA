@@ -8,7 +8,7 @@ import { InputParseError } from 'core/entities/Error';
 import { weekdaySchema } from 'core/entities/FixedMeal';
 import { MEAL_SLOTS } from 'core/entities/Plan';
 
-import type { FixableDishDto, FixedMealDto, FixedMealsDto } from '../dto/out/index.js';
+import type { FixableDishDto, FixedMealDto, FixedMealsDto, NotOfferedDishDto } from '../dto/out/index.js';
 import type { MealSlot } from 'core/entities/Plan';
 import type { SessionUser } from '../../../shared/index.js';
 
@@ -48,6 +48,23 @@ export class FixedMealsController {
     @Query('slot') slot: string
   ): Promise<readonly FixableDishDto[]> {
     return this.fixedMeals.fixable(user.id, weekdaySchema.parse(Number(weekday)), parsedSlot(slot));
+  }
+
+  @ApiOkResponse({
+    description: 'Dishes the library has that match the search and are not offered, each with the reason and whether the person can act on it.'
+  })
+  @ApiOperation({ summary: 'Why a dish somebody searched for is not offered for that meal' })
+  @ApiQuery({ description: 'What they typed; under three letters answers nothing', name: 'q' })
+  @ApiQuery({ enum: MEAL_SLOTS, name: 'slot' })
+  @ApiQuery({ description: '0-6, Monday first', name: 'weekday', type: Number })
+  @Get('not-offered')
+  async notOffered(
+    @CurrentUser() user: SessionUser,
+    @Query('weekday') weekday: string,
+    @Query('slot') slot: string,
+    @Query('q') query = ''
+  ): Promise<readonly NotOfferedDishDto[]> {
+    return this.fixedMeals.notOffered(user.id, weekdaySchema.parse(Number(weekday)), parsedSlot(slot), query);
   }
 
   @ApiNoContentResponse({ description: 'Removed. Plans already built with it keep the dish they were built with.' })

@@ -1,4 +1,4 @@
-import type { FixableDish } from '../../services/index.js';
+import type { FixableDish, NotOfferedDish } from '../../services/index.js';
 import type { FixedMeal } from 'core/entities/FixedMeal';
 import type { FixedMealsView } from 'core/controllers/FixedMeal';
 
@@ -16,3 +16,13 @@ export type FixedMealsDto = FixedMealsView;
  * fortnight is not in it (`FixedMealsService`).
  */
 export type FixableDishDto = FixableDish;
+
+/**
+ * A dish the library has and this person was not offered, with the reason
+ * (`0011` § 2).
+ *
+ * `actionable` says whether the screen owes them a way forward or a plain no:
+ * four of the seven reasons are two taps away from being fixed, and the other
+ * three must not be dressed up as advice.
+ */
+export type NotOfferedDishDto = NotOfferedDish;
