@@ -282,17 +282,22 @@ export async function activate(email: string): Promise<void> {
   }
 }
 
-export async function register(app: INestApplication, email: string): Promise<Account> {
+/**
+ * Registers an account, confirms it, opens it and signs it in.
+ *
+ * `name` is the person's own name, which defaults to the address's local part
+ * as every suite here has always had it. A suite passes one when the name is
+ * what it is testing: `storableName` refuses a dish whose name carries a word
+ * of the account's own (`dish-request.e2e-spec.ts`), and that case needs a name
+ * it chose.
+ */
+export async function register(app: INestApplication, email: string, name = email.split('@')[0]): Promise<Account> {
   const password = 'correct-horse-battery-staple-9';
   const server = httpServer(app);
 
   // Paced: every `/auth/*` call of a suite spends one allowance of the API's own limiter, and the privileged
   // accounts' TOTP (`enableTotp`) spends two more each.
-  const signUp = await paced(() =>
-    request(server)
-      .post(`/${PREFIX}/auth/sign-up/email`)
-      .send({ email, name: email.split('@')[0], password })
-  );
+  const signUp = await paced(() => request(server).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name, password }));
 
   if (signUp.status !== 200) {
     throw new Error(`Sign-up refused for ${email}: ${signUp.status}`);
@@ -680,6 +685,27 @@ export async function planRow(planId: string): Promise<{ completedAt: string | n
   const rows = await sqlClient()<{ completedAt: string | null; endDate: string; startDate: string; status: string }>`
     select to_char(completed_at, 'YYYY-MM-DD') as "completedAt", to_char(end_date, 'YYYY-MM-DD') as "endDate",
       to_char(start_date, 'YYYY-MM-DD') as "startDate", status::text as status from meal_plans where id = ${planId}`;
+
+  return rows[0] ?? null;
+}
+
+/**
+ * One recipe by its slug, with how many ingredient rows hang off it — read
+ * straight from the tables because no route answers either question.
+ *
+ * For telling "the dish was written" from "the library already had it": a
+ * requested dish whose slug is taken is handed back rather than stored
+ * (`DishRequestRepository.storeWithinQuota`), and the failure that would be is
+ * its ingredients written a second time, which doubles every weight in a
+ * shopping list. `source` and `createdBy` are here because the month's
+ * allowance is counted from exactly those two columns.
+ */
+export async function recipeRow(slug: string): Promise<{ id: string; createdBy: string | null; ingredients: number; source: string } | null> {
+  const rows = await sqlClient()<{ id: string; createdBy: string | null; ingredients: number; source: string }>`
+    select recipes.id, recipes.created_by as "createdBy", recipes.source::text as source,
+      (select count(*)::int from recipe_ingredients where recipe_ingredients.recipe_id = recipes.id) as ingredients
+    from recipes
+    where recipes.slug = ${slug}`;
 
   return rows[0] ?? null;
 }

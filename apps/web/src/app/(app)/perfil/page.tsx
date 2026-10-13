@@ -29,7 +29,7 @@ import { MEAL_SLOTS } from 'core/entities/Plan';
 
 import { formatNumber, interpolate } from 'lib/format';
 import { mealCount, mealSizeKey } from 'lib/mealSize';
-import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
+import { redirectIfOnboardingIncomplete, redirectIfProfileConsentMissing } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
 import { appMetadata } from '../../_shared/metadata';
@@ -84,6 +84,13 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
   // finished belongs in the flow that is filling them in, not in a read-only
   // view of half of them.
   await redirectIfOnboardingIncomplete();
+  // And the consent, which `/inicio` already demanded and this screen did not:
+  // the dish request lives on this page, and `PROFILE_CONSENT_VERSION` 1.1.0 is
+  // what tells somebody their words now reach the model. The route refuses a
+  // stale consent anyway — `generationContext` calls `requireProfileConsent`
+  // before any model call — but being refused after typing a dish's name is a
+  // worse way to meet a notice than reading it first (`legal`, 2026-10-13).
+  await redirectIfProfileConsentMissing();
 
   // Health data is fetched here and only here. It is not folded into
   // `/profile`, which the dashboard also loads — a medication has no business

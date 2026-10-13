@@ -193,6 +193,8 @@ export const esES = {
   /* `/admin/ajustes/registro` (`0071`): quién hizo cada mutación de cuenta o de ajuste, y cuándo. */
   adminAllowances: {
     bounds: 'De fábrica {shipped}. Entre {floor} y {ceiling}.',
+    costDishRequests:
+      'Una llamada al modelo por petición, y solo se cobra la que acaba en plato: unos 0,04 $ por plato guardado, casi todo su foto. Una petición rechazada no gasta cupo ni dinero que importe.',
     costEvents: 'Declarar un día que come distinto no cuesta nada: es planificación, no una llamada al modelo.',
     costFixedMeals:
       'No cuesta ninguna llamada al modelo. Lo que gasta es la promesa de que cada día cae dentro del 5 % en los cuatro macros, así que este número solo se puede bajar desde aquí: subirlo es medir y desplegar.',
@@ -202,6 +204,7 @@ export const esES = {
     free: 'Gratis',
     intro:
       'Cuántos usos permite cada suscripción. Un número fuera de sus límites se rechaza, no se recorta, y mientras nadie mueva uno vale el que trae el código.',
+    labelDishRequests: 'Platos que puede pedirnos al mes',
     labelEvents: 'Días que comen distinto, por plan',
     labelFixedMeals: 'Comidas fijas cada semana',
     labelMidPlan: 'Días que comen distinto añadidos a una quincena en marcha',
@@ -214,6 +217,8 @@ export const esES = {
     spendLink: 'Ver el gasto en imágenes',
     title: 'Qué permite cada suscripción',
     whole: 'Tiene que ser un número entero.',
+    whyDishRequests:
+      'Seis al mes es reescribir dos veces cada comida fija, que es cambiar de idea y no una rutina. El dinero no lo acota: incluso seis cuestan lo que las fotos de una sola replanificación.',
     whyEvents: 'Más de 7 no hace nada: una carga dura de uno a tres días y dos no pueden compartir día, así que en una quincena caben siete.',
     whyFixedMeals:
       'Tres es lo que trae el código, así que tres es el techo. Medido sobre 982 platos: con tres reglas fijas los planes están igual de equilibrados que sin ninguna, y con cuatro tampoco empeoraban; el límite es que ocho de cada catorce días llevarían una comida decidida de antemano.',
@@ -3062,7 +3067,8 @@ export const esES = {
         heading: 'Contenido generado con inteligencia artificial',
         paragraphs: [
           'Las recetas y los planes se generan con ayuda de inteligencia artificial y se validan con nuestro propio código antes de mostrártelos. Aun así pueden contener errores: un tiempo de cocción, una cantidad, un paso poco claro. Usa tu criterio en la cocina, sobre todo con la seguridad alimentaria: cocina bien la carne, el pescado y los huevos, y respeta la cadena de frío.',
-          'Las imágenes de los platos también las genera una inteligencia artificial, a partir de la receta, y las marcamos como tales. Son orientativas: no son una foto del plato que vas a cocinar y pueden no mostrar todos sus ingredientes ni su cantidad real. Lo que lleva cada plato lo dice su lista de ingredientes, y es la que tiene en cuenta tus alergias.'
+          'Las imágenes de los platos también las genera una inteligencia artificial, a partir de la receta, y las marcamos como tales. Son orientativas: no son una foto del plato que vas a cocinar y pueden no mostrar todos sus ingredientes ni su cantidad real. Lo que lleva cada plato lo dice su lista de ingredientes, y es la que tiene en cuenta tus alergias.',
+          'Si nos pides un plato escribiendo su nombre, ese texto se envía a la inteligencia artificial. Escribe solo el nombre de un plato: no es un sitio para contar nada sobre ti ni sobre nadie. Podemos no atender una petición, y puede que el plato que salga no encaje en tu plan y no llegues a verlo. El que sí salga se guarda en nuestra biblioteca de platos —la misma para todo el mundo— con el nombre que escriba el modelo, y no dice quién lo pidió.'
         ]
       },
       {
@@ -3131,7 +3137,7 @@ export const esES = {
       }
     ],
     title: 'Condiciones de uso',
-    updated: 'Última actualización: 29 de septiembre de 2026'
+    updated: 'Última actualización: 13 de octubre de 2026'
   },
 
   tour: {
