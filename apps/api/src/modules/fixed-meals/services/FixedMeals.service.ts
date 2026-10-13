@@ -359,12 +359,7 @@ export class FixedMealsService {
         continue;
       }
 
-      if (
-        !storableProse(
-          [...candidate.steps.flatMap(step => [step.text, step.cue ?? '']), candidate.cuisine ?? ''],
-          person
-        ).ok
-      ) {
+      if (!storableProse([...candidate.steps.flatMap(step => [step.text, step.cue ?? '']), candidate.cuisine ?? ''], person).ok) {
         // The name is a tenth of what is stored. The method is written by the
         // same model under a prompt quoting the person's words, and it is kept
         // verbatim in the same shared row — so it is read by the same gate

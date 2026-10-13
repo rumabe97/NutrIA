@@ -720,7 +720,6 @@ export const RecipeController = {
     return { library: fitted(recipes, context), pool: servable(recipes, context) };
   },
 
-
   /**
    * Which ingredients the library cooks each of these meals from, for this
    * person — the first of the three things `0063`'s second cut keeps. Only

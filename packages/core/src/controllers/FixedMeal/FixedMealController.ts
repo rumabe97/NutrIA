@@ -16,11 +16,7 @@ import type { CountedStanding } from 'core/domain/Allowance';
  * the library has nothing for that meal, and a free account has to be told it
  * is premium *before* it types a dish's name rather than after.
  */
-export type FixedMealsView = {
-  readonly dishRequests: CountedStanding;
-  readonly rules: readonly FixedMeal[];
-  readonly standing: CountedStanding;
-};
+export type FixedMealsView = { readonly dishRequests: CountedStanding; readonly rules: readonly FixedMeal[]; readonly standing: CountedStanding };
 
 export const FixedMealController = {
   /**

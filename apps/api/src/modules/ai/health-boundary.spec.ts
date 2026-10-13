@@ -358,9 +358,7 @@ describe('the free-text and belief boundary around the AI module', () => {
         written.push(JSON.stringify(request));
 
         return Promise.resolve({
-          object: {
-            dishes: [{ cuisine: typed, name: `Tortilla ${typed}`, steps: [{ text: `Como la hace ${typed}.` }] }]
-          } as T,
+          object: { dishes: [{ cuisine: typed, name: `Tortilla ${typed}`, steps: [{ text: `Como la hace ${typed}.` }] }] } as T,
           usage: { calls: 1, inputTokens: 1, model: 'stub', outputTokens: 1 }
         });
       });
@@ -472,5 +470,4 @@ describe('the person boundary around the dish pictures', () => {
     expect(bodies.filter(body => body.includes('SENTINEL'))).toEqual([]);
     expect(bodies[0]).toContain('Arroz con pollo');
   });
-
 });

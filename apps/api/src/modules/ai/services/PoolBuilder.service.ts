@@ -544,7 +544,9 @@ export class PoolBuilder {
     const parsed = generatedDishSchema.safeParse(raw);
 
     if (!parsed.success) {
-      this.logger.warn(`Dish ${named(raw.name)} rejected: ${parsed.error.issues.map(issue => `${issue.path.join('.')} ${issue.message}`).join('; ')}`);
+      this.logger.warn(
+        `Dish ${named(raw.name)} rejected: ${parsed.error.issues.map(issue => `${issue.path.join('.')} ${issue.message}`).join('; ')}`
+      );
 
       return { reason: 'schema', repaired: 0 };
     }
@@ -738,7 +740,9 @@ export class PoolBuilder {
     }
 
     if (slots.length === 0) {
-      this.logger.warn(`Dish ${named(dish.name)} rejected: none of ${dish.slots.join(', ')} is a meal all of its ingredients belong to, for its cuisine`);
+      this.logger.warn(
+        `Dish ${named(dish.name)} rejected: none of ${dish.slots.join(', ')} is a meal all of its ingredients belong to, for its cuisine`
+      );
 
       return { reason: 'wrong_meal' };
     }

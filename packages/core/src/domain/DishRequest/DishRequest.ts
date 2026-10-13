@@ -335,9 +335,7 @@ export function storableName(
   const numbers = said.filter(word => /^[0-9]+$/.test(word));
   const counts = numbers.length === 1 && (numbers[0]?.length ?? 0) <= NAME_DIGITS;
 
-  return said.every(word => vocabulary.has(stem(word)) || (counts && /^[0-9]+$/.test(word)))
-    ? { ok: true }
-    : { ok: false, reason: 'unknown_words' };
+  return said.every(word => vocabulary.has(stem(word)) || (counts && /^[0-9]+$/.test(word))) ? { ok: true } : { ok: false, reason: 'unknown_words' };
 }
 
 /**

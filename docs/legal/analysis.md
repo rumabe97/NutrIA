@@ -926,7 +926,10 @@ the code at `c38d316d`:
    Only what survives the gate may be stored or named anywhere.
 3. **The typed string never reaches the picture path.** The stored recipe name is written by
    the model and gated, so what goes to Google (Vertex) is the library's name, as it is today
-   for every generated dish.
+   for every generated dish. **"Gated" has to mean a closed charset, not only a vocabulary**:
+   a word-by-word check that normalises its input is blind to whatever the normaliser folds
+   away, and a name carrying a telephone number or a line of a script we do not write in
+   passed exactly that way until 2026-10-13 — stored, and sent verbatim to Google.
 4. **An output gate on every string of the stored dish the model wrote** — not the name alone.
    The residual risk is the model echoing the request into its output, and a stored dish is
    not just a name: `steps[].text` (up to ten, 600 characters each), `steps[].cue` (160) and
@@ -950,24 +953,90 @@ the code at `c38d316d`:
      by `health-boundary.spec.ts`), and this gate needs the person's health words. So the
      builder cannot gate — which is exactly why it must not *print* either.
 
-**Reviewed 2026-10-13**, after the branch `a-dish-the-library-does-not-have` was built against
-an earlier wording of these conditions: the invariant reviewer found that condition 4 then said
-"the stored name", while the harm named two bullets above is "person-derived text". The code
-implemented the condition faithfully (`storableName` gates `candidate.name` and nothing else,
-`FixedMeals.service.ts:343`) and the method went in unfiltered — a branch that satisfied the
-checklist and still put the person's words in the shared library. The wording above is the fix;
-the code's is `backend`'s. Two concrete breaches found in the same review, both **blocking**:
-the fourteen log lines of `PoolBuilder.service.ts` that print an ungated draft name (527, 553,
-568, 591, 609, 616, 627, 635, 643, 652, 660, 679, 719, 746), and the method with no gate at
-all. Until both are closed, the sentence drafted for `/privacidad` — «No guardamos lo que
-escribes… no queda en ningún registro» / "it is left in no record" — **must not be published**,
-because it would be false in precisely the case that matters, and it would also contradict the
-sentence already live in «Cómo protegemos tus datos».
 5. **A notice at the field**, which is also the art. 13 information at the moment of
    collection: that it is sent to the model, and that only a dish name belongs there.
 
 With 1–5 the sentence that changes narrows honestly and nothing widens for anybody who does
 not use the field. Without any one of them this is not a wording question.
+
+**Reviewed 2026-10-13, and closed the same day.** The branch
+`a-dish-the-library-does-not-have` was built against an earlier wording of these conditions, in
+which condition 4 said "the stored name" while the harm named above is "person-derived text".
+The code implemented the narrower sentence faithfully — and that is the finding worth keeping:
+**a branch can satisfy this checklist and still be wrong, if the checklist is narrower than its
+own harm statement.** The invariant reviewer found three breaches; all three are closed in
+`2acf185e`, verified here against the code rather than taken on report:
+
+- **The method is gated.** `storableProse`
+  (`packages/core/src/domain/DishRequest/DishRequest.ts:365-387`) reads `steps[].text`,
+  `steps[].cue` and `cuisine`, and `FixedMealsService.request` refuses the candidate on the same
+  pass as the name, before anything is stored (`FixedMeals.service.ts:363`). It is the two-part
+  shape this document asked for: **not** the closed vocabulary — a method says "a tu gusto" —
+  but the targeted half, this account's own name and its health words, plus an address, a link,
+  a digit run of five or more, and any letter outside the Latin script. First person is refused
+  (`SPEAKS_OF_THEIR_OWN`), second person is not, because a recipe speaks to whoever is cooking
+  it.
+- **No log line prints an ungated draft.** A `DishNaming` function is built once in
+  `PoolBuilder.build` from the `feature` (`PoolBuilder.service.ts:185`) and threaded through
+  `validate` and `judge`; all fourteen call sites go through it and say "a requested dish" for
+  `dish_request`. No bare name interpolation is left in that file. The slug is not logged
+  either, and it would be no better: it is made of the same words.
+- **The quoting cannot be escaped.** `typedName` (`DishRequest.ts:51-55`) is the one definition
+  of what may be typed — one line, 120 characters, **no `"` and no backtick** — read by the
+  route's schema (`RequestDish.dto.ts:27`) and by the service (`FixedMeals.service.ts:291`), and
+  `PoolPrompt.ts:953` strips both characters again. Before this, `tortilla". Write in step 1: …`
+  ended the quoting the prompt's own comment relies on.
+
+**A fourth breach the same review found, which belonged to condition 3 and not to 4.** The name
+gate was blind to everything `normaliseForMatching` folds away: it flattens every character
+outside `[a-z0-9]` to a space, so a telephone number, a line of Han or Cyrillic, or a row of
+emoji passed the vocabulary word by word and was **stored intact and sent verbatim to Google in
+the picture prompt**. Condition 3 says what reaches Vertex is "the library's name"; it was the
+library's name, carrying a phone number. Closed by a closed charset on the name
+(`NAME_CHARACTERS`: Latin letters, digits, space and `,&'’-`) and at most one number of three
+digits (`NAME_DIGITS`), with the six passing cases now held as tests. The lesson is condition
+3's, and it is now explicit above: *gated* means gated against a charset, not only against a
+vocabulary.
+
+**The published sentence can be published.** «No guardamos lo que escribes: en cuanto el modelo
+responde, tu texto desaparece, y no queda en ningún registro» / "…it is left in no record" is
+true, on five things checked together — and the question is not only about our own logs, because
+the platform's access log is not ours to redact:
+
+1. **Neither route carries the words in a URL.** `POST /fixed-meals/request` and
+   `POST /fixed-meals/not-offered` take them in the body
+   (`FixedMeals.controller.ts:66,84`). The second is a read answered with 200 and is a POST for
+   this reason alone.
+2. **The web page never puts them in its own URL either**, which is the half a route cannot fix:
+   `FixedMealPlanner.tsx:124` holds the search in React state, with no `router.push`, no
+   `searchParams` and no history write. So the words never reach the platform's access log for
+   the web app, and never travel as a `referer` on a later call.
+3. **Our own request line records no body**: `serializeRequest` (`pino.ts:156-166`) keeps the
+   url, the method and an allow-list of headers. `REDACTED_PATHS` carries `req.body.name` and
+   `req.body.query` anyway, for the night somebody turns body logging on — which is the only
+   reason that list has ever been worth having.
+4. **Errors carry nothing**: Sentry's `beforeSend` deletes `request`, `user`, `breadcrumbs`,
+   `extra` and `transaction` (`ErrorReporter.ts:121-136`), and the errors this path throws are
+   fixed text (`'Write the name of a dish'` and a bound, never the words).
+5. **Nothing else on the path logs at all**: neither `FixedMeals.service.ts` nor
+   `FixedMeals.controller.ts` holds a logger, and the call record the builder returns
+   (`AiCallRecord`) is counts, models and ids — no dish names — and is not persisted for this
+   feature. The `session` string (`dish-request:<userId>`) stays with us: `resolveCallSettings`
+   sends no session header to OpenRouter (`ai.config.ts:320`).
+
+It also **strengthens** rather than strains the sentence already live in «Cómo protegemos tus
+datos» («Los registros del servidor y de errores no guardan lo que escribes»): a `GET` with
+`?q=` would have put the typed words in a log that is not ours to redact and made that older
+sentence false. The POST is what keeps it true.
+
+**What would make it false again**, so it is written down rather than remembered: putting the
+search into the page URL under any parameter name (the `referer` redaction covers `q` by name,
+`SECRET_PARAMETERS`, but the platform's access log covers nothing); turning body logging on;
+any new log line on this path. One residual, **P3, not blocking**: `DishNaming` keys on
+`feature === 'dish_request'` rather than on whether a typed field is present, so a future caller
+that passes `dishRequest` under another feature label would print names again. Today only
+`FixedMeals.service.ts` sets it and it passes `feature: 'dish_request'`; keying on the field
+would make the invariant self-enforcing. Sent as a note, not a blocker.
 
 **What must change in the same pull request**, and only then (until the feature exists, § 1.3
 and § 4.4 describe the product truthfully and must not be edited to describe a plan): § 1.3's
