@@ -442,6 +442,13 @@
       "when": 1791830401238,
       "tag": "0062_each_tier_is_allowed_what_the_console_says",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1791877460998,
+      "tag": "0063_a_meal_fixed_to_one_day_of_the_week",
+      "breakpoints": true
     }
   ]
 }

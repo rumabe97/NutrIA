@@ -225,6 +225,36 @@ export const events = userOwned('events', {
   protein: macroDirection().notNull()
 });
 
+/**
+ * A meal somebody fixed to one day of the week, for ever — *"every Friday dinner
+ * is tortilla de patata"* (`0098`, `0099`).
+ *
+ * **One rule per weekday, and the database says so.** The scheduler takes its
+ * pins as a map keyed by the day of the fortnight (`SchedulerInput.pinned`), so
+ * a second rule on the same weekday is not a thing it can hold: one of the two
+ * would be dropped, silently, by whichever order the rows came back in. The
+ * unique constraint makes the structure's assumption the table's promise rather
+ * than something every writer has to remember. `0045` is why the shape is right
+ * and not merely convenient: two pins on a three-meal day leave the search one
+ * dish and the portions, and portions alone do not reach four macros.
+ *
+ * **The dish is a foreign key, not a slug.** A rule naming a slug that no longer
+ * exists is a rule the generator silently drops once a fortnight for ever; a
+ * cascade deletes it, and the screen can say the dish has gone. `weekday` is
+ * 0-6 from Monday, the ISO ordering `Day` uses.
+ */
+export const fixedMeals = userOwned(
+  'fixed_meals',
+  {
+    recipeId: uuid()
+      .notNull()
+      .references(() => recipes.id, { onDelete: 'cascade' }),
+    slot: mealSlot().notNull(),
+    weekday: smallint().notNull()
+  },
+  table => [unique('fixed_meals_user_weekday_unique').on(table.userId, table.weekday), index('fixed_meals_recipe_idx').on(table.recipeId)]
+);
+
 export const mealCompletions = userOwned('meal_completions', {
   loggedAt: date().notNull(),
   mealId: uuid()
