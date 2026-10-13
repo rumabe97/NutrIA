@@ -55,7 +55,7 @@ export function snackKind(dish: Pick<CandidateDish, 'ingredients'>, catalogue: C
 }
 
 /** **The same kind of snack three times a fortnight at most** (owner, 2026-10-02; plan 017 phase 2). Priced like `STARCH_RULES`. */
-export const SNACK_RULES = { apart: false, perFortnight: 3 } as const satisfies KindRule;
+export const SNACK_RULES = { apart: false, fixedSpendsCap: false, perFortnight: 3 } as const satisfies KindRule;
 
 /** `SNACK_RULES` as the scheduler applies it: only the snacks count, read from the pool. */
 export function snackCheck(dishes: readonly Pick<CandidateDish, 'ingredients' | 'slug'>[], catalogue: Catalogue): KindCheck {

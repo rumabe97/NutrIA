@@ -84,6 +84,13 @@ export type PlacementGroups = {
 export type Placement = {
   readonly dayIndex: number;
   readonly dishSlug: string;
+  /**
+   * Whether somebody fixed this meal to this day and slot (`0098`). A kind rule
+   * charges a fixed meal differently — `excessOfKind` is the one place that says
+   * how — so a placement built from a `Pick` must carry it, which is why every
+   * one in the scheduler is built by `placementOf` and none by hand.
+   */
+  readonly fixed?: true;
   /** The meal's groups, when the caller knows them and the pool may not hold the dish — a swap, a rebuild (019 phase 3). */
   readonly groups?: PlacementGroups;
   /** The dish's legume, the same way (`legumeKind`, `LEGUME_RULES`). */

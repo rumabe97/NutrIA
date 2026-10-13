@@ -439,6 +439,21 @@ patata"* — and it is the one input that takes a dish out of the search's hands
 - **Sizing is not swapping.** `balanceDay`, `meetSides`, `holdSideStarches` and the portion
   search treat a pinned plate exactly like any other, and must keep doing so: the person
   asked for tortilla on Friday, not for 300 g of it.
+- **A placement is built from a pick by `placementOf`, and by nothing else** (`0099`).
+  `Placement.fixed` is what tells a kind rule whose choice the meal was, and the scheduler
+  builds placements in fifteen places; one inline literal that forgets the flag charges
+  somebody's fixed Friday to the cap the generator is judged by, and no test fails. The
+  helper is three lines and it is the only defence that does not depend on remembering.
+- **A variety cap counts the meals the generator chose; a health maximum counts every
+  meal.** `KindRule.fixedSpendsCap` says which a rule is, required so a new one has to
+  answer, and `excessOfKind` is the one place that reads it. `STARCH_RULES`,
+  `LEGUME_RULES` and `SNACK_RULES` are preferences that exist to stop the generator
+  reaching for pasta a fifth time; PRD 019's maximums are about what a person eats, and a
+  Friday they chose is still a Friday they eat. Either way **`apart` counts every meal**:
+  the penalty for a day beside a fixed one lands on the day the generator can still move,
+  which is the only day it could act on.
+- **The flag leaves the scheduler once**, onto `ScheduledMeal.pinned`, so the balance
+  report can keep a fixed meal out of the starch cap. Nothing a person sees reads it.
 
 ## ⛔ Anti-patterns
 

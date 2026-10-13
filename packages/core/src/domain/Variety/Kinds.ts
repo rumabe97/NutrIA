@@ -12,47 +12,89 @@ import type { MealSlot } from 'core/entities/Plan';
  * `PROTEIN_RULES`, preferences kept whenever the pool lets them, never a
  * reason to fail a plan.
  */
-export type KindRule = { readonly apart: boolean; readonly perFortnight: number };
+export type KindRule = {
+  readonly apart: boolean;
+  /**
+   * Whether a meal somebody fixed spends this rule's cap (`0099`). Required, so
+   * a new rule has to say which kind it is rather than inherit an answer.
+   *
+   * **True for PRD 019's health maximums**: red meat twice a fortnight is about
+   * what a person eats, and a Friday they chose is still a Friday they eat.
+   * **False for the variety preferences** (`STARCH_RULES`, `LEGUME_RULES`,
+   * `SNACK_RULES`), which exist to stop the generator reaching for pasta a fifth
+   * time — charging those for a fixed Friday measures the person instead of the
+   * generator, and a weekly rule would spend two of four before a dish was
+   * picked.
+   *
+   * Either way, `apart` counts every meal: two days running is about what the
+   * plate looks like two days in a row, which a fixed meal is as much a part of
+   * as any other.
+   */
+  readonly fixedSpendsCap: boolean;
+  readonly perFortnight: number;
+};
 
-/** A meal as a kind rule reads it: only the meals that have the kind it counts. */
-export type KindMeal = { readonly dayIndex: number; readonly kind: string };
+/**
+ * A meal as a kind rule reads it: only the meals that have the kind it counts.
+ *
+ * `fixed` is a meal somebody fixed to that day and slot (`0098`), and it
+ * changes what the rule charges for it: see `excessOfKind`.
+ */
+export type KindMeal = { readonly dayIndex: number; readonly fixed?: true; readonly kind: string };
 
 /** How often one kind may appear in a plan of `days` days — `perFortnight` in fourteen, scaled, one at least. */
 export function kindCap(rule: KindRule, days: number): number {
   return Math.max(1, Math.ceil((rule.perFortnight * days) / 14));
 }
 
-/** Meals counted by kind, then by day: what `kindExcess` reads of them. */
-export type KindTally = ReadonlyMap<string, ReadonlyMap<number, number>>;
+/**
+ * Meals counted by kind, then by day: what `kindExcess` reads of them.
+ *
+ * Two counts per day, because the two halves of a kind rule charge differently
+ * for a meal somebody fixed (`excessOfKind`): `all` is every meal of that kind,
+ * `chosen` only the ones the generator picked.
+ */
+export type KindDayCount = { readonly all: number; readonly chosen: number };
+export type KindTally = ReadonlyMap<string, ReadonlyMap<number, KindDayCount>>;
 
 /** These meals as a `KindTally`. */
 export function kindTally(meals: readonly KindMeal[]): KindTally {
-  const byKind = new Map<string, Map<number, number>>();
+  const byKind = new Map<string, Map<number, KindDayCount>>();
 
   for (const meal of meals) {
-    const byDay = byKind.get(meal.kind) ?? new Map<number, number>();
+    const byDay = byKind.get(meal.kind) ?? new Map<number, KindDayCount>();
+    const at = byDay.get(meal.dayIndex) ?? { all: 0, chosen: 0 };
 
-    byDay.set(meal.dayIndex, (byDay.get(meal.dayIndex) ?? 0) + 1);
+    byDay.set(meal.dayIndex, { all: at.all + 1, chosen: at.chosen + (meal.fixed ? 0 : 1) });
     byKind.set(meal.kind, byDay);
   }
 
   return byKind;
 }
 
-/** `kindExcess` of one kind's meals, by day. */
-function excessOfKind(byDay: ReadonlyMap<number, number>, cap: number, rule: KindRule): number {
-  let total = 0;
+/**
+ * `kindExcess` of one kind's meals, by day — and the one place that spends a
+ * cap, so `KindRule.fixedSpendsCap` is read here and nowhere else that matters
+ * (`0099`).
+ *
+ * The days-running half counts every meal whatever the rule says: the penalty
+ * for a day beside a fixed one lands on the day the generator can still move,
+ * so the search can act on it. Nobody asked for rice on the Thursday before
+ * their rice Friday.
+ */
+function excessOfKind(byDay: ReadonlyMap<number, KindDayCount>, cap: number, rule: KindRule): number {
+  let spent = 0;
   let excess = 0;
 
   for (const [dayIndex, count] of byDay) {
-    total += count;
+    spent += rule.fixedSpendsCap ? count.all : count.chosen;
 
     if (rule.apart) {
-      excess += count - 1 + (byDay.has(dayIndex - 1) ? 1 : 0);
+      excess += count.all - 1 + (byDay.has(dayIndex - 1) ? 1 : 0);
     }
   }
 
-  return excess + Math.max(0, total - cap);
+  return excess + Math.max(0, spent - cap);
 }
 
 /**
@@ -91,7 +133,9 @@ export function kindExcessWith(tally: KindTally, base: number, extra: readonly K
     const byDay = new Map(before);
 
     for (const [dayIndex, count] of added) {
-      byDay.set(dayIndex, (byDay.get(dayIndex) ?? 0) + count);
+      const at = byDay.get(dayIndex) ?? { all: 0, chosen: 0 };
+
+      byDay.set(dayIndex, { all: at.all + count.all, chosen: at.chosen + count.chosen });
     }
 
     excess += excessOfKind(byDay, cap, rule) - (before ? excessOfKind(before, cap, rule) : 0);
@@ -100,12 +144,18 @@ export function kindExcessWith(tally: KindTally, base: number, extra: readonly K
   return excess;
 }
 
-/** How many meals in these are past `rule`'s cap, counted per kind — the cap alone, not the days running (`kindExcess` counts both). */
+/**
+ * How many meals in these are past `rule`'s cap, counted per kind — the cap
+ * alone, not the days running (`kindExcess` counts both). A fixed meal does not
+ * count, as it does not in `excessOfKind`.
+ */
 export function kindPastCap(meals: readonly KindMeal[], days: number, rule: KindRule): number {
   const totals = new Map<string, number>();
 
   for (const meal of meals) {
-    totals.set(meal.kind, (totals.get(meal.kind) ?? 0) + 1);
+    if (rule.fixedSpendsCap || !meal.fixed) {
+      totals.set(meal.kind, (totals.get(meal.kind) ?? 0) + 1);
+    }
   }
 
   const cap = kindCap(rule, days);
@@ -113,9 +163,11 @@ export function kindPastCap(meals: readonly KindMeal[], days: number, rule: Kind
   return [...totals.values()].reduce((sum, total) => sum + Math.max(0, total - cap), 0);
 }
 
-/** Whether a meal of `kind` would take it past `rule`'s cap over `meals`: the cap alone, wherever the meal lands. */
+/** Whether a meal of `kind` would take it past `rule`'s cap over `meals`: the cap alone, wherever the meal lands. Fixed meals do not count (`excessOfKind`). */
 export function kindAtCap(kind: string | null | undefined, meals: readonly KindMeal[], days: number, rule: KindRule): boolean {
-  return kind !== null && kind !== undefined && meals.filter(meal => meal.kind === kind).length >= kindCap(rule, days);
+  return (
+    kind !== null && kind !== undefined && meals.filter(meal => meal.kind === kind && (rule.fixedSpendsCap || !meal.fixed)).length >= kindCap(rule, days)
+  );
 }
 
 /**
@@ -135,7 +187,7 @@ export function kindCrowded(
     return false;
   }
 
-  let total = 0;
+  let spent = 0;
 
   for (const meal of meals) {
     if (meal.kind === kind) {
@@ -143,11 +195,11 @@ export function kindCrowded(
         return true;
       }
 
-      total += 1;
+      spent += !rule.fixedSpendsCap && meal.fixed ? 0 : 1;
     }
   }
 
-  return total + weight > kindCap(rule, days);
+  return spent + weight > kindCap(rule, days);
 }
 
 /** Each pool dish's kind under one rule, by slug; null for a dish the rule does not count. */
@@ -190,7 +242,7 @@ export function kindMeals(placements: readonly Placement[], check: KindCheck): K
       const times = check.weight?.(placement) ?? 1;
 
       for (let time = 0; time < times; time += 1) {
-        meals.push({ dayIndex: placement.dayIndex, kind });
+        meals.push(placement.fixed ? { dayIndex: placement.dayIndex, fixed: true, kind } : { dayIndex: placement.dayIndex, kind });
       }
     }
   }
