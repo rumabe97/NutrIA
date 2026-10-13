@@ -153,7 +153,7 @@ export function starchMeals(placements: readonly Placement[], index: StarchIndex
 }
 
 /** `STARCH_RULES` as a kind rule (`KindRule`): each capped base apart and at its cap. */
-const STARCH_KIND_RULE: KindRule = { apart: true, perFortnight: STARCH_RULES.perFortnight };
+const STARCH_KIND_RULE: KindRule = { apart: true, fixedSpendsCap: false, perFortnight: STARCH_RULES.perFortnight };
 
 /**
  * How many meals break `STARCH_RULES` in these: each past the plan's cap, each

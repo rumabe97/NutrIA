@@ -462,6 +462,15 @@ describe('billing', () => {
         const seen: Response = await status(test, owner).expect(200);
 
         expect(seen.body).toEqual({
+          // Hard-coded on purpose, as the premium numbers are in
+          // `events-premium`: the pitch's figures travel on this payload
+          // (`0099`), so a change to what a tier allows is a change to this
+          // file too, and the sentence that asks for money cannot drift from
+          // the product without somebody being told here first.
+          allowances: {
+            free: { eventsPerPlan: 3, fixedMeals: 1, mealSwapsPerPlan: 5, midPlanEventsPerPlan: 0, planRedosPerFortnight: 1 },
+            premium: { eventsPerPlan: 7, fixedMeals: 3, mealSwapsPerPlan: 20, midPlanEventsPerPlan: 3, planRedosPerFortnight: 3 }
+          },
           available: true,
           prices: { monthly: { amount: 499, currency: 'eur', interval: 'month' }, yearly: null },
           subscription: null,

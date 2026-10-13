@@ -47,13 +47,15 @@ export default async function AdminSettingsPage() {
   const words = dictionary.adminSettings;
   const limits = dictionary.adminAllowances;
   const { flags } = settings;
-  // The four, in the order the console reads them rather than the registry's:
-  // what people use most first, and the one that spends money last, where its
-  // warning is the last thing read before it is moved.
+  // The five, in the order the console reads them rather than the registry's:
+  // what people use most first, then the two that cannot be raised from here —
+  // the structural one and the one that spends money — last, where their
+  // warnings are the last things read before either is moved.
   const rows = [
     { cost: limits.costSwaps, label: limits.labelSwaps, name: 'mealSwapsPerPlan', why: limits.whySwaps },
     { cost: limits.costEvents, label: limits.labelEvents, name: 'eventsPerPlan', why: limits.whyEvents },
     { cost: limits.costMidPlan, label: limits.labelMidPlan, name: 'midPlanEventsPerPlan', why: limits.whyMidPlan },
+    { cost: limits.costFixedMeals, label: limits.labelFixedMeals, name: 'fixedMeals', why: limits.whyFixedMeals },
     { cost: limits.costRedos, label: limits.labelRedos, name: 'planRedosPerFortnight', why: limits.whyRedos }
   ] as const;
 

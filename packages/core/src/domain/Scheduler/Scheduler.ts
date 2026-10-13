@@ -939,8 +939,10 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
       if (pinned) {
         const base = perServing.get(pinned.slug) as PerServing;
 
-        picks.push({ base, dish: pinned, pinned: true, servings: servingsFor(base, budget, slot), slot, sortOrder });
-        placed.push({ dayIndex, dishSlug: pinned.slug, slot });
+        const pick: Pick = { base, dish: pinned, pinned: true, servings: servingsFor(base, budget, slot), slot, sortOrder };
+
+        picks.push(pick);
+        placed.push(placementOf(dayIndex, pick));
         continue;
       }
 
@@ -999,8 +1001,10 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
 
       const base = perServing.get(chosen.slug) as NonNullable<ReturnType<typeof perServing.get>>;
 
-      picks.push({ base, dish: chosen, servings: servingsFor(base, budget, slot), slot, sortOrder });
-      placed.push({ dayIndex, dishSlug: chosen.slug, slot });
+      const pick: Pick = { base, dish: chosen, servings: servingsFor(base, budget, slot), slot, sortOrder };
+
+      picks.push(pick);
+      placed.push(placementOf(dayIndex, pick));
     }
 
     const improved = improveDay(picks, input, perServing, dayIndex, placed, budgets, { cap, kinds, proteins, seasonal }, sidesOn?.(dayIndex));
@@ -1011,7 +1015,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
       const replacement = improved[index - (placed.length - picks.length)];
 
       if (replacement) {
-        placed[index] = { dayIndex, dishSlug: replacement.dish.slug, slot: replacement.slot };
+        placed[index] = placementOf(dayIndex, replacement);
       }
     }
 
@@ -1043,6 +1047,10 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
         dish: pick.dish,
         ingredients: scaleIngredients(pick.dish.ingredients, pick.servings / pick.dish.servings),
         macros: scaleMacros(pick.base, pick.servings),
+        // The flag leaves the scheduler here, and only here: the balance report
+        // needs it to judge the generator on the meals the generator chose
+        // (`0099`).
+        ...(pick.pinned ? { pinned: true as const } : {}),
         servings: pick.servings,
         slot: pick.slot,
         sortOrder: pick.sortOrder
@@ -1970,6 +1978,20 @@ function pickBest(
     .at(0);
 }
 
+/**
+ * A `Pick` as the variety rules read it: **the one place a placement is built
+ * from a pick** (`0099`).
+ *
+ * `Placement.fixed` decides what a kind rule charges for the meal
+ * (`excessOfKind`), so a pass that built a placement by hand would silently
+ * charge somebody's fixed Friday to the cap the generator is judged by. One
+ * function, named in `packages/core/AGENTS.md`, is the only defence that does
+ * not depend on remembering.
+ */
+function placementOf(dayIndex: number, pick: Pick): Placement {
+  return pick.pinned ? { dayIndex, dishSlug: pick.dish.slug, fixed: true, slot: pick.slot } : { dayIndex, dishSlug: pick.dish.slug, slot: pick.slot };
+}
+
 type Pick = {
   readonly base: PerServing;
   readonly dish: CandidateDish;
@@ -2721,7 +2743,7 @@ function improveDay(
   // The held rules are held at `HELD_KIND_WEIGHT` on top, the maximums at
   // `HELD_MAXIMUM_WEIGHT`: only the bands outrank them.
   const kindsOf = (day: readonly Pick[]): { readonly floors: number; readonly maximums: number; readonly rest: number } => {
-    const placements = day.map(entry => ({ dayIndex, dishSlug: entry.dish.slug, slot: entry.slot }));
+    const placements = day.map(entry => placementOf(dayIndex, entry));
 
     return {
       floors: floorLack(kinds, dayIndex, day) * HELD_MINIMUM_WEIGHT,
@@ -2812,9 +2834,7 @@ function improveDay(
       }
 
       // Everything already on the plate today except the one being replaced.
-      const siblings = current
-        .filter((_entry, position) => position !== index)
-        .map(entry => ({ dayIndex, dishSlug: entry.dish.slug, slot: entry.slot }));
+      const siblings = current.filter((_entry, position) => position !== index).map(entry => placementOf(dayIndex, entry));
       const rest = [...others, ...siblings];
       const budget = budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
 
@@ -3114,10 +3134,7 @@ function spreadAcrossDays(
 
     for (const { miss, position: worstAt } of outside) {
       const worst = current[worstAt] as BuiltDay;
-      const placements: Placement[] = [
-        ...fixed,
-        ...current.flatMap(day => day.picks.map(pick => ({ dayIndex: day.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot })))
-      ];
+      const placements: Placement[] = [...fixed, ...current.flatMap(day => day.picks.map(pick => placementOf(day.dayIndex, pick)))];
       const kindsBefore = kindsExcess(placements, kinds.checks, kinds.days) + mainsWeekExcess(placements, proteins);
 
       // An exchange keeps the fortnight's pasta, rice, grains and legumes, but
@@ -3126,8 +3143,8 @@ function spreadAcrossDays(
       const kindsAdded = (other: BuiltDay, toWorst: readonly Pick[], toOther: readonly Pick[]): number => {
         const moved = [
           ...placements.filter(placement => placement.dayIndex !== worst.dayIndex && placement.dayIndex !== other.dayIndex),
-          ...toWorst.map(pick => ({ dayIndex: worst.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot })),
-          ...toOther.map(pick => ({ dayIndex: other.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }))
+          ...toWorst.map(pick => placementOf(worst.dayIndex, pick)),
+          ...toOther.map(pick => placementOf(other.dayIndex, pick))
         ];
 
         return Math.max(0, kindsExcess(moved, kinds.checks, kinds.days) + mainsWeekExcess(moved, proteins) - kindsBefore);
@@ -3293,9 +3310,7 @@ function repairOutOfBand(
 
     const others: Placement[] = [
       ...fixed,
-      ...current.flatMap((day, at) =>
-        at === position ? [] : day.picks.map(pick => ({ dayIndex: day.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }))
-      )
+      ...current.flatMap((day, at) => (at === position ? [] : day.picks.map(pick => placementOf(day.dayIndex, pick))))
     ];
     const elsewhere = proteinCounts(others, proteins);
     const week = planWeek(start.dayIndex);
@@ -3303,7 +3318,7 @@ function repairOutOfBand(
 
     // What the day pays the variety rules, priced as `improveDay` prices them.
     const priceOf = (picks: readonly Pick[]): number => {
-      const placements = picks.map(pick => ({ dayIndex: start.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }));
+      const placements = picks.map(pick => placementOf(start.dayIndex, pick));
       const repeats = proteinExcess(
         picks.map(pick => ({ protein: proteins.get(pick.dish.slug) ?? null, slot: pick.slot })),
         elsewhere,
@@ -3331,10 +3346,7 @@ function repairOutOfBand(
         }
 
         const budget = day.budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
-        const placed = [
-          ...others,
-          ...day.picks.filter((_entry, at) => at !== index).map(entry => ({ dayIndex: day.dayIndex, dishSlug: entry.dish.slug, slot: entry.slot }))
-        ];
+        const placed = [...others, ...day.picks.filter((_entry, at) => at !== index).map(entry => placementOf(day.dayIndex, entry))];
 
         for (const candidate of input.pool) {
           const base = perServing.get(candidate.slug);
@@ -3468,8 +3480,7 @@ function repairToRule(
   sidesOn?: (dayIndex: number) => Sides
 ): readonly BuiltDay[] {
   const current = [...days];
-  const placementsOf = (day: BuiltDay, picks: readonly Pick[] = day.picks): Placement[] =>
-    picks.map(pick => ({ dayIndex: day.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }));
+  const placementsOf = (day: BuiltDay, picks: readonly Pick[] = day.picks): Placement[] => picks.map(pick => placementOf(day.dayIndex, pick));
   const planOf = (without?: BuiltDay): Placement[] => [...fixed, ...current.flatMap(day => (day === without ? [] : placementsOf(day)))];
   // The rule being repaired alone: what screens a candidate before it is sized.
   const goalOf = (placements: readonly Placement[]): number =>
@@ -3841,8 +3852,7 @@ export function bandNeededExceptions(input: SchedulerInput, assignment: PlanAssi
       targets
     };
   });
-  const placementsOf = (day: BuiltDay, picks: readonly Pick[] = day.picks): Placement[] =>
-    picks.map(pick => ({ dayIndex: day.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }));
+  const placementsOf = (day: BuiltDay, picks: readonly Pick[] = day.picks): Placement[] => picks.map(pick => placementOf(day.dayIndex, pick));
   const everything = built.flatMap(day => placementsOf(day));
   const missOf = (picks: readonly Pick[], day: BuiltDay): number =>
     bandMiss(deliveredTotals(picks), day.targets) + floorMiss(deliveredKcal(picks), input.minimumKcal);
@@ -4049,7 +4059,7 @@ function enforceDistinctDays(
     // Every other day already in `current`, repaired ones included — this is a
     // single forward pass, so a day fixed earlier is what a later day sees.
     const elsewhere = current.flatMap((other, otherIndex) =>
-      otherIndex === index ? [] : other.picks.map(pick => ({ dayIndex: other.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }))
+      otherIndex === index ? [] : other.picks.map(pick => placementOf(other.dayIndex, pick))
     );
     const before = missOf(day.picks, day);
 
@@ -4063,9 +4073,7 @@ function enforceDistinctDays(
       }
 
       const budget = day.budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
-      const siblings = day.picks
-        .filter((_entry, at) => at !== position)
-        .map(entry => ({ dayIndex: day.dayIndex, dishSlug: entry.dish.slug, slot: entry.slot }));
+      const siblings = day.picks.filter((_entry, at) => at !== position).map(entry => placementOf(day.dayIndex, entry));
       const placedElsewhere = [...fixed, ...elsewhere, ...siblings];
       const kindsElsewhere = kinds.checks.map(check => kindMeals(placedElsewhere, check));
 
@@ -4172,7 +4180,7 @@ function holdSideStarches(
 
   const { starch } = kinds;
   const current = [...days];
-  const placementsOf = (day: BuiltDay): Placement[] => day.picks.map(pick => ({ dayIndex: day.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }));
+  const placementsOf = (day: BuiltDay): Placement[] => day.picks.map(pick => placementOf(day.dayIndex, pick));
   const sidesOf = (day: BuiltDay, picks: readonly Pick[] = day.picks): KindMeal[] =>
     picks.flatMap(pick => sideStarches(pick.set).map(kind => ({ dayIndex: day.dayIndex, kind })));
   const missOf = (picks: readonly Pick[], day: BuiltDay): number =>

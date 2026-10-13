@@ -194,6 +194,8 @@ export const esES = {
   adminAllowances: {
     bounds: 'De fábrica {shipped}. Entre {floor} y {ceiling}.',
     costEvents: 'Declarar un día que come distinto no cuesta nada: es planificación, no una llamada al modelo.',
+    costFixedMeals:
+      'No cuesta ninguna llamada al modelo. Lo que gasta es la promesa de que cada día cae dentro del 5 % en los cuatro macros, así que este número solo se puede bajar desde aquí: subirlo es medir y desplegar.',
     costMidPlan: 'Rehacer los días de una quincena en marcha se sirve de la biblioteca y no gasta generación.',
     costRedos: 'Lo único que cuesta dinero: unos 0,24 $ por replanificación, casi todo en las fotos de sus platos nuevos.',
     costSwaps: 'Un cambio se sirve casi siempre de la biblioteca y no cuesta nada.',
@@ -201,6 +203,7 @@ export const esES = {
     intro:
       'Cuántos usos permite cada suscripción. Un número fuera de sus límites se rechaza, no se recorta, y mientras nadie mueva uno vale el que trae el código.',
     labelEvents: 'Días que comen distinto, por plan',
+    labelFixedMeals: 'Comidas fijas cada semana',
     labelMidPlan: 'Días que comen distinto añadidos a una quincena en marcha',
     labelRedos: 'Replanificaciones por quincena',
     labelSwaps: 'Cambios de comida, por plan',
@@ -212,6 +215,8 @@ export const esES = {
     title: 'Qué permite cada suscripción',
     whole: 'Tiene que ser un número entero.',
     whyEvents: 'Más de 7 no hace nada: una carga dura de uno a tres días y dos no pueden compartir día, así que en una quincena caben siete.',
+    whyFixedMeals:
+      'Tres es lo que trae el código, así que tres es el techo. Medido sobre 982 platos: con tres reglas fijas los planes están igual de equilibrados que sin ninguna, y con cuatro tampoco empeoraban; el límite es que ocho de cada catorce días llevarían una comida decidida de antemano.',
     whyMidPlan: 'Una quincena no se puede rehacer por más días de los que admite, así que esto también se resuelve contra los de ese mismo plan.',
     whyRedos: 'Seis por quincena son doce al mes: entre 3 y 6 $ de fotos de una sola cuenta, contra un mes de 10 $ que comparten todas.',
     whySwaps: 'Veintiocho son las comidas y cenas de una quincena; por encima de eso el límite ya no nombra nada.'
@@ -2694,7 +2699,7 @@ export const esES = {
     premiumMonthly: 'Mensual · {price} al mes',
     premiumPastDue: 'No se ha podido cobrar la última cuota. Stripe lo volverá a intentar; actualiza la tarjeta para no perder premium.',
     premiumPitch:
-      'Tres replanificaciones por quincena en vez de una, veinte cambios de comida por plan en vez de cinco, siete eventos por plan en vez de tres, y hasta tres eventos añadidos con el plan ya empezado.',
+      '{redos} replanificaciones por quincena en vez de {freeRedos}, {swaps} cambios de comida por plan en vez de {freeSwaps}, {events} eventos por plan en vez de {freeEvents}, y hasta {midPlan} eventos añadidos con el plan ya empezado.',
     premiumRenews: 'Tienes premium. Se renueva el {date}.',
     premiumSafety: 'La seguridad alimentaria —alergias, intolerancias y nutrientes— es la misma con premium y sin él.',
     premiumTestMode: 'Modo de prueba: no se cobra nada de verdad. Usa la tarjeta 4242 4242 4242 4242, cualquier fecha futura y cualquier CVC.',

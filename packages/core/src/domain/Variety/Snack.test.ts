@@ -45,7 +45,7 @@ describe('snackKind', () => {
 
 describe('SNACK_RULES — the same kind of snack three times a fortnight', () => {
   it('is pinned, and counts only the snacks', () => {
-    expect(SNACK_RULES).toEqual({ apart: false, perFortnight: 3 });
+    expect(SNACK_RULES).toEqual({ apart: false, fixedSpendsCap: false, perFortnight: 3 });
     expect([...SNACK_KIND_SLOTS].sort()).toEqual(['afternoon_snack', 'morning_snack', 'supper']);
     expect(snackCheck([{ ...snack(['skyr', 170]), slug: 'cup' }], catalogue).slots).toBe(SNACK_KIND_SLOTS);
   });

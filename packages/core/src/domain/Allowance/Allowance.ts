@@ -20,6 +20,13 @@
  *   call — so the free number exists to keep a fortnight a fortnight rather
  *   than a periodisation, and the paid one is deliberately generous: the
  *   overlap rule already bounds how many loads fit in fourteen days.
+ * - **Fixed meals** go from one to three (`0098`, `0099`). A standing weekly rule
+ *   — *"every Friday dinner is tortilla de patata"* — is the one allowance that
+ *   constrains the *plan* rather than counting an action: one rule lands on two
+ *   days of every fortnight, for ever. It costs no model call at all; what it
+ *   spends is the promise that every day lands inside 5% on all four macros,
+ *   which is why it is the only `structural` number here. Free gets one so the
+ *   feature can be tried before it is paid for.
  * - **Mid-plan events** go from none to three. This is the one that is really
  *   sold: free declares an event and it applies at the next generation, which
  *   is what `0043` shipped; premium may add one to the fortnight *already under
@@ -36,26 +43,33 @@ export type Tier = 'free' | 'premium';
 
 export type Allowances = {
   readonly eventsPerPlan: number;
+  /** Standing weekly rules fixing one meal of one day (`0098`, `0099`). */
+  readonly fixedMeals: number;
   readonly mealSwapsPerPlan: number;
   readonly midPlanEventsPerPlan: number;
   readonly planRedosPerFortnight: number;
 };
 
 const BY_TIER: Readonly<Record<Tier, Allowances>> = {
-  free: { eventsPerPlan: 3, mealSwapsPerPlan: 5, midPlanEventsPerPlan: 0, planRedosPerFortnight: 1 },
+  free: { eventsPerPlan: 3, fixedMeals: 1, mealSwapsPerPlan: 5, midPlanEventsPerPlan: 0, planRedosPerFortnight: 1 },
   // Seven events and not ten: the eighth was never possible. A load is one to
   // three days and two events may not share one, so a fortnight admits seven —
   // `0044` named that rule as the bound and then wrote ten anyway. Nobody loses
   // anything they could reach, and the table stops promising what it cannot
   // give. Every other number here is what it has always been; moving those is a
   // product decision, and the console is where it will be made (`0097`).
-  premium: { eventsPerPlan: 7, mealSwapsPerPlan: 20, midPlanEventsPerPlan: 3, planRedosPerFortnight: 3 }
+  // Three fixed meals, chosen by the owner on 2026-10-13 against a measurement
+  // that refused nothing up to four (`0099`): it is the number the `marketing`
+  // audit priced as worth paying for, and three standing rules still leave
+  // eleven days of every fourteen to the planner.
+  premium: { eventsPerPlan: 7, fixedMeals: 3, mealSwapsPerPlan: 20, midPlanEventsPerPlan: 3, planRedosPerFortnight: 3 }
 };
 
 export type AllowanceName = keyof Allowances;
 
 export const ALLOWANCE_NAMES = [
   'eventsPerPlan',
+  'fixedMeals',
   'mealSwapsPerPlan',
   'midPlanEventsPerPlan',
   'planRedosPerFortnight'
@@ -109,6 +123,12 @@ export const ALLOWANCE_BOUNDS: Readonly<Record<AllowanceName, AllowanceLimits>> 
     floor: 0,
     kind: 'commercial',
     why: 'Above seven has no effect: a load is one to three days and two events may not share one, so a fortnight holds seven at most.'
+  },
+  fixedMeals: {
+    ceiling: 3,
+    floor: 0,
+    kind: 'structural',
+    why: 'Three is the number shipped, so three is the ceiling (`0099`). Measured on 982 dishes, three standing rules leave the plans as balanced as plans with none — 1958 of 1960 days in band, the thirteen-rule mean at 77.7% against a no-rule 77.1% — and four was no worse; the limit is that eight of fourteen days would carry a meal decided in advance, which is a product judgement and not a measurement.'
   },
   mealSwapsPerPlan: {
     ceiling: 28,
@@ -186,6 +206,7 @@ export function resolveAllowances(stored: readonly StoredAllowance[] = []): Read
   const of = (tier: Tier, name: AllowanceName): number => believed.get(`${tier}:${name}`) ?? BY_TIER[tier][name];
   const free: Allowances = {
     eventsPerPlan: of('free', 'eventsPerPlan'),
+    fixedMeals: of('free', 'fixedMeals'),
     mealSwapsPerPlan: of('free', 'mealSwapsPerPlan'),
     midPlanEventsPerPlan: of('free', 'midPlanEventsPerPlan'),
     planRedosPerFortnight: of('free', 'planRedosPerFortnight')
@@ -195,6 +216,7 @@ export function resolveAllowances(stored: readonly StoredAllowance[] = []): Read
   // 2, against the free that actually applies
   const premium: Allowances = {
     eventsPerPlan: Math.max(of('premium', 'eventsPerPlan'), freeFinal.eventsPerPlan),
+    fixedMeals: Math.max(of('premium', 'fixedMeals'), freeFinal.fixedMeals),
     mealSwapsPerPlan: Math.max(of('premium', 'mealSwapsPerPlan'), freeFinal.mealSwapsPerPlan),
     midPlanEventsPerPlan: Math.max(of('premium', 'midPlanEventsPerPlan'), freeFinal.midPlanEventsPerPlan),
     planRedosPerFortnight: Math.max(of('premium', 'planRedosPerFortnight'), freeFinal.planRedosPerFortnight)

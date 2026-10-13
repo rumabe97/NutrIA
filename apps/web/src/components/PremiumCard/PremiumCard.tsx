@@ -9,6 +9,7 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { api, messageFor } from 'lib/api';
 import { formatInstant, formatNumber, interpolate } from 'lib/format';
+import { premiumPitch } from 'lib/premiumPitch';
 
 import type { BillingStatusView, PriceView } from 'core/controllers/Billing';
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
@@ -41,7 +42,7 @@ function standingOf(status: Open, justPaid: boolean, t: Dictionary['profile'], l
   }
 
   // Back from Stripe before its webhook has arrived: paid, and a moment from showing it.
-  return { checkout: true, line: justPaid ? t.premiumJustPaid : t.premiumPitch, portal: false };
+  return { checkout: true, line: justPaid ? t.premiumJustPaid : premiumPitch(t.premiumPitch, status.allowances), portal: false };
 }
 
 function money(price: PriceView, locale: Locale): string {

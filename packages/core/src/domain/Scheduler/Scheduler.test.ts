@@ -3186,6 +3186,25 @@ describe('a fixed recurring meal', () => {
     expect(lunchOf(result, 3)?.servings).toBeGreaterThan(lunchOf(result, 1)?.servings as number);
   });
 
+  it('marks the plate it fixed, and only that one, so the balance report can tell whose choice it was (0099)', () => {
+    const result = schedule({ pinned: lunchOn([1, 3], 'lunch-0') });
+
+    expect(result.ok).toBe(true);
+
+    if (result.ok) {
+      const fixed = result.assignment.days.flatMap(day => day.meals.filter(meal => meal.pinned === true));
+      const rest = result.assignment.days.flatMap(day => day.meals.filter(meal => meal.pinned === undefined));
+
+      expect(fixed.map(meal => meal.dish.slug)).toEqual(['lunch-0', 'lunch-0']);
+      expect(rest.some(meal => meal.pinned)).toBe(false);
+      // A rule the pool refuses leaves no mark: the day was built as though no
+      // rule existed, so nothing may claim the person chose that plate.
+      const refused = schedule({ pinned: lunchOn([4], 'nada-de-esto') });
+
+      expect(refused.ok && refused.assignment.days.flatMap(day => day.meals).some(meal => meal.pinned)).toBe(false);
+    }
+  });
+
   it('is not honoured when the dish is not in the pool the person may be served', () => {
     expect(lunchOf(schedule({ pinned: lunchOn([4], 'nada-de-esto') }), 4)?.dish.slug).not.toBe('nada-de-esto');
   });

@@ -200,9 +200,23 @@ export class BillingService {
       return { available: false };
     }
 
-    const [standing, prices] = await Promise.all([BillingController.standing(user.id), this.stripe.prices()]);
+    const [standing, prices, allowances] = await Promise.all([
+      BillingController.standing(user.id),
+      this.stripe.prices(),
+      SettingsController.allowances()
+    ]);
 
-    return { available: true, prices, testMode: this.stripe.testMode, trialDays: trialFor(standing.subscription), ...standing };
+    // The pitch names numbers, and the numbers are the console's to move
+    // (`0097`), so they travel with the card rather than being written into the
+    // sentence that asks for money.
+    return {
+      allowances: allowances.effective,
+      available: true,
+      prices,
+      testMode: this.stripe.testMode,
+      trialDays: trialFor(standing.subscription),
+      ...standing
+    };
   }
 
   /**

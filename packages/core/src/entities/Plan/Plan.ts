@@ -124,6 +124,13 @@ export type ScheduledMeal = {
   readonly ingredients: readonly { readonly grams: number; readonly slug: string }[];
   /** The whole meal: the plate at `servings`, and its accompaniments. */
   readonly macros: Macros;
+  /**
+   * Somebody fixed this meal to this day and slot (`0098`), so it is theirs and
+   * not the generator's. The balance report reads it to keep a fixed meal out of
+   * the kind caps it judges the generator by (`0099`); nothing a person sees
+   * depends on it.
+   */
+  readonly pinned?: true;
   readonly servings: number;
   readonly slot: MealSlot;
   readonly sortOrder: number;

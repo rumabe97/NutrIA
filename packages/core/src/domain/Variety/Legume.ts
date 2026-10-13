@@ -73,7 +73,7 @@ export function legumeKind(dish: Dish): string | null {
  * scheduler serves no fourth while another dish keeps the day as close to its
  * macros. The days running stay priced, like the other kind rules.
  */
-export const LEGUME_RULES = { apart: true, perFortnight: 3 } as const satisfies KindRule;
+export const LEGUME_RULES = { apart: true, fixedSpendsCap: false, perFortnight: 3 } as const satisfies KindRule;
 
 /** Each pool dish's legume, by slug. */
 export function legumeIndex(dishes: readonly Pick<CandidateDish, 'ingredients' | 'slug'>[]): ReadonlyMap<string, string | null> {
@@ -87,5 +87,5 @@ export function legumeCheck(index: ReadonlyMap<string, string | null>): KindChec
 
 /** `LEGUME_RULES`' cap alone — the part the scheduler holds (`0082`); its days running are `legumeCheck`'s, priced. */
 export function legumeCapCheck(index: ReadonlyMap<string, string | null>): KindCheck {
-  return { index, named: placement => placement.legume, rule: { apart: false, perFortnight: LEGUME_RULES.perFortnight } };
+  return { index, named: placement => placement.legume, rule: { apart: false, fixedSpendsCap: false, perFortnight: LEGUME_RULES.perFortnight } };
 }

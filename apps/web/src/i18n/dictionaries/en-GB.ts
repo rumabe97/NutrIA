@@ -182,6 +182,8 @@ export const enGB: Dictionary = {
   adminAllowances: {
     bounds: 'Ships as {shipped}. Between {floor} and {ceiling}.',
     costEvents: 'Declaring a day that eats differently costs nothing: it is scheduling, not a model call.',
+    costFixedMeals:
+      'It costs no model call at all. What it spends is the promise that every day lands inside 5% on all four macros, so this number can only be lowered from here: raising it is a measurement and a deploy.',
     costMidPlan: 'Rebuilding the days of a fortnight already under way is served from the library and spends no generation.',
     costRedos: 'The only one that spends money: about 0.24 $ a redo, nearly all of it the pictures of its fresh dishes.',
     costSwaps: 'A swap is almost always served from the library and costs nothing.',
@@ -189,6 +191,7 @@ export const enGB: Dictionary = {
     intro:
       'How much each subscription allows. A number outside its bounds is refused rather than clamped, and until somebody moves one it is whatever the code ships.',
     labelEvents: 'Days that eat for something, per plan',
+    labelFixedMeals: 'Meals fixed every week',
     labelMidPlan: 'Days that eat for something added to a fortnight under way',
     labelRedos: 'Replannings per fortnight',
     labelSwaps: 'Meal swaps, per plan',
@@ -200,6 +203,8 @@ export const enGB: Dictionary = {
     title: 'What each subscription allows',
     whole: 'It has to be a whole number.',
     whyEvents: 'Above seven has no effect: a load is one to three days and two events may not share one, so a fortnight holds seven at most.',
+    whyFixedMeals:
+      'Three is what the code ships, so three is the ceiling. Measured on 982 dishes: with three standing rules the plans are as balanced as plans with none, and four was no worse; the limit is that eight of every fourteen days would carry a meal decided in advance.',
     whyMidPlan: 'A fortnight cannot be rebuilt for more days than it holds, so this resolves against that tier’s own events as well.',
     whyRedos: 'Six a fortnight is twelve a month: about 3–6 $ of pictures for one account, against a 10 $ month shared by everybody.',
     whySwaps: 'Twenty-eight is a fortnight’s lunches and dinners; past that a swap limit names nothing.'
@@ -2652,7 +2657,7 @@ export const enGB: Dictionary = {
     premiumMonthly: 'Monthly · {price} a month',
     premiumPastDue: 'The last payment could not be taken. Stripe will try again; update your card to keep premium.',
     premiumPitch:
-      'Three plan redos a fortnight instead of one, twenty meal swaps a plan instead of five, seven events a plan instead of three, and up to three events added once a plan has started.',
+      '{redos} plan redos a fortnight instead of {freeRedos}, {swaps} meal swaps a plan instead of {freeSwaps}, {events} events a plan instead of {freeEvents}, and up to {midPlan} events added once a plan has started.',
     premiumRenews: 'You have premium. It renews on {date}.',
     premiumSafety: 'Food safety — allergies, intolerances and nutrients — is the same with premium and without it.',
     premiumTestMode: 'Test mode: nothing is really charged. Use the card 4242 4242 4242 4242, any future date and any CVC.',

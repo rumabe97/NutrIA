@@ -2,6 +2,7 @@ import { BillingRepository } from '#repositories/Billing';
 import { UserRepository } from '#repositories/User';
 import { payingSibling, paysForPremium, replacesStored } from 'core/domain/Billing';
 
+import type { Allowances } from 'core/domain/Allowance';
 import type { Grants, SubscriptionRecord } from '#repositories/Billing';
 
 export type { SubscriptionRecord };
@@ -27,8 +28,15 @@ export type SubscriptionView = { readonly cancelAtPeriodEnd: boolean; readonly c
  * drawn at all.
  */
 export type BillingStatusView =
-  | { readonly available: false }
   | {
+      /**
+       * What each tier allows, resolved (`0097`): the numbers the pitch names,
+       * so the sentence that asks for money cannot promise what the product
+       * does not give. It promised ten events for three weeks because the
+       * number was written by hand and the domain moved under it; every figure
+       * in that sentence is now interpolated from here.
+       */
+      readonly allowances: Readonly<Record<'free' | 'premium', Allowances>>;
       readonly available: true;
       /** Yearly is `null` unless the owner has set a yearly price. */
       readonly prices: { readonly monthly: PriceView | null; readonly yearly: PriceView | null };
@@ -38,7 +46,8 @@ export type BillingStatusView =
       readonly tier: 'free' | 'premium';
       /** The free days checkout would open with, or `null` for somebody who has subscribed before. */
       readonly trialDays: number | null;
-    };
+    }
+  | { readonly available: false };
 
 /**
  * One practice plan checkout can open with (`0061`): the configured price, the

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ALLOWANCE_BOUNDS,
+  ALLOWANCE_NAMES,
   ALLOWANCES,
   allowancesFor,
   eventStanding,
@@ -100,6 +101,7 @@ describe('allowancesFor', () => {
     expect(allowancesFor('premium').mealSwapsPerPlan).toBeGreaterThan(allowancesFor('free').mealSwapsPerPlan);
     expect(allowancesFor('premium').eventsPerPlan).toBeGreaterThan(allowancesFor('free').eventsPerPlan);
     expect(allowancesFor('premium').midPlanEventsPerPlan).toBeGreaterThan(allowancesFor('free').midPlanEventsPerPlan);
+    expect(allowancesFor('premium').fixedMeals).toBeGreaterThan(allowancesFor('free').fixedMeals);
   });
 
   /*
@@ -264,5 +266,33 @@ describe('ALLOWANCE_BOUNDS', () => {
     for (const [name, bounds] of Object.entries(ALLOWANCE_BOUNDS)) {
       expect(bounds.why.trim().length, name).toBeGreaterThan(20);
     }
+  });
+
+  /*
+   * `0097`: a structural limit's ceiling *is* the number shipped in the code,
+   * because raising one spends the promise that every day lands inside 5% on
+   * all four macros and the console cannot know what a raise costs. The
+   * registry is where that would be broken, silently, by a ceiling set a little
+   * above the default "to leave room".
+   */
+  it('holds a structural ceiling at the premium number shipped, so the console may only lower it (0097)', () => {
+    const structural = Object.entries(ALLOWANCE_BOUNDS).filter(([, bounds]) => bounds.kind === 'structural');
+
+    expect(structural.map(([name]) => name)).toEqual(['fixedMeals']);
+
+    for (const [name, bounds] of structural) {
+      expect(bounds.ceiling, name).toBe(allowancesFor('premium')[name as keyof typeof ALLOWANCES]);
+    }
+  });
+
+  /*
+   * `satisfies readonly AllowanceName[]` checks that every entry is a real
+   * name; it does not check that every name is an entry. An allowance missing
+   * from the list is one the console cannot move and `resolveAllowances`
+   * ignores every row for — a limit that silently cannot be configured.
+   */
+  it('registers every allowance, so none is unmovable from the console', () => {
+    expect([...ALLOWANCE_NAMES].sort()).toEqual(Object.keys(ALLOWANCES).sort());
+    expect([...ALLOWANCE_NAMES].sort()).toEqual(Object.keys(ALLOWANCE_BOUNDS).sort());
   });
 });

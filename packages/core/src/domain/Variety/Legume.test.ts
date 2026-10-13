@@ -37,7 +37,7 @@ describe('legumeKind', () => {
 
 describe('LEGUME_RULES — the same legume three times a fortnight, never on days running', () => {
   it('is pinned: loosening it is the change worth noticing', () => {
-    expect(LEGUME_RULES).toEqual({ apart: true, perFortnight: 3 });
+    expect(LEGUME_RULES).toEqual({ apart: true, fixedSpendsCap: false, perFortnight: 3 });
   });
 
   it('reads a placement’s own legume before the pool’s', () => {
@@ -57,7 +57,7 @@ describe('LEGUME_RULES — the same legume three times a fortnight, never on day
       );
     const held = legumeCapCheck(index);
 
-    expect(held.rule).toEqual({ apart: false, perFortnight: LEGUME_RULES.perFortnight });
+    expect(held.rule).toEqual({ apart: false, fixedSpendsCap: false, perFortnight: LEGUME_RULES.perFortnight });
     expect(held.named?.({ dayIndex: 1, dishSlug: 'not-in-pool', legume: 'lentejas', slot: 'lunch' })).toBe('lentejas');
     expect(kindExcess(on(1, 2, 3), 14, held.rule)).toBe(0);
     expect(kindExcess(on(1, 4, 7, 10), 14, held.rule)).toBe(1);

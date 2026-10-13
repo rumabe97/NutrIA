@@ -224,6 +224,31 @@ describe('balanceOf', () => {
     expect(report.rules.starches).toMatchObject({ limit: 1, met: false });
   });
 
+  it('leaves a meal somebody fixed out of the starch cap, and counts it in the health maximums (0099)', () => {
+    const rice = (fixed: boolean) =>
+      Array.from({ length: 5 }, (_, index) => {
+        const lunch = meal('lunch', [{ grams: 120, slug: 'pechuga-de-pollo' }], [{ grams: 90, slug: 'arroz-blanco-cocido' }]);
+
+        return day(index + 1, [fixed && index > 1 ? { ...lunch, pinned: true as const } : lunch]);
+      });
+    const of = (days: readonly PlanDayAssignment[]) => balanceOf({ catalogue, days, plantBased: false, supply: everything });
+
+    // Five rices, three of them the person's own rule: the generator spent two.
+    expect(of(rice(true)).counts.starches.rice).toBe(2);
+    expect(of(rice(false)).counts.starches.rice).toBe(5);
+
+    // Red meat is a health maximum, not a variety preference: a fixed Friday is
+    // still a Friday they eat, so it counts whoever chose it.
+    const steak = Array.from({ length: 5 }, (_, index) => {
+      const lunch = meal('lunch', [{ grams: 120, slug: 'filete-de-ternera' }]);
+
+      return day(index * 2 + 1, [index > 1 ? { ...lunch, pinned: true as const } : lunch]);
+    });
+
+    expect(of(steak).counts.redMeat).toBe(5);
+    expect(of(steak).rules.redMeat.met).toBe(false);
+  });
+
   it('judges vegetables at every main, the report’s 80% beside it and left out of the score', () => {
     const days = Array.from({ length: 5 }, (_, index) =>
       day(index + 1, [meal('lunch', [{ grams: 120, slug: 'pechuga-de-pollo' }, ...(index === 0 ? [] : VEGETABLES)])])

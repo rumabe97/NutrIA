@@ -519,25 +519,25 @@ export function heldMaximums(
     {
       index: kindOf('fishAndShellfish', served => served.fishOrShellfish),
       named: named('fishAndShellfish', groups => groups.fishOrShellfish),
-      rule: { apart: false, perFortnight: perMains(BALANCE_CAPS.fishAndShellfish) },
+      rule: { apart: false, fixedSpendsCap: true, perFortnight: perMains(BALANCE_CAPS.fishAndShellfish) },
       slots: MAIN_SLOTS
     },
     {
       index: kindOf('meat', served => served.meat),
       named: named('meat', groups => groups.meat),
-      rule: { apart: false, perFortnight: perMains(supply.fish ? BALANCE_CAPS.meat : BALANCE_CAPS.meatWithoutFish) },
+      rule: { apart: false, fixedSpendsCap: true, perFortnight: perMains(supply.fish ? BALANCE_CAPS.meat : BALANCE_CAPS.meatWithoutFish) },
       slots: MAIN_SLOTS
     },
     {
       index: kindOf('redMeat', served => served.redMeat),
       named: named('redMeat', groups => groups.redMeat),
-      rule: { apart: true, perFortnight: perMains(BALANCE_CAPS.redMeat) },
+      rule: { apart: true, fixedSpendsCap: true, perFortnight: perMains(BALANCE_CAPS.redMeat) },
       slots: MAIN_SLOTS
     },
     {
       index: kindOf('processed', served => served.processed),
       named: named('processed', groups => groups.processed),
-      rule: { apart: true, perFortnight: perMains(BALANCE_CAPS.processed) }
+      rule: { apart: true, fixedSpendsCap: true, perFortnight: perMains(BALANCE_CAPS.processed) }
     }
   ];
 
@@ -547,7 +547,7 @@ export function heldMaximums(
     checks.push({
       index: new Map([...eggs].map(([slug, count]) => [slug, count > 0 ? 'eggs' : null])),
       named: named('eggs', groups => eggsCounted(groups.eggs) > 0),
-      rule: { apart: false, perFortnight: BALANCE_CAPS.eggs },
+      rule: { apart: false, fixedSpendsCap: true, perFortnight: BALANCE_CAPS.eggs },
       weight: placement => (placement.groups ? eggsCounted(placement.groups.eggs) : (eggs.get(placement.dishSlug) ?? 0))
     });
   }
@@ -1005,6 +1005,15 @@ export function balanceOf({ catalogue, days, plantBased, supply }: BalanceInput)
       if (served.redMeat) {
         redMeat += 1;
         redDays.push(day.dayIndex);
+      }
+
+      // A meal somebody fixed is not the generator's choice, so the cap this
+      // table judges the generator by does not count it (`0099`). Without this
+      // the figure measures the person: a weekly rule lands two days of every
+      // fourteen, and three rules would spend six of the four a base allows
+      // before a single dish was picked.
+      if (meal.pinned) {
+        continue;
       }
 
       // The dish's base, and a rice or grain beside it, each count once (PRD 019).

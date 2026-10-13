@@ -4,6 +4,7 @@ import { BillingController } from 'core/controllers/Billing';
 import { ConflictError, NotFoundError } from 'core/entities/Error';
 import { ProfessionalController } from 'core/controllers/Professional';
 import { ProfileController } from 'core/controllers/Profile';
+import { ALLOWANCE_BOUNDS, allowancesFor } from 'core/domain/Allowance';
 import { SettingsController } from 'core/controllers/Settings';
 
 import { BillingService } from './Billing.service.js';
@@ -81,6 +82,16 @@ function harness(
       dishPictures: false,
       premium: options.premium ?? true,
       professional: false
+    });
+  // The pitch's numbers travel on the status (`0099`), so the card never writes
+  // one by hand. The shipped table is what this service would read with nothing
+  // stored, which is the state every test here is in.
+  jest
+    .spyOn(SettingsController, 'allowances')
+    .mockResolvedValue({
+      bounds: ALLOWANCE_BOUNDS,
+      effective: { free: allowancesFor('free'), premium: allowancesFor('premium') },
+      shipped: { free: allowancesFor('free'), premium: allowancesFor('premium') }
     });
   jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(options.professional ?? false);
   jest
