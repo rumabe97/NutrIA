@@ -1,5 +1,5 @@
 {
-  "id": "4c87f73a-abc4-491e-b3bd-412c33a21fb1",
+  "id": "138d1b86-43b8-498d-9306-ad614c0d7f13",
   "prevId": "ae4609d3-3f32-463f-be9d-19e909186d73",
   "version": "7",
   "dialect": "postgresql",
@@ -2282,7 +2282,12 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "fixed_meals_weekday_range": {
+          "name": "fixed_meals_weekday_range",
+          "value": "\"fixed_meals\".\"weekday\" between 0 and 6"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.meal_accompaniments": {

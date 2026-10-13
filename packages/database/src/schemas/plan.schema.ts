@@ -1,4 +1,4 @@
-import { date, index, integer, jsonb, numeric, pgTable, smallint, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { check, date, index, integer, jsonb, numeric, pgTable, smallint, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 import { jobStatus, macroDirection, mealSlot, mealStatus, planStatus } from './_enums';
@@ -239,9 +239,19 @@ export const events = userOwned('events', {
  * dish and the portions, and portions alone do not reach four macros.
  *
  * **The dish is a foreign key, not a slug.** A rule naming a slug that no longer
- * exists is a rule the generator silently drops once a fortnight for ever; a
- * cascade deletes it, and the screen can say the dish has gone. `weekday` is
- * 0-6 from Monday, the ISO ordering `Day` uses.
+ * exists is a rule the generator silently drops once a fortnight for ever. The
+ * cascade removes the rule instead — and removes it *silently*, with nothing
+ * left for a screen to explain, which is accepted because no code path deletes
+ * a recipe and any recipe ever planned is held by `ON DELETE restrict` from
+ * `meals` anyway.
+ *
+ * **`weekday` is 0-6 from Monday** and says so in SQL. `smallint` accepts
+ * -32768..32767, and a row outside 0-6 is not a rule that quietly never fires:
+ * `fixedMealSchema` would throw on reading it, taking out that account's screen
+ * *and* every generation that expands its rules as an opaque 500, until
+ * somebody deleted the row by hand. Were it to get past the parse instead, the
+ * `% 7` in `daysFor` would map 7 onto Monday and the rule would fire on the
+ * wrong day for ever — the one failure this whole design is paranoid about.
  */
 export const fixedMeals = userOwned(
   'fixed_meals',
@@ -252,7 +262,15 @@ export const fixedMeals = userOwned(
     slot: mealSlot().notNull(),
     weekday: smallint().notNull()
   },
-  table => [unique('fixed_meals_user_weekday_unique').on(table.userId, table.weekday), index('fixed_meals_recipe_idx').on(table.recipeId)]
+  table => [
+    unique('fixed_meals_user_weekday_unique').on(table.userId, table.weekday),
+    check('fixed_meals_weekday_range', sql`${table.weekday} between 0 and 6`),
+    // Not for a query: nothing filters or joins this table on the recipe. It is
+    // for the cascade, which would otherwise scan the table once per recipe
+    // deleted. (`fixed_meals_user_id_idx` is `userOwned`'s unconditional one and
+    // is dominated by the unique index above — left alone rather than tidied.)
+    index('fixed_meals_recipe_idx').on(table.recipeId)
+  ]
 );
 
 export const mealCompletions = userOwned('meal_completions', {
