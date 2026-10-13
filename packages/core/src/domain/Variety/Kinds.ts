@@ -166,7 +166,9 @@ export function kindPastCap(meals: readonly KindMeal[], days: number, rule: Kind
 /** Whether a meal of `kind` would take it past `rule`'s cap over `meals`: the cap alone, wherever the meal lands. Fixed meals do not count (`excessOfKind`). */
 export function kindAtCap(kind: string | null | undefined, meals: readonly KindMeal[], days: number, rule: KindRule): boolean {
   return (
-    kind !== null && kind !== undefined && meals.filter(meal => meal.kind === kind && (rule.fixedSpendsCap || !meal.fixed)).length >= kindCap(rule, days)
+    kind !== null &&
+    kind !== undefined &&
+    meals.filter(meal => meal.kind === kind && (rule.fixedSpendsCap || !meal.fixed)).length >= kindCap(rule, days)
   );
 }
 

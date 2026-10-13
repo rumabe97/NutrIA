@@ -2743,7 +2743,7 @@ function improveDay(
   // The held rules are held at `HELD_KIND_WEIGHT` on top, the maximums at
   // `HELD_MAXIMUM_WEIGHT`: only the bands outrank them.
   const kindsOf = (day: readonly Pick[]): { readonly floors: number; readonly maximums: number; readonly rest: number } => {
-    const placements = day.map(entry => (placementOf(dayIndex, entry)));
+    const placements = day.map(entry => placementOf(dayIndex, entry));
 
     return {
       floors: floorLack(kinds, dayIndex, day) * HELD_MINIMUM_WEIGHT,
@@ -2834,9 +2834,7 @@ function improveDay(
       }
 
       // Everything already on the plate today except the one being replaced.
-      const siblings = current
-        .filter((_entry, position) => position !== index)
-        .map(entry => (placementOf(dayIndex, entry)));
+      const siblings = current.filter((_entry, position) => position !== index).map(entry => placementOf(dayIndex, entry));
       const rest = [...others, ...siblings];
       const budget = budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
 
@@ -3136,10 +3134,7 @@ function spreadAcrossDays(
 
     for (const { miss, position: worstAt } of outside) {
       const worst = current[worstAt] as BuiltDay;
-      const placements: Placement[] = [
-        ...fixed,
-        ...current.flatMap(day => day.picks.map(pick => (placementOf(day.dayIndex, pick))))
-      ];
+      const placements: Placement[] = [...fixed, ...current.flatMap(day => day.picks.map(pick => placementOf(day.dayIndex, pick)))];
       const kindsBefore = kindsExcess(placements, kinds.checks, kinds.days) + mainsWeekExcess(placements, proteins);
 
       // An exchange keeps the fortnight's pasta, rice, grains and legumes, but
@@ -3148,8 +3143,8 @@ function spreadAcrossDays(
       const kindsAdded = (other: BuiltDay, toWorst: readonly Pick[], toOther: readonly Pick[]): number => {
         const moved = [
           ...placements.filter(placement => placement.dayIndex !== worst.dayIndex && placement.dayIndex !== other.dayIndex),
-          ...toWorst.map(pick => (placementOf(worst.dayIndex, pick))),
-          ...toOther.map(pick => (placementOf(other.dayIndex, pick)))
+          ...toWorst.map(pick => placementOf(worst.dayIndex, pick)),
+          ...toOther.map(pick => placementOf(other.dayIndex, pick))
         ];
 
         return Math.max(0, kindsExcess(moved, kinds.checks, kinds.days) + mainsWeekExcess(moved, proteins) - kindsBefore);
@@ -3315,9 +3310,7 @@ function repairOutOfBand(
 
     const others: Placement[] = [
       ...fixed,
-      ...current.flatMap((day, at) =>
-        at === position ? [] : day.picks.map(pick => (placementOf(day.dayIndex, pick)))
-      )
+      ...current.flatMap((day, at) => (at === position ? [] : day.picks.map(pick => placementOf(day.dayIndex, pick))))
     ];
     const elsewhere = proteinCounts(others, proteins);
     const week = planWeek(start.dayIndex);
@@ -3325,7 +3318,7 @@ function repairOutOfBand(
 
     // What the day pays the variety rules, priced as `improveDay` prices them.
     const priceOf = (picks: readonly Pick[]): number => {
-      const placements = picks.map(pick => (placementOf(start.dayIndex, pick)));
+      const placements = picks.map(pick => placementOf(start.dayIndex, pick));
       const repeats = proteinExcess(
         picks.map(pick => ({ protein: proteins.get(pick.dish.slug) ?? null, slot: pick.slot })),
         elsewhere,
@@ -3353,10 +3346,7 @@ function repairOutOfBand(
         }
 
         const budget = day.budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
-        const placed = [
-          ...others,
-          ...day.picks.filter((_entry, at) => at !== index).map(entry => (placementOf(day.dayIndex, entry)))
-        ];
+        const placed = [...others, ...day.picks.filter((_entry, at) => at !== index).map(entry => placementOf(day.dayIndex, entry))];
 
         for (const candidate of input.pool) {
           const base = perServing.get(candidate.slug);
@@ -3490,8 +3480,7 @@ function repairToRule(
   sidesOn?: (dayIndex: number) => Sides
 ): readonly BuiltDay[] {
   const current = [...days];
-  const placementsOf = (day: BuiltDay, picks: readonly Pick[] = day.picks): Placement[] =>
-    picks.map(pick => (placementOf(day.dayIndex, pick)));
+  const placementsOf = (day: BuiltDay, picks: readonly Pick[] = day.picks): Placement[] => picks.map(pick => placementOf(day.dayIndex, pick));
   const planOf = (without?: BuiltDay): Placement[] => [...fixed, ...current.flatMap(day => (day === without ? [] : placementsOf(day)))];
   // The rule being repaired alone: what screens a candidate before it is sized.
   const goalOf = (placements: readonly Placement[]): number =>
@@ -3863,8 +3852,7 @@ export function bandNeededExceptions(input: SchedulerInput, assignment: PlanAssi
       targets
     };
   });
-  const placementsOf = (day: BuiltDay, picks: readonly Pick[] = day.picks): Placement[] =>
-    picks.map(pick => (placementOf(day.dayIndex, pick)));
+  const placementsOf = (day: BuiltDay, picks: readonly Pick[] = day.picks): Placement[] => picks.map(pick => placementOf(day.dayIndex, pick));
   const everything = built.flatMap(day => placementsOf(day));
   const missOf = (picks: readonly Pick[], day: BuiltDay): number =>
     bandMiss(deliveredTotals(picks), day.targets) + floorMiss(deliveredKcal(picks), input.minimumKcal);
@@ -4071,7 +4059,7 @@ function enforceDistinctDays(
     // Every other day already in `current`, repaired ones included — this is a
     // single forward pass, so a day fixed earlier is what a later day sees.
     const elsewhere = current.flatMap((other, otherIndex) =>
-      otherIndex === index ? [] : other.picks.map(pick => (placementOf(other.dayIndex, pick)))
+      otherIndex === index ? [] : other.picks.map(pick => placementOf(other.dayIndex, pick))
     );
     const before = missOf(day.picks, day);
 
@@ -4085,9 +4073,7 @@ function enforceDistinctDays(
       }
 
       const budget = day.budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
-      const siblings = day.picks
-        .filter((_entry, at) => at !== position)
-        .map(entry => (placementOf(day.dayIndex, entry)));
+      const siblings = day.picks.filter((_entry, at) => at !== position).map(entry => placementOf(day.dayIndex, entry));
       const placedElsewhere = [...fixed, ...elsewhere, ...siblings];
       const kindsElsewhere = kinds.checks.map(check => kindMeals(placedElsewhere, check));
 
@@ -4194,7 +4180,7 @@ function holdSideStarches(
 
   const { starch } = kinds;
   const current = [...days];
-  const placementsOf = (day: BuiltDay): Placement[] => day.picks.map(pick => (placementOf(day.dayIndex, pick)));
+  const placementsOf = (day: BuiltDay): Placement[] => day.picks.map(pick => placementOf(day.dayIndex, pick));
   const sidesOf = (day: BuiltDay, picks: readonly Pick[] = day.picks): KindMeal[] =>
     picks.flatMap(pick => sideStarches(pick.set).map(kind => ({ dayIndex: day.dayIndex, kind })));
   const missOf = (picks: readonly Pick[], day: BuiltDay): number =>
