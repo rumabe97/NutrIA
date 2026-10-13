@@ -80,7 +80,7 @@ export type BuildPoolInput = {
   readonly backfill?: readonly CandidateDish[];
   readonly context: GenerationContext;
   /** Whose calls these are, on each `ai_call` (`0071`): a whole plan's dishes, or one meal's swap. */
-  readonly feature: Extract<AiFeature, 'plan' | 'swap'>;
+  readonly feature: Extract<AiFeature, 'dish_request' | 'plan' | 'swap'>;
   /**
    * The least the model is asked for per slot, even where the library alone
    * already covers `needPerSlot` — 0013's fresh floor. Left at zero, a rich

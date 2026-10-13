@@ -62,8 +62,17 @@ export const ANALYTICS_EVENTS = [...PRODUCT_EVENTS, ...SYSTEM_EVENTS] as const;
 
 export type AnalyticsEvent = (typeof ANALYTICS_EVENTS)[number];
 
-/** Which part of the service spent a model call (`0071`): plan dishes, a meal swap, or the nightly step rewrite. */
-export type AiFeature = 'plan' | 'rewrite' | 'swap';
+/**
+ * Which part of the service spent a model call (`0071`): plan dishes, a meal
+ * swap, the nightly step rewrite, or a dish somebody asked us to write
+ * (`dish_request`, `0011` § 4 a).
+ *
+ * `dish_request` is its own value and not `swap`'s, for the same reason its
+ * prompt field is its own: it is the one call carrying words a person typed, so
+ * every log, count and filter that groups by feature can tell it apart without
+ * anybody having to remember that it hides inside another.
+ */
+export type AiFeature = 'dish_request' | 'plan' | 'rewrite' | 'swap';
 
 /** The crons a `cron_run` names (`vercel.json`'s five; `twoFactorRemovals` since PLAN 011 phase 4). */
 export const CRON_JOBS = ['reminders', 'rewrite', 'verifications', 'activations', 'twoFactorRemovals'] as const;

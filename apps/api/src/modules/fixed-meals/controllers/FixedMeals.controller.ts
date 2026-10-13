@@ -1,8 +1,8 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
-import { AddFixedMealDto } from '../dto/in/index.js';
-import { CurrentUser, RequiresOnboarding, ZodBody } from '../../../shared/index.js';
+import { AddFixedMealDto, RequestDishDto } from '../dto/in/index.js';
+import { CurrentUser, RateLimit, RequiresOnboarding, ZodBody } from '../../../shared/index.js';
 import { FixedMealsService } from '../services/index.js';
 import { InputParseError } from 'core/entities/Error';
 import { weekdaySchema } from 'core/entities/FixedMeal';
@@ -65,6 +65,19 @@ export class FixedMealsController {
     @Query('q') query = ''
   ): Promise<readonly NotOfferedDishDto[]> {
     return this.fixedMeals.notOffered(user.id, weekdaySchema.parse(Number(weekday)), parsedSlot(slot), query);
+  }
+
+  @ApiCreatedResponse({
+    description:
+      'The dish, written and stored, ready to fix. 422 when what was typed is not a dish name, 409 when nothing we could serve came back, 429 QUOTA_EXCEEDED when the month’s requests are spent.'
+  })
+  @ApiOperation({ summary: 'Ask us to write a dish the library does not have. Spends an allowance only when a dish is stored.' })
+  // A model call per request, so a stuck retry cannot spend the month in a
+  // minute. Well above the allowance itself, as the swap's limit is.
+  @RateLimit({ limit: 10, ttlSeconds: 3600 })
+  @Post('request')
+  async request(@CurrentUser() user: SessionUser, @ZodBody(RequestDishDto) body: RequestDishDto): Promise<FixableDishDto> {
+    return this.fixedMeals.request(user.id, body.weekday, body.slot, body.name);
   }
 
   @ApiNoContentResponse({ description: 'Removed. Plans already built with it keep the dish they were built with.' })

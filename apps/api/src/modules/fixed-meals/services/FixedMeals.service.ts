@@ -1,9 +1,15 @@
 import { Injectable } from '@nestjs/common';
 
-import { ConflictError, InputParseError } from 'core/entities/Error';
 import { daysFor } from 'core/entities/FixedMeal';
 import { DEFAULT_MEAL_SHAPE, proteinWeightsFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { actionable, whyNotFixable } from 'core/domain/FixableReason';
+import { ConflictError, InputParseError, QuotaExceededError } from 'core/entities/Error';
+import { DishRequestController } from 'core/controllers/DishRequest';
+import { dishVocabulary, MAX_DISH_REQUEST, storableName } from 'core/domain/DishRequest';
+import { HealthController } from 'core/controllers/Health';
+import { UserController } from 'core/controllers/User';
+import { PoolBuilder } from '../../ai/services/PoolBuilder.service.js';
+import { promptPreferences, toRecipeDraft } from '../../meal-plans/services/GenerationShared.js';
 import { FixedMealController } from 'core/controllers/FixedMeal';
 import { larderFor } from 'core/domain/Accompaniment';
 import { minimumDailyKcal } from 'core/domain/Nutrition';
@@ -68,8 +74,13 @@ function plain(text: string): string {
     .trim();
 }
 
+/** How many dishes the model is asked for when somebody requests one: the first that fits is taken. */
+const REQUEST_CANDIDATES = 3;
+
 @Injectable()
 export class FixedMealsService {
+  constructor(private readonly pool: PoolBuilder) {}
+
   /** Fixes a meal, after checking the dish is one this person could actually be served there. */
   async add(userId: string, rule: AddFixedMeal): Promise<FixedMeal> {
     const offered = await this.fixable(userId, rule.weekday, rule.slot);
@@ -114,6 +125,8 @@ export class FixedMealsService {
     slot: MealSlot
   ): Promise<{
     readonly context: Awaited<ReturnType<typeof RecipeController.generationContext>>;
+    readonly dayIndex: number | undefined;
+    readonly input: Parameters<typeof pinnable>[0] | undefined;
     readonly offered: readonly FixableDish[];
     readonly profile: Awaited<ReturnType<typeof ProfileController.getFullProfile>>;
     readonly slots: readonly MealSlot[];
@@ -142,7 +155,7 @@ export class FixedMealsService {
     const [dayIndex] = daysFor(weekday, allowances.defaultStart, PLAN_DAYS);
 
     if (dayIndex === undefined) {
-      return { context, offered: [], profile, slots, verdicts };
+      return { context, dayIndex: undefined, input: undefined, offered: [], profile, slots, verdicts };
     }
 
     const disliked = new Set(verdicts.disliked.map(dish => dish.slug));
@@ -161,23 +174,22 @@ export class FixedMealsService {
       ? { accompaniments: { larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }), monthOf } }
       : {};
 
-    const offered = pinnable(
-      {
-        ...sides,
-        catalogue: context.catalogue,
-        minimumKcal: minimumDailyKcal(profile.profile?.sex ?? 'prefer_not_to_say'),
-        monthOf,
-        pool,
-        proteinWeights: proteinWeightsFor(profile.goal?.type, weightsFor(shape)),
-        targets: profile.targets.effective,
-        weights: weightsFor(shape)
-      },
-      dayIndex,
-      slot
-    );
+    const input = {
+      ...sides,
+      catalogue: context.catalogue,
+      minimumKcal: minimumDailyKcal(profile.profile?.sex ?? 'prefer_not_to_say'),
+      monthOf,
+      pool,
+      proteinWeights: proteinWeightsFor(profile.goal?.type, weightsFor(shape)),
+      targets: profile.targets.effective,
+      weights: weightsFor(shape)
+    };
+    const offered = pinnable(input, dayIndex, slot);
 
     return {
       context,
+      dayIndex,
+      input,
       offered: [...offered]
         .map((dish: CandidateDish) => ({ id: dish.slug, name: dish.name, slug: dish.slug }))
         .sort((a, b) => a.name.localeCompare(b.name)),
@@ -242,6 +254,105 @@ export class FixedMealsService {
     // The ones they can do something about first: a screen that leads with a
     // refusal buries the two taps that would have fixed it.
     return reasons.sort((a, b) => Number(b.actionable) - Number(a.actionable) || a.name.localeCompare(b.name)).slice(0, NOT_OFFERED_SHOWN);
+  }
+
+  /**
+   * Asks the model for a dish the library does not have, and stores it if what
+   * comes back is a dish (`0011` § 4 a).
+   *
+   * **The only place a person's words reach a model**, under the five conditions
+   * in `docs/legal/analysis.md` ("P0-3's status at 2026-10-13"). What they typed
+   * goes to the prompt and nowhere else: it is never stored, never logged, never
+   * put in an error, and never reaches the picture call. The name the model
+   * writes back is gated by `storableName` before anything is kept, because the
+   * library is shared and a dish's name travels verbatim to Google when its
+   * picture is drawn.
+   *
+   * **Checked against the same gates as everything else**, by handing the
+   * candidate to `pinnable` rather than to a second idea of what fits: a
+   * requested dish earns its place exactly as a library one does, or it does not
+   * get one.
+   *
+   * The allowance is read twice: once before the call, so nobody pays for a
+   * request that cannot be honoured, and again inside the lock that stores the
+   * dish — which is where it actually binds.
+   */
+  async request(userId: string, weekday: Weekday, slot: MealSlot, name: string): Promise<FixableDish> {
+    const asked = name.trim();
+
+    if (asked.length === 0 || asked.length > MAX_DISH_REQUEST || /[\n\r]/.test(asked)) {
+      throw new InputParseError('Write the name of a dish', { name: [`one line, up to ${MAX_DISH_REQUEST} characters`] });
+    }
+
+    if (!(await DishRequestController.standing(userId)).allowed) {
+      // Before the call, so nobody spends money on a request that cannot end in
+      // a dish. It is read again inside the lock, which is where it binds.
+      throw new QuotaExceededError('dish_request');
+    }
+
+    const { context, dayIndex, input, profile, slots } = await this.offerFor(userId, weekday, slot);
+
+    if (!input || dayIndex === undefined) {
+      throw new ConflictError('That meal does not fall in the fortnight you would generate next');
+    }
+
+    const built = await this.pool.build({
+      context,
+      feature: 'dish_request',
+      libraryUsage: await RecipeController.libraryUsage([slot], context),
+      needPerSlot: REQUEST_CANDIDATES,
+      preferences: promptPreferences(
+        profile,
+        await RecipeController.verdicts(userId),
+        [],
+        input.targets,
+        (await PlanController.allowances(userId)).defaultStart,
+        null,
+        null,
+        [],
+        // The one field a person writes into. It reaches here and stops here.
+        asked
+      ),
+      reusable: [],
+      session: `dish-request:${userId}`,
+      slots: [slot]
+    });
+
+    const vocabulary = dishVocabulary(
+      context.catalogue,
+      (await RecipeController.libraryFor(slots, context)).map(dish => dish.name)
+    );
+    const health = await HealthController.get(userId);
+    const person = {
+      // Checked exactly, whatever the vocabulary says: a word that is somebody's
+      // condition or medication must not come back as the name of their dinner.
+      health: [
+        ...health.conditions.map(each => each.label),
+        ...health.medications.map(each => each.name),
+        ...health.supplements.map(each => each.name)
+      ],
+      name: (await UserController.getUser({ id: userId })).name
+    };
+
+    for (const candidate of built.generated) {
+      // The same gate the offered list uses, on a pool of exactly this dish.
+      if (pinnable({ ...input, pool: [candidate] }, dayIndex, slot).length === 0) {
+        continue;
+      }
+
+      if (!storableName(candidate.name, vocabulary, person).ok) {
+        // The model echoed the request into the name, or wrote something that is
+        // not a dish's name. Nothing is stored: the library is shared and the
+        // name goes to Google with the picture.
+        continue;
+      }
+
+      await DishRequestController.store(userId, toRecipeDraft(candidate, context), context.locale);
+
+      return { id: candidate.slug, name: candidate.name, slug: candidate.slug };
+    }
+
+    throw new ConflictError('No dish we could serve came back for that');
   }
 
   async remove(userId: string, id: string): Promise<void> {
