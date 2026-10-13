@@ -31,8 +31,10 @@ dish only where the library genuinely has nothing.**
 
 ### The silence is the defect, and it is answered before anything is sold
 
-`GET /fixed-meals/not-offered` answers a search that found nothing with the dishes of that
-name the library **does** have and the one thing standing between each and this meal.
+`POST /fixed-meals/not-offered` answers a search that found nothing with the dishes of that
+name the library **does** have and the one thing standing between each and this meal. A read
+sent as a POST, deliberately: the words are the same words the ask field is pre-filled with,
+and a query string reaches the platform's own access log, which is not ours to redact.
 `actionable` travels on the wire rather than being inferred by the screen: whether a reason
 has a way forward is a judgement the domain already made, and two places deciding it is how
 they come to disagree. An allergen is never softened into advice, and a recipe with no method
@@ -46,12 +48,16 @@ nothing — the answer costs a whole generation context, so it is never one per 
 A dish request is **the only field in this product whose content a person writes and a model
 reads.** Everything else that reaches a model is a number, a catalogue name or a closed enum,
 and `health-boundary.spec.ts` holds that line with an allowed-keys list — `dishRequest` was
-added to it on purpose, with a sentinel test that it never reaches the picture prompt or the
-judge.
+added to it on purpose, with a test that drives the real builder against a model echoing the
+request into the name, the method *and* the cuisine, and asserts the words reach the prompt and
+nothing else. That test carries its own guard against going vacuous: the same build run as a
+plan **must** print the name, so a boundary assertion cannot pass by never being reached.
 
 What the typed string is: prompt input. It is never stored, never logged, never put in an
 error, never recorded on an `ai_call`, and it has its own `AiFeature` (`dish_request`) so that
-every log and filter can tell apart the one call carrying words a person wrote.
+every log and filter can tell apart the one call carrying words a person wrote — and so that
+the builder's own log lines can name no dish at all on that one path, because the name a model
+writes back can be the person's sentence echoed to it.
 
 **The exposure is not the model call. It is the two places the answer comes back out**, and
 this is the part that inverts the obvious design:
@@ -102,6 +108,25 @@ than holding a lock across a model call.
 A dish whose slug the library already holds is **handed back**, not stored twice and not
 charged for: two accounts can want the same dish in the same month, and `insertRecipes` has
 treated that race as "a race to win harmlessly" since `0006`.
+
+### A refusal names only reasons the person can act on
+
+The library search says why a dish is not offered — too long to cook, too big for that plate,
+out of season, one they disliked — and every one of those is their own preference, which is
+what makes saying it useful. **The dish request's reasons are not all of that kind.** A
+candidate can be refused because the gate matched this account's own name or one of its health
+words, and that reason must never be shown: a message about dinner is not a place to repeat
+somebody's medication, least of all on a screen another person may be reading over their
+shoulder.
+
+So this refusal stays non-committal about *why*, and says instead the one thing that is always
+true and always useful — that no dish came back, and that the list is still there. A later
+change that makes it specific must enumerate the reasons it may give rather than reach for the
+real one.
+
+It is a trade and not an obligation, which is why the reason is written here rather than cited
+from somewhere: the cost is a person who rewords a request that no rewording will ever fix
+(`legal`, 2026-10-13).
 
 ## Consequences
 

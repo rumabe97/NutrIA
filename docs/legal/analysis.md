@@ -1105,9 +1105,14 @@ season — and those reasons are the person's own preferences, which they can ac
 request's reasons are not all of that kind: one of them is their health record, and that one
 cannot be shown. A later change that makes this message specific must enumerate the reasons it
 may give rather than reach for the real one. **[lawyer]**: nothing here is an obligation either
-way; it is the trade recorded so the next person does not reopen it blind. The cheap improvement,
-if anybody wants one, is to offer the route that does work instead of only the retry that may
-not — "or pick one from the list" beside "try writing it another way" — which is wording, not law.
+way; it is the trade recorded so the next person does not reopen it blind.
+
+**The wording was taken the same day**: `fixedMeals.askNothing` now reads «No nos ha salido
+ningún plato que podamos servirte con ese nombre. Prueba a escribirlo de otra forma, **o elige
+uno de la lista**» / "…Try writing it another way, **or pick one from the list**", in both
+dictionaries. That is the whole of what the inaccuracy deserved: the route that always works now
+sits beside the retry that may not, and the message still says nothing about why. No version
+moves — it is a refusal's wording, not a notice, and nobody consented to it.
 
 **What must change in the same pull request**, and only then (until the feature exists, § 1.3
 and § 4.4 describe the product truthfully and must not be edited to describe a plan): § 1.3's
