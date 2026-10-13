@@ -9,6 +9,7 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { api, messageFor } from 'lib/api';
 import { formatInstant, formatNumber, interpolate } from 'lib/format';
+import { premiumPitch } from 'lib/premiumPitch';
 
 import type { BillingStatusView, PriceView } from 'core/controllers/Billing';
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
@@ -17,31 +18,6 @@ import type { Locale } from 'i18n/config';
 type Open = Extract<BillingStatusView, { available: true }>;
 
 type Standing = { readonly checkout: boolean; readonly line: string; readonly portal: boolean };
-
-/**
- * The pitch, with every number read from what the tiers actually allow (`0097`).
- *
- * Written by hand, this sentence promised ten events on the page that asks for
- * money for three weeks after the domain stopped allowing them — a limit nobody
- * could reach, said to somebody being asked to pay for it. The numbers now come
- * from the same registry the console moves, so the sentence cannot drift from
- * the product again.
- */
-function pitch(line: string, allowances: Open['allowances']): string {
-  const { free, premium } = allowances;
-
-  return interpolate(line, {
-    events: premium.eventsPerPlan,
-    fixedMeals: premium.fixedMeals,
-    freeEvents: free.eventsPerPlan,
-    freeFixedMeals: free.fixedMeals,
-    freeRedos: free.planRedosPerFortnight,
-    freeSwaps: free.mealSwapsPerPlan,
-    midPlan: premium.midPlanEventsPerPlan,
-    redos: premium.planRedosPerFortnight,
-    swaps: premium.mealSwapsPerPlan
-  });
-}
 
 /** Where this person stands, in one sentence, and whether they are buying or managing. */
 function standingOf(status: Open, justPaid: boolean, t: Dictionary['profile'], locale: Locale): Standing {
@@ -66,7 +42,7 @@ function standingOf(status: Open, justPaid: boolean, t: Dictionary['profile'], l
   }
 
   // Back from Stripe before its webhook has arrived: paid, and a moment from showing it.
-  return { checkout: true, line: justPaid ? t.premiumJustPaid : pitch(t.premiumPitch, status.allowances), portal: false };
+  return { checkout: true, line: justPaid ? t.premiumJustPaid : premiumPitch(t.premiumPitch, status.allowances), portal: false };
 }
 
 function money(price: PriceView, locale: Locale): string {
