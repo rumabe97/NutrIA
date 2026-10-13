@@ -3,6 +3,7 @@ import { Fragment } from 'react';
 import styles from './page.module.css';
 
 import { activeLocale, getDictionary } from 'i18n/server';
+import { slotsIn } from 'core/domain/MealShape';
 import { Text } from 'ui/components/Text';
 
 import { Card } from 'components/Card';
@@ -10,6 +11,7 @@ import { CareAccessLog } from 'components/CareAccessLog';
 import { CareLinkCard } from 'components/CareLinkCard';
 import { DeleteAccount } from 'components/DeleteAccount';
 import { FeedbackForm } from 'components/FeedbackForm';
+import { FixedMealPlanner } from 'components/FixedMealPlanner';
 import { HealthPanel } from 'components/HealthPanel';
 import { LocaleSwitcher } from 'components/LocaleSwitcher';
 import { PremiumCard } from 'components/PremiumCard';
@@ -35,6 +37,7 @@ import { appMetadata } from '../../_shared/metadata';
 import type { BillingStatusView } from 'core/controllers/Billing';
 import type { CareAccessPageView, CareLinkView } from 'core/controllers/Care';
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
+import type { FixedMealsView } from 'core/controllers/FixedMeal';
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { HealthView } from 'core/controllers/Health';
 import type { Metadata } from 'next';
@@ -85,7 +88,7 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
   // Health data is fetched here and only here. It is not folded into
   // `/profile`, which the dashboard also loads — a medication has no business
   // travelling to a screen that does not show it.
-  const [dictionary, locale, user, profile, health, notifications, push, billing, trips, careLink, accessLog, query] = await Promise.all([
+  const [dictionary, locale, user, profile, health, notifications, push, billing, trips, fixedMeals, careLink, accessLog, query] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<UserView>('/users/me'),
@@ -97,6 +100,10 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
     // Unavailable unless payments are set up and open to this person (`0056`); then no card is drawn.
     serverApi<BillingStatusView>('/billing'),
     serverApi<readonly VacationView[]>('/vacations'),
+    // The standing fixed meals and what is left of the allowance (`0098`,
+    // `0099`). Null before onboarding is finished, which is also when the
+    // dishes that could be fixed have no answer — so no card is drawn.
+    serverApi<FixedMealsView>('/fixed-meals'),
     // Null with no active or paused link — not behind the `professional` switch,
     // because consent is revocable whatever it says.
     serverApi<CareLinkView | null>('/care/links/me'),
@@ -148,6 +155,10 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
           {health ? <HealthPanel health={health} /> : null}
 
           <VacationPlanner trips={trips ?? []} />
+
+          {fixedMeals && preferences ? (
+            <FixedMealPlanner rules={fixedMeals.rules} slots={slotsIn(preferences.mealShape)} standing={fixedMeals.standing} />
+          ) : null}
 
           {billing?.available ? (
             <Card>

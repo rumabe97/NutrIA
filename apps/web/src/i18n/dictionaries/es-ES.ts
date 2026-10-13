@@ -1545,6 +1545,29 @@ export const esES = {
     thanks: 'Recibido. Gracias por tomarte el rato.',
     title: '¿Qué mejorarías?'
   },
+  fixedMeals: {
+    add: 'Fijar esta comida',
+    added: 'Comida fijada. Entra en los planes que generes a partir de ahora.',
+    day: 'Qué día',
+    dayPlaceholder: 'Elige un día',
+    dish: 'Qué plato',
+    dishPlaceholder: 'Elige un plato',
+    full: 'Ya tienes tus {limit} comidas fijas. Quita una para fijar otra.',
+    intro:
+      'Un plato que se repite siempre el mismo día, en todos tus planes. El resto de la semana la sigue decidiendo el planificador, y tus alergias mandan igual.',
+    left: 'Te quedan {remaining} de {limit}.',
+    leftOne: 'Te queda 1 de {limit}.',
+    meal: 'Qué comida',
+    mealPlaceholder: 'Elige una comida',
+    noneFit: 'Ningún plato de tu biblioteca encaja en esa comida ese día. Prueba con otra comida.',
+    remove: 'Quitar',
+    removed: 'Quitada. Los planes que ya tienes no cambian.',
+    removeFor: 'Quitar la comida fija de los {day} ({meal})',
+    rule: '{day}, {meal}',
+    slots: { afternoon_snack: 'Merienda', breakfast: 'Desayuno', dinner: 'Cena', lunch: 'Comida', morning_snack: 'Almuerzo', supper: 'Recena' },
+    title: 'Comidas fijas',
+    weekdays: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+  },
 
   footer: {
     account: 'Cuenta',

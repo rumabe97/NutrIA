@@ -1,0 +1,76 @@
+/* A `components/Card` on the profile; this is its inside, as `VacationPlanner`. */
+.root {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.title {
+  font-size: var(--font-size-04);
+  line-height: var(--line-height-04);
+  margin: 0;
+}
+
+.list {
+  display: grid;
+  gap: var(--space-02);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  align-items: center;
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-control);
+  display: flex;
+  gap: var(--space-04);
+  justify-content: space-between;
+  padding: var(--space-03) var(--space-04);
+}
+
+.when {
+  display: grid;
+  gap: var(--space-01);
+  min-inline-size: 0;
+}
+
+.rule {
+  font-size: var(--font-size-03);
+}
+
+/* Three choosers and a button. They stack on a phone, which is where this is
+   used, and the dish name is the one that can be long — a Spanish dish name
+   runs to forty characters, so the field takes the row on its own rather than
+   squeezing the two beside it. */
+.form {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+}
+
+/* As `VacationPlanner`: a flex item's implicit minimum is the size of its
+   content, and a dish name is content this stylesheet does not choose. Without
+   this, one long name could push this card — and every sibling sharing its
+   section's grid track — wider than the viewport. */
+.form > * {
+  min-width: 0;
+}
+
+.field {
+  display: grid;
+  flex: 1 1 10rem;
+  gap: var(--space-01);
+}
+
+.error {
+  color: var(--color-error-text);
+}
+
+/* As `EventPlanner`: `Select` is a Radix trigger, not a labelable element, so
+   each is named by id rather than wrapped in a `<label>`. */
+.label {
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+}

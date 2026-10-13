@@ -1508,6 +1508,35 @@ export const enGB: Dictionary = {
     thanks: 'Got it. Thanks for taking the time.',
     title: 'What would you improve?'
   },
+  fixedMeals: {
+    add: 'Fix this meal',
+    added: 'Meal fixed. It applies to the plans you generate from now on.',
+    day: 'Which day',
+    dayPlaceholder: 'Choose a day',
+    dish: 'Which dish',
+    dishPlaceholder: 'Choose a dish',
+    full: 'You already have your {limit} fixed meals. Remove one to fix another.',
+    intro: 'A dish that comes back on the same day, in every plan. The rest of the week is still the planner’s, and your allergies still decide.',
+    left: '{remaining} of {limit} left.',
+    leftOne: '1 of {limit} left.',
+    meal: 'Which meal',
+    mealPlaceholder: 'Choose a meal',
+    noneFit: 'No dish in your library fits that meal on that day. Try another meal.',
+    remove: 'Remove',
+    removed: 'Removed. The plans you already have do not change.',
+    removeFor: 'Remove the meal fixed to {day} ({meal})',
+    rule: '{day}, {meal}',
+    slots: {
+      afternoon_snack: 'Afternoon snack',
+      breakfast: 'Breakfast',
+      dinner: 'Dinner',
+      lunch: 'Lunch',
+      morning_snack: 'Morning snack',
+      supper: 'Supper'
+    },
+    title: 'Fixed meals',
+    weekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+  },
 
   footer: {
     account: 'Account',
