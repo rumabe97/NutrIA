@@ -113,6 +113,18 @@ longer does.
    does mean 84% is not the same measurement as the baseline's 79%, and a future reading of
    the table has to know it.
 
+**A sub-decision inside this one, stated because the rest of this record states
+its own.** The report's skip is the *whole* pinned meal, so a rice the generator
+itself put beside the fixed dish is forgiven with it, while the scheduler's own
+side-starch pricing still charges that side — `sidesOf` carries no fixed flag. The
+mismatch is deliberate and it runs the conservative way: the search avoids more
+than the report forgives. It is also coherent with `0098`'s first finding, which
+is that the sides are the continuous lever absorbing what a forced dish takes
+away — taxing them for absorbing it would be taxing the mechanism twice. If that
+ever reads wrong, the fix is to carry the flag into `sidesOf` and it is a
+one-line change; the table above measured what ships, not what it would then
+become.
+
 **What it cost elsewhere, honestly.** The search spends the room it got back, and two rules
 moved against it at one fixed meal: whole grains 54% → 50% and vegetables-at-every-main 58%
 → 56%. Red meat, legumes, meat and fruit moved the other way. The mean is up either way, and
@@ -214,6 +226,14 @@ because the figure was typed into the dictionary and `0044`'s number moved under
 allowances, which travel to the card on the billing status it already reads. A number the
 console moves moves there too, and `interpolate` leaves an unknown placeholder visible —
 a `{redos}` on screen is a bug report; "undefined" is a mystery.
+
+**The pitch does not yet mention the fixed meal, and that is the point.** The limit ships
+here; the table, the route and the screen do not. A sentence selling three fixed meals a
+week before a person can fix one would be the *same* defect as the ten events — promising
+what the product does not give — and it would be worse for having been written by somebody
+who knew. The clause joins the sentence in the change that ships the screen. `pitchValues`
+already supplies the numbers, so that change is one line of dictionary in each language,
+and the test that reads placeholders off the template needs nothing.
 
 ## What is still not built
 

@@ -19,6 +19,13 @@ export type PitchAllowances = Readonly<Record<'free' | 'premium', Allowances>>;
  * the card because a sentence that has already been wrong once deserves a test,
  * and `premiumPitch.test.ts` is that test: it reads the placeholders out of both
  * dictionaries and fails if one of them is not filled.
+ *
+ * **`fixedMeals` is supplied and deliberately unused** (`0099`). The limit
+ * exists, but no table, route or screen does, so a person cannot fix a meal yet
+ * — and a pitch that sold three of them would be the same defect as the ten
+ * events, promising what the product does not give. The clause joins the
+ * sentence in the change that ships the screen, and the value is here so that
+ * change is one line of dictionary.
  */
 export function premiumPitch(template: string, allowances: PitchAllowances): string {
   return interpolate(template, pitchValues(allowances));
