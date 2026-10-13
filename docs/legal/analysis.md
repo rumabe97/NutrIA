@@ -870,6 +870,80 @@ or refuse to generate, the way a dish with unresolved ingredients is already ref
 check-in comment → use only the closed answers) and translate the way of eating into
 ingredient exclusions. Then, the policy (§ "Con quién compartimos").
 
+**P0-3's status at 2026-10-13 — a dish request reopens the fence, not the harm.** The owner
+asked (report `0011` § 4 a) whether somebody may type a dish name — *"tortilla de patata"* —
+and have the model write it. Nothing is built; this is the answer before it is.
+
+P0-3 had two prongs: **free text written by the data subject** × **providers that train or
+log**. The second prong is dead (`0064`: ZDR, `data_collection: 'deny'`, a closed provider
+list on the account and on every request, § 4.4). The first prong was never about typing as
+such: the three fields it named — free-text allergies (`PoolPrompt.ts:628`), the way of
+eating with halal/kosher (`:622`) and the check-in comment (`:268`) — are health, religion
+or a sentence about how a person felt. **"Tortilla de patata" is none of those.** So a dish
+name does not reopen the *harm* P0-3 named. It reopens P0-3's **fence**: the published
+sentence that closed it, and the test that holds it (`health-boundary.spec.ts`, "gives the
+prompt no field a typed text could live in"). Shipping the field without changing the text is
+a false published text — **P0 by this document's own scale** — not because of what is sent
+but because of what is promised.
+
+What makes a typed dish name different from the other data in the prompt is that it is an
+**open channel**: a field somebody can put anything into, including something about
+themselves, by accident or on purpose. The exposure is not mainly the model call. Measured in
+the code at `c38d316d`:
+
+- **The library is shared.** `recipes` is global — "Recipes are shared, not user-owned"
+  (`packages/database/src/schemas/recipe.schema.ts:13-17`) — `RecipeController.reusablePool`
+  serves it to every account filtered only by safety and locale
+  (`packages/core/src/controllers/Recipe/RecipeController.ts:953-982`), and `createdBy` is
+  provenance with `onDelete: 'set null'` (`recipe.schema.ts:23`), written as the requesting
+  user (`packages/core/src/repositories/Plan/PlanRepository.ts:1743`). A dish born from a
+  typed request therefore puts person-derived text **in front of every other user, for ever,
+  surviving the deletion of the account that asked for it**. If the typed string ever becomes
+  the stored name, this is art. 9 data disclosed to recipients the policy cannot name
+  (arts. 5.1.a, 9, 13.1.e) and an art. 17 erasure the product cannot honour — the P0 "sharing
+  it with someone not named". It is a far larger exposure than the transfer to a ZDR provider.
+- **The picture path reaches Google.** `buildPicturePrompt` embeds the recipe's name verbatim
+  (`packages/core/src/domain/DishPicture/prompt.test.ts:24`) and the request goes OpenRouter →
+  **Google (Vertex AI)** plus the DeepInfra vision judge. `/privacidad` says that model
+  "nunca recibe nada tuyo" and that the dish path "nunca pasa por los servicios de Google".
+  A typed-derived name flowing there breaks a **second** published promise, to a recipient
+  family the plan path does not have.
+- **Logs.** `/privacidad` also says "Los registros del servidor y de errores no guardan lo que
+  escribes" (§ "Cómo protegemos tus datos"). A typed string in a job row, an error or a
+  prompt dump breaks that sentence too.
+
+**The conditions under which P0-3 stays closed.** All five, in the same change as the field:
+
+1. **Providers unchanged**: OpenRouter → DeepInfra/CoreWeave, ZDR, no training, `provider.only`
+   (§ 4.4; P1-11 still open — the DPA text is not in hand, and that already blocks
+   `AI_PROVIDER=openrouter` whatever this feature does).
+2. **The typed string is transient.** It is a prompt input and nothing else: never written to
+   any table, job row, log, error, analytics event or mail; never read back; never shown to
+   anybody. What is stored is the model's output, exactly as today.
+3. **The typed string never reaches the picture path.** The stored recipe name is written by
+   the model and gated, so what goes to Google (Vertex) is the library's name, as it is today
+   for every generated dish.
+4. **An output gate on the stored name**, because the residual risk is the model echoing the
+   request into the name it writes: a name that carries anything beyond a dish is not stored.
+   Without this, condition 2 is cosmetic — the words come back out through the name.
+5. **A notice at the field**, which is also the art. 13 information at the moment of
+   collection: that it is sent to the model, and that only a dish name belongs there.
+
+With 1–5 the sentence that changes narrows honestly and nothing widens for anybody who does
+not use the field. Without any one of them this is not a wording question.
+
+**What must change in the same pull request**, and only then (until the feature exists, § 1.3
+and § 4.4 describe the product truthfully and must not be edited to describe a plan): § 1.3's
+inventory of what reaches the AI; § 4.4 c — the anonymous categorisation sample of OpenRouter's
+terms § 6.5 is described in `/privacidad` as "sin nada que las ligue … a ti", which rests today
+on a request carrying no free text, so with the field the caveat is that a *sampled* request may
+carry a string the person wrote, anonymous for OpenRouter but no longer guaranteed
+identifier-free in content **[lawyer]**; `record-of-processing.md` row 2 (the "Only this goes to
+the AI" list, and the claim that Google and DeepInfra are not recipients of the pictures, which
+holds only under condition 3); the texts and the version bump in
+[`textos/05`](./textos/05-consentimientos-cliente.md) § A; the DPIA's R16; and
+[`go-live-checklist.md`](./go-live-checklist.md) § 0 octies.
+
 **P0-3's status at 2026-09-26 — fully closed in production; conditional for the change.**
 Since 2026-09-26 production calls no model at all (`AI_PROVIDER=stub`), so nothing goes out.
 Way out (a) is `0064`: OpenRouter with paid models, ZDR and no training. It is closed once

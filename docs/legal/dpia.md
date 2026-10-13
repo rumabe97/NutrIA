@@ -132,6 +132,7 @@ ones marked.
 | R11 | A plan that is not safe on calories or protein (the AI's or the professional's) | Harm to health | 2 | 3 | 6 | M16 | 2 |
 | R12 | The user believes NutrIA replaces a professional | Badly informed health decisions | 2 | 3 | 6 | M17 | 3 |
 | R13 | Being unable to exercise rights (portability, restriction) | A loss of control | 2 | 2 | 4 | M18 (**export pending**) | 2 |
+| R16 | **Planned, nothing built (2026-10-13, report `0011` § 4 a)**: a field where somebody types a dish name carries something about themselves — a condition, a child's name, who the dish is for — and that text is stored in the shared `recipes` library, reaches the picture model at Google (Vertex) through the dish's name, or stays in a log | Health or an identity disclosed to every other user of the product and to a recipient the policy does not name for that purpose; an erasure that cannot be honoured, because the dish survives the account | 3 with no measures (an open field invites it) | 4 | **12** | M19 (**planned**), M3, M14 | 2 with all five conditions of [`analysis.md`](./analysis.md) P0-3 at 2026-10-13; **12 without the output gate**, which is the one that decides it: a transient request still comes back out through the name the model writes |
 | R15 | Somebody with an allergy trusts a dish's image (006), which does not show an ingredient the dish carries | An allergic reaction | 2 | 4 | 8 | M1 (the allergen gate runs against the list, not against the image); the caption "It is indicative: the ingredient list rules" and a sentence in the terms ([`dish-pictures.md`](./dish-pictures.md) § 3). The vision judge does **not** mitigate this risk: it only looks at what is extra, never at what is missing, and since 009 phase 3 the owner can publish by hand an image the judge rejected; that act does not touch R15 either (the image still decides neither what the dish carries nor who it is given to). What is extra is IMG-2 | 2 |
 
 ---
@@ -158,6 +159,7 @@ ones marked.
 | M16 | An energy floor and a protein ceiling enforced in code against any target, the professional's included (`targetViolations`) | ✔ |
 | M17 | Supervision notices and disclaimers; "not a user" for clinical nutrition | ✔ (the linked wording could be better, `05` § E) |
 | M18 | A data export in JSON | **pending (P2-9)** |
+| M19 | **The open-channel rule for a typed dish request** (R16), the five conditions of [`analysis.md`](./analysis.md) P0-3 at 2026-10-13: the typed string is a transient prompt input stored nowhere, it never reaches the picture or judge call, the stored dish name is written by the model and gated against carrying anything but a dish, a notice sits at the field, and the providers stay as `0064` leaves them. Held mechanically: the allowed-keys test in `apps/api/src/modules/ai/health-boundary.spec.ts` gains the new field **on purpose**, plus a sentinel that the typed string reaches no picture call and no row | **planned — nothing built (2026-10-13)** |
 
 ---
 

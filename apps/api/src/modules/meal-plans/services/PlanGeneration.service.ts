@@ -545,7 +545,8 @@ export class PlanGenerationService {
           { advisories: advisorySummary, fallback, quality },
           start,
           loads,
-          dates.today
+          dates.today,
+          pinned
         ),
         ...(cutShoppingItems && { cutShoppingItems })
       },
@@ -699,7 +700,8 @@ export class PlanGenerationService {
     { advisories, fallback, quality }: { readonly advisories: readonly string[]; readonly fallback: Fallback; readonly quality: PlanQuality },
     start: Date,
     loads: Loads,
-    today: string
+    today: string,
+    pinned: ReadonlyMap<number, PinnedMeal>
   ): PlanDraft {
     const end = new Date(start);
 
@@ -743,6 +745,17 @@ export class PlanGenerationService {
         advisories,
         avoidedDishes: rotation.avoidSlugs.size,
         fallback,
+        // The standing rules **as they were when this plan was built**. A plan
+        // that is rebuilt later — a day reloaded for an event — honours these
+        // and not the rules as they stand then, so a fortnight cannot end up
+        // with two Fridays serving different dishes because somebody changed
+        // their rule in between. It is the same promise the removal already
+        // keeps: a plan already generated keeps what it was generated with.
+        //
+        // It also makes the plan say why it served what it served, which is
+        // what `poolSeed` is for and what the "this rule could not be honoured"
+        // notice (`0099`) will need: what was asked for, beside what arrived.
+        fixedMeals: [...pinned].map(([dayIndex, pin]) => ({ dayIndex, slot: pin.slot, slug: pin.slug })),
         jobId,
         locale: context.locale,
         poolSeed: rotation.seed,

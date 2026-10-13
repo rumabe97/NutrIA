@@ -448,7 +448,6 @@ export const PlanController = {
     };
   },
 
-  /** Owner-scoped, like `getPlan`; the plan's meals as the swap sees them. A plan under review only with `withPending` (`0060`). */
   async composition(userId: string, planId: string, withPending = false): Promise<readonly MealCompositionView[]> {
     const plan = await PlanRepository.findById(userId, planId, withPending);
 
@@ -526,6 +525,37 @@ export const PlanController = {
     ]);
 
     return eventStanding(eventsInWindow(dated, window).length, resolved);
+  },
+
+  /** Owner-scoped, like `getPlan`; the plan's meals as the swap sees them. A plan under review only with `withPending` (`0060`). */
+  /**
+   * The standing fixed meals **this plan was built with** (`0098`, `0099`), by
+   * the plan's own day index.
+   *
+   * Read from the plan's own metadata and never from the rules as they stand
+   * now. A day rebuilt for an event honours what the plan promised, so a
+   * fortnight cannot end up with two Fridays serving different dishes because
+   * the rule changed in between — the same promise the removal already keeps,
+   * and the reason the plan records them at all. A plan generated before this
+   * was recorded has none, and a rebuild of it pins nothing, exactly as it did.
+   */
+  async fixedMealsOf(userId: string, planId: string): Promise<ReadonlyMap<number, { readonly slot: MealSlot; readonly slug: string }>> {
+    const plan = await PlanRepository.findById(userId, planId, true);
+    const recorded = plan?.generationMetadata?.['fixedMeals'];
+
+    if (!Array.isArray(recorded)) {
+      return new Map();
+    }
+
+    return new Map(
+      recorded
+        .filter((entry): entry is { dayIndex: number; slot: MealSlot; slug: string } => {
+          const pin = entry as Partial<{ dayIndex: number; slot: MealSlot; slug: string }>;
+
+          return typeof pin?.dayIndex === 'number' && typeof pin.slot === 'string' && typeof pin.slug === 'string';
+        })
+        .map(pin => [pin.dayIndex, { slot: pin.slot, slug: pin.slug }])
+    );
   },
 
   /** For generation: the next plan version, and what the user was served last fortnight. */

@@ -60,6 +60,40 @@
 > `PROFESSIONAL_AGREEMENT_VERSION` and `TERMS_VERSION` do not move. `/condiciones` does **not**
 > change (`analysis.md` § 4.1 quinquies).
 
+## 0 octies. Before switching on a field where somebody types a dish name (report `0011` § 4 a, 2026-10-13)
+
+> **Nothing is built.** This section is written before the feature so the order is not decided
+> by the build: every box has to be true **in the same pull request** that opens the field, not
+> after it. The reasoning, the five conditions and the sources are in
+> [`analysis.md`](./analysis.md) P0-3 at 2026-10-13; the risk is `dpia.md` R16 and the measure
+> M19.
+>
+> **A dish name is not the free text P0-3 was about** (that was free-text allergies, halal and
+> kosher, and the check-in comment — health, religion, a sentence about how somebody felt).
+> It reopens P0-3's **fence**, not its harm: the published sentence and the test that closed
+> it. Shipping the field without the texts is a false published text, which is a **P0** on this
+> document's own scale.
+
+- [ ] (backend) **The typed string is transient.** It is a prompt input and nothing else: not in `recipes`, not in a plan or job row, not in `analytics_events`, not in an audit row, not in a log line, not in an error sent to Sentry, not in a mail. Nobody can read it back, not even the owner in `/admin`. This is what keeps true both the new text and the published sentence "Los registros del servidor y de errores no guardan lo que escribes".
+- [ ] (backend) **The typed string never reaches the picture path.** `buildPicturePrompt` embeds the recipe's **name** verbatim and the request goes OpenRouter → Google (Vertex AI) plus the DeepInfra judge. `/privacidad` says that model "nunca recibe nada tuyo" and that the dish path "nunca pasa por los servicios de Google": both stay true only if what travels there is the library's name.
+- [ ] (backend) **An output gate on the stored name.** The residual risk is the model echoing the request into the name it writes, and then the words come back out through a shared library and a picture prompt. A name that carries anything beyond a dish — a person's name, a condition, a medication, who it is for, a sentence — is not stored, and the dish is dropped. Without this gate the two boxes above are cosmetic.
+- [ ] (backend) **The route demands the current profile consent**, the same 409 as plan generation (`profileConsentRequired`). `redirectIfProfileConsentMissing` is only called from `/inicio` (`apps/web/src/lib/onboarding.ts`), so without this check somebody can reach the field and send a typed string while still holding the old notice.
+- [ ] (backend/tests) **The boundary test carries it.** The allowed-keys test in `apps/api/src/modules/ai/health-boundary.spec.ts` ("gives the prompt no field a typed text could live in") gains the new key **on purpose, in this PR** — it is the place where a reviewer is meant to stop and think. Plus a sentinel, in the style of that file: a typed string with a word that exists nowhere else must appear in **no** picture call, **no** judge call and **no** row written.
+- [ ] (frontend) **A notice at the field**, which is the art. 13 information at the moment of collection, not a nicety: es-ES `Escribe solo el nombre del plato. Se lo pedimos a la inteligencia artificial, así que no escribas ahí nada sobre ti: ni tu salud, ni tu nombre, ni para quién es.` / en-GB `Write only the dish's name. We ask the artificial intelligence for it, so do not write anything about yourself there: not your health, not your name, not who it is for.`
+- [ ] (frontend) **A length cap and a single line.** One line, no newlines, a short cap (a dish name needs ~80 characters; 120 is already generous). It is not security — somebody determined fits a sentence in 120 characters — it is what makes the field read as a name field and not as a message box, so the honest work is done by the notice and the output gate. A hard server-side cap as well, because the client's is a suggestion.
+- [ ] (frontend) The ⟦petición-de-plato⟧ / ⟦dish-request⟧ sentences of [`textos/02`](./textos/02-politica-privacidad.md) in `privacy`, section "La inteligencia artificial" / "Artificial intelligence", **both languages**: the exception inside the "nunca" of "Lo que recibe el modelo", and the bullet behind it. `privacy.updated` to the day it is published.
+- [ ] (frontend) The `profileConsent.ai` row of [`textos/05`](./textos/05-consentimientos-cliente.md) § A bis, **both languages**.
+- [ ] (backend) **`PROFILE_CONSENT_VERSION` from `1.0.0` to `1.1.0`** (`packages/core/src/entities/Profile/Profile.ts:86`). The sentence narrows; the processing widens, and the version is keyed to the processing — the same criterion § A of `textos/05` used in reverse on 2026-09-28. Every existing account is then sent to `/consentimiento` before `/inicio` and cannot generate until it has read the new text and ticked again: **that is the notice, and it is why no mail is needed.** If the owner decides not to bump it, a notice mail **is** needed, before the field goes on.
+- [ ] (frontend) Section I of [`textos/03`](./textos/03-condiciones-uso.md) in `terms`, section "Contenido generado con inteligencia artificial", third paragraph, both languages, with `terms.updated`. It does not move `TERMS_VERSION`.
+- [ ] (legal, same PR) `analysis.md` § 1.3 (the inventory of what reaches the AI) and § 4.4 c (the categorisation sample may now carry a typed string); `record-of-processing.md` row 2 (the "Only this goes to the AI" list, and the claim that Google and DeepInfra are not recipients of the pictures, which holds only under the second box); `dpia.md` R16 and M19 from "planned" to what is built.
+- [ ] (owner) **P1-11 is still open**, and it blocks `AI_PROVIDER=openrouter` whatever this feature does: OpenRouter's DPA text in hand and written confirmation that it applies to his account (§ 0 bis). A field that sends a person's words is not the moment to be without it.
+- [ ] (owner) **The allowance.** The request spends money from the shared pot (`0097`): a number, bounds and a reason in `ALLOWANCE_BOUNDS`, like plan redos. Not a legal requirement — a cap is what stops a field like this being a way to spend somebody else's money, and the terms already promise limits on the free plan.
+
+> **The cheaper option is still on the table** (report `0011` § 4 b): a request built from
+> catalogue names the person picks, with no typing. It needs **none** of this — no text
+> change, no version bump, no output gate, no open channel. If the owner takes it, this whole
+> section is moot, and that is the point of writing it down.
+
 ## 0 bis. Before setting `AI_PROVIDER=openrouter` in production (`0064`)
 
 > Production has been running with `AI_PROVIDER=stub` since 2026-09-26: nothing goes out to

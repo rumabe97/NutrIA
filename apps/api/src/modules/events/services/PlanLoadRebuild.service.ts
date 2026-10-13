@@ -12,9 +12,7 @@ import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController } from 'core/controllers/Plan';
 import { personToday, ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
-import { FixedMealController } from 'core/controllers/FixedMeal';
 import { SettingsController } from 'core/controllers/Settings';
-import { weekdayOf } from 'core/entities/FixedMeal';
 import { accompanimentRows, larderFor } from 'core/domain/Accompaniment';
 import { placementGroups } from 'core/domain/Balance';
 
@@ -167,19 +165,18 @@ export class PlanLoadRebuildService {
       ? { accompaniments: { larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }), monthOf } }
       : {};
     // A day rebuilt for an event keeps the meal somebody fixed to it (`0098`).
-    // Taken from each day's own date rather than from the plan's start: these
-    // are the plan's real days, and a rebuild must not re-derive a calendar it
-    // is holding. Without this an event would quietly serve somebody else's
-    // dinner on their fixed Friday — once, invisibly, in the one flow that
-    // rewrites days of a plan already being lived.
-    const byWeekday = new Map((await FixedMealController.forPlan(userId)).map(rule => [rule.weekday, rule]));
-    const pinned = new Map(
-      plan.days.flatMap(day => {
-        const rule = byWeekday.get(weekdayOf(day.date));
-
-        return rule ? [[day.dayIndex, { slot: rule.slot, slug: rule.dishSlug }] as const] : [];
-      })
-    );
+    // Without this an event would quietly serve somebody else's dinner on their
+    // fixed Friday — once, invisibly, in the one flow that rewrites days of a
+    // plan already being lived.
+    //
+    // **The rules as the plan was built with, not as they stand now.** They are
+    // read from the plan's own metadata, so changing a rule today does not
+    // rewrite a fortnight already delivered: the alternative left one Friday
+    // with the old dish and the rebuilt one with the new, inside the same plan,
+    // with nothing to explain it. It is the promise the removal already keeps —
+    // a plan generated keeps what it was generated with — and this is the one
+    // flow that could have broken it.
+    const pinned = await PlanController.fixedMealsOf(userId, plan.id);
 
     const scheduled = schedulePlan({
       ...sides,

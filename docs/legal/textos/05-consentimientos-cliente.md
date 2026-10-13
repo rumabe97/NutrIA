@@ -18,7 +18,12 @@
 >   **`1.1.0`**, solo por la precisión de `health.consentNote` (§ C). El mecanismo existente
 >   (`health.consentStale`) vuelve a pedirlo.
 > - **Nueva**: el consentimiento explícito del perfil (§ A), con su propia constante, p. ej.
->   `PROFILE_HEALTH_CONSENT_VERSION = '1.0.0'` junto a `HEALTH_CONSENT_VERSION`.
+>   `PROFILE_HEALTH_CONSENT_VERSION = '1.0.0'` junto a `HEALTH_CONSENT_VERSION`. **Construida**
+>   como `PROFILE_CONSENT_VERSION` (`packages/core/src/entities/Profile/Profile.ts:86`), hoy
+>   `1.0.0` en producción.
+> - `PROFILE_CONSENT_VERSION` de `1.0.0` a **`1.1.0`**, **solo si se enciende la petición de
+>   plato** (§ A bis, 2026-10-13): hay un dato nuevo escrito por la persona que sale a un
+>   tercero, y el texto que lo dice está encima de la casilla del art. 9. Nada construido.
 
 ---
 
@@ -72,6 +77,31 @@ salud ni lo que ve el profesional, solo borra un dato sin uso y corrige una etiq
 cálculo ya era idéntico (`core/domain/Nutrition/Nutrition.ts:21-28,279-283`: un objetivo
 `'custom'` siempre calculó como `'maintenance'`). **`PROFILE_CONSENT_VERSION` sigue sin
 subir**, por la misma razón que arriba: un recorte de lo tratado, no una ampliación. -->
+
+### A bis. Si se enciende la petición de plato (2026-10-13, informe `0011` § 4 a — nada construido)
+
+**Nada construido**: esta fila no se publica hasta que exista el campo donde una persona
+escribe el nombre de un plato, y se publica **en el mismo cambio que lo enciende**. Solo es
+verdad si se cumplen las cinco condiciones de [`analysis.md`](../analysis.md) P0-3 al
+2026-10-13.
+
+**Dónde**: la misma clave `profileConsent.ai`, en los dos diccionarios
+(`apps/web/src/i18n/dictionaries/es-ES.ts`, `en-GB.ts`), que se muestra en
+`ProfileConsentFields` justo encima de la casilla del art. 9 — en el paso «sobre ti» del
+onboarding y en la pantalla `/consentimiento`.
+
+| Clave | es-ES | en-GB |
+| --- | --- | --- |
+| `profileConsent.ai` | `Un modelo de inteligencia artificial diseña los platos. Recibe tus objetivos diarios, tus horarios de comida, si eres vegetariano o vegano, y los alimentos y platos que te gustan o no, siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu peso ni tu altura, tus alergias ni intolerancias, ninguna otra forma de comer, ni tus enfermedades o tu medicación: lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, y el mismo código comprueba cada plato antes de que te llegue. Lo único escrito por ti que puede llegarle es el nombre de un plato, si algún día le pides uno: no guardamos ese texto, y el plato que salga se queda en nuestra biblioteca, la misma para todo el mundo, con el nombre que escriba el modelo.` | `An artificial-intelligence model designs the dishes. It receives your daily targets, your meal times, whether you are vegetarian or vegan, and the foods and dishes you like or dislike, always by the names on our lists. It never receives your name, email, age, weight or height, your allergies or intolerances, any other way of eating, or your conditions or medication: what you cannot or will not eat we remove first, in our code, and the same code checks every dish before it reaches you. The only thing written by you that can ever reach it is the name of a dish, if you ever ask it for one: we do not keep that text, and the dish that comes out stays in our library, the same one for everybody, under the name the model writes.` |
+
+**Versión: `PROFILE_CONSENT_VERSION` de `1.0.0` a `1.1.0`**
+(`packages/core/src/entities/Profile/Profile.ts:86`).
+
+<!-- Fuente y porqué (2026-10-13):
+- **Por qué sube la versión, aunque la frase se estreche.** La nota del 2026-09-28 de arriba fijó el criterio de este documento: un cambio que **reduce** lo que se trata no obliga a volver a pedir el consentimiento, porque el art. 7.2 exige distinguirlo «cuando se añade un fin o un dato, no cuando se quita uno» (y art. 5.1.b, fin compatible). Aquí el criterio se aplica al revés: la **frase** se estrecha («nunca nada escrito a mano» pasa a «nunca, salvo el nombre de un plato que tú pidas»), pero **el tratamiento se amplía** — hay un dato nuevo que sale a un tercero, escrito por la persona. La versión se engancha a lo que ocurre, no a cómo se redacta. Por eso sube, y por la razón que el propio código documenta en `Profile.ts:82-85`: «Bumped whenever the wording of the profile consent changes… A stored version that differs is consent to a different notice, so it is asked again».
+- **Y por eso no hace falta correo de aviso.** La política promete avisar por correo «si cambiamos algo importante… antes de que se aplique». La subida de la versión cumple más que eso: `OnboardingController.presentOnboarding` pone `profileConsentRequired: true` para toda cuenta cuya versión guardada no sea la vigente (`packages/core/src/controllers/Onboarding/OnboardingController.ts:51`, `ProfileConsentController.hasCurrent`), `redirectIfProfileConsentMissing` la manda a `/consentimiento` antes de `/inicio` (`apps/web/src/lib/onboarding.ts:40-48`) y `PlanGeneration.service.ts:164` devuelve 409 hasta que vuelva a marcar la casilla. Lo que se puede afirmar con precisión no es que todo el mundo lea el texto nuevo nada más entrar —quien va directo a `/plan` o `/perfil` no ve la pantalla intermedia—, sino lo único que importa aquí: **nadie genera nada ni envía nada a un modelo bajo el aviso viejo**. Por eso, en el sentido de la propia política, el cambio **no es «importante»**: no llega a aplicarse a nadie que no haya leído y aceptado el texto nuevo, así que la cláusula del correo no se dispara — la pantalla no sustituye al correo, es la razón de que no haga falta. **[abogado]**: confirmar esta lectura; un lector literal diría «prometiste correo y no lo mandaste». Si el propietario decide **no** subir la versión, entonces **sí hace falta el correo** ([`06`](./06-correos.md)), porque no quedaría ningún aviso previo a nadie.
+- **Hueco a tapar en el mismo cambio**: `redirectIfProfileConsentMissing` solo se llama desde `/inicio` (`apps/web/src/app/(app)/inicio/page.tsx`), así que una persona que entre directa a otra pantalla no ve la pantalla intermedia hasta que genere. Por eso la ruta de la petición de plato **tiene que exigir ella misma el consentimiento vigente** (el mismo 409, `profileConsentRequired`): nadie debe poder enviar texto escrito al modelo bajo un aviso caducado. Hoy no es un defecto —el servidor exige el consentimiento antes de guardar el objetivo y antes de generar, así que ningún dato de salud entra sin él—, solo lo sería el día que la subida de versión se use como aviso: casilla en [`go-live-checklist.md`](../go-live-checklist.md) § 0 octies, nada que enviar a `backend` mientras no haya campo.
+- RGPD arts. 4.11 y 7.1-7.2 (informado, demostrable, distinguible), 9.2.a, 5.1.a y 5.1.b, 13.1.c y e. -->
 
 ---
 

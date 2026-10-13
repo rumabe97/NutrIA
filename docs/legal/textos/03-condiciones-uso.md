@@ -148,3 +148,47 @@ cambia la frase de `/privacidad` sobre el juez, conviene igualar esta en el mism
 con `terms.updated`. **No se toma** (propietario, 2026-09-30): esta frase se queda como
 está. Texto y fuentes, por si se reabre, en
 [`dish-pictures.md`](../dish-pictures.md) § 4.4 («`/condiciones`»).
+
+---
+
+## I. Si pides un plato escribiendo su nombre (informe `0011` § 4 a, 2026-10-13)
+
+**Nada construido.** No se publica hasta que exista el campo, y se publica **en el mismo
+cambio que lo enciende**. Solo es verdad si se cumplen las cinco condiciones de
+[`analysis.md`](../analysis.md) P0-3 al 2026-10-13.
+
+**Dónde**: namespace `terms`, sección «Contenido generado con inteligencia artificial»
+(`es-ES.ts`, `en-GB.ts`), como **tercer** párrafo, detrás del de las imágenes.
+Actualizar `terms.updated`. **No es un «cambio importante»** de las condiciones y no exige
+correo previo: no toca el precio, el plazo, la renovación, el desistimiento ni la
+responsabilidad — informa de una función nueva y de lo que no se debe escribir en ella.
+No sube `TERMS_VERSION`; lo que sí sube es `PROFILE_CONSENT_VERSION`, por la política
+([`05`](./05-consentimientos-cliente.md) § A bis).
+
+| es-ES | en-GB |
+| --- | --- |
+| `Si nos pides un plato escribiendo su nombre, ese texto se envía a la inteligencia artificial. Escribe solo el nombre de un plato: no es un sitio para contar nada sobre ti ni sobre nadie. Podemos no atender una petición, y puede que el plato que salga no encaje en tu plan y no llegues a verlo. El que sí salga se guarda en nuestra biblioteca de platos —la misma para todo el mundo— con el nombre que escriba el modelo, y no dice quién lo pidió.` | `If you ask us for a dish by typing its name, that text is sent to the artificial intelligence. Write only a dish's name: it is not a place to tell us anything about you or about anybody else. We may not act on a request, and the dish that comes out may not fit your plan, in which case you never see it. The one that does is kept in our library of dishes — the same one for everybody — under the name the model writes, and it does not say who asked for it.` |
+
+<!-- Fuente: TRLGDCU art. 60.1 (información previa de las características del servicio) y
+art. 80.1 (claridad y concreción); Ley 7/1998 art. 5.5 (redacción clara de las condiciones
+generales); Ley 34/2002 (LSSI) art. 27.1 (información previa sobre el procedimiento de
+contratación y las condiciones del servicio); Reglamento (UE) 2024/1689 art. 50
+(transparencia: la persona sabe que interactúa con un sistema de IA y qué se le envía);
+RGPD art. 5.1.c — «no es un sitio para contar nada sobre ti» es la medida de minimización
+en el único punto donde la persona decide qué entra.
+
+**Por qué esta cláusula y no solo la política.** La política informa del tratamiento; las
+condiciones son el contrato, y aquí hay tres cosas contractuales que la política no dice:
+(1) que NutrIA **puede no atender** una petición — sin esto, negarse sería incumplir lo
+ofrecido (TRLGDCU art. 60.1); (2) que el plato puede no encajar y no llegar a verse, que es
+lo que de verdad pasa cuando `fitsPlate` o el tiempo de cocinado lo tumban (informe `0011`
+§ 4, «lo que la generación no arregla»): prometer un plato a la carta y no darlo sería
+publicidad desleal (Ley 3/1991 arts. 5.1.b y 7.1); (3) que el plato queda en una biblioteca
+**compartida** — la persona contribuye con una petición a un catálogo del que comen los
+demás, y eso se dice antes, no después.
+
+**Lo que esta cláusula NO hace**: no es una licencia sobre el texto escrito, y no hace
+falta, porque el texto no se guarda (condición 2 de P0-3 al 2026-10-13) y lo que se guarda
+—nombre y receta— lo escribe el modelo, no la persona. Si algún día el texto escrito se
+guardara o se mostrara, haría falta cláusula de contenido de usuario (uso aceptable,
+licencia, retirada) y esta frase **no bastaría**. -->
