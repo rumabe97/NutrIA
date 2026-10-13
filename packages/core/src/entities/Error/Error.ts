@@ -100,7 +100,7 @@ export class SafetyViolationError extends Error {
  */
 export class QuotaExceededError extends Error {
   constructor(
-    public readonly kind: 'event' | 'meal_swap' | 'mid_plan_event' | 'plan_redo',
+    public readonly kind: 'event' | 'fixed_meal' | 'meal_swap' | 'mid_plan_event' | 'plan_redo',
     public readonly nextAt: string | null = null
   ) {
     super('Quota exceeded');
