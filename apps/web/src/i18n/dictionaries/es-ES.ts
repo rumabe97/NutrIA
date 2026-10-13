@@ -2731,7 +2731,7 @@ export const esES = {
     premiumMonthly: 'Mensual · {price} al mes',
     premiumPastDue: 'No se ha podido cobrar la última cuota. Stripe lo volverá a intentar; actualiza la tarjeta para no perder premium.',
     premiumPitch:
-      '{redos} replanificaciones por quincena en vez de {freeRedos}, {swaps} cambios de comida por plan en vez de {freeSwaps}, {events} eventos por plan en vez de {freeEvents}, {fixedMeals} comidas fijas cada semana en vez de {freeFixedMeals}, y hasta {midPlan} eventos añadidos con el plan ya empezado.',
+      '{redos} replanificaciones por quincena en vez de {freeRedos}, {swaps} cambios de comida por plan en vez de {freeSwaps}, {events} eventos por plan en vez de {freeEvents}, {fixedMeals} comidas fijas cada semana en vez de {freeFixedMeals}, y hasta {midPlan} eventos añadidos con el plan ya empezado. Y si el plato que siempre haces no está en la biblioteca, premium puede pedirnos que lo escribamos: {dishRequests} al mes, y solo cuenta cuando llega un plato.',
     premiumRenews: 'Tienes premium. Se renueva el {date}.',
     premiumSafety: 'La seguridad alimentaria —alergias, intolerancias y nutrientes— es la misma con premium y sin él.',
     premiumTestMode: 'Modo de prueba: no se cobra nada de verdad. Usa la tarjeta 4242 4242 4242 4242, cualquier fecha futura y cualquier CVC.',
