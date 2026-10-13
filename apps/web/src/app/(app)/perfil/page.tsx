@@ -29,7 +29,7 @@ import { MEAL_SLOTS } from 'core/entities/Plan';
 
 import { formatNumber, interpolate } from 'lib/format';
 import { mealCount, mealSizeKey } from 'lib/mealSize';
-import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
+import { redirectIfOnboardingIncomplete, redirectIfProfileConsentMissing } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
 import { appMetadata } from '../../_shared/metadata';
@@ -84,6 +84,13 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
   // finished belongs in the flow that is filling them in, not in a read-only
   // view of half of them.
   await redirectIfOnboardingIncomplete();
+  // And the consent, which `/inicio` already demanded and this screen did not:
+  // the dish request lives on this page, and `PROFILE_CONSENT_VERSION` 1.1.0 is
+  // what tells somebody their words now reach the model. The route refuses a
+  // stale consent anyway — `generationContext` calls `requireProfileConsent`
+  // before any model call — but being refused after typing a dish's name is a
+  // worse way to meet a notice than reading it first (`legal`, 2026-10-13).
+  await redirectIfProfileConsentMissing();
 
   // Health data is fetched here and only here. It is not folded into
   // `/profile`, which the dashboard also loads — a medication has no business
@@ -100,9 +107,10 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
     // Unavailable unless payments are set up and open to this person (`0056`); then no card is drawn.
     serverApi<BillingStatusView>('/billing'),
     serverApi<readonly VacationView[]>('/vacations'),
-    // The standing fixed meals and what is left of the allowance (`0098`,
-    // `0099`). Null before onboarding is finished, which is also when the
-    // dishes that could be fixed have no answer — so no card is drawn.
+    // The standing fixed meals, what is left of the allowance (`0098`, `0099`)
+    // and what is left of this month's dish requests (report `0011` § 4 a). Null
+    // before onboarding is finished, which is also when the dishes that could
+    // be fixed have no answer — so no card is drawn.
     serverApi<FixedMealsView>('/fixed-meals'),
     // Null with no active or paused link — not behind the `professional` switch,
     // because consent is revocable whatever it says.
@@ -157,7 +165,15 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
           <VacationPlanner trips={trips ?? []} />
 
           {fixedMeals && preferences ? (
-            <FixedMealPlanner rules={fixedMeals.rules} slots={slotsIn(preferences.mealShape)} standing={fixedMeals.standing} />
+            <FixedMealPlanner
+              // So that "it takes longer than you said" can say longer than
+              // what. It is the same answer the row above reads (report `0011` § 2).
+              cookingMinutes={preferences.cookingTimeMinutes}
+              dishRequests={fixedMeals.dishRequests}
+              rules={fixedMeals.rules}
+              slots={slotsIn(preferences.mealShape)}
+              standing={fixedMeals.standing}
+            />
           ) : null}
 
           {billing?.available ? (

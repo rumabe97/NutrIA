@@ -1,14 +1,14 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
-import { AddFixedMealDto } from '../dto/in/index.js';
-import { CurrentUser, RequiresOnboarding, ZodBody } from '../../../shared/index.js';
+import { AddFixedMealDto, RequestDishDto, SearchDishDto } from '../dto/in/index.js';
+import { CurrentUser, RateLimit, RequiresOnboarding, ZodBody } from '../../../shared/index.js';
 import { FixedMealsService } from '../services/index.js';
 import { InputParseError } from 'core/entities/Error';
 import { weekdaySchema } from 'core/entities/FixedMeal';
 import { MEAL_SLOTS } from 'core/entities/Plan';
 
-import type { FixableDishDto, FixedMealDto, FixedMealsDto } from '../dto/out/index.js';
+import type { FixableDishDto, FixedMealDto, FixedMealsDto, NotOfferedDishDto } from '../dto/out/index.js';
 import type { MealSlot } from 'core/entities/Plan';
 import type { SessionUser } from '../../../shared/index.js';
 
@@ -48,6 +48,42 @@ export class FixedMealsController {
     @Query('slot') slot: string
   ): Promise<readonly FixableDishDto[]> {
     return this.fixedMeals.fixable(user.id, weekdaySchema.parse(Number(weekday)), parsedSlot(slot));
+  }
+
+  @ApiOkResponse({
+    description: 'Dishes the library has that match the search and are not offered, each with the reason and whether the person can act on it.'
+  })
+  @ApiOperation({ summary: 'Why a dish somebody searched for is not offered for that meal' })
+  // A read, and still a POST: what somebody typed travels in the body, because a
+  // query string reaches the platform's access log, which is not ours to redact
+  // (`SearchDishDto`). It answers 200 rather than 201 for the same reason it is
+  // a POST — nothing is created.
+  @HttpCode(HttpStatus.OK)
+  // It assembles this person's whole library twice and fires on every pause in
+  // typing, with only the screen's own debounce in front of it. Generous for a
+  // person who is searching, a bound for anything else.
+  @RateLimit({ limit: 60, ttlSeconds: 3600 })
+  @Post('not-offered')
+  async notOffered(@CurrentUser() user: SessionUser, @ZodBody(SearchDishDto) body: SearchDishDto): Promise<readonly NotOfferedDishDto[]> {
+    return this.fixedMeals.notOffered(user.id, body.weekday, body.slot, body.query);
+  }
+
+  @ApiCreatedResponse({
+    description:
+      'The dish, written and stored, ready to fix. 422 when what was typed is not a dish name, 409 when nothing we could serve came back, 429 QUOTA_EXCEEDED when the month’s requests are spent.'
+  })
+  @ApiOperation({ summary: 'Ask us to write a dish the library does not have. Spends an allowance only when a dish is stored.' })
+  // A model call per request, and **a refused request spends no allowance** —
+  // which is the promise, and also means a deliberate loop of refusals is
+  // unbounded by the allowance. This is what bounds it: four an hour against
+  // three dishes a month is room for a retry and a change of mind, and it is the
+  // only ceiling on calls there is. A ceiling on *calls* per month would need a
+  // row per request, which is the one thing this feature does not keep
+  // (`invariant-reviewer`, 2026-10-13; the trade is the owner's).
+  @RateLimit({ limit: 4, ttlSeconds: 3600 })
+  @Post('request')
+  async request(@CurrentUser() user: SessionUser, @ZodBody(RequestDishDto) body: RequestDishDto): Promise<FixableDishDto> {
+    return this.fixedMeals.request(user.id, body.weekday, body.slot, body.name);
   }
 
   @ApiNoContentResponse({ description: 'Removed. Plans already built with it keep the dish they were built with.' })

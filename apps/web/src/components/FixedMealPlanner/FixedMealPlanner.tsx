@@ -2,28 +2,38 @@
 import { Fragment, useId, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 import styles from './FixedMealPlanner.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
+import { MAX_DISH_REQUEST } from 'core/domain/DishRequest';
 import { Select, SelectOption } from 'ui/components/Select';
 import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
 import { Card } from 'components/Card';
 
-import { api, messageFor } from 'lib/api';
+import { api, ApiError, messageFor } from 'lib/api';
 import { interpolate } from 'lib/format';
 
 import type { CountedStanding } from 'core/domain/Allowance';
 import type { FixedMeal, Weekday } from 'core/entities/FixedMeal';
 import type { MealSlot } from 'core/entities/Plan';
+import type { NotFixable } from 'core/domain/FixableReason';
 
 /** A dish the API says can be fixed here. */
 type Fixable = { readonly name: string; readonly slug: string };
 
+/** A dish the library has that this person is not offered, and why (report `0011` § 2). */
+type NotOffered = { readonly actionable: boolean; readonly name: string; readonly slug: string; readonly why: NotFixable };
+
 type FixedMealPlannerProps = {
+  /** The minutes they said they can cook, so "it takes longer" can say longer than what. Null only if the answer is missing. */
+  readonly cookingMinutes: number | null;
+  /** What is left of this month's dish requests — the second half of this screen (report `0011` § 4 a). */
+  readonly dishRequests: CountedStanding;
   readonly rules: readonly FixedMeal[];
   /** The slots this person actually eats; a meal they do not eat is not offered. */
   readonly slots: readonly MealSlot[];
@@ -40,6 +50,36 @@ const WEEKDAYS: readonly Weekday[] = [0, 1, 2, 3, 4, 5, 6];
  * screen are a real answer rather than an arbitrary prefix.
  */
 const PAGE = 8;
+
+/**
+ * How long after the last keystroke the screen asks *why* the search found
+ * nothing.
+ *
+ * Not free: the answer is assembled from this person's whole library, their
+ * safety profile and the day's targets, so it is one real request — never one
+ * per letter. Half a second is after typing has stopped and before the reader
+ * has decided the library does not have it.
+ */
+const EXPLAIN_AFTER_MS = 500;
+
+/**
+ * The same reason said once, with every dish it took under it.
+ *
+ * Three dishes of the same name are usually refused for the same thing — the
+ * owner's search returned three, all of them too slow — and a reason repeated
+ * three times with its own link three times is a wall where one sentence and one
+ * way forward would do. `Map` keeps the order the API ranked them in, which puts
+ * what somebody can act on first.
+ */
+function grouped(found: readonly NotOffered[]): readonly { readonly names: readonly string[]; readonly why: NotFixable }[] {
+  const byReason = new Map<NotFixable, string[]>();
+
+  for (const each of found) {
+    byReason.set(each.why, [...(byReason.get(each.why) ?? []), each.name]);
+  }
+
+  return [...byReason].map(([why, names]) => ({ names, why }));
+}
 
 /** Lower-cased and without accents, for a search that matches what a phone keyboard types. */
 function plain(text: string): string {
@@ -63,8 +103,15 @@ function plain(text: string): string {
  * It is one rule per weekday, and a day already taken is not offered: the
  * database refuses a second one, and being refused after a tap is a worse way
  * to learn a rule than not being offered the day.
+ *
+ * **A search that finds nothing now says why** (report `0011`). The owner searched for
+ * *patatas a la riojana*, a dish his library has, and the screen showed him a
+ * shorter list and said nothing: the dish took 50 minutes against a profile
+ * that said 30. Three things answer that silence, in this order — the reasons
+ * the library itself gives, the field that asks us to write the dish, and the
+ * sentence that says asking is premium.
  */
-export function FixedMealPlanner({ rules, slots, standing }: FixedMealPlannerProps) {
+export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, standing }: FixedMealPlannerProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const t = dictionary.fixedMeals;
@@ -76,9 +123,19 @@ export function FixedMealPlanner({ rules, slots, standing }: FixedMealPlannerPro
   const [fixable, setFixable] = useState<readonly Fixable[]>();
   const [query, setQuery] = useState('');
   const [shown, setShown] = useState(PAGE);
+  const [reasons, setReasons] = useState<readonly NotOffered[]>();
+  /** The name asked of us — the query until somebody edits it, and then their own words. */
+  const [wish, setWish] = useState<string>();
+  const [asked, setAsked] = useState<string>();
+  const [asking, setAsking] = useState(false);
+  /** Kept apart from the card's own error: this one belongs under the button that caused it. */
+  const [askProblem, setAskProblem] = useState<string>();
   const [pending, setPending] = useState(false);
   const [outcome, setOutcome] = useState<'added' | 'removed'>();
   const [error, setError] = useState<string>();
+  const explaining = useRef<ReturnType<typeof setTimeout>>(undefined);
+  /** What the search field holds right now, to tell a late answer from the current question. */
+  const typed = useRef('');
 
   const taken = new Set(rules.map(rule => rule.weekday));
   const free = WEEKDAYS.filter(day => !taken.has(day));
@@ -88,6 +145,11 @@ export function FixedMealPlanner({ rules, slots, standing }: FixedMealPlannerPro
   // library that does not have it.
   const needle = plain(query);
   const matching = needle === '' ? (fixable ?? []) : (fixable ?? []).filter(candidate => plain(candidate.name).includes(needle));
+  const wished = (wish ?? query).trim();
+  // The library has nothing for them here: either nothing fits this meal at all,
+  // or they searched for something it does not have. Both end in the same place.
+  const missing =
+    Boolean(weekday) && Boolean(slot) && fixable !== undefined && !chosen && (fixable.length === 0 || (needle.length >= 3 && matching.length === 0));
 
   // As `VacationPlanner`: the button that was pressed disables itself while the
   // request is out, and a disabled element cannot hold focus, so without this
@@ -101,11 +163,17 @@ export function FixedMealPlanner({ rules, slots, standing }: FixedMealPlannerPro
 
   /** Asked again whenever the day or the meal changes: the answer depends on both. */
   async function offer(nextWeekday: string, nextSlot: string) {
+    clearTimeout(explaining.current);
     setDish('');
     setFixable(undefined);
     setQuery('');
     setShown(PAGE);
+    setReasons(undefined);
+    setWish(undefined);
+    setAsked(undefined);
+    setAskProblem(undefined);
     setError(undefined);
+    typed.current = '';
 
     if (!nextWeekday || !nextSlot) {
       return;
@@ -119,6 +187,116 @@ export function FixedMealPlanner({ rules, slots, standing }: FixedMealPlannerPro
       setError(messageFor(caught, dictionary));
     } finally {
       setPending(false);
+    }
+  }
+
+  /** Every keystroke in the search, and the one request a pause in it is worth. */
+  function searched(value: string) {
+    setQuery(value);
+    setShown(PAGE);
+    setReasons(undefined);
+    typed.current = value;
+    clearTimeout(explaining.current);
+
+    if (plain(value).length >= 3) {
+      explaining.current = setTimeout(() => void explain(value), EXPLAIN_AFTER_MS);
+    }
+  }
+
+  /**
+   * Why the library's own dishes of that name are not offered here.
+   *
+   * Only ever asked when the offered list answered nothing, which is the state
+   * that used to say nothing at all.
+   */
+  async function explain(value: string) {
+    const wanted = plain(value);
+
+    if ((fixable ?? []).some(candidate => plain(candidate.name).includes(wanted))) {
+      return;
+    }
+
+    try {
+      // A read, sent as a POST: what somebody typed goes in the body, because a
+      // query string reaches the platform's access log and that log is not ours
+      // to redact.
+      const found = await api<readonly NotOffered[]>('/fixed-meals/not-offered', {
+        body: { query: value, slot, weekday: Number(weekday) },
+        method: 'POST'
+      });
+
+      // An answer for "rioja" can land after "riojana" is on screen, and the
+      // field is the only thing that says which question is still open.
+      if (plain(typed.current) === wanted) {
+        setReasons(found);
+      }
+    } catch {
+      // An explanation is not the feature. If it cannot be had, the screen is
+      // what it was before this existed — an alert about a missing reason would
+      // be louder than the thing it explains.
+    }
+  }
+
+  /**
+   * Asks us to write a dish the library does not have.
+   *
+   * What goes out is the field below and nothing else: no profile, no health,
+   * no plan. The notice beside it says so, because this is the one field in the
+   * product whose content a model reads.
+   */
+  async function ask() {
+    if (wished.length === 0) {
+      return;
+    }
+
+    setAsking(true);
+    setAsked(undefined);
+    setAskProblem(undefined);
+    setOutcome(undefined);
+
+    try {
+      const written = await api<Fixable>('/fixed-meals/request', { body: { name: wished, slot, weekday: Number(weekday) }, method: 'POST' });
+
+      // Into the same list the picker chooses from, and chosen: the dish exists
+      // now, and the press that fixes it is the one that was always there.
+      setFixable([...(fixable ?? []), written].sort((a, b) => a.name.localeCompare(b.name)));
+      setDish(written.slug);
+      setReasons(undefined);
+      setWish(undefined);
+      setAsked(written.name);
+      // What is left of the month is a server prop, and one was just spent.
+      router.refresh();
+    } catch (caught) {
+      setAskProblem(askError(caught));
+    } finally {
+      setAsking(false);
+    }
+  }
+
+  /**
+   * The three refusals this call has of its own.
+   *
+   * None of them is the generic sentence: "nothing came back" is not a
+   * conflict to the reader, and a spent month is not the same as a spent
+   * fortnight. Everything else falls through to the shared copy.
+   */
+  function askError(caught: unknown): string {
+    if (!(caught instanceof ApiError)) {
+      return messageFor(caught, dictionary);
+    }
+
+    switch (caught.code) {
+      case 'CONFLICT':
+        return t.askNothing;
+
+      case 'INVALID_INPUT':
+        return t.askNotAName;
+
+      case 'QUOTA_EXCEEDED':
+        return interpolate(t.askSpent, { limit: dishRequests.limit });
+
+      default:
+        return messageFor(caught, dictionary);
     }
   }
 
@@ -136,6 +314,10 @@ export function FixedMealPlanner({ rules, slots, standing }: FixedMealPlannerPro
       setFixable(undefined);
       setQuery('');
       setShown(PAGE);
+      setReasons(undefined);
+      setWish(undefined);
+      setAsked(undefined);
+      setAskProblem(undefined);
       settle('added');
     } catch (caught) {
       setError(messageFor(caught, dictionary));
@@ -157,6 +339,36 @@ export function FixedMealPlanner({ rules, slots, standing }: FixedMealPlannerPro
     } finally {
       setPending(false);
     }
+  }
+
+  /**
+   * Where a reason a person can act on is acted on: the onboarding step that
+   * owns that field, as the profile's own edit links point at it.
+   *
+   * Three of the four actionable reasons have a field behind them. The fourth —
+   * `too_big_or_small` — has none: the way forward is another meal, and its own
+   * sentence says so. The other three are statements, and a link under a
+   * refusal would read as a way round it.
+   */
+  function wayForward(why: NotFixable): { readonly href: string; readonly label: string } | undefined {
+    switch (why) {
+      case 'disliked':
+        return { href: '/onboarding/5?volver=perfil', label: t.reasonFix.disliked };
+
+      case 'excluded':
+        return { href: '/onboarding/6?volver=perfil', label: t.reasonFix.excluded };
+
+      case 'too_slow':
+        return { href: '/onboarding/7?volver=perfil', label: t.reasonFix.too_slow };
+
+      default:
+        return undefined;
+    }
+  }
+
+  /** `too_slow` is the only reason that names a number, and it names the one they wrote. */
+  function sentenceFor(why: NotFixable): string {
+    return why === 'too_slow' && cookingMinutes !== null ? interpolate(t.tooSlowMinutes, { minutes: cookingMinutes }) : t.reasons[why];
   }
 
   return (
@@ -282,10 +494,7 @@ export function FixedMealPlanner({ rules, slots, standing }: FixedMealPlannerPro
                     autoComplete="off"
                     hint={interpolate(fixable.length === 1 ? t.countOne : t.count, { count: fixable.length })}
                     label={t.dish}
-                    onChange={event => {
-                      setQuery(event.target.value);
-                      setShown(PAGE);
-                    }}
+                    onChange={event => searched(event.target.value)}
                     placeholder={t.searchPlaceholder}
                     type="search"
                     value={query}
@@ -321,10 +530,128 @@ export function FixedMealPlanner({ rules, slots, standing }: FixedMealPlannerPro
             </div>
           ) : null}
 
+          {/* What the silence used to be: the dishes of that name the library
+              does have, each with the one thing standing between them and this
+              meal — and, for the three that are a field somebody filled in, the
+              way back to that field. */}
+          {missing && reasons && reasons.length > 0 ? (
+            <div className={styles.why}>
+              <Text aria-live="polite" role="status" size="xs" tone="tertiary">
+                {interpolate(reasons.length === 1 ? t.whyCountOne : t.whyCount, { count: reasons.length })}
+              </Text>
+              <ul className={styles.reasons}>
+                {grouped(reasons).map(group => {
+                  const fix = wayForward(group.why);
+
+                  return (
+                    <li className={styles.reason} key={group.why}>
+                      <ul className={styles.named}>
+                        {group.names.map(name => (
+                          <li className={styles.rule} key={name}>
+                            {name}
+                          </li>
+                        ))}
+                      </ul>
+                      <Text as="span" size="xs" tone="secondary">
+                        {sentenceFor(group.why)}
+                      </Text>
+                      {fix ? (
+                        <Link className={styles.fix} href={fix.href}>
+                          {fix.label}
+                        </Link>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : null}
+
+          {missing ? (
+            <div className={styles.ask}>
+              <h4 className={styles.askTitle}>{t.askTitle}</h4>
+
+              {dishRequests.allowed ? (
+                <Fragment>
+                  <Text size="xs" tone="secondary">
+                    {t.askIntro}
+                  </Text>
+
+                  <Input
+                    autoComplete="off"
+                    label={t.askLabel}
+                    maxLength={MAX_DISH_REQUEST}
+                    onChange={event => setWish(event.target.value)}
+                    // Enter here asks for the dish; it does not fix a meal that
+                    // has not been chosen yet. The form's own button is still
+                    // the only way to do that.
+                    onKeyDown={event => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        void ask();
+                      }
+                    }}
+                    placeholder={t.askPlaceholder}
+                    type="text"
+                    value={wish ?? query}
+                  />
+
+                  {/* Beside the field whose content leaves the product, not at
+                      the top of a card somebody scrolled past. It is a standing
+                      sentence and not a hint: a hint disappears the moment
+                      there is text in the field. */}
+                  <Text className={styles.notice} size="xs" tone="secondary">
+                    {t.askNotice}
+                  </Text>
+
+                  {/* Secondary on purpose: this card's primary action is
+                      fixing the meal, and two filled buttons in one card leave
+                      a reader to work out which one is the point. */}
+                  <Button
+                    className={styles.askButton}
+                    disabled={asking || pending || wished.length === 0}
+                    loading={asking}
+                    onClick={() => void ask()}
+                    type="button"
+                    variant="secondary"
+                  >
+                    {t.ask}
+                  </Button>
+
+                  {askProblem ? (
+                    <Text className={styles.error} role="alert" size="xs">
+                      {askProblem}
+                    </Text>
+                  ) : null}
+
+                  <Text size="xs" tone="tertiary">
+                    {interpolate(dishRequests.remaining === 1 ? t.askLeftOne : t.askLeft, {
+                      limit: dishRequests.limit,
+                      remaining: dishRequests.remaining
+                    })}
+                  </Text>
+                </Fragment>
+              ) : (
+                <Text size="xs" tone="tertiary">
+                  {/* A tier that was never allowed any is a different sentence
+                      from a month that has spent them all. Told before anybody
+                      types a name, not after. */}
+                  {dishRequests.limit === 0 ? t.askPremium : interpolate(t.askSpent, { limit: dishRequests.limit })}
+                </Text>
+              )}
+            </div>
+          ) : null}
+
           <Button disabled={pending || !weekday || !slot || !dish} loading={pending} type="submit">
             {t.add}
           </Button>
         </form>
+      ) : null}
+
+      {asked ? (
+        <Text role="status" size="sm" tone="secondary">
+          {interpolate(t.asked, { name: asked })}
+        </Text>
       ) : null}
 
       {outcome ? (

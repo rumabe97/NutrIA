@@ -1,8 +1,16 @@
 import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 
-import { ConflictError, InputParseError } from 'core/entities/Error';
 import { daysFor } from 'core/entities/FixedMeal';
 import { DEFAULT_MEAL_SHAPE, proteinWeightsFor, slotsIn, weightsFor } from 'core/domain/MealShape';
+import { actionable, whyNotFixable } from 'core/domain/FixableReason';
+import { ConflictError, InputParseError, QuotaExceededError } from 'core/entities/Error';
+import { DishRequestController } from 'core/controllers/DishRequest';
+import { dishVocabulary, MAX_DISH_REQUEST, storableName, storableProse, typedName } from 'core/domain/DishRequest';
+import { HealthController } from 'core/controllers/Health';
+import { UserController } from 'core/controllers/User';
+import { PoolBuilder } from '../../ai/services/PoolBuilder.service.js';
+import { promptPreferences, toRecipeDraft } from '../../meal-plans/services/GenerationShared.js';
 import { FixedMealController } from 'core/controllers/FixedMeal';
 import { larderFor } from 'core/domain/Accompaniment';
 import { minimumDailyKcal } from 'core/domain/Nutrition';
@@ -15,9 +23,21 @@ import { SettingsController } from 'core/controllers/Settings';
 import type { AddFixedMeal, FixedMeal, Weekday } from 'core/entities/FixedMeal';
 import type { CandidateDish, MealSlot } from 'core/entities/Plan';
 import type { FixedMealsView } from 'core/controllers/FixedMeal';
+import type { NotFixable } from 'core/domain/FixableReason';
 
 /** A dish a person could fix to a slot, as the picker lists them. */
 export type FixableDish = { readonly id: string; readonly name: string; readonly slug: string };
+
+/**
+ * A dish the library has and the person was not offered, with the reason
+ * (report `0011` § 2).
+ *
+ * `actionable` is on the wire rather than left to the screen to infer: whether a
+ * reason is something somebody can do about it decides whether they are shown a
+ * way forward or told no, and that is a judgement the domain already made
+ * (`FixableReason`). Two places deciding it is how they come to disagree.
+ */
+export type NotOfferedDish = { readonly actionable: boolean; readonly name: string; readonly slug: string; readonly why: NotFixable };
 
 /**
  * Standing fixed meals: which dishes can be fixed, and the rules themselves
@@ -43,8 +63,25 @@ export type FixableDish = { readonly id: string; readonly name: string; readonly
  * `reusablePool` with no rotation — because a picker that spent a generation's
  * worth of model calls to list dishes would be a picker nobody could open twice.
  */
+/** How many reasons are worth showing at once; the list is sorted so the useful ones are first. */
+const NOT_OFFERED_SHOWN = 5;
+
+/** Lower-cased and unaccented, as the picker's own search is. */
+function plain(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+/** How many dishes the model is asked for when somebody requests one: the first that fits is taken. */
+const REQUEST_CANDIDATES = 3;
+
 @Injectable()
 export class FixedMealsService {
+  constructor(private readonly pool: PoolBuilder) {}
+
   /** Fixes a meal, after checking the dish is one this person could actually be served there. */
   async add(userId: string, rule: AddFixedMeal): Promise<FixedMeal> {
     const offered = await this.fixable(userId, rule.weekday, rule.slot);
@@ -72,6 +109,32 @@ export class FixedMealsService {
    * season — then `pinnable` answers.
    */
   async fixable(userId: string, weekday: Weekday, slot: MealSlot): Promise<readonly FixableDish[]> {
+    return (await this.offerFor(userId, weekday, slot)).offered;
+  }
+
+  /**
+   * Everything the two questions share: what this person may be served, and the
+   * dishes `pinnable` offers for that day and meal.
+   *
+   * One assembly rather than two, because "what is offered" and "why this one is
+   * not" have to be answers to the same question — computed apart they can
+   * disagree, and the second's whole job is to explain the first.
+   */
+  private async offerFor(
+    userId: string,
+    weekday: Weekday,
+    slot: MealSlot
+  ): Promise<{
+    readonly context: Awaited<ReturnType<typeof RecipeController.generationContext>>;
+    readonly dayIndex: number | undefined;
+    readonly input: Parameters<typeof pinnable>[0] | undefined;
+    /** Everything the library holds for these slots, from the same read the pool came out of. */
+    readonly library: readonly CandidateDish[];
+    readonly offered: readonly FixableDish[];
+    readonly profile: Awaited<ReturnType<typeof ProfileController.getFullProfile>>;
+    readonly slots: readonly MealSlot[];
+    readonly verdicts: Awaited<ReturnType<typeof RecipeController.verdicts>>;
+  }> {
     const [profile, context, allowances, verdicts] = await Promise.all([
       ProfileController.getFullProfile(userId),
       RecipeController.generationContext(userId),
@@ -94,12 +157,17 @@ export class FixedMealsService {
     // next — `defaultStart` is the day the chooser offers first (project 015).
     const [dayIndex] = daysFor(weekday, allowances.defaultStart, PLAN_DAYS);
 
+    // One read for both: the dishes this person may be served and everything the
+    // library holds for those slots. Asked apart they were the same thousand
+    // recipes read twice, on every pause in somebody's typing.
+    const { library, pool: servable } = await RecipeController.libraryAndPool(slots, context);
+
     if (dayIndex === undefined) {
-      return [];
+      return { context, dayIndex: undefined, input: undefined, library, offered: [], profile, slots, verdicts };
     }
 
     const disliked = new Set(verdicts.disliked.map(dish => dish.slug));
-    const pool = (await RecipeController.reusablePool(slots, context)).filter(dish => !disliked.has(dish.slug));
+    const pool = servable.filter(dish => !disliked.has(dish.slug));
     const start = new Date(`${allowances.defaultStart}T00:00:00Z`);
 
     const monthOf = (index: number): number => {
@@ -114,24 +182,197 @@ export class FixedMealsService {
       ? { accompaniments: { larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }), monthOf } }
       : {};
 
-    const offered = pinnable(
-      {
-        ...sides,
-        catalogue: context.catalogue,
-        minimumKcal: minimumDailyKcal(profile.profile?.sex ?? 'prefer_not_to_say'),
-        monthOf,
-        pool,
-        proteinWeights: proteinWeightsFor(profile.goal?.type, weightsFor(shape)),
-        targets: profile.targets.effective,
-        weights: weightsFor(shape)
-      },
-      dayIndex,
-      slot
-    );
+    const input = {
+      ...sides,
+      catalogue: context.catalogue,
+      minimumKcal: minimumDailyKcal(profile.profile?.sex ?? 'prefer_not_to_say'),
+      monthOf,
+      pool,
+      proteinWeights: proteinWeightsFor(profile.goal?.type, weightsFor(shape)),
+      targets: profile.targets.effective,
+      weights: weightsFor(shape)
+    };
+    const offered = pinnable(input, dayIndex, slot);
 
-    return [...offered]
-      .map((dish: CandidateDish) => ({ id: dish.slug, name: dish.name, slug: dish.slug }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    return {
+      context,
+      dayIndex,
+      input,
+      library,
+      offered: [...offered]
+        .map((dish: CandidateDish) => ({ id: dish.slug, name: dish.name, slug: dish.slug }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      profile,
+      slots,
+      verdicts
+    };
+  }
+
+  /**
+   * Dishes the library has, matching what somebody searched for, that are **not**
+   * offered for this slot — each with the reason (report `0011` § 2).
+   *
+   * The defect it exists for: the owner searched for a dish his library has and
+   * the screen showed him a shorter list and said nothing. It was excluded for
+   * taking 50 minutes against a profile that said 30 — one of four reasons a
+   * person can act on in two taps.
+   *
+   * Only ever asked for a query somebody typed, and only for what the offered
+   * list did not already answer, so the cost is a search over a library already
+   * in memory for the fixable call that preceded it.
+   */
+  async notOffered(userId: string, weekday: Weekday, slot: MealSlot, query: string): Promise<readonly NotOfferedDish[]> {
+    const needle = plain(query);
+
+    if (needle.length < 3) {
+      // Below three letters every dish matches and the answer says nothing.
+      return [];
+    }
+
+    const { context, library, offered, verdicts } = await this.offerFor(userId, weekday, slot);
+    const offeredSlugs = new Set(offered.map(dish => dish.slug));
+    const seen = new Set<string>();
+    const reasons: NotOfferedDish[] = [];
+
+    for (const dish of library) {
+      if (offeredSlugs.has(dish.slug) || seen.has(dish.slug) || !plain(dish.name).includes(needle)) {
+        continue;
+      }
+
+      seen.add(dish.slug);
+
+      const verdict = whyNotFixable(
+        dish,
+        slot,
+        {
+          catalogue: context.catalogue,
+          disliked: new Set(verdicts.disliked.map(each => each.slug)),
+          maxMinutes: context.preferences.maxMinutesPerDish,
+          safety: context.safety
+        },
+        RecipeController.excludes({ ...dish, cuisine: dish.cuisine ?? null }, context),
+        false
+      );
+
+      if (!verdict.fixable) {
+        reasons.push({ actionable: actionable(verdict.why), name: dish.name, slug: dish.slug, why: verdict.why });
+      }
+    }
+
+    // The ones they can do something about first: a screen that leads with a
+    // refusal buries the two taps that would have fixed it.
+    return reasons.sort((a, b) => Number(b.actionable) - Number(a.actionable) || a.name.localeCompare(b.name)).slice(0, NOT_OFFERED_SHOWN);
+  }
+
+  /**
+   * Asks the model for a dish the library does not have, and stores it if what
+   * comes back is a dish (report `0011` § 4 a).
+   *
+   * **The only place a person's words reach a model**, under the five conditions
+   * in `docs/legal/analysis.md` ("P0-3's status at 2026-10-13"). What they typed
+   * goes to the prompt and nowhere else: it is never stored, never logged, never
+   * put in an error, and never reaches the picture call. The name the model
+   * writes back is gated by `storableName` before anything is kept, because the
+   * library is shared and a dish's name travels verbatim to Google when its
+   * picture is drawn.
+   *
+   * **Checked against the same gates as everything else**, by handing the
+   * candidate to `pinnable` rather than to a second idea of what fits: a
+   * requested dish earns its place exactly as a library one does, or it does not
+   * get one.
+   *
+   * The allowance is read twice: once before the call, so nobody pays for a
+   * request that cannot be honoured, and again inside the lock that stores the
+   * dish — which is where it actually binds.
+   */
+  async request(userId: string, weekday: Weekday, slot: MealSlot, name: string): Promise<FixableDish> {
+    const asked = name.trim();
+
+    if (!typedName(asked)) {
+      throw new InputParseError('Write the name of a dish', { name: [`one line, no quotes, up to ${MAX_DISH_REQUEST} characters`] });
+    }
+
+    if (!(await DishRequestController.standing(userId)).allowed) {
+      // Before the call, so nobody spends money on a request that cannot end in
+      // a dish. It is read again inside the lock, which is where it binds.
+      throw new QuotaExceededError('dish_request');
+    }
+
+    const { context, dayIndex, input, library, profile } = await this.offerFor(userId, weekday, slot);
+
+    if (!input || dayIndex === undefined) {
+      throw new ConflictError('That meal does not fall in the fortnight you would generate next');
+    }
+
+    const built = await this.pool.build({
+      context,
+      feature: 'dish_request',
+      libraryUsage: await RecipeController.libraryUsage([slot], context),
+      needPerSlot: REQUEST_CANDIDATES,
+      preferences: promptPreferences(
+        profile,
+        await RecipeController.verdicts(userId),
+        [],
+        input.targets,
+        (await PlanController.allowances(userId)).defaultStart,
+        null,
+        null,
+        [],
+        // The one field a person writes into. It reaches here and stops here.
+        asked
+      ),
+      reusable: [],
+      // Never the account's id: a session label reaches a log line and, behind a
+      // gateway, a provider's own log, where an id would be a per-account
+      // correlator. Every other caller labels an entity (a job, a meal, a
+      // recipe) and a request has none, so this is random.
+      session: `dish-request:${randomUUID()}`,
+      slots: [slot]
+    });
+
+    const vocabulary = dishVocabulary(
+      context.catalogue,
+      library.map(dish => dish.name)
+    );
+    const health = await HealthController.get(userId);
+    const person = {
+      // Checked exactly, whatever the vocabulary says: a word that is somebody's
+      // condition or medication must not come back as the name of their dinner.
+      health: [
+        ...health.conditions.map(each => each.label),
+        ...health.medications.map(each => each.name),
+        ...health.supplements.map(each => each.name)
+      ],
+      name: (await UserController.getUser({ id: userId })).name
+    };
+
+    for (const candidate of built.generated) {
+      // The same gate the offered list uses, on a pool of exactly this dish.
+      if (pinnable({ ...input, pool: [candidate] }, dayIndex, slot).length === 0) {
+        continue;
+      }
+
+      if (!storableName(candidate.name, vocabulary, person).ok) {
+        // The model echoed the request into the name, or wrote something that is
+        // not a dish's name. Nothing is stored: the library is shared and the
+        // name goes to Google with the picture.
+        continue;
+      }
+
+      if (!storableProse([...candidate.steps.flatMap(step => [step.text, step.cue ?? '']), candidate.cuisine ?? ''], person).ok) {
+        // The name is a tenth of what is stored. The method is written by the
+        // same model under a prompt quoting the person's words, and it is kept
+        // verbatim in the same shared row — so it is read by the same gate
+        // (`invariant-reviewer`, 2026-10-13).
+        continue;
+      }
+
+      await DishRequestController.store(userId, toRecipeDraft(candidate, context), context.locale);
+
+      return { id: candidate.slug, name: candidate.name, slug: candidate.slug };
+    }
+
+    throw new ConflictError('No dish we could serve came back for that');
   }
 
   async remove(userId: string, id: string): Promise<void> {

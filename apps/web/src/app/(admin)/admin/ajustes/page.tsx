@@ -56,6 +56,7 @@ export default async function AdminSettingsPage() {
     { cost: limits.costEvents, label: limits.labelEvents, name: 'eventsPerPlan', why: limits.whyEvents },
     { cost: limits.costMidPlan, label: limits.labelMidPlan, name: 'midPlanEventsPerPlan', why: limits.whyMidPlan },
     { cost: limits.costFixedMeals, label: limits.labelFixedMeals, name: 'fixedMeals', why: limits.whyFixedMeals },
+    { cost: limits.costDishRequests, label: limits.labelDishRequests, name: 'dishRequestsPerMonth', why: limits.whyDishRequests },
     { cost: limits.costRedos, label: limits.labelRedos, name: 'planRedosPerFortnight', why: limits.whyRedos }
   ] as const;
 

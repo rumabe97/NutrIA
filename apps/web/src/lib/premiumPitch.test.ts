@@ -7,8 +7,8 @@ import { pitchValues, premiumPitch } from './premiumPitch';
 import type { PitchAllowances } from './premiumPitch';
 
 const ALLOWANCES: PitchAllowances = {
-  free: { eventsPerPlan: 3, fixedMeals: 1, mealSwapsPerPlan: 5, midPlanEventsPerPlan: 0, planRedosPerFortnight: 1 },
-  premium: { eventsPerPlan: 7, fixedMeals: 3, mealSwapsPerPlan: 20, midPlanEventsPerPlan: 3, planRedosPerFortnight: 3 }
+  free: { dishRequestsPerMonth: 0, eventsPerPlan: 3, fixedMeals: 1, mealSwapsPerPlan: 5, midPlanEventsPerPlan: 0, planRedosPerFortnight: 1 },
+  premium: { dishRequestsPerMonth: 3, eventsPerPlan: 7, fixedMeals: 3, mealSwapsPerPlan: 20, midPlanEventsPerPlan: 3, planRedosPerFortnight: 3 }
 };
 
 const PITCHES = [

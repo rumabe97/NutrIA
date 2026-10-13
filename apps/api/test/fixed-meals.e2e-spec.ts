@@ -18,12 +18,19 @@ import type { Response } from 'supertest';
  * boundary, and that a plan generated afterwards really serves that dish on
  * that day.
  *
- * **The free tier's number is hard-coded here**, as `events-premium` hard-codes
- * premium's: a change to what a tier allows is a change to this file too.
+ * **The free tier's numbers are hard-coded here**, as `events-premium`
+ * hard-codes premium's: a change to what a tier allows is a change to this file
+ * too. Both of the screen's allowances are read here, because `GET /fixed-meals`
+ * answers with both (`0011` § 4 a) — a free account may fix one meal and ask for
+ * no dish at all, and it has to be told the second before it types a name.
+ * `dish-request.e2e-spec.ts` is where asking for one is proved.
  *
  * Requires a real database and a seeded catalogue — see ./README.md.
  */
 const FIXED_MEALS_FREE = 1;
+const DISH_REQUESTS_FREE = 0;
+/** What a free account's dish requests always read: none, none left, not allowed. */
+const NO_DISH_REQUESTS = { allowed: false, limit: DISH_REQUESTS_FREE, remaining: DISH_REQUESTS_FREE, used: 0 };
 
 /** 0 is Monday, as `weekdayOf` counts (`core/entities/FixedMeal`). */
 function weekdayOf(isoDate: string): number {
@@ -69,8 +76,9 @@ describe('fixed meals', () => {
     await app?.close();
   });
 
-  it('starts with no rules and the free tier’s allowance', async () => {
+  it('starts with no rules and the free tier’s allowances', async () => {
     expect(await standing(account)).toEqual({
+      dishRequests: NO_DISH_REQUESTS,
       rules: [],
       standing: { allowed: true, limit: FIXED_MEALS_FREE, remaining: FIXED_MEALS_FREE, used: 0 }
     });
@@ -179,6 +187,7 @@ describe('fixed meals', () => {
     await request(httpServer(app)).delete(`/${PREFIX}/fixed-meals/${rule?.id}`).set('Cookie', account.cookie).expect(204);
 
     expect(await standing(account)).toEqual({
+      dishRequests: NO_DISH_REQUESTS,
       rules: [],
       standing: { allowed: true, limit: FIXED_MEALS_FREE, remaining: FIXED_MEALS_FREE, used: 0 }
     });

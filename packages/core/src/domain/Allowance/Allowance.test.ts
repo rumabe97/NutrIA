@@ -102,6 +102,7 @@ describe('allowancesFor', () => {
     expect(allowancesFor('premium').eventsPerPlan).toBeGreaterThan(allowancesFor('free').eventsPerPlan);
     expect(allowancesFor('premium').midPlanEventsPerPlan).toBeGreaterThan(allowancesFor('free').midPlanEventsPerPlan);
     expect(allowancesFor('premium').fixedMeals).toBeGreaterThan(allowancesFor('free').fixedMeals);
+    expect(allowancesFor('premium').dishRequestsPerMonth).toBeGreaterThan(allowancesFor('free').dishRequestsPerMonth);
   });
 
   /*
@@ -291,6 +292,18 @@ describe('ALLOWANCE_BOUNDS', () => {
    * from the list is one the console cannot move and `resolveAllowances`
    * ignores every row for — a limit that silently cannot be configured.
    */
+  /*
+   * `0097` again: zero is a value and not an absence. Free has none of this one
+   * on purpose — free is the population that scales, and a request costs money
+   * every time it succeeds — so the resolution must not quietly raise it, and
+   * the premium-never-below-free rule must not read 0 as "unset".
+   */
+  it('keeps free at none where that is the shipped answer, and does not read it as unset', () => {
+    expect(allowancesFor('free').dishRequestsPerMonth).toBe(0);
+    expect(resolveAllowances().free.dishRequestsPerMonth).toBe(0);
+    expect(resolveAllowances([{ name: 'dishRequestsPerMonth', tier: 'premium', value: 0 }]).premium.dishRequestsPerMonth).toBe(0);
+  });
+
   it('registers every allowance, so none is unmovable from the console', () => {
     expect([...ALLOWANCE_NAMES].sort()).toEqual(Object.keys(ALLOWANCES).sort());
     expect([...ALLOWANCE_NAMES].sort()).toEqual(Object.keys(ALLOWANCE_BOUNDS).sort());

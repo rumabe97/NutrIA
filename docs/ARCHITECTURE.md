@@ -342,9 +342,19 @@ Spanish) orders the library pick, and is kept out of the prompt's list of liked 
 **Health data is collected as health data, or not at all.** Conditions, medications and
 supplements live in their own tables under an explicit, versioned consent
 (`HEALTH_CONSENT_VERSION`); withdrawing deletes the rows and the consent in one
-transaction. They are fetched only by the screen that shows them — `/profile` — and are
+transaction. They are fetched by the screen that shows them — `/profile` — and are
 deliberately absent from `FullProfileView`, which the dashboard also loads. A medication
 has no business travelling to a screen that does not display it.
+
+There is **one other reader, and it reads them to keep them in**: a dish request
+(`0100`) checks the name a model wrote against this account's own name and its health
+words, exactly, because the vocabulary gate could happen to know a word that is also
+somebody's condition. The words are compared and discarded in `FixedMealsService.request`
+and reach nothing else — in particular not `promptPreferences`, which builds the prompt a
+few lines above it. That proximity is the risk the invariant now carries: nothing
+mechanical stops a later edit passing them one function call further, which is why
+`health-boundary.spec.ts` drives that path and fails if a health word comes out the other
+side (`invariant-reviewer`, 2026-10-13).
 
 **Almost nothing reasons about any of it, and what does is signed off.** A condition may
 produce a dietary exclusion only through `CONDITION_EXCLUSIONS` in

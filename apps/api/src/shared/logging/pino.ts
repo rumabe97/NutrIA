@@ -28,7 +28,13 @@ export const REDACTED_PATHS = [
   'req.body.newPassword',
   'req.body.conditions',
   'req.body.medications',
-  'req.body.supplements'
+  'req.body.supplements',
+  // The two fields somebody types free text into (`0100`): the dish they ask us
+  // to write, and the search the ask field is pre-filled from. Listed here for
+  // the same reason as the three above — the night somebody turns body logging
+  // on to debug something.
+  'req.body.name',
+  'req.body.query'
 ] as const;
 
 /**

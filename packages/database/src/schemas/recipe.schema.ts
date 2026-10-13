@@ -20,6 +20,21 @@ export const recipes = pgTable(
   {
     id: uuid().primaryKey().defaultRandom(),
     cookMinutes: smallint().notNull().default(0),
+    /**
+     * When this recipe was written, for the rows that record it.
+     *
+     * **Nullable, and that is the honest shape**: the table never had this
+     * column, so every recipe written before 2026-10-13 has no answer and says
+     * so. Stamping them with the migration's own timestamp would have made the
+     * whole library look as though it were written the day the column arrived.
+     *
+     * It exists for one reader: the dish-request allowance, which is counted per
+     * calendar month from the rows that cost the money (`source: 'user'`) rather
+     * than from any record of what somebody asked for — which is what keeps the
+     * typed text stored nowhere (`docs/legal/analysis.md`, "P0-3's status at
+     * 2026-10-13", condition 2).
+     */
+    createdAt: timestamp({ withTimezone: true }).defaultNow(),
     createdBy: text().references(() => user.id, { onDelete: 'set null' }),
     cuisine: text(),
     description: text(),
@@ -62,6 +77,8 @@ export const recipes = pgTable(
   },
   table => [
     index('recipes_source_idx').on(table.source),
+    // The allowance reads (createdBy, source, createdAt) once per request.
+    index('recipes_requested_idx').on(table.createdBy, table.source, table.createdAt),
     index('recipes_cuisine_idx').on(table.cuisine),
     index('recipes_locale_idx').on(table.locale),
     // The rewriter's only query: everything not yet written by the current prompt.

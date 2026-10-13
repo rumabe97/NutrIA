@@ -27,6 +27,16 @@
  *   spends is the promise that every day lands inside 5% on all four macros,
  *   which is why it is the only `structural` number here. Free gets one so the
  *   feature can be tried before it is paid for.
+ * - **Dish requests** go from none to three a month (report `0011`, and the
+ *   `marketing` audit in `docs/reference/marketing/dish-requests.md`). Asking us
+ *   to write a dish the library does not have is the one thing here that spends
+ *   money every time it succeeds — about 0.04 $, of which 94–98% is the picture
+ *   the dish is then drawn with. Free gets none, and the reason is arithmetic
+ *   rather than meanness: free is the population that scales, and one request
+ *   per account at a hundred sign-ups a month is 4 $ a month for ever against a
+ *   10 $ pot that stops drawing for *everybody* when it runs out. Three is one
+ *   per standing fixed meal premium may hold, which is what makes it bind
+ *   exactly where the want is and keeps it from being another unreachable ten.
  * - **Mid-plan events** go from none to three. This is the one that is really
  *   sold: free declares an event and it applies at the next generation, which
  *   is what `0043` shipped; premium may add one to the fortnight *already under
@@ -42,6 +52,15 @@
 export type Tier = 'free' | 'premium';
 
 export type Allowances = {
+  /**
+   * Dishes a person may ask us to write, per calendar month (report `0011`).
+   *
+   * **Spent when a dish is stored, never when a request is made.** The output
+   * gate can refuse what the model writes back, and a rejection costs a
+   * twentieth of a success — so giving those away is nearly free, and it is what
+   * makes the number sayable: three a month is three dishes, not three tries.
+   */
+  readonly dishRequestsPerMonth: number;
   readonly eventsPerPlan: number;
   /** Standing weekly rules fixing one meal of one day (`0098`, `0099`). */
   readonly fixedMeals: number;
@@ -51,7 +70,7 @@ export type Allowances = {
 };
 
 const BY_TIER: Readonly<Record<Tier, Allowances>> = {
-  free: { eventsPerPlan: 3, fixedMeals: 1, mealSwapsPerPlan: 5, midPlanEventsPerPlan: 0, planRedosPerFortnight: 1 },
+  free: { dishRequestsPerMonth: 0, eventsPerPlan: 3, fixedMeals: 1, mealSwapsPerPlan: 5, midPlanEventsPerPlan: 0, planRedosPerFortnight: 1 },
   // Seven events and not ten: the eighth was never possible. A load is one to
   // three days and two events may not share one, so a fortnight admits seven —
   // `0044` named that rule as the bound and then wrote ten anyway. Nobody loses
@@ -62,12 +81,13 @@ const BY_TIER: Readonly<Record<Tier, Allowances>> = {
   // that refused nothing up to four (`0099`): it is the number the `marketing`
   // audit priced as worth paying for, and three standing rules still leave
   // eleven days of every fourteen to the planner.
-  premium: { eventsPerPlan: 7, fixedMeals: 3, mealSwapsPerPlan: 20, midPlanEventsPerPlan: 3, planRedosPerFortnight: 3 }
+  premium: { dishRequestsPerMonth: 3, eventsPerPlan: 7, fixedMeals: 3, mealSwapsPerPlan: 20, midPlanEventsPerPlan: 3, planRedosPerFortnight: 3 }
 };
 
 export type AllowanceName = keyof Allowances;
 
 export const ALLOWANCE_NAMES = [
+  'dishRequestsPerMonth',
   'eventsPerPlan',
   'fixedMeals',
   'mealSwapsPerPlan',
@@ -118,6 +138,12 @@ export type AllowanceLimits = {
  * is what a future change has to argue with.
  */
 export const ALLOWANCE_BOUNDS: Readonly<Record<AllowanceName, AllowanceLimits>> = {
+  dishRequestsPerMonth: {
+    ceiling: 6,
+    floor: 0,
+    kind: 'financial',
+    why: 'Six a month is every standing rule rewritten twice over, which is churn and not a routine; the money does not bound this one — at about 0.04 $ a stored dish, nearly all of it the picture, even six a month costs what a single redo’s pictures do.'
+  },
   eventsPerPlan: {
     ceiling: 7,
     floor: 0,
@@ -205,6 +231,7 @@ export function resolveAllowances(stored: readonly StoredAllowance[] = []): Read
   // 1
   const of = (tier: Tier, name: AllowanceName): number => believed.get(`${tier}:${name}`) ?? BY_TIER[tier][name];
   const free: Allowances = {
+    dishRequestsPerMonth: of('free', 'dishRequestsPerMonth'),
     eventsPerPlan: of('free', 'eventsPerPlan'),
     fixedMeals: of('free', 'fixedMeals'),
     mealSwapsPerPlan: of('free', 'mealSwapsPerPlan'),
@@ -215,6 +242,7 @@ export function resolveAllowances(stored: readonly StoredAllowance[] = []): Read
   const freeFinal: Allowances = { ...free, midPlanEventsPerPlan: Math.min(free.midPlanEventsPerPlan, free.eventsPerPlan) };
   // 2, against the free that actually applies
   const premium: Allowances = {
+    dishRequestsPerMonth: Math.max(of('premium', 'dishRequestsPerMonth'), freeFinal.dishRequestsPerMonth),
     eventsPerPlan: Math.max(of('premium', 'eventsPerPlan'), freeFinal.eventsPerPlan),
     fixedMeals: Math.max(of('premium', 'fixedMeals'), freeFinal.fixedMeals),
     mealSwapsPerPlan: Math.max(of('premium', 'mealSwapsPerPlan'), freeFinal.mealSwapsPerPlan),

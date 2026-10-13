@@ -41,6 +41,12 @@ export function pitchValues(allowances: PitchAllowances): Readonly<Record<string
   const { free, premium } = allowances;
 
   return {
+    /**
+     * Only ever beside "it only counts when a dish arrives". The digit is honest
+     * because a refused dish does not spend one, and the sentence that says so
+     * is what makes the number sayable at all (`marketing`, dish-requests).
+     */
+    dishRequests: premium.dishRequestsPerMonth,
     events: premium.eventsPerPlan,
     fixedMeals: premium.fixedMeals,
     freeEvents: free.eventsPerPlan,

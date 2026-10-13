@@ -151,6 +151,20 @@ nothing health-related and a test holds it (`health-boundary.spec.ts`). **A nuan
 does enter — coeliac disease takes gluten out of the catalogue and a protein supplement adds
 protein powder (`0052`) — the datum does not.
 
+**One exception since 2026-10-13, and it is the only one** (decision `0100`, report `0011` § 4 a;
+branch `a-dish-the-library-does-not-have`): when somebody asks for a dish the library does not
+have, **the name they typed** reaches the prompt — `PoolPrompt.ts:952-953`, as
+`THE PERSON ASKED FOR THIS DISH, IN THEIR OWN WORDS: "…"`, one line of at most 120 characters
+carrying no quote, no backtick and no newline (`typedName`). "Anything written by the person"
+above is otherwise still true: this is the one field, it is set only by
+`FixedMealsService.request`, and the allowed-keys test names it on purpose
+(`health-boundary.spec.ts:288`). It is **not** stored, logged, recorded or shown — it is a prompt
+input and stops there — and what the model writes back is gated before anything is kept, on the
+name and on the method alike. The conditions it rests on, the four breaches found and closed on
+the day, and why a dish name is not the free text P0-3 was about are in **P0-3's status at
+2026-10-13** below; the `/privacidad` sentences that carry it are the
+⟦petición-de-plato⟧ block of [`textos/02`](./textos/02-politica-privacidad.md).
+
 **Since 4.4.0** (`0067`) the prompt **also** stops receiving the shape and hours of the day —
 what time somebody wakes, sleeps and trains, `dayShapeOf` in
 `apps/api/src/modules/meal-plans/services/GenerationShared.ts:50-70` — and the budget and
@@ -635,6 +649,15 @@ chosen.**
   anonymously and never associated with your account or user ID". The model that classifies
   runs on Google Cloud (the sub-processor list, "NLP Categorization"). The public
   documentation offers no way to switch it off.
+- **Since 2026-10-13 a sampled request may carry words a person typed** (`0100`; § 1.3): the
+  dish name of a request. The published sentence — «sin nada que las ligue a nuestra cuenta ni a
+  ti» — stays true, and it is a claim about the **linkage**, which is what OpenRouter controls:
+  no account, no user id, no session header (`resolveCallSettings`, `ai.config.ts:320`). What is
+  no longer guaranteed is that the *content* of a sampled request holds nothing written by
+  anybody. What keeps that risk at a dish name is the notice at the field, not the sample's
+  anonymity — which is why the notice is a condition of the feature and not a nicety
+  (P0-3 at 2026-10-13, condition 5) **[lawyer]**: whether an anonymous topic label computed from
+  a prompt that may contain a person's words needs more than this notice.
 - It is not training and it does not retain the text, but it *is* **a use of its own** of a
   sample: the draft's sentence "without using them to train or for anything of their own"
   (variant A of [`textos/02`](./textos/02-politica-privacidad.md)) **would be false**.
@@ -869,6 +892,239 @@ free text written by the data subject (unresolved allergies → drop the candida
 or refuse to generate, the way a dish with unresolved ingredients is already refused; the
 check-in comment → use only the closed answers) and translate the way of eating into
 ingredient exclusions. Then, the policy (§ "Con quién compartimos").
+
+**P0-3's status at 2026-10-13 — a dish request reopens the fence, not the harm.** The owner
+asked (report `0011` § 4 a) whether somebody may type a dish name — *"tortilla de patata"* —
+and have the model write it. Nothing is built; this is the answer before it is.
+
+P0-3 had two prongs: **free text written by the data subject** × **providers that train or
+log**. The second prong is dead (`0064`: ZDR, `data_collection: 'deny'`, a closed provider
+list on the account and on every request, § 4.4). The first prong was never about typing as
+such: the three fields it named — free-text allergies (`PoolPrompt.ts:628`), the way of
+eating with halal/kosher (`:622`) and the check-in comment (`:268`) — are health, religion
+or a sentence about how a person felt. **"Tortilla de patata" is none of those.** So a dish
+name does not reopen the *harm* P0-3 named. It reopens P0-3's **fence**: the published
+sentence that closed it, and the test that holds it (`health-boundary.spec.ts`, "gives the
+prompt no field a typed text could live in"). Shipping the field without changing the text is
+a false published text — **P0 by this document's own scale** — not because of what is sent
+but because of what is promised.
+
+What makes a typed dish name different from the other data in the prompt is that it is an
+**open channel**: a field somebody can put anything into, including something about
+themselves, by accident or on purpose. The exposure is not mainly the model call. Measured in
+the code at `c38d316d`:
+
+- **The library is shared.** `recipes` is global — "Recipes are shared, not user-owned"
+  (`packages/database/src/schemas/recipe.schema.ts:13-17`) — `RecipeController.reusablePool`
+  serves it to every account filtered only by safety and locale
+  (`packages/core/src/controllers/Recipe/RecipeController.ts:953-982`), and `createdBy` is
+  provenance with `onDelete: 'set null'` (`recipe.schema.ts:23`), written as the requesting
+  user (`packages/core/src/repositories/Plan/PlanRepository.ts:1743`). A dish born from a
+  typed request therefore puts person-derived text **in front of every other user, for ever,
+  surviving the deletion of the account that asked for it**. If the typed string ever becomes
+  the stored name, this is art. 9 data disclosed to recipients the policy cannot name
+  (arts. 5.1.a, 9, 13.1.e) and an art. 17 erasure the product cannot honour — the P0 "sharing
+  it with someone not named". It is a far larger exposure than the transfer to a ZDR provider.
+- **The picture path reaches Google.** `buildPicturePrompt` embeds the recipe's name verbatim
+  (`packages/core/src/domain/DishPicture/prompt.test.ts:24`) and the request goes OpenRouter →
+  **Google (Vertex AI)** plus the DeepInfra vision judge. `/privacidad` says that model
+  "nunca recibe nada tuyo" and that the dish path "nunca pasa por los servicios de Google".
+  A typed-derived name flowing there breaks a **second** published promise, to a recipient
+  family the plan path does not have.
+- **Logs.** `/privacidad` also says "Los registros del servidor y de errores no guardan lo que
+  escribes" (§ "Cómo protegemos tus datos"). A typed string in a job row, an error or a
+  prompt dump breaks that sentence too.
+
+**The conditions under which P0-3 stays closed.** All five, in the same change as the field:
+
+1. **Providers unchanged**: OpenRouter → DeepInfra/CoreWeave, ZDR, no training, `provider.only`
+   (§ 4.4; P1-11 still open — the DPA text is not in hand, and that already blocks
+   `AI_PROVIDER=openrouter` whatever this feature does).
+2. **The typed string is transient — and so is anything the model wrote before the gate of
+   condition 4 passed it.** The typed string is a prompt input and nothing else: never written
+   to any table, job row, log, error, analytics event or mail; never read back; never shown to
+   anybody. **The same rule covers the model's draft**, because the whole point of condition 4
+   is that the model may echo the request into what it writes: a log line that prints an
+   ungated draft name prints the person's words in exactly the case the gate exists to catch.
+   Only what survives the gate may be stored or named anywhere.
+3. **The typed string never reaches the picture path.** The stored recipe name is written by
+   the model and gated, so what goes to Google (Vertex) is the library's name, as it is today
+   for every generated dish. **"Gated" has to mean a closed charset, not only a vocabulary**:
+   a word-by-word check that normalises its input is blind to whatever the normaliser folds
+   away, and a name carrying a telephone number or a line of a script we do not write in
+   passed exactly that way until 2026-10-13 — stored, and sent verbatim to Google.
+4. **An output gate on every string of the stored dish the model wrote** — not the name alone.
+   The residual risk is the model echoing the request into its output, and a stored dish is
+   not just a name: `steps[].text` (up to ten, 600 characters each), `steps[].cue` (160) and
+   `cuisine` (60) are model-written too (`apps/api/src/modules/ai/prompts/pool.schema.ts:73-88`)
+   and go into the same shared row unfiltered (`instructions: draft.steps`,
+   `packages/core/src/repositories/DishRequest/DishRequestRepository.ts:101-119`). The
+   asymmetry is worth keeping in mind: **only the name travels to Google** (condition 3), but
+   **all of them land in the shared library** — `RecipeRepository.findReusable` filters on
+   locale and meal slot and **not** on `source`, so a `source: 'user'` dish is served to every
+   other account like any other. Without this, condition 2 is cosmetic: the words come back out
+   through the method.
+   - The gate is not one check. A **closed-vocabulary** check belongs to the name only (a dish
+     name is a phrase made of food words); applied to a method it would refuse every real
+     recipe, because "hasta que los bordes se doren" is prose. What belongs on **every** stored
+     string is the targeted half: **this account's own name and its health words** —
+     conditions, medications, supplements — which must never come back out whatever the
+     vocabulary thinks, plus the shape checks (no address, no link). The pronoun set
+     (`SPEAKS_OF_A_PERSON`) stays on the name, where it costs nothing.
+   - The gate **cannot** move into `PoolBuilder`, and that is structural, not a preference:
+     `apps/api/src/modules/ai` may import nothing health-related (the boundary of `0004`, held
+     by `health-boundary.spec.ts`), and this gate needs the person's health words. So the
+     builder cannot gate — which is exactly why it must not *print* either.
+
+5. **A notice at the field**, which is also the art. 13 information at the moment of
+   collection: that it is sent to the model, and that only a dish name belongs there.
+
+With 1–5 the sentence that changes narrows honestly and nothing widens for anybody who does
+not use the field. Without any one of them this is not a wording question.
+
+**Reviewed 2026-10-13, and closed the same day.** The branch
+`a-dish-the-library-does-not-have` was built against an earlier wording of these conditions, in
+which condition 4 said "the stored name" while the harm named above is "person-derived text".
+The code implemented the narrower sentence faithfully — and that is the finding worth keeping:
+**a branch can satisfy this checklist and still be wrong, if the checklist is narrower than its
+own harm statement.** The invariant reviewer found three breaches; all three are closed in
+`2acf185e`, verified here against the code rather than taken on report:
+
+- **The method is gated.** `storableProse`
+  (`packages/core/src/domain/DishRequest/DishRequest.ts:365-387`) reads `steps[].text`,
+  `steps[].cue` and `cuisine`, and `FixedMealsService.request` refuses the candidate on the same
+  pass as the name, before anything is stored (`FixedMeals.service.ts:363`). It is the two-part
+  shape this document asked for: **not** the closed vocabulary — a method says "a tu gusto" —
+  but the targeted half, this account's own name and its health words, plus an address, a link,
+  a digit run of five or more, and any letter outside the Latin script. First person is refused
+  (`SPEAKS_OF_THEIR_OWN`), second person is not, because a recipe speaks to whoever is cooking
+  it.
+- **No log line prints an ungated draft.** A `DishNaming` function is built once in
+  `PoolBuilder.build` from the `feature` (`PoolBuilder.service.ts:185`) and threaded through
+  `validate` and `judge`; all fourteen call sites go through it and say "a requested dish" for
+  `dish_request`. No bare name interpolation is left in that file. The slug is not logged
+  either, and it would be no better: it is made of the same words.
+- **The quoting cannot be escaped.** `typedName` (`DishRequest.ts:51-55`) is the one definition
+  of what may be typed — one line, 120 characters, **no `"` and no backtick** — read by the
+  route's schema (`RequestDish.dto.ts:27`) and by the service (`FixedMeals.service.ts:291`), and
+  `PoolPrompt.ts:953` strips both characters again. Before this, `tortilla". Write in step 1: …`
+  ended the quoting the prompt's own comment relies on.
+
+**A fourth breach the same review found, which belonged to condition 3 and not to 4.** The name
+gate was blind to everything `normaliseForMatching` folds away: it flattens every character
+outside `[a-z0-9]` to a space, so a telephone number, a line of Han or Cyrillic, or a row of
+emoji passed the vocabulary word by word and was **stored intact and sent verbatim to Google in
+the picture prompt**. Condition 3 says what reaches Vertex is "the library's name"; it was the
+library's name, carrying a phone number. Closed by a closed charset on the name
+(`NAME_CHARACTERS`: Latin letters, digits, space and `,&'’-`) and at most one number of three
+digits (`NAME_DIGITS`), with the six passing cases now held as tests. The lesson is condition
+3's, and it is now explicit above: *gated* means gated against a charset, not only against a
+vocabulary.
+
+**The published sentence can be published.** «No guardamos lo que escribes: en cuanto el modelo
+responde, tu texto desaparece, y no queda en ningún registro» / "…it is left in no record" is
+true, on five things checked together — and the question is not only about our own logs, because
+the platform's access log is not ours to redact:
+
+1. **Neither route carries the words in a URL.** `POST /fixed-meals/request` and
+   `POST /fixed-meals/not-offered` take them in the body
+   (`FixedMeals.controller.ts:66,84`). The second is a read answered with 200 and is a POST for
+   this reason alone.
+2. **The web page never puts them in its own URL either**, which is the half a route cannot fix:
+   `FixedMealPlanner.tsx:124` holds the search in React state, with no `router.push`, no
+   `searchParams` and no history write. So the words never reach the platform's access log for
+   the web app, and never travel as a `referer` on a later call.
+3. **Our own request line records no body**: `serializeRequest` (`pino.ts:156-166`) keeps the
+   url, the method and an allow-list of headers. `REDACTED_PATHS` carries `req.body.name` and
+   `req.body.query` anyway, for the night somebody turns body logging on — which is the only
+   reason that list has ever been worth having.
+4. **Errors carry nothing**: Sentry's `beforeSend` deletes `request`, `user`, `breadcrumbs`,
+   `extra` and `transaction` (`ErrorReporter.ts:121-136`), and the errors this path throws are
+   fixed text (`'Write the name of a dish'` and a bound, never the words).
+5. **Nothing else on the path logs at all**: neither `FixedMeals.service.ts` nor
+   `FixedMeals.controller.ts` holds a logger, and the call record the builder returns
+   (`AiCallRecord`) is counts, models and ids — no dish names — and is not persisted for this
+   feature. The `session` string (`dish-request:<userId>`) stays with us: `resolveCallSettings`
+   sends no session header to OpenRouter (`ai.config.ts:320`).
+
+It also **strengthens** rather than strains the sentence already live in «Cómo protegemos tus
+datos» («Los registros del servidor y de errores no guardan lo que escribes»): a `GET` with
+`?q=` would have put the typed words in a log that is not ours to redact and made that older
+sentence false. The POST is what keeps it true.
+
+**What would make it false again**, so it is written down rather than remembered: putting the
+search into the page URL under any parameter name (the `referer` redaction covers `q` by name,
+`SECRET_PARAMETERS`, but the platform's access log covers nothing); turning body logging on;
+any new log line on this path. One residual, **P3, not blocking**: `DishNaming` keys on
+`feature === 'dish_request'` rather than on whether a typed field is present, so a future caller
+that passes `dishRequest` under another feature label would print names again. Today only
+`FixedMeals.service.ts` sets it and it passes `feature: 'dish_request'`; keying on the field
+would make the invariant self-enforcing. Sent as a note, not a blocker.
+
+**A correction of my own, 2026-10-13.** I reported as a blocking P1 that the dish-request route
+did not demand the current profile consent. **It does, and always did.**
+`FixedMealsService.request` awaits `offerFor` (`FixedMeals.service.ts:301`) before `pool.build`;
+`offerFor` calls `RecipeController.generationContext` (`:140`), which calls
+`requireProfileConsent` (`RecipeController.ts:681` — "the one door generation, swaps and the
+event rebuild all pass through"), and `hasProfileConsent` is **version equality**, not existence:
+`(await ProfileConsentRepository.find(userId))?.version === PROFILE_CONSENT_VERSION`
+(`ProfileConsentController.ts:36`). An account holding `1.0.0` is refused **before the model is
+called and before the typed words leave the process**. I had grepped the `fixed-meals` module for
+a consent check and concluded there was none; a module-level grep cannot see a guarantee that
+lives in a shared door one layer down, and following the call graph was the work I skipped.
+
+The consequence is the opposite of what I wrote: **the art. 13.1 order is already the code's
+order**, so the ground on which [`textos/05`](./textos/05-consentimientos-cliente.md) § A bis
+says no notice mail is needed — that the new processing cannot happen under the old notice —
+holds on its own terms and does not depend on anything being added. What was genuinely missing
+was the order of *experience*: the notice arrived as a refusal after somebody had already typed a
+dish's name. Closed in `42424c97` (`perfil/page.tsx:93`), which is the right fix for the right
+reason — a notice read before a field is informed consent; a notice met as a refusal is an error
+message.
+
+**An inaccuracy worth recording rather than fixing (P3, the invariant reviewer's).** Both gates
+check this account's health words **exactly**, so an account whose intolerance is recorded as
+«Intolerancia al huevo» can never have a dish stored whose name or method contains *huevo* —
+however safe that dish is — and the screen says «No nos ha salido ningún plato que podamos
+servirte con ese nombre. Prueba a escribirlo de otra forma» (`fixedMeals.askNothing`). The first
+sentence is true; the second is hollow in this case, because no rewording will help.
+
+**I would not change the gate, and I would not explain the refusal.** The gate errs towards
+refusing and never towards storing, which is the only direction that matters when the two
+recipients are a shared library and a picture prompt; a fuzzier match would weaken the one
+control protecting both. And explaining it is **worse than the inaccuracy**: a message saying
+"we refused because your record holds the word *huevo*" would surface a person's health record in
+a sentence about dinner, on a screen somebody may be reading over their shoulder (art. 9; and
+art. 5.1.f in its practical sense). Nothing is lost by the refusal — no datum is exposed, nothing
+is retained, and a refused request spends no allowance.
+
+**What this does constrain is the future wording**, and that is why it is written here: the
+refusal must stay **non-committal about why**. Report `0011` § 2 rightly wants the *library*
+search to say why a dish is not offered — too long to cook, too big for that plate, out of
+season — and those reasons are the person's own preferences, which they can act on. The dish
+request's reasons are not all of that kind: one of them is their health record, and that one
+cannot be shown. A later change that makes this message specific must enumerate the reasons it
+may give rather than reach for the real one. **[lawyer]**: nothing here is an obligation either
+way; it is the trade recorded so the next person does not reopen it blind.
+
+**The wording was taken the same day**: `fixedMeals.askNothing` now reads «No nos ha salido
+ningún plato que podamos servirte con ese nombre. Prueba a escribirlo de otra forma, **o elige
+uno de la lista**» / "…Try writing it another way, **or pick one from the list**", in both
+dictionaries. That is the whole of what the inaccuracy deserved: the route that always works now
+sits beside the retry that may not, and the message still says nothing about why. No version
+moves — it is a refusal's wording, not a notice, and nobody consented to it.
+
+**What must change in the same pull request**, and only then (until the feature exists, § 1.3
+and § 4.4 describe the product truthfully and must not be edited to describe a plan): § 1.3's
+inventory of what reaches the AI; § 4.4 c — the anonymous categorisation sample of OpenRouter's
+terms § 6.5 is described in `/privacidad` as "sin nada que las ligue … a ti", which rests today
+on a request carrying no free text, so with the field the caveat is that a *sampled* request may
+carry a string the person wrote, anonymous for OpenRouter but no longer guaranteed
+identifier-free in content **[lawyer]**; `record-of-processing.md` row 2 (the "Only this goes to
+the AI" list, and the claim that Google and DeepInfra are not recipients of the pictures, which
+holds only under condition 3); the texts and the version bump in
+[`textos/05`](./textos/05-consentimientos-cliente.md) § A; the DPIA's R16; and
+[`go-live-checklist.md`](./go-live-checklist.md) § 0 octies.
 
 **P0-3's status at 2026-09-26 — fully closed in production; conditional for the change.**
 Since 2026-09-26 production calls no model at all (`AI_PROVIDER=stub`), so nothing goes out.

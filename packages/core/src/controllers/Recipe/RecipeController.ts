@@ -334,6 +334,37 @@ function toCandidateDish(recipe: ReusableRecipe): CandidateDish {
   };
 }
 
+/**
+ * Every row read, as candidates, with each dish's slots fitted to this person
+ * (`0062` § 5) — the library, filtered by nothing.
+ */
+function fitted(recipes: readonly ReusableRecipe[], context: GenerationContext): readonly CandidateDish[] {
+  return recipes.map(toCandidateDish).map(dish => ({ ...dish, slots: fitSlots(dish, context.catalogue, context.dietaryPatterns) }));
+}
+
+/**
+ * The rows this person may actually be served: the allergy gate, their way of
+ * eating, an unresolved allergy named in the method, the time they said they
+ * have, and a usable method — `reusablePool` before any rotation.
+ *
+ * The slots are fitted **before** the rotation, so the dozen it picks per slot
+ * is counted from what can really be served there: a dish counted at dinner and
+ * then never placed there is one fewer dinner nobody noticed was missing.
+ */
+function servable(recipes: readonly ReusableRecipe[], context: GenerationContext): readonly CandidateDish[] {
+  return fitted(
+    recipes.filter(
+      recipe =>
+        hasUsableMethod(recipe) &&
+        dishSafety(recipe.ingredients, context.catalogue, context.safety).kind === 'safe' &&
+        !usesExcluded(recipe, context) &&
+        !mentionsUnresolvedAllergy(recipe, context.safety.unenforceableLabels) &&
+        withinTime(recipe, context.preferences.maxMinutesPerDish)
+    ),
+    context
+  ).filter(dish => dish.slots.length > 0);
+}
+
 // --- Controller ---------------------------------------------------------------
 
 export const RecipeController = {
@@ -608,6 +639,19 @@ export const RecipeController = {
     }
   },
 
+  /**
+   * Whether this person's way of eating rules a dish out — the same predicate
+   * `reusablePool` filters with, exported so that saying *why* a dish is not
+   * offered (report `0011` § 2) reads the one definition rather than a second copy
+   * that can drift from it.
+   */
+  excludes(
+    dish: { readonly cuisine: string | null; readonly ingredients: readonly { readonly slug: string }[]; readonly name: string },
+    context: GenerationContext
+  ): boolean {
+    return usesExcluded(dish, context);
+  },
+
   /** The drawing ended with nothing kept; the cool-off starts `now`. What its attempts were judged is kept, as `completePicture` keeps it. */
   async failPicture(
     claim: PictureClaim,
@@ -646,6 +690,34 @@ export const RecipeController = {
     }
 
     return context;
+  },
+
+  /**
+   * Both answers from one read: what this person may be served, and everything
+   * the library holds for those slots.
+   *
+   * For the screen that asks *why* a dish is not offered (report `0011` § 2),
+   * which needs them side by side — the offered list and the dishes that fell
+   * through it. Asked separately they were two identical reads of a thousand
+   * recipes and their ingredients, on every pause in somebody's typing, against
+   * a database whose monthly transfer is shared with dev
+   * (`invariant-reviewer`, 2026-10-13).
+   *
+   * No rotation: this answers a question about now, not a fortnight to build.
+   *
+   * **`library` is filtered by nothing**, which is the point and the danger: its
+   * slots are fitted to the person (`0062` § 5), because "it is not a dish for
+   * this meal" is one of the answers a screen must be able to give, and nothing
+   * else is taken out. It holds dishes somebody is allergic to, and it must
+   * never feed a pool — `pool` is the half that may.
+   */
+  async libraryAndPool(
+    slots: readonly MealSlot[],
+    context: GenerationContext
+  ): Promise<{ readonly library: readonly CandidateDish[]; readonly pool: readonly CandidateDish[] }> {
+    const recipes = await RecipeRepository.findReusable(slots, REUSE_FETCH_LIMIT, context.locale);
+
+    return { library: fitted(recipes, context), pool: servable(recipes, context) };
   },
 
   /**
@@ -951,25 +1023,7 @@ export const RecipeController = {
    * regeneration on, so it is the one this filter names.
    */
   async reusablePool(slots: readonly MealSlot[], context: GenerationContext, rotation?: Rotation): Promise<readonly CandidateDish[]> {
-    const recipes = await RecipeRepository.findReusable(slots, REUSE_FETCH_LIMIT, context.locale);
-    const usable = recipes
-      .filter(
-        recipe =>
-          hasUsableMethod(recipe) &&
-          dishSafety(recipe.ingredients, context.catalogue, context.safety).kind === 'safe' &&
-          !usesExcluded(recipe, context) &&
-          !mentionsUnresolvedAllergy(recipe, context.safety.unenforceableLabels) &&
-          withinTime(recipe, context.preferences.maxMinutesPerDish)
-      )
-      // Served only at the meals every ingredient belongs to, for this person
-      // (`0062` § 5): a lentil stew stays a lunch and stops being a dinner, and
-      // one that belongs nowhere leaves the pool. Before the rotation, so the
-      // dozen it picks per slot is counted from what can actually be served
-      // there — a dish counted at dinner and then never placed there is one
-      // fewer dinner nobody noticed was missing.
-      .map(toCandidateDish)
-      .map(dish => ({ ...dish, slots: fitSlots(dish, context.catalogue, context.dietaryPatterns) }))
-      .filter(dish => dish.slots.length > 0);
+    const usable = servable(await RecipeRepository.findReusable(slots, REUSE_FETCH_LIMIT, context.locale), context);
 
     // Without a rotation every user is handed the whole safe library in the same
     // order, and the deterministic scheduler then hands them the same plan. With

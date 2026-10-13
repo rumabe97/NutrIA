@@ -17,6 +17,10 @@
 //        node account.mjs age <cookie-file>
 //            makes its sessions two days old, past Better Auth's freshAge, so list-sessions
 //            refuses them (SESSION_NOT_FRESH)
+//        node account.mjs premium <cookie-file>
+//            puts it on the premium tier, for the screens whose numbers differ by tier —
+//            an allowance a free account is told is premium, like asking us to write a
+//            dish (`0011` § 4 a)
 //
 // Every account made here is deleted before the probe ends. The cookie file is how:
 // keep it in the scratchpad, never in the repository.
@@ -32,6 +36,11 @@
 // `--admin` goes through the runbook's own statement (`UserController.grantAdmin`), never
 // through SQL, and only for the address this run just made (@probe.invalid). Deleting the
 // account deletes the role with it.
+//
+// `premium` is the two calls the e2e suites make for the same reason (`events-premium`):
+// `UserController.setTier` and the global `premium` switch, which the tier reads together.
+// It leaves a marker beside the cookie file when the switch was off, and `delete` turns it
+// back off — as `link` does with the professional one. The tier itself goes with the account.
 //
 // `compromise` and `age` write one column on rows that belong only to the account the cookie
 // signs in (@probe.invalid, checked through GET /users/me): `user.password_compromised_at`,
@@ -55,12 +64,14 @@ const twoFactor = args.includes('--two-factor');
 const [action, cookieFile, clientCookieFile] = args.filter(arg => arg !== '--admin' && arg !== '--two-factor');
 
 if (
-  !['create', 'delete', 'link', 'compromise', 'age'].includes(action) ||
+  !['create', 'delete', 'link', 'compromise', 'age', 'premium'].includes(action) ||
   !cookieFile ||
   (action === 'link' && !clientCookieFile) ||
   ((admin || twoFactor) && action !== 'create')
 ) {
-  console.error('usage: node account.mjs create <cookie-file> [--admin] [--two-factor] | delete <cookie-file> | link <professional-cookie-file> <client-cookie-file> | compromise <cookie-file> | age <cookie-file>');
+  console.error(
+    'usage: node account.mjs create <cookie-file> [--admin] [--two-factor] | delete <cookie-file> | link <professional-cookie-file> <client-cookie-file> | compromise <cookie-file> | age <cookie-file> | premium <cookie-file>'
+  );
   process.exit(2);
 }
 
@@ -118,7 +129,7 @@ async function call(method, path, body, cookie) {
   return response;
 }
 
-assertNotProduction({ strict: action === 'link' || action === 'compromise' || action === 'age' || admin || twoFactor });
+assertNotProduction({ strict: ['link', 'compromise', 'age', 'premium'].includes(action) || admin || twoFactor });
 
 // `core` reads the database from the environment, the same one the local API was given —
 // and only that one: the guard above checked apps/api/.env, so a DATABASE_URL already
@@ -137,6 +148,7 @@ for (const key of isLocalPg() ? [] : ['DATABASE_URL', 'DIRECT_DATABASE_URL']) {
 const fromApi = createRequire(`${ROOT}apps/api/package.json`);
 const load = specifier => import(pathToFileURL(fromApi.resolve(specifier)).href);
 const switchMarker = `${cookieFile}.switch-was-off`;
+const premiumMarker = `${cookieFile}.premium-was-off`;
 
 if (action === 'delete') {
   try {
@@ -145,13 +157,18 @@ if (action === 'delete') {
   } finally {
     // Restored even when the delete failed. Two probes at once share one switch: the first
     // to finish turns it off under the second — run one professional probe at a time.
-    if (existsSync(switchMarker)) {
-      const { SettingsController } = await load('core/controllers/Settings');
-      const { UNAUDITED } = await load('core/entities/Audit');
+    for (const [marker, flag] of [
+      [switchMarker, 'professional'],
+      [premiumMarker, 'premium']
+    ]) {
+      if (existsSync(marker)) {
+        const { SettingsController } = await load('core/controllers/Settings');
+        const { UNAUDITED } = await load('core/entities/Audit');
 
-      await SettingsController.setFlag('professional', false, UNAUDITED);
-      rmSync(switchMarker);
-      console.log('[probe] the professional switch is off again, as it was');
+        await SettingsController.setFlag(flag, false, UNAUDITED);
+        rmSync(marker);
+        console.log(`[probe] the ${flag} switch is off again, as it was`);
+      }
     }
   }
 
@@ -180,6 +197,30 @@ if (action === 'compromise' || action === 'age') {
       ? `[probe] ${who.email}'s password is marked breached until it is changed`
       : `[probe] ${who.email}'s ${changed.length} session(s) are two days old`
   );
+  process.exit(0);
+}
+
+if (action === 'premium') {
+  const { SettingsController } = await load('core/controllers/Settings');
+  const { UserController: Users } = await load('core/controllers/User');
+  const { UNAUDITED } = await load('core/entities/Audit');
+  const who = await (await call('GET', '/users/me', undefined, readFileSync(cookieFile, 'utf8'))).json();
+
+  if (!who.email?.endsWith('@probe.invalid')) {
+    throw new Error('premium only moves an account this script made (@probe.invalid)');
+  }
+
+  // Both, because the tier reads both: a premium row with the switch off is a free account
+  // (`events-premium.e2e-spec.ts`).
+  await Users.setTier(who.id, 'premium', UNAUDITED);
+
+  if (!(await SettingsController.flags()).premium) {
+    await SettingsController.setFlag('premium', true, UNAUDITED);
+    writeFileSync(premiumMarker, '');
+    console.log('[probe] the premium switch was off: on until this account is deleted');
+  }
+
+  console.log(`[probe] ${who.email} is on premium`);
   process.exit(0);
 }
 

@@ -193,6 +193,8 @@ export const esES = {
   /* `/admin/ajustes/registro` (`0071`): quién hizo cada mutación de cuenta o de ajuste, y cuándo. */
   adminAllowances: {
     bounds: 'De fábrica {shipped}. Entre {floor} y {ceiling}.',
+    costDishRequests:
+      'Una llamada al modelo por petición, y solo se cobra la que acaba en plato: unos 0,04 $ por plato guardado, casi todo su foto. Una petición rechazada no gasta cupo ni dinero que importe.',
     costEvents: 'Declarar un día que come distinto no cuesta nada: es planificación, no una llamada al modelo.',
     costFixedMeals:
       'No cuesta ninguna llamada al modelo. Lo que gasta es la promesa de que cada día cae dentro del 5 % en los cuatro macros, así que este número solo se puede bajar desde aquí: subirlo es medir y desplegar.',
@@ -202,6 +204,7 @@ export const esES = {
     free: 'Gratis',
     intro:
       'Cuántos usos permite cada suscripción. Un número fuera de sus límites se rechaza, no se recorta, y mientras nadie mueva uno vale el que trae el código.',
+    labelDishRequests: 'Platos que puede pedirnos al mes',
     labelEvents: 'Días que comen distinto, por plan',
     labelFixedMeals: 'Comidas fijas cada semana',
     labelMidPlan: 'Días que comen distinto añadidos a una quincena en marcha',
@@ -214,6 +217,8 @@ export const esES = {
     spendLink: 'Ver el gasto en imágenes',
     title: 'Qué permite cada suscripción',
     whole: 'Tiene que ser un número entero.',
+    whyDishRequests:
+      'Seis al mes es reescribir dos veces cada comida fija, que es cambiar de idea y no una rutina. El dinero no lo acota: incluso seis cuestan lo que las fotos de una sola replanificación.',
     whyEvents: 'Más de 7 no hace nada: una carga dura de uno a tres días y dos no pueden compartir día, así que en una quincena caben siete.',
     whyFixedMeals:
       'Tres es lo que trae el código, así que tres es el techo. Medido sobre 982 platos: con tres reglas fijas los planes están igual de equilibrados que sin ninguna, y con cuatro tampoco empeoraban; el límite es que ocho de cada catorce días llevarían una comida decidida de antemano.',
@@ -1548,6 +1553,21 @@ export const esES = {
   fixedMeals: {
     add: 'Fijar esta comida',
     added: 'Comida fijada. Entra en los planes que generes a partir de ahora.',
+    ask: 'Pídenoslo',
+    asked: 'Ya lo tienes: {name}. Ahora puedes fijarlo.',
+    askIntro:
+      'Escribimos el plato con sus ingredientes, sus pasos y sus calorías. Si encaja en esa comida, te lo ofrecemos para fijarlo, y se queda en la biblioteca.',
+    askLabel: 'Cómo se llama el plato',
+    askLeft: 'Te quedan {remaining} de {limit} este mes, y solo cuenta cuando llega un plato.',
+    askLeftOne: 'Te queda 1 de {limit} este mes, y solo cuenta cuando llega un plato.',
+    askNotAName: 'Escribe solo el nombre de un plato, en una línea.',
+    askNothing: 'No nos ha salido ningún plato que podamos servirte con ese nombre. Prueba a escribirlo de otra forma, o elige uno de la lista.',
+    askNotice:
+      'Escribe solo el nombre del plato. Se lo pedimos a la inteligencia artificial, así que no escribas ahí nada sobre ti: ni tu salud, ni tu nombre, ni para quién es.',
+    askPlaceholder: 'Patatas a la riojana',
+    askPremium: 'Pedirnos un plato que no está en la biblioteca es de premium.',
+    askSpent: 'Ya has pedido tus {limit} platos de este mes. El contador empieza de nuevo el día 1.',
+    askTitle: '¿No está tu plato?',
     change: 'Cambiar',
     count: '{count} platos encajan en esa comida ese día.',
     countOne: 'Un plato encaja en esa comida ese día.',
@@ -1568,6 +1588,20 @@ export const esES = {
     more: 'Ver {count} más',
     noMatch: 'Ningún plato se llama «{query}».',
     noneFit: 'Ningún plato de tu biblioteca encaja en esa comida ese día. Prueba con otra comida.',
+    reasonFix: {
+      disliked: 'Revisar lo que no quieres ver',
+      excluded: 'Revisar tu tipo de alimentación',
+      too_slow: 'Cambiar tus minutos para cocinar'
+    },
+    reasons: {
+      allergen: 'Lleva algo a lo que eres alérgico. No te lo vamos a ofrecer.',
+      disliked: 'Lo tienes entre los alimentos que no quieres ver.',
+      excluded: 'No encaja con tu tipo de alimentación.',
+      no_method: 'Nos falta la receta de este plato, así que no se lo servimos a nadie. Eso es cosa nuestra.',
+      too_big_or_small: 'No cabe en esa comida con tus cantidades. Suele encajar en otra.',
+      too_slow: 'Tarda más de lo que pusiste para cocinar.',
+      wrong_slot: 'No es un plato para esa comida.'
+    },
     remove: 'Quitar',
     removed: 'Quitada. Los planes que ya tienes no cambian.',
     removeFor: 'Quitar la comida fija de los {day} ({meal})',
@@ -1575,7 +1609,10 @@ export const esES = {
     searchPlaceholder: 'Busca por nombre: tortilla, lentejas, merluza…',
     slots: { afternoon_snack: 'Merienda', breakfast: 'Desayuno', dinner: 'Cena', lunch: 'Comida', morning_snack: 'Almuerzo', supper: 'Recena' },
     title: 'Comidas fijas',
-    weekdays: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+    tooSlowMinutes: 'Tarda más de los {minutes} min que pusiste para cocinar.',
+    weekdays: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
+    whyCount: 'Hay {count} platos con ese nombre que no podemos ofrecerte ahí:',
+    whyCountOne: 'Hay un plato con ese nombre que no podemos ofrecerte ahí:'
   },
 
   footer: {
@@ -2604,9 +2641,10 @@ export const esES = {
         heading: 'La inteligencia artificial',
         paragraphs: [
           'Los platos y las recetas de NutrIA los diseña un modelo de inteligencia artificial o salen de nuestra biblioteca de platos ya diseñados y comprobados. Nuestro propio código comprueba cada plato antes de que te llegue: un alérgeno declarado no llega a tu plan aunque el modelo se equivoque. La IA no toma ninguna decisión sobre ti: los límites de calorías y de proteína los aplican reglas fijas, no el modelo.',
-          'Lo que recibe el modelo cuando diseña platos nuevos para tu plan: tus objetivos diarios y tu objetivo (por ejemplo, perder peso), qué comidas haces y cuánto tiempo quieres dedicar a cocinar cada plato, si eres vegetariano o vegano, las cocinas y los alimentos que te gustan, los nombres de los platos que te gustaron, que no te gustaron o que comiste la quincena anterior, y tus respuestas cerradas al check-in (hambre, dificultad, nota). Siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu sexo, tu peso ni tu altura, nada que hayas escrito a mano, tus alergias ni intolerancias, ninguna otra forma de comer (sin gluten, sin lactosa, halal, kósher…), ni tus enfermedades, tu medicación o tus suplementos. Lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, del catálogo de alimentos que ve: le llega el efecto, nunca el dato.',
+          'Lo que recibe el modelo cuando diseña platos nuevos para tu plan: tus objetivos diarios y tu objetivo (por ejemplo, perder peso), qué comidas haces y cuánto tiempo quieres dedicar a cocinar cada plato, si eres vegetariano o vegano, las cocinas y los alimentos que te gustan, los nombres de los platos que te gustaron, que no te gustaron o que comiste la quincena anterior, y tus respuestas cerradas al check-in (hambre, dificultad, nota). Siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu sexo, tu peso ni tu altura, nada que hayas escrito a mano —salvo el nombre de un plato, si tú se lo pides—, tus alergias ni intolerancias, ninguna otra forma de comer (sin gluten, sin lactosa, halal, kósher…), ni tus enfermedades, tu medicación o tus suplementos. Lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, del catálogo de alimentos que ve: le llega el efecto, nunca el dato.',
           'A quién va: la petición va a OpenRouter (OpenRouter, Inc., Estados Unidos), que la trata por encargo nuestro y la pasa a la empresa que ejecuta el modelo: DeepInfra o CoreWeave, también en Estados Unidos. El modelo es Gemma 4 31B y, si no responde, DeepSeek V4.1 Flash; son modelos abiertos que ejecutan esas empresas: lo que se envía para diseñar tus platos nunca pasa por los servicios de Google ni de DeepSeek.',
           'Nadie entrena con ello ni lo guarda: solo usamos proveedores que borran la petición en cuanto responden y no la usan para entrenar ni mejorar ningún modelo. Lo exigimos en nuestra cuenta de OpenRouter y otra vez en cada petición. OpenRouter guarda solo datos técnicos de cada petición (tamaño, tiempo, coste), no su contenido.',
+          'Si tú le pides un plato: puedes pedirnos un plato que no está en nuestra biblioteca escribiendo su nombre. Ese nombre es lo único escrito por ti que llega al modelo, y viaja con el resto de la petición a las mismas empresas. Escribe solo el nombre del plato: se envía tal cual, así que ahí no cuentes nada sobre ti ni sobre nadie. No guardamos lo que escribes: en cuanto el modelo responde, tu texto desaparece, y no queda en ningún registro. Lo que sí se queda es el plato, con el nombre y la receta que escribe el modelo, en la misma biblioteca que todos los demás: puede acabar en el plan de otra persona, y no dice quién lo pidió.',
           'Una excepción que debes conocer: OpenRouter puede pasar una pequeña muestra de peticiones, sin nada que las ligue a nuestra cuenta ni a ti, por un modelo que les pone una etiqueta de tema para sus estadísticas públicas de uso. No guarda el texto, solo la etiqueta.',
           'Las imágenes de los platos las genera otro modelo, a partir solo de la receta: su nombre, sus ingredientes y en qué proporción. Nunca recibe nada tuyo, ni siquiera quién ha abierto el plato. La petición va a OpenRouter, que la pasa a Google (Vertex AI), y un modelo que ejecuta DeepInfra revisa cada imagen antes de que se publique. Ninguno guarda la petición ni la usa para entrenar. Si ese modelo ve con claridad en la imagen un alimento con un alérgeno que la receta no lleva, la imagen se rechaza, y solo se publica si después la revisamos a mano y decidimos publicarla; no cuenta lo que tiene la forma de algo que el plato ya tiene o que su nombre dice, como su pan o su leche, porque una imagen no muestra de qué está hecho. Esa revisión no es una garantía: la imagen puede mostrar algo que el plato no lleva, y lo que lleva lo dice su lista de ingredientes. Las imágenes se guardan en Vercel, se muestran a todas las personas que ven ese plato y llevan la marca «IA»; los ficheros llevan además una marca invisible y legible por máquina que dice que están generados por IA.',
           'Hasta el 26 de septiembre de 2026 algunos de los modelos que usábamos eran versiones gratuitas alojadas en Estados Unidos cuyos proveedores podían usar lo que recibían para mejorar sus modelos. Ya no usamos ninguno de ellos.'
@@ -2681,7 +2719,7 @@ export const esES = {
       }
     ],
     title: 'Política de privacidad',
-    updated: 'Última actualización: 9 de octubre de 2026'
+    updated: 'Última actualización: 13 de octubre de 2026'
   },
   profile: {
     account: 'Cuenta',
@@ -2731,7 +2769,7 @@ export const esES = {
     premiumMonthly: 'Mensual · {price} al mes',
     premiumPastDue: 'No se ha podido cobrar la última cuota. Stripe lo volverá a intentar; actualiza la tarjeta para no perder premium.',
     premiumPitch:
-      '{redos} replanificaciones por quincena en vez de {freeRedos}, {swaps} cambios de comida por plan en vez de {freeSwaps}, {events} eventos por plan en vez de {freeEvents}, {fixedMeals} comidas fijas cada semana en vez de {freeFixedMeals}, y hasta {midPlan} eventos añadidos con el plan ya empezado.',
+      '{redos} replanificaciones por quincena en vez de {freeRedos}, {swaps} cambios de comida por plan en vez de {freeSwaps}, {events} eventos por plan en vez de {freeEvents}, {fixedMeals} comidas fijas cada semana en vez de {freeFixedMeals}, y hasta {midPlan} eventos añadidos con el plan ya empezado. Y si el plato que siempre haces no está en la biblioteca, premium puede pedirnos que lo escribamos: {dishRequests} al mes, y solo cuenta cuando llega un plato.',
     premiumRenews: 'Tienes premium. Se renueva el {date}.',
     premiumSafety: 'La seguridad alimentaria —alergias, intolerancias y nutrientes— es la misma con premium y sin él.',
     premiumTestMode: 'Modo de prueba: no se cobra nada de verdad. Usa la tarjeta 4242 4242 4242 4242, cualquier fecha futura y cualquier CVC.',
@@ -2778,7 +2816,7 @@ export const esES = {
   },
 
   profileConsent: {
-    ai: 'Un modelo de inteligencia artificial diseña los platos. Recibe tus objetivos diarios, tus horarios de comida, si eres vegetariano o vegano, y los alimentos y platos que te gustan o no, siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu peso ni tu altura, nada que escribas a mano, tus alergias ni intolerancias, ninguna otra forma de comer, ni tus enfermedades o tu medicación: lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, y el mismo código comprueba cada plato antes de que te llegue.',
+    ai: 'Un modelo de inteligencia artificial diseña los platos. Recibe tus objetivos diarios, tus horarios de comida, si eres vegetariano o vegano, y los alimentos y platos que te gustan o no, siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu peso ni tu altura, nada que escribas a mano —salvo el nombre de un plato, si tú se lo pides—, tus alergias ni intolerancias, ninguna otra forma de comer, ni tus enfermedades o tu medicación: lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, y el mismo código comprueba cada plato antes de que te llegue.',
     body: 'Para hacerte un plan seguro necesitamos datos que dicen algo de tu salud: tus alergias e intolerancias, tu peso, tu altura y tu objetivo, y tu forma de comer, que a veces revela una intolerancia o una creencia. Los usamos solo para calcular tus objetivos y elegir tus platos.',
     continue: 'Continuar',
     label: 'Consiento que NutrIA use estos datos de salud para hacer mis planes',
@@ -3029,7 +3067,8 @@ export const esES = {
         heading: 'Contenido generado con inteligencia artificial',
         paragraphs: [
           'Las recetas y los planes se generan con ayuda de inteligencia artificial y se validan con nuestro propio código antes de mostrártelos. Aun así pueden contener errores: un tiempo de cocción, una cantidad, un paso poco claro. Usa tu criterio en la cocina, sobre todo con la seguridad alimentaria: cocina bien la carne, el pescado y los huevos, y respeta la cadena de frío.',
-          'Las imágenes de los platos también las genera una inteligencia artificial, a partir de la receta, y las marcamos como tales. Son orientativas: no son una foto del plato que vas a cocinar y pueden no mostrar todos sus ingredientes ni su cantidad real. Lo que lleva cada plato lo dice su lista de ingredientes, y es la que tiene en cuenta tus alergias.'
+          'Las imágenes de los platos también las genera una inteligencia artificial, a partir de la receta, y las marcamos como tales. Son orientativas: no son una foto del plato que vas a cocinar y pueden no mostrar todos sus ingredientes ni su cantidad real. Lo que lleva cada plato lo dice su lista de ingredientes, y es la que tiene en cuenta tus alergias.',
+          'Si nos pides un plato escribiendo su nombre, ese texto se envía a la inteligencia artificial. Escribe solo el nombre de un plato: no es un sitio para contar nada sobre ti ni sobre nadie. Podemos no atender una petición, y puede que el plato que salga no encaje en tu plan y no llegues a verlo. El que sí salga se guarda en nuestra biblioteca de platos —la misma para todo el mundo— con el nombre que escriba el modelo, y no dice quién lo pidió.'
         ]
       },
       {
@@ -3098,7 +3137,7 @@ export const esES = {
       }
     ],
     title: 'Condiciones de uso',
-    updated: 'Última actualización: 29 de septiembre de 2026'
+    updated: 'Última actualización: 13 de octubre de 2026'
   },
 
   tour: {

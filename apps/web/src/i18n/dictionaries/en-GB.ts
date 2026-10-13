@@ -181,6 +181,8 @@ export const enGB: Dictionary = {
   /* `/admin/ajustes/registro` (`0071`): who did each account or setting mutation, and when. */
   adminAllowances: {
     bounds: 'Ships as {shipped}. Between {floor} and {ceiling}.',
+    costDishRequests:
+      'One model call a request, and only the one that ends in a dish is charged for: about 0.04 $ a stored dish, nearly all of it its picture. A refused request spends neither the allowance nor money worth counting.',
     costEvents: 'Declaring a day that eats differently costs nothing: it is scheduling, not a model call.',
     costFixedMeals:
       'It costs no model call at all. What it spends is the promise that every day lands inside 5% on all four macros, so this number can only be lowered from here: raising it is a measurement and a deploy.',
@@ -190,6 +192,7 @@ export const enGB: Dictionary = {
     free: 'Free',
     intro:
       'How much each subscription allows. A number outside its bounds is refused rather than clamped, and until somebody moves one it is whatever the code ships.',
+    labelDishRequests: 'Dishes they may ask us for, a month',
     labelEvents: 'Days that eat for something, per plan',
     labelFixedMeals: 'Meals fixed every week',
     labelMidPlan: 'Days that eat for something added to a fortnight under way',
@@ -202,6 +205,8 @@ export const enGB: Dictionary = {
     spendLink: 'See the picture spend',
     title: 'What each subscription allows',
     whole: 'It has to be a whole number.',
+    whyDishRequests:
+      'Six a month is every standing rule rewritten twice over, which is churn and not a routine. The money does not bound it: even six cost what a single redo’s pictures do.',
     whyEvents: 'Above seven has no effect: a load is one to three days and two events may not share one, so a fortnight holds seven at most.',
     whyFixedMeals:
       'Three is what the code ships, so three is the ceiling. Measured on 982 dishes: with three standing rules the plans are as balanced as plans with none, and four was no worse; the limit is that eight of every fourteen days would carry a meal decided in advance.',
@@ -1511,6 +1516,21 @@ export const enGB: Dictionary = {
   fixedMeals: {
     add: 'Fix this meal',
     added: 'Meal fixed. It applies to the plans you generate from now on.',
+    ask: 'Ask us for it',
+    asked: 'Here it is: {name}. You can fix it now.',
+    askIntro:
+      'We write the dish with its ingredients, its steps and its calories. If it fits that meal we offer it to you to fix, and it stays in the library.',
+    askLabel: 'What the dish is called',
+    askLeft: '{remaining} of {limit} left this month, and it only counts when a dish arrives.',
+    askLeftOne: '1 of {limit} left this month, and it only counts when a dish arrives.',
+    askNotAName: 'Write just the name of a dish, on one line.',
+    askNothing: 'No dish we could serve you came back for that name. Try writing it another way, or pick one from the list.',
+    askNotice:
+      'Write only the name of the dish. We ask the artificial intelligence for it, so do not write anything about yourself there: not your health, not your name, not who it is for.',
+    askPlaceholder: 'Potatoes with chorizo',
+    askPremium: 'Asking us for a dish the library does not have is premium.',
+    askSpent: 'You have asked for your {limit} dishes this month. The count starts again on the 1st.',
+    askTitle: 'Is your dish missing?',
     change: 'Change',
     count: '{count} dishes fit that meal on that day.',
     countOne: 'One dish fits that meal on that day.',
@@ -1530,6 +1550,16 @@ export const enGB: Dictionary = {
     more: 'Show {count} more',
     noMatch: 'No dish is called “{query}”.',
     noneFit: 'No dish in your library fits that meal on that day. Try another meal.',
+    reasonFix: { disliked: 'Review what you do not want to see', excluded: 'Review how you eat', too_slow: 'Change your cooking minutes' },
+    reasons: {
+      allergen: 'It has something in it you are allergic to. We will not offer it.',
+      disliked: 'It is among the foods you do not want to see.',
+      excluded: 'It does not fit the way you eat.',
+      no_method: 'We are missing this dish’s method, so we serve it to nobody. That one is ours.',
+      too_big_or_small: 'It does not fit that meal at your portions. It usually fits another one.',
+      too_slow: 'It takes longer than you said you can cook for.',
+      wrong_slot: 'It is not a dish for that meal.'
+    },
     remove: 'Remove',
     removed: 'Removed. The plans you already have do not change.',
     removeFor: 'Remove the meal fixed to {day} ({meal})',
@@ -1544,7 +1574,10 @@ export const enGB: Dictionary = {
       supper: 'Supper'
     },
     title: 'Fixed meals',
-    weekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    tooSlowMinutes: 'It takes longer than the {minutes} min you said you have.',
+    weekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    whyCount: 'There are {count} dishes by that name we cannot offer you there:',
+    whyCountOne: 'There is one dish by that name we cannot offer you there:'
   },
 
   footer: {
@@ -2567,9 +2600,10 @@ export const enGB: Dictionary = {
         heading: 'Artificial intelligence',
         paragraphs: [
           "NutrIA's dishes and recipes are designed by an artificial-intelligence model or come from our library of dishes already designed and checked. Our own code checks every dish before it reaches you: a declared allergen does not reach your plan even if the model gets it wrong. The AI makes no decision about you: the calorie and protein bounds are applied by fixed rules, not by the model.",
-          'What the model receives when it designs new dishes for your plan: your daily targets and your goal (for example, losing weight), which meals you eat and how much time you want to spend cooking each dish, whether you are vegetarian or vegan, the cuisines and foods you like, the names of dishes you liked, disliked or ate last fortnight, and your closed check-in answers (hunger, difficulty, rating). Always by the names on our lists. It never receives your name, email, age, sex, weight or height, anything you typed yourself, your allergies or intolerances, any other way of eating (gluten-free, lactose-free, halal, kosher…), or your conditions, medications or supplements. What you cannot or will not eat we remove first, in our code, from the catalogue of foods it sees: it gets the effect, never the datum.',
+          'What the model receives when it designs new dishes for your plan: your daily targets and your goal (for example, losing weight), which meals you eat and how much time you want to spend cooking each dish, whether you are vegetarian or vegan, the cuisines and foods you like, the names of dishes you liked, disliked or ate last fortnight, and your closed check-in answers (hunger, difficulty, rating). Always by the names on our lists. It never receives your name, email, age, sex, weight or height, anything you typed yourself — except the name of a dish, if you ask it for one —, your allergies or intolerances, any other way of eating (gluten-free, lactose-free, halal, kosher…), or your conditions, medications or supplements. What you cannot or will not eat we remove first, in our code, from the catalogue of foods it sees: it gets the effect, never the datum.',
           "Where it goes: the request goes to OpenRouter (OpenRouter, Inc., United States), which processes it on our behalf and passes it to the company that runs the model: DeepInfra or CoreWeave, also in the United States. The model is Gemma 4 31B and, if it does not answer, DeepSeek V4.1 Flash; they are open models run by those companies: what is sent to design your dishes never goes through Google's or DeepSeek's own services.",
           'Nobody trains on it or keeps it: we only use providers that delete the request as soon as they answer and do not use it to train or improve any model. We require this in our OpenRouter account and again in every request. OpenRouter keeps only technical data about each request (size, time, cost), not its content.',
+          'If you ask it for a dish: you can ask us for a dish our library does not have by typing its name. That name is the only thing written by you that reaches the model, and it travels with the rest of the request to the same companies. Write only the dish’s name: it is sent as it is, so do not put anything about you or about anybody else there. We do not keep what you type: as soon as the model answers, your text is gone, and it is left in no record. What does stay is the dish, with the name and the recipe the model writes, in the same library as every other: it may turn up in somebody else’s plan, and it does not say who asked for it.',
           'One exception you should know about: OpenRouter may pass a small sample of requests, with nothing linking them to our account or to you, through a model that tags them with a topic for its public usage statistics. It does not keep the text, only the tag.',
           'The pictures of the dishes are generated by another model, from the recipe alone: its name, its ingredients and in what proportion. It never receives anything of yours, not even who opened the dish. The request goes to OpenRouter, which passes it to Google (Vertex AI), and a model run by DeepInfra reviews every picture before it is published. None of them keeps the request or trains on it. If that model clearly sees in the picture a food carrying an allergen the recipe does not have, the picture is rejected, and it is published only if we then review it by hand and decide to publish it; something shaped like what the dish already has or its name says, such as its bread or its milk, does not count, because a picture cannot show what it is made of. That review is not a guarantee: the picture may show something the dish does not contain, and what the dish contains is what its ingredient list says. The pictures are stored on Vercel, shown to everyone who sees that dish, and carry the "AI" mark; the files also carry an invisible, machine-readable mark saying they were generated by AI.',
           'Until 26 September 2026 some of the models we used were free versions hosted in the United States whose providers could use what they received to improve their models. We no longer use any of them.'
@@ -2644,7 +2678,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Privacy policy',
-    updated: 'Last updated: 9 October 2026'
+    updated: 'Last updated: 13 October 2026'
   },
 
   profile: {
@@ -2695,7 +2729,7 @@ export const enGB: Dictionary = {
     premiumMonthly: 'Monthly · {price} a month',
     premiumPastDue: 'The last payment could not be taken. Stripe will try again; update your card to keep premium.',
     premiumPitch:
-      '{redos} plan redos a fortnight instead of {freeRedos}, {swaps} meal swaps a plan instead of {freeSwaps}, {events} events a plan instead of {freeEvents}, {fixedMeals} meals fixed every week instead of {freeFixedMeals}, and up to {midPlan} events added once a plan has started.',
+      '{redos} plan redos a fortnight instead of {freeRedos}, {swaps} meal swaps a plan instead of {freeSwaps}, {events} events a plan instead of {freeEvents}, {fixedMeals} meals fixed every week instead of {freeFixedMeals}, and up to {midPlan} events added once a plan has started. And if the dish you always make is not in the library, premium can ask us to write it: {dishRequests} a month, and it only counts when a dish arrives.',
     premiumRenews: 'You have premium. It renews on {date}.',
     premiumSafety: 'Food safety — allergies, intolerances and nutrients — is the same with premium and without it.',
     premiumTestMode: 'Test mode: nothing is really charged. Use the card 4242 4242 4242 4242, any future date and any CVC.',
@@ -2741,7 +2775,7 @@ export const enGB: Dictionary = {
   },
 
   profileConsent: {
-    ai: 'An artificial-intelligence model designs the dishes. It receives your daily targets, your meal times, whether you are vegetarian or vegan, and the foods and dishes you like or dislike, always by the names on our lists. It never receives your name, email, age, weight or height, anything you type yourself, your allergies or intolerances, any other way of eating, or your conditions or medication: what you cannot or will not eat we remove first, in our code, and the same code checks every dish before it reaches you.',
+    ai: 'An artificial-intelligence model designs the dishes. It receives your daily targets, your meal times, whether you are vegetarian or vegan, and the foods and dishes you like or dislike, always by the names on our lists. It never receives your name, email, age, weight or height, anything you type yourself — except the name of a dish, if you ask it for one —, your allergies or intolerances, any other way of eating, or your conditions or medication: what you cannot or will not eat we remove first, in our code, and the same code checks every dish before it reaches you.',
     body: 'To build you a safe plan we need data that says something about your health: your allergies and intolerances, your weight, height and goal, and how you eat, which sometimes reveals an intolerance or a belief. We use them only to work out your targets and choose your dishes.',
     continue: 'Continue',
     label: 'I consent to NutrIA using this health data to make my plans',
@@ -2998,7 +3032,8 @@ export const enGB: Dictionary = {
         heading: 'Content generated with artificial intelligence',
         paragraphs: [
           'Recipes and plans are generated with the help of artificial intelligence and validated by our own code before you see them. They can still contain mistakes: a cooking time, a quantity, an unclear step. Use your judgement in the kitchen, above all with food safety: cook meat, fish and eggs through, and keep the cold chain.',
-          'The pictures of the dishes are also generated by artificial intelligence, from the recipe, and we mark them as such. They are for illustration only: they are not a photo of the dish you will cook and may not show all of its ingredients or its real quantities. What each dish contains is what its ingredient list says, and that list is the one that takes your allergies into account.'
+          'The pictures of the dishes are also generated by artificial intelligence, from the recipe, and we mark them as such. They are for illustration only: they are not a photo of the dish you will cook and may not show all of its ingredients or its real quantities. What each dish contains is what its ingredient list says, and that list is the one that takes your allergies into account.',
+          'If you ask us for a dish by typing its name, that text is sent to the artificial intelligence. Write only a dish’s name: it is not a place to tell us anything about you or about anybody else. We may not act on a request, and the dish that comes out may not fit your plan, in which case you never see it. The one that does is kept in our library of dishes — the same one for everybody — under the name the model writes, and it does not say who asked for it.'
         ]
       },
       {
@@ -3067,7 +3102,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Terms of use',
-    updated: 'Last updated: 29 September 2026'
+    updated: 'Last updated: 13 October 2026'
   },
 
   tour: {

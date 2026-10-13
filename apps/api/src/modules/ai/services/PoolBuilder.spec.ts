@@ -1911,8 +1911,15 @@ interface Validating {
     raw: ReturnType<typeof dish>,
     context: GenerationContext,
     accepted: ReadonlyMap<string, CandidateDish>,
-    shown: readonly string[]
+    shown: readonly string[],
+    requestedSlot: MealSlot,
+    named: (name: string) => string
   ) => { readonly reason?: string; readonly repaired: number };
+}
+
+/** How a build that is not a dish request names a dish in its log lines (`DishNaming`). */
+function quoted(name: string): string {
+  return `"${name}"`;
 }
 
 describe('PoolBuilder — a near-miss slug', () => {
@@ -1983,10 +1990,14 @@ describe('PoolBuilder — a near-miss slug', () => {
   it('still refuses a repaired slug that is an allergen for the person, as an allergen', () => {
     const { client } = stubClient([{ dishes: [] }]);
     const builder = new PoolBuilder(client) as unknown as Validating;
-    const verdict = builder.validate(dish('Tostada', ['lunch'], ['pan-fresco', 'tomate']), context({ allergenIds: new Set([GLUTEN]) }), new Map(), [
-      'pan',
-      'tomate'
-    ]);
+    const verdict = builder.validate(
+      dish('Tostada', ['lunch'], ['pan-fresco', 'tomate']),
+      context({ allergenIds: new Set([GLUTEN]) }),
+      new Map(),
+      ['pan', 'tomate'],
+      'lunch',
+      quoted
+    );
 
     expect(verdict).toEqual({ reason: 'allergen', repaired: 1 });
   });
@@ -2003,7 +2014,9 @@ describe('PoolBuilder — a near-miss slug', () => {
       dish('Tostada', ['lunch'], ['pan-fresco', 'tomate']),
       { ...context({ allergenIds: new Set([GLUTEN]) }), catalogue: toCatalogue(rows) },
       new Map(),
-      ['pan', 'tomate']
+      ['pan', 'tomate'],
+      'lunch',
+      quoted
     );
 
     expect(verdict).toEqual({ reason: 'allergen', repaired: 0 });
@@ -2038,7 +2051,7 @@ describe('PoolBuilder — a near-miss slug', () => {
       ]
     };
 
-    expect(builder.validate(heavy, context(), new Map(), ['tomate', 'arroz'])).toEqual({ reason: 'schema', repaired: 1 });
+    expect(builder.validate(heavy, context(), new Map(), ['tomate', 'arroz'], 'lunch', quoted)).toEqual({ reason: 'schema', repaired: 1 });
   });
 });
 
