@@ -7,6 +7,7 @@ import { EventController } from 'core/controllers/Event';
 import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController, PlanJobController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
+import { FixedMealController } from 'core/controllers/FixedMeal';
 import { RecipeController } from 'core/controllers/Recipe';
 import { SettingsController } from 'core/controllers/Settings';
 
@@ -215,6 +216,8 @@ function build(overrides: Partial<Mocks> = {}) {
     .mockResolvedValue({ nextVersion: 3, recentDishes: [{ name: 'Pollo al limón', slug: 'pollo-al-limon' }] });
   jest.spyOn(RecipeController, 'reusablePool').mockResolvedValue(reusable);
   jest.spyOn(RecipeController, 'libraryUsage').mockResolvedValue(USAGE);
+  // No standing fixed meals unless a test says otherwise (`0098`).
+  jest.spyOn(FixedMealController, 'forPlan').mockResolvedValue([]);
   jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [], liked: [] });
   // The accompaniments flag, off unless a test turns it on (project 016).
   jest.spyOn(SettingsController, 'accompaniments').mockResolvedValue(overrides.accompaniments ?? false);

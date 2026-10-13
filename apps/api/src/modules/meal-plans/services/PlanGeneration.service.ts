@@ -6,6 +6,8 @@ import { buildShoppingList, unresolvedSlugs } from 'core/domain/ShoppingList';
 import { dishSafety } from 'core/domain/Safety';
 import { leaningSlugs } from 'core/domain/Preference';
 import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
+import { daysFor } from 'core/entities/FixedMeal';
+import { FixedMealController } from 'core/controllers/FixedMeal';
 import { DEFAULT_MEAL_SHAPE, proteinWeightsFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { isBlocking, planBandMiss, planQuality, validatePlan } from 'core/domain/PlanValidation';
 import { eventOn, loadedTargets } from 'core/domain/Event';
@@ -23,6 +25,8 @@ import { PoolBuilder } from '../../ai/services/PoolBuilder.service.js';
 import { likedFoodNames, promptPreferences, toRecipeDraft } from './GenerationShared.js';
 
 import type { AiCallRecord, CandidateDish, PlanAssignment } from 'core/entities/Plan';
+import type { FixedMeal } from 'core/entities/FixedMeal';
+import type { PinnedMeal } from 'core/domain/Scheduler';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { TargetBounds } from 'core/domain/Nutrition';
 import type { PlanQuality, PlanViolation } from 'core/domain/PlanValidation';
@@ -69,6 +73,33 @@ export class GenerationError extends Error {
     super(detail ?? code);
     this.name = 'GenerationError';
   }
+}
+
+/**
+ * Standing rules as the scheduler takes them: a map from this plan's day index
+ * to the dish fixed there (`0098`).
+ *
+ * The expansion is the caller's on purpose — the scheduler is handed day
+ * indexes and never learns what a weekday is. A weekly rule lands on two days
+ * of a fortnight and on one of a plan a redo cut short, so `daysFor` counts
+ * rather than assuming.
+ *
+ * A map cannot hold two rules on one day, and it must not have to: the database
+ * allows one rule per weekday (`fixed_meals_user_weekday_unique`), so two rules
+ * can never land on the same index. Were that constraint ever lost, this would
+ * keep the last one silently — which is why the constraint, and not this, is
+ * where the invariant lives.
+ */
+function pinsFor(rules: readonly FixedMeal[], startDate: string): ReadonlyMap<number, PinnedMeal> {
+  const pins = new Map<number, PinnedMeal>();
+
+  for (const rule of rules) {
+    for (const dayIndex of daysFor(rule.weekday, startDate, PLAN_DAYS)) {
+      pins.set(dayIndex, { slot: rule.slot, slug: rule.dishSlug });
+    }
+  }
+
+  return pins;
 }
 
 @Injectable()
@@ -252,11 +283,18 @@ export class PlanGenerationService {
     // The month each day falls in: what fruit is in season on it, on the plate
     // (017 phase 2) and, with the flag, beside it.
     const monthOf = (dayIndex: number): number => addDays(start, dayIndex - 1).getUTCMonth() + 1;
+    // The standing fixed meals, expanded into this plan's own day indexes
+    // (`0098`: the scheduler never learns what a weekday is, so the caller
+    // expands). One rule per weekday is the database's promise, and the map is
+    // where it has to hold — a second rule on a day would silently replace the
+    // first, which is exactly why `fixed_meals_user_weekday_unique` exists.
+    const pinned = pinsFor(await FixedMealController.forPlan(userId), dates.start);
     const sides = (await SettingsController.accompaniments())
       ? { accompaniments: { larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }), monthOf } }
       : {};
 
     let scheduled = schedulePlan({
+      pinned,
       proteinWeights,
       ...sides,
       catalogue: context.catalogue,
@@ -288,6 +326,7 @@ export class PlanGenerationService {
 
       this.logger.warn(`Retrying with the full library (${widened.length} dishes, last fortnight included)`);
       scheduled = schedulePlan({
+        pinned,
         proteinWeights,
         ...sides,
         catalogue: context.catalogue,
@@ -345,6 +384,7 @@ export class PlanGenerationService {
       this.logger.warn(`Plan rejected by validation (${summarise(violations.filter(isBlocking))}); retrying with the full library`);
 
       const retried = schedulePlan({
+        pinned,
         proteinWeights,
         ...sides,
         catalogue: context.catalogue,
@@ -388,6 +428,7 @@ export class PlanGenerationService {
       const rest = rotatePool(everything, slots, rotation, Number.POSITIVE_INFINITY);
       const wider = [...new Map([...built.dishes, ...rest].map(dish => [dish.slug, dish])).values()];
       const retried = schedulePlan({
+        pinned,
         proteinWeights,
         ...sides,
         catalogue: context.catalogue,

@@ -9,6 +9,7 @@ import { PlanController } from 'core/controllers/Plan';
 import { ProfileConsentRequiredError } from 'core/entities/Error';
 import { ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
+import { FixedMealController } from 'core/controllers/FixedMeal';
 import { SettingsController } from 'core/controllers/Settings';
 import { ageInYears, resolveTargets } from 'core/domain/Nutrition';
 import { loadedDates, loadedTargets } from 'core/domain/Event';
@@ -161,6 +162,8 @@ function race(on = '2026-09-12', daysBefore = 2): EventView {
   return { id: 'event-1', ...shape, loadedDates: loadedDates(shape), loading: false, name: 'Media maratón' };
 }
 
+import type { FixedMeal } from 'core/entities/FixedMeal';
+
 type Written = Parameters<typeof PlanController.rebuildLoadedDays>;
 
 function build(
@@ -171,6 +174,8 @@ function build(
     catalogue?: typeof CATALOGUE;
     consented?: boolean;
     excluded?: ReadonlySet<string>;
+    /** Standing fixed meals (`0098`), none by default. */
+    fixedMeals?: readonly FixedMeal[];
     onboardingComplete?: boolean;
     profile?: Partial<typeof PROFILE>;
     safety?: Set<string>;
@@ -211,6 +216,9 @@ function build(
       }
     });
   jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [], liked: [] });
+  // No standing fixed meals unless a test says otherwise (`0098`). A rebuild
+  // reads them so that a day somebody fixed keeps its dish.
+  jest.spyOn(FixedMealController, 'forPlan').mockResolvedValue(overrides.fixedMeals ?? []);
   // The accompaniments flag, off unless a test turns it on (project 016).
   jest.spyOn(SettingsController, 'accompaniments').mockResolvedValue(overrides.accompaniments ?? false);
   jest
@@ -267,6 +275,26 @@ describe('PlanLoadRebuildService — a fortnight rebuilt for an event (0044)', (
     expect(days.map(day => day.dayIndex)).toEqual([4]);
     expect(days[0]).toMatchObject({ loadedFor: 'Media maratón', targets: loadedTargets(TARGETS, event) });
     expect(days[0]?.meals.map(meal => meal.slot)).toEqual(SLOTS);
+  });
+
+  it('keeps the meal somebody fixed to a day it rebuilds (0098)', () => {
+    // 2026-09-11 is the day the load rebuilds, and it is a Friday. A rule for
+    // Friday dinner must survive the rebuild: without it an event would serve
+    // somebody else's dinner on the day they fixed theirs, once, invisibly, in
+    // the one flow that rewrites days of a plan already being lived.
+    expect(new Date('2026-09-11T00:00:00Z').getUTCDay()).toBe(5);
+
+    return (async () => {
+      const fixed = { id: '11111111-1111-4111-8111-111111111111', dishSlug: 'dinner-3', slot: 'dinner' as const, weekday: 4 as const };
+      const { rebuild, service } = build({ fixedMeals: [fixed] });
+
+      await expect(service.forEvent('usr-1', race(), TODAY)).resolves.toEqual(['2026-09-11']);
+
+      const [, , days] = rebuild.mock.calls[0] as Written;
+
+      expect(days.map(day => day.dayIndex)).toEqual([4]);
+      expect(days[0]?.meals.find(meal => meal.slot === 'dinner')?.recipeSlug).toBe('dinner-3');
+    })();
   });
 
   it('validates what it is about to write, as generation does, and writes nothing that is blocked', async () => {

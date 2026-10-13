@@ -12,7 +12,9 @@ import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController } from 'core/controllers/Plan';
 import { personToday, ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
+import { FixedMealController } from 'core/controllers/FixedMeal';
 import { SettingsController } from 'core/controllers/Settings';
+import { weekdayOf } from 'core/entities/FixedMeal';
 import { accompanimentRows, larderFor } from 'core/domain/Accompaniment';
 import { placementGroups } from 'core/domain/Balance';
 
@@ -164,6 +166,21 @@ export class PlanLoadRebuildService {
     const sides = (await SettingsController.accompaniments())
       ? { accompaniments: { larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }), monthOf } }
       : {};
+    // A day rebuilt for an event keeps the meal somebody fixed to it (`0098`).
+    // Taken from each day's own date rather than from the plan's start: these
+    // are the plan's real days, and a rebuild must not re-derive a calendar it
+    // is holding. Without this an event would quietly serve somebody else's
+    // dinner on their fixed Friday — once, invisibly, in the one flow that
+    // rewrites days of a plan already being lived.
+    const byWeekday = new Map((await FixedMealController.forPlan(userId)).map(rule => [rule.weekday, rule]));
+    const pinned = new Map(
+      plan.days.flatMap(day => {
+        const rule = byWeekday.get(weekdayOf(day.date));
+
+        return rule ? [[day.dayIndex, { slot: rule.slot, slug: rule.dishSlug }] as const] : [];
+      })
+    );
+
     const scheduled = schedulePlan({
       ...sides,
       catalogue: context.catalogue,
@@ -172,6 +189,7 @@ export class PlanLoadRebuildService {
       // As at generation: a day rebuilt around an event is sized over the floor too.
       minimumKcal: minimumDailyKcal(sex),
       monthOf,
+      pinned,
       placed,
       pool,
       proteinWeights: proteinWeightsFor(profile.goal?.type, weightsFor(shape)),
