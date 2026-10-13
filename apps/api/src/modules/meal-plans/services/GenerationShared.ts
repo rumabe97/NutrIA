@@ -77,7 +77,17 @@ export function promptPreferences(
   startsOn: string,
   checkIn: CheckInForGeneration | null = null,
   swapWish: string | null = null,
-  likedFoods: readonly string[] = []
+  likedFoods: readonly string[] = [],
+  /**
+   * What somebody typed asking for a dish; see `PoolPrompt`'s `dishRequest`.
+   *
+   * **Last on purpose.** Added in the middle it shifted `likedFoods`, and the
+   * first thing that noticed was a boundary test watching a prompt go out with
+   * somebody's liked food in the field meant for their words. A positional
+   * parameter inserted anywhere but the end rewrites every call that passes a
+   * later one.
+   */
+  dishRequest: string | null = null
 ): PromptPreferences {
   return {
     avoidNames,
@@ -86,6 +96,7 @@ export function promptPreferences(
     cookingTimeMinutes: profile.preferences?.cookingTimeMinutes ?? null,
     cuisines: profile.cuisines,
     dietaryPatterns: profile.dietaryPatterns,
+    dishRequest,
     dislikedNames: verdicts.disliked.map(dish => dish.name),
     goal: profile.goal?.type ?? null,
     likedFoods,

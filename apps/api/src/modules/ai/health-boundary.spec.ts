@@ -278,6 +278,12 @@ describe('the free-text and belief boundary around the AI module', () => {
       'avoidNames',
       'checkIn',
       'cookingTimeMinutes',
+      // The one field in any prompt whose content a person writes, added here on
+      // purpose when the dish request shipped (`0011` § 4 a, and the five
+      // conditions in `docs/legal/analysis.md`, "P0-3's status at 2026-10-13").
+      // Its own key and not `swapWish`'s, so that adding it had to be a line in
+      // this list — which is where a reviewer is meant to stop and ask.
+      'dishRequest',
       'cuisines',
       'dietaryPatterns',
       'dislikedNames',
@@ -359,5 +365,44 @@ describe('the person boundary around the dish pictures', () => {
     expect(bodies).toHaveLength(3);
     expect(bodies.filter(body => body.includes('SENTINEL'))).toEqual([]);
     expect(bodies[0]).toContain('Arroz con pollo');
+  });
+
+  /*
+   * The dish request is the one field a person writes into (`0011` § 4 a), and
+   * the picture prompt carries a dish's **name** verbatim to Google. So the two
+   * must never meet: whatever somebody typed may reach the dish-design call and
+   * nothing else, and the name that does reach Google is one `storableName`
+   * already let through.
+   *
+   * Driven through the real prompt builder with a request smuggled into every
+   * field of the recipe a name could have come from.
+   */
+  it('never carries a typed dish request into the picture or the judge', async () => {
+    const typed = 'SENTINEL-TYPED tortilla para mi madre';
+    const bodies: string[] = [];
+    const fake = (async (input: Request | string | URL, init?: RequestInit) => {
+      bodies.push(String(init?.body));
+
+      return new Response(
+        String(input).endsWith('/images')
+          ? JSON.stringify({ data: [{ b64_json: Buffer.from([0xff, 0xd8, 0xff]).toString('base64') }], usage: { cost: 0.03 } })
+          : JSON.stringify({ choices: [{ message: { content: '{"foods": [], "extras": [], "ingredients": []}' } }] })
+      );
+    }) as unknown as typeof fetch;
+    const image = new OpenRouterImageClient(settings, [], fake, []);
+    const judge = new OpenRouterVisionJudgeClient(settings, [], fake);
+    // The picture is drawn from the stored recipe, which is all `PictureRecipe`
+    // can hold: a name and ingredients. Nothing in its shape can carry a
+    // request, and this is the test that says so if its shape ever changes.
+    const asStored: PictureRecipe = { ...recipe, name: 'Tortilla de patatas con cebolla' };
+
+    const picture = await image.draw(buildPicturePrompt(asStored));
+    const seen = await judge.see(picture);
+
+    await judge.match(seen.result.foods, asStored.ingredients);
+
+    expect(bodies).toHaveLength(3);
+    expect(bodies.filter(body => body.includes('SENTINEL-TYPED') || body.includes('madre'))).toEqual([]);
+    expect(typed).toContain('SENTINEL-TYPED');
   });
 });

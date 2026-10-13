@@ -267,6 +267,24 @@ export type PromptContext = {
   readonly cuisines: readonly string[];
   /** Named only when on `NAMEABLE_PATTERNS`; a religious one never is, and is enforced in code instead. */
   readonly dietaryPatterns: readonly string[];
+  /** For a swap: what the person asked of this one dish, when they asked something (0022). */
+  /**
+   * The dish somebody asked for, in their own words — **the only field in any
+   * prompt whose content a person writes** (`0011` § 4 a, and the five
+   * conditions in `docs/legal/analysis.md`, "P0-3's status at 2026-10-13").
+   *
+   * Its own key and not `swapWish`, deliberately. A swap's wish is one of four
+   * strings this code writes; this is typed by a person, and the two must not
+   * share a field — `health-boundary.spec.ts`'s allowed-key list is where a
+   * reviewer is meant to stop, and it cannot stop at a key that was already
+   * there.
+   *
+   * It reaches the prompt and nothing else: no row, no log, no error report, no
+   * picture call. The name the model writes back is gated before it is stored
+   * (`storableName`), because the library is shared and the picture prompt
+   * carries a dish's name verbatim to Google.
+   */
+  readonly dishRequest?: string | null;
   /** Dishes the person marked as disliked. Already out of reuse; named so the model does not recreate them. */
   readonly dislikedNames: readonly string[];
   readonly excludeSlugs: readonly string[];
@@ -306,7 +324,6 @@ export type PromptContext = {
    * request made every slot's share 1 — each dish asked to be the whole day.
    */
   readonly slotShares: ReadonlyMap<MealSlot, number>;
-  /** For a swap: what the person asked of this one dish, when they asked something (0022). */
   readonly swapWish?: string | null;
   readonly targets: NutritionTargets;
 };
@@ -928,6 +945,11 @@ export function buildPoolPrompt(
         : null,
       ...checkInLines(context.checkIn ?? null),
       context.swapWish ? `THIS ONE DISH IS A REPLACEMENT THE PERSON ASKED FOR: ${context.swapWish}. Every dish proposed must satisfy that.` : null,
+      // Quoted and named as the person's words, so the model is told what it is
+      // reading rather than left to treat it as an instruction of ours.
+      context.dishRequest
+        ? `THE PERSON ASKED FOR THIS DISH, IN THEIR OWN WORDS: "${context.dishRequest}". Propose that dish. Name it for the food it contains, never for anything the request says about a person.`
+        : null,
       context.lovedNames.length > 0
         ? `DISHES THEY SAID THEY LOVED — this is their taste; design new dishes in the same spirit (technique, seasoning, kind of dish), not copies: ${context.lovedNames.slice(0, 40).join('; ')}`
         : null,
