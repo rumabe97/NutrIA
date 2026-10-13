@@ -1524,7 +1524,7 @@ export const enGB: Dictionary = {
     askLeft: '{remaining} of {limit} left this month, and it only counts when a dish arrives.',
     askLeftOne: '1 of {limit} left this month, and it only counts when a dish arrives.',
     askNotAName: 'Write just the name of a dish, on one line.',
-    askNothing: 'No dish we could serve you came back for that name. Try writing it another way.',
+    askNothing: 'No dish we could serve you came back for that name. Try writing it another way, or pick one from the list.',
     askNotice:
       'Write only the name of the dish. We ask the artificial intelligence for it, so do not write anything about yourself there: not your health, not your name, not who it is for.',
     askPlaceholder: 'Potatoes with chorizo',

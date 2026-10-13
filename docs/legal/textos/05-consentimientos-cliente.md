@@ -97,6 +97,20 @@ onboarding y en la pantalla `/consentimiento`.
 **Versión: `PROFILE_CONSENT_VERSION` de `1.0.0` a `1.1.0`**
 (`packages/core/src/entities/Profile/Profile.ts:86`).
 
+**Publicado el 2026-10-13** (`42424c97`), con otra redacción y **la fila de arriba queda como
+constancia del borrador, no de lo servido**. Lo servido pone la excepción *dentro* del «nunca»,
+como en [`02`](./02-politica-privacidad.md), en lugar de añadir una frase al final:
+
+> es-ES: `… tu peso ni tu altura, nada que escribas a mano —salvo el nombre de un plato, si tú se lo pides—, tus alergias ni intolerancias …`
+> en-GB: `… your weight or height, anything you type yourself — except the name of a dish, if you ask it for one —, your allergies or intolerances …`
+
+**Lo acepto, y la razón importa**: lo que había que arreglar era un «nunca» sin excepción, y la
+excepción está donde está el «nunca», que es donde una persona la lee. Lo que mi borrador añadía
+y esto no —que el texto escrito no se guarda y que el plato queda en una biblioteca compartida—
+vive en la política, a un enlace de distancia en `profileConsent.note` («Más en la {privacy}»), y
+esta pantalla es un resumen del uso de los datos de salud, no la política. `PROFILE_CONSENT_VERSION`
+sube igual: lo que la dispara es que el tratamiento se amplía, no la longitud de la frase.
+
 <!-- Fuente y porqué (2026-10-13):
 - **Por qué sube la versión, aunque la frase se estreche.** La nota del 2026-09-28 de arriba fijó el criterio de este documento: un cambio que **reduce** lo que se trata no obliga a volver a pedir el consentimiento, porque el art. 7.2 exige distinguirlo «cuando se añade un fin o un dato, no cuando se quita uno» (y art. 5.1.b, fin compatible). Aquí el criterio se aplica al revés: la **frase** se estrecha («nunca nada escrito a mano» pasa a «nunca, salvo el nombre de un plato que tú pidas»), pero **el tratamiento se amplía** — hay un dato nuevo que sale a un tercero, escrito por la persona. La versión se engancha a lo que ocurre, no a cómo se redacta. Por eso sube, y por la razón que el propio código documenta en `Profile.ts:82-85`: «Bumped whenever the wording of the profile consent changes… A stored version that differs is consent to a different notice, so it is asked again».
 - **Y por eso no hace falta correo de aviso.** La política promete avisar por correo «si cambiamos algo importante… antes de que se aplique». La subida de la versión cumple más que eso: `OnboardingController.presentOnboarding` pone `profileConsentRequired: true` para toda cuenta cuya versión guardada no sea la vigente (`packages/core/src/controllers/Onboarding/OnboardingController.ts:51`, `ProfileConsentController.hasCurrent`), `redirectIfProfileConsentMissing` la manda a `/consentimiento` antes de `/inicio` (`apps/web/src/lib/onboarding.ts:40-48`) y `PlanGeneration.service.ts:164` devuelve 409 hasta que vuelva a marcar la casilla. Lo que se puede afirmar con precisión no es que todo el mundo lea el texto nuevo nada más entrar —quien va directo a `/plan` o `/perfil` no ve la pantalla intermedia—, sino lo único que importa aquí: **nadie genera nada ni envía nada a un modelo bajo el aviso viejo**. Por eso, en el sentido de la propia política, el cambio **no es «importante»**: no llega a aplicarse a nadie que no haya leído y aceptado el texto nuevo, así que la cláusula del correo no se dispara — la pantalla no sustituye al correo, es la razón de que no haga falta. **[abogado]**: confirmar esta lectura; un lector literal diría «prometiste correo y no lo mandaste». Si el propietario decide **no** subir la versión, entonces **sí hace falta el correo** ([`06`](./06-correos.md)), porque no quedaría ningún aviso previo a nadie.

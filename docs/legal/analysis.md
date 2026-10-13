@@ -151,6 +151,20 @@ nothing health-related and a test holds it (`health-boundary.spec.ts`). **A nuan
 does enter — coeliac disease takes gluten out of the catalogue and a protein supplement adds
 protein powder (`0052`) — the datum does not.
 
+**One exception since 2026-10-13, and it is the only one** (decision `0100`, report `0011` § 4 a;
+branch `a-dish-the-library-does-not-have`): when somebody asks for a dish the library does not
+have, **the name they typed** reaches the prompt — `PoolPrompt.ts:952-953`, as
+`THE PERSON ASKED FOR THIS DISH, IN THEIR OWN WORDS: "…"`, one line of at most 120 characters
+carrying no quote, no backtick and no newline (`typedName`). "Anything written by the person"
+above is otherwise still true: this is the one field, it is set only by
+`FixedMealsService.request`, and the allowed-keys test names it on purpose
+(`health-boundary.spec.ts:288`). It is **not** stored, logged, recorded or shown — it is a prompt
+input and stops there — and what the model writes back is gated before anything is kept, on the
+name and on the method alike. The conditions it rests on, the four breaches found and closed on
+the day, and why a dish name is not the free text P0-3 was about are in **P0-3's status at
+2026-10-13** below; the `/privacidad` sentences that carry it are the
+⟦petición-de-plato⟧ block of [`textos/02`](./textos/02-politica-privacidad.md).
+
 **Since 4.4.0** (`0067`) the prompt **also** stops receiving the shape and hours of the day —
 what time somebody wakes, sleeps and trains, `dayShapeOf` in
 `apps/api/src/modules/meal-plans/services/GenerationShared.ts:50-70` — and the budget and
@@ -635,6 +649,15 @@ chosen.**
   anonymously and never associated with your account or user ID". The model that classifies
   runs on Google Cloud (the sub-processor list, "NLP Categorization"). The public
   documentation offers no way to switch it off.
+- **Since 2026-10-13 a sampled request may carry words a person typed** (`0100`; § 1.3): the
+  dish name of a request. The published sentence — «sin nada que las ligue a nuestra cuenta ni a
+  ti» — stays true, and it is a claim about the **linkage**, which is what OpenRouter controls:
+  no account, no user id, no session header (`resolveCallSettings`, `ai.config.ts:320`). What is
+  no longer guaranteed is that the *content* of a sampled request holds nothing written by
+  anybody. What keeps that risk at a dish name is the notice at the field, not the sample's
+  anonymity — which is why the notice is a condition of the feature and not a nicety
+  (P0-3 at 2026-10-13, condition 5) **[lawyer]**: whether an anonymous topic label computed from
+  a prompt that may contain a person's words needs more than this notice.
 - It is not training and it does not retain the text, but it *is* **a use of its own** of a
   sample: the draft's sentence "without using them to train or for anything of their own"
   (variant A of [`textos/02`](./textos/02-politica-privacidad.md)) **would be false**.
@@ -1037,6 +1060,54 @@ any new log line on this path. One residual, **P3, not blocking**: `DishNaming` 
 that passes `dishRequest` under another feature label would print names again. Today only
 `FixedMeals.service.ts` sets it and it passes `feature: 'dish_request'`; keying on the field
 would make the invariant self-enforcing. Sent as a note, not a blocker.
+
+**A correction of my own, 2026-10-13.** I reported as a blocking P1 that the dish-request route
+did not demand the current profile consent. **It does, and always did.**
+`FixedMealsService.request` awaits `offerFor` (`FixedMeals.service.ts:301`) before `pool.build`;
+`offerFor` calls `RecipeController.generationContext` (`:140`), which calls
+`requireProfileConsent` (`RecipeController.ts:681` — "the one door generation, swaps and the
+event rebuild all pass through"), and `hasProfileConsent` is **version equality**, not existence:
+`(await ProfileConsentRepository.find(userId))?.version === PROFILE_CONSENT_VERSION`
+(`ProfileConsentController.ts:36`). An account holding `1.0.0` is refused **before the model is
+called and before the typed words leave the process**. I had grepped the `fixed-meals` module for
+a consent check and concluded there was none; a module-level grep cannot see a guarantee that
+lives in a shared door one layer down, and following the call graph was the work I skipped.
+
+The consequence is the opposite of what I wrote: **the art. 13.1 order is already the code's
+order**, so the ground on which [`textos/05`](./textos/05-consentimientos-cliente.md) § A bis
+says no notice mail is needed — that the new processing cannot happen under the old notice —
+holds on its own terms and does not depend on anything being added. What was genuinely missing
+was the order of *experience*: the notice arrived as a refusal after somebody had already typed a
+dish's name. Closed in `42424c97` (`perfil/page.tsx:93`), which is the right fix for the right
+reason — a notice read before a field is informed consent; a notice met as a refusal is an error
+message.
+
+**An inaccuracy worth recording rather than fixing (P3, the invariant reviewer's).** Both gates
+check this account's health words **exactly**, so an account whose intolerance is recorded as
+«Intolerancia al huevo» can never have a dish stored whose name or method contains *huevo* —
+however safe that dish is — and the screen says «No nos ha salido ningún plato que podamos
+servirte con ese nombre. Prueba a escribirlo de otra forma» (`fixedMeals.askNothing`). The first
+sentence is true; the second is hollow in this case, because no rewording will help.
+
+**I would not change the gate, and I would not explain the refusal.** The gate errs towards
+refusing and never towards storing, which is the only direction that matters when the two
+recipients are a shared library and a picture prompt; a fuzzier match would weaken the one
+control protecting both. And explaining it is **worse than the inaccuracy**: a message saying
+"we refused because your record holds the word *huevo*" would surface a person's health record in
+a sentence about dinner, on a screen somebody may be reading over their shoulder (art. 9; and
+art. 5.1.f in its practical sense). Nothing is lost by the refusal — no datum is exposed, nothing
+is retained, and a refused request spends no allowance.
+
+**What this does constrain is the future wording**, and that is why it is written here: the
+refusal must stay **non-committal about why**. Report `0011` § 2 rightly wants the *library*
+search to say why a dish is not offered — too long to cook, too big for that plate, out of
+season — and those reasons are the person's own preferences, which they can act on. The dish
+request's reasons are not all of that kind: one of them is their health record, and that one
+cannot be shown. A later change that makes this message specific must enumerate the reasons it
+may give rather than reach for the real one. **[lawyer]**: nothing here is an obligation either
+way; it is the trade recorded so the next person does not reopen it blind. The cheap improvement,
+if anybody wants one, is to offer the route that does work instead of only the retry that may
+not — "or pick one from the list" beside "try writing it another way" — which is wording, not law.
 
 **What must change in the same pull request**, and only then (until the feature exists, § 1.3
 and § 4.4 describe the product truthfully and must not be edited to describe a plan): § 1.3's

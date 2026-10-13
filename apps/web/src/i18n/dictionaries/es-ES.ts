@@ -1561,7 +1561,7 @@ export const esES = {
     askLeft: 'Te quedan {remaining} de {limit} este mes, y solo cuenta cuando llega un plato.',
     askLeftOne: 'Te queda 1 de {limit} este mes, y solo cuenta cuando llega un plato.',
     askNotAName: 'Escribe solo el nombre de un plato, en una línea.',
-    askNothing: 'No nos ha salido ningún plato que podamos servirte con ese nombre. Prueba a escribirlo de otra forma.',
+    askNothing: 'No nos ha salido ningún plato que podamos servirte con ese nombre. Prueba a escribirlo de otra forma, o elige uno de la lista.',
     askNotice:
       'Escribe solo el nombre del plato. Se lo pedimos a la inteligencia artificial, así que no escribas ahí nada sobre ti: ni tu salud, ni tu nombre, ni para quién es.',
     askPlaceholder: 'Patatas a la riojana',
