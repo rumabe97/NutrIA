@@ -1,4 +1,4 @@
--- A recipe can say when it was written (`0011` § 4 a).
+-- A recipe can say when it was written (report `0011` § 4 a).
 --
 -- **Two statements where drizzle generated one, deliberately.** It wrote
 -- `ADD COLUMN … DEFAULT now()`, and that is not additive the way it looks:

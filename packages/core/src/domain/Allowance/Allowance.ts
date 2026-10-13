@@ -27,7 +27,7 @@
  *   spends is the promise that every day lands inside 5% on all four macros,
  *   which is why it is the only `structural` number here. Free gets one so the
  *   feature can be tried before it is paid for.
- * - **Dish requests** go from none to three a month (`0011`, and the
+ * - **Dish requests** go from none to three a month (report `0011`, and the
  *   `marketing` audit in `docs/reference/marketing/dish-requests.md`). Asking us
  *   to write a dish the library does not have is the one thing here that spends
  *   money every time it succeeds — about 0.04 $, of which 94–98% is the picture
@@ -53,7 +53,7 @@ export type Tier = 'free' | 'premium';
 
 export type Allowances = {
   /**
-   * Dishes a person may ask us to write, per calendar month (`0011`).
+   * Dishes a person may ask us to write, per calendar month (report `0011`).
    *
    * **Spent when a dish is stored, never when a request is made.** The output
    * gate can refuse what the model writes back, and a rejection costs a

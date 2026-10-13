@@ -270,7 +270,7 @@ export type PromptContext = {
   /** For a swap: what the person asked of this one dish, when they asked something (0022). */
   /**
    * The dish somebody asked for, in their own words — **the only field in any
-   * prompt whose content a person writes** (`0011` § 4 a, and the five
+   * prompt whose content a person writes** (report `0011` § 4 a, and the five
    * conditions in `docs/legal/analysis.md`, "P0-3's status at 2026-10-13").
    *
    * Its own key and not `swapWish`, deliberately. A swap's wish is one of four

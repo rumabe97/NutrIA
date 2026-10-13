@@ -83,7 +83,7 @@ const AGE_YEARS = { max: 100, min: 18 } as const;
  * (`docs/legal/textos/05-consentimientos-cliente.md` § A). A stored version that
  * differs is consent to a different notice, so it is asked again.
  *
- * **1.1.0 (2026-10-13): the dish request** (`0011` § 4 a). The paragraph above
+ * **1.1.0 (2026-10-13): the dish request** (report `0011` § 4 a). The paragraph above
  * the checkbox promised the model receives "nada que escribas a mano", and a
  * person may now type one dish name for it to read. That promise was shown at
  * the moment of explicit consent, so narrowing it narrows what somebody agreed

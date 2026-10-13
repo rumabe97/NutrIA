@@ -12,7 +12,7 @@ import type { CountedStanding } from 'core/domain/Allowance';
  * this month's dish requests.
  *
  * The second allowance travels with the first because the screen reads them
- * together (`0011` § 4 a): asking us to write a dish is what somebody does when
+ * together (report `0011` § 4 a): asking us to write a dish is what somebody does when
  * the library has nothing for that meal, and a free account has to be told it
  * is premium *before* it types a dish's name rather than after.
  */

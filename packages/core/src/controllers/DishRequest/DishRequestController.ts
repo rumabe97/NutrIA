@@ -20,7 +20,7 @@ export const DishRequestController = {
 
   /**
    * Stores a dish somebody asked us to write, inside the lock that re-counts
-   * the month (`0011` § 4 a).
+   * the month (report `0011` § 4 a).
    *
    * The allowance is spent on the **stored dish**, never on the request: the
    * output gate can refuse what the model wrote, and a refusal leaves no row, so

@@ -7,7 +7,7 @@ import { zodDto } from '../../../../shared/index.js';
 import type { InferDto } from '../../../../shared/index.js';
 
 /**
- * Asking for a dish the library does not have (`0011` § 4 a).
+ * Asking for a dish the library does not have (report `0011` § 4 a).
  *
  * `name` is the one field in this product whose content a person writes and a
  * model reads. The bound is capped here as well as on the screen, and it is

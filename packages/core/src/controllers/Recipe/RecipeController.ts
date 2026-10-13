@@ -632,7 +632,7 @@ export const RecipeController = {
    */
   /**
    * Every dish in the library for these slots, **unfiltered** — the same fetch
-   * `reusablePool` makes, before anything is taken out of it (`0011` § 2).
+   * `reusablePool` makes, before anything is taken out of it (report `0011` § 2).
    *
    * For the one question `reusablePool` cannot answer: *why* a dish somebody
    * searched for is not offered. Its filters are a sieve, and a sieve cannot
@@ -647,7 +647,7 @@ export const RecipeController = {
   /**
    * Whether this person's way of eating rules a dish out — the same predicate
    * `reusablePool` filters with, exported so that saying *why* a dish is not
-   * offered (`0011` § 2) reads the one definition rather than a second copy
+   * offered (report `0011` § 2) reads the one definition rather than a second copy
    * that can drift from it.
    */
   excludes(

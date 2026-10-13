@@ -12,7 +12,7 @@ export type FixedMealDto = FixedMeal;
  *
  * The two allowances travel together because they are read together: the screen
  * says what is left of both before anybody chooses a day, and asking for a dish
- * is the same screen's second half (`0011` § 4 a).
+ * is the same screen's second half (report `0011` § 4 a).
  */
 export type FixedMealsDto = FixedMealsView;
 
@@ -27,7 +27,7 @@ export type FixableDishDto = FixableDish;
 
 /**
  * A dish the library has and this person was not offered, with the reason
- * (`0011` § 2).
+ * (report `0011` § 2).
  *
  * `actionable` says whether the screen owes them a way forward or a plain no:
  * four of the seven reasons are two taps away from being fixed, and the other

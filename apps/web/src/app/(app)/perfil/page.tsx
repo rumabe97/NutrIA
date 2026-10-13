@@ -101,7 +101,7 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
     serverApi<BillingStatusView>('/billing'),
     serverApi<readonly VacationView[]>('/vacations'),
     // The standing fixed meals, what is left of the allowance (`0098`, `0099`)
-    // and what is left of this month's dish requests (`0011` § 4 a). Null
+    // and what is left of this month's dish requests (report `0011` § 4 a). Null
     // before onboarding is finished, which is also when the dishes that could
     // be fixed have no answer — so no card is drawn.
     serverApi<FixedMealsView>('/fixed-meals'),
@@ -160,7 +160,7 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
           {fixedMeals && preferences ? (
             <FixedMealPlanner
               // So that "it takes longer than you said" can say longer than
-              // what. It is the same answer the row above reads (`0011` § 2).
+              // what. It is the same answer the row above reads (report `0011` § 2).
               cookingMinutes={preferences.cookingTimeMinutes}
               dishRequests={fixedMeals.dishRequests}
               rules={fixedMeals.rules}

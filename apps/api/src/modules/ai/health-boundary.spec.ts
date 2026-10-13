@@ -279,7 +279,7 @@ describe('the free-text and belief boundary around the AI module', () => {
       'checkIn',
       'cookingTimeMinutes',
       // The one field in any prompt whose content a person writes, added here on
-      // purpose when the dish request shipped (`0011` § 4 a, and the five
+      // purpose when the dish request shipped (report `0011` § 4 a, and the five
       // conditions in `docs/legal/analysis.md`, "P0-3's status at 2026-10-13").
       // Its own key and not `swapWish`'s, so that adding it had to be a line in
       // this list — which is where a reviewer is meant to stop and ask.
@@ -368,7 +368,7 @@ describe('the person boundary around the dish pictures', () => {
   });
 
   /*
-   * The dish request is the one field a person writes into (`0011` § 4 a), and
+   * The dish request is the one field a person writes into (report `0011` § 4 a), and
    * the picture prompt carries a dish's **name** verbatim to Google. So the two
    * must never meet: whatever somebody typed may reach the dish-design call and
    * nothing else, and the name that does reach Google is one `storableName`

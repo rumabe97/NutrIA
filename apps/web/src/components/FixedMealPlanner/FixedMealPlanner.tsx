@@ -26,13 +26,13 @@ import type { NotFixable } from 'core/domain/FixableReason';
 /** A dish the API says can be fixed here. */
 type Fixable = { readonly name: string; readonly slug: string };
 
-/** A dish the library has that this person is not offered, and why (`0011` § 2). */
+/** A dish the library has that this person is not offered, and why (report `0011` § 2). */
 type NotOffered = { readonly actionable: boolean; readonly name: string; readonly slug: string; readonly why: NotFixable };
 
 type FixedMealPlannerProps = {
   /** The minutes they said they can cook, so "it takes longer" can say longer than what. Null only if the answer is missing. */
   readonly cookingMinutes: number | null;
-  /** What is left of this month's dish requests — the second half of this screen (`0011` § 4 a). */
+  /** What is left of this month's dish requests — the second half of this screen (report `0011` § 4 a). */
   readonly dishRequests: CountedStanding;
   readonly rules: readonly FixedMeal[];
   /** The slots this person actually eats; a meal they do not eat is not offered. */
@@ -104,7 +104,7 @@ function plain(text: string): string {
  * database refuses a second one, and being refused after a tap is a worse way
  * to learn a rule than not being offered the day.
  *
- * **A search that finds nothing now says why** (`0011`). The owner searched for
+ * **A search that finds nothing now says why** (report `0011`). The owner searched for
  * *patatas a la riojana*, a dish his library has, and the screen showed him a
  * shorter list and said nothing: the dish took 50 minutes against a profile
  * that said 30. Three things answer that silence, in this order — the reasons

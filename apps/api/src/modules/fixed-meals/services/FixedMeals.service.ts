@@ -29,7 +29,7 @@ export type FixableDish = { readonly id: string; readonly name: string; readonly
 
 /**
  * A dish the library has and the person was not offered, with the reason
- * (`0011` § 2).
+ * (report `0011` § 2).
  *
  * `actionable` is on the wire rather than left to the screen to infer: whether a
  * reason is something somebody can do about it decides whether they are shown a
@@ -201,7 +201,7 @@ export class FixedMealsService {
 
   /**
    * Dishes the library has, matching what somebody searched for, that are **not**
-   * offered for this slot — each with the reason (`0011` § 2).
+   * offered for this slot — each with the reason (report `0011` § 2).
    *
    * The defect it exists for: the owner searched for a dish his library has and
    * the screen showed him a shorter list and said nothing. It was excluded for
@@ -258,7 +258,7 @@ export class FixedMealsService {
 
   /**
    * Asks the model for a dish the library does not have, and stores it if what
-   * comes back is a dish (`0011` § 4 a).
+   * comes back is a dish (report `0011` § 4 a).
    *
    * **The only place a person's words reach a model**, under the five conditions
    * in `docs/legal/analysis.md` ("P0-3's status at 2026-10-13"). What they typed
