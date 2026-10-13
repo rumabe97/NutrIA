@@ -20,12 +20,10 @@ export type PitchAllowances = Readonly<Record<'free' | 'premium', Allowances>>;
  * and `premiumPitch.test.ts` is that test: it reads the placeholders out of both
  * dictionaries and fails if one of them is not filled.
  *
- * **`fixedMeals` is supplied and deliberately unused** (`0099`). The limit
- * exists, but no table, route or screen does, so a person cannot fix a meal yet
- * — and a pitch that sold three of them would be the same defect as the ten
- * events, promising what the product does not give. The clause joins the
- * sentence in the change that ships the screen, and the value is here so that
- * change is one line of dictionary.
+ * `fixedMeals` joined the sentence with the screen that makes it true, and not
+ * before (`0099`): the limit shipped one change earlier, and a pitch selling
+ * three fixed meals a week while nobody could fix one would have been the same
+ * defect as the ten events, promising what the product does not give.
  */
 export function premiumPitch(template: string, allowances: PitchAllowances): string {
   return interpolate(template, pitchValues(allowances));

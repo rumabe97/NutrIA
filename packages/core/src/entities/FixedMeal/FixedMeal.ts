@@ -45,7 +45,16 @@ const shape = {
   weekday: weekdaySchema
 };
 
-export const fixedMealSchema = z.object({ id: z.uuid(), ...shape });
+/**
+ * A stored rule, with the dish's name beside its slug.
+ *
+ * The name is not part of `shape` — nobody sends it, and it is the recipe's
+ * rather than the rule's — but every read joins the recipe anyway, and a screen
+ * that has only the slug prints a slug at somebody. Which is what it did, until
+ * a probe showed `arroz-integral-salteado-con-verduras-anacardos-y-jengibre` on
+ * the profile.
+ */
+export const fixedMealSchema = z.object({ dishName: z.string(), id: z.uuid(), ...shape });
 
 export type FixedMeal = z.infer<typeof fixedMealSchema>;
 

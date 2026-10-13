@@ -23,8 +23,8 @@ function backoff(attempt: number): number {
   return base + Math.random() * base;
 }
 
-/** The row shape the schema parses: the rule, with the dish read back as its slug. */
-function parsed(row: { readonly id: string; readonly dishSlug: string; readonly slot: string; readonly weekday: number }): FixedMeal {
+/** The row shape the schema parses: the rule, with the dish read back as its slug and its name. */
+function parsed(row: { readonly id: string; readonly dishName: string; readonly dishSlug: string; readonly slot: string; readonly weekday: number }): FixedMeal {
   return fixedMealSchema.parse(row);
 }
 
@@ -75,7 +75,7 @@ export const FixedMealRepository = {
           }
 
           const standing = await tx
-            .select({ id: fixedMeals.id, dishSlug: recipes.slug, slot: fixedMeals.slot, weekday: fixedMeals.weekday })
+            .select({ id: fixedMeals.id, dishName: recipes.name, dishSlug: recipes.slug, slot: fixedMeals.slot, weekday: fixedMeals.weekday })
             .from(fixedMeals)
             .innerJoin(recipes, eq(recipes.id, fixedMeals.recipeId))
             .where(eq(fixedMeals.userId, userId))
@@ -85,7 +85,7 @@ export const FixedMealRepository = {
             throw new QuotaExceededError('fixed_meal');
           }
 
-          const [recipe] = await tx.select({ id: recipes.id }).from(recipes).where(eq(recipes.slug, rule.dishSlug)).limit(1);
+          const [recipe] = await tx.select({ id: recipes.id, name: recipes.name }).from(recipes).where(eq(recipes.slug, rule.dishSlug)).limit(1);
 
           if (!recipe) {
             // The caller validated the dish against `pinnable` before getting
@@ -99,7 +99,7 @@ export const FixedMealRepository = {
             .values({ recipeId: recipe.id, slot: rule.slot, userId, weekday: rule.weekday })
             .returning({ id: fixedMeals.id, slot: fixedMeals.slot, weekday: fixedMeals.weekday });
 
-          return inserted ? { ...inserted, dishSlug: rule.dishSlug } : undefined;
+          return inserted ? { ...inserted, dishName: recipe.name, dishSlug: rule.dishSlug } : undefined;
         });
 
         if (row) {
@@ -121,7 +121,7 @@ export const FixedMealRepository = {
   async findByUser(userId: string): Promise<readonly FixedMeal[]> {
     try {
       const rows = await database()
-        .select({ id: fixedMeals.id, dishSlug: recipes.slug, slot: fixedMeals.slot, weekday: fixedMeals.weekday })
+        .select({ id: fixedMeals.id, dishName: recipes.name, dishSlug: recipes.slug, slot: fixedMeals.slot, weekday: fixedMeals.weekday })
         .from(fixedMeals)
         .innerJoin(recipes, eq(recipes.id, fixedMeals.recipeId))
         .where(eq(fixedMeals.userId, userId))

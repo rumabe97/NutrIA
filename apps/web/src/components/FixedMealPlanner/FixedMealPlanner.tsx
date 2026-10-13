@@ -128,8 +128,6 @@ export function FixedMealPlanner({ rules, slots, standing }: FixedMealPlannerPro
     }
   }
 
-  const nameOf = (rule: FixedMeal) => rules.find(other => other.id === rule.id)?.dishSlug ?? rule.dishSlug;
-
   return (
     <Card as="section" className={styles.root}>
       <h3 className={styles.title} ref={titleRef} tabIndex={-1}>
@@ -146,7 +144,7 @@ export function FixedMealPlanner({ rules, slots, standing }: FixedMealPlannerPro
               <span className={styles.when}>
                 <span className={styles.rule}>{interpolate(t.rule, { day: t.weekdays[rule.weekday], meal: t.slots[rule.slot] })}</span>
                 <Text as="span" size="xs" tone="tertiary">
-                  {nameOf(rule)}
+                  {rule.dishName}
                 </Text>
               </span>
               {/* Every row's button says the same word; the label says which rule it belongs to. */}
@@ -167,7 +165,11 @@ export function FixedMealPlanner({ rules, slots, standing }: FixedMealPlannerPro
 
       <Text size="xs" tone="tertiary">
         {standing.remaining === 0
-          ? interpolate(t.full, { limit: standing.limit })
+          ? // "Ya tienes tus 1 comidas fijas" is what the plural alone gives on
+            // the free tier, which is every account until somebody pays.
+            standing.limit === 1
+            ? t.fullOne
+            : interpolate(t.full, { limit: standing.limit })
           : interpolate(standing.remaining === 1 ? t.leftOne : t.left, { limit: standing.limit, remaining: standing.remaining })}
       </Text>
 
