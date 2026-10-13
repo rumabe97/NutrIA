@@ -4,8 +4,7 @@
 - **Status**: accepted
 - **Amends**: [`0081`](./0081-four-of-pasta-four-of-rice-four-of-grains-a-fortnight.md)'s terms, and
   [`0098`](./0098-a-meal-somebody-fixed-is-not-the-schedulers-to-change.md)'s second finding with
-  it. **The number each tier gets is still not set here** — see § What this leaves to the
-  owner.
+  it, and it **sets the number** `0098` deliberately left open — see § The number, decided.
 
 ## Context
 
@@ -173,18 +172,53 @@ flag still works and the run is two minutes if anybody wants the number.
 - **Nothing is wired to a person yet.** No limit, no route, no screen: `0097`'s structural
   kind still has no member.
 
-## What this leaves to the owner
+## The number, decided
 
-Two things, and both are his by the rules already written.
+**Free 1, premium 3** (owner, 2026-10-13), with the cap change taken as decided above.
 
-1. **Whether to take this change at all.** `STARCH_RULES` is a rule he set himself (owner,
-   2026-10-02), and this changes what its four counts.
-2. **The number each tier gets.** `0097` says a structural allowance's ceiling is the number
-   shipped in the code and the console may only lower it, and `0098` says the choice is his.
-   The `marketing` audit asked for **free 1, premium 3**; `0098` could support only 2; this
-   measurement refuses neither, and refuses nothing up to 4. **My recommendation is the
-   audit's own: free 1, premium 3** — not because the measurement stops there, but because
-   it is the number the audit priced as worth paying for, and because the ceiling is now a
-   judgement about whether a fortnight with four standing rules is still a plan somebody
-   asked a planner for. `0097` lets him lower it from the console without a deploy, and
-   raising it later is a constant and a measurement, both of which now exist.
+Both were his by rules already written: `STARCH_RULES` is a rule he set himself on
+2026-10-02, and `0097` makes a structural limit's ceiling the number shipped in the code.
+He was given the measurement, the two readings of it, and four candidate pairs with the
+figures each one is supported by.
+
+Three is the `marketing` audit's own ask, from before the lever existed. It is **not** the
+number the measurement stops at — the measurement refuses nothing up to four, which is as
+far as the fixture asks. It is the number the audit priced as worth paying for, and it
+leaves eleven days of every fourteen to the planner. The reason to stop below the
+measurement is a product judgement and is recorded as one: a fortnight with eight of its
+fourteen days carrying a meal decided in advance is not obviously a thing somebody asked a
+planner for.
+
+So, in the registry:
+
+- `fixedMeals`, `kind: 'structural'` — the only structural member `0097` has. The console may
+  **lower** it and not raise it, because raising it spends the band promise and the console
+  cannot know what a raise costs. Lowering it needs no deploy; raising it is a constant and a
+  measurement, and both now exist.
+- `ceiling: 3`, which is premium's shipped number, as `0097` requires of a structural limit.
+  A test now pins that equality: a ceiling set a little above the default "to leave room" is
+  exactly how this would be broken quietly.
+- `floor: 0`. Zero is a value and not an absence (`0097`): free at 0 makes the feature
+  premium-only, which the audit considered and rejected — a feature nobody can try is harder
+  to sell than one they try once.
+- Named `fixedMeals` and not the audit's `fixedMealsStanding`. The audit's reason for the
+  suffix was to stop a reader assuming the limit resets with each plan, which `fixedMeals`
+  does as well; and `…Standing` was already taken by the other meaning — `MealSwapStanding`
+  and `PlanRedoStanding` are *where you stand*, used and left, so the standing of
+  `fixedMealsStanding` would have had to be `fixedMealsStandingStanding`.
+
+**And the pitch stops carrying hand-written numbers.** The sentence on the page that asks
+for money promised *ten events* for three weeks after the domain stopped allowing them,
+because the figure was typed into the dictionary and `0044`'s number moved underneath it
+(`0097` found it). Every figure in that sentence is now interpolated from the resolved
+allowances, which travel to the card on the billing status it already reads. A number the
+console moves moves there too, and `interpolate` leaves an unknown placeholder visible —
+a `{redos}` on screen is a bug report; "undefined" is a mystery.
+
+## What is still not built
+
+The standing rule itself: there is no table, no route and no screen, so **nothing a person
+can do spends this allowance yet**. That is the next change, and it is where the migration
+lives. `pinnable` (`0098`) is the seam the screen will use, and the refusal it encodes is the
+one the product has to say out loud before a rule is written: *this dish cannot be fixed to
+this meal.*

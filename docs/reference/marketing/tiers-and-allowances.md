@@ -32,6 +32,14 @@ money; premium buys control rather than volume — and the two limits nobody can
 | `planRedosPerFortnight` | 1 | 1 | 3 | 3 | keeps `0015`, `0042` |
 | `fixedMealsStanding` *(new)* | — | **1** | — | **3** | new |
 
+> **Shipped on 2026-10-13 as `fixedMeals`**, free 1 and premium 3 as asked, the pair
+> decided by the owner against [`0099`](../../decisions/0099-a-variety-cap-counts-the-meals-the-generator-chose.md)'s
+> measurement. The name lost its `Standing` suffix for a reason this audit could not have
+> known: `…Standing` already means *where you stand* in the code — `MealSwapStanding`,
+> `PlanRedoStanding` — so the standing of `fixedMealsStanding` would have had to be called
+> `fixedMealsStandingStanding`. `fixedMeals` keeps what the suffix was for, which was not
+> looking like `…PerPlan`.
+
 Three of the five numbers move. Two stay, and the audit below says why staying is a
 decision and not an omission.
 
@@ -189,6 +197,8 @@ recurring rule does not reset: it stands until the person removes it. So:
 - The limit is on **concurrent standing rules**, checked when a rule is created and read
   again at every generation (a tier that lapses must not silently honour four rules).
 - Name it `fixedMealsStanding`, not `…PerPlan`, so no future reader assumes it resets.
+  *(Shipped as `fixedMeals`: same intent, and `…Standing` was already taken by the
+  used/left shape. See the note under the table above.)*
 - **Weekly cadence only, in v1.** A rule is (weekday, slot, dish). If a *daily* rule is
   ever asked for, the unit changes to constrained day-slots per fortnight — free 2, premium
   6 — under which a weekly rule costs 2 and a daily rule costs 14, i.e. it fits in neither
