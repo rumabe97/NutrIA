@@ -122,28 +122,9 @@ jobs:
     # account with a monthly budget of them. The gate still runs on both.
     if: github.event_name == 'pull_request'
 
-    # Thrown away with the job. The suites register and delete accounts, so they
-    # must never see a database anybody else can reach — a container that dies
-    # with the run enforces that rather than asking for it.
-    services:
-      postgres:
-        # The same official image, from AWS's public mirror rather than Docker
-        # Hub. Hub rate-limits anonymous pulls per IP, and GitHub's runners share
-        # those IPs: on 2026-10-09 a day of eight end-to-end runs exhausted it,
-        # and the job began dying in fifteen seconds with `toomanyrequests`
-        # before a single test ran. ECR Public has no anonymous limit worth
-        # hitting, and needs no secret — a Hub token would work too, at the cost
-        # of a credential to keep.
-        image: public.ecr.aws/docker/library/postgres:17
-        env:
-          POSTGRES_DB: nutria_e2e
-          POSTGRES_PASSWORD: postgres
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
+    # The database is started by a step below rather than by `services:`, and
+    # that is the whole of the fix for a job that has now been killed twice by
+    # somebody else's rate limit — see "A Postgres for this run".
 
     env:
       # One container, so pooled and direct are the same host. `prepare: false`
@@ -172,6 +153,63 @@ jobs:
           node-version-file: package.json
 
       - run: pnpm install --frozen-lockfile
+
+      # Thrown away with the job. The suites register and delete accounts, so
+      # they must never see a database anybody else can reach — a container that
+      # dies with the run enforces that rather than asking for it.
+      #
+      # **Started here and not as a `services:` container, because a service is
+      # pulled before any step runs and a failed pull ends the job.** That has
+      # now happened twice, from two different registries, neither of them ours:
+      # Docker Hub rate-limits anonymous pulls per IP and GitHub's runners share
+      # those IPs (2026-10-09 — eight runs in a day, then `toomanyrequests` in
+      # fifteen seconds), and AWS's public mirror answered `toomanyrequests: Data
+      # limit exceeded` (2026-10-13, before a single test ran). Moving to a third
+      # registry alone would buy the same failure a third time.
+      #
+      # So: three registries in turn, and if all of them are out, the PostgreSQL
+      # the runner already has installed, which needs no network at all. That
+      # last one is a major version behind production's 17, and it is the trade
+      # this exists to make — these suites assert this product's rules, not
+      # Postgres's, and a run on 16 is worth incomparably more than a run that
+      # never happened. The line it prints says which database you are reading.
+      - name: A Postgres for this run
+        run: |
+          set -u
+          started=
+          for registry in mirror.gcr.io/library public.ecr.aws/docker/library docker.io/library; do
+            if docker run -d --name nutria-e2e-pg \
+              -e POSTGRES_DB=nutria_e2e -e POSTGRES_PASSWORD=postgres \
+              -p 5432:5432 "$registry/postgres:17" >/dev/null 2>&1; then
+              started="$registry/postgres:17"
+              break
+            fi
+            echo "[e2e] $registry answered no; trying the next"
+            docker rm -f nutria-e2e-pg >/dev/null 2>&1 || true
+          done
+
+          if [ -z "$started" ]; then
+            # Installed on the runner image and stopped. Its `pg_hba` already
+            # takes a password over localhost, so what is missing is the
+            # password itself and the database.
+            sudo systemctl start postgresql
+            sudo -u postgres psql -c "alter user postgres password 'postgres'"
+            sudo -u postgres createdb nutria_e2e
+            started="the runner's own $(psql --version)"
+          fi
+
+          echo "[e2e] database: $started"
+
+          for _ in $(seq 1 60); do
+            if pg_isready -h localhost -p 5432 -q; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "[e2e] the database never became ready" >&2
+          docker logs nutria-e2e-pg 2>&1 | tail -20 || true
+          exit 1
 
       # Lives as long as the job. Nothing signed with it outlives the container
       # holding the sessions, so there is no secret here to leak or to rotate.

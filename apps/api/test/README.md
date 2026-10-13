@@ -115,9 +115,17 @@ re-run over it, in about ten seconds. `plan-lifecycle` took 29 s here on 2026-10
 ### In CI
 
 `.github/workflows/ci.yml` runs these suites on every pull request against a `postgres:17`
-service container that is destroyed with the job — no secret, no shared branch, nothing to
-reset. It migrates, seeds and runs, exactly as below; the seed takes five seconds against a
-container and the suites about twenty minutes on a shared runner. That is also the answer
+container that is destroyed with the job — no secret, no shared branch, nothing to reset. It
+migrates, seeds and runs, exactly as below; the seed takes five seconds against a container
+and the suites about twenty minutes on a shared runner.
+
+**The container is started by a step, not by `services:`**, and the reason is worth knowing
+before you read a red run: a service container is pulled before any step runs, so a registry
+refusing the pull ends the job in fifteen seconds with nothing to read. That happened twice in
+five days, on two different registries, for the same reason — an anonymous rate limit shared
+across GitHub's runner IPs. The step tries three registries in turn and then falls back to the
+PostgreSQL the runner already has installed, which is a major version behind production's 17.
+Its first line says which database the run you are reading used. That is also the answer
 to "what if I break the harness": the failure arrives on the pull request that caused it,
 before it can reach `main`.
 
