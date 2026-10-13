@@ -711,6 +711,35 @@ export async function recipeRow(slug: string): Promise<{ id: string; createdBy: 
 }
 
 /**
+ * Takes the dishes a suite had written out of the library again, by slug.
+ *
+ * **The one thing a suite creates that deleting its accounts does not remove.**
+ * `recipes` is shared and outlives every account (`created_by` is provenance,
+ * `ON DELETE SET NULL`), which is the product working — but a suite that
+ * *names* the dishes it asks for, as `dish-request` must, has to be able to run
+ * twice: left behind, its own slugs are taken, and the second run is handed
+ * yesterday's dish instead of writing one. The database here is also the
+ * development library, which the plan measurements read, so the litter is not
+ * free either.
+ *
+ * On the tables, like `openPractice`: no route deletes a recipe. One statement
+ * per slug and never fatal — `meals.recipe_id` is `RESTRICT`, so a dish some
+ * plan served stays, and a cleanup that threw would hide whatever the suite was
+ * really reporting. A slug nothing holds is a no-op.
+ */
+export async function forgetRecipes(slugs: readonly string[]): Promise<void> {
+  const sql = sqlClient();
+
+  for (const slug of slugs) {
+    try {
+      await sql`delete from recipes where slug = ${slug}`;
+    } catch {
+      // Held by a plan, or by anything else that may not lose it. Said by what is left behind, not by a throw.
+    }
+  }
+}
+
+/**
  * How many rows the admin trail (`0071`) holds for one action, or for all of
  * them. Read directly from the table rather than through `GET /admin/audit`
  * so a suite proving "this call wrote no row" (a 404 that must leave the
