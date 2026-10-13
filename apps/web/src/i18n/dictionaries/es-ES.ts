@@ -1545,6 +1545,30 @@ export const esES = {
     thanks: 'Recibido. Gracias por tomarte el rato.',
     title: '¿Qué mejorarías?'
   },
+  fixedMeals: {
+    add: 'Fijar esta comida',
+    added: 'Comida fijada. Entra en los planes que generes a partir de ahora.',
+    day: 'Qué día',
+    dayPlaceholder: 'Elige un día',
+    dish: 'Qué plato',
+    dishPlaceholder: 'Elige un plato',
+    full: 'Ya tienes tus {limit} comidas fijas. Quita una para fijar otra.',
+    fullOne: 'Ya tienes tu comida fija. Quítala para fijar otra.',
+    intro:
+      'Un plato que se repite siempre el mismo día, en todos tus planes. El resto de la semana la sigue decidiendo el planificador, y tus alergias mandan igual.',
+    left: 'Te quedan {remaining} de {limit}.',
+    leftOne: 'Te queda 1 de {limit}.',
+    meal: 'Qué comida',
+    mealPlaceholder: 'Elige una comida',
+    noneFit: 'Ningún plato de tu biblioteca encaja en esa comida ese día. Prueba con otra comida.',
+    remove: 'Quitar',
+    removed: 'Quitada. Los planes que ya tienes no cambian.',
+    removeFor: 'Quitar la comida fija de los {day} ({meal})',
+    rule: '{day}, {meal}',
+    slots: { afternoon_snack: 'Merienda', breakfast: 'Desayuno', dinner: 'Cena', lunch: 'Comida', morning_snack: 'Almuerzo', supper: 'Recena' },
+    title: 'Comidas fijas',
+    weekdays: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+  },
 
   footer: {
     account: 'Cuenta',
@@ -2699,7 +2723,7 @@ export const esES = {
     premiumMonthly: 'Mensual · {price} al mes',
     premiumPastDue: 'No se ha podido cobrar la última cuota. Stripe lo volverá a intentar; actualiza la tarjeta para no perder premium.',
     premiumPitch:
-      '{redos} replanificaciones por quincena en vez de {freeRedos}, {swaps} cambios de comida por plan en vez de {freeSwaps}, {events} eventos por plan en vez de {freeEvents}, y hasta {midPlan} eventos añadidos con el plan ya empezado.',
+      '{redos} replanificaciones por quincena en vez de {freeRedos}, {swaps} cambios de comida por plan en vez de {freeSwaps}, {events} eventos por plan en vez de {freeEvents}, {fixedMeals} comidas fijas cada semana en vez de {freeFixedMeals}, y hasta {midPlan} eventos añadidos con el plan ya empezado.',
     premiumRenews: 'Tienes premium. Se renueva el {date}.',
     premiumSafety: 'La seguridad alimentaria —alergias, intolerancias y nutrientes— es la misma con premium y sin él.',
     premiumTestMode: 'Modo de prueba: no se cobra nada de verdad. Usa la tarjeta 4242 4242 4242 4242, cualquier fecha futura y cualquier CVC.',

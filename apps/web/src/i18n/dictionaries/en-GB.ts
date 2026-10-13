@@ -1508,6 +1508,36 @@ export const enGB: Dictionary = {
     thanks: 'Got it. Thanks for taking the time.',
     title: 'What would you improve?'
   },
+  fixedMeals: {
+    add: 'Fix this meal',
+    added: 'Meal fixed. It applies to the plans you generate from now on.',
+    day: 'Which day',
+    dayPlaceholder: 'Choose a day',
+    dish: 'Which dish',
+    dishPlaceholder: 'Choose a dish',
+    full: 'You already have your {limit} fixed meals. Remove one to fix another.',
+    fullOne: 'You already have your fixed meal. Remove it to fix another.',
+    intro: 'A dish that comes back on the same day, in every plan. The rest of the week is still the planner’s, and your allergies still decide.',
+    left: '{remaining} of {limit} left.',
+    leftOne: '1 of {limit} left.',
+    meal: 'Which meal',
+    mealPlaceholder: 'Choose a meal',
+    noneFit: 'No dish in your library fits that meal on that day. Try another meal.',
+    remove: 'Remove',
+    removed: 'Removed. The plans you already have do not change.',
+    removeFor: 'Remove the meal fixed to {day} ({meal})',
+    rule: '{day}, {meal}',
+    slots: {
+      afternoon_snack: 'Afternoon snack',
+      breakfast: 'Breakfast',
+      dinner: 'Dinner',
+      lunch: 'Lunch',
+      morning_snack: 'Morning snack',
+      supper: 'Supper'
+    },
+    title: 'Fixed meals',
+    weekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+  },
 
   footer: {
     account: 'Account',
@@ -2657,7 +2687,7 @@ export const enGB: Dictionary = {
     premiumMonthly: 'Monthly · {price} a month',
     premiumPastDue: 'The last payment could not be taken. Stripe will try again; update your card to keep premium.',
     premiumPitch:
-      '{redos} plan redos a fortnight instead of {freeRedos}, {swaps} meal swaps a plan instead of {freeSwaps}, {events} events a plan instead of {freeEvents}, and up to {midPlan} events added once a plan has started.',
+      '{redos} plan redos a fortnight instead of {freeRedos}, {swaps} meal swaps a plan instead of {freeSwaps}, {events} events a plan instead of {freeEvents}, {fixedMeals} meals fixed every week instead of {freeFixedMeals}, and up to {midPlan} events added once a plan has started.',
     premiumRenews: 'You have premium. It renews on {date}.',
     premiumSafety: 'Food safety — allergies, intolerances and nutrients — is the same with premium and without it.',
     premiumTestMode: 'Test mode: nothing is really charged. Use the card 4242 4242 4242 4242, any future date and any CVC.',
