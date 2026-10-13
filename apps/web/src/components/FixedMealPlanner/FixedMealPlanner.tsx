@@ -1,11 +1,12 @@
 'use client';
-import { useId, useRef, useState } from 'react';
+import { Fragment, useId, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
 import styles from './FixedMealPlanner.module.css';
 
 import { Button } from 'ui/components/Button';
+import { Input } from 'ui/components/Input';
 import { Select, SelectOption } from 'ui/components/Select';
 import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
@@ -32,6 +33,24 @@ type FixedMealPlannerProps = {
 const WEEKDAYS: readonly Weekday[] = [0, 1, 2, 3, 4, 5, 6];
 
 /**
+ * How many dishes are listed at once, and how many more each press adds.
+ *
+ * Eight is about a phone's worth without scrolling past the button that adds
+ * more. The list is sorted by name and a search narrows it, so the eight on
+ * screen are a real answer rather than an arbitrary prefix.
+ */
+const PAGE = 8;
+
+/** Lower-cased and without accents, for a search that matches what a phone keyboard types. */
+function plain(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+/**
  * A meal fixed to one day of the week, for ever (`0098`, `0099`).
  *
  * **The dish list is asked for, not guessed.** Which dishes can be fixed to a
@@ -55,12 +74,20 @@ export function FixedMealPlanner({ rules, slots, standing }: FixedMealPlannerPro
   const [slot, setSlot] = useState<string>('');
   const [dish, setDish] = useState<string>('');
   const [fixable, setFixable] = useState<readonly Fixable[]>();
+  const [query, setQuery] = useState('');
+  const [shown, setShown] = useState(PAGE);
   const [pending, setPending] = useState(false);
   const [outcome, setOutcome] = useState<'added' | 'removed'>();
   const [error, setError] = useState<string>();
 
   const taken = new Set(rules.map(rule => rule.weekday));
   const free = WEEKDAYS.filter(day => !taken.has(day));
+  const chosen = fixable?.find(candidate => candidate.slug === dish);
+  // Accent-insensitive on both sides: somebody typing "limon" on a phone
+  // keyboard is looking for "limón", and a search that disagrees reads as a
+  // library that does not have it.
+  const needle = plain(query);
+  const matching = needle === '' ? (fixable ?? []) : (fixable ?? []).filter(candidate => plain(candidate.name).includes(needle));
 
   // As `VacationPlanner`: the button that was pressed disables itself while the
   // request is out, and a disabled element cannot hold focus, so without this
@@ -76,6 +103,8 @@ export function FixedMealPlanner({ rules, slots, standing }: FixedMealPlannerPro
   async function offer(nextWeekday: string, nextSlot: string) {
     setDish('');
     setFixable(undefined);
+    setQuery('');
+    setShown(PAGE);
     setError(undefined);
 
     if (!nextWeekday || !nextSlot) {
@@ -105,6 +134,8 @@ export function FixedMealPlanner({ rules, slots, standing }: FixedMealPlannerPro
       setSlot('');
       setDish('');
       setFixable(undefined);
+      setQuery('');
+      setShown(PAGE);
       settle('added');
     } catch (caught) {
       setError(messageFor(caught, dictionary));
@@ -218,24 +249,74 @@ export function FixedMealPlanner({ rules, slots, standing }: FixedMealPlannerPro
           </div>
 
           {/* Only once both are chosen: the dishes depend on the pair, and an
-              empty list before that would read as "nothing fits". */}
-          {fixable ? (
-            <div className={styles.field}>
-              <span className={styles.label} id={`${id}-dish`}>
-                {t.dish}
-              </span>
-              {fixable.length > 0 ? (
-                <Select aria-labelledby={`${id}-dish`} onValueChange={setDish} placeholder={t.dishPlaceholder} value={dish}>
-                  {fixable.map(candidate => (
-                    <SelectOption indicator="✓" key={candidate.slug} value={candidate.slug}>
-                      {candidate.name}
-                    </SelectOption>
-                  ))}
-                </Select>
+              empty list before that would read as "nothing fits".
+
+              A listbox was the wrong control here and it shipped: a popover of a
+              hundred and fifty names on a phone, nothing to type into, and the
+              only way to reach the last one was to scroll past the rest. A field
+              you can type in, with the matches under it a page at a time, is
+              what a list this long needs. */}
+          {fixable && fixable.length === 0 ? (
+            <Text size="xs" tone="tertiary">
+              {t.noneFit}
+            </Text>
+          ) : null}
+
+          {fixable && fixable.length > 0 ? (
+            <div className={styles.dish}>
+              {chosen ? (
+                <div className={styles.chosen}>
+                  <span className={styles.chosenName}>
+                    <Text as="span" size="xs" tone="tertiary">
+                      {t.dish}
+                    </Text>
+                    <span className={styles.rule}>{chosen.name}</span>
+                  </span>
+                  <Button onClick={() => setDish('')} size="sm" type="button" variant="secondary">
+                    {t.change}
+                  </Button>
+                </div>
               ) : (
-                <Text size="xs" tone="tertiary">
-                  {t.noneFit}
-                </Text>
+                <Fragment>
+                  <Input
+                    autoComplete="off"
+                    hint={interpolate(fixable.length === 1 ? t.countOne : t.count, { count: fixable.length })}
+                    label={t.dish}
+                    onChange={event => {
+                      setQuery(event.target.value);
+                      setShown(PAGE);
+                    }}
+                    placeholder={t.searchPlaceholder}
+                    type="search"
+                    value={query}
+                  />
+
+                  {/* The count is what changes as somebody types, so it is the
+                      thing a screen reader should hear — not each row arriving. */}
+                  <Text aria-live="polite" className={styles.matches} role="status" size="xs" tone="tertiary">
+                    {matching.length === 0
+                      ? interpolate(t.noMatch, { query })
+                      : interpolate(matching.length === 1 ? t.matchOne : t.match, { count: matching.length })}
+                  </Text>
+
+                  {matching.length > 0 ? (
+                    <ul className={styles.options}>
+                      {matching.slice(0, shown).map(candidate => (
+                        <li key={candidate.slug}>
+                          <button className={styles.option} onClick={() => setDish(candidate.slug)} type="button">
+                            {candidate.name}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+
+                  {matching.length > shown ? (
+                    <Button onClick={() => setShown(shown + PAGE)} size="sm" type="button" variant="secondary">
+                      {interpolate(t.more, { count: matching.length - shown })}
+                    </Button>
+                  ) : null}
+                </Fragment>
               )}
             </div>
           ) : null}

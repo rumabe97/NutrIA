@@ -39,10 +39,10 @@
   font-size: var(--font-size-03);
 }
 
-/* Three choosers and a button. They stack on a phone, which is where this is
-   used, and the dish name is the one that can be long — a Spanish dish name
-   runs to forty characters, so the field takes the row on its own rather than
-   squeezing the two beside it. */
+/* Two choosers, a search and a button. The day and the meal sit side by side
+   where there is room; the dish takes the whole row whatever there is, because
+   a Spanish dish name runs past forty characters and a column half a phone wide
+   wraps every one of them to three lines. */
 .form {
   align-items: end;
   display: flex;
@@ -73,4 +73,69 @@
 .label {
   font-size: var(--font-size-03);
   font-weight: var(--font-weight-medium);
+}
+
+/* The dish is chosen from a list of a hundred and fifty, so it is a search and
+   not a listbox: the popover version shipped and was unusable on a phone —
+   nothing to type into, names wrapping over each other, and the panel wider
+   than the card it belonged to. This is flat, in the card, and scrolls with the
+   page like everything else. */
+.dish {
+  display: grid;
+  flex: 1 1 100%;
+  gap: var(--space-02);
+}
+
+.matches {
+  margin: 0;
+}
+
+.options {
+  display: grid;
+  gap: var(--space-01);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* A whole row is the target, not the words: 44px is the floor, and the padding
+   gets it there for a one-line name as well as a three-line one. */
+.option {
+  background: none;
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-control);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  inline-size: 100%;
+  min-block-size: 44px;
+  padding: var(--space-02) var(--space-03);
+  text-align: start;
+}
+
+.option:hover {
+  background-color: var(--background-02);
+}
+
+.option:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* What was chosen, and the way back. Same shape as a rule's row above it, so
+   the card reads as one thing rather than two. */
+.chosen {
+  align-items: center;
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-control);
+  display: flex;
+  gap: var(--space-04);
+  justify-content: space-between;
+  padding: var(--space-03) var(--space-04);
+}
+
+.chosenName {
+  display: grid;
+  gap: var(--space-01);
+  min-inline-size: 0;
 }
