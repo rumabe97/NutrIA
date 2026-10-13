@@ -312,8 +312,20 @@ export function midPlanEventStanding(used: number, limits: Allowances = ALLOWANC
   return countDown(used, limits.midPlanEventsPerPlan);
 }
 
-function countDown(used: number, limit: number): CountedStanding {
+/**
+ * One counted allowance's standing: how many, how many are gone, how many are
+ * left, and whether one more is permitted.
+ *
+ * Exported for the allowances whose unit is not "per plan" — a standing fixed
+ * meal is counted over the account and not over a fortnight (`0099`), so it has
+ * no window to name and no wrapper of its own worth writing.
+ */
+export function countedStanding(used: number, limit: number): CountedStanding {
   return { allowed: used < limit, limit, remaining: Math.max(limit - used, 0), used };
+}
+
+function countDown(used: number, limit: number): CountedStanding {
+  return countedStanding(used, limit);
 }
 
 /**

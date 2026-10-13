@@ -65,7 +65,7 @@ export type AddFixedMeal = z.infer<typeof addFixedMealSchema>;
  * alone — `daysFor` is where that happens.
  */
 export function weekdayOf(isoDate: string): Weekday {
-  return (((new Date(`${isoDate}T00:00:00Z`).getUTCDay() + 6) % 7) as Weekday);
+  return ((new Date(`${isoDate}T00:00:00Z`).getUTCDay() + 6) % 7) as Weekday;
 }
 
 /**

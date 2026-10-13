@@ -24,7 +24,7 @@ function backoff(attempt: number): number {
 }
 
 /** The row shape the schema parses: the rule, with the dish read back as its slug. */
-function parsed(row: { readonly dishSlug: string; readonly id: string; readonly slot: string; readonly weekday: number }): FixedMeal {
+function parsed(row: { readonly id: string; readonly dishSlug: string; readonly slot: string; readonly weekday: number }): FixedMeal {
   return fixedMealSchema.parse(row);
 }
 
@@ -75,7 +75,7 @@ export const FixedMealRepository = {
           }
 
           const standing = await tx
-            .select({ dishSlug: recipes.slug, id: fixedMeals.id, slot: fixedMeals.slot, weekday: fixedMeals.weekday })
+            .select({ id: fixedMeals.id, dishSlug: recipes.slug, slot: fixedMeals.slot, weekday: fixedMeals.weekday })
             .from(fixedMeals)
             .innerJoin(recipes, eq(recipes.id, fixedMeals.recipeId))
             .where(eq(fixedMeals.userId, userId))
@@ -121,7 +121,7 @@ export const FixedMealRepository = {
   async findByUser(userId: string): Promise<readonly FixedMeal[]> {
     try {
       const rows = await database()
-        .select({ dishSlug: recipes.slug, id: fixedMeals.id, slot: fixedMeals.slot, weekday: fixedMeals.weekday })
+        .select({ id: fixedMeals.id, dishSlug: recipes.slug, slot: fixedMeals.slot, weekday: fixedMeals.weekday })
         .from(fixedMeals)
         .innerJoin(recipes, eq(recipes.id, fixedMeals.recipeId))
         .where(eq(fixedMeals.userId, userId))
