@@ -1570,6 +1570,8 @@ export const esES = {
     askTitle: '¿No está tu plato?',
     change: 'Cambiar',
     count: '{count} platos encajan en esa comida ese día.',
+    countBeside: '{count} platos encajan en esa comida junto a la {meal} que ya tienes fijada ese día.',
+    countBesideOne: 'Un plato encaja en esa comida junto a la {meal} que ya tienes fijada ese día.',
     countOne: 'Un plato encaja en esa comida ese día.',
     day: 'Qué día',
     dayPlaceholder: 'Elige un día',
@@ -1587,6 +1589,8 @@ export const esES = {
     mealPlaceholder: 'Elige una comida',
     more: 'Ver {count} más',
     noMatch: 'Ningún plato se llama «{query}».',
+    noneBeside:
+      'Ningún plato encaja en esa comida junto a la {meal} que ya tienes fijada ese día: entre las dos no quedarían los macros del día dentro de lo que buscamos. Prueba con otro día, o cambia la que ya tienes.',
     noneFit: 'Ningún plato de tu biblioteca encaja en esa comida ese día. Prueba con otra comida.',
     reasonFix: {
       disliked: 'Revisar lo que no quieres ver',
@@ -1595,6 +1599,7 @@ export const esES = {
     },
     reasons: {
       allergen: 'Lleva algo a lo que eres alérgico. No te lo vamos a ofrecer.',
+      clashes_with_fixed: 'Cabe en esa comida, pero no junto a lo que ya tienes fijado ese día: los macros del día no saldrían.',
       disliked: 'Lo tienes entre los alimentos que no quieres ver.',
       excluded: 'No encaja con tu tipo de alimentación.',
       no_method: 'Nos falta la receta de este plato, así que no se lo servimos a nadie. Eso es cosa nuestra.',

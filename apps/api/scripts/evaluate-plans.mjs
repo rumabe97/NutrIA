@@ -381,12 +381,7 @@ function pinsFor(slots, everything, inputFor, options, profileSlug, solvable) {
     const pickFrom = fitting.length > 0 ? fitting : from;
     const chosen = pickFrom[pinHash(`${profileSlug}:${day}:${slot}`) % pickFrom.length];
 
-    rules.push({
-      day,
-      slot,
-      slug: chosen.slug,
-      ...(options.pinFit && held && held.size > 0 ? { fitting: fitting.length, of: from.length } : {})
-    });
+    rules.push({ day, slot, slug: chosen.slug, ...(options.pinFit && held && held.size > 0 ? { fitting: fitting.length, of: from.length } : {}) });
 
     for (const landing of [day, day + 7]) {
       const held = map.get(landing) ?? new Map();

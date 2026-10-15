@@ -15,7 +15,7 @@ import type { SafetyProfile } from 'core/entities/Safety';
  * reason in his case or in most: that dish takes 50 minutes and his profile said
  * 30, and raising that one preference unlocked 102 dishes for him.
  *
- * Four of the reasons below are things the person can act on, one is a refusal,
+ * Five of the reasons below are things the person can act on, one is a refusal,
  * and the point is that they are different sentences. A list that silently gets
  * shorter cannot be any of them.
  */
@@ -27,6 +27,8 @@ import type { SafetyProfile } from 'core/entities/Safety';
  */
 export type NotFixable =
   | 'allergen'
+  /** It fits that meal, but not beside the rule the day already holds (`0101`). */
+  | 'clashes_with_fixed'
   /** Their way of eating rules it out — vegetarian, halal, gluten-free. */
   | 'disliked'
   | 'excluded'
@@ -60,7 +62,13 @@ export function whyNotFixable(
     readonly safety: SafetyProfile;
   },
   excluded: boolean,
-  fits: boolean
+  fits: boolean,
+  /**
+   * Whether the day still reaches its four macros with this dish beside what is
+   * already fixed there. True when the day holds nothing, which is every case
+   * before `0101` and the common one after it.
+   */
+  holdsTheDay = true
 ): FixableVerdict {
   if (dishSafety(dish.ingredients, context.catalogue, context.safety).kind !== 'safe') {
     return { fixable: false, why: 'allergen' };
@@ -86,7 +94,15 @@ export function whyNotFixable(
     return { fixable: false, why: 'wrong_slot' };
   }
 
-  return fits ? { fixable: true } : { fixable: false, why: 'too_big_or_small' };
+  if (!fits) {
+    return { fixable: false, why: 'too_big_or_small' };
+  }
+
+  // Last, and only reachable when the day already carries a rule: the dish is
+  // servable at this meal for this person, and the day cannot reach its macros
+  // with both. Said apart from `too_big_or_small` because the way forward is a
+  // different one — another dish, or the other rule removed.
+  return holdsTheDay ? { fixable: true } : { fixable: false, why: 'clashes_with_fixed' };
 }
 
 /**
@@ -97,5 +113,5 @@ export function whyNotFixable(
  * method is this product's fault and not theirs.
  */
 export function actionable(why: NotFixable): boolean {
-  return why === 'too_slow' || why === 'disliked' || why === 'too_big_or_small' || why === 'excluded';
+  return why === 'too_slow' || why === 'disliked' || why === 'too_big_or_small' || why === 'excluded' || why === 'clashes_with_fixed';
 }

@@ -1,0 +1,32 @@
+-- A day can hold two fixed meals, and a meal still holds one (`0101`).
+--
+-- The loosening `0063` wrote down as the way this would be done if it were ever
+-- wanted: "(user_id, weekday) ... is deliberately the tight version: loosening
+-- it later to (user_id, weekday, slot) is a DROP + ADD CONSTRAINT with no table
+-- rewrite, while tightening it afterwards would need the data to already
+-- comply." This is that, and nothing else.
+--
+-- **Catalog-only, both statements.** Dropping a unique constraint drops its
+-- index; adding the wider one builds an index over a table that holds at most
+-- one row per account per weekday — tens of rows in production today. The
+-- ACCESS EXCLUSIVE lock drizzle holds for the whole file (it wraps every
+-- pending migration in one transaction) is therefore milliseconds, and nothing
+-- reads `fixed_meals` outside the two routes that write it.
+--
+-- **The old build survives it, and this is the half worth reading twice.** The
+-- API serving requests during the deploy refuses a second rule on a weekday in
+-- its *own* code before it inserts (`FixedMealController.add` reads `taken`
+-- first), so losing the narrow constraint does not let the old build write a
+-- row it would not have written anyway. What it does lose is the race: two
+-- tabs of the old build submitting the same weekday at the same instant would
+-- now both land. The window is one deploy long, the consequence is a person
+-- holding two rules on one weekday — which is exactly what the new build
+-- allows — and the new build's own constraint closes it the moment it is up.
+--
+-- Rolling back is the one direction this cannot take: the previous build's
+-- constraint would refuse to be added back over any account that has since
+-- written two rules on one day. That is said here rather than discovered, and
+-- it is why the record (`0101`) names the data migration a rollback would need.
+
+ALTER TABLE "fixed_meals" DROP CONSTRAINT "fixed_meals_user_weekday_unique";--> statement-breakpoint
+ALTER TABLE "fixed_meals" ADD CONSTRAINT "fixed_meals_user_weekday_slot_unique" UNIQUE("user_id","weekday","slot");
