@@ -426,6 +426,16 @@ patata"* — and it is the one input that takes a dish out of the search's hands
   bound** — the pool (which is the allergy gate's own answer), the slot the dish declares,
   and `fitsPlate`. Variety, the repeat rules, the kind caps and the floors' preference all
   yield to it.
+- **A day may hold a rule per meal, and the second one is not the first one twice** (`0101`).
+  The pins are keyed by day *and then* slot, so two rules on one plate are impossible by
+  construction — and two rules on one *day* are allowed only because the offer knows about
+  them: `pinnable` takes a `held` map and filters its candidates through `dayHolds`, which
+  schedules that one day with both and reads the same `PLAN_TOLERANCE` bands validation
+  reports. Measured, two rules chosen without regard for each other broke a macro band on
+  204 of 280 such days; chosen from what fits, on 8 of 1960 plan days. **Never offer a
+  second rule from the unfiltered list**, and never make `dayHolds` a promise: it builds
+  one day alone, with no variety pressure from the other thirteen, so it is optimistic by
+  construction and `honouredPin` is still the backstop.
 - **Every pass that swaps a dish must skip a pinned pick, and there are six of them**:
   `improveDay`, `spreadAcrossDays` (**both ends** of the exchange — a pinned plate is
   neither given away nor taken), `repairOutOfBand`, `repairToRule` (floors and maximums),

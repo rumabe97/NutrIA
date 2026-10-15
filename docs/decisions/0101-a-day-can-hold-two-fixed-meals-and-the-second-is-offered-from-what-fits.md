@@ -1,0 +1,99 @@
+# 0101 — A day can hold two fixed meals, and the second is offered from what still fits
+
+- **Date**: 2026-10-15
+- **Status**: accepted
+- **Amends**: [`0098`](./0098-a-meal-somebody-fixed-is-not-the-schedulers-to-change.md), which made one
+  rule per day structural and cited [`0045`](./0045-a-day-is-built-to-all-four-of-its-numbers.md)
+  for why. `0045` was right; the conclusion drawn from it was too strong.
+- **Builds on**: [`0099`](./0099-a-variety-cap-counts-the-meals-the-generator-chose.md) (free 1,
+  premium 3) and [`0100`](./0100-a-person-may-name-a-dish-and-the-gate-is-on-what-comes-back.md)
+  (the screen these rules are written on).
+
+## Context
+
+The owner fixed a meal, went back for a second on the same day, and the day was gone from the
+picker. He asked why, was told it was deliberate and that nobody had measured the alternative,
+and said: make it possible.
+
+`0098` had declared one rule per day **structural** — a map keyed by day index cannot hold two
+— and reasoned from `0045` that two meals already decided on a three-meal day leave the search
+one dish and the portions, which is not enough to reach four macros. The reasoning was never
+measured. This record is that measurement.
+
+## What was measured
+
+14 profiles × 10 seeds, 982 dishes, accompaniments on, the rule count held fixed so that the
+only thing changing is **where the rules land**:
+
+| arrangement | days inside 5% on all four macros | rules served |
+| --- | --- | --- |
+| two rules, different days (`0099`'s arrangement) | 1957 / 1960 | 560 / 560 |
+| two rules, **same day**, dish chosen without regard for the other | **1855 / 1960** | 560 / 560 |
+| two rules, same day, second chosen **from what still fits** | **1955 / 1960** | 560 / 560 |
+| three rules, same day, each chosen from what still fits | 1949 / 1960 | 840 / 840 |
+
+Unguarded, **204 of the 280 days carrying two rules missed a macro band** — 73%, against 0.5%
+for the same two rules on different days. `0045` is real.
+
+**But it is the pair that fails, not the idea.** Two things say so. The losses are not a
+property of the shape: a five-meal profile lost every pinned day, eight four-meal profiles lost
+none, and one three-meal profile lost none. And choosing the second dish from the ones that
+leave the day solvable recovers almost all of it — 1955 against a 1957 baseline, every rule
+still served. The misses spread across all four macros (fat 8, protein 10, carbs 4, energy 2 in
+a two-seed sample), which is what "the remainder does not fit" looks like rather than one
+constraint being tight.
+
+## Decision
+
+**A day may hold a rule for each meal, and a meal holds one.** The database says so
+(`UNIQUE(user_id, weekday, slot)`, migration `0065` — the loosening `0063` had already written
+down as the way to do it), and the scheduler's pins are keyed by day *and then* slot, so two
+rules on one plate remain impossible by construction.
+
+**The second rule of a day is offered only the dishes that leave that day inside its bands.**
+`pinnable` takes what the day already holds; for each candidate that fits the plate, `dayHolds`
+schedules that one day with both rules and reads the same `PLAN_TOLERANCE` bands validation
+reports. The offer is what passes.
+
+Three properties of that gate, each chosen rather than fallen into:
+
+- **It reuses the band definition rather than restating it.** A second idea of what "inside the
+  band" means is how two places come to disagree.
+- **Its pool is cut to the dishes that can serve a slot the pins left free**, which is exact and
+  not a sample: a dish the scheduler could not place in a free slot cannot help that day
+  balance. Half the cost (197 candidates: 5.6 s → 2.7 s) and 197 of 197 verdicts unchanged.
+- **It is optimistic, and that is stated.** One day built alone sees no variety pressure from
+  the other thirteen and has the whole library to balance with. A pair it refuses can never
+  work; a pair it accepts still cost 8 days in 1960. It is a filter for an offer, never a
+  promise — `honouredPin` remains the backstop that keeps a day in band by dropping a pin it
+  cannot honour.
+
+**No per-day cap, because the filter is the cap.** Three rules on one day hold the bands
+(1949/1960) and the offer collapses on its own: the third rule's list is 2 of 37 dishes on the
+tightest profile, 8 of 230 on another. A number would be arbitrary where the measurement is
+not; what a person can fix is **what still fits**, and when nothing does the screen says so.
+
+**The cost is a slower list, once, on the rarer path.** A first rule's offer is unchanged (~25
+ms). A second rule's costs ~14 ms per candidate — about 2.7 s on the largest library — and is
+paid only when that day already holds a rule.
+
+## Consequences
+
+- **`clashes_with_fixed` is an eighth reason a dish is not offered** (`whyNotFixable`), and it
+  is actionable. It is said apart from `too_big_or_small` because the way forward differs:
+  another dish, or the other rule removed.
+- **The screen tells two emptinesses apart**: a library with nothing for that meal, and a
+  library with nothing that works beside the rule already there. On a three-meal day holding two
+  rules the second is the ordinary answer, not an edge case — the copy is written for that.
+- **The offer survives at 79% on average** (median 92%, floor 14% on the tightest shape), so the
+  list is still a list. The floor is honest about that profile's day rather than hidden.
+- **A rollback needs a data migration this change does not write.** The previous constraint
+  cannot be added back over an account that has since written two rules on one day; `0065` says
+  so in its own header.
+- **What this does not do**: it does not tell somebody a standing rule stopped being honourable
+  (`0098` left that open and `0100` left it open again), and the plan-level backstop can still
+  drop the second pin of a day silently. The measurement bounds how often: 8 days in 1960.
+
+(who decided: the owner, 2026-10-15, asking for two fixed meals on one day after being told it
+was deliberate and unmeasured; the agent, that the measurement runs first and that what it
+found — the pair, not the count — becomes the gate.)
