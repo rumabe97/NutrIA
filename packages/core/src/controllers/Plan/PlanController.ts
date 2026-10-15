@@ -539,7 +539,10 @@ export const PlanController = {
    * and the reason the plan records them at all. A plan generated before this
    * was recorded has none, and a rebuild of it pins nothing, exactly as it did.
    */
-  async fixedMealsOf(userId: string, planId: string): Promise<ReadonlyMap<number, ReadonlyMap<MealSlot, { readonly slot: MealSlot; readonly slug: string }>>> {
+  async fixedMealsOf(
+    userId: string,
+    planId: string
+  ): Promise<ReadonlyMap<number, ReadonlyMap<MealSlot, { readonly slot: MealSlot; readonly slug: string }>>> {
     const plan = await PlanRepository.findById(userId, planId, true);
     const recorded = plan?.generationMetadata?.['fixedMeals'];
 

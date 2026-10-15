@@ -215,7 +215,9 @@ function build(
   jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [], liked: [] });
   // The rules **the plan was built with**, read from its own metadata: a rebuild
   // honours those and not the rules as they stand now (`0099`).
-  jest.spyOn(PlanController, 'fixedMealsOf').mockResolvedValue(new Map((overrides.fixedMeals ?? []).map(([dayIndex, slots]) => [dayIndex, new Map(slots)])));
+  jest
+    .spyOn(PlanController, 'fixedMealsOf')
+    .mockResolvedValue(new Map((overrides.fixedMeals ?? []).map(([dayIndex, slots]) => [dayIndex, new Map(slots)])));
   // The accompaniments flag, off unless a test turns it on (project 016).
   jest.spyOn(SettingsController, 'accompaniments').mockResolvedValue(overrides.accompaniments ?? false);
   jest

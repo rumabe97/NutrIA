@@ -321,12 +321,7 @@ describe('fixed meals', () => {
     });
 
     it('offers premium’s three, and fewer dinners once that weekday holds a lunch', async () => {
-      expect((await standing(rich)).standing).toEqual({
-        allowed: true,
-        limit: FIXED_MEALS_PREMIUM,
-        remaining: FIXED_MEALS_PREMIUM,
-        used: 0
-      });
+      expect((await standing(rich)).standing).toEqual({ allowed: true, limit: FIXED_MEALS_PREMIUM, remaining: FIXED_MEALS_PREMIUM, used: 0 });
 
       before = await fixable(rich, PAIRED, 'dinner');
 
@@ -417,7 +412,12 @@ describe('fixed meals', () => {
       const second = await fix(rich, PAIRED, 'dinner', dinner?.slug);
 
       expect(second.status).toBe(201);
-      expect((await standing(rich)).rules.filter(rule => rule.weekday === PAIRED).map(rule => rule.slot).sort()).toEqual(['dinner', 'lunch']);
+      expect(
+        (await standing(rich)).rules
+          .filter(rule => rule.weekday === PAIRED)
+          .map(rule => rule.slot)
+          .sort()
+      ).toEqual(['dinner', 'lunch']);
     });
 
     it('says `clashes_with_fixed` for a dish the rule cost, and nothing for the same dish on a free day', async () => {
