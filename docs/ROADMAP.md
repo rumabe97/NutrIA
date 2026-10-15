@@ -130,6 +130,15 @@ that setup lives now rather than here.
    verification mail (done, `0030`) and any further reminder that can argue for itself.
    Opening access to everyone is now one switch: with automatic activation on, confirming
    the address opens the account (`0031`, amended); off, an admin turns the key.
+5. **A plan somebody can actually cook.** Approved 2026-10-15:
+   [`021-cooked-with-what-you-have`](./projects/021-cooked-with-what-you-have/) — a person
+   says what their kitchen has and what they would rather use, a dish that needs an
+   appliance they do not have is never served (enforced in code, `0102`), a preference is
+   asked of the model rather than only recorded, every dish declares its equipment and shows
+   it, and the library grows the dishes the appliances were missing — production held 1
+   air-fryer dish and 2 pressure-cooker dishes of 962. What it deliberately leaves for its
+   own measured change: the cooking time, which is a single ceiling for fourteen days, and
+   `difficulty`, stored on every dish and read by nothing.
 
 ## Next, in this order
 
