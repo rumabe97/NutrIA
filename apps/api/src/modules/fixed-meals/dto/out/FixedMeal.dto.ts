@@ -20,8 +20,16 @@ export type FixedMealsDto = FixedMealsView;
  * The dishes that can be fixed to one slot of one weekday.
  *
  * Answered against the plan this person would generate next, so the list is
- * what they could actually be served then — and a dish out of season in that
- * fortnight is not in it (`FixedMealsService`).
+ * what they could actually be served then (`FixedMealsService`).
+ *
+ * **The season is not part of it, and the first offer never claimed it rightly
+ * before** (`tests`, 2026-10-15): `pinnable` filters by the pool, the slot and
+ * the plate, and `servableOn` runs inside the scheduler's own day search. A pin
+ * outranks the season anyway — a rule somebody wrote is served whatever month it
+ * is — so the first offer listing an out-of-season dish is correct. What it
+ * costs is a label on the *second* offer: a dish the day's probe refuses for the
+ * season alone comes back as `clashes_with_fixed`, which names the wrong cause.
+ * Narrow enough to be recorded rather than machined around (`0101`).
  */
 export type FixableDishDto = FixableDish;
 

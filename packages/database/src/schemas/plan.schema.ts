@@ -229,14 +229,20 @@ export const events = userOwned('events', {
  * A meal somebody fixed to one day of the week, for ever — *"every Friday dinner
  * is tortilla de patata"* (`0098`, `0099`).
  *
- * **One rule per weekday, and the database says so.** The scheduler takes its
- * pins as a map keyed by the day of the fortnight (`SchedulerInput.pinned`), so
- * a second rule on the same weekday is not a thing it can hold: one of the two
- * would be dropped, silently, by whichever order the rows came back in. The
- * unique constraint makes the structure's assumption the table's promise rather
- * than something every writer has to remember. `0045` is why the shape is right
- * and not merely convenient: two pins on a three-meal day leave the search one
- * dish and the portions, and portions alone do not reach four macros.
+ * **One rule per weekday and meal, and the database says so.** The scheduler
+ * takes its pins keyed by the day of the fortnight and then by the slot
+ * (`SchedulerInput.pinned`), so two rules for the same meal of the same day are
+ * not a thing it can hold: one of the two would be dropped, silently, by
+ * whichever order the rows came back in. The unique constraint makes the
+ * structure's assumption the table's promise rather than something every writer
+ * has to remember.
+ *
+ * It was `(user_id, weekday)` until `0101`, when a day learned to hold more than
+ * one rule. What makes that safe is not the constraint but the offer: a second
+ * rule's dishes are the ones that leave that day inside its bands (`pinnable`'s
+ * `held`), measured because `0045` is real — two rules chosen without regard for
+ * each other broke a macro band on 204 of 280 such days, and chosen from what
+ * fits, on 8 of 1960 plan days.
  *
  * **The dish is a foreign key, not a slug.** A rule naming a slug that no longer
  * exists is a rule the generator silently drops once a fortnight for ever. The
@@ -263,7 +269,7 @@ export const fixedMeals = userOwned(
     weekday: smallint().notNull()
   },
   table => [
-    unique('fixed_meals_user_weekday_unique').on(table.userId, table.weekday),
+    unique('fixed_meals_user_weekday_slot_unique').on(table.userId, table.weekday, table.slot),
     check('fixed_meals_weekday_range', sql`${table.weekday} between 0 and 6`),
     // Not for a query: nothing filters or joins this table on the recipe. It is
     // for the cascade, which would otherwise scan the table once per recipe

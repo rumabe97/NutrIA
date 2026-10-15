@@ -100,9 +100,17 @@ function plain(text: string): string {
  * quietly served something else once a fortnight would be worse than one that
  * never offered it — which is `0098`'s whole reason for `pinnable` existing.
  *
- * It is one rule per weekday, and a day already taken is not offered: the
- * database refuses a second one, and being refused after a tap is a worse way
- * to learn a rule than not being offered the day.
+ * It is one rule per **meal** of a weekday (`0101`): a day may hold a fixed
+ * lunch and a fixed dinner, and the meal already spoken for is not offered
+ * again — the database refuses a second one, and being refused after a tap is a
+ * worse way to learn a rule than not being offered the meal. A day leaves the
+ * list only when every meal this person eats already carries a rule.
+ *
+ * **The second rule of a day is offered a shorter list, and that is the
+ * feature.** Two dishes each fittable on its own can leave a day unable to
+ * reach its four macros, measured at 204 of 280 such days; the API offers only
+ * the ones that still leave it solvable (`pinnable`'s `held`), so the list
+ * shrinks and the sentence beside it says why.
  *
  * **A search that finds nothing now says why** (report `0011`). The owner searched for
  * *patatas a la riojana*, a dish his library has, and the screen showed him a
@@ -137,8 +145,15 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
   /** What the search field holds right now, to tell a late answer from the current question. */
   const typed = useRef('');
 
-  const taken = new Set(rules.map(rule => rule.weekday));
-  const free = WEEKDAYS.filter(day => !taken.has(day));
+  // A meal of a day, not a day: since `0101` a day may hold more than one rule,
+  // so what is spoken for is the meal — and a day leaves the list only when
+  // every meal this person eats already carries one.
+  const taken = new Set(rules.map(rule => `${rule.weekday}:${rule.slot}`));
+  const free = WEEKDAYS.filter(day => slots.some(each => !taken.has(`${day}:${each}`)));
+  const open = weekday === '' ? slots : slots.filter(each => !taken.has(`${weekday}:${each}`));
+  // What the day the person is looking at already holds, which is why the dish
+  // list can be shorter than the library and is worth saying out loud.
+  const alsoFixed = weekday === '' ? [] : rules.filter(rule => String(rule.weekday) === weekday && rule.slot !== slot);
   const chosen = fixable?.find(candidate => candidate.slug === dish);
   // Accent-insensitive on both sides: somebody typing "limon" on a phone
   // keyboard is looking for "limón", and a search that disagrees reads as a
@@ -452,7 +467,7 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
               placeholder={t.mealPlaceholder}
               value={slot}
             >
-              {slots.map(each => (
+              {open.map(each => (
                 <SelectOption indicator="✓" key={each} value={each}>
                   {t.slots[each]}
                 </SelectOption>
@@ -468,9 +483,13 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
               only way to reach the last one was to scroll past the rest. A field
               you can type in, with the matches under it a page at a time, is
               what a list this long needs. */}
+          {/* Two different emptinesses, and they are not the same sentence: the
+              library has nothing for that meal, or it has nothing that works
+              beside the rule the day already holds. The second is the ordinary
+              answer on a three-meal day with two rules, not an edge case. */}
           {fixable && fixable.length === 0 ? (
             <Text size="xs" tone="tertiary">
-              {t.noneFit}
+              {alsoFixed.length > 0 ? interpolate(t.noneBeside, { meal: t.slots[alsoFixed[0].slot].toLowerCase() }) : t.noneFit}
             </Text>
           ) : null}
 
@@ -492,7 +511,14 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
                 <Fragment>
                   <Input
                     autoComplete="off"
-                    hint={interpolate(fixable.length === 1 ? t.countOne : t.count, { count: fixable.length })}
+                    hint={
+                      alsoFixed.length > 0
+                        ? interpolate(fixable.length === 1 ? t.countBesideOne : t.countBeside, {
+                            count: fixable.length,
+                            meal: t.slots[alsoFixed[0].slot].toLowerCase()
+                          })
+                        : interpolate(fixable.length === 1 ? t.countOne : t.count, { count: fixable.length })
+                    }
                     label={t.dish}
                     onChange={event => searched(event.target.value)}
                     placeholder={t.searchPlaceholder}

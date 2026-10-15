@@ -92,10 +92,11 @@ export class FixedMealsService {
       throw new InputParseError('That dish cannot be fixed to that meal', { dishSlug: ['is not offered for this slot'] });
     }
 
-    if ((await FixedMealController.taken(userId)).includes(rule.weekday)) {
-      // The database refuses it too (`fixed_meals_user_weekday_unique`); this is
-      // only so the ordinary case reads as a sentence rather than a 500.
-      throw new ConflictError('A meal is already fixed to that day');
+    if ((await FixedMealController.taken(userId)).some(held => held.weekday === rule.weekday && held.slot === rule.slot)) {
+      // The database refuses it too (`fixed_meals_user_weekday_slot_unique`);
+      // this is only so the ordinary case reads as a sentence rather than a 500.
+      // A *day* may hold more than one rule since `0101` — a meal may not.
+      throw new ConflictError('That meal of that day is already fixed');
     }
 
     return FixedMealController.add(userId, rule);
@@ -127,6 +128,8 @@ export class FixedMealsService {
   ): Promise<{
     readonly context: Awaited<ReturnType<typeof RecipeController.generationContext>>;
     readonly dayIndex: number | undefined;
+    /** What this weekday already has fixed, by slot — what the offer is narrowed against (`0101`). */
+    readonly held: ReadonlyMap<MealSlot, { readonly slot: MealSlot; readonly slug: string }>;
     readonly input: Parameters<typeof pinnable>[0] | undefined;
     /** Everything the library holds for these slots, from the same read the pool came out of. */
     readonly library: readonly CandidateDish[];
@@ -135,11 +138,12 @@ export class FixedMealsService {
     readonly slots: readonly MealSlot[];
     readonly verdicts: Awaited<ReturnType<typeof RecipeController.verdicts>>;
   }> {
-    const [profile, context, allowances, verdicts] = await Promise.all([
+    const [profile, context, allowances, verdicts, rules] = await Promise.all([
       ProfileController.getFullProfile(userId),
       RecipeController.generationContext(userId),
       PlanController.allowances(userId),
-      RecipeController.verdicts(userId)
+      RecipeController.verdicts(userId),
+      FixedMealController.forPlan(userId)
     ]);
 
     if (!profile.targets) {
@@ -163,7 +167,7 @@ export class FixedMealsService {
     const { library, pool: servable } = await RecipeController.libraryAndPool(slots, context);
 
     if (dayIndex === undefined) {
-      return { context, dayIndex: undefined, input: undefined, library, offered: [], profile, slots, verdicts };
+      return { context, dayIndex: undefined, held: new Map(), input: undefined, library, offered: [], profile, slots, verdicts };
     }
 
     const disliked = new Set(verdicts.disliked.map(dish => dish.slug));
@@ -192,11 +196,20 @@ export class FixedMealsService {
       targets: profile.targets.effective,
       weights: weightsFor(shape)
     };
-    const offered = pinnable(input, dayIndex, slot);
+    // What this day already carries, which is what makes the offer honest: a
+    // dish that fits the plate on its own can still leave the day unable to
+    // reach four macros beside the rule already there (`0101`). Only the rules
+    // of *this* weekday count, and never the slot being chosen — replacing a
+    // rule is removing it and writing another.
+    const held = new Map(
+      rules.filter(rule => rule.weekday === weekday && rule.slot !== slot).map(rule => [rule.slot, { slot: rule.slot, slug: rule.dishSlug }])
+    );
+    const offered = pinnable(input, dayIndex, slot, held);
 
     return {
       context,
       dayIndex,
+      held,
       input,
       library,
       offered: [...offered]
@@ -229,8 +242,12 @@ export class FixedMealsService {
       return [];
     }
 
-    const { context, library, offered, verdicts } = await this.offerFor(userId, weekday, slot);
+    const { context, dayIndex, held, input, library, offered, verdicts } = await this.offerFor(userId, weekday, slot);
     const offeredSlugs = new Set(offered.map(dish => dish.slug));
+    // What the day would offer if it held nothing. The difference between the
+    // two lists is exactly the dishes refused for clashing with a rule already
+    // there, which is its own sentence and not "too big for that plate".
+    const alone = held.size > 0 && input && dayIndex !== undefined ? new Set(pinnable(input, dayIndex, slot).map(dish => dish.slug)) : offeredSlugs;
     const seen = new Set<string>();
     const reasons: NotOfferedDish[] = [];
 
@@ -251,7 +268,8 @@ export class FixedMealsService {
           safety: context.safety
         },
         RecipeController.excludes({ ...dish, cuisine: dish.cuisine ?? null }, context),
-        false
+        alone.has(dish.slug),
+        offeredSlugs.has(dish.slug)
       );
 
       if (!verdict.fixable) {
@@ -298,7 +316,11 @@ export class FixedMealsService {
       throw new QuotaExceededError('dish_request');
     }
 
-    const { context, dayIndex, input, library, profile } = await this.offerFor(userId, weekday, slot);
+    const { context, dayIndex, held, input, library, profile } = await this.offerFor(userId, weekday, slot);
+    // The pool a requested dish is judged in has to carry the day's own rules:
+    // `dayHolds` looks their dishes up in it, and a pool of one dish would make
+    // every pin on that day unhonourable and the day trivially solvable.
+    const heldDishes = [...held.values()].flatMap(pin => library.filter(dish => dish.slug === pin.slug));
 
     if (!input || dayIndex === undefined) {
       throw new ConflictError('That meal does not fall in the fortnight you would generate next');
@@ -347,8 +369,10 @@ export class FixedMealsService {
     };
 
     for (const candidate of built.generated) {
-      // The same gate the offered list uses, on a pool of exactly this dish.
-      if (pinnable({ ...input, pool: [candidate] }, dayIndex, slot).length === 0) {
+      // The same gate the offered list uses, on a pool of exactly this dish —
+      // and beside whatever that day already holds, because a dish nobody could
+      // be served there is not worth storing (`0101`).
+      if (pinnable({ ...input, pool: [candidate, ...heldDishes] }, dayIndex, slot, held).length === 0) {
         continue;
       }
 

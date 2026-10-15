@@ -45,11 +45,11 @@ export const FixedMealRepository = {
    * security scan found exactly that in `EventController.add` on 2026-09-22,
    * and this is the second allowance with the shape that invites it.
    *
-   * `UNIQUE(user_id, weekday)` is **not** that defence. It stops two rules
-   * landing on one weekday, which is the structural invariant the scheduler's
-   * map needs; it says nothing about three rules on three different weekdays
-   * racing past a limit of two. The two protections guard different things and
-   * both are needed.
+   * `UNIQUE(user_id, weekday, slot)` is **not** that defence. It stops two
+   * rules landing on one meal of one weekday, which is the structural invariant
+   * the scheduler's map needs; it says nothing about three rules on three
+   * different days racing past a limit of two. The two protections guard
+   * different things and both are needed.
    *
    * A transaction-scoped advisory lock keyed on the account takes the place of
    * a row to hold `FOR UPDATE`, because what is defended is a row that does not
@@ -123,7 +123,17 @@ export const FixedMealRepository = {
     }
   },
 
-  /** Every standing rule this account has, by weekday — what the generator expands and the screen lists. */
+  /**
+   * Every standing rule this account has, by weekday and then by the order a
+   * day is eaten in — what the generator expands and the screen lists.
+   *
+   * The second ordering is new with `0101` and it is not cosmetic: a day may
+   * now hold more than one rule, and a list showing a Friday dinner above a
+   * Friday lunch would be read as the order they are eaten in. `meal_slot` is
+   * declared in that order (`_enums.ts`), so the enum's own `asc` *is* the
+   * order of a day — breakfast, morning snack, lunch, afternoon snack, dinner,
+   * supper — rather than the alphabet.
+   */
   async findByUser(userId: string): Promise<readonly FixedMeal[]> {
     try {
       const rows = await database()
@@ -131,7 +141,7 @@ export const FixedMealRepository = {
         .from(fixedMeals)
         .innerJoin(recipes, eq(recipes.id, fixedMeals.recipeId))
         .where(eq(fixedMeals.userId, userId))
-        .orderBy(asc(fixedMeals.weekday));
+        .orderBy(asc(fixedMeals.weekday), asc(fixedMeals.slot));
 
       return rows.map(parsed);
     } catch (error: unknown) {

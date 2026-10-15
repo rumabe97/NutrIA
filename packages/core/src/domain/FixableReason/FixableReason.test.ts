@@ -93,6 +93,18 @@ describe('whyNotFixable', () => {
     expect(whyNotFixable(dish(), LUNCH, CONTEXT, true, true)).toEqual({ fixable: false, why: 'excluded' });
   });
 
+  /*
+   * The eighth reason, and the only one that is about another rule rather than
+   * about the dish: it fits the plate and the person, and the day cannot reach
+   * four macros with it beside what is already fixed there (`0101`).
+   */
+  it('tells a dish that does not fit the plate from one that does not fit the day', () => {
+    expect(whyNotFixable(dish(), LUNCH, CONTEXT, false, false, true)).toEqual({ fixable: false, why: 'too_big_or_small' });
+    expect(whyNotFixable(dish(), LUNCH, CONTEXT, false, true, false)).toEqual({ fixable: false, why: 'clashes_with_fixed' });
+    // A day holding nothing is every call before `0101` and the common one after.
+    expect(whyNotFixable(dish(), LUNCH, CONTEXT, false, true)).toEqual({ fixable: true });
+  });
+
   it('refuses a recipe that never says how to cook it, which is this product’s fault and not theirs', () => {
     expect(whyNotFixable(dish({ steps: [] }), LUNCH, CONTEXT, false, true)).toEqual({ fixable: false, why: 'no_method' });
   });
@@ -112,9 +124,18 @@ describe('whyNotFixable', () => {
 
 describe('actionable', () => {
   it('separates what somebody can do something about from what they cannot', () => {
-    const everything: readonly NotFixable[] = ['allergen', 'excluded', 'disliked', 'too_slow', 'no_method', 'wrong_slot', 'too_big_or_small'];
+    const everything: readonly NotFixable[] = [
+      'allergen',
+      'excluded',
+      'disliked',
+      'too_slow',
+      'no_method',
+      'wrong_slot',
+      'too_big_or_small',
+      'clashes_with_fixed'
+    ];
 
-    expect(everything.filter(why => actionable(why))).toEqual(['excluded', 'disliked', 'too_slow', 'too_big_or_small']);
+    expect(everything.filter(why => actionable(why))).toEqual(['excluded', 'disliked', 'too_slow', 'too_big_or_small', 'clashes_with_fixed']);
     // Never softened into advice: an allergen is a refusal, and a recipe with no
     // method is ours to fix, not theirs.
     expect(actionable('allergen')).toBe(false);

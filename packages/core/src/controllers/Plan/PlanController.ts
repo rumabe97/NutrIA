@@ -539,7 +539,10 @@ export const PlanController = {
    * and the reason the plan records them at all. A plan generated before this
    * was recorded has none, and a rebuild of it pins nothing, exactly as it did.
    */
-  async fixedMealsOf(userId: string, planId: string): Promise<ReadonlyMap<number, { readonly slot: MealSlot; readonly slug: string }>> {
+  async fixedMealsOf(
+    userId: string,
+    planId: string
+  ): Promise<ReadonlyMap<number, ReadonlyMap<MealSlot, { readonly slot: MealSlot; readonly slug: string }>>> {
     const plan = await PlanRepository.findById(userId, planId, true);
     const recorded = plan?.generationMetadata?.['fixedMeals'];
 
@@ -547,15 +550,26 @@ export const PlanController = {
       return new Map();
     }
 
-    return new Map(
-      recorded
-        .filter((entry): entry is { dayIndex: number; slot: MealSlot; slug: string } => {
-          const pin = entry as Partial<{ dayIndex: number; slot: MealSlot; slug: string }>;
+    // Folded by day and then by slot, which is the shape the scheduler takes
+    // (`0101`). The stored entries are unchanged — they have carried their own
+    // slot since `0098` — so a plan generated before a day could hold two rules
+    // reads back exactly as it always did, as one entry under one day.
+    const pins = new Map<number, Map<MealSlot, { readonly slot: MealSlot; readonly slug: string }>>();
 
-          return typeof pin?.dayIndex === 'number' && typeof pin.slot === 'string' && typeof pin.slug === 'string';
-        })
-        .map(pin => [pin.dayIndex, { slot: pin.slot, slug: pin.slug }])
-    );
+    for (const entry of recorded) {
+      const pin = entry as Partial<{ dayIndex: number; slot: MealSlot; slug: string }>;
+
+      if (typeof pin?.dayIndex !== 'number' || typeof pin.slot !== 'string' || typeof pin.slug !== 'string') {
+        continue;
+      }
+
+      const day = pins.get(pin.dayIndex) ?? new Map<MealSlot, { readonly slot: MealSlot; readonly slug: string }>();
+
+      day.set(pin.slot, { slot: pin.slot, slug: pin.slug });
+      pins.set(pin.dayIndex, day);
+    }
+
+    return pins;
   },
 
   /** For generation: the next plan version, and what the user was served last fortnight. */

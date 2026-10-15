@@ -1,10 +1,11 @@
-import { ConflictError, NotFoundError } from 'core/entities/Error';
+import { NotFoundError } from 'core/entities/Error';
 import { countedStanding } from 'core/domain/Allowance';
 import { DishRequestController } from 'core/controllers/DishRequest';
 import { FixedMealRepository } from '#repositories/FixedMeal';
 import { PlanController } from 'core/controllers/Plan';
 
 import type { AddFixedMeal, FixedMeal, Weekday } from 'core/entities/FixedMeal';
+import type { MealSlot } from 'core/entities/Plan';
 import type { CountedStanding } from 'core/domain/Allowance';
 
 /**
@@ -72,20 +73,20 @@ export const FixedMealController = {
   },
 
   /**
-   * Whether this weekday is already taken, for a screen to say so before the
-   * insert refuses it.
+   * Which meals of which weekdays this account has already fixed, for a screen
+   * to say so before the insert refuses it.
    *
-   * The refusal itself is the database's — `UNIQUE(user_id, weekday)` — and
-   * this does not replace it: between this answer and the insert the person's
-   * other tab can take the day. It exists so the ordinary case is a disabled
-   * day on a picker rather than an error after a tap.
+   * The refusal itself is the database's — `UNIQUE(user_id, weekday, slot)` —
+   * and this does not replace it: between this answer and the insert the
+   * person's other tab can take the meal. It exists so the ordinary case is a
+   * meal missing from a picker rather than an error after a tap.
+   *
+   * A **meal** and not a day since `0101`: a day may hold more than one rule,
+   * so what a screen must grey out is the meals of that day that are spoken
+   * for, and a day drops off the list only when every meal this person eats
+   * already carries one.
    */
-  async taken(userId: string): Promise<readonly Weekday[]> {
-    return (await FixedMealRepository.findByUser(userId)).map(rule => rule.weekday);
+  async taken(userId: string): Promise<readonly { readonly slot: MealSlot; readonly weekday: Weekday }[]> {
+    return (await FixedMealRepository.findByUser(userId)).map(rule => ({ slot: rule.slot, weekday: rule.weekday }));
   }
 };
-
-/** A rule for the same weekday already exists — the shape the route turns into a 409. */
-export function weekdayTaken(weekday: Weekday): ConflictError {
-  return new ConflictError(`A meal is already fixed to weekday ${weekday}`);
-}
