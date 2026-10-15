@@ -209,7 +209,7 @@ export const enGB: Dictionary = {
       'Six a month is every standing rule rewritten twice over, which is churn and not a routine. The money does not bound it: even six cost what a single redo’s pictures do.',
     whyEvents: 'Above seven has no effect: a load is one to three days and two events may not share one, so a fortnight holds seven at most.',
     whyFixedMeals:
-      'Three is what the code ships, so three is the ceiling. Measured on 982 dishes: with three standing rules the plans are as balanced as plans with none, and four was no worse; the limit is that eight of every fourteen days would carry a meal decided in advance.',
+      'Three is what the code ships, so three is the ceiling. Measured on 982 dishes: with three standing rules the plans are as balanced as plans with none, and four was no worse. Now that a day can hold more than one rule, three can land on one day or on three: the dish offered for a day’s second rule is already filtered to what leaves that day inside its macros, so what this bounds is how much of a fortnight is decided in advance, not whether the plan holds.',
     whyMidPlan: 'A fortnight cannot be rebuilt for more days than it holds, so this resolves against that tier’s own events as well.',
     whyRedos: 'Six a fortnight is twelve a month: about 3–6 $ of pictures for one account, against a 10 $ month shared by everybody.',
     whySwaps: 'Twenty-eight is a fortnight’s lunches and dinners; past that a swap limit names nothing.'

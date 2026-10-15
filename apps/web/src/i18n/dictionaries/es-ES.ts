@@ -221,7 +221,7 @@ export const esES = {
       'Seis al mes es reescribir dos veces cada comida fija, que es cambiar de idea y no una rutina. El dinero no lo acota: incluso seis cuestan lo que las fotos de una sola replanificación.',
     whyEvents: 'Más de 7 no hace nada: una carga dura de uno a tres días y dos no pueden compartir día, así que en una quincena caben siete.',
     whyFixedMeals:
-      'Tres es lo que trae el código, así que tres es el techo. Medido sobre 982 platos: con tres reglas fijas los planes están igual de equilibrados que sin ninguna, y con cuatro tampoco empeoraban; el límite es que ocho de cada catorce días llevarían una comida decidida de antemano.',
+      'Tres es lo que trae el código, así que tres es el techo. Medido sobre 982 platos: con tres reglas fijas los planes están igual de equilibrados que sin ninguna, y con cuatro tampoco empeoraban. Desde que un día admite más de una regla, tres pueden caer en un solo día o en tres distintos: el plato que se ofrece para la segunda de un día ya está filtrado por lo que deja ese día dentro de sus macros, así que lo que acota esto es cuántos días quieres decididos de antemano, no si el plan aguanta.',
     whyMidPlan: 'Una quincena no se puede rehacer por más días de los que admite, así que esto también se resuelve contra los de ese mismo plan.',
     whyRedos: 'Seis por quincena son doce al mes: entre 3 y 6 $ de fotos de una sola cuenta, contra un mes de 10 $ que comparten todas.',
     whySwaps: 'Veintiocho son las comidas y cenas de una quincena; por encima de eso el límite ya no nombra nada.'
