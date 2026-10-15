@@ -1,32 +1,53 @@
 -- A day can hold two fixed meals, and a meal still holds one (`0101`).
 --
+-- reviewed-destructive: no row is read, moved or deleted — both statements are
+-- about the catalog. What is destroyed is the *ability to go back*: once an
+-- account writes two rules on one weekday, the narrow constraint cannot be
+-- re-added without first deleting one of them. The recipe for that is written
+-- down in `0101` § Consequences rather than left to be worked out, and `0063`
+-- pre-approved this exact loosening when it created the table.
+--
 -- The loosening `0063` wrote down as the way this would be done if it were ever
 -- wanted: "(user_id, weekday) ... is deliberately the tight version: loosening
 -- it later to (user_id, weekday, slot) is a DROP + ADD CONSTRAINT with no table
 -- rewrite, while tightening it afterwards would need the data to already
 -- comply." This is that, and nothing else.
 --
--- **Catalog-only, both statements.** Dropping a unique constraint drops its
--- index; adding the wider one builds an index over a table that holds at most
--- one row per account per weekday — tens of rows in production today. The
--- ACCESS EXCLUSIVE lock drizzle holds for the whole file (it wraps every
--- pending migration in one transaction) is therefore milliseconds, and nothing
--- reads `fixed_meals` outside the two routes that write it.
+-- **It cannot fail on the rows that are there, provably.** Two rows sharing
+-- `(user_id, weekday, slot)` would have had to share `(user_id, weekday)`,
+-- which `0063`'s constraint has forbidden since the table existed. A strict
+-- widening has nothing to reject.
 --
--- **The old build survives it, and this is the half worth reading twice.** The
--- API serving requests during the deploy refuses a second rule on a weekday in
--- its *own* code before it inserts (`FixedMealController.add` reads `taken`
--- first), so losing the narrow constraint does not let the old build write a
--- row it would not have written anyway. What it does lose is the race: two
--- tabs of the old build submitting the same weekday at the same instant would
--- now both land. The window is one deploy long, the consequence is a person
--- holding two rules on one weekday — which is exactly what the new build
--- allows — and the new build's own constraint closes it the moment it is up.
+-- **Locks.** Dropping a unique constraint drops its index and is catalog-only;
+-- adding the wider one **builds an index**, so it scans and sorts under the
+-- ACCESS EXCLUSIVE lock drizzle holds for the whole file. At tens of rows that
+-- is nothing, and it stays nothing: the allowance bounds this table at three
+-- rows an account, so it would take six figures of accounts to reach a second.
+-- The lock blocks readers too, and `fixed_meals` has several — every generation
+-- (`FixedMealController.forPlan`), the fixable/not-offered/request assembly, and
+-- the profile screen's `standing` — which is why this matters at all.
 --
--- Rolling back is the one direction this cannot take: the previous build's
--- constraint would refuse to be added back over any account that has since
--- written two rules on one day. That is said here rather than discovered, and
--- it is why the record (`0101`) names the data migration a rollback would need.
+-- **The old build survives it.** The API serving requests while the new one
+-- rolls out refuses a second rule on a weekday in its *own* code before it
+-- inserts (`FixedMeals.service.add` reads `taken` first), so losing the narrow
+-- constraint does not let it write a row it would not have written anyway. What
+-- it loses is the race: two tabs of the old build submitting the same weekday at
+-- the same instant would now both land, because that check sits outside the
+-- advisory lock while the allowance is re-read inside it. The consequence is a
+-- person holding two rules on one weekday, which is what the new build allows.
+-- The window is "until the new build is Ready" rather than an instant: `migrate`
+-- runs inside `vercel-build`, so a build that fails *after* this ran leaves the
+-- old API on the wide schema until somebody redeploys.
+--
+-- **Rolling the deploy back is safe**, and that is worth saying plainly because
+-- the sentence somebody reads at six on a Friday should not be the scary half.
+-- The previous API runs on this schema: it never names the constraint and never
+-- handles a 23505 for this table. If the new build had already written two rules
+-- on one day, the old `pinsFor` keys by day index alone and keeps whichever of
+-- them the read returns last, so which of the two is honoured can differ between
+-- generations; the old `taken` refuses further rules on that day; deleting by id
+-- still works, so nobody is stuck. Nothing fails and nothing is lost. What
+-- cannot be undone is **re-tightening** the constraint, not the deploy.
 
 ALTER TABLE "fixed_meals" DROP CONSTRAINT "fixed_meals_user_weekday_unique";--> statement-breakpoint
 ALTER TABLE "fixed_meals" ADD CONSTRAINT "fixed_meals_user_weekday_slot_unique" UNIQUE("user_id","weekday","slot");

@@ -87,9 +87,16 @@ paid only when that day already holds a rule.
   rules the second is the ordinary answer, not an edge case — the copy is written for that.
 - **The offer survives at 79% on average** (median 92%, floor 14% on the tightest shape), so the
   list is still a list. The floor is honest about that profile's day rather than hidden.
-- **A rollback needs a data migration this change does not write.** The previous constraint
-  cannot be added back over an account that has since written two rules on one day; `0065` says
-  so in its own header.
+- **Rolling the deploy back is safe; re-tightening is what cannot be undone.** The previous API
+  runs on this schema — it never names the constraint and never handles a unique violation for
+  this table — and if two rules on one day already exist it keeps whichever the read returns
+  last, refuses further rules on that day, and still deletes by id. What no deploy can do is put
+  `UNIQUE(user_id, weekday)` back over data that no longer complies. **The migration that would
+  do it**, written here so it is not worked out under pressure: delete every rule but one per
+  `(user_id, weekday)` — the earliest `created_at`, so the rule somebody wrote first is the one
+  that survives — and then add the narrow constraint back. That one *is* destructive, deletes
+  something a person chose, and needs its own `-- reviewed-destructive:` line and a reviewer
+  (`migration-reviewer`, 2026-10-15).
 - **What this does not do**: it does not tell somebody a standing rule stopped being honourable
   (`0098` left that open and `0100` left it open again), and the plan-level backstop can still
   drop the second pin of a day silently. The measurement bounds how often: 8 days in 1960.

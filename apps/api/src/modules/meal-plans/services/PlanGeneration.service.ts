@@ -289,9 +289,10 @@ export class PlanGenerationService {
     const monthOf = (dayIndex: number): number => addDays(start, dayIndex - 1).getUTCMonth() + 1;
     // The standing fixed meals, expanded into this plan's own day indexes
     // (`0098`: the scheduler never learns what a weekday is, so the caller
-    // expands). One rule per weekday is the database's promise, and the map is
-    // where it has to hold — a second rule on a day would silently replace the
-    // first, which is exactly why `fixed_meals_user_weekday_unique` exists.
+    // expands). One rule per weekday **and meal** is the database's promise
+    // (`fixed_meals_user_weekday_slot_unique`, `0101`), and the two-level map is
+    // where it has to hold: a day may carry several, and a second rule for the
+    // same meal would silently replace the first.
     const pinned = pinsFor(await FixedMealController.forPlan(userId), dates.start);
 
     // **A pinned dish is a forced candidate, and the rotation must not be able

@@ -23,6 +23,11 @@ const MARKER = /^\s*--\s*reviewed-destructive:\s*(.{20,})$/im;
 const DESTRUCTIVE = [
   [/\bDROP\s+TABLE\b/i, 'drops a table'],
   [/\bDROP\s+COLUMN\b/i, 'drops a column'],
+  // Destroys no row and can still be the one thing a deploy cannot take back: a
+  // constraint dropped over data that then stops complying cannot be re-added
+  // without deleting somebody's rows first. `0065` loosened a unique constraint
+  // and this gate said nothing (`migration-reviewer`, 2026-10-15).
+  [/\bDROP\s+CONSTRAINT\b/i, 'drops a constraint a later migration may be unable to re-add'],
   [/\bTRUNCATE\b/i, 'truncates a table'],
   [/\bALTER\s+COLUMN\s+"?\w+"?\s+(SET\s+DATA\s+)?TYPE\b/i, 'changes a column type, which rewrites or refuses the rows already there'],
   [/\bRENAME\s+(COLUMN|TO)\b/i, 'renames something the API still running reads by its old name'],

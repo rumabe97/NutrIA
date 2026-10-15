@@ -1,4 +1,4 @@
-import { ConflictError, NotFoundError } from 'core/entities/Error';
+import { NotFoundError } from 'core/entities/Error';
 import { countedStanding } from 'core/domain/Allowance';
 import { DishRequestController } from 'core/controllers/DishRequest';
 import { FixedMealRepository } from '#repositories/FixedMeal';
@@ -90,8 +90,3 @@ export const FixedMealController = {
     return (await FixedMealRepository.findByUser(userId)).map(rule => ({ slot: rule.slot, weekday: rule.weekday }));
   }
 };
-
-/** That meal of that weekday already carries a rule — the shape the route turns into a 409. */
-export function weekdayTaken(weekday: Weekday, slot: MealSlot): ConflictError {
-  return new ConflictError(`A meal is already fixed to ${slot} on weekday ${weekday}`);
-}
