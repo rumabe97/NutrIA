@@ -97,6 +97,13 @@ paid only when that day already holds a rule.
   that survives — and then add the narrow constraint back. That one *is* destructive, deletes
   something a person chose, and needs its own `-- reviewed-destructive:` line and a reviewer
   (`migration-reviewer`, 2026-10-15).
+- **A season refusal wears the clash's label.** `dayHolds` schedules a day, and the scheduler's
+  own search filters what is in season (`servableOn`) — so a dish refused only because it is out
+  of season in that fortnight comes back `clashes_with_fixed`, which names the wrong cause. It is
+  narrow (a searched, not-offered dish, on a day that already holds a rule, out of season) and
+  telling the two apart means a second probe per reported dish, so it is written down rather than
+  machined around. The first offer is unaffected: a pin outranks the season, so an out-of-season
+  dish really can be fixed (`tests`, 2026-10-15).
 - **What this does not do**: it does not tell somebody a standing rule stopped being honourable
   (`0098` left that open and `0100` left it open again), and the plan-level backstop can still
   drop the second pin of a day silently. The measurement bounds how often: 8 days in 1960.

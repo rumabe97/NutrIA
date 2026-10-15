@@ -29,7 +29,7 @@ export class FixedMealsController {
 
   @ApiCreatedResponse({
     description:
-      'The rule. 422 when the dish cannot be fixed to that meal, 409 when that weekday already has one, 429 QUOTA_EXCEEDED when the tier’s fixed meals are all used.'
+      'The rule. 422 when the dish cannot be fixed to that meal — beside whatever that day already holds — 409 when that **meal** of that weekday already has one (a day may hold several, `0101`), 429 QUOTA_EXCEEDED when the tier’s fixed meals are all used.'
   })
   @ApiOperation({ summary: 'Fix a dish to one meal of one weekday, in every plan from now on' })
   @Post()

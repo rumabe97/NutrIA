@@ -34,8 +34,15 @@ runs collide over the accounts they create.
 node .claude/skills/local-probe/scripts/guard.mjs          # refuses the production database
 cd apps/api
 NODE_ENV=test AI_PROVIDER=stub SMTP_HOST= SMTP_PORT= SMTP_USER= SMTP_PASS= EMAIL_FROM= OWNER_EMAIL= \
-  NODE_OPTIONS=--experimental-vm-modules pnpm exec jest --config ./test/jest-e2e.json --runInBand --forceExit <suite-name>
+  NODE_OPTIONS=--experimental-vm-modules pnpm exec jest --config ./test/jest-e2e.json --runInBand --forceExit \
+  --runTestsByPath test/<suite-name>.e2e-spec.ts
 ```
+
+**`--runTestsByPath` and the path, not the suite's name.** A bare name as a positional
+argument is silently ignored under this config on jest 30 — and so is
+`--testPathPatterns`: the run prints `Ran all test suites matching <name>` and then runs
+all fifty-three, which is thirty minutes instead of one. It cost exactly that on
+2026-10-15 before anybody noticed what the line above had been saying all along.
 
 4. **A suite deletes what it creates.** The database outlives the run on this machine, so
    `afterAll` removes every account the suite made (`social-sign-in.e2e-spec.ts` shows how),
