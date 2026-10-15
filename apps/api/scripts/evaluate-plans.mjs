@@ -28,7 +28,7 @@
  *
  * Usage (from the repository root, against the local Postgres `pnpm db:local` runs —
  * never Neon):
- *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds] [--exceptions]] [--pins N [--pin-slot <slot>]]
+ *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds] [--exceptions]] [--pins N [--pin-slot <slot>] [--per-day N]]
  *
  * `--flag <name>` names a scheduler flag to measure with on (project 016). The
  * one that exists is `accompaniments`: each profile's larder (`larderFor`, the
@@ -51,6 +51,12 @@
  * provider. Each plan is scored for balance against PRD 019's table
  * (`core/domain/Balance`), and the report is per profile, per goal and per
  * rule. `--compare` does not read a rotate file.
+ *
+ * `--per-day N` folds those rules onto fewer days — two rules both on the fifth
+ * day rather than one each on the fifth and the third. The rule count is held
+ * fixed on purpose: what is unknown is not what a rule costs but what *sharing a
+ * day* costs, and a three-meal shape pinned twice has one meal left to reach
+ * four macros with (`0045`).
  *
  * `--pins N` (with `--rotate`) gives every profile N standing weekly fixed
  * meals — *"every Friday dinner is tortilla de patata"* — and reports what they
@@ -271,9 +277,18 @@ const PIN_DAYS = [5, 7, 3, 1];
 /** The slot each successive rule takes, when `--pin-slot` does not force one and the person eats it. */
 const PIN_SLOTS = ['dinner', 'lunch', 'lunch', 'breakfast'];
 
-const PINNABLE_SLOTS = new Set(MEAL_SLOTS);
+/**
+ * The slots a day's rules take when `--per-day` puts more than one on it, in
+ * the order somebody writes them: *"los viernes como X y ceno Y"* is a lunch
+ * and a dinner, and breakfast is the third thing anybody fixes.
+ *
+ * Distinct by construction — a meal can hold one rule — and filtered to the
+ * slots the profile actually eats, so a three-meal shape pinned twice has one
+ * meal left and pinned three times has none. That difference is the whole
+ * measurement.
+ */
+const PIN_DAY_SLOTS = ['lunch', 'dinner', 'breakfast', 'afternoon_snack', 'morning_snack', 'supper'];
 
-/** Stable small integer from a rule's name, so different profiles write different rules. */
 function pinHash(text) {
   let hash = 0;
 
@@ -304,7 +319,7 @@ function pinHash(text) {
  * - **Never the day's only slot** (`0036` allows a one-meal day): a profile that
  *   eats once a day writes no rules at all, and says so.
  */
-function pinsFor(slots, everything, inputFor, options, profileSlug) {
+function pinsFor(slots, everything, inputFor, options, profileSlug, solvable) {
   if (options.pins === 0) {
     return { map: new Map(), rules: [] };
   }
@@ -315,11 +330,30 @@ function pinsFor(slots, everything, inputFor, options, profileSlug) {
 
   const map = new Map();
   const rules = [];
+  const perDay = options.perDay;
+  // With `--per-day 1` this is the arrangement every earlier measurement used:
+  // one rule a day, on PIN_DAYS in order. Above one, the same number of rules is
+  // folded onto fewer days, which is the comparison — the cost of a rule is
+  // known, the cost of *sharing a day* is not.
+  const eaten = PIN_DAY_SLOTS.filter(slot => slots.includes(slot));
 
   for (let rule = 0; rule < options.pins; rule += 1) {
-    const wanted = options.pinSlot ?? PIN_SLOTS[rule];
+    const dayRule = rule % perDay;
+    const day = PIN_DAYS[Math.floor(rule / perDay)];
+
+    if (day === undefined) {
+      rules.push({ rule, unwritable: `--pins ${options.pins} over --per-day ${perDay} needs more days than the fixture has` });
+      continue;
+    }
+
+    const wanted = perDay > 1 ? eaten[dayRule] : (options.pinSlot ?? PIN_SLOTS[rule]);
     const slot = slots.includes(wanted) ? wanted : slots[rule % slots.length];
-    const day = PIN_DAYS[rule];
+
+    if (perDay > 1 && wanted === undefined) {
+      rules.push({ day, rule, unwritable: 'this profile eats fewer meals than this day has rules' });
+      continue;
+    }
+
     const candidates = [...pinnable(inputFor(everything, new Map()), day, slot)].sort((a, b) => a.slug.localeCompare(b.slug));
 
     if (candidates.length === 0) {
@@ -334,14 +368,35 @@ function pinsFor(slots, everything, inputFor, options, profileSlug) {
     // potato far more often than not, and the two are otherwise measured as one.
     const plain = candidates.filter(dish => !isCappedStarch(starchBase(dish)));
     const from = options.pinNoStarch && plain.length > 0 ? plain : candidates;
-    const chosen = from[pinHash(`${profileSlug}:${day}:${slot}`) % from.length];
+    const held = map.get(day);
+    // `--pin-fit`: a rule sharing a day with one already written is chosen from
+    // the dishes that leave that day solvable, rather than by the hash. It is
+    // what a screen could offer, and the measurement that tells a bad *pair*
+    // from a bad *idea*: if the hash's pair breaks the day and a chosen one does
+    // not, the feature is an offer that knows what is already fixed.
+    const fitting =
+      options.pinFit && held && held.size > 0 && solvable
+        ? from.filter(dish => solvable(new Map([[1, new Map([...held, [slot, { slot, slug: dish.slug }]])]])))
+        : from;
+    const pickFrom = fitting.length > 0 ? fitting : from;
+    const chosen = pickFrom[pinHash(`${profileSlug}:${day}:${slot}`) % pickFrom.length];
 
-    rules.push({ day, slot, slug: chosen.slug });
-    map.set(day, { slot, slug: chosen.slug });
-    map.set(day + 7, { slot, slug: chosen.slug });
+    rules.push({
+      day,
+      slot,
+      slug: chosen.slug,
+      ...(options.pinFit && held && held.size > 0 ? { fitting: fitting.length, of: from.length } : {})
+    });
+
+    for (const landing of [day, day + 7]) {
+      const held = map.get(landing) ?? new Map();
+
+      held.set(slot, { slot, slug: chosen.slug });
+      map.set(landing, held);
+    }
   }
 
-  return { map, rules };
+  return { map, rules, ...(perDay > 1 ? { perDay, wholeDays: [...map.values()].filter(day => day.size >= slots.length).length } : {}) };
 }
 
 /**
@@ -352,7 +407,9 @@ function pinsFor(slots, everything, inputFor, options, profileSlug) {
  * scheduler refuse the rule for want of the dish rather than for want of room.
  */
 function withPins(pool, pins, everything) {
-  const missing = [...new Set([...pins.values()].map(pin => pin.slug))].filter(slug => !pool.some(dish => dish.slug === slug));
+  const missing = [...new Set([...pins.values()].flatMap(day => [...day.values()].map(pin => pin.slug)))].filter(
+    slug => !pool.some(dish => dish.slug === slug)
+  );
 
   return missing.length === 0 ? pool : [...pool, ...missing.flatMap(slug => everything.filter(dish => dish.slug === slug))];
 }
@@ -362,14 +419,16 @@ function pinOutcome(assignment, pins) {
   const refused = [];
   let honoured = 0;
 
-  for (const [dayIndex, pin] of pins) {
-    const day = assignment.days.find(entry => entry.dayIndex === dayIndex);
-    const meal = day?.meals.find(entry => entry.slot === pin.slot);
+  for (const [dayIndex, held] of pins) {
+    for (const pin of held.values()) {
+      const day = assignment.days.find(entry => entry.dayIndex === dayIndex);
+      const meal = day?.meals.find(entry => entry.slot === pin.slot);
 
-    if (meal?.dish.slug === pin.slug) {
-      honoured += 1;
-    } else {
-      refused.push({ dayIndex, slot: pin.slot });
+      if (meal?.dish.slug === pin.slug) {
+        honoured += 1;
+      } else {
+        refused.push({ dayIndex, slot: pin.slot });
+      }
     }
   }
 
@@ -392,6 +451,8 @@ function parseArgs(argv) {
     json: null,
     locale: 'es-ES',
     only: null,
+    perDay: 1,
+    pinFit: false,
     pinNoStarch: false,
     pinSlot: null,
     pins: 0,
@@ -423,6 +484,17 @@ function parseArgs(argv) {
       }
 
       options.pins = rules;
+    } else if (arg === '--per-day') {
+      const held = Number(argv[(index += 1)]);
+
+      if (!Number.isInteger(held) || held < 1 || held > PIN_DAY_SLOTS.length) {
+        console.error(`--per-day needs a whole number between 1 and ${PIN_DAY_SLOTS.length}`);
+        process.exit(2);
+      }
+
+      options.perDay = held;
+    } else if (arg === '--pin-fit') {
+      options.pinFit = true;
     } else if (arg === '--pin-no-starch') {
       options.pinNoStarch = true;
     } else if (arg === '--pin-slot') {
@@ -1319,8 +1391,36 @@ async function measureRotations(profile, shared, options) {
     targets,
     weights
   });
+  /**
+   * Whether a day holding exactly these pins can be built inside its bands.
+   *
+   * One day on its own, with the whole library and no variety pressure from the
+   * other thirteen, so it is **optimistic** by construction: a pair it refuses
+   * can never work, and a pair it accepts may still cost a day inside a real
+   * fortnight. That asymmetry is what makes it usable as a filter and useless
+   * as a promise.
+   */
+  const daySolvable = pinned => {
+    const scheduled = schedulePlan({ ...inputFor(everything, pinned), dayTargets: new Map(), days: 1 });
+
+    if (!scheduled.ok) {
+      return false;
+    }
+
+    const violations = validatePlan({
+      assignment: scheduled.assignment,
+      dayTargets: new Map(),
+      expectedDays: 1,
+      expectedSlots: slots,
+      sex: profile.target.sex,
+      targets,
+      weightKg: profile.target.weightKg
+    });
+
+    return !violations.some(violation => BAND_KINDS.has(violation.kind));
+  };
   // The rules are written once and stand over every seed, which is what weekly means.
-  const pins = pinsFor(slots, everything, inputFor, options, profile.slug);
+  const pins = pinsFor(slots, everything, inputFor, options, profile.slug, daySolvable);
   const schedule = pool => schedulePlan(inputFor(pool, pins.map));
   const check = assignment =>
     validatePlan({
@@ -1409,9 +1509,16 @@ async function measureRotations(profile, shared, options) {
       missedBand,
       offer: rotationOffer(reusable, context.catalogue),
       pinnedDaysBelowFloor: [...belowFloor].filter(day => pins.map.has(day)).length,
-      // Which slot a lost day pinned is the whole shape of the answer: a fixed
-      // lunch takes about 40% of a three-meal day's energy, a fixed breakfast far less.
-      pinnedDaysOutside: [...daysOutside].filter(day => pins.map.has(day)).map(day => pins.map.get(day).slot),
+      // Which slots a lost day pinned are the whole shape of the answer: a fixed
+      // lunch takes about 40% of a three-meal day's energy, a fixed breakfast far
+      // less — and a day holding two is counted once per slot it holds.
+      pinnedDaysOutside: [...daysOutside].filter(day => pins.map.has(day)).flatMap(day => [...pins.map.get(day).keys()]),
+      // Which macro a pinned day missed, for the measurement that asks whether a
+      // day can hold two rules at all (`0101`): "two rules cost a day" is a
+      // number, "they cost it its fat" is a cause.
+      pinnedBandKinds: violations
+        .filter(violation => BAND_KINDS.has(violation.kind) && pins.map.has(violation.dayIndex))
+        .map(violation => violation.kind),
       pinsHonoured: outcome.honoured,
       pinsRefused: outcome.refused,
       poolSize: reusable.length,
@@ -1428,6 +1535,8 @@ async function measureRotations(profile, shared, options) {
     note,
     pinNote: pins.note,
     pins: pins.rules,
+    pinsPerDay: pins.perDay ?? 1,
+    pinsWholeDays: pins.wholeDays ?? 0,
     plans,
     slug: profile.slug,
     supply
@@ -1509,7 +1618,9 @@ function summariseRotations(results) {
     daysOutside: allPlans.flatMap(plan => plan.pinnedDaysOutside ?? []).length,
     honoured: allPlans.reduce((sum, plan) => sum + (plan.pinsHonoured ?? 0), 0),
     of: allPlans.reduce((sum, plan) => sum + (plan.pinsHonoured ?? 0) + (plan.pinsRefused?.length ?? 0), 0),
-    unwritable: results.flatMap(result => result.pins ?? []).filter(rule => rule.unwritable).length
+    perDay: Math.max(1, ...results.map(result => result.pinsPerDay ?? 1)),
+    unwritable: results.flatMap(result => result.pins ?? []).filter(rule => rule.unwritable).length,
+    wholeDays: results.reduce((sum, result) => sum + (result.pinsWholeDays ?? 0), 0)
   };
 
   for (const slot of allPlans.flatMap(plan => plan.pinnedDaysOutside ?? [])) {
@@ -1596,13 +1707,18 @@ function printRotations(results, summary) {
   }
 
   if (summary.pinned.of > 0) {
-    const { bySlot, daysBelowFloor, daysOutside, honoured, of, unwritable } = summary.pinned;
+    const { bySlot, daysBelowFloor, daysOutside, honoured, of, perDay, unwritable, wholeDays } = summary.pinned;
     const slots = Object.entries(bySlot)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([slot, count]) => `${slot} ${count}`)
       .join(', ');
 
-    console.log(`\nFixed meals: ${honoured} of ${of} day-slots served the dish the rule asks for.`);
+    console.log(`\nFixed meals: ${honoured} of ${of} day-slots served the dish the rule asks for${perDay > 1 ? `, ${perDay} rules to a day` : ''}.`);
+
+    if (wholeDays > 0) {
+      console.log(`  profiles whose every meal that day was a rule: ${wholeDays}`);
+    }
+
     console.log(`  days that carried a rule and missed a band: ${daysOutside}${slots === '' ? '' : ` (${slots})`}`);
     console.log(`  days that carried a rule and fell under the energy floor: ${daysBelowFloor}`);
 

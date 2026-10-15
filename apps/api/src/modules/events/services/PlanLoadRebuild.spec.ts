@@ -172,7 +172,7 @@ function build(
     consented?: boolean;
     excluded?: ReadonlySet<string>;
     /** The fixed meals the plan was built with (`0099`), by day index; none by default. */
-    fixedMeals?: readonly (readonly [number, { readonly slot: MealSlot; readonly slug: string }])[];
+    fixedMeals?: readonly (readonly [number, readonly (readonly [MealSlot, { readonly slot: MealSlot; readonly slug: string }])[]])[];
     onboardingComplete?: boolean;
     profile?: Partial<typeof PROFILE>;
     safety?: Set<string>;
@@ -215,7 +215,7 @@ function build(
   jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [], liked: [] });
   // The rules **the plan was built with**, read from its own metadata: a rebuild
   // honours those and not the rules as they stand now (`0099`).
-  jest.spyOn(PlanController, 'fixedMealsOf').mockResolvedValue(new Map(overrides.fixedMeals ?? []));
+  jest.spyOn(PlanController, 'fixedMealsOf').mockResolvedValue(new Map((overrides.fixedMeals ?? []).map(([dayIndex, slots]) => [dayIndex, new Map(slots)])));
   // The accompaniments flag, off unless a test turns it on (project 016).
   jest.spyOn(SettingsController, 'accompaniments').mockResolvedValue(overrides.accompaniments ?? false);
   jest
@@ -281,7 +281,7 @@ describe('PlanLoadRebuildService — a fortnight rebuilt for an event (0044)', (
     // reading the rules *now* would leave one Friday with the old dish and the
     // rebuilt one with the new, inside the same fortnight, with nothing to
     // explain it.
-    const { rebuild, service } = build({ fixedMeals: [[4, { slot: 'dinner', slug: 'dinner-3' }]] });
+    const { rebuild, service } = build({ fixedMeals: [[4, [['dinner', { slot: 'dinner', slug: 'dinner-3' }]]]] });
 
     await expect(service.forEvent('usr-1', race(), TODAY)).resolves.toEqual(['2026-09-11']);
 

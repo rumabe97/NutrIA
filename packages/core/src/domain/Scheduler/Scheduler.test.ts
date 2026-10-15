@@ -3140,7 +3140,8 @@ describe('PLATE_FOOD_MAX — no plate holds more than about two servings of one 
 });
 
 describe('a fixed recurring meal', () => {
-  const lunchOn = (days: readonly number[], slug: string) => new Map(days.map(day => [day, { slot: 'lunch' as const, slug }]));
+  const lunchOn = (days: readonly number[], slug: string) =>
+    new Map(days.map(day => [day, new Map([['lunch' as const, { slot: 'lunch' as const, slug }]])]));
 
   const lunchOf = (result: ReturnType<typeof schedulePlan>, dayIndex: number) => {
     if (!result.ok) {
@@ -3236,6 +3237,92 @@ describe('a fixed recurring meal', () => {
     expect(offered).toContain('lunch-0');
     expect(offered).not.toContain('fuente-entera');
     expect(offered).not.toContain('breakfast-0');
+  });
+
+  /*
+   * The second rule of a day is a different question from the first, and `0101`
+   * measured how different: two rules each fittable on its own broke a band on
+   * 204 of 280 days. `held` is what makes the offer know what is already there.
+   */
+  it('offers the same dishes for a day that holds nothing as it always did', () => {
+    const pool = makePool(slotsForTest(3, false));
+    const input = { catalogue, minimumKcal: MINIMUM_KCAL, pool, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) };
+
+    expect(pinnable(input, 4, 'lunch', new Map()).map(dish => dish.slug)).toEqual(pinnable(input, 4, 'lunch').map(dish => dish.slug));
+  });
+
+  it('offers, beside a rule the day already holds, only dishes that leave the day inside its bands', () => {
+    const pool = makePool(slotsForTest(3, false));
+    const input = { catalogue, minimumKcal: MINIMUM_KCAL, pool, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) };
+    const alone = pinnable(input, 4, 'dinner').map(dish => dish.slug);
+    const beside = pinnable(input, 4, 'dinner', new Map([['lunch', { slot: 'lunch', slug: 'lunch-0' }]])).map(dish => dish.slug);
+
+    // Never more than the day could hold on its own, and every one of them is
+    // one the unheld offer already allowed.
+    expect(beside.length).toBeLessThanOrEqual(alone.length);
+    expect(alone).toEqual(expect.arrayContaining(beside));
+
+    // And what it keeps really is servable beside that lunch: the day built
+    // with both lands in band.
+    for (const slug of beside.slice(0, 3)) {
+      const result = schedule({
+        pinned: new Map([
+          [
+            4,
+            new Map([
+              ['lunch' as const, { slot: 'lunch' as const, slug: 'lunch-0' }],
+              ['dinner' as const, { slot: 'dinner' as const, slug }]
+            ])
+          ]
+        ])
+      });
+
+      expect(result.ok, slug).toBe(true);
+
+      if (result.ok) {
+        const day = result.assignment.days.find(entry => entry.dayIndex === 4);
+
+        expect(day?.meals.find(meal => meal.slot === 'lunch')?.dish.slug, slug).toBe('lunch-0');
+        expect(day?.meals.find(meal => meal.slot === 'dinner')?.dish.slug, slug).toBe(slug);
+      }
+    }
+  });
+
+  it('offers nothing beside a rule the rest of the day cannot balance', () => {
+    // Not a *big* lunch — `fitsPlate` sizes a pin to its slot like any plate, so
+    // a huge dish is simply served in smaller servings. What no dinner can
+    // rescue is a **skewed** one: against a 60 g fat target, a lunch carrying 70
+    // of them puts the day past its fat band whatever else the day eats, and
+    // nothing can be served negative fat to bring it back.
+    const fatty = makeCatalogueIngredient({
+      id: 'i-grasa',
+      carbsPer100g: 0,
+      fatPer100g: 100,
+      kcalPer100g: 884,
+      name: 'Grasa',
+      proteinPer100g: 0,
+      slug: 'grasa'
+    });
+    const skewed = makeDish({
+      ingredients: [
+        { grams: 70, slug: 'grasa' },
+        { grams: 60, slug: 'base' }
+      ],
+      name: 'Comida de pura grasa',
+      slots: ['lunch'],
+      slug: 'pura-grasa'
+    });
+    const pool = [...makePool(slotsForTest(3, false)), skewed];
+    const input = {
+      catalogue: makeCatalogue([makeCatalogueIngredient(), fatty]),
+      minimumKcal: MINIMUM_KCAL,
+      pool,
+      targets: TARGETS,
+      weights: weightsFor(shapeFor(3, false))
+    };
+
+    expect(pinnable(input, 4, 'lunch').map(dish => dish.slug)).toContain('pura-grasa');
+    expect(pinnable(input, 4, 'dinner', new Map([['lunch', { slot: 'lunch', slug: 'pura-grasa' }]]))).toEqual([]);
   });
 
   it('offers nothing for a slot the person does not eat', () => {

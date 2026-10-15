@@ -783,13 +783,16 @@ export type SchedulerInput = {
    */
   readonly monthOf?: (dayIndex: number) => number;
   /**
-   * A dish somebody has fixed to one slot of a day, by day index — *"every
-   * Friday dinner is tortilla de patata"*, expanded to the fortnight's days by
-   * the caller, so the scheduler never has to know what a weekday is.
+   * The dishes somebody has fixed to the slots of a day, by day index and then
+   * by slot — *"every Friday I have X for lunch and Y for dinner"*, expanded to
+   * the fortnight's days by the caller, so the scheduler never has to know what
+   * a weekday is.
    *
-   * At most one per day by construction: a map keyed by day index cannot hold
-   * two, and two pins on a three-meal day would leave the search one dish and
-   * the portions, which `0045` measured as not enough to reach four macros.
+   * **One pin per day and slot by construction**, which is the invariant the
+   * two-level map exists to hold: a day may carry several, and the same meal of
+   * the same day cannot carry two, because the inner map cannot hold them. The
+   * cost of a second pin on a day is not in the structure but in what it leaves
+   * the search — measured in `0101`.
    *
    * A pin **outranks** variety, the repeat rules and the kind caps: it is the
    * person's own decision and it is why they asked. It does **not** outrank the
@@ -797,7 +800,7 @@ export type SchedulerInput = {
    * gate), the slot the dish declares, and `fitsPlate` — and a pin that fails
    * any of those is simply not honoured that day, which is `honouredPin`.
    */
-  readonly pinned?: ReadonlyMap<number, PinnedMeal>;
+  readonly pinned?: ReadonlyMap<number, ReadonlyMap<MealSlot, PinnedMeal>>;
   /**
    * What is already on the plate and is *not* being laid out again.
    *
@@ -850,16 +853,71 @@ function targetsOn(input: SchedulerInput, dayIndex: number): NutritionTargets {
 }
 
 /**
+ * Whether a day whose slots carry exactly these pins can still be built inside
+ * its bands — the question a *second* rule on a day asks and a first one does
+ * not (`0101`).
+ *
+ * **Measured, not assumed.** Two rules on one day, each perfectly fittable on
+ * its own, broke a macro band on 204 of 280 such days (14 profiles × 10 seeds,
+ * 982 dishes): the pair leaves the free slots a remainder they cannot reach.
+ * Choosing the second dish from the ones this function accepts took that to 8,
+ * which is the whole feature.
+ *
+ * The pool is cut to what the day could actually use — the pinned dishes, and
+ * the dishes that can serve a slot the pins left free. That is exact rather
+ * than a sample: a dish that serves none of the free slots is one the scheduler
+ * would never place there, so it cannot help the day balance. It halves the
+ * cost (197 candidates: 5.6 s to 2.7 s) and changed no verdict in 197 of 197.
+ *
+ * It is **optimistic** in one direction and that is deliberate: one day, built
+ * alone, sees no variety pressure from the other thirteen and has the whole
+ * library to balance with. A pair it refuses can never work; a pair it accepts
+ * can still cost a day inside a real fortnight — measured at 8 days in 1960.
+ * So it is a filter for what to offer, never a promise, and `honouredPin`
+ * remains the backstop that keeps a day in band by dropping a pin it cannot
+ * honour.
+ */
+function dayHolds(input: SchedulerInput, dayIndex: number, pins: ReadonlyMap<MealSlot, PinnedMeal>): boolean {
+  const free = [...input.weights.keys()].filter(slot => !pins.has(slot));
+  const asked = new Set([...pins.values()].map(pin => pin.slug));
+  const usable = input.pool.filter(dish => asked.has(dish.slug) || dish.slots.some(slot => free.includes(slot)));
+  const scheduled = schedulePlan({ ...input, dayIndexes: [dayIndex], days: 1, pinned: new Map([[dayIndex, pins]]), placed: [], pool: usable });
+
+  if (!scheduled.ok) {
+    return false;
+  }
+
+  const [day] = scheduled.assignment.days;
+
+  // The delivered totals against this day's own targets, through the same
+  // `PLAN_TOLERANCE` bands validation reports — never a second idea of what
+  // inside a band means.
+  return day !== undefined && bandMiss(day.totals, targetsOn(input, dayIndex)) === 0;
+}
+
+/**
  * Which of the pool's dishes a person could fix to this slot of this day — the
- * ones `honouredPin` would accept, asked before anybody writes a rule rather
- * than discovered on the day it is not kept.
+ * ones `honouredPin` would accept, and, when the day already holds a rule, the
+ * ones that leave the day solvable beside it.
  *
  * It exists because the refusal has to be sayable in advance. A screen that
  * offers every dish and then quietly serves something else once a fortnight is
  * worse than one that never offered it, and a measurement that pins dishes the
  * scheduler was always going to refuse measures nothing.
+ *
+ * `held` is what the day already carries. Empty — the first rule of a day, and
+ * every caller before `0101` — this is exactly what it always was: a plate-fit
+ * filter, and about 25 ms. With a rule already on the day it is the plate fit
+ * *and* `dayHolds` per candidate, which costs about 14 ms each and is the price
+ * of an offer that knows what is already fixed. It is paid once, on the rarer
+ * of the two paths.
  */
-export function pinnable(input: SchedulerInput, dayIndex: number, slot: MealSlot): readonly CandidateDish[] {
+export function pinnable(
+  input: SchedulerInput,
+  dayIndex: number,
+  slot: MealSlot,
+  held: ReadonlyMap<MealSlot, PinnedMeal> = new Map()
+): readonly CandidateDish[] {
   const budget = slotBudgets(input.weights, targetsOn(input, dayIndex), input.accompaniments !== undefined, input.proteinWeights).get(slot);
 
   if (!budget) {
@@ -867,8 +925,13 @@ export function pinnable(input: SchedulerInput, dayIndex: number, slot: MealSlot
   }
 
   const perServing = perServingIndex(input.pool, input.catalogue);
+  const sized = input.pool.filter(dish => honouredPin({ slot, slug: dish.slug }, slot, budget, input.pool, perServing) !== undefined);
 
-  return input.pool.filter(dish => honouredPin({ slot, slug: dish.slug }, slot, budget, input.pool, perServing) !== undefined);
+  if (held.size === 0) {
+    return sized;
+  }
+
+  return sized.filter(dish => dayHolds(input, dayIndex, new Map([...held, [slot, { slot, slug: dish.slug }]])));
 }
 
 export type SchedulerShortfall = {
@@ -929,7 +992,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
 
     for (const [sortOrder, slot] of slots.entries()) {
       const budget = budgets.get(slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
-      const pinned = honouredPin(input.pinned?.get(dayIndex), slot, budget, input.pool, perServing);
+      const pinned = honouredPin(input.pinned?.get(dayIndex)?.get(slot), slot, budget, input.pool, perServing);
 
       // A pin is not a candidate that wins; it is the end of the choosing for
       // this slot. Nothing below runs — not the variety gate, not the kind caps,

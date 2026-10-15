@@ -24,7 +24,7 @@ import { accompanimentRows, larderFor } from 'core/domain/Accompaniment';
 import { PoolBuilder } from '../../ai/services/PoolBuilder.service.js';
 import { likedFoodNames, promptPreferences, toRecipeDraft } from './GenerationShared.js';
 
-import type { AiCallRecord, CandidateDish, PlanAssignment } from 'core/entities/Plan';
+import type { AiCallRecord, CandidateDish, MealSlot, PlanAssignment } from 'core/entities/Plan';
 import type { FixedMeal } from 'core/entities/FixedMeal';
 import type { PinnedMeal } from 'core/domain/Scheduler';
 import type { NutritionTargets } from 'core/entities/Nutrition';
@@ -76,26 +76,30 @@ export class GenerationError extends Error {
 }
 
 /**
- * Standing rules as the scheduler takes them: a map from this plan's day index
- * to the dish fixed there (`0098`).
+ * Standing rules as the scheduler takes them: this plan's day index, then the
+ * slot, then the dish fixed there (`0098`, `0101`).
  *
  * The expansion is the caller's on purpose — the scheduler is handed day
  * indexes and never learns what a weekday is. A weekly rule lands on two days
  * of a fortnight and on one of a plan a redo cut short, so `daysFor` counts
  * rather than assuming.
  *
- * A map cannot hold two rules on one day, and it must not have to: the database
- * allows one rule per weekday (`fixed_meals_user_weekday_unique`), so two rules
- * can never land on the same index. Were that constraint ever lost, this would
- * keep the last one silently — which is why the constraint, and not this, is
- * where the invariant lives.
+ * **A day may hold several rules and a meal may hold one**, which is exactly
+ * what the database allows (`fixed_meals_user_weekday_slot_unique`) and exactly
+ * what the two-level map can express. The inner map is where the invariant is
+ * structural: two rules for the same meal of the same day cannot both be here,
+ * and if the constraint were ever lost this would keep the last one rather than
+ * serve two dishes on one plate.
  */
-function pinsFor(rules: readonly FixedMeal[], startDate: string): ReadonlyMap<number, PinnedMeal> {
-  const pins = new Map<number, PinnedMeal>();
+function pinsFor(rules: readonly FixedMeal[], startDate: string): ReadonlyMap<number, ReadonlyMap<MealSlot, PinnedMeal>> {
+  const pins = new Map<number, Map<MealSlot, PinnedMeal>>();
 
   for (const rule of rules) {
     for (const dayIndex of daysFor(rule.weekday, startDate, PLAN_DAYS)) {
-      pins.set(dayIndex, { slot: rule.slot, slug: rule.dishSlug });
+      const day = pins.get(dayIndex) ?? new Map<MealSlot, PinnedMeal>();
+
+      day.set(rule.slot, { slot: rule.slot, slug: rule.dishSlug });
+      pins.set(dayIndex, day);
     }
   }
 
@@ -299,7 +303,7 @@ export class PlanGenerationService {
     // `withPins`); production did not, and an end-to-end run caught it serving
     // congrio on somebody's fixed Friday.
     const poolWithPins = async (pool: readonly CandidateDish[]): Promise<readonly CandidateDish[]> => {
-      const wanted = new Set([...pinned.values()].map(pin => pin.slug));
+      const wanted = new Set([...pinned.values()].flatMap(day => [...day.values()].map(pin => pin.slug)));
       const missing = [...wanted].filter(slug => !pool.some(dish => dish.slug === slug));
 
       if (missing.length === 0) {
@@ -701,7 +705,7 @@ export class PlanGenerationService {
     start: Date,
     loads: Loads,
     today: string,
-    pinned: ReadonlyMap<number, PinnedMeal>
+    pinned: ReadonlyMap<number, ReadonlyMap<MealSlot, PinnedMeal>>
   ): PlanDraft {
     const end = new Date(start);
 
@@ -755,7 +759,7 @@ export class PlanGenerationService {
         // It also makes the plan say why it served what it served, which is
         // what `poolSeed` is for and what the "this rule could not be honoured"
         // notice (`0099`) will need: what was asked for, beside what arrived.
-        fixedMeals: [...pinned].map(([dayIndex, pin]) => ({ dayIndex, slot: pin.slot, slug: pin.slug })),
+        fixedMeals: [...pinned].flatMap(([dayIndex, day]) => [...day.values()].map(pin => ({ dayIndex, slot: pin.slot, slug: pin.slug }))),
         jobId,
         locale: context.locale,
         poolSeed: rotation.seed,
