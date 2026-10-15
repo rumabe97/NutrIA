@@ -97,6 +97,19 @@ paid only when that day already holds a rule.
   that survives — and then add the narrow constraint back. That one *is* destructive, deletes
   something a person chose, and needs its own `-- reviewed-destructive:` line and a reviewer
   (`migration-reviewer`, 2026-10-15).
+- **The gate is absolute, so a library that cannot close a day offers nothing.**
+  `dayHolds` asks for a day inside all four bands — not for a day as good as that
+  library gets — so wherever no day can be closed at all, the second rule is refused for
+  every dish, under `clashes_with_fixed`. Production's library closes days, which is
+  `0045`'s own measurement and the 1955/1960 above; the end-to-end fixture pool does not,
+  because its ten ingredients carry almost no fat and every one of its fourteen days sits
+  6% over the protein band. That is what turned CI red on 2026-10-15 with the suite green
+  on a developer's machine, where a thousand real recipes stood in the way of noticing
+  (`apps/api/test/README.md` § *The shared pool cannot reach the macro bands*). The
+  alternative rule — offer what leaves the day **no worse than it would be without the
+  pin** — would say something useful on a thin library, and costs a second schedule per
+  candidate. It is not what was measured here, so it is written down rather than built
+  (CI, 2026-10-15).
 - **A season refusal wears the clash's label.** `dayHolds` schedules a day, and the scheduler's
   own search filters what is in season (`servableOn`) — so a dish refused only because it is out
   of season in that fortnight comes back `clashes_with_fixed`, which names the wrong cause. It is

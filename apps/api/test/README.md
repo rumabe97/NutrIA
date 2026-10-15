@@ -188,6 +188,29 @@ migration `0007` without re-running the seed leaves every ingredient with only i
 name, which is a legitimate runtime state (the resolver falls back and logs the gap) and a
 failing test.
 
+## The shared pool cannot reach the macro bands
+
+`POOL` (`harness.ts`) fills a fortnight without repeating a dish more than the variety
+rules allow, which is what `0009` tuned it for — but **no day built from it is inside all
+four of its macro bands**. Its ten ingredients carry almost no fat (egg 9.5 g per 100 g,
+Greek yogurt 5, oats 6.5, nothing else above 3.5), so a fortnight lands every one of its
+fourteen days about 6% over the protein band. Measured on a database built the way CI
+builds it — migrations and `seed`, no library: 0 of 14 days in band.
+
+Nothing minded until `0101`, whose second-rule offer is gated on a day the scheduler can
+build inside those bands: on the shared pool that offer is empty whatever the lunch.
+`fixed-meals.e2e-spec.ts` therefore adds four oil-bearing dishes of its own (`PAIRABLE`),
+and reads 4 of 14 days in band, 10 of 30 dinners offered, and both days of the pinned
+weekday inside their bands. **A suite that needs an in-band day must bring a fat source**;
+one that needs only a plan does not.
+
+It also looks for the lunch whose day can still hold a dinner rather than fixing the first
+the offer sorted: which lunch a day holds is a property of the library too, and `[0]` is a
+lunch nothing survives beside on the fixture pool and a fine one on a thousand real
+recipes. That difference cost a red `end-to-end` run on 2026-10-15 — green on a
+developer's machine, where the real library stood between the suite and the pool it was
+written against.
+
 ## What a first real run changed
 
 The suites were written and type-checked but had never been executed. Running them

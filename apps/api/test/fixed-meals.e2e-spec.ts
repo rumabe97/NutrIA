@@ -6,7 +6,20 @@ import { SettingsController } from 'core/controllers/Settings';
 import { UNAUDITED } from 'core/entities/Audit';
 import { UserController } from 'core/controllers/User';
 
-import { completeOnboarding, createApp, deleteAccounts, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import {
+  completeOnboarding,
+  createApp,
+  deleteAccounts,
+  dish,
+  generateAndWait,
+  httpServer,
+  POOL,
+  PREFIX,
+  register,
+  ScriptedAiClient,
+  scriptedName,
+  SEEDED
+} from './harness.js';
 
 import type { Account } from './harness.js';
 import type { FixedMealsView } from 'core/controllers/FixedMeal';
@@ -46,6 +59,74 @@ const FIXED_MEALS_PREMIUM = 3;
 const DISH_REQUESTS_FREE = 0;
 /** What a free account's dish requests always read: none, none left, not allowed. */
 const NO_DISH_REQUESTS = { allowed: false, limit: DISH_REQUESTS_FREE, remaining: DISH_REQUESTS_FREE, used: 0 };
+
+/** Olive oil, which the seed guarantees and the shared pool has no equivalent of. */
+const OIL = 'aceite-de-oliva-virgen-extra';
+
+/**
+ * Four dishes this file adds to the shared pool, because `0101`'s gate asks the
+ * library for something `POOL` cannot give.
+ *
+ * `dayHolds` offers a second rule only for a day it can build inside all four
+ * bands, and **no day of the shared pool is ever inside them**: its ten
+ * ingredients carry almost no fat — egg 9.5 g per 100, Greek yogurt 5, oats 6.5,
+ * and nothing else above 3.5 — so a fortnight built from it lands every one of
+ * its fourteen days outside the protein band, 6% over. Measured on a database
+ * built the way CI builds it (migrations and `seed`, no library): 0 of 14 days in
+ * band, and the narrowed dinner offer empty for every lunch the pool can fix.
+ * That is what turned CI red on 2026-10-15, with the suite green on a developer's
+ * machine, where a thousand real recipes were in the way of noticing.
+ *
+ * With a fat source in the pool it is 4 of 14 days in band, the narrowed dinner
+ * offer is 10 of 30, and **both days of the pinned weekday come back inside their
+ * bands** — which is the gate working rather than luck: it offers only what makes
+ * that day reachable. The other ten days miss fat, because the variety rules move
+ * off these four dishes and what is left has none; that is the fixture library's
+ * ceiling and not this feature's, and `0101` is where the real library's numbers
+ * are.
+ *
+ * They live here and not in `harness.ts` because `0009` tuned `POOL` for the
+ * variety rules of every suite that shares it, and this is the only file that
+ * needs a day the library can actually close.
+ */
+const PAIRABLE = [
+  dish(
+    'Avena con yogur y aceite',
+    ['breakfast'],
+    [
+      { grams: 70, slug: SEEDED.avena },
+      { grams: 150, slug: SEEDED.yogur },
+      { grams: 6, slug: OIL }
+    ]
+  ),
+  dish(
+    'Arroz con tomate y aceite',
+    ['lunch'],
+    [
+      { grams: 260, slug: SEEDED.arroz },
+      { grams: 150, slug: SEEDED.tomate },
+      { grams: 10, slug: OIL }
+    ]
+  ),
+  dish(
+    'Merluza con patata y aceite',
+    ['dinner'],
+    [
+      { grams: 200, slug: SEEDED.merluza },
+      { grams: 220, slug: SEEDED.patata },
+      { grams: 8, slug: OIL }
+    ]
+  ),
+  dish(
+    'Tortilla con pan y aceite',
+    ['dinner'],
+    [
+      { grams: 150, slug: SEEDED.huevo },
+      { grams: 70, slug: SEEDED.pan },
+      { grams: 5, slug: OIL }
+    ]
+  )
+];
 
 /**
  * The weekdays the premium block uses, each for one job: the day that comes to
@@ -129,7 +210,9 @@ describe('fixed meals', () => {
   };
 
   beforeAll(async () => {
-    app = await createApp(new ScriptedAiClient(POOL));
+    // The shared pool and the four dishes above, which are what makes a day this
+    // library can close — and so a second rule possible at all (`PAIRABLE`).
+    app = await createApp(new ScriptedAiClient([...POOL, ...PAIRABLE]));
 
     account = await register(app, `fixed-meal-${stamp}@e2e.invalid`);
     made.push(account.cookie);
@@ -293,6 +376,10 @@ describe('fixed meals', () => {
    * that at 8 days in 1960. So a red here is a report, not a test to loosen:
    * `PlanController.fixedMealsOf` says what the plan was built with, and a day
    * whose pins were both recorded and only one served is the backstop firing.
+   *
+   * All of it rests on the four dishes this file adds to the pool
+   * (`PAIRABLE`): on the shared pool alone the second offer is empty whatever
+   * the lunch, because no day of that pool is inside its bands.
    */
   describe('a day that holds two of them (0101)', () => {
     let rich: Account;
@@ -339,23 +426,69 @@ describe('fixed meals', () => {
 
       // The lunch first, and from the lunch offer: a day holding nothing is
       // the unnarrowed path, which is every rule before `0101`.
-      const [lunch] = await fixable(rich, PAIRED, 'lunch');
-      const created = await fix(rich, PAIRED, 'lunch', lunch?.slug);
+      //
+      // **Which** lunch is looked for rather than assumed, and that is the
+      // lesson of a red run: `[0]` is whatever the offer sorted first, and the
+      // day it leaves behind is a property of the library, not of this code. On
+      // the fixture pool `[0]` is a lunch no dinner survives beside — on a
+      // thousand real recipes it is not, so the suite was green here and red on
+      // CI. The pair is setup, so it is searched for; what is asserted below is
+      // what the narrowing did to it.
+      //
+      // One try per distinct shape: the variants of a scripted dish are
+      // nutritionally the same dish, and a rule removed costs nothing but the
+      // insert — the allowance counts the rules standing, not the ones written.
+      const shapes = new Map<string, { readonly name: string; readonly slug: string }>();
 
-      expect(created.status).toBe(201);
+      for (const dish of await fixable(rich, PAIRED, 'lunch')) {
+        if (!shapes.has(scriptedName(dish.name))) {
+          shapes.set(scriptedName(dish.name), dish);
+        }
+      }
 
-      narrowed = await fixable(rich, PAIRED, 'dinner');
+      let lunch: { readonly name: string; readonly slug: string } | undefined;
+
+      for (const candidate of shapes.values()) {
+        const created = await fix(rich, PAIRED, 'lunch', candidate.slug);
+
+        expect(created.status).toBe(201);
+
+        narrowed = await fixable(rich, PAIRED, 'dinner');
+
+        if (narrowed.length > 0 && narrowed.length < before.length) {
+          lunch = candidate;
+          break;
+        }
+
+        await request(httpServer(app))
+          .delete(`/${PREFIX}/fixed-meals/${(created.body as { id: string }).id}`)
+          .set('Cookie', rich.cookie)
+          .expect(204);
+      }
+
+      // Not "this library is poor": a library with no day inside its four bands
+      // can hold no second rule at all, and that is the one thing this block
+      // cannot work around — see `PAIRABLE`.
+      expect(lunch).toBeDefined();
+
       dropped = before.find(dish => !narrowed.some(kept => kept.slug === dish.slug));
 
       // The relation, never a count: on a three-meal shape only one meal is
       // left to balance the day with, so how much survives is a property of
-      // this library and this profile and would be a flake as a number.
+      // this library and this profile and would be a flake as a number. The two
+      // counts travel inside the assertion rather than beside it, so a red run
+      // says *how* much the offer lost: the run that turned CI red read "0 of
+      // 30" for every lunch of its library.
+      //
+      // `narrows` and `offers` are what the search above stopped on; `subset`
+      // and `dropped` are not, and they are the claim — a narrowing only ever
+      // takes dishes away, and on this day it took at least one.
       expect({
         dropped: dropped !== undefined,
         narrows: narrowed.length < before.length,
-        offers: narrowed.length > 0,
+        offers: `${narrowed.length} of ${before.length}`,
         subset: narrowed.every(dish => before.some(each => each.slug === dish.slug))
-      }).toEqual({ dropped: true, narrows: true, offers: true, subset: true });
+      }).toEqual({ dropped: true, narrows: true, offers: expect.stringMatching(/^[1-9]\d* of \d+$/), subset: true });
     });
 
     it('offers nothing it would then refuse, and refuses what it dropped', async () => {
