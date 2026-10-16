@@ -1,8 +1,9 @@
 import { dishSafety } from 'core/domain/Safety';
 import { hasUsableMethod } from 'core/domain/Method';
-import { withinTime } from 'core/domain/Preference';
+import { withinEquipment, withinTime } from 'core/domain/Preference';
 
 import type { CandidateDish, Catalogue, MealSlot } from 'core/entities/Plan';
+import type { Kitchen } from 'core/entities/Kitchen';
 import type { SafetyProfile } from 'core/entities/Safety';
 
 /**
@@ -15,9 +16,11 @@ import type { SafetyProfile } from 'core/entities/Safety';
  * reason in his case or in most: that dish takes 50 minutes and his profile said
  * 30, and raising that one preference unlocked 102 dishes for him.
  *
- * Five of the reasons below are things the person can act on, one is a refusal,
- * and the point is that they are different sentences. A list that silently gets
- * shorter cannot be any of them.
+ * Six of the nine reasons below are things the person can act on; of the other
+ * three, an allergen is a refusal, a missing method is ours to fix and not
+ * theirs, and the wrong meal is simply not that dish's. The point is that they
+ * are different sentences. A list that silently gets shorter cannot be any of
+ * them.
  */
 
 /**
@@ -32,6 +35,12 @@ export type NotFixable =
   /** Their way of eating rules it out — vegetarian, halal, gluten-free. */
   | 'disliked'
   | 'excluded'
+  /**
+   * It needs an appliance they said they do not have (`0102`). Actionable, and
+   * said apart from `too_slow` and `clashes_with_fixed` because the way forward
+   * is a different one: another dish, or an appliance they do not own.
+   */
+  | 'missing_equipment'
   /** Longer than the cooking time they said they wanted. The most actionable, and the owner's own case. */
   | 'no_method'
   /** The recipe never says how to cook it, so the product will not serve it to anybody. */
@@ -58,6 +67,8 @@ export function whyNotFixable(
   context: {
     readonly catalogue: Catalogue;
     readonly disliked: ReadonlySet<string>;
+    /** What they do not have, from the resolved preferences — never read a second time here (`0052`). */
+    readonly kitchen: Kitchen | null;
     readonly maxMinutes: number | null;
     readonly safety: SafetyProfile;
   },
@@ -84,6 +95,14 @@ export function whyNotFixable(
 
   if (!withinTime(dish, context.maxMinutes)) {
     return { fixable: false, why: 'too_slow' };
+  }
+
+  // After the time and before the product's own faults: both are things they
+  // said about how they cook, and of the two the time is the one two taps can
+  // change — so a dish that is both too slow and needs an oven they do not have
+  // is named for the time first (`0102`).
+  if (!withinEquipment(dish, context.kitchen)) {
+    return { fixable: false, why: 'missing_equipment' };
   }
 
   if (!hasUsableMethod(dish)) {
@@ -113,5 +132,14 @@ export function whyNotFixable(
  * method is this product's fault and not theirs.
  */
 export function actionable(why: NotFixable): boolean {
-  return why === 'too_slow' || why === 'disliked' || why === 'too_big_or_small' || why === 'excluded' || why === 'clashes_with_fixed';
+  return (
+    why === 'too_slow' ||
+    why === 'disliked' ||
+    why === 'too_big_or_small' ||
+    why === 'excluded' ||
+    why === 'clashes_with_fixed' ||
+    // An appliance is not two taps away the way a time limit is, but there is a
+    // way forward and it is theirs: another dish, or say they have one (`0102`).
+    why === 'missing_equipment'
+  );
 }

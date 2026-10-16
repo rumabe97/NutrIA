@@ -80,7 +80,8 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 2 — Every dish says what it needs
 
-- [x] done
+- [x] done — commit `7d67c055` ("Every dish in the library says what it cannot be cooked
+  without", #283)
 - **Dispatch**: opus @ medium — `/execute-project 021 phase 2`
 - **Goal**: the 1128 dishes already in a library declare their equipment, inferred from the
   prose of their steps, auditably.
@@ -134,7 +135,7 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 3 — A dish nobody can cook is never served
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 021 phase 3` · *deviation*: the profile's
   own exception, since this changes the gate on what a model returns.
 - **Goal**: a missing appliance is a constraint in the three places the cooking time is
@@ -142,7 +143,25 @@ sell — so the supply is part of the promise, not an afterthought.
 - **Scope**: `packages/core/src/domain/Preference/**`,
   `packages/core/src/domain/FixableReason/**`,
   `packages/core/src/controllers/Recipe/**`, `apps/api/src/modules/ai/**`,
-  `apps/api/src/modules/fixed-meals/**`, `apps/api/src/modules/meal-plans/**`.
+  `apps/api/src/modules/fixed-meals/**`, `apps/api/src/modules/meal-plans/**` — and five
+  more the first version of this line did not name, each unavoidable rather than chosen
+  (amended during execution, 2026-10-16): `packages/core/src/entities/Plan/**` (the pool and
+  `whyNotFixable` need the dish's declaration, and `AiCall`'s union is the only place a
+  rejection reason can be recorded), `packages/core/src/domain/Variety/**` (`rotatePool`
+  shuffles by seed *before* it partitions, so a preference can only order inside
+  `isPreferredDish` — which is also what makes it provably unable to remove a dish),
+  `packages/core/src/repositories/Plan/**` and
+  `packages/core/src/repositories/DishRequest/**` (PRD 2 asks that a dish the model writes
+  carries its own declaration, and these two are the inserts), and
+  `apps/api/src/modules/events/**` (the plan rebuild is the second place a pin is restored
+  from a filtered pool, so it owes the same line the generation does),
+  `packages/core/src/entities/Kitchen/**`, `packages/database/src/schemas/kitchen.schema.ts`
+  and `packages/database/AGENTS.md` (the owner's blender decision, and the comments that
+  enumerate the normal kitchen), and
+  **`apps/web/src/i18n/dictionaries/**` for four keys only** — widening `NotFixable` and
+  `DishRejection` breaks `pnpm --filter web ts:check` where the dictionaries index by the
+  reason, so the words must land in the same change or the repository is red between
+  phases. The screens, their design review and the wording on them stay phase 5's.
 - **Steps**:
   1. `resolvePreferences` takes the kitchen and resolves it once, beside
      `maxMinutesPerDish`, so no call site rebuilds the rule (`0052`).
@@ -181,6 +200,7 @@ sell — so the supply is part of the promise, not an afterthought.
   2. A `kitchen` onboarding step, **added to the optional steps and not to the required
      list** — `onboarding/complete` must still succeed for somebody who never opened it.
   3. The profile answers the kitchen, defaulted, so one read tells a screen everything.
+
 - **Acceptance criteria**: PRD 1 (the route half). An account that skips the step can
   finish onboarding and generate a plan; its kitchen reads as the default.
 - **Verification**: `pnpm turbo lint ts:check test --filter=api`; the onboarding spec
@@ -203,11 +223,36 @@ sell — so the supply is part of the promise, not an afterthought.
   2. Both dictionaries, with the names the catalogue's keys stand for.
   3. The design review the repository requires (`apps/web/AGENTS.md` § Design review) with
      the owner's `apple-web-design` skill, P0 and P1 fixed.
-  4. The dish detail shows the appliances the dish declares: **one inline SVG per
+  4. **Say when a standing fixed meal is not being honoured — for all four reasons, not
+     only the kitchen** (`invariant-reviewer` and `backend-high` agreed on this, 2026-10-16;
+     the lead moved it here from phase 4 because the sentence needs the screen that says it).
+     A rule whose dish the person's own filters now refuse is not in the pool the generation
+     restores pins from, so `honouredPin` builds the day as though the rule did not exist —
+     correctly (`0097`: the pool is a bound, and safety outranks a rule) and **silently**.
+     Four things cause it: the season, a dish dropped from the catalogue, a cooking time
+     lowered under the dish, and now a kitchen. Phase 3 made it audible — both the generation
+     and the event rebuild log every pin they could not honour — and `FixedMealsService`'s own
+     header promises **one** mechanism for all of them, so an equipment-only flag would be the
+     wrong shape. What this phase owes: `FixedMealsView` marking a rule as not currently
+     honourable and one sentence on the screen saying why (`0011` § 2: a list that silently
+     gets shorter explains nothing). It costs a generation context inside `standing()`, which
+     is why it is a phase of its own and not a line.
+     **Never restore such a pin from the unfiltered library**: that library still holds what
+     the allergy gate, a dislike and their way of eating removed, and a pin is a forced
+     candidate — the reviewer proposed it, checked `fitted` and withdrew it.
+     Measured the day phase 3 was written: **1 standing rule in all of production**, and the
+     default kitchen drops none of it; one production dish of 962 needs an appliance the
+     default lacks.
+  5. **`wayForward` owes the new reason a route.** `FixedMealPlanner.tsx`'s `wayForward` has
+     no `missing_equipment` case, so the dictionary's *"Revisar tu cocina"* is unreachable
+     and a reason marked `actionable` sorts to the top with nothing to do
+     (`invariant-reviewer`, 2026-10-16). The route is this phase's kitchen section, which is
+     why the gap was left rather than closed in phase 3.
+  6. The dish detail shows the appliances the dish declares: **one inline SVG per
      appliance, sized to the text, with its name beside it** — never an emoji, never an icon
      alone (`apple-web-design`, and the name is what an assistive technology reads). A dish
      that declares only a stovetop shows nothing: a chip on every dish is noise.
-  5. `/local-probe` at 320, 390 and 1280 px, light and dark, signed in, both languages —
+  7. `/local-probe` at 320, 390 and 1280 px, light and dark, signed in, both languages —
      the kitchen screens and a dish detail with an oven dish in it.
 - **Acceptance criteria**: PRD 1 and 5. No sideways scroll at any width, every control
   reachable by keyboard, the empty state saying that silence means a normal kitchen, and the
@@ -232,11 +277,22 @@ sell — so the supply is part of the promise, not an afterthought.
   2. Run the fourteen profiles on the real local library: the share of the library each
      missing appliance removes, and the days still inside 5% on all four macros (`0045`),
      for the hardest kitchen — no oven, no microwave, no blender. **Price the default
-     kitchen too, not only the hardest one** (phase 1's note): it marks seven appliances
-     missing for every account that never opens the screen. Phase 2's measurement says that
-     costs **nothing** on today's library — no dish requires any of those seven — so this
-     phase's job is to confirm it on the real run and to say what the oven (57 dishes) and
-     the blender (20) cost, which are the only two constraints with anything behind them.
+     kitchen too, not only the hardest one** (phase 1's note).
+
+     **The sentence that was here was wrong, and is now measured** (`invariant-reviewer`
+     and the owner's decision, both 2026-10-16). It said the default costs nothing because
+     no dish requires any of the seven appliances it lacks — but the blender was one of
+     those seven and 20 production dishes require it. The owner's answer was to **put the
+     blender into the default kitchen**, so the default is now a hob, an oven, a microwave
+     and a blender, and against production it refuses exactly **one dish of 962** (the
+     pressure-cooker beans). The two numbers this phase owes are therefore not the
+     default's: they are what **saying** "no oven" costs (65 production dishes) and what
+     saying "no blender" costs (20, mostly breakfasts and snacks).
+
+     One warning for whoever runs it: the evaluator already prices the default without
+     being told to — `nobodysContext` reads a random id, so `kitchenOf([])` hands it
+     `DEFAULT_KITCHEN` — so **its numbers move with phase 3's merge**, and a baseline taken
+     before that merge is not comparable with one taken after.
   3. The owner-gated generation: with the air fryer preferred, count the air-fryer dishes
      in the fortnight that comes back, against the 1 in 1128 the library holds today.
   4. Write every number into `0102` and this project's LOG; a day that cannot be built is

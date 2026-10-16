@@ -67,22 +67,33 @@ export const MAX_PREFERRED_APPLIANCES = 3;
 export type Kitchen = Readonly<Record<Appliance, EquipmentStance>>;
 
 /**
- * The kitchen of somebody who said nothing: **stovetop, oven, microwave**
- * (`0102`).
+ * The kitchen of somebody who said nothing: **stovetop, oven, microwave and a
+ * blender** (`0102`).
  *
  * Silence is not a state, so it has to resolve to one, and this is the one it
  * resolves to — expressed once here and read everywhere, so the screen, the
  * prompt, the gate and the evaluator cannot each invent their own normal
  * kitchen.
  *
- * Written out in full rather than derived from a list of three, for a reason
- * that outlives this release: an appliance added to `APPLIANCES` without a
- * stance here is a type error, which is the only way a new catalogue entry can
- * be stopped from quietly defaulting to one answer or the other.
+ * **The blender was added on 2026-10-16, by the owner**, when the measurement
+ * made the price of leaving it out visible: 20 of production's 962 dishes need
+ * one — mostly breakfasts and snacks, smoothies and creams and purées — and
+ * until a screen exists to say otherwise, *every* account has this kitchen. So
+ * `missing` there meant taking those dishes from everybody without asking, with
+ * no way for them to say so. The reasoning is the asymmetry `0102` already
+ * applies to an unclassified dish: the error that costs everybody is worse than
+ * the error that costs the minority who can then correct it, and a hand blender
+ * is in most Spanish kitchens. Somebody without one meets a gazpacho they
+ * cannot make, sees the appliance on the dish, and says "no tengo" once.
+ *
+ * Written out in full rather than derived from a short list, for a reason that
+ * outlives this release: an appliance added to `APPLIANCES` without a stance
+ * here is a type error, which is the only way a new catalogue entry can be
+ * stopped from quietly defaulting to one answer or the other.
  */
 export const DEFAULT_KITCHEN: Kitchen = {
   air_fryer: 'missing',
-  blender: 'missing',
+  blender: 'has',
   grill: 'missing',
   microwave: 'has',
   oven: 'has',

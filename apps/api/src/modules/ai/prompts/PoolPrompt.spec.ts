@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { DEFAULT_MEAL_SHAPE, proteinWeightsFor, weightsFor } from 'core/domain/MealShape';
 import { DINNER_FORMS } from 'core/domain/Balance';
+import { kitchenOf } from 'core/entities/Kitchen';
 import { mealCatalogue, offersPulses } from 'core/domain/MealFit';
 import { SERVING_KCAL_CAP } from 'core/domain/Serving';
 
@@ -33,6 +34,7 @@ function context(overrides: Partial<PromptContext> = {}): PromptContext {
     dislikedNames: [],
     excludeSlugs: [],
     goal: null,
+    kitchen: null,
     language: 'Spanish (Spain)',
     likedFoods: [],
     lovedNames: [],
@@ -578,6 +580,72 @@ describe('buildPoolPrompt', () => {
         'LIKES: tomate, merluza',
         'DO NOT REPEAT THESE ALREADY-PROPOSED DISHES: pisto-manchego'
       ]);
+    });
+  });
+
+  /**
+   * 4.9.0 (project 021 phase 3): the kitchen a person cooks in — the first of
+   * the three places a missing appliance is a constraint (`0102`).
+   *
+   * The two lines are different kinds of claim, and the test says which is
+   * which: what they do not have is enforced on what comes back
+   * (`missing_equipment`), what they would rather use is asked for and nothing
+   * may filter on it.
+   */
+  describe('the kitchen they cook in (4.9.0)', () => {
+    const rows = [row('tomate', 'produce'), row('pollo', 'protein')];
+    const lines = (overrides: Partial<PromptContext>) =>
+      buildPoolPrompt(context(overrides), rows)
+        .split('\n')
+        .filter(line => line.startsWith('APPLIANCES'));
+
+    it('names what they do not have, and does not tell the model to hide it', () => {
+      expect(lines({ kitchen: kitchenOf([{ appliance: 'oven', stance: 'missing' }]) })).toEqual([
+        // Every appliance the default kitchen marks missing, the oven now among
+        // them — in the catalogue's own order, and as the keys the `equipment`
+        // field itself takes.
+        'APPLIANCES THEY DO NOT HAVE — never design a dish that needs one: oven, air_fryer, pressure_cooker, grill, steamer, slow_cooker, rice_cooker'
+      ]);
+    });
+
+    /**
+     * The regression this guards is not a word: the gate reads a self-report,
+     * so a line telling the model to leave an appliance out of `equipment`
+     * teaches it to under-declare, and an under-declared dish is stored in the
+     * **shared** library with a declaration nothing can correct and served to
+     * every account that lacks that appliance (`invariant-reviewer`,
+     * 2026-10-16). An honest declaration costs one rejection instead.
+     */
+    it('never asks the model to leave an appliance out of its declaration', () => {
+      const everyLine = buildPoolPrompt(context({ kitchen: kitchenOf([{ appliance: 'oven', stance: 'missing' }]) }), rows);
+
+      expect(everyLine).not.toMatch(/never list one in|no pongas .* en `?equipment/i);
+    });
+
+    it('asks for what they would rather use, as a wish and never as a rule', () => {
+      const kitchen = kitchenOf([
+        { appliance: 'air_fryer', stance: 'prefers' },
+        { appliance: 'blender', stance: 'has' },
+        { appliance: 'grill', stance: 'has' },
+        { appliance: 'pressure_cooker', stance: 'has' },
+        { appliance: 'rice_cooker', stance: 'has' },
+        { appliance: 'slow_cooker', stance: 'has' },
+        { appliance: 'steamer', stance: 'has' }
+      ]);
+
+      // A kitchen with everything, and one appliance preferred: one line only.
+      expect(lines({ kitchen })).toEqual(['APPLIANCES THEY WOULD RATHER COOK WITH — use these where the dish is as good for it: air_fryer']);
+    });
+
+    it('says nothing at all when no kitchen was read', () => {
+      expect(lines({ kitchen: null })).toEqual([]);
+    });
+
+    /** Every dish declares its own, whatever the kitchen: it is what the three places then read. */
+    it('always asks the dish what it cannot be cooked without', () => {
+      const prompt = buildPoolPrompt(context({ kitchen: null }), rows);
+
+      expect(prompt).toContain('In `equipment`, only what a dish cannot be cooked without');
     });
   });
 

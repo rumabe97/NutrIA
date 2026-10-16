@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { actionable, whyNotFixable } from 'core/domain/FixableReason';
 
+import { DEFAULT_KITCHEN } from 'core/entities/Kitchen';
+
 import type { CandidateDish, Catalogue, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
+import type { Kitchen } from 'core/entities/Kitchen';
 import type { NotFixable } from 'core/domain/FixableReason';
 import type { SafetyProfile } from 'core/entities/Safety';
 
@@ -58,7 +61,9 @@ const NO_ALLERGIES: SafetyProfile = {
   intoleranceAllergenIds: new Set<string>(),
   unenforceableLabels: []
 };
-const CONTEXT = { catalogue: CATALOGUE, disliked: new Set<string>(), maxMinutes: null, safety: NO_ALLERGIES };
+const CONTEXT = { catalogue: CATALOGUE, disliked: new Set<string>(), kitchen: null, maxMinutes: null, safety: NO_ALLERGIES };
+/** A normal kitchen without the one appliance the test's dish needs; the oven, because the library really has oven dishes. */
+const NO_OVEN: Kitchen = { ...DEFAULT_KITCHEN, oven: 'missing' };
 const LUNCH: MealSlot = 'lunch';
 
 describe('whyNotFixable', () => {
@@ -105,6 +110,33 @@ describe('whyNotFixable', () => {
     expect(whyNotFixable(dish(), LUNCH, CONTEXT, false, true)).toEqual({ fixable: true });
   });
 
+  /*
+   * The ninth reason (`0102`), and the one the time limit outranks: of the two
+   * things they said about how they cook, the time is the one two taps can
+   * change. A dish that needs an appliance nobody said anything about is
+   * removed too, because the default kitchen marks seven of the ten missing.
+   */
+  it('names the appliance they said they do not have, after the time', () => {
+    const roast = dish({ equipment: ['oven'] });
+
+    expect(whyNotFixable(roast, LUNCH, { ...CONTEXT, kitchen: NO_OVEN }, false, true)).toEqual({ fixable: false, why: 'missing_equipment' });
+    // The same dish in a kitchen that has one, and in a caller that read none.
+    expect(whyNotFixable(roast, LUNCH, { ...CONTEXT, kitchen: DEFAULT_KITCHEN }, false, true)).toEqual({ fixable: true });
+    expect(whyNotFixable(roast, LUNCH, CONTEXT, false, true)).toEqual({ fixable: true });
+    // Too slow as well: the time is said first, because it is the one they can change.
+    expect(
+      whyNotFixable(
+        dish({ cookMinutes: 35, equipment: ['oven'], prepMinutes: 15 }),
+        LUNCH,
+        { ...CONTEXT, kitchen: NO_OVEN, maxMinutes: 30 },
+        false,
+        true
+      )
+    ).toEqual({ fixable: false, why: 'too_slow' });
+    // A preference is not a constraint: `prefers` implies having it.
+    expect(whyNotFixable(roast, LUNCH, { ...CONTEXT, kitchen: { ...DEFAULT_KITCHEN, oven: 'prefers' } }, false, true)).toEqual({ fixable: true });
+  });
+
   it('refuses a recipe that never says how to cook it, which is this product’s fault and not theirs', () => {
     expect(whyNotFixable(dish({ steps: [] }), LUNCH, CONTEXT, false, true)).toEqual({ fixable: false, why: 'no_method' });
   });
@@ -132,10 +164,18 @@ describe('actionable', () => {
       'no_method',
       'wrong_slot',
       'too_big_or_small',
-      'clashes_with_fixed'
+      'clashes_with_fixed',
+      'missing_equipment'
     ];
 
-    expect(everything.filter(why => actionable(why))).toEqual(['excluded', 'disliked', 'too_slow', 'too_big_or_small', 'clashes_with_fixed']);
+    expect(everything.filter(why => actionable(why))).toEqual([
+      'excluded',
+      'disliked',
+      'too_slow',
+      'too_big_or_small',
+      'clashes_with_fixed',
+      'missing_equipment'
+    ]);
     // Never softened into advice: an allergen is a refusal, and a recipe with no
     // method is ours to fix, not theirs.
     expect(actionable('allergen')).toBe(false);

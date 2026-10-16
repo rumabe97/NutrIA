@@ -1,8 +1,11 @@
 import { cuisineFamily } from 'core/domain/MealFit';
 import { normaliseForMatching } from 'core/domain/Safety';
 
+import { APPLIANCES } from 'core/entities/Kitchen';
+
 import type { CuisineFamily } from 'core/domain/MealFit';
 
+import type { Appliance, EquipmentStance, Kitchen } from 'core/entities/Kitchen';
 import type { CatalogueIngredient } from 'core/entities/Plan';
 import type { FoodClass } from 'database/schema/food';
 
@@ -508,6 +511,22 @@ export type PreferenceExclusions = {
    */
   readonly keepsMeatFromDairy: boolean;
   /**
+   * The kitchen they cook in — what they do not have, and what they would
+   * rather use (`0102`) — or null when the caller read no kitchen.
+   *
+   * Resolved here, beside `maxMinutesPerDish`, for the same reason: the missing
+   * half is a constraint and travels the three places the cooking time does
+   * (the prompt, the gate on what the model returns, the filter on what the
+   * library may reuse), so no call site may rebuild it (`0052`).
+   *
+   * **Null is the absence of the input, not a person's silence.** Somebody who
+   * has never opened the screen has a *normal* kitchen — `kitchenOf([])`, which
+   * is `DEFAULT_KITCHEN` — and folding silence into a kitchen is that
+   * function's job alone. Null means nobody asked: no appliance is missing, as
+   * `maxMinutesPerDish: null` means no limit was set.
+   */
+  readonly kitchen: Kitchen | null;
+  /**
    * Catalogue rows a way of eating leans towards, as slugs — for
    * `traditional_spanish`, legumes, fish and seafood, rice and huerta
    * vegetables (`0077`). A weight on the pick like a like, never a rule, and
@@ -617,6 +636,12 @@ export function resolvePreferences(input: {
   readonly dietaryPatterns: readonly string[];
   readonly dislikedLabels: readonly string[];
   readonly ingredients: readonly CatalogueIngredient[];
+  /**
+   * The stances they wrote, already folded onto the default kitchen by
+   * `kitchenOf` — never the rows, so that "what does silence mean" is answered
+   * in one place (`0102`). Omitted, no appliance is treated as missing.
+   */
+  readonly kitchen?: Kitchen;
   readonly likedLabels?: readonly string[];
   readonly maxMinutesPerDish?: number | null;
 }): PreferenceExclusions {
@@ -685,6 +710,7 @@ export function resolvePreferences(input: {
   return {
     excludedIngredientIds: excluded,
     keepsMeatFromDairy: input.dietaryPatterns.some(pattern => SEPARATES_MEAT_AND_DAIRY.has(pattern)),
+    kitchen: input.kitchen ?? null,
     leaningIngredientSlugs: leaning,
     maxMinutesPerDish: input.maxMinutesPerDish ?? null,
     preferredIngredientSlugs: preferred,
@@ -697,6 +723,7 @@ export function resolvePreferences(input: {
 export const NO_PREFERENCE_EXCLUSIONS: PreferenceExclusions = {
   excludedIngredientIds: new Set(),
   keepsMeatFromDairy: false,
+  kitchen: null,
   leaningIngredientSlugs: new Set(),
   maxMinutesPerDish: null,
   preferredIngredientSlugs: new Set(),
@@ -723,6 +750,55 @@ export function timeAllowance(limit: number): number {
 /** Whether a dish can be cooked in the time they said they have, give or take the margin `timeAllowance` allows. */
 export function withinTime(dish: { readonly cookMinutes: number; readonly prepMinutes: number }, limit: number | null): boolean {
   return limit === null || dish.prepMinutes + dish.cookMinutes <= timeAllowance(limit);
+}
+
+/**
+ * Whether a dish can be cooked in the kitchen they have: it is out when it
+ * needs an appliance whose stance is `missing` (`0102`).
+ *
+ * The same shape as `withinTime`, and in the same file, because it is the same
+ * kind of claim and travels the same three places — the prompt, the gate on
+ * what the model returns, and the filter on what the library may reuse.
+ *
+ * **`missing` and nothing else.** Never "not `has`": `prefers` implies having
+ * it, and the default kitchen marks seven of the ten appliances missing, so
+ * reading anything wider would take dishes from every account that never
+ * opened the screen for appliances nobody said anything about.
+ *
+ * A dish that declares nothing is cookable anywhere, which is the same answer
+ * `0102` gives for a dish nobody has classified — stated there, with the cost
+ * of being wrong: an unclassified oven dish reaches somebody with no oven until
+ * the model rewrites it with the field.
+ */
+export function withinEquipment(dish: { readonly equipment?: readonly Appliance[] }, kitchen: Kitchen | null): boolean {
+  return kitchen === null || (dish.equipment ?? []).every(appliance => kitchen[appliance] !== 'missing');
+}
+
+/**
+ * The appliances of a kitchen at one stance, in the catalogue's own order — so
+ * two prompts for the same kitchen name them the same way.
+ */
+function appliancesAt(kitchen: Kitchen | null, stance: EquipmentStance): readonly Appliance[] {
+  return kitchen === null ? [] : APPLIANCES.filter(appliance => kitchen[appliance] === stance);
+}
+
+/** What they do not have: the constraint half, named to the model as well as enforced (`withinEquipment`). */
+export function missingAppliances(kitchen: Kitchen | null): readonly Appliance[] {
+  return appliancesAt(kitchen, 'missing');
+}
+
+/**
+ * What they would rather use.
+ *
+ * A preference, not a constraint: it is a prompt line and the order the library
+ * is read in (`Rotation.isPreferredDish`). It never takes a dish out of the
+ * library — `withinEquipment` compares `missing` and nothing else — so
+ * somebody who prefers an air fryer still eats on the days the library has
+ * none (`0102`). Inside the rotation's per-slot cap it moves which dishes are
+ * picked, as a chosen cuisine and a liked food have since `0026`.
+ */
+export function preferredAppliances(kitchen: Kitchen | null): readonly Appliance[] {
+  return appliancesAt(kitchen, 'prefers');
 }
 
 /**

@@ -475,6 +475,7 @@ export const enGB: Dictionary = {
       allergen: 'allergen',
       duplicate: 'repeated',
       foreign_food: 'names what it lacks',
+      missing_equipment: 'missing appliance',
       over_time: 'too long',
       oversized: 'serving too large',
       schema: 'schema',
@@ -1554,12 +1555,18 @@ export const enGB: Dictionary = {
     noneBeside:
       'No dish fits that meal beside the {meal} you have already fixed that day: between the two, the day’s macros would not land where we want them. Try another day, or change the one you have.',
     noneFit: 'No dish in your library fits that meal on that day. Try another meal.',
-    reasonFix: { disliked: 'Review what you do not want to see', excluded: 'Review how you eat', too_slow: 'Change your cooking minutes' },
+    reasonFix: {
+      disliked: 'Review what you do not want to see',
+      excluded: 'Review how you eat',
+      missing_equipment: 'Review your kitchen',
+      too_slow: 'Change your cooking minutes'
+    },
     reasons: {
       allergen: 'It has something in it you are allergic to. We will not offer it.',
       clashes_with_fixed: 'It fits that meal, but not beside what you already have fixed that day: the day’s macros would not land.',
       disliked: 'It is among the foods you do not want to see.',
       excluded: 'It does not fit the way you eat.',
+      missing_equipment: 'It needs an appliance your kitchen does not have.',
       no_method: 'We are missing this dish’s method, so we serve it to nobody. That one is ours.',
       too_big_or_small: 'It does not fit that meal at your portions. It usually fits another one.',
       too_slow: 'It takes longer than you said you can cook for.',

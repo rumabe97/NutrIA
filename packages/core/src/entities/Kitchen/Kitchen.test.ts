@@ -32,10 +32,14 @@ describe('the catalogue', () => {
 });
 
 describe('DEFAULT_KITCHEN', () => {
-  it('is a stovetop, an oven and a microwave, and nothing else', () => {
+  it('is a stovetop, an oven, a microwave and a blender, and nothing else', () => {
     const has = APPLIANCES.filter(item => DEFAULT_KITCHEN[item] === 'has');
 
-    expect([...has].sort()).toEqual(['microwave', 'oven', 'stovetop']);
+    // The blender is here by the owner's decision of 2026-10-16, not by the
+    // original three of `0102`: 20 of production's dishes need one, and until a
+    // screen exists every account has this kitchen, so leaving it out took
+    // those dishes from everybody without asking.
+    expect([...has].sort()).toEqual(['blender', 'microwave', 'oven', 'stovetop']);
   });
 
   it('answers for every appliance of the catalogue, so a caller never has to ask whether somebody spoke', () => {
@@ -65,7 +69,9 @@ describe('kitchenOf', () => {
     // And the ones they said nothing about stay exactly what the default says.
     expect(kitchen.stovetop).toBe('has');
     expect(kitchen.microwave).toBe('has');
-    expect(kitchen.blender).toBe('missing');
+    // The blender is in the default kitchen, so saying nothing about it keeps it.
+    expect(kitchen.blender).toBe('has');
+    expect(kitchen.pressure_cooker).toBe('missing');
   });
 
   it('answers for all ten whatever it was handed', () => {

@@ -1,6 +1,7 @@
 import { jsonSchema } from 'ai';
 import { z } from 'zod';
 
+import { APPLIANCES } from 'core/entities/Kitchen';
 import { hasUsableMethod, METHOD_RULES } from 'core/domain/Method';
 import { MEAL_SLOTS } from 'core/entities/Plan';
 
@@ -43,6 +44,21 @@ export const generatedDishSchema = z
       .transform(value => value || null)
       .describe('Cocina de origen, por ejemplo "mediterranea".'),
     difficulty: z.enum(['easy', 'medium', 'hard']),
+    /*
+     * The appliances the dish **cannot be cooked without** (`0102`) — never the
+     * ones it may use. An enum and not a string, exactly as `slots` is: an
+     * appliance outside the catalogue is dropped in silence by `appliancesOf`,
+     * which reads as "needs nothing", so it is refused here loudly instead.
+     *
+     * Absent is allowed and means nothing is needed, which is also what a dish
+     * nobody has classified says (`0102`). The wire schema asks for it, so a
+     * model that answers at all answers this too.
+     *
+     * A list cannot say "either": a dish that can be roasted **or** air-fried
+     * declares neither, which is how the library's own 1,128 dishes were
+     * classified and what the prompt tells the model.
+     */
+    equipment: z.array(z.enum(APPLIANCES)).default([]).describe('Electrodomésticos sin los que el plato no se puede cocinar.'),
     ingredients: z
       .array(
         z.object({
@@ -134,6 +150,12 @@ export const wirePoolSchema = jsonSchema<GeneratedPool>({
           cookMinutes: { description: 'Minutos de cocción. 0 si no requiere cocinar.', type: 'integer' },
           cuisine: { description: 'Cocina de origen, por ejemplo "mediterranea". Cadena vacía si no aplica.', type: 'string' },
           difficulty: { enum: ['easy', 'medium', 'hard'], type: 'string' },
+          equipment: {
+            description:
+              'Los electrodomésticos sin los que el plato NO se puede cocinar. Solo los imprescindibles: si se puede hacer al horno o en freidora de aire, no pongas ninguno de los dos. Incluye "stovetop" si usa fuego o placa. Lista vacía si no necesita ninguno.',
+            items: { enum: [...APPLIANCES], type: 'string' },
+            type: 'array'
+          },
           ingredients: {
             description: 'Entre 1 y 15 ingredientes, todos del catálogo; la sal, las especias y el aceite cuentan.',
             items: {
@@ -169,7 +191,7 @@ export const wirePoolSchema = jsonSchema<GeneratedPool>({
             type: 'array'
           }
         },
-        required: ['cookMinutes', 'cuisine', 'difficulty', 'ingredients', 'name', 'prepMinutes', 'servings', 'slots', 'steps'],
+        required: ['cookMinutes', 'cuisine', 'difficulty', 'equipment', 'ingredients', 'name', 'prepMinutes', 'servings', 'slots', 'steps'],
         type: 'object'
       },
       type: 'array'

@@ -6,7 +6,7 @@ import { placementGroups } from 'core/domain/Balance';
 import { buildShoppingList } from 'core/domain/ShoppingList';
 import { axisFilter, pickReplacement } from 'core/domain/Scheduler';
 import { minimumDailyKcal } from 'core/domain/Nutrition';
-import { leaningSlugs } from 'core/domain/Preference';
+import { leaningSlugs, preferredAppliances } from 'core/domain/Preference';
 import { ConflictError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
 import { PlanController } from 'core/controllers/Plan';
 import { ProfileConsentController, ProfileController } from 'core/controllers/Profile';
@@ -148,6 +148,8 @@ export class MealSwapService {
       proteinG: axis === 'more_protein' ? current.macros.proteinG * MORE_PROTEIN_BUDGET : current.macros.proteinG
     };
     const leaning = {
+      // As a whole plan's rotation: an order, never a filter (`0102`).
+      preferAppliances: new Set(preferredAppliances(context.preferences.kitchen)),
       preferCuisines: new Set(profile.cuisines.map(cuisine => normaliseForMatching(cuisine))),
       preferIngredientSlugs: leaningSlugs(context.preferences),
       preferSlugs: new Set(verdicts.liked.map(dish => dish.slug))

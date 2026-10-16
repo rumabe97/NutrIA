@@ -405,3 +405,207 @@
   - **`0102`'s `DISHES_NEEDED_PER_SLOT` promise is the one at risk**, not the enforcement.
     Phase 6 should report the two numbers that matter — what the oven and the blender cost —
     and phase 8 should start by re-reading the real table from the column on production.
+
+## Phase 3 — A dish nobody can cook is never served (2026-10-16)
+
+- **Executor**: `backend-high` (opus, high effort), in its own worktree — the first phase of
+  this project not done in-session. The plan deviates this phase upward to high on purpose
+  ("since this changes the gate on what a model returns"), and the agent type is the only
+  thing that guarantees the effort: the Agent tool takes a model but no effort, and a
+  definition's own `effort:` wins. The worktree's 24 files were brought over by patch, proved
+  identical to the worktree's own diff before it was removed, and the worktree and its branch
+  are gone — one copy of the work, not several. The lead added the two dictionary files and
+  ran the reviews.
+- **Result**: done. A missing appliance is a constraint in the three places the cooking time
+  is one, and a preference reaches the model and the order of the library read and **nothing
+  else**.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=api` — **11 tasks green**. Core:
+    140 files, **4,073 tests** (13 new). Api: 123 suites, **1,656 tests**. Database: 53.
+    Lint is `--max-warnings 0` on all three; Prettier clean.
+  - `pnpm turbo ts:check --filter=web` — green **after** the four dictionary keys; three
+    `TS7053` errors without them (see the deviation below).
+  - **The preference provably removes nothing**, which is the one claim this phase had to
+    prove rather than assert: a test over a 20-dish pool where 5 declare an oven asserts the
+    preferred run's *set* equals the plain run's, that it still holds all 20, that the five
+    oven dishes come first, and that the order differs — same seed both times, so the
+    preference is the only variable. It works because `rotatePool` shuffles by seed before it
+    partitions, so ordering can only happen inside `isPreferredDish`.
+  - `withinEquipment` reads **`!== 'missing'`** and nothing else, so a `prefers` stance
+    cannot remove a dish by construction. Its five cases use the **oven and the blender**,
+    the only two appliances this library actually requires — an air-fryer fixture would have
+    passed against a filter that does nothing (phase 2's note, applied).
+  - **The cost of shipping this, measured on production** (962 rows, read-only): with the
+    default kitchen — which is every account's, since no screen exists until phase 5 — **28
+    dish-slot pairs of about 1,364 stop being offered**: 10 breakfasts, 9 afternoon snacks, 7
+    morning snacks, 1 lunch, 1 supper, 0 dinners. What is kept per slot is 369 lunches, 369
+    dinners, 222 afternoon snacks, 186 breakfasts, 159 morning snacks and 59 suppers, against
+    the 19 a slot the rotation needs — **no pool comes near its floor, so nothing can fail to
+    build**. 20 of those dishes need a blender and 1 a pressure cooker.
+  - **CI cannot prove the filter works, and it is worth knowing why**: `AI_PROVIDER=stub`
+    resolves to *no provider at all* (`ai.config.ts`: `case 'stub': return null`), so a suite
+    builds its plans from the library alone and the dishes it holds declare `'{}'` — which
+    the filter never removes. A green end-to-end run says the change broke nothing; it says
+    nothing about the constraint. That is phase 7's job, on real rows.
+  - `invariant-reviewer` (opus) on the whole diff: **no P0** — see **Review** below.
+  - **The owner's decision on the blender, taken on the evidence** (2026-10-16): it is now in
+    `DEFAULT_KITCHEN`. With it, the default kitchen refuses **one dish of 962** in production
+    — the pressure-cooker beans — instead of twenty-one. Recorded in `0102` with the
+    reasoning, which is that record's own asymmetry pointed at the default rather than at an
+    unclassified dish: the error that costs everybody is worse than the error that costs the
+    minority who can then say so, and a hand blender is in most Spanish kitchens. Every place
+    that enumerated the normal kitchen was brought into step — the entity and its test, two
+    domain tests, the controller's comment, `packages/database/AGENTS.md`, the schema's
+    comment, the PRD, `0102` and `docs/decisions/LOG.md`. **Migration `0066`'s header was
+    left alone**: it is merged and production has run it, so it is never edited, and it was
+    true when it was written.
+  - **Two traps, and the first attribution of them in this entry was wrong** — corrected
+    here because a reader would otherwise learn the wrong lesson. (i) Putting the blender in
+    the default kitchen broke **two specs that asserted the old missing list**:
+    `PoolPrompt.spec.ts`, which was updated with it, and `apps/api`'s
+    `health-boundary.spec.ts`, which was **missed** and was the single api failure in the
+    run after the change — the implementer found and fixed it, not a rebuild. The lesson is
+    that `DEFAULT_KITCHEN` is asserted in more places than the file that defines it:
+    `grep -rl DEFAULT_KITCHEN` before changing it. (ii) Separately, `PoolPrompt.spec.ts`
+    *also* failed once after being correctly updated, and that one **was** the stale `dist`
+    `build-core-before-measuring` describes — `apps/api` reads `packages/core` from `dist`,
+    so the spec was right and the build was old. Final state, re-run after both: **17 tasks,
+    api 123 suites / 1,657 tests, core 4,073, web 295, ui 490, database 53, all green**, and
+    the full gate green including coverage, the web build and the leak check.
+- **Review** — `invariant-reviewer`, opus, 2026-10-16: **no P0.** Nothing here exposes a
+  person's data, no health data and no free text reaches the model, and no preference removes
+  a dish from the library. What it established by reading rather than by trusting: `prefers`
+  reaches exactly one predicate (`isPreferredDish`), used by a stable partition and as a sort
+  key, never as a filter; the only stance comparisons in non-test code are `!== 'missing'`,
+  `=== 'missing'` for the log line, and the `prefers` bound in the controller, so nothing
+  reads "not `has`"; the kitchen is read once, folded once and resolved once, and
+  `BuildPoolInput` now *omits* `kitchen` so a caller cannot hand the prompt a different
+  kitchen from the gate's, which is the right shape for `0052`; `withinEquipment` is an `&&`
+  term **after** `dishSafety` in both chains and after the allergen branch in
+  `whyNotFixable`, so it can neither let through what safety refuses nor reorder anything
+  ahead of it; the two prompt lines interpolate `APPLIANCES` keys and nothing else; and a
+  professional still reaches a client's kitchen only inside `CareController.withClient`, with
+  the audit row that writes.
+
+  It also answered the question I most wanted answered — **can a generation fail rather than
+  degrade?** No: every rescue path widens through `reusablePool`, `PoolBuilder` floors the
+  fresh ask, and the event rebuild has no model and already degrades. A thinner library means
+  more model dishes, not a refusal.
+
+  Its findings, and what became of each:
+  1. **P1 — the prompt gave the model a reason to under-declare. Fixed.** The constraint line
+     said *"never list one in `equipment`"*, and the gate reads that self-report: a dish that
+     hides its oven is not rejected, it is **stored in the shared `recipes` table** with a
+     declaration migration `0067` can never correct, and then served to every other account
+     whose kitchen lacks an oven. The clause is gone, the reason is written where the line is
+     built, and a new spec asserts the prompt never asks for an appliance to be left out.
+     An honest declaration costs one rejection; a silent one costs every account that dish.
+  2. **P1 — a standing fixed meal whose dish needs a missing appliance stops being honoured
+     silently. Carried to phase 4, measured first.** The generation restores pins from the
+     *filtered* pool while `standing()` keeps listing the rule. Production the same day: **1
+     standing rule in all of production, and 0 that the default kitchen drops** — so it is a
+     mechanism, not an incident, and phase 4 is where it becomes possible, because until
+     there is a route nobody can say "no oven". The plan now asks phase 4 for the reviewer's
+     recommended answer: keep the drop and say why in `standing()`, per `0011` § 2.
+  3. **P2 — the refusal's wording claimed the person had said something. Fixed.** Nobody can
+     have said anything until phase 5, and after the blender decision the default refuses one
+     dish. Both dictionaries now read *"Necesita un electrodoméstico que no hay en tu
+     cocina"* / *"It needs an appliance your kitchen does not have"*, which is true before
+     and after the screen exists.
+  4. **P2 — the plan's phase 6 said the default kitchen costs nothing. Fixed, and it was the
+     most useful finding after the P1s**: the blender was one of the seven and 20 production
+     dishes need it. Phase 6's step now carries the measured numbers and a warning the
+     reviewer found on its own — the evaluator already prices the default without being told
+     to, because `nobodysContext` reads a random id and so gets `DEFAULT_KITCHEN`, which means
+     **its numbers move with this merge** and an earlier baseline is not comparable.
+  5. **P2 — the preference's claim was wider than the code, and P3's two stale counts:
+     already correct in the tree.** The reviewer read an earlier snapshot of the worktree;
+     verified rather than trusted, `Rotation.ts` already says the preference takes nothing out
+     of the library *and* that the per-slot cap moves which dishes are taken, and its test
+     already covers a cap below the library size. Nothing to change.
+  6. **P2 — a dish request for a blended dish would always have failed. Answered by the
+     blender decision**, which is what makes it cookable for everybody again.
+  7. **P3 — `wayForward` owes the new reason a route. Carried to phase 5**, where the kitchen
+     section that the route points at will exist; the plan says so.
+
+  **The reviewer then withdrew half of its own P1, and the reason is worth keeping**: it had
+  offered, as one way to stop a pin being dropped silently, restoring pins from the
+  *unfiltered* library. That would force an allergen dish onto a plate — `libraryAndPool`'s
+  unfiltered half applies no safety filter, and a pin is a forced candidate, not a ranked
+  one. The implementer had already refused it for exactly that reason. **Never restore a pin
+  from the unfiltered library**, and the comment at `PlanGeneration.service.ts` now says so
+  where somebody would try it.
+
+  What the tree does instead, and the reviewer judged it better than what it asked for: the
+  generation and the event rebuild each **log** every pin they could not honour, covering all
+  the ways a rule becomes unhonourable — the season, a dish dropped from the catalogue, a
+  cooking time lowered under it, and now a kitchen — rather than a kitchen-only mechanism.
+  Telling the *person* is one sentence on phase 5's screen for all of them, which is why it is
+  carried there rather than special-cased here.
+
+  **A process note, because it changes how a worktree should be brought back.** Those two
+  warn blocks are in `PlanGeneration.service.ts` and
+  `apps/api/src/modules/events/services/PlanLoadRebuild.service.ts`, and they are in **none**
+  of the three patches taken from the worktree: the implementer wrote them straight into the
+  main checkout after its worktree had been removed and before it was stopped. So "bring the
+  changes over, then remove the worktree" is not enough to know what a phase contains —
+  `git diff --name-only` against the patch's own file list is, and it is what found this.
+  Both files were read in full before this was called done; they are coherent, cite `0102`
+  and `0097`, and the gate ran with them in the tree.
+- **Deviations from plan**:
+  1. **Five scope lines the plan did not name, all amended in the same change**, each
+     unavoidable: `entities/Plan` (the pool and `whyNotFixable` need the declaration;
+     `AiCall`'s union is the only place a rejection reason can be recorded), `domain/Variety`
+     (where the preference can order without removing), and the two inserts
+     (`PlanRepository`, `DishRequestRepository`) so a dish the model writes is classified from
+     the start. The plan was incomplete here, not wrong.
+  2. **Four `apps/web` dictionary keys, which the plan gives to phase 5.** Widening
+     `NotFixable` and `DishRejection` breaks `pnpm --filter web ts:check` in three places that
+     index by the reason, so the words had to land in the same change or the repository would
+     be red between phases. `reasons.missing_equipment`, `reasonFix.missing_equipment` and
+     `rejection.missing_equipment` in both dictionaries — *"Necesita un electrodoméstico que
+     dijiste que no tienes."*, *"Revisar tu cocina"*, *"sin electrodoméstico"*. **Phase 5 still
+     owns the screens, the design review and the final wording.**
+  3. **`Kitchen | null` rather than an all-`has` constant**, mirroring `withinTime(dish,
+     limit: number | null)`. It keeps two silences apart: a *person's* silence is
+     `kitchenOf([])`, folded once in the controller, while a *caller's* omission — a spec, a
+     script — is "no constraint". So there is no second kitchen constant anyone could mistake
+     for a real one.
+  4. **The prompt's unconditional line was cut from ~225 to ~131 characters** because PRD
+     005's budget test read **0.5502** against a 0.55 ceiling with the long wording; it now
+     reads ~0.5465. That is about forty characters of headroom for the next sentence anyone
+     adds to the prompt — a number phase 8's prompt work needs.
+  5. **`missing_equipment` is deliberately not in `AdminController.PERSONAL_REJECTIONS`**, on
+     the `over_time` precedent: how somebody cooks is not the health or religious fact
+     `allergen` and `unwanted` are. `AdminController` is unedited, and that is the decision
+     rather than an omission.
+- **Decisions**: no new record. `0102` is what this enforces; `PROMPT_VERSION` moved 4.8.0 →
+  **4.9.0** with its history paragraph, and `STEPS_VERSION` stayed at 2.8.0 because nothing
+  about how steps are written changed — a library-wide rewrite is not being asked for.
+- **The product decision this phase raised, and the owner's answer**: until phase 5 ships a
+  screen every account has the default kitchen, so whatever that kitchen lacks is lacked by
+  everybody. With the blender missing from it, 20 dishes — smoothies, creams and purées,
+  mostly breakfasts and snacks — would have stopped being offered to every account including
+  the owner's, with no way for anybody to say otherwise. **He put the blender in**
+  (2026-10-16), on this record's own asymmetry: the error that costs everybody is worse than
+  the error that costs the minority who can then correct it. So what the constraint actually
+  refuses in production today is **one dish of 962**, the pressure-cooker beans — which is
+  the honest size of this feature until phase 8 grows the supply, and is written into `0102`
+  as such.
+- **Notes for the next phase**:
+  - **Phase 4 inherits a decision it should make in the same breath**: whether
+    `stovetop: missing` may be offered on the screen at all. Phase 2 measured that a hob-less
+    kitchen keeps 43 dishes of 1128 and cannot build a plan, so a person who ticks it gets a
+    generation that fails rather than a plan that is odd.
+  - **The route owes a way forward for the new reason**: it is `actionable`, so the screen
+    must offer one, and the dictionary already says *"Revisar tu cocina"* — which only means
+    something once phase 5's kitchen section exists to link to.
+  - **Phase 7's end-to-end suites are what prove the constraint**, and the trap is the one
+    above: a suite whose dishes declare `'{}'` passes against a filter that does nothing. A
+    suite must write a dish that declares an oven or a blender and then assert it is refused
+    with `missing_equipment` — and that it is offered to an account that has the appliance.
+    The two existing assertions on `notOffered` are in `apps/api/test/fixed-meals.e2e-spec.ts`
+    and `apps/api/test/dish-request.e2e-spec.ts`.
+  - **Phase 6's evaluator flag** now has `withinEquipment` and `resolvePreferences`' `kitchen`
+    to read, so it needs no second idea of the rule — and phase 2's measurement says the only
+    two numbers it can report are the oven's and the blender's.

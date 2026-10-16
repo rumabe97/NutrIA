@@ -12,11 +12,16 @@ import type { MealSlot } from './Plan';
  * `oversized`: one serving is past one and a half times its meals' energy cap
  * (`domain/Serving`, `0070`) — a pot declared as one plate. Not about the
  * person: the caps are the same for everyone.
+ * `missing_equipment`: it declares an appliance this person said they do not
+ * have (`0102`). The prompt named those appliances and told the model not to
+ * use them; this is what makes that true, exactly as `over_time` does for the
+ * cooking time.
  */
 export type DishRejection =
   | 'allergen'
   | 'duplicate'
   | 'foreign_food'
+  | 'missing_equipment'
   | 'over_time'
   | 'oversized'
   | 'schema'

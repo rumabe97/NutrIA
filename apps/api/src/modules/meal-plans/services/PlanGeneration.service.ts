@@ -23,6 +23,7 @@ import { accompanimentRows, larderFor } from 'core/domain/Accompaniment';
 
 import { PoolBuilder } from '../../ai/services/PoolBuilder.service.js';
 import { likedFoodNames, promptPreferences, toRecipeDraft } from './GenerationShared.js';
+import { preferredAppliances } from 'core/domain/Preference';
 
 import type { AiCallRecord, CandidateDish, MealSlot, PlanAssignment } from 'core/entities/Plan';
 import type { FixedMeal } from 'core/entities/FixedMeal';
@@ -202,6 +203,9 @@ export class PlanGenerationService {
       // it (0026): a dish of a chosen cuisine, or using something they said they
       // like or their way of eating leans towards (`0077`), is offered first and
       // the rest still follow.
+      // What they would rather cook with leans it the same way and no further:
+      // the preference half of `0102` is an order and never a filter.
+      preferAppliances: new Set(preferredAppliances(context.preferences.kitchen)),
       preferCuisines: new Set(profile.cuisines.map(cuisine => normaliseForMatching(cuisine))),
       preferIngredientSlugs: leaningSlugs(context.preferences),
       preferSlugs: new Set(verdicts.liked.map(dish => dish.slug)),
@@ -312,8 +316,31 @@ export class PlanGenerationService {
       }
 
       const library = await RecipeController.reusablePool(slots, context);
+      const restored = library.filter(dish => missing.includes(dish.slug));
 
-      return [...pool, ...library.filter(dish => missing.includes(dish.slug))];
+      // **A rule the person's own filters now refuse cannot be restored**, and
+      // `honouredPin` will then build the day as though it did not exist —
+      // which is right (`0097`: a bound refuses a rule, and the pool is one of
+      // the three) and was silent, for the season, a dish dropped from the
+      // catalogue, a cooking time lowered under it, and now a kitchen that
+      // says it has no oven (`0102`). Restoring it from the **unfiltered**
+      // library instead is not an option: that library still holds the dishes
+      // the allergy gate, a dislike and their way of eating removed, and a pin
+      // is a forced candidate.
+      //
+      // So it is said here, where it is known, and the log is all this phase
+      // adds: telling the *person* is the one mechanism the fixed-meal
+      // service's own header is waiting for, and it is one sentence on a
+      // screen for all five cases rather than a fifth special case.
+      if (restored.length < missing.length) {
+        const refused = missing.filter(slug => !restored.some(dish => dish.slug === slug));
+
+        this.logger.warn(
+          `${refused.length} fixed meal(s) cannot be honoured in this plan — ${refused.join(', ')} is not in this person's library today; the day is built as though the rule did not exist`
+        );
+      }
+
+      return [...pool, ...restored];
     };
 
     const sides = (await SettingsController.accompaniments())

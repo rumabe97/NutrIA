@@ -44,9 +44,9 @@ describe('the schema sent to the provider', () => {
       .properties.dishes.items;
 
     expect(Object.keys(dish.properties).sort()).toEqual(
-      ['cookMinutes', 'cuisine', 'difficulty', 'ingredients', 'name', 'prepMinutes', 'servings', 'slots', 'steps'].sort()
+      ['cookMinutes', 'cuisine', 'difficulty', 'equipment', 'ingredients', 'name', 'prepMinutes', 'servings', 'slots', 'steps'].sort()
     );
-    expect(dish.required).toHaveLength(9);
+    expect(dish.required).toHaveLength(10);
   });
 
   it('keeps descriptions, which are how the model learns the catalogue rule', () => {
@@ -85,6 +85,28 @@ describe('the strict schema still enforces what the wire schema cannot', () => {
 
   it('rejects an unknown slot', () => {
     expect(generatedDishSchema.safeParse({ ...valid, slots: ['brunch'] }).success).toBe(false);
+  });
+
+  /**
+   * The appliances a dish cannot be cooked without (`0102`). An enum, exactly
+   * as `slots` is, and for a reason the alternative makes clear: a string
+   * outside the catalogue is dropped in silence by `appliancesOf` and then
+   * reads as "needs nothing", which is how an oven dish would reach somebody
+   * with no oven. Refused loudly here instead, and counted as `schema`.
+   */
+  it('keeps the appliances a dish declares and refuses one the catalogue does not hold', () => {
+    const parsed = generatedDishSchema.safeParse({ ...valid, equipment: ['oven', 'blender'] });
+
+    expect(parsed.success && parsed.data.equipment).toEqual(['oven', 'blender']);
+    expect(generatedDishSchema.safeParse({ ...valid, equipment: ['horno'] }).success).toBe(false);
+    expect(generatedDishSchema.safeParse({ ...valid, equipment: ['air-fryer'] }).success).toBe(false);
+  });
+
+  /** A model that answers nothing at all for it says the dish needs no appliance, which is also what an unclassified dish says (`0102`). */
+  it('reads a dish that declares no equipment as needing none', () => {
+    const parsed = generatedDishSchema.safeParse(valid);
+
+    expect(parsed.success && parsed.data.equipment).toEqual([]);
   });
 
   /**

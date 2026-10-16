@@ -4,6 +4,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { dirname, join } from 'node:path';
 
 import { buildPicturePrompt } from 'core/domain/DishPicture';
+import { DEFAULT_KITCHEN, kitchenOf } from 'core/entities/Kitchen';
 import { dishVocabulary, storableName, storableProse } from 'core/domain/DishRequest';
 import { Logger } from '@nestjs/common';
 import { FOOD_GROUP_SLUGS } from 'core/domain/MealFit';
@@ -87,6 +88,7 @@ describe('the health-data boundary around the AI module', () => {
       dislikedNames: ['Lentejas con chorizo'],
       excludeSlugs: [],
       goal: null,
+      kitchen: DEFAULT_KITCHEN,
       language: 'Spanish (Spain)',
       likedFoods: ['Salmón'],
       lovedNames: ['Salmón al horno con eneldo'],
@@ -177,6 +179,12 @@ describe('the free-text and belief boundary around the AI module', () => {
       dietaryPatterns,
       dislikedLabels: [SENTINELS.dislike],
       ingredients: catalogue,
+      // A kitchen with an appliance named on each side, so both of 4.9.0's
+      // lines are in the prompt this test reads.
+      kitchen: kitchenOf([
+        { appliance: 'oven', stance: 'missing' },
+        { appliance: 'air_fryer', stance: 'prefers' }
+      ]),
       likedLabels: [SENTINELS.like, 'salmon']
     });
     const context: GenerationContext = {
@@ -273,6 +281,14 @@ describe('the free-text and belief boundary around the AI module', () => {
     expect(sent).toContain('PREFERRED CUISINES: Mediterránea');
     expect(sent).toContain('LIKES: salmon');
     expect(sent).toContain('MAXIMUM TIME PER DISH: 30 minutes');
+    // The kitchen is a structured answer too, and it travels as appliance keys
+    // — never as anything anybody typed (`0102`).
+    expect(sent).toContain('APPLIANCES THEY DO NOT HAVE');
+    // The default kitchen's missing six, with the oven this fixture says they
+    // do not have: the blender is `has` by default since 2026-10-16 and the air
+    // fryer is the one they prefer.
+    expect(sent).toContain('oven, pressure_cooker, grill, steamer, slow_cooker, rice_cooker');
+    expect(sent).toContain('APPLIANCES THEY WOULD RATHER COOK WITH — use these where the dish is as good for it: air_fryer');
   });
 
   it('gives the prompt no field a typed text could live in', () => {
@@ -291,6 +307,11 @@ describe('the free-text and belief boundary around the AI module', () => {
       'dislikedNames',
       'excludeSlugs',
       'goal',
+      // The kitchen (`0102`). Not produced by `promptPreferences` — the pool
+      // builder sets it from the resolved preferences, as it does `language` —
+      // but listed here because this list is what a reviewer reads to see
+      // everything the prompt is told.
+      'kitchen',
       'language',
       'likedFoods',
       'loadedTargets',

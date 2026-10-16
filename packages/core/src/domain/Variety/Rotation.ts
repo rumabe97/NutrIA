@@ -1,5 +1,6 @@
 import { normaliseForMatching } from 'core/domain/Safety';
 
+import type { Appliance } from 'core/entities/Kitchen';
 import type { CandidateDish, MealSlot } from 'core/entities/Plan';
 
 /** Days a plan covers: the number of picks each slot has to fill. */
@@ -89,6 +90,18 @@ export type Rotation = {
   /** Slugs this user was served last fortnight, and dishes they disliked. Never offered. */
   readonly avoidSlugs: ReadonlySet<string>;
   /**
+   * Appliances they would rather cook with (`0102`). A dish that needs one goes
+   * to the front of the pick, exactly as a chosen cuisine does.
+   *
+   * **It takes nothing out of their library**: `servable` compares `missing`
+   * and nothing else, so the library this picks from is the same one with the
+   * preference and without it. What it does move is which dishes the per-slot
+   * cap then takes — the same thing `preferCuisines` has done since `0026`,
+   * and the reason that cap keeps a tail rather than a filter: somebody who
+   * prefers an air fryer still eats on the days the library has none.
+   */
+  readonly preferAppliances?: ReadonlySet<Appliance>;
+  /**
    * Kitchens they chose. A dish of one goes to the front of the pick — never
    * to the exclusion of the rest, because a fortnight of one cuisine is not
    * what "prefiero mediterránea" asks for, and a library short of it would
@@ -107,8 +120,9 @@ export type Rotation = {
   readonly seed: string;
 };
 
-/** The three reasons a dish goes to the front of the pick. */
+/** The four reasons a dish goes to the front of the pick. */
 export type Leaning = {
+  readonly preferAppliances?: ReadonlySet<Appliance>;
   readonly preferCuisines?: ReadonlySet<string>;
   readonly preferIngredientSlugs?: ReadonlySet<string>;
   readonly preferSlugs?: ReadonlySet<string>;
@@ -116,11 +130,11 @@ export type Leaning = {
 
 /**
  * Whether the library should offer this dish before the others: they asked for
- * it by name, it comes from a kitchen they chose, or it uses something they
- * said they like.
+ * it by name, it comes from a kitchen they chose, it uses something they said
+ * they like, or it is cooked with an appliance they would rather use.
  *
  * One function so the plan's rotation and a single swap agree about what
- * "prefers" means, and so a fourth reason can be added in one place.
+ * "prefers" means, and so a fifth reason can be added in one place.
  */
 export function isPreferredDish(dish: CandidateDish, rotation: Leaning): boolean {
   if (rotation.preferSlugs?.has(dish.slug)) {
@@ -128,6 +142,14 @@ export function isPreferredDish(dish: CandidateDish, rotation: Leaning): boolean
   }
 
   if (dish.cuisine && rotation.preferCuisines?.has(normaliseForMatching(dish.cuisine))) {
+    return true;
+  }
+
+  // What they would rather cook with (`0102`). Here and nowhere else: a stable
+  // partition, so the rest is still behind it and nothing leaves the library
+  // (`servable` reads `missing` alone). Inside `rotatePool`'s per-slot cap it
+  // does move which dishes are taken, as every leaning above has since `0026`.
+  if ((dish.equipment ?? []).some(appliance => rotation.preferAppliances?.has(appliance) ?? false)) {
     return true;
   }
 

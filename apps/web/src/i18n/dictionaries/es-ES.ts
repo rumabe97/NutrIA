@@ -507,6 +507,7 @@ export const esES = {
       allergen: 'alérgeno',
       duplicate: 'repetido',
       foreign_food: 'nombra algo que no lleva',
+      missing_equipment: 'sin electrodoméstico',
       over_time: 'demasiado tiempo',
       oversized: 'ración enorme',
       schema: 'esquema',
@@ -1595,6 +1596,7 @@ export const esES = {
     reasonFix: {
       disliked: 'Revisar lo que no quieres ver',
       excluded: 'Revisar tu tipo de alimentación',
+      missing_equipment: 'Revisar tu cocina',
       too_slow: 'Cambiar tus minutos para cocinar'
     },
     reasons: {
@@ -1602,6 +1604,7 @@ export const esES = {
       clashes_with_fixed: 'Cabe en esa comida, pero no junto a lo que ya tienes fijado ese día: los macros del día no saldrían.',
       disliked: 'Lo tienes entre los alimentos que no quieres ver.',
       excluded: 'No encaja con tu tipo de alimentación.',
+      missing_equipment: 'Necesita un electrodoméstico que no hay en tu cocina.',
       no_method: 'Nos falta la receta de este plato, así que no se lo servimos a nadie. Eso es cosa nuestra.',
       too_big_or_small: 'No cabe en esa comida con tus cantidades. Suele encajar en otra.',
       too_slow: 'Tarda más de lo que pusiste para cocinar.',
