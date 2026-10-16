@@ -23,6 +23,30 @@ seed writes its result to the column and the substitution audit checks against i
 and a dislike are enforced from this column (`0023`), so **a seed that has not been re-run leaves
 every row unclassified and both silently unenforced**.
 
+## A dish's equipment
+
+`recipes.equipment` is **the appliances a dish cannot be cooked without** — never the ones
+it may use. A dish that can be baked or fried names neither; a dish that is only ever baked
+names the oven. `text[]` holding `APPLIANCES` keys from
+`packages/core/src/entities/Kitchen`, exactly as `meal_slots` holds slots, and **an empty
+array is a dish that needs nothing**, which is also the answer for a dish nobody has
+classified (`0102`). Writing "what it may use" into it is not a style mistake: `missing` is
+enforced like an allergy from phase 3 on, so a dish that merely *mentions* an oven would
+stop being served to everyone without one.
+
+The catalogue is code, not reference data: the `appliance` and `equipment_stance` Postgres
+enums in `_enums.ts` **duplicate** core's `APPLIANCES` and `EQUIPMENT_STANCES` because this
+package sits below core and cannot import it. `Kitchen.test.ts` asserts the two lists are
+identical, string for string and in order — a value added on one side only is an "invalid
+input value for enum" at runtime that no type-check sees. Append, never reorder. Adding an
+appliance later is `ALTER TYPE … ADD VALUE`, which is cheap; a value added and **used in the
+same transaction** fails, and a deploy is one transaction per migration file.
+
+What a person said about their own kitchen is one `kitchen_equipment` row per appliance they
+spoke about, and **no row is the default kitchen** (stovetop, oven, microwave) — so an
+account that never opened the screen stores nothing. `DEFAULT_KITCHEN` in core is the single
+expression of that; nothing here should restate it.
+
 ## What lives here
 
 ```

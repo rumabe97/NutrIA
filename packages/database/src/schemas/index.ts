@@ -11,6 +11,7 @@ export * from './ai.schema';
 export * from './auth.schema';
 export * from './care.schema';
 export * from './food.schema';
+export * from './kitchen.schema';
 export * from './plan.schema';
 export * from './platform.schema';
 export * from './professional.schema';

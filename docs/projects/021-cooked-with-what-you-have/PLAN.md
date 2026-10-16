@@ -40,13 +40,17 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 1 — The kitchen as data, and inert
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 021 phase 1`
 - **Goal**: a person's kitchen and a dish's requirement exist in the database and in the
   domain, and nothing behaves differently yet.
 - **Scope**: `packages/core/src/entities/**`, `packages/core/src/controllers/Kitchen/**`,
   `packages/core/src/repositories/Kitchen/**`, `packages/database/src/schemas/**`,
-  `packages/database/src/migrations/**`.
+  `packages/database/src/migrations/**` — and, for step 4 alone, which the first version of
+  this line forgot to name: `packages/core/src/repositories/Recipe/**`,
+  `packages/core/src/controllers/Plan/**` and `packages/core/src/test/fixtures.ts`
+  (amended during execution, 2026-10-16: a dish cannot carry `equipment` out without the
+  repository that reads it and the presenter that answers it).
 - **Steps**:
   1. `APPLIANCES` in core as the catalogue — `stovetop`, `oven`, `microwave`, `air_fryer`,
      `pressure_cooker`, `blender`, `grill`, `steamer`, `slow_cooker`, `rice_cooker` — with
@@ -80,7 +84,8 @@ sell — so the supply is part of the promise, not an afterthought.
 - **Goal**: the 1128 dishes already in a library declare their equipment, inferred from the
   prose of their steps, auditably.
 - **Scope**: `packages/database/src/migrations/**`, `apps/api/scripts/**` (a measuring
-  script only if the phase needs one).
+  script only if the phase needs one), and `scripts/export-reference-library.mjs`
+  (added 2026-10-16, `migration-reviewer` on phase 1 — see step 4).
 - **Steps**:
   1. Write the pattern list — Spanish and English, since the library holds both — for
      oven (`horno`, `hornea`, `gratin`, `asar`), microwave, air fryer (`freidora de aire`,
@@ -93,8 +98,20 @@ sell — so the supply is part of the promise, not an afterthought.
   3. Measure before and after on the local library and write both counts into the header:
      today's reading is 824 stovetop, 68 oven, 20 microwave, 20 blender, 1 pressure cooker,
      1 air fryer, of 1128.
+  4. **Teach `scripts/export-reference-library.mjs` about the column** — `RECIPE_COLUMNS`
+     and the read's `select`, both of which name every other recipe column and not this one
+     (`migration-reviewer` on phase 1, 2026-10-16). It is lossless only while every row is
+     `'{}'`: the moment this phase backfills, that script exports a classified library as an
+     unclassified one. It bites hardest at **phase 8**, where the plan has the owner loading
+     the new air-fryer batch to production through this path — every dish written precisely
+     to declare an air fryer would arrive declaring nothing, which `0102` reads as a pan.
 - **Acceptance criteria**: PRD 4. Every row has a non-empty `equipment`. The counts in the
   header match a fresh query. Running the migration twice changes nothing the second time.
+  **The verification is a count by appliance that sums to the row count**, not only that the
+  migration applied: `recipes.equipment` is `text[]` and not `appliance[]` — the right call,
+  it is what `mealSlots` is — so nothing in the database refuses a mis-spelled appliance and
+  `appliancesOf` drops an unknown string in silence, which reads as "needs nothing", the
+  same answer as unclassified (`migration-reviewer`, 2026-10-16).
 - **Verification**: `NUTRIA_LOCAL_PG=1 pnpm --filter database migrate` on a copy of the
   local library, then the counts by appliance; `node scripts/check-migrations.mjs --drift`;
   `migration-reviewer` (opus @ high) on this migration specifically — it is the one that
@@ -279,6 +296,11 @@ sell — so the supply is part of the promise, not an afterthought.
      that the owner runs the load himself. The file is reviewed before he runs it — a sample
      read by a person, and the whole of it by the validator.
   5. Load on `develop`, measure again (the gap should close), then production.
+  6. **If this phase adds an appliance to the catalogue**, the Postgres enum grows by
+     `ALTER TYPE … ADD VALUE` — cheap and append-only, and nothing like the rebuild that
+     *removing* a value would need. The trap: a value added and **used in the same
+     transaction** fails, and drizzle gives a deploy one transaction per migration file, so
+     the value and the rows that name it are two deploys (`migration-reviewer`, 2026-10-16).
 - **Acceptance criteria**: PRD 7. Every dish in the file declares its equipment and passes
   the validator; the gap for each appliance the catalogue holds is closed to the rotation's
   need, or the shortfall is stated per appliance with its reason. The model's spend for the
@@ -301,7 +323,12 @@ sell — so the supply is part of the promise, not an afterthought.
      choices only".
   2. The nearest `AGENTS.md` gains the two rules that outlive this project: a dish declares
      the appliances it **cannot** be cooked without, and an unclassified dish is stovetop;
-     a preference may never remove a dish.
+     a preference may never remove a dish. **The first of the two landed in phase 1**
+     (`packages/database/AGENTS.md` § A dish's equipment, 2026-10-16): the column ships in
+     that phase and phases 2 and 8 write to it long before this one, and `/ship` § 2 asks
+     for the rule in the same change as the code it governs. What is left here is the
+     preference half — which does not exist until phase 3 — and checking that the first half
+     still says what the code does.
   3. `marketing`'s verdict is already in: free, both halves, **no row in `Allowance.ts`**
      ([the report](../../reference/marketing/the-kitchen-a-person-has.md), 2026-10-15). This
      phase only checks that nothing shipped quietly gated it, and that the three-preference

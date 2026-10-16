@@ -9,7 +9,9 @@ import { recipeImageCalls, recipeImages, recipeIngredients, recipes } from 'data
 
 import { METHOD_RULES, nextRewriteStamp, REWRITE_ATTEMPT_BOUND } from 'core/domain/Method';
 import { ACCEPTED_BY_OWNER, keepingDrawings, pictureAcceptedByOf, pictureStateSchema } from 'core/entities/DishPicture';
+import { appliancesOf } from 'core/entities/Kitchen';
 import { DatabaseOperationError } from 'core/entities/Error';
+import type { Appliance } from 'core/entities/Kitchen';
 import type { FoodClass } from 'database/schema/food';
 import type { LibraryRecipe } from 'core/domain/MealFit';
 import type { PictureAcceptedBy, PictureCall, PictureJudgedDrawing, PictureProvenance, PictureReason, PictureState } from 'core/entities/DishPicture';
@@ -23,6 +25,13 @@ export type ReusableRecipe = {
   readonly cookMinutes: number;
   readonly cuisine: string | null;
   readonly difficulty: 'easy' | 'hard' | 'medium';
+  /**
+   * The appliances the dish cannot be cooked without (`0102`), of the ones this
+   * release knows — `appliancesOf` drops the rest. Empty for a dish that needs
+   * only a pan, and empty for a dish nobody has classified yet, which `0102`
+   * says is the same answer on purpose.
+   */
+  readonly equipment: readonly Appliance[];
   readonly ingredients: readonly { readonly grams: number; readonly slug: string }[];
   readonly mealSlots: readonly MealSlot[];
   readonly name: string;
@@ -583,6 +592,7 @@ export const RecipeRepository = {
           cookMinutes: row.cookMinutes,
           cuisine: row.cuisine,
           difficulty: row.difficulty,
+          equipment: appliancesOf(row.equipment),
           ingredients: byRecipe.get(row.id) ?? [],
           mealSlots: row.mealSlots as readonly MealSlot[],
           name: row.name,

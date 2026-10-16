@@ -39,6 +39,20 @@ export const recipes = pgTable(
     cuisine: text(),
     description: text(),
     difficulty: difficulty().notNull().default('easy'),
+    /**
+     * The appliances this dish **cannot be cooked without** (`0102`), as its
+     * slots are: a `text[]` of `APPLIANCES` keys from
+     * `packages/core/src/entities/Kitchen`.
+     *
+     * The appliances it *needs*, never the ones it may use — a dish that can be
+     * baked or fried names neither, and a dish nobody has classified is empty,
+     * which is read as a pan. The default is therefore load-bearing rather than
+     * a convenience: every row written before this column existed says "no
+     * requirement", and the backfill that reads their prose is a migration of
+     * its own (project 021 phase 2) so that this one cannot fail on
+     * production's rows.
+     */
+    equipment: text().array().notNull().default([]),
     imageUrl: text(),
     instructions: jsonb().$type<readonly RecipeStep[]>().notNull().default([]),
     /**
