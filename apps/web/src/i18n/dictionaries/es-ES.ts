@@ -1744,6 +1744,46 @@ export const esES = {
     withdraw: 'Borrar todos mis datos de salud'
   },
 
+  /*
+   * The kitchen (`0102`): the names the catalogue's ten keys stand for, the
+   * three things somebody can say about one, and the sentences that explain the
+   * default.
+   *
+   * One home for all of it, because three screens read the same words — the
+   * onboarding step, the profile's section and a dish's detail — and a name
+   * written twice is a name that ends up different in one of them.
+   */
+  kitchen: {
+    appliances: {
+      air_fryer: 'Freidora de aire',
+      blender: 'Batidora',
+      grill: 'Parrilla o barbacoa',
+      microwave: 'Microondas',
+      oven: 'Horno',
+      pressure_cooker: 'Olla a presión',
+      rice_cooker: 'Arrocera',
+      slow_cooker: 'Olla de cocción lenta',
+      steamer: 'Vaporera',
+      stovetop: 'Fuego'
+    },
+    /* On a row nobody has answered: what we assume, said as an assumption. */
+    defaultHas: 'por defecto, sí',
+    defaultMissing: 'por defecto, no',
+    intro:
+      'Si no dices nada damos por hecho una cocina normal: fuego, horno, microondas y batidora. El resto lo damos por no tenerlo, y lo que digas aquí no quita ningún plato que ya tengas en el plan de esta quincena.',
+    preferredCount: 'Prefieres {count} de {max}.',
+    preferredFull: 'Ya prefieres {max}. Quita una para poder elegir otra.',
+    preferredHint: 'Marcar uno como preferido no quita ningún plato: solo pone por delante los que lo usan.',
+    stances: { has: 'Tengo', missing: 'No tengo', prefers: 'Prefiero' },
+    /*
+     * Why the hob is the one appliance nobody may say they lack: measured on
+     * the library, a kitchen without one keeps 43 dishes of 1128 and no plan
+     * can be built at all (project 021 phase 2). Offering the answer would be
+     * offering a generation that fails.
+     */
+    stovetopFixed: 'Todos los planes dan por hecho un fuego: sin él no podríamos construirte ningún plan.'
+  },
+
   landing: {
     ctaPrimary: 'Crear mi plan',
     ctaSecondary: 'Cómo funciona',
@@ -1965,6 +2005,7 @@ export const esES = {
     done: 'Hecha',
     doneHint: 'Marcada como hecha.',
     dryLine: '{name}: {dry} en seco',
+    equipment: 'Se cocina con',
     ingredients: 'Ingredientes',
     like: 'Me gusta',
     likedHint: 'Anotado: podrá volver, y buscaremos platos en esta línea.',
@@ -2061,6 +2102,7 @@ export const esES = {
       heightCm: 'Altura (cm)',
       includesSnacks: 'Incluir tentempiés entre comidas',
       intolerances: 'Intolerancias',
+      kitchen: '¿Qué tienes en tu cocina?',
       liked: 'Alimentos que te gustan',
       likedHint: 'Separa con comas.',
       mealShape: '¿Qué comidas haces, y de qué tamaño?',
@@ -2133,6 +2175,7 @@ export const esES = {
       cuisines: 'Cocinas',
       height: 'Altura',
       intolerances: 'Intolerancias',
+      kitchen: 'Tu cocina',
       mealShape: 'Comidas del día',
       name: 'Nombre',
       noCuisinePreference: 'Sin preferencia',
@@ -2144,6 +2187,8 @@ export const esES = {
 
     saveNote: 'Cada paso se guarda al pulsar «Continuar». Puedes salir cuando quieras y volverás justo aquí.',
 
+    skip: 'Omitir este paso',
+
     stepOf: 'Paso {current} de {total}',
 
     steps: {
@@ -2154,6 +2199,7 @@ export const esES = {
       foodPreferences: { subtitle: 'Lo que te gusta aparecerá más. Lo que no, desaparece.', title: 'Preferencias' },
       goal: { subtitle: 'Puedes cambiarlo en cualquier momento.', title: 'Tu objetivo' },
       howYouEat: { subtitle: 'Cómo repartes la comida a lo largo del día.', title: 'Cómo comes' },
+      kitchen: { subtitle: 'Opcional. Lo que no digas lo damos por hecho.', title: 'Tu cocina' },
       review: { subtitle: 'Comprueba que todo está bien antes de terminar.', title: 'Revisión' }
     }
   },
@@ -2605,7 +2651,8 @@ export const esES = {
           'Tu cuerpo y tu objetivo: fecha de nacimiento, sexo, altura, peso, nivel de actividad y tu objetivo (por ejemplo, perder peso). Para calcular cuánto necesitas comer.',
           'País: desde dónde compras. Para que el catálogo solo te muestre alimentos que puedas encontrar allí.',
           'Alergias e intolerancias: las que eliges de la lista, las que escribes a mano y su gravedad. Para que ningún plan te proponga algo que te puede hacer daño.',
-          'Tu forma de comer: por ejemplo vegetariana, sin gluten o sin lactosa, y la cocina que te gusta o no. Para ajustar los platos.',
+          'Tu forma de comer: por ejemplo vegetariana, sin gluten o sin lactosa, y las cocinas que te gustan o no. Para ajustar los platos.',
+          'Tu cocina: cuánto tiempo como máximo quieres dedicar a un plato y, si nos lo cuentas, cuáles de los aparatos de nuestra lista tienes, cuáles no tienes y con cuáles prefieres cocinar. Para no proponerte un plato que no puedas cocinar y para que los que se hacen con lo que prefieres salgan primero. Si no nos cuentas nada, damos por supuesto que tienes fuego, horno, microondas y batidora.',
           'Enfermedades, medicación y suplementos: solo si decides contárnoslo, bajo un consentimiento aparte que puedes retirar en cualquier momento sin borrar el resto de tu cuenta.',
           'Cómo llevas el plan: qué comidas marcas como hechas o saltadas, tus valoraciones y comentarios de los platos, tu peso a lo largo del tiempo y tus check-ins quincenales. Para que el siguiente plan lo tenga en cuenta.',
           'Pagos: si contratas Premium, Stripe cobra y nosotros guardamos solo el identificador de tu suscripción y su estado. Nunca vemos el número de tu tarjeta.',
@@ -2649,7 +2696,7 @@ export const esES = {
         heading: 'La inteligencia artificial',
         paragraphs: [
           'Los platos y las recetas de NutrIA los diseña un modelo de inteligencia artificial o salen de nuestra biblioteca de platos ya diseñados y comprobados. Nuestro propio código comprueba cada plato antes de que te llegue: un alérgeno declarado no llega a tu plan aunque el modelo se equivoque. La IA no toma ninguna decisión sobre ti: los límites de calorías y de proteína los aplican reglas fijas, no el modelo.',
-          'Lo que recibe el modelo cuando diseña platos nuevos para tu plan: tus objetivos diarios y tu objetivo (por ejemplo, perder peso), qué comidas haces y cuánto tiempo quieres dedicar a cocinar cada plato, si eres vegetariano o vegano, las cocinas y los alimentos que te gustan, los nombres de los platos que te gustaron, que no te gustaron o que comiste la quincena anterior, y tus respuestas cerradas al check-in (hambre, dificultad, nota). Siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu sexo, tu peso ni tu altura, nada que hayas escrito a mano —salvo el nombre de un plato, si tú se lo pides—, tus alergias ni intolerancias, ninguna otra forma de comer (sin gluten, sin lactosa, halal, kósher…), ni tus enfermedades, tu medicación o tus suplementos. Lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, del catálogo de alimentos que ve: le llega el efecto, nunca el dato.',
+          'Lo que recibe el modelo cuando diseña platos nuevos para tu plan: tus objetivos diarios y tu objetivo (por ejemplo, perder peso), qué comidas haces y cuánto tiempo quieres dedicar a cocinar cada plato, los aparatos de cocina que no tienes y aquellos con los que prefieres cocinar, si eres vegetariano o vegano, las cocinas y los alimentos que te gustan, los nombres de los platos que te gustaron, que no te gustaron o que comiste la quincena anterior, y tus respuestas cerradas al check-in (hambre, dificultad, nota). Siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu sexo, tu peso ni tu altura, nada que hayas escrito a mano —salvo el nombre de un plato, si tú se lo pides—, tus alergias ni intolerancias, ninguna otra forma de comer (sin gluten, sin lactosa, halal, kósher…), ni tus enfermedades, tu medicación o tus suplementos. Lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, del catálogo de alimentos que ve: le llega el efecto, nunca el dato.',
           'A quién va: la petición va a OpenRouter (OpenRouter, Inc., Estados Unidos), que la trata por encargo nuestro y la pasa a la empresa que ejecuta el modelo: DeepInfra o CoreWeave, también en Estados Unidos. El modelo es Gemma 4 31B y, si no responde, DeepSeek V4.1 Flash; son modelos abiertos que ejecutan esas empresas: lo que se envía para diseñar tus platos nunca pasa por los servicios de Google ni de DeepSeek.',
           'Nadie entrena con ello ni lo guarda: solo usamos proveedores que borran la petición en cuanto responden y no la usan para entrenar ni mejorar ningún modelo. Lo exigimos en nuestra cuenta de OpenRouter y otra vez en cada petición. OpenRouter guarda solo datos técnicos de cada petición (tamaño, tiempo, coste), no su contenido.',
           'Si tú le pides un plato: puedes pedirnos un plato que no está en nuestra biblioteca escribiendo su nombre. Ese nombre es lo único escrito por ti que llega al modelo, y viaja con el resto de la petición a las mismas empresas. Escribe solo el nombre del plato: se envía tal cual, así que ahí no cuentes nada sobre ti ni sobre nadie. No guardamos lo que escribes: en cuanto el modelo responde, tu texto desaparece, y no queda en ningún registro. Lo que sí se queda es el plato, con el nombre y la receta que escribe el modelo, en la misma biblioteca que todos los demás: puede acabar en el plan de otra persona, y no dice quién lo pidió.',
@@ -2758,6 +2805,11 @@ export const esES = {
     height: 'Altura',
     howYouEat: 'Cómo comes',
     intolerances: 'Intolerancias',
+    kitchenNothingSaid: 'Lo normal: fuego, horno, microondas y batidora. No has dicho nada todavía, y no hace falta.',
+    kitchenTitle: 'Tu cocina',
+    kitchenYouHave: 'Tienes',
+    kitchenYouLack: 'No tienes',
+    kitchenYouPrefer: 'Prefieres usar',
     likedFoods: 'Alimentos que te gustan',
     locale: 'Idioma',
     localeHint: 'Cambia la interfaz al momento y se guarda en tu perfil.',

@@ -1,0 +1,45 @@
+/*
+ * Under the dish's minutes and difficulty: the same register as those facts,
+ * with a label so it cannot be mistaken for another one of them.
+ */
+.equipment {
+  align-items: baseline;
+  column-gap: var(--space-03);
+  display: flex;
+  flex-wrap: wrap;
+  /* The facts line above it already ends on `--gap-block`; this one carries the
+     same gap to the overview, so the three read as three blocks of one rhythm. */
+  margin-block-end: var(--gap-block);
+  row-gap: var(--space-02);
+}
+
+.label {
+  color: var(--foreground-03);
+  font-size: var(--font-size-02);
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02) var(--space-04);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Icon and word on one line, and the pair stays whole when the list wraps. */
+.item {
+  align-items: center;
+  color: var(--foreground-02);
+  display: inline-flex;
+  font-size: var(--font-size-03);
+  gap: var(--space-02);
+}
+
+/* The text is large for this screen: the label takes its own line so the
+   appliances keep theirs. */
+@media (width < 17rem) {
+  .equipment {
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,14 @@
+/*
+ * Sized to the text and not to a pixel value: a reader at 200% gets an icon at
+ * 200% too, and it keeps sitting on the same line as the word it belongs to.
+ */
+.icon {
+  block-size: 1em;
+  fill: none;
+  flex: none;
+  inline-size: 1em;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}

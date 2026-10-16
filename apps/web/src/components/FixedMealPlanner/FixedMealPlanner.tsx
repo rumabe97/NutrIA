@@ -360,10 +360,15 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
    * Where a reason a person can act on is acted on: the onboarding step that
    * owns that field, as the profile's own edit links point at it.
    *
-   * Three of the four actionable reasons have a field behind them. The fourth —
+   * Four of the five actionable reasons have a field behind them. The fifth —
    * `too_big_or_small` — has none: the way forward is another meal, and its own
-   * sentence says so. The other three are statements, and a link under a
+   * sentence says so. The other four are statements, and a link under a
    * refusal would read as a way round it.
+   *
+   * The kitchen is the newest of them (`0102`). It was left without a route on
+   * purpose when the reason arrived, because the step it points at did not
+   * exist yet — a reason marked `actionable` sorting to the top with nothing to
+   * do is worse than a reason that waits one phase.
    */
   function wayForward(why: NotFixable): { readonly href: string; readonly label: string } | undefined {
     switch (why) {
@@ -372,6 +377,9 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
 
       case 'excluded':
         return { href: '/onboarding/6?volver=perfil', label: t.reasonFix.excluded };
+
+      case 'missing_equipment':
+        return { href: '/onboarding/8?volver=perfil', label: t.reasonFix.missing_equipment };
 
       case 'too_slow':
         return { href: '/onboarding/7?volver=perfil', label: t.reasonFix.too_slow };

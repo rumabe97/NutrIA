@@ -1,0 +1,57 @@
+/*
+ * Ten rows of three answers. The chips wrap rather than sitting in three fixed
+ * columns on purpose: at 320px with the browser's text at 200% a three-column
+ * grid is what produces a sideways scroll, and wrapping costs nothing at any
+ * other size.
+ */
+/* The three lines that explain the question read as one block; the rows they
+   introduce sit a heading's distance below it. */
+.picker {
+  display: grid;
+  gap: var(--space-02);
+}
+
+.rows {
+  display: grid;
+  gap: var(--gap-block);
+  margin-block-start: var(--gap-heading);
+}
+
+/* A fieldset per appliance, so each legend names the three answers under it. */
+.row {
+  border: 0;
+  /* A `fieldset` carries the UA's `min-inline-size: min-content`, which no width
+     can lower: without this a long appliance name would set the floor for the
+     whole card and clip it at a large font size, which is already the onboarding
+     card's own weakness at 200% (`accessibility`, 2026-10-16). */
+  min-inline-size: 0;
+  display: grid;
+  gap: var(--space-02);
+  margin: 0;
+  padding: 0;
+}
+
+.appliance {
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+  gap: var(--space-02);
+  padding: 0;
+}
+
+/* What we assume about this appliance, while nobody has said otherwise: part of
+   the legend, so it is read with the name rather than found separately. */
+.assumed {
+  color: var(--foreground-03);
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-regular);
+}
+
+.bound {
+  margin: 0;
+}
+
+.note {
+  margin: 0;
+}

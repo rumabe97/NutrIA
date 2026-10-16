@@ -70,3 +70,24 @@
 .chip:has(input:checked) {
   font-weight: var(--font-weight-semibold);
 }
+
+/*
+ * Forced colours erase the fill and the brand edge, and the native input is
+ * visually hidden here (it has to be: a hidden input is not focusable), so
+ * without this the only surviving cue for a chosen chip is its weight. The
+ * house pattern, as `PlanSwitch` and `ShoppingRange` use it: the chosen one
+ * takes a system-colour border, which sticks on its own.
+ */
+@media (forced-colors: active) {
+  .chip:has(input:checked) {
+    border: 1px solid Highlight;
+  }
+
+  /* Forced colours erase the dimming an unavailable chip relies on, so it reads
+     as choosable. `GrayText` is the system's own word for "not available"
+     (`accessibility`, 2026-10-16). */
+  .chip:has(input[aria-disabled='true']) {
+    border-color: GrayText;
+    color: GrayText;
+  }
+}

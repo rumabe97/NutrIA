@@ -23,6 +23,12 @@
 > `0089`; PR #242, branch `feat/011-p7b-device-cookie`, commit read `3243cc7` and the changes
 > from that day's invariant review): §§ 4.1, 4.1 quater (new) and 10 (point 14).
 >
+> **Revision 2026-10-16 — the kitchen a person describes** (project 021, phase 5, decision
+> [`0102`](../decisions/0102-a-kitchen-is-what-it-has-and-what-it-would-rather-use.md); `main`
+> at `58a4971b`, phases 1 to 4 already in production): §§ 1.3, 3, 9 (a new P2-16 and one P3).
+> No new recipient, transfer, period or art. 9 datum; the texts are the ⟦cocina⟧ block of
+> [`textos/02`](./textos/02-politica-privacidad.md).
+>
 > **Revision 2026-10-09 (afternoon) — the sweep of the account nobody confirmed** (project 011,
 > the "30-day sweep of unconfirmed accounts" follow-up,
 > [`0092`](../decisions/0092-sweep-an-account-whose-address-nobody-ever-confirmed.md); PR #250,
@@ -164,6 +170,24 @@ name and on the method alike. The conditions it rests on, the four breaches foun
 the day, and why a dish name is not the free text P0-3 was about are in **P0-3's status at
 2026-10-13** below; the `/privacidad` sentences that carry it are the
 ⟦petición-de-plato⟧ block of [`textos/02`](./textos/02-politica-privacidad.md).
+
+**A second addition since 4.9.0, structured and with no words of anybody's** (decision `0102`,
+project 021, phases 1 to 4 in production on 2026-10-16): **the kitchen**. Two lines,
+`kitchenLines` (`apps/api/src/modules/ai/prompts/PoolPrompt.ts:453-460`, placed at `:1021`) —
+the appliances this person does **not** have ("never design a dish that needs one") and the ones
+they would rather cook with — written as keys of the ten-entry `APPLIANCES` catalogue
+(`packages/core/src/entities/Kitchen/Kitchen.ts:25`), never in prose and never from anything
+typed: this feature has **no free-text field at all**. The third stance (`has`) does not travel.
+**It travels for every account, including those that have said nothing**: silence is folded onto
+`DEFAULT_KITCHEN` (`Kitchen.ts:94-104`, read once at
+`packages/core/src/controllers/Recipe/RecipeController.ts:272-276`), so the six appliances
+outside the default normal kitchen go as "they do not have" without anybody having said so — an
+**inferred** datum with an effect, which is why the policy's own bullet says the assumption out
+loud (art. 5.1.a, and art. 16 needs the person to know it exists to rectify it). The
+allowed-keys test names `kitchen` on purpose (`health-boundary.spec.ts:314`), and no art. 9
+datum is added: an appliance says nothing about health, religion or belief. The sentences that
+carry it are the ⟦cocina⟧ block of [`textos/02`](./textos/02-politica-privacidad.md) (P2-16
+below).
 
 **Since 4.4.0** (`0067`) the prompt **also** stops receiving the shape and hours of the day —
 what time somebody wakes, sleeps and trains, `dayShapeOf` in
@@ -367,6 +391,7 @@ gets in nobody's way if it does not.
 | Service mail (verification, reset, reminder, the check-in notice to the professional) | email, name | 6.1.b | — |
 | Account security notices ("your password has changed", "somebody tried to create an account with your email"…) | the account's email; nothing of whoever caused it | 6.1.f (recital 49) and 32.1; 6.1.b for the account's person | — (§ 4.1 bis and § 4.1 ter) |
 | Brakes against abuse: failed attempts per address, mails per address, requests per IP (011, phases 7 and 8) | an HMAC fingerprint of the address + a count; IP + route + a count | 6.1.f (recital 49) and 32.1 | — (§ 4.1 ter) |
+| The kitchen and the maximum time per dish (`0102`, project 021) | a stance (`missing`/`has`/`prefers`) for each of the ten appliances somebody spoke about (`kitchen_equipment`), and `user_preferences.cookingTimeMinutes` | 6.1.b — it is necessary to plan meals somebody can actually cook: a dish needing an appliance they do not have is filtered out of the library (`RecipeController.ts:383`), refused when the model returns it (`PoolBuilder.service.ts:708`) and refused as a fixed meal (`FixableReason.ts:105`) | — (not art. 9: an appliance reveals no health, religion or belief, and nothing here is used to infer one) |
 | The suggestions inbox | free text | 6.1.b / 6.1.f | — |
 
 **Why explicit consent and not another exception.** For a consumer service, 9.2.h requires the
@@ -1181,6 +1206,7 @@ contract and with no training — is still the one that closes everything.
 | P2-12 | OpenRouter classifies an anonymous sample of requests for its public statistics; it cannot be switched off | the terms § 6.5; the *Data collection* documentation | **Accepted with a notice** (the owner, 2026-09-26): the policy (state 2) says so, and the owner will ask OpenRouter in writing to exclude his account. If it excludes it, the sentence can go |
 | P2-14 | `/privacidad` does not name the brakes against abuse: the address's fingerprint with the attempt count (`sign_in_failure`, phase 7, already in `main`) and the mail one (`mail-budget:*`, phase 8), nor the IP in `rate_limit` (earlier); nor that they are not deleted with the account but expire on their own | `auth.schema.ts:215-229`; `MailBudgetRepository.ts`; `auth.config.ts:446-453` | Arts. 13.1.c-d and 13.2.a; 14.5.b for somebody with no account. A ⟦frenos⟧ bullet in "Qué datos recogemos" ([`textos/02`](./textos/02-politica-privacidad.md)), in the same change that takes the budget to production. § 4.1 ter |
 | P2-15 | ~~An account created with somebody else's address and never confirmed stays forever (a name typed by a stranger, a third party's address). Since phase 8 nobody can get in without the mailbox, so it is a datum with no use~~ | `packages/core/src/repositories/User/UserRepository.ts:181,345`; `packages/core/src/controllers/User/UserController.ts:432`; `apps/api/src/modules/auth/services/AuthRetention.service.ts:32` | **Closed in the code on 2026-10-09** (PR #250, `fbab7b1b`, decision `0092`): the daily cron deletes an unconfirmed account older than 30 days with no session, profile, plan or audit row, in a `DELETE … RETURNING` with a trail row that survives with no actor, no subject and no IP (arts. 5.1.c and 5.1.e; § 4.1 quinquies). **What depends on the text is still open**: publishing ⟦barrido-sin-confirmar⟧ in `/privacidad` (art. 13.2.a) before the first account is deleted, the read-only count beforehand, and the two boxes of the checklist's § 0 septies. Two new knock-ons in P3 and one P2 sent to `backend` (`isNull(user.activatedAt)`) |
+| P2-16 | `/privacidad` does not name **the kitchen** — the stance per appliance a person may state (`0102`, project 021) — in either of the two places where it would be read: the enumerative list of "Qué datos recogemos y para qué", and the "Lo que recibe el modelo" sentence, which enumerates what travels to OpenRouter and already carries the two kitchen lines for **every** account (phases 1 to 4 in production). The neighbouring entry ("Tu forma de comer… y la cocina que te gusta o no") does not cover it and must not be stretched to: it is quoted by the special-category section and by the explicit-consent basis, and an appliance is neither. In the same list, **`cookingTimeMinutes` has never been named** either, though the AI paragraph has named it since 4.4.0 | `packages/core/src/entities/Kitchen/Kitchen.ts:25,50,94`; `packages/database/src/schemas/kitchen.schema.ts:25-27`; `apps/api/src/modules/ai/prompts/PoolPrompt.ts:453-460`; `packages/database/src/schemas/profile.schema.ts:76`; `es-ES.ts:2608,2652` and `en-GB.ts:2571,2615` | Arts. 5.1.a and 12.1 (an exhaustive-looking enumeration with a known omission misleads; art. 13 does not itself require listing categories collected from the person — LOPDGDD art. 11.1-2 — which is why this is P2 and not P1), 13.1.c (purpose) and 13.1.e-f for the AI sentence. One new bullet in both dictionaries, carrying the kitchen **and** the maximum time, plus the insertion in "Lo que recibe el modelo": the ⟦cocina⟧ block of [`textos/02`](./textos/02-politica-privacidad.md), with `privacy.updated`, no mail and **no** `PROFILE_CONSENT_VERSION` bump. No basis, recipient, transfer or period changes (§ 3; `kitchen_equipment` is `userOwned`, cascade) |
 | P2-13 | ~~Ten columns are left in the database with no reader at all since `0067`: `sleepStart`, `sleepEnd`, `trainingDaysPerWeek`, `trainingTime`, `workScheduleNotes`, `breakfastStyle`, `portionPreference`, `budget`, `cookingFrequency` (`user_preferences`) and `customGoal` (`goals`, free text — it can carry health, "recovering from an eating disorder"). Onboarding no longer fills them, but the accounts that had them keep them~~ | `packages/database/src/migrations/0043_onboarding_answers_nothing_reads_are_cleared.sql`; `packages/database/src/schemas/profile.schema.ts` | **Closed on 2026-09-28**: migration `0043` sets those ten columns to `NULL` for every account, in the same change that stopped filling them — not only the new ones, the ones that already had them too (arts. 5.1.c and 5.1.e). On the way it moves every `goals.type = 'custom'` to `'maintenance'`, changing no calculated goal (see § 1.3). The columns and the enum's `'custom'` value stay in Postgres until the next release's migration removes them — that is schema hygiene, not a datum retained with no purpose, so it opens no new finding |
 
 ### P3
@@ -1195,6 +1221,10 @@ contract and with no training — is still the one that closes everything.
   (`apps/web/src/lib/pendingReview.ts:1`, `pendingTicks.ts:17`, `arrival.ts:1`). All of them
   are strictly necessary (LSSI art. 22.2, the final exception): no banner is needed, but they
   do need naming.
+- With a "Tu cocina" entry beside it, "y la cocina que te gusta o no" ("Tu forma de comer",
+  `es-ES.ts:2608`) reads as the appliances rather than as Italian or Japanese food: "y las
+  cocinas que te gustan o no", in the same change (the English already says "cuisines"). Only
+  the Spanish is ambiguous; it is wording, so P3 (art. 12.1, "lenguaje claro y sencillo").
 - `health.consentNote` says health data "no se envían a ningún modelo": true of the datum, not
   of its effect (coeliac disease → the catalogue goes gluten-free). Add "only its effect gets
   there: the ingredients we remove".

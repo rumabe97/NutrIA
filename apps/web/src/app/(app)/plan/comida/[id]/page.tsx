@@ -11,6 +11,7 @@ import { Text } from 'ui/components/Text';
 import { Card } from 'components/Card';
 import { MacroSummary } from 'components/MacroSummary';
 import { MealAccompaniments } from 'components/MealAccompaniments';
+import { MealEquipment } from 'components/MealEquipment';
 import { MealPicture } from 'components/MealPicture';
 import { MealStatus } from 'components/MealStatus';
 import { MealSwap } from 'components/MealSwap';
@@ -83,6 +84,11 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
         <span>{difficultyLabel(meal.difficulty, dictionary)}</span>
         {meal.cuisine ? <span>{meal.cuisine}</span> : null}
       </div>
+
+      {/* What the dish cannot be cooked without (`0102`), where the minutes and
+          the difficulty are: it belongs to the same question — can I make this
+          tonight — and it is read before the ingredients, not after them. */}
+      <MealEquipment dictionary={dictionary} equipment={meal.equipment} />
 
       {/* What a cook reads before starting — the actions, the picture and the
           figures. One column on a phone; beside the picture on a wide screen, so

@@ -25,6 +25,7 @@ import { TargetsPanel } from 'components/TargetsPanel';
 import { Tour } from 'components/Tour';
 import { VacationPlanner } from 'components/VacationPlanner';
 
+import { APPLIANCES } from 'core/entities/Kitchen';
 import { MEAL_SLOTS } from 'core/entities/Plan';
 
 import { formatNumber, interpolate } from 'lib/format';
@@ -37,11 +38,13 @@ import { appMetadata } from '../../_shared/metadata';
 import type { BillingStatusView } from 'core/controllers/Billing';
 import type { CareAccessPageView, CareLinkView } from 'core/controllers/Care';
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
+import type { EquipmentStance } from 'core/entities/Kitchen';
 import type { FixedMealsView } from 'core/controllers/FixedMeal';
-import type { FullProfileView } from 'core/controllers/Profile';
 import type { HealthView } from 'core/controllers/Health';
+import type { KitchenView } from 'core/controllers/Kitchen';
 import type { Metadata } from 'next';
 import type { NotificationSettingsView } from 'core/controllers/Notification';
+import type { ProfileWithKitchen } from 'lib/profile';
 import type { UserView } from 'core/controllers/User';
 import type { VacationView } from 'core/controllers/Vacation';
 
@@ -79,6 +82,39 @@ function avoidValue(disliked: readonly { enforced: boolean; label: string }[], t
     .join('\n');
 }
 
+/**
+ * The kitchen, as a block somebody reads rather than a form (`0102`).
+ *
+ * **Silence gets one sentence, not ten rows.** A person who has never answered
+ * has `described: false`, and listing nine appliances they never spoke about —
+ * six of them as "no tienes" — would read as nine answers they gave. The
+ * sentence says what we assume and that saying nothing is allowed; the step
+ * behind «Editar» is where it is changed.
+ *
+ * `prefers` implies `has` (there is no fourth state), so a preferred appliance
+ * is named in both of the first two rows on purpose: the first answers "what is
+ * in your kitchen", the second "which of it do you reach for".
+ */
+function kitchenRows(kitchen: KitchenView, dictionary: Dictionary): readonly { label: string; value?: string | null }[] {
+  const t = dictionary.profile;
+
+  if (!kitchen.described) {
+    // One row, labelled the way the first row of a described kitchen is — not
+    // the card's own title again.
+    return [{ label: t.kitchenYouHave, value: t.kitchenNothingSaid }];
+  }
+
+  const named = (stance: EquipmentStance) =>
+    APPLIANCES.filter(appliance => kitchen.appliances[appliance] === stance).map(appliance => dictionary.kitchen.appliances[appliance]);
+  const preferred = named('prefers');
+
+  return [
+    { label: t.kitchenYouHave, value: list([...named('has'), ...preferred], t.unset) },
+    { label: t.kitchenYouPrefer, value: list(preferred, t.unset) },
+    { label: t.kitchenYouLack, value: list(named('missing'), t.unset) }
+  ];
+}
+
 export default async function ProfilePage({ searchParams }: Readonly<{ searchParams: Promise<{ premium?: string }> }>) {
   // The profile screen and onboarding edit the same tables. Someone who has not
   // finished belongs in the flow that is filling them in, not in a read-only
@@ -99,7 +135,7 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
     getDictionary(),
     activeLocale(),
     serverApi<UserView>('/users/me'),
-    serverApi<FullProfileView>('/profile'),
+    serverApi<ProfileWithKitchen>('/profile'),
     serverApi<HealthView>('/health-data'),
     serverApi<NotificationSettingsView>('/notifications/settings'),
     // Null when push is not set up on the API (`0054`), and then no switch is offered for it.
@@ -304,6 +340,14 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
             ]}
             title={t.howYouEat}
           />
+
+          {/* Beside the cooking time, which is the question it belongs with:
+              both say what you can actually cook tonight. The step behind it is
+              also where a fixed meal refused for a missing appliance sends
+              somebody (`FixedMealPlanner`'s `wayForward`). */}
+          {profile ? (
+            <ProfileSection editHref="/onboarding/8?volver=perfil" rows={kitchenRows(profile.kitchen, dictionary)} title={t.kitchenTitle} />
+          ) : null}
 
           <ProfileSection
             editHref="/onboarding/5?volver=perfil"

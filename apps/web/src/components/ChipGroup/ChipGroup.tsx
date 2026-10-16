@@ -1,6 +1,18 @@
 import styles from './ChipGroup.module.css';
 
 export interface Chip {
+  /**
+   * The accessible name, when the visible label is not enough on its own.
+   *
+   * Ten of these groups on one screen name their rows only in the `legend`,
+   * which a screen reader reads when you arrive at the group and not when you
+   * swipe from control to control or use the form-controls rotor — the way a
+   * form is actually filled on a phone. Without it the kitchen step offers ten
+   * identical triplets of "I have one / I do not / I would rather". The
+   * **visible** label is unchanged, so what is seen is still a substring of what
+   * is announced (2.5.3).
+   */
+  ariaLabel?: string;
   /** The id of visible text that says why this one cannot be chosen. */
   describedBy?: string;
   /** A second, smaller line under the label, inside the same pill and the same accessible name. */
@@ -32,6 +44,7 @@ export function ChipGroup({ name, options, selected = [], single }: ChipGroupPro
             <input
               aria-describedby={option.describedBy}
               aria-disabled={option.disabled || undefined}
+              aria-label={option.ariaLabel}
               checked={single.choice === option.value}
               className={styles.input}
               name={name}
