@@ -119,6 +119,28 @@ export const kitchenStanceSchema = z.object({ appliance: applianceSchema, stance
 export type KitchenStance = z.infer<typeof kitchenStanceSchema>;
 
 /**
+ * What somebody says about their kitchen, as a list of changes: an appliance with
+ * the stance to give it, or `null` to take back what they said and let the default
+ * speak again.
+ *
+ * It lives here, beside the bound it has to respect, rather than with the
+ * onboarding step a list of them first arrived in: the profile's preferences take
+ * the same list, so neither can disagree about what a kitchen change is, and
+ * `KitchenController.applyChanges` — which knows the order they must be written
+ * in — is where anybody sending a batch will look.
+ *
+ * Shape only. **How many may be `prefers` is not counted here**: that bound is
+ * checked by `setStance` inside the repository's lock, and a count made at this
+ * edge would be the read-then-compare it exists to avoid.
+ */
+export const kitchenChangesSchema = z
+  .array(z.object({ appliance: applianceSchema, stance: equipmentStanceSchema.nullable() }))
+  .max(APPLIANCES.length)
+  .refine(changes => new Set(changes.map(change => change.appliance)).size === changes.length, { message: 'An appliance may be named once' });
+
+export type KitchenChanges = z.infer<typeof kitchenChangesSchema>;
+
+/**
  * The stances a person has written, folded onto the default kitchen.
  *
  * Every one of the ten is present in the answer, which is what lets a caller

@@ -3,9 +3,10 @@ import express from 'express';
 import request from 'supertest';
 import { Test } from '@nestjs/testing';
 
+import { KitchenController } from 'core/controllers/Kitchen';
 import { ProfileConsentController, ProfileController } from 'core/controllers/Profile';
 import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
-import { ProfileConsentRequiredError, UnderMinimumAgeError } from 'core/entities/Error';
+import { InputParseError, ProfileConsentRequiredError, UnderMinimumAgeError } from 'core/entities/Error';
 import { SafetyController } from 'core/controllers/Safety';
 
 import { AllExceptionsFilter } from '../../../shared/filters/index.js';
@@ -157,6 +158,8 @@ describe('body validation is scoped to the body', () => {
   it('accepts a valid preferences update', async () => {
     const update = jest.spyOn(ProfileController, 'updatePreferences').mockResolvedValue({} as never);
 
+    jest.spyOn(KitchenController, 'read').mockResolvedValue({ appliances: {}, described: false, maxPreferred: 3 } as never);
+
     const response: Response = await request(app.getHttpServer() as Server)
       .patch('/profile/preferences')
       .send({ cookingTimeMinutes: 30 });
@@ -229,5 +232,93 @@ describe('body validation is scoped to the body', () => {
       .send({ displayName: 'Ada', userId: 'usr-somebody-else' });
 
     expect(update).toHaveBeenCalledWith('usr-1', { displayName: 'Ada' });
+  });
+
+  describe('the kitchen', () => {
+    const VIEW = {
+      appliances: { air_fryer: 'prefers', blender: 'has', grill: 'missing', microwave: 'has', oven: 'has' },
+      described: true,
+      maxPreferred: 3
+    };
+
+    it('answers the kitchen, defaulted, beside the rest of the profile', async () => {
+      jest.spyOn(ProfileController, 'getFullProfile').mockResolvedValue({ profile: null } as never);
+      const read = jest.spyOn(KitchenController, 'read').mockResolvedValue({ ...VIEW, described: false } as never);
+
+      const response: Response = await request(app.getHttpServer() as Server).get('/profile');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({ kitchen: { described: false, maxPreferred: 3 } });
+      expect(read).toHaveBeenCalledWith('usr-1');
+    });
+
+    it('writes the kitchen for the session’s account, taking off `prefers` before putting any on', async () => {
+      const order: string[] = [];
+
+      jest.spyOn(KitchenController, 'setStance').mockImplementation(async (_userId, { appliance, stance }) => {
+        order.push(`${appliance}:${stance}`);
+
+        return VIEW as never;
+      });
+      jest.spyOn(KitchenController, 'clearStance').mockImplementation(async (_userId, appliance) => {
+        order.push(`${appliance}:cleared`);
+
+        return VIEW as never;
+      });
+      jest.spyOn(KitchenController, 'read').mockResolvedValue(VIEW as never);
+      const update = jest.spyOn(ProfileController, 'updatePreferences').mockResolvedValue({ cookingTimeMinutes: 30 } as never);
+
+      const response: Response = await request(app.getHttpServer() as Server)
+        .patch('/profile/preferences')
+        .send({
+          cookingTimeMinutes: 30,
+          kitchen: [
+            { appliance: 'air_fryer', stance: 'prefers' },
+            { appliance: 'oven', stance: 'has' },
+            { appliance: 'grill', stance: null }
+          ],
+          userId: 'usr-2'
+        });
+
+      expect(response.status).toBe(200);
+      expect(order).toEqual(['oven:has', 'grill:cleared', 'air_fryer:prefers']);
+      expect(response.body).toMatchObject({ cookingTimeMinutes: 30, kitchen: { described: true } });
+      // The kitchen is not a preference column: it must not reach the preferences write.
+      expect(update).toHaveBeenCalledWith('usr-1', { cookingTimeMinutes: 30 });
+    });
+
+    it('refuses an appliance the catalogue does not hold, naming the field, and writes nothing', async () => {
+      const setStance = jest.spyOn(KitchenController, 'setStance');
+      const update = jest.spyOn(ProfileController, 'updatePreferences');
+
+      const response: Response = await request(app.getHttpServer() as Server)
+        .patch('/profile/preferences')
+        .send({ kitchen: [{ appliance: 'toaster', stance: 'has' }] });
+
+      expect(response.status).toBe(422);
+      expect(Object.keys((response.body as { fieldErrors: Record<string, string[]> }).fieldErrors).join()).toContain('kitchen');
+      expect(setStance).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    /**
+     * The route does not count. The bound is the controller's, checked inside the
+     * repository's lock, and what the route owes is to let its refusal through as
+     * the 422 it already is.
+     */
+    it('lets the controller’s refusal of a fourth `prefers` through as 422, field named, other preferences untouched', async () => {
+      jest
+        .spyOn(KitchenController, 'setStance')
+        .mockRejectedValue(new InputParseError('At most 3 appliances may be preferred', { appliance: ['At most 3 appliances may be preferred'] }));
+      const update = jest.spyOn(ProfileController, 'updatePreferences');
+
+      const response: Response = await request(app.getHttpServer() as Server)
+        .patch('/profile/preferences')
+        .send({ cookingTimeMinutes: 30, kitchen: [{ appliance: 'grill', stance: 'prefers' }] });
+
+      expect(response.status).toBe(422);
+      expect((response.body as { fieldErrors: Record<string, string[]> }).fieldErrors).toHaveProperty('appliance');
+      expect(update).not.toHaveBeenCalled();
+    });
   });
 });

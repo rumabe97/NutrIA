@@ -26,6 +26,18 @@ vi.mock('#repositories/Profile', () => ({
   ProfileConsentRepository: { find: (userId: string) => consent(userId) },
   ProfileRepository: { upsert: () => upsert(), upsertGoal: () => upsertGoal() }
 }));
+const findByUser = vi.fn<(userId: string) => Promise<readonly { appliance: string; stance: string }[]>>();
+const removeStance = vi.fn(async () => true);
+const setStance =
+  vi.fn<(userId: string, stance: { appliance: string; stance: string }) => Promise<readonly { appliance: string; stance: string }[]>>();
+
+vi.mock('#repositories/Kitchen', () => ({
+  KitchenRepository: {
+    findByUser: (userId: string) => findByUser(userId),
+    remove: () => removeStance(),
+    setStance: (userId: string, stance: { appliance: string; stance: string }) => setStance(userId, stance)
+  }
+}));
 vi.mock('#repositories/Safety', () => ({ SafetyRepository: { replaceAll: () => replaceAll() } }));
 
 const GIVEN = { grantedAt: new Date('2026-09-25T10:00:00Z'), version: PROFILE_CONSENT_VERSION };
@@ -103,7 +115,7 @@ describe('OnboardingController.getState — the resume target', () => {
     const view = await OnboardingController.getState('usr-1');
 
     // The last two entries of ONBOARDING_STEPS are 'review' and 'create-plan';
-    // the web flow renders eight screens. A resume target past `review` would 404.
+    // the web flow renders nine screens. A resume target past `review` would 404.
     expect(view.resumeStep).toBeLessThanOrEqual(ONBOARDING_STEPS.length - 1);
   });
 });
@@ -201,5 +213,64 @@ describe('OnboardingController — the minimum age', () => {
     await OnboardingController.saveStep('usr-1', { data: { birthDate: yearsAgo(18) }, step: 'about-you' });
 
     expect(upsert).toHaveBeenCalledOnce();
+  });
+});
+
+/**
+ * The kitchen is the one step a person may walk past (`0102`): silence resolves to a
+ * normal kitchen, so `complete` never waits for it and the step collects no health
+ * data, so it never asks for the consent.
+ */
+describe('OnboardingController — the optional kitchen step', () => {
+  beforeEach(() => {
+    find.mockReset();
+    findByUser.mockReset();
+    setStance.mockReset();
+    removeStance.mockClear();
+    markStepComplete.mockReset();
+    consent.mockResolvedValue(GIVEN);
+  });
+
+  it('is not required, and is listed after the required ones', () => {
+    expect(REQUIRED_ONBOARDING_STEPS).not.toContain('kitchen');
+    expect(ONBOARDING_STEPS.indexOf('kitchen')).toBeLessThan(ONBOARDING_STEPS.indexOf('review'));
+  });
+
+  it('leaves nothing missing for somebody who never opened it, which is what lets `complete` close', async () => {
+    find.mockResolvedValue(stored(REQUIRED_ONBOARDING_STEPS, ONBOARDING_STEPS.indexOf('kitchen') + 1));
+
+    const view = await OnboardingController.getState('usr-1');
+
+    expect(view.completedSteps).not.toContain('kitchen');
+    expect(view.missingSteps).toEqual([]);
+    expect(view.resumeStep).toBe(ONBOARDING_STEPS.indexOf('review') + 1);
+  });
+
+  it('writes each stance, takes off `prefers` before putting any on, and marks the step', async () => {
+    const written: string[] = [];
+
+    setStance.mockImplementation(async (_userId, stance) => {
+      written.push(`${stance.appliance}:${stance.stance}`);
+
+      return [];
+    });
+    markStepComplete.mockResolvedValue(stored(['kitchen'], 9));
+    findByUser.mockResolvedValue([]);
+    consent.mockResolvedValue(undefined);
+
+    await OnboardingController.saveStep('usr-1', {
+      data: {
+        kitchen: [
+          { appliance: 'air_fryer', stance: 'prefers' },
+          { appliance: 'oven', stance: 'has' },
+          { appliance: 'grill', stance: null }
+        ]
+      },
+      step: 'kitchen'
+    });
+
+    expect(written).toEqual(['oven:has', 'air_fryer:prefers']);
+    expect(removeStance).toHaveBeenCalledOnce();
+    expect(markStepComplete).toHaveBeenCalledWith('usr-1', 'kitchen', expect.any(Number));
   });
 });
