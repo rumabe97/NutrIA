@@ -115,3 +115,37 @@ export const careAccessKind = pgEnum('care_access_kind', ['list', 'overview', 'p
  * sharing the health line with that professional, without ending the link.
  */
 export const careAccessAction = pgEnum('care_access_action', ['read', 'write', 'granted', 'withdrawn']);
+
+/**
+ * The appliances a person may speak about (`0102`). The authority on the
+ * catalogue is `APPLIANCES` in `packages/core/src/entities/Kitchen`; the ten
+ * strings are repeated here because this package sits *below* core and cannot
+ * import it — the same duplication, for the same reason, as `MealShape` in
+ * `profile.schema.ts`. `Kitchen.test.ts` asserts the two lists are identical,
+ * so a drift fails a test rather than a query.
+ *
+ * Appended to, never reordered: adding a value rewrites nothing, reordering
+ * would — as `plan_status`'s `pending_review` says.
+ */
+export const appliance = pgEnum('appliance', [
+  'stovetop',
+  'oven',
+  'microwave',
+  'air_fryer',
+  'pressure_cooker',
+  'blender',
+  'grill',
+  'steamer',
+  'slow_cooker',
+  'rice_cooker'
+]);
+
+/**
+ * What somebody said about one appliance: it is not there, it is there, or it
+ * is what they would rather cook with (`0102`).
+ *
+ * Not one scale: `missing` is enforced in code the way an allergy is, and
+ * `prefers` is asked of the model and may never remove a dish. No row at all
+ * means the default kitchen, which is why there is no `unknown` value here.
+ */
+export const equipmentStance = pgEnum('equipment_stance', ['missing', 'has', 'prefers']);

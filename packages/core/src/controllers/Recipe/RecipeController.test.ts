@@ -150,6 +150,8 @@ describe('RecipeController.generationContext — a free-from substitute is offer
         cookMinutes: 0,
         cuisine: null,
         difficulty: 'easy',
+        // Needs no more than a pan, which is what an empty declaration says (`0102`).
+        equipment: [],
         ingredients: [{ grams: 60, slug: 'pan-sin-gluten' }],
         mealSlots: ['afternoon_snack'],
         name: 'Tosta de pan sin gluten con atún',
@@ -166,6 +168,8 @@ describe('RecipeController.generationContext — a free-from substitute is offer
         cookMinutes: 0,
         cuisine: null,
         difficulty: 'easy',
+        // Needs no more than a pan, which is what an empty declaration says (`0102`).
+        equipment: [],
         ingredients: [{ grams: 80, slug: 'arroz' }],
         mealSlots: ['afternoon_snack'],
         name: 'Arroz blanco',
@@ -213,6 +217,8 @@ describe('RecipeController.reusablePool — an allergy the catalogue could not r
     cookMinutes: 0,
     cuisine: null,
     difficulty: 'easy',
+    // Needs no more than a pan, which is what an empty declaration says (`0102`).
+    equipment: [],
     ingredients: [{ grams: 80, slug: 'arroz' }],
     mealSlots: ['lunch'],
     name,
@@ -255,6 +261,8 @@ describe('RecipeController.reusablePool — traditional Spanish (0077)', () => {
     cookMinutes: 0,
     cuisine,
     difficulty: 'easy',
+    // Needs no more than a pan, which is what an empty declaration says (`0102`).
+    equipment: [],
     ingredients: slugs.map(ingredient => ({ grams: 80, slug: ingredient })),
     mealSlots: ['lunch'],
     name,
@@ -315,6 +323,8 @@ describe('RecipeController.reusablePool — a dish is served only at the meals i
     cookMinutes: 0,
     cuisine: null,
     difficulty: 'easy',
+    // Needs no more than a pan, which is what an empty declaration says (`0102`).
+    equipment: [],
     ingredients: slugs.map(ingredient => ({ grams: 80, slug: ingredient })),
     mealSlots,
     name: slug,

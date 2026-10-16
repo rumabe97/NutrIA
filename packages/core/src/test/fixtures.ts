@@ -1,4 +1,5 @@
 import type { Goal, Preferences, Profile } from 'core/entities/Profile';
+import type { KitchenStance } from 'core/entities/Kitchen';
 import type { Professional } from 'core/entities/Professional';
 import type { SafetyProfile } from 'core/entities/Safety';
 import type { User } from 'core/entities/User';
@@ -88,6 +89,15 @@ export function makePreferences(overrides?: Partial<Preferences>): Preferences {
     userId: USER_ID,
     ...overrides
   };
+}
+
+/**
+ * One thing somebody said about one appliance (`0102`). An appliance they do
+ * not have by default, because that is the stance with consequences: it is the
+ * one enforced in code.
+ */
+export function makeKitchenStance(overrides?: Partial<KitchenStance>): KitchenStance {
+  return { appliance: 'oven', stance: 'missing', ...overrides };
 }
 
 /** An account the owner made a professional (`0059`), with no practice paid for yet. */

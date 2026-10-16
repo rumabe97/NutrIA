@@ -13,6 +13,7 @@ import {
 import { personDayKey } from 'core/domain/Period';
 import { eventsInWindow, planWindow } from 'core/domain/Event';
 import { MAX_DAYS_BEFORE } from 'core/entities/Event';
+import { appliancesOf } from 'core/entities/Kitchen';
 import { addDays } from 'core/domain/Vacation';
 import { CareRepository } from '#repositories/Care';
 import { EventRepository } from '#repositories/Event';
@@ -44,6 +45,7 @@ import type {
   ShoppingItemDraft
 } from 'core/entities/Plan';
 import type { Allowances, CountedStanding, MealSwapStanding, PlanRedoStanding, StartMeaning, StoredAllowance, Tier } from 'core/domain/Allowance';
+import type { Appliance } from 'core/entities/Kitchen';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PlanWindow } from 'core/domain/Event';
 import type { RecordAccess } from '#repositories/Care';
@@ -1201,6 +1203,14 @@ export interface MealDetailView {
   date: string;
   dayIndex: number;
   difficulty: string;
+  /**
+   * The appliances this dish cannot be cooked without (`0102`) — what the
+   * detail screen names, an icon and a word each, so the declaration is
+   * something a person reads before they start and not only something the
+   * filter used. Empty for a dish that needs no more than a pan, and for one
+   * nobody has classified: both show nothing rather than claiming a hob.
+   */
+  equipment: readonly Appliance[];
   fatG: number;
   fiberG: number;
   /** The dish's picture, an absolute Blob address, once `pictureStatus` is `ready` (`0066`); null otherwise. */
@@ -1455,6 +1465,7 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
     date: day.date,
     dayIndex: day.dayIndex,
     difficulty: recipe.difficulty,
+    equipment: appliancesOf(recipe.equipment),
     fatG: Number(meal.fatG),
     fiberG: Number(meal.fiberG),
     illustrationPath: picture.url,

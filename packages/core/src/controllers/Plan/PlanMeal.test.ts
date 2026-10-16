@@ -53,6 +53,8 @@ function detail(
       cookMinutes: 10,
       cuisine: null,
       difficulty: 'easy',
+      // What the column holds for every dish until phase 2 reads its steps.
+      equipment: [],
       instructions: [],
       name: 'Arroz',
       prepMinutes: 5,
