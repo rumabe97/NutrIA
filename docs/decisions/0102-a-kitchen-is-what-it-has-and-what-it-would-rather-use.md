@@ -216,12 +216,40 @@ library is thin there. Nothing in 56 × slots fell below 19, so today it holds; 
 gluten-free breakfasts classified as oven or blender dishes and **this is the profile that
 breaks first**. It is the supply argument above, with a name on it.
 
-**Still owed, and deliberately not faked**: the preference half. No run here calls a
-model, so none of it says whether `PREFERRED APPLIANCES:` changes what comes back — that
-is one generation against the production provider with the air fryer preferred, counting
-air-fryer dishes in the fortnight against the **zero** production can reuse (phase 6 step
-3, the owner's to run). The denominator makes the test sharp: every air-fryer dish in that
-fortnight is one the model wrote because it was asked to.
+**The preference half, measured 2026-10-16, and the answer is zero.** The owner generated
+a real fortnight on production with the air fryer marked *prefers* (his kitchen also says
+`blender: missing`). Prompt **4.9.0** sent the line — `APPLIANCES THEY WOULD RATHER COOK
+WITH — use these where the dish is as good for it: air_fryer` — to
+`google/gemma-4-31b-it` over twelve calls and 84,996 input tokens. What came back: 21
+dishes written, 9 distinct ones used by the plan, and **not one declares an air fryer or
+so much as names one in its steps**. Across all 56 plates: **0 declaring, 0 naming.**
+Every fresh dish declares `stovetop`, except two no-cook dishes that correctly declare
+nothing at all.
+
+So **`PREFERRED APPLIANCES:` changed nothing on this generation**, and three things have to
+be said with it rather than after it:
+
+- **The library half could not have helped.** 46 of the 56 plates were reused, and the
+  library holds zero air-fryer dishes, so the preference could only ever have shown in what
+  the model wrote.
+- **The instruction is soft by design** — *"where the dish is as good for it"* — so a model
+  judging that no dish was is not disobeying it. That softness is now a measured cost
+  rather than a style choice.
+- **The measurement covers what reached the plan, not everything the model wrote.** A dish
+  is stored only if the plan used it, so the 12 unused dishes of the 21 are gone
+  unexamined. And it is one generation on one model: it says what
+  `google/gemma-4-31b-it` did, not what every model would do.
+
+**What this does not undermine**: the constraint half, which was working on that same
+account at that same moment. The plan came back **14 of 14 days inside 5% on all four
+macros, zero advisories, no allergen**, with the owner's pinned tortilla honoured on both
+of its weekdays — while `blender: missing` silently kept production's 20 blender dishes out
+of his pool, and the gate recorded no `missing_equipment` refusal because the model never
+proposed one. *Does not have* is enforced and demonstrated; *would rather use* asks, and on
+this evidence is not yet answered. The honest reading is the one this record already
+argued: **a preference is only real once the library can serve it**, so the catalogue grows
+first (phase 8) and the prompt line is re-measured against a library that has something to
+prefer.
 
 (who decided: the owner, 2026-10-15 — the feature, and that the time question is measured
 separately; the planner, the shape above, with the library's numbers in hand.)

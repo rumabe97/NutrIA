@@ -104,6 +104,32 @@ that setup lives now rather than here.
 
 ## Next
 
+**Fixing a meal: two things the owner asked for on 2026-10-16, in this order.** Both are
+about `apps/api/src/modules/fixed-meals/**`, which project 021 phase 5b is holding
+uncommitted as this is written, so they start when it ships rather than beside it.
+
+- **It takes seconds when the day already holds a rule, and it should not.** Measured in
+  phase 5b: `pinnable` with a non-empty `held` is **2.7 s** on an 851-dish pool — its own
+  comment says "about 14 ms each" per candidate, which is true and ruinous over a pool.
+  `POST /fixed-meals/not-offered` and `POST /fixed-meals/request` pay it on every call for a
+  weekday that already carries a rule, and the owner feels it. Phase 5b added `dayHoldsPin`,
+  the same last filter asked of **one** dish at 6 ms, with a test asserting the two agree
+  dish by dish; it is the right instrument for the handful of dishes a search asks about and
+  the **wrong** one for the whole offer, where asking it 851 times would be slower than what
+  is there now. So this needs its own measurement per route, not a substitution.
+- **A dish the day's macros cannot hold should warn, not refuse** (the owner, 2026-10-16:
+  *"en vez de elegir, deberías poner un aviso indicando eso al usuario, y que es su
+  responsabilidad o algo así, pero que permita elegirlo"*). Today `clashes_with_fixed` and
+  `too_big_or_small` take the dish out of the picker and refuse it 422 at add time. They
+  become a warning somebody can accept. **Only those two**: an allergen, a way of eating, a
+  missing appliance and a dish with no method stay refusals, because the first is safety and
+  the rest are things the person cannot act on by accepting a consequence. This is a change
+  to `0101`'s gate and needs a decision record, and it has a consequence worth stating in
+  it: a day built around an accepted rule **comes out of band**, which `0011` already allows
+  (targets are advisory, the energy floor is the only bound that blocks) but which the
+  evaluator counts — so the "14 of 14 days inside 5%" figure stops being a promise about
+  every account and becomes one about accounts that did not overrule it.
+
 1. **A user can live inside the plan.** Day navigation, meal detail with recipe and macros
    (done), favourite / dislike (done, `0014`), meal replacement (done, `0015`: library first,
    five a plan, list rebuilt), complete / skip (done, `0016`), the quicker / no cooking /
