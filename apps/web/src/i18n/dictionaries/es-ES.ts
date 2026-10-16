@@ -1608,6 +1608,7 @@ export const esES = {
       no_method: 'Nos falta la receta de este plato, así que no se lo servimos a nadie. Eso es cosa nuestra.',
       too_big_or_small: 'No cabe en esa comida con tus cantidades. Suele encajar en otra.',
       too_slow: 'Tarda más de lo que pusiste para cocinar.',
+      unknown_dish: 'Este plato ya no está en tu biblioteca, así que no podemos ofrecértelo. Eso es cosa nuestra.',
       wrong_slot: 'No es un plato para esa comida.'
     },
     remove: 'Quitar',
@@ -1618,6 +1619,34 @@ export const esES = {
     slots: { afternoon_snack: 'Merienda', breakfast: 'Desayuno', dinner: 'Cena', lunch: 'Comida', morning_snack: 'Almuerzo', supper: 'Recena' },
     title: 'Comidas fijas',
     tooSlowMinutes: 'Tarda más de los {minutes} min que pusiste para cocinar.',
+    /*
+     * Una regla que ya no se puede cumplir (021 fase 5b).
+     *
+     * Son sus propias frases y no las de `reasons`: aquellas contestan «por qué
+     * no te ofrecemos este plato que estás buscando ahora», y estas «la regla
+     * que escribiste hace tiempo ya no se cumple, y esto es lo que ha
+     * cambiado». Mismo motivo, otro tiempo verbal y otra cosa que hacer.
+     */
+    unhonouredCount:
+      'Hay {count} comidas fijas que ya no podemos cumplir: los planes que generes a partir de ahora no las van a llevar. Están marcadas abajo, con lo que ha cambiado.',
+    unhonouredCountOne:
+      'Hay una comida fija que ya no podemos cumplir: los planes que generes a partir de ahora no la van a llevar. Está marcada abajo, con lo que ha cambiado.',
+    unhonouredMark: 'No se está cumpliendo',
+    unhonouredReasons: {
+      allergen: 'Lleva algo a lo que eres alérgico. Tu seguridad manda, así que ya no te lo servimos: quita esta comida fija y fija otro plato.',
+      clashes_with_fixed:
+        'Ya no cabe junto a la otra comida que tienes fijada ese día: entre las dos no quedarían los macros del día dentro de lo que buscamos. Quita una de las dos.',
+      disliked: 'Lo tienes entre los alimentos que no quieres ver, así que ya no te lo servimos.',
+      excluded: 'Ya no encaja con tu tipo de alimentación, así que ya no te lo servimos.',
+      missing_equipment: 'Necesita un electrodoméstico que has dicho que no hay en tu cocina.',
+      no_method:
+        'Nos falta la receta de este plato, así que no se lo servimos a nadie. Eso es cosa nuestra: quita esta comida fija y fija otro plato.',
+      too_big_or_small: 'Ya no cabe en esa comida con tus cantidades. Prueba a fijar el plato en otra comida del día.',
+      too_slow: 'Tarda más de los minutos que tienes puestos para cocinar.',
+      unknown_dish: 'Este plato ya no está en tu biblioteca, así que no podemos servirlo. Quita esta comida fija y fija otro plato.',
+      wrong_slot: 'Ya no es un plato para esa comida. Prueba a fijarlo en otra.'
+    },
+    unhonouredTooSlowMinutes: 'Tarda más de los {minutes} min que tienes puestos para cocinar.',
     weekdays: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
     whyCount: 'Hay {count} platos con ese nombre que no podemos ofrecerte ahí:',
     whyCountOne: 'Hay un plato con ese nombre que no podemos ofrecerte ahí:'

@@ -1570,6 +1570,7 @@ export const enGB: Dictionary = {
       no_method: 'We are missing this dish’s method, so we serve it to nobody. That one is ours.',
       too_big_or_small: 'It does not fit that meal at your portions. It usually fits another one.',
       too_slow: 'It takes longer than you said you can cook for.',
+      unknown_dish: 'This dish is no longer in your library, so we cannot offer it to you. That one is ours.',
       wrong_slot: 'It is not a dish for that meal.'
     },
     remove: 'Remove',
@@ -1587,6 +1588,26 @@ export const enGB: Dictionary = {
     },
     title: 'Fixed meals',
     tooSlowMinutes: 'It takes longer than the {minutes} min you said you have.',
+    unhonouredCount:
+      'There are {count} fixed meals we can no longer honour: the plans you generate from now on will not carry them. They are marked below, with what changed.',
+    unhonouredCountOne:
+      'There is one fixed meal we can no longer honour: the plans you generate from now on will not carry it. It is marked below, with what changed.',
+    unhonouredMark: 'Not being honoured',
+    unhonouredReasons: {
+      allergen:
+        'It has something in it you are allergic to. Your safety decides, so we no longer serve it: remove this fixed meal and fix another dish.',
+      clashes_with_fixed:
+        'It no longer fits beside the other meal you have fixed that day: between the two, the day’s macros would not land where we want them. Remove one of the two.',
+      disliked: 'It is among the foods you do not want to see, so we no longer serve it.',
+      excluded: 'It no longer fits the way you eat, so we no longer serve it.',
+      missing_equipment: 'It needs an appliance you have said your kitchen does not have.',
+      no_method: 'We are missing this dish’s method, so we serve it to nobody. That one is ours: remove this fixed meal and fix another dish.',
+      too_big_or_small: 'It no longer fits that meal at your portions. Try fixing the dish to another meal of the day.',
+      too_slow: 'It takes longer than the minutes you have set for cooking.',
+      unknown_dish: 'This dish is no longer in your library, so we cannot serve it. Remove this fixed meal and fix another dish.',
+      wrong_slot: 'It is no longer a dish for that meal. Try fixing it to another one.'
+    },
+    unhonouredTooSlowMinutes: 'It takes longer than the {minutes} min you have set for cooking.',
     weekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
     whyCount: 'There are {count} dishes by that name we cannot offer you there:',
     whyCountOne: 'There is one dish by that name we cannot offer you there:'

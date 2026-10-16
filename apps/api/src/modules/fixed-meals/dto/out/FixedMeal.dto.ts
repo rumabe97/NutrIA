@@ -1,6 +1,6 @@
 import type { FixableDish, NotOfferedDish } from '../../services/index.js';
 import type { FixedMeal } from 'core/entities/FixedMeal';
-import type { FixedMealsView } from 'core/controllers/FixedMeal';
+import type { FixedMealHonourability, FixedMealsView } from 'core/controllers/FixedMeal';
 
 /** One standing rule: the weekday, the slot and the dish. */
 export type FixedMealDto = FixedMeal;
@@ -43,3 +43,19 @@ export type FixableDishDto = FixableDish;
  * dressed up as advice.
  */
 export type NotOfferedDishDto = NotOfferedDish;
+
+/**
+ * Which standing rules the next plan could not honour, each with the reason
+ * (021 phase 5b).
+ *
+ * **A second request and not a field of `FixedMealsDto`**, because answering it
+ * assembles a generation's context: 75–90 ms measured against the local library
+ * beside the 2 ms the rules themselves cost, for an answer that is empty for
+ * almost every account. The rules screen opens on what it always cost and asks
+ * for this once it is on the screen.
+ *
+ * `judged: false` means the answer could not be computed, **not** that every
+ * rule is fine: a profile whose targets the equations reject answers that way
+ * rather than turning somebody's list of rules into an error.
+ */
+export type FixedMealHonourabilityDto = FixedMealHonourability;

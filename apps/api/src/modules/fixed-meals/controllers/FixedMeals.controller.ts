@@ -8,7 +8,7 @@ import { InputParseError } from 'core/entities/Error';
 import { weekdaySchema } from 'core/entities/FixedMeal';
 import { MEAL_SLOTS } from 'core/entities/Plan';
 
-import type { FixableDishDto, FixedMealDto, FixedMealsDto, NotOfferedDishDto } from '../dto/out/index.js';
+import type { FixableDishDto, FixedMealDto, FixedMealHonourabilityDto, FixedMealsDto, NotOfferedDishDto } from '../dto/out/index.js';
 import type { MealSlot } from 'core/entities/Plan';
 import type { SessionUser } from '../../../shared/index.js';
 
@@ -48,6 +48,23 @@ export class FixedMealsController {
     @Query('slot') slot: string
   ): Promise<readonly FixableDishDto[]> {
     return this.fixedMeals.fixable(user.id, weekdaySchema.parse(Number(weekday)), parsedSlot(slot));
+  }
+
+  @ApiOkResponse({
+    description:
+      'Which of this account’s standing rules the plan it would generate next cannot honour, each with the reason. `judged: false` means the answer could not be computed, not that every rule is fine.'
+  })
+  @ApiOperation({ summary: 'Which standing fixed meals are not being honoured, and why' })
+  // Its own request because it costs its own generation context (75–90 ms
+  // measured against the local library, beside 2 ms for the rules themselves),
+  // and the rules screen must open no slower than it did. The screen asks for it
+  // once the rules are on it.
+  @Get('honourability')
+  // One assembly of this person's whole library per call. A screen opening asks
+  // once; this is the bound on anything else.
+  @RateLimit({ limit: 60, ttlSeconds: 3600 })
+  async honourability(@CurrentUser() user: SessionUser): Promise<FixedMealHonourabilityDto> {
+    return this.fixedMeals.honourability(user.id);
   }
 
   @ApiOkResponse({

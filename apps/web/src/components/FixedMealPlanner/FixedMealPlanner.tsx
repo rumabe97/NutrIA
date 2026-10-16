@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useId, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -20,6 +20,7 @@ import { interpolate } from 'lib/format';
 
 import type { CountedStanding } from 'core/domain/Allowance';
 import type { FixedMeal, Weekday } from 'core/entities/FixedMeal';
+import type { FixedMealHonourability } from 'core/controllers/FixedMeal';
 import type { MealSlot } from 'core/entities/Plan';
 import type { NotFixable } from 'core/domain/FixableReason';
 
@@ -138,10 +139,21 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
   const [asking, setAsking] = useState(false);
   /** Kept apart from the card's own error: this one belongs under the button that caused it. */
   const [askProblem, setAskProblem] = useState<string>();
+  /**
+   * Which standing rules the next plan could not honour (021 phase 5b).
+   *
+   * `undefined` until the list has been looked at, and `judged: false` when the
+   * answer could not be computed — neither of them means the rules are fine, so
+   * neither says anything on the screen.
+   */
+  const [honour, setHonour] = useState<FixedMealHonourability>();
   const [pending, setPending] = useState(false);
   const [outcome, setOutcome] = useState<'added' | 'removed'>();
   const [error, setError] = useState<string>();
   const explaining = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const listRef = useRef<HTMLUListElement>(null);
+  /** Whether the rules have been on screen, which is what buys the second request. */
+  const looked = useRef(false);
   /** What the search field holds right now, to tell a late answer from the current question. */
   const typed = useRef('');
 
@@ -149,6 +161,17 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
   // so what is spoken for is the meal — and a day leaves the list only when
   // every meal this person eats already carries one.
   const taken = new Set(rules.map(rule => `${rule.weekday}:${rule.slot}`));
+  // Filtered by the rules on screen rather than cleared and asked again: a
+  // judgement is about the rules it was made for, and the one that has just
+  // been removed is the only one it can be wrong about. Dropping the whole
+  // answer and losing the second request left three unhonourable rules
+  // unmarked, under a «Quitada» that read as "that fixed it"
+  // (`accessibility`, 2026-10-16). The API's order — actionable first, then by
+  // weekday — survives the filter and the `Map`; the rows stay in the order the
+  // list was in, because a list that re-sorts itself under the reader when a
+  // background answer lands is a jump, not an explanation.
+  const marks = (honour?.unhonoured ?? []).filter(each => rules.some(rule => rule.id === each.id));
+  const unhonoured = new Map(marks.map(each => [each.id, each]));
   const free = WEEKDAYS.filter(day => slots.some(each => !taken.has(`${day}:${each}`)));
   const open = weekday === '' ? slots : slots.filter(each => !taken.has(`${weekday}:${each}`));
   // What the day the person is looking at already holds, which is why the dish
@@ -166,6 +189,65 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
   const missing =
     Boolean(weekday) && Boolean(slot) && fixable !== undefined && !chosen && (fixable.length === 0 || (needle.length >= 3 && matching.length === 0));
 
+  /**
+   * Which of these rules the next plan could not honour, and why.
+   *
+   * Its own request, and asked only once the rules are on screen: answering it
+   * assembles a whole generation's context — 75–90 ms against the local
+   * library, beside the 2 ms the rules themselves cost — and the profile has to
+   * open no slower than it did before this existed (021 phase 5b). An answer
+   * that cannot be had leaves the list exactly as it was: a card shouting about
+   * a failed background read would be louder than the thing it explains.
+   */
+  async function judge() {
+    try {
+      setHonour(await api<FixedMealHonourability>('/fixed-meals/honourability'));
+    } catch {
+      // As `explain`: the mark is not the feature, and its absence is the
+      // screen this phase started from rather than a new fault.
+    }
+  }
+
+  /*
+   * An `IntersectionObserver` rather than a fetch on mount, as `Reveal`: this
+   * card sits far down a long profile, and somebody who never scrolls to it
+   * never pays for the answer. It fires once and disconnects — the answer is
+   * refreshed by a rule being added or removed, not by scrolling past twice.
+   */
+  useEffect(() => {
+    const element = listRef.current;
+
+    if (!element || looked.current) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) {
+          return;
+        }
+
+        looked.current = true;
+        observer.disconnect();
+        void judge();
+      },
+      // Asked a screen before the list is reached, not as it arrives. A mark
+      // landing late grows every row under it — measured, 110–183 px — and the
+      // thing it pushes down is a row of buttons that delete. At the largest
+      // font size the list can also still be below the fold when the card's
+      // heading is on screen, and that reader needs the mark most
+      // (`accessibility`, 2026-10-16).
+      { rootMargin: '400px' }
+    );
+
+    observer.observe(element);
+
+    return () => observer.disconnect();
+    // The list has to exist before it can be observed, and only a rule
+    // arriving brings it into existence. Re-judging the rules themselves is
+    // `settle`'s, not this effect's.
+  }, [rules.length]);
+
   // As `VacationPlanner`: the button that was pressed disables itself while the
   // request is out, and a disabled element cannot hold focus, so without this
   // the next Tab starts from the top of the page. The heading is not an input,
@@ -174,6 +256,15 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
     setOutcome(what);
     titleRef.current?.focus();
     router.refresh();
+
+    // Removing a rule can be exactly what makes another one honourable again
+    // (`clashes_with_fixed` is a statement about a pair), so the judgement is
+    // made again — and kept until the new one lands, or for ever if it never
+    // does. A mark that was true a second ago is a far smaller fault than a
+    // card that quietly stops saying anything.
+    if (looked.current) {
+      void judge();
+    }
   }
 
   /** Asked again whenever the day or the meal changes: the answer depends on both. */
@@ -394,6 +485,20 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
     return why === 'too_slow' && cookingMinutes !== null ? interpolate(t.tooSlowMinutes, { minutes: cookingMinutes }) : t.reasons[why];
   }
 
+  /**
+   * What changed under a rule that is no longer being honoured.
+   *
+   * Its own sentences, never `reasons`: those answer *why this dish is not
+   * offered to you now, as you look for one*, and this answers *a rule you set
+   * some time ago is not being honoured any more, and here is what changed*.
+   * Same cause, different tense, different thing to do next (021 phase 5b).
+   */
+  function changedFor(why: NotFixable): string {
+    return why === 'too_slow' && cookingMinutes !== null
+      ? interpolate(t.unhonouredTooSlowMinutes, { minutes: cookingMinutes })
+      : t.unhonouredReasons[why];
+  }
+
   return (
     <Card as="section" className={styles.root}>
       <h3 className={styles.title} ref={titleRef} tabIndex={-1}>
@@ -403,29 +508,68 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
         {t.intro}
       </Text>
 
+      {/* Over the list and not under it: it explains the marks, and an
+          explanation read after the things it explains points backwards at rows
+          somebody has already passed (`accessibility`, 2026-10-16).
+
+          Only ever when there is something to report. `judged: false` means
+          nobody could answer, and an account whose rules are all being honoured
+          is the ordinary case — neither of them earns a sentence, and "all in
+          order" would be a claim nobody checked (021 phase 5b). */}
+      {honour?.judged && marks.length > 0 ? (
+        <Text className={styles.unhonoured} role="status" size="xs" tone="secondary">
+          {marks.length === 1 ? t.unhonouredCountOne : interpolate(t.unhonouredCount, { count: marks.length })}
+        </Text>
+      ) : null}
+
       {rules.length > 0 ? (
-        <ul className={styles.list}>
-          {rules.map(rule => (
-            <li className={styles.row} key={rule.id}>
-              <span className={styles.when}>
-                <span className={styles.rule}>{interpolate(t.rule, { day: t.weekdays[rule.weekday], meal: t.slots[rule.slot] })}</span>
-                <Text as="span" size="xs" tone="tertiary">
-                  {rule.dishName}
-                </Text>
-              </span>
-              {/* Every row's button says the same word; the label says which rule it belongs to. */}
-              <Button
-                aria-label={interpolate(t.removeFor, { day: t.weekdays[rule.weekday], meal: t.slots[rule.slot] })}
-                disabled={pending}
-                onClick={() => void remove(rule.id)}
-                size="sm"
-                type="button"
-                variant="secondary"
-              >
-                {t.remove}
-              </Button>
-            </li>
-          ))}
+        <ul className={styles.list} ref={listRef}>
+          {rules.map(rule => {
+            // By the rule's own id, which the row already carries: matching on
+            // the weekday and the slot would be two rules deep in the only
+            // place where being wrong is worst.
+            const broken = unhonoured.get(rule.id);
+            const fix = broken ? wayForward(broken.why) : undefined;
+
+            return (
+              <li className={broken ? `${styles.row} ${styles.broken}` : styles.row} key={rule.id}>
+                <span className={styles.when}>
+                  <span className={styles.rule}>{interpolate(t.rule, { day: t.weekdays[rule.weekday], meal: t.slots[rule.slot] })}</span>
+                  <Text as="span" size="xs" tone="tertiary">
+                    {rule.dishName}
+                  </Text>
+
+                  {/* A word and a sentence, not a colour: forced colours erase
+                      a border and a tint, and a row that said it only in amber
+                      would say nothing there. */}
+                  {broken ? (
+                    <Fragment>
+                      <span className={styles.mark}>{t.unhonouredMark}</span>
+                      <Text as="span" size="xs" tone="secondary">
+                        {changedFor(broken.why)}
+                      </Text>
+                      {fix ? (
+                        <Link className={styles.fix} href={fix.href}>
+                          {fix.label}
+                        </Link>
+                      ) : null}
+                    </Fragment>
+                  ) : null}
+                </span>
+                {/* Every row's button says the same word; the label says which rule it belongs to. */}
+                <Button
+                  aria-label={interpolate(t.removeFor, { day: t.weekdays[rule.weekday], meal: t.slots[rule.slot] })}
+                  disabled={pending}
+                  onClick={() => void remove(rule.id)}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  {t.remove}
+                </Button>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
 
