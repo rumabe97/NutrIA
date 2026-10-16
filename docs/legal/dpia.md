@@ -14,7 +14,7 @@
 | --- | --- |
 | Controller (*responsable*) | {name} (see `legalIdentity.ts`) |
 | Processing | (1) meal planning with health and belief data, with generative AI; (2) communicating data to dietitian-nutritionists (project 004) |
-| Version / date | 0.4 draft, 2026-10-03 (0.3: 2026-09-28; 0.2: 2026-09-26; 0.1: 2026-09-25). 0.4 records project 011's account measures (phases 1 to 7, in `main`; phase 8, the sign-up that reveals nothing, **unmerged**: PR #217 — true once merged; [`analysis.md` § 4.1 ter](./analysis.md)): R8, R10 and M13, not scored again (011's phase 10 does that); no new health datum, no new criterion from the AEPD's list. 0.3 reviewed the onboarding trim (`0067`, **unmerged**: branch `feat/onboarding-cleanup` — true once merged): §§ 1.2, 1.3, 2, R2, § 6. 0.2 reviewed only the AI processing (`0064`: OpenRouter): §§ 1.3, 1.4, 2, R2, R14, M3, M4, § 5 and § 6 |
+| Version / date | 0.5 draft, 2026-10-16. 0.5 records the kitchen (`0102`, project 021: §§ 1.2 and 1.3) — a closed enum per appliance, optional, no free text, no new recipient, period or art. 9 datum, and no new criterion from the AEPD's list, so nothing is scored again. Previously: 0.4 draft, 2026-10-03 (0.3: 2026-09-28; 0.2: 2026-09-26; 0.1: 2026-09-25). 0.4 records project 011's account measures (phases 1 to 7, in `main`; phase 8, the sign-up that reveals nothing, **unmerged**: PR #217 — true once merged; [`analysis.md` § 4.1 ter](./analysis.md)): R8, R10 and M13, not scored again (011's phase 10 does that); no new health datum, no new criterion from the AEPD's list. 0.3 reviewed the onboarding trim (`0067`, **unmerged**: branch `feat/onboarding-cleanup` — true once merged): §§ 1.2, 1.3, 2, R2, § 6. 0.2 reviewed only the AI processing (`0064`: OpenRouter): §§ 1.3, 1.4, 2, R2, R14, M3, M4, § 5 and § 6 |
 | Approval | pending — the controller's signature and date |
 | DPO (*DPD*) | not appointed (not mandatory: [`analysis.md` § 5.2](./analysis.md#52-dpo--not-mandatory-today)) |
 | Why it is mandatory | The AEPD's list (art. 35.4), criteria 1, 4, 8 and 10; art. 28.2.c LOPDGDD — [`analysis.md` § 5.1](./analysis.md#51-dpia--mandatory) |
@@ -48,6 +48,7 @@
 | Way of eating | gluten-free, lactose-free, halal, kosher | yes (health / religion) |
 | Declared health | conditions, medication, supplements | yes (health) |
 | Cooking and food preferences | meal shape, maximum cooking time, cuisines, tastes | no |
+| The kitchen (`0102`, project 021) | for each of ten appliances, "does not have it", "has it" or "would rather cook with it"; a row only for the ones somebody spoke about, no free text | no (an appliance reveals no health, religion or belief) |
 | Use of the plan | meals eaten or skipped, ratings, comments, check-ins | may contain health |
 | The care relationship (004) | the link, the consent version, the access trail | it reveals the person is a dietitian's patient |
 | Professional | registration number, the grant, acceptance of the agreement | no |
@@ -61,7 +62,9 @@
    the owner's machine.
 3. **Use**: deterministic computation of targets (`packages/core/domain/Nutrition`),
    generation with AI (prompt 4.4.0 once `0067` is merged: no identifiers, health, free text
-   or the shape and hours of the day, budget or cooking frequency; § 1.3 of the analysis;
+   or the shape and hours of the day, budget or cooking frequency; since 4.9.0, `0102`, two
+   more structured lines with nobody's words: the appliances they do not have and the ones
+   they would rather cook with, as catalogue keys; § 1.3 of the analysis;
    since 2026-09-26 no call at all, `stub`; after `0064`, OpenRouter), deterministic allergy
    checking (`findSafetyViolations`), the professional's access through
    `CareController.withClient` with a trail row.

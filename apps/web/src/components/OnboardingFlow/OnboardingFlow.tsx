@@ -13,12 +13,14 @@ import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { ChipGroup } from 'components/ChipGroup';
+import { KitchenPicker } from 'components/KitchenPicker';
 import { MealShapePicker } from 'components/MealShapePicker';
 import { OptionCards } from 'components/OptionCards';
 import { ProfileConsentFields } from 'components/ProfileConsentFields';
 import { SummaryRow } from 'components/SummaryRow';
 
 import { AGE_YEARS, PACE_KG_PER_WEEK, PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
+import { APPLIANCES, EQUIPMENT_STANCES } from 'core/entities/Kitchen';
 
 import { api, ApiError, messageFor } from 'lib/api';
 import { formatNumber, interpolate } from 'lib/format';
@@ -26,14 +28,16 @@ import { formatNumber, interpolate } from 'lib/format';
 import { FLOW, TOTAL_STEPS } from './steps';
 
 import type { Allergen } from 'core/entities/Safety';
+import type { Appliance, EquipmentStance } from 'core/entities/Kitchen';
 import type { FormEvent } from 'react';
-import type { FullProfileView, ProfileConsentView } from 'core/controllers/Profile';
+import type { ProfileConsentView } from 'core/controllers/Profile';
+import type { ProfileWithKitchen } from 'lib/profile';
 
 interface OnboardingFlowProps {
   allergens: readonly Allergen[];
   /** Only fetched for the about-you step — every other step has nothing to do with it. */
   consent: ProfileConsentView | null;
-  profile: FullProfileView | null;
+  profile: ProfileWithKitchen | null;
   /**
    * Where to go after saving this one step, when the person came to edit it
    * from their profile. The flow then saves and returns rather than marching
@@ -117,10 +121,11 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
   // picture of an app that has hung.
   const [navigating, startNavigation] = useTransition();
   // Which button was pressed, so the spinner lands on that one and not both.
-  const [heading, setHeading] = useState<'back' | 'forward'>('forward');
+  const [heading, setHeading] = useState<'back' | 'forward' | 'skip'>('forward');
   const pending = saving || navigating;
   const advancing = saving || (navigating && heading === 'forward');
   const retreating = navigating && heading === 'back';
+  const skipping = navigating && heading === 'skip';
 
   // Which way the reader is travelling, so the step that arrives comes from the
   // side they are going. Direction is the whole information content of a
@@ -235,9 +240,37 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
       case 'cooking':
         return { cookingTimeMinutes: number('cookingTimeMinutes') };
 
+      case 'kitchen':
+        return { kitchen: kitchenChanges(form) };
+
       default:
         return {};
     }
+  }
+
+  /**
+   * The appliances somebody answered, minus the answers that change nothing.
+   *
+   * A row with no chip chosen is absent from the form, and a row whose answer
+   * is already what this person's kitchen says needs no write — the stance
+   * either stands already or is what the default supplies, and in both cases
+   * the kitchen on screen is the kitchen the API holds. What that avoids is a
+   * save rewriting all ten rows every time, which would freeze a default that
+   * has to stay free to change (`0102`, and `KitchenPicker`'s own note).
+   */
+  function kitchenChanges(form: FormData): readonly { appliance: Appliance; stance: EquipmentStance }[] {
+    const standing = profile?.kitchen.appliances;
+
+    return APPLIANCES.flatMap(appliance => {
+      const chosen = form.get(`kitchen.${appliance}`);
+      const stance = EQUIPMENT_STANCES.find(candidate => candidate === chosen);
+
+      if (!stance || standing?.[appliance] === stance) {
+        return [];
+      }
+
+      return [{ appliance, stance }];
+    });
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -297,7 +330,16 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
         setFieldErrors(caught.fieldErrors);
       }
 
-      setError(messageFor(caught, dictionary));
+      // The one refusal this flow can meet that has no field to sit on: a
+      // fourth preferred appliance (`fieldErrors.appliance`). The screen stops
+      // it before it is sent, so getting here means two tabs — and
+      // «revisa los datos marcados» would point at nothing marked. The bound
+      // itself is the only useful sentence.
+      setError(
+        caught instanceof ApiError && caught.fieldErrors.appliance && profile
+          ? interpolate(dictionary.kitchen.preferredFull, { max: profile.kitchen.maxPreferred })
+          : messageFor(caught, dictionary)
+      );
     } finally {
       setSaving(false);
     }
@@ -550,6 +592,15 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
           />
         ) : null}
 
+        {current?.key === 'kitchen' ? (
+          <fieldset className={styles.fieldset}>
+            <legend className={styles.legend}>{f.kitchen}</legend>
+            {/* Null before the profile could be read: with no kitchen to show,
+                a picker would be ten rows claiming a default we did not fetch. */}
+            {profile ? <KitchenPicker kitchen={profile.kitchen} /> : null}
+          </fieldset>
+        ) : null}
+
         {isReview ? (
           <div className={styles.summary}>
             <SummaryRow label={t.review.name} value={person?.displayName} />
@@ -574,6 +625,19 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
             <SummaryRow label={t.review.allergies} value={profile?.allergies.map(a => a.allergenLabel).join(', ') || dictionary.common.none} />
             <SummaryRow label={t.review.intolerances} value={profile?.intolerances.map(i => i.allergenLabel).join(', ') || dictionary.common.none} />
             <SummaryRow label={t.review.cuisines} value={profile?.cuisines.join(', ') || t.review.noCuisinePreference} />
+            {/* What they said about their kitchen, or what we assume because
+                they said nothing — never a list of ten defaults read back as
+                answers (`0102`). */}
+            <SummaryRow
+              label={t.review.kitchen}
+              value={
+                profile?.kitchen.described
+                  ? APPLIANCES.filter(appliance => profile.kitchen.appliances[appliance] !== 'missing')
+                      .map(appliance => dictionary.kitchen.appliances[appliance])
+                      .join(', ')
+                  : dictionary.profile.kitchenNothingSaid
+              }
+            />
 
             {profile?.targets ? (
               <div className={styles.targetsBox}>
@@ -634,6 +698,28 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
           </Button>
         </div>
 
+        {/* Walking past the whole question, and nothing is sent: the kitchen is
+            the one optional step (`OPTIONAL_ONBOARDING_STEPS`), so `complete`
+            succeeds without it and the profile reads the default. Quiet, under
+            the pair, and not offered to somebody who arrived from their profile
+            — for them "Cancelar" already is the way out. */}
+        {current?.key === 'kitchen' && !returnTo ? (
+          <div className={styles.skip}>
+            <Button
+              disabled={pending}
+              loading={skipping}
+              onClick={() => {
+                setHeading('skip');
+                startNavigation(() => router.push(`/onboarding/${step + 1}`));
+              }}
+              type="button"
+              variant="tertiary"
+            >
+              {t.skip}
+            </Button>
+          </div>
+        ) : null}
+
         {/* Says exactly when the saving happens, not just that it does. "We save
             as you go" would be a lie for the step someone abandons half-typed,
             and being wrong about this is how people lose an answer and stop
@@ -655,7 +741,7 @@ function splitList(value: string | null): string[] {
     .filter(Boolean);
 }
 
-function joinList(preferences: FullProfileView['foodPreferences'] | undefined, sentiment: 'disliked' | 'liked'): string {
+function joinList(preferences: ProfileWithKitchen['foodPreferences'] | undefined, sentiment: 'disliked' | 'liked'): string {
   return (preferences ?? [])
     .filter(preference => preference.sentiment === sentiment)
     .map(preference => preference.label)

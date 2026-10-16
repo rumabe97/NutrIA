@@ -684,3 +684,114 @@
     leaving at most three** — the lock test); the shape refusals writing nothing, including a
     bad kitchen beside a valid `cookingTimeMinutes` leaving the time unchanged; and ownership
     — account B's stances never in account A's profile, a `userId` in a body ignored.
+
+## Phase 5 — The screen somebody describes a kitchen on (2026-10-16)
+
+- **Executor**: `frontend` (opus) for the screens, in its own worktree; `legal` (opus) for
+  the wording `/privacidad` owes; `accessibility` (opus) for the review the plan's
+  verification line names. The lead brought the work over, applied the legal text, ran the
+  probe, applied every P1 and P2, and split two findings into phases of their own.
+- **Result**: done, **pending the owner's verification on an iPhone**, which is this phase's
+  `human-verify` gate and the one thing none of the four of us can stand in for.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=web --filter=ui` — 14 tasks green. Web: 35 files,
+    **298 tests** (3 new). Ui 490, core 4,084, database 53.
+  - **`/local-probe`**, both languages, 320 / 390 / 1280, light and dark, signed in:
+    `/onboarding/8` and `/perfil` **200 everywhere, zero sideways overflow**. The two
+    `under 44px` hints on `/perfil` are the fixed-meal day and slot `select`s and pre-date
+    this change. At 320 the three chips wrap to two lines per appliance (a 4,550 px page);
+    at 390 they fit on one.
+  - **What the screenshots showed that the lines could not**: an unanswered row carries
+    *"(por defecto, sí/no)"* beside the appliance **with no chip chosen**, so a silent
+    kitchen does not read as ten answers somebody gave; the hob's *"No tengo"* is dashed and
+    dimmed with its reason underneath (*"Todos los planes dan por hecho un fuego: sin él no
+    podríamos construirte ningún plan"*); and with the bound spent the line reads *"Ya
+    prefieres 3. Quita una para poder elegir otra."* with **every other `Prefiero` dashed**.
+  - **The language is a cookie, not the URL** — `/en/perfil` is a genuine 404, the `/en`
+    tree is public pages only. Seen by setting `nutria_locale=en-GB` on the probe's session,
+    which is worth knowing for every future probe of a signed-in screen.
+  - **Not seen, and it matters**: `/plan/comida/[id]`, the dish detail with the appliance
+    icons. A probe account has no meal plan and the stub provider writes nothing worth
+    looking at, so **the icons have never been rendered in a browser**. They are reviewed as
+    code and they are the first thing to look at on the owner's device.
+- **The three reviews**:
+  - **`apple-web-design`: PASS**, no P0 or P1 left. It found and fixed a real P1 in passing —
+    a chosen `ChipGroup` chip's only surviving cue under `forced-colors: active` was its font
+    weight, so the chosen chip vanished with the palette. That fix reaches the cuisines, the
+    intolerances and the dietary patterns too.
+  - **`accessibility`: ships after one P1 and two P2s**, all applied. The P1 is the one that
+    matters on the owner's own device: **thirty radios whose accessible name was only
+    "Tengo" / "No tengo" / "Prefiero"**, the appliance living solely in the `fieldset`'s
+    legend. Read linearly that is fine; swiping control to control, or using the
+    form-controls rotor — which is how a form is filled on a phone — it is ten
+    indistinguishable triplets. Fixed with an `ariaLabel` on the chip, `"Horno: Tengo"`, the
+    visible label unchanged so Label-in-Name still holds. It also measured what this phase
+    was most likely to get wrong and found it right: ten distinct named groups, nothing
+    announced as an answer nobody gave, the hob focusable with its reason as its
+    description, the live region firing only on a change, 44 px targets, contrast 4.90–17.9:1
+    on text and 3.15–3.65:1 on borders in both schemes, reduced motion honoured.
+  - **`legal`: the kitchen must be named, in its own bullet**, and *"Tu forma de comer"* must
+    not be stretched to cover it — that entry is quoted by the special-category section and
+    by the art. 9.2.a consent paragraph, so folding the appliances in would tell a reader
+    they sit under the health consent, which the code does not do. Basis 6.1.b, no art. 9, no
+    art. 22, **no consent version bumped and no notice mail** (a bump would send every
+    account back through a blocking health-consent screen for a datum that is not health).
+    The wording, its sources and the publish conditions are in `docs/legal/`.
+- **A live gap this phase closes, and it was mine**: phase 4 added the step server-side, so
+  `resumeStep` answered **9** while the shipped web pinned `TOTAL_STEPS` at **8** and
+  `[paso]/page.tsx` 404s above it. Two places redirect by `resumeStep`, so **a new account
+  that finished the seven data steps and came back landed on a 404**. Production had 8
+  accounts in onboarding and 0 unfinished, so nobody was in that state — but it was
+  reachable from the moment #285 deployed. `frontend` found it, and its `steps.test.ts` pins
+  `FLOW` against `ONBOARDING_STEPS` **by index**: the two lists being in the same order was
+  never checked by anything.
+- **A second live gap, found by reading rather than by running**: `/privacidad`'s *"Lo que
+  recibe el modelo"* paragraph has been short since #284, because prompt 4.9.0 sends the two
+  kitchen lines for **every** account. Not false and nothing in its "nunca" list is broken —
+  incomplete, about data reaching a processor abroad. It ships with this phase.
+- **Deviations from plan**:
+  1. **Step 4 (a standing rule that is no longer honoured) was taken out of this phase** into
+     **phase 5b**, before the work started, because `FixedMealController.standing` is three
+     cheap parallel reads on a screen people open often and answering honourability needs a
+     generation context per call. That is a latency decision, not a sentence.
+  2. **`MealShapePicker`'s missing `forced-colors` block was fixed here**, on a screen this
+     phase does not touch: its chosen state was expressed only in colours, which that mode
+     erases, and unlike `ChipGroup` it had no weight change either — so **the meal size
+     somebody picked was invisible in high contrast**, live. Four lines, and the same defect
+     had just been fixed next door.
+  3. **The onboarding card clips at the browser's 32px font size** — measured, and declined
+     by both agents as not this phase's: steps 2, 5, 6, 7 and 8 all reach x=403 in a 390px
+     viewport with the document's overflow at 0, step 4 reaches 497, `/onboarding/9` and
+     `/perfil` are clean. It is the card's floor, it is older than this project, and fixing
+     it is a change to seven screens. **Phase 5c**, with the numbers, so it cannot die in a
+     message. This phase put `min-inline-size: 0` on the kitchen's own rows so they can never
+     be what sets that floor.
+- **Decisions**:
+  - **`stovetop: missing` is offered and explained, not hidden**: the chip is rendered,
+    `aria-disabled`, focusable, with the reason beside it. Phase 2 measured that a hob-less
+    kitchen keeps 43 dishes of 1,128 and cannot build a plan, and phase 4 left the question
+    open.
+  - **The profile does not edit the kitchen in place.** It is a read-only section with one
+    edit link to the step. The bound, the hob rule, the default-as-default rendering and the
+    only-send-what-changed diff are four rules; a second editor would be a second copy of all
+    four, and `ProfileSection`'s own doc states that rule for every other block on that
+    screen. **So the web never sends `kitchen` on `PATCH /profile/preferences`** — phase 7
+    should assert that route as *the preferences route's* path, not the screen's.
+  - **Only what changed is sent**, never ten rows: rewriting them would freeze a default that
+    has to stay free to change, as the blender changed the day before this screen existed.
+  - **`role="status"` alone, not paired with `aria-live`** — settled by counting rather than
+    by taste: 33 places in `apps/web` use `role="status"` and exactly 2 pair it, both in
+    `FixedMealPlanner`. The pairing is the outlier.
+  - **The policy's words follow the screen's**: `legal` had written *"fuegos"*, the dictionary
+    says `Fuego`, so the published text says *"fuego"* and the legal source carries a note
+    saying why.
+- **Notes for the next phase**:
+  - **Phase 5b has no dictionary key to say its sentence with**, which `frontend` spotted:
+    `fixedMeals.reasons.missing_equipment` is the refusal for a dish being chosen now, not a
+    statement about a standing rule quietly not honoured. It needs its own words, for all
+    four causes.
+  - **Phase 7 owes a case no screen will ever generate**, which is exactly why a suite should:
+    a `kitchen` and a `cookingTimeMinutes` in one body, where a refused fourth `prefers` must
+    leave the cooking time unchanged.
+  - **The probe cannot reach a dish detail.** Any phase that needs to see one needs the
+    owner's dev account and his word, or a seeded plan in the local database.

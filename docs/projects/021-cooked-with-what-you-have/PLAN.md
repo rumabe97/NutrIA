@@ -186,7 +186,8 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 4 — The API asks, stores and answers
 
-- [x] done
+- [x] done — commit `58a4971b` ("A person can say what their kitchen has, and skipping the
+  question costs nothing", #285)
 - **Dispatch**: sonnet @ medium — `/execute-project 021 phase 4` · mechanical from a
   complete contract.
 - **Goal**: the kitchen can be read and written by a person, through the profile and
@@ -216,7 +217,12 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 5 — The screen somebody describes a kitchen on
 
-- [ ] pending
+- [x] done — **the owner's iPhone check is owed after the merge, not before**: this
+  repository has no preview deployments on purpose (`ignoreCommand` skips every branch but
+  `main`, and a preview URL is in neither `ALLOWED_ORIGINS` nor `BETTER_AUTH_URL`), and the
+  one screen most needing a device — the dish detail with its icons — cannot be reached
+  locally at all, because a probe account has no plan. The gate is therefore met where it
+  can be met: in production, on his own account, straight after the deploy.
 - **Dispatch**: opus @ medium — `/execute-project 021 phase 5` — human-verify: the kitchen
   section on the owner's iPhone.
 - **Goal**: a person ticks what they have and marks what they would rather use, in both
@@ -231,7 +237,58 @@ sell — so the supply is part of the promise, not an afterthought.
   2. Both dictionaries, with the names the catalogue's keys stand for.
   3. The design review the repository requires (`apps/web/AGENTS.md` § Design review) with
      the owner's `apple-web-design` skill, P0 and P1 fixed.
-  4. **Say when a standing fixed meal is not being honoured — for all four reasons, not
+  4. **`wayForward` owes the new reason a route.** `FixedMealPlanner.tsx`'s `wayForward` has
+     no `missing_equipment` case, so the dictionary's *"Revisar tu cocina"* is unreachable
+     and a reason marked `actionable` sorts to the top with nothing to do
+     (`invariant-reviewer`, 2026-10-16). The route is this phase's kitchen section, which is
+     why the gap was left rather than closed in phase 3.
+  5. The dish detail shows the appliances the dish declares: **one inline SVG per
+     appliance, sized to the text, with its name beside it** — never an emoji, never an icon
+     alone (`apple-web-design`, and the name is what an assistive technology reads). A dish
+     that declares only a stovetop shows nothing: a chip on every dish is noise.
+  6. **`/privacidad` has to name the kitchen, and the `legal` agent has decided how**
+     (2026-10-16; the wording, its sources and the publish conditions are in
+     `docs/legal/textos/02-politica-privacidad.md`, marked `⟦cocina⟧`, with
+     `analysis.md` § 9 P2-16, the processing record's row 2 and the DPIA § 1.2 updated
+     beside it). Four text changes, both dictionaries together:
+     - a **new bullet of its own** in *"Qué datos recogemos y para qué"*, after *"Tu forma
+       de comer"*. Not folded into that entry, and the reason is worth keeping: that entry
+       is quoted by the special-category section **and** by the art. 9.2.a consent
+       paragraph, so putting the appliances inside it would tell a reader they sit under the
+       health consent — which the code does not do (`setStance` checks no consent, and the
+       kitchen is written through the ordinary preferences endpoint).
+     - an insertion in *"Lo que recibe el modelo"*, naming the appliances they do not have
+       and the ones they would rather use. **This half is already late**: prompt 4.9.0 has
+       been sending both lines for every account since #284, so the page's enumeration of
+       what travels to a processor falls short today. If this phase slips, that insertion
+       ships with whatever goes out first.
+     - a P3 in Spanish only: *"la cocina que te gusta o no"* → *"las cocinas…"*, now that
+       *"Tu cocina"* sits beside it and would otherwise be read as the room.
+     - the bullet also closes `cookingTimeMinutes`, which — correcting what the first
+       version of this line said — **is** named in the model paragraph (since prompt 4.4.0)
+       and was missing only from the collection list.
+     The policy's own words for the default kitchen (*"fuegos, horno, microondas y
+     batidora"*) must match the labels step 2 gives those four appliances; if the screen
+     says *placa*, so does the policy. **No consent version is bumped and no notice mail is
+     sent**, deliberately: a bump would send every existing account back through the
+     blocking health-consent screen for a datum that is not health, and nothing in the
+     "nunca" list changes. Legal basis 6.1.b, not art. 9, not art. 22.
+  7. `/local-probe` at 320, 390 and 1280 px, light and dark, signed in, both languages —
+     the kitchen screens and a dish detail with an oven dish in it.
+- **Acceptance criteria**: PRD 1 and 5. No sideways scroll at any width, every control
+  reachable by keyboard, the empty state saying that silence means a normal kitchen, and the
+  dish detail legible at 320 px with its icons carrying no meaning of their own.
+- **Verification**: `pnpm turbo lint ts:check test --filter=web --filter=ui`; the probe's
+  lines and screenshots in the LOG entry; the `accessibility` agent on the new screen.
+
+### Phase 5b — A rule that is not being honoured says so
+
+- [ ] pending
+- **Dispatch**: opus @ medium — `/execute-project 021 phase 5b` · *added during execution,
+  2026-10-16*: this was step 4 of phase 5 until the lead read what it costs.
+- **Goal**: a standing fixed meal the generator can no longer honour says so, for all four
+  reasons, instead of quietly serving something else.
+- **Why it is its own phase.** **Say when a standing fixed meal is not being honoured — for all four reasons, not
      only the kitchen** (`invariant-reviewer` and `backend-high` agreed on this, 2026-10-16;
      the lead moved it here from phase 4 because the sentence needs the screen that says it).
      A rule whose dish the person's own filters now refuse is not in the pool the generation
@@ -251,30 +308,49 @@ sell — so the supply is part of the promise, not an afterthought.
      Measured the day phase 3 was written: **1 standing rule in all of production**, and the
      default kitchen drops none of it; one production dish of 962 needs an appliance the
      default lacks.
-  5. **`wayForward` owes the new reason a route.** `FixedMealPlanner.tsx`'s `wayForward` has
-     no `missing_equipment` case, so the dictionary's *"Revisar tu cocina"* is unreachable
-     and a reason marked `actionable` sorts to the top with nothing to do
-     (`invariant-reviewer`, 2026-10-16). The route is this phase's kitchen section, which is
-     why the gap was left rather than closed in phase 3.
-  6. The dish detail shows the appliances the dish declares: **one inline SVG per
-     appliance, sized to the text, with its name beside it** — never an emoji, never an icon
-     alone (`apple-web-design`, and the name is what an assistive technology reads). A dish
-     that declares only a stovetop shows nothing: a chip on every dish is noise.
-  7. **`/privacidad` has to name the kitchen** (`/ship` § 2: what the legal pages describe
-     changed). Its *"Qué datos recogemos y para qué"* list is enumerative and the kitchen is
-     in none of its entries — *"Tu forma de comer"* is the dietary pattern and the cuisines,
-     not what somebody owns. It belongs in **this** phase and not phase 4 because this is
-     when a person can actually give it to us: until the screen exists nothing asks, so
-     nothing is collected. The `legal` agent decides the wording (it owns the legal texts);
-     both dictionaries change together, and the same read found that `cookingTimeMinutes`
-     has never been named there either — worth asking it about in the same pass.
-  8. `/local-probe` at 320, 390 and 1280 px, light and dark, signed in, both languages —
-     the kitchen screens and a dish detail with an oven dish in it.
-- **Acceptance criteria**: PRD 1 and 5. No sideways scroll at any width, every control
-  reachable by keyboard, the empty state saying that silence means a normal kitchen, and the
-  dish detail legible at 320 px with its icons carrying no meaning of their own.
-- **Verification**: `pnpm turbo lint ts:check test --filter=web --filter=ui`; the probe's
-  lines and screenshots in the LOG entry; the `accessibility` agent on the new screen.
+
+  The cost is the reason it was taken out of phase 5 rather than squeezed into it:
+  `FixedMealController.standing` is today **three cheap parallel reads** (the rules, the
+  limits, the month's dish requests) on a screen people open to look at their rules, and
+  answering honourability means assembling a generation context — the catalogue, the safety
+  profile, the kitchen and the library pool — per call. That is a latency decision about the
+  profile screen, not a sentence, and it wants measuring: either the context is built once
+  and cached for the request, or the answer is computed where a generation already builds
+  one and stored, or the screen asks for it separately when somebody opens that section.
+  Phase 3 already made the drop **audible** in the logs, so nothing is silent for the owner
+  in the meantime — only for the person.
+- **Scope**: `packages/core/src/controllers/FixedMeal/**`, `apps/api/src/modules/fixed-meals/**`,
+  `apps/web/src/components/FixedMealPlanner/**`, `apps/web/src/i18n/**`.
+- **Acceptance criteria**: a rule whose dish the person's filters now refuse is listed as
+  not being honoured, with the reason, for every one of the four causes — and opening the
+  profile is no slower than it is today, measured rather than assumed.
+- **Verification**: `pnpm turbo lint ts:check test --filter=core --filter=api --filter=web`;
+  the `accessibility` agent on the changed list; and a before-and-after of what `standing()`
+  costs.
+
+### Phase 5c — The onboarding card at 200%
+
+- [ ] pending
+- **Dispatch**: opus @ medium · *added 2026-10-16, measured by `accessibility` and
+  `frontend` during phase 5 and declined by both as not that phase's.*
+- **Goal**: the onboarding flow is readable at the browser's largest font size, which is the
+  size the owner reads at.
+- **The measurement, so nobody has to take it again**: at font size 32px, `/onboarding/8`
+  reaches x=403 in a 390px viewport and x=399 in a 320px one **with the document's
+  horizontal overflow at 0** — so the last 13px (390) or 79px (320) is cut off and cannot be
+  scrolled to, which is the silent kind. **Steps 2, 5, 6 and 7 reach exactly the same
+  numbers and step 4 reaches 497**, so it is the card's floor and not the kitchen's;
+  `/onboarding/9` and `/perfil` are clean, and 150% is clean everywhere.
+- **The cause**: the outer `fieldset` in `OnboardingFlow.tsx` and the row fieldsets carry the
+  UA's `min-inline-size: min-content`, which no `width` can lower. Phase 5 put
+  `min-inline-size: 0` on the kitchen's own rows so they can never be what sets the floor;
+  the card itself is untouched.
+- **Scope**: `apps/web/src/components/OnboardingFlow/**` and whatever a fix needs beside it.
+- **Why its own phase**: it is seven screens, it wants its own probe at 200% and 320px, and
+  it is older than this project — fixing it inside phase 5 would have shipped a change to
+  six screens nobody had looked at under cover of a seventh.
+- **Verification**: the probe at 320 and 390 with the browser's font size at 32px, every
+  onboarding step, before and after.
 
 ### Phase 6 — What it costs, measured
 

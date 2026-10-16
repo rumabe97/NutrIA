@@ -97,6 +97,18 @@
 > change, no version bump, no output gate, no open channel. If the owner takes it, this whole
 > section is moot, and that is the point of writing it down.
 
+## 0 nonies. Before the screen where somebody describes their kitchen reaches production (project 021 phase 5, `0102`)
+
+*Nothing here blocks the feature: it is optional, it is not special-category data, it has no
+free text and it adds no recipient. What it does require is that the page stop being
+incomplete in the same change.*
+
+- [ ] (frontend) The ⟦cocina⟧ / ⟦kitchen⟧ bullet of [`textos/02`](./textos/02-politica-privacidad.md) in `privacy.sections` → "Qué datos recogemos y para qué" / "What we collect and why", **both dictionaries**, right after "Tu forma de comer" / "How you eat"; in that same entry, "y la cocina que te gusta o no" → "y las cocinas que te gustan o no" (Spanish only). `privacy.updated` with the day's date, in both. No notice mail, and **no** `PROFILE_CONSENT_VERSION`, `HEALTH_CONSENT_VERSION` or `TERMS_VERSION` bump ([`analysis.md`](./analysis.md) § 9, P2-16).
+- [ ] (frontend) The insertion in "Lo que recibe el modelo" / "What the model receives", both dictionaries. **This one is already late**: phases 1 to 4 are in production and the prompt carries the two kitchen lines for every account, including those that have said nothing. If phase 5 slips, this insertion still goes out with the first change that ships.
+- [ ] (legal/lead) The bullet says what the code does: silence resolves to a hob, an oven, a microwave and a blender (`DEFAULT_KITCHEN`); a missing appliance is enforced in three places; a preferred one only reorders. If any of those three changes — in particular if "prefers" ever started filtering — the text changes **before** the code reaches production.
+- [ ] (lead) `/condiciones` does **not** change, and neither does `Allowance.ts`: the kitchen is free on both tiers, so there is nothing contractual to say.
+- [ ] (whoever opens it) If the dietitian's workspace ever shows a client's kitchen, that is a new disclosure: "Tu dietista en NutrIA" changes first and `CARE_CONSENT_VERSION` goes up. Today the `/consulta` DTOs carry no kitchen.
+
 ## 0 bis. Before setting `AI_PROVIDER=openrouter` in production (`0064`)
 
 > Production has been running with `AI_PROVIDER=stub` since 2026-09-26: nothing goes out to

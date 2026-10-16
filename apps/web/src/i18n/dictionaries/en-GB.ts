@@ -1712,6 +1712,30 @@ export const enGB: Dictionary = {
     withdraw: 'Delete all my health data'
   },
 
+  kitchen: {
+    appliances: {
+      air_fryer: 'Air fryer',
+      blender: 'Blender',
+      grill: 'Grill or barbecue',
+      microwave: 'Microwave',
+      oven: 'Oven',
+      pressure_cooker: 'Pressure cooker',
+      rice_cooker: 'Rice cooker',
+      slow_cooker: 'Slow cooker',
+      steamer: 'Steamer',
+      stovetop: 'Hob'
+    },
+    defaultHas: 'assumed yes',
+    defaultMissing: 'assumed no',
+    intro:
+      'Say nothing and we assume a normal kitchen: a hob, an oven, a microwave and a blender. We assume you have none of the rest, and nothing you say here takes a dish out of the plan you are already living.',
+    preferredCount: 'You prefer {count} of {max}.',
+    preferredFull: 'You already prefer {max}. Drop one to choose another.',
+    preferredHint: 'Marking one as preferred takes no dish away: it only brings the dishes that use it forward.',
+    stances: { has: 'I have one', missing: 'I do not', prefers: 'I prefer it' },
+    stovetopFixed: 'Every plan assumes a hob: without one we could not build you a plan at all.'
+  },
+
   landing: {
     ctaPrimary: 'Create my plan',
     ctaSecondary: 'How it works',
@@ -1931,6 +1955,7 @@ export const enGB: Dictionary = {
     done: 'Eaten',
     doneHint: 'Marked as eaten.',
     dryLine: '{name}: {dry} dry',
+    equipment: 'Cooked with',
     ingredients: 'Ingredients',
     like: 'I like it',
     likedHint: 'Noted: it may come back, and we will look for dishes along these lines.',
@@ -2033,6 +2058,7 @@ export const enGB: Dictionary = {
       heightCm: 'Height (cm)',
       includesSnacks: 'Include snacks between meals',
       intolerances: 'Intolerances',
+      kitchen: 'What is in your kitchen?',
       liked: 'Foods you like',
       likedHint: 'Separate with commas.',
       mealShape: 'Which meals do you eat, and how big?',
@@ -2105,6 +2131,7 @@ export const enGB: Dictionary = {
       cuisines: 'Cuisines',
       height: 'Height',
       intolerances: 'Intolerances',
+      kitchen: 'Your kitchen',
       mealShape: 'Meals in a day',
       name: 'Name',
       noCuisinePreference: 'No preference',
@@ -2116,6 +2143,8 @@ export const enGB: Dictionary = {
 
     saveNote: 'Each step is saved when you press “Continue”. You can leave whenever you like and you will come back to exactly here.',
 
+    skip: 'Skip this step',
+
     stepOf: 'Step {current} of {total}',
 
     steps: {
@@ -2126,6 +2155,7 @@ export const enGB: Dictionary = {
       foodPreferences: { subtitle: 'What you like turns up more. What you don’t, disappears.', title: 'Preferences' },
       goal: { subtitle: 'You can change it whenever you like.', title: 'Your goal' },
       howYouEat: { subtitle: 'How you spread your food across the day.', title: 'How you eat' },
+      kitchen: { subtitle: 'Optional. Whatever you do not say, we assume.', title: 'Your kitchen' },
       review: { subtitle: 'Check everything is right before you finish.', title: 'Review' }
     }
   },
@@ -2569,6 +2599,7 @@ export const enGB: Dictionary = {
           'Country: where you shop from. So the catalogue only shows you foods you can actually find there.',
           'Allergies and intolerances: the ones you pick from the list, the ones you type yourself, and how severe they are. So that no plan offers you something that could harm you.',
           'How you eat: for example vegetarian, gluten-free or lactose-free, and the cuisines you like or not. To fit the dishes to you.',
+          'Your kitchen: the most time you want to spend on one dish and, if you tell us, which of the appliances on our list you have, which you do not have and which you would rather cook with. So that no plan offers you a dish you cannot cook, and so the dishes made with what you prefer come first. If you tell us nothing, we assume you have a hob, an oven, a microwave and a blender.',
           'Conditions, medication and supplements: only if you choose to tell us, under a separate consent you can withdraw at any time without deleting the rest of your account.',
           'How the plan is going: which meals you mark as eaten or skipped, your ratings and comments on dishes, your weight over time and your fortnightly check-ins. So the next plan takes them into account.',
           'Payments: if you subscribe to Premium, Stripe takes the payment and we keep only the identifier for your subscription and its status. We never see your card number.',
@@ -2612,7 +2643,7 @@ export const enGB: Dictionary = {
         heading: 'Artificial intelligence',
         paragraphs: [
           "NutrIA's dishes and recipes are designed by an artificial-intelligence model or come from our library of dishes already designed and checked. Our own code checks every dish before it reaches you: a declared allergen does not reach your plan even if the model gets it wrong. The AI makes no decision about you: the calorie and protein bounds are applied by fixed rules, not by the model.",
-          'What the model receives when it designs new dishes for your plan: your daily targets and your goal (for example, losing weight), which meals you eat and how much time you want to spend cooking each dish, whether you are vegetarian or vegan, the cuisines and foods you like, the names of dishes you liked, disliked or ate last fortnight, and your closed check-in answers (hunger, difficulty, rating). Always by the names on our lists. It never receives your name, email, age, sex, weight or height, anything you typed yourself — except the name of a dish, if you ask it for one —, your allergies or intolerances, any other way of eating (gluten-free, lactose-free, halal, kosher…), or your conditions, medications or supplements. What you cannot or will not eat we remove first, in our code, from the catalogue of foods it sees: it gets the effect, never the datum.',
+          'What the model receives when it designs new dishes for your plan: your daily targets and your goal (for example, losing weight), which meals you eat and how much time you want to spend cooking each dish, which kitchen appliances you do not have and which ones you would rather cook with, whether you are vegetarian or vegan, the cuisines and foods you like, the names of dishes you liked, disliked or ate last fortnight, and your closed check-in answers (hunger, difficulty, rating). Always by the names on our lists. It never receives your name, email, age, sex, weight or height, anything you typed yourself — except the name of a dish, if you ask it for one —, your allergies or intolerances, any other way of eating (gluten-free, lactose-free, halal, kosher…), or your conditions, medications or supplements. What you cannot or will not eat we remove first, in our code, from the catalogue of foods it sees: it gets the effect, never the datum.',
           "Where it goes: the request goes to OpenRouter (OpenRouter, Inc., United States), which processes it on our behalf and passes it to the company that runs the model: DeepInfra or CoreWeave, also in the United States. The model is Gemma 4 31B and, if it does not answer, DeepSeek V4.1 Flash; they are open models run by those companies: what is sent to design your dishes never goes through Google's or DeepSeek's own services.",
           'Nobody trains on it or keeps it: we only use providers that delete the request as soon as they answer and do not use it to train or improve any model. We require this in our OpenRouter account and again in every request. OpenRouter keeps only technical data about each request (size, time, cost), not its content.',
           'If you ask it for a dish: you can ask us for a dish our library does not have by typing its name. That name is the only thing written by you that reaches the model, and it travels with the rest of the request to the same companies. Write only the dish’s name: it is sent as it is, so do not put anything about you or about anybody else there. We do not keep what you type: as soon as the model answers, your text is gone, and it is left in no record. What does stay is the dish, with the name and the recipe the model writes, in the same library as every other: it may turn up in somebody else’s plan, and it does not say who asked for it.',
@@ -2722,6 +2753,11 @@ export const enGB: Dictionary = {
     height: 'Height',
     howYouEat: 'How you eat',
     intolerances: 'Intolerances',
+    kitchenNothingSaid: 'The normal things: a hob, an oven, a microwave and a blender. You have said nothing yet, and you do not have to.',
+    kitchenTitle: 'Your kitchen',
+    kitchenYouHave: 'You have',
+    kitchenYouLack: 'You do not have',
+    kitchenYouPrefer: 'You would rather use',
     likedFoods: 'Foods you like',
     locale: 'Language',
     localeHint: 'Changes the interface straight away and is saved to your profile.',

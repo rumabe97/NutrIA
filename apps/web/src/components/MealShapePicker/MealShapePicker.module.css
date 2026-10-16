@@ -55,6 +55,25 @@
   color: var(--color-brand-11);
 }
 
+/*
+ * Forced colours erase the fill, the border colour and the text colour, which is
+ * every cue this pill had for being the chosen one — and unlike `ChipGroup` it
+ * never changed weight either, so in that mode the meal size somebody picked was
+ * indistinguishable from the three they did not. The house pattern, as
+ * `ChipGroup`, `PlanSwitch` and `ShoppingRange` use it: a system-colour border,
+ * which sticks on its own. Same width as the pill's own border, so nothing
+ * shifts.
+ *
+ * Found by the `apple-web-design` review of project 021 phase 5, on a screen that
+ * phase did not touch: it was live. Fixed there rather than noted, because it is
+ * four lines and the same defect had just been fixed next door.
+ */
+@media (forced-colors: active) {
+  .size input:checked + .pill {
+    border: 1px solid Highlight;
+  }
+}
+
 .size input:focus-visible + .pill {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);

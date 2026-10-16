@@ -7,8 +7,9 @@ import { serverApi } from 'lib/server-api';
 import { appMetadata } from '../../../_shared/metadata';
 
 import type { Allergen } from 'core/entities/Safety';
-import type { FullProfileView, ProfileConsentView } from 'core/controllers/Profile';
 import type { Metadata } from 'next';
+import type { ProfileConsentView } from 'core/controllers/Profile';
+import type { ProfileWithKitchen } from 'lib/profile';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,10 +40,12 @@ export default async function OnboardingStepPage({
   }
 
   // Only the allergies step renders the catalogue, and only the about-you step
-  // shows the consent checkbox — fetching either for the other eight steps is
-  // a whole extra API invocation per step for nothing.
+  // shows the consent checkbox — fetching either for the other seven steps is
+  // a whole extra API invocation per step for nothing. The profile is read for
+  // every step: the kitchen step needs its `kitchen` half as much as the others
+  // need their fields.
   const [profile, allergens, consent] = await Promise.all([
-    serverApi<FullProfileView>('/profile'),
+    serverApi<ProfileWithKitchen>('/profile'),
     FLOW[step - 1]?.key === 'allergies' ? serverApi<readonly Allergen[]>('/safety/allergens') : null,
     FLOW[step - 1]?.key === 'about-you' ? serverApi<ProfileConsentView>('/profile/consent') : null
   ]);

@@ -1,12 +1,19 @@
 import type { OnboardingStep } from 'core/entities/Onboarding';
 
 /**
- * The seven data steps plus a review screen, in order.
+ * The seven required data steps, the optional kitchen, and a review screen, in
+ * order.
  *
- * `core/entities/Onboarding` declares nine (the ninth is plan generation, which
- * arrives with the meal-engine project). Here we render eight, and the review
- * step closes onboarding — so the flow never shows a step whose action does not
- * yet exist.
+ * `core/entities/Onboarding` declares ten (the tenth is plan generation, which
+ * lives on its own screen). Here we render nine, and the review step closes
+ * onboarding — so the flow never shows a step whose action does not yet exist.
+ *
+ * **The positions have to agree with `ONBOARDING_STEPS`**, not merely be in the
+ * same order: the server's `resumeStep` is an index into *its* list, and the
+ * page reads it as an index into this one. The kitchen arriving in the API
+ * (project 021 phase 4) without arriving here left `resumeStep` 9 — the review
+ * — pointing past the end of an eight-step flow, which is a 404 for anybody who
+ * had answered everything and not yet finished.
  *
  * Only keys. The title and subtitle live in the dictionaries, because a step
  * list that carries its own Spanish is a step list that cannot be translated.
@@ -22,6 +29,7 @@ export const FLOW = [
   { copy: 'foodPreferences', key: 'food-preferences' },
   { copy: 'allergies', key: 'allergies' },
   { copy: 'cooking', key: 'cooking' },
+  { copy: 'kitchen', key: 'kitchen' },
   { copy: 'review', key: 'review' }
 ] as const satisfies readonly { copy: string; key: 'review' | OnboardingStep }[];
 

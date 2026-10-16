@@ -111,6 +111,14 @@
   text-align: center;
 }
 
+/* Walking past an optional step: centred under the pair, never beside them —
+   a third button in that row would make the primary one of three equals. */
+.skip {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-04);
+}
+
 .error {
   background-color: var(--color-red-03);
   border-radius: var(--radius-control);
