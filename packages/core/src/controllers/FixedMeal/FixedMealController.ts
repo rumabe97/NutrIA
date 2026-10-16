@@ -1,10 +1,12 @@
 import { NotFoundError } from 'core/entities/Error';
+import { actionable } from 'core/domain/FixableReason';
 import { countedStanding } from 'core/domain/Allowance';
 import { DishRequestController } from 'core/controllers/DishRequest';
 import { FixedMealRepository } from '#repositories/FixedMeal';
 import { PlanController } from 'core/controllers/Plan';
 
 import type { AddFixedMeal, FixedMeal, Weekday } from 'core/entities/FixedMeal';
+import type { FixableVerdict, NotFixable } from 'core/domain/FixableReason';
 import type { MealSlot } from 'core/entities/Plan';
 import type { CountedStanding } from 'core/domain/Allowance';
 
@@ -18,6 +20,59 @@ import type { CountedStanding } from 'core/domain/Allowance';
  * is premium *before* it types a dish's name rather than after.
  */
 export type FixedMealsView = { readonly dishRequests: CountedStanding; readonly rules: readonly FixedMeal[]; readonly standing: CountedStanding };
+
+/**
+ * One standing rule the plan this person would generate next could not honour,
+ * and why (021 phase 5b).
+ *
+ * `id` is the rule's own, as `FixedMealsView.rules` carries it, so a screen
+ * marks the row it already has rather than matching on a weekday and a slot.
+ *
+ * `why` is `whyNotFixable`'s answer and `actionable` is `FixableReason`'s, for
+ * the same reason `NotOfferedDish` carries it: whether somebody is owed a way
+ * forward or a plain no is a judgement the domain already made, and two places
+ * deciding it is how they come to disagree.
+ */
+export type UnhonouredRule = { readonly id: string; readonly actionable: boolean; readonly why: NotFixable };
+
+/**
+ * Which of this account's standing rules are not being honoured.
+ *
+ * **Its own answer and its own request** (021 phase 5b), not a field of
+ * `FixedMealsView`: answering it assembles a generation's context — the
+ * catalogue, the safety profile, the kitchen and the library pool — and
+ * measured on 2026-10-16 against the local library that is **75–90 ms** beside
+ * the **2 ms** `FixedMealController.standing` costs. The phase's own acceptance
+ * criterion is that opening the profile is no slower than it was, so the screen
+ * asks for this separately, once the rules are on it.
+ *
+ * `judged` is false when the answer could not be computed at all — a profile
+ * whose targets the equations reject, a consent withdrawn between the two
+ * requests. `unhonoured` is then empty and **says nothing**: a screen must not
+ * read it as "every rule is fine".
+ */
+export type FixedMealHonourability = { readonly judged: boolean; readonly unhonoured: readonly UnhonouredRule[] };
+
+/**
+ * The rules of these that a verdict refuses, in the order a screen should say
+ * them: the ones the person can do something about first, then by weekday.
+ *
+ * `judge` is the caller's because answering it needs a generation's context,
+ * which is the API's to assemble and not a domain controller's — the same split
+ * `add` makes with `pinnable`. What lives here is that a refused rule is
+ * reported with the domain's own `actionable`, and that a list leading with a
+ * refusal buries the two taps that would have fixed the next one.
+ */
+export function unhonouredFrom(rules: readonly FixedMeal[], judge: (rule: FixedMeal) => FixableVerdict): readonly UnhonouredRule[] {
+  return rules
+    .flatMap(rule => {
+      const verdict = judge(rule);
+
+      return verdict.fixable ? [] : [{ id: rule.id, actionable: actionable(verdict.why), rule, why: verdict.why }];
+    })
+    .sort((a, b) => Number(b.actionable) - Number(a.actionable) || a.rule.weekday - b.rule.weekday)
+    .map(({ id, actionable: canAct, why }) => ({ id, actionable: canAct, why }));
+}
 
 export const FixedMealController = {
   /**

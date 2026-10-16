@@ -47,6 +47,18 @@ export type NotFixable =
   | 'too_big_or_small'
   /** It is not a dish for this meal, for this person (`0062` § 5). */
   | 'too_slow'
+  /**
+   * The dish a rule names is not in this person's library at all any more: it
+   * was dropped from the catalogue, or the account changed language and the
+   * pool will never hold it again (021 phase 5b).
+   *
+   * **Only ever said about a rule somebody already wrote**, never about a
+   * search: a dish the library does not have is not a dish anybody can type
+   * the name of and be refused. Not actionable, for the same reason
+   * `no_method` is not — the dish is gone, and that is ours rather than
+   * theirs.
+   */
+  | 'unknown_dish'
   /** It cannot be sized into this meal's plate — the commonest, and it usually fits another meal. */
   | 'wrong_slot';
 

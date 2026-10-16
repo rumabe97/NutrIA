@@ -796,6 +796,177 @@
   - **The probe cannot reach a dish detail.** Any phase that needs to see one needs the
     owner's dev account and his word, or a seeded plan in the local database.
 
+## Phase 5b — A rule that is not being honoured says so (2026-10-16)
+
+- **Executors**: `backend` (opus) as `standing-honour` for `packages/core` and `apps/api`;
+  `frontend` (opus) as `standing-sentence` for `apps/web`; `accessibility` (opus) as
+  `honour-a11y` for the review the phase's verification line requires. The two implementers
+  never spoke: the lead carried the wire shape between them, which is why it is written out
+  in full below.
+- **Result**: done. A standing fixed meal the generation can no longer honour now says so,
+  on the row it belongs to, with the reason and a way forward.
+
+### The finding that outranks the feature: the record was wrong, and had been for two phases
+
+**The season does not break a standing rule.** `FixedMealsService`'s own header has said
+since project 020 that *"a rule written in June with a summer dish stops being honourable in
+December without anybody being told"*, the plan repeated it as one of four causes, and it is
+**false**. Measured by `backend` with a test that first pins `outOfSeasonFruit` on
+`nectarina` for a January fortnight so the fixture cannot quietly stop being out of season,
+and then verified independently by the lead in the scheduler:
+
+- `honouredPin` is consulted at the top of the slot loop (`Scheduler.ts:1014`) and the
+  comment beneath it says nothing below runs — not the variety gate, not the kind caps, not
+  the floors.
+- The season predicate lives in `seasonFor` (`Scheduler.ts:1813`), in the day search below.
+- Neither `servable` nor `pinnable` filters by month; the other `outOfSeasonFruit` call
+  (`Scheduler.ts:1259`) is in `pickReplacement`, the swap path.
+
+**So a June dish fixed to a December Monday is still served.** The season reaches a rule
+only when another rule shares the day, through `dayHolds`, and the sentence said then is
+`clashes_with_fixed` — a mislabel, left recorded rather than machined around because naming
+it costs a second mechanism. The header is corrected, the plan's goal and acceptance
+criterion are amended, and **five causes produce a sentence** where the plan assumed four:
+`too_slow`, `missing_equipment`, `unknown_dish` (new), `wrong_slot`, `clashes_with_fixed`.
+
+### The latency decision, and the plan's preferred reading was wrong
+
+The plan named three shapes and refused to pick. The numbers picked, on the local library
+(1,148 recipes, 851-dish pool, medians of nine runs, core built first):
+
+| | median |
+| --- | --- |
+| `standing()` as it was, and still is | **2 ms** |
+| the assembly alone, no rules | 53 ms |
+| honourability, one rule | **76 ms** |
+| three rules on three days | 82 ms |
+| two rules sharing a day | 109 ms |
+| a rule pointing at a deleted dish | 58 ms |
+
+So folding it into the profile read would have been **forty times slower on a screen people
+open to look at their rules**, for an answer that is empty for almost every account — one
+standing rule in all of production. **Chosen: a separate route**, `GET
+/fixed-meals/honourability`, with `FixedMealsView` untouched so the profile page compiles
+unchanged. Storing it at generation time was refused on **correctness** rather than cost:
+every cause can change after a generation, so a stored answer is right about the last plan
+and wrong about the person.
+
+**One number changed the design.** `pinnable` with a non-empty `held` is **2.7 s** on this
+pool — its own comment says "about 14 ms each" per candidate, which is true and ruinous over
+851 of them. Rather than add a third caller, `dayHoldsPin` went into the scheduler: the same
+last filter asked of **one** dish, **6 ms**, with a test asserting it agrees with
+`pinnable`'s whole-pool answer dish by dish. That is why two rules on one day cost 109 ms
+and not 5.4 s.
+
+### The wire
+
+```ts
+type UnhonouredRule = { readonly id: string; readonly actionable: boolean; readonly why: NotFixable };
+type FixedMealHonourability = { readonly judged: boolean; readonly unhonoured: readonly UnhonouredRule[] };
+```
+
+`judged: false` means **the answer could not be computed**, not that every rule is fine —
+so the screen renders nothing at all rather than reassurance nobody earned.
+
+### What the screen says, and why the words are new
+
+Phase 5 left this phase a specific problem and it was the heart of it: `reasons.*` answers
+*"why was this dish not offered when you went looking"*, and this says *"a rule you set some
+time ago is quietly not being honoured, and here is what changed"*. Same cause, different
+tense, different thing to do next. So `unhonouredReasons` is its own block of ten, beside
+the picker's nine, which are untouched. The mark is the **word** «No se está cumpliendo»,
+with the amber border third — the lesson phase 5 learned the hard way on `MealShapePicker`,
+whose chosen state was colour only and invisible in forced colours.
+
+### Verification
+
+- `pnpm turbo lint ts:check test --filter=core --filter=api --filter=web` green; web 14/14,
+  298 tests. `apps/api/src/modules/fixed-meals/services/FixedMeals.spec.ts` is new: nine
+  cases driving the real `honourability` over a stubbed context, one per cause plus the
+  ordering and `judged: false`.
+- **A red build was left red, deliberately and reported.** Widening `NotFixable` with
+  `unknown_dish` made `t.reasons[why]` a TS7053 in `FixedMealPlanner.tsx`, in a file the API
+  agent may not edit. It said so instead of reaching across, and the web agent's keys closed
+  it. The lead ruled the picker's key **stays** rather than being narrowed away: `why` is
+  typed `NotFixable` on the wire, so a client can receive the value whatever today's producer
+  does, and a total map defends the contract while a narrowing branch defends an assumption.
+- The second request is behind an `IntersectionObserver` on the rules list that fires once
+  and disconnects, so the profile's first paint is untouched — the profile is a Server
+  Component and `rules`/`standing` still arrive as props. A failed answer is swallowed, as
+  `explain` does it, leaving the screen this phase started from.
+- `apple-web-design`: **PASS**, two P1s found and fixed by the implementer, one P2, no P0.
+- **`accessibility` found two more P1s and four P2s, in a browser, and one of them was the
+  implementer's own fix.** All six fixed and then **re-measured on the shipped build**, which
+  is the only reason the numbers below are quotable:
+  - **A removal whose re-judgement failed wiped every mark**, which is the exact failure this
+    phase exists to prevent: three marked rows and «Hay 3 comidas fijas que ya no podemos
+    cumplir» became zero marks and only «Quitada», with two rules still unhonourable — a
+    screen that had said "three are broken" saying nothing, right after an action. The marks
+    are now **derived** from the rules on screen rather than replaced, so nothing can unmark
+    a row but an answer saying the rule is honourable. Verified both ways with the second
+    call denied.
+  - **`overflow-wrap: anywhere` cost the row 2.7× its height** — 5440 px at 320 px with a
+    32 px root, the text column down to **21 px**, stacking a sentence one letter per line.
+  - The answer landing under the thumb (`rootMargin: '400px'`), no `forced-colors` block at
+    all, the amber border at **1.80:1 in light** (9.65:1 in dark — the colour channel existed
+    only in the dark scheme), and the `role="status"` sentence sitting *below* the rows while
+    saying «marcadas arriba».
+  - **On the shipped build**: marked row **882 px** at 320/32 (text column 164 px) and
+    **692 px** at 390/32, document overflow 0; forced colours marks the border `Highlight`
+    against an unmarked `rgb(0,0,0)`; the border is 5.07:1 light and 8.16:1 dark at 1 px, so
+    marked and unmarked rows stay the same height; the marks land while the list is still
+    360–676 px below the fold.
+- **The lesson of this phase, and it happened twice in one evening**: a reasoned CSS fix was
+  worse than what it replaced, both times, and both times only a number caught it. The
+  implementer added `overflow-wrap: anywhere` to stop a marked row overflowing and tripled
+  its height; the reviewer then told it to remove the property and, on measuring, **corrected
+  its own recommendation** — without it the row is 425 px wide on a 320 px screen with the
+  document's overflow still at 0, phase 5c's exact signature. What ships is the pair:
+  `anywhere` **and** a row that wraps under `@media (width < 17rem)`, in `rem` so the query
+  tracks the reader's font size rather than their device, inert at ordinary sizes. The three
+  measurements are in the stylesheet beside the rules, so nobody re-tries either half from
+  memory.
+- **`/en/perfil` 404s, and that is by design, not a defect** — checked when the review
+  reported it: `apps/web/src/app/en/` holds only the public tree, the signed-in app has no
+  locale segment, and its dictionary comes from the `nutria_locale` cookie through
+  `activeLocale()`. The English strings are reached by setting that cookie, which the
+  re-probe then did.
+
+### Deviations from plan
+
+1. **Scope crossed twice, both amended in the plan rather than left quiet**:
+   `packages/core/src/domain/FixableReason/**` for the new `unknown_dish` reason, because a
+   deleted dish has no sentence without it and a second mechanism is what this phase
+   forbids; and `packages/core/src/domain/Scheduler/**` for `dayHoldsPin`.
+2. **Both agents worked in the main checkout**, not worktrees: a worktree has no
+   `apps/api/.env`, and they were in disjoint directories.
+3. **The visual pass was unspent by the implementer** and had to be unlocked by the lead:
+   both agents believed a marked row was unreachable without a real account. It is reachable
+   through real routes with no SQL — fix a meal (**no plan is needed**, only a non-empty
+   offer) on a dish declaring an oven, then `PATCH /profile/preferences` with `oven:
+   missing`. That recipe is worth keeping: it is how any "a rule stopped working" state is
+   staged from now on.
+
+### Left standing, with the owner told
+
+- **`POST /fixed-meals/not-offered` and `POST /fixed-meals/request` still take ~2.7 s** when
+  that weekday already holds a rule. Pre-existing, **unchanged** by this phase, and the
+  owner confirmed he feels it. `dayHoldsPin` is the right instrument for the handful of
+  dishes a search asks about and the **wrong** one for the whole offer, so the fix needs its
+  own per-route measurement. Queued in `docs/ROADMAP.md` § *Next*.
+- **The owner asked for a product change on 2026-10-16**: a dish the day's macros cannot
+  hold should warn and be choosable rather than be refused. It revisits `0101`'s gate, it
+  will need a decision record, and the wording of `clashes_with_fixed` and
+  `too_big_or_small` changes with it — deliberately left untouched here. Also queued in the
+  roadmap, with the consequence stated: a day built around an accepted rule comes out of
+  band, which `0011` allows and the evaluator counts.
+
+### Notes for the next phase
+
+- **No e2e suite covers honourability.** `apps/api/test/**` is the `tests` agent's and this
+  phase did not enter it. What it owes: a rule, a cause applied, the reason named, another
+  account's rule absent, and `judged: false` not a 500.
+
 ## Phase 5c — The onboarding card at 200% (2026-10-16)
 
 - **Executor**: opus, in-session. A CSS change measured in a browser rather than reasoned
@@ -998,6 +1169,43 @@
      phase closes. **Whatever it says**: zero air-fryer dishes is a result — it would mean
      `PREFERRED APPLIANCES:` is a line the model ignores, and that is worth knowing before
      phase 8 grows a catalogue on the strength of it.
+
+## Phase 6 step 3 — The preference half, and the answer is zero (2026-10-16)
+
+- **Run by the owner**, on production, from his own account — which this phase had
+  recommended against, because `PlanRepository` completes the active plan in the
+  transaction that inserts the new one. He chose to, and the gate is met.
+- **The answer: zero.** With the air fryer marked *prefers*, prompt **4.9.0** sent
+  `APPLIANCES THEY WOULD RATHER COOK WITH — use these where the dish is as good for it:
+  air_fryer` to `google/gemma-4-31b-it` (CoreWeave, twelve calls, 84,996 input tokens,
+  about $0.013). 21 dishes written, 9 distinct used, **none declaring an air fryer and none
+  naming one in its steps**; 0 of 56 plates either way. The numbers are in
+  [`0102`](../../decisions/0102-a-kitchen-is-what-it-has-and-what-it-would-rather-use.md)
+  § *What it costs, measured*.
+- **The prompt was verified before the model was blamed.** `kitchenLines()` in
+  `PoolPrompt.ts` emits both lines, the metadata records `promptVersion: "4.9.0"`, and the
+  rejection tally holds no `missing_equipment` — so the line went out and nothing of what
+  came back was refused for an appliance. The failure is downstream of the prompt, not in
+  it.
+- **One thing was checked rather than assumed.** A fresh dish named *Bacalao con cuscús y
+  berenjena **asada*** declares only `stovetop`, which read like under-declaration. Its
+  steps say *"saltearlos … en la sartén"* throughout: **the declaration is correct and the
+  dish's name is loose.** Two other fresh dishes declare nothing at all, and that is right
+  too — they are no-cook dishes.
+- **What the same generation proves about the other half**, which is why this is not a
+  failed phase: 14 of 14 days inside 5% on all four macros, zero advisories, no allergen,
+  the owner's pinned tortilla honoured on both of its weekdays — while `blender: missing`
+  on that account silently kept production's 20 blender dishes out of his pool. *Does not
+  have* is enforced and demonstrated in production on a real person's plan.
+- **Limits of the measurement, stated rather than buried**: a dish is stored only if the
+  plan used it, so 12 of the 21 written dishes are gone unexamined; the instruction is soft
+  by design (*"where the dish is as good for it"*), so a model judging that nothing
+  qualified is not disobeying; and it is one generation on one model.
+- **What follows**: nothing to fix in the prompt yet. The library has **zero** air-fryer
+  dishes to prefer, so the line is being asked to invent what the catalogue cannot show it.
+  Phase 8 grows the catalogue and the line is re-measured against a library that has
+  something to prefer — which is the order `0102` § *Adding an appliance to the catalogue is
+  adding a promise* already argued for.
 
 ## Phase 7 — End to end (2026-10-16)
 

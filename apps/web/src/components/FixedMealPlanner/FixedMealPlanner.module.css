@@ -29,10 +29,81 @@
   padding: var(--space-03) var(--space-04);
 }
 
+/* A rule the next plan could not honour (021 phase 5b). The border is the
+   second thing it says, never the first: the row's own words carry the message,
+   which is what survives forced colours.
+
+   `--color-warning-text` and not `--color-warning` for it: measured on the
+   card, the amber solid is 9.65:1 in dark but 1.80:1 in light, against 1.30:1
+   for an unmarked row's border — a difference of 1.4× is not a difference at a
+   glance, at 200% zoom or with low vision (`accessibility`, 2026-10-16). Step 11
+   is 5.07:1 light and 8.16:1 dark. */
+.broken {
+  align-items: start;
+  border-color: var(--color-warning-text);
+}
+
+/* Forced colours keeps a border but chooses the colour itself, so a marked row
+   and an unmarked one compute the same black. `Highlight` is how the row stays
+   marked there; the word in it is why this is not the only channel. */
+@media (forced-colors: active) {
+  .broken {
+    border-color: Highlight;
+  }
+}
+
+/* This column holds «electrodoméstico» and the library's longest dish name, and
+   min-content is the longest unbreakable word, which `break-word` does **not**
+   reduce — the fact phase 5c turned on. With **no** `overflow-wrap` and no
+   large-text rule the row grew to 425 px on a 320 px screen with the document's
+   own overflow at 0: cut off and unreachable rather than scrollable. With the
+   rule below in place `break-word` measured the same 882 px row and 164 px
+   column as `anywhere`, so the two are indistinguishable at these widths;
+   `anywhere` stays as the stricter of them, because a single word longer than
+   the whole row still cannot push it. `anywhere` on its own, before that rule
+   existed, collapsed this column to 21 px and stacked a sentence a letter per
+   line — 5440 px of row (`accessibility`, 2026-10-16). */
 .when {
   display: grid;
   gap: var(--space-01);
   min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* At the browser's largest font sizes the button's own width leaves the text a
+   column too narrow to read, so the row stops being a row: the rule takes the
+   full width and «Quitar» drops under it. In `rem`, so the query tracks the
+   reader's font size rather than their device — 17rem is 544 px at a 32 px root
+   and 272 px at 16 px, which no phone reaches. Measured on a `missing_equipment`
+   row carrying the library's longest dish name, at 320 px / 32 px: 5440 px tall
+   and a 21 px text column before, 882 px and 164 px after, against 342 px for an
+   unmarked row; 692 px at 390 px / 32 px, and document overflow 0 throughout. */
+@media (width < 17rem) {
+  .row {
+    flex-wrap: wrap;
+  }
+
+  .row > .when {
+    flex: 1 1 100%;
+  }
+}
+
+/* The mark itself: a word, in the row, above the sentence that says what
+   changed. `--color-warning-text` is the step that clears 4.5:1 as text on this
+   surface; the word is what a reader with no colour at all still gets. */
+.mark {
+  color: var(--color-warning-text);
+  font-size: var(--font-size-01);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* The sentence over the list. Indented by a rule like `.why`, because it
+   belongs to the list rather than to the card as a whole. Its rule is the
+   border colour for the same contrast reason as `.broken`. */
+.unhonoured {
+  border-inline-start: 2px solid var(--color-warning-text);
+  margin: 0;
+  padding-inline-start: var(--space-03);
 }
 
 .rule {

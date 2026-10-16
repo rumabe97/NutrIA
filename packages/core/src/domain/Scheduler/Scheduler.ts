@@ -934,6 +934,26 @@ export function pinnable(
   return sized.filter(dish => dayHolds(input, dayIndex, new Map([...held, [slot, { slot, slug: dish.slug }]])));
 }
 
+/**
+ * `pinnable`'s last filter asked about **one** dish: whether the day still
+ * reaches its bands with `pin` beside what it already holds.
+ *
+ * It exists because of what the whole-pool form costs. Saying that a standing
+ * rule is no longer being honoured (021 phase 5b) asks this of the two or three
+ * dishes somebody fixed, not of the library: measured here on 2026-10-16 against
+ * 851 pool dishes, `pinnable` with a `held` entry is **2.7 s** and the same
+ * question asked of one dish is **6 ms**. A screen people open to look at their
+ * rules cannot pay the first.
+ *
+ * It does **not** repeat the plate fit — `pinnable` with no `held` is that, and
+ * the caller has already asked it. Both are needed: a dish that cannot be sized
+ * into the meal at all is `too_big_or_small`, and one that can but leaves the
+ * day unreachable is `clashes_with_fixed`.
+ */
+export function dayHoldsPin(input: SchedulerInput, dayIndex: number, pin: PinnedMeal, held: ReadonlyMap<MealSlot, PinnedMeal>): boolean {
+  return dayHolds(input, dayIndex, new Map([...held, [pin.slot, pin]]));
+}
+
 export type SchedulerShortfall = {
   readonly available: number;
   readonly dayIndex: number;

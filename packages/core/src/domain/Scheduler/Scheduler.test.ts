@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   axisFilter,
   bandNeededExceptions,
+  dayHoldsPin,
   pickReplacement,
   pinnable,
   PLAN_DAYS,
@@ -3323,6 +3324,25 @@ describe('a fixed recurring meal', () => {
 
     expect(pinnable(input, 4, 'lunch').map(dish => dish.slug)).toContain('pura-grasa');
     expect(pinnable(input, 4, 'dinner', new Map([['lunch', { slot: 'lunch', slug: 'pura-grasa' }]]))).toEqual([]);
+  });
+
+  /*
+   * `dayHoldsPin` is the same last filter asked of one dish, for saying that a
+   * standing rule is no longer honoured (021 phase 5b) without paying 2.7 s to
+   * filter a library nobody asked about. What it owes is agreement.
+   */
+  it('agrees, dish by dish, with the offer that filters the whole pool', () => {
+    const pool = makePool(slotsForTest(3, false));
+    const input = { catalogue, minimumKcal: MINIMUM_KCAL, pool, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) };
+    const held = new Map([['lunch' as const, { slot: 'lunch' as const, slug: 'lunch-0' }]]);
+    const beside = new Set(pinnable(input, 4, 'dinner', held).map(dish => dish.slug));
+    const alone = pinnable(input, 4, 'dinner');
+
+    expect(alone.length).toBeGreaterThan(0);
+
+    for (const dish of alone) {
+      expect(dayHoldsPin(input, 4, { slot: 'dinner', slug: dish.slug }, held), dish.slug).toBe(beside.has(dish.slug));
+    }
   });
 
   it('offers nothing for a slot the person does not eat', () => {
