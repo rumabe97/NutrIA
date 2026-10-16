@@ -117,6 +117,23 @@ uncommitted as this is written, so they start when it ships rather than beside i
   dish by dish; it is the right instrument for the handful of dishes a search asks about and
   the **wrong** one for the whole offer, where asking it 851 times would be slower than what
   is there now. So this needs its own measurement per route, not a substitution.
+- **The health panel clips the labels somebody ticks, at the browser's largest text.**
+  Found 2026-10-16 by an accessibility probe passing through on its way to something else,
+  and it is the same shape as the defect that same probe had just found on the fixed-meal
+  screen — the dangerous one, where the document's own horizontal overflow reads **0** so
+  nothing can be scrolled to what is cut off. At 320 px with a 32 px root, opening
+  `HealthPanel` takes the page from 0 to **173 px** of body overflow: its `fieldset`, its
+  `chips` row and the condition checkboxes' `label`s are 448 px wide with their right edge
+  at 493 on a 320 px screen. It appears the moment the panel opens, before any supplement
+  row exists, so it is independent of anything the `Select` change touched.
+  **Why it is worth more than its size**: the labels half off the screen are the ones a
+  person ticks to say what they cannot eat — «Intolerancia a la lactosa» and its neighbours
+  — so the screen where somebody declares a restriction is the screen that hides half of it
+  from anybody reading at 200%. The fix is the one phase 5c and `0103` both already paid
+  for: a grid track that cannot exceed its card (`minmax(0, 1fr)`), `min-inline-size: 0`
+  where a `fieldset`'s user-agent minimum pins it, and `overflow-wrap: anywhere` rather than
+  `break-word`, which does not reduce min-content width. Small, self-contained, and nobody's
+  current work.
 - **Two suites fail on a developer's library and pass on CI's, and it is their premise that
   is wrong.** Found twice on 2026-10-16 by two agents who were not looking for it. A full
   local run (55 suites, 786 tests, 28 minutes) ends `2 failed`: `generation.e2e-spec.ts` →

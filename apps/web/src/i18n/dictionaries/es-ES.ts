@@ -1691,6 +1691,16 @@ export const esES = {
     /* El 409 del servidor en una pantalla que se quedó atrás: el aviso aparece debajo, ya con la frase que toca. */
     warningStale: 'Ese día ha cambiado mientras elegías. Mira lo que dice ahora y vuelve a pulsar el botón.',
     weekdays: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
+    /*
+     * Los mismos días, como se escriben **dentro de una frase**.
+     *
+     * Dos listas y no un `toLowerCase()`: en español el día va en minúscula en
+     * mitad de una frase y en inglés es un nombre propio y no, así que la caja
+     * es del idioma y no del componente — que es justo lo que hacía «monday»
+     * en la versión inglesa (`warn-a11y`, 2026-10-16). Un idioma nuevo trae su
+     * propia respuesta en lugar de heredar la del castellano.
+     */
+    weekdaysInSentence: ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'],
     whyCount: 'Hay {count} platos con ese nombre que no podemos ofrecerte ahí:',
     whyCountOne: 'Hay un plato con ese nombre que no podemos ofrecerte ahí:'
   },

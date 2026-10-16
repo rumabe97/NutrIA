@@ -1627,6 +1627,8 @@ export const enGB: Dictionary = {
     },
     warningStale: 'That day changed while you were choosing. Look at what it says now and press the button again.',
     weekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    /** Weekdays are proper nouns in English, so mid-sentence they keep their capitals. */
+    weekdaysInSentence: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
     whyCount: 'There are {count} dishes by that name we cannot offer you there:',
     whyCountOne: 'There is one dish by that name we cannot offer you there:'
   },

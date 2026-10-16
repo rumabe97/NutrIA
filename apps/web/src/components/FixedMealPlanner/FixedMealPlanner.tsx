@@ -920,7 +920,7 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, maxPerDay, rule
               <Text className={styles.dayNote} id={`${id}-day-full`} size="xs" tone="tertiary">
                 {interpolate(t.dayFullHint, {
                   days: formatList(
-                    [...filled].map(day => t.weekdays[day].toLowerCase()),
+                    [...filled].map(day => t.weekdaysInSentence[day]),
                     locale
                   ),
                   limit: maxPerDay
