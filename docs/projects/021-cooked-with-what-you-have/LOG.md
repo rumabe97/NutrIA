@@ -193,3 +193,215 @@
     core's vitest aliases only core's own self-references, so `database/schema` resolves to
     `dist` and an unbuilt edit is invisible to the tests that assert against it (this is how
     the enum-drift test can pass against a stale build).
+
+## Phase 2 — Every dish says what it needs (2026-10-16)
+
+- **Executor**: opus, in-session, as in phase 1 — the dispatch line names `opus @ medium`
+  and `/execute-project 021 phase 2`, which is what the owner typed, so the effort is the
+  session's rather than a `backend` variant's. One agent: the reviewer below.
+- **Result**: done. Every one of the 1128 dishes in the development library declares its
+  equipment, inferred from the prose of its own steps, and the inference is written out in
+  the migration's header so it can be argued with.
+- **Evidence**:
+  - `NUTRIA_LOCAL_PG=1 pnpm --filter database migrate` on the 1128-dish library (dumped to
+    the scratchpad first): applied. Afterwards **1128 rows, 0 empty, 0 null**, and
+    **no key outside the ten-appliance catalogue** — the count-by-appliance check phase 1's
+    reviewer asked for, which is what catches a typo in a pattern that `text[]` would
+    otherwise swallow.
+  - **Counts by appliance** (the second reading, after the review below changed three
+    patterns): stovetop 1085, oven 58, blender 20, microwave 3, and **zero** for the air
+    fryer, the pressure cooker, the grill, the steamer, the slow cooker and the rice cooker.
+    1091 dishes declare one appliance; 37 declare two.
+  - **Dish-slot pairs** for the oven: 8 breakfast / 34 lunch / 42 dinner / 7 other, against
+    the PRD's independent reading of production (7 / 35 / 44 / 8). Two readings of two
+    different libraries landing within one dish of each other is the best evidence the oven
+    patterns are right.
+  - **Idempotent**: the same `UPDATE` run again reports `UPDATE 0`. It is not a property of
+    the regexes but of the `WHERE equipment = '{}'` guard, which also means a dish that
+    declares its own equipment — every dish the model writes from phase 3 on — is never
+    overwritten by it.
+  - `node scripts/check-migrations.mjs --drift` — *"1 new, 68 in all, journal and snapshot
+    in order, schema and migrations agree"*; the destructive guard accepts the file's
+    `-- reviewed-destructive:` line. Database lint, types and 53 tests green; `pnpm format`,
+    `pnpm -w run deadcode` and `pnpm check:leaks` clean.
+  - **The export script carries the column now**, and was run to prove it rather than read:
+    `node scripts/export-reference-library.mjs --from-local --source ai` wrote 628 recipes
+    whose `INSERT INTO recipes (...)` names `equipment` between `difficulty` and
+    `instructions`, with real `ARRAY[...]::text[]` values. (The test file was written inside
+    the repository because the script resolves `--out` against the repository root, not the
+    working directory; it was removed.)
+  - **And on a copy, as the plan asks**: the library was dumped at `0066`, restored into a
+    scratch database, and migrated there. The classification's fingerprint —
+    `md5` over every id and its appliances, in id order — is **identical on both**
+    (`fa50fc0a70fcacd80e0b06e11ec0b907`), with 0 empty rows. The scratch database was
+    dropped. (`nutria_ci`, which is also on this machine, was left alone: it is not mine.)
+  - **Production, read-only, with the final patterns** — the review's own condition, and
+    the one piece of evidence the development library cannot give (standing approval for
+    production reads, 2026-10-15): of **962 dishes, 0 would come out empty**; 917 stovetop,
+    **65 oven**, 3 microwave, 20 blender, **1 pressure cooker**, and **zero** air fryer,
+    grill, steamer, slow cooker and rice cooker. 873 declare the hob and nothing else. The
+    single pressure-cooker claim was read rather than counted, and **it is correct**:
+    *"Cocer las alubias blancas secas en una olla a presión con agua y la sal durante 20
+    minutos"* — dried beans in 20 minutes are not possible any other way, and no alternative
+    is offered. So the one dish production will hide from a kitchen without a pressure
+    cooker is a dish that kitchen genuinely cannot cook. The oven's 65 against this library's
+    58 is the ~91 dishes production has generated since the 2026-10-02 export.
+  - `migration-reviewer` (opus @ high) on `0067`: **cleared on one condition** — see
+    **Review** below.
+- **Review** — `migration-reviewer`, opus @ high, 2026-10-16: **safe on production's rows
+  and cannot lose data, cleared on one condition** — that it does not merge in the same pull
+  request as `0066`. It verified in Postgres, rather than by reading, that `array_remove`
+  plus `nullif` plus `coalesce` cannot produce NULL, an empty array or an off-catalogue
+  value; that `\y` is a real word boundary here, so `cebolla` is not read as a pot and
+  `cazoleta` not as a pan; that `jsonb_object_keys` over the whole library returns only
+  `cue`, `minutes` and `text`, none of which any pattern can match; that `EXPLAIN` filters
+  on `equipment = '{}'` before running a single regex; and that the counts reproduce exactly.
+  It also established something I had asserted loosely: the development library is **871 of
+  production's 962 rows by slug** — the 500 seeded dishes plus all 371 of the 2026-10-02
+  export, each slug checked — so 90.5% of production's prose had already been read by these
+  patterns, and ~91 rows had not.
+
+  Two P1s and four P2s are applied; the P1 that remains is an instruction, not a change:
+
+  1. **P1 — "it is its own deploy" was not true of the tree, and no file can make it true.**
+     Only the merge order can. The header now says that plainly, and the owner's instruction
+     is below.
+  2. **P1 — `pnpm db:local reset` would have produced an unclassified library, silently.**
+     `scripts/local-pg.mjs` replays the data-only migration `0056` after each library load,
+     because a data migration that runs before the library exists has nothing to work on;
+     this is the second of those and was not in the list. Left alone, every reset from today
+     would have given a library in which **no dish needs anything** — and phases 3 and 6
+     measure the evaluator on that library. Fixed by making the constant a list, and
+     **proved by running `pnpm db:local reset --reference` end to end**: it reloaded both
+     dumps, replayed `0056` and `0067` over each, and left 871 dishes with **0
+     unclassified**. (The reset cost the 257 dishes the local library held beyond the two
+     dumps; the 1128-dish library was restored from the dump taken before the migration and
+     re-migrated, back to the same fingerprint.)
+  3. **P1 — the ~91 unread production rows.** Answered by the read-only production query
+     above. One row would claim an appliance the default kitchen lacks, and reading it showed
+     the claim is right.
+  4. **P2 — the exclusions covered only each appliance's first synonym.** `cuece las lentejas
+     en olla rápida o en una cazuela normal` would have claimed a pressure cooker, and `en
+     freidora sin aceite o en el horno` an air fryer — both `missing` by default, so both
+     dishes would have vanished for every account. Every synonym is covered now.
+  5. **P2 — one microwave claim contradicted its own prose**: *"deja atemperar los frutos
+     rojos congelados a temperatura ambiente **o** dales un golpe muy breve de microondas"*.
+     The alternative pattern grew a 45-character window inside one JSON string, which also
+     stops an alternative in a *different* step being read as this one's. That dish now
+     declares only the hob, and the three genuine microwave dishes are untouched.
+  6. **P2 — the `asar` paragraph was not true of the library it cited.** The participles are
+     ingredients, as I wrote; but 22 dishes use **verb** forms, and three of those name a
+     tray or a temperature and no vessel — *"ásalos en bandeja a 210 grados 18 minutos"* is
+     unambiguously an oven and was classified as a hob. The oven branch now reads a verb form
+     within 120 characters of `bandeja` or of 150-299 degrees (the range matters: a bare
+     `grados` would have caught the 21 dishes whose cue is *"75 °C en la parte más gruesa"*,
+     which is a thermometer in a piece of meat). It adds exactly that one dish, verified.
+  7. **P2 — the fallback's cost, as a number**: with the hob as the fallback, a kitchen that
+     marks the hob `missing` keeps **43 of 1128** dishes — dinner 21, lunch 15, afternoon
+     snack 12, breakfast 11, morning snack 8, supper 3 — against the 19 a slot the rotation
+     needs, so no plan can be built. If the 240 no-cook dishes declared nothing instead, the
+     same kitchen would keep 47 breakfasts, 28 lunches, 37 dinners, 106 morning snacks, 181
+     afternoon snacks and 45 suppers: above the need everywhere. Measured here and written
+     into the header, because it is the figure phase 9 needs to answer the fallback question
+     and phase 4 needs to decide whether `stovetop: missing` may be offered at all.
+  8. **P3s, all applied**: the header's "13 of 70 oven mentions" reproduced under no reading
+     and is now the measured 59 named / 2 dropped by the alternative (the acceptance criterion
+     is that the header's counts match a fresh query, and they did not); "cookable with a pan"
+     was the wrong reason for the two dishes that offer *either* of two appliances — the real
+     reason is that a `text[]` is a conjunction and cannot say "either", which phase 3
+     inherits the moment the model is asked for the same field; the pattern list in the header
+     now matches the statement word for word (`grill de carb`, `cuécel`, `cuécal`, `frita`,
+     and an unaccented `frie` in the statement); and `packages/database/AGENTS.md` no longer
+     says an empty array is also the answer for an unclassified dish — after this migration
+     there is no unclassified row, which is a different thing from a dish that needs nothing.
+  9. **Carried to phase 3, not a finding against the file**: the 20 blender dishes are all
+     genuine (`vaso de la batidora`, `tritura en la batidora`) and `blender` is `missing` in
+     the default kitchen, so the moment phase 3 enforces, every account that never opened the
+     screen stops being offered them — including the owner's. The pools stay far above 19, so
+     nothing breaks; it is a product decision (a hand blender is in most Spanish kitchens)
+     that is cheaper to take now than to discover.
+- **What the measurement actually found**, which is the part worth reading twice:
+  **this library almost never requires an appliance.** Of 1128 dishes, 58 need an oven, 20 a
+  blender and 3 a microwave — and of production's 962, 65 an oven, 20 a blender, 3 a
+  microwave and 1 a pressure cooker. Nothing else needs anything — not one dish requires an air
+  fryer, a pressure cooker, a grill, a steamer, a slow cooker or a rice cooker. The reason
+  is not a shy pattern list; it is that **the prose offers alternatives**, and `0102` says
+  the column holds what a dish *cannot be cooked without*:
+  - the library's single air-fryer mention is *"Precalienta el horno **o** la freidora de
+    aire"*, and its single pressure-cooker mention is *"cuece en agua con sal durante 20
+    minutos **(en olla rápida)**"* — both cookable with what everybody has. Production holds
+    one real pressure-cooker dish, dried beans in 20 minutes, which genuinely needs one;
+  - 17 of the 20 microwave mentions are *"al vapor **o** en el microondas"* or *"en el
+    microondas **o** en un cazo"*;
+  - every one of the five dishes naming a grill means the **oven's** grill function
+    (*"calienta el horno al máximo con la función grill"*) or an alternative to a pan
+    (*"una parrilla **o** plancha estriada"*);
+  - *"cuece el brócoli al vapor **o** en agua hirviendo"* and *"cuécelas al vapor **en otra
+    cazuela**"* are a pot, not a steamer: one dish in 1128 names a `vaporera`, and nothing in
+    production does.
+  Two consequences the next phases must carry, both already in the plan:
+  1. **Phase 1's warning is answered, and the answer is good**: the default kitchen marks
+     seven appliances missing, and on today's library that costs **nothing at all**. The
+     only two constraints with anything behind them are the oven and the blender.
+  2. **Phase 8's sizing table counted words.** Its steamer (21 lunches, 23 dinners, "none
+     needed — already past the cap") and its grill (18, 36, "~6 lunches") do not exist as
+     requirements. Six of the ten appliances in the catalogue cannot serve one dish, which
+     is `0102`'s own supply rule pointed at the catalogue: grow the supply or shrink the
+     catalogue, the owner's call at phase 8. The plan now says phase 8 re-reads that table
+     from `recipes.equipment` rather than from words.
+- **Deviations from plan**:
+  0. **Two files outside the plan's scope line, both named in it now**:
+     `scripts/export-reference-library.mjs` (phase 1's reviewer finding) and
+     `scripts/local-pg.mjs` (this phase's). Neither is optional — the first turns a
+     classified library into an unclassified one on export, the second on reset — and both
+     are in the plan's step list with the reason.
+  1. **The pattern list grew a second half the plan did not ask for: an "offered as a
+     choice" exclusion per appliance.** Step 1 asked for the words that name each appliance;
+     applied alone they would have declared an air fryer on a dish that says *"the oven or
+     the air fryer"* and taken it away from everybody without one. The exclusion is what
+     makes the list say what `0102` means rather than what the words say, and it is written
+     out in the header beside each pattern.
+  2. **Three narrowings against the plan's own word list**, each one a dish nobody loses, each
+     argued in the header from the text that prompted it: `asar`/`asado` are not oven words
+     here (nearly always *pimientos asados de conserva* — an ingredient that arrives
+     roasted); `plancha` is a stovetop word and not a grill (as the PRD's own reading
+     counted it); and steaming without a named device is a pot.
+  3. **`stovetop` is detected, not only used as the fallback.** The plan's list named eight
+     appliances and made stovetop the residue. A dish that sautés *and* bakes would then
+     have declared only an oven, and phase 5 shows that declaration to a person — so the
+     detail screen would have been wrong about 37 dishes. Detecting it costs nothing: it is
+     `has` in the default kitchen.
+  4. **The fallback was left exactly as the plan says**, against the evidence, on purpose.
+     The 239 dishes that match nothing are **no-cook** dishes — bagels, avocado with goat's
+     cheese, carrot sticks with hummus — not the pan dishes `0102` assumed when it wrote
+     *"treated as a pan, which is what 824 of 1128 are"*; the pan dishes match pan words by
+     themselves, 845 of them. Declaring a hob on a bagel is harmless today (`stovetop` is
+     `has` by default, and phase 5 shows nothing for a dish whose only appliance is a hob),
+     and changing it is a change to `0102`. **The question for phase 9 and the owner**:
+     should a dish that needs no cooking declare nothing instead?
+- **Decisions**: no new record. `0102`'s rule is what the inference applies; the two
+  questions it raises — the fallback on a no-cook dish, and six catalogue entries with no
+  supply — belong to phase 9 and phase 8, where the plan now asks them.
+- **For the owner, before this is merged**: **`0067` must not reach production in the same
+  deploy as `0066`, and PR #282 is green and waiting on your merge.** Drizzle wraps every pending migration file in one transaction, so if
+  both are pending at once the data `UPDATE` runs inside `0066`'s `ACCESS EXCLUSIVE` on
+  `recipes` — the one lock in this pair that blocks every reader — which is the whole reason
+  the backfill is a separate file. The repository's own rule covers it
+  (`packages/database/AGENTS.md` § Migrations: "Release N+1 is merged only once release N's
+  production deployment is `Ready`"): merge PR #282, wait for both production deployments,
+  then merge this. If they do land together nothing is lost or corrupted — the UPDATE sees
+  the column, since DDL is transactional in Postgres — it is readers waiting that is being
+  avoided.
+- **Notes for the next phase**:
+  - **Phase 3 inherits a library with only two real constraints.** `withinEquipment` will
+    remove an oven dish from a kitchen without an oven (57 dishes) and a blender dish from
+    one without a blender (20). Nothing else it does can remove anything, so a test that
+    asserts the gate works must use the oven or the blender — an air-fryer fixture would
+    pass against a filter that does nothing.
+  - **The model's own declaration replaces this inference, dish by dish.** The guard is
+    `WHERE equipment = '{}'`, so nothing here will overwrite a dish the model classified.
+    Phase 3 must make `generatedDishSchema` write only catalogue keys: an unknown string is
+    dropped by `appliancesOf` in silence, which reads as "needs nothing".
+  - **`0102`'s `DISHES_NEEDED_PER_SLOT` promise is the one at risk**, not the enforcement.
+    Phase 6 should report the two numbers that matter — what the oven and the blender cost —
+    and phase 8 should start by re-reading the real table from the column on production.

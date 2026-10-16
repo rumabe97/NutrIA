@@ -29,10 +29,20 @@ every row unclassified and both silently unenforced**.
 it may use. A dish that can be baked or fried names neither; a dish that is only ever baked
 names the oven. `text[]` holding `APPLIANCES` keys from
 `packages/core/src/entities/Kitchen`, exactly as `meal_slots` holds slots, and **an empty
-array is a dish that needs nothing**, which is also the answer for a dish nobody has
-classified (`0102`). Writing "what it may use" into it is not a style mistake: `missing` is
-enforced like an allergy from phase 3 on, so a dish that merely *mentions* an oven would
-stop being served to everyone without one.
+array is a dish that needs nothing** — it removes the dish from nobody. Writing "what it may
+use" into it is not a style mistake: `missing` is enforced like an allergy from phase 3 on,
+so a dish that merely *mentions* an oven would stop being served to everyone without one.
+**An appliance offered as a choice is not a requirement** either (*"al vapor o en el
+microondas"*): migration `0067` reads the library that way, and its header is where the
+pattern list and the reasoning live.
+
+"Empty" and "unclassified" are **not** the same answer, and `0102`'s sentence about an
+unclassified dish counting as a hob is about the backfill rather than about the column:
+`0067` left no row empty — a dish whose prose named no appliance was written `stovetop`, so
+there is no unclassified row to have an opinion about. What is still open, and belongs to
+the owner because it changes `0102`: 240 of those rows are **no-cook** dishes (a bagel, a
+yogurt bowl), and declaring a hob on them is why a kitchen with the hob marked `missing`
+keeps 43 dishes instead of enough to build a plan.
 
 The catalogue is code, not reference data: the `appliance` and `equipment_stance` Postgres
 enums in `_enums.ts` **duplicate** core's `APPLIANCES` and `EQUIPMENT_STANCES` because this
