@@ -710,6 +710,139 @@ export async function recipeRow(slug: string): Promise<{ id: string; createdBy: 
   return rows[0] ?? null;
 }
 
+/** One plate of a plan, with the appliances its dish declares (`0102`). */
+export type PlateRow = { readonly equipment: readonly string[]; readonly name: string; readonly slot: string };
+
+/**
+ * Every plate of one plan with what its dish says it cannot be cooked without.
+ *
+ * On the tables, and that is a choice rather than a shortcut: `equipment`
+ * reaches a screen only on the meal **detail** (`GET /meal-plans/meals/:id`),
+ * one request per plate, while the claim `0102` makes — *no* dish of the
+ * fortnight needs an appliance this person said they do not have — is about all
+ * fifty-six at once. A suite that wants to see the declaration travel through
+ * the API asserts one detail beside this (`kitchen.e2e-spec.ts` does both).
+ *
+ * The raw `text[]`, not `appliancesOf` — a key this build does not know is
+ * silently read as "needs nothing" downstream, so a test that filtered the
+ * same way could never see one.
+ */
+export async function platesOfPlan(planId: string): Promise<readonly PlateRow[]> {
+  return sqlClient()<PlateRow>`
+    select recipes.equipment, recipes.name, meals.slot::text as slot
+    from meals
+    join plan_days on plan_days.id = meals.plan_day_id
+    join recipes on recipes.id = meals.recipe_id
+    where plan_days.plan_id = ${planId}
+    order by plan_days.day_index, meals.sort_order`;
+}
+
+/**
+ * Every slug in the library that declares one appliance (`0102`).
+ *
+ * Whose dish it is does not matter to a filter — a seeded one, one a model
+ * wrote for somebody else, one this suite's own generation stored — and that is
+ * exactly why the question is asked of the table rather than of the fixture: a
+ * suite that only knew its own dishes would assert nothing about the 58 oven
+ * dishes the development library already holds, and would have nothing at all
+ * to assert on a database built the way CI builds it.
+ */
+export async function recipesDeclaring(appliance: string): Promise<ReadonlySet<string>> {
+  const rows = await sqlClient()<{ slug: string }>`select recipes.slug from recipes where ${appliance} = any(recipes.equipment)`;
+
+  return new Set(rows.map(row => row.slug));
+}
+
+/**
+ * The slugs of every library row whose name begins with `prefix`.
+ *
+ * For a suite whose scripted dishes must not be left behind: their slugs are
+ * the model's names slugified, and `ScriptedAiClient` makes each one unique per
+ * call, so a suite cannot know in advance which of its dishes a plan will use
+ * and store. A mark in the name is the only handle, and this turns it into the
+ * list `forgetRecipes` takes.
+ */
+export async function recipeSlugsNamed(prefix: string): Promise<readonly string[]> {
+  const rows = await sqlClient()<{ slug: string }>`select slug from recipes where name like ${`${prefix}%`}`;
+
+  return rows.map(row => row.slug);
+}
+
+/**
+ * Copies one library dish, declaring one appliance, under a marked name and
+ * slug of its own — and answers the copy.
+ *
+ * **On the tables, and for a reason no route can give.** A suite that needs a
+ * dish declaring an appliance cannot get one by scripting the model: a dish the
+ * model writes is stored only if the **plan uses it**
+ * (`PlanGeneration.service.ts` → `newRecipes`, filtered by `used`), and whether
+ * the scheduler reaches for one is a property of the library it is competing
+ * with. Measured on 2026-10-16 while writing `kitchen.e2e-spec.ts`: against the
+ * development library's 1,128 dishes two runs stored **0 and 2** fresh rows out
+ * of eighty-four plates — the shared pool's days land 6% over the protein band,
+ * so a real dish wins nearly every slot — and against a database built the way
+ * CI builds it, 6 of 42 plates were fresh and none of them was one of the
+ * three-in-eight shapes the fixture wanted. So a scripted dish is the right
+ * instrument for the **gate** (what the model returns is refused) and the wrong
+ * one for the **filter** (what the library may reuse), which needs a row.
+ *
+ * A copy and not a dish built from nothing, because the row has to be *offered*
+ * to be refused: cloned from a dish the offer already holds, it has that dish's
+ * slots, minutes, servings, ingredients and macros, and the one thing that
+ * differs is the field under test. Its `created_by` is left null, as provenance
+ * is, and its `source` is the original's — nothing here is a dish anybody
+ * requested.
+ *
+ * Caller's to clean up, through `forgetRecipes`, **after** its accounts are
+ * deleted: a plan that served it holds it (`meals.recipe_id` is `RESTRICT`).
+ */
+export async function copyDishDeclaring(slug: string, appliance: string, mark: string): Promise<{ readonly name: string; readonly slug: string }> {
+  const sql = sqlClient();
+  const rows = await sql<{ id: string; name: string; slug: string }>`
+    insert into recipes (slug, name, locale, source, meal_slots, equipment, cook_minutes, prep_minutes, servings, difficulty, cuisine, description,
+      instructions, steps_version)
+    select ${`${mark.toLowerCase()}-${slug}`}, ${`${mark} `} || name, locale, source, meal_slots, array[${appliance}]::text[],
+      cook_minutes, prep_minutes, servings, difficulty, cuisine, description, instructions, steps_version
+    from recipes where slug = ${slug}
+    returning id, name, slug`;
+  const copy = rows[0];
+
+  if (!copy) {
+    throw new Error(`No dish to copy: ${slug}`);
+  }
+
+  await sql`
+    insert into recipe_ingredients (recipe_id, ingredient_id, grams, quantity, unit, is_optional, note)
+    select ${copy.id}::uuid, items.ingredient_id, items.grams, items.quantity, items.unit, items.is_optional, items.note
+    from recipe_ingredients items join recipes on recipes.id = items.recipe_id
+    where recipes.slug = ${slug}`;
+
+  return { name: copy.name, slug: copy.slug };
+}
+
+/**
+ * What the newest generation of one account threw away, by reason, summed over
+ * its model calls (`plan_generation_jobs.ai_calls` → `rejected`).
+ *
+ * The one way to tell a gate that fired from a scheduler that happened not to
+ * pick the dish. "No oven dish in the fortnight" is true of a kitchen with an
+ * oven too, most fortnights; `{ missing_equipment: n }` is only ever written by
+ * `PoolBuilder` refusing what the model returned.
+ */
+export async function rejectionsOfLastGeneration(userId: string): Promise<Readonly<Record<string, number>>> {
+  const rows = await sqlClient()<{ aiCalls: readonly { readonly rejected?: Readonly<Record<string, number>> }[] | null }>`
+    select ai_calls as "aiCalls" from plan_generation_jobs where user_id = ${userId} order by created_at desc limit 1`;
+  const tally: Record<string, number> = {};
+
+  for (const call of rows[0]?.aiCalls ?? []) {
+    for (const [reason, count] of Object.entries(call.rejected ?? {})) {
+      tally[reason] = (tally[reason] ?? 0) + count;
+    }
+  }
+
+  return tally;
+}
+
 /**
  * Takes the dishes a suite had written out of the library again, by slug.
  *

@@ -424,7 +424,7 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 7 — End to end
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 021 phase 7`
 - **Goal**: the claims nobody can make from a unit test, made on real rows.
 - **Scope**: `apps/api/test/**` only (the `tests` agent owns it and is the only agent that
