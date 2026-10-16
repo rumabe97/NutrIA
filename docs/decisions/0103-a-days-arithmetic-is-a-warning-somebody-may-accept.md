@@ -44,11 +44,39 @@ in 1960 in the permissive direction, in order to be strict in the other.
 
 ## Decision
 
-**The two refusals that are arithmetic become warnings somebody may accept.** They are
-`clashes_with_fixed` (the day cannot reach its four macros with this dish beside the rule it
-already holds) and `too_big_or_small` (the dish cannot be sized into that meal's plate).
-Both are statements about numbers, both are the person's own trade-off to make, and neither
-is a thing they are unable to do.
+**One refusal becomes a warning somebody may accept**: `clashes_with_fixed` — the day
+cannot reach its four macros with this dish beside the rule it already holds.
+
+**Amended 2026-10-16, before any of it was built.** This record first said *two*, pairing it
+with `too_big_or_small`, and the owner's own requirement is what rules the second one out:
+*«aunque no se cumplan las macros, el plan se tiene que generar con esas comidas»* — if he
+accepts, the meal must actually be served. Checked against `honouredPin`, which yields to
+exactly three hard bounds:
+
+- **`clashes_with_fixed` is already served.** The day's macro bands are **not** one of those
+  bounds, so a pin whose day cannot reach them is honoured anyway and the day is simply
+  built out of band. Nothing has to be forced; the offer only has to stop hiding the dish.
+- **`too_big_or_small` is `fitsPlate` failing**, which *is* one of the three, and
+  `honouredPin` drops the pin — its own words: *"forcing it would serve a plate the product
+  refuses to serve"*, the gram ceiling and `PLATE_LIMIT` of `0076`, `0078` and `0070`.
+  Warning and accepting there would take somebody's acceptance and **still not serve the
+  meal**, with 021 phase 5b then reporting the rule as not honoured. That is worse than
+  refusing, so it keeps its refusal and its existing sentence, which already says to try the
+  dish in another meal.
+
+**And a day may hold at most two fixed meals** (the owner, 2026-10-16: *«máximo dos por día
+ehh, no se pueden fijar más de dos»*). This is new, and it exists **because of** the change
+above. [`0101`](./0101-a-day-can-hold-two-fixed-meals-and-the-second-is-offered-from-what-fits.md)
+deliberately set no per-day cap, reasoning that *"the filter is the cap"* — a third rule's
+offer collapses on its own to 2 of 37 dishes on the tightest profile, so a number would be
+arbitrary where the measurement is not. **Removing the filter removes that cap**, and
+nothing would then stop somebody fixing every meal of a day; the owner saw it and this
+record had not. So the cap stops being emergent and becomes a number, enforced in the
+repository's lock the way the per-tier allowance already is — never a read followed by a
+write. It is a **refusal**, not a warning: a product bound like `MAX_PREFERRED_APPLIANCES`
+and not an arithmetic one. The per-tier allowance (`0099`: free 1, premium 3) is a different
+count and is unchanged, so a premium account may still hold three rules and now at most two
+of them on any one weekday.
 
 **Everything else stays a refusal**, and the line is not taste:
 
@@ -67,7 +95,8 @@ it does not.
 **So the offer stops filtering the pool by the day's arithmetic.** `offerFor` returns the
 plate-fit list, which is what `pinnable` with no `held` has always been and costs about 25
 ms. The day's arithmetic is asked **of the dish somebody picked**, through `dayHoldsPin`, at
-add time — and it answers a warning rather than a 422.
+add time — and it answers a warning rather than a 422. **The plate fit does not leave with
+it**: `too_big_or_small` is still computed, because it is still a refusal.
 
 **`honouredPin` remains the backstop and nothing about that changes** (`0097`: the pool is a
 bound, and safety outranks a rule). A rule somebody accepted against the arithmetic may
@@ -96,6 +125,11 @@ product says so instead of quietly serving something else.
   is not a dialog that trains people to tap through: the dish stays in the list with the
   warning on it, the way `0102`'s appliances are shown on a dish rather than only used to
   filter.
+- **The meal is served, which is the owner's actual requirement and not a side effect.** A
+  pin outranks variety, the repeat rules and the kind caps, and yields only to the pool, the
+  slot and the plate fit — so an accepted rule is honoured and its day comes out of band,
+  rather than being quietly dropped. The backstop still exists for the three bounds it
+  always had.
 - **What this does not do**: it does not let anybody overrule safety, it does not change
   what a generation does with a pin it cannot honour, it does not touch the energy floor,
   and it does not relax validation — a day out of band is still reported out of band, to the
