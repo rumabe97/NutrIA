@@ -40,8 +40,21 @@ const HOME = process.env.NUTRIA_PG_DIR ?? join(homedir(), '.local/share/nutria-p
 const DATA = join(HOME, 'data');
 const LOG = join(HOME, 'postgres.log');
 
-/** Migration 0056 is data only and was written before the seed library is loaded; re-run after it. */
-const SPLIT_MIGRATION = 'packages/database/src/migrations/0056_a_lunch_is_one_plate.sql';
+/**
+ * The data-only migrations, which run before any library is loaded and therefore
+ * have nothing to work on; re-run in order after each load.
+ *
+ * `0056` splits a lunch onto one plate. `0067` reads each dish's steps for the
+ * appliances it cannot be cooked without — and without it a reset leaves every
+ * row `equipment = '{}'`, a library in which no dish needs anything, which is the
+ * opposite of production and fails nothing out loud (`migration-reviewer`,
+ * 2026-10-16). Both are safe to re-run: `0056` is idempotent on a split plate and
+ * `0067` only touches rows that still hold the empty default.
+ */
+const SPLIT_MIGRATIONS = [
+  'packages/database/src/migrations/0056_a_lunch_is_one_plate.sql',
+  'packages/database/src/migrations/0067_every_dish_says_what_it_needs.sql'
+];
 const SEED_LIBRARY = 'docs/local/nutria-seed-500.sql';
 /** Production's model-made recipes, from scripts/export-reference-library.mjs (decision 0080). */
 const REFERENCE_LIBRARY = 'docs/local/reference-ai-recipes.sql';
@@ -229,6 +242,17 @@ function localFile(path) {
     .find(existsSync);
 }
 
+/**
+ * Replays the data-only migrations over a library that has just been loaded, in
+ * the order they were written. `over` is what the line says they ran over.
+ */
+async function replayDataMigrations(Client, over) {
+  for (const path of SPLIT_MIGRATIONS) {
+    await query(Client, DATABASE, readFileSync(join(ROOT, path), 'utf8'));
+    console.log(`[db:local] re-ran ${path.slice(path.lastIndexOf('/') + 1, path.lastIndexOf('/') + 5)} over ${over}`);
+  }
+}
+
 async function reset({ reference = false } = {}) {
   const referenceLibrary = reference ? localFile(REFERENCE_LIBRARY) : undefined;
 
@@ -252,8 +276,7 @@ async function reset({ reference = false } = {}) {
   if (library) {
     await query(Client, DATABASE, readFileSync(library, 'utf8'));
     console.log(`[db:local] loaded ${library}`);
-    await query(Client, DATABASE, readFileSync(join(ROOT, SPLIT_MIGRATION), 'utf8'));
-    console.log('[db:local] re-ran 0056 over the library');
+    await replayDataMigrations(Client, 'the library');
   } else {
     console.log(`[db:local] no ${SEED_LIBRARY} here or in the main checkout — the library is empty`);
   }
@@ -261,8 +284,7 @@ async function reset({ reference = false } = {}) {
   if (referenceLibrary) {
     await query(Client, DATABASE, readFileSync(referenceLibrary, 'utf8'));
     console.log(`[db:local] loaded ${referenceLibrary}`);
-    await query(Client, DATABASE, readFileSync(join(ROOT, SPLIT_MIGRATION), 'utf8'));
-    console.log('[db:local] re-ran 0056 over the reference library');
+    await replayDataMigrations(Client, 'the reference library');
   }
 
   await status();

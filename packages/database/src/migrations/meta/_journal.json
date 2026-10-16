@@ -470,6 +470,13 @@
       "when": 1792102038051,
       "tag": "0066_a_kitchen_is_what_it_has",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1792145955599,
+      "tag": "0067_every_dish_says_what_it_needs",
+      "breakpoints": true
     }
   ]
 }

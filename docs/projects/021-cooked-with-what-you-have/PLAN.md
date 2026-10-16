@@ -40,7 +40,8 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 1 — The kitchen as data, and inert
 
-- [x] done
+- [x] done — commit `21a3d3d0` ("A kitchen is a row per appliance, and a dish carries what
+  it cannot be cooked without", #282)
 - **Dispatch**: opus @ medium — `/execute-project 021 phase 1`
 - **Goal**: a person's kitchen and a dish's requirement exist in the database and in the
   domain, and nothing behaves differently yet.
@@ -79,13 +80,15 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 2 — Every dish says what it needs
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 021 phase 2`
 - **Goal**: the 1128 dishes already in a library declare their equipment, inferred from the
   prose of their steps, auditably.
 - **Scope**: `packages/database/src/migrations/**`, `apps/api/scripts/**` (a measuring
-  script only if the phase needs one), and `scripts/export-reference-library.mjs`
-  (added 2026-10-16, `migration-reviewer` on phase 1 — see step 4).
+  script only if the phase needs one), `scripts/export-reference-library.mjs`
+  (added 2026-10-16, `migration-reviewer` on phase 1 — see step 4) and
+  `scripts/local-pg.mjs` (added 2026-10-16, `migration-reviewer` on this phase — see
+  step 5), plus `packages/database/AGENTS.md` for what the column means.
 - **Steps**:
   1. Write the pattern list — Spanish and English, since the library holds both — for
      oven (`horno`, `hornea`, `gratin`, `asar`), microwave, air fryer (`freidora de aire`,
@@ -105,6 +108,18 @@ sell — so the supply is part of the promise, not an afterthought.
      unclassified one. It bites hardest at **phase 8**, where the plan has the owner loading
      the new air-fryer batch to production through this path — every dish written precisely
      to declare an air fryer would arrive declaring nothing, which `0102` reads as a pan.
+  5. **Replay this migration in `pnpm db:local reset`.** `scripts/local-pg.mjs` re-runs the
+     data-only migration `0056` after each library load, because a data migration that runs
+     before the library exists has nothing to work on. This one is the second of those: left
+     out, every reset from now on produces a library where **no dish needs anything**, which
+     is the opposite of production and fails nothing out loud — and phases 3 and 6 measure
+     the evaluator on exactly that library (`migration-reviewer`, 2026-10-16).
+  6. **Read production before this merges.** The development library is 871 of production's
+     962 rows by slug, so ~91 have never had their prose read by these patterns — and a
+     wrong claim on any of the seven appliances the default kitchen marks `missing` removes
+     that dish from **every** account. One read-only `SELECT` computing what the migration
+     would write, with the slug and a snippet of every row that would claim one of those
+     seven, is the evidence (standing approval for production reads, 2026-10-15).
 - **Acceptance criteria**: PRD 4. Every row has a non-empty `equipment`. The counts in the
   header match a fresh query. Running the migration twice changes nothing the second time.
   **The verification is a count by appliance that sums to the row count**, not only that the
@@ -216,7 +231,12 @@ sell — so the supply is part of the promise, not an afterthought.
      reads `reusablePool`, so no second idea of the rule is introduced.
   2. Run the fourteen profiles on the real local library: the share of the library each
      missing appliance removes, and the days still inside 5% on all four macros (`0045`),
-     for the hardest kitchen — no oven, no microwave, no blender.
+     for the hardest kitchen — no oven, no microwave, no blender. **Price the default
+     kitchen too, not only the hardest one** (phase 1's note): it marks seven appliances
+     missing for every account that never opens the screen. Phase 2's measurement says that
+     costs **nothing** on today's library — no dish requires any of those seven — so this
+     phase's job is to confirm it on the real run and to say what the oven (57 dishes) and
+     the blender (20) cost, which are the only two constraints with anything behind them.
   3. The owner-gated generation: with the air fryer preferred, count the air-fryer dishes
      in the fortnight that comes back, against the 1 in 1128 the library holds today.
   4. Write every number into `0102` and this project's LOG; a day that cannot be built is
@@ -266,8 +286,27 @@ sell — so the supply is part of the promise, not an afterthought.
      Nineteen — a whole slot from the library alone — is the *second* batch, and only where
      phase 6 measures a fortnight repeating itself.
 
-     Read against production on 2026-10-15 (dish-slot pairs; a dish serving lunch and dinner
-     counts in both), what exists and what the first batch therefore owes:
+     **The table below counted words, and phase 2 measured requirements — they are not the
+     same number** (amended 2026-10-16, after phase 2 ran). Phase 2's inference reads the
+     rule `0102` actually states, *the appliances a dish cannot be cooked without*, so an
+     appliance offered as a choice (*"al vapor o en el microondas"*, *"una parrilla o
+     plancha estriada"*, *"el horno o la freidora de aire"*) is no longer counted. On the
+     development library of 1128 dishes the requirement counts are: **oven 8/34/42/7,
+     blender 10/0/0/17, microwave 4/0/0/0, and zero for the steamer, the grill, the air
+     fryer, the pressure cooker, the slow cooker and the rice cooker.** The oven and the
+     blender survive the stricter reading; the steamer's 21 and 23 and the grill's 18 and 36
+     do not survive it at all — every one of those dishes can be cooked in a pot or a pan.
+     So **this phase's first step is to re-read the table from `recipes.equipment` on
+     production**, which phase 2's migration populates, instead of from the words below; and
+     the shortfall for the steamer and the grill is not "none", it is everything.
+     **That reaches `0102`'s own supply rule**: an appliance belongs in the catalogue once
+     the library can serve a fortnight with it. On this reading six of the ten cannot serve
+     a single dish, which is the owner's decision to take at this phase — grow the supply,
+     or shrink the catalogue — and not one to settle by sizing a batch.
+
+     Read against production on 2026-10-15 **by the words in the steps** (dish-slot pairs; a
+     dish serving lunch and dinner counts in both), which is what the first batch was sized
+     against before phase 2 measured requirements instead:
 
      | appliance | breakfast | lunch | dinner | other | first batch |
      | --- | --- | --- | --- | --- | --- |

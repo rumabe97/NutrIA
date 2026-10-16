@@ -113,8 +113,15 @@ function textArray(values) {
   return values.length > 0 ? `ARRAY[${values.map(literal).join(',')}]::text[]` : `'{}'::text[]`;
 }
 
+// `equipment` is here for the same reason `meal_slots` is: it is what the dish
+// declares about itself, and a library exported without it arrives on the other
+// side unclassified — which `0102` reads as a pan. It was missing until project
+// 021 phase 2 (`migration-reviewer`), when it stopped being lossless: before the
+// backfill every row held `'{}'`, so leaving it out cost nothing; after it, this
+// script would turn a classified library back into an unclassified one, and at
+// phase 8 would land a batch of air-fryer dishes declaring no air fryer.
 const RECIPE_COLUMNS =
-  'cook_minutes, created_by, cuisine, description, difficulty, instructions, locale, meal_slots, name, prep_minutes, servings, slug, source, steps_version';
+  'cook_minutes, created_by, cuisine, description, difficulty, equipment, instructions, locale, meal_slots, name, prep_minutes, servings, slug, source, steps_version';
 
 function recipeStatement(recipe, ingredients) {
   const values = [
@@ -123,6 +130,7 @@ function recipeStatement(recipe, ingredients) {
     literal(recipe.cuisine),
     literal(recipe.description),
     literal(recipe.difficulty),
+    textArray(recipe.equipment),
     `${literal(JSON.stringify(recipe.instructions))}::jsonb`,
     literal(recipe.locale),
     textArray(recipe.meal_slots),
@@ -167,7 +175,7 @@ async function readLibrary(url, source) {
       }
 
       const recipes = await tx`
-        select id, cook_minutes, cuisine, description, difficulty, instructions, locale, meal_slots, name, prep_minutes, servings, slug, source, steps_version
+        select id, cook_minutes, cuisine, description, difficulty, equipment, instructions, locale, meal_slots, name, prep_minutes, servings, slug, source, steps_version
         from recipes where source = ${source} order by slug`;
       const ingredients = await tx`
         select ri.recipe_id, i.slug, ri.grams::text as grams, ri.quantity::text as quantity, ri.unit, ri.is_optional, ri.note
