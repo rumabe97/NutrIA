@@ -286,19 +286,35 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 5b — A rule that is not being honoured says so
 
-- [ ] pending
+- [ ] in progress
 - **Dispatch**: opus @ medium — `/execute-project 021 phase 5b` · *added during execution,
   2026-10-16*: this was step 4 of phase 5 until the lead read what it costs.
-- **Goal**: a standing fixed meal the generator can no longer honour says so, for all four
-  reasons, instead of quietly serving something else.
+- **Goal**: a standing fixed meal the generator can no longer honour says so, with the
+  reason, instead of quietly serving something else.
+
+  **Amended 2026-10-16, during execution: this said "for all four reasons" and the four
+  were wrong.** The season is **not** one of them — measured by `backend`, read in the
+  scheduler and verified by the lead: `honouredPin` is consulted at the top of the slot
+  loop and nothing below it runs, the season predicate lives in the day search under it,
+  and neither `servable` nor `pinnable` filters by month, so **a June dish fixed to a
+  December Monday is still served**. There is nothing to tell anybody about it. The
+  sentence in `FixedMealsService`'s own header that claimed otherwise had been wrong since
+  before this project and is now corrected there. **Five causes produce a sentence**: a
+  cooking time lowered under the dish (`too_slow`), a kitchen that lost an appliance
+  (`missing_equipment`), a dish dropped from the catalogue or an account that switched
+  language (`unknown_dish`, new), a meal the person stopped eating (`wrong_slot`), and two
+  rules one day cannot hold together (`clashes_with_fixed`). The season reaches that last
+  one when another rule shares the day, where it is a **mislabel** — recorded rather than
+  machined around, because naming it costs a second mechanism.
 - **Why it is its own phase.** **Say when a standing fixed meal is not being honoured — for all four reasons, not
      only the kitchen** (`invariant-reviewer` and `backend-high` agreed on this, 2026-10-16;
      the lead moved it here from phase 4 because the sentence needs the screen that says it).
      A rule whose dish the person's own filters now refuse is not in the pool the generation
      restores pins from, so `honouredPin` builds the day as though the rule did not exist —
      correctly (`0097`: the pool is a bound, and safety outranks a rule) and **silently**.
-     Four things cause it: the season, a dish dropped from the catalogue, a cooking time
-     lowered under the dish, and now a kitchen. Phase 3 made it audible — both the generation
+     Four things were believed to cause it — the season, a dish dropped from the catalogue,
+     a cooking time lowered under the dish, and now a kitchen — and **the season turned out
+     not to be one of them**; see the amended goal above. Phase 3 made it audible — both the generation
      and the event rebuild log every pin they could not honour — and `FixedMealsService`'s own
      header promises **one** mechanism for all of them, so an equipment-only flag would be the
      wrong shape. What this phase owes: `FixedMealsView` marking a rule as not currently
@@ -323,10 +339,29 @@ sell — so the supply is part of the promise, not an afterthought.
   Phase 3 already made the drop **audible** in the logs, so nothing is silent for the owner
   in the meantime — only for the person.
 - **Scope**: `packages/core/src/controllers/FixedMeal/**`, `apps/api/src/modules/fixed-meals/**`,
-  `apps/web/src/components/FixedMealPlanner/**`, `apps/web/src/i18n/**`.
+  `apps/web/src/components/FixedMealPlanner/**`, `apps/web/src/i18n/**`, and — **added
+  2026-10-16, during execution** — `packages/core/src/domain/FixableReason/**` and
+  `packages/core/src/domain/Scheduler/**`. Both crossings are the plan's own rules being
+  obeyed rather than bent: the new `unknown_dish` reason belongs where the nine others
+  live, because a second mechanism is what this phase forbids; and `dayHoldsPin` belongs
+  beside `pinnable`, because it is `pinnable`'s own last filter asked of one dish instead
+  of a whole pool — **6 ms against 2.7 s**, with a test asserting the two agree dish by
+  dish.
 - **Acceptance criteria**: a rule whose dish the person's filters now refuse is listed as
-  not being honoured, with the reason, for every one of the four causes — and opening the
-  profile is no slower than it is today, measured rather than assumed.
+  not being honoured, with the reason, **for every cause that has one** (five, not the four
+  this plan assumed — the amended goal says which, and why the season is not among them) —
+  and opening the profile is no slower than it is today, measured rather than assumed.
+
+  **How the second half was met, and it is not the way this plan guessed.** It said "either
+  the context is built once and cached for the request, or the answer is computed where a
+  generation already builds one and stored, or the screen asks for it separately", and the
+  numbers chose the third: `standing()` is **2 ms** and folding honourability into it makes
+  it **76 ms**, forty times slower, on a screen people open to look at their rules and for
+  an answer that is empty for almost every account (one standing rule in all of
+  production). So honourability is its own route, `GET /fixed-meals/honourability`, and
+  `FixedMealsView` is untouched. Storing it at generation time was refused on correctness
+  rather than on cost: every cause can change *after* a generation, so a stored answer
+  would be right about the last plan and wrong about the person.
 - **Verification**: `pnpm turbo lint ts:check test --filter=core --filter=api --filter=web`;
   the `accessibility` agent on the changed list; and a before-and-after of what `standing()`
   costs.
@@ -358,11 +393,13 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 6 — What it costs, measured
 
-- [ ] in progress — **steps 1, 2 and 4 are done** (2026-10-16; the numbers are in
+- [x] done — steps 1, 2 and 4 by commit `97af568d` (#288); **step 3 by the owner on
+  2026-10-16**, on production, with the air fryer preferred. **Its answer is zero**: the
+  prompt asked and `google/gemma-4-31b-it` wrote no air-fryer dish, which is a result and
+  not a failure — the library has none to prefer, so the line is being asked to invent what
+  the catalogue cannot show it. Re-measured after phase 8. Everything is in
   [`0102`](../../decisions/0102-a-kitchen-is-what-it-has-and-what-it-would-rather-use.md)
-  § *What it costs, measured* and in this project's `LOG.md`). **Step 3 is the gate and is
-  open**: one generation from the owner's dev account with the air fryer preferred, against
-  the production provider. Nothing else in this phase is waiting on anything.
+  § *What it costs, measured* and in this project's `LOG.md`.
 - **Dispatch**: opus @ high — `/execute-project 021 phase 6` — owner-gated: one real
   generation from the owner's dev account, with an air fryer preferred, against the
   production provider (one model call; a stub cannot say whether a prompt works).
@@ -424,7 +461,8 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 7 — End to end
 
-- [x] done
+- [x] done — commit `6e03d886` ("A kitchen with no oven is served a fortnight with no oven in
+  it, proved on real rows", #289)
 - **Dispatch**: opus @ medium — `/execute-project 021 phase 7`
 - **Goal**: the claims nobody can make from a unit test, made on real rows.
 - **Scope**: `apps/api/test/**` only (the `tests` agent owns it and is the only agent that
