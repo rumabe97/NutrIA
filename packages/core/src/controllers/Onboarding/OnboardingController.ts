@@ -1,4 +1,5 @@
 import { ONBOARDING_STEPS, REQUIRED_ONBOARDING_STEPS } from 'core/entities/Onboarding';
+import { KitchenController } from 'core/controllers/Kitchen';
 import { OnboardingRepository } from '#repositories/Onboarding';
 import { resolveFreeTextAllergens } from 'core/controllers/Safety';
 import { ProfileRepository } from '#repositories/Profile';
@@ -49,7 +50,7 @@ function presentOnboarding(state: OnboardingState | undefined, consented: boolea
     isComplete: Boolean(state?.completedAt),
     missingSteps,
     profileConsentRequired: !consented,
-    resumeStep: firstMissing ? ONBOARDING_STEPS.indexOf(firstMissing) + 1 : REQUIRED_ONBOARDING_STEPS.length + 1,
+    resumeStep: ONBOARDING_STEPS.indexOf(firstMissing ?? 'review') + 1,
     totalSteps: ONBOARDING_STEPS.length
   };
 }
@@ -130,6 +131,12 @@ export const OnboardingController = {
 
         break;
       }
+
+      // Optional (`OPTIONAL_ONBOARDING_STEPS`): not collected health data, so no
+      // consent is asked, and not required, so `complete` never waits for it.
+      case 'kitchen':
+        await KitchenController.applyChanges(userId, input.data.kitchen);
+        break;
 
       case 'how-you-eat':
       case 'cooking':

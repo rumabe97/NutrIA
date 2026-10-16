@@ -609,3 +609,78 @@
   - **Phase 6's evaluator flag** now has `withinEquipment` and `resolvePreferences`' `kitchen`
     to read, so it needs no second idea of the rule — and phase 2's measurement says the only
     two numbers it can report are the oven's and the blender's.
+
+## Phase 4 — The API asks, stores and answers (2026-10-16)
+
+- **Executor**: `backend` on **sonnet**, in its own worktree — the plan's routing for this
+  phase ("mechanical from a complete contract"), and the first phase of this project not run
+  on opus. The lead made one design move afterwards, brought the work over by patch, and
+  verified the file set against the patch's own list before removing the worktree.
+- **Result**: done. A person can describe their kitchen through the profile and through an
+  onboarding step, and **neither is required**: an account that never opens it finishes
+  onboarding, generates a plan, and reads as the default kitchen.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=api` — **11 tasks green**. Core:
+    **4,084 tests** (11 new). Api: 123 suites, **1,666 tests** (10 new). Database 53.
+  - The skipped step is covered where it is cheapest to assert: with the seven required
+    steps completed and no kitchen, `missingSteps` is empty and `resumeStep` points at
+    `review`.
+  - The route's refusals are covered end of to end of the DTO: an appliance outside the
+    catalogue, an unknown stance and a repeated appliance are 422 with the field named; a
+    fourth `prefers` reaches the route as the controller's own 422 (`fieldErrors.appliance`)
+    **with the other preferences unwritten**, because the kitchen is applied first.
+- **What the agent found that the plan had not**, and both are worth reading:
+  1. **A batch needs an order.** Somebody swapping their preference from the oven to the air
+     fryer sends both changes in one body; written in the order they arrive, the new one
+     meets the old one still standing and is refused as the fourth. Everything that is not
+     `prefers` is written first, then the `prefers`.
+  2. **`resumeStep` was computed in a way that only held while `review` followed the
+     required steps directly** (`REQUIRED_ONBOARDING_STEPS.length + 1`). With an optional
+     step in between it would have sent a returning person **to the kitchen instead of the
+     review**. It now reads `review`'s own position. That is a defect this phase would have
+     introduced and the agent repaired in passing.
+- **The move the lead made, and why**: the agent put `applyKitchenChanges` in
+  `controllers/Onboarding/` — "where a list of changes first arrived" — and `ProfilesService`
+  then imported it from there, so the profile route depended on the onboarding module for
+  something that is not onboarding. It is now `KitchenController.applyChanges`, and
+  `kitchenChangesSchema` moved to `entities/Kitchen` beside the bound it has to respect. The
+  argument is that **the order a batch must be written in is a fact about the bound on
+  `prefers`**, so it belongs where the next caller sending a batch will look for it. The
+  agent was asked before the move rather than after, agreed, and listed what it touched; it
+  had flagged the placement itself.
+- **Deviations from plan**: the three scope lines above, amended in the same change. Nothing
+  else: the bound was **not** re-implemented at the route (phase 1 already enforces it inside
+  the repository's lock, and a count at the edge would have been the read-then-compare the
+  repository's rules forbid), `DEFAULT_KITCHEN` was not touched, and `apps/web` was left
+  alone.
+- **Decisions**:
+  - **The refused field is `appliance`, not `kitchen`.** It is the name the controller gives
+    the thing it refused, and a screen needs to know which appliance — the DTO's field name
+    would say less.
+  - **A refused change leaves the earlier ones written.** There is no transaction spanning
+    the batch, and the state it leaves is the one somebody reaches by pressing the appliances
+    one at a time.
+  - **`totalSteps` goes from 9 to 10 and `review` moves from position 8 to 9.** Safe for
+    people mid-onboarding, which was checked rather than assumed: `completedSteps` stores
+    step **names**, `missingSteps` is recomputed from them, the new step is optional so it
+    never appears there, and the stored `currentStep` only ever grows and is clamped to the
+    list's length. Nobody is sent back to a step they finished.
+- **Notes for the next phase**:
+  - **Phase 5 inherits a contract change**: the onboarding flow reads the step list and
+    `totalSteps` from the server, so the screen count shifts by one and a kitchen screen
+    belongs between `cooking` and `review`.
+  - **`/privacidad` has to name the kitchen**, and the plan now says so in this phase's
+    successor rather than here: its *"Qué datos recogemos y para qué"* list is enumerative
+    and the kitchen is in none of its entries. It is phase 5's because that is when a person
+    can actually give it to us — until a screen asks, nothing is collected. The same read
+    found that **`cookingTimeMinutes` has never been named there either**, which is older
+    than this project and worth the `legal` agent's eye in the same pass.
+  - **For `tests` (phase 7)**, the cases the agent would write, none of which it ran: the
+    skip path end to end (seven steps, no kitchen, `complete` succeeds, a plan generates,
+    the profile reads the default with `described: false`); the step saved and re-saved
+    idempotently; `null` taking a stance back; the bound (a fourth refused with the earlier
+    stances kept, re-stating an existing preference never being the fourth, a swap in one
+    body succeeding, and **two concurrent PATCHes each adding a different `prefers` at two
+    leaving at most three** — the lock test); the shape refusals writing nothing, including a
+    bad kitchen beside a valid `cookingTimeMinutes` leaving the time unchanged; and ownership
+    — account B's stances never in account A's profile, a `userId` in a body ignored.

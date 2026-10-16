@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { kitchenChangesSchema } from 'core/entities/Kitchen';
 import { setAllergiesSchema } from 'core/entities/Safety';
 import { updateGoalSchema, updatePreferencesSchema, updateProfileSchema } from 'core/entities/Profile';
 
@@ -20,14 +21,30 @@ export const ONBOARDING_STEPS = [
   'food-preferences',
   'allergies',
   'cooking',
+  'kitchen',
   'review',
   'create-plan'
 ] as const;
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
-/** Steps that must be completed before a plan may be generated — every step before `review`. */
-export const REQUIRED_ONBOARDING_STEPS: readonly OnboardingStep[] = ONBOARDING_STEPS.slice(0, ONBOARDING_STEPS.indexOf('review'));
+/**
+ * Steps a person may walk past: a plan is generated without them and the profile
+ * answers their default (`0102`). The kitchen is the first — silence resolves to a
+ * normal kitchen, so refusing `complete` for want of it would turn a question the
+ * plan can do without into a gate.
+ */
+export const OPTIONAL_ONBOARDING_STEPS: readonly OnboardingStep[] = ['kitchen'];
+
+/**
+ * Steps that must be completed before a plan may be generated — every step before
+ * `review`, except the optional ones. Still derived from the list rather than
+ * written beside it, so a step added before `review` is required until somebody
+ * says otherwise on purpose.
+ */
+export const REQUIRED_ONBOARDING_STEPS: readonly OnboardingStep[] = ONBOARDING_STEPS.slice(0, ONBOARDING_STEPS.indexOf('review')).filter(
+  step => !OPTIONAL_ONBOARDING_STEPS.includes(step)
+);
 
 export const onboardingStateSchema = z.object({
   id: z.uuid(),
@@ -67,7 +84,8 @@ export const onboardingStepSchema = z.discriminatedUnion('step', [
     step: z.literal('food-preferences')
   }),
   z.object({ data: setAllergiesSchema.extend({ dietaryPatterns: z.array(z.string()).max(10) }), step: z.literal('allergies') }),
-  z.object({ data: updatePreferencesSchema.pick({ cookingTimeMinutes: true }), step: z.literal('cooking') })
+  z.object({ data: updatePreferencesSchema.pick({ cookingTimeMinutes: true }), step: z.literal('cooking') }),
+  z.object({ data: z.object({ kitchen: kitchenChangesSchema }), step: z.literal('kitchen') })
 ]);
 
 export type OnboardingStepInput = z.infer<typeof onboardingStepSchema>;

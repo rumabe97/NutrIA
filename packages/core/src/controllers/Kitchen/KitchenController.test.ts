@@ -182,3 +182,62 @@ describe('KitchenController.clearStance', () => {
     expect(view.appliances.oven).toBe('has');
   });
 });
+
+describe('KitchenController.applyChanges', () => {
+  it('answers the kitchen the batch leaves behind', async () => {
+    findByUser.mockResolvedValue([{ appliance: 'oven', stance: 'missing' }]);
+
+    const view = await KitchenController.applyChanges(USER, [{ appliance: 'oven', stance: 'missing' }]);
+
+    expect(view.appliances.oven).toBe('missing');
+    expect(view.described).toBe(true);
+  });
+
+  /**
+   * The reason this lives on the kitchen's own controller and not beside the
+   * onboarding step that first sent a list: somebody swapping their preference
+   * from the oven to the air fryer sends both changes in one body, and written
+   * in the order they arrived the new one would meet the old one still standing
+   * and be refused as a fourth. Everything that is not `prefers` goes first.
+   */
+  it('writes what comes off `prefers` before what goes on to it', async () => {
+    await KitchenController.applyChanges(USER, [
+      { appliance: 'air_fryer', stance: 'prefers' },
+      { appliance: 'oven', stance: 'has' },
+      { appliance: 'grill', stance: null }
+    ]);
+
+    expect(setStance.mock.calls.map(call => call[1].appliance)).toEqual(['oven', 'air_fryer']);
+    expect(remove).toHaveBeenCalledWith(USER, 'grill');
+  });
+
+  it('takes a stance back with null rather than writing one', async () => {
+    await KitchenController.applyChanges(USER, [{ appliance: 'oven', stance: null }]);
+
+    expect(remove).toHaveBeenCalledWith(USER, 'oven');
+    expect(setStance).not.toHaveBeenCalled();
+  });
+
+  it('leaves what it already wrote when a later change is refused', async () => {
+    const refusal = new InputParseError('too many', { appliance: ['too many'] });
+
+    setStance.mockImplementation(async (_userId, stance) => {
+      if (stance.stance === 'prefers') {
+        throw refusal;
+      }
+
+      return [stance];
+    });
+
+    await expect(
+      KitchenController.applyChanges(USER, [
+        { appliance: 'oven', stance: 'has' },
+        { appliance: 'air_fryer', stance: 'prefers' }
+      ])
+    ).rejects.toBe(refusal);
+
+    // The oven was written before the refusal and stays — the same state
+    // somebody reaches by pressing the appliances one at a time.
+    expect(setStance.mock.calls.map(call => call[1].appliance)).toEqual(['oven', 'air_fryer']);
+  });
+});

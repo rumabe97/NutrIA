@@ -21,7 +21,7 @@ const STATE = {
   missingSteps: [],
   profileConsentRequired: false,
   resumeStep: 2,
-  totalSteps: 9
+  totalSteps: 10
 };
 
 /**
@@ -83,5 +83,51 @@ describe('POST /onboarding (through the real pipeline)', () => {
       .send({ data: { displayName: 'Ada', userId: 'usr-somebody-else' }, step: 'about-you' });
 
     expect(saveStep.mock.calls[0]?.[1]).toEqual({ data: { displayName: 'Ada' }, step: 'about-you' });
+  });
+
+  it('accepts the kitchen step, which is optional, and passes it on for the session’s account', async () => {
+    const saveStep = jest.spyOn(CoreOnboarding, 'saveStep').mockResolvedValue(STATE as never);
+
+    const response: Response = await request(app.getHttpServer() as Server)
+      .patch('/onboarding')
+      .send({ data: { kitchen: [{ appliance: 'air_fryer', stance: 'prefers' }] }, step: 'kitchen' });
+
+    expect(response.status).toBe(200);
+    expect(saveStep).toHaveBeenCalledWith('usr-1', { data: { kitchen: [{ appliance: 'air_fryer', stance: 'prefers' }] }, step: 'kitchen' });
+  });
+
+  it.each([
+    ['an appliance the catalogue does not hold', [{ appliance: 'toaster', stance: 'has' }]],
+    ['a stance that is not one of the three', [{ appliance: 'oven', stance: 'loves' }]],
+    [
+      'the same appliance twice',
+      [
+        { appliance: 'oven', stance: 'has' },
+        { appliance: 'oven', stance: 'missing' }
+      ]
+    ]
+  ])('refuses %s in the kitchen step, with the field named', async (_label, kitchen) => {
+    const saveStep = jest.spyOn(CoreOnboarding, 'saveStep');
+
+    const response: Response = await request(app.getHttpServer() as Server)
+      .patch('/onboarding')
+      .send({ data: { kitchen }, step: 'kitchen' });
+
+    expect(response.status).toBe(422);
+    expect((response.body as { fieldErrors: Record<string, string[]> }).fieldErrors).toBeDefined();
+    expect(saveStep).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Skipping the step is the default path, and `complete` takes no body: it is
+   * refused only for a *required* step, which the kitchen is not.
+   */
+  it('lets an account that never opened the kitchen finish onboarding', async () => {
+    const complete = jest.spyOn(CoreOnboarding, 'complete').mockResolvedValue({ ...STATE, isComplete: true } as never);
+
+    const response: Response = await request(app.getHttpServer() as Server).post('/onboarding/complete');
+
+    expect(response.status).toBe(201);
+    expect(complete).toHaveBeenCalledWith('usr-1');
   });
 });

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
+import { KitchenController } from 'core/controllers/Kitchen';
 import { ProfileConsentController, ProfileController } from 'core/controllers/Profile';
 
 import type { FullProfileDto, GoalDto, PreferencesDto, ProfileConsentDto, ProfileDto, TargetsDto, TourSeenDto } from '../dto/out/index.js';
@@ -27,7 +28,9 @@ export class ProfilesService {
   }
 
   async read(userId: string, locale: string | null): Promise<FullProfileDto> {
-    return ProfileController.getFullProfile(userId, locale);
+    const [profile, kitchen] = await Promise.all([ProfileController.getFullProfile(userId, locale), KitchenController.read(userId)]);
+
+    return { ...profile, kitchen };
   }
 
   /**
@@ -50,7 +53,13 @@ export class ProfilesService {
   }
 
   async updatePreferences(userId: string, body: UpdatePreferencesDto): Promise<PreferencesDto> {
-    return ProfileController.updatePreferences(userId, body);
+    const { kitchen: changes, ...preferences } = body;
+
+    // The kitchen first: a refused fourth `prefers` then leaves the other
+    // preferences as they were, rather than half of one request applied.
+    const kitchen = changes ? await KitchenController.applyChanges(userId, changes) : await KitchenController.read(userId);
+
+    return { ...(await ProfileController.updatePreferences(userId, preferences)), kitchen };
   }
 
   async updateTargets(userId: string, body: UpdateTargetOverrideDto): Promise<TargetsDto> {

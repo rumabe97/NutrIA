@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ONBOARDING_STEPS, REQUIRED_ONBOARDING_STEPS } from 'core/entities/Onboarding';
+import { ONBOARDING_STEPS, OPTIONAL_ONBOARDING_STEPS, REQUIRED_ONBOARDING_STEPS } from 'core/entities/Onboarding';
 
 /**
  * Pinned as a literal, not as the constant compared with itself
@@ -18,5 +18,13 @@ describe('REQUIRED_ONBOARDING_STEPS', () => {
   it('does not carry `lifestyle` — removed, and never required', () => {
     expect(ONBOARDING_STEPS).not.toContain('lifestyle');
     expect(REQUIRED_ONBOARDING_STEPS).not.toContain('lifestyle');
+  });
+});
+
+describe('the kitchen step', () => {
+  it('is optional: before `review`, and in no list of required steps', () => {
+    expect(OPTIONAL_ONBOARDING_STEPS).toEqual(['kitchen']);
+    expect(ONBOARDING_STEPS.indexOf('kitchen')).toBeLessThan(ONBOARDING_STEPS.indexOf('review'));
+    expect(REQUIRED_ONBOARDING_STEPS).not.toContain('kitchen');
   });
 });

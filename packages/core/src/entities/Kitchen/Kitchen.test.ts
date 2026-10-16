@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { appliance as applianceEnum, equipmentStance as equipmentStanceEnum } from 'database/schema';
 
-import { APPLIANCES, appliancesOf, DEFAULT_KITCHEN, EQUIPMENT_STANCES, kitchenOf, MAX_PREFERRED_APPLIANCES } from 'core/entities/Kitchen';
+import {
+  APPLIANCES,
+  appliancesOf,
+  DEFAULT_KITCHEN,
+  EQUIPMENT_STANCES,
+  kitchenChangesSchema,
+  kitchenOf,
+  MAX_PREFERRED_APPLIANCES
+} from 'core/entities/Kitchen';
 
 import type { Appliance, EquipmentStance } from 'core/entities/Kitchen';
 
@@ -125,5 +133,41 @@ describe('appliancesOf', () => {
     const stances: readonly EquipmentStance[] = appliances.map(item => DEFAULT_KITCHEN[item]);
 
     expect(stances).toEqual(['missing']);
+  });
+});
+
+/*
+ * The shape an onboarding step and the profile's preferences both send. It lives
+ * here rather than with the step because the profile sends it too, and because
+ * the order a batch has to be written in is a fact about the bound on `prefers`
+ * (`KitchenController.applyChanges`).
+ */
+describe('kitchenChangesSchema', () => {
+  it('accepts a stance, a null that takes it back, and an empty list', () => {
+    expect(
+      kitchenChangesSchema.safeParse([
+        { appliance: 'oven', stance: 'has' },
+        { appliance: 'grill', stance: null }
+      ]).success
+    ).toBe(true);
+    expect(kitchenChangesSchema.safeParse([]).success).toBe(true);
+  });
+
+  it('refuses an appliance outside the catalogue, a fourth state and a repeated appliance', () => {
+    expect(kitchenChangesSchema.safeParse([{ appliance: 'toaster', stance: 'has' }]).success).toBe(false);
+    expect(kitchenChangesSchema.safeParse([{ appliance: 'oven', stance: 'loves' }]).success).toBe(false);
+    expect(
+      kitchenChangesSchema.safeParse([
+        { appliance: 'oven', stance: 'has' },
+        { appliance: 'oven', stance: 'missing' }
+      ]).success
+    ).toBe(false);
+  });
+
+  /* Ten is the catalogue: a body longer than that is naming something twice or inventing one. */
+  it('refuses more changes than there are appliances', () => {
+    const tooMany = [...APPLIANCES, 'oven'].map(appliance => ({ appliance, stance: 'has' }));
+
+    expect(kitchenChangesSchema.safeParse(tooMany).success).toBe(false);
   });
 });

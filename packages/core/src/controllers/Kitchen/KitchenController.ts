@@ -2,7 +2,7 @@ import { InputParseError } from 'core/entities/Error';
 import { kitchenOf, MAX_PREFERRED_APPLIANCES } from 'core/entities/Kitchen';
 import { KitchenRepository } from '#repositories/Kitchen';
 
-import type { Appliance, Kitchen, KitchenStance } from 'core/entities/Kitchen';
+import type { Appliance, Kitchen, KitchenChanges, KitchenStance } from 'core/entities/Kitchen';
 
 /**
  * A person's kitchen as a screen reads it: every appliance of the catalogue
@@ -30,6 +30,39 @@ function presentKitchen(stances: readonly KitchenStance[]): KitchenView {
 // --- Controller ---------------------------------------------------------------
 
 export const KitchenController = {
+  /**
+   * Writes a list of changes in one call and answers the kitchen they leave
+   * behind — what an onboarding step and the profile's preferences both send.
+   *
+   * **Appliances coming off `prefers` are written first**, then the ones going
+   * on to it. Somebody swapping their preference from the oven to the air fryer
+   * sends both in one body, and written in whatever order they arrived the new
+   * one would meet the old one still standing and be refused as a fourth. The
+   * order is here, on the controller that owns the bound, because that is where
+   * the next caller sending a batch will look for it.
+   *
+   * Nothing is counted here either: each change is its own guarded write, so a
+   * refusal leaves the changes before it in place — the same state somebody
+   * reaches by pressing the appliances one at a time, and the reason there is no
+   * transaction spanning them.
+   */
+  async applyChanges(userId: string, changes: KitchenChanges): Promise<KitchenView> {
+    const preferring = changes.filter(change => change.stance === 'prefers');
+    const others = changes.filter(change => change.stance !== 'prefers');
+
+    for (const { appliance, stance } of others) {
+      await (stance === null ? KitchenController.clearStance(userId, appliance) : KitchenController.setStance(userId, { appliance, stance }));
+    }
+
+    for (const { appliance, stance } of preferring) {
+      if (stance !== null) {
+        await KitchenController.setStance(userId, { appliance, stance });
+      }
+    }
+
+    return KitchenController.read(userId);
+  },
+
   /**
    * Puts an appliance back to whatever the default kitchen says about it, by
    * deleting what this person said about it.

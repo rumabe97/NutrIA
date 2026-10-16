@@ -135,7 +135,8 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 3 — A dish nobody can cook is never served
 
-- [x] done
+- [x] done — commit `2a04effb` ("A dish nobody can cook is never served, and a kitchen
+  somebody prefers is asked for", #284)
 - **Dispatch**: opus @ high — `/execute-project 021 phase 3` · *deviation*: the profile's
   own exception, since this changes the gate on what a model returns.
 - **Goal**: a missing appliance is a constraint in the three places the cooking time is
@@ -185,13 +186,20 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 4 — The API asks, stores and answers
 
-- [ ] pending
+- [x] done
 - **Dispatch**: sonnet @ medium — `/execute-project 021 phase 4` · mechanical from a
   complete contract.
 - **Goal**: the kitchen can be read and written by a person, through the profile and
   through an onboarding step neither of which may be required.
 - **Scope**: `apps/api/src/modules/profiles/**`, `apps/api/src/modules/onboarding/**`,
-  `packages/core/src/entities/Onboarding/**`.
+  `packages/core/src/entities/Onboarding/**` — and three more the first version of this line
+  did not name (amended during execution, 2026-10-16):
+  `packages/core/src/controllers/Onboarding/**`, because without a `case 'kitchen'` in
+  `saveStep` the step would fall through the switch, write nothing and still be marked
+  complete; and `packages/core/src/controllers/Kitchen/**` with
+  `packages/core/src/entities/Kitchen/**`, because a **list** of changes needs one place that
+  knows the order to write it in, and that place is the controller that owns the bound on
+  `prefers` rather than the step a list first arrived in.
 - **Steps**:
   1. The preferences DTO gains the kitchen; `PATCH` accepts a stance per appliance and
      refuses an appliance the catalogue does not hold (422, the field named), and a **fourth
@@ -252,7 +260,15 @@ sell — so the supply is part of the promise, not an afterthought.
      appliance, sized to the text, with its name beside it** — never an emoji, never an icon
      alone (`apple-web-design`, and the name is what an assistive technology reads). A dish
      that declares only a stovetop shows nothing: a chip on every dish is noise.
-  7. `/local-probe` at 320, 390 and 1280 px, light and dark, signed in, both languages —
+  7. **`/privacidad` has to name the kitchen** (`/ship` § 2: what the legal pages describe
+     changed). Its *"Qué datos recogemos y para qué"* list is enumerative and the kitchen is
+     in none of its entries — *"Tu forma de comer"* is the dietary pattern and the cuisines,
+     not what somebody owns. It belongs in **this** phase and not phase 4 because this is
+     when a person can actually give it to us: until the screen exists nothing asks, so
+     nothing is collected. The `legal` agent decides the wording (it owns the legal texts);
+     both dictionaries change together, and the same read found that `cookingTimeMinutes`
+     has never been named there either — worth asking it about in the same pass.
+  8. `/local-probe` at 320, 390 and 1280 px, light and dark, signed in, both languages —
      the kitchen screens and a dish detail with an oven dish in it.
 - **Acceptance criteria**: PRD 1 and 5. No sideways scroll at any width, every control
   reachable by keyboard, the empty state saying that silence means a normal kitchen, and the
