@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
 import { MAX_FIXED_MEALS_PER_DAY } from 'core/entities/FixedMeal';
+import { PLATE_LIMIT, SERVING_BOUNDS } from 'core/domain/Scheduler';
 import { SettingsController } from 'core/controllers/Settings';
 import { UNAUDITED } from 'core/entities/Audit';
 import { UserController } from 'core/controllers/User';
@@ -126,6 +127,59 @@ const RULED = 3;
 const LUNCHES_TRIED = 3;
 const DINNERS_ASKED = 8;
 
+/**
+ * How many times its own size a copy of an **offered** dish has to be before no
+ * plate of any meal can hold it — computed from the domain's own bounds rather
+ * than chosen, because a number chosen is a number that works on one library.
+ *
+ * **This is the lesson of a red CI run** (2026-10-17, PR #292, which read this
+ * assertion back with the copy sitting in the offer). The first version scaled
+ * by a constant 4, and `fitsPlate` does not compare a dish with a plate — it
+ * asks whether the dish can be **sized** onto one, over `SERVING_BOUNDS`
+ * (0.5–4 servings) and inside `PLATE_LIMIT` (0.5–1.5 of the slot's energy). So
+ * four times a dish out of a 1,148-recipe library bursts every bound, and four
+ * times a small fixture breakfast is simply served at half a serving — the
+ * sizer undoes the fixture. It passed here and on a CI-shaped database because
+ * the dish the offer happened to list first was big enough both times, which is
+ * the same accident as the `[0]` lunch this README records from 2026-10-15.
+ *
+ * The bound that holds for **any** offered dish: being offered means some
+ * serving count in `SERVING_BOUNDS` puts it inside `PLATE_LIMIT`, so its
+ * one-serving share is at worst `PLATE_LIMIT.min / SERVING_BOUNDS.max` — a
+ * dish the sizer had to quadruple to reach half a plate. The copy is refused
+ * only when even the **smallest** plate the sizer can make of it,
+ * `SERVING_BOUNDS.min`, still passes `PLATE_LIMIT.max`. One more than that
+ * ratio is the first whole factor that cannot be argued with, and the grams and
+ * capped-food ceilings (`0078`, `PLATE_FOOD_MAX`) can only refuse it sooner.
+ *
+ * It is still a fixture rather than a proof, which is why the test leads with
+ * `consequence` and asserts the reason: a copy that failed to be oversized says
+ * so in one line instead of passing on a slug's absence from a list.
+ */
+const OVERSIZED = 2 * (Math.ceil((PLATE_LIMIT.max * SERVING_BOUNDS.max) / (SERVING_BOUNDS.min * PLATE_LIMIT.min)) + 1);
+
+/**
+ * How far **down** the dish is scaled first, to stand in for the smallest dish
+ * an offer may hold.
+ *
+ * `OVERSIZED` is derived and correct, and deriving it is not the same as having
+ * tested it: the database this suite was first proved on hands the offer a dish
+ * big enough that even the constant 4 it started with was refused, so a run
+ * here had no power over the case CI failed on — a **small** dish, where the
+ * sizer undoes the scaling by serving half a portion. Measured on 2026-10-17:
+ * the CI-shaped database built here passes at a factor of 4, and CI does not.
+ *
+ * So the small dish is made rather than hoped for — and **how** small is asked
+ * of the library rather than guessed, which is the same mistake one level down.
+ * A quarter of an offered dinner is already past the bottom of `PLATE_LIMIT` on
+ * a fixture library and refused as too *small* (measured here, 2026-10-17), so
+ * the divisors are tried in turn and the first copy the offer still lists is
+ * the one used: the smallest fair starting point this library can give. The
+ * oversized copy is made from **that**, so the assertion is about the case CI
+ * failed on rather than about whatever the offer sorted first.
+ */
+const SMALLER_BY = [4, 3, 2] as const;
+
 /** One stamp for the file, so its accounts and its two copied dishes are named together. */
 const stamp = Date.now();
 const MARK = `W${stamp}`;
@@ -137,6 +191,7 @@ const MARK = `W${stamp}`;
  */
 const MARK_OVERSIZED = `${MARK}B`;
 const MARK_OVEN = `${MARK}O`;
+const MARK_SMALL = `${MARK}S`;
 
 /** 0 is Monday, as `weekdayOf` counts (`core/entities/FixedMeal`). */
 function weekdayOf(isoDate: string): number {
@@ -473,24 +528,63 @@ describe('a day’s arithmetic is a warning somebody may accept (0103)', () => {
     // ceiling and `PLATE_LIMIT`), so accepting it would take somebody's yes and
     // then serve them nothing. That is worse than saying no.
     //
-    // A copy of a dish this person **is** offered, four times its own size, so
+    // A copy of a dish this person **is** offered, scaled by `OVERSIZED`, so
     // nothing but the plate can be what refuses it: same slots, same minutes,
-    // same method, same locale (`copyDishScaled`).
+    // same method, same locale, same ingredients (`copyDishScaled`). Nothing
+    // `whyNotFixable` asks before `fitsPlate` reads grams at all, so scaling can
+    // only move the verdict from fixable to `too_big_or_small` and never to some
+    // other reason.
     const [plain] = shapesOf(await fixable(warned, UNTOUCHED, 'dinner'), 1);
-    const oversized = await copyDishScaled(plain?.slug ?? '', 4, MARK_OVERSIZED);
+
+    expect(plain?.slug).toEqual(expect.any(String));
+
+    // The smallest copy of it this library still offers, which is the stand-in
+    // for the smallest dish an offer can hold — the case CI failed on, and the
+    // one a run here has no power over otherwise (`SMALLER_BY`). A copy the
+    // offer no longer lists is already refused for being too small, which would
+    // make everything below it pass for the wrong reason, so each candidate is
+    // read back and the search stops at the first that is really there.
+    let small: { readonly name: string; readonly slug: string } | undefined;
+
+    for (const divisor of SMALLER_BY) {
+      const candidate = await copyDishScaled(plain?.slug ?? '', 1 / divisor, `${MARK_SMALL}${divisor}`);
+
+      copies.push(candidate.slug);
+
+      if ((await fixable(warned, UNTOUCHED, 'dinner')).map(dish => dish.slug).includes(candidate.slug)) {
+        small = candidate;
+        break;
+      }
+    }
+
+    // A library that offers no fraction of its own dish has nothing to say about
+    // a plate, and says that rather than passing.
+    expect({ divisors: SMALLER_BY.join(', '), small: small !== undefined }).toEqual({ divisors: expect.any(String), small: true });
+
+    const oversized = await copyDishScaled(small?.slug ?? '', OVERSIZED, MARK_OVERSIZED);
 
     copies.push(oversized.slug);
 
-    expect((await fixable(warned, UNTOUCHED, 'dinner')).map(dish => dish.slug)).not.toContain(oversized.slug);
-
-    // The reason, and `acceptable: false` beside it: the screen must not offer a
-    // way past this one.
+    // **This assertion first, and that is the fix as much as the factor is.**
+    // The reason named, with `acceptable: false` beside it — the screen must not
+    // offer a way past this one. Led with because it is the only one here that
+    // fails loudly when the fixture is not oversized after all: a copy the plate
+    // still holds says `fixable: true` in one line, where "the slug is not in the
+    // offer" would also be satisfied by a copy that was never created or an
+    // offer that came back empty for some unrelated reason. The factor travels
+    // in the payload so a red run says what was tried.
     const read = await consequence(warned, UNTOUCHED, 'dinner', oversized.slug);
 
-    expect({ body: read.body as FixedMealConsequenceDto, status: read.status }).toEqual({
+    expect({ body: read.body as FixedMealConsequenceDto, scaled: `${OVERSIZED}x ${small?.slug ?? ''}`, status: read.status }).toEqual({
       body: { acceptable: false, fixable: false, why: 'too_big_or_small' },
+      scaled: `${OVERSIZED}x ${small?.slug ?? ''}`,
       status: 200
     });
+
+    // And so it is not offered — which is the offer and the per-dish read being
+    // one oracle, now that the line above has established the state rather than
+    // assumed it.
+    expect((await fixable(warned, UNTOUCHED, 'dinner')).map(dish => dish.slug)).not.toContain(oversized.slug);
 
     // 422 and not the warning's 409, with the reason in the field error —
     // **`accept` naming the one acceptable reason reaches nothing**, because the

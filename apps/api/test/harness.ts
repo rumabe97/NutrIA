@@ -863,12 +863,22 @@ export function bandMisses(day: PlanDayView): readonly string[] {
  * Copies one library dish with every ingredient's grams multiplied, under a
  * marked name and slug of its own — and answers the copy.
  *
- * **A dish that cannot be sized into any plate**, which is `too_big_or_small`:
- * `fitsPlate` is one of `honouredPin`'s three hard bounds (`0070`, `0076`,
- * `0078` — the gram ceiling and `PLATE_LIMIT`), so a dish four times its own
- * size is refused for every meal of every day. It is the one refusal `0103`
- * deliberately left a refusal although it is arithmetic, and the only way to
- * prove `accept` cannot reach it is to have a dish it fires on.
+ * **Both ways**: a factor above 1 makes a dish no plate can hold, which is
+ * `too_big_or_small` — `fitsPlate` is one of `honouredPin`'s three hard bounds
+ * (`0070`, `0076`, `0078` — the gram ceiling and `PLATE_LIMIT`), the one
+ * refusal `0103` deliberately left a refusal although it is arithmetic, and the
+ * only way to prove `accept` cannot reach it is to have a dish it fires on. A
+ * factor below 1 makes a **small** dish that is still offered, which is how a
+ * caller builds the worst case instead of hoping the library hands it one.
+ *
+ * **How big is not this function's to know, and a constant is a trap.**
+ * `fitsPlate` does not compare a dish with a plate: it asks whether the dish can
+ * be *sized* onto one, over `SERVING_BOUNDS` and inside `PLATE_LIMIT`. So the
+ * factor that refuses a dish out of a thousand-recipe library is simply served
+ * at half a portion when the dish is a small fixture — which is how
+ * `fixed-meals-warnings.e2e-spec.ts` passed everywhere here and turned CI red
+ * on 2026-10-17. The caller derives its factor from those two bounds; see
+ * `OVERSIZED` there.
  *
  * **On the tables, and a copy, for `copyDishDeclaring`'s reasons exactly.** A
  * scripted oversized dish is never stored — a dish the model writes is kept
@@ -881,9 +891,11 @@ export function bandMisses(day: PlanDayView): readonly string[] {
  *
  * The per-serving macros are what the plate is judged against and they are
  * computed from the ingredients and the catalogue (`perServingIndex`), so
- * multiplying the grams and leaving `servings` alone is what makes the plate
- * refuse it. Everything else — slots, minutes, method, locale — is the
- * original's, so no earlier reason can answer first.
+ * scaling the grams and leaving `servings` alone is what moves the plate's
+ * answer. Everything else — slots, minutes, method, locale — is the
+ * original's, and nothing `whyNotFixable` asks before `fitsPlate` reads grams at
+ * all, so scaling can only change *this* verdict and never substitute another
+ * reason for it.
  *
  * Caller's to clean up, through `forgetRecipes`, **after** its accounts are
  * deleted, as `copyDishDeclaring`'s copies are.
