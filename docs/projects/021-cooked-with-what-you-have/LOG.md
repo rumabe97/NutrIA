@@ -795,3 +795,64 @@
     leave the cooking time unchanged.
   - **The probe cannot reach a dish detail.** Any phase that needs to see one needs the
     owner's dev account and his word, or a seeded plan in the local database.
+
+## Phase 5c — The onboarding card at 200% (2026-10-16)
+
+- **Executor**: opus, in-session. A CSS change measured in a browser rather than reasoned
+  about, so it stayed where the probe runs.
+- **Result**: done. **Every onboarding step is clean at 390 px with the browser's font size
+  at 32 px** — "nothing past the edge" on steps 1, 4, 8 and 9, where before, every element
+  of the card ran 13 px past the viewport with the document's own overflow at 0.
+- **The measurement in the plan was partial, and the real one is bigger.** Sweeping every
+  step at both widths found a cause the first reading had missed: **the header's "Cerrar
+  sesión" button reached 606 px in a 390 px viewport on *every* signed-in screen**, including
+  the ones recorded as clean. The card's own 403/497 were real but second.
+- **Four causes, each measured before and after**:
+  1. **The header could not wrap.** `.inner` is a flex row holding a brand, a language
+     switch and a two-word button that may not break in half, with no `flex-wrap` — so
+     nothing could give. Its own comment already said the row should "grow instead of
+     clipping" at 200%; it only did so vertically. **606 → fits.**
+  2. **A grid item never shrinks below its min-content**, and `overflow-wrap: break-word`
+     does **not** reduce min-content (only `anywhere` does) — so a paragraph sat 379 px wide
+     inside a 341 px form. `grid-template-columns: minmax(0, 1fr)` on `.fields` and `.row`.
+     **403 → fits.** This is the finding worth carrying: the repository uses
+     `overflow-wrap: break-word` widely, and it does nothing for a grid or flex item's floor.
+  3. **Two buttons that cannot break sharing one row**: "Atrás" and "Continuar" are 207 px
+     each at that size, in a 341 px row. `.actions` wraps now, which costs nothing at
+     ordinary sizes where they have always fitted on one line.
+  4. **Four meal-size pills in a four-column grid**: `repeat(4, 1fr)` → `repeat(4, minmax(0,
+     1fr))`, and `min-inline-size: 0` on the `fieldset` the UA gives `min-content`. **497 →
+     fits.** The pills now clip their own labels instead of the card clipping them, which is
+     the lesser loss — the chosen one is still legible by position.
+- **Evidence**: a sweep script in the scratchpad walks steps 1, 4, 8, 9 and `/perfil` at 320
+  and 390 with the root font at 32 px and reports what reaches past the edge and whether the
+  document can be scrolled to it. BEFORE / AFTER-HEADER / AFTER-FIELDSET / AFTER-GRID /
+  AFTER-ALL / FINAL are in this session's record. `pnpm turbo lint ts:check test
+  --filter=web --filter=ui` — 14 tasks green, web 298 tests. `/local-probe` at ordinary font
+  size on steps 4 and 8 and `/perfil`, three widths, both schemes: **200 everywhere, zero
+  overflow**, so nothing regressed for everybody else.
+- **One change made and then reverted, deliberately**: wrapping `ProfileSection`'s head read
+  like the same fix, and **measured no gain at either width** — the profile's remaining
+  overflow is its card grid, not that row. A change to a shared component with no number
+  behind it is not worth shipping, so it went back.
+- **What is left, measured, and why it is not here**:
+  - **`/perfil` at both widths**: the section head, its badge and the card root reach 415
+    (320 px) and 425 (390 px). Same family, a different screen, and it wants its own look —
+    the profile is one long page of cards, not a seven-step flow.
+  - **The bottom navigation at 320 px only**: `343` for the link and `326` for its icon, on
+    every signed-in screen. Five labels do not fit 320 px at 32 px type, and the fix is a
+    design question — wrapping a fixed bottom bar, scrolling it, or dropping to icons — not
+    a mechanical one. **At 390 px it is already clean.**
+  - **The header is now three lines at 200%, and sticky.** Looked at rather than measured,
+    which the probe's own rule insists on: at 390 px with 32 px type the wrapped row —
+    brand, language switch, "Cerrar sesión" — occupies about **40% of a 910 px viewport**
+    and stays there, because `.header` is `position: sticky`. Nothing is cut off, which is
+    what this phase owed and what WCAG asks; whether a header should hold forty per cent of
+    the screen at that size is a design question, and the honest answer is that it trades a
+    clipped header for a tall one. It belongs with the follow-up below, not with a hurried
+    guess here.
+- **Notes**: the three above belong together in one follow-up about the app shell at large
+  type: the profile's card grid, the bottom bar at 320 px, and whether the header should
+  stop being sticky once its row has wrapped. Nothing in this phase touched `packages/ui`: `Button`'s `white-space: nowrap` is the
+  reason the actions row had to wrap, and changing it would have altered every button in the
+  product to fix one row.

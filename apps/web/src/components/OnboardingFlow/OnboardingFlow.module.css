@@ -40,19 +40,40 @@
   margin-bottom: var(--gap-block);
 }
 
+/*
+ * `minmax(0, 1fr)` rather than the implicit `1fr`, and it is the whole of this
+ * phase's fix: a grid item's `min-width` is `auto`, so it never shrinks below
+ * its **min-content** — and min-content is the longest unbreakable word, which
+ * `overflow-wrap: break-word` does **not** reduce (only `anywhere` does). At the
+ * browser's largest font size that word was wider than the column, so a
+ * paragraph sat 379px wide inside a 341px form and ran 13px past a 390px
+ * viewport, with the document's own overflow at 0 — cut off and unreachable
+ * rather than scrollable (project 021 phase 5c).
+ */
 .fields {
   display: grid;
   gap: var(--space-05);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .row {
   display: grid;
   gap: var(--space-05);
+  grid-template-columns: minmax(0, 1fr);
 }
 
+/*
+ * `min-inline-size: 0` is the load-bearing line, not the reset above it: a
+ * `fieldset` carries the user agent's `min-inline-size: min-content`, which no
+ * `width` and no `max-width` can lower, so at the browser's largest font size
+ * the longest unbreakable thing inside it set the card's floor and the card
+ * ran past the viewport — with the document's own overflow at 0, so what was
+ * cut off could not be scrolled to (project 021 phase 5c).
+ */
 .fieldset {
   border: none;
   margin: 0;
+  min-inline-size: 0;
   padding: 0;
 }
 
@@ -80,8 +101,16 @@
   font-size: var(--font-size-02);
 }
 
+/*
+ * Wrapping, for the reason the header wraps: a button's label may not break in
+ * half (`white-space: nowrap` in `packages/ui`), so at the browser's largest
+ * font size "Atrás" and "Continuar" are 207px each in a 341px row and the
+ * second one ran past the viewport. Two lines is the right answer there and
+ * costs nothing at ordinary sizes, where they have always fitted on one.
+ */
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-03);
   justify-content: space-between;
   margin-top: var(--space-08);
