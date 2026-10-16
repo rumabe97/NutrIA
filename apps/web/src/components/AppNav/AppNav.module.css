@@ -7,12 +7,24 @@
   background-color: var(--color-glass);
 }
 
-/* A minimum, not a height: at 200% zoom the row grows instead of clipping. */
+/*
+ * A minimum, not a height: at 200% zoom the row grows instead of clipping.
+ *
+ * And it **wraps**, which is the half that was missing: the row is a brand, a
+ * language switch and a two-word button that may not break in half, so at the
+ * browser's largest font size nothing could give and the button ran to 606px in
+ * a 390px viewport — with the document's own overflow at 0, so it was cut off
+ * and unreachable rather than scrollable (project 021 phase 5c). Wrapping lets
+ * the row become two, which is what "grows instead of clipping" was always
+ * meant to say.
+ */
 .inner {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-06);
   justify-content: space-between;
+  row-gap: var(--space-02);
   min-block-size: 3.5rem;
   margin-inline: auto;
   max-width: var(--content-max);

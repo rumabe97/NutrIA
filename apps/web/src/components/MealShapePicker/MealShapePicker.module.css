@@ -8,6 +8,8 @@
   display: grid;
   gap: var(--space-02);
   margin: 0;
+  /* A `fieldset`'s own `min-inline-size: min-content`, which no width lowers. */
+  min-inline-size: 0;
   padding: 0;
 }
 
@@ -18,10 +20,18 @@
 
 /* Four equal columns: the answers are a scale, and a scale with uneven steps
    reads as if one of them matters more. */
+/*
+ * `minmax(0, 1fr)` rather than `1fr`: a grid item never shrinks below its
+ * min-content, and a pill's label does not break, so at the browser's largest
+ * font size four of them were 108px each and the row reached 497px in a 390px
+ * viewport — cut off, with the document's overflow at 0 (project 021 phase 5c).
+ * The pills themselves then clip their own text rather than the card clipping
+ * them, which is the lesser loss: the chosen one is still legible by position.
+ */
 .sizes {
   display: grid;
   gap: var(--space-02);
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .size input {

@@ -217,7 +217,8 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 5 — The screen somebody describes a kitchen on
 
-- [x] done — **the owner's iPhone check is owed after the merge, not before**: this
+- [x] done — commit `6efb2a5b` (#286). **The owner's iPhone check is owed after the merge,
+  not before**: this
   repository has no preview deployments on purpose (`ignoreCommand` skips every branch but
   `main`, and a preview URL is in neither `ALLOWED_ORIGINS` nor `BETTER_AUTH_URL`), and the
   one screen most needing a device — the dish detail with its icons — cannot be reached
@@ -330,7 +331,7 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 5c — The onboarding card at 200%
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium · *added 2026-10-16, measured by `accessibility` and
   `frontend` during phase 5 and declined by both as not that phase's.*
 - **Goal**: the onboarding flow is readable at the browser's largest font size, which is the
