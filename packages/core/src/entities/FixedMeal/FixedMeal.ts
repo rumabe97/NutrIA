@@ -38,6 +38,24 @@ export const weekdaySchema = z.union([z.literal(0), z.literal(1), z.literal(2), 
  */
 export const fixedMealSlotSchema = z.enum(MEAL_SLOTS);
 
+/**
+ * How many meals of one weekday may be fixed (the owner, 2026-10-16: *"máximo
+ * dos por día ehh, no se pueden fijar más de dos"*).
+ *
+ * **A number because the measurement stopped being the cap** (`0103`). `0101`
+ * deliberately set none: a third rule's offer collapsed on its own — 2 of 37
+ * dishes on the tightest profile — so a figure would have been arbitrary where
+ * the filter was not. `0103` removes that filter, because what it computed was
+ * the refusal the owner wanted replaced by a warning, and with it goes the
+ * emergent cap. So the bound is stated instead of discovered.
+ *
+ * **The same on both tiers**, as `MAX_PREFERRED_APPLIANCES` is: a product bound
+ * and not a price. The per-tier allowance is a different count and unchanged
+ * (`0099`: one rule free, three premium), so a premium account with three rules
+ * may hold at most two of them on any one weekday.
+ */
+export const MAX_FIXED_MEALS_PER_DAY = 2;
+
 const shape = {
   /** The recipe's slug, which is what the scheduler pins by (`PinnedMeal`). */
   dishSlug: z.string().trim().min(1),

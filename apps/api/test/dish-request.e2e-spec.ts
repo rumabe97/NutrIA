@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
+import { MAX_FIXED_MEALS_PER_DAY } from 'core/entities/FixedMeal';
 import { SettingsController } from 'core/controllers/Settings';
 import { UNAUDITED } from 'core/entities/Audit';
 import { UserController } from 'core/controllers/User';
@@ -456,8 +457,14 @@ describe('a dish the library does not have', () => {
   });
 
   it('says what is left of both allowances before anybody asks', async () => {
+    // `maxPerDay` travels with the two allowances since `0103`, for the reason
+    // they travel together at all: the screen greys out a full weekday before
+    // anybody taps, and a number repeated in a dictionary is a number that will
+    // disagree with the server. Read from the entity, unlike the tier figures
+    // above it, which are hard-coded on purpose.
     expect(await standing(asker)).toEqual({
       dishRequests: { allowed: true, limit: DISH_REQUESTS_PREMIUM, remaining: DISH_REQUESTS_PREMIUM, used: 0 },
+      maxPerDay: MAX_FIXED_MEALS_PER_DAY,
       rules: [],
       standing: { allowed: true, limit: FIXED_MEALS_PREMIUM, remaining: FIXED_MEALS_PREMIUM, used: 0 }
     });

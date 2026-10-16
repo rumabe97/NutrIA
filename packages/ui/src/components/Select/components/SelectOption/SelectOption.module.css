@@ -1,21 +1,41 @@
+/* `min-block-size` and not `height`, stated once as a custom property both
+   rules read. A fixed 32 px clipped its own text the moment an option's label
+   was longer than a word — measured at a 32 px root, «Lunes · ya tiene 2» was
+   `clientHeight 32` against `scrollHeight 44`, so its first line went under the
+   popover's edge and its second painted over the option below (`warn-a11y`,
+   2026-10-16). It is also what lets the touch floor below be the floor: a
+   second, more specific minimum silently beats it. */
 .option {
   -moz-user-select: none;
   -webkit-user-select: none;
+  --option-floor: var(--height-m);
+
   align-items: center;
   border-radius: var(--radius-01);
   color: var(--foreground-02);
   display: flex;
   font-size: var(--font-size-02);
   gap: var(--space-02);
-  height: var(--height-m);
   line-height: var(--line-height-01);
-  padding: 0 var(--space-02);
+  min-block-size: var(--option-floor);
+  padding: var(--space-01) var(--space-02);
   position: relative;
   user-select: none;
 }
 
+/* The house floor for anything tappable. The trigger has had its own all along;
+   its options were 12 px under it, which is the half that gets forgotten. */
+@media (pointer: coarse) {
+  .option {
+    --option-floor: var(--target-min);
+  }
+}
+
+/* `:disabled` never matches a `div`, and a Radix item is one — so a full day
+   took the hover background like a live one (`warn-a11y`, 2026-10-16). The
+   attribute Radix actually sets is what this has to read. */
 .option[data-selected='true'],
-.option:hover:not(:disabled) {
+.option:hover:not([data-disabled]) {
   background: var(--color-selected);
   color: var(--foreground-01);
 }

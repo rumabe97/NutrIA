@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 
-import { daysFor } from 'core/entities/FixedMeal';
+import { daysFor, MAX_FIXED_MEALS_PER_DAY } from 'core/entities/FixedMeal';
 import { DEFAULT_MEAL_SHAPE, proteinWeightsFor, slotsIn, weightsFor } from 'core/domain/MealShape';
-import { actionable, whyNotFixable } from 'core/domain/FixableReason';
+import { acceptable, actionable, whyNotFixable } from 'core/domain/FixableReason';
 import { dayHoldsPin, pinnable, PLAN_DAYS } from 'core/domain/Scheduler';
 import { FixedMealController, unhonouredFrom } from 'core/controllers/FixedMeal';
-import { ConflictError, InputParseError, QuotaExceededError } from 'core/entities/Error';
+import { ConflictError, FixedMealDayFullError, FixedMealWarningError, InputParseError, QuotaExceededError } from 'core/entities/Error';
 import { DishRequestController } from 'core/controllers/DishRequest';
 import { dishVocabulary, MAX_DISH_REQUEST, storableName, storableProse, typedName } from 'core/domain/DishRequest';
 import { HealthController } from 'core/controllers/Health';
@@ -23,10 +23,29 @@ import { SettingsController } from 'core/controllers/Settings';
 import type { AddFixedMeal, FixedMeal, Weekday } from 'core/entities/FixedMeal';
 import type { CandidateDish, MealSlot } from 'core/entities/Plan';
 import type { FixedMealHonourability, FixedMealsView } from 'core/controllers/FixedMeal';
-import type { NotFixable } from 'core/domain/FixableReason';
+import type { AcceptableReason, FixableVerdict, NotFixable } from 'core/domain/FixableReason';
 
 /** A dish a person could fix to a slot, as the picker lists them. */
 export type FixableDish = { readonly id: string; readonly name: string; readonly slug: string };
+
+/**
+ * What fixing **one** dish to one meal of one weekday would cost, read before
+ * anybody commits (`0103`).
+ *
+ * The same vocabulary as everything else here — `whyNotFixable`'s verdict — with
+ * `acceptable` beside it, because a warning and a refusal differ in what the
+ * caller may *do* about them and not in what they are called. That is what
+ * stopped `FixableReason` fragmenting, and it is why there is no second list of
+ * warning kinds. One reason is acceptable today, `clashes_with_fixed`: the dish
+ * is served and the day comes out of band, which is what was asked for.
+ * `too_big_or_small` is arithmetic too and is **not** acceptable, because
+ * `honouredPin` drops that pin and the meal would never arrive.
+ *
+ * It is asked of the dish somebody chose, which is the whole of `0103`'s saving:
+ * the day's arithmetic costs about 20 ms for one dish and four seconds for the
+ * library.
+ */
+export type FixedMealConsequence = { readonly acceptable: boolean; readonly fixable: false; readonly why: NotFixable } | { readonly fixable: true };
 
 /**
  * A dish the library has and the person was not offered, with the reason
@@ -36,6 +55,14 @@ export type FixableDish = { readonly id: string; readonly name: string; readonly
  * reason is something somebody can do about it decides whether they are shown a
  * way forward or told no, and that is a judgement the domain already made
  * (`FixableReason`). Two places deciding it is how they come to disagree.
+ *
+ * **It carries no `acceptable`, deliberately** (`0103`): no reason this list can
+ * give could ever be one. `clashes_with_fixed` is offered rather than refused,
+ * and `too_big_or_small` is settled as a refusal because `honouredPin` drops
+ * that pin. A boolean that cannot be true invites a screen to build a branch
+ * nobody can reach, and this one is computed by a total function we own — unlike
+ * a vocabulary value such as `unknown_dish`, where the wire's type is worth
+ * defending even for a case today's producer never sends.
  */
 export type NotOfferedDish = { readonly actionable: boolean; readonly name: string; readonly slug: string; readonly why: NotFixable };
 
@@ -62,16 +89,20 @@ export type NotOfferedDish = { readonly actionable: boolean; readonly name: stri
  * than machined around: narrow, and naming it costs a second mechanism
  * (`FixableDishDto` records the same thing about the picker's second offer).
  *
- * **What is told, and when** (021 phase 5b): `honourability` asks the same
- * question of the rules this person already wrote, and one mechanism answers
- * every cause — `whyNotFixable`, the same one the picker explains itself with.
+ * **What is told, and when** (021 phase 5b, split in `0103`): `honourability`
+ * asks the same question of the rules this person already wrote, and one
+ * mechanism answers every cause — `whyNotFixable`, the same one the picker
+ * explains itself with — but it answers **two different facts**, which now
+ * travel in two lists. A rule the plan will not carry is `unhonoured`; a day the
+ * plan carries and that will miss its four macros is `outOfBand`.
  * The causes that produce a sentence are a cooking time lowered under the dish
  * (`too_slow`), a kitchen that says it has no oven (`missing_equipment`,
  * `0102`), a dish dropped from the catalogue or an account that switched
  * language and keeps a rule its pool will never hold again (`unknown_dish`), a
- * meal the person stopped eating (`wrong_slot`), and two rules one day cannot
- * hold together (`clashes_with_fixed`). None of them was worth its own
- * machinery, which is why there is still only one.
+ * meal the person stopped eating (`wrong_slot`). None of them was worth its own
+ * machinery, which is why there is still only one. Two rules one day cannot hold
+ * together used to be in that list and is not: nothing is dropped, so nothing is
+ * unhonoured (`0103`).
  *
  * **No model is called here.** The pool is the person's own safe library —
  * `reusablePool` with no rotation — because a picker that spent a generation's
@@ -117,14 +148,64 @@ export class FixedMealsService {
 
   constructor(private readonly pool: PoolBuilder) {}
 
-  /** Fixes a meal, after checking the dish is one this person could actually be served there. */
-  async add(userId: string, rule: AddFixedMeal): Promise<FixedMeal> {
-    const offered = await this.fixable(userId, rule.weekday, rule.slot);
+  /**
+   * Fixes a meal, after checking the dish is one this person could actually be
+   * served there — and, since `0103`, after checking they said they accept
+   * whatever the day's arithmetic costs.
+   *
+   * **Two bounds it does not own.** The tier's allowance and the day's cap are
+   * both re-counted inside the repository's lock, in that order, and neither is
+   * pre-checked here: a count read outside the lock is a race, and a sentence
+   * chosen outside it is the wrong sentence for an account that has spent its
+   * allowance *and* filled the day.
+   *
+   * **The gate, and the only one.** `consequence` exists so the sentence is read
+   * before this request is sent; this is what makes it true that nothing is
+   * written unwarned. It asks the question again rather than trusting the
+   * client's `accept`, and it checks the reason it found against the reasons they
+   * named — a named reason rather than a bare "yes", so that the day a second
+   * warning exists an acceptance of the first cannot stand in for it.
+   */
+  async add(userId: string, rule: AddFixedMeal, accept: readonly AcceptableReason[] = []): Promise<FixedMeal> {
+    const offer = await this.offerFor(userId, rule.weekday, rule.slot);
 
-    if (!offered.some(dish => dish.slug === rule.dishSlug)) {
-      // Said before the rule exists rather than discovered once a fortnight for
-      // ever, which is `0098`'s whole reason for `pinnable` being exported.
-      throw new InputParseError('That dish cannot be fixed to that meal', { dishSlug: ['is not offered for this slot'] });
+    if (offer.dayIndex === undefined) {
+      // Unreachable while a plan is a fortnight: every weekday falls in it.
+      throw new ConflictError('That meal does not fall in the fortnight you would generate next');
+    }
+
+    // **A full day is not refused here, and that is deliberate** (`0103`,
+    // `warn-e2e`, 2026-10-16). Both bounds that can refuse this live in one
+    // lock — the tier's allowance and `MAX_FIXED_MEALS_PER_DAY` — and that lock
+    // asks them in the order the record fixes: "you have used all three" before
+    // "that day is full", because the first is the truer sentence when both are
+    // true. A fast path here would jump that order and answer 409 to a premium
+    // account whose real answer is 429. There is nothing for it to buy either:
+    // the repository refuses with the same domain error, not a 500, which is
+    // what the sibling pre-check below exists to avoid.
+    //
+    // The dish is not judged for such a day for the same reason it is not
+    // offered one: the offer is empty, so every verdict would read
+    // `too_big_or_small`, which would be a lie about the dish.
+    if (!offer.dayFull) {
+      const dish = offer.library.find(each => each.slug === rule.dishSlug);
+      const verdict = dish ? this.judge(offer, dish) : ({ fixable: false, why: 'unknown_dish' } as const);
+
+      if (!verdict.fixable) {
+        if (!acceptable(verdict.why)) {
+          // Said before the rule exists rather than discovered once a fortnight
+          // for ever, which is `0098`'s whole reason for `pinnable` being
+          // exported. The reason travels in the field error so the screen says
+          // which of the seven it was without asking a second route.
+          throw new InputParseError('That dish cannot be fixed to that meal', { dishSlug: [verdict.why] });
+        }
+
+        if (!accept.includes(verdict.why)) {
+          // Theirs to overrule, and they have not. 409 with the reason, not a
+          // 422: nothing about the request was wrong (`FixedMealWarningError`).
+          throw new FixedMealWarningError(verdict.why);
+        }
+      }
     }
 
     if ((await FixedMealController.taken(userId)).some(held => held.weekday === rule.weekday && held.slot === rule.slot)) {
@@ -143,6 +224,12 @@ export class FixedMealsService {
    * Everything a generation would assemble except the model's third: the
    * catalogue and safety context, the library pool, the day's targets and the
    * season — then `pinnable` answers.
+   *
+   * **It answers what the plate allows, not what the day's numbers prefer**
+   * (`0103`). A dish the day cannot hold beside the rule it already has is in
+   * this list, with a warning the picker reads from `consequence` when somebody
+   * touches it. That is what took the list from four seconds to about eighty
+   * milliseconds on a day that already holds a rule.
    */
   async fixable(userId: string, weekday: Weekday, slot: MealSlot): Promise<readonly FixableDish[]> {
     return (await this.offerFor(userId, weekday, slot)).offered;
@@ -258,7 +345,7 @@ export class FixedMealsService {
     } catch (error) {
       this.logger.warn(`Honourability of the standing fixed meals could not be judged: ${error instanceof Error ? error.message : 'unknown'}`);
 
-      return { judged: false, unhonoured: [] };
+      return { judged: false, outOfBand: [], unhonoured: [] };
     }
 
     const { context, defaultStart, input, library, rules, slots, verdicts } = assembly;
@@ -282,54 +369,99 @@ export class FixedMealsService {
       return slugs;
     };
 
-    return {
-      judged: true,
-      unhonoured: unhonouredFrom(rules, rule => {
-        if (!slots.includes(rule.slot)) {
-          // They stopped eating that meal. The rule still exists and the plan
-          // has no slot to honour it in.
-          return { fixable: false, why: 'wrong_slot' };
-        }
+    /** The rules the plan really will carry, by the day index they land on. */
+    const served = new Map<number, { readonly rule: FixedMeal; readonly slug: string }[]>();
+    /** One verdict per rule, computed once: `unhonouredFrom` reads it rather than recomputing. */
+    const verdictOf = new Map<string, FixableVerdict>();
 
-        // The library is read in this person's own locale and holds what the
-        // catalogue holds today, so a dish missing from it is one of the two
-        // causes that take the dish away rather than the person: deleted, or
-        // left behind by a change of language.
-        const dish = library.find(each => each.slug === rule.dishSlug);
+    for (const rule of rules) {
+      verdictOf.set(rule.id, { fixable: true });
 
-        if (!dish) {
-          return { fixable: false, why: 'unknown_dish' };
-        }
+      if (!slots.includes(rule.slot)) {
+        // They stopped eating that meal. The rule still exists and the plan
+        // has no slot to honour it in.
+        verdictOf.set(rule.id, { fixable: false, why: 'wrong_slot' });
+        continue;
+      }
 
-        const [dayIndex] = daysFor(rule.weekday, defaultStart, PLAN_DAYS);
+      // The library is read in this person's own locale and holds what the
+      // catalogue holds today, so a dish missing from it is one of the two
+      // causes that take the dish away rather than the person: deleted, or
+      // left behind by a change of language.
+      const dish = library.find(each => each.slug === rule.dishSlug);
 
-        if (dayIndex === undefined) {
-          // Unreachable while a plan is a fortnight: every weekday falls in it.
-          return { fixable: true };
-        }
+      if (!dish) {
+        verdictOf.set(rule.id, { fixable: false, why: 'unknown_dish' });
+        continue;
+      }
 
-        const fits = fitting(dayIndex, rule.slot).has(dish.slug);
-        const held = heldOn(rules, rule.weekday, rule.slot);
+      const [dayIndex] = daysFor(rule.weekday, defaultStart, PLAN_DAYS);
 
-        return whyNotFixable(
-          dish,
-          rule.slot,
-          {
-            catalogue: context.catalogue,
-            disliked,
-            kitchen: context.preferences.kitchen,
-            maxMinutes: context.preferences.maxMinutesPerDish,
-            safety: context.safety
-          },
-          RecipeController.excludes({ ...dish, cuisine: dish.cuisine ?? null }, context),
-          fits,
-          // Asked of this one dish and only when it fits the plate alone — the
-          // whole-pool form of the same question is 2.7 s (`dayHoldsPin`), and
-          // an earlier reason makes the answer moot anyway.
-          !fits || held.size === 0 || dayHoldsPin(input, dayIndex, { slot: rule.slot, slug: dish.slug }, held)
-        );
-      })
-    };
+      if (dayIndex === undefined) {
+        // Unreachable while a plan is a fortnight: every weekday falls in it.
+        continue;
+      }
+
+      // **Without the day's arithmetic**, which is the split (`0103`): every
+      // reason this can answer is one `honouredPin` really drops the pin for —
+      // the dish gone from the pool, the meal they stopped eating, a plate it
+      // cannot be sized into. The day's own numbers are asked below, once per
+      // day, and are not a fault in any rule.
+      const verdict = whyNotFixable(
+        dish,
+        rule.slot,
+        {
+          catalogue: context.catalogue,
+          disliked,
+          kitchen: context.preferences.kitchen,
+          maxMinutes: context.preferences.maxMinutesPerDish,
+          safety: context.safety
+        },
+        RecipeController.excludes({ ...dish, cuisine: dish.cuisine ?? null }, context),
+        fitting(dayIndex, rule.slot).has(dish.slug)
+      );
+
+      verdictOf.set(rule.id, verdict);
+
+      if (verdict.fixable) {
+        served.set(dayIndex, [...(served.get(dayIndex) ?? []), { rule, slug: dish.slug }]);
+      }
+    }
+
+    const outOfBand: { readonly id: string; readonly weekday: Weekday }[] = [];
+
+    for (const [dayIndex, held] of served) {
+      const [first, ...rest] = held;
+
+      // **Once per day, and only for a day carrying more than one rule.** A lone
+      // pin always holds — `honouredPin`'s three bounds are the pool, the slot
+      // and the plate, all three already answered above — so there is nothing to
+      // ask. The pair is one question, asked of the first against the others:
+      // two calls could disagree and would cost twice (14–20 ms each, measured
+      // 2026-10-16; the whole-pool form of it is 4.05 s).
+      //
+      // Only the rules the plan **carries** count. One whose dish left the pool
+      // is not on that day at all, so including it would judge the day against a
+      // meal nobody is served.
+      if (
+        !first ||
+        rest.length === 0 ||
+        dayHoldsPin(
+          input,
+          dayIndex,
+          { slot: first.rule.slot, slug: first.slug },
+          new Map(rest.map(each => [each.rule.slot, { slot: each.rule.slot, slug: each.slug }]))
+        )
+      ) {
+        continue;
+      }
+
+      // Every rule of the day, because every one of them is served and every one
+      // contributes to the miss — including the one nobody made a trade about.
+      outOfBand.push(...held.map(each => ({ id: each.rule.id, weekday: each.rule.weekday })));
+    }
+
+    return { judged: true, outOfBand, unhonoured: unhonouredFrom(rules, rule => verdictOf.get(rule.id) ?? { fixable: true }) };
   }
 
   /**
@@ -339,6 +471,18 @@ export class FixedMealsService {
    * One assembly rather than two, because "what is offered" and "why this one is
    * not" have to be answers to the same question — computed apart they can
    * disagree, and the second's whole job is to explain the first.
+   *
+   * **The offer is the plate fit and nothing more** (`0103`). It used to be
+   * narrowed by whatever the day already held, which meant `dayHolds` per
+   * candidate: measured here on 2026-10-16 against the real local library — 851
+   * pool dishes, 200 of them fitting the plate — that was **4.05 s**, against 16
+   * ms for the plate fit alone. And what those four seconds bought was exactly
+   * the refusal the owner asked to have replaced by a warning. So the day's
+   * arithmetic is no longer asked of the library here; it is asked of the dish
+   * somebody chose, in `judge`, and answered as something they may accept.
+   *
+   * `held`, `input` and `dayIndex` are still returned, because that is what
+   * asking it of one dish needs.
    */
   private async offerFor(
     userId: string,
@@ -346,14 +490,17 @@ export class FixedMealsService {
     slot: MealSlot
   ): Promise<{
     readonly context: Awaited<ReturnType<typeof RecipeController.generationContext>>;
+    /** That weekday already holds `MAX_FIXED_MEALS_PER_DAY`, so nothing is offered and nothing may be written (`0103`). */
+    readonly dayFull: boolean;
     readonly dayIndex: number | undefined;
-    /** What this weekday already has fixed, by slot — what the offer is narrowed against (`0101`). */
+    /** What this weekday already has fixed, by slot — what one chosen dish is judged beside (`0101`, `0103`). */
     readonly held: ReadonlyMap<MealSlot, { readonly slot: MealSlot; readonly slug: string }>;
     readonly input: Parameters<typeof pinnable>[0] | undefined;
     /** Everything the library holds for these slots, from the same read the pool came out of. */
     readonly library: readonly CandidateDish[];
     readonly offered: readonly FixableDish[];
     readonly profile: Awaited<ReturnType<typeof ProfileController.getFullProfile>>;
+    readonly slot: MealSlot;
     readonly slots: readonly MealSlot[];
     readonly verdicts: Awaited<ReturnType<typeof RecipeController.verdicts>>;
   }> {
@@ -368,14 +515,31 @@ export class FixedMealsService {
     const [dayIndex] = daysFor(weekday, defaultStart, PLAN_DAYS);
 
     if (dayIndex === undefined) {
-      return { context, dayIndex: undefined, held: new Map(), input: undefined, library, offered: [], profile, slots, verdicts };
+      return {
+        context,
+        dayFull: false,
+        dayIndex: undefined,
+        held: new Map(),
+        input: undefined,
+        library,
+        offered: [],
+        profile,
+        slot,
+        slots,
+        verdicts
+      };
     }
 
     const held = heldOn(rules, weekday, slot);
-    const offered = pinnable(input, dayIndex, slot, held);
+    // Nothing can be fixed to a day that already holds its two, so nothing is
+    // offered for it (`0103`). The offer must never list what `add` would then
+    // refuse, and before `0103` it never did: the arithmetic filter collapsed a
+    // third rule's offer on its own, which is why `0101` set no number.
+    const offered = held.size >= MAX_FIXED_MEALS_PER_DAY ? [] : pinnable(input, dayIndex, slot);
 
     return {
       context,
+      dayFull: held.size >= MAX_FIXED_MEALS_PER_DAY,
       dayIndex,
       held,
       input,
@@ -384,9 +548,87 @@ export class FixedMealsService {
         .map((dish: CandidateDish) => ({ id: dish.slug, name: dish.name, slug: dish.slug }))
         .sort((a, b) => a.name.localeCompare(b.name)),
       profile,
+      slot,
       slots,
       verdicts
     };
+  }
+
+  /**
+   * Whether this person can be served **this** dish at this meal of this
+   * weekday, and why not when they cannot.
+   *
+   * The one oracle: the picker's explanation, the warning read before anybody
+   * commits and the gate on `add` are all this function, so the three can never
+   * disagree about a dish. `whyNotFixable` says the reasons in the order a
+   * person would have to deal with them, and the day's arithmetic is last
+   * because it is the only one that costs anything — about 20 ms, paid once,
+   * and only for a dish that already fits the plate on a day that already holds
+   * a rule.
+   */
+  private judge(offer: Awaited<ReturnType<typeof this.offerFor>>, dish: CandidateDish): FixableVerdict {
+    const { context, dayIndex, held, input, offered, slot, verdicts } = offer;
+    const fits = offered.some(each => each.slug === dish.slug);
+
+    return whyNotFixable(
+      dish,
+      slot,
+      {
+        catalogue: context.catalogue,
+        disliked: new Set(verdicts.disliked.map(each => each.slug)),
+        kitchen: context.preferences.kitchen,
+        maxMinutes: context.preferences.maxMinutesPerDish,
+        safety: context.safety
+      },
+      RecipeController.excludes({ ...dish, cuisine: dish.cuisine ?? null }, context),
+      fits,
+      // Not asked when an earlier reason already answered, when the day holds
+      // nothing, or when the dish does not fit the plate: in each case the day's
+      // arithmetic is moot and paying for it is paying for nothing.
+      !fits || held.size === 0 || !input || dayIndex === undefined ? true : dayHoldsPin(input, dayIndex, { slot, slug: dish.slug }, held)
+    );
+  }
+
+  /**
+   * What fixing this dish to this meal would cost, before anybody commits
+   * (`0103`).
+   *
+   * **The shape the record's one constraint chose.** The warning has to be read
+   * before the rule is written, and it must not be a dialog people learn to tap
+   * through — so it is not on `POST /fixed-meals`'s refusal (read *after* they
+   * committed) and not on every dish of the offer (which is the four seconds
+   * this change exists to remove). It is one read of the one dish they touched,
+   * which the screen can put on the row itself, the way `0102`'s appliances sit
+   * on a dish.
+   *
+   * It is not the gate. `add` asks the same question again and refuses a warning
+   * nobody accepted, so a client that skips this route cannot write a rule
+   * nobody was warned about.
+   *
+   * A dish this person's library does not hold is answered `unknown_dish` rather
+   * than an error: it is one of the nine reasons, and a screen whose search
+   * raced a catalogue change should say so rather than break.
+   */
+  async consequence(userId: string, weekday: Weekday, slot: MealSlot, dishSlug: string): Promise<FixedMealConsequence> {
+    const offer = await this.offerFor(userId, weekday, slot);
+
+    if (offer.dayFull) {
+      // Refused rather than answered with a reason, because `NotFixable` says
+      // why a *dish* is not offered and a full day is not a fact about any
+      // dish. Giving it a tenth reason is what would fragment the one
+      // vocabulary this feature keeps.
+      throw new FixedMealDayFullError(MAX_FIXED_MEALS_PER_DAY);
+    }
+
+    const dish = offer.library.find(each => each.slug === dishSlug);
+
+    if (!dish) {
+      return { acceptable: false, fixable: false, why: 'unknown_dish' };
+    }
+
+    const verdict = this.judge(offer, dish);
+
+    return verdict.fixable ? verdict : { acceptable: acceptable(verdict.why), fixable: false, why: verdict.why };
   }
 
   /**
@@ -410,36 +652,34 @@ export class FixedMealsService {
       return [];
     }
 
-    const { context, dayIndex, held, input, library, offered, verdicts } = await this.offerFor(userId, weekday, slot);
-    const offeredSlugs = new Set(offered.map(dish => dish.slug));
-    // What the day would offer if it held nothing. The difference between the
-    // two lists is exactly the dishes refused for clashing with a rule already
-    // there, which is its own sentence and not "too big for that plate".
-    const alone = held.size > 0 && input && dayIndex !== undefined ? new Set(pinnable(input, dayIndex, slot).map(dish => dish.slug)) : offeredSlugs;
+    const offer = await this.offerFor(userId, weekday, slot);
+
+    if (offer.dayFull) {
+      // The reason nothing is offered is the day and not any of these dishes,
+      // and this answer may only say things about dishes. The screen has that
+      // day's rules already (`FixedMealsView.maxPerDay` beside them) and says
+      // it without a request.
+      return [];
+    }
+
+    const offeredSlugs = new Set(offer.offered.map(dish => dish.slug));
     const seen = new Set<string>();
     const reasons: NotOfferedDish[] = [];
 
-    for (const dish of library) {
+    for (const dish of offer.library) {
       if (offeredSlugs.has(dish.slug) || seen.has(dish.slug) || !plain(dish.name).includes(needle)) {
         continue;
       }
 
       seen.add(dish.slug);
 
-      const verdict = whyNotFixable(
-        dish,
-        slot,
-        {
-          catalogue: context.catalogue,
-          disliked: new Set(verdicts.disliked.map(each => each.slug)),
-          kitchen: context.preferences.kitchen,
-          maxMinutes: context.preferences.maxMinutesPerDish,
-          safety: context.safety
-        },
-        RecipeController.excludes({ ...dish, cuisine: dish.cuisine ?? null }, context),
-        alone.has(dish.slug),
-        offeredSlugs.has(dish.slug)
-      );
+      // Through the same oracle as the offer and the warning, which here costs
+      // nothing extra: a dish left out of the plate-fit list never reaches the
+      // day's arithmetic, so `judge` stops at an earlier reason without building
+      // a day. The second whole-pool `pinnable` this used to need to tell
+      // `clashes_with_fixed` from `too_big_or_small` is gone with the narrowing
+      // itself — a clashing dish is now **offered**, with a warning (`0103`).
+      const verdict = this.judge(offer, dish);
 
       if (!verdict.fixable) {
         reasons.push({ actionable: actionable(verdict.why), name: dish.name, slug: dish.slug, why: verdict.why });
@@ -485,11 +725,13 @@ export class FixedMealsService {
       throw new QuotaExceededError('dish_request');
     }
 
-    const { context, dayIndex, held, input, library, profile } = await this.offerFor(userId, weekday, slot);
-    // The pool a requested dish is judged in has to carry the day's own rules:
-    // `dayHolds` looks their dishes up in it, and a pool of one dish would make
-    // every pin on that day unhonourable and the day trivially solvable.
-    const heldDishes = [...held.values()].flatMap(pin => library.filter(dish => dish.slug === pin.slug));
+    const { context, dayFull, dayIndex, input, library, profile } = await this.offerFor(userId, weekday, slot);
+
+    if (dayFull) {
+      // Before the model call, for the reason the allowance is read before it:
+      // nobody pays for a dish that could not be fixed where they asked for it.
+      throw new FixedMealDayFullError(MAX_FIXED_MEALS_PER_DAY);
+    }
 
     if (!input || dayIndex === undefined) {
       throw new ConflictError('That meal does not fall in the fortnight you would generate next');
@@ -538,10 +780,19 @@ export class FixedMealsService {
     };
 
     for (const candidate of built.generated) {
-      // The same gate the offered list uses, on a pool of exactly this dish —
-      // and beside whatever that day already holds, because a dish nobody could
-      // be served there is not worth storing (`0101`).
-      if (pinnable({ ...input, pool: [candidate, ...heldDishes] }, dayIndex, slot, held).length === 0) {
+      // The same gate the offered list uses, on a pool of exactly this dish: it
+      // has to be sizeable into that meal's plate, or it is not a dish we could
+      // serve there for anybody.
+      //
+      // **Not judged against what the day already holds, and that is a fix**
+      // (`0103`, measured 2026-10-16). `0101` passed `held` here, which made
+      // `dayHolds` build the day's free slots out of a pool of two dishes — the
+      // candidate and the rule's own — so it could never succeed: measured, the
+      // offer came back empty for **every** candidate on a weekday holding
+      // another rule, which is to say this route was dead on exactly the days
+      // `0103` is about. The day's arithmetic is now asked once, of the dish
+      // somebody fixes, and answered as a warning they may accept.
+      if (pinnable({ ...input, pool: [candidate] }, dayIndex, slot).length === 0) {
         continue;
       }
 

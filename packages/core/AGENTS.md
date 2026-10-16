@@ -231,6 +231,15 @@ Five related rules:
   is the row that does **not** exist yet, take a transaction-scoped advisory lock keyed on
   the owner — `PlanJobRepository.claim` — or give the table a partial unique index and let
   the insert fail, as `meal_plans_one_active_per_user` does.
+- **When two bounds can refuse the same write, only the lock may order them.** A service
+  pre-check that refuses early reads its count *outside* the lock, so it picks the sentence
+  before the authoritative count exists — and for somebody who has both spent their
+  allowance and filled the day it picks the wrong one. `FixedMealRepository.createWithinQuota`
+  re-counts both the tier allowance and `MAX_FIXED_MEALS_PER_DAY` inside its own
+  transaction, allowance first, and that ordering lives there and nowhere else (`0103`).
+  A cheap pre-check added later "for a nicer error" reintroduces exactly this: it was
+  written once, found by an end-to-end test on 2026-10-16, and deleted rather than
+  reordered.
 - **Drizzle returns `numeric` columns as strings** to avoid float loss. Convert at the
   repository boundary so entities and controllers only ever see numbers.
 

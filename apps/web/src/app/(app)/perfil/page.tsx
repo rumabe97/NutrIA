@@ -206,6 +206,10 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
               // what. It is the same answer the row above reads (report `0011` § 2).
               cookingMinutes={preferences.cookingTimeMinutes}
               dishRequests={fixedMeals.dishRequests}
+              // The server's own cap on one weekday (`0103`), never a number
+              // repeated in the card: one that disagreed would grey out a day
+              // the API would have taken, or offer one it refuses.
+              maxPerDay={fixedMeals.maxPerDay}
               rules={fixedMeals.rules}
               slots={slotsIn(preferences.mealShape)}
               standing={fixedMeals.standing}

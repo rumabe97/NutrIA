@@ -117,6 +117,29 @@ uncommitted as this is written, so they start when it ships rather than beside i
   dish by dish; it is the right instrument for the handful of dishes a search asks about and
   the **wrong** one for the whole offer, where asking it 851 times would be slower than what
   is there now. So this needs its own measurement per route, not a substitution.
+- **Two suites fail on a developer's library and pass on CI's, and it is their premise that
+  is wrong.** Found twice on 2026-10-16 by two agents who were not looking for it. A full
+  local run (55 suites, 786 tests, 28 minutes) ends `2 failed`: `generation.e2e-spec.ts` →
+  *"reconciles the shopping list exactly with the plan it came from"* (`drift: 120` on a
+  cooked pasta row) and `admin.e2e-spec.ts` → *"never name who made a dish"*
+  (`expect(dish).toBeDefined()` at `:2193`). Both **pass** on a database built the way CI
+  builds it, so CI is not red and nobody sees them unless they run the whole suite locally.
+  Earlier the same day `admin`, `owner-alerts` and `swaps` failed the same way in a full run
+  and passed when run alone. The root cause is one thing, and `ci-shaped-database-locally`
+  names it: **a plan stores only the dishes it uses**, so against a rich library a generation
+  stores nothing fresh — `admin`'s query wants `source='ai' and created_by is not null`,
+  which is **0 rows** in `nutria_local` because `created_by` is `ON DELETE SET NULL` and
+  every account that wrote such a dish has since been deleted by the suite that made it.
+  `generation`'s drift is the same class: a plan built from a thousand real recipes rather
+  than the fixture pool. **What it costs**: a developer cannot trust a full local run, which
+  is how a real failure gets waved through as "that one always fails". The fix is per suite
+  — each must either bring the state its premise needs or state that it is CI-shaped only —
+  and belongs to whoever owns `generation` and `admin`, not to the change that tripped over
+  it. **The generalisation is the part worth keeping**, because it explains `owner-alerts`
+  and `swaps` as well: any assertion whose premise is *"the library holds a dish some account
+  still owns"* is false on a shared development database the moment the suites clean up after
+  themselves — and false in a way that looks like flakiness rather than like a premise, which
+  is why it has survived this long.
 - **A dish the day's macros cannot hold should warn, not refuse** (the owner, 2026-10-16:
   *"en vez de elegir, deberías poner un aviso indicando eso al usuario, y que es su
   responsabilidad o algo así, pero que permita elegirlo"*). Today `clashes_with_fixed` and

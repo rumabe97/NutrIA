@@ -7,6 +7,8 @@ import {
   CareLinkExistsError,
   ConflictError,
   DatabaseOperationError,
+  FixedMealDayFullError,
+  FixedMealWarningError,
   InputParseError,
   NotFoundError,
   PasswordChangeRequiredError,
@@ -91,6 +93,27 @@ describe('AllExceptionsFilter', () => {
     expect(capture(new TwoFactorRemovalRefusedError(reason)).body).toEqual({
       code,
       message: 'No se puede pedir eso para esta cuenta ahora.',
+      statusCode: HttpStatus.CONFLICT
+    });
+  });
+
+  /* `0103`: fixing a meal against the day's arithmetic is a state, not a refusal — and the screen is told which warning. */
+  it('maps an unaccepted fixed-meal warning to 409 with the reason', () => {
+    expect(capture(new FixedMealWarningError('clashes_with_fixed')).body).toEqual({
+      code: 'FIXED_MEAL_WARNING',
+      message: 'Hace falta aceptar un aviso para fijar ese plato.',
+      statusCode: HttpStatus.CONFLICT,
+      warning: 'clashes_with_fixed'
+    });
+  });
+
+  it('maps a full day to its own 409, with the number on the body', () => {
+    // Its own code, because this route answers three different 409s and a
+    // screen has to tell them apart; the number so nothing repeats it.
+    expect(capture(new FixedMealDayFullError(2)).body).toEqual({
+      code: 'FIXED_MEAL_DAY_FULL',
+      dayLimit: 2,
+      message: 'Ese día ya tiene todas sus comidas fijadas.',
       statusCode: HttpStatus.CONFLICT
     });
   });

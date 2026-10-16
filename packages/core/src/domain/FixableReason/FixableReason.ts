@@ -30,10 +30,15 @@ import type { SafetyProfile } from 'core/entities/Safety';
  */
 export type NotFixable =
   | 'allergen'
-  /** It fits that meal, but not beside the rule the day already holds (`0101`). */
+  /**
+   * It fits that meal, but the day cannot reach its four macros with it beside
+   * the rule it already holds (`0101`). **A warning somebody may accept since
+   * `0103`** — see `ACCEPTABLE_REASONS`.
+   */
   | 'clashes_with_fixed'
-  /** Their way of eating rules it out — vegetarian, halal, gluten-free. */
+  /** A dish they told us they do not like. */
   | 'disliked'
+  /** Their way of eating rules it out — vegetarian, halal, gluten-free. */
   | 'excluded'
   /**
    * It needs an appliance they said they do not have (`0102`). Actionable, and
@@ -41,11 +46,17 @@ export type NotFixable =
    * is a different one: another dish, or an appliance they do not own.
    */
   | 'missing_equipment'
-  /** Longer than the cooking time they said they wanted. The most actionable, and the owner's own case. */
-  | 'no_method'
   /** The recipe never says how to cook it, so the product will not serve it to anybody. */
+  | 'no_method'
+  /**
+   * It cannot be sized into this meal's plate — the commonest, and it usually
+   * fits another meal. **A refusal and not a warning**, although it is
+   * arithmetic: it is `fitsPlate`, which is one of the three bounds
+   * `honouredPin` drops a pin for, so accepting it would promise a meal the
+   * generation never serves (`ACCEPTABLE_REASONS`).
+   */
   | 'too_big_or_small'
-  /** It is not a dish for this meal, for this person (`0062` § 5). */
+  /** Longer than the cooking time they said they wanted. The most actionable, and the owner's own case. */
   | 'too_slow'
   /**
    * The dish a rule names is not in this person's library at all any more: it
@@ -59,10 +70,60 @@ export type NotFixable =
    * theirs.
    */
   | 'unknown_dish'
-  /** It cannot be sized into this meal's plate — the commonest, and it usually fits another meal. */
+  /** It is not a dish for this meal, for this person (`0062` § 5). */
   | 'wrong_slot';
 
 export type FixableVerdict = { readonly fixable: false; readonly why: NotFixable } | { readonly fixable: true };
+
+/**
+ * The one reason that is a day's arithmetic rather than a thing somebody cannot
+ * eat — **a warning they may accept, not a refusal** (`0103`).
+ *
+ * The test is not "is it about numbers", it is **whether accepting it ends with
+ * the meal on the plate**. The owner's own requirement: *"aunque no se cumplan
+ * las macros, el plan se tiene que generar con esas comidas"*. Checked against
+ * `honouredPin`, which yields a pin to three bounds and three only — the pool,
+ * the slot the dish declares, and `fitsPlate`:
+ *
+ * - `clashes_with_fixed` is **not** one of them. The pin is placed and the day
+ *   is simply built out of band, which is exactly what was asked for. Measured
+ *   on the real library: both rules of a clashing pair served, the day 5.8%
+ *   under on energy.
+ * - `too_big_or_small` **is** one of them: that reason *is* `fitsPlate` failing,
+ *   so accepting it would promise a meal the generation then drops (`0070`,
+ *   `0076`, `0078` — the gram ceiling and `PLATE_LIMIT`, which exist so the
+ *   product never serves a plate it refuses to serve). Taking somebody's
+ *   acceptance and still not serving the dish is worse than saying no, so it
+ *   keeps its refusal and keeps its sentence, which already says to try the dish
+ *   in another meal.
+ *
+ * The other seven fail the same test for plainer reasons: an allergen is safety
+ * and never theirs to overrule (`0004`), an exclusion and a dislike are their
+ * own standing instructions, a missing appliance means they cannot cook it
+ * (`0102`), a missing method is ours rather than theirs, a dish gone from the
+ * library is not there to eat, and the wrong meal is not a dish for that meal.
+ */
+export const ACCEPTABLE_REASONS = ['clashes_with_fixed'] as const;
+
+export type AcceptableReason = (typeof ACCEPTABLE_REASONS)[number];
+
+/**
+ * Whether this is a reason somebody may accept and fix the dish anyway (`0103`).
+ *
+ * **Not the same question as `actionable`**, and the difference is what each one
+ * buys a screen. `actionable` says whether there is a way forward at all — a
+ * preference to raise, another dish to choose. This says whether *this* dish can
+ * still be fixed, over the reason, by somebody who reads what it will cost. Five
+ * reasons are actionable without being acceptable (`excluded`, `disliked`,
+ * `too_slow`, `missing_equipment`, `too_big_or_small`): the way forward is to
+ * change the thing they said or to choose another meal, not to overrule it here.
+ *
+ * The predicate's own type is the check that the reason is really a reason:
+ * TypeScript only allows a narrowing to a type assignable to the parameter's.
+ */
+export function acceptable(why: NotFixable): why is AcceptableReason {
+  return (ACCEPTABLE_REASONS as readonly NotFixable[]).includes(why);
+}
 
 /**
  * Why this dish is not offered for this slot, or that it is.
