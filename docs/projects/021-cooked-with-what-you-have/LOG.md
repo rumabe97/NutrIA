@@ -856,3 +856,145 @@
   stop being sticky once its row has wrapped. Nothing in this phase touched `packages/ui`: `Button`'s `white-space: nowrap` is the
   reason the actions row had to wrap, and changing it would have altered every button in the
   product to fix one row.
+
+## Phase 6 — What it costs, measured (2026-10-16)
+
+- **Executor**: `plan-evaluator` (opus), as `kitchen-cost`, for the measuring. The plan
+  priced this phase `opus @ high` and **`plan-evaluator` has no `-high` variant**, so it ran
+  at its definition's own effort — the `/execute-project` rule for a role with no variant,
+  recorded here rather than silently. The flag itself was written in-session, because
+  `plan-evaluator` has no `Write` tool and the plan gives it steps 1–2: deviation 1 below.
+- **Result**: steps 1, 2 and 4 done. **Step 3 is owner-gated and open** — it needs one real
+  generation against the production provider, which no agent may run.
+- **The answer, in one line**: a missing oven, a missing blender or a kitchen with only a
+  hob costs a profile **0.2% to 10.4% of the dishes it may reuse and nobody a single day**
+  — 14/14 days inside 5% on all four macros for all fourteen profiles in all four runs.
+  Every number is in [`0102`](../../decisions/0102-a-kitchen-is-what-it-has-and-what-it-would-rather-use.md)
+  § *What it costs, measured*, which is where a reader should go; the shape of it is below.
+- **What was run**: four runs of `evaluate-plans.mjs` over the fourteen fixed profiles, on
+  the local library (1,084 es-ES dishes), read-only, `AI_PROVIDER=stub`, no model called —
+  the default kitchen, then *no oven*, *no blender*, and *no oven, no microwave, no
+  blender*. **56 profile-runs, 784 days.** Not one reported a day out of band, a fall back
+  to the whole library, a blocking shortfall, an allergen on a plate, a variety violation,
+  a plate over its slot ceiling or a share outside its limit, and the energy floor was
+  never reached.
+- **The two numbers the plan asked for by name**: saying *no oven* costs 4.4%–8.1% of a
+  profile's pool; saying *no blender* costs 0.2%–3.3%. And **the default kitchen costs
+  nothing**, which is now measured rather than argued: a run with no kitchen at all and a
+  run with the default produce identical pools, per-slot pools and days for all fourteen
+  profiles, so none of 1,084 local dishes is refused by a hob, an oven, a microwave and a
+  blender (production: one dish of 962, the pressure-cooker beans).
+- **The one number to watch, and it is a slot**: `patron-sin-gluten`'s breakfast pool,
+  **37 → 29** in the hardest kitchen, against the 19 the rotation needs per slot. The
+  thinnest slot anywhere in the four runs, a 21.6% cut to a slot that was already the
+  narrowest in the set, and still above the line — today. It is phase 8's argument with a
+  name on it.
+- **Findings**:
+  1. **The flag was a silent no-op for six of the fourteen profiles**, found by
+     `plan-evaluator` reading its own zeroes rather than reporting them. `contextFor`'s
+     `dietaryPattern` branch rebuilds `preferences` from scratch instead of spreading
+     `shared.preferences`, so `kitchen` arrived `null` — and `withinEquipment` reads null
+     as "nobody asked", which is true of **every** dish. Those six would have reported a
+     cost of zero that nothing had been charged. One key, with the comment that says why:
+     proved with `patron-vegetariano` **549 → 543** under `--without oven`, and the eight
+     unaffected profiles reproduce value for value across the fix, so the baseline did not
+     move.
+  2. **A kept run could not say which kitchen it measured.** `flags: []` and nothing else
+     in the JSON header, while the plan keeps these files for `--compare` — so a later
+     comparison against the hardest kitchen's file would have read its smaller pool as a
+     regression with nothing in the file to explain it. The header now carries
+     `without: [...]`, and the run prints `Kitchen: the default, without oven`.
+  3. **The declared library and the prose library disagree, and the record now says so.**
+     `0102`'s Context counted the appliances a dish's *steps name* (oven 68 locally); what
+     the product obeys is the `equipment` column after `0067`'s backfill (oven 58), which
+     only classifies a dish whose steps name an appliance **and** do not offer it as one
+     choice among several. Unlabelled, a reader concludes the library lost ten dishes.
+  4. **The microwave is worth about nothing** — 3 dishes, all breakfasts — so "the hardest
+     kitchen" is really the oven plus the blender, which is worth knowing before phase 8
+     decides what to grow.
+  5. **Six of the ten catalogue appliances have no dish to reuse, the air fryer among
+     them.** Read on both libraries: the declared `equipment` column names exactly four
+     appliances — locally stovetop 1,041, oven 58, blender 20, microwave 3; in production
+     (962 es-ES dishes, **none undeclared**) stovetop 917, oven 65, blender 20, microwave
+     3, pressure cooker 1, so 89 dishes beyond the hob and no dish needing two of them.
+     **Zero air fryer in either.** The plan's "1 in 1128" was the prose count; the backfill
+     did not classify that dish, because its steps offer the air fryer as one choice among
+     several. Step 3 is therefore a **sharper** test than the plan expected, not a muddier
+     one: nothing can be reused, so every air-fryer dish in that fortnight is one the model
+     wrote because it was asked to, and no filter can produce a false positive.
+- **Deviations from plan**:
+  1. **The script was written by this session, not by the agent the plan names.**
+     `plan-evaluator` reports numbers and has no `Write` tool, and the plan hands it steps
+     1–2. The division actually used: this session wrote `--without`, the agent measured
+     with it, found the bug above, and the fix came back here. Nothing outside
+     `apps/api/scripts/evaluate-plans.mjs` changed.
+  2. **Step 1 asked for "a stance list for the harder cases" and only `--without` was
+     built**, because there is no second number for it to produce: `prefers` may never
+     remove a dish (`0102`), and this evaluator calls no model, so a stance of *prefers*
+     changes nothing it can observe. The preference half is step 3 by construction. Step 1
+     is amended in the same change to say so.
+- **Evidence**: eight runs plus a header check, in this session's scratchpad under
+  `.../scratchpad/kitchen/` —
+  `/tmp/claude-1000/-home-ruben-Escritorio-githubProyects-NutrIA/8e5a2d68-a50c-466c-805f-46a1bfae0ff2/scratchpad/kitchen`.
+  The four that count are `fixed-default`, `fixed-oven`, `fixed-blender` and `fixed-three`,
+  each a `.json` and a `.log`; the four pre-fix runs (`default`, `without-*`) are kept for
+  the comparison in finding 1, and `header-check.json` for finding 2. Core was built before
+  measuring (`pnpm turbo build --filter=core`), which is not optional: the evaluator loads
+  `packages/core` from `dist`, so an unbuilt edit measures nothing and returns identical
+  numbers.
+- **Notes for the next phase**:
+  - **Phase 8 now has its target**: not "more dishes" but **gluten-free breakfasts that
+    need no oven and no blender**, and then the six catalogue appliances with no dishes at
+    all. The constraint half is nearly free on today's library; the supply half is the
+    whole of what is left.
+  - **Phase 7 can assert a kitchen without a model.** Every number above came from
+    `resolvePreferences` and `reusablePool`, the same two the API calls.
+- **The gate, step 3, and exactly what it takes.** Nothing below is an agent's to run: it
+  calls a paid provider, and the environment is a choice only the owner can make.
+  - **Not on his own production account.** `PlanRepository` completes the active plan in
+    the same transaction that inserts the new one (`completesActive`), or cuts it short
+    when the new one waits for its day — so generating there **ends the fortnight he is
+    eating**, Sunday's *Bacalao al horno* included. The test is not worth a plan.
+  - **Recommended: locally, against the real provider**, from the main checkout (a
+    worktree has no `.env`). It exercises the same `PoolPrompt` 4.9.0 and the same
+    OpenRouter route the deployed API uses, on a probe account, and nothing in production
+    is written or read. The local library has no air-fryer dish either, so the denominator
+    is the same zero. `/local-probe`'s `account.mjs create` makes the account and walks
+    onboarding; the kitchen stance is set on the screen.
+  - **The alternative, if the deployed build itself must be the thing tested**: a second
+    account in production, never his own.
+  1. Set **Freidora de aire** to **Prefiero** — onboarding's kitchen step, or `/perfil` →
+     *Tu cocina* → the edit link on an account that has finished onboarding.
+  2. Generate a fortnight.
+  3. One read-only query counts the answer. Syntax-checked inside `begin read only`
+     against the local database before it was written down:
+
+     ```sql
+     with latest as (
+       select p.id from meal_plans p join "user" u on u.id = p.user_id
+       where u.email = '<the account used>' order by p.created_at desc limit 1
+     )
+     select
+       count(*)                                                as plates,
+       count(*) filter (where 'air_fryer' = any(r.equipment))  as declares_air_fryer,
+       -- Declared and named are different claims: prompt 4.9.0 no longer pays the
+       -- model to under-declare, so both are counted. A fortnight that names an air
+       -- fryer in six steps and declares it in two is a prompt that half worked.
+       count(*) filter (where lower(r.instructions::text)
+                              ~ 'freidora de aire|freidora sin aceite|air ?fry')
+                                                               as names_air_fryer,
+       count(*) filter (where r.equipment <> array['stovetop']::text[]
+                          and r.equipment <> '{}'::text[])     as needs_something_else
+     from meals m
+     join plan_days pd on pd.id = m.plan_day_id
+     join latest    l  on l.id  = pd.plan_id
+     join recipes   r  on r.id  = m.recipe_id;
+     ```
+
+     The longer version — the denominator, the stances the account actually holds, and
+     every plate with the appliances it declares — is in this session's scratchpad as
+     `paso3-airfryer.sql`, four statements of the same shape, all four run.
+  4. The number goes into `0102` § *What it costs, measured* under *Still owed*, and the
+     phase closes. **Whatever it says**: zero air-fryer dishes is a result — it would mean
+     `PREFERRED APPLIANCES:` is a line the model ignores, and that is worth knowing before
+     phase 8 grows a catalogue on the strength of it.
