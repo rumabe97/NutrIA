@@ -52,16 +52,17 @@
   }
 }
 
-/* `overflow-wrap: anywhere`, and it has to be `anywhere`: this column holds
-   «electrodoméstico» and the library's longest dish name, and min-content is
-   the longest unbreakable word, which `break-word` does **not** reduce — the
-   same fact phase 5c turned on. Measured without it, at 320 px with a 32 px
-   root, the row grew to 425 px on a 320 px screen with the document's own
-   overflow still at 0: cut off and unreachable rather than scrollable.
-   `anywhere` alone, though, let that column collapse to 21 px and stack a
-   sentence one letter per line; the large-text rule below is the other half of
-   the fix, and the pair measured 768 px against 5440 px
-   (`accessibility`, 2026-10-16). */
+/* This column holds «electrodoméstico» and the library's longest dish name, and
+   min-content is the longest unbreakable word, which `break-word` does **not**
+   reduce — the fact phase 5c turned on. With **no** `overflow-wrap` and no
+   large-text rule the row grew to 425 px on a 320 px screen with the document's
+   own overflow at 0: cut off and unreachable rather than scrollable. With the
+   rule below in place `break-word` measured the same 882 px row and 164 px
+   column as `anywhere`, so the two are indistinguishable at these widths;
+   `anywhere` stays as the stricter of them, because a single word longer than
+   the whole row still cannot push it. `anywhere` on its own, before that rule
+   existed, collapsed this column to 21 px and stacked a sentence a letter per
+   line — 5440 px of row (`accessibility`, 2026-10-16). */
 .when {
   display: grid;
   gap: var(--space-01);
@@ -74,8 +75,9 @@
    full width and «Quitar» drops under it. In `rem`, so the query tracks the
    reader's font size rather than their device — 17rem is 544 px at a 32 px root
    and 272 px at 16 px, which no phone reaches. Measured on a `missing_equipment`
-   row at 320 px / 32 px: 5440 px tall and a 21 px text column before, 768 px and
-   254 px after, document overflow 0 either way. */
+   row carrying the library's longest dish name, at 320 px / 32 px: 5440 px tall
+   and a 21 px text column before, 882 px and 164 px after, against 342 px for an
+   unmarked row; 692 px at 390 px / 32 px, and document overflow 0 throughout. */
 @media (width < 17rem) {
   .row {
     flex-wrap: wrap;
