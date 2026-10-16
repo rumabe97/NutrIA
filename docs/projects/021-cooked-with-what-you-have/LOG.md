@@ -998,3 +998,101 @@
      phase closes. **Whatever it says**: zero air-fryer dishes is a result — it would mean
      `PREFERRED APPLIANCES:` is a line the model ignores, and that is worth knowing before
      phase 8 grows a catalogue on the strength of it.
+
+## Phase 7 — End to end (2026-10-16)
+
+- **Executor**: `tests` (opus), as `kitchen-e2e` — the plan priced the phase `opus @ medium`
+  and `tests` is the medium variant, so the routing matched exactly.
+- **Result**: done. **`apps/api/test/kitchen.e2e-spec.ts`, 14 tests, green on both
+  databases**: the local 1,128-dish library (24 s) and a CI-shaped one built from migrations
+  plus `seed` with **zero recipes in it** (39 s). The acceptance criterion was the second
+  run, and it is the one that found the design problem below.
+- **No product defect.** Four phases of kitchen work hold up on real rows.
+- **The finding, and it belongs to phase 8 as much as to this phase: a scripted dish cannot
+  be relied on to reach the library.** `PlanGeneration.service.ts` stores a model's dish
+  only if the plan **used** it (`newRecipes`, filtered by `used`), so against the
+  development library two runs stored **0 and 2 fresh rows out of eighty-four plates** — the
+  shared pool's days sit about 6% over protein, so a real dish wins nearly every slot. On
+  the CI-shaped database 6 of 42 plates were fresh and **none of the six was one of the nine
+  oven fixtures**. A suite that assumed its scripted dish would be in the library would
+  therefore be green on one database and red on the other, for reasons having nothing to do
+  with the kitchen.
+  - **So the two halves are tested through different doors.** The nine scripted oven dishes
+    test the **gate** — they are what `missing_equipment` fires on, handed to the same
+    `cook` client for both accounts, so the only difference between the two generations is
+    the kitchen. The **filter** is read on a **copy of a dish the account is already
+    offered**, with the oven declared on it and nothing else changed (`copyDishDeclaring`,
+    new in `harness.ts`): same slots, minutes, ingredients and macros, one field different,
+    on either database.
+- **What the suite asserts**, against the phase's four steps:
+  1. **No oven dish at all** in the fortnight of an account that says it has none — asserted
+     as both halves at once, because either alone passes for the wrong reason: zero oven
+     plates is true of many fortnights whatever the kitchen, and a rejection tally says the
+     gate fired without saying the plan came out clean. Plus, said separately so a red run
+     names which half broke, that there were oven dishes in the library to be served.
+  2. **The offer, both ways**: `missing_equipment`, actionable, to the account with no oven
+     and 422 `fieldErrors.dishSlug` at add time, while **the same dish without the oven on
+     it** stays offered to both — which is what tells the reason from every other refusal.
+     The second account fixes it, and its pinned oven dinner is served on both of that
+     weekday's days with the appliance on the meal detail.
+  3. **`0019` again**: another account's id in the body changes nothing.
+  4. **The suite brings its own dishes**, for the reason above, and asks the *table* which
+     slugs declare an appliance rather than its own fixture — so it asserts something about
+     the 58 oven dishes the development library already holds, and still has something to
+     assert where there are none. Nine dishes, three per slot, copies of `POOL`'s shapes
+     with `equipment: ['oven']`. **`POOL` itself is left alone on purpose**, and that is the
+     rule to keep: every suite shares it, so an appliance declared there would narrow every
+     other suite's pool.
+  - **And it needs no fat source, which is worth saying because the README's trap is about
+     exactly that.** `fixed-meals.e2e-spec.ts` had to bring oil-bearing dishes because
+     `0101`'s second-rule offer is gated on a day the scheduler can build inside all four
+     bands, and no day built from `POOL` is. Every offer this suite reads is a **first** rule
+     on a weekday that holds nothing, so no in-band day is required and `PAIRABLE` is not
+     needed. A suite that needs an in-band day must bring a fat source; this one does not
+     need one.
+- **The three things earlier phases left it, all covered**: the body no screen will ever
+  send (a `kitchen` and a `cookingTimeMinutes` together, where the refused fourth `prefers`
+  is 422 `fieldErrors.appliance` **and the cooking time of the same body is unchanged** —
+  `ProfilesService` applies the kitchen first, so a change to that order would be a 422 that
+  quietly moved somebody's cooking time); the preferences route asserted **by its own path**,
+  which no screen sends a kitchen on; and no model needed for any of it.
+- **And the bound's edges, which are where it would have broken**: a preference restated is
+  the fourth write and never the fourth preference, a swap in one body, `null` putting an
+  appliance back to the default and clearing one nobody ever set answering the same, and
+  three shapes the DTO refuses while writing nothing. The three `prefers` written include
+  the **oven** — the one appliance this library has dishes for — so the offered library
+  coming back slug-for-slug identical is a real statement that a preference removes nothing.
+- **Verification**: `pnpm --filter api test:e2e -- --runTestsByPath test/kitchen.e2e-spec.ts`
+  on both databases, and re-run independently by the lead on the local library. The four
+  suites nearest what was touched (`fixed-meals`, `preferences`, `generation`,
+  `dish-request`) are green, 44 tests, and nothing but this suite imports any of the five
+  functions added to `harness.ts`. Zero accounts and zero `kitchen_equipment` rows left on
+  either database; the scratch database `nutria_ci_repro` on port 54329 is disposable.
+- **Deviations from plan**:
+  1. **The agent worked in the main checkout, not its own worktree.** A worktree has no
+     `apps/api/.env`, and both the e2e run and the dev-database scripts need the API's
+     environment. Nobody else was editing the tree.
+  2. **The full 54-suite local run was stopped deliberately** and is not part of this
+     phase's evidence: ~25 minutes for 2.5 suites against the 1,128-dish library, heading
+     for hours on a machine that has died under load. See the blocker note below for what
+     it had reported before it was stopped.
+- **One thing left on the record, not this phase's and not a regression**: the stopped full
+  run had reported `admin`, `owner-alerts` and `swaps` failing, and **all three pass when
+  run on their own on the same database** (91 tests, 96 s) — so they are order- or
+  state-dependent on a developer's rich library. CI is green on `main` for #288, which is
+  the database shape those suites actually have to pass on. `admin.e2e-spec.ts`'s is worth
+  naming because it is **the same root cause as this phase's design change**: its premise is
+  that its own generation asked the model, so the catalogue holds model-made dishes with a
+  maker — and on a rich library a generation may store no fresh recipe at all. A latent
+  flake in a file the `tests` agent owns, cheap to fix, and deliberately left for the owner
+  to schedule rather than folded into a phase it does not belong to.
+- **Notes for the next phase**:
+  - **Phase 8 must read this phase's finding before it drafts anything.** A dish is stored
+    only if a plan uses it, and on a rich library a generation stores almost nothing — so
+    growing the library through the pool builder cannot be verified by generating and
+    looking. The five hundred seeded dishes were loaded, not generated, and that is the
+    shape the growth has to take.
+  - **The preference half still owes a real generation** (phase 6 step 3) and no suite can
+    stand in for it: with zero dishes declaring an air fryer, a grill, a steamer, a slow
+    cooker or a rice cooker in either library, there is nothing for a filter to find and the
+    only question left is what the model does with the prompt line.
