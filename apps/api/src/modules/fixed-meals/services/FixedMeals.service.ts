@@ -264,6 +264,7 @@ export class FixedMealsService {
         {
           catalogue: context.catalogue,
           disliked: new Set(verdicts.disliked.map(each => each.slug)),
+          kitchen: context.preferences.kitchen,
           maxMinutes: context.preferences.maxMinutesPerDish,
           safety: context.safety
         },

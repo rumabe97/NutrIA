@@ -2,12 +2,14 @@ import { ACCOMPANIED_FROM_KCAL } from 'core/domain/Scheduler';
 import { DEFAULT_MEAL_SHAPE, proteinWeightsFor, weightsFor } from 'core/domain/MealShape';
 import { FRESH_FRUIT_SLUGS, PLANT_BASED_PATTERNS } from 'core/domain/MealFit';
 import { INGREDIENT_CATEGORIES, SNACK_SLOTS } from 'core/entities/Plan';
+import { missingAppliances, preferredAppliances } from 'core/domain/Preference';
 import { normaliseForMatching } from 'core/domain/Safety';
 import { SERVING_KCAL_CAP, servingFactor } from 'core/domain/Serving';
 
 import type { CatalogueIngredient, IngredientCategory, MealSlot } from 'core/entities/Plan';
 import type { CheckInForGeneration } from 'core/controllers/CheckIn';
 import type { Goal } from 'core/entities/Profile';
+import type { Kitchen } from 'core/entities/Kitchen';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PoolAsk } from 'core/domain/Balance';
 
@@ -223,8 +225,19 @@ import type { PoolAsk } from 'core/domain/Balance';
  * or quinoa; an oily fish with no rice, pasta or other grain beside it. And
  * `poolAsks` asks a dinner for a group only when the request shows a row of it
  * that stays, so the ask goes to lunch where a catalogue has none.
+ * 4.9.0: the kitchen a person cooks in (`0102`, project 021). Two lines, below
+ * the maximum cooking time and in its shape, and they are different kinds of
+ * claim: the appliances they do **not** have are never to be used, which the
+ * `missing_equipment` gate then makes true of what comes back, and the ones
+ * they would rather use are asked for, which nothing enforces and nothing may
+ * filter on. Every dish also declares what it cannot be cooked without
+ * (`equipment` in the schema): the brief says to name only the indispensable,
+ * to say `stovetop` when a hob is used, and to declare **neither** when two
+ * appliances would each do — a list cannot say "either", which is why 2 of the
+ * library's 1,128 dishes declare nothing after phase 2's backfill read their
+ * steps. Nothing about how steps are written changed, so `STEPS_VERSION` stays.
  */
-export const PROMPT_VERSION = '4.8.0';
+export const PROMPT_VERSION = '4.9.0';
 
 /**
  * The version of the rules for *writing steps*, stamped on every recipe and
@@ -295,6 +308,19 @@ export type PromptContext = {
    * the plate is the model's half of the split (`0004`). Null when unset.
    */
   readonly goal: Goal['type'] | null;
+  /**
+   * The kitchen they cook in (`0102`), or null when nothing was read.
+   *
+   * Set by `PoolBuilder` from the **resolved preferences**, the way `language`
+   * is set from the context's locale — never read a second time from a profile,
+   * so the line the model is told and the gate on what it returns cannot
+   * disagree (`0052`).
+   *
+   * Both halves are said, and they are different claims: what they do not have
+   * is a constraint the prompt states and `withinEquipment` enforces, and what
+   * they would rather use is a preference that may never remove a dish.
+   */
+  readonly kitchen: Kitchen | null;
   /** The language the dish names and steps must come back in. */
   readonly language: string;
   /** Foods they said they like, by the catalogue's own names — never the words they typed. */
@@ -400,6 +426,38 @@ function checkInLines(checkIn: PromptContext['checkIn']): readonly string[] {
   return [
     `LAST FORTNIGHT'S CHECK-IN: ${HUNGER_LINE[checkIn.hunger]}; ${DIFFICULTY_LINE[checkIn.difficulty]}; they rated it ${checkIn.satisfaction}/5.`
   ];
+}
+
+/**
+ * The kitchen, as the two lines of 4.9.0 — the constraint, then the preference,
+ * each left out when it has nothing to say (`0102`).
+ *
+ * The appliances are named by the keys of the `equipment` enum the schema asks
+ * for, not in prose, so that "do not use the air fryer" and "do not declare
+ * `air_fryer`" are visibly the same sentence. The first line is enforced on
+ * what comes back (`missing_equipment`); the second is a wish, and a dish that
+ * ignores it is kept — a person who prefers an air fryer still eats on the days
+ * the library has none.
+ *
+ * **The constraint line does not tell the model what to leave out of
+ * `equipment`**, and that omission is deliberate (`invariant-reviewer`,
+ * 2026-10-16). The gate reads a self-report: a line saying "never list one"
+ * gives the model a reason to under-declare rather than to cook differently,
+ * and an under-declared dish is not rejected — it is **stored in the shared
+ * `recipes` table** with a declaration that migration `0067` can never correct,
+ * and then served to every other account whose kitchen lacks that appliance. An
+ * honest `oven` on a dish for somebody with no oven costs one rejection; a
+ * silent one costs every account that dish. The unconditional line at the
+ * output-shape block is what defines the field.
+ */
+function kitchenLines(kitchen: PromptContext['kitchen']): readonly string[] {
+  const missing = missingAppliances(kitchen);
+  const preferred = preferredAppliances(kitchen);
+
+  return [
+    missing.length > 0 ? `APPLIANCES THEY DO NOT HAVE — never design a dish that needs one: ${missing.join(', ')}` : null,
+    preferred.length > 0 ? `APPLIANCES THEY WOULD RATHER COOK WITH — use these where the dish is as good for it: ${preferred.join(', ')}` : null
+  ].filter((line): line is string => line !== null);
 }
 
 /**
@@ -960,6 +1018,7 @@ export function buildPoolPrompt(
         : null,
       patterns.length > 0 ? `WAY OF EATING: ${patterns.join(', ')}` : null,
       context.cookingTimeMinutes ? `MAXIMUM TIME PER DISH: ${context.cookingTimeMinutes} minutes (prep + cooking)` : null,
+      ...kitchenLines(context.kitchen),
       cuisines ? `PREFERRED CUISINES: ${cuisines}` : null,
       likes ? `LIKES: ${likes}` : null,
       context.excludeSlugs.length > 0 ? `DO NOT REPEAT THESE ALREADY-PROPOSED DISHES: ${context.excludeSlugs.join(', ')}` : null,
@@ -969,7 +1028,11 @@ export function buildPoolPrompt(
       '',
       'Each dish lists its ingredients in grams for the number of servings you declare.',
       'Aim for five to ten ingredients in a main dish, two to four in a snack. Never more than fifteen, salt, spices and oil included — a dish with more is rejected.',
-      'Declare between one and eight servings.'
+      'Declare between one and eight servings.',
+      // Said here as well as in the schema's own description, and said short:
+      // PRD 005 holds the standard lunch request to 55% of 3.4.0's, and the
+      // whole of what this adds is on every request (4.9.0, `0102`).
+      'In `equipment`, only what a dish cannot be cooked without — `stovetop` for the hob, neither of two that would each do, empty if none.'
     ]
       // Null is an optional line with nothing to say; an empty string is a
       // section break, and a model follows a sectioned brief better than a wall.

@@ -5,6 +5,8 @@ import type { CandidateDish, MealSlot } from 'core/entities/Plan';
 
 import { makeDish } from '#test/fixtures';
 
+import type { Appliance } from 'core/entities/Kitchen';
+
 function library(count: number, slots: readonly MealSlot[]): CandidateDish[] {
   return Array.from({ length: count }, (_, index) => makeDish({ name: `Dish ${index}`, slots: [...slots], slug: `dish-${index}` }));
 }
@@ -133,7 +135,7 @@ describe('rotatePool', () => {
   });
 });
 
-describe('isPreferredDish — the three reasons a dish goes first', () => {
+describe('isPreferredDish — the four reasons a dish goes first', () => {
   const dish = (slug: string, cuisine: string | null, slugs: readonly string[]) => ({
     ...makeDish({ ingredients: slugs.map(ingredient => ({ grams: 100, slug: ingredient })), name: slug, slug }),
     cuisine
@@ -159,8 +161,55 @@ describe('isPreferredDish — the three reasons a dish goes first', () => {
     expect(isPreferredDish(dish('a', null, ['arroz']), leaning)).toBe(false);
   });
 
+  it('takes an appliance they would rather cook with', () => {
+    const leaning = { preferAppliances: new Set<Appliance>(['oven']) };
+
+    expect(isPreferredDish({ ...dish('a', null, []), equipment: ['oven'] }, leaning)).toBe(true);
+    expect(isPreferredDish({ ...dish('a', null, []), equipment: ['stovetop'] }, leaning)).toBe(false);
+    // A dish nobody has classified declares nothing, and is not preferred for it.
+    expect(isPreferredDish(dish('a', null, []), leaning)).toBe(false);
+  });
+
   it('prefers nothing when nothing was said', () => {
     expect(isPreferredDish(dish('a', 'mediterranea', ['salmon']), {})).toBe(false);
+  });
+
+  /**
+   * The preference half of `0102`, said exactly (`invariant-reviewer`,
+   * 2026-10-16): it reorders the pick and takes nothing out of the library.
+   *
+   * The two claims are different and only one of them is "nothing changes".
+   * Handed the whole pool, the preference returns the whole pool, reordered —
+   * no dish is lost. Handed `rotatePool`'s per-slot cap, it moves **which**
+   * dishes are taken, because a cap takes the front of an order; that is the
+   * mechanism `preferCuisines` and the likes have had since `0026`, and it is
+   * why the library filter is the thing that must never read `prefers`
+   * (`withinEquipment`, asserted in `Preference.test.ts`).
+   */
+  it('reorders the pick by a preferred appliance and takes nothing out of the library', () => {
+    const slots: readonly MealSlot[] = ['lunch'];
+    const dishes = library(20, slots).map((dish, index): CandidateDish => ({ ...dish, equipment: [index % 4 === 0 ? 'oven' : 'stovetop'] }));
+    const rotation = { avoidSlugs: nothingAvoided, seed: 'user-a:1' };
+    const ovens = new Set<Appliance>(['oven']);
+    const plain = rotatePool(dishes, slots, rotation, dishes.length);
+    const preferred = rotatePool(dishes, slots, { ...rotation, preferAppliances: ovens }, dishes.length);
+
+    // Uncapped: the same dishes, to the last one, in a different order — the
+    // five oven dishes first and every other dish still behind them.
+    expect(new Set(preferred.map(dish => dish.slug))).toEqual(new Set(plain.map(dish => dish.slug)));
+    expect(preferred).toHaveLength(dishes.length);
+    expect(preferred.slice(0, 5).every(dish => dish.equipment?.includes('oven'))).toBe(true);
+    expect(preferred.map(dish => dish.slug)).not.toEqual(plain.map(dish => dish.slug));
+
+    // Capped, which is how a generation calls it: the cap takes the front of
+    // that order, so the pick is the preferred dishes. Stated, not asserted as
+    // a surprise — this is what a leaning is for.
+    const capped = rotatePool(dishes, slots, { ...rotation, preferAppliances: ovens }, 5);
+
+    expect(capped.every(dish => dish.equipment?.includes('oven'))).toBe(true);
+    // And the library it picked from is untouched: the same 20 dishes are still
+    // there to be picked by the next fortnight's seed.
+    expect(dishes).toHaveLength(20);
   });
 });
 

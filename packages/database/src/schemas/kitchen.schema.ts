@@ -9,7 +9,8 @@ import { userOwned } from './_utils';
  * Rows, the way a cuisine preference is rows (`cuisine_preferences`), and for
  * the same reason: a kitchen is a short list of things somebody spoke about,
  * not a fixed set of columns that would need a migration per appliance added.
- * **No row is the default kitchen** — stovetop, oven, microwave — so an account
+ * **No row is the default kitchen** — stovetop, oven, microwave and a blender
+ * (`DEFAULT_KITCHEN` in core is the one expression of it) — so an account
  * that never opened the screen stores nothing at all, which is what makes the
  * whole feature optional rather than one more question at sign-up.
  *

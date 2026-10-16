@@ -177,6 +177,22 @@ export class PlanLoadRebuildService {
     // a plan generated keeps what it was generated with — and this is the one
     // flow that could have broken it.
     const pinned = await PlanController.fixedMealsOf(userId, plan.id);
+    // The same silence `poolWithPins` names at generation, in the flow that
+    // promises it hardest: a rule whose dish the person's filters now refuse —
+    // their kitchen since `0102` — is not in `pool`, so `honouredPin` drops it
+    // and the rebuilt day serves something else. Nothing here can restore it
+    // (the unfiltered library holds what the allergy gate removed), and a
+    // rebuild may not quietly break a promise the comment above makes.
+    const unhonourable = [...pinned.entries()]
+      .filter(([dayIndex]) => rebuilding.has(dayIndex))
+      .flatMap(([, slots]) => [...slots.values()])
+      .filter(pin => !pool.some(dish => dish.slug === pin.slug));
+
+    if (unhonourable.length > 0) {
+      this.logger.warn(
+        `${unhonourable.length} fixed meal(s) of plan ${plan.id} cannot be honoured in the days rebuilt for "${event.name}" — ${unhonourable.map(pin => pin.slug).join(', ')} is not in this person's library today`
+      );
+    }
 
     const scheduled = schedulePlan({
       ...sides,

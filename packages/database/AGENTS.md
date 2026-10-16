@@ -53,7 +53,8 @@ appliance later is `ALTER TYPE … ADD VALUE`, which is cheap; a value added and
 same transaction** fails, and a deploy is one transaction per migration file.
 
 What a person said about their own kitchen is one `kitchen_equipment` row per appliance they
-spoke about, and **no row is the default kitchen** (stovetop, oven, microwave) — so an
+spoke about, and **no row is the default kitchen** (stovetop, oven, microwave and a
+blender, the last added by the owner on 2026-10-16 — `0102`) — so an
 account that never opened the screen stores nothing. `DEFAULT_KITCHEN` in core is the single
 expression of that; nothing here should restate it.
 

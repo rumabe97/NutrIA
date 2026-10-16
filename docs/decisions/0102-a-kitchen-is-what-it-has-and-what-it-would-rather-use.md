@@ -38,9 +38,23 @@ this one (the owner, 2026-10-15).
 
 **A kitchen is three states per appliance: it is not there, it is there, or it is what they
 would rather use.** "Would rather" implies having it. Silence is not a state: somebody who
-says nothing has **a normal kitchen** — stovetop, oven, microwave — because the alternative
-is asking everybody about an air fryer at sign-up, and a question nobody has to answer is
-one more reason to leave.
+says nothing has **a normal kitchen** — stovetop, oven, microwave **and a blender** —
+because the alternative is asking everybody about an air fryer at sign-up, and a question
+nobody has to answer is one more reason to leave.
+
+**The blender was added on 2026-10-16, by the owner, after the measurement.** It was one of
+the seven this record left out, and the backfill then found that **20 of production's 962
+dishes require one** — smoothies, creams and purées, mostly at breakfast and the snacks —
+while no screen exists to say otherwise until project 021 phase 5. So `missing` meant taking
+those dishes from *every* account without asking, with no way for anybody to correct it. The
+reasoning is this record's own asymmetry, pointed at the default instead of at an
+unclassified dish: **the error that costs everybody is worse than the error that costs the
+minority who can then say so**, and a hand blender is in most Spanish kitchens. Somebody
+without one meets a gazpacho they cannot blend, sees the appliance on the dish (criterion 5)
+and says "no tengo" once. What the default still lacks is the air fryer, the pressure
+cooker, the grill, the steamer, the slow cooker and the rice cooker — against production
+that is **one dish of 962**, which is the honest size of the constraint this feature turns
+on today, and the reason phase 8's supply work is the half that matters.
 
 **The catalogue is code, not reference data.** An appliance links to nothing in the
 database — unlike an allergen, which links to ingredients — so it is an enum in

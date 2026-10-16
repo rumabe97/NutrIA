@@ -38,7 +38,8 @@ export type FixableDishDto = FixableDish;
  * (report `0011` § 2).
  *
  * `actionable` says whether the screen owes them a way forward or a plain no:
- * four of the seven reasons are two taps away from being fixed, and the other
- * three must not be dressed up as advice.
+ * six of the nine reasons leave the person something to do, the appliance they
+ * said they do not have among them (`0102`), and the other three must not be
+ * dressed up as advice.
  */
 export type NotOfferedDishDto = NotOfferedDish;

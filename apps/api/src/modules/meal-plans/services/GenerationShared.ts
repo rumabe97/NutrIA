@@ -15,6 +15,9 @@ export function toRecipeDraft(dish: CandidateDish, context: GenerationContext): 
     cookMinutes: dish.cookMinutes,
     cuisine: dish.cuisine ?? null,
     difficulty: dish.difficulty,
+    // What the dish cannot be cooked without (`0102`): the model's declaration
+    // for a dish it wrote, and the library's own for one being stored again.
+    equipment: dish.equipment ?? [],
     ingredients: dish.ingredients.map(item => ({
       grams: item.grams,
       // Safe: the dish passed the catalogue check before reaching here.
@@ -34,7 +37,14 @@ export function toRecipeDraft(dish: CandidateDish, context: GenerationContext): 
   };
 }
 
-export type PromptPreferences = Omit<PromptContext, 'excludeSlugs' | 'language' | 'needBySlot'>;
+/**
+ * What the prompt is told about the person, from their profile.
+ *
+ * `kitchen` is left out with the three the builder fills: it comes from the
+ * resolved preferences (`PreferenceExclusions.kitchen`), never from a second
+ * read of the profile, so one kitchen feeds the line and the gate (`0052`).
+ */
+export type PromptPreferences = Omit<PromptContext, 'excludeSlugs' | 'kitchen' | 'language' | 'needBySlot'>;
 
 /**
  * The foods they said they like, by the catalogue's names in their language —

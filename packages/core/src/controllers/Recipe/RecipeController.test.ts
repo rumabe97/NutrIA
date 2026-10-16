@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OnboardingIncompleteError, ProfileConsentRequiredError } from 'core/entities/Error';
 import { NO_PREFERENCE_EXCLUSIONS, resolvePreferences } from 'core/domain/Preference';
+import { DEFAULT_KITCHEN, kitchenOf } from 'core/entities/Kitchen';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 import { toCatalogue } from 'core/entities/Plan';
 import { makeCatalogueIngredient } from '#test/fixtures';
@@ -11,6 +12,7 @@ import { RecipeController } from './RecipeController';
 import type { GenerationContext } from './RecipeController';
 import type { Allergen, SafetyProfile } from 'core/entities/Safety';
 import type { CatalogueIngredient } from 'core/entities/Plan';
+import type { Appliance, Kitchen, KitchenStance } from 'core/entities/Kitchen';
 import type { LibraryRecipe } from 'core/domain/MealFit';
 import type { ReusableRecipe } from '#repositories/Recipe';
 
@@ -21,6 +23,7 @@ const findOnboarding = vi.fn<() => Promise<{ completedAt: string | null } | unde
 const findLibraryUsage = vi.fn<(slots: readonly string[]) => Promise<readonly LibraryRecipe[]>>();
 const loadCatalogue = vi.fn<() => Promise<readonly CatalogueIngredient[]>>();
 const findDietaryPatterns = vi.fn<() => Promise<readonly string[]>>();
+const findKitchen = vi.fn<() => Promise<readonly KitchenStance[]>>();
 const getSafetyProfile = vi.fn<() => Promise<SafetyProfile>>();
 const listAllergens = vi.fn<() => Promise<readonly Allergen[]>>();
 
@@ -48,6 +51,7 @@ vi.mock('#repositories/Profile', () => ({
     findPreferences: async () => Promise.resolve(undefined)
   }
 }));
+vi.mock('#repositories/Kitchen', () => ({ KitchenRepository: { findByUser: () => findKitchen() } }));
 vi.mock('#repositories/Health', () => ({ HealthRepository: { takesProteinSupplement: async () => Promise.resolve(false) } }));
 vi.mock('#repositories/Onboarding', () => ({ OnboardingRepository: { find: async () => (order.push('onboarding'), findOnboarding()) } }));
 vi.mock('#repositories/Vacation', () => ({ VacationRepository: {} }));
@@ -66,6 +70,10 @@ beforeEach(() => {
   loadCatalogue.mockResolvedValue([]);
   findDietaryPatterns.mockReset();
   findDietaryPatterns.mockResolvedValue([]);
+  findKitchen.mockReset();
+  // Nothing said, which is every account until it opens the screen: `kitchenOf`
+  // then answers the default kitchen (`0102`).
+  findKitchen.mockResolvedValue([]);
   getSafetyProfile.mockReset();
   getSafetyProfile.mockResolvedValue(NO_RESTRICTIONS);
   listAllergens.mockReset();
@@ -241,6 +249,116 @@ describe('RecipeController.reusablePool — an allergy the catalogue could not r
     const pool = await RecipeController.reusablePool(['lunch'], context);
 
     expect(pool.map(dish => dish.slug)).toEqual(['arroz-sencillo']);
+  });
+});
+
+/**
+ * The third of the three places a missing appliance is a constraint (`0102`):
+ * the filter on what the library may reuse, which is the **same** filter the
+ * fixed-meal offer reads — so a dish the offer names can always be fixed.
+ *
+ * The oven and the blender, not an air fryer: of 1,128 development dishes 58
+ * need an oven and 20 a blender, and nothing at all needs any of the other
+ * six, so an air-fryer fixture would pass against a filter that does nothing
+ * (measured in phase 2).
+ */
+describe('RecipeController.reusablePool — the kitchen they cook in (0102)', () => {
+  const rice = makeCatalogueIngredient({ id: 'i-arroz', name: 'Arroz', slug: 'arroz' });
+  const contextFor = (kitchen: Kitchen | null): GenerationContext => ({
+    catalogue: toCatalogue([rice]),
+    dietaryPatterns: [],
+    locale: 'es-ES',
+    preferences: resolvePreferences({
+      allergenIdsByKey: new Map(),
+      dietaryPatterns: [],
+      dislikedLabels: [],
+      ingredients: [rice],
+      ...(kitchen ? { kitchen } : {})
+    }),
+    safety: NO_RESTRICTIONS
+  });
+  const recipe = (slug: string, equipment: readonly Appliance[]): ReusableRecipe => ({
+    id: slug,
+    cookMinutes: 0,
+    cuisine: null,
+    difficulty: 'easy',
+    equipment,
+    ingredients: [{ grams: 80, slug: 'arroz' }],
+    mealSlots: ['lunch'],
+    name: slug,
+    prepMinutes: 5,
+    servings: 1,
+    slug,
+    steps: [
+      { minutes: 10, text: 'Lavar el arroz y ponerlo a hervir en agua con sal' },
+      { minutes: 2, text: 'Escurrir, reposar dos minutos y servir caliente' }
+    ]
+  });
+  const library = [recipe('arroz-al-horno', ['oven']), recipe('crema-de-arroz', ['blender']), recipe('arroz-blanco', ['stovetop'])];
+
+  beforeEach(() => {
+    findReusable.mockResolvedValue(library);
+  });
+
+  it('serves no dish needing an appliance they said they do not have', async () => {
+    // One stance, folded onto the default kitchen: saying "no oven" says nothing
+    // about anything else, so the blender dish stays — the default kitchen has
+    // one, and a row is the only way to change that (`kitchenOf`).
+    const noOven = await RecipeController.reusablePool(['lunch'], contextFor(kitchenOf([{ appliance: 'oven', stance: 'missing' }])));
+
+    expect(noOven.map(dish => dish.slug)).toEqual(['crema-de-arroz', 'arroz-blanco']);
+
+    // Saying it about both takes both dishes, and leaves the pan one.
+    const neither = await RecipeController.reusablePool(
+      ['lunch'],
+      contextFor(
+        kitchenOf([
+          { appliance: 'oven', stance: 'missing' },
+          { appliance: 'blender', stance: 'missing' }
+        ])
+      )
+    );
+
+    expect(neither.map(dish => dish.slug)).toEqual(['arroz-blanco']);
+  });
+
+  /**
+   * Somebody who never opened the screen: a hob, an oven, a microwave and a
+   * blender (`0102`, the blender by the owner's decision of 2026-10-16). They
+   * are served this whole library — which is the measured truth of the real one
+   * too, where nothing needs an appliance the normal kitchen lacks (phase 2).
+   * The constraint still bites: it takes an air fryer, a pressure cooker, a
+   * grill, a steamer, a slow cooker or a rice cooker to be refused.
+   */
+  it('serves the default kitchen the whole of a library that needs nothing it lacks', async () => {
+    const pool = await RecipeController.reusablePool(['lunch'], contextFor(DEFAULT_KITCHEN));
+
+    expect(pool.map(dish => dish.slug)).toEqual(['arroz-al-horno', 'crema-de-arroz', 'arroz-blanco']);
+
+    findReusable.mockResolvedValueOnce([...library, recipe('arroz-en-airfryer', ['air_fryer'])]);
+
+    const withAirFryer = await RecipeController.reusablePool(['lunch'], contextFor(DEFAULT_KITCHEN));
+
+    expect(withAirFryer.map(dish => dish.slug)).not.toContain('arroz-en-airfryer');
+  });
+
+  it('carries every dish out with what it cannot be cooked without, filtered or not', async () => {
+    const { library: everything, pool } = await RecipeController.libraryAndPool(
+      ['lunch'],
+      contextFor(kitchenOf([{ appliance: 'oven', stance: 'missing' }]))
+    );
+
+    // The unfiltered library keeps the oven dish **and** its declaration: it is
+    // what says *why* a dish is not offered (`whyNotFixable`).
+    expect(everything.map(dish => dish.slug)).toEqual(['arroz-al-horno', 'crema-de-arroz', 'arroz-blanco']);
+    expect(everything.map(dish => dish.equipment)).toEqual([['oven'], ['blender'], ['stovetop']]);
+    expect(pool.map(dish => dish.slug)).not.toContain('arroz-al-horno');
+  });
+
+  it('removes nothing when the caller read no kitchen', async () => {
+    const pool = await RecipeController.reusablePool(['lunch'], contextFor(null));
+
+    expect(pool).toHaveLength(library.length);
   });
 });
 

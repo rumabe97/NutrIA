@@ -1743,6 +1743,11 @@ async function insertRecipes(tx: Transaction, newRecipes: readonly RecipeDraft[]
           createdBy: userId,
           cuisine: recipe.cuisine,
           difficulty: recipe.difficulty,
+          // What the model declared the dish cannot be cooked without (`0102`).
+          // Written here so a dish this generation wrote is classified from the
+          // start: the backfill only ever filled a row whose equipment was
+          // empty, and never overwrites one.
+          equipment: [...recipe.equipment],
           instructions: recipe.steps,
           // The language the model was told to write in. Reuse is scoped to
           // it, so this is what keeps a Spanish dish out of an English plan.

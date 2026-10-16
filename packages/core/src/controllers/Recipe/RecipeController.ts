@@ -11,7 +11,9 @@ import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { ProfileRepository } from '#repositories/Profile';
 import { HealthRepository } from '#repositories/Health';
 import { proteinSupplementExclusions } from 'core/domain/Health';
-import { breaksDishRule, breaksPatternDish, freeFromExclusions, resolvePreferences, withinTime } from 'core/domain/Preference';
+import { breaksDishRule, breaksPatternDish, freeFromExclusions, resolvePreferences, withinEquipment, withinTime } from 'core/domain/Preference';
+import { kitchenOf } from 'core/entities/Kitchen';
+import { KitchenRepository } from '#repositories/Kitchen';
 import { SafetyController } from 'core/controllers/Safety';
 import { SettingsController } from 'core/controllers/Settings';
 import { PlanRepository } from '#repositories/Plan';
@@ -242,12 +244,16 @@ async function buildContext(userId: string): Promise<GenerationContext> {
   // than about the request that happens to trigger the job (`0034`).
   const country = profile?.country ?? null;
 
-  const [catalogue, safety, dietaryPatterns, foodPreferences, preferred, takesProteinSupplement, allergens] = await Promise.all([
+  const [catalogue, safety, dietaryPatterns, foodPreferences, preferred, stances, takesProteinSupplement, allergens] = await Promise.all([
     RecipeRepository.loadCatalogue(locale, country),
     SafetyController.getSafetyProfile(userId),
     ProfileRepository.findDietaryPatterns(userId),
     ProfileRepository.findFoodPreferences(userId),
     ProfileRepository.findPreferences(userId),
+    // The rows they wrote, read here with everything else and folded once,
+    // below: a controller never calls another controller, and `kitchenOf` is
+    // the one place silence becomes a kitchen (`0102`).
+    KitchenRepository.findByUser(userId),
     HealthRepository.takesProteinSupplement(userId),
     // By key, so a gluten-free or lactose-free way of eating is enforced by
     // the same tags the allergy gate reads, and never named to the model.
@@ -263,6 +269,11 @@ async function buildContext(userId: string): Promise<GenerationContext> {
     dietaryPatterns,
     dislikedLabels: foodPreferences.filter(item => item.sentiment === 'disliked').map(item => item.label),
     ingredients: catalogue,
+    // Folded onto the default kitchen here and nowhere else: an account that
+    // never opened the screen has a normal kitchen — a hob, an oven, a
+    // microwave and a blender — and the other six appliances count as missing
+    // (`0102`).
+    kitchen: kitchenOf(stances),
     likedLabels: foodPreferences.filter(item => item.sentiment === 'liked').map(item => item.label),
     maxMinutesPerDish: preferred?.cookingTimeMinutes ?? null
   });
@@ -322,6 +333,10 @@ function toCandidateDish(recipe: ReusableRecipe): CandidateDish {
     cookMinutes: recipe.cookMinutes,
     cuisine: recipe.cuisine,
     difficulty: recipe.difficulty,
+    // What the dish cannot be cooked without (`0102`). Carried even though
+    // `servable` has already filtered on it, because the *unfiltered* library
+    // is what says why a dish is not offered (`whyNotFixable`).
+    equipment: [...recipe.equipment],
     // Copied into mutable arrays: CandidateDish is inferred from a Zod schema,
     // which produces mutable array types.
     ingredients: [...recipe.ingredients],
@@ -345,7 +360,8 @@ function fitted(recipes: readonly ReusableRecipe[], context: GenerationContext):
 /**
  * The rows this person may actually be served: the allergy gate, their way of
  * eating, an unresolved allergy named in the method, the time they said they
- * have, and a usable method — `reusablePool` before any rotation.
+ * have, the kitchen they cook in, and a usable method — `reusablePool` before
+ * any rotation.
  *
  * The slots are fitted **before** the rotation, so the dozen it picks per slot
  * is counted from what can really be served there: a dish counted at dinner and
@@ -359,7 +375,12 @@ function servable(recipes: readonly ReusableRecipe[], context: GenerationContext
         dishSafety(recipe.ingredients, context.catalogue, context.safety).kind === 'safe' &&
         !usesExcluded(recipe, context) &&
         !mentionsUnresolvedAllergy(recipe, context.safety.unenforceableLabels) &&
-        withinTime(recipe, context.preferences.maxMinutesPerDish)
+        withinTime(recipe, context.preferences.maxMinutesPerDish) &&
+        // Beside the time, and for the same reason: a dish needing an appliance
+        // they said they do not have is a dish they cannot cook (`0102`). The
+        // same filter the fixed-meal offer reads, so a dish it still names can
+        // always be fixed.
+        withinEquipment(recipe, context.preferences.kitchen)
     ),
     context
   ).filter(dish => dish.slots.length > 0);

@@ -105,6 +105,9 @@ export const DishRequestRepository = {
               createdBy: userId,
               cuisine: draft.cuisine,
               difficulty: draft.difficulty,
+              // As `insertRecipes`: the model's own declaration of what the
+              // dish cannot be cooked without (`0102`).
+              equipment: [...draft.equipment],
               instructions: draft.steps,
               locale,
               mealSlots: [...draft.mealSlots],

@@ -3,7 +3,7 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { dishSafety, findSafetyViolations, mentionsUnresolvedAllergy } from 'core/domain/Safety';
 import { fitSlots, mealCatalogue, offersPulses, repairSlug } from 'core/domain/MealFit';
 import { cleanSteps, methodMentions } from 'core/domain/Method';
-import { breaksDishRule, breaksPatternDish, withinTime } from 'core/domain/Preference';
+import { breaksDishRule, breaksPatternDish, withinEquipment, withinTime } from 'core/domain/Preference';
 import { isOversized, OVERSIZED_FACTOR, servingCap } from 'core/domain/Serving';
 import { poolAsks } from 'core/domain/Balance';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
@@ -102,7 +102,7 @@ export type BuildPoolInput = {
   readonly libraryUsage?: LibraryUsage;
   /** Dishes wanted per slot. A whole plan wants `DISHES_NEEDED_PER_SLOT`; a single meal's swap wants a handful. */
   readonly needPerSlot?: number;
-  readonly preferences: Omit<PromptContext, 'excludeSlugs' | 'language' | 'needBySlot'>;
+  readonly preferences: Omit<PromptContext, 'excludeSlugs' | 'kitchen' | 'language' | 'needBySlot'>;
   readonly reusable: readonly CandidateDish[];
   /**
    * Files every call of this build under one session in a gateway's log — a
@@ -352,7 +352,16 @@ export class PoolBuilder {
             // fails as `invalid_output` and costs only its own dishes.
             maxOutputTokens: this.outputCap ? size * this.outputCap.perDish + this.outputCap.margin : undefined,
             prompt: buildPoolPrompt(
-              { ...preferences, excludeSlugs, language: languageName(context.locale), needBySlot: new Map([[slot, size]]) },
+              {
+                ...preferences,
+                excludeSlugs,
+                // From the resolved preferences, as the language is from the
+                // locale: the line the model is told and the gate on what it
+                // returns read one kitchen (`0052`, `0102`).
+                kitchen: context.preferences.kitchen,
+                language: languageName(context.locale),
+                needBySlot: new Map([[slot, size]])
+              },
               shown.get(slot)?.catalogue ?? [],
               { asks, pulses: shown.get(slot)?.offer.pulses ?? true }
             ),
@@ -687,6 +696,18 @@ export class PoolBuilder {
       return { reason: 'over_time' };
     }
 
+    // Beside the time, and for the same reason: the prompt named the appliances
+    // they do not have and told the model not to use one, and this is what
+    // makes that true (`0102`). The appliance is logged — it is what the prompt
+    // already said, and the kitchen is not the person.
+    if (!withinEquipment(dish, context.preferences.kitchen)) {
+      const missing = dish.equipment.filter(appliance => context.preferences.kitchen?.[appliance] === 'missing');
+
+      this.logger.warn(`Dish ${named(dish.name)} rejected: it needs ${missing.join(', ')}, which they said they do not have`);
+
+      return { reason: 'missing_equipment' };
+    }
+
     // The method, read back the way a rewritten one is (`methodMentions`): the
     // ingredients above were checked against their allergies, the steps were
     // not, and 5 of 278 stored dishes named a food they did not contain — salt,
@@ -751,6 +772,9 @@ export class PoolBuilder {
       cookMinutes: dish.cookMinutes,
       cuisine: dish.cuisine,
       difficulty: dish.difficulty,
+      // The model's own declaration, carried into the pool and then stored, so
+      // a dish this generation wrote is classified from the start (`0102`).
+      equipment: dish.equipment,
       ingredients: dish.ingredients,
       name: dish.name,
       prepMinutes: dish.prepMinutes,

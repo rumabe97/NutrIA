@@ -175,7 +175,9 @@ The three questions this PRD was approved on (the owner, 2026-10-15):
    a twelve-item catalogue has stopped steering anything. "No tengo" is never capped.
 2. **Optional, in both places.** Nobody is stopped at sign-up by a question about their air
    fryer: the onboarding step may be skipped, the profile screen may be left alone, and
-   silence means **a normal kitchen** — stovetop, oven, microwave (`0102`).
+   silence means **a normal kitchen** — stovetop, oven, microwave and a blender, the last
+   added by the owner on 2026-10-16 once the backfill measured what leaving it out cost
+   (`0102`).
 3. **"Would rather use" does not reorder the fixed-meal offer** in this project. It steers
    what the model is asked for and the order the library is read in; the offer keeps one
    order and one explanation.

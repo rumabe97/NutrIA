@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
 import { CATALOGUE_SAMPLE_SIZE } from 'core/domain/MealFit';
+import { kitchenOf } from 'core/entities/Kitchen';
 import { NO_PREFERENCE_EXCLUSIONS, resolvePreferences } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT, FRESH_DISHES_PER_SLOT } from 'core/domain/Variety';
 import { toCatalogue } from 'core/entities/Plan';
@@ -71,6 +72,11 @@ function dish(name: string, slots: readonly MealSlot[], slugs: readonly string[]
     cookMinutes: 10,
     cuisine: null,
     difficulty: 'easy' as const,
+    // What the model says the dish cannot be cooked without (`0102`). A pan
+    // dish declares the hob; the kitchen gate's own tests ask for an oven,
+    // which is an appliance the library really needs and the default kitchen
+    // really has.
+    equipment: ['stovetop' as const],
     ingredients: slugs.map(slug => ({ grams: 100, slug })),
     name,
     prepMinutes: 5,
@@ -1587,6 +1593,62 @@ describe('PoolBuilder — the call log', () => {
     expect(result.generated.map(generated => generated.name)).toContain('Arroz a la cubana');
     expect(result.generated.map(generated => generated.name)).not.toContain('Estofado de pollo');
     expect(result.metadata.aiCalls[0]?.rejected).toEqual({ over_time: 1 });
+  });
+
+  /**
+   * The second of the three places a missing appliance is a constraint
+   * (`0102`): the gate on what the model returns, in the same place and shape
+   * as a dish that is too slow, with its reason in the metadata a generation
+   * already records.
+   *
+   * The oven, not an air fryer: nothing in either library needs an air fryer,
+   * so such a fixture would pass against a gate that does nothing (phase 2).
+   */
+  it('drops a dish needing an appliance they said they do not have, and records the reason', async () => {
+    const roast = { ...dish('Pollo al horno', ['lunch'], ['pollo']), equipment: ['oven' as const] };
+    const pan = dish('Arroz blanco', ['lunch'], ['arroz']);
+    const { client } = stubClient([{ dishes: [roast, pan] }]);
+    const result = await new PoolBuilder(client).build({
+      context: { ...context(), preferences: { ...NO_PREFERENCE_EXCLUSIONS, kitchen: kitchenOf([{ appliance: 'oven', stance: 'missing' }]) } },
+      feature: 'plan',
+      preferences,
+      reusable: [],
+      slots: ['lunch']
+    });
+
+    expect(result.generated.map(generated => generated.name)).toEqual(['Arroz blanco']);
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({ missing_equipment: 1 });
+  });
+
+  /** `prefers` implies having it, and the gate reads `missing` and nothing else. */
+  it('keeps the same dish for a kitchen that has that appliance, or would rather use it', async () => {
+    const roast = { ...dish('Pollo al horno', ['lunch'], ['pollo']), equipment: ['oven' as const] };
+
+    for (const stance of ['has', 'prefers'] as const) {
+      const { client } = stubClient([{ dishes: [roast] }]);
+      const result = await new PoolBuilder(client).build({
+        context: { ...context(), preferences: { ...NO_PREFERENCE_EXCLUSIONS, kitchen: kitchenOf([{ appliance: 'oven', stance }]) } },
+        feature: 'plan',
+        preferences,
+        reusable: [],
+        slots: ['lunch']
+      });
+
+      expect(result.generated.map(generated => generated.name)).toEqual(['Pollo al horno']);
+    }
+  });
+
+  /**
+   * PRD 2's other half: the declaration has to survive into the pool, or every
+   * dish this generation stores is unclassified and the library's own filter
+   * has nothing to read (`0102`).
+   */
+  it('carries the model’s own declaration into the pool', async () => {
+    const roast = { ...dish('Pollo al horno', ['lunch'], ['pollo']), equipment: ['oven' as const] };
+    const { client } = stubClient([{ dishes: [roast] }]);
+    const result = await new PoolBuilder(client).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
+
+    expect(result.generated.map(generated => generated.equipment)).toEqual([['oven']]);
   });
 
   /**

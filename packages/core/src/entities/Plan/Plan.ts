@@ -2,7 +2,9 @@ import { z } from 'zod';
 
 import type { FoodClass } from 'database/schema/food';
 
+import { applianceSchema } from 'core/entities/Kitchen';
 import { macrosSchema } from 'core/entities/Nutrition';
+import type { Appliance } from 'core/entities/Kitchen';
 import type { Macros, NutritionTargets } from 'core/entities/Nutrition';
 
 /** Ordered as they occur in a day. Mirrors the `meal_slot` enum in the database. */
@@ -84,6 +86,17 @@ export const candidateDishSchema = z.object({
   cookMinutes: z.number().int().min(0).max(240),
   cuisine: z.string().max(60).nullish(),
   difficulty: z.enum(DIFFICULTIES),
+  /**
+   * The appliances the dish cannot be cooked without (`0102`), of the ones this
+   * release knows.
+   *
+   * Optional, and that is about plans rather than about dishes: a meal stored
+   * before this column existed holds no equipment at all, and a dish nobody has
+   * classified declares none — which `0102` says is the same answer on purpose.
+   * Absent and empty both mean "cookable in any kitchen"; `withinEquipment`
+   * reads them the same way.
+   */
+  equipment: z.array(applianceSchema).optional(),
   ingredients: z.array(dishIngredientSchema).min(1).max(20),
   name: z.string().min(1).max(120),
   prepMinutes: z.number().int().min(0).max(240),
@@ -164,6 +177,12 @@ export type RecipeDraft = {
   readonly cookMinutes: number;
   readonly cuisine: string | null;
   readonly difficulty: 'easy' | 'hard' | 'medium';
+  /**
+   * The appliances the dish cannot be cooked without, as the model declared
+   * them (`0102`). Empty is a dish that needs nothing beyond a pan and a knife
+   * — and, until a model has declared otherwise, a dish nobody classified.
+   */
+  readonly equipment: readonly Appliance[];
   readonly ingredients: readonly { readonly grams: number; readonly ingredientId: string; readonly unit: MeasurementUnit }[];
   readonly mealSlots: readonly MealSlot[];
   readonly name: string;

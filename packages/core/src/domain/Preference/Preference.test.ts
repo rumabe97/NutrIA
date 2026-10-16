@@ -8,13 +8,17 @@ import {
   isEnforceableDislike,
   isLegumeSlug,
   leaningSlugs,
+  missingAppliances,
   NO_PREFERENCE_EXCLUSIONS,
   PATTERN_EXCLUDED_SLUGS,
   PATTERN_EXCLUSIONS,
+  preferredAppliances,
   resolvePreferences,
   timeAllowance,
+  withinEquipment,
   withinTime
 } from 'core/domain/Preference';
+import { DEFAULT_KITCHEN, kitchenOf } from 'core/entities/Kitchen';
 import { rotatePool } from 'core/domain/Variety';
 import { makeCatalogueIngredient, makeDish } from '#test/fixtures';
 
@@ -238,6 +242,18 @@ describe('resolvePreferences — a way of eating', () => {
     ).toBeNull();
   });
 
+  it('carries the kitchen it was given, and no kitchen when it was given none', () => {
+    const kitchen = kitchenOf([{ appliance: 'blender', stance: 'has' }]);
+
+    expect(
+      resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE, kitchen }).kitchen
+    ).toBe(kitchen);
+    // Null is the caller having read none — not a person's silence, which is
+    // `kitchenOf([])` and marks seven appliances missing (`0102`).
+    expect(resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE }).kitchen).toBeNull();
+    expect(NO_PREFERENCE_EXCLUSIONS.kitchen).toBeNull();
+  });
+
   it('is empty when nothing was said', () => {
     expect(
       resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE }).excludedIngredientIds.size
@@ -272,6 +288,78 @@ describe('withinTime — the minutes they said they have', () => {
 
   it('lets everything through when no limit was set', () => {
     expect(withinTime(dish(60, 120), null)).toBe(true);
+  });
+});
+
+/**
+ * The constraint half of `0102`, and the only half that removes anything. The
+ * fixtures are the oven and the blender on purpose: of 1,128 development
+ * dishes, 58 need an oven and 20 a blender, and **nothing** needs an air fryer,
+ * a pressure cooker, a grill, a steamer, a slow cooker or a rice cooker — so an
+ * air-fryer fixture would pass against a filter that does nothing at all
+ * (measured in phase 2 of project 021).
+ */
+describe('withinEquipment — the kitchen they cook in', () => {
+  const roast = { equipment: ['oven' as const] };
+  const smoothie = { equipment: ['blender' as const] };
+  const pan = { equipment: ['stovetop' as const] };
+
+  it('removes a dish that needs an appliance they said they do not have', () => {
+    const noOven = kitchenOf([{ appliance: 'oven', stance: 'missing' }]);
+
+    expect(withinEquipment(roast, noOven)).toBe(false);
+    expect(withinEquipment(pan, noOven)).toBe(true);
+  });
+
+  /**
+   * `missing` and nothing else. Never "not `has`": the default kitchen marks
+   * six of the ten appliances missing, so anything wider would take dishes
+   * from every account that never opened the screen for appliances nobody
+   * mentioned — and `prefers` implies having it.
+   */
+  it('reads `missing` alone, so a preferred appliance removes nothing', () => {
+    expect(withinEquipment(roast, kitchenOf([{ appliance: 'oven', stance: 'prefers' }]))).toBe(true);
+    expect(withinEquipment(roast, kitchenOf([{ appliance: 'oven', stance: 'has' }]))).toBe(true);
+    expect(withinEquipment(smoothie, kitchenOf([{ appliance: 'blender', stance: 'prefers' }]))).toBe(true);
+  });
+
+  /**
+   * The default kitchen is a hob, an oven, a microwave and a blender — the
+   * blender by the owner's decision of 2026-10-16, because 20 of production's
+   * dishes need one and every account has this kitchen until a screen exists
+   * (`0102`). What it still does not have is the air fryer and the other five,
+   * which is what this asserts: a default that removed nothing would be a
+   * constraint that does nothing.
+   */
+  it('serves the default kitchen its oven and blender dishes, and not an air-fryer one', () => {
+    expect(withinEquipment(roast, DEFAULT_KITCHEN)).toBe(true);
+    expect(withinEquipment(pan, DEFAULT_KITCHEN)).toBe(true);
+    expect(withinEquipment(smoothie, DEFAULT_KITCHEN)).toBe(true);
+    expect(withinEquipment({ equipment: ['air_fryer' as const] }, DEFAULT_KITCHEN)).toBe(false);
+  });
+
+  it('keeps a dish that declares nothing, and everything when no kitchen was read', () => {
+    // A dish nobody has classified and a dish that needs nothing are the same
+    // answer here, which `0102` says out loud.
+    expect(withinEquipment({}, kitchenOf([{ appliance: 'oven', stance: 'missing' }]))).toBe(true);
+    expect(withinEquipment({ equipment: [] }, kitchenOf([{ appliance: 'oven', stance: 'missing' }]))).toBe(true);
+    expect(withinEquipment(roast, null)).toBe(true);
+  });
+
+  it('names each half of a kitchen, in the catalogue’s own order', () => {
+    const kitchen = kitchenOf([
+      { appliance: 'air_fryer', stance: 'prefers' },
+      { appliance: 'oven', stance: 'missing' },
+      { appliance: 'microwave', stance: 'prefers' }
+    ]);
+
+    // Every appliance the default kitchen marks missing, minus the air fryer
+    // they now prefer, plus the oven they said they do not have. The blender is
+    // absent because the default kitchen has one.
+    expect(missingAppliances(kitchen)).toEqual(['oven', 'pressure_cooker', 'grill', 'steamer', 'slow_cooker', 'rice_cooker']);
+    expect(preferredAppliances(kitchen)).toEqual(['microwave', 'air_fryer']);
+    expect(missingAppliances(null)).toEqual([]);
+    expect(preferredAppliances(null)).toEqual([]);
   });
 });
 
