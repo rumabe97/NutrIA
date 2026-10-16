@@ -28,7 +28,7 @@
  *
  * Usage (from the repository root, against the local Postgres `pnpm db:local` runs —
  * never Neon):
- *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds] [--exceptions]] [--pins N [--pin-slot <slot>] [--per-day N]]
+ *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--without oven[,blender]] [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds] [--exceptions]] [--pins N [--pin-slot <slot>] [--per-day N]]
  *
  * `--flag <name>` names a scheduler flag to measure with on (project 016). The
  * one that exists is `accompaniments`: each profile's larder (`larderFor`, the
@@ -93,6 +93,7 @@ import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts
 import { RecipeController } from 'core/controllers/Recipe';
 import { BALANCE_RULES, balanceOf, balanceSupply, mealGroups, mealServings, proteinPerKgBySlot } from 'core/domain/Balance';
 import { larderFor } from 'core/domain/Accompaniment';
+import { APPLIANCES } from 'core/entities/Kitchen';
 import { SafetyController } from 'core/controllers/Safety';
 import { cuisineFamily, dishGroups, groupFits, isSnackOrBreakfastDish, outOfSeasonFruit } from 'core/domain/MealFit';
 import { DEFAULT_MEAL_SHAPE, proteinWeightsFor, shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
@@ -452,7 +453,8 @@ function parseArgs(argv) {
     pinSlot: null,
     pins: 0,
     rotate: null,
-    start: '2026-10-05'
+    start: '2026-10-05',
+    without: []
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -510,6 +512,16 @@ function parseArgs(argv) {
       }
 
       options.rotate = seeds;
+    } else if (arg === '--without') {
+      const named = (argv[(index += 1)] ?? '').split(',').filter(Boolean);
+      const unknown = named.filter(appliance => !APPLIANCES.includes(appliance));
+
+      if (named.length === 0 || unknown.length > 0) {
+        console.error(`--without needs appliances of the catalogue (${APPLIANCES.join(', ')})`);
+        process.exit(2);
+      }
+
+      options.without = named;
     } else if (arg === '--flag') {
       const name = argv[(index += 1)];
 
@@ -556,6 +568,30 @@ async function baseContext(locale) {
   const allergenIdsByKey = new Map((await SafetyController.listAllergens()).map(allergen => [allergen.key, allergen.id]));
 
   return { ...context, allergenIdsByKey, locale };
+}
+
+/**
+ * The same context with appliances taken out of its kitchen (`0102`).
+ *
+ * `nobodysContext` reads a random id, so `kitchenOf([])` already hands every
+ * profile the **default** kitchen — a hob, an oven, a microwave and a blender —
+ * which is what an account that never opened the screen has. This says "and not
+ * these", by writing `missing` on the ones named, and it writes it in the one
+ * place the rule is read from (`preferences.kitchen`), so the library filter and
+ * the gate cannot be measured against different kitchens (`0052`).
+ */
+function withoutAppliances(shared, without) {
+  if (without.length === 0) {
+    return shared;
+  }
+
+  const kitchen = { ...shared.preferences.kitchen };
+
+  for (const appliance of without) {
+    kitchen[appliance] = 'missing';
+  }
+
+  return { ...shared, preferences: { ...shared.preferences, kitchen } };
 }
 
 /**
@@ -641,6 +677,14 @@ function contextFor(profile, shared) {
       dietaryPatterns,
       dislikedLabels: [],
       ingredients,
+      // Carried across, and it is not optional: this branch rebuilds
+      // `preferences` from scratch rather than spreading `shared.preferences`,
+      // so without this the kitchen arrives as `null` — and `withinEquipment`
+      // reads null as "nobody asked", which is true of **every** dish. The six
+      // `dietaryPattern` profiles would then measure `--without` as a no-op and
+      // report a cost of zero that nothing had been charged (`plan-evaluator`,
+      // 2026-10-16).
+      kitchen: shared.preferences.kitchen,
       maxMinutesPerDish: null
     });
     // `resolvePreferences` starts fresh from this one pattern, so it drops
@@ -2541,6 +2585,7 @@ function finishRotations(options, library, results) {
           locale: options.locale,
           rotate: options.rotate,
           start: options.start,
+          without: options.without,
           profiles: PROFILES.map(profile => ({ description: profile.description, slug: profile.slug })),
           summary,
           results
@@ -2584,7 +2629,7 @@ async function main() {
         databaseModule.database = () => tx;
 
         try {
-          const shared = await baseContext(options.locale);
+          const shared = withoutAppliances(await baseContext(options.locale), options.without);
 
           library = await libraryComposition(tx, options.locale);
           results = [];
@@ -2610,6 +2655,12 @@ async function main() {
 
   console.log(`Locale: ${options.locale}`);
   console.log(`Flags: ${options.flags.length > 0 ? options.flags.join(', ') : 'none'}`);
+  // Named here and kept in the JSON, because a run's numbers mean nothing without
+  // its kitchen: `--compare` against a file that cannot say what it lacked would
+  // read a smaller pool as a regression (`0102`, project 021 phase 6).
+  console.log(
+    `Kitchen: ${options.without.length > 0 ? `the default, without ${options.without.join(', ')}` : 'the default (hob, oven, microwave, blender)'}`
+  );
   console.log(`Fortnight starts: ${options.start}`);
   console.log(`Profiles (fixed, reuse for the next run): ${PROFILES.map(profile => profile.slug).join(', ')}`);
   printLibrary(library);
@@ -2634,6 +2685,7 @@ async function main() {
           library,
           locale: options.locale,
           start: options.start,
+          without: options.without,
           profiles: PROFILES.map(profile => ({ description: profile.description, slug: profile.slug })),
           results
         },

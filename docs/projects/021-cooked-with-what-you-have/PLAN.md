@@ -224,6 +224,8 @@ sell — so the supply is part of the promise, not an afterthought.
   one screen most needing a device — the dish detail with its icons — cannot be reached
   locally at all, because a probe account has no plan. The gate is therefore met where it
   can be met: in production, on his own account, straight after the deploy.
+  **Confirmed by the owner on 2026-10-16**, with a photograph of his iPhone: the equipment
+  line renders on the dish detail, icon and name, on his own plan in production.
 - **Dispatch**: opus @ medium — `/execute-project 021 phase 5` — human-verify: the kitchen
   section on the owner's iPhone.
 - **Goal**: a person ticks what they have and marks what they would rather use, in both
@@ -331,7 +333,8 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 5c — The onboarding card at 200%
 
-- [x] done
+- [x] done — commit `0f9aed45` ("The onboarding flow is readable at the browser's largest
+  font size", #287)
 - **Dispatch**: opus @ medium · *added 2026-10-16, measured by `accessibility` and
   `frontend` during phase 5 and declined by both as not that phase's.*
 - **Goal**: the onboarding flow is readable at the browser's largest font size, which is the
@@ -355,18 +358,33 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 6 — What it costs, measured
 
-- [ ] pending
+- [ ] in progress — **steps 1, 2 and 4 are done** (2026-10-16; the numbers are in
+  [`0102`](../../decisions/0102-a-kitchen-is-what-it-has-and-what-it-would-rather-use.md)
+  § *What it costs, measured* and in this project's `LOG.md`). **Step 3 is the gate and is
+  open**: one generation from the owner's dev account with the air fryer preferred, against
+  the production provider. Nothing else in this phase is waiting on anything.
 - **Dispatch**: opus @ high — `/execute-project 021 phase 6` — owner-gated: one real
   generation from the owner's dev account, with an air fryer preferred, against the
   production provider (one model call; a stub cannot say whether a prompt works).
 - **Goal**: the price of a missing appliance is a number per profile, and the preference
   half is proved by a count rather than by reading the prompt.
 - **Scope**: `apps/api/scripts/evaluate-plans.mjs`, `docs/decisions/0102-*.md`, this
-  project's `LOG.md`.
+  project's `LOG.md`, and — **added 2026-10-16** — the evaluator's row in
+  `apps/api/AGENTS.md`, which named five profiles when there are fourteen and could not
+  mention a flag that did not exist. A documented command whose flags grow and whose doc
+  does not is a doc a future agent is misled by.
 - **Steps**:
-  1. The evaluator gains a flag naming a kitchen (`--without oven`, and a stance list for
-     the harder cases). It already resolves preferences through `resolvePreferences` and
-     reads `reusablePool`, so no second idea of the rule is introduced.
+  1. The evaluator gains a flag naming a kitchen (`--without oven`, `--without
+     oven,microwave,blender`). It already resolves preferences through `resolvePreferences`
+     and reads `reusablePool`, so no second idea of the rule is introduced.
+
+     **Amended 2026-10-16, after the work: there is no stance list to build.** This step
+     asked for one "for the harder cases", and nothing it could measure would change:
+     `prefers` may never remove a dish (`0102`), and this evaluator calls no model, so the
+     only observable stance is `missing`. The preference half is step 3 by construction.
+     Done: the flag validates against `APPLIANCES`, and the run names its kitchen in both
+     the printed header and the JSON (`without: [...]`) — a kept file that cannot say what
+     it lacked makes a later `--compare` read a smaller pool as a regression.
   2. Run the fourteen profiles on the real local library: the share of the library each
      missing appliance removes, and the days still inside 5% on all four macros (`0045`),
      for the hardest kitchen — no oven, no microwave, no blender. **Price the default
@@ -388,6 +406,14 @@ sell — so the supply is part of the promise, not an afterthought.
      before that merge is not comparable with one taken after.
   3. The owner-gated generation: with the air fryer preferred, count the air-fryer dishes
      in the fortnight that comes back, against the 1 in 1128 the library holds today.
+
+     **Amended 2026-10-16: that 1 was counted from prose, and the declared count is 0.**
+     Neither library has a single dish whose `equipment` names an air fryer — the backfill
+     left the one dish out because its steps offer the air fryer as one choice among
+     several — so **nothing can be reused** and every air-fryer dish in that fortnight is
+     one the model wrote because the prompt asked. A cleaner test than the plan expected,
+     with no filter able to produce a false positive. The read-only query that counts it is
+     written and syntax-checked: it is in this phase's `LOG.md` entry.
   4. Write every number into `0102` and this project's LOG; a day that cannot be built is
      reported as `0101` reported its own, not hidden.
 - **Acceptance criteria**: PRD 6 and 8. The `plan-evaluator` agent owns steps 1–2 and
