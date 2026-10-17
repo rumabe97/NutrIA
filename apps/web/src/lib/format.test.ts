@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatUsd, localIsoDate } from './format';
+import { formatList, formatUsd, localIsoDate } from './format';
 
 // Intl separates the amount from the symbol with a no-break space; compare on plain ones.
 function plain(text: string): string {
@@ -29,5 +29,16 @@ describe('localIsoDate', () => {
 
     expect(localIsoDate(justAfterMidnightInSpain, 'Europe/Madrid')).toBe('2026-10-02');
     expect(localIsoDate(justAfterMidnightInSpain, 'UTC')).toBe('2026-10-01');
+  });
+});
+
+describe('formatList', () => {
+  it('joins with the conjunction the locale uses, not a comma', () => {
+    expect(formatList(['lunes', 'jueves'], 'es-ES')).toBe('lunes y jueves');
+    expect(formatList(['Monday', 'Thursday'], 'en-GB')).toBe('Monday and Thursday');
+  });
+
+  it('gives one name back as itself, so a sentence reads the same either way', () => {
+    expect(formatList(['lunes'], 'es-ES')).toBe('lunes');
   });
 });

@@ -44,6 +44,20 @@ describe('Select', () => {
     expect(screen.getByRole('option', { name: 'Two' })).toHaveClass('option');
   });
 
+  it('forwards aria-describedby from the Root to the Trigger', () => {
+    // The Root is not the element a screen reader reads, and a rule about what
+    // cannot be chosen lives in text beside the field: without this the
+    // description reaches nobody (`0103`).
+    render(
+      <Select aria-describedby="note" aria-label="numbers" placeholder="pick one">
+        <SelectOption indicator="✓" value="1">
+          One
+        </SelectOption>
+      </Select>
+    );
+    expect(screen.getByRole('combobox')).toHaveAttribute('aria-describedby', 'note');
+  });
+
   it('fires onValueChange when an option is picked', async () => {
     const onValueChange = vi.fn();
     renderSelect({ onValueChange });

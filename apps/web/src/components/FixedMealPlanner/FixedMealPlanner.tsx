@@ -11,12 +11,12 @@ import { Input } from 'ui/components/Input';
 import { MAX_DISH_REQUEST } from 'core/domain/DishRequest';
 import { Select, SelectOption } from 'ui/components/Select';
 import { Text } from 'ui/components/Text';
-import { useDictionary } from 'i18n/LocaleProvider';
+import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { Card } from 'components/Card';
 
 import { api, ApiError, messageFor } from 'lib/api';
-import { interpolate } from 'lib/format';
+import { formatList, interpolate } from 'lib/format';
 
 import type { CountedStanding } from 'core/domain/Allowance';
 import type { FixedMeal, Weekday } from 'core/entities/FixedMeal';
@@ -27,6 +27,17 @@ import type { NotFixable } from 'core/domain/FixableReason';
 /** A dish the API says can be fixed here. */
 type Fixable = { readonly name: string; readonly slug: string };
 
+/**
+ * What fixing the dish somebody just picked would cost (`0103`).
+ *
+ * Asked of **one** dish, never of the list: asking the day's arithmetic of the
+ * whole library is the 4.02 s `0103` removed, and the dish somebody chose
+ * answers in 82 ms. `acceptable` is the domain's own judgement of whether this
+ * is a reason they may overrule — the screen never decides that itself, because
+ * a second place deciding it is how the two come to disagree.
+ */
+type Consequence = { readonly acceptable: boolean; readonly fixable: false; readonly why: NotFixable } | { readonly fixable: true };
+
 /** A dish the library has that this person is not offered, and why (report `0011` § 2). */
 type NotOffered = { readonly actionable: boolean; readonly name: string; readonly slug: string; readonly why: NotFixable };
 
@@ -35,6 +46,12 @@ type FixedMealPlannerProps = {
   readonly cookingMinutes: number | null;
   /** What is left of this month's dish requests — the second half of this screen (report `0011` § 4 a). */
   readonly dishRequests: CountedStanding;
+  /**
+   * How many meals of one weekday may be fixed — the server's own number
+   * (`FixedMealsView.maxPerDay`, `0103`), never a figure repeated here: a
+   * number in a dictionary is a number that will disagree with the server.
+   */
+  readonly maxPerDay: number;
   readonly rules: readonly FixedMeal[];
   /** The slots this person actually eats; a meal they do not eat is not offered. */
   readonly slots: readonly MealSlot[];
@@ -104,14 +121,22 @@ function plain(text: string): string {
  * It is one rule per **meal** of a weekday (`0101`): a day may hold a fixed
  * lunch and a fixed dinner, and the meal already spoken for is not offered
  * again — the database refuses a second one, and being refused after a tap is a
- * worse way to learn a rule than not being offered the meal. A day leaves the
- * list only when every meal this person eats already carries a rule.
+ * worse way to learn a rule than not being offered the meal. A weekday holds at
+ * most `maxPerDay` of them (`0103`), and one that is full is **drawn and not
+ * choosable** rather than gone: a Monday that disappears is a question, and the
+ * answer to it is the words beside it.
  *
- * **The second rule of a day is offered a shorter list, and that is the
- * feature.** Two dishes each fittable on its own can leave a day unable to
- * reach its four macros, measured at 204 of 280 such days; the API offers only
- * the ones that still leave it solvable (`pinnable`'s `held`), so the list
- * shrinks and the sentence beside it says why.
+ * **A day's arithmetic is a warning somebody may accept, not a refusal**
+ * (`0103`). The offer no longer hides the dishes a day cannot reach its macros
+ * with — that filter was both the owner's refusal and the 4 s it cost — so the
+ * list is the plate fit, and the day's arithmetic is asked of the one dish
+ * somebody taps. What comes back is read **above the button that confirms it**:
+ * the sentence says the day may not reach its numbers and that the call is
+ * theirs, the button says so too, and the reason travels in `accept` when they
+ * press it. A dialog that trained people to tap through would be the thing the
+ * record says not to build. The one reason that cannot be accepted
+ * (`too_big_or_small`, which the generation would drop anyway) states its
+ * refusal in the same place, with the button dead.
  *
  * **A search that finds nothing now says why** (report `0011`). The owner searched for
  * *patatas a la riojana*, a dish his library has, and the screen showed him a
@@ -120,9 +145,10 @@ function plain(text: string): string {
  * the library itself gives, the field that asks us to write the dish, and the
  * sentence that says asking is premium.
  */
-export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, standing }: FixedMealPlannerProps) {
+export function FixedMealPlanner({ cookingMinutes, dishRequests, maxPerDay, rules, slots, standing }: FixedMealPlannerProps) {
   const router = useRouter();
   const dictionary = useDictionary();
+  const locale = useLocale();
   const t = dictionary.fixedMeals;
   const id = useId();
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -147,6 +173,18 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
    * neither says anything on the screen.
    */
   const [honour, setHonour] = useState<FixedMealHonourability>();
+  /**
+   * What the dish on screen would cost, as the API answered it for that dish
+   * (`0103`), with the slug it was asked about.
+   *
+   * The slug travels with the answer because a tap, «Cambiar» and a second tap
+   * can all happen before the first answer lands, and a verdict shown under the
+   * wrong dish is the worst thing this card could say.
+   */
+  const [consequence, setConsequence] = useState<{ readonly slug: string; readonly verdict: Consequence }>();
+  const [checking, setChecking] = useState(false);
+  /** The server refused the add because a screen that was behind had not read the warning. */
+  const [stale, setStale] = useState(false);
   const [pending, setPending] = useState(false);
   const [outcome, setOutcome] = useState<'added' | 'removed'>();
   const [error, setError] = useState<string>();
@@ -154,6 +192,20 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
   const listRef = useRef<HTMLUListElement>(null);
   /** Whether the rules have been on screen, which is what buys the second request. */
   const looked = useRef(false);
+  /**
+   * Which consequence request is the current one.
+   *
+   * A count rather than the slug it is about: the same dish picked again after
+   * the day changed is the same slug, and the first answer — Monday's — would
+   * otherwise land under Tuesday's choice until the second one replaced it. The
+   * server would still refuse the wrong accept, but a sentence that flashes the
+   * wrong cost is exactly what this card must not do.
+   */
+  const checks = useRef(0);
+  const chosenRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  /** Whether the search field is coming back from a chosen dish, which is the only time it takes focus. */
+  const returning = useRef(false);
   /** What the search field holds right now, to tell a late answer from the current question. */
   const typed = useRef('');
 
@@ -172,12 +224,40 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
   // background answer lands is a jump, not an explanation.
   const marks = (honour?.unhonoured ?? []).filter(each => rules.some(rule => rule.id === each.id));
   const unhonoured = new Map(marks.map(each => [each.id, each]));
-  const free = WEEKDAYS.filter(day => slots.some(each => !taken.has(`${day}:${each}`)));
+  // The other list, and it is not the same news (`0103`): these rules **are
+  // served**, and what misses its numbers is the day. Saying «no se está
+  // cumpliendo» over one of them would be false, on the same screen, seconds
+  // after somebody accepted exactly that trade — which is why the API answers
+  // the two facts separately rather than in one field.
+  //
+  // Per **day** and not per rule, so every rule of a day that misses is in it:
+  // the rows are marked by id, and the sentence over them counts days.
+  const drifting = (honour?.outOfBand ?? []).filter(each => rules.some(rule => rule.id === each.id));
+  const driftingRules = new Set(drifting.map(each => each.id));
+  const driftingDays = new Set(drifting.map(each => each.weekday));
+  // A weekday that has reached the two a day may hold (`0103`). Still listed,
+  // and not choosable: a day gone from the list is a question nobody can answer.
+  const filled = new Set(WEEKDAYS.filter(day => rules.filter(rule => rule.weekday === day).length >= maxPerDay));
+  const listed = WEEKDAYS.filter(day => filled.has(day) || slots.some(each => !taken.has(`${day}:${each}`)));
+  const free = listed.filter(day => !filled.has(day));
   const open = weekday === '' ? slots : slots.filter(each => !taken.has(`${weekday}:${each}`));
-  // What the day the person is looking at already holds, which is why the dish
-  // list can be shorter than the library and is worth saying out loud.
+  // What the day the person is looking at already holds. Since `0103` it no
+  // longer shortens the dish list — it is why a dish they pick may come back
+  // with a warning on it, and that is what is worth saying out loud.
   const alsoFixed = weekday === '' ? [] : rules.filter(rule => String(rule.weekday) === weekday && rule.slot !== slot);
   const chosen = fixable?.find(candidate => candidate.slug === dish);
+  // The answer is only ever read beside the dish it was asked about.
+  const verdict = consequence?.slug === dish ? consequence.verdict : undefined;
+  // What they may accept, and what they may not. `acceptable` is the API's, so
+  // a reason that stops being acceptable stops being offered a way past here
+  // without this file changing.
+  const warning = verdict && !verdict.fixable && verdict.acceptable ? verdict.why : undefined;
+  const refused = verdict && !verdict.fixable && !verdict.acceptable ? verdict.why : undefined;
+  // A sentence for the warning, and the reason's own if this build knows the
+  // reason but not yet its warning — the acceptable reasons are a list, and a
+  // screen that printed nothing would hide the one thing it must say.
+  const warned: Partial<Record<NotFixable, string>> = t.warnings;
+  const warningText = warning === undefined ? undefined : (warned[warning] ?? t.reasons[warning]);
   // Accent-insensitive on both sides: somebody typing "limon" on a phone
   // keyboard is looking for "limón", and a search that disagrees reads as a
   // library that does not have it.
@@ -188,6 +268,32 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
   // or they searched for something it does not have. Both end in the same place.
   const missing =
     Boolean(weekday) && Boolean(slot) && fixable !== undefined && !chosen && (fixable.length === 0 || (needle.length >= 3 && matching.length === 0));
+
+  /*
+   * The press that chooses a dish unmounts the list that press was in, so
+   * without this focus falls to the body and the next Tab starts from the top
+   * of the page — `settle`'s problem and `settle`'s answer. It lands on the row
+   * that replaced the list, which is the dish they chose, with what it costs
+   * right under it (`0103`).
+   */
+  useEffect(() => {
+    if (dish !== '') {
+      chosenRef.current?.focus();
+
+      return;
+    }
+
+    // And the other direction, which was the same defect mirrored: «Cambiar»
+    // unmounts the row that held focus, so `activeElement` was `body` and the
+    // next Tab restarted at «Saltar al contenido» (`warn-a11y`, 2026-10-16).
+    // Only when coming back from a dish — on the first render there is nothing
+    // to return from, and a card far down a long profile must not pull focus
+    // into a search field nobody asked for.
+    if (returning.current) {
+      returning.current = false;
+      searchRef.current?.focus();
+    }
+  }, [dish]);
 
   /**
    * Which of these rules the next plan could not honour, and why.
@@ -279,7 +385,11 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
     setAsked(undefined);
     setAskProblem(undefined);
     setError(undefined);
+    setConsequence(undefined);
+    setStale(false);
+    setChecking(false);
     typed.current = '';
+    checks.current += 1;
 
     if (!nextWeekday || !nextSlot) {
       return;
@@ -294,6 +404,80 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
     } finally {
       setPending(false);
     }
+  }
+
+  /**
+   * A dish is picked, so what it would cost is asked — once, for that dish.
+   *
+   * The press that follows is the one that fixes the meal, and by then the
+   * sentence above it says what fixing it costs (`0103`). Nothing is sent here:
+   * this is a read, and a POST only so a dish somebody is considering never
+   * lands in an access log.
+   */
+  function choose(slug: string) {
+    setDish(slug);
+    setConsequence(undefined);
+    setStale(false);
+    setError(undefined);
+    void check(slug);
+  }
+
+  /** Back to the list. The verdict goes with the dish it was about, and so does the note about a screen that was behind. */
+  function unchoose() {
+    returning.current = true;
+    setDish('');
+    setConsequence(undefined);
+    setStale(false);
+  }
+
+  /** The consequence request itself, shared by a tap and by a 409 that says this screen was behind. */
+  async function check(slug: string) {
+    const mine = ++checks.current;
+
+    setChecking(true);
+
+    try {
+      const verdict = await api<Consequence>('/fixed-meals/consequence', {
+        body: { dishSlug: slug, slot, weekday: Number(weekday) },
+        method: 'POST'
+      });
+
+      if (checks.current === mine) {
+        setConsequence({ slug, verdict });
+      }
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.code === 'FIXED_MEAL_DAY_FULL') {
+        dayFilled();
+
+        return;
+      }
+
+      // Said out loud rather than swallowed, because it changes what the next
+      // press means: unlike the search's explanation, this is the sentence the
+      // button was going to be read against. The button stays — the server is
+      // the gate, and its 409 puts the warning where it belongs.
+      if (checks.current === mine) {
+        setError(t.checkFailed);
+      }
+    } finally {
+      if (checks.current === mine) {
+        setChecking(false);
+      }
+    }
+  }
+
+  /**
+   * That weekday filled up between this screen and the server (`0103`).
+   *
+   * The day is cleared before the refresh, because the `Select` would otherwise
+   * be holding a value that the list it is drawn from no longer has.
+   */
+  function dayFilled() {
+    setWeekday('');
+    setSlot('');
+    void offer('', '');
+    setError(interpolate(t.dayFull, { limit: maxPerDay }));
+    router.refresh();
   }
 
   /** Every keystroke in the search, and the one request a pause in it is worth. */
@@ -367,6 +551,12 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
       // now, and the press that fixes it is the one that was always there.
       setFixable([...(fixable ?? []), written].sort((a, b) => a.name.localeCompare(b.name)));
       setDish(written.slug);
+      // A dish we just wrote is chosen, so it is asked the same question a
+      // tapped one is (`0103`): the button under it must say what fixing it
+      // costs, whoever put it there.
+      setConsequence(undefined);
+      setStale(false);
+      void check(written.slug);
       setReasons(undefined);
       setWish(undefined);
       setAsked(written.name);
@@ -395,6 +585,14 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
       case 'CONFLICT':
         return t.askNothing;
 
+      // One of the three routes that refuse a full day (`0103`). The day goes
+      // with the sentence: a dish written against a day that cannot hold it
+      // would leave somebody looking at a name and a dead button.
+      case 'FIXED_MEAL_DAY_FULL':
+        dayFilled();
+
+        return interpolate(t.dayFull, { limit: maxPerDay });
+
       case 'INVALID_INPUT':
         return t.askNotAName;
 
@@ -413,7 +611,11 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
     setError(undefined);
 
     try {
-      await api('/fixed-meals', { body: { dishSlug: dish, slot, weekday: Number(weekday) }, method: 'POST' });
+      // The reason travels only when its sentence is on screen above the
+      // button that was pressed (`0103`). Nothing is ever accepted on
+      // somebody's behalf: with no warning read, this is an empty list and the
+      // server is free to refuse.
+      await api('/fixed-meals', { body: { accept: warning ? [warning] : [], dishSlug: dish, slot, weekday: Number(weekday) }, method: 'POST' });
       setWeekday('');
       setSlot('');
       setDish('');
@@ -424,12 +626,60 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
       setWish(undefined);
       setAsked(undefined);
       setAskProblem(undefined);
+      setConsequence(undefined);
+      setStale(false);
       settle('added');
     } catch (caught) {
-      setError(messageFor(caught, dictionary));
+      if (caught instanceof ApiError && caught.code === 'FIXED_MEAL_DAY_FULL') {
+        dayFilled();
+
+        return;
+      }
+
+      if (caught instanceof ApiError && caught.code === 'FIXED_MEAL_WARNING') {
+        // The server is the only real gate, and this screen was behind it:
+        // somebody chose before the day held what it holds now. So the warning
+        // goes where it should have been read — above the button — and the next
+        // press is theirs. Never accepted here on their behalf, which is the
+        // whole point of the record.
+        setStale(true);
+        // Before the re-check disables the button: Chrome moves focus off a
+        // disabled element, which left the person who pressed it at the top of
+        // the page while the sentence they had to read was halfway down it
+        // (`warn-a11y`, 2026-10-16). The row the warning belongs to is where
+        // the choose path lands too.
+        chosenRef.current?.focus();
+        void check(dish);
+
+        return;
+      }
+
+      // A refusal now names its reason on the wire (`0103`), so the screen says
+      // which one rather than «revisa los datos marcados».
+      const why = refusedReason(caught);
+
+      setError(why === undefined ? messageFor(caught, dictionary) : sentenceFor(why));
     } finally {
       setPending(false);
     }
+  }
+
+  /**
+   * The reason a refusal names, when it is one this build knows (`0103`).
+   *
+   * `fieldErrors.dishSlug` carries a `NotFixable` now, and a string off the
+   * wire is still a string: it is checked against the sentences this build has
+   * before it is used as a key, because `t.reasons['…']` for an unknown one
+   * would print nothing at somebody.
+   */
+  function refusedReason(caught: unknown): NotFixable | undefined {
+    if (!(caught instanceof ApiError) || caught.code !== 'INVALID_INPUT') {
+      return undefined;
+    }
+
+    const named = caught.fieldErrors.dishSlug?.[0];
+
+    return named !== undefined && named in t.reasons ? (named as NotFixable) : undefined;
   }
 
   async function remove(ruleId: string) {
@@ -516,11 +766,25 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
           nobody could answer, and an account whose rules are all being honoured
           is the ordinary case — neither of them earns a sentence, and "all in
           order" would be a claim nobody checked (021 phase 5b). */}
-      {honour?.judged && marks.length > 0 ? (
-        <Text className={styles.unhonoured} role="status" size="xs" tone="secondary">
-          {marks.length === 1 ? t.unhonouredCountOne : interpolate(t.unhonouredCount, { count: marks.length })}
-        </Text>
-      ) : null}
+      <div className={styles.notices} role="status">
+        {honour?.judged && marks.length > 0 ? (
+          <Text className={styles.unhonoured} size="xs" tone="secondary">
+            {marks.length === 1 ? t.unhonouredCountOne : interpolate(t.unhonouredCount, { count: marks.length })}
+          </Text>
+        ) : null}
+
+        {/* Its own sentence, because it is its own news: these are served,
+              and what misses its numbers is the day (`0103`). Folded into the
+              one above it, it would tell somebody a rule had been dropped —
+              which is exactly what they were promised would not happen. Counted
+              in days, which is how the API answers it and what the sentence
+              says. */}
+        {honour?.judged && driftingDays.size > 0 ? (
+          <Text className={styles.drifted} size="xs" tone="secondary">
+            {driftingDays.size === 1 ? t.outOfBandCountOne : interpolate(t.outOfBandCount, { count: driftingDays.size })}
+          </Text>
+        ) : null}
+      </div>
 
       {rules.length > 0 ? (
         <ul className={styles.list} ref={listRef}>
@@ -529,10 +793,25 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
             // the weekday and the slot would be two rules deep in the only
             // place where being wrong is worst.
             const broken = unhonoured.get(rule.id);
+            // Served, and its day misses its numbers for it (`0103`). Not a
+            // fault, so the row keeps its ordinary border, says a different
+            // word and offers no way forward — there is nothing to put right.
+            // Never drawn beside the mark above: a rule the plan does not carry
+            // cannot also be the reason a day it is absent from misses.
+            const drifts = !broken && driftingRules.has(rule.id);
+            // The mark goes on every row of the day, because every one of them
+            // is served and every one contributes to the miss — but the
+            // sentence is the day's, so it is said on the first of them rather
+            // than twice in a row into a screen reader (`warn-a11y`,
+            // 2026-10-16). First in the order the **rows** are in, which is
+            // `rules`: the API's order is its own, and a sentence that landed
+            // on the second row would sit under a mark that had not explained
+            // itself yet.
+            const saysWhy = drifts && rules.find(each => each.weekday === rule.weekday && driftingRules.has(each.id))?.id === rule.id;
             const fix = broken ? wayForward(broken.why) : undefined;
 
             return (
-              <li className={broken ? `${styles.row} ${styles.broken}` : styles.row} key={rule.id}>
+              <li className={broken ? `${styles.row} ${styles.broken}` : drifts ? `${styles.row} ${styles.marked}` : styles.row} key={rule.id}>
                 <span className={styles.when}>
                   <span className={styles.rule}>{interpolate(t.rule, { day: t.weekdays[rule.weekday], meal: t.slots[rule.slot] })}</span>
                   <Text as="span" size="xs" tone="tertiary">
@@ -542,6 +821,17 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
                   {/* A word and a sentence, not a colour: forced colours erase
                       a border and a tint, and a row that said it only in amber
                       would say nothing there. */}
+                  {drifts ? (
+                    <Fragment>
+                      <span className={styles.driftMark}>{t.outOfBandMark}</span>
+                      {saysWhy ? (
+                        <Text as="span" size="xs" tone="secondary">
+                          {t.outOfBandNote}
+                        </Text>
+                      ) : null}
+                    </Fragment>
+                  ) : null}
+
                   {broken ? (
                     <Fragment>
                       <span className={styles.mark}>{t.unhonouredMark}</span>
@@ -590,6 +880,7 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
               {t.day}
             </span>
             <Select
+              aria-describedby={filled.size > 0 ? `${id}-day-full` : undefined}
               aria-labelledby={`${id}-day`}
               onValueChange={value => {
                 setWeekday(value);
@@ -598,12 +889,44 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
               placeholder={t.dayPlaceholder}
               value={weekday}
             >
-              {free.map(day => (
-                <SelectOption indicator="✓" key={day} value={String(day)}>
-                  {t.weekdays[day]}
+              {/* A full day is drawn and not choosable, with the reason in the
+                  words rather than in a grey (`0103`): a day that vanished
+                  would send somebody looking for Monday, and a disabled row
+                  that says nothing is the same silence a tint away. */}
+              {listed.map(day => (
+                <SelectOption
+                  className={filled.has(day) ? styles.fullDay : undefined}
+                  disabled={filled.has(day)}
+                  indicator="✓"
+                  key={day}
+                  value={String(day)}
+                >
+                  {filled.has(day) ? interpolate(t.dayFullOption, { day: t.weekdays[day], limit: maxPerDay }) : t.weekdays[day]}
                 </SelectOption>
               ))}
             </Select>
+
+            {/* Inside the field, under the chooser, and on the trigger's
+                `aria-describedby`: Radix really does skip a disabled option
+                with the arrow keys — measured, the walk goes Martes…Domingo and
+                never highlights Lunes — so the words inside the option are
+                pointer-only and this is the keyboard's whole channel
+                (`warn-a11y`, 2026-10-16). It names the days for the same
+                reason: «no se puede elegir» without saying which leaves
+                somebody to infer it from an absence. Between the two fields it
+                would have been a full-width row in a wrapping flex line, which
+                drops «Qué comida» to a line of its own. */}
+            {filled.size > 0 ? (
+              <Text className={styles.dayNote} id={`${id}-day-full`} size="xs" tone="tertiary">
+                {interpolate(t.dayFullHint, {
+                  days: formatList(
+                    [...filled].map(day => t.weekdaysInSentence[day]),
+                    locale
+                  ),
+                  limit: maxPerDay
+                })}
+              </Text>
+            ) : null}
           </div>
 
           <div className={styles.field}>
@@ -635,52 +958,114 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
               only way to reach the last one was to scroll past the rest. A field
               you can type in, with the matches under it a page at a time, is
               what a list this long needs. */}
-          {/* Two different emptinesses, and they are not the same sentence: the
-              library has nothing for that meal, or it has nothing that works
-              beside the rule the day already holds. The second is the ordinary
-              answer on a three-meal day with two rules, not an edge case. */}
+          {/* One emptiness now, and one sentence for it: since `0103` the offer
+              is the plate fit, so nothing here means the library has nothing
+              for that meal. It no longer means "nothing that works beside the
+              rule the day already holds" — that is a warning on a dish, not an
+              absence. */}
           {fixable && fixable.length === 0 ? (
             <Text size="xs" tone="tertiary">
-              {alsoFixed.length > 0 ? interpolate(t.noneBeside, { meal: t.slots[alsoFixed[0].slot].toLowerCase() }) : t.noneFit}
+              {t.noneFit}
             </Text>
           ) : null}
 
           {fixable && fixable.length > 0 ? (
             <div className={styles.dish}>
+              {/* The list no longer gets shorter when the day already holds a
+                  rule (`0103`), so this says what happens instead: the warning
+                  comes when a dish is picked, before anything is fixed. */}
+              {!chosen && alsoFixed.length > 0 ? (
+                <Text className={styles.notice} size="xs" tone="secondary">
+                  {interpolate(t.beside, { meal: t.slots[alsoFixed[0].slot].toLowerCase() })}
+                </Text>
+              ) : null}
+
               {chosen ? (
-                <div className={styles.chosen}>
-                  <span className={styles.chosenName}>
-                    <Text as="span" size="xs" tone="tertiary">
-                      {t.dish}
-                    </Text>
-                    <span className={styles.rule}>{chosen.name}</span>
-                  </span>
-                  <Button onClick={() => setDish('')} size="sm" type="button" variant="secondary">
-                    {t.change}
-                  </Button>
-                </div>
+                <Fragment>
+                  <div className={styles.chosen} ref={chosenRef} tabIndex={-1}>
+                    <span className={styles.chosenName}>
+                      <Text as="span" size="xs" tone="tertiary">
+                        {t.dish}
+                      </Text>
+                      <span className={styles.rule}>{chosen.name}</span>
+                    </span>
+                    <Button onClick={unchoose} size="sm" type="button" variant="secondary">
+                      {t.change}
+                    </Button>
+                  </div>
+
+                  {/* What this dish costs, between the dish and the button that
+                      fixes it — a row of its own and not inside the one above,
+                      which is a flex row with a button in it and no room for a
+                      sentence (`0103`).
+
+                      Mounted the moment a dish is tapped, holding
+                      «Comprobando…», and then the warning replaces that text: a
+                      live region that arrives already full is often never
+                      announced. */}
+                  <div
+                    aria-busy={checking}
+                    className={
+                      warningText ? `${styles.consequence} ${styles.warned}` : refused ? `${styles.consequence} ${styles.denied}` : styles.consequence
+                    }
+                    role="status"
+                  >
+                    {checking ? (
+                      <Text as="span" size="xs" tone="tertiary">
+                        {t.checking}
+                      </Text>
+                    ) : (
+                      <Fragment>
+                        {stale ? (
+                          <Text as="span" size="xs" tone="secondary">
+                            {t.warningStale}
+                          </Text>
+                        ) : null}
+
+                        {/* A word, then the sentence, then the button that says
+                            the same thing: forced colours erases a tint, and a
+                            warning that was only amber would say nothing there. */}
+                        {warningText ? (
+                          <Fragment>
+                            <span className={styles.mark}>{t.warningMark}</span>
+                            <Text as="span" size="xs" tone="secondary">
+                              {warningText}
+                            </Text>
+                          </Fragment>
+                        ) : null}
+
+                        {/* No way past, and nothing that reads like one: this is
+                            the plate fit, which the generation would drop
+                            whatever anybody accepted (`0103`). The button below
+                            is dead while it is on screen. */}
+                        {refused ? (
+                          <Fragment>
+                            <span className={styles.refusal}>{t.refusalMark}</span>
+                            <Text as="span" size="xs" tone="secondary">
+                              {sentenceFor(refused)}
+                            </Text>
+                          </Fragment>
+                        ) : null}
+                      </Fragment>
+                    )}
+                  </div>
+                </Fragment>
               ) : (
                 <Fragment>
                   <Input
                     autoComplete="off"
-                    hint={
-                      alsoFixed.length > 0
-                        ? interpolate(fixable.length === 1 ? t.countBesideOne : t.countBeside, {
-                            count: fixable.length,
-                            meal: t.slots[alsoFixed[0].slot].toLowerCase()
-                          })
-                        : interpolate(fixable.length === 1 ? t.countOne : t.count, { count: fixable.length })
-                    }
+                    hint={interpolate(fixable.length === 1 ? t.countOne : t.count, { count: fixable.length })}
                     label={t.dish}
                     onChange={event => searched(event.target.value)}
                     placeholder={t.searchPlaceholder}
+                    ref={searchRef}
                     type="search"
                     value={query}
                   />
 
                   {/* The count is what changes as somebody types, so it is the
                       thing a screen reader should hear — not each row arriving. */}
-                  <Text aria-live="polite" className={styles.matches} role="status" size="xs" tone="tertiary">
+                  <Text className={styles.matches} role="status" size="xs" tone="tertiary">
                     {matching.length === 0
                       ? interpolate(t.noMatch, { query })
                       : interpolate(matching.length === 1 ? t.matchOne : t.match, { count: matching.length })}
@@ -690,7 +1075,7 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
                     <ul className={styles.options}>
                       {matching.slice(0, shown).map(candidate => (
                         <li key={candidate.slug}>
-                          <button className={styles.option} onClick={() => setDish(candidate.slug)} type="button">
+                          <button className={styles.option} onClick={() => choose(candidate.slug)} type="button">
                             {candidate.name}
                           </button>
                         </li>
@@ -714,7 +1099,7 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
               way back to that field. */}
           {missing && reasons && reasons.length > 0 ? (
             <div className={styles.why}>
-              <Text aria-live="polite" role="status" size="xs" tone="tertiary">
+              <Text role="status" size="xs" tone="tertiary">
                 {interpolate(reasons.length === 1 ? t.whyCountOne : t.whyCount, { count: reasons.length })}
               </Text>
               <ul className={styles.reasons}>
@@ -820,8 +1205,13 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, rules, slots, s
             </div>
           ) : null}
 
-          <Button disabled={pending || !weekday || !slot || !dish} loading={pending} type="submit">
-            {t.add}
+          {/* Dead while the consequence is being asked and while a refusal is
+              on screen; the label changes when a warning is, so what is pressed
+              says what it costs (`0103`). `loading` stays the request this
+              button sent — the check was started by the tap on the dish, and
+              «Comprobando…» is that one's own feedback. */}
+          <Button disabled={pending || checking || !weekday || !slot || !dish || refused !== undefined} loading={pending} type="submit">
+            {warningText ? t.addAnyway : t.add}
           </Button>
         </form>
       ) : null}

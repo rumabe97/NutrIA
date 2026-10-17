@@ -1,14 +1,21 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
-import { AddFixedMealDto, RequestDishDto, SearchDishDto } from '../dto/in/index.js';
+import { AddFixedMealDto, DishConsequenceDto, RequestDishDto, SearchDishDto } from '../dto/in/index.js';
 import { CurrentUser, RateLimit, RequiresOnboarding, ZodBody } from '../../../shared/index.js';
 import { FixedMealsService } from '../services/index.js';
 import { InputParseError } from 'core/entities/Error';
 import { weekdaySchema } from 'core/entities/FixedMeal';
 import { MEAL_SLOTS } from 'core/entities/Plan';
 
-import type { FixableDishDto, FixedMealDto, FixedMealHonourabilityDto, FixedMealsDto, NotOfferedDishDto } from '../dto/out/index.js';
+import type {
+  FixableDishDto,
+  FixedMealConsequenceDto,
+  FixedMealDto,
+  FixedMealHonourabilityDto,
+  FixedMealsDto,
+  NotOfferedDishDto
+} from '../dto/out/index.js';
 import type { MealSlot } from 'core/entities/Plan';
 import type { SessionUser } from '../../../shared/index.js';
 
@@ -29,15 +36,38 @@ export class FixedMealsController {
 
   @ApiCreatedResponse({
     description:
-      'The rule. 422 when the dish cannot be fixed to that meal — beside whatever that day already holds — 409 when that **meal** of that weekday already has one (a day may hold several, `0101`), 429 QUOTA_EXCEEDED when the tier’s fixed meals are all used.'
+      'The rule. 422 when the dish cannot be fixed to that meal at all, with the reason in `fieldErrors.dishSlug`; 409 FIXED_MEAL_WARNING with `warning` when the day’s arithmetic says no and the body did not accept it (`0103`); 409 FIXED_MEAL_DAY_FULL with `dayLimit` when that weekday already holds its two (`0103`); 409 when that **meal** of that weekday already has one (`0101`); 429 QUOTA_EXCEEDED when the tier’s fixed meals are all used.'
   })
   @ApiOperation({ summary: 'Fix a dish to one meal of one weekday, in every plan from now on' })
   @Post()
   async add(@CurrentUser() user: SessionUser, @ZodBody(AddFixedMealDto) body: AddFixedMealDto): Promise<FixedMealDto> {
-    return this.fixedMeals.add(user.id, body);
+    const { accept, ...rule } = body;
+
+    return this.fixedMeals.add(user.id, rule, accept);
   }
 
-  @ApiOkResponse({ description: 'The dishes that can be fixed there, by name. Judged against the plan this person would generate next.' })
+  @ApiOkResponse({
+    description:
+      'Whether that dish can be fixed there, and what it would cost: `fixable`, or a reason with `acceptable` saying whether the person may fix it anyway (`0103`). 409 FIXED_MEAL_DAY_FULL when that weekday already holds its two, which is not a fact about the dish.'
+  })
+  @ApiOperation({ summary: 'What fixing this dish to this meal would cost, before anybody commits' })
+  // A read, and a POST for `SearchDishDto`'s reason: the dish somebody is about
+  // to fix for their Tuesday dinner must not land in the platform's access log,
+  // which keys on the query string and is not ours to redact. 200, since nothing
+  // is created.
+  @HttpCode(HttpStatus.OK)
+  // One assembly of this person's library, as `not-offered` is, and the screen
+  // asks it once per dish somebody actually touches.
+  @RateLimit({ limit: 60, ttlSeconds: 3600 })
+  @Post('consequence')
+  async consequence(@CurrentUser() user: SessionUser, @ZodBody(DishConsequenceDto) body: DishConsequenceDto): Promise<FixedMealConsequenceDto> {
+    return this.fixedMeals.consequence(user.id, body.weekday, body.slot, body.dishSlug);
+  }
+
+  @ApiOkResponse({
+    description:
+      'The dishes that can be fixed there, by name — the plate fit, judged against the plan this person would generate next. Empty when that weekday already holds its two rules (`0103`).'
+  })
   @ApiOperation({ summary: 'Which dishes can be fixed to one meal of one weekday' })
   @ApiQuery({ enum: MEAL_SLOTS, name: 'slot' })
   @ApiQuery({ description: '0-6, Monday first', name: 'weekday', type: Number })

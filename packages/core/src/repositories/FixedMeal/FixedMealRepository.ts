@@ -5,8 +5,8 @@ import { database } from 'database';
 import { fixedMeals } from 'database/schema/plan';
 import { recipes } from 'database/schema/recipe';
 
-import { ConflictError, DatabaseOperationError, QuotaExceededError } from 'core/entities/Error';
-import { fixedMealSchema } from 'core/entities/FixedMeal';
+import { ConflictError, DatabaseOperationError, FixedMealDayFullError, QuotaExceededError } from 'core/entities/Error';
+import { fixedMealSchema, MAX_FIXED_MEALS_PER_DAY } from 'core/entities/FixedMeal';
 
 import type { AddFixedMeal, FixedMeal } from 'core/entities/FixedMeal';
 
@@ -51,6 +51,13 @@ export const FixedMealRepository = {
    * different days racing past a limit of two. The two protections guard
    * different things and both are needed.
    *
+   * **Two bounds are re-counted here, not one** (`0103`): the tier's allowance
+   * and `MAX_FIXED_MEALS_PER_DAY`. The second is the same race in miniature —
+   * two requests naming two meals of the same Tuesday, each reading a day with
+   * one rule on it — and it is checked against the rows this attempt's own lock
+   * read, for exactly the reason the first one is. The allowance is asked first:
+   * when both refuse, "you have used all three" is the truer sentence.
+   *
    * A transaction-scoped advisory lock keyed on the account takes the place of
    * a row to hold `FOR UPDATE`, because what is defended is a row that does not
    * exist yet. `try` and not the blocking form: a blocking lock as a
@@ -87,8 +94,14 @@ export const FixedMealRepository = {
             .where(eq(fixedMeals.userId, userId))
             .orderBy(asc(fixedMeals.weekday));
 
-          if (!(await quota(standing.map(parsed)))) {
+          const held = standing.map(parsed);
+
+          if (!(await quota(held))) {
             throw new QuotaExceededError('fixed_meal');
+          }
+
+          if (held.filter(each => each.weekday === rule.weekday).length >= MAX_FIXED_MEALS_PER_DAY) {
+            throw new FixedMealDayFullError(MAX_FIXED_MEALS_PER_DAY);
           }
 
           const [recipe] = await tx.select({ id: recipes.id, name: recipes.name }).from(recipes).where(eq(recipes.slug, rule.dishSlug)).limit(1);
@@ -115,7 +128,7 @@ export const FixedMealRepository = {
 
       throw new ConflictError('Another request for this account is still fixing a meal');
     } catch (error: unknown) {
-      if (error instanceof ConflictError || error instanceof QuotaExceededError) {
+      if (error instanceof ConflictError || error instanceof FixedMealDayFullError || error instanceof QuotaExceededError) {
         throw error;
       }
 

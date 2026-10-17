@@ -83,6 +83,19 @@ export function formatQuantity(quantity: number, unit: string, locale: Locale, d
   return `${value} ${unit}`;
 }
 
+/**
+ * Several names in one sentence — «lunes y jueves», "Monday and Thursday".
+ *
+ * `Intl.ListFormat` rather than a join, for the same reason nothing here is a
+ * `replace`: the conjunction and the commas belong to the locale, and English
+ * puts an "and" where Spanish puts a "y". One item comes back as itself, which
+ * is what lets a sentence naming days read the same whether there is one or
+ * four.
+ */
+export function formatList(items: readonly string[], locale: Locale): string {
+  return new Intl.ListFormat(locale, { style: 'long', type: 'conjunction' }).format(items);
+}
+
 /** Re-exported so a component needs one import for "text with a value in it". */
 export { interpolate };
 

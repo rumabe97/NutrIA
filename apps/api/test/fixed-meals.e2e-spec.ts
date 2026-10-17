@@ -1,12 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
-import { PLAN_TOLERANCE } from 'core/domain/PlanValidation';
+import { MAX_FIXED_MEALS_PER_DAY } from 'core/entities/FixedMeal';
 import { SettingsController } from 'core/controllers/Settings';
 import { UNAUDITED } from 'core/entities/Audit';
 import { UserController } from 'core/controllers/User';
 
 import {
+  bandMisses,
   completeOnboarding,
   createApp,
   deleteAccounts,
@@ -22,20 +23,41 @@ import {
 } from './harness.js';
 
 import type { Account } from './harness.js';
+import type { FixedMealConsequenceDto, NotOfferedDishDto } from '../src/modules/fixed-meals/dto/out/index.js';
 import type { FixedMealsView } from 'core/controllers/FixedMeal';
 import type { INestApplication } from '@nestjs/common';
-import type { NotOfferedDishDto } from '../src/modules/fixed-meals/dto/out/index.js';
-import type { PlanDayView, PlanView } from 'core/controllers/Plan';
+import type { PlanView } from 'core/controllers/Plan';
 import type { Response } from 'supertest';
 
 /**
- * A meal fixed to one day of the week, for ever (`0098`, `0099`, `0101`).
+ * A meal fixed to one day of the week, for ever (`0098`, `0099`, `0101`,
+ * `0103`).
  *
  * The assertions that matter are the ones no unit test can make: that the dish
  * the route offers is one the *database's* own pool holds, that the limit and
  * the one-rule-per-meal constraint refuse what they should at the HTTP
  * boundary, and that a plan generated afterwards really serves that dish on
  * that day.
+ *
+ * **What `0103` changed here, and what it did not.** The offer no longer asks
+ * the day's arithmetic of the library: `GET /fixed-meals/fixable` is the plate
+ * fit, so a dish the day cannot hold beside the rule it already has is now *in*
+ * the list, with the sentence read from `POST /fixed-meals/consequence` when
+ * somebody touches it. Three claims of `0101`'s own block were claims about
+ * that filter and are gone with it — the narrowed second offer, the dish the
+ * narrowing dropped, and `not-offered` naming `clashes_with_fixed`, which it
+ * can no longer say about any dish. What survived is the half that was never
+ * about filtering: a day holds two rules, the same meal twice is refused, and
+ * the plan really serves both of them on both of that weekday's days, inside
+ * their bands. The second rule is now chosen by asking `consequence` for a
+ * dinner the day can hold rather than by reading the offer's set difference —
+ * the same oracle (`dayHolds`), asked of one dish instead of the library.
+ *
+ * **The warning path itself is not here**:
+ * `fixed-meals-warnings.e2e-spec.ts` owns it, with the day's cap, the refusal
+ * `0103` left a refusal, and which standing rules the next plan cannot honour.
+ * This file keeps what `0101` and `0099` already claimed and makes it true
+ * again.
  *
  * **The free tier's numbers are hard-coded here**, as `events-premium`
  * hard-codes premium's: a change to what a tier allows is a change to this file
@@ -64,30 +86,32 @@ const NO_DISH_REQUESTS = { allowed: false, limit: DISH_REQUESTS_FREE, remaining:
 const OIL = 'aceite-de-oliva-virgen-extra';
 
 /**
- * Four dishes this file adds to the shared pool, because `0101`'s gate asks the
- * library for something `POOL` cannot give.
+ * Four dishes this file adds to the shared pool, because the one claim it keeps
+ * about a day's arithmetic asks the library for something `POOL` cannot give.
  *
- * `dayHolds` offers a second rule only for a day it can build inside all four
- * bands, and **no day of the shared pool is ever inside them**: its ten
+ * **No day of the shared pool is ever inside all four of its bands**: its ten
  * ingredients carry almost no fat — egg 9.5 g per 100, Greek yogurt 5, oats 6.5,
  * and nothing else above 3.5 — so a fortnight built from it lands every one of
  * its fourteen days outside the protein band, 6% over. Measured on a database
- * built the way CI builds it (migrations and `seed`, no library): 0 of 14 days in
- * band, and the narrowed dinner offer empty for every lunch the pool can fix.
- * That is what turned CI red on 2026-10-15, with the suite green on a developer's
- * machine, where a thousand real recipes were in the way of noticing.
+ * built the way CI builds it (migrations and `seed`, no library): 0 of 14 days
+ * in band. That is what turned CI red on 2026-10-15, with the suite green on a
+ * developer's machine, where a thousand real recipes were in the way of
+ * noticing.
  *
- * With a fat source in the pool it is 4 of 14 days in band, the narrowed dinner
- * offer is 10 of 30, and **both days of the pinned weekday come back inside their
- * bands** — which is the gate working rather than luck: it offers only what makes
- * that day reachable. The other ten days miss fat, because the variety rules move
- * off these four dishes and what is left has none; that is the fixture library's
- * ceiling and not this feature's, and `0101` is where the real library's numbers
- * are.
+ * **`0103` changed which assertion needs them, not whether one does.** The
+ * offer is no longer gated on a day the scheduler can close, so on the bare
+ * pool every dinner of a weekday holding a lunch is still *offered* — with a
+ * warning. What is unreachable without a fat source is the opposite answer:
+ * `consequence` saying `fixable: true` about a second rule, and so the pair
+ * being served on two days **inside their bands**, which is the half of `0101`
+ * this file still proves. With these four in the pool it is 4 of 14 days in
+ * band and both days of the pinned weekday close; without them the search below
+ * finds no dinner the day can hold and says so.
  *
  * They live here and not in `harness.ts` because `0009` tuned `POOL` for the
  * variety rules of every suite that shares it, and this is the only file that
- * needs a day the library can actually close.
+ * needs a day the library can actually close. `fixed-meals-warnings.e2e-spec.ts`
+ * deliberately does not take them: it needs a day that *cannot* close.
  */
 const PAIRABLE = [
   dish(
@@ -137,39 +161,47 @@ const PAIRED = 2;
 const SPARE = 5;
 const UNTOUCHED = 6;
 
+/**
+ * How wide the search for a pair the day can close is allowed to be.
+ *
+ * It is bounded because `POST /fixed-meals/consequence` allows sixty an hour
+ * (one assembly of this person's library each) and a real library has hundreds
+ * of dinners: `LUNCHES_TRIED * DINNERS_ASKED` is the worst case, and it has to
+ * leave the block's own reads inside the window. Measured against the fixture
+ * pool, the lunch that works is not the first one the offer sorts and the
+ * dinners that work are about a third of what is offered beside it (README
+ * § *The shared pool cannot reach the macro bands*), so four and eight is room
+ * rather than hope — and running out of it fails with the counts rather than
+ * with a 429.
+ */
+const LUNCHES_TRIED = 4;
+const DINNERS_ASKED = 8;
+
 /** 0 is Monday, as `weekdayOf` counts (`core/entities/FixedMeal`). */
 function weekdayOf(isoDate: string): number {
   return (new Date(`${isoDate}T00:00:00Z`).getUTCDay() + 6) % 7;
 }
 
 /**
- * Which of a day's four macros are outside their band, by name.
+ * One dish per distinct shape, at most `most` of them.
  *
- * Reads `PLAN_TOLERANCE` rather than restating 5%, which is `0101`'s own rule
- * for the gate and the same rule for the test that checks it: a second idea of
- * what "inside the band" means is how two places come to disagree. The
- * comparison is `outOfBand`'s — not exported, and three operators long.
+ * The variants of a scripted dish are nutritionally the same dish — `0009`'s
+ * numbering is what gives a slot seven distinct names — so probing two of them
+ * asks the same question twice and spends a rate-limit window on it. `most`
+ * bounds the search on a real library, where every name is its own shape and
+ * there are hundreds: a bound that fails with a sentence beats a probe that
+ * fails with a 429.
  */
-function bandMisses(day: PlanDayView): readonly string[] {
-  const targets = day.targets;
+function shapesOf<T extends { readonly name: string }>(dishes: readonly T[], most: number): readonly T[] {
+  const shapes = new Map<string, T>();
 
-  if (!targets) {
-    return ['no targets'];
+  for (const dish of dishes) {
+    if (!shapes.has(scriptedName(dish.name))) {
+      shapes.set(scriptedName(dish.name), dish);
+    }
   }
 
-  const off = (actual: number, target: number, tolerance: number): boolean => Math.abs(actual - target) > target * tolerance;
-  // Protein is the one band with two tolerances (`PlanValidation`): over and
-  // under are separate violations, so they are read separately here too.
-  const protein =
-    day.totals.proteinG > targets.proteinG * (1 + PLAN_TOLERANCE.proteinOver) ||
-    day.totals.proteinG < targets.proteinG * (1 - PLAN_TOLERANCE.proteinUnder);
-
-  return [
-    off(day.totals.kcal, targets.kcal, PLAN_TOLERANCE.kcal) ? 'kcal' : '',
-    off(day.totals.carbsG, targets.carbsG, PLAN_TOLERANCE.carbs) ? 'carbs' : '',
-    off(day.totals.fatG, targets.fatG, PLAN_TOLERANCE.fat) ? 'fat' : '',
-    protein ? 'protein' : ''
-  ].filter(name => name !== '');
+  return [...shapes.values()].slice(0, most);
 }
 
 describe('fixed meals', () => {
@@ -228,8 +260,15 @@ describe('fixed meals', () => {
   });
 
   it('starts with no rules and the free tier’s allowances', async () => {
+    // `maxPerDay` is on the wire since `0103`, beside the two allowances and for
+    // the same reason: the screen greys out a full weekday before anybody taps,
+    // and a number repeated in a dictionary is a number that will disagree with
+    // the server. Read from the entity rather than restated, as the tier's own
+    // figures are not — those are hard-coded above on purpose, because a change
+    // to what a tier allows is a change to this file.
     expect(await standing(account)).toEqual({
       dishRequests: NO_DISH_REQUESTS,
+      maxPerDay: MAX_FIXED_MEALS_PER_DAY,
       rules: [],
       standing: { allowed: true, limit: FIXED_MEALS_FREE, remaining: FIXED_MEALS_FREE, used: 0 }
     });
@@ -339,6 +378,7 @@ describe('fixed meals', () => {
 
     expect(await standing(account)).toEqual({
       dishRequests: NO_DISH_REQUESTS,
+      maxPerDay: MAX_FIXED_MEALS_PER_DAY,
       rules: [],
       standing: { allowed: true, limit: FIXED_MEALS_FREE, remaining: FIXED_MEALS_FREE, used: 0 }
     });
@@ -351,44 +391,66 @@ describe('fixed meals', () => {
   });
 
   /**
-   * A day may hold a rule for each meal, and the second is offered only the
-   * dishes that leave that day inside its bands (`0101`).
+   * A day may hold a rule for each meal, and the plan serves both of them
+   * (`0101`, as `0103` leaves it).
    *
    * Premium's, because two rules need two allowances. **The switch is global**
    * and on for this block only — the free cases above run before it, and they
    * would hold anyway: with the flag on, `tierOf` reads the account's own tier.
    *
-   * What is proved on real rows, in the order the tests run: a stranger's rule
-   * on the same weekday narrows nothing, the dinner offer for a weekday narrows
-   * once that weekday holds a lunch, three of the dishes the narrowed offer
-   * still names are really fixed and one it dropped cannot be,
-   * the same meal twice is a 409 while the same day's other meal is a 201, the
-   * dropped dish's reason is `clashes_with_fixed` on the day that holds the
-   * rule and no reason at all on a day that holds nothing, a plan generated
+   * What is proved on real rows, in the order the tests run: the dinner offer
+   * for a weekday is **the same list** once that weekday holds a lunch, which
+   * is `0103`'s change and the opposite of what this block asserted before it;
+   * the offer names nothing `add` refuses outright, every dish of it answering
+   * 201 or the warning `0103` put in place of the refusal; the same meal twice
+   * is a 409 while the same day's other meal is a 201; a plan generated
    * afterwards serves both rules on both of that weekday's days with those days
-   * inside their bands, and the allowance counts rules per account rather than
+   * inside their bands; and the allowance counts rules per account rather than
    * per day.
    *
-   * **The two generation claims are the ones `0101` measured rather than
-   * proved**: the offer's gate is optimistic — it builds that one day alone,
-   * with no variety pressure from the other thirteen — and the plan-level
-   * backstop may drop the second pin of a day it cannot honour. `0101` bounds
-   * that at 8 days in 1960. So a red here is a report, not a test to loosen:
+   * **The second rule is chosen by asking `consequence`, not by reading the
+   * offer.** Before `0103` the offer itself was the answer — a dish still in
+   * the narrowed list was a dish the day could hold — and the block found its
+   * pair by set difference. The same oracle is now asked of one dish at a time
+   * (`dayHoldsPin`, 20 ms against the 4.05 s the whole-library form cost), so
+   * the search is a loop over `POST /fixed-meals/consequence` instead. The
+   * dishes it is asked about are deduped by shape and bounded, because the
+   * route allows sixty an hour and a real library has hundreds of dinners.
+   *
+   * **The generation claim is the one `0101` measured rather than proved**: the
+   * `dayHolds` answer is optimistic — it builds that one day alone, with no
+   * variety pressure from the other thirteen — and the plan-level backstop may
+   * drop the second pin of a day it cannot honour. `0101` bounds that at 8 days
+   * in 1960. So a red here is a report, not a test to loosen:
    * `PlanController.fixedMealsOf` says what the plan was built with, and a day
    * whose pins were both recorded and only one served is the backstop firing.
    *
-   * All of it rests on the four dishes this file adds to the pool
-   * (`PAIRABLE`): on the shared pool alone the second offer is empty whatever
-   * the lunch, because no day of that pool is inside its bands.
+   * The in-band half rests on the four dishes this file adds to the pool
+   * (`PAIRABLE`): on the shared pool alone no day is inside its bands, so
+   * `consequence` says `clashes_with_fixed` about every dinner and the search
+   * below finds nothing — which is what `fixed-meals-warnings.e2e-spec.ts`
+   * wants and what this block cannot work with.
+   *
+   * **Somebody else's rule on the same weekday is not here any more.** It used
+   * to be read off the narrowed offer, and under `0103` nothing narrows, so the
+   * assertion would pass against a filter that forgot the account entirely. The
+   * claim moved to where it can still fail: the warnings suite asks
+   * `consequence` about a dish that clashes with a *stranger's* lunch and gets
+   * `fixable: true`.
    */
-  describe('a day that holds two of them (0101)', () => {
+  describe('a day that holds two of them (0101, 0103)', () => {
     let rich: Account;
-    /** The dinner offer for `PAIRED` before it held anything — what the narrowed one is read against. */
+    /** The dinner offer for `PAIRED` before it held anything — what the unnarrowed one is read against. */
     let before: readonly { readonly name: string; readonly slug: string }[] = [];
-    /** The same offer once a lunch stands on that day. */
-    let narrowed: readonly { readonly name: string; readonly slug: string }[] = [];
-    /** One dish the lunch cost that weekday: in `before`, not in `narrowed`. */
-    let dropped: { readonly name: string; readonly slug: string } | undefined;
+    /** The same offer once a lunch stands on that day: the same list, since `0103`. */
+    let after: readonly { readonly name: string; readonly slug: string }[] = [];
+    /** The lunch standing on `PAIRED`, and a dinner `consequence` says that day can hold beside it. */
+    let lunch: { readonly name: string; readonly slug: string } | undefined;
+    let fitting: { readonly name: string; readonly slug: string } | undefined;
+
+    /** `POST /fixed-meals/consequence`, without an expectation: the search below reads the status. */
+    const consequence = async (who: Account, weekday: number, slot: string, dishSlug: string | undefined): Promise<Response> =>
+      request(httpServer(app)).post(`/${PREFIX}/fixed-meals/consequence`).set('Cookie', who.cookie).send({ dishSlug, slot, weekday });
 
     beforeAll(async () => {
       rich = await register(app, `fixed-meal-pair-${stamp}@e2e.invalid`);
@@ -407,55 +469,49 @@ describe('fixed meals', () => {
       await SettingsController.setFlag('premium', false, UNAUDITED);
     });
 
-    it('offers premium’s three, and fewer dinners once that weekday holds a lunch', async () => {
+    it('offers premium’s three, and the same dinners once that weekday holds a lunch', async () => {
       expect((await standing(rich)).standing).toEqual({ allowed: true, limit: FIXED_MEALS_PREMIUM, remaining: FIXED_MEALS_PREMIUM, used: 0 });
 
       before = await fixable(rich, PAIRED, 'dinner');
 
       expect(before.length).toBeGreaterThan(0);
 
-      // Somebody else's rule on the same weekday is not mine (`0019`), and the
-      // map the offer is narrowed against is a new way into that answer: it is
-      // built from `FixedMealController.forPlan(userId)`, and a filter by
-      // weekday that forgot the account would narrow this list here. The
-      // stranger is free and has its one rule back by now.
-      const [theirs] = await fixable(stranger, PAIRED, 'lunch');
-
-      expect((await fix(stranger, PAIRED, 'lunch', theirs?.slug)).status).toBe(201);
-      expect((await fixable(rich, PAIRED, 'dinner')).map(dish => dish.slug)).toEqual(before.map(dish => dish.slug));
-
-      // The lunch first, and from the lunch offer: a day holding nothing is
-      // the unnarrowed path, which is every rule before `0101`.
+      // The lunch first, and from the lunch offer: a day holding nothing has
+      // nothing to clash with, which is every rule before `0101` and the
+      // cheapest path through `judge`.
       //
       // **Which** lunch is looked for rather than assumed, and that is the
-      // lesson of a red run: `[0]` is whatever the offer sorted first, and the
-      // day it leaves behind is a property of the library, not of this code. On
-      // the fixture pool `[0]` is a lunch no dinner survives beside — on a
-      // thousand real recipes it is not, so the suite was green here and red on
-      // CI. The pair is setup, so it is searched for; what is asserted below is
-      // what the narrowing did to it.
+      // lesson of a red run: `[0]` is whatever the offer sorted first, and
+      // whether the day can still close beside it is a property of the library,
+      // not of this code. On the fixture pool `[0]` is a lunch no dinner
+      // survives beside — on a thousand real recipes it is not, so the suite
+      // was green on a developer's machine and red on CI.
       //
-      // One try per distinct shape: the variants of a scripted dish are
-      // nutritionally the same dish, and a rule removed costs nothing but the
-      // insert — the allowance counts the rules standing, not the ones written.
-      const shapes = new Map<string, { readonly name: string; readonly slug: string }>();
-
-      for (const dish of await fixable(rich, PAIRED, 'lunch')) {
-        if (!shapes.has(scriptedName(dish.name))) {
-          shapes.set(scriptedName(dish.name), dish);
-        }
-      }
-
-      let lunch: { readonly name: string; readonly slug: string } | undefined;
-
-      for (const candidate of shapes.values()) {
+      // What the search asks has changed with `0103` and the oracle has not:
+      // the offer no longer answers "can the day hold this", so each candidate
+      // dinner is put to `consequence`, which is `dayHoldsPin` — the same
+      // `dayHolds` the narrowed offer used, asked of one dish. A rule removed
+      // costs nothing but the insert: the allowance counts the rules standing,
+      // not the ones written.
+      for (const candidate of shapesOf(await fixable(rich, PAIRED, 'lunch'), LUNCHES_TRIED)) {
         const created = await fix(rich, PAIRED, 'lunch', candidate.slug);
 
-        expect(created.status).toBe(201);
+        expect({ slug: candidate.slug, status: created.status }).toEqual({ slug: candidate.slug, status: 201 });
 
-        narrowed = await fixable(rich, PAIRED, 'dinner');
+        after = await fixable(rich, PAIRED, 'dinner');
 
-        if (narrowed.length > 0 && narrowed.length < before.length) {
+        for (const dinner of shapesOf(after, DINNERS_ASKED)) {
+          const read = await consequence(rich, PAIRED, 'dinner', dinner.slug);
+
+          expect({ slug: dinner.slug, status: read.status }).toEqual({ slug: dinner.slug, status: 200 });
+
+          if ((read.body as FixedMealConsequenceDto).fixable) {
+            fitting = dinner;
+            break;
+          }
+        }
+
+        if (fitting) {
           lunch = candidate;
           break;
         }
@@ -467,68 +523,97 @@ describe('fixed meals', () => {
       }
 
       // Not "this library is poor": a library with no day inside its four bands
-      // can hold no second rule at all, and that is the one thing this block
-      // cannot work around — see `PAIRABLE`.
-      expect(lunch).toBeDefined();
+      // can hold a second rule only as a warning, and the in-band half of this
+      // block is the one thing it cannot work around — see `PAIRABLE`. The
+      // counts travel inside the failure so a red run says which of the two
+      // halves of the search came up empty.
+      expect({ dinner: fitting !== undefined, lunch: lunch !== undefined, tried: `${LUNCHES_TRIED} lunches, ${DINNERS_ASKED} dinners each` }).toEqual(
+        { dinner: true, lunch: true, tried: expect.any(String) }
+      );
 
-      dropped = before.find(dish => !narrowed.some(kept => kept.slug === dish.slug));
-
-      // The relation, never a count: on a three-meal shape only one meal is
-      // left to balance the day with, so how much survives is a property of
-      // this library and this profile and would be a flake as a number. The two
-      // counts travel inside the assertion rather than beside it, so a red run
-      // says *how* much the offer lost: the run that turned CI red read "0 of
-      // 30" for every lunch of its library.
-      //
-      // `narrows` and `offers` are what the search above stopped on; `subset`
-      // and `dropped` are not, and they are the claim — a narrowing only ever
-      // takes dishes away, and on this day it took at least one.
-      expect({
-        dropped: dropped !== undefined,
-        narrows: narrowed.length < before.length,
-        offers: `${narrowed.length} of ${before.length}`,
-        subset: narrowed.every(dish => before.some(each => each.slug === dish.slug))
-      }).toEqual({ dropped: true, narrows: true, offers: expect.stringMatching(/^[1-9]\d* of \d+$/), subset: true });
+      // **`0103`, and the opposite of what stood here**: the offer is the plate
+      // fit, so a lunch standing on the day takes nothing out of the dinner
+      // list — not even the dishes the day can no longer close around, which
+      // are now offered with a warning on them. Slug for slug and in order,
+      // because `pinnable`'s answer is deterministic and a list that merely has
+      // the same length would hide a swap.
+      expect({ offers: `${after.length} of ${before.length}`, slugs: after.map(dish => dish.slug) }).toEqual({
+        offers: `${before.length} of ${before.length}`,
+        slugs: before.map(dish => dish.slug)
+      });
     });
 
-    it('offers nothing it would then refuse, and refuses what it dropped', async () => {
+    it('offers nothing it refuses outright: every dish of it is fixed, or carries the warning', async () => {
       // The add-time gate and the offer are the same gate, which is only
       // checkable by spending the offer: each of these is fixed for real and
       // removed again, so the allowance is where it was at the end.
-      for (const candidate of narrowed.slice(0, 3)) {
+      //
+      // **Two answers are right and a third is not** (`0103`). 201 is a dish the
+      // day can hold; 409 `FIXED_MEAL_WARNING` is one it cannot, which is a
+      // sentence somebody may accept and is why the dish is in the list at all.
+      // A 422 would be the offer naming a dish `add` says cannot be fixed to
+      // that meal at all, and that is the thing this has always been about.
+      const answers: { readonly code?: string; readonly slug: string; readonly status: number; readonly warning?: string }[] = [];
+
+      for (const candidate of shapesOf(after, 3)) {
         const created = await fix(rich, PAIRED, 'dinner', candidate.slug);
+        const body = created.body as { id?: string; code?: string; warning?: string };
 
-        expect({ slug: candidate.slug, status: created.status }).toEqual({ slug: candidate.slug, status: 201 });
+        answers.push({ slug: candidate.slug, status: created.status, ...(created.status === 201 ? {} : { code: body.code, warning: body.warning }) });
 
-        await request(httpServer(app))
-          .delete(`/${PREFIX}/fixed-meals/${(created.body as { id: string }).id}`)
-          .set('Cookie', rich.cookie)
-          .expect(204);
+        if (created.status === 201) {
+          await request(httpServer(app)).delete(`/${PREFIX}/fixed-meals/${body.id}`).set('Cookie', rich.cookie).expect(204);
+        }
       }
 
-      // And the inverse, which is the half that says the gate is real: a dish
-      // the narrowing dropped is refused rather than quietly accepted, and 422
-      // rather than 409 — the dish is what is wrong with it, not the meal.
-      const refused = await fix(rich, PAIRED, 'dinner', dropped?.slug);
-      const body = refused.body as { code: string; fieldErrors?: Record<string, readonly string[]> };
-
-      // The field, not only the status: this route answers 422 for three other
-      // things as well — a meal they do not eat, a profile that is not finished,
-      // a body that is not one — and the one meant here is about the dish.
-      expect({ code: body.code, fields: Object.keys(body.fieldErrors ?? {}), status: refused.status }).toEqual({
-        code: 'INVALID_INPUT',
-        fields: ['dishSlug'],
-        status: 422
+      // The whole tally in one assertion, so a red run says which dish answered
+      // what rather than only that one of them did.
+      expect({ answers, offered: answers.length, refused: answers.filter(answer => answer.status !== 201 && answer.status !== 409) }).toEqual({
+        answers,
+        offered: answers.length,
+        refused: []
       });
+
+      for (const warned of answers.filter(answer => answer.status === 409)) {
+        expect(warned).toEqual({ code: 'FIXED_MEAL_WARNING', slug: warned.slug, status: 409, warning: 'clashes_with_fixed' });
+      }
+
       expect((await standing(rich)).rules).toHaveLength(1);
     });
 
+    it('never says `clashes_with_fixed` about a dish it did not offer', async () => {
+      // The inverse of what stood here, and it is `0103`'s own promise about
+      // this route rather than a weakening: a dish the day cannot hold is
+      // *offered* now, so it can never also be in the list of dishes the
+      // library has and the person was not offered. `NotOfferedDish` carries no
+      // `acceptable` field for the same reason — the one acceptable reason
+      // cannot reach it.
+      //
+      // **While the day holds exactly one rule**, which is what makes the
+      // question live: a weekday holding its two answers `[]` to this route
+      // whatever is searched for (`0103`), so run after the pair below it would
+      // pass on the empty list and say nothing. The count is asserted, not
+      // assumed.
+      expect((await standing(rich)).rules.filter(rule => rule.weekday === PAIRED)).toHaveLength(1);
+
+      // The whole name, cut to what the field takes, because the answer keeps
+      // five reasons and sorts them by name — a short needle pushes the one
+      // being asked about off the end.
+      for (const dinner of shapesOf(after, 3)) {
+        const reasons = await notOffered(rich, PAIRED, 'dinner', dinner.name.slice(0, 120));
+
+        expect({
+          clashes: reasons.filter(dish => dish.why === 'clashes_with_fixed'),
+          dish: dinner.slug,
+          listed: reasons.some(dish => dish.slug === dinner.slug)
+        }).toEqual({ clashes: [], dish: dinner.slug, listed: false });
+      }
+    });
+
     it('lets a day hold a second meal, and refuses the same meal twice (409)', async () => {
-      // The same weekday *and* slot: the lunch offer is the unnarrowed one —
-      // `held` never counts the slot being chosen, because replacing a rule is
-      // removing it and writing another — so this passes the dish gate and is
-      // refused by the meal.
-      const [lunch] = await fixable(rich, PAIRED, 'lunch');
+      // The same weekday *and* slot: the lunch offer never counts the slot being
+      // chosen — replacing a rule is removing it and writing another — so this
+      // passes the dish gate and is refused by the meal.
       const clash = await fix(rich, PAIRED, 'lunch', lunch?.slug);
 
       expect({ code: (clash.body as { code: string }).code, status: clash.status }).toEqual({ code: 'CONFLICT', status: 409 });
@@ -540,33 +625,19 @@ describe('fixed meals', () => {
       expect((clash.body as { message: string }).message).toBe('That meal of that day is already fixed');
 
       // The same weekday, a different meal: 201, and the pair the rest of this
-      // block is about.
-      const [dinner] = narrowed;
-      const second = await fix(rich, PAIRED, 'dinner', dinner?.slug);
+      // block is about. The dinner is the one `consequence` said the day can
+      // hold, so the pin is not a warning being accepted silently — the 201
+      // below carries no `accept` and would be a 409 for any other dinner the
+      // day cannot close around.
+      const second = await fix(rich, PAIRED, 'dinner', fitting?.slug);
 
-      expect(second.status).toBe(201);
+      expect({ slug: fitting?.slug, status: second.status }).toEqual({ slug: fitting?.slug, status: 201 });
       expect(
         (await standing(rich)).rules
           .filter(rule => rule.weekday === PAIRED)
           .map(rule => rule.slot)
           .sort()
       ).toEqual(['dinner', 'lunch']);
-    });
-
-    it('says `clashes_with_fixed` for a dish the rule cost, and nothing for the same dish on a free day', async () => {
-      // The whole name, cut to what the field takes: the answer keeps five
-      // reasons and sorts them by name, so a short needle can push the one
-      // being asked about off the end.
-      const needle = (dropped?.name ?? '').slice(0, 120);
-      const refused = (await notOffered(rich, PAIRED, 'dinner', needle)).find(dish => dish.slug === dropped?.slug);
-
-      expect(refused).toEqual({ actionable: true, name: dropped?.name, slug: dropped?.slug, why: 'clashes_with_fixed' });
-
-      // Not `too_big_or_small`, and this is what says so rather than the string:
-      // the same dish on a weekday that holds nothing is offered, so nothing
-      // about the dish or the plate is what refused it.
-      expect((await notOffered(rich, UNTOUCHED, 'dinner', needle)).map(dish => dish.slug)).not.toContain(dropped?.slug);
-      expect((await fixable(rich, UNTOUCHED, 'dinner')).map(dish => dish.slug)).toContain(dropped?.slug);
     });
 
     it('serves both rules of the day, on both of its days, inside their bands', async () => {
@@ -600,10 +671,12 @@ describe('fixed meals', () => {
     it('counts the allowance per account and not per day', async () => {
       expect((await standing(rich)).standing).toEqual({ allowed: true, limit: FIXED_MEALS_PREMIUM, remaining: 1, used: 2 });
 
-      // The third goes to another weekday rather than to `PAIRED`'s last meal:
-      // on a three-meal day already holding two, `0101` measured the third
-      // offer collapsing to a handful or to nothing, and a case that branches
-      // on whether a list is empty proves nothing either way.
+      // The third goes to another weekday rather than to `PAIRED`'s last meal,
+      // and since `0103` for a plainer reason than the one that stood here: a
+      // weekday holds at most `MAX_FIXED_MEALS_PER_DAY` rules, so `PAIRED` is
+      // **full** and its third meal is a 409 whatever the allowance says.
+      // `fixed-meals-warnings.e2e-spec.ts` is where that is proved, including
+      // which of the two bounds answers when both apply.
       const [third] = await fixable(rich, SPARE, 'lunch');
       const spent = await fix(rich, SPARE, 'lunch', third?.slug);
 

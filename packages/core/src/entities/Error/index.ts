@@ -4,6 +4,8 @@ export {
   ConflictError,
   DatabaseOperationError,
   EmailNotVerifiedError,
+  FixedMealDayFullError,
+  FixedMealWarningError,
   InputParseError,
   MealInFutureError,
   NotFoundError,

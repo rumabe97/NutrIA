@@ -43,6 +43,14 @@
   border-color: var(--color-warning-text);
 }
 
+/* A row whose day is served and misses its numbers (`0103`). It grows the same
+   way a marked one does, and that is all it borrows: its border stays the
+   ordinary hairline, because this is not a fault — the meal is served, and what
+   misses is the day. What says so is the words in the row. */
+.marked {
+  align-items: start;
+}
+
 /* Forced colours keeps a border but chooses the colour itself, so a marked row
    and an unmarked one compute the same black. `Highlight` is how the row stays
    marked there; the word in it is why this is not the only channel. */
@@ -97,6 +105,31 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* A weekday that already holds the two a day may hold (`0103`). **The words are
+   the whole channel**: `--foreground-03` was tried here and computes the same
+   grey as `--foreground-02`, so it said nothing (`warn-a11y`, 2026-10-16), and
+   a day drawn faded and nothing else would have been a state in a tint anyway.
+   What is left is the pointer, honest about there being nothing to press. */
+.fullDay[data-disabled] {
+  cursor: not-allowed;
+}
+
+/* The sentences over the list — at most two, and each its own news (`0103`):
+   the rules that are not being honoured, and the ones whose warning somebody
+   accepted. One region for both, so a reader hears one arrival rather than two,
+   and **mounted empty with the list**: a region inserted already holding its
+   text is often never announced, which is the same reason `.consequence` is
+   mounted holding «Comprobando…» (`warn-a11y`, 2026-10-16). */
+.notices {
+  display: grid;
+  gap: var(--space-02);
+  min-inline-size: 0;
+}
+
+.notices:empty {
+  display: none;
+}
+
 /* The sentence over the list. Indented by a rule like `.why`, because it
    belongs to the list rather than to the card as a whole. Its rule is the
    border colour for the same contrast reason as `.broken`. */
@@ -104,6 +137,25 @@
   border-inline-start: 2px solid var(--color-warning-text);
   margin: 0;
   padding-inline-start: var(--space-03);
+}
+
+/* The out-of-band group's sentence. Indented like its sibling and in the
+   ordinary hairline, not the amber: these rules are being served, and the two
+   groups have to be told apart by something a reader with no colour still gets
+   — which is the words. */
+.drifted {
+  border-inline-start: 2px solid var(--border-01);
+  margin: 0;
+  padding-inline-start: var(--space-03);
+}
+
+/* The words on a row whose day misses its numbers. Not the warning colour:
+   nothing has gone wrong, so it takes the row's own secondary tone and carries
+   its meaning in the words themselves. */
+.driftMark {
+  color: var(--foreground-02);
+  font-size: var(--font-size-01);
+  font-weight: var(--font-weight-semibold);
 }
 
 .rule {
@@ -151,10 +203,19 @@
    nothing to type into, names wrapping over each other, and the panel wider
    than the card it belonged to. This is flat, in the card, and scrolls with the
    page like everything else. */
+/* `minmax(0, 1fr)` and not the implicit `auto`: an auto track takes the
+   min-content of its widest child, and `.chosen` is a flex row whose «Cambiar»
+   is 166 px at a 32 px root and will not shrink. The track grew to 386 px
+   inside a 230 px box, and `.consequence` — in the same track — was painted
+   past the viewport with the document's own overflow at 0: clipped, not
+   scrollable, so the sentence somebody accepts a trade on could not be
+   finished (`warn-a11y`, 2026-10-16). This is the clamp its own
+   `min-inline-size: 0` needs in order to do anything. */
 .dish {
   display: grid;
   flex: 1 1 100%;
   gap: var(--space-02);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .matches {
@@ -209,6 +270,74 @@
   display: grid;
   gap: var(--space-01);
   min-inline-size: 0;
+}
+
+/* The house rule for large text: a row that pairs a title with an action wraps,
+   rather than letting the action's own width decide what is left for the words.
+   The same `17rem` and the same two rules as `.row` above. */
+@media (width < 17rem) {
+  .chosen {
+    flex-wrap: wrap;
+  }
+
+  .chosen > .chosenName {
+    flex: 1 1 100%;
+  }
+}
+
+/* What the dish somebody picked will cost, read between the dish and the button
+   that fixes it (`0103`). Its own full-width row in `.dish`'s grid rather than
+   a line inside `.chosen`, which is a flex row with a button in it: a sentence
+   in there has no room and pushes the row past the viewport at the largest font
+   size, which is the overflow phase 5c spent itself on. `min-inline-size: 0`
+   and `overflow-wrap: anywhere` are what keep a long word from doing the same
+   here.
+
+   The region stays mounted while a dish is chosen so a screen reader hears the
+   warning replace «Comprobando…»; with nothing to say it collapses, and
+   `:empty` is reachable because React renders no text node for a false branch. */
+.consequence {
+  border-inline-start: 2px solid var(--border-01);
+  display: grid;
+  gap: var(--space-01);
+  justify-items: start;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  padding-inline-start: var(--space-03);
+}
+
+.consequence:empty {
+  display: none;
+}
+
+/* The rule matches what the block holds: the hairline while it is only saying it
+   is working, the warning step beside a warning, the error step beside a
+   refusal. One amber rule for all three would put a warning's colour beside a
+   refusal's words. */
+.warned {
+  border-inline-start-color: var(--color-warning-text);
+}
+
+.denied {
+  border-inline-start-color: var(--color-error-text);
+}
+
+/* Forced colours erases the rule as it erases every other border colour, so the
+   edge is a system colour there and the words inside are what carry the state. */
+@media (forced-colors: active) {
+  .warned,
+  .denied {
+    border-inline-start-color: Highlight;
+  }
+}
+
+/* A refusal in that same place: `--color-error-text` as the card's own errors,
+   and a word, because the button under it is dead and nothing should read like
+   a way past. */
+.refusal {
+  color: var(--color-error-text);
+  font-size: var(--font-size-01);
+  font-weight: var(--font-weight-semibold);
 }
 
 /* What a search that found nothing says instead of nothing: the library's own
@@ -291,9 +420,16 @@
   justify-self: start;
 }
 
-/* The only standing notice on this screen. Not a hint — a hint is gone as soon
-   as there is text in the field, and this has to be readable while somebody
-   types into it. */
+/* The day's own rule about what cannot be chosen, inside the field and under
+   the chooser it is about — so no `flex`: it is a row of that field's grid. */
+.dayNote {
+  margin: 0;
+}
+
+/* The two standing notices on this screen: the one beside the field whose
+   content leaves the product, and the one that says a day already holds a rule.
+   Neither is a hint — a hint is gone as soon as there is text in the field, and
+   both have to be readable while somebody types. */
 .notice {
   border-inline-start: 2px solid var(--border-01);
   margin: 0;

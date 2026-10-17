@@ -12,6 +12,7 @@ import { UNAUDITED } from 'core/entities/Audit';
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
 import { dayKeyIn } from 'core/domain/Period';
+import { PLAN_TOLERANCE } from 'core/domain/PlanValidation';
 import { shapeFor } from 'core/domain/MealShape';
 
 import { AiClient } from '../src/modules/ai/clients/AiClient.js';
@@ -20,6 +21,7 @@ import { AppModule } from '../src/app.module.js';
 import type { AuditAction } from 'core/entities/Audit';
 import type { AiRequest, AiResponse } from '../src/modules/ai/clients/AiClient.js';
 import type { INestApplication } from '@nestjs/common';
+import type { PlanDayView } from 'core/controllers/Plan';
 import type { Server } from 'node:http';
 import type { TestingModuleBuilder } from '@nestjs/testing';
 
@@ -818,6 +820,137 @@ export async function copyDishDeclaring(slug: string, appliance: string, mark: s
     where recipes.slug = ${slug}`;
 
   return { name: copy.name, slug: copy.slug };
+}
+
+/**
+ * Which of a day's four macros are outside their band, by name — `[]` for a day
+ * inside all four.
+ *
+ * Reads `PLAN_TOLERANCE` rather than restating 5%, which is the scheduler's own
+ * rule for the gate and the same rule for the test that checks it: a second
+ * idea of what "inside the band" means is how two places come to disagree. The
+ * comparison is `outOfBand`'s — not exported, and three operators long.
+ *
+ * Here rather than in one suite because two suites now read it from the two
+ * sides of `0103`: the day a second rule was offered **for** closing is asserted
+ * inside its bands (`fixed-meals.e2e-spec.ts`), and the day somebody accepted a
+ * warning on is asserted **outside** them, which is the trade they made and the
+ * only thing that distinguishes a real warning from a spurious one.
+ */
+export function bandMisses(day: PlanDayView): readonly string[] {
+  const targets = day.targets;
+
+  if (!targets) {
+    return ['no targets'];
+  }
+
+  const off = (actual: number, target: number, tolerance: number): boolean => Math.abs(actual - target) > target * tolerance;
+  // Protein is the one band with two tolerances (`PlanValidation`): over and
+  // under are separate violations, so they are read separately here too.
+  const protein =
+    day.totals.proteinG > targets.proteinG * (1 + PLAN_TOLERANCE.proteinOver) ||
+    day.totals.proteinG < targets.proteinG * (1 - PLAN_TOLERANCE.proteinUnder);
+
+  return [
+    off(day.totals.kcal, targets.kcal, PLAN_TOLERANCE.kcal) ? 'kcal' : '',
+    off(day.totals.carbsG, targets.carbsG, PLAN_TOLERANCE.carbs) ? 'carbs' : '',
+    off(day.totals.fatG, targets.fatG, PLAN_TOLERANCE.fat) ? 'fat' : '',
+    protein ? 'protein' : ''
+  ].filter(name => name !== '');
+}
+
+/**
+ * Copies one library dish with every ingredient's grams multiplied, under a
+ * marked name and slug of its own — and answers the copy.
+ *
+ * **Both ways**: a factor above 1 makes a dish no plate can hold, which is
+ * `too_big_or_small` — `fitsPlate` is one of `honouredPin`'s three hard bounds
+ * (`0070`, `0076`, `0078` — the gram ceiling and `PLATE_LIMIT`), the one
+ * refusal `0103` deliberately left a refusal although it is arithmetic, and the
+ * only way to prove `accept` cannot reach it is to have a dish it fires on. A
+ * factor below 1 makes a **small** dish that is still offered, which is how a
+ * caller builds the worst case instead of hoping the library hands it one.
+ *
+ * **How big is not this function's to know, and a constant is a trap.**
+ * `fitsPlate` does not compare a dish with a plate: it asks whether the dish can
+ * be *sized* onto one, over `SERVING_BOUNDS` and inside `PLATE_LIMIT`. So the
+ * factor that refuses a dish out of a thousand-recipe library is simply served
+ * at half a portion when the dish is a small fixture — which is how
+ * `fixed-meals-warnings.e2e-spec.ts` passed everywhere here and turned CI red
+ * on 2026-10-17. The caller derives its factor from those two bounds; see
+ * `OVERSIZED` there.
+ *
+ * **On the tables, and a copy, for `copyDishDeclaring`'s reasons exactly.** A
+ * scripted oversized dish is never stored — a dish the model writes is kept
+ * only if the plan *uses* it, and the scheduler never reaches for one that
+ * fits no plate — so it would come back `unknown_dish` and prove nothing. And
+ * the local library has such dishes while a database built the way CI builds it
+ * holds the ~90 rows the suites wrote, nearly all of them `POOL` dishes tuned to
+ * fit their plates: picking one out of the library passes here and finds nothing
+ * there. A copy with one thing changed is the same assertion on both databases.
+ *
+ * The per-serving macros are what the plate is judged against and they are
+ * computed from the ingredients and the catalogue (`perServingIndex`), so
+ * scaling the grams and leaving `servings` alone is what moves the plate's
+ * answer. Everything else — slots, minutes, method, locale — is the
+ * original's, and nothing `whyNotFixable` asks before `fitsPlate` reads grams at
+ * all, so scaling can only change *this* verdict and never substitute another
+ * reason for it.
+ *
+ * Caller's to clean up, through `forgetRecipes`, **after** its accounts are
+ * deleted, as `copyDishDeclaring`'s copies are.
+ */
+export async function copyDishScaled(slug: string, factor: number, mark: string): Promise<{ readonly name: string; readonly slug: string }> {
+  const sql = sqlClient();
+  const rows = await sql<{ id: string; name: string; slug: string }>`
+    insert into recipes (slug, name, locale, source, meal_slots, equipment, cook_minutes, prep_minutes, servings, difficulty, cuisine, description,
+      instructions, steps_version)
+    select ${`${mark.toLowerCase()}-${slug}`}, ${`${mark} `} || name, locale, source, meal_slots, equipment,
+      cook_minutes, prep_minutes, servings, difficulty, cuisine, description, instructions, steps_version
+    from recipes where slug = ${slug}
+    returning id, name, slug`;
+  const copy = rows[0];
+
+  if (!copy) {
+    throw new Error(`No dish to copy: ${slug}`);
+  }
+
+  await sql`
+    insert into recipe_ingredients (recipe_id, ingredient_id, grams, quantity, unit, is_optional, note)
+    select ${copy.id}::uuid, items.ingredient_id, items.grams * ${factor}, items.quantity, items.unit, items.is_optional, items.note
+    from recipe_ingredients items join recipes on recipes.id = items.recipe_id
+    where recipes.slug = ${slug}`;
+
+  return { name: copy.name, slug: copy.slug };
+}
+
+/**
+ * Clears the stored height of one account's profile, leaving its finished
+ * onboarding alone.
+ *
+ * **The one state over HTTP that makes a judgement about somebody's food
+ * uncomputable while they are still allowed to ask for it.** `targetInput`
+ * returns null without a height, so `ProfileController.getFullProfile` answers
+ * `targets: null` — honestly, because a calorie figure from a guessed height is
+ * a number somebody would act on — and everything that assembles a generation's
+ * context refuses. `GET /fixed-meals/honourability` answers `judged: false`
+ * there rather than becoming an error page over the footnote beside somebody's
+ * rules, and that is what this exists to reach.
+ *
+ * It cannot be reached by withdrawing the profile consent, which is the other
+ * cause the route names: withdrawal reopens `goal`, `body-activity` and
+ * `allergies`, so `@RequiresOnboarding()` answers `ONBOARDING_INCOMPLETE`
+ * before the controller runs at all (`profile-consent.e2e-spec.ts`). Written on
+ * the table for `markLegacyOnboarding`'s reason — no route produces this shape,
+ * and only a profile from before a column was required ever held it.
+ */
+export async function clearProfileHeight(userId: string): Promise<void> {
+  const cleared = await sqlClient()<{ userId: string }>`
+    update profiles set height_cm = null where user_id = ${userId} returning user_id as "userId"`;
+
+  if (cleared.length !== 1) {
+    throw new Error(`No profiles row to clear the height of: ${userId}`);
+  }
 }
 
 /**

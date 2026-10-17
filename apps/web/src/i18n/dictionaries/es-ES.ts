@@ -1471,6 +1471,13 @@ export const esES = {
     careLinkExists: 'Ya tienes un dietista vinculado.',
     conflict: 'Ese dato ya está en uso.',
     emailNotVerified: 'Confirma tu correo para continuar.',
+    /*
+     * Los dos rechazos de las comidas fijas (`0103`). Solo se leen si alguna
+     * otra pantalla llega a esas rutas: el planificador de comidas fijas los
+     * explica con sus propias frases, que dicen qué día y cuántas.
+     */
+    fixedMealDayFull: 'Ese día ya tiene todas sus comidas fijas.',
+    fixedMealWarning: 'Para fijar ese plato hace falta aceptar un aviso antes.',
     internal: 'Algo ha ido mal por nuestra parte. Inténtalo de nuevo en un momento.',
     invalidInput: 'Revisa los datos marcados.',
     mealInFuture: 'Todavía no puedes marcar esta comida: aún no ha llegado el día.',
@@ -1553,6 +1560,8 @@ export const esES = {
   },
   fixedMeals: {
     add: 'Fijar esta comida',
+    /* El mismo botón cuando hay un aviso leído encima: lo que se confirma ya dice lo que cuesta (`0103`). */
+    addAnyway: 'Fijarlo igualmente',
     added: 'Comida fijada. Entra en los planes que generes a partir de ahora.',
     ask: 'Pídenoslo',
     asked: 'Ya lo tienes: {name}. Ahora puedes fijarlo.',
@@ -1569,12 +1578,23 @@ export const esES = {
     askPremium: 'Pedirnos un plato que no está en la biblioteca es de premium.',
     askSpent: 'Ya has pedido tus {limit} platos de este mes. El contador empieza de nuevo el día 1.',
     askTitle: '¿No está tu plato?',
+    /*
+     * El día ya tiene otra comida fija: la lista ya no se acorta por eso
+     * (`0103`), así que lo que dice esta frase es que el aviso llega al elegir
+     * y antes de fijar.
+     */
+    beside: 'Ese día ya tienes la {meal} fijada. Si el plato que elijas no cuadra con ella, te lo decimos antes de fijarlo.',
     change: 'Cambiar',
+    /* La comprobación no es la función: si no se puede hacer, el servidor sigue siendo la puerta y el aviso llega ahí. */
+    checkFailed: 'No hemos podido comprobar cómo queda ese día. Puedes fijarlo igualmente: si hay algún aviso, te lo decimos antes de guardarlo.',
+    checking: 'Comprobando cómo queda ese día…',
     count: '{count} platos encajan en esa comida ese día.',
-    countBeside: '{count} platos encajan en esa comida junto a la {meal} que ya tienes fijada ese día.',
-    countBesideOne: 'Un plato encaja en esa comida junto a la {meal} que ya tienes fijada ese día.',
     countOne: 'Un plato encaja en esa comida ese día.',
     day: 'Qué día',
+    dayFull: 'Ese día ya tiene sus {limit} comidas fijas. Elige otro día.',
+    dayFullHint: 'Los días que ya tienen {limit} comidas fijas no se pueden elegir: {days}.',
+    /* El día en la lista, que se lee lleno antes de tocarlo. */
+    dayFullOption: '{day} · ya tiene {limit}',
     dayPlaceholder: 'Elige un día',
     dish: 'Qué plato',
     dishPlaceholder: 'Elige un plato',
@@ -1590,9 +1610,22 @@ export const esES = {
     mealPlaceholder: 'Elige una comida',
     more: 'Ver {count} más',
     noMatch: 'Ningún plato se llama «{query}».',
-    noneBeside:
-      'Ningún plato encaja en esa comida junto a la {meal} que ya tienes fijada ese día: entre las dos no quedarían los macros del día dentro de lo que buscamos. Prueba con otro día, o cambia la que ya tienes.',
     noneFit: 'Ningún plato de tu biblioteca encaja en esa comida ese día. Prueba con otra comida.',
+    /*
+     * Un día que se sirve y no llega a sus macros por lo que tiene fijado
+     * (`0103`).
+     *
+     * No es una regla que no se cumple, y decirlo con esas palabras sería
+     * mentir en la misma pantalla: esto **se sirve**. Y no dice «lo aceptaste»,
+     * porque el día puede haber salido de los macros después, al cambiar los
+     * objetivos de la persona, sin que nadie aceptara nada.
+     */
+    outOfBandCount:
+      'Hay {count} días que no van a llegar a sus macros con lo que tienes fijado en ellos. Lo fijado se sirve igual: está marcado abajo.',
+    outOfBandCountOne: 'Un día no va a llegar a sus macros con lo que tienes fijado en él. Lo fijado se sirve igual: está marcado abajo.',
+    outOfBandMark: 'Día fuera de macros',
+    outOfBandNote:
+      'Ese día no llega a sus cuatro macros con las comidas fijas que tiene. Se sirven igual, y el día se queda fuera de lo que buscamos.',
     reasonFix: {
       disliked: 'Revisar lo que no quieres ver',
       excluded: 'Revisar tu tipo de alimentación',
@@ -1611,6 +1644,8 @@ export const esES = {
       unknown_dish: 'Este plato ya no está en tu biblioteca, así que no podemos ofrecértelo. Eso es cosa nuestra.',
       wrong_slot: 'No es un plato para esa comida.'
     },
+    /* Un motivo que no se puede aceptar, encima de un botón que no se puede pulsar (`0103`). */
+    refusalMark: 'No se puede fijar',
     remove: 'Quitar',
     removed: 'Quitada. Los planes que ya tienes no cambian.',
     removeFor: 'Quitar la comida fija de los {day} ({meal})',
@@ -1647,7 +1682,25 @@ export const esES = {
       wrong_slot: 'Ya no es un plato para esa comida. Prueba a fijarlo en otra.'
     },
     unhonouredTooSlowMinutes: 'Tarda más de los {minutes} min que tienes puestos para cocinar.',
+    /* El aviso se lee antes de fijar, no después (`0103`): esto va encima del botón que lo confirma. */
+    warningMark: 'Aviso',
+    warnings: {
+      clashes_with_fixed:
+        'Ese día no va a llegar a sus macros: este plato y la otra comida que ya tienes fijada ese día no cuadran juntos. Los dos se van a servir, así que la decisión es tuya.'
+    },
+    /* El 409 del servidor en una pantalla que se quedó atrás: el aviso aparece debajo, ya con la frase que toca. */
+    warningStale: 'Ese día ha cambiado mientras elegías. Mira lo que dice ahora y vuelve a pulsar el botón.',
     weekdays: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
+    /*
+     * Los mismos días, como se escriben **dentro de una frase**.
+     *
+     * Dos listas y no un `toLowerCase()`: en español el día va en minúscula en
+     * mitad de una frase y en inglés es un nombre propio y no, así que la caja
+     * es del idioma y no del componente — que es justo lo que hacía «monday»
+     * en la versión inglesa (`warn-a11y`, 2026-10-16). Un idioma nuevo trae su
+     * propia respuesta en lugar de heredar la del castellano.
+     */
+    weekdaysInSentence: ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'],
     whyCount: 'Hay {count} platos con ese nombre que no podemos ofrecerte ahí:',
     whyCountOne: 'Hay un plato con ese nombre que no podemos ofrecerte ahí:'
   },

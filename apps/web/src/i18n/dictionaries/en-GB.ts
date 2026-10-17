@@ -1436,6 +1436,8 @@ export const enGB: Dictionary = {
     careLinkExists: 'You already have a dietitian linked.',
     conflict: 'That is already in use.',
     emailNotVerified: 'Confirm your email to continue.',
+    fixedMealDayFull: 'That day already has all of its fixed meals.',
+    fixedMealWarning: 'Fixing that dish needs a warning accepted first.',
     internal: 'Something went wrong at our end. Try again in a moment.',
     invalidInput: 'Check the fields marked.',
     mealInFuture: 'You cannot mark this meal yet: its day has not come.',
@@ -1516,6 +1518,7 @@ export const enGB: Dictionary = {
   },
   fixedMeals: {
     add: 'Fix this meal',
+    addAnyway: 'Fix it anyway',
     added: 'Meal fixed. It applies to the plans you generate from now on.',
     ask: 'Ask us for it',
     asked: 'Here it is: {name}. You can fix it now.',
@@ -1532,12 +1535,16 @@ export const enGB: Dictionary = {
     askPremium: 'Asking us for a dish the library does not have is premium.',
     askSpent: 'You have asked for your {limit} dishes this month. The count starts again on the 1st.',
     askTitle: 'Is your dish missing?',
+    beside: 'You already have the {meal} fixed that day. If the dish you choose does not work beside it, we tell you before you fix it.',
     change: 'Change',
+    checkFailed: 'We could not check how that day comes out. You can still fix it: if there is a warning, we tell you before we save it.',
+    checking: 'Checking how that day comes out…',
     count: '{count} dishes fit that meal on that day.',
-    countBeside: '{count} dishes fit that meal beside the {meal} you have already fixed that day.',
-    countBesideOne: 'One dish fits that meal beside the {meal} you have already fixed that day.',
     countOne: 'One dish fits that meal on that day.',
     day: 'Which day',
+    dayFull: 'That day already has its {limit} fixed meals. Choose another day.',
+    dayFullHint: 'Days that already have {limit} fixed meals cannot be chosen: {days}.',
+    dayFullOption: '{day} · already has {limit}',
     dayPlaceholder: 'Choose a day',
     dish: 'Which dish',
     dishPlaceholder: 'Choose a dish',
@@ -1552,9 +1559,13 @@ export const enGB: Dictionary = {
     mealPlaceholder: 'Choose a meal',
     more: 'Show {count} more',
     noMatch: 'No dish is called “{query}”.',
-    noneBeside:
-      'No dish fits that meal beside the {meal} you have already fixed that day: between the two, the day’s macros would not land where we want them. Try another day, or change the one you have.',
     noneFit: 'No dish in your library fits that meal on that day. Try another meal.',
+    outOfBandCount:
+      'There are {count} days that will not reach their macros with what you have fixed on them. What is fixed is served anyway: it is marked below.',
+    outOfBandCountOne: 'One day will not reach its macros with what you have fixed on it. What is fixed is served anyway: it is marked below.',
+    outOfBandMark: 'Day outside its macros',
+    outOfBandNote:
+      'That day does not reach its four macros with the fixed meals it has. They are served anyway, and the day lands outside what we aim for.',
     reasonFix: {
       disliked: 'Review what you do not want to see',
       excluded: 'Review how you eat',
@@ -1573,6 +1584,7 @@ export const enGB: Dictionary = {
       unknown_dish: 'This dish is no longer in your library, so we cannot offer it to you. That one is ours.',
       wrong_slot: 'It is not a dish for that meal.'
     },
+    refusalMark: 'Cannot be fixed',
     remove: 'Remove',
     removed: 'Removed. The plans you already have do not change.',
     removeFor: 'Remove the meal fixed to {day} ({meal})',
@@ -1608,7 +1620,15 @@ export const enGB: Dictionary = {
       wrong_slot: 'It is no longer a dish for that meal. Try fixing it to another one.'
     },
     unhonouredTooSlowMinutes: 'It takes longer than the {minutes} min you have set for cooking.',
+    warningMark: 'Warning',
+    warnings: {
+      clashes_with_fixed:
+        'That day will not reach its macros: this dish and the other meal you already have fixed that day do not work together. Both are served, so the call is yours.'
+    },
+    warningStale: 'That day changed while you were choosing. Look at what it says now and press the button again.',
     weekdays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    /** Weekdays are proper nouns in English, so mid-sentence they keep their capitals. */
+    weekdaysInSentence: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
     whyCount: 'There are {count} dishes by that name we cannot offer you there:',
     whyCountOne: 'There is one dish by that name we cannot offer you there:'
   },

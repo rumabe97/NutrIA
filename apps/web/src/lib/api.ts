@@ -13,6 +13,8 @@ export type ApiErrorCode =
   | 'CARE_LINK_EXISTS'
   | 'CONFLICT'
   | 'EMAIL_NOT_VERIFIED'
+  | 'FIXED_MEAL_DAY_FULL'
+  | 'FIXED_MEAL_WARNING'
   | 'INTERNAL_ERROR'
   | 'INVALID_INPUT'
   | 'MEAL_IN_FUTURE'
@@ -67,6 +69,11 @@ const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
   CARE_LINK_EXISTS: 'careLinkExists',
   CONFLICT: 'conflict',
   EMAIL_NOT_VERIFIED: 'emailNotVerified',
+  // The two refusals of a fixed meal (`0103`). Only a screen that was behind
+  // the server ever reads these sentences: the planner says which day and how
+  // many in its own words.
+  FIXED_MEAL_DAY_FULL: 'fixedMealDayFull',
+  FIXED_MEAL_WARNING: 'fixedMealWarning',
   INTERNAL_ERROR: 'internal',
   INVALID_INPUT: 'invalidInput',
   MEAL_IN_FUTURE: 'mealInFuture',

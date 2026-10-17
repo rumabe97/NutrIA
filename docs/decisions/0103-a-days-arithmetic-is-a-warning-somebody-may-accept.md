@@ -134,6 +134,28 @@ product says so instead of quietly serving something else.
   what a generation does with a pin it cannot honour, it does not touch the energy floor,
   and it does not relax validation — a day out of band is still reported out of band, to the
   person and in the admin console's numbers.
+- **The two bounds are ordered in the lock and nowhere else.** The cap and the tier
+  allowance can both refuse the same write, and this record says the allowance is asked
+  first because *"you have used all three"* is the truer sentence. That is true **only**
+  because no service path pre-empts `createWithinQuota`: a pre-check reads its count outside
+  the lock and picks the sentence before the authoritative count exists, so for somebody who
+  has both spent their allowance and filled the day it picks the wrong one. One was written
+  here, found by an end-to-end test on 2026-10-16, and **deleted rather than reordered** —
+  the repository refuses with the same domain error, so nothing was lost but the bug. The
+  rule is in `packages/core/AGENTS.md`, because the next person to add a pre-check "for a
+  nicer error" will not read this record.
+- **A clash is not an unhonoured rule, and saying so was a defect this change had to fix
+  first.** Project 021 phase 5b reported `clashes_with_fixed` in the list of rules the plan
+  cannot honour, with a sentence telling somebody to remove one of the two. Both halves are
+  false: `honouredPin` yields to the pool, the declared slot and `fitsPlate` and **not** to
+  the day's bands, so the pair is served and the day simply comes out of band — proved on
+  rows, both dishes on the plate with the day 5.8% under on energy. Worse, both rules of the
+  pair were listed, so it named a rule nobody had made any trade about. The field carried two
+  different facts, and the fix is to stop it doing so: `unhonoured` keeps the five reasons
+  that really drop a pin and its `why` is now typed to exclude the acceptable one, while a
+  separate `outOfBand` names the days that are served and miss their numbers. **`0103` is
+  what makes this reachable** — before it the offer filtered clashing dishes out, so the
+  state was nearly unbuildable — which is why the fix lands here and not in phase 5b.
 - **One thing left measured rather than guessed**: how often an accepted rule actually costs
   a day. `dayHolds`'s own figure is 8 days in 1960 for pairs it *accepts*; the rate for
   pairs it would have refused is unknown and is worth a run of the evaluator with accepted

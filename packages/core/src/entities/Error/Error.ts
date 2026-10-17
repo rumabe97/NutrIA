@@ -181,6 +181,55 @@ export class PictureRetryRefusedError extends Error {
   }
 }
 
+/**
+ * Fixing this dish to this meal costs something the person has not said they
+ * accept (`0103`): the day cannot reach its four macros with it beside the rule
+ * already there.
+ *
+ * **A state, not a denial, and not the person's mistake** — which is why it is
+ * neither a 404 nor a 422. The dish is real, the rule is theirs to write, and
+ * the same request carrying `accept: ['<why>']` succeeds. 409, like every other
+ * state a screen explains, with the reason on the body so the screen can say
+ * what will happen rather than only that something will.
+ *
+ * `why` repeats `ACCEPTABLE_REASONS` rather than importing it, because an entity
+ * imports nothing (the note at the top of this file). The two are tied at the
+ * one call site that constructs this: a reason added to the domain's list and
+ * not to this union stops compiling there. One reason today, and it is a union
+ * because the thing it names is a list.
+ */
+export class FixedMealWarningError extends Error {
+  constructor(readonly why: 'clashes_with_fixed') {
+    super(`Fixed meal warning: ${why}`);
+    this.name = 'FixedMealWarningError';
+  }
+}
+
+/**
+ * That weekday already holds as many fixed meals as one day may hold
+ * (`MAX_FIXED_MEALS_PER_DAY`, the owner on 2026-10-16: *"máximo dos por día"*).
+ *
+ * **A product bound, and therefore a refusal rather than a warning.** It is not
+ * the day's arithmetic — accepting a consequence does not make a third rule a
+ * good idea — and it is not the tier's allowance either: `QuotaExceededError`
+ * counts the rules this account may hold in all, this counts the ones one day
+ * may hold. A premium account with three rules may keep at most two of them on
+ * any one weekday, so both can refuse the same request and the allowance is
+ * asked first, because "you have used all three" is the truer sentence when it
+ * is also true.
+ *
+ * 409 with its own code, like the sibling refusal beside it ("that meal of that
+ * day is already fixed"): a state of the caller's own rules, which the screen
+ * explains and a tap on another day fixes. It carries the number so nothing has
+ * to repeat it in a dictionary.
+ */
+export class FixedMealDayFullError extends Error {
+  constructor(readonly perDay: number) {
+    super(`A day may hold at most ${perDay} fixed meals`);
+    this.name = 'FixedMealDayFullError';
+  }
+}
+
 export class PlanPausedError extends Error {
   constructor(message = 'Plan paused') {
     super(message);

@@ -158,6 +158,28 @@ describe('the dictionaries agree on more than their keys', () => {
     expect(empty).toEqual([]);
   });
 
+  /*
+   * The casing of a weekday inside a sentence belongs to the language, not to
+   * the component printing it. A `toLowerCase()` on the way out was right in
+   * Spanish and gave English «monday» (`warn-a11y`, 2026-10-16), so the
+   * dictionaries carry both forms and this is what stops one drifting from the
+   * other — or from being filled in by copying the Spanish answer.
+   */
+  it('names the weekdays twice, once for a row and once for inside a sentence', () => {
+    for (const dictionary of [esES, enGB]) {
+      expect(dictionary.fixedMeals.weekdaysInSentence).toHaveLength(dictionary.fixedMeals.weekdays.length);
+      expect(dictionary.fixedMeals.weekdaysInSentence.map(day => day.toLowerCase())).toEqual(
+        dictionary.fixedMeals.weekdays.map(day => day.toLowerCase())
+      );
+    }
+
+    // Spanish lower-cases a weekday mid-sentence; English keeps the capital of
+    // a proper noun. Asserted on the first letter rather than on the words, so
+    // a reworded day is not a failing test.
+    expect(esES.fixedMeals.weekdaysInSentence.every(day => day[0] === day[0]?.toLowerCase())).toBe(true);
+    expect(enGB.fixedMeals.weekdaysInSentence.every(day => day[0] === day[0]?.toUpperCase())).toBe(true);
+  });
+
   it('keeps list-shaped entries the same length, so a screen cannot lose a card', () => {
     expect(enGB.landing.faq).toHaveLength(esES.landing.faq.length);
     expect(enGB.landing.features).toHaveLength(esES.landing.features.length);

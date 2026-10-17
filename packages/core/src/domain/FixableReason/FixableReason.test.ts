@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { actionable, whyNotFixable } from 'core/domain/FixableReason';
+import { acceptable, actionable, whyNotFixable } from 'core/domain/FixableReason';
 
 import { DEFAULT_KITCHEN } from 'core/entities/Kitchen';
 
@@ -180,5 +180,45 @@ describe('actionable', () => {
     // method is ours to fix, not theirs.
     expect(actionable('allergen')).toBe(false);
     expect(actionable('no_method')).toBe(false);
+  });
+});
+
+describe('acceptable', () => {
+  it('is exactly the two reasons that are a day\u2019s arithmetic', () => {
+    // The record's own test (`0103`): whether accepting the consequence leaves
+    // somebody able to eat the thing. Every reason is named here rather than the
+    // two, so adding a tenth forces a decision about it instead of defaulting
+    // it to a refusal in silence.
+    const everything: readonly NotFixable[] = [
+      'allergen',
+      'clashes_with_fixed',
+      'disliked',
+      'excluded',
+      'missing_equipment',
+      'no_method',
+      'too_big_or_small',
+      'too_slow',
+      'unknown_dish',
+      'wrong_slot'
+    ];
+
+    expect(everything.filter(why => acceptable(why))).toEqual(['clashes_with_fixed']);
+    // Arithmetic, and still a refusal: `too_big_or_small` *is* `fitsPlate`, one
+    // of the three bounds `honouredPin` drops a pin for, so accepting it would
+    // promise a meal the generation never serves.
+    expect(acceptable('too_big_or_small')).toBe(false);
+  });
+
+  it('is not the same question as `actionable`', () => {
+    // Five reasons leave a way forward without being theirs to overrule here:
+    // the way forward is to change the thing they said, or to put the dish in
+    // another meal, not to fix it over the reason. `allergen` is neither, and
+    // never becomes either (`0004`).
+    for (const why of ['disliked', 'excluded', 'missing_equipment', 'too_big_or_small', 'too_slow'] as const) {
+      expect(actionable(why)).toBe(true);
+      expect(acceptable(why)).toBe(false);
+    }
+
+    expect(acceptable('allergen')).toBe(false);
   });
 });

@@ -7,6 +7,8 @@ import {
   ConflictError,
   DatabaseOperationError,
   EmailNotVerifiedError,
+  FixedMealDayFullError,
+  FixedMealWarningError,
   InputParseError,
   MealInFutureError,
   NotFoundError,
@@ -31,6 +33,8 @@ import type { Request, Response } from 'express';
 
 type ErrorBody = {
   readonly code: string;
+  /** How many meals one weekday may hold, named when that is what refused the rule (`0103`). */
+  readonly dayLimit?: number;
   readonly fieldErrors?: Record<string, readonly string[]>;
   /** The client's own open link, named when it is what stands in the way of accepting another (`0059`). */
   readonly link?: { readonly professionalName: string; readonly since: string; readonly status: 'active' | 'paused' };
@@ -40,6 +44,8 @@ type ErrorBody = {
   /** ISO date an exhausted allowance renews, when it renews on a date. */
   readonly retryAt?: string;
   readonly statusCode: number;
+  /** Which of a day's arithmetic warnings the person has to accept before that meal can be fixed (`0103`). */
+  readonly warning?: 'clashes_with_fixed';
 };
 
 /**
@@ -186,6 +192,34 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message: 'Tu consulta ya tiene todos los pacientes que incluye tu plan.',
         practice: { includedClients: exception.includedClients, waysUp: ['larger_plan', 'end_link'] },
         statusCode: HttpStatus.CONFLICT
+      };
+    }
+
+    if (exception instanceof FixedMealDayFullError) {
+      // A product bound on the caller's own rules (`0103`): that weekday already
+      // holds its two. 409 like the sibling refusal about the meal, with its own
+      // code so a screen tells the three 409s of this route apart, and the number
+      // on the body so nothing repeats it in a dictionary.
+      return {
+        code: 'FIXED_MEAL_DAY_FULL',
+        dayLimit: exception.perDay,
+        message: 'Ese día ya tiene todas sus comidas fijadas.',
+        statusCode: HttpStatus.CONFLICT
+      };
+    }
+
+    if (exception instanceof FixedMealWarningError) {
+      // The dish is real and the rule is theirs to write; what is missing is that
+      // they said they accept what the day's arithmetic costs (`0103`). 409 like
+      // every other state a screen explains — not a 422, because nothing about
+      // the request was wrong — and the reason travels so the screen can say
+      // what will happen rather than only that something will. The same request
+      // carrying `accept: ['<warning>']` succeeds.
+      return {
+        code: 'FIXED_MEAL_WARNING',
+        message: 'Hace falta aceptar un aviso para fijar ese plato.',
+        statusCode: HttpStatus.CONFLICT,
+        warning: exception.why
       };
     }
 
