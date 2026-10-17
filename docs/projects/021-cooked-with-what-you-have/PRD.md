@@ -1,9 +1,21 @@
 # PRD — Project 021: Cooked with what you have
 
-- **Status**: approved — the owner answered every open question on 2026-10-15
-- **Roadmap item**: none yet — proposed by the owner on 2026-10-15 ("saber qué
-  electrodomésticos tiene el usuario, y cuáles prefiere usar"). The `docs/ROADMAP.md` line
-  is the owner's to add when he approves this.
+- **Status**: approved — the owner answered every open question on 2026-10-15. **Read against
+  its own criteria on 2026-10-17** (phase 9, the record): criterion **10 is met** by
+  [`0102`](../../decisions/0102-a-kitchen-is-what-it-has-and-what-it-would-rather-use.md),
+  which now states what a kitchen is, why `missing` is enforced in code while `prefers` is
+  asked of the model, and what both halves cost. **Criteria 7 and 8 are open and cannot close
+  before the owner's load**, and 8 is **measured at zero**: on a real fortnight generated on
+  production that day with the air fryer still `prefers`, 0 of 56 plates declared an air
+  fryer, against the fourteen the criterion asks for. The cause is supply and not the gate —
+  production held 0 dishes declaring an air fryer and the 169 drafted ones are still in a
+  file (`0102` § *Asking as hard as the machinery allows*). Also still owed, neither of them
+  this phase's: **phase 5b** is in progress, and the owner's **iPhone check** on the kitchen
+  screen (criterion 1) from phase 5.
+- **Roadmap item**: [`docs/ROADMAP.md`](../../ROADMAP.md) § *Next* 5 — proposed by the owner
+  on 2026-10-15 ("saber qué electrodomésticos tiene el usuario, y cuáles prefiere usar") and
+  added when he approved it. What this project deliberately leaves out is § *Next* 6, added
+  2026-10-17 with the evidence phase 8 produced for it.
 
 ## Problem
 

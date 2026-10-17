@@ -1,10 +1,13 @@
 # 0102 — A kitchen is what it has, and what it would rather use
 
 - **Date**: 2026-10-15
-- **Status**: accepted. **The constraint half's numbers are in** — measured 2026-10-16,
-  § *What it costs, measured* below. **The preference half's are still owed**: it takes one
-  real generation against the production provider (project 021 phase 6 step 3), which is
-  the owner's to run.
+- **Status**: accepted, and **both halves are measured**. The constraint half on 2026-10-16
+  (§ *What it costs, measured*). The preference half **twice**: **zero** from one real
+  generation with an air fryer preferred (2026-10-16, same section), and **34%** when the
+  model was asked for an appliance as hard as this machinery can ask (2026-10-17,
+  § *Asking as hard as the machinery allows*). What is still owed is not a number but a
+  **library**: 169 dishes are drafted for eight appliances and wait for the owner's load, so
+  the prompt line cannot yet be re-measured against a library that has something to prefer.
 - **Builds on**: [`0045`](./0045-a-day-is-built-to-all-four-of-its-numbers.md) (every day
   to all four macros), [`0052`](./0052-a-supplement-is-for-the-people-who-take-it.md) (an
   exclusion the prompt, the library and the gate all agree on),
@@ -110,10 +113,18 @@ everything") would empty the library for every kitchen that is missing anything.
   cannot serve is a hint, which is what `marketing` refused to let this feature sell: so an
   appliance is in the catalogue once the library can offer what the rotation needs for a
   fortnight with it (`DISHES_NEEDED_PER_SLOT`, 19 today), or the shortfall is stated where
-  somebody reads it. The first batch is project 021 phase 8 — drafted through the pool
-  builder so each dish declares its own equipment, validated and tuned as the five hundred
-  were, loaded by the owner on `develop` and then on production. Production held 1 air-fryer
-  dish and 2 pressure-cooker dishes of 962 when this was written (2026-10-15).
+  somebody reads it. The first batch is project 021 phase 8, drafted
+  2026-10-17: **169 dishes through `PoolBuilder.build()` itself**, so each declares its own
+  `equipment` and every one passed the gates a generation runs — the strict schema, the
+  catalogue, the allergy gate, the serving ceiling (`0070`). **Not "tuned"**: this record and
+  that plan both said "validated and tuned as the five hundred were", and no tuner exists in
+  the tree; the four checks that phrase stood for are gates inside `PoolBuilder.judge`.
+  **Eight of the ten appliances grew, the hob needed nothing, and the slow cooker got zero**
+  for a reason that is not supply (§ *Asking as hard as the machinery allows*). The load is
+  the owner's own command and is **still owed**: production held **0 dishes declaring an air
+  fryer, a grill, a steamer, a rice cooker or a slow cooker of 972** on 2026-10-17, and 1
+  pressure-cooker dish. The rehearsal on the local library ran clean — 1,130 → 1,299 dishes,
+  no collision — so what stands between the promise and the library is one `psql`.
 - **What this does not do**: it does not convert a dish to another appliance ("hazme esto
   en airfryer"), does not model the hob (gas, induction, how many rings), does not ask
   about pans, knives, boards or scales, and does not touch the cooking time.
@@ -250,6 +261,75 @@ this evidence is not yet answered. The honest reading is the one this record alr
 argued: **a preference is only real once the library can serve it**, so the catalogue grows
 first (phase 8) and the prompt line is re-measured against a library that has something to
 prefer.
+
+## Asking as hard as the machinery allows (2026-10-17)
+
+The zero above is one generation, and it leaves a question open: is `PREFERRED APPLIANCES:`
+weak, or was it asked weakly? Project 021 phase 8 asked as hard as this machinery can ask —
+the appliance marked `prefers`, **every other non-default appliance marked `missing`** so a
+draft cannot need one nobody has, **and** a wish whose rendered line ends *"Every dish
+proposed must satisfy that"*. 343 calls, 24 cells of appliance × slot, 0.3168 USD.
+
+**The answer is 34%.** Of the dishes that came back and passed every gate, 177 declared the
+appliance they were steered towards and **341 declared something else** — each one a good
+dish answering a question nobody asked. Per appliance, dishes kept against calls made:
+
+| appliance | kept / wanted | declared something else | declare rate |
+| --- | --- | --- | --- |
+| grill | 23 / 24 | 23 | 50% |
+| blender | 33 / 34 | 36 | 48% |
+| steamer | 23 / 24 | 25 | 48% |
+| air_fryer | 30 / 36 | 40 | 43% |
+| rice_cooker | 19 / 24 | 32 | 37% |
+| microwave | 28 / 33 | 50 | 36% |
+| pressure_cooker | 17 / 23 | 39 | 30% |
+| oven | 4 / 24 | 58 | 6% |
+| slow_cooker | **0 / 24** | 38 | **0%** |
+| **total** | **177 / 246** | **341** | **34%** |
+
+So the prompt line moves the number **off zero and no further**: three dishes in five still
+come back cooked some other way, with the preference stated three times over. That is the
+honest size of the preference half, and it settles the argument this record opened — **a
+kitchen preference is worth what the library holds for it, not what the prompt asks for.**
+Steering is a third; supply is the other two.
+
+**Two of those rows are not supply problems, and saying which matters.**
+
+- **A slow cooker cannot be expressed in this product.** `generatedDishSchema` bounds
+  `cookMinutes` at 180 and a step's `minutes` at 240
+  (`apps/api/src/modules/ai/prompts/pool.schema.ts:38`, `:94`), and `PoolBuilder.validate`
+  parses that schema **before anything reads `equipment`**
+  (`apps/api/src/modules/ai/services/PoolBuilder.service.ts:541`). An honest four-hour braise
+  is therefore dropped as `schema` and never reaches its own declaration: **60 of the run's
+  79 `schema` rejections are that one bound**, every one a slow cooker. What survives it is
+  the model's fallback, a stew inside 180 minutes, which is a pot on the hob and declares
+  `stovetop` — 38 of the 341. **No number of calls fixes this, and no cooking-time preference
+  was involved** (the batch passed none). Nor is a raised constant the fix: lifting the bound
+  hands a 480-minute dish straight to `withinTime`, which refuses it for everybody who set a
+  limit. It needs the idea that **an unattended cook is not time at the stove**, which is the
+  question this record already carved out for its own measurement ("the time question is
+  measured separately", the owner, 2026-10-15) — now arriving with evidence, since **129 of
+  the batch's 169 dishes fit a 30-minute limit and 40 do not**. Until that is answered the
+  slow cooker's supply is zero, which § *Adding an appliance to the catalogue is adding a
+  promise* permits as a stated shortfall. **Whether the catalogue keeps the appliance is the
+  owner's call**, and it is cheap either way: production held **no slow-cooker stance at all**
+  when this was written, the whole `kitchen_equipment` table being two rows.
+- **An oven snack is a bad snack.** The oven's lunch and dinner are past the cap already, so
+  the batch asked for its empty cells: breakfast came back **4 of 4** and the two snack cells
+  **0 of 20**. The reason is in what the drafts declared instead — **53 of the 54 off-target
+  snacks declared `none`, no appliance at all.** Asked for an oven snack the model writes
+  yogurt, fruit, nuts and toast, because that is what a mid-morning snack is. The oven's 6% is
+  not a shortfall to be drafted away; it is a fact about what an oven is for, and the model's
+  refusal was better product judgement than the plan amendment it was answering.
+
+**What this does not say.** Nothing here re-measures the preference half against a library
+that has something to prefer — that needs the load and then one generation, and until both
+have happened the 34% is a statement about **drafting**, not about a plan somebody is served.
+On 2026-10-17 the owner generated a real fortnight on production with the air fryer still
+`prefers`: 56 plates, **0 declaring an air fryer**, 53 hob-only — the 2026-10-16 result
+again, for the same reason, because the library had not changed. What **did** show on that
+plan is the other half working unremarked: **0 plates with a blender**, his `missing` stance
+silently keeping production's 20 blender dishes out of his pool.
 
 (who decided: the owner, 2026-10-15 — the feature, and that the time question is measured
 separately; the planner, the shape above, with the library's numbers in hand.)

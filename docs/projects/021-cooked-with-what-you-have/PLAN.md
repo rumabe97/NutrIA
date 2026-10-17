@@ -484,7 +484,12 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 8 — A library that cooks with more than a pan
 
-- [x] done — the file is drafted, validated and measured; **the owner's load is the gate**
+- [x] done — commit `2bf5873a` (#293). The file is drafted, validated and measured;
+  **the owner's load is the gate** — rehearsed on the local library on 2026-10-17
+  (1,130 → 1,299 es-ES dishes, 0 collisions, `EXIT=0`, 30 air-fryer dishes where there
+  were none) and **still owed on production**, which held 0 air-fryer dishes of 972 when
+  this was written: an agent's write there is refused by the permission classifier, by
+  design, so the load stays the owner's own command.
 - **Dispatch**: opus @ medium — `/execute-project 021 phase 8` — owner-gated: the owner runs
   the reviewed load on `develop` first and on production after, as he ran the five hundred.
 - **Goal**: the appliances a person can now prefer have dishes to offer them — sized by what
@@ -619,7 +624,10 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 9 — The record and the rule
 
-- [ ] pending
+- [x] done — `0102` carries both halves' measurements, core's `AGENTS.md` carries the
+  preference rule, the roadmap carries the project this one left alone, and the PRD is read
+  against its criteria rather than closed: **7 and 8 wait on the owner's load**, and 8 is
+  measured at zero until it happens.
 - **Dispatch**: general-purpose, inheriting the session's effort — `/execute-project 021
   phase 9`
 - **Goal**: what a future agent must not break is written where it will be read, and the

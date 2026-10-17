@@ -474,6 +474,39 @@ patata"* — and it is the one input that takes a dish out of the search's hands
 - **The flag leaves the scheduler once**, onto `ScheduledMeal.pinned`, so the balance
   report can keep a fixed meal out of the starch cap. Nothing a person sees reads it.
 
+## A preference may never remove a dish
+
+A kitchen is three stances per appliance (`0102`), and they are **not one scale with three
+points**. `missing` is a constraint, enforced in code the way an allergy is. `prefers` is a
+preference, asked of the model. Confusing them is the one mistake in this area that reaches
+a person's plate as *less food*.
+
+- **The whole rule is one line, and keep it that way**: `withinEquipment` compares
+  `missing` and nothing else (`domain/Preference`). A `prefers` stance may never shrink a
+  pool, never filter a candidate and never refuse a reuse — otherwise somebody who said
+  *"I'd rather use my air fryer"* is served fewer dishes for having said so. What `prefers`
+  may do is send a prompt line and move the order inside the rotation's per-slot cap
+  (`Rotation.isPreferredDish`), exactly as a chosen cuisine and a liked food have since
+  `0026`.
+- **A null kitchen means nobody asked, not an empty kitchen.** `withinEquipment(dish, null)`
+  is `true`. A caller that reads a missing kitchen as "has nothing" empties the library for
+  every account that never opened the screen.
+- **An unknown appliance is no requirement.** `recipes.equipment` is `text[]` and can hold a
+  string this build has never heard of, so `appliancesOf` filters at the boundary. Treating
+  the unknown as a requirement would empty the library for every kitchen missing anything —
+  the same asymmetry `0102` applies to an unclassified dish.
+- **Never answer a thin appliance by strengthening the prompt.** Measured twice: the prompt
+  line alone produced **zero** air-fryer dishes in a real fortnight with the air fryer
+  preferred (2026-10-16), and asking as hard as the machinery can — `prefers`, every other
+  non-default appliance `missing`, *and* a wish demanding it — reaches **34%** and no further
+  (project 021 phase 8, 2026-10-17). A preference is worth what the library holds for it. The
+  lever is supply; the prompt is a third of the answer at best.
+- **`MAX_PREFERRED_APPLIANCES` is 3 and is not a price.** The same on both tiers, said on the
+  screen before it is hit (`maxPreferred` travels in the payload), and `missing` is never
+  capped. **Nothing about a kitchen is in `Allowance.ts`**, and that is a decision rather
+  than an omission (`marketing`, 2026-10-15): a profile field that narrows or steers a plan
+  has never been sold here. Do not add a row for it without that decision being revisited.
+
 ## ⛔ Anti-patterns
 
 ### 1. Database calls in controllers
