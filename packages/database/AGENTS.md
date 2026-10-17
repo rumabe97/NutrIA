@@ -58,6 +58,21 @@ blender, the last added by the owner on 2026-10-16 — `0102`) — so an
 account that never opened the screen stores nothing. `DEFAULT_KITCHEN` in core is the single
 expression of that; nothing here should restate it.
 
+## Where a dish came from
+
+`recipes.source` is `recipe_source` in `_enums.ts` — `seed`, `ai` or `user` — and the
+discriminator is **who put the row there**, not which model wrote the words. `ai` is a row
+the running product wrote while serving somebody (`PlanRepository.ts`, the only place that
+writes it); `user` is the billed dish request and **no other path writes it**
+(`DishRequestRepository.ts`, which is also where the allowance is counted from). `seed` is
+everything loaded by hand from a reviewed file — the five hundred of `nutria-seed-500.sql`
+and every batch drafted since, whether a model drafted the dishes or not.
+
+**A drafted batch is therefore `seed`, never `ai`**, and project 021 phase 8 wrote `ai`
+first and had to be corrected. Nothing type-checks it and no gate reads it, so the mistake
+is silent: it makes a reviewed load look like the library's own growth, and the admin
+console's catalogue counts (`AdminCatalogueRepository.ts`) are the measurement it breaks.
+
 ## What lives here
 
 ```
