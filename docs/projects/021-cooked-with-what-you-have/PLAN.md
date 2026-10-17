@@ -484,7 +484,7 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 8 — A library that cooks with more than a pan
 
-- [ ] pending
+- [x] done — the file is drafted, validated and measured; **the owner's load is the gate**
 - **Dispatch**: opus @ medium — `/execute-project 021 phase 8` — owner-gated: the owner runs
   the reviewed load on `develop` first and on production after, as he ran the five hundred.
 - **Goal**: the appliances a person can now prefer have dishes to offer them — sized by what
@@ -521,9 +521,38 @@ sell — so the supply is part of the promise, not an afterthought.
      dish serving lunch and dinner counts in both), which is what the first batch was sized
      against before phase 2 measured requirements instead:
 
+     **Amended 2026-10-17, during execution: "none" was about lunch and dinner.** Read on
+     the six real slots rather than four, the oven has 34 lunches and 43 dinners — past the
+     cap, as this row says — and **1 mid-morning snack and 3 afternoon snacks** in a
+     1,130-dish library, which is the same emptiness the air fryer has with the difference
+     that people already own the appliance. Those cells are drafted. The executor was right
+     that this **necessarily worsens phase 6's headline**: what a missing oven costs is a
+     ratio, and oven dishes raise only its denominator. Taken anyway, and the reasoning is
+     the record's own — those figures are *"a fact about today's library, not a promise"*
+     (`0102`), so a number that describes reality should follow reality rather than be kept
+     small. And the oven is in the **default** kitchen: refusing to fill the snacks protects
+     a percentage for the minority who said "no oven" by keeping a hole in front of the
+     majority who did not. The LOG carries the before and after **with the oven in and with
+     it out**, so a reader can tell a growing library from a regression.
+
+     **Amended again the same day, after the oven ran: breakfast yes, the snacks no — and
+     the snacks are not a hole in the library, they are a hole in the premise.** Of the
+     three cells above, breakfast filled 4 of 4 (baked oats, baked toasts). The snacks
+     filled **0 of 9 and 0 of 11** in ten passes and 25 calls, and the reason is in what the
+     drafts declared instead: **53 of the 54 off-target snacks declared `none` — no
+     appliance at all.** Asked as hard as the prompt can ask for an oven snack, the model
+     writes yogurt, fruit, nuts and toast, because that is what a mid-morning snack is. A
+     snack that needs somebody to heat an oven is a bad snack, and the model's refusal to
+     write one is better product judgement than this row's. So the oven's snack figure in
+     phase 6's ratio is **not** a shortfall to be drafted away: `0102`'s own words, *"a fact
+     about today's library, not a promise"*, are the right reading of it, and the fact is
+     that an oven is not a snack appliance. The deliberate worsening of the ratio reasoned
+     about above therefore does not arise — 4 breakfasts move it barely at all — and the
+     paired measurement is kept anyway, because it is what shows that.
+
      | appliance | breakfast | lunch | dinner | other | first batch |
      | --- | --- | --- | --- | --- | --- |
-     | oven | 7 | 35 | 44 | 8 | **none — already past the cap** |
+     | oven | 7 | 35 | 44 | 8 | **the snacks and breakfast — see the amendment above** |
      | steamer | 3 | 21 | 23 | 5 | **none** |
      | grill or griddle | 17 | 18 | 36 | 15 | ~6 lunches |
      | blender or processor | 10 | 0 | 0 | 17 | ~12 (soups and creams, lunch and dinner) |
@@ -531,6 +560,26 @@ sell — so the supply is part of the promise, not an afterthought.
      | **pressure cooker** | 0 | 2 | 0 | 0 | **~24** (12 lunches, 12 dinners) |
      | **air fryer** | 0 | 0 | 1 | 0 | **~30** (12 lunches, 12 dinners, 6 snacks) |
      | slow cooker | — | 0 | 0 | — | ~24, if it stays in the catalogue |
+
+     **Amended 2026-10-17, during execution: the slow cooker's batch is zero, and not for
+     want of asking.** Sixty calls drafted slow-cooker dishes and the strict schema refused
+     every one: `generatedDishSchema` bounds `cookMinutes` at 180 and a step's `minutes` at
+     240 (`apps/api/src/modules/ai/prompts/pool.schema.ts:38`, `:94`), and
+     `PoolBuilder.validate` parses it **before** anything reads `equipment`
+     (`PoolBuilder.service.ts:541`) — so a four-hour braise is dropped as `schema` and never
+     reaches the point where its `slow_cooker` declaration could be read. Sixty of the run's
+     sixty-nine `schema` drops are that one bound. What survives it is the model's fallback,
+     a stew that fits inside 180 minutes, which is a pot on the hob and declares `stovetop`:
+     38 of the batch's off-target dishes, every one a good dish answering a question nobody
+     asked. **No number of calls fixes this**, and the cooking-time *preference* never fired
+     — the script passed none. The way out is the question `0102` already carves out
+     (*"the time question is measured separately"*, the owner, 2026-10-15): a long unattended
+     cook is not the same quantity as time at the stove, and until that is answered the slow
+     cooker's supply is zero. Recorded here as a shortfall with its reason, which is what
+     `0102` § *Adding an appliance to the catalogue is adding a promise* permits; **whether
+     the catalogue keeps the appliance is the owner's call**, and it is cheap either way
+     today — production held no slow-cooker stance at all when this was written, the whole
+     `kitchen_equipment` table being two rows (2026-10-17).
 
      About a hundred dishes in total, against the six hundred that fifty per appliance would
      mean — and the two the owner's instinct named are exactly the two that need the batch.
@@ -540,9 +589,16 @@ sell — so the supply is part of the promise, not an afterthought.
      with — the same reason the pool asks for nineteen a slot rather than five.
   3. The batch script drafts dishes **through the machinery that already exists** — the pool
      builder's own prompt and schema, so each dish declares its `equipment` natively and no
-     inference is involved — and every draft passes the validator and the tuner the five
-     hundred went through (ingredient slugs from the catalogue, the serving ceiling `0070`,
-     two documented steps, the allergen resolution).
+     inference is involved — and every draft passes the gates the five hundred went
+     through: ingredient slugs from the catalogue, the serving ceiling `0070`, two
+     documented steps, the allergen resolution.
+
+     **Amended 2026-10-17: there is no "tuner".** This step said "the validator and the
+     tuner", inherited from the seed project's prose, and the executor looked for it rather
+     than claiming to have run it — no such script exists in the tree, under
+     `apps/api/scripts` or anywhere else. The four checks above are real and are gates
+     inside `PoolBuilder.judge`, which every draft goes through. Said plainly here so the
+     next reader does not go looking for a script that was never written.
   4. A dish is written to a SQL file under `docs/local/`, **not** to a migration: hundreds
      of inserts do not belong in the API's build, and the five hundred set the precedent
      that the owner runs the load himself. The file is reviewed before he runs it — a sample

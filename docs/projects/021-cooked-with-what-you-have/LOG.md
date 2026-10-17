@@ -1304,3 +1304,370 @@ whose chosen state was colour only and invisible in forced colours.
     stand in for it: with zero dishes declaring an air fryer, a grill, a steamer, a slow
     cooker or a rice cooker in either library, there is nothing for a filter to find and the
     only question left is what the model does with the prompt line.
+
+## Phase 8 — A library that cooks with more than a pan (2026-10-17)
+
+- **Executor**: `backend` (opus), as this session's phase-8 agent. The plan prices the phase
+  `opus @ medium`; it ran at that. The lead took every decision the phase raised and
+  reversed itself once, on the record below.
+- **Result**: done, and **the file is the deliverable rather than a load**:
+  `docs/local/021-equipment-batch-final.sql`, **169 dishes**, `locale es-ES`,
+  `source 'seed'`, `steps_version '4.9.0'`, `created_by NULL`, gitignored, with its JSON
+  sidecar beside it. **The owner runs the load** — `develop` first, production after — as he
+  ran the five hundred. Nothing was written to any database but the local one, and the local
+  library was put back to its pre-phase 1,130 dishes when the measuring was done.
+- **The answer, in one line**: eight of the ten appliances grew, one needed nothing, and
+  **one cannot be expressed in this product at all** — the slow cooker, refused by a schema
+  bound before its declaration is ever read. And the phase produced a number nobody had:
+  asked as hard as a prompt can ask, the model declares the appliance it was steered
+  towards on about **a third** of the dishes it writes.
+
+### What was drafted, and what it cost
+
+- **24 cells** (appliance × slot), **246 dishes wanted**, **343 model calls**,
+  **0.3168 USD**. Spend read from the gateway's own `costUsd` on every call, 0 calls with
+  no cost reported, and confirmed independently by the OpenRouter key's own counter moving
+  **0.2622 → 0.5788 USD**. Against `AI_TEXT_MONTHLY_CAP_USD` of 5 that is **0.579 of 5**,
+  4.42 remaining; the key's own wall (`0064`) is 10 USD monthly. `google/gemma-4-31b-it` via
+  CoreWeave throughout, no fallback to DeepSeek needed, `--max-usd 2` never approached.
+  **One disclosure for the owner**: this is `apps/api/.env`'s key, so if production shares
+  it, these 0.32 USD sit on production's wall as well as on the gauge's month.
+- **177 dishes were accepted and declared their appliance → 175 distinct → 169 shipped**,
+  after six were struck on review (below). **341 more were accepted by every gate a
+  generation runs and declared something else**, and that number is the finding.
+- Per appliance, kept of wanted, with the off-target count and the declare rate:
+
+  | appliance | cells | kept / wanted | off target | declare rate | calls |
+  | --- | --- | --- | --- | --- | --- |
+  | air_fryer | 3 | 30 / 36 | 40 | 43% | 42 |
+  | blender | 5 | 33 / 34 | 36 | 48% | 41 |
+  | microwave | 3 | 28 / 33 | 50 | 36% | 42 |
+  | grill | 2 | 23 / 24 | 23 | 50% | 24 |
+  | steamer | 2 | 23 / 24 | 25 | 48% | 24 |
+  | rice_cooker | 2 | 19 / 24 | 32 | 37% | 36 |
+  | pressure_cooker | 2 | 17 / 23 | 39 | 30% | 40 |
+  | oven | 3 | 4 / 24 | 58 | 6% | 34 |
+  | slow_cooker | 2 | **0 / 24** | 38 | **0%** | 60 |
+  | **total** | 24 | **177 / 246** | **341** | **34%** | 343 |
+
+- **The shortfall is stated rather than chased** (the lead, 2026-10-17): 69 of 246 not
+  drafted, with ten passes exhausted on eight cells. 246 was a description of the gap and
+  never a target, and another hundred calls at this prompt would not have closed it.
+
+### The findings, which are the phase
+
+- **`prefers` steers about a third, and phase 6 measured it at zero.** Phase 6 step 3 found
+  that a *preferred* air fryer produced **no** air-fryer dish in a whole fortnight. This
+  phase asked as hard as the machinery allows — the appliance marked `prefers`, every other
+  non-default appliance `missing`, **and** a wish whose rendered line ends *"Every dish
+  proposed must satisfy that"* — and got **34%**. So the wish moves the number off zero and
+  no further: three dishes in five still come back cooked some other way. That is the honest
+  size of the preference half, and it argues for supply over steering — a kitchen preference
+  is worth what the library holds for it, not what the prompt asks for.
+- **A slow cooker cannot be expressed in this schema, and it is not a supply problem.**
+  `generatedDishSchema` bounds `cookMinutes` at 180 (`apps/api/src/modules/ai/prompts/pool.schema.ts:38`)
+  and a step's `minutes` at 240 (`:94`), and `PoolBuilder.validate` parses that schema
+  **first** (`apps/api/src/modules/ai/services/PoolBuilder.service.ts:541`) — before the
+  catalogue, before the allergy gate, before anything reads `equipment`. An honest braise
+  declares four to eight hours and is refused as `schema`; the drafts that fit inside 180
+  minutes are hob stews declaring `stovetop`. **60 of the run's 79 `schema` rejections are
+  that one bound** (of 211 rejections of every kind), every one a slow cooker, verbatim:
+
+  ```
+  WARN [PoolBuilder] Dish "Estofado de Tempeh y Alubias al Slow Cooker" rejected:
+    cookMinutes Too big: expected number to be <=180; steps.5.minutes Too big: expected number to be <=240
+  ```
+
+  **No cooking-time preference was involved** — the script passes `maxMinutesPerDish: null`
+  and `cookingTimeMinutes: null`, and there is no `over_time` drop anywhere in either log.
+  The way out is not a raised constant: lifting the bound hands the dish straight to
+  `withinTime`, which refuses 480 minutes for everybody who set a limit, so it needs the
+  idea that an unattended cook is not time at the stove — the time-and-elaboration project
+  this one left out of scope, now arriving with evidence. **The owner's choice at this phase
+  is binary**: keep the catalogue entry with a zero and this reason, which
+  [`0102`](../../decisions/0102-a-kitchen-is-what-it-has-and-what-it-would-rather-use.md)
+  § *Adding an appliance to the catalogue is adding a promise* explicitly permits, or take
+  the appliance out. The plan's own row said *"~24, if it stays in the catalogue"*.
+- **An oven snack is a bad snack, and the model said so 53 times out of 54.** The lead
+  amended the plan mid-phase to add the oven's three cells (breakfast +4, morning_snack +11,
+  afternoon_snack +9) over this agent's recommendation to skip them. Breakfast came back
+  **4 of 4**; morning_snack **0 of 11** and afternoon_snack **0 of 9**, and the
+  `offTargetDeclared` field says why: **53 of the 54 off-target snacks declared `none` — no
+  appliance at all.** Asked for an oven snack the model writes yogurt, fruit, nuts and
+  toast, because that is what a mid-morning snack is. The oven's figure in phase 6's ratio
+  is therefore **not a shortfall to be drafted away**; it is a fact about what an oven is
+  for, and the model's refusal was better product judgement than the amendment it was
+  answering.
+- **A count the run believed was larger than the file could ever load.** Run 1 reported 173
+  kept and the distinct total was **171**: `crema-energetica-de-mango-y-chia` and
+  `pollo-y-vegetales-al-vapor-en-arrocera` were each drafted into two cells. It cost
+  nothing — `ON CONFLICT (slug) DO NOTHING` would have skipped the second insert — but the
+  arithmetic was wrong and silently so. **Concurrency hid it**: cells draft three at a time
+  and `PoolBuilder`'s own `excludeSlugs` only knows one build's accepted dishes, so no layer
+  was in a position to see a collision between two cells. Fixed with a run-wide slug set
+  (`apps/api/scripts/draft-equipment-batch.mjs:514`), and worth remembering as the shape of
+  the bug rather than the bug: a per-unit dedupe inside a concurrent fan-out is not a dedupe.
+- **`cleanSteps` has no notion of appliance words, and this is not a batch artefact.** The
+  batch surfaced *"tostar en la air_fryer"* (a field name on somebody's plate) and
+  *"en el blender"* (an English noun where Spanish has *batidora*). `StepCleanup` screens
+  minutes, English **stopwords** and leaked ingredient names; an appliance is a noun, so
+  both walk through — and `PoolBuilder` runs `cleanSteps` on **every production generation**,
+  not only here. The lead verified it and recorded it in `docs/ROADMAP.md` with this batch's
+  slugs as the evidence; it is **application code and out of this phase's scope**, so it was
+  not fixed. See that entry rather than a second copy of it here.
+
+### How the macro spread was made to happen
+
+Not by asking the model for variety. Each pass carries **one** brief and asks for three
+dishes — `DISHES_PER_REQUEST`, so one request — and the brief advances every pass, offset
+per cell. The first version of the script asked for a cell's whole twelve at once, which
+would have drafted every cell inside a single brief; that was the trap the plan's step 2
+names and it was caught before any spend.
+
+Seven briefs, and the result is nearly flat: `proteina-alta-3000` 31, `omnivoro-2400` 27,
+`sin-gluten-2400` 26, `vegano-2000` 23, `omnivoro-1600` 21, `vegetariano-2000` 21,
+`sin-lactosa-2400` 20. **A vegan brief is what actually stops thirty chicken breasts** —
+the catalogue that request is shown holds no meat, so the model cannot write one.
+`gluten_free` and `lactose_free` were chosen because `patron-sin-gluten` (444) and
+`alergia-lacteos` (470) are the smallest pools in phase 6's table.
+
+Per serving across the 169: kcal 162–952 (median 589), protein 5–60 g (36), carbs 6–130 g
+(59), fat 4–53 g (23). **One honest weakness**: starch bases run rice 54, potato 31, pulses
+27, grains 2, pasta 1 — rice and potato are over-represented, a consequence of which
+appliances needed filling (rice cooker, air fryer and pressure cooker all pull that way)
+rather than of the briefs.
+
+### The validator, and the review the owner asked for
+
+- **`--check` over the whole file: 0 problems, all 169.** Every dish passes the gates a
+  generation runs, in the order it runs them: the strict schema, catalogue slugs (near
+  misses repaired), the **allergy gate**, the way of eating and the dish rules, the time
+  limit, `withinEquipment`, the method read back (`methodMentions`), a meal its ingredients
+  allow (`fitSlots`), and last the serving ceiling (`0070`). Nothing re-implements a gate,
+  so nothing can disagree with one. `0102`'s rule still holds: **no dish needs two
+  appliances beyond the hob** — every pair is appliance + `stovetop`.
+- **The gates do not read a name; this review did, and it found an invented word, a
+  duplicate name and twelve spelling or casing defects in 171 dishes.** `--check` passed all
+  171 and said nothing about any of it, because every gate in `PoolBuilder.judge` reads
+  ingredients, slots, minutes, equipment and steps — never the one field a person reads most.
+  The lead read all 171 names and struck *"bacalao con **huertingueras** a presión"*, which
+  is not a Spanish word and which no rule can repair, and one of
+  *"**Bol** de Yogur Griego con Caqui y Nueces"* / *"**Bowl** de Yogur Griego con Caqui y
+  Nueces"* — the same name twice over genuinely different methods, which a person reading two
+  identical names cannot know. **That is the most useful thing a future batch can learn from
+  this one**: budget a human pass over the names, because nothing in the pipeline will.
+- **The "tuner" the plan asks for does not exist.** No script, no history under
+  `apps/api/scripts` or `scripts`; the word came into the plan from the seed project's prose.
+  The four checks it stood for — catalogue slugs, the `0070` ceiling, two documented steps
+  (`hasUsableMethod`), allergens resolved — are all gates in `PoolBuilder.judge`, which
+  every draft went through. The lead is correcting the plan's wording.
+- **Six dishes struck on review, not one of which broke a gate.** `bol-de-kiwi-y-yogur-griego-con-nueces`
+  declared `microwave` and cooked nothing — the mirror of the slow cooker's problem, an
+  over-declaration that withholds a cold yogurt bowl from everybody who said they have no
+  microwave. `crema-fria-de-bacalao-y-patata` and `crema-untuosa-de-bacalao-y-coliflor-con-croutons-integrales`
+  blend **raw desalted cod**, the first serving it chilled with nothing cooking the fish at
+  any point: the lead's reasoning is that *esqueixada* is real but a cured-raw dish is
+  something a person **chooses**, and this library's dishes are **assigned** by a scheduler
+  on a Tuesday. `crema-espesa-de-…` was the second of two near-twins separated by an
+  adjective. Then two more, from the lead's read of the **names**:
+  `bacalao-con-huertingueras-a-presion`, whose name holds an **invented Spanish word** no
+  rule can repair and whose method is muddled besides — step 5 closes the pressure cooker
+  for one minute, step 6 programmes it, step 7 turns off the hob — and
+  `bol-de-yogur-griego-con-caqui-y-nueces`, the *Bol* of a *Bol*/*Bowl* pair carrying the
+  same name over two genuinely different methods. The *Bowl* was kept because it warms the
+  **caqui**, which is what a microwave does well, where the *Bol* warms the Greek yogurt,
+  which can split. All six return with one `--merge --exclude` edit if the owner wants them;
+  the cod is his call and not an agent's.
+- **Three rules applied on the way out, all deterministic and all printed in full** (88
+  changes in the merge log), because a rule the machinery applies is the machinery doing
+  its job and a hand-edited recipe is not:
+  - **54 appliance-word substitutions** — `APPLIANCES` enum keys in any spelling plus the
+    English noun `blender`, each to its Spanish name, **and nothing else**: not `oven`,
+    `microwave` or `steamer`, and emphatically not `grill`, which is a real Spanish word
+    (*el grill del horno*) where a blanket table would introduce errors in the place it was
+    meant to remove them. **The part worth keeping is the gender agreement**: *"en el
+    blender"* becomes *"en la batidora"* and not *"en el batidora"*, and *"la cesta del air
+    fryer"* becomes *"la cesta de la freidora de aire"*. Verified after: **0 dishes have an
+    English or keyed appliance word left in step text.**
+  - **One equipment addition.** A pot or a pan named in a step is a hob the dish cannot be
+    cooked without, so `buda-bowl-de-tofu-y-edamame-en-arrocera` went from `rice_cooker` to
+    `rice_cooker+stovetop` — its step 2 is *"saltearlos en una sartén"*. **Under-declaring
+    is the dangerous direction**: over-declaring withholds a dish, under-declaring hands
+    somebody a dish their kitchen cannot cook. The rule fires on a **vessel** (*sartén*,
+    *cazo*, *cacerola*, *olla*, with the pressure and slow cookers excluded so they cannot
+    read as a plain pot) and deliberately **not** on *fuego*. Across 171 it fired **once**,
+    which is the right number — `WISH_TAIL` had already got it right everywhere else.
+  - **33 name normalisations**, after the lead's read, each one a normalisation and not a
+    rewrite — and **a renamed dish's slug is regenerated** through `PoolBuilder.slugify`'s own
+    formula and re-checked for uniqueness against the library and the batch, which is only
+    possible because nothing has been loaded yet. A trailing *"al Aire"* on a dish declaring
+    `air_fryer` became *"en Freidora de Aire"* (5 dishes): the same clipping as *"la
+    air_fryer"* in the steps, where *"Tostas Crujientes de Pavo y Pera al Aire"* means nothing
+    in Spanish. Then spelling — *Sesamo* → *Sésamo*, *Curcuma* → *Cúrcuma*, *Sandwich* →
+    *Sándwich*, *Témpeh* → *Tempeh*; agreement — *"alubias blanca"* → *"alubias blancas"*,
+    and *"al Cúrcuma"* → *"a la Cúrcuma"*, which was found only because adding the accent made
+    the wrong article visible; and Spanish title case over 22 sentence-case names, keeping *y*,
+    *de*, *del*, *con*, *al*, *a la* and *en* lower. ***Bowl*, *Smoothie Bowl*, *Buda Bowl* and
+    *al Air Fryer* were left alone** — ordinary usage in Spain, and "correcting" them would be
+    the naming-convention mistake this batch already made once.
+- **The detector's own noise is on the record.** Five of the seven `hobWithoutStovetop`
+  advisories were **false positives**: a grill dish's *"a fuego medio-alto"* is the grill's
+  own heat, and `grill` alone is correct on all five. The patterns over-report by design and
+  the five were labelled as noise in the owner's sample rather than handed to him as
+  defects — seven lines reading as seven defects, when one is a defect and one is arguable,
+  spends his attention on nothing and teaches him to distrust the next sample.
+  `arroz-integral-con-pollo-y-verduras-ahumadas` was left alone on purpose: its step 1 is
+  *"Calienta el aceite en la arrocera en modo saltear"*, real rice cookers have a sauté mode,
+  the dish is cooked entirely in the machine, and the lone `rice_cooker` is honest.
+
+### What was measured, before and after
+
+Five runs of `evaluate-plans.mjs` over the fourteen fixed profiles, local library,
+read-only, no model called. **The before pair was taken first, on 1,130 dishes** — not
+phase 6's 1,084, which is why it had to be retaken — and core was not rebuilt between, so
+the pairs are comparable.
+
+| profile | default 1130 | no oven 1130 | default 1305 | no oven 1305 |
+| --- | --- | --- | --- | --- |
+| objetivo-bajo-3-comidas | 718 | 676 (−5.8%) | 743 | 700 (−5.8%) |
+| objetivo-alto-5-comidas | 901 | 859 (−4.7%) | 950 | 907 (−4.5%) |
+| alergia-lacteos | 470 | 438 (−6.8%) | 488 | 456 (−6.6%) |
+| patron-vegetariano | 595 | 589 (−1.0%) | 628 | 620 (−1.3%) |
+| quincena-con-evento | 877 | 835 (−4.8%) | 914 | 871 (−4.7%) |
+| alergia-personalizada | 730 | 695 (−4.8%) | 767 | 731 (−4.7%) |
+| alergia-personalizada-no-resuelta | 813 | 775 (−4.7%) | 850 | 811 (−4.6%) |
+| patron-halal | 840 | 800 (−4.8%) | 888 | 846 (−4.7%) |
+| patron-kosher | 766 | 734 (−4.2%) | 814 | 780 (−4.2%) |
+| patron-sin-gluten | 444 | 408 (−8.1%) | 473 | 435 (−8.0%) |
+| patron-sin-lactosa | 494 | 461 (−6.7%) | 516 | 482 (−6.6%) |
+| imc-alto-2-comidas | 502 | 462 (−8.0%) | 537 | 497 (−7.4%) |
+| patron-tradicional-espanola | 612 | 580 (−5.2%) | 633 | 601 (−5.1%) |
+| tres-comidas-proteina-alta | 384 | 363 (−5.5%) | 407 | 386 (−5.2%) |
+
+- **Every pool grew**, by 18 to 48 dishes, and **the oven's cost did not move** — flat or
+  marginally better in all fourteen, because the 169 are almost all non-oven and so enter
+  both pools. Four oven dishes is too few to show the effect the amendment reasoned about;
+  the measurement is in place for a larger oven batch. A fifth run at +171 tells the same
+  story: the oven's four add 0 or 1 dish to a pool.
+- **One thing moved outside its band, and it is small and non-blocking.**
+  `objetivo-bajo-3-comidas`, in the **no-oven run at 1,305 only**, goes 14/14 → **13/14**:
+  day 10's fat is 38.9 g against a 37 g target, a deviation of **5.14%** — 0.14 points past
+  the band, reported as the advisory `fat_out_of_band`. No fallback to the whole library, no
+  blocking shortfall, no allergen on a plate, no variety violation, no plate over its slot
+  ceiling. Read it as a draw rather than a break: over the same change that profile's **mean
+  absolute fat deviation improved**, 3.44% → 2.66%, and carbs 2.85% → 2.47%. The library got
+  better on average and one day of fourteen landed a tenth of a point over the line. **The
+  other three runs are 14/14 on all fourteen profiles**, and all five exit 0 with no plate
+  carrying a declared allergen.
+- **The numbers are +175 and the file is 169.** The six struck dishes were removed after
+  the measuring; they are three creams, two snacks and a pressure-cooker dish, and none bears
+  on a band result — but the figures above should not be read as describing the file exactly.
+- **The local library was put back** to its pre-phase 1,130 (`stovetop 1041, oven 58,
+  blender 20, microwave 3`), so no other phase measures on a changed library.
+
+### Evidence
+
+Everything is under `docs/local/` (gitignored):
+
+- `021-equipment-batch-final.sql` — the file to load, 169 dishes — and `…-final.json`, its
+  sidecar with every dish, the per-cell record, the spend and the spread.
+- `021-equipment-batch.log` and `021-equipment-batch-oven.log` — both runs' full output,
+  de-coloured. The rejection tallies above are `grep -oE "dropped: [^)]*"` summed over these,
+  and the `cookMinutes` quote is in the first.
+- `021-equipment-batch.json` and `021-equipment-batch-oven.json` — the two runs' own
+  sidecars, which `--merge` composes; keeping them separable is what let the oven's
+  contribution be read on its own.
+- `021-p8-before.json`, `021-p8-before-no-oven.json`, `021-p8-after-171.json`,
+  `021-p8-after.json`, `021-p8-after-no-oven.json` — the five evaluator runs.
+
+The script is `apps/api/scripts/draft-equipment-batch.mjs`: `--plan` prints the cells and
+calls nothing, `--yes` drafts, `--merge` composes and re-emits, `--exclude` records a
+review's verdict as a list rather than a hand-edit, and `--check` runs every gate again over
+a finished file.
+
+### Deviations from plan
+
+1. **`swapWish` is repurposed to steer the batch**, because `prefers` alone steers nothing
+   (phase 6 step 3: zero). It is the field a meal *swap* names its wish in; the four strings
+   it normally holds are ones this code writes, so **nothing a person typed is involved** —
+   that is `dishRequest`, a different field for exactly this reason (`0100`,
+   `health-boundary.spec.ts`'s allowed-key list). Chosen over appending to the string
+   `buildPoolPrompt` returns, which would have diverged silently from the prompt's own
+   versioning. Said plainly in the script so nobody reading a gateway log mistakes a batch's
+   instruction for a user's request.
+2. **The plan's step 6 (`ALTER TYPE … ADD VALUE`) does not apply and no migration was
+   written.** `recipes.equipment` is `text[]`, all ten appliances already exist in
+   `APPLIANCES`, and the owner's decision was to grow all ten rather than change the
+   catalogue.
+3. **The oven's three cells were added mid-phase** by the lead, over this agent's
+   recommendation, amending the plan's *"oven: none — already past the cap"* to cover lunch
+   and dinner only. The reasoning is in the plan; the result is above and vindicates neither
+   side cleanly — breakfast was a real hole and the snacks were not.
+4. **One dish was struck and then brought back, and the lead reversed itself.** The rule was
+   *"an enum key in a name or a slug stays struck"*, and
+   `wrap-integral-de-tempeh-crujiente-y-brocoli-al-air-fryer` was removed under it. **It
+   should not have been, and the one-line lesson is that *"al Air Fryer"* is not an enum
+   key**: 19 other kept dishes carry `air-fryer` in the slug and read *"al Air Fryer"* in the
+   name, which is ordinary Spanish in Spain, and **no name anywhere contains an underscore**
+   — the key never reached a name at all. What was actually wrong with that dish was
+   `air_fryer` and `stovetop` **in its step text**, which rule 1 now fixes everywhere.
+   Applied as a rule the strike would have cost twenty dishes to a naming convention. The
+   count went to 171, and then to **169** when the lead's read of the names struck two more.
+5. **Production could not be read.** `mcp__neon__run_sql` was refused by the permission
+   classifier ("Production Reads"), and so was a local `psql` — the second a false positive
+   on the local database. So the phase's table was read from the **local** library (1,130
+   es-ES dishes) rather than production's 962, and the month's spend from the OpenRouter
+   key's own counter rather than from production's `ai_call` rows. Neither substitution
+   changes a conclusion; the local figures and the lead's production figures agreed cell for
+   cell where they overlap. A `mcp__neon__run_sql` permission rule would remove the gap.
+6. **The advisor was consulted once**, before any code was written, under the two-call
+   budget in `docs/reference/agent-team.md`. It caught three things that would each have cost
+   real work: that `validate`/`judge` are `private` and the machinery to use is
+   `PoolBuilder.build()`; that `build()` stops at twelve **accepted** dishes rather than
+   twelve declaring ones, which is the loop the whole measurement rests on; and that
+   `nutria-seed-500.sql` **predates the `equipment` column**, so copying its column list
+   would have loaded 169 dishes declaring nothing — the exact failure this phase exists to
+   prevent.
+
+### Decisions this phase touches
+
+- [`0102`](../../decisions/0102-a-kitchen-is-what-it-has-and-what-it-would-rather-use.md) —
+  § *Adding an appliance to the catalogue is adding a promise* is the section this phase
+  answers, and the slow cooker is the one appliance it cannot answer for. § *What it costs,
+  measured* has the phase 6 numbers these are the after of.
+- **Migration `0067`**, phase 2's backfill — not a decision record, and the distinction
+  matters because this entry's first draft cited it as one. Its rule, read **forwards**
+  rather than backwards, is what this phase drafted against: a dish that offers a choice
+  declares neither, so a dish whose method is built around one appliance offering no
+  alternative declares it. That reading is what lets a rice cooker or a steamer carry a dish
+  at all, and it is the standard production's 65 oven dishes already meet. The rule itself is
+  stated in `0102` and in `packages/database/AGENTS.md` § *A dish's equipment*.
+- [`0070`](../../decisions/0070-a-serving-has-a-ceiling.md) — the serving ceiling refused 5
+  drafts.
+- [`0045`](../../decisions/0045-a-day-is-built-to-all-four-of-its-numbers.md) — the reason
+  the batch was drafted across seven briefs rather than counted.
+- [`0064`](../../decisions/0064-generation-runs-on-paid-no-training-models-through-openrouter.md)
+  — the OpenRouter key's own monthly limit is the wall the spend was read against.
+
+### Notes for the next phase
+
+- **Phase 9 has two things to record that this phase produced** and one it must not: the
+  **34% declare rate** belongs in `0102` beside phase 6's zero, because together they are
+  the measured size of the preference half; and the **slow cooker's schema bound** belongs
+  in `0102`'s supply section as the one appliance whose shortfall is not a supply problem.
+  What it must **not** do is write a number nobody measured — the production counts are owed
+  after the owner's load, not before.
+- **The owner's load is the gate.** Expect **169** rows; the file prints the slugs production
+  already held before it writes anything, and a short count is a collision rather than a
+  failure. The appliance × slot query to run after it is in the hand-back and in the file's
+  own trailer.
+- **Two open questions for the owner, neither an agent's**: whether the two raw-salt-cod
+  creams come back, and the slow cooker's stance in `0102` — keep the entry with a zero and
+  the reason, or take the appliance out.
+- **The time project now has its evidence.** A slow-cooker dish that passes the schema is
+  refused by `withinTime` for everybody who set a limit, and **129 of the 169 fit a 30-minute
+  limit** while 40 do not. That is the second half of the same finding and the strongest case
+  yet for the cooking-time work `0102` flagged for its own measurement.
+- **A second batch is cheap and is not needed yet.** 343 calls cost 0.32 USD, so nineteen a
+  slot — the plan's *second* batch — is affordable whenever a fortnight is measured repeating
+  itself. Nothing measured here says it is.

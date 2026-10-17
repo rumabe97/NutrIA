@@ -157,6 +157,28 @@ uncommitted as this is written, so they start when it ships rather than beside i
   still owns"* is false on a shared development database the moment the suites clean up after
   themselves — and false in a way that looks like flakiness rather than like a premise, which
   is why it has survived this long.
+- **An appliance's enum key can reach a plate somebody reads: «tostar en la air_fryer».**
+  Found 2026-10-17 by project 021 phase 8's batch, which measured it at **4 dishes in 175**
+  — `tostas-crujientes-de-pavo-y-pera-al-aire`,
+  `wrap-integral-de-tempeh-crujiente-y-brocoli-al-air-fryer`,
+  `batido-cremoso-de-mango-y-avena`, `crema-energetica-de-tofu-y-edamame` — and the four
+  were struck from the file rather than hand-edited. **It is not a batch artefact.**
+  `cleanSteps` is the guarantee that a step's prose is readable Spanish, and
+  `StepCleanup.ts` knows about minutes, English stopwords and leaked ingredient names and
+  **nothing about `APPLIANCES`**; `PoolBuilder` runs it on every generation
+  (`PoolBuilder.service.ts:620`), so the same leak can reach any account whose `prefers`
+  line (`0102`) put an appliance key in front of the model. Two per hundred is the only
+  measurement there is of it. **The same hole, one severity down**: about a dozen of the
+  batch's blender dishes say *"en el blender"* — the English noun in Spanish prose — which
+  `cleanStep`'s language check misses for the same reason, that it screens English
+  *stopwords* and an appliance is a noun. Cosmetic where an enum key is a field name on a
+  plate, and the one fix closes both. **Why it matters more than a typo**: a step is shared library
+  text — one dish is served to many people, and the picture and the shopping list are built
+  from the same row — so a field name in a step is a field name on everybody's plate, and
+  it arrived through the vocabulary `0102` itself introduced. The fix is small and belongs
+  with `cleanSteps`: strip or translate an `APPLIANCES` key the way an ingredient slug is
+  already handled, with the test asserting on the ten keys so adding an appliance cannot
+  reopen it. Nobody's current work, and the first thing in the kitchen project's own tail.
 - **A dish the day's macros cannot hold should warn, not refuse** (the owner, 2026-10-16:
   *"en vez de elegir, deberías poner un aviso indicando eso al usuario, y que es su
   responsabilidad o algo así, pero que permita elegirlo"*). Today `clashes_with_fixed` and
