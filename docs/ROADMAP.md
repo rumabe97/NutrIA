@@ -223,10 +223,34 @@ uncommitted as this is written, so they start when it ships rather than beside i
    says what their kitchen has and what they would rather use, a dish that needs an
    appliance they do not have is never served (enforced in code, `0102`), a preference is
    asked of the model rather than only recorded, every dish declares its equipment and shows
-   it, and the library grows the dishes the appliances were missing — production held 1
-   air-fryer dish and 2 pressure-cooker dishes of 962. What it deliberately leaves for its
+   it, and the library grows the dishes the appliances were missing. **Counted by what a dish
+   declares** rather than by what its steps mention (2026-10-17): production holds **0 dishes
+   declaring an air fryer, a grill, a steamer, a rice cooker or a slow cooker** of 972, and 1
+   pressure-cooker dish — the earlier "1 air-fryer dish of 962" was read off prose, and
+   migration `0067` rightly declared that dish `{stovetop}` because its step offers the oven
+   *or* the fryer. 169 drafted dishes wait for the owner's load. What it deliberately leaves for its
    own measured change: the cooking time, which is a single ceiling for fourteen days, and
-   `difficulty`, stored on every dish and read by nothing.
+   `difficulty`, stored on every dish and read by nothing — now § 6 below, with evidence.
+6. **How long a dish takes, and how much work it is.** Not approved, and the next thing 021
+   argues for. Today the cooking time is **one number for fourteen days** — the prompt's
+   `MAXIMUM TIME PER DISH`, gated by `withinTime` (the limit plus a fifth, rounded up to the
+   next ten), a default of 30 that admits 40 — with no notion of technique and no difference
+   between a Tuesday and a Sunday; and `difficulty` is stored on every dish and **read by
+   nothing**. The owner asked for this measured on its own (2026-10-15), and `0102` carved it
+   out deliberately.
+   **021 phase 8 handed it a first question and a reason to care** (2026-10-17): a **slow
+   cooker cannot be expressed in this product at all**. `generatedDishSchema` bounds
+   `cookMinutes` at 180 and a step's `minutes` at 240, and `PoolBuilder.validate` parses that
+   schema *before anything reads `equipment`* — so an honest four-hour braise is dropped as
+   `schema` and never reaches its own declaration. **60 of that run's 79 `schema` rejections
+   were that one bound**, and the appliance's supply is zero as a result, while the drafts
+   that fit inside 180 minutes come back as hob stews. **Raising the constant is not the
+   fix**: it hands a 480-minute dish straight to `withinTime`, which then refuses it for
+   everybody who set a limit. What is needed is the idea the single number cannot hold —
+   **an unattended cook is not time at the stove** — and until it exists, a catalogue entry
+   (`0102` § *Adding an appliance to the catalogue is adding a promise*) is a promise with a
+   zero behind it. The spread to design against is measured: **129 of that batch's 169 dishes
+   fit a 30-minute limit and 40 do not.**
 
 ## Next, in this order
 

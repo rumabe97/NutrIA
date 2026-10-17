@@ -1671,3 +1671,148 @@ a finished file.
 - **A second batch is cheap and is not needed yet.** 343 calls cost 0.32 USD, so nineteen a
   slot — the plan's *second* batch — is affordable whenever a fortnight is measured repeating
   itself. Nothing measured here says it is.
+
+## Phase 9 — The record and the rule (2026-10-17)
+
+- **Executor**: the lead directly, at this session's effort. The plan prices the phase
+  *"general-purpose, inheriting the session's effort"*, which **is** the lead's own routing,
+  and the phase's substance is prose about measurements the lead took itself an hour earlier
+  — a fresh agent would have had to re-derive every number from the LOG. No subagent, no
+  worktree.
+- **Result**: done. `0102` carries both halves' numbers and nothing it cannot source;
+  `packages/core/AGENTS.md` carries the preference rule; the roadmap carries the project 021
+  deliberately left alone; and the PRD is read against its own criteria rather than declared
+  met.
+
+### What changed
+
+1. **`0102`'s status moved off a false claim.** It said the preference half's numbers were
+   *"still owed"* and named phase 6 step 3 as the thing that would settle them. Step 3 ran on
+   2026-10-16 and its section was already in the record below the status line, so the record
+   contradicted itself at the top. The status now names **both** measurements and says what is
+   actually outstanding, which is not a number but a **library**: 169 dishes drafted and
+   unloaded.
+2. **A new section, `## Asking as hard as the machinery allows (2026-10-17)`.** Phase 6 left a
+   real question open — is `PREFERRED APPLIANCES:` weak, or was it asked weakly? Phase 8
+   answered it and the answer belongs in the record beside the zero, not only in a project log:
+   **34%**, with the per-appliance table, 343 calls and 0.3168 USD. The two rows that are not
+   supply problems are separated out and named as such (the slow cooker's schema bound, the
+   oven's snacks), because a reader who takes 0% and 6% for shortfalls will try to fix them
+   with more calls.
+3. **`§ Adding an appliance to the catalogue is adding a promise` stopped promising a tuner.**
+   It said the batch would be *"validated and tuned as the five hundred were"*. There is no
+   tuner in the tree — phase 8 looked — so the sentence described machinery that does not
+   exist, in the section a future agent would read before drafting the next batch. It now names
+   `PoolBuilder.judge`'s gates, and states the load as **owed** rather than done.
+4. **`packages/core/AGENTS.md` § *A preference may never remove a dish*.** The plan's step 2
+   asked for the preference half here, the first half having landed in phase 1
+   (`packages/database/AGENTS.md`, extended in phase 8 with `recipe_source`). Core's own doc
+   comments already say it well — `withinEquipment` compares `missing` and nothing else — but
+   `AGENTS.md` said **nothing about a kitchen at all**, so an agent working in core met the
+   rule only if it happened to open `Kitchen.ts`. The section carries the one-line rule, the
+   two boundary answers (`null` kitchen, unknown appliance), the bound, and the measured reason
+   **not to answer a thin appliance by strengthening the prompt**.
+5. **`docs/ROADMAP.md` § *Next* 6, the time and elaboration project** — the plan's step 4,
+   and it had more to say than when the plan was written: the slow cooker's schema bound is a
+   concrete first question, and `129 of 169` dishes fitting a 30-minute limit is a measured
+   spread to design against. Also corrected, in the same section: the 021 entry claimed
+   production held *"1 air-fryer dish and 2 pressure-cooker dishes of 962"*, a prose count that
+   the `equipment` column contradicts. Measured 2026-10-17: **0 declaring an air fryer** of 972.
+6. **The PRD is read against its criteria, not closed.** Criterion 10 is met. **7 and 8 cannot
+   close before the load**, and 8 — *"one generation yields at least as many air-fryer dishes as
+   the plan has days"* — stands **measured at zero**.
+
+### The checks that produced no change, which is the result
+
+- **Nothing shipped quietly gated the kitchen** (step 3). `Allowance.ts` holds six rows —
+  `dishRequestsPerMonth`, `eventsPerPlan`, `fixedMeals`, `mealSwapsPerPlan`,
+  `midPlanEventsPerPlan`, `planRedosPerFortnight` — and **no kitchen or equipment row**, on
+  either tier or in the ceilings table. `marketing`'s verdict from 2026-10-15 holds as shipped.
+- **The three-preference bound reads as a product bound everywhere it is written.**
+  `MAX_PREFERRED_APPLIANCES = 3` (`entities/Kitchen/Kitchen.ts`), enforced inside the
+  repository's lock (`KitchenController.applyChanges` → `setStance`, which throws
+  `InputParseError` naming the field), travelling to the screen as `maxPreferred` in the
+  profile payload, and said **before** it is hit (`KitchenPicker`, `OnboardingFlow`'s
+  `kitchen.preferredFull`). `FixedMeal.ts` already cites it as the precedent for a bound that
+  is *"the same on both tiers"*. Nothing to change.
+- **The first half still says what the code does** (step 2's second clause).
+  `packages/database/AGENTS.md` § *A dish's equipment* matches `appliancesOf`,
+  `withinEquipment` and migration `0067` as they stand today.
+
+### Evidence
+
+- **Production, read 2026-10-17** (read-only, standing approval): 972 es-ES dishes, `equipment`
+  column — stovetop-only aside, **air_fryer 0, grill 0, steamer 0, rice_cooker 0, slow_cooker 0,
+  pressure_cooker 1, oven 65, blender 20, microwave 3**; `source 'seed'` exactly 500 and **0
+  dishes at `steps_version '4.9.0'`**, which is what proves the batch is not loaded.
+- **The owner's own fortnight, generated 2026-10-17 12:08** (plan v26, active, 14 days, 56
+  plates, prompt 4.9.0, `google/gemma-4-31b-it` via DeepInfra, 12 calls, 0.018 USD). Kitchen:
+  `air_fryer: prefers`, `blender: missing`. **0 plates declare an air fryer**, 53 are
+  hob-only, 1 oven, 1 nothing, **0 blender** — the constraint half working unremarked while
+  the preference half had nothing to work with. 51 distinct dishes of 56, no dish more than
+  twice.
+- **The load rehearsal, local Postgres, 2026-10-17**: `1,130 → 1,299` es-ES dishes, exactly
+  +169, **0 collisions**, 30 air-fryer dishes where there were none, no recipe left without its
+  ingredients, `EXIT=0`. The file's own pre-flight (127 ingredient slugs) passed.
+- **Production load: refused to an agent, and deliberately not worked around.** The owner gave
+  permission in the session ("te doy permiso", not at his computer). The `psql` call was denied
+  by the permission classifier — *Production Deploy* — and the repository's own hook restated
+  the rule it exists to serve: *"production data changes are run by the owner"*. The same
+  write was available through `mcp__neon__run_sql_transaction`; **it was not attempted**,
+  because routing a denied production write through a second tool is the one thing that would
+  make the guard stop protecting him. Reported with the exact command instead. **The load
+  remains the gate.**
+- `develop` **could not be rehearsed on**: the `Nutria-E2E` Neon project is over quota
+  (HTTP 402) and does not reset until 2026-11-01, which is why the rehearsal went to local
+  Postgres — the same schema, 68 migrations, and the library the batch was drafted against.
+
+### Deviations from plan
+
+1. **No subagent.** The dispatch line names `general-purpose` inheriting the session's effort,
+   which matches the lead's own routing, so step 4's *"if it matches your own, do the work
+   directly"* applies. Recorded here because the plan names an agent type.
+2. **The plan's step 1 was half wrong about its own subject.** It asked that `0102` *"carry the
+   measured numbers from phase 6"* and that its status *"move off structural choices only"* —
+   but phase 6's numbers were already in the record (phase 6 put them there) and the status had
+   not said "structural choices only" for a day. What was actually wrong was the opposite: the
+   status claimed numbers were missing that were present. Done as the plan intended rather than
+   as it was worded.
+3. **No file outside the phase's scope carries this phase's work**, and the two exceptions are
+   worth naming because a reader counting six changed files against the plan's list will look
+   for the rest. `PLAN.md` is not on that list and is touched by the execute-project loop
+   itself, as in every phase: phase 8's commit backfilled, this phase's status line, this
+   phase's checkbox. `packages/database/AGENTS.md` is not on it either and was not touched
+   here — its `recipe_source` section went in with phase 8's commit, where `/ship` § 2 asks
+   for a rule to travel with the code it governs. Of the two files on the list that did not
+   change, `apps/api/AGENTS.md` already carries this project's line — the evaluator's
+   `--without`, phase 7, citing `0102` — and `apps/web/AGENTS.md` says nothing about a kitchen
+   and needed nothing: the screen's rules live in `0102` and the ones an agent must not break
+   are in core's, which is where step 2 put them.
+4. **The project is not closed.** Phase 9 is the last phase in the plan, but criteria 7 and 8
+   are open and phase 5b is in progress, so the plan's own completion is not this phase's to
+   declare. Said in the PRD rather than left for a reader to notice.
+
+### Decisions this phase touches
+
+- [`0102`](../../decisions/0102-a-kitchen-is-what-it-has-and-what-it-would-rather-use.md) — the
+  record this phase exists to finish. Two sections added or corrected; no number in it is now
+  one nobody measured, which is the phase's acceptance criterion.
+- [`0070`](../../decisions/0070-a-serving-has-a-ceiling.md),
+  [`0045`](../../decisions/0045-a-day-is-built-to-all-four-of-its-numbers.md) — cited by the
+  new section as the gates the batch passed and the band the measurement is read against.
+- **No new decision record.** Phase 9 took no decision: the two that are open — the slow
+  cooker's catalogue entry and the two raw-salt-cod creams — are the owner's, and both are
+  stated where he will meet them.
+
+### Notes for the next phase
+
+- **The load is the only thing between this project and its last two criteria.** After it, two
+  numbers close 7 and 8: the per-appliance count against `DISHES_NEEDED_PER_SLOT` (19), and one
+  generation with the air fryer preferred. Neither is owed before.
+- **The one measurement worth taking twice** is the declare rate *after* the load. 34% is how
+  often the model writes the appliance when the library has nothing; with 30 air-fryer dishes
+  to reuse, the plan's air-fryer plates should come from the library rather than the model, and
+  the two paths are worth separating in the figure.
+- **The guard that refused the load is working, and that is worth not fixing in a hurry.** If
+  the owner wants an agent to be able to run a reviewed load, the narrow change is a permission
+  rule for exactly that command, not a looser classifier.
