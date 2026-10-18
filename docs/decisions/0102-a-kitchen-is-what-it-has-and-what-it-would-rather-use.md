@@ -401,7 +401,8 @@ does not answer: whether a chosen cuisine should hold a share of its own is the 
 nothing measured here says it is hurting anybody.
 
 (who decided: the owner, 2026-10-18, authorised the fix and the measurement overnight; the
-share's size is the planner's, on the curve above, and his to revisit.)
+share's size is the planner's, on the curve above — measured again once supply arrived, in
+§ *The share's size is seven of nineteen*.)
 
 (who decided: the owner, 2026-10-15 — the feature, and that the time question is measured
 separately; the planner, the shape above, with the library's numbers in hand.)
@@ -510,9 +511,10 @@ still rescued, because a quota of 7 in 19 that could not be filled displaced not
 fills completely. In the owner's own shape (two standing rules on one weekday, the rules held
 identical with `--pins-from`): plates **394 → 928**, fortnights serving none **14 → 0**,
 rescues **14 → 8**, bands unchanged at **576/588**. **The share's size is now a real choice
-rather than an unreachable ceiling**, and it stays the owner's: 7 of 19 costs
-`objetivo-alto-5-comidas` 29 plates in that shape — 42 with no rules at all — and a rescue it
-did not have before.
+rather than an unreachable ceiling**: 7 of 19 costs `objetivo-alto-5-comidas` 29 plates in that
+shape — 42 with no rules at all — and a rescue it did not have before. That reading is of the
+pool as it stood this morning; § *The share's size is seven of nineteen* sets the four sizes
+against each other on the loaded library, where the cost is gone and the size is settled.
 
 **It does not reach his own fortnight as he has it configured**, and that is said plainly
 rather than rounded away: with two rules on one weekday no rung of the rotation holds the
@@ -520,10 +522,83 @@ bands, so the whole library is still what answers, and the kitchen is still lost
 lever is supply — the second batch — or one rule on a different day. Everybody whose rotation
 *can* hold its bands now keeps part of the kitchen they asked for instead of none of it.
 
+**Measured again the moment the batch reached production** (2026-10-18, his own account read
+with `default_transaction_read_only=on`, his seed, his avoid list, his two standing rules, the
+whole chain in the service's order): supply moved his *pool* — the capped rotation now offers
+him a fortnight worth **9 air-fryer plates at 12 of 14 days in band** — but with both rules on
+one weekday the pool still misses a band, no rung holds it, and the whole-library rescue still
+wins on `planBandMiss` (worst overshoot 16.0% against 10.5%), which leaves **1** plate.
+**Move one rule to another weekday and the same fortnight is 14 of 14 with 10 plates and no
+rescue at all** — as is either rule on its own. So the lever that remains is his arrangement,
+not the library: the supply did arrive, and `0101`'s two heavy fixed meals on one day are what
+spends it. With the appliance not preferred at all that same day holds 12 of 14 and serves 5
+plates, so the preference is not what costs him the two days.
+
 (who decided: the finding and the ladder are the planner's, 2026-10-18, from the owner's own
 plan v28 read in production and his fortnight re-run seven ways, under his standing
 authorisation to fix what the plan showed; the share's size remains his to revisit, and the
 two rules on one weekday are his to arrange.)
+
+## The share's size is seven of nineteen, and that is measured rather than left open (2026-10-18)
+
+The size was handed back to the owner on a curve read when the library held 24 air-fryer
+dishes. With the second batch loaded it was measured instead: the same 42 fortnights
+(fourteen profiles, three seeds), `--prefer air_fryer --flag accompaniments`, at four sizes of
+the first rung — and the same four in his own shape, with the rules held identical
+(`--pins 2 --per-day 2 --pins-from`). The evaluator grew `--share N` for it, which sets
+`Rotation.applianceShare` the way the ladder does on the way down; `shareOf` clamps it to the
+constant, so only a smaller share can be seen from here.
+
+| first rung | plates | serving none | days in band | rescued | rungs held |
+| --- | --- | --- | --- | --- | --- |
+| **7 of 19, today** | **877** | 1 | 588/588 | **8** | 10 |
+| 4 | 874 | 1 | 588/588 | 8 | 10 |
+| 2 | 868 | 1 | 588/588 | 8 | 10 |
+| 0 — the order without the quota | 842 | 1 | 588/588 | **18** | 0 |
+
+In his own shape, in the same order: **928 / 927 / 926 / 954** plates, **576/588** days in band
+for the three sizes and 575 for the last, **8** rescues against **11**, and the 24 pinned days
+out of band unchanged throughout.
+
+**Halving the share changes nothing worth seeing.** 877, 874 and 868 are the same number three
+times; the bands, the rescues and the rungs given way are identical. The cost the thin library
+showed is **gone**: `objetivo-alto-5-comidas` serves 7 plates at every size (38 in his shape,
+against 37 with no quota at all), where before the batch the full quota cost it 29. One profile
+reads the size at all — `patron-tradicional-espanola`, 46 / 43 / 37 / 34 — and it reads it the
+way the feature intends: more quota, more plates.
+
+**The last row is not "the kitchen unread".** `narrowerShares` returns nothing at or below
+zero, so a share of zero keeps the appliance inside `isPreferredDish`'s bucket — the order,
+without the quota — and leaves the ladder no rung to spend. It is the shape that stood *before*
+#295 gave the appliance a quota, which is what `0102` § *An order is not enough* measured on the
+thin library, priced here on the loaded one. Losing 35 plates is the small half of what it costs. The other half is
+**18 rescues instead of 8**, and a rescued fortnight is scheduled from the whole library, which
+takes the rotation's variety, its avoid list and its group reserves with it. His own shape shows
+that as a *symptom* rather than a gain: the extra plates at zero are `quincena-con-evento`
+jumping 79 → 109 by being rescued, and paying a day of band for it.
+
+So **the share is what gives the ladder something to give way with**, and the constant stays at
+`Math.ceil(REUSED_DISHES_PER_SLOT / 3)`. The paragraphs above are left as they were written:
+they were true of a library holding 24 air-fryer dishes, and supply is what stopped them being
+true.
+
+**And asking now costs nothing at all.** The same 42 fortnights with no preference whatever,
+on the same library and the same seeds: **588/588** days in band and **9** rescues, against
+588/588 and **8** with the full share; in his own shape **576/588** and **16** rescues, against
+576/588 and **8**. Asking for the air fryer is rescued *less* often than not asking for it,
+because the ladder is an extra attempt and only a plan with a leaning gets one. That also
+answers what the rungs are worth, and corrects how the question was asked. Exactly **one**
+fortnight in 42 holds at the half rung — `patron-tradicional-espanola`, his pinned shape, and
+only when the first rung is the full share — and it was already holding there in the run phase
+11 shipped: the earlier tally **counted** the rungs that held and did not **read** them, so ten
+zeros in the plain run were generalised over five in the pinned one. Every other rung that held
+was zero. The rungs are not too coarse — a partial share
+does not help once a band is missed, and what the ladder buys is the extra attempt rather than
+the partial quota.
+
+(who decided: the planner, 2026-10-18, on the measurement above and under the owner's standing
+authorisation to decide what he hands back; he asked for the size to be his, and it still is —
+nothing measured here needs him to move it.)
 
 ## The slow cooker stays, with a zero and the reason (2026-10-18)
 

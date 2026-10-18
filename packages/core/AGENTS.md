@@ -488,6 +488,15 @@ a person's plate as *less food*.
   may do is send a prompt line, move the order inside the rotation's per-slot cap
   (`Rotation.isPreferredDish`) and **hold a share of that cap**
   (`APPLIANCE_DISHES_PER_SLOT`).
+- **The share's size is measured, and the measurement says keep it whole.** Seven of
+  nineteen, half of it and two of it are the same plan to three decimal places (877, 874 and
+  868 plates over 42 fortnights, identical bands, rescues and rungs); a share of **zero** —
+  the order kept, the quota dropped — loses 35 plates and buys **18 rescues instead of 8**,
+  because `narrowerShares` returns nothing at zero and a band miss then goes straight to the
+  whole library. **The share is what gives the ladder something to give way with**, which is
+  the opposite of what the thin library suggested (`0102` § *The share's size is seven of
+  nineteen*). A kitchen measurement without `--flag accompaniments` is not a measurement:
+  the same run reads 180 plates instead of 877.
 - **A null kitchen means nobody asked, not an empty kitchen.** `withinEquipment(dish, null)`
   is `true`. A caller that reads a missing kitchen as "has nothing" empties the library for
   every account that never opened the screen.
@@ -521,13 +530,20 @@ a person's plate as *less food*.
   and is not the thing to change — **the share yields to the bands by degrees, before the
   rotation itself is given up** (the ladder below, shipped 2026-10-18: on the library of
   that morning, rescues 8 → 5 of 42 fortnights, plates 580 → 583, bands unmoved at 587/588).
-  **Every rung that has ever held a band was zero**, before the batch (3 fortnights) and after
-  it (10), so what the ladder reliably saves is the plan's own rotation, not the plates — and a
+  **Almost every rung that has held a band was zero** — 3 fortnights before the batch, 10
+  after it, and exactly **one** holds at the half rung (`patron-tradicional-espanola`, the
+  owner's pinned shape, the full share; it does not hold there at a smaller first rung). The
+  earlier "every rung that has ever held was zero" counted the rungs and did not read them:
+  that one was already in the run phase 11 shipped. **Count a rung by reading it.** —
+  so what the ladder reliably saves is the plan's own rotation, not the plates, and a
   fuller library makes the share bind *harder*, not softer, because a quota of 7 in 19 that
   could not be filled displaced nothing. The plates come from supply: 280 dishes took the
   preferred plates of 42 fortnights from 583 to 877 and the fortnights serving none from 5 to
   1, while the first attempt missed a band more often than before. A measurement of a preference counts the rescues it causes, not only the bands
-  that survive it.
+  that survive it — and on the loaded library asking **costs no rescue at all**: 8 of 42
+  fortnights rescued with the preference against **9 with none**, and in the owner's pinned
+  shape **8 against 16**, bands identical either way (`0102` § *The share's size is seven of
+  nineteen*). The ladder is an extra attempt that only a plan with a leaning gets.
 - **The share is a ceiling with a ladder under it, and the bottom rung is no preference at
   all.** On a band miss the caller walks `narrowerShares` — half the share, then none —
   rebuilding the pick with `RecipeController.rotateFor` and `withApplianceShare`, keeping the

@@ -2025,6 +2025,11 @@ the rescue's own test, so the ladder cannot return a worse plan. The rung is sto
   −10.5%. `planBandMiss` sums overshoot rather than counting days for exactly this reason, and
   it was right to.
 
+**Read with the addendum below**: the two questions this evidence left open — the share's size
+and whether the half rung ever holds — were measured the same day, after the owner merged, and
+the answers are in *Notes for the next phase* with their figures (`0102` § *The share's size is
+seven of nineteen*).
+
 ### The second batch, drafted to the floor the owner set
 
 *"En el 2 mete tantos platos como necesitemos, mínimo 50-100 por cada utensilio"* is a supply
@@ -2231,21 +2236,54 @@ shipped a sentence saying the batch cost twelve days of macros.
 
 ### Notes for the next phase
 
-- **The share's size is the open lever, and it is the owner's.** `APPLIANCE_DISHES_PER_SLOT`
-  is `ceil(19 / 3)` = 7, chosen when no library could fill it. One now can, and the full quota
-  costs `objetivo-alto-5-comidas` 42 plates with no rules and 29 in the owner's own shape,
-  plus a rescue it did not have before. The figures to put
-  in front of him are in § *What the supply is worth*; the measurement to run beside them is
-  the same 42 fortnights at 5 and at 3 a slot.
-- **The half rung has never held a band.** Ten fortnights gave way after the load and every
-  one of them went to zero. Either the rungs are too coarse (`[floor(share/2), 0]`) or a
-  partial share cannot help once a band is missed — worth one run to tell apart, and worth
-  knowing before anybody adds a third rung.
+- **The share's size is settled: seven of nineteen** — measured the same day the owner merged
+  this phase, on the loaded library and with `--flag accompaniments`, at four sizes of the first
+  rung (the evaluator grew `--share N` for it): **877 / 874 / 868 / 842** plates over 42
+  fortnights, bands **588/588** throughout, and **8 / 8 / 8 / 18** rescues. Halving the quota
+  is the same plan; dropping it keeps the order and loses the ladder, which is what those 18
+  rescues are. The cost the thin library showed is gone — `objetivo-alto-5-comidas` serves 7
+  plates at every size. `0102` § *The share's size is seven of nineteen*.
+- **Asking for an appliance now costs no rescue at all.** The no-preference baseline on the
+  loaded library is **9** rescues of 42 at 588/588; the full share is **8** at 588/588. In the
+  owner's pinned shape it is **16** against **8**. The ladder is an extra attempt, and only a
+  plan with a leaning gets one — which is the strongest argument yet for giving the other three
+  leanings a share of their own, and the measurement to run before anybody does.
+- **The half rung holds once in 42 fortnights, which answers the question.**
+  `patron-tradicional-espanola` keeps its bands at 3 of 19 in the owner's pinned shape — and
+  only when the first rung is the full 7; at a first rung of 4 or 2 it does not hold at all. So
+  the rungs are **not** too coarse: a partial share does not help once a band is missed, and
+  what the ladder buys is the extra attempt. A third rung would buy nothing, and nobody should
+  add one without a measurement that says otherwise.
 - **The load is the gate, again.** 280 rows, `docs/local/021-equipment-batch-2.sql`, one
   transaction, `ON CONFLICT (slug) DO NOTHING`; the file prints what production already holds
   before it writes and counts what is there after. A count short of 280 is a collision, which
   the file's own queries name.
+- **Hand him the production name, and it is only one.** The load command given to the owner
+  twice named `apps/api/.env`'s `DIRECT_DATABASE_URL`, which is the **dev** endpoint since the
+  2026-09-24 Neon split and is over quota: his `psql` died on `53000` and wrote nothing
+  anywhere. Production's only local name is `DATABASE_URL_PRO` in `packages/database/.env`,
+  which is what `guard.mjs` reads for a read-only probe and what the owner's load must name.
+  Checked by comparing hosts with the `-pooler` label stripped — a first check compared the
+  whole first label and read production's direct endpoint as a different project.
+- **And never hand him `set -a; . <a real .env>; set +a`.** The values are unquoted and
+  every Neon URL ends `?sslmode=require&channel_binding=require`, so bash splits each line at
+  the `&`: the assignment becomes a background job (`[1] Hecho VAR=…` in his terminal),
+  `channel_binding=require` is a second harmless assignment, and **the variable is never set in
+  the calling shell** — `psql ""` then dies on the local socket having written nothing. Capture
+  the one value instead, with a `sed -n` substitution into a command substitution, which prints
+  none of it. The first diagnosis of this — that the session's shell cannot read a real file of
+  that kind — was wrong: node reads it, bash parses it wrongly, and his own terminal behaves
+  exactly the same way.
 - **Criterion 8 closes on his plan, not on a measurement.** After the load, the fortnight he
   generates next is the thing to read — and `generation_metadata.kitchenShare` now says what
   the bands cost him, which no earlier plan could.
+- **The batch is in production**: the owner ran it himself on 2026-10-18 — 280 of 280 rows, no
+  collisions, es-ES dishes **1,146 → 1,426** — and the kitchen now matches the local library the
+  measurements were taken on (air fryer 85, blender 79, microwave 67, steamer 60, pressure
+  cooker 60, grill 59, rice cooker 59; oven 69 unchanged, slow cooker still 0).
+- **What his next fortnight will do, read against production the minute it landed**: the capped
+  rotation offers him 9 air-fryer plates at 12 of 14 days in band, and with both standing rules
+  on one weekday the rescue still answers and leaves **1** plate. **One rule moved to another
+  weekday: 14 of 14 and 10 plates, with no rescue.** That is the lever left, and it is a setting
+  he owns — `0102` § *A rescued fortnight has no kitchen*.
 

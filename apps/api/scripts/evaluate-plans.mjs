@@ -28,7 +28,7 @@
  *
  * Usage (from the repository root, against the local Postgres `pnpm db:local` runs —
  * never Neon):
- *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--without oven[,blender]] [--prefer air_fryer[,grill]] [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds] [--exceptions]] [--pins N [--pin-slot <slot>] [--per-day N] [--pins-from kept.json]]
+ *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--without oven[,blender]] [--prefer air_fryer[,grill]] [--share N] [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds] [--exceptions]] [--pins N [--pin-slot <slot>] [--per-day N] [--pins-from kept.json]]
  *
  * `--flag <name>` names a scheduler flag to measure with on (project 016). The
  * one that exists is `accompaniments`: each profile's larder (`larderFor`, the
@@ -489,6 +489,7 @@ function parseArgs(argv) {
     pins: 0,
     prefer: [],
     rotate: null,
+    share: null,
     start: '2026-10-05',
     without: []
   };
@@ -570,6 +571,15 @@ function parseArgs(argv) {
       }
 
       options.prefer = named;
+    } else if (arg === '--share') {
+      const size = Number(argv[(index += 1)]);
+
+      if (!Number.isInteger(size) || size < 0) {
+        console.error('--share needs a whole number of dishes per slot, 0 or more');
+        process.exit(2);
+      }
+
+      options.share = size;
     } else if (arg === '--flag') {
       const name = argv[(index += 1)];
 
@@ -1544,6 +1554,12 @@ async function measureRotations(profile, shared, options) {
 
   for (let seed = 1; seed <= options.rotate; seed += 1) {
     const rotation = {
+      // How big a share of each slot's pick a preferred appliance holds, which
+      // `0102` leaves as the owner's choice and this measures instead of arguing.
+      // Unset is the default (`APPLIANCE_DISHES_PER_SLOT`), and `shareOf`
+      // clamps it to that constant — so a value above it measures the constant,
+      // and only a smaller share can be seen from here.
+      ...(options.share === null ? {} : { applianceShare: options.share }),
       avoidSlugs: new Set(),
       // What they would rather cook with, which `PlanGeneration` passes and this
       // instrument did not: without it a `--prefer` run would measure the pick of
@@ -2750,6 +2766,11 @@ async function main() {
   assertNotProduction();
 
   const options = parseArgs(process.argv.slice(2));
+
+  if (options.share !== null && options.prefer.length === 0) {
+    console.error('--share prices the quota a preferred appliance holds, so it needs --prefer beside it: with no preference the share is zero whatever this says');
+    process.exit(2);
+  }
 
   if (options.pinsFrom) {
     if (options.pins === 0) {
