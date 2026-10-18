@@ -1049,16 +1049,26 @@ export const RecipeController = {
     // Without a rotation every user is handed the whole safe library in the same
     // order, and the deterministic scheduler then hands them the same plan. With
     // one, each user gets their own dozen per slot, minus last fortnight's.
-    // A rotation keeps, first, the dishes the fortnight's food groups need
-    // (019 phase 2): legumes of several kinds, fish, whole grain — from what
-    // this person's filters left, never beyond it.
-    return rotation
-      ? rotatePool(usable, slots, rotation, undefined, (inSlot, slot, taken) => reserveGroups(inSlot, slot, context.catalogue, taken))
-      : usable;
+    return rotation ? this.rotateFor(usable, slots, context, rotation) : usable;
   },
 
   async rewriteSteps(recipeId: string, steps: readonly RecipeStep[], stepsVersion: string): Promise<void> {
     await RecipeRepository.updateSteps(recipeId, steps, stepsVersion);
+  },
+
+  /**
+   * This user's own pick out of a library already read — the **one** place that
+   * says what a rotation reserves, so a caller that rotates a second time
+   * cannot reserve something different.
+   *
+   * A rotation keeps, first, the dishes the fortnight's food groups need
+   * (019 phase 2): legumes of several kinds, fish, whole grain — from what this
+   * person's filters left, never beyond it. A second call exists because the
+   * appliance share has to be able to give way to the bands without the library
+   * being read again (`narrowerShares`, `0102`).
+   */
+  rotateFor(library: readonly CandidateDish[], slots: readonly MealSlot[], context: GenerationContext, rotation: Rotation): readonly CandidateDish[] {
+    return rotatePool(library, slots, rotation, undefined, (inSlot, slot, taken) => reserveGroups(inSlot, slot, context.catalogue, taken));
   },
 
   /** `instructions` alone, nothing else about the recipe. See `RecipeRepository.setInstructionsOnly`. */

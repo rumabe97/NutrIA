@@ -233,10 +233,26 @@ uncommitted as this is written, so they start when it ships rather than beside i
    none of them — a preference shared one bucket with the cuisine and food leanings, so a
    person who had named four cuisines diluted it to one dish in twenty-three. A preferred
    appliance now holds a third of each slot's rotation cap (`0102` § *A preference nobody can
-   see is not a preference*): 0 → 8 plates of 56 on his own fortnight at the same days in
-   band, a median of 18 over fourteen profiles. What is left is supply — eight appliances sit
-   below the 19 dishes a slot the rotation asks for, which the catalogue states rather than
-   hides. What it deliberately leaves for its
+   see is not a preference*), a median of 16 plates of 56 over fourteen profiles — **and the
+   plan he generated with that live still served zero**, which turned out to be the share
+   defeating itself: it displaced the dishes that were holding his macros, the band miss
+   bought the whole-library rescue, and the rescue replaced the pool the share lives in. With
+   the kitchen simply not read, his fortnight held 14 of 14 days in band and kept 3
+   air-fryer plates; asking for the appliance returned none. **So the share now gives way by
+   degrees before the rotation does** — half, then nothing, the first rung that holds the
+   bands winning, the rung recorded on the plan (`0102` § *A rescued fortnight has no
+   kitchen, and the share is what sends it there*). What is left is supply, and the second
+   batch is it: eight appliances sat below the 19 dishes a slot the rotation asks for, so each
+   was drafted to the owner's own floor of **50–100 dishes** (2026-10-18) — the slow cooker
+   excepted, which keeps its entry with a zero and the schema bound that explains it. **280
+   dishes reviewed and in a file**, and with them loaded locally the 42 measured fortnights
+   serve 877 preferred plates instead of 583, one serves none instead of five, and every one
+   of the 588 days is inside all four macros; in the owner's own shape, two standing rules on
+   one weekday, plates go 394 → 928 with the bands unmoved. The finding to carry forward is
+   that **supply makes the share bind harder**: a quota of 7 in 19 that no library could fill
+   displaced nothing, and one that can fills completely, so the rungs give way ten times
+   instead of three. The share's size is now a real choice, and the owner's.
+   What it deliberately leaves for its
    own measured change: the cooking time, which is a single ceiling for fourteen days, and
    `difficulty`, stored on every dish and read by nothing — now § 6 below, with evidence.
 6. **How long a dish takes, and how much work it is.** Not approved, and the next thing 021

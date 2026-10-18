@@ -28,7 +28,7 @@
  *
  * Usage (from the repository root, against the local Postgres `pnpm db:local` runs —
  * never Neon):
- *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--without oven[,blender]] [--prefer air_fryer[,grill]] [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds] [--exceptions]] [--pins N [--pin-slot <slot>] [--per-day N]]
+ *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--without oven[,blender]] [--prefer air_fryer[,grill]] [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds] [--exceptions]] [--pins N [--pin-slot <slot>] [--per-day N] [--pins-from kept.json]]
  *
  * `--flag <name>` names a scheduler flag to measure with on (project 016). The
  * one that exists is `accompaniments`: each profile's larder (`larderFor`, the
@@ -57,6 +57,11 @@
  * fixed on purpose: what is unknown is not what a rule costs but what *sharing a
  * day* costs, and a three-meal shape pinned twice has one meal left to reach
  * four macros with (`0045`).
+ *
+ * `--pins-from <kept.json>` replays the standing rules another run wrote instead of choosing
+ * them again. It is **required** for any before-and-after over a library that changed: the
+ * pick is a hash modulo the candidate count, so loading 280 dishes re-rolled all 28 rules and
+ * the two runs measured different rules while reading like a comparison.
  *
  * `--pins N` (with `--rotate`) gives every profile N standing weekly fixed
  * meals — *"every Friday dinner is tortilla de patata"* — and reports what they
@@ -129,12 +134,14 @@ import {
   legumeKind,
   MAIN_SLOTS,
   mainProtein,
+  narrowerShares,
   rotatePool,
   SNACK_KIND_SLOTS,
   snackKind,
   STARCH_RULES,
   starchBase,
-  starchCap
+  starchCap,
+  withApplianceShare
 } from 'core/domain/Variety';
 import { plateFoodMax, plateFoods } from 'core/domain/PlateFood';
 
@@ -333,6 +340,32 @@ function pinsFor(slots, everything, inputFor, options, profileSlug, solvable) {
   const map = new Map();
   const rules = [];
   const perDay = options.perDay;
+
+  // `--pins-from <run.json>`: the rules another run wrote, replayed verbatim. The pick is a
+  // hash **modulo the candidate count**, so a library that grew re-rolls every rule — adding
+  // 280 dishes changed all 28 of them, and the two runs then measure different standing rules
+  // while reading like a before and an after. A profile the file does not name keeps its own.
+  const replayed = options.pinsFrom?.get(profileSlug);
+
+  if (replayed) {
+    for (const rule of replayed) {
+      rules.push(rule);
+
+      if (rule.slug === null || rule.slug === undefined) {
+        continue;
+      }
+
+      for (const landing of [rule.day, rule.day + 7]) {
+        const held = map.get(landing) ?? new Map();
+
+        held.set(rule.slot, { slot: rule.slot, slug: rule.slug });
+        map.set(landing, held);
+      }
+    }
+
+    return { map, rules, ...(perDay > 1 ? { perDay, wholeDays: [...map.values()].filter(day => day.size >= slots.length).length } : {}) };
+  }
+
   // With `--per-day 1` this is the arrangement every earlier measurement used:
   // one rule a day, on PIN_DAYS in order. Above one, the same number of rules is
   // folded onto fewer days, which is the comparison — the cost of a rule is
@@ -450,6 +483,7 @@ function parseArgs(argv) {
     only: null,
     perDay: 1,
     pinFit: false,
+    pinsFrom: null,
     pinNoStarch: false,
     pinSlot: null,
     pins: 0,
@@ -492,6 +526,8 @@ function parseArgs(argv) {
       }
 
       options.perDay = held;
+    } else if (arg === '--pins-from') {
+      options.pinsFrom = argv[(index += 1)];
     } else if (arg === '--pin-fit') {
       options.pinFit = true;
     } else if (arg === '--pin-no-starch') {
@@ -1550,8 +1586,39 @@ async function measureRotations(profile, shared, options) {
     }
 
     const missedBand = fallback === null && planBandMiss(violations) > 0;
+    // The kitchen's share gives way before the rotation does, exactly as
+    // `PlanGeneration` walks it down: half the share, then none, the first rung
+    // that holds every band winning (`narrowerShares`, `0102`). Without this the
+    // evaluator would measure a rescue the service no longer reaches first.
+    let kitchenShare = null;
 
     if (missedBand) {
+      for (const share of narrowerShares(rotation)) {
+        const narrowed = RecipeController.rotateFor(everything, slots, context, withApplianceShare(rotation, share));
+        const retried = schedule(narrowed);
+
+        if (!retried.ok) {
+          continue;
+        }
+
+        const retriedViolations = check(retried.assignment);
+
+        if (retriedViolations.some(isBlocking) || planBandMiss(retriedViolations) >= planBandMiss(violations)) {
+          continue;
+        }
+
+        scheduled = retried;
+        violations = retriedViolations;
+        usedPool = narrowed;
+        kitchenShare = share;
+
+        if (planBandMiss(violations) === 0) {
+          break;
+        }
+      }
+    }
+
+    if (fallback === null && planBandMiss(violations) > 0) {
       const rest = rotatePool(everything, slots, rotation, Number.POSITIVE_INFINITY);
       const wider = [...new Map([...reusable, ...rest].map(dish => [dish.slug, dish])).values()];
       const retried = schedule(wider);
@@ -1564,6 +1631,7 @@ async function measureRotations(profile, shared, options) {
           violations = retriedViolations;
           fallback = 'wider_rotation';
           usedPool = wider;
+          kitchenShare = null;
         }
       }
     }
@@ -1581,6 +1649,9 @@ async function measureRotations(profile, shared, options) {
       blocking: violations.filter(isBlocking).length,
       daysInsideAll4: PLAN_DAYS - daysOutside.size,
       fallback,
+      // Which rung of the appliance share this plan ended on, `null` for the full
+      // one: the figure that says what keeping the bands cost the preference.
+      kitchenShare,
       measured: true,
       missedBand,
       offer: rotationOffer(reusable, context.catalogue),
@@ -1656,6 +1727,9 @@ function summariseRotations(results) {
       fish: spread(plans, plan => plan.balance.counts.fish),
       goal: result.goal,
       legumes: spread(plans, plan => plan.balance.counts.legumes),
+      // How many fortnights kept their bands by narrowing the kitchen's share
+      // rather than by giving up the rotation, and to what.
+      kitchenNarrowed: plans.filter(plan => plan.kitchenShare !== null && plan.kitchenShare !== undefined).map(plan => plan.kitchenShare),
       missedBand: plans.filter(plan => plan.missedBand).length,
       offerLegumeKinds: spread(plans, plan => plan.offer.legumeKinds),
       offerLegumeMains: spread(plans, plan => plan.offer.legumeMains),
@@ -1768,6 +1842,11 @@ function printRotations(results, summary) {
     if (profile.preferredOffered && profile.preferredOffered.max > 0) {
       console.log(
         `  preferred appliance — dishes in the pick ${range(profile.preferredOffered)}, plates served ${range(profile.preferredPlates)} of ${PLAN_DAYS * (result.slots?.length ?? 0) || 'n/a'}`
+      );
+      console.log(
+        `  the share gave way for the bands on ${profile.kitchenNarrowed?.length ?? 0} of ${profile.plans} fortnights${
+          profile.kitchenNarrowed?.length > 0 ? ` (to ${profile.kitchenNarrowed.join(', ')} dishes a slot)` : ''
+        }, rescued from the whole library ${profile.fallbacks.wider_rotation}`
       );
     }
     console.log(
@@ -2671,6 +2750,25 @@ async function main() {
   assertNotProduction();
 
   const options = parseArgs(process.argv.slice(2));
+
+  if (options.pinsFrom) {
+    if (options.pins === 0) {
+      console.error('--pins-from replays the rules of a kept run, so it needs the same --pins N (and --per-day N) beside it');
+      process.exit(2);
+    }
+
+    const path = options.pinsFrom;
+    const kept = JSON.parse(readFileSync(path, 'utf8'));
+    const replayed = new Map((kept.results ?? []).filter(result => result.pins).map(result => [result.slug, result.pins]));
+
+    if (replayed.size === 0) {
+      console.error(`${path} holds no rules to replay; keep a run with --pins first`);
+      process.exit(2);
+    }
+
+    options.pinsFrom = replayed;
+  }
+
   const require = createRequire(import.meta.url);
   const databaseModule = require('database');
   const originalDatabase = databaseModule.database;

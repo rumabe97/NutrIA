@@ -137,12 +137,26 @@ const CELLS = [
   { appliance: 'rice_cooker', slots: ['lunch', 'dinner'], why: 'rice dishes written for it — the weakest claim of the ten' }
 ];
 
-/** What the current library already holds for a cell, so the target is a shortfall and not a quota. */
+/**
+ * What the library already holds for a cell, so a target is a shortfall and not a quota.
+ *
+ * **Counted, not remembered** (2026-10-18, the second batch): one query over
+ * `recipes` with `equipment` and `meal_slots` unnested, `locale = 'es-ES'`, on a
+ * database holding what production holds after the first batch was loaded. The
+ * table it replaced was written before that load and read `air_fryer: 0` while
+ * the library held thirty — which would have asked for thirty more of what it
+ * already had. Anybody drafting a third batch counts again rather than trusting
+ * this block: it is a measurement with a date, not a constant.
+ */
 const HELD = {
-  oven: { breakfast: 8, morning_snack: 1, afternoon_snack: 3 },
-  microwave: { breakfast: 3 },
-  blender: { breakfast: 10, morning_snack: 7, afternoon_snack: 9 },
-  pressure_cooker: { lunch: 1 }
+  air_fryer: { afternoon_snack: 6, dinner: 12, lunch: 12 },
+  blender: { afternoon_snack: 12, breakfast: 12, dinner: 9, lunch: 11, morning_snack: 11, supper: 1 },
+  grill: { dinner: 12, lunch: 11 },
+  microwave: { afternoon_snack: 10, breakfast: 13, morning_snack: 9, supper: 2 },
+  oven: { afternoon_snack: 3, breakfast: 12, dinner: 43, lunch: 34, morning_snack: 1, supper: 3 },
+  pressure_cooker: { dinner: 7, lunch: 9 },
+  rice_cooker: { dinner: 7, lunch: 11 },
+  steamer: { dinner: 12, lunch: 11 }
 };
 
 /**
@@ -614,6 +628,15 @@ function check(dishes, library) {
       problems.push(`${dish.slug}: no meal`);
     }
 
+    // A control character anywhere in the text is a load that stops half way: Postgres
+    // refuses `\u0000` in JSON. The merge rewrites them; this is what says the file is safe.
+    const texts = [dish.name, ...dish.steps.flatMap(step => [step.text, step.cue ?? ''])];
+
+    // eslint-disable-next-line no-control-regex -- that is exactly what must not reach the file.
+    if (texts.some(text => /[\u0000-\u001f]/.test(text))) {
+      problems.push(`${dish.slug}: a control character in its text, which Postgres will refuse`);
+    }
+
     const [appliance] = dish.cell.split(':');
 
     if (!dish.equipment.includes(appliance)) {
@@ -645,7 +668,7 @@ function check(dishes, library) {
  * purpose — *"retira del fuego"* in a baked dish is a hit. It is what the owner's
  * sample is chosen from, not a gate.
  */
-const HOB = /\b(hierv|hirviendo|sart[eé]n|cazo|olla|a fuego|fuego medio|fuego fuerte|fuego lento|saltea|sofr[ií]|rehoga|dora en|en una cacerola)/i;
+const HOB = /\b(hierv|herv[ií]|hirviendo|sart[eé]n|cazo|olla|a fuego|fuego medio|fuego fuerte|fuego lento|saltea|sofr[ií]|rehoga|dora en|en una cacerola)/i;
 
 function hobWithoutStovetop(dishes) {
   return dishes
@@ -680,15 +703,62 @@ const APPLIANCE_WORDS = [
   { feminine: false, pattern: 'stovetop', spanish: 'fuego' }
 ];
 
+/**
+ * Words that are Spanish but not **this locale's** Spanish, which the appliance
+ * table above cannot hold because nothing about them is English.
+ *
+ * `estufa` is the only one, and it is here because in Spain an *estufa* is a
+ * heater: *"regresa la crema a la estufa"* is a step that tells somebody to put
+ * a saucepan on a radiator. Four of the second batch's drafts said it (2026-10-18).
+ * Each is masculine in its replacement, so the contraction rules run the other
+ * way round from the table above — *de la estufa* becomes *del fuego*.
+ */
+const REGIONAL_WORDS = [{ pattern: 'estufa', spanish: 'fuego' }];
+
+/**
+ * A control character is never part of a sentence, and the model drops one where a symbol
+ * belonged — four steps of the second batch read `a 180\u0000C` and `a 200\u000c` for
+ * *"a 180 °C"*. Postgres refuses the escape outright (`22P05`, *unsupported Unicode escape
+ * sequence*), so the owner's load would have stopped half way through the file. A control
+ * character straight after a number stood for the degrees: it becomes ` °C`, absorbing the C
+ * if that survived. Any other one is replaced by a space, because what it stood for cannot be
+ * guessed and two words must not be run together.
+ */
+function withoutControlCharacters(text) {
+  return (
+    text
+      // eslint-disable-next-line no-control-regex -- a control character is what this removes.
+      .replace(/(\d)[\u0000-\u001f]+(C)?(?!\p{L})/gu, '$1 °C')
+      // eslint-disable-next-line no-control-regex -- and the same for every other one.
+      .replace(/[\u0000-\u001f]+/g, ' ')
+      .replace(/ {2,}/g, ' ')
+      .trim()
+  );
+}
+
 /** One step's text with every appliance word in Spanish, articles and contractions agreeing. */
 function inSpanish(text) {
-  let fixed = text;
+  // The model sometimes glosses the enum for itself — "sobre la cocina (stovetop)" — and a
+  // rewrite of the word alone leaves the reader "sobre la cocina (fuego)". The sentence says
+  // it already, so the gloss goes.
+  let fixed = withoutControlCharacters(text).replace(
+    new RegExp(`\\s*\\((?:${[...APPLIANCE_WORDS, ...REGIONAL_WORDS].flatMap(({ pattern, spanish }) => [pattern, spanish]).join('|')})\\)`, 'gi'),
+    ''
+  );
 
   for (const { feminine, pattern, spanish } of APPLIANCE_WORDS) {
     fixed = fixed
       .replace(new RegExp(`\\bdel\\s+${pattern}\\b`, 'gi'), feminine ? `de la ${spanish}` : `del ${spanish}`)
       .replace(new RegExp(`\\bal\\s+${pattern}\\b`, 'gi'), feminine ? `a la ${spanish}` : `al ${spanish}`)
       .replace(new RegExp(`\\b(?:el|la|los|las|un|una|unos|unas)\\s+${pattern}\\b`, 'gi'), feminine ? `la ${spanish}` : `el ${spanish}`)
+      .replace(new RegExp(`\\b${pattern}\\b`, 'gi'), spanish);
+  }
+
+  for (const { pattern, spanish } of REGIONAL_WORDS) {
+    fixed = fixed
+      .replace(new RegExp(`\\bde\\s+la\\s+${pattern}\\b`, 'gi'), `del ${spanish}`)
+      .replace(new RegExp(`\\ba\\s+la\\s+${pattern}\\b`, 'gi'), `al ${spanish}`)
+      .replace(new RegExp(`\\b(?:el|la|los|las|un|una|unos|unas)\\s+${pattern}\\b`, 'gi'), `el ${spanish}`)
       .replace(new RegExp(`\\b${pattern}\\b`, 'gi'), spanish);
   }
 
@@ -863,17 +933,17 @@ const quote = value => `'${String(value).replace(/'/g, "''")}'`;
  * dish declaring nothing, which `0102` reads as a pan and this phase as a
  * failure.
  */
-function toSql(dishes, locale) {
+function toSql(dishes, locale, librarySize) {
   const slugs = [...new Set(dishes.flatMap(dish => dish.ingredients.map(item => item.slug)))].sort();
   const lines = [
     `-- NutrIA equipment batch: ${dishes.length} dishes, locale ${locale}, source seed, prompt ${PROMPT_VERSION}.`,
-    '-- Project 021 phase 8 — the appliances a person may prefer, given dishes to offer them.',
+    '-- Project 021 — the appliances a person may prefer, given dishes to offer them.',
     '-- Every dish declares its own `equipment` (0102): the model wrote the field, nothing was inferred from prose.',
     `-- Expect ${dishes.length} new rows. A dish whose slug already exists is SKIPPED IN SILENCE (ON CONFLICT (slug) DO`,
     '-- NOTHING), and its ingredients with it, since they ride on the insert’s RETURNING. So the two SELECTs below the',
     '-- ingredient check list what is already there before anything is written, and the one at the end counts what is',
     '-- there after: a count short of the number above is a collision, not a failure, and those queries say which.',
-    '-- Drafted against a development library of 1,130 dishes, so a slug production grew on its own may collide.',
+    `-- Drafted against a development library of ${librarySize.toLocaleString('en-GB')} dishes, so a slug production grew on its own may collide.`,
     "-- source is 'seed', as the five hundred are: a drafted batch validated and loaded by hand, which is what the admin",
     "-- catalogue counts that bucket as. 'ai' is the library's own growth while serving somebody (0080); this is not that.",
     '-- One transaction. Re-running changes nothing.',
@@ -885,7 +955,7 @@ function toSql(dishes, locale) {
     '    WHERE NOT EXISTS (SELECT 1 FROM ingredients i WHERE i.slug = s);',
     "  IF missing IS NOT NULL THEN RAISE EXCEPTION 'missing ingredient slugs: %', missing; END IF;",
     'END $$;',
-    // Drafted against a development library of 1,130 dishes; production's grew
+    // Drafted against the development library counted above; production's grew
     // from real plans and holds slugs this machine has never seen. A collision
     // is therefore possible, and `ON CONFLICT (slug) DO NOTHING` **says nothing
     // about it** — the dish is skipped, its ingredient insert writes nothing
@@ -1031,7 +1101,7 @@ async function main() {
       { inputTokens: 0, outputTokens: 0, uncosted: 0, usd: 0 }
     );
 
-    writeFileSync(join(ROOT, options.out), toSql(dishes, options.locale));
+    writeFileSync(join(ROOT, options.out), toSql(dishes, options.locale, library.slugs.size));
     writeFileSync(
       join(ROOT, options.out.replace(/\.sql$/, '.json')),
       `${JSON.stringify(
@@ -1088,7 +1158,7 @@ async function main() {
   const dishes = done.flatMap(cell => cell.kept);
   const problems = check(dishes, library);
 
-  writeFileSync(join(ROOT, options.out), toSql(dishes, options.locale));
+  writeFileSync(join(ROOT, options.out), toSql(dishes, options.locale, library.slugs.size));
   writeFileSync(
     join(ROOT, options.out.replace(/\.sql$/, '.json')),
     `${JSON.stringify(

@@ -32,7 +32,7 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { TargetBounds } from 'core/domain/Nutrition';
 import type { PlanQuality, PlanViolation } from 'core/domain/PlanValidation';
 import type { GenerationContext } from 'core/controllers/Recipe';
-import { FRESH_DISHES_PER_SLOT, rotatePool } from 'core/domain/Variety';
+import { FRESH_DISHES_PER_SLOT, narrowerShares, rotatePool, withApplianceShare } from 'core/domain/Variety';
 import type { Rotation } from 'core/domain/Variety';
 import type { PlanDraft } from 'core/entities/Plan';
 
@@ -360,6 +360,13 @@ export class PlanGenerationService {
       weights
     });
     let fallback: Fallback = null;
+    /**
+     * Which rung of the kitchen's share this plan ended on: `null` for the full
+     * share, which is every plan that reached its bands with it and every plan
+     * rescued from the whole library, and a number when the share had to give
+     * way for the bands (`narrowerShares`).
+     */
+    let kitchenShare: number | null = null;
 
     if (!scheduled.ok) {
       this.logger.warn(
@@ -479,6 +486,67 @@ export class PlanGenerationService {
      * No second model call — the library costs nothing to read.
      */
     if (fallback === null && planBandMiss(violations) > 0) {
+      /*
+       * **The kitchen gives way before the rotation does** (`0102`
+       * § *A rescued fortnight has no kitchen, and the share is what sends it
+       * there*, 2026-10-18). A preferred appliance holds a share of every slot's
+       * cap, and the dishes that share displaces may be the ones that were
+       * reaching the macros: on the owner's own fortnight the share took the
+       * rotation's pool from 14 days in band to 12, and the rescue below then
+       * delivered 14 again **from the whole library, where a share is no longer
+       * scarce — with none of his air fryer on any plate**. Asking for the
+       * appliance returned fewer of its dishes than not asking for it.
+       *
+       * So before the pool becomes everything, the share walks down
+       * `narrowerShares`: half of it, then none. The rotation is otherwise
+       * untouched — the same seed, the same avoid list, the same food-group
+       * reserves, the model's fresh dishes still first — because giving up an
+       * appliance costs a person less than giving up all of that at once. The
+       * first rung that reaches every band wins and nothing below it is tried;
+       * a rung that does not miss by less is discarded, which is the same test
+       * the rescue below applies, so this can never hand back a worse plan.
+       */
+      const fromBuilder = built.dishes.filter(dish => !inPool.has(dish.slug));
+
+      for (const share of narrowerShares(rotation)) {
+        const narrowed = RecipeController.rotateFor(everything, slots, context, withApplianceShare(rotation, share));
+        const pool = [...new Map([...fromBuilder, ...narrowed].map(dish => [dish.slug, dish])).values()];
+        const retried = schedulePlan({
+          pinned,
+          proteinWeights,
+          ...sides,
+          catalogue: context.catalogue,
+          dayTargets: loads.dayTargets,
+          minimumKcal,
+          monthOf,
+          // Awaited inside the loop on purpose: the rungs are tried in order, and the first that holds the bands stops it.
+          pool: await poolWithPins(pool),
+          targets,
+          weights
+        });
+
+        if (!retried.ok) {
+          continue;
+        }
+
+        const retriedViolations = check(retried.assignment);
+
+        if (retriedViolations.some(isBlocking) || planBandMiss(retriedViolations) >= planBandMiss(violations)) {
+          continue;
+        }
+
+        this.logger.log(`Macros missed with the kitchen's full share; ${share} dishes a slot missed by less`);
+        scheduled = retried;
+        violations = retriedViolations;
+        kitchenShare = share;
+
+        if (planBandMiss(violations) === 0) {
+          break;
+        }
+      }
+    }
+
+    if (fallback === null && planBandMiss(violations) > 0) {
       const rest = rotatePool(everything, slots, rotation, Number.POSITIVE_INFINITY);
       const wider = [...new Map([...built.dishes, ...rest].map(dish => [dish.slug, dish])).values()];
       const retried = schedulePlan({
@@ -502,6 +570,9 @@ export class PlanGenerationService {
           scheduled = retried;
           violations = retriedViolations;
           fallback = 'wider_rotation';
+          // The share is a quota in a pool and this pool is the whole library:
+          // whatever rung the loop above settled on, nothing is reserved here.
+          kitchenShare = null;
         }
       }
     }
@@ -574,7 +645,7 @@ export class PlanGenerationService {
           context,
           jobId,
           rotation,
-          { advisories: advisorySummary, fallback, quality },
+          { advisories: advisorySummary, fallback, kitchenShare, quality },
           start,
           loads,
           dates.today,
@@ -729,7 +800,12 @@ export class PlanGenerationService {
     context: GenerationContext,
     jobId: string,
     rotation: Rotation,
-    { advisories, fallback, quality }: { readonly advisories: readonly string[]; readonly fallback: Fallback; readonly quality: PlanQuality },
+    {
+      advisories,
+      fallback,
+      kitchenShare,
+      quality
+    }: { readonly advisories: readonly string[]; readonly fallback: Fallback; readonly kitchenShare: number | null; readonly quality: PlanQuality },
     start: Date,
     loads: Loads,
     today: string,
@@ -789,6 +865,11 @@ export class PlanGenerationService {
         // notice (`0099`) will need: what was asked for, beside what arrived.
         fixedMeals: [...pinned].flatMap(([dayIndex, day]) => [...day.values()].map(pin => ({ dayIndex, slot: pin.slot, slug: pin.slug }))),
         jobId,
+        // What the kitchen's preference was narrowed to for the macros' sake,
+        // and `null` when it was not — the figure `0102` asks a measurement of a
+        // preference to count, since the bands that survive it say nothing about
+        // what it cost to keep them.
+        kitchenShare,
         locale: context.locale,
         poolSeed: rotation.seed,
         quality,
