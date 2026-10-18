@@ -2258,6 +2258,13 @@ shipped a sentence saying the batch cost twelve days of macros.
   transaction, `ON CONFLICT (slug) DO NOTHING`; the file prints what production already holds
   before it writes and counts what is there after. A count short of 280 is a collision, which
   the file's own queries name.
+- **Hand him the production name, and it is only one.** The load command given to the owner
+  twice named `apps/api/.env`'s `DIRECT_DATABASE_URL`, which is the **dev** endpoint since the
+  2026-09-24 Neon split and is over quota: his `psql` died on `53000` and wrote nothing
+  anywhere. Production's only local name is `DATABASE_URL_PRO` in `packages/database/.env`,
+  which is what `guard.mjs` reads for a read-only probe and what the owner's load must name.
+  Checked by comparing hosts with the `-pooler` label stripped — a first check compared the
+  whole first label and read production's direct endpoint as a different project.
 - **Criterion 8 closes on his plan, not on a measurement.** After the load, the fortnight he
   generates next is the thing to read — and `generation_metadata.kitchenShare` now says what
   the bands cost him, which no earlier plan could.
