@@ -81,6 +81,36 @@ export const FRESH_DISHES_PER_SLOT = Math.ceil(DISHES_NEEDED_PER_SLOT * FRESH_SH
 const REUSED_DISHES_PER_SLOT = DISHES_NEEDED_PER_SLOT;
 
 /**
+ * Dishes a slot keeps for the appliances they would rather cook with (`0102`) —
+ * inside `REUSED_DISHES_PER_SLOT`, and after the food groups.
+ *
+ * **Why a share at all**, when `isPreferredDish` already puts these dishes at
+ * the front of the pick: because that front is one bucket for all four
+ * leanings, with no rank inside it. Measured on the owner's own fortnight
+ * (2026-10-18, an air fryer `prefers` against a library that had just grown 30
+ * air-fryer dishes): his four liked cuisines put **548 of his 672 servable
+ * dishes** in that bucket, so an air-fryer dish was one in twenty-three of what
+ * the cap took — **three reached the pool and none reached a plate**, while the
+ * same code with the kitchen as the only leaning put 24 in the pool and 22 on
+ * plates. A preference nobody can see is not a preference; the appliance is the
+ * one leaning a person reads off the plate, so it gets a floor of its own
+ * instead of a place in a queue.
+ *
+ * **A third of the cap**, which is the fraction `0013` already uses for
+ * freshness, and measured rather than chosen: on that same fortnight the share
+ * buys 0 plates at zero, 6 at three, 7 at five and 7 at seven, and above seven
+ * nothing — his air fryer holds twelve lunches and twelve dinners, so the
+ * supply runs out before the cap does.
+ *
+ * **It costs the bands nothing**, which is the figure it had to clear: his
+ * fortnight re-scheduled with the share keeps the 12 of 14 days in band that
+ * the plan he was actually served scored, and the fourteen evaluator profiles
+ * over three seeds each keep 587 of 588 — both read from `planQuality`, never
+ * from a hand-rolled band check.
+ */
+const APPLIANCE_DISHES_PER_SLOT = Math.ceil(REUSED_DISHES_PER_SLOT / 3);
+
+/**
  * The dishes a slot takes first, chosen from that slot's dishes in shuffled
  * order, knowing which dishes an earlier slot already took: see `rotatePool`.
  */
@@ -91,14 +121,17 @@ export type Rotation = {
   readonly avoidSlugs: ReadonlySet<string>;
   /**
    * Appliances they would rather cook with (`0102`). A dish that needs one goes
-   * to the front of the pick, exactly as a chosen cuisine does.
+   * to the front of the pick **and holds a share of every slot's cap**
+   * (`APPLIANCE_DISHES_PER_SLOT`), which the other three leanings do not: the
+   * front alone is one bucket they all share, and a person who had named four
+   * cuisines saw none of their preferred appliance reach a plate because of it.
    *
    * **It takes nothing out of their library**: `servable` compares `missing`
    * and nothing else, so the library this picks from is the same one with the
-   * preference and without it. What it does move is which dishes the per-slot
-   * cap then takes — the same thing `preferCuisines` has done since `0026`,
-   * and the reason that cap keeps a tail rather than a filter: somebody who
-   * prefers an air fryer still eats on the days the library has none.
+   * preference and without it. What it moves is which dishes the per-slot cap
+   * takes, and the cap keeps a tail rather than becoming a filter: somebody who
+   * prefers an air fryer still eats on the days the library has none, and the
+   * share is never taken from what the food groups keep.
    */
   readonly preferAppliances?: ReadonlySet<Appliance>;
   /**
@@ -145,15 +178,40 @@ export function isPreferredDish(dish: CandidateDish, rotation: Leaning): boolean
     return true;
   }
 
-  // What they would rather cook with (`0102`). Here and nowhere else: a stable
-  // partition, so the rest is still behind it and nothing leaves the library
-  // (`servable` reads `missing` alone). Inside `rotatePool`'s per-slot cap it
-  // does move which dishes are taken, as every leaning above has since `0026`.
-  if ((dish.equipment ?? []).some(appliance => rotation.preferAppliances?.has(appliance) ?? false)) {
+  // What they would rather cook with (`0102`): a stable partition, so the rest
+  // is still behind it and nothing leaves the library (`servable` reads
+  // `missing` alone). Being in this bucket is **not** enough on its own — it is
+  // one bucket for four leanings, and the measurement in
+  // `APPLIANCE_DISHES_PER_SLOT` is what a wide taste does to an appliance
+  // inside it — so `rotatePool` also keeps the appliance a share of each cap.
+  if (prefersAppliance(dish, rotation)) {
     return true;
   }
 
   return dish.ingredients.some(item => rotation.preferIngredientSlugs?.has(item.slug) ?? false);
+}
+
+/** Whether this dish needs an appliance they said they would rather use (`0102`). */
+function prefersAppliance(dish: CandidateDish, leaning: Leaning): boolean {
+  return (dish.equipment ?? []).some(appliance => leaning.preferAppliances?.has(appliance) ?? false);
+}
+
+/**
+ * The dishes of a slot kept for a preferred appliance: as many as
+ * `APPLIANCE_DISHES_PER_SLOT` leaves once what the food groups already reserved
+ * is counted — a fish cooked in the air fryer is not paid for twice — and
+ * **nothing at all when no appliance is preferred**, so a kitchen nobody filled
+ * in rotates exactly as it did before `0102`.
+ */
+function applianceShare(inSlot: readonly CandidateDish[], rotation: Rotation, reserved: readonly CandidateDish[]): readonly CandidateDish[] {
+  if (!rotation.preferAppliances || rotation.preferAppliances.size === 0) {
+    return [];
+  }
+
+  const already = new Set(reserved.map(dish => dish.slug));
+  const wanted = APPLIANCE_DISHES_PER_SLOT - reserved.filter(dish => prefersAppliance(dish, rotation)).length;
+
+  return wanted <= 0 ? [] : inSlot.filter(dish => !already.has(dish.slug) && prefersAppliance(dish, rotation)).slice(0, wanted);
 }
 
 /** FNV-1a. A string in, a well-mixed 32-bit integer out; enough to seed a generator. */
@@ -244,7 +302,11 @@ export function rotatePool(
     let count = 0;
     const inSlot = shuffled.filter(dish => dish.slots.includes(slot));
     const reserved = reserve ? reserve(inSlot, slot, new Set(taken.keys())) : [];
-    const ordered = reserved.length > 0 ? [...new Set([...reserved, ...inSlot])] : inSlot;
+    // After the groups, never instead of them: a legume minimum is what
+    // validation refuses a fortnight for, and a preference is not — so the
+    // share takes from what the cap has left once the groups are kept.
+    const kitchen = applianceShare(inSlot, rotation, reserved);
+    const ordered = reserved.length + kitchen.length > 0 ? [...new Set([...reserved, ...kitchen, ...inSlot])] : inSlot;
 
     for (const dish of ordered) {
       if (count >= perSlot) {

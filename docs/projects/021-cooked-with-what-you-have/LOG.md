@@ -1816,3 +1816,132 @@ a finished file.
 - **The guard that refused the load is working, and that is worth not fixing in a hurry.** If
   the owner wants an agent to be able to run a reviewed load, the narrow change is a permission
   rule for exactly that command, not a looser classifier.
+
+## Phase 10 — A preference nobody can see (2026-10-18)
+
+- **Executor**: the lead directly, at this session's effort. The owner ran the load, saw the
+  fortnight that followed it, and authorised the fix overnight — *"haz todo lo posible para
+  solucionar esto, genera todos los planes necesarios con todo tipo de usuario, haz push y
+  merge de lo que sea necesario, te doy permiso"* (2026-10-18). No subagent: the work is one
+  diagnosis on production's own rows, and a fresh agent would have had to re-derive every
+  number in it.
+- **Result**: done. A preferred appliance holds a third of every slot's cap. On the owner's
+  own fortnight, re-scheduled from his real context with the seed his plan used, the plates
+  go from **0 to 8 of 56** at the same 12 of 14 days in band; over the evaluator's fourteen
+  profiles × three seeds the median is **18 of 56** with **587 of 588 days in band**.
+
+### What happened
+
+The load landed at 02:53 UTC — 169 dishes, no collisions, production at 1,141 es-ES dishes
+with **30 declaring an air fryer** where it had held none. Five minutes later the owner
+generated a fortnight with the air fryer still `prefers`, and it came back with **0
+air-fryer plates of 56** and not one of the 169 dishes on any plate.
+
+### Ruled out, on the rows rather than by reasoning
+
+- **The timing**: the batch's rows are stamped 02:53:07, the generation job 02:57:54, the
+  plan 02:58:55. The plan ran after the load.
+- **The stored method**: an array of steps with `cue`, `text` and `minutes`, 2–8 of them
+  (the five hundred average 4.97), so `hasUsableMethod` passes on all 169.
+- **`fitSlots`**: keeps 165 of the 169 and takes a dinner from exactly 4 — stewed pulses at
+  a Spanish dinner (`0079`), which is the table working.
+- **The season**: `seasonFor` judges fresh fruit alone; these dishes carry none.
+- **The person's own filters**: the free-from substitutes, the country scope, the time limit
+  (his is 60 minutes, so `withinTime` allows 80) and his `blender: missing` exclude **none**
+  of the 24 air-fryer dishes servable to him.
+- **A cache**: there is none in `RecipeRepository`; every generation reads the library.
+- **`servable` drops 117 of the 169, and that is the constraint half working**: a rice
+  cooker, a steamer and a pressure cooker are `missing` for him under the default kitchen,
+  so their dishes are correctly invisible. 120 of the batch keep a lunch or a dinner.
+
+### The cause
+
+`isPreferredDish` is **one bucket for four leanings** — a liked dish, a liked cuisine, a
+liked ingredient or a preferred appliance — and `rotatePool` fills each slot's cap from the
+front of that bucket with no rank inside it. He had named four cuisines (Mediterránea,
+Española, Italiana, Mexicana), so the bucket held **548 of his 672 servable dishes** and an
+air-fryer dish was **one in 22.8** of what the cap took.
+
+Reproduced with the real code, his real context and his plan's own seed: **3 air-fryer
+dishes in the pool, 0 on plates** — and the proof that the reproduction is his generation
+and not a model of it is that its pool is 68 dishes, the `reused: 68` his plan recorded. The
+same code with the kitchen as the only leaning: **24 in the pool, 22 on plates**.
+
+### The fix, and why this size
+
+`APPLIANCE_DISHES_PER_SLOT` keeps a third of each slot's cap for the appliances they would
+rather use — **after** `reserveGroups` and never from it, because a legume minimum is what
+validation refuses a fortnight for and a preference is not, and **nothing at all** when no
+appliance is preferred, which `Rotation.test.ts` asserts rather than assumes.
+
+A third because it is measured, on his own fortnight with accompaniments and the energy
+floor as the generation passes them: 0 plates at a share of zero, 6 at three, 7 at five, 7
+at seven — and seven is where every one of the fourteen days is back inside the band, while
+nine and twelve buy no further plate (his air fryer holds 12 lunch dishes and 12 dinner
+dishes, so the share runs out before the cap does).
+
+### Evidence
+
+- **His own fortnight, re-scheduled read-only against production** with everything the
+  generation passes: pool 69 dishes of which **14 declare an air fryer** (was 3), **8 plates
+  of 56** (was 0), 41 distinct dishes, nothing served more than twice, and the product's own
+  `validatePlan` + `planQuality` say **12 of 14 days in band** — the same 12 of 14 the plan
+  he was served scored, missing on the same two fat days (71.4 g against 68) that his two
+  fixed meals already cost him before any of this.
+- **Fourteen profiles × three seeds over the local library, which holds the same batch**
+  (`--rotate 3 --prefer air_fryer --flag accompaniments`): **median 18 preferred plates of
+  56**, max 27, and **587 of 588 days in band (99.8%)**.
+- **The seven fortnights that still showed none are exactly the seven rescued from the whole
+  library** (`wider_rotation`, 7 of the 8 rescues; the eighth showed one plate). The 34 that
+  did not need a rescue have a median of 18. The bands outrank the preference by design
+  (`0045` before `0102`) and the rescue is what that order looks like on a plate — recorded,
+  not fixed, because weakening a rescue to show an appliance would trade the owner's own bar
+  for a preference.
+- **The same 42 fortnights without `--prefer`, as a baseline**: 588 of 588 days in band
+  against 587 of 588, no blocking violation either way, and a balance score median of 0.846
+  against 0.769. Rule by rule the preference trades rather than loses: whole grain +14
+  points, eggs +13, starches +7, legumes +2, fish +3, oily fish +3, against fish and
+  shellfish −21, vegetables −19, meat −13 and processed −10. The appliance's 24 dishes are
+  roast-and-crisp plates, so a fortnight leaning on them eats narrower — and `vegetables`
+  was already met on only 26 of 42 fortnights with no preference stated at all, so the
+  answer is supply, not a smaller share.
+- **Without `--flag accompaniments` every profile is rescued and the median is 0.** The sides
+  are what let a capped pool reach the bands, so a preference measured without them says
+  nothing. Said in `apps/api/AGENTS.md` beside the flag.
+
+### Deviations from plan
+
+1. **A phase the plan did not have.** Phase 9 was the last; this is phase 10, added with the
+   owner's authorisation after the load exposed something no phase had asked about. The plan
+   carries it with its own dispatch, scope and verification.
+2. **An instrument was changed, not only read.** `evaluate-plans.mjs` builds its rotation
+   "as `PlanGeneration` builds it" by its own header and did not carry `preferAppliances`, so
+   it could not see a preference at all. `--prefer` and a per-profile line are part of this
+   phase because the measurement it is accepted on cannot be taken without them.
+3. **The `0102` section corrects what phase 9 shipped four hours earlier.** `packages/core/AGENTS.md`
+   said a `prefers` stance moves the order "exactly as a chosen cuisine and a liked food
+   have since `0026`" — which is true and is the defect. Amended in the same change.
+
+### Decisions this phase touches
+
+- [`0102`](../../decisions/0102-a-kitchen-is-what-it-has-and-what-it-would-rather-use.md) —
+  § *A preference nobody can see is not a preference*: the dilution, the share, the curve, and
+  what the rescue costs it. The owner authorised the fix; the share's size is the planner's,
+  on the curve, and his to revisit.
+- [`0045`](../../decisions/0045-a-day-is-built-to-all-four-of-its-numbers.md) — cited as the
+  rule that outranks this one, which is what the rescue's zeros are.
+- **No new record.** The share is `0102`'s own preference half finally working; a second
+  decision would split one rule across two files.
+
+### Notes for the next phase
+
+- **Criterion 8 is still open, and the share cannot close it.** Eight plates on his fortnight
+  and a median of 18 across the profiles are not "at least as many as the plan has days" on
+  *his* library: the air fryer holds 12 lunch and 12 dinner dishes against the 19 a slot the
+  rotation asks for. The lever is supply, and a second batch costs 0.32 USD.
+- **The other three leanings keep their one bucket.** Whether a chosen cuisine deserves a
+  share of its own is a product question nobody has measured; nothing here says the cuisine
+  leaning is hurting anybody, and it should not be changed on the strength of this.
+- **A preference that disappears in a rescue is worth a figure.** `generation_metadata`
+  already records `fallback`; counting preferred plates beside it would say how often the
+  bands cost somebody the appliance they asked for, without storing anything about a person.

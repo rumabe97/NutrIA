@@ -28,7 +28,7 @@
  *
  * Usage (from the repository root, against the local Postgres `pnpm db:local` runs —
  * never Neon):
- *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--without oven[,blender]] [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds] [--exceptions]] [--pins N [--pin-slot <slot>] [--per-day N]]
+ *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--without oven[,blender]] [--prefer air_fryer[,grill]] [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds] [--exceptions]] [--pins N [--pin-slot <slot>] [--per-day N]]
  *
  * `--flag <name>` names a scheduler flag to measure with on (project 016). The
  * one that exists is `accompaniments`: each profile's larder (`larderFor`, the
@@ -109,6 +109,7 @@ import {
   isLegumeSlug,
   leaningSlugs,
   PATTERN_EXCLUDED_SLUGS,
+  preferredAppliances,
   resolvePreferences
 } from 'core/domain/Preference';
 import {
@@ -452,6 +453,7 @@ function parseArgs(argv) {
     pinNoStarch: false,
     pinSlot: null,
     pins: 0,
+    prefer: [],
     rotate: null,
     start: '2026-10-05',
     without: []
@@ -522,6 +524,16 @@ function parseArgs(argv) {
       }
 
       options.without = named;
+    } else if (arg === '--prefer') {
+      const named = (argv[(index += 1)] ?? '').split(',').filter(Boolean);
+      const unknown = named.filter(appliance => !APPLIANCES.includes(appliance));
+
+      if (named.length === 0 || unknown.length > 0) {
+        console.error(`--prefer needs appliances of the catalogue (${APPLIANCES.join(', ')})`);
+        process.exit(2);
+      }
+
+      options.prefer = named;
     } else if (arg === '--flag') {
       const name = argv[(index += 1)];
 
@@ -589,6 +601,27 @@ function withoutAppliances(shared, without) {
 
   for (const appliance of without) {
     kitchen[appliance] = 'missing';
+  }
+
+  return { ...shared, preferences: { ...shared.preferences, kitchen } };
+}
+
+/**
+ * The same context with appliances they would rather use (`0102`) — the other
+ * half of `withoutAppliances`, and the only way this instrument can measure the
+ * preference half at all: the stance travels to the rotation through
+ * `preferredAppliances(preferences.kitchen)`, exactly as `PlanGeneration` reads
+ * it, so what is measured here is the pick a real plan would be built from.
+ */
+function withPreferredAppliances(shared, prefer) {
+  if (prefer.length === 0) {
+    return shared;
+  }
+
+  const kitchen = { ...shared.preferences.kitchen };
+
+  for (const appliance of prefer) {
+    kitchen[appliance] = 'prefers';
   }
 
   return { ...shared, preferences: { ...shared.preferences, kitchen } };
@@ -1476,6 +1509,10 @@ async function measureRotations(profile, shared, options) {
   for (let seed = 1; seed <= options.rotate; seed += 1) {
     const rotation = {
       avoidSlugs: new Set(),
+      // What they would rather cook with, which `PlanGeneration` passes and this
+      // instrument did not: without it a `--prefer` run would measure the pick of
+      // a kitchen nobody stated, and the preference half of `0102` cannot be seen.
+      preferAppliances: new Set(preferredAppliances(context.preferences.kitchen)),
       preferCuisines: new Set(),
       preferIngredientSlugs: leaningSlugs(context.preferences),
       preferSlugs: new Set(),
@@ -1547,6 +1584,14 @@ async function measureRotations(profile, shared, options) {
       measured: true,
       missedBand,
       offer: rotationOffer(reusable, context.catalogue),
+      // The preference half of `0102`, which only a `--prefer` run can see: how
+      // many of the pick, and of the plates, are cooked in an appliance they said
+      // they would rather use. Zero plates with dishes in the pick is the defect
+      // `APPLIANCE_DISHES_PER_SLOT` exists for.
+      preferredOffered: reusable.filter(dish => (dish.equipment ?? []).some(appliance => rotation.preferAppliances.has(appliance))).length,
+      preferredPlates: scheduled.assignment.days
+        .flatMap(day => day.meals)
+        .filter(meal => (meal.dish.equipment ?? []).some(appliance => rotation.preferAppliances.has(appliance))).length,
       pinnedDaysBelowFloor: [...belowFloor].filter(day => pins.map.has(day)).length,
       // Which slots a lost day pinned are the whole shape of the answer: a fixed
       // lunch takes about 40% of a three-meal day's energy, a fixed breakfast far
@@ -1615,6 +1660,8 @@ function summariseRotations(results) {
       offerLegumeKinds: spread(plans, plan => plan.offer.legumeKinds),
       offerLegumeMains: spread(plans, plan => plan.offer.legumeMains),
       plans: plans.length,
+      preferredOffered: spread(plans, plan => plan.preferredOffered),
+      preferredPlates: spread(plans, plan => plan.preferredPlates),
       processed: spread(plans, plan => plan.balance.counts.processed),
       score: spread(plans, plan => plan.balance.score),
       slug: result.slug
@@ -1715,6 +1762,14 @@ function printRotations(results, summary) {
     console.log(
       `  rotation offer at lunch and dinner — legume dishes ${range(profile.offerLegumeMains)}, of kinds ${range(profile.offerLegumeKinds)}`
     );
+
+    // Printed only for a `--prefer` run, where the number means something: a
+    // kitchen nobody stated offers no preferred dish and eats no preferred plate.
+    if (profile.preferredOffered && profile.preferredOffered.max > 0) {
+      console.log(
+        `  preferred appliance — dishes in the pick ${range(profile.preferredOffered)}, plates served ${range(profile.preferredPlates)} of ${PLAN_DAYS * (result.slots?.length ?? 0) || 'n/a'}`
+      );
+    }
     console.log(
       `  applies: ${Object.entries(result.supply ?? {})
         .map(([group, has]) => `${group} ${has ? 'yes' : 'no'}`)
@@ -2583,6 +2638,7 @@ function finishRotations(options, library, results) {
           flags: options.flags,
           library,
           locale: options.locale,
+          prefer: options.prefer,
           rotate: options.rotate,
           start: options.start,
           without: options.without,
@@ -2629,7 +2685,7 @@ async function main() {
         databaseModule.database = () => tx;
 
         try {
-          const shared = withoutAppliances(await baseContext(options.locale), options.without);
+          const shared = withPreferredAppliances(withoutAppliances(await baseContext(options.locale), options.without), options.prefer);
 
           library = await libraryComposition(tx, options.locale);
           results = [];
@@ -2659,7 +2715,8 @@ async function main() {
   // its kitchen: `--compare` against a file that cannot say what it lacked would
   // read a smaller pool as a regression (`0102`, project 021 phase 6).
   console.log(
-    `Kitchen: ${options.without.length > 0 ? `the default, without ${options.without.join(', ')}` : 'the default (hob, oven, microwave, blender)'}`
+    `Kitchen: ${options.without.length > 0 ? `the default, without ${options.without.join(', ')}` : 'the default (hob, oven, microwave, blender)'}` +
+      `${options.prefer.length > 0 ? `, and would rather use ${options.prefer.join(', ')}` : ''}`
   );
   console.log(`Fortnight starts: ${options.start}`);
   console.log(`Profiles (fixed, reuse for the next run): ${PROFILES.map(profile => profile.slug).join(', ')}`);
@@ -2684,6 +2741,7 @@ async function main() {
           flags: options.flags,
           library,
           locale: options.locale,
+          prefer: options.prefer,
           start: options.start,
           without: options.without,
           profiles: PROFILES.map(profile => ({ description: profile.description, slug: profile.slug })),

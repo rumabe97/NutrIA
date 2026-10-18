@@ -331,5 +331,72 @@ again, for the same reason, because the library had not changed. What **did** sh
 plan is the other half working unremarked: **0 plates with a blender**, his `missing` stance
 silently keeping production's 20 blender dishes out of his pool.
 
+## A preference nobody can see is not a preference (2026-10-18)
+
+The library arrived. The owner ran the load at 02:53 UTC — 169 dishes, 0 collisions,
+production at 1,141 es-ES dishes with **30 declaring an air fryer** where it had none — and
+generated a fortnight five minutes later, with the air fryer still `prefers`. It came back
+with **0 air-fryer plates of 56**, and not one of the 169 new dishes on any plate.
+
+**What it was not.** Each ruled out on the real rows rather than reasoned about: the stored
+method (an array with cue, text and minutes, 2–8 steps, so `hasUsableMethod` passes);
+`fitSlots`, which keeps 165 of the 169 and takes a dinner from only 4 (stewed pulses at a
+Spanish dinner, `0079`); the season, which judges fresh fruit alone; the free-from
+substitutes, the country scope, the time limit and his missing blender, which together
+exclude none of the 24 air-fryer dishes servable to him; and any cache, of which there is
+none. `servable` does drop 117 of the 169 **and that is the constraint half working**: a
+rice cooker, a steamer and a pressure cooker are `missing` for him by the default kitchen,
+so their dishes are correctly invisible.
+
+**What it was: one bucket for four leanings.** `isPreferredDish` returns true for a liked
+dish, a liked cuisine, a liked ingredient **or** a preferred appliance, and `rotatePool`
+takes the per-slot cap from the front of that one partition. He had named four cuisines, so
+the partition held **548 of his 672 servable dishes** and an air-fryer dish was **one in
+22.8** of what the cap took. Measured with the real code, his real context and the seed his
+plan used: **3 air-fryer dishes reached the pool and none reached a plate** — while the same
+code with the kitchen as the only leaning put **24 in the pool and 22 on plates**. The
+preference was not weak. It was diluted, and by the feature that was supposed to sit beside
+it.
+
+**The fix is a share, not a stronger prompt.** `APPLIANCE_DISHES_PER_SLOT` keeps a third of
+every slot's cap for the appliances they would rather use — after the food groups, never
+instead of them, because a legume minimum is what validation refuses a fortnight for and a
+preference is not. A third because it is measured: on his own fortnight the share buys 0
+plates at zero, 6 at three, 7 at five and 7 at seven, and above seven nothing — his air
+fryer holds twelve lunches and twelve dinners, so the supply runs out before the cap does. It remains an **order and
+never a filter**: the tail is still behind the share, and a kitchen nobody filled in rotates
+exactly as it did before — asserted, not assumed (`Rotation.test.ts`).
+
+**What it is worth, on his own fortnight, re-scheduled with everything the generation passes**
+(accompaniments, the energy floor, the same seed, the same avoid list): the pool goes from 3
+air-fryer dishes to 14, the plates from **0 to 8 of 56**, and the product's own validator
+says **12 of 14 days in band — the same 12 of 14 the plan he was served scored**, missing on
+the same two fat days his two fixed meals already cost him (71.4 g against 68). 41 distinct
+dishes of 56, nothing served more than twice.
+
+**What a preference costs, measured against saying nothing** (the same fourteen profiles and
+three seeds, with and without `--prefer air_fryer`, 42 fortnights each): the bands hold —
+**588 of 588 days in band without it, 587 of 588 with it**, no blocking violation either way
+— and the fortnight's balance score falls from **0.846 to 0.769**. The movement is a trade
+and worth naming rather than averaging: whole grain is met 14 points more often, eggs 13,
+starches 7, and legumes, fish and oily fish each 2–3 — while **fish and shellfish together
+fall 21 points, vegetables 19, meat 13 and processed food 10** (the last being an
+improvement). The air fryer's 24 dishes are roast-and-crisp plates of tofu, cod, chicken and
+root vegetables, so a fortnight that leans on them eats narrower. That is the honest price of
+asking for one appliance out of a library of 24 dishes for it, and it is an argument for the
+second batch rather than against the share: `vegetables` was already met on only 26 of 42
+fortnights before any preference existed.
+
+**What is still owed.** Eight plates of 56 is not criterion 8's fourteen, and no share can
+buy them: the air fryer holds 12 lunch dishes and 12 dinner dishes, and the rotation asks for
+19 a slot (`DISHES_NEEDED_PER_SLOT`). From here the lever is supply, exactly as
+§ *Adding an appliance to the catalogue is adding a promise* says, and a second batch costs
+0.32 USD. The other three leanings keep their one bucket, which is a question this record
+does not answer: whether a chosen cuisine should hold a share of its own is the owner's, and
+nothing measured here says it is hurting anybody.
+
+(who decided: the owner, 2026-10-18, authorised the fix and the measurement overnight; the
+share's size is the planner's, on the curve above, and his to revisit.)
+
 (who decided: the owner, 2026-10-15 — the feature, and that the time question is measured
 separately; the planner, the shape above, with the library's numbers in hand.)
