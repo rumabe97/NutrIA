@@ -233,7 +233,9 @@ describe('isPreferredDish — the four reasons a dish goes first', () => {
   it('keeps the appliance a share of the cap that a wide taste cannot swallow', () => {
     const lunch: readonly MealSlot[] = ['lunch'];
     const liked = library(200, lunch).map((dish): CandidateDish => ({ ...dish, cuisine: 'mediterranea', equipment: ['stovetop'] }));
-    const theirs = library(12, lunch).map((dish, index): CandidateDish => ({
+    // Thirty, which is what production holds for the air fryer at lunch since the second batch:
+    // more than the share, so what limits the pick is the share and not the shelf.
+    const theirs = library(30, lunch).map((dish, index): CandidateDish => ({
       ...dish,
       cuisine: 'internacional',
       equipment: ['air_fryer'],
@@ -251,10 +253,10 @@ describe('isPreferredDish — the four reasons a dish goes first', () => {
     const theirsPicked = pool.filter(dish => dish.equipment?.includes('air_fryer'));
 
     expect(pool).toHaveLength(DISHES_NEEDED_PER_SLOT);
-    // A third of the cap, whatever else the library leans towards.
-    expect(theirsPicked.length).toBeGreaterThanOrEqual(Math.ceil(DISHES_NEEDED_PER_SLOT / 3));
-    // And the bucket on its own does not do it: naming no appliance leaves the
-    // same twelve dishes to the shuffle, which is the measurement in miniature.
+    // Three quarters of the cap, whatever else the library leans towards.
+    expect(theirsPicked.length).toBeGreaterThanOrEqual(Math.floor((DISHES_NEEDED_PER_SLOT * 3) / 4));
+    // And the bucket on its own does not do it: naming no appliance leaves those
+    // dishes to the shuffle, which is the measurement in miniature.
     const bucketOnly = rotatePool(dishes, lunch, { ...rotation, preferAppliances: new Set() });
 
     expect(bucketOnly.filter(dish => dish.equipment?.includes('air_fryer')).length).toBeLessThan(theirsPicked.length);
@@ -292,15 +294,17 @@ describe('isPreferredDish — the four reasons a dish goes first', () => {
 
 describe("the share gives way before the rotation does (0102, the owner's plan v28)", () => {
   // `APPLIANCE_DISHES_PER_SLOT` is module-private, and its definition is this:
-  // a third of the cap, which is a third of what a slot needs.
-  const share = Math.ceil(DISHES_NEEDED_PER_SLOT / 3);
+  // three quarters of the cap, which is three quarters of what a slot needs
+  // (raised from a third on 2026-10-18, once supply could fill it — `0102`
+  // § *The share is three quarters of every slot, and the ceiling is measured*).
+  const share = Math.floor((DISHES_NEEDED_PER_SLOT * 3) / 4);
   const lunch: readonly MealSlot[] = ['lunch'];
   // The same shape as the measurement: a taste so wide that the preferred
   // bucket holds nearly the whole library, so the only thing that puts an
   // air-fryer dish in the pick is the share itself.
   const shelf = (): readonly CandidateDish[] => [
     ...library(200, lunch).map((dish): CandidateDish => ({ ...dish, cuisine: 'mediterranea', equipment: ['stovetop'] })),
-    ...library(12, lunch).map((dish, index): CandidateDish => ({
+    ...library(30, lunch).map((dish, index): CandidateDish => ({
       ...dish,
       cuisine: 'internacional',
       equipment: ['air_fryer'],

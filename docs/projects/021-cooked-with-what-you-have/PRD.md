@@ -201,7 +201,16 @@ When this ships:
    and then on production, with the query that produced each number.
 8. **A preference changes what is written, by a number**: with the air fryer preferred, one
    generation yields at least as many air-fryer dishes as the plan has days in it, against
-   the 1 dish in 1128 the library holds today. The figure goes in the record.
+   the 1 dish in 1128 the library holds today. The figure goes in the record. **Met on
+   2026-10-18**, and the number needed the share raised to reach it: the owner's own fortnight
+   serves **14 air-fryer plates of the 28 its meal shape allows** — his day holds breakfast,
+   mid-morning, lunch and dinner, and the library holds air-fryer dishes for lunch and dinner
+   of those — with **14 of 14 days inside all four macros and no rescue**, measured against
+   production read-only at a first rung of 14 of 19 (`0102` § *The share is three quarters of
+   every slot*). At the share this project shipped with, the same fortnight served 7; the plan
+   he generated that day (v29) is one of those, so the fourteen arrive with his next
+   generation. A shape whose slots the appliance has no dishes for cannot reach this number at
+   any share, which is criterion 7's business and is stated there per appliance.
 9. End to end: a person with no oven receives a fortnight with no oven dish in it; the
    fixed-meal offer refuses an oven dish with the new reason and offers it to an account
    that has one; and another account's kitchen narrows nothing of theirs (`0019`).
