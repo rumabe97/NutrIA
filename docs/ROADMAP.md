@@ -228,7 +228,15 @@ uncommitted as this is written, so they start when it ships rather than beside i
    declaring an air fryer, a grill, a steamer, a rice cooker or a slow cooker** of 972, and 1
    pressure-cooker dish — the earlier "1 air-fryer dish of 962" was read off prose, and
    migration `0067` rightly declared that dish `{stovetop}` because its step offers the oven
-   *or* the fryer. 169 drafted dishes wait for the owner's load. What it deliberately leaves for its
+   *or* the fryer. **The owner loaded the 169 drafted dishes on 2026-10-18**: 1,141 es-ES
+   dishes, 30 declaring an air fryer, and the fortnight generated minutes later still served
+   none of them — a preference shared one bucket with the cuisine and food leanings, so a
+   person who had named four cuisines diluted it to one dish in twenty-three. A preferred
+   appliance now holds a third of each slot's rotation cap (`0102` § *A preference nobody can
+   see is not a preference*): 0 → 8 plates of 56 on his own fortnight at the same days in
+   band, a median of 18 over fourteen profiles. What is left is supply — eight appliances sit
+   below the 19 dishes a slot the rotation asks for, which the catalogue states rather than
+   hides. What it deliberately leaves for its
    own measured change: the cooking time, which is a single ceiling for fourteen days, and
    `difficulty`, stored on every dish and read by nothing — now § 6 below, with evidence.
 6. **How long a dish takes, and how much work it is.** Not approved, and the next thing 021

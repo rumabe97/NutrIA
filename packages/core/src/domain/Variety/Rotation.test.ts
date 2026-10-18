@@ -211,6 +211,75 @@ describe('isPreferredDish — the four reasons a dish goes first', () => {
     // there to be picked by the next fortnight's seed.
     expect(dishes).toHaveLength(20);
   });
+
+  /**
+   * What the test above could not see, because twenty dishes of one leaning is
+   * not a library: `isPreferredDish` is **one bucket for four leanings**, so the
+   * front of the pick is as wide as somebody's taste. Measured on the owner's
+   * own fortnight (2026-10-18, the day the library gained 30 air-fryer dishes):
+   * his four liked cuisines put 548 of his 672 servable dishes in that bucket,
+   * an air-fryer dish was one in twenty-three of what the cap took, and the
+   * fortnight came back with **none** — while the same code with the kitchen as
+   * the only leaning put 24 in the pool and 22 on plates.
+   */
+  it('keeps the appliance a share of the cap that a wide taste cannot swallow', () => {
+    const lunch: readonly MealSlot[] = ['lunch'];
+    const liked = library(200, lunch).map((dish): CandidateDish => ({ ...dish, cuisine: 'mediterranea', equipment: ['stovetop'] }));
+    const theirs = library(12, lunch).map((dish, index): CandidateDish => ({
+      ...dish,
+      cuisine: 'internacional',
+      equipment: ['air_fryer'],
+      name: `Air ${index}`,
+      slug: `air-${index}`
+    }));
+    const dishes = [...liked, ...theirs];
+    const rotation = {
+      avoidSlugs: nothingAvoided,
+      preferAppliances: new Set<Appliance>(['air_fryer']),
+      preferCuisines: new Set(['mediterranea']),
+      seed: 'user-a:1'
+    };
+    const pool = rotatePool(dishes, lunch, rotation);
+    const theirsPicked = pool.filter(dish => dish.equipment?.includes('air_fryer'));
+
+    expect(pool).toHaveLength(DISHES_NEEDED_PER_SLOT);
+    // A third of the cap, whatever else the library leans towards.
+    expect(theirsPicked.length).toBeGreaterThanOrEqual(Math.ceil(DISHES_NEEDED_PER_SLOT / 3));
+    // And the bucket on its own does not do it: naming no appliance leaves the
+    // same twelve dishes to the shuffle, which is the measurement in miniature.
+    const bucketOnly = rotatePool(dishes, lunch, { ...rotation, preferAppliances: new Set() });
+
+    expect(bucketOnly.filter(dish => dish.equipment?.includes('air_fryer')).length).toBeLessThan(theirsPicked.length);
+  });
+
+  it('takes the share from what the cap has left, never from the reservation', () => {
+    const lunch: readonly MealSlot[] = ['lunch'];
+    const dishes = [
+      ...library(10, lunch).map((dish, index): CandidateDish => ({ ...dish, equipment: ['air_fryer'], name: `Air ${index}`, slug: `air-${index}` })),
+      ...library(20, lunch).map((dish, index): CandidateDish => ({ ...dish, equipment: ['stovetop'], name: `Hob ${index}`, slug: `hob-${index}` }))
+    ];
+    const reserved = dishes.filter(dish => ['hob-1', 'hob-2', 'hob-3'].includes(dish.slug));
+    const rotation = { avoidSlugs: nothingAvoided, preferAppliances: new Set<Appliance>(['air_fryer']), seed: 'user-a:1' };
+    const pool = rotatePool(dishes, lunch, rotation, 10, inSlot => inSlot.filter(dish => reserved.includes(dish)));
+
+    expect(pool).toHaveLength(10);
+    expect(pool.map(dish => dish.slug)).toEqual(expect.arrayContaining(reserved.map(dish => dish.slug)));
+    expect(pool.filter(dish => dish.equipment?.includes('air_fryer')).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('changes nothing for a kitchen nobody filled in', () => {
+    const lunch: readonly MealSlot[] = ['lunch'];
+    const dishes = library(40, lunch).map((dish, index): CandidateDish => ({ ...dish, equipment: [index % 3 === 0 ? 'air_fryer' : 'stovetop'] }));
+    const rotation = { avoidSlugs: nothingAvoided, seed: 'user-a:1' };
+
+    expect(rotatePool(dishes, lunch, rotation).map(dish => dish.slug)).toEqual(
+      rotatePool(
+        dishes.map((dish): CandidateDish => ({ ...dish, equipment: undefined })),
+        lunch,
+        rotation
+      ).map(dish => dish.slug)
+    );
+  });
 });
 
 describe('rotatePool with a reservation (019 phase 2)', () => {

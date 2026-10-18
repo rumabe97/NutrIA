@@ -654,6 +654,41 @@ sell — so the supply is part of the promise, not an afterthought.
 - **Acceptance criteria**: PRD 10. No number in `0102` is one nobody measured.
 - **Verification**: `sh .claude/skills/ship/scripts/gate.sh --full "<scratchpad>"`.
 
+### Phase 10 — A preference nobody can see
+
+- [x] done — the load happened (2026-10-18, 02:53 UTC) and the fortnight after it still
+  served **0 air-fryer plates of 56**. The cause was not the prompt and not the library:
+  `isPreferredDish` is one bucket for four leanings, so four liked cuisines held 548 of 672
+  servable dishes and the appliance was one in 22.8 of what the cap took. A preferred
+  appliance now holds a third of every slot's cap (`APPLIANCE_DISHES_PER_SLOT`), after the
+  food groups and never from them.
+- **Dispatch**: the lead directly, at this session's effort — the owner authorised the fix
+  and the measurement overnight (2026-10-18, *"haz todo lo posible para solucionar esto"*).
+- **Goal**: the preference half reaches a plate, or the record says what stands in the way
+  with a number beside it.
+- **Scope**: `packages/core/src/domain/Variety/**`, `apps/api/scripts/evaluate-plans.mjs`,
+  `packages/core/AGENTS.md`, `apps/api/AGENTS.md`, `docs/decisions/0102-*`,
+  `docs/ROADMAP.md`, this project's `PRD.md` and `LOG.md`.
+- **Steps**:
+  1. Diagnose on production's own rows, read-only, ruling each gate out rather than
+     reasoning about it: the stored method, `fitSlots`, the season, the free-from
+     substitutes, the country scope, the time limit, the missing blender, a cache.
+  2. Reproduce the pick with the real code, his real context and the seed his plan used —
+     the proof being that the reproduction's pool is the `reused: 68` his plan recorded.
+  3. The share, sized from a measured curve rather than chosen, and asserted to change
+     nothing for a kitchen nobody filled in.
+  4. The instrument: `evaluate-plans.mjs` could not measure a preference at all (its
+     rotation never carried `preferAppliances`), so `--prefer` and a per-profile line.
+  5. The record: `0102`, both `AGENTS.md`, the roadmap, the PRD read against criteria 7
+     and 8 with the load behind them.
+- **Acceptance criteria**: PRD 8 measured on a real fortnight after the load; the bands
+  unchanged (the product's own validator, not a hand-rolled band test); a stated kitchen
+  shows the appliance on plates, an unstated one rotates exactly as before.
+- **Verification**: `pnpm --filter core test`; `gate.sh --full`; the owner's own fortnight
+  re-scheduled read-only against production; `NUTRIA_LOCAL_PG=1 node
+  apps/api/scripts/evaluate-plans.mjs --rotate 3 --prefer air_fryer --flag accompaniments`
+  over the local library, which holds the same batch.
+
 ## Hand-off
 
 Standing constraints for every executor of this project:

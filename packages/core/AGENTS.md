@@ -485,9 +485,9 @@ a person's plate as *less food*.
   `missing` and nothing else (`domain/Preference`). A `prefers` stance may never shrink a
   pool, never filter a candidate and never refuse a reuse — otherwise somebody who said
   *"I'd rather use my air fryer"* is served fewer dishes for having said so. What `prefers`
-  may do is send a prompt line and move the order inside the rotation's per-slot cap
-  (`Rotation.isPreferredDish`), exactly as a chosen cuisine and a liked food have since
-  `0026`.
+  may do is send a prompt line, move the order inside the rotation's per-slot cap
+  (`Rotation.isPreferredDish`) and **hold a share of that cap**
+  (`APPLIANCE_DISHES_PER_SLOT`).
 - **A null kitchen means nobody asked, not an empty kitchen.** `withinEquipment(dish, null)`
   is `true`. A caller that reads a missing kitchen as "has nothing" empties the library for
   every account that never opened the screen.
@@ -495,6 +495,21 @@ a person's plate as *less food*.
   string this build has never heard of, so `appliancesOf` filters at the boundary. Treating
   the unknown as a requirement would empty the library for every kitchen missing anything —
   the same asymmetry `0102` applies to an unclassified dish.
+- **An order is not enough, and that is measured.** `isPreferredDish` is **one bucket for
+  four leanings** — a liked dish, a liked cuisine, a liked ingredient or a preferred
+  appliance — with no rank inside it, and `rotatePool` fills each slot's cap from the front
+  of that bucket. On 2026-10-18 the owner's four liked cuisines put **548 of his 672
+  servable dishes** in it, so the appliance he had asked for was one in 22.8 of what the cap
+  took: **3 dishes reached the pool and none reached a plate**, on the day the library
+  gained 30 of them. The appliance therefore keeps a third of every slot's cap, taken
+  **after** the food groups' reservation (`reserveGroups`) and never from it, because a
+  legume minimum is what validation refuses a fortnight for and a preference is not. If you
+  add a fifth leaning, ask what it does to this one before you put it in the same bucket.
+- **The bands outrank it, and the rescue says so.** A fortnight that misses a macro band on
+  the rotation's pool is rescued from the whole library (`wider_rotation`), where the share
+  is no longer scarce and the scheduler's fit objective decides alone — so a plan that can
+  only reach its bands from everything will show little of the preference. That order is
+  deliberate (`0045` before `0102`); do not fix it by weakening the rescue.
 - **Never answer a thin appliance by strengthening the prompt.** Measured twice: the prompt
   line alone produced **zero** air-fryer dishes in a real fortnight with the air fryer
   preferred (2026-10-16), and asking as hard as the machinery can — `prefers`, every other

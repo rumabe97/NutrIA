@@ -12,6 +12,22 @@
   file (`0102` § *Asking as hard as the machinery allows*). Also still owed, neither of them
   this phase's: **phase 5b** is in progress, and the owner's **iPhone check** on the kitchen
   screen (criterion 1) from phase 5.
+- **Read again after the load, 2026-10-18** (phase 10). The owner ran it: production holds
+  1,141 es-ES dishes, 669 `seed`, and **30 declaring an air fryer** where it held none.
+  - **Criterion 7 is measured and not met, which `0102` permits as a stated shortfall.** By
+    appliance and slot, against the 19 a slot the rotation asks for
+    (`DISHES_NEEDED_PER_SLOT`): air fryer 12 lunch / 12 dinner / 6 afternoon snack, grill 11
+    / 12, steamer 11 / 12, rice cooker 11 / 7, pressure cooker 10 / 7. Only the hob and the
+    oven clear 19. Eight appliances are in the catalogue with their shortfall written down,
+    and the lever is a second batch (0.32 USD).
+  - **Criterion 8 moved off zero and is still open.** The fortnight generated right after
+    the load served **0 air-fryer plates of 56** — not for want of library but because a
+    preference shared one bucket with three others (`0102` § *A preference nobody can see is
+    not a preference*). With the share that fixes it, his own fortnight re-scheduled serves
+    **8 of 56** at the same 12 of 14 days in band, and fourteen profiles × three seeds over
+    a library holding the same batch serve a **median of 18 of 56** with 587 of 588 days in
+    band. The criterion asks for fourteen on **his** library, so it waits on supply, not on
+    the machinery.
 - **Roadmap item**: [`docs/ROADMAP.md`](../../ROADMAP.md) § *Next* 5 — proposed by the owner
   on 2026-10-15 ("saber qué electrodomésticos tiene el usuario, y cuáles prefiere usar") and
   added when he approved it. What this project deliberately leaves out is § *Next* 6, added
