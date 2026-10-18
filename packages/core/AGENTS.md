@@ -488,15 +488,21 @@ a person's plate as *less food*.
   may do is send a prompt line, move the order inside the rotation's per-slot cap
   (`Rotation.isPreferredDish`) and **hold a share of that cap**
   (`APPLIANCE_DISHES_PER_SLOT`).
-- **The share's size is measured, and the measurement says keep it whole.** Seven of
-  nineteen, half of it and two of it are the same plan to three decimal places (877, 874 and
-  868 plates over 42 fortnights, identical bands, rescues and rungs); a share of **zero** —
-  the order kept, the quota dropped — loses 35 plates and buys **18 rescues instead of 8**,
-  because `narrowerShares` returns nothing at zero and a band miss then goes straight to the
-  whole library. **The share is what gives the ladder something to give way with**, which is
-  the opposite of what the thin library suggested (`0102` § *The share's size is seven of
-  nineteen*). A kitchen measurement without `--flag accompaniments` is not a measurement:
-  the same run reads 180 plates instead of 877.
+- **The share's size is measured in both directions, and it is three quarters of the cap.**
+  Downwards, nothing smaller is better: seven of nineteen, half of it and two of it are the
+  same plan (877, 874, 868 plates over 42 fortnights, identical bands, rescues and rungs),
+  while a share of **zero** — the order kept, the quota dropped — loses 35 plates and buys
+  **18 rescues instead of 8**, because `narrowerShares` returns nothing at zero and a band
+  miss then goes straight to the whole library. **The share is what gives the ladder something
+  to give way with.** Upwards — which needs the clamp in `shareOf` lifted, so `--share N`
+  cannot show it — the plates keep coming and nothing else moves: 877 at seven, 888 at ten,
+  **895 at fourteen**, 895 at nineteen, with 588/588 days in band, 8 rescues and a 78% balance
+  score at every size, and the food-group rules within one fortnight of each other. It
+  saturates at fourteen, which is where the constant now sits
+  (`Math.floor(REUSED_DISHES_PER_SLOT * 3 / 4)`, `0102` § *The share is three quarters of
+  every slot*). The share's real cost is all between zero and seven, and was paid when it
+  shipped. A kitchen measurement without `--flag accompaniments` is not a measurement: the
+  same run reads 180 plates instead of 877.
 - **A null kitchen means nobody asked, not an empty kitchen.** `withinEquipment(dish, null)`
   is `true`. A caller that reads a missing kitchen as "has nothing" empties the library for
   every account that never opened the screen.

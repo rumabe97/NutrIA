@@ -96,15 +96,26 @@ const REUSED_DISHES_PER_SLOT = DISHES_NEEDED_PER_SLOT;
  * one leaning a person reads off the plate, so it gets a floor of its own
  * instead of a place in a queue.
  *
- * **A third of the cap**, which is the fraction `0013` already uses for
- * freshness, and measured rather than chosen: on that same fortnight the share
- * buys 0 plates at zero, 6 at three, 7 at five and 7 at seven, and above seven
- * nothing — his air fryer holds twelve lunches and twelve dinners, so the
- * supply runs out before the cap does.
+ * **Three quarters of the cap, and that figure is measured twice.** It began as
+ * a third — `0013`'s fraction — on a measurement that said the share bought 0
+ * plates at zero, 6 at three, 7 at five, 7 at seven and nothing above seven,
+ * because the air fryer then held twelve lunches and twelve dinners and the
+ * *supply* ran out before the cap did. The second batch (2026-10-18, 280
+ * dishes) ended that condition: thirty lunches and thirty dinners. Measured
+ * again across 42 fortnights with the sides production serves, raising the first
+ * rung costs nothing and buys plates — 877 at seven, 888 at ten, 895 at
+ * fourteen, and 895 at nineteen, with **588 of 588 days inside all four macros,
+ * 8 rescues and a balance score of 78% at every one of them**, and the fourteen
+ * food-group rules moving by at most one fortnight. It saturates at fourteen:
+ * past that the person's own library, not the cap, is the limit. Fourteen is
+ * therefore where the measurement stops paying and where this sits. The cost
+ * of the share is real but it is all spent between zero and seven (fish and
+ * shellfish 62% → 55% of fortnights, meat 79% → 67%, processed 90% → 82%),
+ * which is `0102`'s own trade and was paid when the share shipped.
  *
  * **It can cost the bands, and then it must give way** (`0102` § *A rescued
  * fortnight has no kitchen, and the share is what sends it there*, 2026-10-18).
- * The share displaces seven of a slot's nineteen, and the dishes it displaces
+ * The share displaces most of a slot's nineteen, and the dishes it displaces
  * may be the ones that were reaching the macros: on the owner's own fortnight
  * the rotation's pool went from 14 of 14 days in band to 12, which is the entry
  * fee to the `wider_rotation` rescue — and a rescued fortnight is scheduled
@@ -114,7 +125,7 @@ const REUSED_DISHES_PER_SLOT = DISHES_NEEDED_PER_SLOT;
  * caller walks down when the bands are missed, and `Rotation.applianceShare`
  * is how it says which rung it is on.
  */
-const APPLIANCE_DISHES_PER_SLOT = Math.ceil(REUSED_DISHES_PER_SLOT / 3);
+const APPLIANCE_DISHES_PER_SLOT = Math.floor((REUSED_DISHES_PER_SLOT * 3) / 4);
 
 /** How many of a slot's cap this rotation keeps for a preferred appliance: its own rung, or the full share. */
 function shareOf(rotation: Rotation): number {

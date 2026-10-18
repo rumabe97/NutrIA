@@ -2286,4 +2286,19 @@ shipped a sentence saying the batch cost twelve days of macros.
   on one weekday the rescue still answers and leaves **1** plate. **One rule moved to another
   weekday: 14 of 14 and 10 plates, with no rescue.** That is the lever left, and it is a setting
   he owns — `0102` § *A rescued fortnight has no kitchen*.
+- **He removed one rule and generated: v29 is the first plan with a kitchen in it.** No rescue,
+  `kitchenShare` not needed, **14 of 14 days inside all four macros**, and **7 air-fryer plates
+  of 56** against v28's zero. 73 dishes reused, 6 written fresh, 11 model calls, ~0.02 USD; one
+  mid-morning call was cut off at the output-token limit and the plan completed without it.
+- **Criterion 8 was still unmet at 7 plates, and the share is what met it.** Its number is
+  fourteen — as many as the plan has days — and his shape allows 28 (lunch and dinner; the
+  library holds no air-fryer breakfast or mid-morning dish, by the catalogue's own decision).
+  The first rung was priced upwards with the clamp in `shareOf` lifted for the measurement:
+  **877 / 888 / 895 / 895** plates at 7 / 10 / 14 / 19 over 42 fortnights, with 588/588 days in
+  band, 8 rescues and a 78% balance score at every size, saturating at fourteen; and on his own
+  fortnight 8 / 11 / **14** plates, 14 of 14 days in band and no rescue at any of them. So
+  `APPLIANCE_DISHES_PER_SLOT` is now `floor(19 × 3/4)` = **14**, the criterion was met rather
+  than rewritten, and `Rotation.test.ts` asserts the new fraction against a shelf of thirty —
+  what production actually holds for the air fryer at lunch. `0102` § *The share is three
+  quarters of every slot*.
 

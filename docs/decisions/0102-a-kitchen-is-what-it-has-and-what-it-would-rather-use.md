@@ -539,7 +539,7 @@ plan v28 read in production and his fortnight re-run seven ways, under his stand
 authorisation to fix what the plan showed; the share's size remains his to revisit, and the
 two rules on one weekday are his to arrange.)
 
-## The share's size is seven of nineteen, and that is measured rather than left open (2026-10-18)
+## The share's size, measured downwards: nothing smaller than seven is better (2026-10-18)
 
 The size was handed back to the owner on a curve read when the library held 24 air-fryer
 dishes. With the second batch loaded it was measured instead: the same 42 fortnights
@@ -577,10 +577,14 @@ takes the rotation's variety, its avoid list and its group reserves with it. His
 that as a *symptom* rather than a gain: the extra plates at zero are `quincena-con-evento`
 jumping 79 → 109 by being rescued, and paying a day of band for it.
 
-So **the share is what gives the ladder something to give way with**, and the constant stays at
-`Math.ceil(REUSED_DISHES_PER_SLOT / 3)`. The paragraphs above are left as they were written:
-they were true of a library holding 24 air-fryer dishes, and supply is what stopped them being
-true.
+So **the share is what gives the ladder something to give way with**, and nothing smaller than
+seven is worth having. The paragraphs above are left as they were written: they were true of a
+library holding 24 air-fryer dishes, and supply is what stopped them being true.
+
+**What this measurement could not see.** `shareOf` clamps `applianceShare` to
+`APPLIANCE_DISHES_PER_SLOT`, so `--share N` can only ever ask for *less*. The table above is
+therefore an answer to "should it be smaller" and silent on "should it be bigger" — which the
+next section asks, because the owner's own plan turned out to need it.
 
 **And asking now costs nothing at all.** The same 42 fortnights with no preference whatever,
 on the same library and the same seeds: **588/588** days in band and **9** rescues, against
@@ -599,6 +603,69 @@ the partial quota.
 (who decided: the planner, 2026-10-18, on the measurement above and under the owner's standing
 authorisation to decide what he hands back; he asked for the size to be his, and it still is —
 nothing measured here needs him to move it.)
+
+## The share is three quarters of every slot, because criterion 8 asked for a number (2026-10-18)
+
+The owner generated his fortnight the moment the second batch was in production. It came back
+**with no rescue at all, 14 of 14 days inside all four macros, and 7 air-fryer plates of 56** —
+against 0 plates and a `wider_rotation` rescue that morning. That is the feature working. It is
+also **half of what criterion 8 asks for**: *at least as many air-fryer dishes as the plan has
+days in it*, which is fourteen.
+
+Two things had to be separated before deciding anything. First, **a meal shape decides what is
+even possible**: his day is breakfast, mid-morning, lunch and dinner, and the library holds
+air-fryer dishes for lunch, dinner and the afternoon snack only — a mid-morning or breakfast
+dish for it was ruled a reheat rather than a dish (§ *Adding an appliance to the catalogue is
+adding a promise*). So **28 of his 56 plates can carry it**, and criterion 8's fourteen is half
+of those, not a quarter of his fortnight. Second, the old size was chosen under a condition that
+had just been removed: a third of the cap was measured when the air fryer held twelve lunch
+dishes, where *supply* ran out before the cap did. Production now holds thirty lunch and thirty
+dinner dishes for it.
+
+So the clamp was lifted, for the measurement only, and the first rung priced upwards — 42
+fortnights, fourteen profiles, three seeds, `--prefer air_fryer --flag accompaniments`:
+
+| first rung | plates | median | days in band | rescued | balance score |
+| --- | --- | --- | --- | --- | --- |
+| 7 (a third, as shipped) | 877 | 20 | 588/588 | 8 | 78% |
+| 10 (a half) | 888 | 23 | 588/588 | 8 | 78% |
+| **14 (three quarters)** | **895** | **24.5** | 588/588 | 8 | 78% |
+| 19 (the whole cap) | 895 | 24.5 | 588/588 | 8 | 78% |
+
+**Nothing moves except the plates.** The bands, the rescues, the rungs that give way and the
+balance score are identical at every size, and the fourteen food-group rules differ by at most
+one fortnight between 7 and 14 (meat 67% → 69%, oily fish 50% → 53%, whole grain 83% → 86%,
+vegetables 38% → 36%). The share's real cost is all spent between **zero and seven** — fish and
+shellfish 62% → 55% of fortnights, meat 79% → 67%, processed food 90% → 82% — and that was paid
+when the share shipped. It **saturates at fourteen**: nineteen is the same plan, because past
+fourteen the limit is the person's own library rather than the cap.
+
+And on his own fortnight, read against production with the session forced read-only, his seed,
+his avoid list and his one standing rule:
+
+| first rung | air-fryer plates of 28 possible | days in band | rescue |
+| --- | --- | --- | --- |
+| 7 | 8 | 14/14 | none |
+| 10 | 11 | 14/14 | none |
+| **14** | **14** | **14/14** | **none** |
+
+Criterion 8 is therefore **reachable without being rewritten**, which is the reason the constant
+moved rather than the criterion: `APPLIANCE_DISHES_PER_SLOT` is now
+`Math.floor(REUSED_DISHES_PER_SLOT * 3 / 4)` — **fourteen of nineteen**.
+
+**What is deliberately not claimed.** This is one appliance (85 dishes in production), fourteen
+profiles and one real account; an appliance whose catalogue is thinner cannot fill the share and
+will not notice the change, which is what a ceiling means. The share is still a **ceiling and
+never a filter**: the tail of the pick is unchanged, a kitchen nobody filled in rotates exactly
+as before, and `narrowerShares` still takes the whole share away — now from 14 to 7 to 0 —
+whenever a day would miss a band. A person who prefers an appliance the library can fill now
+gives three quarters of each slot's pick to it; if that ever reads as a narrower diet rather
+than a kitchen honoured, the measurement to run is the food-group table above on the appliance
+in question, and the lever is this one constant.
+
+(who decided: the planner, 2026-10-18, on the two tables above, under the owner's instruction to
+carry out the recommended option; the owner's own plan v29 is what raised the question, and the
+figure stays a measurement rather than a preference.)
 
 ## The slow cooker stays, with a zero and the reason (2026-10-18)
 
