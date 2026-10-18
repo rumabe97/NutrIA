@@ -374,6 +374,19 @@ says **12 of 14 days in band — the same 12 of 14 the plan he was served scored
 the same two fat days his two fixed meals already cost him (71.4 g against 68). 41 distinct
 dishes of 56, nothing served more than twice.
 
+**What a preference costs, measured against saying nothing** (the same fourteen profiles and
+three seeds, with and without `--prefer air_fryer`, 42 fortnights each): the bands hold —
+**588 of 588 days in band without it, 587 of 588 with it**, no blocking violation either way
+— and the fortnight's balance score falls from **0.846 to 0.769**. The movement is a trade
+and worth naming rather than averaging: whole grain is met 14 points more often, eggs 13,
+starches 7, and legumes, fish and oily fish each 2–3 — while **fish and shellfish together
+fall 21 points, vegetables 19, meat 13 and processed food 10** (the last being an
+improvement). The air fryer's 24 dishes are roast-and-crisp plates of tofu, cod, chicken and
+root vegetables, so a fortnight that leans on them eats narrower. That is the honest price of
+asking for one appliance out of a library of 24 dishes for it, and it is an argument for the
+second batch rather than against the share: `vegetables` was already met on only 26 of 42
+fortnights before any preference existed.
+
 **What is still owed.** Eight plates of 56 is not criterion 8's fourteen, and no share can
 buy them: the air fryer holds 12 lunch dishes and 12 dinner dishes, and the rotation asks for
 19 a slot (`DISHES_NEEDED_PER_SLOT`). From here the lever is supply, exactly as

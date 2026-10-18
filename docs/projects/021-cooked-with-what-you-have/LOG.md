@@ -1897,6 +1897,14 @@ dishes, so the share runs out before the cap does).
   (`0045` before `0102`) and the rescue is what that order looks like on a plate — recorded,
   not fixed, because weakening a rescue to show an appliance would trade the owner's own bar
   for a preference.
+- **The same 42 fortnights without `--prefer`, as a baseline**: 588 of 588 days in band
+  against 587 of 588, no blocking violation either way, and a balance score median of 0.846
+  against 0.769. Rule by rule the preference trades rather than loses: whole grain +14
+  points, eggs +13, starches +7, legumes +2, fish +3, oily fish +3, against fish and
+  shellfish −21, vegetables −19, meat −13 and processed −10. The appliance's 24 dishes are
+  roast-and-crisp plates, so a fortnight leaning on them eats narrower — and `vegetables`
+  was already met on only 26 of 42 fortnights with no preference stated at all, so the
+  answer is supply, not a smaller share.
 - **Without `--flag accompaniments` every profile is rescued and the median is 0.** The sides
   are what let a capped pool reach the bands, so a preference measured without them says
   nothing. Said in `apps/api/AGENTS.md` beside the flag.
