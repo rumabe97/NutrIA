@@ -2025,6 +2025,11 @@ the rescue's own test, so the ladder cannot return a worse plan. The rung is sto
   −10.5%. `planBandMiss` sums overshoot rather than counting days for exactly this reason, and
   it was right to.
 
+**Read with the addendum below**: the two questions this evidence left open — the share's size
+and whether the half rung ever holds — were measured the same day, after the owner merged, and
+the answers are in *Notes for the next phase* with their figures (`0102` § *The share's size is
+seven of nineteen*).
+
 ### The second batch, drafted to the floor the owner set
 
 *"En el 2 mete tantos platos como necesitemos, mínimo 50-100 por cada utensilio"* is a supply

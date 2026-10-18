@@ -557,8 +557,9 @@ way the feature intends: more quota, more plates.
 
 **The last row is not "the kitchen unread".** `narrowerShares` returns nothing at or below
 zero, so a share of zero keeps the appliance inside `isPreferredDish`'s bucket — the order,
-without the quota — and leaves the ladder no rung to spend. It is the shape #295 shipped before
-the ladder existed. Losing 35 plates is the small half of what it costs. The other half is
+without the quota — and leaves the ladder no rung to spend. It is the shape that stood *before*
+#295 gave the appliance a quota, which is what `0102` § *An order is not enough* measured on the
+thin library, priced here on the loaded one. Losing 35 plates is the small half of what it costs. The other half is
 **18 rescues instead of 8**, and a rescued fortnight is scheduled from the whole library, which
 takes the rotation's variety, its avoid list and its group reserves with it. His own shape shows
 that as a *symptom* rather than a gain: the extra plates at zero are `quincena-con-evento`
@@ -574,9 +575,12 @@ on the same library and the same seeds: **588/588** days in band and **9** rescu
 588/588 and **8** with the full share; in his own shape **576/588** and **16** rescues, against
 576/588 and **8**. Asking for the air fryer is rescued *less* often than not asking for it,
 because the ladder is an extra attempt and only a plan with a leaning gets one. That also
-answers what the rungs are worth: exactly **one** fortnight in 42 has ever held at the half
-rung (`patron-tradicional-espanola`, his pinned shape, and only when the first rung is the full
-share); every other rung that held was zero. The rungs are not too coarse — a partial share
+answers what the rungs are worth, and corrects how the question was asked. Exactly **one**
+fortnight in 42 holds at the half rung — `patron-tradicional-espanola`, his pinned shape, and
+only when the first rung is the full share — and it was already holding there in the run phase
+11 shipped: the earlier tally **counted** the rungs that held and did not **read** them, so ten
+zeros in the plain run were generalised over five in the pinned one. Every other rung that held
+was zero. The rungs are not too coarse — a partial share
 does not help once a band is missed, and what the ladder buys is the extra attempt rather than
 the partial quota.
 

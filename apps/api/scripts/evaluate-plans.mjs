@@ -1556,7 +1556,7 @@ async function measureRotations(profile, shared, options) {
     const rotation = {
       // How big a share of each slot's pick a preferred appliance holds, which
       // `0102` leaves as the owner's choice and this measures instead of arguing.
-      // Unset is the default (`APPLIANCE_DISHES_PER_SLOT`), and `applianceShareOf`
+      // Unset is the default (`APPLIANCE_DISHES_PER_SLOT`), and `shareOf`
       // clamps it to that constant — so a value above it measures the constant,
       // and only a smaller share can be seen from here.
       ...(options.share === null ? {} : { applianceShare: options.share }),
@@ -2766,6 +2766,11 @@ async function main() {
   assertNotProduction();
 
   const options = parseArgs(process.argv.slice(2));
+
+  if (options.share !== null && options.prefer.length === 0) {
+    console.error('--share prices the quota a preferred appliance holds, so it needs --prefer beside it: with no preference the share is zero whatever this says');
+    process.exit(2);
+  }
 
   if (options.pinsFrom) {
     if (options.pins === 0) {

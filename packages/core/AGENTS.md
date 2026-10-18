@@ -531,8 +531,10 @@ a person's plate as *less food*.
   rotation itself is given up** (the ladder below, shipped 2026-10-18: on the library of
   that morning, rescues 8 → 5 of 42 fortnights, plates 580 → 583, bands unmoved at 587/588).
   **Almost every rung that has held a band was zero** — 3 fortnights before the batch, 10
-  after it, and exactly **one** has ever held at the half rung (`patron-tradicional-espanola`,
-  the owner's pinned shape, the full share; it does not hold there at a smaller first rung) —
+  after it, and exactly **one** holds at the half rung (`patron-tradicional-espanola`, the
+  owner's pinned shape, the full share; it does not hold there at a smaller first rung). The
+  earlier "every rung that has ever held was zero" counted the rungs and did not read them:
+  that one was already in the run phase 11 shipped. **Count a rung by reading it.** —
   so what the ladder reliably saves is the plan's own rotation, not the plates, and a
   fuller library makes the share bind *harder*, not softer, because a quota of 7 in 19 that
   could not be filled displaced nothing. The plates come from supply: 280 dishes took the
