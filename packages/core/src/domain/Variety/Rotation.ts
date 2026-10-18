@@ -102,13 +102,62 @@ const REUSED_DISHES_PER_SLOT = DISHES_NEEDED_PER_SLOT;
  * nothing — his air fryer holds twelve lunches and twelve dinners, so the
  * supply runs out before the cap does.
  *
- * **It costs the bands nothing**, which is the figure it had to clear: his
- * fortnight re-scheduled with the share keeps the 12 of 14 days in band that
- * the plan he was actually served scored, and the fourteen evaluator profiles
- * over three seeds each keep 587 of 588 — both read from `planQuality`, never
- * from a hand-rolled band check.
+ * **It can cost the bands, and then it must give way** (`0102` § *A rescued
+ * fortnight has no kitchen, and the share is what sends it there*, 2026-10-18).
+ * The share displaces seven of a slot's nineteen, and the dishes it displaces
+ * may be the ones that were reaching the macros: on the owner's own fortnight
+ * the rotation's pool went from 14 of 14 days in band to 12, which is the entry
+ * fee to the `wider_rotation` rescue — and a rescued fortnight is scheduled
+ * from the whole library, where a share has nothing left to be scarce against.
+ * Asking for the appliance returned **fewer** of its dishes than not asking.
+ * So this is a **ceiling and not a floor**: `narrowerShares` is the ladder a
+ * caller walks down when the bands are missed, and `Rotation.applianceShare`
+ * is how it says which rung it is on.
  */
 const APPLIANCE_DISHES_PER_SLOT = Math.ceil(REUSED_DISHES_PER_SLOT / 3);
+
+/** How many of a slot's cap this rotation keeps for a preferred appliance: its own rung, or the full share. */
+function shareOf(rotation: Rotation): number {
+  if (!rotation.preferAppliances || rotation.preferAppliances.size === 0) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(rotation.applianceShare ?? APPLIANCE_DISHES_PER_SLOT, APPLIANCE_DISHES_PER_SLOT));
+}
+
+/**
+ * The shares to try, widest first, when a plan built on this rotation misses a
+ * macro band — half the share, then none of it.
+ *
+ * **Why a gradient and why this order.** The bands outrank a preference
+ * (`0045` before `0102`), and the rescue that honours that today replaces the
+ * pool with the person's whole library — which costs them the rotation's
+ * variety, its avoid list and its food-group reserves, *and* the preference,
+ * all at once. Giving up an appliance costs a person less than giving up the
+ * rotation, so it is given up first and by degrees. Empty when nobody named an
+ * appliance: there is no rung below zero and nothing to walk down.
+ */
+export function narrowerShares(rotation: Rotation): readonly number[] {
+  const share = shareOf(rotation);
+
+  return share <= 0 ? [] : [...new Set([Math.floor(share / 2), 0])].filter(rung => rung < share);
+}
+
+/**
+ * This rotation on one rung of `narrowerShares`, and the **only** way to build
+ * one — so that the bottom rung means the same thing everywhere it is walked to.
+ *
+ * At zero the appliance stops being a leaning at all rather than merely losing
+ * its share: `isPreferredDish` would otherwise keep every dish that needs it at
+ * the front of the pick, which is a share by another name and was measured as
+ * enough to keep a fortnight out of band. Zero is therefore exactly the pick a
+ * kitchen nobody filled in gets — the state that held 14 of 14 days in band on
+ * the owner's own fortnight — and the last thing tried before the pool becomes
+ * the whole library.
+ */
+export function withApplianceShare(rotation: Rotation, share: number): Rotation {
+  return share <= 0 ? { ...rotation, applianceShare: 0, preferAppliances: new Set() } : { ...rotation, applianceShare: share };
+}
 
 /**
  * The dishes a slot takes first, chosen from that slot's dishes in shuffled
@@ -117,6 +166,16 @@ const APPLIANCE_DISHES_PER_SLOT = Math.ceil(REUSED_DISHES_PER_SLOT / 3);
 export type PoolReserve = (inSlot: readonly CandidateDish[], slot: MealSlot, taken: ReadonlySet<string>) => readonly CandidateDish[];
 
 export type Rotation = {
+  /**
+   * How many of each slot's cap `preferAppliances` may hold, when it is not
+   * the full `APPLIANCE_DISHES_PER_SLOT`.
+   *
+   * A caller sets it only to walk **down** `narrowerShares` after a plan built
+   * on the full share missed a band; it is clamped to the full share, so it can
+   * never ask for more of a slot than the measurement allows. Absent — every
+   * caller but that one — the share is the full one.
+   */
+  readonly applianceShare?: number;
   /** Slugs this user was served last fortnight, and dishes they disliked. Never offered. */
   readonly avoidSlugs: ReadonlySet<string>;
   /**
@@ -197,19 +256,22 @@ function prefersAppliance(dish: CandidateDish, leaning: Leaning): boolean {
 }
 
 /**
- * The dishes of a slot kept for a preferred appliance: as many as
- * `APPLIANCE_DISHES_PER_SLOT` leaves once what the food groups already reserved
- * is counted — a fish cooked in the air fryer is not paid for twice — and
- * **nothing at all when no appliance is preferred**, so a kitchen nobody filled
- * in rotates exactly as it did before `0102`.
+ * The dishes of a slot kept for a preferred appliance: as many as this
+ * rotation's share leaves once what the food groups already reserved is counted
+ * — a fish cooked in the air fryer is not paid for twice — and **nothing at all
+ * when no appliance is preferred**, so a kitchen nobody filled in rotates
+ * exactly as it did before `0102`. A rotation on a lower rung of
+ * `narrowerShares` keeps that many and no more, down to none.
  */
 function applianceShare(inSlot: readonly CandidateDish[], rotation: Rotation, reserved: readonly CandidateDish[]): readonly CandidateDish[] {
-  if (!rotation.preferAppliances || rotation.preferAppliances.size === 0) {
+  const share = shareOf(rotation);
+
+  if (share <= 0) {
     return [];
   }
 
   const already = new Set(reserved.map(dish => dish.slug));
-  const wanted = APPLIANCE_DISHES_PER_SLOT - reserved.filter(dish => prefersAppliance(dish, rotation)).length;
+  const wanted = share - reserved.filter(dish => prefersAppliance(dish, rotation)).length;
 
   return wanted <= 0 ? [] : inSlot.filter(dish => !already.has(dish.slug) && prefersAppliance(dish, rotation)).slice(0, wanted);
 }

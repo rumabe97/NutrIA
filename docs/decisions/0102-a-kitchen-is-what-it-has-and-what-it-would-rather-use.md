@@ -374,6 +374,11 @@ says **12 of 14 days in band — the same 12 of 14 the plan he was served scored
 the same two fat days his two fixed meals already cost him (71.4 g against 68). 41 distinct
 dishes of 56, nothing served more than twice.
 
+> **Read this figure with the next section.** That reproduction passed his pool, his seed and
+> his avoid list but **not his two fixed meals**, and the pins are precisely what sends his
+> fortnight down the rescue the next section is about. Eight plates is what the share is
+> worth to a fortnight the rotation's own pool can keep in band. His cannot.
+
 **What a preference costs, measured against saying nothing** (the same fourteen profiles and
 three seeds, with and without `--prefer air_fryer`, 42 fortnights each): the bands hold —
 **588 of 588 days in band without it, 587 of 588 with it**, no blocking violation either way
@@ -400,3 +405,158 @@ share's size is the planner's, on the curve above, and his to revisit.)
 
 (who decided: the owner, 2026-10-15 — the feature, and that the time question is measured
 separately; the planner, the shape above, with the library's numbers in hand.)
+
+## A rescued fortnight has no kitchen, and the share is what sends it there (2026-10-18)
+
+The share shipped, production served it, and the next plan the owner generated had **zero of
+56 plates from the air fryer** — with the appliance preferred, thirty of its dishes in the
+library and the fix live. The share is not weak. On his library it is **self-defeating**, and
+the measurement that said otherwise was reading the wrong plan.
+
+**What cancels it.** `generation_metadata.fallback` on that plan reads `wider_rotation`: the
+fortnight missed a macro band on the rotation's pool, so it was scheduled again from
+`rotatePool(everything, slots, rotation, Infinity)` (`0046`). The share survives that call —
+`applianceShare` still runs per slot and still puts its dishes first — but with no cap there
+is no scarcity left for it to work in: the pool becomes the person's whole library, and
+`pickBest` honours the pool's order only between dishes whose fit costs sit within `FIT_TIE`
+(0.05) of each other. Fourteen dishes at the front of six hundred, judged on macro fit alone,
+buy nothing. **A share is a quota in a pool, and a rescue replaces the pool.**
+
+**The first explanation was wrong, and measuring it is what showed that.** His own series
+looked conclusive — one standing fixed meal until 2026-10-17 00:59, no rescue, 14 of 14 days
+in band; a second rule on the same weekday, and v26, v27 and v28 rescued every time with 0,
+0 and 0 air-fryer plates. So his fortnight was re-run against production with his seed, his
+avoid list and his rules arranged five ways, through the same chain the service runs (the
+rotation's pool, then the uncapped rescue, kept only when it misses by less):
+
+| his standing rules | the rotation's pool alone | what would be served |
+| --- | --- | --- |
+| both on one weekday (today) | 10/14, worst 14.7%, **6 plates** | 12/14, worst 6.7%, **0 plates** (rescued) |
+| the two on different weekdays | 13/14, worst 7.6%, **6 plates** | 13/14, worst 5.0%, **0 plates** (rescued) |
+| only the tortilla (until 17 Oct) | 12/14, worst 5.0%, **7 plates** | 14/14, worst 4.7%, **0 plates** (rescued) |
+| only the riojana | 13/14, worst 5.0%, **7 plates** | 14/14, worst 4.5%, **0 plates** (rescued) |
+| none at all | 12/14, worst 5.0%, **6 plates** | 14/14, worst 4.9%, **0 plates** (rescued) |
+
+**Every arrangement ends rescued at zero, including no rules at all.** The pins are not the
+cause; they only change how badly the pre-rescue plan misses.
+
+**What the cause is.** The same fortnight, with nothing moved but whether the kitchen is
+read at all:
+
+| | the rotation's pool alone | what would be served |
+| --- | --- | --- |
+| air fryer preferred | 12/14 in band, 6 plates | 14/14, **0 plates** (rescued) |
+| kitchen not read | **14/14 in band**, 3 plates | 14/14, **3 plates** (no rescue) |
+
+The share takes 7 of every slot's 19 and the dishes it displaces are the ones that were
+fitting the macros. His capped pool goes from holding the bands to missing them by two days,
+that miss is the entry fee to the rescue, and the rescue is where the preference dies. **So
+asking for the air fryer leaves him with fewer air-fryer plates than not asking** — 0 against
+the 3 the library hands him by chance. A preference that is worse than silence is a defect,
+not a trade.
+
+**Why the measurement that shipped did not see it.** *What a preference costs, measured
+against saying nothing* above reads 587 of 588 days in band with the preference and 588 of
+588 without, and concluded the bands held. They did hold — **because the rescue held them**.
+What that run also recorded, and what was not read, is that the preference raised the rescues
+from **5 of 42 fortnights to 8**, and that **7 of those 8 rescued fortnights served zero
+preferred plates** against a median of 16 everywhere else. The aggregate was measured on the
+delivered plan, after the rescue; the damage is upstream of it. A measurement of a preference
+must count the rescues it causes, not only the bands that survive it.
+
+**What follows, and what does not.** The ordering is not in question: the bands outrank the
+preference (`0045` before `0102`), and a plan that can only reach its macros from the whole
+library must be allowed to. What was wrong is the **shape**. The preference was given up as a
+cliff rather than a gradient, and it was given up *after* the rotation itself was given up
+rather than before — which is backwards, because giving up an appliance costs a person less
+than giving up the rotation's variety, its avoid list and its food-group reserves all at once.
+
+**So the share is now a ceiling with a ladder under it.** On a band miss, before the pool
+becomes the whole library, the share walks down `narrowerShares` — half of it, then none of
+it — rebuilt by `RecipeController.rotateFor` from the library already read, with the same
+seed, the same avoid list, the same reserves and the model's fresh dishes still first. The
+first rung that holds every band wins and nothing below it is tried; a rung that does not
+miss by *less* is discarded, which is the same test the rescue applies, so the ladder can
+never hand back a worse plan than the cliff did. The bottom rung is not "no share" but **no
+preference**: `withApplianceShare(rotation, 0)` empties `preferAppliances`, because the
+front-of-the-queue bucket is a share by another name and was itself enough to keep a
+fortnight out of band. Which rung a plan ended on is stored as `kitchenShare` on the plan, so
+the cost of keeping the bands is a figure somebody can count rather than a thing that happens
+quietly.
+
+**What it is worth, on his own fortnight** (read from production, his seed, his avoid list,
+his standing rules, through the chain the service runs):
+
+| his standing rules | before, the cliff | after, the ladder |
+| --- | --- | --- |
+| only the tortilla | 14/14, 0 plates | 14/14, **2 plates** (share 0) |
+| only the riojana | 14/14, 0 plates | 14/14, **3 plates** (share 3) |
+| none at all | 14/14, 0 plates | 14/14, **3 plates** (share 0) |
+| both on one weekday (today) | 12/14, 0 plates | 12/14, 0 plates (rescued) |
+
+Across the 42 measured fortnights, three seeds each, on the library as it stands today and
+against this morning's run of the same shape: **rescues 8 → 5**, fortnights serving zero
+preferred plates **7 → 5**, plates served **580 → 583**, days inside all four macros
+**587/588 either way**. All three rungs that held were **0**, not the half rung — so what the
+ladder reliably buys is not plates but the plan's **own rotation**: its variety, its avoid
+list and its group reserves survive where the whole library used to replace them, and the cost
+is recorded as `kitchenShare` instead of being invisible.
+
+The plates come from supply, and supply makes the share **bind harder**. With the second batch
+loaded (280 dishes, 2026-10-18) the same 42 fortnights serve **877** preferred plates instead
+of 583, only **1** serves none instead of 5, and every day is inside all four macros
+(**588/588**) — while the share has to give way on **10** fortnights instead of 3 and 8 are
+still rescued, because a quota of 7 in 19 that could not be filled displaced nothing and now
+fills completely. In the owner's own shape (two standing rules on one weekday, the rules held
+identical with `--pins-from`): plates **394 → 928**, fortnights serving none **14 → 0**,
+rescues **14 → 8**, bands unchanged at **576/588**. **The share's size is now a real choice
+rather than an unreachable ceiling**, and it stays the owner's: 7 of 19 costs
+`objetivo-alto-5-comidas` 29 plates in that shape — 42 with no rules at all — and a rescue it
+did not have before.
+
+**It does not reach his own fortnight as he has it configured**, and that is said plainly
+rather than rounded away: with two rules on one weekday no rung of the rotation holds the
+bands, so the whole library is still what answers, and the kitchen is still lost. For him the
+lever is supply — the second batch — or one rule on a different day. Everybody whose rotation
+*can* hold its bands now keeps part of the kitchen they asked for instead of none of it.
+
+(who decided: the finding and the ladder are the planner's, 2026-10-18, from the owner's own
+plan v28 read in production and his fortnight re-run seven ways, under his standing
+authorisation to fix what the plan showed; the share's size remains his to revisit, and the
+two rules on one weekday are his to arrange.)
+
+## The slow cooker stays, with a zero and the reason (2026-10-18)
+
+Phase 9 left the owner two questions and he handed both back to the planner the next day
+("el 3 lo que recomiendes tú"). Answered here so they stop being open:
+
+- **The slow cooker keeps its catalogue entry, with zero dishes and this reason beside it.**
+  It is the one appliance this product cannot express: `generatedDishSchema` bounds
+  `cookMinutes` at 180 and a step's `minutes` at 240, and `PoolBuilder.validate` parses that
+  schema before anything reads `equipment`, so an honest four-to-eight-hour braise is refused
+  as `schema` — 60 of one run's 79 schema rejections, every one a slow cooker. § *Adding an
+  appliance to the catalogue is adding a promise* permits an entry whose shortfall is written
+  where somebody reads it, and that is what this is. **Taking it out would be the worse
+  answer**: it is a real appliance in real kitchens, somebody who owns one and says *does not
+  have* an oven is giving us a true fact worth keeping, and removing it would mean a screen
+  change and `kitchen_equipment` rows pointing at an appliance that no longer exists. The way
+  in is not a raised bound — lifting it hands the dish straight to `withinTime`, which refuses
+  480 minutes for everybody who set a limit — but the idea that an **unattended** cook is not
+  time at the stove, which is the cooking-time work § *Next* 6 of the roadmap now carries with
+  phase 8's evidence behind it. Until then the slow cooker is a kitchen fact we record and
+  cannot cook with, and the `--skip slow_cooker` in the second batch is that written down.
+- **The raw-salt-cod creams do not come back, and now a rule says so rather than a reviewer.**
+  Phase 8's review struck two dishes that blended desalted cod without cooking it, on the
+  reasoning that *esqueixada* is a dish a person **chooses** and this library's dishes are
+  **assigned** by a scheduler on a Tuesday. The second batch produced five more of the same
+  shape — one of them the same slug again — so the review is no longer a reading of a list
+  but a rule in the batch's own review script: a dish that **blends**, whose name carries a
+  fish and whose steps never cook it, is struck and the reason printed. The rule is scoped to
+  the blender on purpose — read over every dish it struck sixteen grilled, steamed and
+  rice-cooked plates whose appliance plainly cooks the fish, because an appliance dish names
+  the fish in one step and starts the cycle in the next. The six cod creams production already
+  holds all cook theirs (checked read-only, 2026-10-18); none of them is affected.
+
+(who decided: the owner delegated both to the planner, 2026-10-18 — *"el 3 lo que recomiendes
+tú"* — and either is his to overturn; the schema bound and the review's rule are facts the
+record carries rather than choices.)

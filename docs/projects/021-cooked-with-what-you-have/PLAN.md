@@ -689,6 +689,54 @@ sell — so the supply is part of the promise, not an afterthought.
   apps/api/scripts/evaluate-plans.mjs --rotate 3 --prefer air_fryer --flag accompaniments`
   over the local library, which holds the same batch.
 
+### Phase 11 — A kitchen that gives way by degrees, and a library that can serve one
+
+- [x] done
+- **Dispatch**: the lead directly, at this session's effort — *added during execution,
+  2026-10-18*, when the plan the owner generated **with phase 10 live** still served 0
+  air-fryer plates of 56 and he asked for the batch ("mete tantos platos como necesitemos,
+  mínimo 50-100 por cada utensilio") and for the third point to be the planner's call.
+- **Goal**: two things, because the measurement said the first alone is not enough.
+  1. A preferred appliance that costs the macros gives up **part** of its share, and only
+     then the rotation — never the other way round, which is what phase 10 shipped by
+     omission and what made asking for an air fryer return fewer air-fryer plates than not
+     asking.
+  2. The library holds enough dishes per appliance that a rotation can keep its bands with
+     the share in place: **50 to 100 per appliance**, the owner's number.
+- **Scope**: `packages/core/src/domain/Variety/**`, `packages/core/src/controllers/Recipe/**`,
+  `apps/api/src/modules/meal-plans/services/PlanGeneration.*`,
+  `apps/api/scripts/draft-equipment-batch.mjs`, `apps/api/scripts/evaluate-plans.mjs`, both
+  `AGENTS.md`, `docs/decisions/0102-*`, `docs/ROADMAP.md`, this project's `PRD.md` and
+  `LOG.md`. The batch's dishes go to `docs/local/`, never to a migration.
+- **Steps**:
+  1. Read the owner's new plan in production, read-only, and explain the zero with his own
+     rows rather than with a theory — including discarding the first explanation (two fixed
+     meals on one weekday) by re-running his fortnight five ways.
+  2. Name the cause: the share displaces the dishes that were holding the bands, the band
+     miss buys the `wider_rotation` rescue, and the rescue replaces the pool the share
+     lives in. Measure it with the kitchen read and unread, nothing else moved.
+  3. The ladder: `narrowerShares` and `withApplianceShare`, walked by `PlanGeneration`
+     before the whole library, the rung stored as `kitchenShare`, mirrored in the evaluator
+     so the instrument measures the chain the service runs.
+  4. The second batch, with the held table **counted** rather than remembered, the slow
+     cooker left out (its schema bound, phase 8's finding) and the oven left out (96 dishes
+     already, and 6% declare rate at snacks).
+  5. Review every drafted name and method by the rules phase 8's review used, as a script
+     whose verdicts are printed: an invented word, a near-twin, an over-declaration, fish
+     that reaches the blender uncooked. A word that is Spanish but not Spain's (*estufa*)
+     joins the emitter's rewrite rather than the strike list.
+  6. The record, and the owner's three open questions answered by the planner since he
+     asked for that: the slow cooker, the raw-cod creams, phase 5b.
+- **Acceptance criteria**: a fortnight whose rotation can hold its bands keeps part of the
+  kitchen it asked for; a fortnight that cannot is still delivered in band, and says which
+  rung it ended on; no plan comes back worse on the bands than before (the product's own
+  validator); every appliance in the catalogue bar the slow cooker holds **at least 50**
+  dishes; nothing reaches production except through the owner's own load.
+- **Verification**: `pnpm --filter core test`, `pnpm --filter api test`, `gate.sh --full`;
+  the owner's fortnight re-run read-only against production, before and after the ladder;
+  `--prefer air_fryer --rotate 3 --flag accompaniments` over the local library before and
+  after the batch is loaded; `--check` over the emitted SQL file.
+
 ## Hand-off
 
 Standing constraints for every executor of this project:

@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { DISHES_NEEDED_PER_SLOT, FRESH_DISHES_PER_SLOT, isPreferredDish, rotatePool, seededShuffle } from 'core/domain/Variety';
+import {
+  DISHES_NEEDED_PER_SLOT,
+  FRESH_DISHES_PER_SLOT,
+  isPreferredDish,
+  narrowerShares,
+  rotatePool,
+  seededShuffle,
+  withApplianceShare
+} from 'core/domain/Variety';
 import type { CandidateDish, MealSlot } from 'core/entities/Plan';
 
 import { makeDish } from '#test/fixtures';
@@ -279,6 +287,61 @@ describe('isPreferredDish — the four reasons a dish goes first', () => {
         rotation
       ).map(dish => dish.slug)
     );
+  });
+});
+
+describe("the share gives way before the rotation does (0102, the owner's plan v28)", () => {
+  // `APPLIANCE_DISHES_PER_SLOT` is module-private, and its definition is this:
+  // a third of the cap, which is a third of what a slot needs.
+  const share = Math.ceil(DISHES_NEEDED_PER_SLOT / 3);
+  const lunch: readonly MealSlot[] = ['lunch'];
+  // The same shape as the measurement: a taste so wide that the preferred
+  // bucket holds nearly the whole library, so the only thing that puts an
+  // air-fryer dish in the pick is the share itself.
+  const shelf = (): readonly CandidateDish[] => [
+    ...library(200, lunch).map((dish): CandidateDish => ({ ...dish, cuisine: 'mediterranea', equipment: ['stovetop'] })),
+    ...library(12, lunch).map((dish, index): CandidateDish => ({
+      ...dish,
+      cuisine: 'internacional',
+      equipment: ['air_fryer'],
+      name: `Air ${index}`,
+      slug: `air-${index}`
+    }))
+  ];
+  const rotation = {
+    avoidSlugs: nothingAvoided,
+    preferAppliances: new Set<Appliance>(['air_fryer']),
+    preferCuisines: new Set(['mediterranea']),
+    seed: 'user-a:1'
+  };
+  const airIn = (share?: number): number =>
+    rotatePool(shelf(), lunch, share === undefined ? rotation : withApplianceShare(rotation, share)).filter(dish =>
+      dish.equipment?.includes('air_fryer')
+    ).length;
+
+  it('offers half the share and then none of it, and nothing for a kitchen nobody stated', () => {
+    expect(narrowerShares(rotation)).toEqual([Math.floor(share / 2), 0]);
+    // No rung below zero: a rotation that reserves nothing has nothing to give up.
+    expect(narrowerShares({ avoidSlugs: nothingAvoided, seed: 'user-a:1' })).toEqual([]);
+    expect(narrowerShares({ ...rotation, preferAppliances: new Set() })).toEqual([]);
+    // A rung is the ladder's own, so it never offers one at or above where it stands.
+    expect(narrowerShares(withApplianceShare(rotation, 0))).toEqual([]);
+  });
+
+  it('keeps exactly the rung it is given, down to the pick a kitchen nobody stated gets', () => {
+    expect(airIn()).toBeGreaterThanOrEqual(share);
+    expect(airIn(3)).toBeGreaterThanOrEqual(3);
+    expect(airIn(3)).toBeLessThan(airIn());
+    // Zero is the rung that reserves nothing at all: the same pick a kitchen
+    // nobody filled in gets, which is what makes it the bottom of the ladder.
+    expect(rotatePool(shelf(), lunch, withApplianceShare(rotation, 0)).map(dish => dish.slug)).toEqual(
+      rotatePool(shelf(), lunch, { ...rotation, preferAppliances: new Set() }).map(dish => dish.slug)
+    );
+  });
+
+  it('cannot be asked for more of a slot than the measurement allows', () => {
+    expect(airIn(99)).toBe(airIn());
+    expect(airIn(-5)).toBe(airIn(0));
   });
 });
 

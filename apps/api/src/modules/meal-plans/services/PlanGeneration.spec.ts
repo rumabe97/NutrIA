@@ -14,12 +14,14 @@ import { SettingsController } from 'core/controllers/Settings';
 import { ageInYears, resolveTargets } from 'core/domain/Nutrition';
 import { loadedDates, loadedTargets } from 'core/domain/Event';
 import { addDays } from 'core/domain/Vacation';
+import { DEFAULT_KITCHEN } from 'core/entities/Kitchen';
 import { toCatalogue } from 'core/entities/Plan';
 import { VARIETY_RULES } from 'core/domain/Variety';
 
 import { shapeFor } from 'core/domain/MealShape';
 
 import type { CandidateDish, Catalogue, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
+import type { Kitchen } from 'core/entities/Kitchen';
 import type { PreferenceExclusions } from 'core/domain/Preference';
 import type { EventView } from 'core/controllers/Event';
 import type { NutritionTargets } from 'core/entities/Nutrition';
@@ -437,7 +439,7 @@ describe('PlanGenerationService', () => {
     const bands = new Set(['carbs_out_of_band', 'fat_out_of_band', 'kcal_out_of_band', 'protein_below_target']);
     const bandAdvisories = (advisories: readonly string[]) => advisories.filter(line => bands.has(line.split(' ')[0] ?? ''));
 
-    function withSkewedCatalogue(rotated: CandidateDish[], library: CandidateDish[]) {
+    function withSkewedCatalogue(rotated: CandidateDish[], library: CandidateDish[], kitchen: Kitchen | null = null) {
       const mocks = build({ reusable: rotated });
 
       jest
@@ -446,7 +448,7 @@ describe('PlanGenerationService', () => {
           catalogue: skewed,
           dietaryPatterns: [],
           locale: 'es-ES',
-          preferences: NO_PREFERENCE_EXCLUSIONS,
+          preferences: { ...NO_PREFERENCE_EXCLUSIONS, kitchen },
           safety: {
             allergenIds: new Set(),
             crossContaminationAllergenIds: new Set(),
@@ -492,6 +494,45 @@ describe('PlanGenerationService', () => {
       expect(draft.generationMetadata.fallback).toBeNull();
       // And it still says where it missed, rather than hiding it.
       expect(bandAdvisories(draft.generationMetadata.advisories).length).toBeGreaterThan(0);
+    });
+
+    /*
+     * The owner's plan v28, in miniature. The dishes the appliance share pulls
+     * to the front of every slot are the fat ones here, so the full share is
+     * what puts the fortnight out of band — and the rescue that answers a band
+     * miss by reading the whole library would then deliver the bands with **no**
+     * preferred dish anywhere, which is fewer than not asking for the appliance
+     * at all (`0102` § *A rescued fortnight has no kitchen, and the share is
+     * what sends it there*). So the share is given up first, by degrees.
+     */
+    it('gives up the kitchen share for the bands before it gives up the rotation', async () => {
+      // The fat dishes are the ones the air fryer cooks, so the share is what
+      // keeps the fortnight out of band — the owner's v28 in miniature.
+      const preferred = fatty.map((dish): CandidateDish => ({ ...dish, equipment: ['air_fryer'] }));
+      const { persist, service } = withSkewedCatalogue(preferred, [...preferred, ...pool('arroz')], { ...DEFAULT_KITCHEN, air_fryer: 'prefers' });
+
+      await service.generate('user-1', 'job-1', async () => Promise.resolve());
+
+      const draft = persist.mock.calls[0]?.[1] as {
+        generationMetadata: { advisories: readonly string[]; fallback: string | null; kitchenShare: number | null };
+      };
+
+      // The bands are held, and held by narrowing the kitchen rather than by
+      // giving up the rotation — which is the order the finding asks for.
+      expect(bandAdvisories(draft.generationMetadata.advisories)).toEqual([]);
+      expect(draft.generationMetadata.kitchenShare).not.toBeNull();
+      expect(draft.generationMetadata.fallback).toBeNull();
+    });
+
+    it('records no narrowing for a kitchen nobody stated', async () => {
+      const { persist, service } = withSkewedCatalogue(fatty, pool('arroz'));
+
+      await service.generate('user-1', 'job-1', async () => Promise.resolve());
+
+      const draft = persist.mock.calls[0]?.[1] as { generationMetadata: { fallback: string | null; kitchenShare: number | null } };
+
+      expect(draft.generationMetadata.fallback).toBe('wider_rotation');
+      expect(draft.generationMetadata.kitchenShare).toBeNull();
     });
   });
 

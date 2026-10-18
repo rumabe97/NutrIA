@@ -20,14 +20,38 @@
     / 12, steamer 11 / 12, rice cooker 11 / 7, pressure cooker 10 / 7. Only the hob and the
     oven clear 19. Eight appliances are in the catalogue with their shortfall written down,
     and the lever is a second batch (0.32 USD).
-  - **Criterion 8 moved off zero and is still open.** The fortnight generated right after
-    the load served **0 air-fryer plates of 56** — not for want of library but because a
-    preference shared one bucket with three others (`0102` § *A preference nobody can see is
-    not a preference*). With the share that fixes it, his own fortnight re-scheduled serves
-    **8 of 56** at the same 12 of 14 days in band, and fourteen profiles × three seeds over
-    a library holding the same batch serve a **median of 18 of 56** with 587 of 588 days in
-    band. The criterion asks for fourteen on **his** library, so it waits on supply, not on
-    the machinery.
+  - **Criterion 8 moved off zero for most people and is still zero for him.** The fortnight
+    generated right after the load served **0 air-fryer plates of 56** — not for want of
+    library but because a preference shared one bucket with three others (`0102`
+    § *A preference nobody can see is not a preference*). With the share that fixes it,
+    fourteen profiles × three seeds over a library holding the same batch serve a **median
+    of 16 of 56** with 587 of 588 days in band.
+  - **Measured again on the plan he generated with the fix live (2026-10-18 12:52): still 0
+    of 56**, and neither supply nor his fixed meals explain it. That fortnight was rescued
+    (`wider_rotation`), and a rescued fortnight is scheduled from the whole library, where
+    the share has nothing left to be scarce against. His fortnight was re-run seven ways
+    against production: **all five arrangements of his standing rules — including none at
+    all — end rescued at zero plates**, and with the kitchen simply not read the rotation's
+    own pool holds **14 of 14 days in band, no rescue fires, and 3 air-fryer plates
+    survive**. The share takes 7 of every slot's 19 from the dishes that were fitting the
+    macros, so on his library **asking for the air fryer returns fewer air-fryer plates than
+    not asking**. The criterion is therefore gated on the share learning to yield by degrees
+    (`0102` § *A rescued fortnight has no kitchen, and the share is what sends it there*),
+    and only then on supply.
+- **Both halves shipped, 2026-10-18** (phase 11): the share yields by degrees, and a second
+  batch of **280 dishes** is drafted, reviewed and in a file. Measured on the local library
+  with the batch loaded, fourteen profiles × three seeds:
+  - **Criterion 7 is met for every appliance a kitchen can ask for, counted as dishes**: air
+    fryer 85, blender 79, microwave 67, steamer 60, grill 59, pressure cooker 59, rice cooker
+    59, oven 62 — all above the 19 a slot asks for and above the owner's own floor of 50. The
+    slow cooker stays at **0** with its schema bound written down, which `0102` permits.
+  - **Criterion 8 is met on the library and remains open in production until he loads it.**
+    With the batch loaded the 42 fortnights serve a **median of 20 plates of 56** (877 in all,
+    against 583 before), **one** fortnight serves none instead of five, and **588 of 588 days
+    are inside all four macros**. In his own shape — two standing rules on one weekday, the
+    same rules replayed — a median of **26**, **no** fortnight at zero, and the bands exactly
+    where they were (576/588, the pinned days `0101` accounts for). What is still owed is his
+    `psql`: production holds 1,141 dishes and none of these 280.
 - **Roadmap item**: [`docs/ROADMAP.md`](../../ROADMAP.md) § *Next* 5 — proposed by the owner
   on 2026-10-15 ("saber qué electrodomésticos tiene el usuario, y cuáles prefiere usar") and
   added when he approved it. What this project deliberately leaves out is § *Next* 6, added

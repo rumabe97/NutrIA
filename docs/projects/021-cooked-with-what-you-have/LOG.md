@@ -1945,3 +1945,307 @@ dishes, so the share runs out before the cap does).
 - **A preference that disappears in a rescue is worth a figure.** `generation_metadata`
   already records `fallback`; counting preferred plates beside it would say how often the
   bands cost somebody the appliance they asked for, without storing anything about a person.
+
+## Phase 11 — A kitchen that gives way by degrees (2026-10-18)
+
+- **Executor**: the lead directly, at this session's effort. The owner generated the plan
+  phase 10 asked him for, read it, and said *"Plan generado, analízalo. Además haz los puntos
+  1 y 2, el 3 lo que recomiendes tú. En el 2 mete tantos platos como necesitemos, mínimo
+  50-100 por cada utensilio"* (2026-10-18). Point 3 — the slow cooker, the raw-cod creams,
+  the iPhone check and phase 5b — was handed to the planner by name.
+- **Result**: the analysis overturned phase 10's conclusion. The share shipped that morning
+  was **self-defeating on his library**: it displaced the dishes that were holding his macros,
+  the band miss bought the `wider_rotation` rescue, and the rescue replaced the very pool the
+  share lives in. So the share now gives way **by degrees, before the rotation does**, and
+  the second batch is drafted so a rotation can hold its bands with a kitchen in it.
+
+### What happened
+
+Production served `83d1f0d9` from 06:57. At 12:52 the owner generated plan v28: **0
+air-fryer plates of 56** again, with the appliance preferred, thirty of its dishes in the
+library and the fix live. `generation_metadata.fallback` read `wider_rotation`.
+
+### The explanation that was wrong, and how it was discarded
+
+His own series looked conclusive: one standing fixed meal since 2026-10-13 → v25, no rescue,
+14 of 14 days in band; a second rule written onto **the same weekday** at 2026-10-17 00:59 →
+v26, v27 and v28, rescued every time, 0 air-fryer plates each. Across production the shape
+repeated — of the plans carrying a fixed meal **3 of 4** were rescued, of those carrying none
+**7 of 36**. It was written up as a fixed-meals finding.
+
+Then his fortnight was re-run against production with his seed, his avoid list (50 slugs,
+matching the `avoidedDishes: 50` his plan recorded) and his rules arranged five ways. **Every
+arrangement ended rescued at zero plates, including no rules at all.** The pins only change
+how badly the pre-rescue plan misses — 10 of 14 with both on one day, 12 of 14 with none.
+The write-up was corrected before it shipped; the first version of this entry, of `0102`
+§ *A rescued fortnight…* and of the PRD's criterion 8 all named the pins as the cause, and
+all three were rewritten.
+
+### The cause, with the kitchen read and unread
+
+| his fortnight | the rotation's pool alone | what would be served |
+| --- | --- | --- |
+| air fryer preferred | 12/14 in band, 6 plates | 14/14, **0 plates** (rescued) |
+| kitchen not read | **14/14 in band**, 3 plates | 14/14, **3 plates** (no rescue) |
+
+The share takes 7 of every slot's 19 and the dishes it displaces are the ones that were
+reaching the macros. **Asking for the air fryer returned fewer air-fryer plates than not
+asking** — 0 against the 3 the library hands him by chance. A preference worse than silence
+is a defect, not a trade.
+
+And phase 10's own measurement held the evidence without reading it: that run recorded the
+preference raising the rescues from **5 of 42 fortnights to 8**, and **7 of those 8 served
+zero preferred plates** against a median of 16 elsewhere. The bands held at 587 of 588
+*because the rescue held them*. A measurement of a preference has to count the rescues it
+causes; `apps/api/AGENTS.md` now says so on the evaluator's own row.
+
+### The fix
+
+`narrowerShares(rotation)` offers half the share and then none; `withApplianceShare` builds a
+rotation on a rung, and at zero it **empties `preferAppliances`** rather than only zeroing the
+share — the front-of-queue bucket is a share by another name and was itself enough to hold a
+fortnight out of band. `PlanGeneration` walks the ladder on a band miss **before** reaching
+for the whole library, rebuilding the pick with `RecipeController.rotateFor` (one definition
+of what a rotation reserves, so a second rotation cannot reserve something different) from
+the library already read — no extra query, the model's fresh dishes still first. The first
+rung that holds every band wins; a rung that does not miss by *less* is discarded, which is
+the rescue's own test, so the ladder cannot return a worse plan. The rung is stored as
+`kitchenShare`, so what the bands cost the kitchen is countable rather than quiet.
+
+### Evidence
+
+- **His own fortnight, read from production** (his seed, avoid list and rules, through the
+  service's chain): with only one standing rule the ladder turns **14/14 and 0 plates** into
+  **14/14 and 2–3 plates**; with no rules, the same. **With both rules on one weekday it
+  changes nothing** — no rung holds the bands, the whole library still answers, and he still
+  sees zero. Said plainly in `0102` rather than rounded away.
+- **The rescue was not misbehaving.** On his v28 the whole library was the right answer by the
+  product's own measure: the rotation's pool left two pinned days at **−14.7%** and **−19.7%**
+  of their protein, where the rescue's plan is 11 of 14 in band with nothing worse than
+  −10.5%. `planBandMiss` sums overshoot rather than counting days for exactly this reason, and
+  it was right to.
+
+### The second batch, drafted to the floor the owner set
+
+*"En el 2 mete tantos platos como necesitemos, mínimo 50-100 por cada utensilio"* is a supply
+number, and the first thing it needed was an honest count of what the library already holds:
+the drafter's `HELD` table still carried the **pre-batch-1** figures — `air_fryer: 0` against
+the thirty production now holds — so a run would have asked for thirty dishes nobody needed.
+Recounted from the loaded library before anything was drafted, and dated in the script.
+
+Two runs, **313 drafts for 0.6496 USD** of a 2 USD ceiling, five review rules, **280 kept**:
+
+Counted as **dishes** on the library the batch was measured against, before and after the
+load (`count(distinct r.id)` per appliance — not the appliance × slot sums the `HELD` table
+holds, which double-count a dish that serves both lunch and dinner):
+
+| appliance | before | drafted | kept | after the load |
+| --- | --- | --- | --- | --- |
+| air fryer | 30 | 55 | 55 | **85** |
+| blender | 49 | 40 | 30 | **79** |
+| grill | 23 | 37 | 36 | **59** |
+| microwave | 29 | 58 | 38 | **67** |
+| pressure cooker | 16 | 44 | 43 | **59** |
+| rice cooker | 18 | 42 | 41 | **59** |
+| steamer | 23 | 37 | 37 | **60** |
+| oven | 62 | — | — | 62 |
+| slow cooker | 0 | — | — | **0** |
+| the hob | 1,134 | — | 149 | 1,283 |
+
+Every appliance a kitchen can ask for clears his floor, so **no cell was topped up**. The oven
+was left out on its measured numbers (62 dishes already, more than the floor, and phase 8's
+snack cells declared at 6%); the slow cooker is the schema bound recorded in `0102`, not a
+shortfall. 149 of the 280 also declare the hob beside their appliance, which is the honest
+shape of a Spanish kitchen and what keeps them servable to somebody who unticks the appliance
+later.
+
+One cell came up short and the run says so in its exit code: **air fryer, afternoon snack,
+19 of 24** after sixty passes (108 drafts off target — the snack slot's macro window is the
+narrow one, as phase 8 found). 19 is above the share a slot can reserve, so it was accepted
+rather than paid for with another sixty passes.
+
+### The review's rules, and the two that were wrong
+
+The first batch's four rules were applied to all four sidecars at once, and two needed
+reshaping before they could be trusted — each caught by reading what they struck, not by
+reasoning:
+
+1. **The raw-fish rule struck sixteen plates whose appliance cooks them**: grilled tuna,
+   steamed cod, cod in a rice cooker. The rule tests the step that names the fish, and an
+   appliance dish names the fish in one step and starts the cycle in the next
+   (*"Colocar los trozos de bacalao sobre el arroz"* → *"Cerrar la arrocera y programar el
+   ciclo de cocción"*). A grill, a steamer, a rice cooker and a pressure cooker apply their
+   heat to everything inside them, so the rule now runs **only over dishes that blend** —
+   which is the shape it was written for. It then struck **5**, the raw-cod creams, the same
+   count taken by hand earlier in the day.
+2. **A fifth rule had to be added, because the drafter's own report could not see it.**
+   `bonito-a-la-parrilla-con-arroz-integral-y-verduras` declares the grill and boils rice:
+   *"Hervir el arroz integral en agua con sal durante 30 minutos"*. The drafter's `HOB` pattern
+   reads `hierv` and `hirviendo` but not **`hervir`**, so the dish was not even in the list it
+   prints for a human to read. The pattern now reads `herv[ií]` too, and the review has a rule
+   of its own: a dish that boils in a step naming none of the appliances it declares needs a
+   hob nobody declared, and the kitchen it was drafted for may not have one. One dish in 313.
+
+The three rules that held, 33 strikes in all — **12 invented words** (11 "gachupinas" and 1
+"calientita", as "huertingueras" was in batch 1), **13 adjective twins** (*densa*, *sedosa*, *terrosa*,
+*caliente* — plus one word-order twin, `potaje-de-ternera-y-alubias-blancas` against
+`potaje-de-alubias-blancas-y-ternera`), **2 over-declared microwaves** that only warm a slice
+of bread, **5** raw-cod blends and **1** hob by another name. Nothing was edited by hand: the review prints slugs for `--merge --exclude`,
+so what ships is what the machinery emitted and every removal is something a person can read.
+
+**One more wording fix went into the emitter**: the model glosses the enum for itself —
+*"a una sartén al fuego sobre la cocina (stovetop)"* — and rewriting the word alone left the
+reader *"sobre la cocina (fuego)"*. A parenthesis holding nothing but an appliance name is now
+dropped, and a real parenthetical is left alone. Four dishes had also said **"estufa"**, which
+in Spain is a heater; `inSpanish` rewrites it to *"fuego"* with the articles agreeing, which
+saved the dishes instead of striking them.
+
+### The file
+
+`docs/local/021-equipment-batch-2.sql` — **280 recipes and 280 ingredient blocks**, merged from
+the four sidecars with the 33 strikes excluded, **0 problems from every gate run again over the
+emitted file** (`--check`, independently of the merge), and **0 English or regional appliance
+words left in any step**. Gitignored, like batch 1: the load is the owner's.
+
+### What the ladder is worth, and what it is not
+
+42 fortnights, three seeds each, the air fryer preferred, measured on the library **as it
+stands today** against this morning's run of the same shape (`eval-prefer.json`):
+
+| | this morning | with the ladder |
+| --- | --- | --- |
+| rescued from the whole library | **8** of 42 | **5** of 42 |
+| fortnights serving zero preferred plates | 7 | 5 |
+| preferred plates served, all 42 | 580 | 583 |
+| days inside all four macros | 587/588 | **587/588** |
+
+So it costs nothing and it stops three rescues — but **all three held at rung 0**, not at the
+half rung. On this library the ladder mostly converts *"rescued, and the kitchen unread"* into
+*"not rescued, and the kitchen unread"*: the plan keeps its own rotation — its variety, its
+avoid list, its group reserves — instead of being rebuilt from everything, and the plates it
+then serves are the ones the library offers by chance (2, 1 and 0 in the three). **The ladder
+is the honest floor, not the fix.** What hands him plates is supply, which is why the batch is
+the other half of this phase and why the measurement that matters is the one after the load.
+
+### What the supply is worth, measured after the load
+
+The batch loaded into the **local** library (280 of 280, no collisions, 1,343 → 1,623 recipes;
+production's load is still his), and the same measurement run again:
+
+| 42 fortnights, air fryer preferred | before the batch | after it |
+| --- | --- | --- |
+| preferred dishes offered to the pick (median) | 24 | **49.5** |
+| preferred plates served, all 42 | 583 | **877** |
+| fortnights serving **zero** | 5 | **1** |
+| days inside all four macros | 587/588 | **588/588** |
+| rescued from the whole library | 5 | 8 |
+| fortnights where the share gave way | 3 | 10 |
+
+**Supply makes the share bind harder, and that is the finding.** At ~30 dishes offered the
+quota of 7 in 19 could not be filled, so it displaced little; at ~50 it fills completely and
+displaces more of what was holding the macros. So the first attempt misses a band more often
+(10 fortnights give way, 8 still reach for the whole library) even as the plates nearly
+double and the last day out of band disappears. Three profiles serve **fewer** plates than
+before — `objetivo-alto-5-comidas` 49 → 7, `quincena-con-evento` 60 → 53,
+`patron-sin-gluten` 15 → 11 — each one a fortnight that used to hold its bands with a
+half-empty quota and now gets rescued with a full one. Every rung that held, before the load
+and after, was **zero**: the half rung has never yet held a band.
+
+**The share's size is the next question, and it is the owner's.** 7 of every 19
+(`APPLIANCE_DISHES_PER_SLOT`, `ceil(REUSED_DISHES_PER_SLOT / 3)`) was chosen when no library
+could fill it. Now that one can, the number is worth revisiting with these figures in hand —
+not tonight, and not by an agent: `0102` already records it as his to revisit.
+
+### His own shape, measured properly — and the instrument that was lying
+
+His fortnight has **two standing rules on one weekday**, so the same 42 fortnights were run
+with `--pins 2 --per-day 2`. The first after-load run read like a regression: bands
+**576/588 → 562/588** and pinned days out of band 24 → 52. It was not one. The evaluator picks
+each rule with `pinHash(…) % candidates.length`, so **a library that grows re-rolls every
+rule**: all 28 rules differed between the two runs, and the two numbers describe different
+standing rules, not a before and an after.
+
+`--pins-from <kept.json>` now replays the rules a kept run wrote, and with the rules held
+identical (verified slug by slug) the honest comparison is:
+
+| 42 fortnights, his shape, the same 28 rules | before the batch | after it |
+| --- | --- | --- |
+| preferred plates served | 394 | **928** |
+| median plates a fortnight | 12 | **26** |
+| fortnights serving **zero** | 14 | **0** |
+| rescued from the whole library | 14 | **8** |
+| days inside all four macros | 576/588 | **576/588** |
+| days carrying a rule and out of band | 24 | **24** |
+
+**Nobody is left at zero, the plates more than double, and the bands do not move.** Four
+profiles that served nothing before — `patron-sin-lactosa` 0 → 89, `tres-comidas-proteina-alta`
+0 → 25, `objetivo-bajo-3-comidas` 0 → 4, `patron-sin-gluten` 1 → 5 — now serve something, and
+`objetivo-alto-5-comidas` is the one that falls (67 → 38, newly rescued once), the same
+full-quota cost as above. The six days out of band in two profiles are the pinned days
+`0101` already accounts for, unchanged by the batch.
+
+**A before-and-after with `--pins` over a changed library is not valid without
+`--pins-from`.** It is on the evaluator's row in `apps/api/AGENTS.md`, because this one nearly
+shipped a sentence saying the batch cost twelve days of macros.
+
+### Deviations from plan
+
+1. **The plan's step 5 named four review rules; five shipped.** The fifth — a dish that boils
+   in a step naming none of the appliances it declares — was written because the batch held
+   one, and because the drafter's own `HOB` pattern could not see it (`hervir`). A rule that
+   catches one dish in 313 still belongs in the script: the next batch is drafted by the same
+   machinery.
+2. **Two scripts in the repository were changed beyond the plan's scope line**, both in
+   `apps/api/scripts/` which the scope does name: the drafter learned to strip control
+   characters (a `\u0000` the model wrote would have aborted the owner's `psql` at that row,
+   `22P05`) and to drop an appliance gloss in brackets; the evaluator learned `--pins-from`.
+   The last one is not a convenience: without it a before-and-after with `--pins` over a
+   changed library compares different standing rules, and the first run of it read as twelve
+   days of macros lost.
+3. **The acceptance criterion "every appliance holds at least 50 dishes" is met on the local
+   library, not in production.** Nothing reaches production except through the owner's own
+   load, which is the last line of the criterion and is his.
+4. **The no-preference baseline on the loaded library was not run.** It would answer one open
+   question — whether rung 0 and *"kitchen not read"* are still the same thing on a library
+   this size, which `Rotation.test.ts` asserts on a fixture — and it was dropped for time
+   with the gate still to run. Written here as the next measurement rather than left implicit.
+
+### Decisions this phase touches
+
+- [`0102`](../../decisions/0102-a-kitchen-is-what-it-has-and-what-it-would-rather-use.md) —
+  two new sections: § *A rescued fortnight has no kitchen, and the share is what sends it
+  there* (the defect, the ladder, the measurements, and the share's size left as the owner's
+  to revisit) and § *The slow cooker stays, with a zero and the reason* (his third point,
+  delegated and answered).
+- [`0045`](../../decisions/0045-a-day-is-built-to-all-four-of-its-numbers.md) — the bands are
+  what the share yields to, and `planBandMiss` summing overshoot rather than counting days is
+  what made the rescue the right answer on his v28. Unchanged, and load-bearing.
+- [`0046`](../../decisions/0046-a-plan-that-misses-its-macros-is-scheduled-again.md) — the
+  `wider_rotation` rescue is not a bug and was not touched; the ladder is walked **before**
+  it, so a fortnight that can keep its bands with less kitchen never reaches it.
+- [`0101`](../../decisions/0101-a-day-can-hold-two-fixed-meals-and-the-second-is-offered-from-what-fits.md) — two rules on one
+  weekday is the arrangement he has, and the six days out of band in two profiles are the ones
+  it already accounts for. Nothing here moves them.
+- [`0070`](../../decisions/0070-a-serving-has-a-ceiling.md) — the serving ceiling refused
+  drafts in this batch as it did in the first.
+
+### Notes for the next phase
+
+- **The share's size is the open lever, and it is the owner's.** `APPLIANCE_DISHES_PER_SLOT`
+  is `ceil(19 / 3)` = 7, chosen when no library could fill it. One now can, and the full quota
+  costs `objetivo-alto-5-comidas` 42 plates with no rules and 29 in the owner's own shape,
+  plus a rescue it did not have before. The figures to put
+  in front of him are in § *What the supply is worth*; the measurement to run beside them is
+  the same 42 fortnights at 5 and at 3 a slot.
+- **The half rung has never held a band.** Ten fortnights gave way after the load and every
+  one of them went to zero. Either the rungs are too coarse (`[floor(share/2), 0]`) or a
+  partial share cannot help once a band is missed — worth one run to tell apart, and worth
+  knowing before anybody adds a third rung.
+- **The load is the gate, again.** 280 rows, `docs/local/021-equipment-batch-2.sql`, one
+  transaction, `ON CONFLICT (slug) DO NOTHING`; the file prints what production already holds
+  before it writes and counts what is there after. A count short of 280 is a collision, which
+  the file's own queries name.
+- **Criterion 8 closes on his plan, not on a measurement.** After the load, the fortnight he
+  generates next is the thing to read — and `generation_metadata.kitchenShare` now says what
+  the bands cost him, which no earlier plan could.
+

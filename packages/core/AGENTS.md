@@ -505,11 +505,38 @@ a person's plate as *less food*.
   **after** the food groups' reservation (`reserveGroups`) and never from it, because a
   legume minimum is what validation refuses a fortnight for and a preference is not. If you
   add a fifth leaning, ask what it does to this one before you put it in the same bucket.
-- **The bands outrank it, and the rescue says so.** A fortnight that misses a macro band on
-  the rotation's pool is rescued from the whole library (`wider_rotation`), where the share
-  is no longer scarce and the scheduler's fit objective decides alone — so a plan that can
-  only reach its bands from everything will show little of the preference. That order is
-  deliberate (`0045` before `0102`); do not fix it by weakening the rescue.
+- **A rescued fortnight shows none of it, and the share is what sends it there.** A fortnight
+  that misses a macro band on the rotation's pool is rescued from the whole library
+  (`wider_rotation`), and there the share has nothing left to be scarce against: it still
+  sits at the front of each slot, but `pickBest` reads pool order only inside `FIT_TIE`, so
+  fourteen dishes ahead of six hundred buy nothing. The trap is that **the share itself
+  causes the miss** — it takes 7 of every slot's 19 from the dishes that were fitting the
+  macros. Measured on the owner's own fortnight, nothing moved but whether the kitchen is
+  read: preferred, the rotation's pool holds 12 of 14 days and the rescue delivers 14 of 14
+  with **0** air-fryer plates; unread, the pool holds **14 of 14**, no rescue fires and **3**
+  air-fryer plates survive. Asking for the appliance returned fewer of it than not asking.
+  Across 42 fortnights the preference raised the rescues from 5 to 8, and 7 of those 8 served
+  zero preferred plates against a median of 16 (`0102` § *A rescued fortnight has no kitchen,
+  and the share is what sends it there*). So: the order is deliberate (`0045` before `0102`)
+  and is not the thing to change — **the share yields to the bands by degrees, before the
+  rotation itself is given up** (the ladder below, shipped 2026-10-18: on the library of
+  that morning, rescues 8 → 5 of 42 fortnights, plates 580 → 583, bands unmoved at 587/588).
+  **Every rung that has ever held a band was zero**, before the batch (3 fortnights) and after
+  it (10), so what the ladder reliably saves is the plan's own rotation, not the plates — and a
+  fuller library makes the share bind *harder*, not softer, because a quota of 7 in 19 that
+  could not be filled displaced nothing. The plates come from supply: 280 dishes took the
+  preferred plates of 42 fortnights from 583 to 877 and the fortnights serving none from 5 to
+  1, while the first attempt missed a band more often than before. A measurement of a preference counts the rescues it causes, not only the bands
+  that survive it.
+- **The share is a ceiling with a ladder under it, and the bottom rung is no preference at
+  all.** On a band miss the caller walks `narrowerShares` — half the share, then none —
+  rebuilding the pick with `RecipeController.rotateFor` and `withApplianceShare`, keeping the
+  first rung that holds every band and discarding any rung that does not miss by less. Build
+  a narrowed rotation **only** with `withApplianceShare`: at zero it empties
+  `preferAppliances` rather than only zeroing the share, because `isPreferredDish` would
+  otherwise keep every dish needing the appliance at the front of the pick — a share by
+  another name, and measured as enough on its own to hold a fortnight out of band. The rung a
+  plan ended on is stored as `kitchenShare`, so what the bands cost the kitchen is countable.
 - **Never answer a thin appliance by strengthening the prompt.** Measured twice: the prompt
   line alone produced **zero** air-fryer dishes in a real fortnight with the air fryer
   preferred (2026-10-16), and asking as hard as the machinery can — `prefers`, every other
