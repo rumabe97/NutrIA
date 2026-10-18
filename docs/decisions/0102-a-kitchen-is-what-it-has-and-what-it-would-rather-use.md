@@ -522,6 +522,18 @@ bands, so the whole library is still what answers, and the kitchen is still lost
 lever is supply — the second batch — or one rule on a different day. Everybody whose rotation
 *can* hold its bands now keeps part of the kitchen they asked for instead of none of it.
 
+**Measured again the moment the batch reached production** (2026-10-18, his own account read
+with `default_transaction_read_only=on`, his seed, his avoid list, his two standing rules, the
+whole chain in the service's order): supply moved his *pool* — the capped rotation now offers
+him a fortnight worth **9 air-fryer plates at 12 of 14 days in band** — but with both rules on
+one weekday the pool still misses a band, no rung holds it, and the whole-library rescue still
+wins on `planBandMiss` (worst overshoot 16.0% against 10.5%), which leaves **1** plate.
+**Move one rule to another weekday and the same fortnight is 14 of 14 with 10 plates and no
+rescue at all** — as is either rule on its own. So the lever that remains is his arrangement,
+not the library: the supply did arrive, and `0101`'s two heavy fixed meals on one day are what
+spends it. With the appliance not preferred at all that same day holds 12 of 14 and serves 5
+plates, so the preference is not what costs him the two days.
+
 (who decided: the finding and the ladder are the planner's, 2026-10-18, from the owner's own
 plan v28 read in production and his fortnight re-run seven ways, under his standing
 authorisation to fix what the plan showed; the share's size remains his to revisit, and the
