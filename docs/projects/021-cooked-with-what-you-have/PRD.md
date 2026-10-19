@@ -55,11 +55,15 @@
 - **Read on the live library, 2026-10-19.** The owner ran the second batch himself on
   2026-10-18 (280 of 280 rows, no collisions), so what was measured locally is now what
   production holds.
-  - **Criterion 7 is met in production, on production's own rows**: es-ES dishes
-    **1,146 → 1,426**, and by appliance air fryer **30 → 85**, blender 79, oven 69, microwave
-    67, steamer 60, pressure cooker 60, grill 59, rice cooker 59 — every appliance a kitchen
-    can ask for is above the 19 a slot the rotation needs and above the owner's own floor of
-    50, with the slow cooker at **0** and its schema bound written down. The before-and-after
+  - **Criterion 7 is met in production, on production's own rows, counted as dishes**: es-ES
+    dishes **1,146 → 1,426**, and by appliance air fryer **30 → 85**, blender 79, oven 69,
+    microwave 67, steamer 60, pressure cooker 60, grill 59, rice cooker 59 — every appliance a
+    kitchen can ask for is above the owner's own floor of 50 and above the 19 a slot the
+    rotation needs **in the slots it was drafted for**; the cells left undrafted on purpose
+    (supper, air-fryer breakfast and mid-morning, microwave mains, snacks for grill, steamer,
+    pressure and rice cooker) are the recorded judgements in `0102` § *Adding an appliance to
+    the catalogue is adding a promise*, which is the stated shortfall this criterion permits.
+    The slow cooker stays at **0** with its schema bound written down. The before-and-after
     the criterion asks for is complete: the library first, production after, each with the
     query that produced it in the LOG. `develop` itself could not carry the rehearsal — its
     Neon project is over quota until 2026-11-01 — so it was rehearsed on local Postgres, which
@@ -241,8 +245,13 @@ When this ships:
    share, which is criterion 7's business and is stated there per appliance.
    **A re-wording is proposed to the owner (2026-10-19) and is not applied without his word**:
    *with an appliance preferred, the median fortnight of the evaluator's fourteen profiles
-   yields at least as many dishes of it as the plan has days, and no fortnight is rescued into
-   serving none; one account's single generation is a reading of the feature, not the test.*
+   yields at least as many dishes of it as the plan has days, and every fortnight that serves
+   none of it is a rescued one, counted and named; one account's single generation is a reading
+   of the feature, not the test.* The second clause is written that way because the cohort
+   holds exactly one such fortnight and it **is** rescued: `objetivo-bajo-3-comidas` at seed 2,
+   `fallback: wider_rotation`, at a first rung of 7 and of 14 alike — a rescued fortnight is
+   scheduled from the whole library, where a share has nothing left to be scarce against. A
+   criterion forbidding it outright would fail on the very cohort it is measured over.
 9. End to end: a person with no oven receives a fortnight with no oven dish in it; the
    fixed-meal offer refuses an oven dish with the new reason and offers it to an account
    that has one; and another account's kitchen narrows nothing of theirs (`0019`).

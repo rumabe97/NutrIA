@@ -695,8 +695,8 @@ session forced read-only — at the share that is live and at the share it repla
 Read in plate counts alone the two are the same measurement: a median of seven against eight is
 noise at n = 8, and the criterion's fourteen arrives once in eight at the larger share and never
 at the smaller. **The difference that is not noise is the band.** At a first rung of 7 one of the
-eight fortnights (the second seed) is served with a day outside the macros — 13 of 14, missing by
-5.0% — because neither narrower rung nor the whole-library rescue could beat it; at 14 that same
+eight fortnights (the second seed) is served with a day outside the macros — 13 of 14, the worst
+day just past 5% — because neither narrower rung nor the whole-library rescue could beat it; at 14 that same
 seed ends **14 of 14**, having been rescued down to a single air-fryer plate. That is the order
 this product is built on, paid in the open: the macros first, the kitchen second.
 
@@ -720,7 +720,10 @@ three seeds, `--prefer air_fryer --flag accompaniments`, on the loaded library:
 
 **The tail does not move at all from the second rung upwards** — the same one fortnight serving
 none, the same nine serving two or fewer, the same eight rescues, the same 588 of 588 days inside
-all four macros — while the middle rises and saturates at fourteen. In the pinned shape the same
+all four macros — while the middle rises and saturates at fourteen. The fortnight that serves
+none is the same one at every size: `objetivo-bajo-3-comidas` at seed 2, **rescued**
+(`wider_rotation`), which is this record's own § *A rescued fortnight has no kitchen* and not a
+shortfall of the share. In the pinned shape the same
 holds: 928 plates at 7 against 939 at 14, median 26 either way, no fortnight at zero, 576 of 588
 days in band at both (the pinned days `0101` accounts for).
 
