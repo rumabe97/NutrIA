@@ -2312,8 +2312,8 @@ shipped a sentence saying the batch cost twelve days of macros.
 - **Result**: the project's last open claim was its own. **Criterion 8 was written up as met
   on the strength of one seed and the next generation disproved it**; the share stays at 14 on
   a distribution instead, every phase's status line and commit is now in the plan, criterion 7
-  carries production's own after-load rows, and criterion 1's human check is recorded. No code
-  changed.
+  carries production's own after-load rows, and criterion 1's human check is recorded. No
+  behaviour changed: the only source edit is the docstring that quoted the number.
 
 ### The prediction that failed, and what it cost
 
@@ -2339,8 +2339,8 @@ seed and the seven after it, his avoid list, his one standing rule replayed on b
 
 **The plate counts are the same measurement at n = 8** (a median of 7 against 8), and v30's
 seven is the median rather than a failure. What is not noise is the band: at a first rung of 7
-the second seed is served **13 of 14**, missing by 5.0%, because no narrower rung and not the
-whole-library rescue could beat it; at 14 that same seed ends **14 of 14** after being rescued
+the second seed is served **13 of 14**, the worst day just past 5%, because no narrower rung and
+not the whole-library rescue could beat it; at 14 that same seed ends **14 of 14** after being rescued
 down to a single plate. The macros first, the kitchen second, paid in the open.
 
 **And the first rung decides what the rescue has to work with**, which is not obvious from the
