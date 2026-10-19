@@ -52,6 +52,30 @@
     same rules replayed — a median of **26**, **no** fortnight at zero, and the bands exactly
     where they were (576/588, the pinned days `0101` accounts for). What is still owed is his
     `psql`: production holds 1,141 dishes and none of these 280.
+- **Read on the live library, 2026-10-19.** The owner ran the second batch himself on
+  2026-10-18 (280 of 280 rows, no collisions), so what was measured locally is now what
+  production holds.
+  - **Criterion 7 is met in production, on production's own rows**: es-ES dishes
+    **1,146 → 1,426**, and by appliance air fryer **30 → 85**, blender 79, oven 69, microwave
+    67, steamer 60, pressure cooker 60, grill 59, rice cooker 59 — every appliance a kitchen
+    can ask for is above the 19 a slot the rotation needs and above the owner's own floor of
+    50, with the slow cooker at **0** and its schema bound written down. The before-and-after
+    the criterion asks for is complete: the library first, production after, each with the
+    query that produced it in the LOG. `develop` itself could not carry the rehearsal — its
+    Neon project is over quota until 2026-11-01 — so it was rehearsed on local Postgres, which
+    the LOG states rather than skips.
+  - **Criterion 8 is corrected, not closed by a plan**: see the criterion itself. The
+    single-seed claim written on 2026-10-18 is withdrawn there and replaced by the eight-seed
+    distribution.
+  - **Criterion 1's human check is in**: the owner confirmed the kitchen screens on his iPhone
+    on 2026-10-18 (*"todas las pantallas que me has comentado salen bien"*), which is the
+    `human-verify` gate phase 5 left open.
+  - **The share stays at 14 of 19** — now decided on a distribution rather than a seed: over
+    the 42 fortnights, raising it from 7 to 14 moves the plates from 877 to 895 (median 20 to
+    24.5) and leaves every tail figure identical (one fortnight serving none, nine serving two
+    or fewer, eight rescues, 588 of 588 days in band), and it saturates there. On the owner's
+    own eight seeds it was the larger share that let the rescue find a 14-of-14 plan on the one
+    seed where the smaller share settled for 13 of 14.
 - **Roadmap item**: [`docs/ROADMAP.md`](../../ROADMAP.md) § *Next* 5 — proposed by the owner
   on 2026-10-15 ("saber qué electrodomésticos tiene el usuario, y cuáles prefiere usar") and
   added when he approved it. What this project deliberately leaves out is § *Next* 6, added
@@ -201,16 +225,24 @@ When this ships:
    and then on production, with the query that produced each number.
 8. **A preference changes what is written, by a number**: with the air fryer preferred, one
    generation yields at least as many air-fryer dishes as the plan has days in it, against
-   the 1 dish in 1128 the library holds today. The figure goes in the record. **Met on
-   2026-10-18**, and the number needed the share raised to reach it: the owner's own fortnight
-   serves **14 air-fryer plates of the 28 its meal shape allows** — his day holds breakfast,
-   mid-morning, lunch and dinner, and the library holds air-fryer dishes for lunch and dinner
-   of those — with **14 of 14 days inside all four macros and no rescue**, measured against
-   production read-only at a first rung of 14 of 19 (`0102` § *The share is three quarters of
-   every slot*). At the share this project shipped with, the same fortnight served 7; the plan
-   he generated that day (v29) is one of those, so the fourteen arrive with his next
-   generation. A shape whose slots the appliance has no dishes for cannot reach this number at
-   any share, which is criterion 7's business and is stated there per appliance.
+   the 1 dish in 1128 the library holds today. The figure goes in the record.
+   **Met over a cohort, not over one fortnight — corrected 2026-10-19.** What stood here for a
+   day (*"met on 2026-10-18 … the owner's own fortnight serves 14 air-fryer plates of the 28
+   its meal shape allows"*) was **a single seed**, and the fortnight he generated next served
+   **7**. Read over **eight seeds** of his own shape against production, read-only, the honest
+   figure is a **median of 8 plates of the 28 his shape allows, spread 1 to 15**, every one of
+   them with 14 of 14 days inside all four macros; the criterion's fourteen arrives on **1
+   seed of 8**. Over the 42 fortnights the evaluator measures, the median fortnight serves
+   **24.5 plates of its 56** — well past its own day count — and one fortnight of 42 still
+   serves none. So the criterion **is** met where it is measured over a cohort and **cannot be
+   promised to one person's next generation**: the seed moves the answer as much as the share's
+   size does (`0102` § *One seed is not a measurement, and the share's size is read over
+   eight*). A shape whose slots the appliance has no dishes for cannot reach the number at any
+   share, which is criterion 7's business and is stated there per appliance.
+   **A re-wording is proposed to the owner (2026-10-19) and is not applied without his word**:
+   *with an appliance preferred, the median fortnight of the evaluator's fourteen profiles
+   yields at least as many dishes of it as the plan has days, and no fortnight is rescued into
+   serving none; one account's single generation is a reading of the feature, not the test.*
 9. End to end: a person with no oven receives a fortnight with no oven dish in it; the
    fixed-meal offer refuses an oven dish with the new reason and offers it to an account
    that has one; and another account's kitchen narrows nothing of theirs (`0019`).

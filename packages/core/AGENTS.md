@@ -503,6 +503,20 @@ a person's plate as *less food*.
   every slot*). The share's real cost is all between zero and seven, and was paid when it
   shipped. A kitchen measurement without `--flag accompaniments` is not a measurement: the
   same run reads 180 plates instead of 877.
+- **Price a constant over the cohort, never on one seed.** The size above was raised on a
+  42-fortnight sweep **and** on one reading of the owner's own fortnight, and the single
+  reading was written up as *"criterion 8 met, fourteen plates"*. His next generation served
+  **seven**. Read over eight seeds of the same account, same library, same rules, the plate
+  count spans **1 to 15** (median 8 at a first rung of 14, median 7 at 7): the seed moves it as
+  far as the constant does. So a scheduler constant is decided on the sweep, which has n = 42
+  and a tail, and a number quoted for one person is quoted **with its spread or not at all**
+  (`0102` § *One seed is not a measurement*). What the larger share actually bought there was a
+  band, not a plate: at seven, one of the eight fortnights is served 13 of 14 days in band;
+  at fourteen all eight hold, one of them rescued down to a single plate.
+- **The first rung decides what the rescue may use.** `PlanGeneration.service.ts` builds the
+  `wider_rotation` pool as the **first attempt's own pool** unioned with the uncapped rotation,
+  so changing the share changes the rescue's library too. A harness that unions the uncapped
+  rotation with something else is measuring a chain this product does not run.
 - **A null kitchen means nobody asked, not an empty kitchen.** `withinEquipment(dish, null)`
   is `true`. A caller that reads a missing kitchen as "has nothing" empties the library for
   every account that never opened the screen.
