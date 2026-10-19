@@ -2310,11 +2310,17 @@ export const enGB: Dictionary = {
     historyFinished: 'Finished',
     historyIntro: 'Every plan stays as it was, with what you ate and what you did not. It cannot be changed.',
     historyLink: 'Earlier plans →',
+    historyLockedChip: 'Premium',
+    historyLockedCta: 'See premium',
+    historyLockedIntro: 'The plan you are living is always yours. Fortnights that have ended are kept whole, and premium is what opens them.',
     historyOne: 'Earlier plan',
     historyPlan: 'Plan {version}',
     historyReplaced: 'Replaced',
     historyTitle: 'Your plans',
     loadedFor: 'Eating for: {name}',
+    lockedBody:
+      'This fortnight has ended and is kept whole: its days, its dishes and what you marked. Premium is what opens it. The plan you are living is never closed.',
+    lockedTitle: 'Premium opens this fortnight',
     pendingReviewBody: 'Your dietitian is reviewing it before publishing. Here is your previous plan, just as it was.',
     pendingReviewTitle: 'Your new plan is with your dietitian',
     range: '14 days · {start} to {end}',
@@ -2818,7 +2824,7 @@ export const enGB: Dictionary = {
     premiumMonthly: 'Monthly · {price} a month',
     premiumPastDue: 'The last payment could not be taken. Stripe will try again; update your card to keep premium.',
     premiumPitch:
-      '{redos} plan redos a fortnight instead of {freeRedos}, {swaps} meal swaps a plan instead of {freeSwaps}, {events} events a plan instead of {freeEvents}, {fixedMeals} meals fixed every week instead of {freeFixedMeals}, and up to {midPlan} events added once a plan has started. And if the dish you always make is not in the library, premium can ask us to write it: {dishRequests} a month, and it only counts when a dish arrives.',
+      '{redos} plan redos a fortnight instead of {freeRedos}, {swaps} meal swaps a plan instead of {freeSwaps}, {events} events a plan instead of {freeEvents}, {fixedMeals} meals fixed every week instead of {freeFixedMeals}, and up to {midPlan} events added once a plan has started. Premium also opens your earlier fortnights: they are kept either way, whether or not you can see them. And if the dish you always make is not in the library, premium can ask us to write it: {dishRequests} a month, and it only counts when a dish arrives.',
     premiumRenews: 'You have premium. It renews on {date}.',
     premiumSafety: 'Food safety — allergies, intolerances and nutrients — is the same with premium and without it.',
     premiumTestMode: 'Test mode: nothing is really charged. Use the card 4242 4242 4242 4242, any future date and any CVC.',
@@ -2898,6 +2904,7 @@ export const enGB: Dictionary = {
     noChange: 'No change',
     noData: '—',
     openPlan: 'See the plan →',
+    openPlanLocked: 'The plan, with premium',
     overallLine: '{eaten} meals eaten of the {marked} you marked',
     overallNone: 'Mark meals as eaten or skipped and this shows how much of the plan you follow.',
     planNumber: 'Plan {version}',
@@ -3135,7 +3142,7 @@ export const enGB: Dictionary = {
           'If we change the price, we will tell you in advance and you can cancel before it applies.'
         ],
         paragraphs: [
-          'NutrIA can be used for free, with limits on the plans you can redo, the meals you can swap and the events in each plan. Food safety — allergies, intolerances and nutrients — is the same with Premium and without it.',
+          'NutrIA can be used for free, with limits on the plans you can redo, the meals you can swap and the events in each plan. On the free plan you see the fortnight you are living, in full and always; fortnights that have ended are kept all the same, and seeing them in the app is part of Premium. Kept they are either way: you can ask us for a copy of your data whenever you like, as the privacy policy explains. Food safety — allergies, intolerances and nutrients — is the same with Premium and without it.',
           'Premium, when it is available, raises those limits for a monthly or yearly subscription. The price is shown, tax included, before you pay, and the payment is handled by Stripe.'
         ]
       },
@@ -3191,7 +3198,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Terms of use',
-    updated: 'Last updated: 13 October 2026'
+    updated: 'Last updated: 19 October 2026'
   },
 
   tour: {

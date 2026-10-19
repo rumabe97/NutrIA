@@ -9,6 +9,8 @@ import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
 import { Card } from 'components/Card';
+import { CtaLink } from 'components/CtaLink';
+import { EmptyState } from 'components/EmptyState';
 import { MacroSummary } from 'components/MacroSummary';
 import { MealAccompaniments } from 'components/MealAccompaniments';
 import { MealEquipment } from 'components/MealEquipment';
@@ -21,7 +23,7 @@ import { difficultyLabel, slotLabel } from 'lib/generation';
 import { formatDate, formatNumber, formatQuantity, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { resumesOn } from 'lib/vacation';
-import { serverApi } from 'lib/server-api';
+import { serverApi, serverApiResult } from 'lib/server-api';
 
 import { appMetadata } from '../../../../_shared/metadata';
 
@@ -42,13 +44,31 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
   await redirectIfOnboardingIncomplete();
 
   const { id } = await params;
-  const [dictionary, locale, meal, allowances, trips] = await Promise.all([
+  const [dictionary, locale, answer, allowances, trips] = await Promise.all([
     getDictionary(),
     activeLocale(),
-    serverApi<MealDetailView>(`/meal-plans/meals/${id}`),
+    serverApiResult<MealDetailView>(`/meal-plans/meals/${id}`),
     serverApi<AllowancesView>('/meal-plans/allowances'),
     serverApi<readonly VacationView[]>('/vacations')
   ]);
+  const meal = answer.body;
+
+  // A meal of a fortnight premium opens (`0021` § *Amended*). The meal's page is
+  // the other way into an earlier plan — from the shopping list, from a link
+  // somebody kept — so it explains the same thing the plan's own screen does
+  // rather than showing a 404 for something that is theirs and still there.
+  if (answer.code === 'PREMIUM_ONLY') {
+    return (
+      <EmptyState body={dictionary.plan.lockedBody} title={dictionary.plan.lockedTitle}>
+        <CtaLink href="/perfil" size="lg">
+          {dictionary.plan.historyLockedCta}
+        </CtaLink>
+        <CtaLink href="/plan" size="lg" variant="secondary">
+          {dictionary.plan.title}
+        </CtaLink>
+      </EmptyState>
+    );
+  }
 
   if (!meal) {
     notFound();

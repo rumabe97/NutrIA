@@ -7,6 +7,7 @@ import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { Card } from 'components/Card';
+import { PremiumChip } from 'components/PremiumChip';
 
 import { formatDate, formatNumber, interpolate } from 'lib/format';
 
@@ -19,6 +20,10 @@ const FULL = 100;
  * what the check-in said. The bar is the check-in's own measure — eaten over
  * marked — so the number here and the one on the check-in never disagree; an
  * empty bar with "no meals marked" is the honest state before the first mark.
+ *
+ * A fortnight this account does not open (`0021` § *Amended*) keeps its card,
+ * its adherence and its check-in, and shows the premium mark where the way into
+ * the plan would be.
  */
 export function FortnightList({ fortnights }: { fortnights: readonly FortnightView[] }) {
   const dictionary = useDictionary();
@@ -84,9 +89,17 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
               </ul>
             ) : null}
 
-            <Link className={styles.open} href={fortnight.status === 'active' ? '/plan' : `/plan/historial/${fortnight.planId}`}>
-              {t.openPlan}
-            </Link>
+            {fortnight.locked ? (
+              // The card keeps its own numbers — this screen is theirs whatever
+              // they pay — and loses only the way into the plan behind it
+              // (`0021` § *Amended*). A link that led to a wall would be a door
+              // that is not one.
+              <PremiumChip label={t.openPlanLocked} />
+            ) : (
+              <Link className={styles.open} href={fortnight.status === 'active' ? '/plan' : `/plan/historial/${fortnight.planId}`}>
+                {t.openPlan}
+              </Link>
+            )}
           </Card>
         );
       })}

@@ -584,6 +584,23 @@ a person's plate as *less food*.
   capped. **Nothing about a kitchen is in `Allowance.ts`**, and that is a decision rather
   than an omission (`marketing`, 2026-10-15): a profile field that narrows or steers a plan
   has never been sold here. Do not add a row for it without that decision being revisited.
+- **What the paywall may gate, and what it may never.** `Allowance.ts` § *What may be sold*
+  is the list, and it is two items long: more of what costs money to produce (every number in
+  that table), and **the record of what was already served** — earlier fortnights, premium
+  since 2026-10-19 (`0021` § *Amended*). Never behind it: safety, allergies, intolerances,
+  the nutrition maths, the catalogue, and **the plan somebody is living**, every day and
+  every meal of it, for ever. A new gate on *access* rather than on quantity is a decision
+  record and the owner's word, never a flag somebody adds.
+- **A visibility gate fails open; a spending gate fails closed.** `tierOf` answers *free* for
+  everybody while the `premium` switch is down, because that switch is an operational kill
+  switch. So `pastOpensFor` opens the past to everybody when there is no tier to buy, which is
+  the opposite of every quota here and deliberate: a quota that fails open gives away money,
+  while a visibility gate that fails closed hides a person's own fortnights from them over a
+  switch they cannot see. Read the tier **lazily** too — only when there is something past to
+  lock — so a first fortnight pays nothing for a paywall that cannot apply to it.
+- **Ownership is decided before any tier.** `getPlan` looks the plan up owner-scoped and
+  throws `NotFoundError` first; only then does it ask what the reader pays. A paywall that
+  answered 409 for somebody else's plan id would confirm that it exists.
 
 ## ⛔ Anti-patterns
 

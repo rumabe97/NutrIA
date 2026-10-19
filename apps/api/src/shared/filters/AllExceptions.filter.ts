@@ -17,6 +17,7 @@ import {
   PictureRetryRefusedError,
   PlanPausedError,
   PracticeFullError,
+  PremiumOnlyError,
   ProfileConsentRequiredError,
   QuotaExceededError,
   ReauthenticationRequiredError,
@@ -36,6 +37,8 @@ type ErrorBody = {
   /** How many meals one weekday may hold, named when that is what refused the rule (`0103`). */
   readonly dayLimit?: number;
   readonly fieldErrors?: Record<string, readonly string[]>;
+  /** What is behind premium, named when that is what refused the read (`0021` § *Amended*). */
+  readonly kind?: 'past_plan';
   /** The client's own open link, named when it is what stands in the way of accepting another (`0059`). */
   readonly link?: { readonly professionalName: string; readonly since: string; readonly status: 'active' | 'paused' };
   readonly message: string;
@@ -244,6 +247,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message: 'No se puede hacer eso con la imagen ahora.',
         statusCode: HttpStatus.CONFLICT
       };
+    }
+
+    if (exception instanceof PremiumOnlyError) {
+      // A fortnight already lived, asked for by a free account (`0021` § *Amended*).
+      // 409 and not 404 on purpose: the plan is theirs and still there, and the same
+      // request succeeds on premium — so the screen says that rather than showing a
+      // page that claims their past is gone. The code is what the screen switches on;
+      // the sentence is the fallback for a caller that does not.
+      return { code: 'PREMIUM_ONLY', kind: exception.kind, message: 'Tus quincenas anteriores se ven con premium.', statusCode: HttpStatus.CONFLICT };
     }
 
     if (exception instanceof ConflictError) {

@@ -747,8 +747,10 @@ export const CareController = {
     return CareController.withClient(professional.id, linkId, 'overview', 'read', async (clientId, access) => {
       const [plan, plans, progress, targets] = await Promise.all([
         PlanController.getActivePlan(clientId, locale),
-        PlanController.listPlans(clientId),
-        ProgressController.summary(clientId),
+        // `professional`: the tier being read is the client's, and a dietitian who
+        // cannot see what their client was served cannot do this job (`0021` § *Amended*).
+        PlanController.listPlans(clientId, undefined, undefined, 'professional'),
+        ProgressController.summary(clientId, undefined, 'professional'),
         ProfileController.targets(clientId)
       ]);
       const page: CareClientOverviewView = {

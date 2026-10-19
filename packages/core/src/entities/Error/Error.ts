@@ -347,3 +347,26 @@ export class TwoFactorRemovalRefusedError extends Error {
     this.name = 'TwoFactorRemovalRefusedError';
   }
 }
+
+/**
+ * What was asked for is behind premium, and this account is free (`0021`
+ * § *Amended*, the owner on 2026-10-19).
+ *
+ * `kind` is `past_plan`: a fortnight already lived and no longer the one being
+ * lived — its plan, one of its days, one of its meals. The plan being lived is
+ * never behind this, and neither is anything about safety
+ * (`Allowance.ts` § *What may be sold*).
+ *
+ * **A state, not a denial, which is why it is 409 and not the 404 a real denial
+ * answers.** The plan is theirs, it is still there, and the same request
+ * succeeds the moment the account is premium — so the screen has something to
+ * say rather than a dead end, and the row it cannot open is still listed with
+ * its dates. A 404 here would teach a paying customer that their own past was
+ * thrown away.
+ */
+export class PremiumOnlyError extends Error {
+  constructor(readonly kind: 'past_plan') {
+    super(`Premium only: ${kind}`);
+    this.name = 'PremiumOnlyError';
+  }
+}
