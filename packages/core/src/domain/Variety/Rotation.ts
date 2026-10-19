@@ -111,7 +111,12 @@ const REUSED_DISHES_PER_SLOT = DISHES_NEEDED_PER_SLOT;
  * therefore where the measurement stops paying and where this sits. The cost
  * of the share is real but it is all spent between zero and seven (fish and
  * shellfish 62% → 55% of fortnights, meat 79% → 67%, processed 90% → 82%),
- * which is `0102`'s own trade and was paid when the share shipped.
+ * which is `0102`'s own trade and was paid when the share shipped. What it does
+ * **not** buy is a promise about one fortnight: over eight seeds of one real
+ * account — same library, same rules — the plates span **1 to 15** (median 8
+ * here, 7 at a first rung of seven), so this constant is quoted over the
+ * cohort and a single plan is a reading of it, never the figure (`0102`
+ * § *One seed is not a measurement*).
  *
  * **It can cost the bands, and then it must give way** (`0102` § *A rescued
  * fortnight has no kitchen, and the share is what sends it there*, 2026-10-18).

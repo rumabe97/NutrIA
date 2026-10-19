@@ -2302,3 +2302,112 @@ shipped a sentence saying the batch cost twelve days of macros.
   what production actually holds for the air fryer at lunch. `0102` § *The share is three
   quarters of every slot*.
 
+
+## Close-out — One seed is not a measurement (2026-10-19)
+
+- **Executor**: the lead directly, at this session's effort. The owner merged #298, generated
+  his fortnight on the new share and asked for it to be read (*"Plan regenerado, analízalo. Y
+  todas las pantallas que me has comentado salen bien"*), then asked what was left
+  (*"Que queda? Que tengo que hacer??"*).
+- **Result**: the project's last open claim was its own. **Criterion 8 was written up as met
+  on the strength of one seed and the next generation disproved it**; the share stays at 14 on
+  a distribution instead, every phase's status line and commit is now in the plan, criterion 7
+  carries production's own after-load rows, and criterion 1's human check is recorded. No code
+  changed.
+
+### The prediction that failed, and what it cost
+
+#298 deployed at 21:18 UTC and the owner generated at 21:24. **Predicted 14 air-fryer plates;
+v30 served 7** — the same number v29 served at half the share. Everything about the deploy was
+verified before anything was blamed: both production deployments succeeded, CI on `main` was
+green, and with `packages/core` rebuilt `narrowerShares({ preferAppliances: ['air_fryer'] })`
+returns `[7, 0]`, which only a first rung of 14 can produce. The constant was live. The method
+was wrong: **a fortnight is drawn with a seed**, and one generation was read as a property.
+
+### His own shape over eight seeds, at both sizes
+
+`his-seeds.mjs --ladder --seeds=8` against production with the session forced read-only (his
+seed and the seven after it, his avoid list, his one standing rule replayed on both weeks):
+
+| | first rung 7 | first rung 14 (live) |
+| --- | --- | --- |
+| plates per seed | 9, 10, 8, 6, 10, 4, 4, 6 | 10, 1, 13, 6, 10, 3, 15, 6 |
+| median / total of 28 possible each | **7** / 57 | **8** / 64 |
+| spread | 4 – 10 | 1 – 15 |
+| fortnights at 14 of 14 days in band | **7 of 8** | **8 of 8** |
+| the share gave way | 2 of 8 | 5 of 8 |
+
+**The plate counts are the same measurement at n = 8** (a median of 7 against 8), and v30's
+seven is the median rather than a failure. What is not noise is the band: at a first rung of 7
+the second seed is served **13 of 14**, missing by 5.0%, because no narrower rung and not the
+whole-library rescue could beat it; at 14 that same seed ends **14 of 14** after being rescued
+down to a single plate. The macros first, the kitchen second, paid in the open.
+
+**And the first rung decides what the rescue has to work with**, which is not obvious from the
+constant: `PlanGeneration.service.ts` builds the rescue's pool as the first attempt's own pool
+unioned with the uncapped rotation. A larger share misses the first band more often *and* hands
+the rescue a different library — the two tables are one mechanism seen from two sides. The
+harness mirrors that union, which is why its rungs agree with the service's.
+
+### The cohort, which is what decided it
+
+Fourteen profiles × three seeds, the loaded library, `--prefer air_fryer --flag
+accompaniments`, the first rung swept with the clamp lifted:
+
+| first rung | plates | median | serving none | serving ≤ 2 | rescued | days in band |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | 842 | 18.5 | 1 | 14 | 18 | 588/588 |
+| 7 | 877 | 20 | 1 | 9 | 8 | 588/588 |
+| 10 | 888 | 23 | 1 | 9 | 8 | 588/588 |
+| **14** | **895** | **24.5** | **1** | **9** | **8** | **588/588** |
+| 19 | 895 | 24.5 | 1 | 9 | 8 | 588/588 |
+
+**The tail is identical from the second rung up** and the middle rises to a ceiling at
+fourteen. In the pinned shape: 928 plates at 7 against 939 at 14, median 26 either way, no
+fortnight at zero, 576/588 at both. **So the share stays at 14** — strictly better in the
+middle, identical in the tail, and on his own eight the size that kept every fortnight inside
+the bands. Reverting would be a third change to a constant on eight samples against
+forty-two that say it costs nothing.
+
+### What the record said and now says
+
+- **PRD criterion 8**: the *"met on 2026-10-18 … 14 plates of the 28 his shape allows"*
+  annotation is withdrawn and replaced by the distribution, with the plain statement that the
+  criterion is met over a cohort and **cannot be promised to one person's next generation**. A
+  re-wording in terms of the cohort's median is **proposed to the owner and not applied**.
+- **PRD criterion 7**: production's own after-load rows, which the criterion asks for —
+  es-ES 1,146 → 1,426, air fryer 30 → 85, blender 79, oven 69, microwave 67, steamer 60,
+  pressure cooker 60, grill 59, rice cooker 59, slow cooker 0 — and the note that `develop`
+  could not carry the rehearsal (Neon quota until 2026-11-01), so it was local Postgres.
+- **PRD criterion 1**: *confirmed by human on 2026-10-18*, on his iPhone, on his own account.
+- **`0102`**: § *One seed is not a measurement, and the share's size is read over eight* holds
+  both tables and the rescue-pool mechanism; the single-seed table in the section above it is
+  labelled as the one seed it was, and that section's claim that criterion 8 was "reachable
+  without being rewritten" is marked as not having survived the next generation.
+- **`PLAN.md`**: phase 5b `- [x] done — 35d6b439 (#291), refined by 1bed4cc7 (#292)` — it had
+  read `in progress` for three days after shipping; phase 10 `83d1f0d9` (#295); phase 11
+  `21a9ae5b` (#296) with #297 and #298; phase 5's human-verify gate closed; the project's
+  status line now says done.
+
+### Deviations from plan
+
+1. **No phase covered this.** The plan's last phase is 11; this is a close-out entry, written
+   because a false claim in the PRD is worse than a missing one and the owner had to be told
+   the share's size had been decided on one sample.
+2. **Nothing was re-measured to make the share look right.** The sweep that decided it is the
+   one #298 already carried; what is new is the tail columns (`serving none`, `≤ 2`) read off
+   the same JSON, and the eight seeds of his own shape at both sizes.
+
+### Notes for the next project
+
+- **Never price a constant on one seed.** The seed moves a fortnight's plate count as much as
+  the constant does — 1 to 15 on one account's own library — so a change to a scheduler
+  constant is measured over the cohort, and a figure quoted for one person is quoted with its
+  spread or not at all. It is on `packages/core/AGENTS.md`'s rotation row.
+- **A plan's status line is the plan's only truth.** Phase 5b shipped in #291 and #292 and sat
+  at `in progress` for three days, which made the roadmap's § *Next* read as blocked on it.
+- **The next lever is not the share.** It saturates at fourteen; what is left for a person
+  whose shape covers two slots of four is supply in the slots the catalogue deliberately left
+  empty (air-fryer breakfast, microwave mains, the snacks) — recorded judgements in `0102`,
+  not gaps — and the share a *cuisine* might hold, which the baseline in #297 is the strongest
+  argument for.

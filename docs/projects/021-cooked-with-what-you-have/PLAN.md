@@ -1,6 +1,11 @@
 # Plan — Project 021: Cooked with what you have
 
-- **Status**: approved — the owner, 2026-10-15
+- **Status**: **done — every phase shipped and merged, 2026-10-19.** Phases 1–11 and 5b, 5c
+  are in `main`; the owner confirmed the screens on his iPhone on 2026-10-18 and loaded the
+  second batch into production himself the same day. What the project leaves open is written
+  in the PRD against criteria 7 and 8 and in `0102` — not work, but a reading: criterion 8 is
+  met over a cohort and is not a promise about one generation, and its re-wording waits on the
+  owner. (Approved by the owner, 2026-10-15.)
 - **Type**: standard
 - **PRD**: ./PRD.md (every acceptance criterion maps to at least one phase; the map is at
   the end of each phase block)
@@ -217,8 +222,11 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 5 — The screen somebody describes a kitchen on
 
-- [x] done — commit `6efb2a5b` (#286). **The owner's iPhone check is owed after the merge,
-  not before**: this
+- [x] done — commit `6efb2a5b` (#286). **Confirmed by human on 2026-10-18**: the owner
+  checked the kitchen screens on his own iPhone, on his own account, after the deploy —
+  *"todas las pantallas que me has comentado salen bien"* — which closes PRD criterion 1's
+  `human-verify` gate and the iPhone check this line had owed since the merge. **The check was
+  owed after the merge, not before**: this
   repository has no preview deployments on purpose (`ignoreCommand` skips every branch but
   `main`, and a preview URL is in neither `ALLOWED_ORIGINS` nor `BETTER_AUTH_URL`), and the
   one screen most needing a device — the dish detail with its icons — cannot be reached
@@ -286,7 +294,15 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 5b — A rule that is not being honoured says so
 
-- [ ] in progress
+- [x] done — commit `35d6b439` ("A fixed meal the next plan cannot honour says so, on its own
+  row, with what changed", #291), refined by `1bed4cc7` ("Fixing a meal takes 82 ms instead of
+  four seconds, and a day you overrule says so", #292). **This line said `in progress` for
+  three days after the work was in `main`** — the latency question the phase was waiting on
+  was answered inside it and measured (`GET /fixed-meals/honourability` on its own route,
+  fetched lazily by `IntersectionObserver` when the planner scrolls into view: 75–90 ms there
+  against 2 ms on the screen's own payload, which is why it is not on it), and the status was
+  never moved. Phase status lives here and nowhere else, so a stale line here is the plan
+  lying about the code.
 - **Dispatch**: opus @ medium — `/execute-project 021 phase 5b` · *added during execution,
   2026-10-16*: this was step 4 of phase 5 until the lead read what it costs.
 - **Goal**: a standing fixed meal the generator can no longer honour says so, with the
@@ -656,7 +672,10 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 10 — A preference nobody can see
 
-- [x] done — the load happened (2026-10-18, 02:53 UTC) and the fortnight after it still
+- [x] done — commit `83d1f0d9` ("A preferred appliance holds a share of every slot's pick, so
+  the one you asked for reaches the plate", #295), after `e35d1a86` ("A preference is worth
+  what the library holds for it, and the record says by how much", #294) carried its
+  measurement. The load happened (2026-10-18, 02:53 UTC) and the fortnight after it still
   served **0 air-fryer plates of 56**. The cause was not the prompt and not the library:
   `isPreferredDish` is one bucket for four leanings, so four liked cuisines held 548 of 672
   servable dishes and the appliance was one in 22.8 of what the cap took. A preferred
@@ -691,7 +710,12 @@ sell — so the supply is part of the promise, not an afterthought.
 
 ### Phase 11 — A kitchen that gives way by degrees, and a library that can serve one
 
-- [x] done
+- [x] done — commit `21a9ae5b` ("A kitchen gives way by degrees before the rotation does, and
+  280 dishes mean it rarely has to", #296), with the share's size measured in `b1f094e2`
+  (#297) and raised to three quarters of the cap in `e631bd15` (#298). **The owner loaded the
+  batch himself on 2026-10-18** (280 of 280 rows, es-ES 1,146 → 1,426), and the figure #298
+  was raised on was corrected on 2026-10-19 over eight seeds — the constant stands, the claim
+  about his own fortnight did not (`0102` § *One seed is not a measurement*).
 - **Dispatch**: the lead directly, at this session's effort — *added during execution,
   2026-10-18*, when the plan the owner generated **with phase 10 live** still served 0
   air-fryer plates of 56 and he asked for the batch ("mete tantos platos como necesitemos,

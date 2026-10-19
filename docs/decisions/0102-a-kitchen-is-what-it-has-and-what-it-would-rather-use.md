@@ -641,7 +641,8 @@ when the share shipped. It **saturates at fourteen**: nineteen is the same plan,
 fourteen the limit is the person's own library rather than the cap.
 
 And on his own fortnight, read against production with the session forced read-only, his seed,
-his avoid list and his one standing rule:
+his avoid list and his one standing rule — **one seed, which is the flaw in this table and is
+corrected in the section below**:
 
 | first rung | air-fryer plates of 28 possible | days in band | rescue |
 | --- | --- | --- | --- |
@@ -649,9 +650,11 @@ his avoid list and his one standing rule:
 | 10 | 11 | 14/14 | none |
 | **14** | **14** | **14/14** | **none** |
 
-Criterion 8 is therefore **reachable without being rewritten**, which is the reason the constant
-moved rather than the criterion: `APPLIANCE_DISHES_PER_SLOT` is now
-`Math.floor(REUSED_DISHES_PER_SLOT * 3 / 4)` — **fourteen of nineteen**.
+`APPLIANCE_DISHES_PER_SLOT` is therefore `Math.floor(REUSED_DISHES_PER_SLOT * 3 / 4)` —
+**fourteen of nineteen** — and the 42-fortnight table above is what keeps it there. The
+sentence this section carried for a day, *"criterion 8 is reachable without being rewritten"*,
+rested on the second table alone and **did not survive the next generation**: § *One seed is not
+a measurement* has what eight of them say.
 
 **What is deliberately not claimed.** This is one appliance (85 dishes in production), fourteen
 profiles and one real account; an appliance whose catalogue is thinner cannot fill the share and
@@ -666,6 +669,77 @@ in question, and the lever is this one constant.
 (who decided: the planner, 2026-10-18, on the two tables above, under the owner's instruction to
 carry out the recommended option; the owner's own plan v29 is what raised the question, and the
 figure stays a measurement rather than a preference.)
+
+## One seed is not a measurement, and the share's size is read over eight (2026-10-19)
+
+The share rose to fourteen on the evening of 2026-10-18, production deployed it, and the owner
+generated. **The prediction was fourteen plates and the plan served seven** — the same seven his
+previous fortnight had served at a share of half the size. Nothing was broken: the constant was
+live (`narrowerShares` returns `[7, 0]`, which only a first rung of 14 produces), the batch was
+loaded, the bands held. What was broken is the method. **A fortnight is drawn with a seed, and
+the seed moves the plate count as much as the share's size does**, so a figure read off one
+generation is a sample of one presented as a property.
+
+So his own shape was read over **eight seeds** — the seed his plan drew and the seven after it,
+his avoid list, his one standing rule replayed on both weeks, against production with the
+session forced read-only — at the share that is live and at the share it replaced:
+
+| | first rung 7 | first rung 14 |
+| --- | --- | --- |
+| air-fryer plates, per seed | 9, 10, 8, 6, 10, 4, 4, 6 | 10, 1, 13, 6, 10, 3, 15, 6 |
+| median / total of 28 possible each | **7** / 57 | **8** / 64 |
+| spread | 4 – 10 | 1 – 15 |
+| fortnights served at 14 of 14 days in band | **7 of 8** | **8 of 8** |
+| the share gave way | 2 of 8 (to 3 a slot) | 5 of 8 (three to 7, one to 0, one rescued) |
+
+Read in plate counts alone the two are the same measurement: a median of seven against eight is
+noise at n = 8, and the criterion's fourteen arrives once in eight at the larger share and never
+at the smaller. **The difference that is not noise is the band.** At a first rung of 7 one of the
+eight fortnights (the second seed) is served with a day outside the macros — 13 of 14, missing by
+5.0% — because neither narrower rung nor the whole-library rescue could beat it; at 14 that same
+seed ends **14 of 14**, having been rescued down to a single air-fryer plate. That is the order
+this product is built on, paid in the open: the macros first, the kitchen second.
+
+It happens for a reason worth writing down, because it is not obvious from the constant.
+`PlanGeneration.service.ts` builds the rescue's pool as **the first attempt's own pool unioned
+with the uncapped rotation**, so the first rung does not only decide how many of the appliance's
+dishes are reserved — **it decides what the rescue has to work with**. A larger share therefore
+misses the first band more often *and* hands the rescue a different library. Both tables above
+are that one mechanism seen from two sides.
+
+The cohort says the same thing with n = 42, which is why it decides. Over fourteen profiles ×
+three seeds, `--prefer air_fryer --flag accompaniments`, on the loaded library:
+
+| first rung | plates | median | serving none | serving ≤ 2 | rescued | days in band |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | 842 | 18.5 | 1 | 14 | 18 | 588/588 |
+| 7 | 877 | 20 | 1 | 9 | 8 | 588/588 |
+| 10 | 888 | 23 | 1 | 9 | 8 | 588/588 |
+| **14** | **895** | **24.5** | **1** | **9** | **8** | **588/588** |
+| 19 | 895 | 24.5 | 1 | 9 | 8 | 588/588 |
+
+**The tail does not move at all from the second rung upwards** — the same one fortnight serving
+none, the same nine serving two or fewer, the same eight rescues, the same 588 of 588 days inside
+all four macros — while the middle rises and saturates at fourteen. In the pinned shape the same
+holds: 928 plates at 7 against 939 at 14, median 26 either way, no fortnight at zero, 576 of 588
+days in band at both (the pinned days `0101` accounts for).
+
+**The share stays at fourteen.** Not because one fortnight reached a number, which is what this
+record claimed for a day, but because over 42 fortnights it is strictly better in the middle and
+identical in the tail, and over his own eight it is the size that kept every fortnight inside the
+bands. Reverting it would be a third change to a constant on the strength of eight samples
+against forty-two that say it costs nothing.
+
+**And criterion 8 cannot be closed by a plan.** Its number — as many dishes of the appliance as
+the plan has days — is met by the *median* of the cohort at both sizes (20 and 24.5 of 56) and by
+the owner's own fortnight on one seed in eight, because his shape allows 28 rather than 56 and
+his library covers two of his four slots. A criterion a person's next generation can fail while
+the feature works exactly as measured is a criterion written about the wrong unit; the PRD now
+says so, and the re-wording there waits on the owner.
+
+(who decided: the planner, 2026-10-19, correcting its own claim of the day before; the measurement
+is `his-seeds.mjs` over production read-only and the evaluator's `--share N` over the local
+library, both recorded in the project's LOG.)
 
 ## The slow cooker stays, with a zero and the reason (2026-10-18)
 
