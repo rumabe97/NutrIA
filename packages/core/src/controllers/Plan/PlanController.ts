@@ -1,8 +1,17 @@
-import { ConflictError, InputParseError, MealInFutureError, NotFoundError, PlanPausedError, QuotaExceededError } from 'core/entities/Error';
-import { LIVED_PLAN_STATUSES } from 'core/entities/Plan';
+import {
+  ConflictError,
+  InputParseError,
+  MealInFutureError,
+  NotFoundError,
+  PlanPausedError,
+  PremiumOnlyError,
+  QuotaExceededError
+} from 'core/entities/Error';
+import { isPastPlan, LIVED_PLAN_STATUSES } from 'core/entities/Plan';
 import {
   eventStanding,
   MAX_START_DAYS_AHEAD,
+  mayReadPastPlans,
   mealSwapStanding,
   midPlanEventStanding,
   planRedoStanding,
@@ -133,9 +142,32 @@ export interface PlanView {
   version: number;
 }
 
+/**
+ * Who is asking for a plan of this account's: the person themselves, or a
+ * professional reading through `CareController.withClient`.
+ *
+ * It decides two things a repository cannot know — whether a plan still under
+ * review may be handed over (`0060`) and whether a past fortnight is behind
+ * premium (`0021` § *Amended*) — and both answers differ for a dietitian
+ * reading their client's record. Defaulted to `client` everywhere, so a new
+ * caller gets the narrower answer by forgetting rather than the wider one.
+ */
+export type PlanReader = 'client' | 'professional';
+
 export interface PlanSummaryView {
   id: string;
   endDate: string;
+  /**
+   * True when this fortnight is in the reader's past and their tier does not
+   * open it (`0021` § *Amended*): it is listed, with its dates and its number,
+   * and it does not lead anywhere.
+   *
+   * Carried as data rather than left out, on purpose. A list that silently
+   * drops rows cannot say *why* it is shorter, and a person whose past is
+   * missing has no way to tell a paywall from a deletion. Always false for a
+   * professional reading a client's history, and for the plan being lived.
+   */
+  locked: boolean;
   /** True when a later plan began before this one ended — a redo, or a regeneration. */
   replaced: boolean;
   startDate: string;
@@ -596,8 +628,8 @@ export const PlanController = {
     return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, resolved), resolved);
   },
 
-  async getDay(userId: string, planId: string, dayIndex: number, locale: string | null = null): Promise<PlanDayView> {
-    const plan = await PlanController.getPlan(userId, planId, locale);
+  async getDay(userId: string, planId: string, dayIndex: number, locale: string | null = null, reader: PlanReader = 'client'): Promise<PlanDayView> {
+    const plan = await PlanController.getPlan(userId, planId, locale, reader);
     const day = plan.days.find(candidate => candidate.dayIndex === dayIndex);
 
     if (!day) {
@@ -612,7 +644,7 @@ export const PlanController = {
    * who is not handed a plan under review; `professional` only from
    * `CareController`, through `withClient`.
    */
-  async getJob(userId: string, jobId: string, reader: 'client' | 'professional' = 'client'): Promise<JobView> {
+  async getJob(userId: string, jobId: string, reader: PlanReader = 'client'): Promise<JobView> {
     const job = await PlanJobRepository.findById(userId, jobId);
 
     if (!job) {
@@ -622,9 +654,20 @@ export const PlanController = {
     return presentJob(job, reader);
   },
 
-  /** A meal of theirs. A meal of a plan under review only with `withPending` (`0060`). */
-  async getMeal(userId: string, mealId: string, locale: string | null = null, withPending = false): Promise<MealDetailView> {
-    return loadMealDetail(userId, mealId, locale, withPending);
+  /**
+   * A meal of theirs. A meal of a plan under review only with `withPending`
+   * (`0060`); a meal of a **past** fortnight only on premium (`0021`
+   * § *Amended*) — the same gate `getPlan` applies, because the meal's own page
+   * is the way into a fortnight that the history list does not open.
+   */
+  async getMeal(
+    userId: string,
+    mealId: string,
+    locale: string | null = null,
+    withPending = false,
+    reader: PlanReader = 'client'
+  ): Promise<MealDetailView> {
+    return PlanController.openedMeal(await loadMealDetail(userId, mealId, locale, withPending), userId, reader);
   },
 
   /**
@@ -643,12 +686,25 @@ export const PlanController = {
     return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, resolved), resolved);
   },
 
-  /** Owner-scoped. A plan belonging to someone else is simply not found. */
-  async getPlan(userId: string, planId: string, locale: string | null = null): Promise<PlanView> {
+  /**
+   * Owner-scoped. A plan belonging to someone else is simply not found.
+   *
+   * A fortnight already lived and no longer the one being lived is premium
+   * (`0021` § *Amended*): a free account is refused it with `PremiumOnlyError`,
+   * which the API answers 409 — not 404, because the plan is theirs and is
+   * still there. The gate is here rather than in the route because `getDay`
+   * reads through this one, so one check covers both, and a professional's read
+   * passes `reader` exactly as `getJob` does.
+   */
+  async getPlan(userId: string, planId: string, locale: string | null = null, reader: PlanReader = 'client'): Promise<PlanView> {
     const plan = await PlanRepository.findById(userId, planId);
 
     if (!plan) {
       throw new NotFoundError('Plan not found');
+    }
+
+    if (isPastPlan(plan.status) && !(await PlanController.pastOpensFor(userId, reader))) {
+      throw new PremiumOnlyError('past_plan');
     }
 
     const resolved = await localeFor(userId, locale);
@@ -739,10 +795,23 @@ export const PlanController = {
     return resolveAllowances(stored)[tier];
   },
 
-  /** Newest first. A plan is replaced when the next lived plan began before it ended. */
-  async listPlans(userId: string, limit = 20, offset = 0): Promise<readonly PlanSummaryView[]> {
+  /**
+   * Newest first. A plan is replaced when the next lived plan began before it
+   * ended.
+   *
+   * Every row is returned whatever the tier, and a row the reader's tier does
+   * not open carries `locked` (`0021` § *Amended*). `reader` is who asks: the
+   * client by default, and `professional` from `CareController`, whose read of
+   * a client's history is not gated by that client's own tier — the same
+   * distinction `getJob` makes. The tier is read once here rather than per row.
+   */
+  async listPlans(userId: string, limit = 20, offset = 0, reader: PlanReader = 'client'): Promise<readonly PlanSummaryView[]> {
     const rows = await PlanRepository.findHistory(userId, limit, offset);
     const lived = rows.filter(row => LIVED_PLAN_STATUSES.has(row.status));
+    // Asked only when there is a past to lock, which is also the honest reading
+    // of the cost: a person on their first fortnight pays no tier lookup for a
+    // paywall that cannot apply to them.
+    const opens = rows.some(row => isPastPlan(row.status)) ? await PlanController.pastOpensFor(userId, reader) : true;
 
     return rows.map(row => {
       const successor = lived[lived.indexOf(row) - 1];
@@ -750,6 +819,7 @@ export const PlanController = {
       return {
         id: row.id,
         endDate: row.endDate,
+        locked: !opens && isPastPlan(row.status),
         replaced: successor !== undefined && successor.startDate <= row.endDate,
         startDate: row.startDate,
         status: row.status,
@@ -781,6 +851,24 @@ export const PlanController = {
   },
 
   /**
+   * The meal as it was loaded, once the reader's tier has been asked about the
+   * fortnight it belongs to (`0021` § *Amended*).
+   *
+   * Written as a step the two meal reads share rather than inside
+   * `loadMealDetail`: a swap reads the meal it has just written through the
+   * same loader (`MealSwap`), on a plan that is active or under review by
+   * definition, and a gate buried in the loader would make every internal read
+   * pay a tier lookup for a case that cannot arise.
+   */
+  async openedMeal(meal: MealDetailView, userId: string, reader: PlanReader): Promise<MealDetailView> {
+    if (isPastPlan(meal.planStatus) && !(await PlanController.pastOpensFor(userId, reader))) {
+      throw new PremiumOnlyError('past_plan');
+    }
+
+    return meal;
+  },
+
+  /**
    * A meal of theirs, opened on its own page — the one read that may start a
    * dish's picture (`0066`, PRD 1). With no picture yet, it asks
    * `RecipeController.requestPicture`, which checks the flag, the cool-off and
@@ -794,7 +882,9 @@ export const PlanController = {
     locale: string | null,
     capUsd: number
   ): Promise<{ readonly claim: PictureClaim | null; readonly failure?: unknown; readonly meal: MealDetailView }> {
-    const meal = await loadMealDetail(userId, mealId, locale);
+    // The same premium gate `getMeal` applies, before anything is drawn: a
+    // fortnight behind the paywall must not spend a picture's money either.
+    const meal = await PlanController.openedMeal(await loadMealDetail(userId, mealId, locale), userId, 'client');
 
     if (meal.pictureStatus === 'ready') {
       return { claim: null, meal };
@@ -811,6 +901,36 @@ export const PlanController = {
     }
 
     return { claim, meal: claim ? { ...meal, pictureStatus: 'drawing' } : meal };
+  },
+
+  /**
+   * Whether this reader may open a past fortnight of this account's
+   * (`0021` § *Amended*, `Allowance.ts` § *What may be sold*).
+   *
+   * One place, because four reads ask it — the history list, a plan, one of its
+   * days and one of its meals — and a gate answered differently by any of them
+   * is a side door. A professional reading through `CareController` always may:
+   * the tier being read is the client's, and a dietitian who cannot see what
+   * their client was served cannot do the job the link exists for.
+   */
+  async pastOpensFor(userId: string, reader: PlanReader = 'client'): Promise<boolean> {
+    if (reader === 'professional') {
+      return true;
+    }
+
+    if (mayReadPastPlans(await PlanController.tierOf(userId))) {
+      return true;
+    }
+
+    // Read as free — but `tierOf` answers free for *everybody* while the
+    // `premium` switch is off, and that switch is an operational kill switch
+    // rather than a statement about this person. Fail **open** here, which is
+    // the opposite of every spending limit in this codebase and deliberately
+    // so: a quota that fails open gives away money, while a visibility gate
+    // that fails closed hides a person's own fortnights from them because of a
+    // switch they cannot see. With no premium to buy there is nothing to put
+    // behind it.
+    return !(await SettingsController.flags()).premium;
   },
 
   /**

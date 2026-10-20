@@ -46,8 +46,28 @@
  *
  * Nothing about safety, allergies or the quality of a plan is behind this, and
  * nothing ever should be. A free account gets the same allergy gate, the same
- * catalogue and the same nutrition maths. What is sold is *more of the thing
- * that costs us money to produce*, which is the only honest thing to sell here.
+ * catalogue and the same nutrition maths.
+ *
+ * **What may be sold, in two parts (amended 2026-10-19).** Until then this
+ * paragraph said *"what is sold is more of the thing that costs us money to
+ * produce, which is the only honest thing to sell here"* — and every number in
+ * the table above still is exactly that. The owner then gated **the past**:
+ * earlier fortnights are readable by a premium account and not by a free one
+ * (`mayReadPastPlans`, `0021` § *Amended*). Reading a plan already written
+ * costs nothing to produce, so the old sentence would have made this gate
+ * dishonest by its own words. It is replaced, deliberately narrowly:
+ *
+ * 1. **More of what costs money to produce** — every counted allowance here.
+ * 2. **The record of what was already served**: keeping a person's earlier
+ *    fortnights *in front of them*. Not the data, which is theirs and is never
+ *    deleted for being on a free account, and which they may obtain by the
+ *    route the privacy policy names; what is sold is the screen.
+ *
+ * And what may **never** be sold, which is the half that matters: safety,
+ * allergies, intolerances, the nutrition maths, the catalogue, and **the
+ * fortnight they are living** — a free account reads its active plan, every day
+ * of it, every meal, for ever. A paywall that reaches the plan on somebody's
+ * plate is not a paywall, it is a hostage.
  */
 export type Tier = 'free' | 'premium';
 
@@ -266,6 +286,25 @@ export function resolveAllowances(stored: readonly StoredAllowance[] = []): Read
  */
 export function allowancesFor(tier: Tier | null | undefined): Allowances {
   return tier === 'premium' ? BY_TIER.premium : BY_TIER.free;
+}
+
+/**
+ * Whether this tier may read the fortnights it has already lived (`0021`
+ * § *Amended*, the owner on 2026-10-19).
+ *
+ * A capability and not a number, so it is a function here rather than a row in
+ * `Allowances`: the table above is what the console may move (`0097`), every
+ * entry of it is an integer with a floor, a ceiling and a reason, and a boolean
+ * in it would be a feature flag wearing a paywall's clothes. This one is a
+ * shipped constant — moving it is a deploy, which is right for a line in the
+ * terms.
+ *
+ * Only the **past** is behind it: `isPastPlan` excludes the active plan, the
+ * one waiting for its day and the one under review. An unknown tier reads as
+ * free, like everything else here — the fallback is always the smaller answer.
+ */
+export function mayReadPastPlans(tier: Tier | null | undefined): boolean {
+  return tier === 'premium';
 }
 
 export type PlanRedoStanding = {

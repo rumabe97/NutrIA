@@ -13,6 +13,22 @@ import { API_UPSTREAM_URL } from './env';
  * empty state, not take the page down.
  */
 export async function serverApi<T>(path: string): Promise<T | null> {
+  return (await serverApiResult<T>(path)).body;
+}
+
+/**
+ * What the API answered, for the one kind of screen that has to tell two
+ * failures apart.
+ *
+ * `serverApi` collapses everything that is not a 200 into `null`, which is the
+ * right default — a section that cannot load should become an empty state, not
+ * an error page. But a page whose 409 means *"this is premium"* and whose 404
+ * means *"this is not yours"* cannot be written against `null`: it would have
+ * to guess, and the guess that shows a paying customer a page saying their past
+ * is gone is the wrong one (`0021` § *Amended*). `code` is the body's own
+ * `code` when there is one, which is what the screen switches on.
+ */
+export async function serverApiResult<T>(path: string): Promise<{ readonly body: T | null; readonly code: string | null; readonly status: number }> {
   const [cookieStore, locale] = await Promise.all([cookies(), activeLocale()]);
 
   try {
@@ -25,11 +41,21 @@ export async function serverApi<T>(path: string): Promise<T | null> {
     });
 
     if (!response.ok) {
-      return null;
+      // The code, when the answer carries one. A body that is not JSON, or
+      // carries no code, reads as none rather than throwing: this path is
+      // already the failure path.
+      const code = await response
+        .json()
+        .then((body: unknown) => (typeof body === 'object' && body !== null && 'code' in body && typeof body.code === 'string' ? body.code : null))
+        .catch(() => null);
+
+      return { body: null, code, status: response.status };
     }
 
-    return (await response.json()) as T;
+    return { body: (await response.json()) as T, code: null, status: response.status };
   } catch {
-    return null;
+    // Nothing answered at all: 0 is not a status any server sends, so a caller
+    // switching on one cannot mistake it for a refusal.
+    return { body: null, code: null, status: 0 };
   }
 }

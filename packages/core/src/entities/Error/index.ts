@@ -14,6 +14,7 @@ export {
   PictureRetryRefusedError,
   PlanPausedError,
   PracticeFullError,
+  PremiumOnlyError,
   ProfileConsentRequiredError,
   QuotaExceededError,
   ReauthenticationRequiredError,

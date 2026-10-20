@@ -266,6 +266,61 @@ describe('plan lifecycle', () => {
     await request(httpServer(app)).get(`/${PREFIX}/meal-plans/${plan.id}`).set('Cookie', account.cookie).expect(200);
   });
 
+  it('opens a past fortnight for premium, refuses it to free as a state, and opens it to everybody with the tier switched off', async () => {
+    const server = httpServer(app);
+    const past = `/${PREFIX}/meal-plans/${plan.id}`;
+    const aMeal = plan.days[0]?.meals[0]?.id;
+
+    const history = async (): Promise<PlanSummaryView[]> => {
+      const response: Response = await request(server).get(`/${PREFIX}/meal-plans`).set('Cookie', account.cookie).expect(200);
+
+      return response.body as PlanSummaryView[];
+    };
+
+    expect(aMeal).toBeDefined();
+    await SettingsController.setFlag('premium', true, UNAUDITED);
+
+    try {
+      // Free, with a tier to buy: the fortnight that ended is behind premium
+      // (`0021` § *Amended*) — 409 and not 404, because it is theirs and it is
+      // still there, and the code is what the screen switches on.
+      const refused: Response = await request(server).get(past).set('Cookie', account.cookie).expect(409);
+
+      expect(refused.body).toMatchObject({ code: 'PREMIUM_ONLY', kind: 'past_plan' });
+      // Every way in answers the same: the plan, one of its days, one of its meals.
+      await request(server).get(`${past}/days/0`).set('Cookie', account.cookie).expect(409);
+      await request(server).get(`/${PREFIX}/meal-plans/meals/${aMeal}`).set('Cookie', account.cookie).expect(409);
+
+      // And the row is still listed, with its dates, marked rather than dropped:
+      // a shorter list could not tell a paywall from a deletion.
+      const locked = await history();
+
+      expect(locked.find(row => row.id === plan.id)).toMatchObject({ locked: true, startDate: plan.startDate });
+      expect(locked.filter(row => row.status === 'active').every(row => !row.locked)).toBe(true);
+
+      await UserController.setTier(account.id, 'premium', UNAUDITED);
+
+      await request(server).get(past).set('Cookie', account.cookie).expect(200);
+      await request(server).get(`/${PREFIX}/meal-plans/meals/${aMeal}`).set('Cookie', account.cookie).expect(200);
+      expect((await history()).every(row => !row.locked)).toBe(true);
+
+      await UserController.setTier(account.id, 'free', UNAUDITED);
+      await SettingsController.setFlag('premium', false, UNAUDITED);
+
+      // The switch is off, so there is no premium to buy and nothing is behind
+      // it: a visibility gate fails open, which is the opposite of every spending
+      // limit here and deliberately so.
+      await request(server).get(past).set('Cookie', account.cookie).expect(200);
+      expect((await history()).every(row => !row.locked)).toBe(true);
+    } finally {
+      // The suites share one database, so a case that dies half-way must not
+      // leave the switch it raised standing — everything after it would read a
+      // tier nobody set.
+      await UserController.setTier(account.id, 'free', UNAUDITED);
+      await SettingsController.setFlag('premium', false, UNAUDITED);
+    }
+  });
+
   it('logs a weight, replaces it on the same day, and reads it back on the progress line', async () => {
     const server = httpServer(app);
 

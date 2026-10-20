@@ -1,12 +1,14 @@
 import { CheckInRepository } from '#repositories/CheckIn';
 import { difficultyAnswer, hungerAnswer } from 'core/entities/CheckIn';
-import { LIVED_PLAN_STATUSES } from 'core/entities/Plan';
+import { isPastPlan, LIVED_PLAN_STATUSES } from 'core/entities/Plan';
+import { PlanController } from 'core/controllers/Plan';
 import { PlanRepository } from '#repositories/Plan';
 import { ProfileRepository } from '#repositories/Profile';
 import { ProgressRepository } from '#repositories/Progress';
 import { personToday, requireProfileConsent } from 'core/controllers/Profile';
 
 import type { DifficultyAnswer, HungerAnswer } from 'core/entities/CheckIn';
+import type { PlanReader } from 'core/controllers/Plan';
 import type { Goal } from 'core/entities/Profile';
 import type { LogWeight, ProgressEntry } from 'core/entities/Progress';
 
@@ -49,6 +51,17 @@ export interface FortnightView {
   checkIn: { difficulty: DifficultyAnswer | null; hunger: HungerAnswer | null; satisfaction: number | null; weightKg: number | null } | null;
   /** The last day this plan was lived: its own end, or the day before the plan that replaced it began. */
   endDate: string;
+  /**
+   * True when this fortnight's plan is in the reader's past and their tier does
+   * not open it (`0021` § *Amended*).
+   *
+   * The card is still drawn with its adherence and its check-in — what a free
+   * account loses is the plan behind it, not its own progress — and it does not
+   * link anywhere. Carried here rather than computed on the screen because the
+   * tier is the API's to know, and a card that looks like a door and is not is
+   * the defect this flag exists to avoid.
+   */
+  locked: boolean;
   /** `soFar` is every meal whose day has arrived; the rest of the plan is not yet a fact. */
   meals: { eaten: number; skipped: number; soFar: number };
   planId: string;
@@ -147,7 +160,7 @@ export const ProgressController = {
    * marked and what the check-in said. Nothing here is collected for this
    * screen; it is the weights, the marks and the check-ins, shown.
    */
-  async summary(userId: string, day?: string): Promise<ProgressSummaryView> {
+  async summary(userId: string, day?: string, reader: PlanReader = 'client'): Promise<ProgressSummaryView> {
     const today = day ?? (await personToday(userId));
     const [entries, goal, chain, marks, checkIns] = await Promise.all([
       ProgressRepository.findRecent(userId, HISTORY_LIMIT),
@@ -156,6 +169,10 @@ export const ProgressController = {
       ProgressRepository.mealMarksByDay(userId, today),
       CheckInRepository.findAll(userId)
     ]);
+    // The tier is asked only when a fortnight of theirs is actually past: a
+    // first plan, or one still being lived, cannot be behind the paywall, and
+    // this screen is read far more often than a past plan is opened.
+    const opensPast = chain.some(plan => isPastPlan(plan.status)) ? await PlanController.pastOpensFor(userId, reader) : true;
 
     // Newest first. A plan is *replaced* when the next lived plan began before
     // it ended — a redo, or a regeneration — and from that day on its meals were
@@ -190,6 +207,7 @@ export const ProgressController = {
               }
             : null,
           endDate,
+          locked: !opensPast && isPastPlan(plan.status),
           meals: { eaten, skipped, soFar: eaten + skipped + count('planned') },
           planId: plan.id,
           replaced,

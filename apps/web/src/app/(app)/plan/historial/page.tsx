@@ -10,6 +10,7 @@ import { Text } from 'ui/components/Text';
 import { Card } from 'components/Card';
 import { CtaLink } from 'components/CtaLink';
 import { EmptyState } from 'components/EmptyState';
+import { PremiumChip } from 'components/PremiumChip';
 
 import { LIVED_PLAN_STATUSES } from 'core/entities/Plan';
 
@@ -32,6 +33,12 @@ export async function generateMetadata(): Promise<Metadata> {
  * Every plan the person has lived, newest first, each one a door to the plan
  * as it was (0021). The current plan is listed too, so the list is complete,
  * and it leads to the living screen rather than to a frozen copy of it.
+ *
+ * **A fortnight a free account does not open is still listed** (`0021`
+ * § *Amended*): same dates, same number, marked premium, and not a link. The
+ * row is kept rather than dropped on purpose — a shorter list cannot say why it
+ * is shorter, and somebody whose past had simply vanished would have no way to
+ * tell a paywall from a deletion. The plan being lived is never marked.
  */
 export default async function PlanHistoryPage() {
   await redirectIfOnboardingIncomplete();
@@ -52,31 +59,58 @@ export default async function PlanHistoryPage() {
     );
   }
 
+  const anyLocked = lived.some(plan => plan.locked);
+  const dates = (plan: PlanSummaryView) => (
+    <span className={styles.range}>{interpolate(t.range, { end: shortDate(plan.endDate), start: shortDate(plan.startDate) })}</span>
+  );
+  const status = (plan: PlanSummaryView) => (plan.status === 'active' ? 'active' : plan.replaced ? 'replaced' : 'finished');
+
   return (
     <Fragment>
       <h1 className={styles.title}>{t.historyTitle}</h1>
       <Text className={styles.intro} tone="secondary">
-        {t.historyIntro}
+        {anyLocked ? t.historyLockedIntro : t.historyIntro}
       </Text>
 
       <ol className={styles.list}>
-        {lived.map(plan => (
-          <li key={plan.id}>
-            <Card
-              as={Link}
-              className={styles.card}
-              data-status={plan.status === 'active' ? 'active' : plan.replaced ? 'replaced' : 'finished'}
-              href={plan.status === 'active' ? '/plan' : `/plan/historial/${plan.id}`}
-            >
-              <span className={styles.range}>{interpolate(t.range, { end: shortDate(plan.endDate), start: shortDate(plan.startDate) })}</span>
-              <span className={styles.meta}>
-                <span>{interpolate(t.historyPlan, { version: plan.version })}</span>
-                <span className={styles.chip}>{chip(plan)}</span>
-              </span>
-            </Card>
-          </li>
-        ))}
+        {lived.map(plan =>
+          plan.locked ? (
+            <li key={plan.id}>
+              {/* Not a link and not a button: there is nothing to press. */}
+              <Card as="div" className={styles.card} data-locked="true" data-status={status(plan)}>
+                {dates(plan)}
+                <span className={styles.meta}>
+                  <span>{interpolate(t.historyPlan, { version: plan.version })}</span>
+                  <PremiumChip label={t.historyLockedChip} />
+                </span>
+              </Card>
+            </li>
+          ) : (
+            <li key={plan.id}>
+              <Card
+                as={Link}
+                className={styles.card}
+                data-status={status(plan)}
+                href={plan.status === 'active' ? '/plan' : `/plan/historial/${plan.id}`}
+              >
+                {dates(plan)}
+                <span className={styles.meta}>
+                  <span>{interpolate(t.historyPlan, { version: plan.version })}</span>
+                  <span className={styles.chip}>{chip(plan)}</span>
+                </span>
+              </Card>
+            </li>
+          )
+        )}
       </ol>
+
+      {anyLocked ? (
+        <div className={styles.upsell}>
+          <CtaLink href="/perfil" size="md" variant="secondary">
+            {t.historyLockedCta}
+          </CtaLink>
+        </div>
+      ) : null}
     </Fragment>
   );
 }

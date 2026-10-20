@@ -30,6 +30,12 @@ vi.mock('#repositories/Profile', () => ({ ProfileRepository: { findActiveGoal: (
 vi.mock('core/controllers/Profile', () => ({ requireProfileConsent: (u: string) => requireProfileConsent(u) }));
 vi.mock('#repositories/Plan', () => ({ PlanRepository: { findChain: (u: string) => findChain(u) } }));
 vi.mock('#repositories/CheckIn', () => ({ CheckInRepository: { findAll: (u: string) => findAll(u) } }));
+// Whether this reader opens a past fortnight is the plan controller's answer
+// (`0021` § *Amended*); here it is a dial, so these cases are about the
+// arithmetic of a fortnight and not about a tier.
+const pastOpensFor = vi.fn<(userId: string, reader?: 'client' | 'professional') => Promise<boolean>>(async () => true);
+
+vi.mock('core/controllers/Plan', () => ({ PlanController: { pastOpensFor: (...args: Parameters<typeof pastOpensFor>) => pastOpensFor(...args) } }));
 
 const USER = 'usr-1';
 const TODAY = '2026-09-09';
@@ -128,6 +134,31 @@ describe('ProgressController.summary — fortnights', () => {
     findRecent.mockResolvedValue([]);
     findActiveGoal.mockResolvedValue(undefined);
     findAll.mockResolvedValue([]);
+    pastOpensFor.mockResolvedValue(true);
+  });
+
+  it('marks a past fortnight locked when the reader does not open the past, and keeps its own numbers', async () => {
+    pastOpensFor.mockResolvedValue(false);
+    findChain.mockResolvedValue([
+      plan({ id: 'p2', startDate: '2026-09-01', status: 'active', version: 2 }),
+      plan({ id: 'p1', endDate: '2026-08-31', startDate: '2026-08-18', status: 'completed', version: 1 })
+    ]);
+    mealMarksByDay.mockResolvedValue([
+      ...days('p1', 'completed', '2026-08-18', '2026-08-27', 2),
+      ...days('p2', 'completed', '2026-09-01', '2026-09-09', 1)
+    ]);
+    findAll.mockResolvedValue([]);
+
+    const { fortnights, overall } = await ProgressController.summary(USER, TODAY);
+
+    expect(fortnights.map(fortnight => [fortnight.version, fortnight.locked])).toEqual([
+      [2, false],
+      [1, true]
+    ]);
+    // What a free account loses is the plan behind the card, never its own
+    // progress: the adherence, the counts and the total are untouched.
+    expect(fortnights[1]).toMatchObject({ adherence: 100, meals: { eaten: 20, skipped: 0, soFar: 20 } });
+    expect(overall).toMatchObject({ eaten: 29, marked: 29 });
   });
 
   it('lists the plans that were lived, newest first, with the check-in that closed them', async () => {
@@ -162,6 +193,9 @@ describe('ProgressController.summary — fortnights', () => {
 
     expect(mealMarksByDay).toHaveBeenCalledWith(USER, TODAY);
     expect(fortnights.map(fortnight => fortnight.version)).toEqual([2, 1]);
+    // The fortnight being lived is never locked; the one before it is not
+    // either, because this reader opens the past.
+    expect(fortnights.map(fortnight => fortnight.locked)).toEqual([false, false]);
     expect(fortnights[0]).toMatchObject({
       adherence: 90,
       checkIn: null,

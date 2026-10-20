@@ -1,0 +1,23 @@
+.chip {
+  align-items: center;
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  font-size: var(--font-size-01);
+  gap: var(--space-01);
+  padding: var(--space-01) var(--space-03);
+  white-space: nowrap;
+}
+
+/* Stroked geometry in `currentColor` at the size of its own text, so it holds
+   on a light and on a dark ground and grows with the reader's font size. */
+.icon {
+  fill: none;
+  flex: none;
+  height: 1em;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  width: 1em;
+}

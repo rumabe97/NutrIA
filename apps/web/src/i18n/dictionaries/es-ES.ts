@@ -2404,11 +2404,17 @@ export const esES = {
     historyFinished: 'Terminado',
     historyIntro: 'Cada plan queda tal como fue, con lo que comiste y lo que no. No se puede cambiar.',
     historyLink: 'Planes anteriores →',
+    historyLockedChip: 'Premium',
+    historyLockedCta: 'Ver premium',
+    historyLockedIntro: 'Tu plan de ahora es tuyo siempre. Las quincenas que ya terminaste se guardan enteras, y premium es lo que las abre.',
     historyOne: 'Plan anterior',
     historyPlan: 'Plan {version}',
     historyReplaced: 'Sustituido',
     historyTitle: 'Tus planes',
     loadedFor: 'Comiendo para: {name}',
+    lockedBody:
+      'Esta quincena ya terminó y se guarda completa: sus días, sus platos y lo que marcaste. Premium es lo que la abre. El plan que estás viviendo no se cierra nunca.',
+    lockedTitle: 'Esta quincena la abre premium',
     pendingReviewBody: 'Tu dietista lo está revisando antes de publicarlo. Aquí sigue tu plan anterior, tal como estaba.',
     pendingReviewTitle: 'Tu plan nuevo está con tu dietista',
     range: '14 días · del {start} al {end}',
@@ -2911,7 +2917,7 @@ export const esES = {
     premiumMonthly: 'Mensual · {price} al mes',
     premiumPastDue: 'No se ha podido cobrar la última cuota. Stripe lo volverá a intentar; actualiza la tarjeta para no perder premium.',
     premiumPitch:
-      '{redos} replanificaciones por quincena en vez de {freeRedos}, {swaps} cambios de comida por plan en vez de {freeSwaps}, {events} eventos por plan en vez de {freeEvents}, {fixedMeals} comidas fijas cada semana en vez de {freeFixedMeals}, y hasta {midPlan} eventos añadidos con el plan ya empezado. Y si el plato que siempre haces no está en la biblioteca, premium puede pedirnos que lo escribamos: {dishRequests} al mes, y solo cuenta cuando llega un plato.',
+      '{redos} replanificaciones por quincena en vez de {freeRedos}, {swaps} cambios de comida por plan en vez de {freeSwaps}, {events} eventos por plan en vez de {freeEvents}, {fixedMeals} comidas fijas cada semana en vez de {freeFixedMeals}, y hasta {midPlan} eventos añadidos con el plan ya empezado. Premium abre además tus quincenas anteriores: se guardan siempre, las veas o no. Y si el plato que siempre haces no está en la biblioteca, premium puede pedirnos que lo escribamos: {dishRequests} al mes, y solo cuenta cuando llega un plato.',
     premiumRenews: 'Tienes premium. Se renueva el {date}.',
     premiumSafety: 'La seguridad alimentaria —alergias, intolerancias y nutrientes— es la misma con premium y sin él.',
     premiumTestMode: 'Modo de prueba: no se cobra nada de verdad. Usa la tarjeta 4242 4242 4242 4242, cualquier fecha futura y cualquier CVC.',
@@ -2991,6 +2997,7 @@ export const esES = {
     noChange: 'Sin cambios',
     noData: '—',
     openPlan: 'Ver el plan →',
+    openPlanLocked: 'El plan, con premium',
     overallLine: '{eaten} comidas hechas de {marked} que marcaste',
     overallNone: 'Marca las comidas como hechas o saltadas y aquí verás cuánto del plan sigues.',
     planNumber: 'Plan {version}',
@@ -3223,7 +3230,7 @@ export const esES = {
           'Si cambiamos el precio, te avisaremos con antelación y podrás cancelar antes de que se aplique.'
         ],
         paragraphs: [
-          'NutrIA se puede usar gratis, con unos límites en los planes que puedes rehacer, las comidas que puedes cambiar y los eventos de cada plan. La seguridad alimentaria —alergias, intolerancias y nutrientes— es la misma con Premium y sin él.',
+          'NutrIA se puede usar gratis, con unos límites en los planes que puedes rehacer, las comidas que puedes cambiar y los eventos de cada plan. Con el plan gratuito ves la quincena que estás viviendo, entera y siempre; las quincenas que ya terminaron se guardan igual, y verlas en la aplicación forma parte de Premium. Guardadas lo están en cualquier caso: puedes pedirnos una copia de tus datos cuando quieras, como explica la política de privacidad. La seguridad alimentaria —alergias, intolerancias y nutrientes— es la misma con Premium y sin él.',
           'Premium, cuando está disponible, amplía esos límites con una suscripción mensual o anual. El precio se muestra, con impuestos, antes de pagar, y el pago lo gestiona Stripe.'
         ]
       },
@@ -3279,7 +3286,7 @@ export const esES = {
       }
     ],
     title: 'Condiciones de uso',
-    updated: 'Última actualización: 13 de octubre de 2026'
+    updated: 'Última actualización: 19 de octubre de 2026'
   },
 
   tour: {

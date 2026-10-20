@@ -313,6 +313,21 @@ export type SetMealStatus = z.infer<typeof setMealStatusSchema>;
 export const LIVED_PLAN_STATUSES: ReadonlySet<string> = new Set(['active', 'archived', 'completed']);
 
 /**
+ * A fortnight that has been lived and is no longer the one being lived — the
+ * **past**, as `0021` means it and as the paywall now reads it.
+ *
+ * Named here, beside `LIVED_PLAN_STATUSES`, because three reads ask the same
+ * question and an inline set in three places is three chances to disagree. What
+ * it deliberately excludes: the **active** plan (free, always — it is the
+ * product), a plan **waiting for its day** (project 015: the future, not the
+ * past) and one **under review** (`0060`, which has its own gate). So the only
+ * statuses here are the two that mean "over": completed and archived.
+ */
+export function isPastPlan(status: string): boolean {
+  return status === 'archived' || status === 'completed';
+}
+
+/**
  * What a person may ask of a swap besides "something that fits" (0022): a dish
  * that takes less time, one that needs no cooking, one with more protein for
  * the same calories, one without meat or fish. Each is a fact the catalogue

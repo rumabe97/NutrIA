@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConflictError, InputParseError, NotFoundError, ProfileConsentRequiredError, QuotaExceededError } from 'core/entities/Error';
+import {
+  ConflictError,
+  InputParseError,
+  NotFoundError,
+  PremiumOnlyError,
+  ProfileConsentRequiredError,
+  QuotaExceededError
+} from 'core/entities/Error';
 
 import { PlanController, PlanJobController } from './PlanController';
 
@@ -99,6 +106,11 @@ function row(overrides: Partial<Row> & { id: string; version: number }): Row {
 describe('PlanController.listPlans — the history', () => {
   beforeEach(() => {
     findHistory.mockReset();
+    // A list holding a past fortnight asks who is reading it (`0021` § *Amended*).
+    // Premium here, so these cases are about `replaced` and nothing else.
+    flags.mockResolvedValue({ premium: true, professional: false });
+    columnTier.mockResolvedValue('premium');
+    coveredByOpenPractice.mockResolvedValue(false);
   });
 
   it('marks a plan replaced when the next lived plan began before it ended', async () => {
@@ -129,6 +141,95 @@ describe('PlanController.listPlans — the history', () => {
     const plans = await PlanController.listPlans('usr-1');
 
     expect(plans[1]?.replaced).toBe(false);
+  });
+});
+
+describe('PlanController.listPlans — the past is premium (`0021` § *Amended*)', () => {
+  beforeEach(() => {
+    findHistory.mockReset();
+    flags.mockResolvedValue({ premium: true, professional: false });
+    coveredByOpenPractice.mockResolvedValue(false);
+  });
+
+  const fortnights = [
+    row({ id: 'p3', startDate: '2026-09-23', status: 'active', version: 3 }),
+    row({ id: 'p2', version: 2 }),
+    row({ id: 'p1', endDate: '2026-09-06', startDate: '2026-08-24', status: 'archived', version: 1 })
+  ];
+
+  it('locks every past fortnight for a free account and never the one being lived', async () => {
+    findHistory.mockResolvedValue(fortnights);
+    columnTier.mockResolvedValue('free');
+
+    const plans = await PlanController.listPlans('usr-1');
+
+    // Listed, with their dates, and not openable: a list that dropped them could
+    // not tell a paywall from a deletion.
+    expect(plans.map(plan => [plan.version, plan.locked])).toEqual([
+      [3, false],
+      [2, true],
+      [1, true]
+    ]);
+    expect(plans.map(plan => plan.startDate)).toEqual(['2026-09-23', '2026-09-09', '2026-08-24']);
+  });
+
+  it('locks nothing for a premium account', async () => {
+    findHistory.mockResolvedValue(fortnights);
+    columnTier.mockResolvedValue('premium');
+
+    expect((await PlanController.listPlans('usr-1')).every(plan => !plan.locked)).toBe(true);
+  });
+
+  it('locks nothing for a professional reading their client, whatever the client pays', async () => {
+    findHistory.mockResolvedValue(fortnights);
+    columnTier.mockResolvedValue('free');
+
+    expect((await PlanController.listPlans('usr-1', undefined, undefined, 'professional')).every(plan => !plan.locked)).toBe(true);
+    // The client's own tier was never even asked for.
+    expect(columnTier).not.toHaveBeenCalled();
+  });
+
+  it('locks nothing while the premium switch is off, because there is nothing to buy', async () => {
+    findHistory.mockResolvedValue(fortnights);
+    flags.mockResolvedValue({ premium: false, professional: false });
+    columnTier.mockResolvedValue('free');
+
+    expect((await PlanController.listPlans('usr-1')).every(plan => !plan.locked)).toBe(true);
+  });
+
+  it('asks no tier at all when nothing in the list is past', async () => {
+    findHistory.mockResolvedValue([row({ id: 'p1', startDate: '2026-09-23', status: 'active', version: 1 })]);
+
+    expect((await PlanController.listPlans('usr-1')).map(plan => plan.locked)).toEqual([false]);
+    expect(flags).not.toHaveBeenCalled();
+    expect(columnTier).not.toHaveBeenCalled();
+  });
+});
+
+describe('PlanController.getPlan — the past is premium (`0021` § *Amended*)', () => {
+  beforeEach(() => {
+    findById.mockReset();
+    flags.mockResolvedValue({ premium: true, professional: false });
+    coveredByOpenPractice.mockResolvedValue(false);
+  });
+
+  it('refuses a fortnight already lived to a free account, as a state and not a denial', async () => {
+    findById.mockResolvedValue({ id: 'p1', endDate: '2026-09-22', redo: false, replacedRedos: 0, status: 'completed', version: 1 });
+    columnTier.mockResolvedValue('free');
+
+    await expect(PlanController.getPlan('usr-1', 'p1')).rejects.toBeInstanceOf(PremiumOnlyError);
+    // Not a 404: the plan is theirs and it is still there.
+    await expect(PlanController.getPlan('usr-1', 'p1')).rejects.not.toBeInstanceOf(NotFoundError);
+  });
+
+  it('says not found before it says premium, for a plan that is not theirs', async () => {
+    findById.mockResolvedValue(undefined);
+    columnTier.mockResolvedValue('free');
+
+    // Ownership first, always: a paywall must never confirm that somebody
+    // else's plan exists.
+    await expect(PlanController.getPlan('usr-1', 'p1')).rejects.toBeInstanceOf(NotFoundError);
+    expect(columnTier).not.toHaveBeenCalled();
   });
 });
 

@@ -63,3 +63,20 @@ a.card:hover {
   border-color: transparent;
   color: var(--color-brand-11);
 }
+
+/* A fortnight premium opens and this account does not (`0021` § *Amended*).
+   Set apart by weight rather than by colour — a row told apart only by a tint
+   says nothing to a reader who cannot see it, and the chip beside it carries
+   the word. Still a card, still legible: it is their fortnight, not an error. */
+.card[data-locked='true'] {
+  background-color: var(--background-02);
+}
+
+.card[data-locked='true'] .range {
+  color: var(--foreground-02);
+}
+
+.upsell {
+  display: flex;
+  margin-top: var(--gap-block);
+}
