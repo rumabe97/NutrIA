@@ -45,6 +45,30 @@ export type Account = { readonly id: string; readonly cookie: string; readonly e
 const VARIANTS_PER_DISH = 3;
 
 /**
+ * A number written in letters — `1` is `b`, `26` is `ba` — so that a scripted
+ * dish name carries no digit of its own.
+ *
+ * It carried two until #300's CI run. `dish-request` searches its library for a
+ * three-digit mark, and the pair of its dishes that shares `170` is how one
+ * search returns exactly two reasons; that run returned three, the extra being
+ * `Tostada con huevo 5kmn.170.1` — another suite's dish, in the same database,
+ * whose call counter had reached 170. The mark cannot give way: `storableName`
+ * admits one bare number of at most three digits and no other word the
+ * vocabulary does not know. So the counter does.
+ */
+function inLetters(value: number): string {
+  let left = value;
+  let written = '';
+
+  do {
+    written = String.fromCharCode(97 + (left % 26)) + written;
+    left = Math.floor(left / 26);
+  } while (left > 0);
+
+  return written;
+}
+
+/**
  * A model stand-in that returns the dishes a test dictates — as many named
  * variants of each as a real model would return distinct dishes.
  *
@@ -62,8 +86,11 @@ export class ScriptedAiClient extends AiClient {
    * with different ingredients would be writing over each other's recipe, and
    * the failure surfaces three steps later as a shopping list that does not
    * reconcile. A token in the name makes a suite's dishes its own.
+   *
+   * Four letters and no digits, for the reason `inLetters` gives: a base-36
+   * token could have been `170k` on its own.
    */
-  private readonly token = Math.random().toString(36).slice(2, 6);
+  private readonly token = Array.from({ length: 4 }, () => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join('');
   /**
    * Every prompt this client was sent, in order.
    *
@@ -89,7 +116,7 @@ export class ScriptedAiClient extends AiClient {
       Array.from({ length: VARIANTS_PER_DISH }, (_, index) => {
         const named = base as { name: string };
 
-        return { ...named, name: `${named.name} ${this.token}.${call}.${index + 1}` };
+        return { ...named, name: `${named.name} ${this.token}.${inLetters(call)}.${inLetters(index + 1)}` };
       })
     );
 
@@ -340,13 +367,14 @@ export async function giveProfileConsent(app: INestApplication, account: Account
  * The scripted name behind a served dish name — the suite token and per-call
  * variant suffix removed.
  *
- * The token is optional in the pattern because a database that is thrown away
- * by policy rather than by force still holds recipes from before it existed,
- * and the product will happily reuse one. Tolerating the older shape costs a
- * `?`; not tolerating it costs an afternoon.
+ * The token is optional in the pattern, and the counters are read in letters
+ * **or** in digits, because a database that is thrown away by policy rather
+ * than by force still holds recipes from before either shape existed, and the
+ * product will happily reuse one. Tolerating the older ones costs two `|`; not
+ * tolerating them costs an afternoon.
  */
 export function scriptedName(name: string): string {
-  return name.replace(/ (?:[a-z0-9]+\.)?\d+\.\d+$/, '');
+  return name.replace(/ (?:[a-z0-9]+\.)?(?:[a-z]+\.[a-z]+|\d+\.\d+)$/, '');
 }
 
 export async function completeOnboarding(
