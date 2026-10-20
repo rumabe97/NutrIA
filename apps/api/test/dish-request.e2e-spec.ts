@@ -79,6 +79,14 @@ const FRIDAY = 4;
  * dishes may share a mark — the slug comes from the whole name — and the pair
  * that shares 170 is how one search returns exactly two reasons.
  *
+ * **A mark is only unambiguous because no other suite's dish carries a digit.**
+ * It did once: on #300's CI run a dish called `Tostada con huevo 5kmn.170.1`
+ * made that search return three, and it was another suite's, written into the
+ * same database by a model stand-in whose call counter had reached 170. The
+ * counters are letters now (`inLetters` in the harness, which tells the story);
+ * a search here reads one library, and this is what makes that library's names
+ * answerable.
+ *
  * Because the mark is this short the names are **the same every run**, so the
  * suite takes its dishes out of the library again at both ends (`forgetRecipes`
  * in `beforeAll` as well as `afterAll`): left behind, a second run finds its own
