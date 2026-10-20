@@ -197,7 +197,9 @@ export class BillingService {
 
   async status(user: SessionUser): Promise<BillingStatusDto> {
     if (!(await this.open(user))) {
-      return { available: false };
+      // What premium gives, even with no price to put on it: the profile says
+      // so rather than nothing (`0021` § *Amended*).
+      return { allowances: (await SettingsController.allowances()).effective, available: false };
     }
 
     const [standing, prices, allowances] = await Promise.all([

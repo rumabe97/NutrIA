@@ -12,6 +12,7 @@ import { BillingService } from './Billing.service.js';
 import type { Env } from '../../../config/index.js';
 import type { ErrorReporter } from '../../../shared/observability/index.js';
 import type { SessionUser } from '../../../shared/index.js';
+import type { BillingStatusView } from 'core/controllers/Billing';
 import type { CheckoutRequest, Prices, StripeGateway, SubscriptionSnapshot } from './StripeGateway.js';
 import type { PracticePlanView, SubscriptionView } from 'core/controllers/Billing';
 import type Stripe from 'stripe';
@@ -136,6 +137,16 @@ function harness(
 }
 
 describe('BillingService', () => {
+  /**
+   * What a closed status may carry: the tiers' numbers — read from the same
+   * registry the console moves, so the profile can say what premium is with no
+   * price to put on it (`0021` § *Amended*) — and **nothing else**. No price,
+   * no subscription, no test-mode flag: `toEqual` is the point of this helper.
+   */
+  const expectClosed = async (status: Promise<BillingStatusView>): Promise<void> => {
+    await expect(status).resolves.toEqual({ allowances: { free: allowancesFor('free'), premium: allowancesFor('premium') }, available: false });
+  };
+
   afterEach(() => {
     jest.restoreAllMocks();
   });
@@ -143,7 +154,7 @@ describe('BillingService', () => {
   it('is not there at all without Stripe set up', async () => {
     const { service } = harness({ configured: false });
 
-    await expect(service.status(OWNER)).resolves.toEqual({ available: false });
+    await expectClosed(service.status(OWNER));
     await expect(service.checkout(OWNER, 'monthly')).rejects.toBeInstanceOf(NotFoundError);
   });
 
@@ -151,12 +162,12 @@ describe('BillingService', () => {
   it('with test keys, is the owner’s alone, whatever the premium switch says', async () => {
     const { service } = harness({ premium: false, testMode: true });
 
-    await expect(service.status(PERSON)).resolves.toEqual({ available: false });
+    await expectClosed(service.status(PERSON));
     await expect(service.status(OWNER)).resolves.toMatchObject({ available: true, prices: PRICES, testMode: true, tier: 'free', trialDays: 7 });
   });
 
   it('with live keys, is everybody’s once the premium switch is on, and nobody’s before', async () => {
-    await expect(harness({ premium: false }).service.status(PERSON)).resolves.toEqual({ available: false });
+    await expectClosed(harness({ premium: false }).service.status(PERSON));
     jest.restoreAllMocks();
     await expect(harness({ premium: true }).service.status(PERSON)).resolves.toMatchObject({ available: true, testMode: false });
   });

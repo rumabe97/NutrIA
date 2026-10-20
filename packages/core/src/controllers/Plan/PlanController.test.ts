@@ -173,6 +173,46 @@ describe('PlanController.listPlans — the past is premium (`0021` § *Amended*)
     expect(plans.map(plan => plan.startDate)).toEqual(['2026-09-23', '2026-09-09', '2026-08-24']);
   });
 
+  it('does not lock the fortnight a redo replaced while its last day is still ahead', async () => {
+    // A plan becomes `completed` the moment the next one goes active, and its
+    // last day stays where it was — so for one day this padlock landed on a
+    // fortnight that had not ended, reached by the free account's one redo.
+    vi.useFakeTimers({ now: new Date('2026-09-15T09:00:00Z'), toFake: ['Date'] });
+    findHistory.mockResolvedValue([
+      row({ id: 'p2', endDate: '2026-09-28', startDate: '2026-09-15', status: 'active', version: 2 }),
+      row({ id: 'p1', version: 1 })
+    ]);
+    columnTier.mockResolvedValue('free');
+
+    try {
+      expect((await PlanController.listPlans('usr-1')).map(plan => [plan.version, plan.locked])).toEqual([
+        [2, false],
+        [1, false]
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('locks it on the day after its last, in the person\u2019s own day', async () => {
+    // 2026-09-23 in Madrid: the fortnight that ended on the 22nd is now past.
+    vi.useFakeTimers({ now: new Date('2026-09-23T09:00:00Z'), toFake: ['Date'] });
+    findHistory.mockResolvedValue([
+      row({ id: 'p2', endDate: '2026-09-28', startDate: '2026-09-15', status: 'active', version: 2 }),
+      row({ id: 'p1', version: 1 })
+    ]);
+    columnTier.mockResolvedValue('free');
+
+    try {
+      expect((await PlanController.listPlans('usr-1')).map(plan => [plan.version, plan.locked])).toEqual([
+        [2, false],
+        [1, true]
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('locks nothing for a premium account', async () => {
     findHistory.mockResolvedValue(fortnights);
     columnTier.mockResolvedValue('premium');

@@ -91,11 +91,58 @@ fortnight it is living**.
   living, whole and always, that the ones already ended are kept just the same,
   and that a copy of the data can be asked for at any time; `terms.updated`
   moves to 2026-10-19 with it. Those same terms promise an email to existing
-  accounts before a material change applies — **that email is the owner's to
-  send**, and `docs/legal/textos/03-condiciones-uso.md` § D, which the `legal`
-  agent owns and a lawyer approves, still carries the sentence as it was.
-  `TERMS_VERSION` stays at `2.0.0`: whether a change of this kind bumps it is
-  that agent's call and not this one's.
+  accounts before a material change applies. **Asked on 2026-10-20, the owner
+  decided not to send it**: *"no voy a mandar correos"*. What that leaves owed,
+  and what it exposes, is written down by the `legal` agent in
+  `docs/legal/textos/03-condiciones-uso.md` § D bis.2 — recorded, not argued
+  twice. `TERMS_VERSION` **moves to `2.1.0`**, which is that agent's call under
+  the repository's own bump rule (`2026-09-29-accepting-the-legal-texts.md`
+  § 5.4) and the sharper for the decision above: with no email sent, the stored
+  version is the only trace of which text an account was shown. Nothing is
+  backfilled — the eight accounts created under `2.0.0` saw `2.0.0`.
+- **The landing page had promised the opposite, and was corrected the next day.**
+  `landing.faq`'s answer to *"¿Qué pasa con mis planes anteriores?"* said
+  *"puedes consultarlos cuando quieras"*, which stopped being true for a free
+  account the moment this shipped — and a public page's words bind before any
+  contract does (TRLGDCU arts. 61.2 and 80.2, read by the `legal` agent as
+  P0-4). It now says what the gate does, in both languages. **A gate is not
+  finished until every page that described the old behaviour has been read**,
+  and this one reached production describing it for a day.
+
+### Corrected on 2026-10-20 — a fortnight ends on a date, not on a status
+
+Shipped on 2026-10-19 the gate read `status`, and `completesActive` sets the outgoing
+plan to `completed` the moment the next one goes active while leaving its `endDate`
+alone (`PlanRepository`, `shape`). A free account has **one** redo a fortnight (`0099`),
+so its only redo put a padlock on the fortnight it was living — against what the terms
+published the day before say is sold, *"las quincenas que ya terminaron"*. The `legal`
+agent found it as P1-16 and the `marketing` agent as its one defect, from opposite ends,
+on the same morning.
+
+**`isPastPlan(plan, today)` now takes the plan's last day and the person's own today**
+(`personToday`, their time zone and never the server's); `isClosedPlan(status)` is what
+stays cheap and decides whether a read pays for a day and a tier at all. The owner chose
+this over re-wording the terms (`docs/legal/textos/03-condiciones-uso.md` § D bis.5,
+option b): the sentence people have already read becomes true without being touched, and
+nothing is published.
+
+Three more things the owner decided the same morning, told what each costs:
+
+- **The line stays at one fortnight.** The `marketing` audit argues for two, as a date
+  rule — *open while the last day is today or within the fourteen days before it* — because
+  the padlock arrives in the same event as the first check-in, which is the evidence a
+  person uses to answer *is this working*. He read that and kept one. The rule is written
+  down so the next person to ask does not have to re-derive it
+  (`docs/reference/marketing/the-past-is-premium.md` § 3).
+- **The padlock now leads somewhere.** `/perfil` draws premium — what it gives, that it is
+  not on sale, and how to ask — whenever billing is closed, which today is always: there is
+  no Stripe configuration in production at all. `GET /billing` carries the tiers' numbers
+  for that card even when it answers `available: false`, and the locked card on `/progreso`
+  gained the way out it had none of. A padlock pointing at a page with no premium on it was
+  the audit's P0.
+- **The line is said before it bites.** `/plan/historial` names what premium opens from the
+  first fortnight, not only once there is something locked — `0021`'s own principle, applied
+  to its amendment.
 
 ### What this cost, measured before it shipped
 

@@ -1891,7 +1891,8 @@ export const esES = {
         question: '¿Esto sustituye a un dietista o a mi médico?'
       },
       {
-        answer: 'Todos. Los planes anteriores quedan guardados con sus recetas, sus listas y tus comentarios, y puedes consultarlos cuando quieras.',
+        answer:
+          'Todos. Se quedan guardados, con sus recetas, sus listas y tus comentarios. La quincena que estás viviendo la ves entera y siempre; las que ya terminaron las abre Premium, y puedes pedirnos una copia de tus datos cuando quieras.',
         question: '¿Qué pasa con mis planes anteriores?'
       },
       {
@@ -2402,7 +2403,8 @@ export const esES = {
     historyCurrent: 'Actual',
     historyEmpty: 'Aquí irán quedando tus planes anteriores, tal como fueron.',
     historyFinished: 'Terminado',
-    historyIntro: 'Cada plan queda tal como fue, con lo que comiste y lo que no. No se puede cambiar.',
+    historyIntro:
+      'Cada plan queda tal como fue, con lo que comiste y lo que no. No se puede cambiar. La quincena que estás viviendo la ves siempre; las que terminan se guardan enteras, y verlas más adelante forma parte de premium.',
     historyLink: 'Planes anteriores →',
     historyLockedChip: 'Premium',
     historyLockedCta: 'Ver premium',
@@ -2915,9 +2917,11 @@ export const esES = {
     premiumJustPaid: 'Pago recibido. Premium se activa en unos segundos: si todavía no lo ves, recarga la página.',
     premiumManage: 'Gestionar la suscripción',
     premiumMonthly: 'Mensual · {price} al mes',
+    premiumNotOnSale:
+      'Todavía no está en venta. Cuando lo esté, el precio y la suscripción aparecerán aquí. Si quieres probarlo antes, escríbeme a {email}.',
     premiumPastDue: 'No se ha podido cobrar la última cuota. Stripe lo volverá a intentar; actualiza la tarjeta para no perder premium.',
     premiumPitch:
-      '{redos} replanificaciones por quincena en vez de {freeRedos}, {swaps} cambios de comida por plan en vez de {freeSwaps}, {events} eventos por plan en vez de {freeEvents}, {fixedMeals} comidas fijas cada semana en vez de {freeFixedMeals}, y hasta {midPlan} eventos añadidos con el plan ya empezado. Premium abre además tus quincenas anteriores: se guardan siempre, las veas o no. Y si el plato que siempre haces no está en la biblioteca, premium puede pedirnos que lo escribamos: {dishRequests} al mes, y solo cuenta cuando llega un plato.',
+      'Premium abre tus quincenas anteriores: cada plan que ya terminaste, día a día, tal como fue. Y amplía los límites: {redos} replanificaciones por quincena en vez de {freeRedos}, {swaps} cambios de comida por plan en vez de {freeSwaps}, {events} eventos por plan en vez de {freeEvents}, {fixedMeals} comidas fijas cada semana en vez de {freeFixedMeals}, y hasta {midPlan} eventos añadidos con el plan ya empezado. Y si el plato que siempre haces no está en la biblioteca, premium puede pedirnos que lo escribamos: {dishRequests} al mes, y solo cuenta cuando llega un plato.',
     premiumRenews: 'Tienes premium. Se renueva el {date}.',
     premiumSafety: 'La seguridad alimentaria —alergias, intolerancias y nutrientes— es la misma con premium y sin él.',
     premiumTestMode: 'Modo de prueba: no se cobra nada de verdad. Usa la tarjeta 4242 4242 4242 4242, cualquier fecha futura y cualquier CVC.',
@@ -2998,6 +3002,7 @@ export const esES = {
     noData: '—',
     openPlan: 'Ver el plan →',
     openPlanLocked: 'El plan, con premium',
+    openPremium: 'Qué es premium →',
     overallLine: '{eaten} comidas hechas de {marked} que marcaste',
     overallNone: 'Marca las comidas como hechas o saltadas y aquí verás cuánto del plan sigues.',
     planNumber: 'Plan {version}',

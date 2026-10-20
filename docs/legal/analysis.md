@@ -29,6 +29,16 @@
 > No new recipient, transfer, period or art. 9 datum; the texts are the ⟦cocina⟧ block of
 > [`textos/02`](./textos/02-politica-privacidad.md).
 >
+> **Revision 2026-10-20 — the past is behind premium** (decision
+> [`0021`](../decisions/0021-the-past-is-read-only.md) § *Amended 2026-10-19*; PR #302, commit
+> `3791b07e`, in production since 2026-10-20): § 9 (a new P0-4, new P1-15 and P1-16, a note on P2-9)
+> and § 10 (point 16). The texts and the whole record of the change, the owner's decision not
+> to notify and the `TERMS_VERSION` verdict are in
+> [`textos/03`](./textos/03-condiciones-uso.md) § D bis. **No change to
+> [`record-of-processing.md`](./record-of-processing.md) or to [`dpia.md`](./dpia.md)**: the
+> gate is a read gate on a screen — no new purpose, recipient, period, transfer or art. 9
+> datum, and nothing is erased for being on a free account.
+>
 > **Revision 2026-10-09 (afternoon) — the sweep of the account nobody confirmed** (project 011,
 > the "30-day sweep of unconfirmed accounts" follow-up,
 > [`0092`](../decisions/0092-sweep-an-account-whose-address-nobody-ever-confirmed.md); PR #250,
@@ -1169,6 +1179,22 @@ for the provider (C-413/23 P) and whether the goal "lose weight" is a health dat
 whether veganism can be a philosophical conviction (art. 9.1). Way out (a) — providers under
 contract and with no training — is still the one that closes everything.
 
+**P0-4 · The landing page promises what the terms now deny** (in production since
+2026-10-20). `landing.faq`, the answer to "¿Qué pasa con mis planes anteriores?"
+(`apps/web/src/i18n/dictionaries/es-ES.ts:1893-1895`; `en-GB.ts:1802-1805`), says past plans
+are kept "y puedes consultarlos cuando quieras" / "you can look them up whenever you like".
+Since PR #302 that is false for a free account: a fortnight that has ended answers 409
+`PREMIUM_ONLY` (`PlanController.ts:706-707`, `:864-865`). This is pre-contractual information
+on a public page, so it is not only false: TRLGDCU art. 61.2 makes the content of advertising
+enforceable even when it is not in the contract, and art. 80.2 resolves any doubt in the
+consumer's favour — today a free account could hold the landing page against the terms.
+Art. 60.1 requires that information to be "veraz"; Act 3/1991 arts. 5.1.b and 7.1 make it a
+misleading practice. For a consumer file it is art. 47.g (minor infringement, 150 to
+10,000 €, art. 49.1.a). **Fix**: the one sentence in both dictionaries, drafted in
+[`textos/03`](./textos/03-condiciones-uso.md) § D bis.5 — `frontend`, no version to bump and
+no date to move (it is not the `terms` namespace). Until it is changed, the gate is live with
+a public text contradicting it.
+
 ### P1
 
 | # | Finding | Where | What the law requires | Minimum fix |
@@ -1187,6 +1213,8 @@ contract and with no training — is still the one that closes everything.
 | P1-12 | The OpenRouter account does not limit which companies run the model: the request can go to 22 (one in Indonesia, another with no published terms) | `NO_TRAINING_PROVIDER` in `ai.config.ts` (with no `only`); the `ai-gateway.md` § 0 runbook (with no provider list) | Art. 13.1.e-f (naming recipients and transfers); arts. 44-46 (Indonesia with neither adequacy nor a guarantee) | **Done on 2026-09-26.** In the account, *Allowed providers* = DeepInfra and CoreWeave (the owner). In code, `provider.only` from `AI_PROVIDER_ONLY`, mandatory when starting with `openrouter` (`Env.validation.ts:506-507`). The policy names exactly that list; changing it goes through the policy first |
 | P1-13 | ~~MiniMax M3's licence requires, in commercial use, displaying "Built with MiniMax M3" and a one-off notice to MiniMax~~ | the licence on Hugging Face; OpenRouter's terms § 5.1 | The contract (the licence accepted via OpenRouter's terms § 5.1) | **Closed on 2026-09-26**: the owner removed MiniMax as the fallback. The new fallback, Gemma 4 31B, is Apache 2.0: no notice, no attribution and no restrictions to pass on to users for whoever uses the model through an API (§ 4.4 d). Another model change reopens this row |
 | P1-14 | The dish pictures (006, flag off): the console's card would show them with no notice; ~~MAI-Image-2.6 with no documented mark~~ (out, 2026-09-27); ~~`sharp` strips Google's C2PA~~ (the original is served, measured); the policy says "never Google's services" | [`dish-pictures.md`](./dish-pictures.md) § 5 (IMG-1 to IMG-9; since 009, IMG-10 to IMG-16: the rejected picture that waits, and the one the owner accepts by hand against the judge — **IMG-15, P1**: one sentence of `/privacidad` changes with that feature; **IMG-16 closed on 2026-09-30 by 010 phase 4**: "Retirar" works for any published picture, the one the judge accepted by mistake included, with no change to `/privacidad` or `/condiciones`); `NextMeal.tsx:58-62` | AI Act arts. 50.2, 50.4, 50.5 (from 2/8/2026, without art. 111.3's deadline); GDPR art. 5.1.a | Before the flag: [`go-live-checklist.md`](./go-live-checklist.md) § 0 ter |
+| P1-15 | The terms promise an email to existing accounts before an important change applies (`terms`, "Cambios en estas condiciones", `es-ES.ts:3276-3279`; `en-GB.ts:3188-3191`) and none was sent for the change that put the past behind premium; **the owner decided on 2026-10-20 not to send any** ("no voy a mandar correos"). Going forward the clause itself is now a text that promises what the product does not do, and it still gives no "valid reason" for a unilateral change | `es-ES.ts:3276-3279`; `en-GB.ts:3188-3191`; the change: `Allowance.ts:302-308`, `PlanController.ts:706-707` | The clause binds whoever wrote it (TRLGDCU art. 61.2). TRLGDCU art. 85.3, first paragraph (a unilateral-modification faculty is unfair unless the contract states valid reasons — the following paragraphs of 85.3 are financial services and do not apply). **And, independently of the clause**: if the free contract is inside Book II (art. 59.4 — it is, unless the data are processed *exclusively* to supply the service, and NutrIA also records product use under legitimate interest), art. 126.a-d requires a valid reason in the contract, no cost, clear information and — when the right to terminate arises — information "con una antelación razonable y en un soporte duradero" of the modification and of that right; art. 126 bis.1-2 gives 30 calendar days to terminate free of charge where the modification negatively affects access or use, *unless that negative effect is minor*. Consumer file: art. 47.g or 47.t, 150 to 10,000 € (art. 49.1.a) | **`TERMS_VERSION` to `2.1.0` now, in a commit of its own** (§ D bis.4: the constant has to name the text in force since 19 October before another account signs up under the wrong one). Then rewrite the clause so it is true and names the valid reasons: [`textos/03`](./textos/03-condiciones-uso.md) § D bis.3, with `terms.updated` and `2.2.0`. The measured blast radius of the un-notified change is one free account losing sight of one plan (`0021` § *What this cost*), which granting premium from `/admin` would close in a minute — the owner's call. **[lawyer]**: is this modification "de menor importancia" (art. 126 bis.1)? The same decision at the real launch, with strangers and a checkout, is not defensible on that reading (§ 10, point 16) |
+| P1-16 | The published terms say the gate closes "las quincenas que ya terminaron", and it closes more: a plan becomes `completed` the moment another goes active, so a free account's own redo (one per fortnight: `planRedosPerFortnight: 1`, `Allowance.ts:93`, `0015` and `0097`) puts the plan it replaced behind premium **on day 2**, with the fortnight still running. The product itself distinguishes the two — "Terminado" and "Sustituido" (`plan.historyStatus`) — and the terms name only the first | `packages/core/src/repositories/Plan/PlanRepository.ts:290-295` and `:1585`; `packages/core/src/entities/Plan/Plan.ts:327`; `es-ES.ts:2476`, `:3233`; `en-GB.ts:3145` | TRLGDCU art. 60.1 (information must be "veraz y suficiente" about the main characteristics), art. 80.1.a and 80.2 (doubt in the consumer's favour), art. 61.2 (what the text promises is enforceable) | Either (a) the sentence says it — the wording in [`textos/03`](./textos/03-condiciones-uso.md) § D bis.5, point 2, with `terms.updated` and `TERMS_VERSION = '2.2.0'` — or (b) the code stops locking a plan replaced inside the fortnight being lived, and then the published sentence is already true and nothing is published. The owner chooses, with `backend` |
 
 ### P2
 
@@ -1200,7 +1228,7 @@ contract and with no training — is still the one that closes everything.
 | P2-6 | Checkout with no link to the terms and no tax-number collection for B2B | `apps/api/src/modules/billing/services/StripeGateway.ts:175-188` | `consent_collection.terms_of_service: 'required'` with the URL configured in Stripe; `tax_id_collection` for the practice **[lawyer/accountant]** |
 | P2-7 | The annual plan: a notice 15 days before renewal | TRLGDCU art. 97.1.p (as worded by Act 10/2025) | With *Managed Payments* Stripe sends it by default 15 days before the anniversary; without it, switch on "Upcoming renewals" ([`textos/06`](./textos/06-correos.md) § D) |
 | P2-8 | AI Act art. 50.2: mark the generated content in a machine-readable format | the recipe responses | Before 2/12/2026 (§ 7) |
-| P2-9 | No data export for portability | — | `GET /users/me/export` in JSON; in the meantime, answer by mail within a month (art. 12.3) |
+| P2-9 | No data export for portability. **Since 2026-10-20 the terms send people here on purpose**: `/condiciones` tells a free account whose fortnight is locked that it can ask for a copy of its data at any time, so art. 15.3 is now the only route into a plan the screen refuses, and it is a route a person walks, not the product | — | `GET /users/me/export` in JSON; in the meantime, answer by mail within a month (art. 12.3), free of charge (art. 12.5), **including the locked fortnights** — its days, its dishes and the marks ([`textos/03`](./textos/03-condiciones-uso.md) § D bis.1) |
 | P2-10 | The SMTP provider's mail: a consumer Gmail account offers no DPA | the owner's memory; `SMTP_*` | A transactional provider with a DPA **[lawyer]** |
 | P2-11 | The companies that run the model are not sub-processors per OpenRouter (Enterprise DPA § 11.10) and have no contract with NutrIA; none is in the DPF | § 4.4 b | Name them in the policy; a closed list (P1-12); rely on the request identifying nobody (C-413/23 P) **[lawyer]**. If the lawyer does not buy it: a provider with a direct contract (Mistral in the EU, say, report `0002`'s plan B) |
 | P2-12 | OpenRouter classifies an anonymous sample of requests for its public statistics; it cannot be switched off | the terms § 6.5; the *Data collection* documentation | **Accepted with a notice** (the owner, 2026-09-26): the policy (state 2) says so, and the owner will ask OpenRouter in writing to exclude his account. If it excludes it, the sentence can go |
@@ -1354,6 +1382,19 @@ One hour, in this order:
     data even blocked creates a risk. The answer serves the erasure of an account at the
     person's request too, which blocks nothing today either. The detail in § 4.1 quinquies.
 
+16. **The past behind premium with no notice** (2026-10-20, `0021` § *Amended*, PR #302):
+    (a) is narrowing what a free account can **see** a modification of a digital service under
+    TRLGDCU art. 126, and is the free contract inside Book II at all (art. 59.4, given that
+    product use is recorded under legitimate interest)? (b) If it is, was this one "de menor
+    importancia" (art. 126 bis.1) — one account, one plan, the data untouched, the copy
+    available, `/progreso` complete — so that no right to terminate and no durable-medium
+    notice arose? (c) Does GDPR art. 15 stay satisfied when the screen refuses but the copy
+    route does not (my reading: yes — art. 15 is a right to the data, not to a screen; it is
+    answered by mail in a month, which is why this is a consumer question and not a data
+    protection one)? (d) Once the clause is rewritten (§ D bis.3), does "continuing to use
+    means accepting" hold for changes that worsen nothing? **This one deserves five minutes**,
+    and the answer matters most for the real launch, not for today's eight accounts. The
+    detail in [`textos/03`](./textos/03-condiciones-uso.md) § D bis.2.
 ---
 
 ## 11. What has to be built for 004 (and by whom)

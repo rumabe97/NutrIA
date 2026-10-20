@@ -161,6 +161,26 @@ describe('ProgressController.summary — fortnights', () => {
     expect(overall).toMatchObject({ eaten: 29, marked: 29 });
   });
 
+  it('leaves the card of a fortnight still running open, even once another plan replaced it', async () => {
+    // TODAY is 2026-09-09 and p1 runs to the 14th: `completesActive` closed it
+    // when p2 went active, and the card stays open until its own last day has
+    // passed (`0021` § *Amended*, corrected 2026-10-20).
+    pastOpensFor.mockResolvedValue(false);
+    findChain.mockResolvedValue([
+      plan({ id: 'p2', endDate: '2026-09-22', startDate: '2026-09-09', status: 'active', version: 2 }),
+      plan({ id: 'p1', status: 'completed', version: 1 })
+    ]);
+    mealMarksByDay.mockResolvedValue(days('p1', 'completed', '2026-09-01', '2026-09-08', 2));
+    findAll.mockResolvedValue([]);
+
+    const { fortnights } = await ProgressController.summary(USER, TODAY);
+
+    expect(fortnights.map(fortnight => [fortnight.version, fortnight.locked])).toEqual([
+      [2, false],
+      [1, false]
+    ]);
+  });
+
   it('lists the plans that were lived, newest first, with the check-in that closed them', async () => {
     findChain.mockResolvedValue([
       plan({ id: 'p3', status: 'generating', version: 3 }),

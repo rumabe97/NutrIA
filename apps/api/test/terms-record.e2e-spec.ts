@@ -115,7 +115,7 @@ describe('the terms an account was created under', () => {
 
     const row = await termsOf(email);
 
-    expect(TERMS_VERSION).toBe('2.0.0');
+    expect(TERMS_VERSION).toBe('2.1.0');
     expect(row?.version).toBe(TERMS_VERSION);
     expect(row?.at).not.toBeNull();
     // The database's clock and this one may differ a little; a minute is "now" and nothing else is.

@@ -7,7 +7,7 @@ import {
   PremiumOnlyError,
   QuotaExceededError
 } from 'core/entities/Error';
-import { isPastPlan, LIVED_PLAN_STATUSES } from 'core/entities/Plan';
+import { isClosedPlan, isPastPlan, LIVED_PLAN_STATUSES } from 'core/entities/Plan';
 import {
   eventStanding,
   MAX_START_DAYS_AHEAD,
@@ -703,7 +703,9 @@ export const PlanController = {
       throw new NotFoundError('Plan not found');
     }
 
-    if (isPastPlan(plan.status) && !(await PlanController.pastOpensFor(userId, reader))) {
+    // Closed costs nothing to ask; the person's day and their tier are only
+    // read when it is, and the date is what says the fortnight ended.
+    if (isClosedPlan(plan.status) && isPastPlan(plan, await personToday(userId)) && !(await PlanController.pastOpensFor(userId, reader))) {
       throw new PremiumOnlyError('past_plan');
     }
 
@@ -811,7 +813,8 @@ export const PlanController = {
     // Asked only when there is a past to lock, which is also the honest reading
     // of the cost: a person on their first fortnight pays no tier lookup for a
     // paywall that cannot apply to them.
-    const opens = rows.some(row => isPastPlan(row.status)) ? await PlanController.pastOpensFor(userId, reader) : true;
+    const closed = rows.some(row => isClosedPlan(row.status));
+    const [opens, today] = closed ? await Promise.all([PlanController.pastOpensFor(userId, reader), personToday(userId)]) : ([true, ''] as const);
 
     return rows.map(row => {
       const successor = lived[lived.indexOf(row) - 1];
@@ -819,7 +822,7 @@ export const PlanController = {
       return {
         id: row.id,
         endDate: row.endDate,
-        locked: !opens && isPastPlan(row.status),
+        locked: !opens && isPastPlan(row, today),
         replaced: successor !== undefined && successor.startDate <= row.endDate,
         startDate: row.startDate,
         status: row.status,
@@ -861,7 +864,9 @@ export const PlanController = {
    * pay a tier lookup for a case that cannot arise.
    */
   async openedMeal(meal: MealDetailView, userId: string, reader: PlanReader): Promise<MealDetailView> {
-    if (isPastPlan(meal.planStatus) && !(await PlanController.pastOpensFor(userId, reader))) {
+    const plan = { endDate: meal.planEndDate, status: meal.planStatus };
+
+    if (isClosedPlan(plan.status) && isPastPlan(plan, await personToday(userId)) && !(await PlanController.pastOpensFor(userId, reader))) {
       throw new PremiumOnlyError('past_plan');
     }
 
@@ -1360,7 +1365,8 @@ export interface MealDetailView {
    * — or `none`: no picture, the placeholder, nothing to announce.
    */
   pictureStatus: 'drawing' | 'none' | 'ready';
-  /** The plan this meal belongs to, and whether it is still the one being lived: only then can the meal be changed. */
+  /** The plan this meal belongs to, its last day and whether it is still the one being lived: only then can the meal be changed. */
+  planEndDate: string;
   planId: string;
   planStatus: string;
   prepMinutes: number;
@@ -1610,6 +1616,7 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
     kcal: Number(meal.kcal),
     name: recipe.name,
     pictureStatus: picture.status,
+    planEndDate: plan.endDate,
     planId: plan.id,
     planStatus: plan.status,
     prepMinutes: recipe.prepMinutes,

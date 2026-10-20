@@ -313,18 +313,43 @@ export type SetMealStatus = z.infer<typeof setMealStatusSchema>;
 export const LIVED_PLAN_STATUSES: ReadonlySet<string> = new Set(['active', 'archived', 'completed']);
 
 /**
- * A fortnight that has been lived and is no longer the one being lived — the
- * **past**, as `0021` means it and as the paywall now reads it.
+ * No longer the plan being served: replaced by another, or over.
  *
- * Named here, beside `LIVED_PLAN_STATUSES`, because three reads ask the same
- * question and an inline set in three places is three chances to disagree. What
+ * Named here, beside `LIVED_PLAN_STATUSES`, because four reads ask the same
+ * question and an inline set in four places is four chances to disagree. What
  * it deliberately excludes: the **active** plan (free, always — it is the
  * product), a plan **waiting for its day** (project 015: the future, not the
  * past) and one **under review** (`0060`, which has its own gate). So the only
- * statuses here are the two that mean "over": completed and archived.
+ * statuses here are the two that mean "closed": completed and archived.
+ *
+ * Kept apart from `isPastPlan` because it costs nothing to ask, and it is what
+ * decides whether a read pays for the person's today and their tier at all.
  */
-export function isPastPlan(status: string): boolean {
+export function isClosedPlan(status: string): boolean {
   return status === 'archived' || status === 'completed';
+}
+
+/**
+ * A fortnight that has **ended**: closed, and past its last day in the person's
+ * own today (`0021` § *Amended*, corrected on 2026-10-20).
+ *
+ * The status was the whole of it for a day, and it was wrong by one case. A plan
+ * becomes `completed` the moment another goes active, so a redo inside the
+ * fortnight somebody is living closes the plan it replaced **with its last day
+ * still ahead** — and a free account has one redo a fortnight (`0099`), so its
+ * only redo put a padlock on a fortnight that had not ended. That is not what
+ * the terms say is sold (*"las quincenas que ya terminaron"*), and the `legal`
+ * and `marketing` agents found it from opposite ends on the same morning.
+ * **The date decides.** The status only says the product has stopped serving
+ * the plan, which is a different fact and the one the screen shows as
+ * *Sustituido*.
+ *
+ * `today` is the person's day (`personToday`), never the server's: a plan is
+ * laid out in their calendar, so a UTC date would end a fortnight an hour after
+ * Madrid's midnight while it still had a day to run.
+ */
+export function isPastPlan(plan: { readonly endDate: string; readonly status: string }, today: string): boolean {
+  return isClosedPlan(plan.status) && plan.endDate < today;
 }
 
 /**

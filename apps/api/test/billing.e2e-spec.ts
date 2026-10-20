@@ -438,7 +438,7 @@ describe('billing', () => {
       const server = httpServer(unconfigured.app);
       const answer: Response = await status(unconfigured, someone).expect(200);
 
-      expect(answer.body).toEqual({ available: false });
+      expect(answer.body).toMatchObject({ available: false });
       await checkout(unconfigured, someone, { plan: 'monthly' }).expect(404);
       await checkout(unconfigured, someone, { plan: 'lifetime' }).expect(422);
       await portal(unconfigured, someone).expect(404);
@@ -495,7 +495,7 @@ describe('billing', () => {
 
         const hidden: Response = await status(test, ordinary).expect(200);
 
-        expect(hidden.body).toEqual({ available: false });
+        expect(hidden.body).toMatchObject({ available: false });
 
         const before = test.stripe.bought.length;
 
@@ -517,7 +517,7 @@ describe('billing', () => {
         for (const who of [owner, ordinary]) {
           const answer: Response = await status(live, who).expect(200);
 
-          expect(answer.body).toEqual({ available: false });
+          expect(answer.body).toMatchObject({ available: false });
           await checkout(live, who).expect(404);
         }
 

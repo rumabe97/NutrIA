@@ -53,6 +53,13 @@
   text-transform: uppercase;
 }
 
+/* Premium said in sentences, with no price and no buttons under it. */
+.premiumSoon {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-03);
+}
+
 .cardHead {
   align-items: baseline;
   display: flex;
