@@ -3,6 +3,7 @@ import { Fragment } from 'react';
 import styles from './page.module.css';
 
 import { activeLocale, getDictionary } from 'i18n/server';
+import { LEGAL_IDENTITY } from 'i18n/legalIdentity';
 import { slotsIn } from 'core/domain/MealShape';
 import { Text } from 'ui/components/Text';
 
@@ -30,6 +31,7 @@ import { MEAL_SLOTS } from 'core/entities/Plan';
 
 import { formatNumber, interpolate } from 'lib/format';
 import { mealCount, mealSizeKey } from 'lib/mealSize';
+import { premiumPitch } from 'lib/premiumPitch';
 import { redirectIfOnboardingIncomplete, redirectIfProfileConsentMissing } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
@@ -223,6 +225,22 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
               </div>
               {/* `?premium=gracias` is where Stripe's checkout sends somebody back to. */}
               <PremiumCard justPaid={query.premium === 'gracias'} status={billing} />
+            </Card>
+          ) : billing ? (
+            /* Premium with nothing to buy yet. The padlock on a fortnight that
+               has ended leads here (`0021` § *Amended*), so this page says what
+               premium is and that it is not for sale — a door drawn shut rather
+               than a page that mentions nothing. No buttons: there is nothing
+               to press until there is a price. */
+            <Card>
+              <div className={styles.cardHead}>
+                <h3 className={styles.cardTitle}>{t.premiumTitle}</h3>
+              </div>
+              <div className={styles.premiumSoon}>
+                <Text tone="secondary">{premiumPitch(t.premiumPitch, billing.allowances)}</Text>
+                <Text tone="secondary">{interpolate(t.premiumNotOnSale, { email: LEGAL_IDENTITY.email })}</Text>
+                <Text tone="secondary">{t.premiumSafety}</Text>
+              </div>
             </Card>
           ) : null}
         </section>

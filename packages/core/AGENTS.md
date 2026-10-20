@@ -601,6 +601,13 @@ a person's plate as *less food*.
 - **Ownership is decided before any tier.** `getPlan` looks the plan up owner-scoped and
   throws `NotFoundError` first; only then does it ask what the reader pays. A paywall that
   answered 409 for somebody else's plan id would confirm that it exists.
+- **A gate on something that ends is decided by a date, never by a status.** `isPastPlan`
+  takes the plan and the person's own day (`personToday`), because a plan turns `completed`
+  the moment the next one goes active: for one day this gate locked the fortnight a free
+  account had just redone, with its last day still ahead, and the published terms said it
+  closed *"las quincenas que ya terminaron"*. `isClosedPlan` is the cheap half and decides
+  whether the read pays for a day and a tier at all. Before gating anything else that
+  "finishes", find the row that says when, and read it.
 
 ## ⛔ Anti-patterns
 

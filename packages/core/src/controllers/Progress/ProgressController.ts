@@ -1,6 +1,6 @@
 import { CheckInRepository } from '#repositories/CheckIn';
 import { difficultyAnswer, hungerAnswer } from 'core/entities/CheckIn';
-import { isPastPlan, LIVED_PLAN_STATUSES } from 'core/entities/Plan';
+import { isClosedPlan, isPastPlan, LIVED_PLAN_STATUSES } from 'core/entities/Plan';
 import { PlanController } from 'core/controllers/Plan';
 import { PlanRepository } from '#repositories/Plan';
 import { ProfileRepository } from '#repositories/Profile';
@@ -172,7 +172,7 @@ export const ProgressController = {
     // The tier is asked only when a fortnight of theirs is actually past: a
     // first plan, or one still being lived, cannot be behind the paywall, and
     // this screen is read far more often than a past plan is opened.
-    const opensPast = chain.some(plan => isPastPlan(plan.status)) ? await PlanController.pastOpensFor(userId, reader) : true;
+    const opensPast = chain.some(plan => isClosedPlan(plan.status)) ? await PlanController.pastOpensFor(userId, reader) : true;
 
     // Newest first. A plan is *replaced* when the next lived plan began before
     // it ended — a redo, or a regeneration — and from that day on its meals were
@@ -207,7 +207,10 @@ export const ProgressController = {
               }
             : null,
           endDate,
-          locked: !opensPast && isPastPlan(plan.status),
+          // The plan's own last day, not the one above: a plan replaced inside
+          // the fortnight being lived keeps a last day still ahead, and it opens
+          // until that day passes.
+          locked: !opensPast && isPastPlan(plan, today),
           meals: { eaten, skipped, soFar: eaten + skipped + count('planned') },
           planId: plan.id,
           replaced,

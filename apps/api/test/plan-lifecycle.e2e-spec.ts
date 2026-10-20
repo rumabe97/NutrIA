@@ -1,7 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
-import { completeOnboarding, createApp, deleteAccounts, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import {
+  completeOnboarding,
+  createApp,
+  deleteAccounts,
+  endFortnight,
+  generateAndWait,
+  httpServer,
+  POOL,
+  PREFIX,
+  register,
+  ScriptedAiClient
+} from './harness.js';
 
 import { PlanJobController } from 'core/controllers/Plan';
 import { QuotaExceededError } from 'core/entities/Error';
@@ -281,9 +292,20 @@ describe('plan lifecycle', () => {
     await SettingsController.setFlag('premium', true, UNAUDITED);
 
     try {
-      // Free, with a tier to buy: the fortnight that ended is behind premium
-      // (`0021` § *Amended*) — 409 and not 404, because it is theirs and it is
-      // still there, and the code is what the screen switches on.
+      // First: this plan is closed — another one replaced it — but its last day
+      // is still ahead, so the fortnight is being lived and it is free, tier or
+      // no tier (`0021` § *Amended*, corrected 2026-10-20). A free account has
+      // one redo a fortnight, so this is the state its own redo leaves behind.
+      await request(server).get(past).set('Cookie', account.cookie).expect(200);
+      expect((await history()).find(row => row.id === plan.id)).toMatchObject({ locked: false });
+
+      // Only time makes a fortnight past, and a suite has none: its last day is
+      // moved behind us, which is the one thing the product never does itself.
+      await endFortnight(plan.id);
+
+      // Free, with a tier to buy: the fortnight that has ended is behind premium
+      // — 409 and not 404, because it is theirs and it is still there, and the
+      // code is what the screen switches on.
       const refused: Response = await request(server).get(past).set('Cookie', account.cookie).expect(409);
 
       expect(refused.body).toMatchObject({ code: 'PREMIUM_ONLY', kind: 'past_plan' });

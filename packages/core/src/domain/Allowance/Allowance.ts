@@ -299,8 +299,11 @@ export function allowancesFor(tier: Tier | null | undefined): Allowances {
  * shipped constant — moving it is a deploy, which is right for a line in the
  * terms.
  *
- * Only the **past** is behind it: `isPastPlan` excludes the active plan, the
- * one waiting for its day and the one under review. An unknown tier reads as
+ * Only the **past** is behind it: `isPastPlan` excludes the active plan, the one
+ * waiting for its day and the one under review — and, since 2026-10-20, any
+ * fortnight whose last day has not passed, however the plan ended. A redo
+ * closes the plan it replaces on the spot, and the fortnight somebody is living
+ * is free whichever plan of theirs is serving it. An unknown tier reads as
  * free, like everything else here — the fallback is always the smaller answer.
  */
 export function mayReadPastPlans(tier: Tier | null | undefined): boolean {

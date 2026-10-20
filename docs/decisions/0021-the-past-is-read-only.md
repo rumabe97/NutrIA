@@ -109,6 +109,41 @@ fortnight it is living**.
   finished until every page that described the old behaviour has been read**,
   and this one reached production describing it for a day.
 
+### Corrected on 2026-10-20 — a fortnight ends on a date, not on a status
+
+Shipped on 2026-10-19 the gate read `status`, and `completesActive` sets the outgoing
+plan to `completed` the moment the next one goes active while leaving its `endDate`
+alone (`PlanRepository`, `shape`). A free account has **one** redo a fortnight (`0099`),
+so its only redo put a padlock on the fortnight it was living — against what the terms
+published the day before say is sold, *"las quincenas que ya terminaron"*. The `legal`
+agent found it as P1-16 and the `marketing` agent as its one defect, from opposite ends,
+on the same morning.
+
+**`isPastPlan(plan, today)` now takes the plan's last day and the person's own today**
+(`personToday`, their time zone and never the server's); `isClosedPlan(status)` is what
+stays cheap and decides whether a read pays for a day and a tier at all. The owner chose
+this over re-wording the terms (`docs/legal/textos/03-condiciones-uso.md` § D bis.5,
+option b): the sentence people have already read becomes true without being touched, and
+nothing is published.
+
+Three more things the owner decided the same morning, told what each costs:
+
+- **The line stays at one fortnight.** The `marketing` audit argues for two, as a date
+  rule — *open while the last day is today or within the fourteen days before it* — because
+  the padlock arrives in the same event as the first check-in, which is the evidence a
+  person uses to answer *is this working*. He read that and kept one. The rule is written
+  down so the next person to ask does not have to re-derive it
+  (`docs/reference/marketing/the-past-is-premium.md` § 3).
+- **The padlock now leads somewhere.** `/perfil` draws premium — what it gives, that it is
+  not on sale, and how to ask — whenever billing is closed, which today is always: there is
+  no Stripe configuration in production at all. `GET /billing` carries the tiers' numbers
+  for that card even when it answers `available: false`, and the locked card on `/progreso`
+  gained the way out it had none of. A padlock pointing at a page with no premium on it was
+  the audit's P0.
+- **The line is said before it bites.** `/plan/historial` names what premium opens from the
+  first fortnight, not only once there is something locked — `0021`'s own principle, applied
+  to its amendment.
+
 ### What this cost, measured before it shipped
 
 Production on 2026-10-19, read-only: **8 accounts, 4 free and 4 premium**, 42

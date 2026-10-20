@@ -493,6 +493,32 @@ export async function unconfirmAddress(email: string): Promise<void> {
 }
 
 /**
+ * Moves a plan's last day into the past, `daysAgo` before the database's today.
+ *
+ * The paywall reads the person's own day against that date and not the plan's
+ * status (`0021` § *Amended*, corrected 2026-10-20), so a suite cannot get a
+ * fortnight that has **ended** by generating another plan: that closes the old
+ * one and leaves its last day exactly where it was. Two days back by default,
+ * so the plan is past whichever side of UTC the account's time zone sits on.
+ *
+ * Written on the table, like `markLegacyOnboarding`, because no route moves a
+ * plan's dates and only the clock otherwise would.
+ */
+export async function endFortnight(planId: string, daysAgo = 2): Promise<void> {
+  const sql = (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> })
+    .$client;
+  const ended = await sql<{ id: string }>`
+    update meal_plans
+    set end_date = current_date - ${daysAgo}::int, updated_at = now()
+    where id = ${planId}
+    returning id`;
+
+  if (ended.length !== 1) {
+    throw new Error(`No plan to end for ${planId}`);
+  }
+}
+
+/**
  * Finishes a password sign-in's TOTP challenge (`challenge` is the cookie it
  * left) and answers the session's cookie. The server accepts each step's code
  * once (PLAN 011 phase 4) and this does not know which it took last, so it

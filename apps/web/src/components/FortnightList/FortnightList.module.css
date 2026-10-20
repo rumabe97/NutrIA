@@ -97,6 +97,16 @@
   content: none;
 }
 
+/* A locked fortnight's mark and the way to what premium is (`0021`
+   § *Amended*): the chip says why the plan does not open, the link answers the
+   question it raises. It wraps rather than squeezing on a narrow screen. */
+.lockedRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+}
+
 .open {
   align-items: center;
   color: var(--color-brand-11);

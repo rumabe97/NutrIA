@@ -1801,7 +1801,7 @@ export const enGB: Dictionary = {
       },
       {
         answer:
-          'All of them. They are kept, with their recipes, their shopping lists and your notes. You always see the fortnight you are living, in full; earlier plans are opened by Premium, and you can ask us for a copy of your data whenever you like.',
+          'All of them. They are kept, with their recipes, their shopping lists and your notes. You always see the fortnight you are living, in full; the ones that have ended are opened by Premium, and you can ask us for a copy of your data whenever you like.',
         question: 'What happens to my previous plans?'
       },
       {
@@ -2308,7 +2308,8 @@ export const enGB: Dictionary = {
     historyCurrent: 'Current',
     historyEmpty: 'Your earlier plans will collect here, exactly as they were.',
     historyFinished: 'Finished',
-    historyIntro: 'Every plan stays as it was, with what you ate and what you did not. It cannot be changed.',
+    historyIntro:
+      'Every plan stays as it was, with what you ate and what you did not. It cannot be changed. You always see the fortnight you are living; the ones that end are kept whole, and seeing them later is part of premium.',
     historyLink: 'Earlier plans →',
     historyLockedChip: 'Premium',
     historyLockedCta: 'See premium',
@@ -2822,9 +2823,11 @@ export const enGB: Dictionary = {
     premiumJustPaid: 'Payment received. Premium switches on in a few seconds; if you do not see it yet, reload the page.',
     premiumManage: 'Manage the subscription',
     premiumMonthly: 'Monthly · {price} a month',
+    premiumNotOnSale:
+      'It is not on sale yet. When it is, the price and the subscription will appear here. If you would like to try it before then, write to me at {email}.',
     premiumPastDue: 'The last payment could not be taken. Stripe will try again; update your card to keep premium.',
     premiumPitch:
-      '{redos} plan redos a fortnight instead of {freeRedos}, {swaps} meal swaps a plan instead of {freeSwaps}, {events} events a plan instead of {freeEvents}, {fixedMeals} meals fixed every week instead of {freeFixedMeals}, and up to {midPlan} events added once a plan has started. Premium also opens your earlier fortnights: they are kept either way, whether or not you can see them. And if the dish you always make is not in the library, premium can ask us to write it: {dishRequests} a month, and it only counts when a dish arrives.',
+      'Premium opens your earlier fortnights: every plan you have finished, day by day, as it was. And it raises the limits: {redos} plan redos a fortnight instead of {freeRedos}, {swaps} meal swaps a plan instead of {freeSwaps}, {events} events a plan instead of {freeEvents}, {fixedMeals} meals fixed every week instead of {freeFixedMeals}, and up to {midPlan} events added once a plan has started. And if the dish you always make is not in the library, premium can ask us to write it: {dishRequests} a month, and it only counts when a dish arrives.',
     premiumRenews: 'You have premium. It renews on {date}.',
     premiumSafety: 'Food safety — allergies, intolerances and nutrients — is the same with premium and without it.',
     premiumTestMode: 'Test mode: nothing is really charged. Use the card 4242 4242 4242 4242, any future date and any CVC.',
@@ -2905,6 +2908,7 @@ export const enGB: Dictionary = {
     noData: '—',
     openPlan: 'See the plan →',
     openPlanLocked: 'The plan, with premium',
+    openPremium: 'What premium is →',
     overallLine: '{eaten} meals eaten of the {marked} you marked',
     overallNone: 'Mark meals as eaten or skipped and this shows how much of the plan you follow.',
     planNumber: 'Plan {version}',

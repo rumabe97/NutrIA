@@ -47,7 +47,13 @@ export type BillingStatusView =
       /** The free days checkout would open with, or `null` for somebody who has subscribed before. */
       readonly trialDays: number | null;
     }
-  | { readonly available: false };
+  /**
+   * Nothing to buy — no Stripe, or not open to this person (`0056`). The tiers'
+   * numbers come anyway, because the profile is where a padlock on a past
+   * fortnight sends somebody (`0021` § *Amended*) and a page that drew nothing
+   * at all left them at a door that was not there.
+   */
+  | { readonly allowances: Readonly<Record<'free' | 'premium', Allowances>>; readonly available: false };
 
 /**
  * One practice plan checkout can open with (`0061`): the configured price, the

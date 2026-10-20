@@ -614,7 +614,7 @@ export const PlanRepository = {
         .select({
           day: planDays,
           meal: meals,
-          plan: { id: mealPlans.id, status: mealPlans.status },
+          plan: { id: mealPlans.id, endDate: mealPlans.endDate, status: mealPlans.status },
           recipe: {
             ...getTableColumns(recipes),
             // Where the drawing stands, so the meal page can say `drawing`; null when nothing was ever claimed.

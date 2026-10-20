@@ -93,8 +93,14 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
               // The card keeps its own numbers — this screen is theirs whatever
               // they pay — and loses only the way into the plan behind it
               // (`0021` § *Amended*). A link that led to a wall would be a door
-              // that is not one.
-              <PremiumChip label={t.openPlanLocked} />
+              // that is not one, so the chip states it and the way out leads to
+              // what premium is, which is the one question the chip raises.
+              <span className={styles.lockedRow}>
+                <PremiumChip label={t.openPlanLocked} />
+                <Link className={styles.open} href="/perfil">
+                  {t.openPremium}
+                </Link>
+              </span>
             ) : (
               <Link className={styles.open} href={fortnight.status === 'active' ? '/plan' : `/plan/historial/${fortnight.planId}`}>
                 {t.openPlan}
