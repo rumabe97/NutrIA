@@ -1,6 +1,9 @@
 # PRD — Project 021: Cooked with what you have
 
-- **Status**: approved — the owner answered every open question on 2026-10-15. **Read against
+- **Status**: **done — every phase shipped and merged, 2026-10-19**, read against the live
+  library the same day, and nothing left of it but the tail it hands to `ROADMAP.md`: the
+  appliance key a step can still name, and § *Next* 6. Approved by the owner on 2026-10-15,
+  when he answered every open question. **Read against
   its own criteria on 2026-10-17** (phase 9, the record): criterion **10 is met** by
   [`0102`](../../decisions/0102-a-kitchen-is-what-it-has-and-what-it-would-rather-use.md),
   which now states what a kitchen is, why `missing` is enforced in code while `prefers` is
