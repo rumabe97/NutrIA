@@ -104,9 +104,12 @@ that setup lives now rather than here.
 
 ## Next
 
-**Fixing a meal: two things the owner asked for on 2026-10-16, in this order.** Both are
-about `apps/api/src/modules/fixed-meals/**`, which project 021 phase 5b is holding
-uncommitted as this is written, so they start when it ships rather than beside it.
+**Fixing a meal, and the tail project 021 hands on.** The two things the owner asked for on
+2026-10-16 head the list: the second of them shipped in #292 (`0103`), and the first is half
+done — the picker is off the slow path and the two routes beside it are not. The rest was
+found by agents passing through on their way to something else. Phase 5b, which held
+`apps/api/src/modules/fixed-meals/**` uncommitted when this was written, shipped in #291 and
+#292, so none of this waits on anybody's current work.
 
 - **It takes seconds when the day already holds a rule, and it should not.** Measured in
   phase 5b: `pinnable` with a non-empty `held` is **2.7 s** on an 851-dish pool — its own
@@ -117,6 +120,11 @@ uncommitted as this is written, so they start when it ships rather than beside i
   dish by dish; it is the right instrument for the handful of dishes a search asks about and
   the **wrong** one for the whole offer, where asking it 851 times would be slower than what
   is there now. So this needs its own measurement per route, not a substitution.
+  **Where it stands**: #292 took the picker (`GET /fixed-meals/fixable`) off the whole-pool
+  filter — **82 ms** for three rules on three days — and left the other two deliberately
+  alone, so `POST /fixed-meals/not-offered` and `POST /fixed-meals/request` are still at
+  **~2.7 s** on a weekday that carries a rule (021's LOG, phase 5b). Those two routes are
+  what is left of it.
 - **The health panel clips the labels somebody ticks, at the browser's largest text.**
   Found 2026-10-16 by an accessibility probe passing through on its way to something else,
   and it is the same shape as the defect that same probe had just found on the fixed-meal
@@ -179,18 +187,21 @@ uncommitted as this is written, so they start when it ships rather than beside i
   with `cleanSteps`: strip or translate an `APPLIANCES` key the way an ingredient slug is
   already handled, with the test asserting on the ten keys so adding an appliance cannot
   reopen it. Nobody's current work, and the first thing in the kitchen project's own tail.
-- **A dish the day's macros cannot hold should warn, not refuse** (the owner, 2026-10-16:
-  *"en vez de elegir, deberías poner un aviso indicando eso al usuario, y que es su
-  responsabilidad o algo así, pero que permita elegirlo"*). Today `clashes_with_fixed` and
-  `too_big_or_small` take the dish out of the picker and refuse it 422 at add time. They
-  become a warning somebody can accept. **Only those two**: an allergen, a way of eating, a
-  missing appliance and a dish with no method stay refusals, because the first is safety and
-  the rest are things the person cannot act on by accepting a consequence. This is a change
-  to `0101`'s gate and needs a decision record, and it has a consequence worth stating in
-  it: a day built around an accepted rule **comes out of band**, which `0011` already allows
-  (targets are advisory, the energy floor is the only bound that blocks) but which the
-  evaluator counts — so the "14 of 14 days inside 5%" figure stops being a promise about
-  every account and becomes one about accounts that did not overrule it.
+- **A dish the day's macros cannot hold warns instead of refusing — done** (the owner,
+  2026-10-16: *"en vez de elegir, deberías poner un aviso indicando eso al usuario, y que es
+  su responsabilidad o algo así, pero que permita elegirlo"*), recorded as
+  [`0103`](./decisions/0103-a-days-arithmetic-is-a-warning-somebody-may-accept.md) and
+  shipped in #292. **One reason warns, not two**: `clashes_with_fixed` is offered with its
+  consequence and served out of band, because the day's bands are not one of the three bounds
+  `honouredPin` yields to; `too_big_or_small` keeps its refusal, because it *is* `fitsPlate`
+  failing, so accepting it would take somebody's word and still not serve the meal. Everything
+  else stays a refusal — an allergen above all, and then a way of eating, a missing appliance,
+  a dish with no method. The cap `0101` left emergent became a number in the same change: **at
+  most two fixed meals on any one weekday**, enforced in the repository's lock, since removing
+  the filter removed the cap the filter was. The consequence stated at the time now holds: a
+  day built around an accepted rule **comes out of band**, which `0011` allows and the
+  evaluator counts — so "14 of 14 days inside 5%" is a promise about accounts that did not
+  overrule it.
 
 1. **A user can live inside the plan.** Day navigation, meal detail with recipe and macros
    (done), favourite / dislike (done, `0014`), meal replacement (done, `0015`: library first,
@@ -245,15 +256,20 @@ uncommitted as this is written, so they start when it ships rather than beside i
    batch is it: eight appliances sat below the 19 dishes a slot the rotation asks for, so each
    was drafted to the owner's own floor of **50–100 dishes** (2026-10-18) — the slow cooker
    excepted, which keeps its entry with a zero and the schema bound that explains it. **280
-   dishes reviewed and in a file**, and with them loaded locally the 42 measured fortnights
+   dishes reviewed, and loaded in production by the owner on 2026-10-18** — es-ES 1,146 →
+   1,426 dishes, air fryer 30 → 85, every appliance a kitchen can ask for above his own floor
+   of 50 and the slow cooker still at zero. With them loaded locally the 42 measured fortnights
    serve 877 preferred plates instead of 583, one serves none instead of five, and every one
    of the 588 days is inside all four macros; in the owner's own shape, two standing rules on
    one weekday, plates go 394 → 928 with the bands unmoved. The finding to carry forward is
    that **supply makes the share bind harder**: a quota of 7 in 19 that no library could fill
    displaced nothing, and one that can fills completely, so the rungs give way ten times
-   instead of three. The share's size is now a real choice, and the owner's.
-   What it deliberately leaves for its
-   own measured change: the cooking time, which is a single ceiling for fourteen days, and
+   instead of three. **The share stays at 14 of 19**, decided over the 42 fortnights rather
+   than one seed: it saturates there, and from the second rung up every tail figure is the
+   same one (`0102` § *One seed is not a measurement, and the share's size is read over
+   eight*). **The project is done**, every phase shipped and merged by 2026-10-19. What it
+   deliberately leaves for its own measured change: the cooking time, which is a single
+   ceiling for fourteen days, and
    `difficulty`, stored on every dish and read by nothing — now § 6 below, with evidence.
 6. **How long a dish takes, and how much work it is.** Not approved, and the next thing 021
    argues for. Today the cooking time is **one number for fourteen days** — the prompt's

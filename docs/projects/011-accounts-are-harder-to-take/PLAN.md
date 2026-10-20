@@ -503,7 +503,9 @@ records what was decided.
 
 ### Phase 8 — Sign-up reveals nothing
 
-- [ ] in progress — #217. Hotfix #218, found by this phase's invariant review and merged to `main` first: the confirmation link signs nobody in (`autoSignInAfterVerification: false`) and a provider never links into an existing account (`disableImplicitLinking: true`)
+- [x] done — commit `e21f539b` (#217, merged 2026-10-08); the LOG carries it from *Phase 8 —
+  Sign-up reveals nothing* to *Phase 8 — the delta review, and what stays open*. The status line
+  had read `in progress` since then. Hotfix #218, found by this phase's invariant review and merged to `main` first: the confirmation link signs nobody in (`autoSignInAfterVerification: false`) and a provider never links into an existing account (`disableImplicitLinking: true`)
 - **Dispatch**: opus @ high — `/execute-project 011 phase 8`, as a `/team` (`backend`,
   `frontend`, `tests`). `quality-max`. Reviews: `invariant-reviewer`, `accessibility` with
   `/local-probe`.
