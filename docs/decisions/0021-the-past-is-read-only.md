@@ -91,11 +91,23 @@ fortnight it is living**.
   living, whole and always, that the ones already ended are kept just the same,
   and that a copy of the data can be asked for at any time; `terms.updated`
   moves to 2026-10-19 with it. Those same terms promise an email to existing
-  accounts before a material change applies — **that email is the owner's to
-  send**, and `docs/legal/textos/03-condiciones-uso.md` § D, which the `legal`
-  agent owns and a lawyer approves, still carries the sentence as it was.
-  `TERMS_VERSION` stays at `2.0.0`: whether a change of this kind bumps it is
-  that agent's call and not this one's.
+  accounts before a material change applies. **Asked on 2026-10-20, the owner
+  decided not to send it**: *"no voy a mandar correos"*. What that leaves owed,
+  and what it exposes, is written down by the `legal` agent in
+  `docs/legal/textos/03-condiciones-uso.md` § D bis.2 — recorded, not argued
+  twice. `TERMS_VERSION` **moves to `2.1.0`**, which is that agent's call under
+  the repository's own bump rule (`2026-09-29-accepting-the-legal-texts.md`
+  § 5.4) and the sharper for the decision above: with no email sent, the stored
+  version is the only trace of which text an account was shown. Nothing is
+  backfilled — the eight accounts created under `2.0.0` saw `2.0.0`.
+- **The landing page had promised the opposite, and was corrected the next day.**
+  `landing.faq`'s answer to *"¿Qué pasa con mis planes anteriores?"* said
+  *"puedes consultarlos cuando quieras"*, which stopped being true for a free
+  account the moment this shipped — and a public page's words bind before any
+  contract does (TRLGDCU arts. 61.2 and 80.2, read by the `legal` agent as
+  P0-4). It now says what the gate does, in both languages. **A gate is not
+  finished until every page that described the old behaviour has been read**,
+  and this one reached production describing it for a day.
 
 ### What this cost, measured before it shipped
 

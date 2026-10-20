@@ -1891,7 +1891,8 @@ export const esES = {
         question: '¿Esto sustituye a un dietista o a mi médico?'
       },
       {
-        answer: 'Todos. Los planes anteriores quedan guardados con sus recetas, sus listas y tus comentarios, y puedes consultarlos cuando quieras.',
+        answer:
+          'Todos. Se quedan guardados, con sus recetas, sus listas y tus comentarios. La quincena que estás viviendo la ves entera y siempre; los planes anteriores los abre Premium, y puedes pedirnos una copia de tus datos cuando quieras.',
         question: '¿Qué pasa con mis planes anteriores?'
       },
       {

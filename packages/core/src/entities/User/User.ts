@@ -7,7 +7,11 @@ import { z } from 'zod';
  * for email, Google and Apple alike — and no request can send it.
  *
  * `1.x` is the three texts of 21, 25 and 28 September, which were never
- * recorded; `2.0.0` is the first that is.
+ * recorded; `2.0.0` is the first that is; `2.1.0` is the text of 19 October
+ * 2026, which put earlier fortnights behind Premium (`0021` § *Amended*,
+ * `docs/legal/textos/03-condiciones-uso.md` § D bis). No account is
+ * backfilled: the eight created under `2.0.0` saw `2.0.0`, and with no email
+ * sent this column is the only trace of which text each account was shown.
  *
  * **The bump rule:** any change of meaning in the `terms` dictionary, in
  * `es-ES.ts` or in `en-GB.ts`, bumps this constant **and** `terms.updated` in
@@ -17,7 +21,7 @@ import { z } from 'zod';
  * Only `/condiciones` is recorded: the privacy policy is informed, never
  * accepted, and has no version here.
  */
-export const TERMS_VERSION = '2.0.0';
+export const TERMS_VERSION = '2.1.0';
 
 /**
  * The authenticated account. Better Auth owns this row, so the shape mirrors

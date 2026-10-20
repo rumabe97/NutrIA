@@ -1801,7 +1801,7 @@ export const enGB: Dictionary = {
       },
       {
         answer:
-          'All of them. Past plans are kept with their recipes, their shopping lists and your notes, and you can look them up whenever you like.',
+          'All of them. They are kept, with their recipes, their shopping lists and your notes. You always see the fortnight you are living, in full; earlier plans are opened by Premium, and you can ask us for a copy of your data whenever you like.',
         question: 'What happens to my previous plans?'
       },
       {

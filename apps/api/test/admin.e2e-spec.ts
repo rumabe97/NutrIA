@@ -2545,7 +2545,7 @@ describe('admin', () => {
       ).$client;
       const [{ n: unrecorded }] = await sql<{ n: number }>`select count(*)::int as n from "user" where terms_version is null`;
 
-      expect(before?.currentVersion).toBe('2.0.0');
+      expect(before?.currentVersion).toBe('2.1.0');
       expect(before?.currentVersion).toBe(TERMS_VERSION);
 
       const nullBucket = before?.versions.find(version => version.version === null);
