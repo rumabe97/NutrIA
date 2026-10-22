@@ -115,6 +115,7 @@ export default async function DashboardPage() {
               body={interpolate(dictionary.vacations.awayBody, {
                 until: formatDate(resumesOn(away.endsOn), locale, { day: 'numeric', month: 'long' })
               })}
+              inline={true}
               title={dictionary.vacations.awayTitle}
             >
               {/* A way back into the plan, and deliberately the only action here:
@@ -130,7 +131,7 @@ export default async function DashboardPage() {
           {/* The fortnight's check-in, first, when it is due: the one thing this
               screen wants from the person before anything else it offers. */}
           {checkIn?.due ? (
-            <EmptyState body={t.checkInDueBody} title={t.checkInDueTitle} tone="warning">
+            <EmptyState body={t.checkInDueBody} inline={true} title={t.checkInDueTitle} tone="warning">
               <CtaLink href="/check-in" size="lg">
                 {t.checkInDueCta}
               </CtaLink>
@@ -197,7 +198,7 @@ export default async function DashboardPage() {
                 // While away there is no day for today *by design* (`0032`), and
                 // calling that "finished" would offer to replace a plan that is
                 // merely waiting.
-                <EmptyState body={checkIn?.done ? `${t.planEndedBody} ${t.checkInDoneNote}` : t.planEndedBody} title={t.planEndedTitle}>
+                <EmptyState body={checkIn?.done ? `${t.planEndedBody} ${t.checkInDoneNote}` : t.planEndedBody} inline={true} title={t.planEndedTitle}>
                   <CtaLink href="/plan/generando" size="lg">
                     {t.planEndedCta}
                   </CtaLink>
@@ -219,7 +220,7 @@ export default async function DashboardPage() {
             <Fragment>
               <Text tone="secondary">{t.profileComplete}</Text>
 
-              <EmptyState body={t.noPlanBody} title={t.noPlanTitle}>
+              <EmptyState body={t.noPlanBody} inline={true} title={t.noPlanTitle}>
                 <CtaLink href="/plan/generando" size="lg">
                   {t.noPlanCta}
                 </CtaLink>
