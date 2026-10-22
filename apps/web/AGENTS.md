@@ -405,6 +405,14 @@ number up with there, and tabular digits read as slightly wrong in running text.
   `padding="lg"` for a card that is the whole screen; `as` for the element (`section`,
   `li`, `dl`, a `Link`). A module that overrides the card's own properties on a link card
   uses `a.card` (element + class) so it wins whatever order the stylesheets land in.
+- **An empty state is `components/EmptyState`, and it is dressed for where it sits.** On its
+  own it is the screen — `padding="lg"`, a `--font-size-07` title, centred — which is how
+  `/compra`, `/plan`, `/progreso` and `/plan/historial` use it. One card among cards takes
+  `inline={true}`: the card's own padding, a `--font-size-04` title and text from the left,
+  the shape `PlanPendingNotice` already has on that screen. The screen treatment beside
+  ordinary cards is half again their title size and its centred lines run the full width of
+  the padding box at 320px — measured at 280×315 against a 280-wide card of 20/24, which is
+  what `/inicio` looked like until 2026-10-22.
 - **A button is `ui/components/Button`**, and a link that should look like one wears
   `buttonClassName(…)` (`CtaLink` does this). One `primary` per view; toggles are
   `secondary` with `aria-pressed`; `tertiary` for a quiet action; `destructive` for the

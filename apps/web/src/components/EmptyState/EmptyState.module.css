@@ -41,3 +41,32 @@
     flex-direction: column;
   }
 }
+
+/*
+ * One card among cards, on `/inicio`.
+ *
+ * The screen-sized treatment — a 24px title centred inside `--card-padding-lg`
+ * — is right when this component is the whole screen, and wrong in a column
+ * where every other card names itself at `--font-size-04` and reads from the
+ * left (`inicio/page.module.css`'s `.todayTitle`, `PlanPendingNotice`'s
+ * `.title`). Measured at 320px: the check-in prompt came out 280×315 with 32px
+ * of padding beside a rail card of 20/24, and its two centred title lines ran
+ * the full width of the padding box. This is the notice shape that screen
+ * already has, not a second one.
+ */
+.inline {
+  text-align: start;
+}
+
+.inline .title {
+  font-size: var(--font-size-04);
+  line-height: var(--line-height-04);
+}
+
+.inline .body {
+  margin-inline: 0;
+}
+
+.inline .actions {
+  justify-content: flex-start;
+}
