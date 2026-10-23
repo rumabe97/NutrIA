@@ -28,7 +28,42 @@
  *
  * Usage (from the repository root, against the local Postgres `pnpm db:local` runs —
  * never Neon):
- *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--without oven[,blender]] [--prefer air_fryer[,grill]] [--share N] [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds] [--exceptions]] [--pins N [--pin-slot <slot>] [--per-day N] [--pins-from kept.json]]
+ *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--without oven[,blender]] [--prefer air_fryer[,grill]] [--share N] [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds] [--exceptions]] [--pins N [--pin-slot <slot>] [--per-day N] [--pins-from kept.json]] [--pantry <larder|slugs> [--pantry-mode rank|filter|bucket] [--pantry-share N]]
+ *
+ * `--pantry <larder|slugs>` (project 022 phase 0) says what is already in the
+ * house: the name of one of the hand-written larders (`LARDERS` — `despensa-15`,
+ * `despensa-15-sin-condimentos`, `despensa-30`, `despensa-60`), or a
+ * comma-separated list of catalogue slugs. It needs `--rotate`, because every
+ * figure it adds is a figure about a fortnight somebody was actually served.
+ *
+ * `--pantry-mode` says what the pantry is allowed to do:
+ *   `rank` (the default) keeps a share of each slot's cap for the dishes
+ *     somebody would have to buy fewest items for — the shape the PRD proposes;
+ *   `filter` keeps only the dishes the pantry covers whole, which is the shape
+ *     `architecture/0012` refused at fourteen days. It is measured **here and
+ *     nowhere else**, to confirm the refusal with this cohort's own numbers, and
+ *     it is never a product mode;
+ *   `bucket` puts the pantry's slugs through `preferIngredientSlugs` — the one
+ *     bucket all four leanings share. That is the composition `0102` already
+ *     priced the dilution of, and it is measured as the **rejected** one, so the
+ *     rejection is a number and not a recollection.
+ *
+ * `--pantry-yields first|last` says which preference gives way first when a
+ * plan built on both a cupboard and a preferred appliance misses a macro band
+ * (`narrowerRungs`). It is the composition question criterion 3 turns on, so a
+ * `--prefer` run's kitchen figures mean one thing under `first` and another
+ * under `last`, and the run prints which one it was.
+ *
+ * `--pantry-share N` is the rank's quota per slot: 0 is no quota at all, and
+ * `DISHES_NEEDED_PER_SLOT` (19) is the whole cap, which is a sort key with no
+ * quota rather than a share. The rungs between are the composition the phase has
+ * to choose: 5 is roughly what a preferred appliance leaves of a slot, 14 is the
+ * appliance's own share.
+ *
+ * The figures a pantry run adds — the fortnight's shopping rows, the rows the
+ * pantry already covers, the plates and whole meals it reaches — are written on
+ * **every** run, pantry or not, so a no-pantry baseline file carries them too and
+ * the comparison is a measurement rather than a recollection.
  *
  * `--flag <name>` names a scheduler flag to measure with on (project 016). The
  * one that exists is `accompaniments`: each profile's larder (`larderFor`, the
@@ -96,7 +131,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts/guard.mjs';
 
 import { RecipeController } from 'core/controllers/Recipe';
-import { BALANCE_RULES, balanceOf, balanceSupply, mealGroups, mealServings, proteinPerKgBySlot } from 'core/domain/Balance';
+import { BALANCE_RULES, balanceOf, balanceSupply, mealGroups, mealServings, proteinPerKgBySlot, reserveGroups } from 'core/domain/Balance';
 import { larderFor } from 'core/domain/Accompaniment';
 import { APPLIANCES } from 'core/entities/Kitchen';
 import { SafetyController } from 'core/controllers/Safety';
@@ -106,6 +141,7 @@ import { loadedTargets } from 'core/domain/Event';
 import { MEAL_SLOTS } from 'core/entities/Plan';
 import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
 import { isBlocking, PLAN_TOLERANCE, planBandMiss, validatePlan } from 'core/domain/PlanValidation';
+import { buildShoppingList } from 'core/domain/ShoppingList';
 import {
   breaksDishRule,
   breaksPatternDish,
@@ -264,6 +300,399 @@ const PROFILES = [
 ];
 
 const KNOWN_FLAGS = new Set(['accompaniments']);
+
+// ---------------------------------------------------------------------------
+// What is already in the house (project 022 phase 0)
+//
+// The larders are **hand-written**, and that is the whole point of them. The
+// library's own top-K would flatter the feature: ordering the catalogue by how
+// many dishes use an ingredient and taking the first fifteen builds a cupboard
+// nobody has, whose coverage then says what the library is like rather than what
+// a kitchen is like. These are four cupboards somebody could open, each one
+// saying out loud what it assumes, so the next run can disagree with the
+// assumption instead of with the number.
+//
+// Every slug is a real `ingredients.slug` of the `es-ES` catalogue, checked
+// against the database before the run (`unknownPantrySlugs`) rather than trusted
+// here: a typo would otherwise read as "the pantry covered nothing".
+// ---------------------------------------------------------------------------
+
+/**
+ * Seasonings, fats and sweeteners — what a kitchen has whether anybody declared
+ * it or not.
+ *
+ * Named, and reported separately, because of what they do to a coverage figure:
+ * `sal` is in 883 of the 1,638 local recipes and `aceite-de-oliva-virgen-extra`
+ * in 822, so **any** larder holding both makes "plates using a pantry item"
+ * about 100% before the feature has done a single thing. A figure that cannot go
+ * down is not a measurement. So every coverage figure below is reported twice —
+ * over all of the pantry's items, and over the ones that are food somebody
+ * actually walks a supermarket for — and the PRD's own split of a fortnight's
+ * list ("99–115 rows, of which 73–88 are real food") is the same split.
+ *
+ * It is a **reporting** set and never a behaving one: the rank counts the items
+ * somebody would have to buy, salt and oil included, because that is what the
+ * shopping list counts.
+ */
+const PANTRY_STAPLES = new Set([
+  'aceite-de-girasol',
+  'aceite-de-oliva-virgen-extra',
+  'aceite-de-sesamo',
+  'ajo',
+  'ajo-en-polvo',
+  'albahaca-seca',
+  'azucar-blanco',
+  'azucar-moreno',
+  'canela-molida',
+  'comino-molido',
+  'curcuma-molida',
+  'curry-en-polvo',
+  'harina-de-trigo',
+  'laurel',
+  'miel',
+  'mostaza-de-dijon',
+  'nuez-moscada',
+  'oregano-seco',
+  'pimenton-ahumado',
+  'pimenton-dulce',
+  'pimienta-negra',
+  'romero-seco',
+  'sal',
+  'salsa-de-soja',
+  'tomillo-seco',
+  'vinagre-de-jerez'
+]);
+
+/**
+ * The cupboards, at the three sizes `architecture/0012` § 4.1 measured and one
+ * control.
+ *
+ * `assumes` is not decoration: it is the sentence the next run has to agree with
+ * before it may reuse the number. A larder is wrong in a way a seed is not —
+ * nobody can re-roll it — so what it takes for granted is written beside it.
+ */
+const LARDERS = {
+  'despensa-15': {
+    assumes:
+      'A shared flat on a Wednesday: the cupboard and the fridge door, with nothing fresh planned. Salt, oil, pepper and garlic are simply there, the way a kitchen has its seasonings; the tin of tuna, the crushed tomato and the two cooked pulses are the week’s emergency dinners. No fresh vegetable but an onion and a potato, and no meat or fish that is not a tin.',
+    items: [
+      'sal',
+      'aceite-de-oliva-virgen-extra',
+      'pimienta-negra',
+      'ajo',
+      'cebolla',
+      'patata',
+      'arroz-bomba-crudo',
+      'pasta-integral-seca',
+      'huevo',
+      'atun-al-natural',
+      'tomate-triturado',
+      'garbanzos-cocidos',
+      'lentejas-cocidas',
+      'pan-integral',
+      'leche-semidesnatada'
+    ]
+  },
+  'despensa-15-sin-condimentos': {
+    assumes:
+      'The control, and the only larder written to answer a question about another one: the 15-item cupboard with its four seasonings taken out and four foods somebody shops for put in. If the 15-item larder’s coverage survives here, the feature is steering on food; if it collapses, the feature was steering on salt and oil, which every kitchen has and nobody would type.',
+    items: [
+      'cebolla',
+      'patata',
+      'arroz-bomba-crudo',
+      'pasta-integral-seca',
+      'huevo',
+      'atun-al-natural',
+      'tomate-triturado',
+      'garbanzos-cocidos',
+      'lentejas-cocidas',
+      'pan-integral',
+      'leche-semidesnatada',
+      'zanahoria',
+      'pimiento-rojo',
+      'limon',
+      'yogur-griego-natural'
+    ]
+  },
+  'despensa-30': {
+    assumes:
+      'A weekly shopper mid-week: the 15-item cupboard, the three spices that actually get used, and what is left of Saturday’s fresh shop — the vegetable drawer half full, one fresh protein, the yoghurt and the oats that are breakfast every day. It assumes somebody who cooks, which is the person this feature is for and also the person it flatters.',
+    items: [
+      'sal',
+      'aceite-de-oliva-virgen-extra',
+      'pimienta-negra',
+      'ajo',
+      'cebolla',
+      'patata',
+      'arroz-bomba-crudo',
+      'pasta-integral-seca',
+      'huevo',
+      'atun-al-natural',
+      'tomate-triturado',
+      'garbanzos-cocidos',
+      'lentejas-cocidas',
+      'pan-integral',
+      'leche-semidesnatada',
+      'zanahoria',
+      'pimiento-rojo',
+      'calabacin',
+      'tomate',
+      'limon',
+      'espinaca',
+      'platano',
+      'manzana',
+      'pechuga-de-pollo',
+      'yogur-griego-natural',
+      'copos-de-avena',
+      'queso-rallado',
+      'pimenton-dulce',
+      'oregano-seco',
+      'laurel'
+    ]
+  },
+  'despensa-60': {
+    assumes:
+      'The day after the big monthly shop, and the top of what `architecture/0012` § 4.1 measured: a full spice rack, four proteins, the freezer stocked, fruit and nuts for the fortnight. It is the best case on purpose — nobody types sixty things — so what it measures is the ceiling the PRD promises ("about one row in two at sixty") and not a typical cupboard.',
+    items: [
+      'sal',
+      'aceite-de-oliva-virgen-extra',
+      'pimienta-negra',
+      'ajo',
+      'cebolla',
+      'patata',
+      'arroz-bomba-crudo',
+      'pasta-integral-seca',
+      'huevo',
+      'atun-al-natural',
+      'tomate-triturado',
+      'garbanzos-cocidos',
+      'lentejas-cocidas',
+      'pan-integral',
+      'leche-semidesnatada',
+      'zanahoria',
+      'pimiento-rojo',
+      'calabacin',
+      'tomate',
+      'limon',
+      'espinaca',
+      'platano',
+      'manzana',
+      'pechuga-de-pollo',
+      'yogur-griego-natural',
+      'copos-de-avena',
+      'queso-rallado',
+      'pimenton-dulce',
+      'oregano-seco',
+      'laurel',
+      'brocoli',
+      'coliflor',
+      'puerro',
+      'berenjena',
+      'pepino',
+      'cebolla-morada',
+      'tomate-cherry',
+      'boniato',
+      'calabaza',
+      'judia-verde',
+      'aguacate',
+      'kiwi',
+      'salmon',
+      'merluza',
+      'lomo-de-cerdo',
+      'pechuga-de-pavo',
+      'tofu-firme',
+      'alubias-blancas-cocidas',
+      'arroz-integral-crudo',
+      'quinoa-cruda',
+      'nueces',
+      'almendras',
+      'mantequilla-de-cacahuete',
+      'semillas-de-chia',
+      'pan-de-centeno',
+      'requeson',
+      'miel',
+      'canela-molida',
+      'pimenton-ahumado',
+      'comino-molido'
+    ]
+  }
+};
+
+/** What `--pantry-mode` accepts, and what each one is for: see the header. */
+const PANTRY_MODES = new Set(['bucket', 'filter', 'rank']);
+
+/**
+ * The rungs a plan that missed a macro band walks down, widest first, when a
+ * cupboard holds a share of the slots as well as an appliance (PRD criterion 4).
+ *
+ * `narrowerShares` is the appliance's own ladder and the reason this one exists:
+ * the bands outrank every preference (`0045` before `0102`), and the rescue that
+ * honours that replaces the pool with the whole library — which costs the person
+ * the rotation's variety, its avoid list, its food-group reserves, the appliance
+ * **and** the cupboard, all at once. A quota with no rung is therefore a cliff,
+ * and `0102` already paid for finding that out once.
+ *
+ * **Which of the two yields first is the composition, and it is measured rather
+ * than assumed** (`--pantry-yields`). `first` gives the cupboard up entirely
+ * before the appliance gives up anything, on the reading that an appliance is a
+ * standing preference shaping every fortnight somebody will ever get while a
+ * cupboard is one fortnight's, so `0102`'s rule — give up what costs the person
+ * least, first — points at the cupboard. `last` is the same ladder read the
+ * other way, and it exists because that reading is arguable: the cupboard is the
+ * more specific and more recent ask, and a person who has just typed what is in
+ * the house may well mind losing it more. Criterion 3's figures mean different
+ * things under the two orders, so a run says which one produced them.
+ */
+function narrowerRungs(rotation, pantryShare, yields) {
+  const appliance = narrowerShares(rotation);
+  const pantry = pantryShare <= 0 ? [] : [...new Set([Math.floor(pantryShare / 2), 0])].filter(rung => rung < pantryShare);
+
+  // `null` on either side of a rung means "that one keeps the share it had": a
+  // rung gives up one preference and leaves the other exactly as it was, so the
+  // order of the two groups below is the whole of what separates the two
+  // compositions. The second group is walked with the first already spent.
+  if (yields === 'last') {
+    return [
+      ...appliance.map(rung => ({ appliance: rung, pantry: null })),
+      ...pantry.map(rung => ({ appliance: appliance.length > 0 ? 0 : null, pantry: rung }))
+    ];
+  }
+
+  return [
+    ...pantry.map(rung => ({ appliance: null, pantry: rung })),
+    ...appliance.map(rung => ({ appliance: rung, pantry: pantry.length > 0 ? 0 : null }))
+  ];
+}
+
+/**
+ * The slugs this pantry names that the catalogue does not hold.
+ *
+ * Checked against the real catalogue inside the run's transaction and never in
+ * `parseArgs`, because the catalogue is not loaded until then: a typo validated
+ * against nothing would read as "the pantry covered nothing", which is the one
+ * failure that looks exactly like a result.
+ */
+function unknownPantrySlugs(pantry, catalogue) {
+  return pantry.items.filter(slug => !catalogue.has(slug));
+}
+
+/**
+ * A fortnight's shopping list, and how much of it the cupboard already holds.
+ *
+ * Built with `buildShoppingList` — the function `PlanGeneration.service.ts`
+ * builds the stored list with — so a row counted here is a row somebody reads,
+ * cooked grains merged onto their dry row and all (`0078`). Dated the way
+ * `withDates` dates it, because `0091` keys each row's per-day breakdown by the
+ * day's own date: an undated day is still summed into the total but filed under
+ * a key no range filter can choose, which is harmless for a count and wrong for
+ * anything else.
+ *
+ * `rows` is the whole list; `foodRows` leaves out the seasonings and fats of
+ * `PANTRY_STAPLES`, which is the PRD's own split of a list into 99–115 rows of
+ * which 73–88 are real food. `covered` is the rows a pantry would hand back
+ * already bought — the shop's shortening, and the only honest reading of "fewer
+ * things to buy".
+ */
+function shoppingMetrics(assignment, catalogue, startDay, pantry) {
+  const start = new Date(`${startDay}T12:00:00Z`);
+  const dated = {
+    days: assignment.days.map(day => ({
+      ...day,
+      date: new Date(start.getTime() + (day.dayIndex - 1) * 86_400_000).toISOString().slice(0, 10)
+    }))
+  };
+  const rows = buildShoppingList(dated, catalogue).items;
+  const food = rows.filter(row => !PANTRY_STAPLES.has(row.slug));
+
+  return {
+    covered: rows.filter(row => pantry.has(row.slug)).length,
+    coveredFood: food.filter(row => pantry.has(row.slug)).length,
+    foodRows: food.length,
+    rows: rows.length
+  };
+}
+
+/**
+ * What the cupboard reached on the plates: the figure the sentence after a
+ * generation is read from (PRD § *Outcome* 4), and the one a pantry run has to
+ * beat a no-pantry run on or the steering is a defect rather than a trade.
+ *
+ * Read off `meal.ingredients` — the plate as it is served, the accompaniment
+ * included — and not off `meal.dish.ingredients`: a side is bought like
+ * everything else, so a plate is only "what I already had" when the side was
+ * too.
+ *
+ * Three figures, because only one of them is honest on its own: `plates` counts
+ * a meal using **anything** from the pantry, which a larder holding salt and oil
+ * makes nearly every meal; `foodPlates` counts a meal using something from it
+ * that is not a seasoning; and `whole` counts a meal whose every item was
+ * already in the house, which is the only one somebody would call *«una comida
+ * con lo que ya tenía»*.
+ */
+function pantryPlateMetrics(days, pantry) {
+  const meals = days.flatMap(day => day.meals);
+  const uses = (meal, only) => meal.ingredients.some(item => pantry.has(item.slug) && !(only && PANTRY_STAPLES.has(item.slug)));
+
+  return {
+    foodPlates: meals.filter(meal => uses(meal, true)).length,
+    meals: meals.length,
+    plates: meals.filter(meal => uses(meal, false)).length,
+    whole: meals.filter(meal => meal.ingredients.every(item => pantry.has(item.slug))).length
+  };
+}
+
+/** How many of this dish's distinct ingredients somebody with this pantry would still have to buy. */
+function missingItems(dish, pantry) {
+  return new Set(dish.ingredients.map(item => item.slug).filter(slug => !pantry.has(slug))).size;
+}
+
+/** Whether the pantry covers every ingredient of this dish — the hard filter `architecture/0012` refused. */
+function coveredWhole(dish, pantry) {
+  return dish.ingredients.every(item => pantry.has(item.slug));
+}
+
+/**
+ * The dishes of a slot kept for what is already in the house: the ones somebody
+ * would have to buy fewest items for, in that order, as many as the quota
+ * leaves.
+ *
+ * **A rank and never a boolean** (PRD § *Outcome* 3). A fifth reason in
+ * `isPreferredDish` would be one more tenant of the single bucket all four
+ * leanings share, and a 15-item larder puts most of the library in it — which is
+ * the dilution `0102` measured and `APPLIANCE_DISHES_PER_SLOT` exists because
+ * of. So this orders instead of partitioning, and it is handed to `rotatePool`
+ * as part of its `reserve`, **after** what the food groups keep: a legume
+ * minimum is what validation refuses a fortnight for and a pantry is not.
+ *
+ * It is the instrument's mirror of the shape phase 4 would implement in
+ * `Rotation.ts`, not a parallel scheduler: everything else on the path —
+ * the shuffle, the appliance share, the cap, the rescues — is the real code's.
+ * Where it sits in the truncation order is the composition being measured, and
+ * `quota` is the knob: 0 is no quota at all, and `DISHES_NEEDED_PER_SLOT` is the
+ * whole of a slot's cap, which is a sort key with no quota rather than a share.
+ */
+function pantryReserve(inSlot, reserved, pantry, quota) {
+  if (quota <= 0 || pantry.size === 0) {
+    return [];
+  }
+
+  const already = new Set(reserved.map(dish => dish.slug));
+  const wanted = quota - reserved.filter(dish => missingItems(dish, pantry) < dish.ingredients.length).length;
+
+  if (wanted <= 0) {
+    return [];
+  }
+
+  // A stable sort over the slot's **shuffled** order, so two dishes somebody
+  // would buy the same number of things for are still picked by the seed and the
+  // pick stays theirs. `Array.prototype.sort` is stable by specification.
+  return inSlot
+    .filter(dish => !already.has(dish.slug))
+    .map(dish => ({ dish, missing: missingItems(dish, pantry) }))
+    .sort((left, right) => left.missing - right.missing)
+    .slice(0, wanted)
+    .map(entry => entry.dish);
+}
 
 // ---------------------------------------------------------------------------
 // Fixed recurring meals — the measurement that gates how many a tier may hold.
@@ -481,6 +910,10 @@ function parseArgs(argv) {
     json: null,
     locale: 'es-ES',
     only: null,
+    pantry: null,
+    pantryMode: 'rank',
+    pantryShare: 5,
+    pantryYields: 'first',
     perDay: 1,
     pinFit: false,
     pinsFrom: null,
@@ -589,6 +1022,46 @@ function parseArgs(argv) {
       }
 
       options.flags.push(name);
+    } else if (arg === '--pantry') {
+      const named = (argv[(index += 1)] ?? '').trim();
+      const larder = LARDERS[named];
+      // A larder by name, or a list typed on the command line. The slugs
+      // themselves are checked against the catalogue inside the run, not here.
+      const items = larder ? larder.items : named.split(',').map(slug => slug.trim()).filter(Boolean);
+
+      if (items.length === 0) {
+        console.error(`--pantry needs a larder (${Object.keys(LARDERS).join(', ')}) or a comma-separated list of catalogue slugs`);
+        process.exit(2);
+      }
+
+      options.pantry = { assumes: larder?.assumes ?? null, items, name: larder ? named : 'a list given on the command line' };
+    } else if (arg === '--pantry-mode') {
+      const mode = argv[(index += 1)];
+
+      if (!PANTRY_MODES.has(mode)) {
+        console.error(`--pantry-mode needs one of ${[...PANTRY_MODES].join(', ')}`);
+        process.exit(2);
+      }
+
+      options.pantryMode = mode;
+    } else if (arg === '--pantry-share') {
+      const size = Number(argv[(index += 1)]);
+
+      if (!Number.isInteger(size) || size < 0) {
+        console.error('--pantry-share needs a whole number of dishes per slot, 0 or more');
+        process.exit(2);
+      }
+
+      options.pantryShare = Math.min(size, DISHES_NEEDED_PER_SLOT);
+    } else if (arg === '--pantry-yields') {
+      const order = argv[(index += 1)];
+
+      if (order !== 'first' && order !== 'last') {
+        console.error('--pantry-yields needs first (the cupboard gives way before the appliance) or last (the appliance gives way first)');
+        process.exit(2);
+      }
+
+      options.pantryYields = order;
     } else {
       console.error(`unknown argument: ${arg}`);
       process.exit(2);
@@ -1495,7 +1968,20 @@ async function measureRotations(profile, shared, options) {
   const { accompaniments, dayTargets, monthOf, proteinWeights, slots, targets, weights } = inputs;
   // The person's whole filtered library: the full-library rescue, the tail of the
   // uncapped rotation, and what decides which rules apply to them.
-  const everything = await RecipeController.reusablePool(slots, context);
+  const whole = await RecipeController.reusablePool(slots, context);
+  const pantry = new Set(options.pantry?.items ?? []);
+  // `filter` mode (022 phase 0): the library becomes the dishes this cupboard
+  // covers whole — the rescues included, because *«solo con lo que tengo»* has
+  // nothing wider to fall back on. Filtered on the dish's own ingredients, as a
+  // pool filter must be: a side added at serve time is not a dish the pool
+  // chose. Measured only to confirm `architecture/0012`'s refusal with this
+  // cohort's own numbers; it is never a product mode.
+  const everything = pantry.size > 0 && options.pantryMode === 'filter' ? whole.filter(dish => coveredWhole(dish, pantry)) : whole;
+  // What each slot has to offer before the scheduler chooses anything, against
+  // the nineteen a fortnight needs. Per profile and not per seed: a filter is a
+  // property of the library, and the stop signal is read straight off it.
+  const perSlotLibrary = Object.fromEntries(slots.map(slot => [slot, everything.filter(dish => dish.slots.includes(slot)).length]));
+  const ranked = pantry.size > 0 && options.pantryMode === 'rank';
   const supply = balanceSupply(everything, context.catalogue);
   const inputFor = (pool, pinned) => ({
     accompaniments,
@@ -1537,6 +2023,27 @@ async function measureRotations(profile, shared, options) {
 
     return !violations.some(violation => BAND_KINDS.has(violation.kind));
   };
+  /**
+   * Every pick this run makes, so the rank and the ladder the bands walk it down
+   * are the same composition.
+   *
+   * Without a pantry it is `RecipeController.rotateFor`, which is the one place
+   * that says what a rotation reserves — and calling it with `whole` is exactly
+   * what `reusablePool(slots, context, rotation)` did here before, since that is
+   * `rotateFor` over the same `servable` library this function already read into
+   * `whole`. One read per profile instead of one per seed, the same pick.
+   *
+   * With a pantry ranked, it is the same call with the cupboard's reserve
+   * appended to the food groups' — after them, never instead of them.
+   */
+  const rotate = (pool, rot, share = options.pantryShare) =>
+    ranked
+      ? rotatePool(pool, slots, rot, undefined, (inSlot, slot, taken) => {
+          const reserved = reserveGroups(inSlot, slot, context.catalogue, taken);
+
+          return [...reserved, ...pantryReserve(inSlot, reserved, pantry, share)];
+        })
+      : RecipeController.rotateFor(pool, slots, context, rot);
   // The rules are written once and stand over every seed, which is what weekly means.
   const pins = pinsFor(slots, everything, inputFor, options, profile.slug, daySolvable);
   const schedule = pool => schedulePlan(inputFor(pool, pins.map));
@@ -1566,12 +2073,19 @@ async function measureRotations(profile, shared, options) {
       // a kitchen nobody stated, and the preference half of `0102` cannot be seen.
       preferAppliances: new Set(preferredAppliances(context.preferences.kitchen)),
       preferCuisines: new Set(),
-      preferIngredientSlugs: leaningSlugs(context.preferences),
+      // `bucket` mode (022 phase 0) is the **rejected** composition, measured as
+      // one: the cupboard's slugs ride in with the foods a way of eating leans
+      // towards, which is the single bucket `isPreferredDish` partitions on and
+      // whose dilution `0102` already paid for. A 15-item larder puts most of the
+      // library in it, and this is how that is a number rather than an argument.
+      preferIngredientSlugs:
+        options.pantryMode === 'bucket' && pantry.size > 0
+          ? new Set([...leaningSlugs(context.preferences), ...pantry])
+          : leaningSlugs(context.preferences),
       preferSlugs: new Set(),
       seed: `${profile.slug}:${seed}`
     };
-    // eslint-disable-next-line no-await-in-loop -- one read per seed, inside the run's one read-only transaction.
-    const reusable = await RecipeController.reusablePool(slots, context, rotation);
+    const reusable = rotate(everything, rotation);
     const started = performance.now();
     let scheduled = schedule(reusable);
     let fallback = null;
@@ -1607,10 +2121,18 @@ async function measureRotations(profile, shared, options) {
     // that holds every band winning (`narrowerShares`, `0102`). Without this the
     // evaluator would measure a rescue the service no longer reaches first.
     let kitchenShare = null;
+    // Which rung of the cupboard's own share this plan ended on, `null` for the
+    // full one: the figure that says what keeping the bands cost the pantry, and
+    // the one PRD criterion 4 is about.
+    let pantryShare = null;
 
     if (missedBand) {
-      for (const share of narrowerShares(rotation)) {
-        const narrowed = RecipeController.rotateFor(everything, slots, context, withApplianceShare(rotation, share));
+      for (const rung of narrowerRungs(rotation, ranked ? options.pantryShare : 0, options.pantryYields)) {
+        const narrowed = rotate(
+          everything,
+          rung.appliance === null ? rotation : withApplianceShare(rotation, rung.appliance),
+          rung.pantry === null ? options.pantryShare : rung.pantry
+        );
         const retried = schedule(narrowed);
 
         if (!retried.ok) {
@@ -1626,7 +2148,8 @@ async function measureRotations(profile, shared, options) {
         scheduled = retried;
         violations = retriedViolations;
         usedPool = narrowed;
-        kitchenShare = share;
+        kitchenShare = rung.appliance;
+        pantryShare = rung.pantry;
 
         if (planBandMiss(violations) === 0) {
           break;
@@ -1648,6 +2171,10 @@ async function measureRotations(profile, shared, options) {
           fallback = 'wider_rotation';
           usedPool = wider;
           kitchenShare = null;
+          // The uncapped rotation has no cap for a share to be scarce against, so
+          // a rescued fortnight has no cupboard either — which is exactly the
+          // cliff the rungs above exist to avoid reaching.
+          pantryShare = null;
         }
       }
     }
@@ -1668,9 +2195,21 @@ async function measureRotations(profile, shared, options) {
       // Which rung of the appliance share this plan ended on, `null` for the full
       // one: the figure that says what keeping the bands cost the preference.
       kitchenShare,
+      // The fortnight's own shopping list and what the cupboard reached on the
+      // plates (022 phase 0). Written on **every** run, pantry or not, so a
+      // no-pantry baseline file carries them too: "against the no-pantry run"
+      // has to be a comparison of two measurements, and a baseline that cannot
+      // say how long its list was is a recollection.
+      list: shoppingMetrics(scheduled.assignment, context.catalogue, options.start, pantry),
       measured: true,
       missedBand,
       offer: rotationOffer(reusable, context.catalogue),
+      pantryPlates: pantryPlateMetrics(scheduled.assignment.days, pantry),
+      pantryShare,
+      // What the pick held of each slot, against the nineteen a fortnight needs:
+      // where a rank's quota shows up, and what a filter's shortfall looks like
+      // once the rotation has taken what it could.
+      perSlotPool: Object.fromEntries(slots.map(slot => [slot, usedPool.filter(dish => dish.slots.includes(slot)).length])),
       // The preference half of `0102`, which only a `--prefer` run can see: how
       // many of the pick, and of the plates, are cooked in an appliance they said
       // they would rather use. Zero plates with dishes in the pick is the defect
@@ -1704,11 +2243,16 @@ async function measureRotations(profile, shared, options) {
     goal: profile.target.goal,
     measured: plans.every(plan => plan.measured),
     note,
+    // The servable library per slot against `DISHES_NEEDED_PER_SLOT` — the figure
+    // `architecture/0012` refused the hard filter on ("41 lunches, 62 dinners and
+    // 5 dishes at each snack"), and the first half of phase 0's stop signal.
+    perSlotLibrary,
     pinNote: pins.note,
     pins: pins.rules,
     pinsPerDay: pins.perDay ?? 1,
     pinsWholeDays: pins.wholeDays ?? 0,
     plans,
+    slots,
     slug: profile.slug,
     supply
   };
@@ -1746,9 +2290,30 @@ function summariseRotations(results) {
       // How many fortnights kept their bands by narrowing the kitchen's share
       // rather than by giving up the rotation, and to what.
       kitchenNarrowed: plans.filter(plan => plan.kitchenShare !== null && plan.kitchenShare !== undefined).map(plan => plan.kitchenShare),
+      // The fortnight's list and what the cupboard reached (022 phase 0), every
+      // one of them a spread over the profile's seeds and never a single number
+      // (PRD criterion 2).
+      listFoodRows: spread(plans, plan => plan.list.foodRows),
+      listRows: spread(plans, plan => plan.list.rows),
       missedBand: plans.filter(plan => plan.missedBand).length,
       offerLegumeKinds: spread(plans, plan => plan.offer.legumeKinds),
       offerLegumeMains: spread(plans, plan => plan.offer.legumeMains),
+      pantryCovered: spread(plans, plan => plan.list.covered),
+      pantryCoveredFood: spread(plans, plan => plan.list.coveredFood),
+      pantryFoodPlates: spread(plans, plan => plan.pantryPlates.foodPlates),
+      // How many fortnights kept their bands by narrowing the cupboard's share
+      // rather than by giving up the rotation, and to what (PRD criterion 4).
+      pantryNarrowed: plans.filter(plan => plan.pantryShare !== null && plan.pantryShare !== undefined).map(plan => plan.pantryShare),
+      pantryPlates: spread(plans, plan => plan.pantryPlates.plates),
+      pantryWhole: spread(plans, plan => plan.pantryPlates.whole),
+      // The thinnest slot of this person's library against the nineteen a
+      // fortnight needs: the stop signal, read where it fires first — the snacks.
+      poolFloor: result.perSlotLibrary
+        ? Object.entries(result.perSlotLibrary).reduce(
+            (worst, [slot, count]) => (worst === null || count < worst.count ? { count, slot } : worst),
+            null
+          )
+        : null,
       plans: plans.length,
       preferredOffered: spread(plans, plan => plan.preferredOffered),
       preferredPlates: spread(plans, plan => plan.preferredPlates),
@@ -1809,7 +2374,34 @@ function summariseRotations(results) {
     }
   }
 
+  // The cohort's own figures (022 phase 0). Summed over every measured fortnight
+  // and never over one, because a figure about plates or rows that a single plan
+  // produced is not a figure this project may quote (PRD criterion 2).
+  const cohort = read => allPlans.reduce((total, plan) => total + read(plan), 0);
+  const pantry = {
+    coveredFoodRows: cohort(plan => plan.list.coveredFood),
+    coveredRows: cohort(plan => plan.list.covered),
+    foodPlates: cohort(plan => plan.pantryPlates.foodPlates),
+    foodRows: cohort(plan => plan.list.foodRows),
+    meals: cohort(plan => plan.pantryPlates.meals),
+    plates: cohort(plan => plan.pantryPlates.plates),
+    rows: cohort(plan => plan.list.rows),
+    // Every slot of every profile whose servable library is under the nineteen a
+    // fortnight needs. Empty is the stop signal not firing on this half of it.
+    slotsUnderNeed: results.flatMap(result =>
+      Object.entries(result.perSlotLibrary ?? {})
+        .filter(([, count]) => count < DISHES_NEEDED_PER_SLOT)
+        .map(([slot, count]) => ({ count, profile: result.slug, slot }))
+    ),
+    // The fortnights that kept their bands by giving the cupboard's share up by
+    // degrees instead of falling to the whole library (PRD criterion 4): the rung
+    // is what makes a quota a preference rather than a cliff.
+    narrowed: allPlans.filter(plan => plan.pantryShare !== null && plan.pantryShare !== undefined).length,
+    wholeMeals: cohort(plan => plan.pantryPlates.whole)
+  };
+
   return {
+    pantry,
     pinned,
     days: { inside: allPlans.reduce((sum, plan) => sum + plan.daysInsideAll4, 0), of: allPlans.length * PLAN_DAYS },
     exceptions: allPlans.some(plan => plan.exceptions) ? exceptions : null,
@@ -1852,6 +2444,22 @@ function printRotations(results, summary) {
     console.log(
       `  rotation offer at lunch and dinner — legume dishes ${range(profile.offerLegumeMains)}, of kinds ${range(profile.offerLegumeKinds)}`
     );
+    // The fortnight's list on every run, pantry or not: it is the baseline the
+    // pantry's own figures are read against, so it is never conditional.
+    console.log(
+      `  shopping list — rows ${range(profile.listRows)}, of them real food ${range(profile.listFoodRows)}` +
+        `; thinnest slot of the library ${profile.poolFloor ? `${profile.poolFloor.slot} ${profile.poolFloor.count}` : 'n/a'} of ${DISHES_NEEDED_PER_SLOT}`
+    );
+
+    // Printed only when a cupboard was named: with none, every figure below is
+    // zero by construction and says nothing.
+    if (profile.pantryPlates && profile.pantryPlates.max > 0) {
+      console.log(
+        `  the cupboard — rows already bought ${range(profile.pantryCovered)} (real food ${range(profile.pantryCoveredFood)})` +
+          `, plates using something of it ${range(profile.pantryPlates)} (not a seasoning ${range(profile.pantryFoodPlates)})` +
+          `, meals using only it ${range(profile.pantryWhole)}`
+      );
+    }
 
     // Printed only for a `--prefer` run, where the number means something: a
     // kitchen nobody stated offers no preferred dish and eats no preferred plate.
@@ -1914,6 +2522,26 @@ function printRotations(results, summary) {
     if (unwritable > 0) {
       console.log(`  rules no library could write: ${unwritable}`);
     }
+  }
+
+  if (summary.pantry) {
+    const { coveredFoodRows, coveredRows, foodPlates, foodRows, meals, narrowed, plates, rows, slotsUnderNeed, wholeMeals } = summary.pantry;
+    const share = (part, of) => (of > 0 ? ` (${Math.round((part / of) * 100)}%)` : '');
+
+    console.log('\nThe cupboard, over the whole cohort:');
+    console.log(`  shopping rows ${rows}, of them real food ${foodRows}`);
+    console.log(`  rows the cupboard already holds ${coveredRows}${share(coveredRows, rows)}, of them real food ${coveredFoodRows}${share(coveredFoodRows, foodRows)}`);
+    console.log(
+      `  plates using something of it ${plates}${share(plates, meals)} of ${meals}, not a seasoning ${foodPlates}${share(foodPlates, meals)}, using only it ${wholeMeals}${share(wholeMeals, meals)}`
+    );
+    console.log(`  fortnights that kept their bands by narrowing the cupboard's share instead of losing it: ${narrowed}`);
+    console.log(
+      `  slots whose library is under ${DISHES_NEEDED_PER_SLOT}: ${
+        slotsUnderNeed.length === 0
+          ? 'none'
+          : `${slotsUnderNeed.length} — ${slotsUnderNeed.map(entry => `${entry.profile}/${entry.slot} ${entry.count}`).join(', ')}`
+      }`
+    );
   }
 
   console.log(`\nDays inside 5% on all four macros: ${summary.days.inside} / ${summary.days.of}; plates with a declared allergen: ${summary.unsafe}`);
@@ -2733,6 +3361,16 @@ function finishRotations(options, library, results) {
           flags: options.flags,
           library,
           locale: options.locale,
+          // What the run was asked with, kept beside its numbers: a coverage
+          // figure means nothing without the cupboard that produced it, and a
+          // larder is the one input nobody can re-roll.
+          pantry: options.pantry && {
+            ...options.pantry,
+            mode: options.pantryMode,
+            share: options.pantryMode === 'rank' ? options.pantryShare : null,
+            yields: options.pantryMode === 'rank' ? options.pantryYields : null,
+            staples: options.pantry.items.filter(slug => PANTRY_STAPLES.has(slug))
+          },
           prefer: options.prefer,
           rotate: options.rotate,
           start: options.start,
@@ -2766,6 +3404,11 @@ async function main() {
   assertNotProduction();
 
   const options = parseArgs(process.argv.slice(2));
+
+  if (options.pantry && !options.rotate) {
+    console.error('--pantry needs --rotate beside it: every figure it adds is a figure about a fortnight somebody was actually served');
+    process.exit(2);
+  }
 
   if (options.share !== null && options.prefer.length === 0) {
     console.error('--share prices the quota a preferred appliance holds, so it needs --prefer beside it: with no preference the share is zero whatever this says');
@@ -2806,6 +3449,19 @@ async function main() {
         try {
           const shared = withPreferredAppliances(withoutAppliances(await baseContext(options.locale), options.without), options.prefer);
 
+          if (options.pantry) {
+            // Checked here and not in `parseArgs`, because the catalogue is not
+            // read until now: a slug validated against nothing would come back
+            // as "the cupboard covered nothing", which is the one failure that
+            // reads exactly like a result.
+            const unknown = unknownPantrySlugs(options.pantry, shared.catalogue);
+
+            if (unknown.length > 0) {
+              console.error(`--pantry names ${unknown.length} slug(s) the ${options.locale} catalogue does not hold: ${unknown.join(', ')}`);
+              process.exit(2);
+            }
+          }
+
           library = await libraryComposition(tx, options.locale);
           results = [];
 
@@ -2838,6 +3494,19 @@ async function main() {
       `${options.prefer.length > 0 ? `, and would rather use ${options.prefer.join(', ')}` : ''}`
   );
   console.log(`Fortnight starts: ${options.start}`);
+
+  if (options.pantry) {
+    const staples = options.pantry.items.filter(slug => PANTRY_STAPLES.has(slug)).length;
+
+    console.log(
+      `Cupboard: ${options.pantry.name} — ${options.pantry.items.length} items, of them ${staples} seasonings; mode ${options.pantryMode}` +
+        `${options.pantryMode === 'rank' ? `, share ${options.pantryShare} of ${DISHES_NEEDED_PER_SLOT} dishes a slot, and it gives way ${options.pantryYields} when a band is missed` : ''}`
+    );
+
+    if (options.pantry.assumes) {
+      console.log(`  assumes: ${options.pantry.assumes}`);
+    }
+  }
   console.log(`Profiles (fixed, reuse for the next run): ${PROFILES.map(profile => profile.slug).join(', ')}`);
   printLibrary(library);
 

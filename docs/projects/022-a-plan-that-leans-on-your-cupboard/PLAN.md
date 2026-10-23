@@ -7,8 +7,9 @@
 > **Audience**: agents primarily, humans review. **Committed**: yes. **Written by**: the
 > planner via `/plan-project`, 2026-10-23; approved by the owner before execution starts.
 
-- **Status**: **draft** — awaiting the owner's approval. The PRD it executes is approved
-  (2026-10-23).
+- **Status**: **approved** — by the owner on **2026-10-23**, who said he had read the six
+  phases (*«si, lo he leído y lo apruebo»*). The PRD it executes was approved the same day.
+  Execution starts at phase 0, which writes no product code.
 - **Type**: standard
 - **PRD**: [`./PRD.md`](./PRD.md). Criterion coverage: 1 → phase 0; 2 → phases 0 and 4; 3 →
   phases 0 and 4; 4 → phase 4; 5 → phases 2 and 3; 6 → phases 1 and 2; 7 → phases 1 and 3;
@@ -62,9 +63,23 @@ and it would re-open a published privacy boundary for it.
 
 ### Phase 0 — Price it before building it
 
-- [ ] pending
-- **Dispatch**: `plan-evaluator` — `/execute-project 022 phase 0` — **owner-approves**: whether
-  the steering half exists at all, and what the bound on pantry items is.
+- [x] done — measured 2026-10-23, `LOG.md` phase 0. The **stop signal did not fire**: no slot
+  under 19 in `rank`, and the rung brings rescues *below* the no-pantry baseline (14 → 10–12 of
+  112 fortnights) with every day still in band. Phase 4 therefore stands by its own criterion —
+  and whether it is worth building is the owner's at this gate, because what the steering buys
+  is +2.5% meals-from-the-cupboard at the one share that costs nothing, while the shares that
+  buy a visible gain break the fortnight's egg cap in most plans.
+- **Dispatch**: ~~`plan-evaluator`~~ → **executed directly, opus @ medium** (the profile's
+  implementation row) — `/execute-project 022 phase 0` — **owner-approves**: whether the
+  steering half exists at all, and what the bound on pantry items is.
+  **Amended 2026-10-23, during execution**, for two reasons that are facts about the tools and
+  not about the design: `plan-evaluator` holds no `Write` or `Edit` and its own brief says *"You
+  edit nothing"*, while steps 1–4 below are edits to `evaluate-plans.mjs`; and the role agents
+  work in their own worktree, which has no `.env` and cannot reach `pnpm db:local`, so the one
+  thing this phase must do — run the evaluator against the local Postgres — can only be done
+  from the main checkout. The measurement is still what `plan-evaluator` would have reported,
+  and the standing rule holds: numbers, with their spread, and no estimate where a figure is
+  missing.
 - **Goal**: measure what a realistic pantry does to a fortnight, before a line of product code
   exists.
 - **Scope**: `apps/api/scripts/evaluate-plans.mjs` only. No schema, no migration, no route, no
@@ -74,9 +89,21 @@ and it would re-open a published privacy boundary for it.
      same way: every slug must exist in the catalogue, an unknown one exits 2 naming it.
   2. Add `--pantry-mode filter|rank`, default `rank`. `filter` is measured **only** to confirm
      the PRD's refusal with this cohort's own numbers; it is never a shippable mode.
-  3. Thread it the way `withPreferredAppliances` (`:662`) threads a stance — through the
-     profile's resolved preferences, so the rotation reads it exactly as `PlanGeneration` will,
-     and the script keeps measuring the real path rather than a parallel one.
+  3. ~~Thread it the way `withPreferredAppliances` (`:662`) threads a stance — through the
+     profile's resolved preferences~~ → **amended 2026-10-23, during execution**: a pantry has
+     no field on `Rotation` to be threaded into, and giving it one is phase 4's work, which this
+     phase's own scope forbids ("no change to `packages/core`"). The one lever on the pick that
+     `packages/core` already exports is `rotatePool`'s `reserve`, which is what
+     `RecipeController.rotateFor` passes `reserveGroups` through — so the rank is measured as
+     **the cupboard's reserve appended to the food groups' own**, after them and never instead
+     of them, with everything else on the path still the real code's: the shuffle, the appliance
+     share, the cap, the ladder and the rescues. It is phase 4's shape mirrored in the
+     instrument, not a parallel scheduler, and the mirroring is proven: on `main`'s own
+     arguments the edited script writes byte-identical figures to the script at `HEAD`
+     (`LOG.md`, phase 0, *evidence*).
+     The composition's one free parameter is the quota, `--pantry-share`, and its second is
+     which preference gives way first when a band is missed, `--pantry-yields` — both measured
+     rather than assumed.
   4. Write **three or four hand-written larders** as named fixtures at 15, 30 and 60 items — the
      kind of cupboard a person actually has, not the library's top-K, which flatters the
      feature. Name what each one assumes.
@@ -230,6 +257,13 @@ and it would re-open a published privacy boundary for it.
   2. Its **rung on `narrowerShares`** (`:156`, `withApplianceShare` at `:174`), so the share is
      taken away before the bands are missed and the pantry is not lost in `wider_rotation`
      together with the rotation's variety, its avoid list and its food-group reserves.
+     **Phase 0 measured this rung and it is the whole of why the steering is viable**: without
+     it the quota pushed rescues from 14 of 112 fortnights to 23 and cost days in band; with it
+     every day stayed in band and rescues *fell* to 10–12. **What phase 0 did not settle** is
+     which preference yields first when somebody has both a cupboard and a preferred appliance:
+     its figures for criterion 3 were taken with the cupboard yielding first
+     (`--pantry-yields first`), and the other order is priced in `LOG.md` but is this phase's to
+     choose.
   3. `pantryShare` recorded on the plan beside `kitchenShare` (`:541`, nulled at `:575`), so what
      the bands cost the pantry is countable rather than invisible.
   4. Behind a scheduler flag, off, until the owner has the numbers.
