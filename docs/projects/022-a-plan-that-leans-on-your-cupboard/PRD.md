@@ -7,7 +7,8 @@
 
 - **Status**: **approved** — by the owner on **2026-10-23** (*«lo apruebo»*), who had already
   taken on 2026-10-22 the two decisions it could not be planned without, both recorded below.
-  [`PLAN.md`](./PLAN.md) follows from it and awaits his approval in turn.
+  [`PLAN.md`](./PLAN.md) follows from it and he approved it the same day, having read its six
+  phases.
 - **Roadmap item**: none yet — this is the owner's own ask of **2026-10-20**, clarified on
   **2026-10-22**. A line in [`docs/ROADMAP.md`](../../ROADMAP.md) § *Next* comes with the
   plan, not with this file.
@@ -56,6 +57,14 @@ list is **99–115 rows**, of which **73–88 are real food**; a best-case 30-it
 therefore **about one row in four at thirty items, one in two at sixty** — and they are the
 rows people buy in bulk anyway. This project is worth doing at that size or it is not worth
 doing; it may not be sold as more.
+
+> **Superseded in part by phase 0's measurement, 2026-10-23** ([`LOG.md`](./LOG.md) § 7). Those
+> figures came from a *best-case* pantry. Measured over 112 fortnights with hand-written
+> cupboards — the kind somebody actually opens — a 30-item one covers **18.6 real-food rows of
+> a 105-row fortnight**, which is 21–25% against the denominator above and 17.7% against the
+> measured one: **at or below the bottom of "one row in four"**. The 60-item figure roughly
+> holds at 36.7 rows (42–50%). The sentence phase 3 is allowed to say must use the measured
+> number, not this one.
 
 ### The owner's two decisions, 2026-10-22
 
