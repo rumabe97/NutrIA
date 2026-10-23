@@ -5,9 +5,9 @@
 > **Audience**: humans and agents. **Committed**: yes. **Written by**: an agent via
 > `/plan-project`, 2026-10-22 — approved by the owner before the plan is written.
 
-- **Status**: **draft**. The two decisions this could not be planned without were taken by
-  the owner on **2026-10-22** and are recorded below; what is still owed is his approval of
-  this file, and `PLAN.md` is not written until he gives it.
+- **Status**: **approved** — by the owner on **2026-10-23** (*«lo apruebo»*), who had already
+  taken on 2026-10-22 the two decisions it could not be planned without, both recorded below.
+  [`PLAN.md`](./PLAN.md) follows from it and awaits his approval in turn.
 - **Roadmap item**: none yet — this is the owner's own ask of **2026-10-20**, clarified on
   **2026-10-22**. A line in [`docs/ROADMAP.md`](../../ROADMAP.md) § *Next* comes with the
   plan, not with this file.
