@@ -27,7 +27,10 @@ describe('Spacer', () => {
   it('merges caller-supplied inline styles', () => {
     render(<Spacer data-testid="s" space={2} style={{ background: 'red' }} />);
     const el = screen.getByTestId('s');
-    expect(el).toHaveStyle({ background: 'red' });
+    // The inline style again, and for the same reason as above: jsdom 30.1.3 expands the
+    // `background` shorthand in `getComputedStyle`, so `toHaveStyle` would compare `red` against
+    // the full `rgb(255, 0, 0) none repeat scroll …` and fail on a style the component did merge.
+    expect(el.style.background).toBe('red');
     expect(el.style.marginTop).toBe('2rem');
   });
 });

@@ -37,18 +37,24 @@ allowBuilds:
 #   multer                     — denial of service on multipart bodies (via @nestjs/platform-express)
 #   vite, esbuild, @babel/core — the dev server and the build toolchain
 #   smol-toml                  — development only
+#   source-map-js              — event-loop denial of service through indexed section offsets
+#   vite@>=8.3.0 <8.3.3        — its bundled `launch-editor` opens a file from the dev server;
+#                                the three advisories are Windows-only and dev-server-only
 #   esbuild@<=0.24.2           — drizzle-kit's loader pins 0.18; the advisory is about esbuild's
 #                                dev server, which drizzle-kit never starts. Checked:
 #                                `pnpm --filter database generate` still runs on 0.25.
 overrides:
   'brace-expansion@<1.1.18': '^1.1.18'
   'brace-expansion@>=2.0.0 <2.1.4': '^2.1.4'
+  'brace-expansion@>=4.0.0 <5.0.12': '^5.0.12'
   'browserslist@<4.28.7': '^4.28.7'
   'baseline-browser-mapping@<2.11.0': '^2.11.0'
   'js-yaml@>=4.0.0 <4.3.2': '^4.3.2'
   'multer@<2.3.0': '^2.3.0'
   'smol-toml@<1.7.1': '^1.7.1'
+  'source-map-js@<1.2.2': '^1.2.2'
   'vite@>=8.0.0 <8.0.16': '^8.0.16'
+  'vite@>=8.3.0 <8.3.3': '^8.3.3'
   '@babel/core@<7.29.6': '^7.29.6'
   'esbuild@>=0.27.3 <0.28.1': '^0.28.1'
   'esbuild@<=0.24.2': '^0.25.0'

@@ -79,7 +79,11 @@ describe('Flex', () => {
       const el = screen.getByTestId('f');
       expect(el).toHaveClass('flex');
       expect(el).toHaveClass('extra');
-      expect(el).toHaveStyle({ background: 'red' });
+      // The inline style, not the computed one: since jsdom 30.1.3 `getComputedStyle` expands the
+      // `background` shorthand the way a browser does, so the computed value reads back as
+      // `rgb(255, 0, 0) none repeat scroll …`. What this escape hatch promises is the declaration
+      // the caller wrote, which is where it is read.
+      expect(el.style.background).toBe('red');
     });
   });
 });
