@@ -38,6 +38,8 @@ allowBuilds:
 #   vite, esbuild, @babel/core — the dev server and the build toolchain
 #   smol-toml                  — development only
 #   source-map-js              — event-loop denial of service through indexed section offsets
+#   zod                        — memory exhausted validating oversized constrained collections;
+#                                the copy is `@vercel/oidc`'s, under `@vercel/blob`, not ours
 #   vite@>=8.3.0 <8.3.3        — its bundled `launch-editor` opens a file from the dev server;
 #                                the three advisories are Windows-only and dev-server-only
 #   esbuild@<=0.24.2           — drizzle-kit's loader pins 0.18; the advisory is about esbuild's
@@ -58,6 +60,7 @@ overrides:
   '@babel/core@<7.29.6': '^7.29.6'
   'esbuild@>=0.27.3 <0.28.1': '^0.28.1'
   'esbuild@<=0.24.2': '^0.25.0'
+  'zod@>=4.0.0 <4.6.6': '^4.6.6'
 
 minimumReleaseAgeExclude:
   - '@better-auth/core@1.7.3'
