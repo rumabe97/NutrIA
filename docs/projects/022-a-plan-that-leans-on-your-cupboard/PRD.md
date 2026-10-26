@@ -198,7 +198,8 @@ When this project ships:
     written and refused as a **422 naming the field** the way `MAX_PREFERRED_APPLIANCES` is
     (`KitchenController.ts:97`), the **same on both tiers**. Provisional value to code against:
     **60**, the top of what `architecture/0012` § 4.1 measured; phase 0's larders set the final
-    number. `marketing` recommends 20 as a product bound and `architecture/0012` finds that a cap
+    number — **and did: 60, settled by the owner on 2026-10-23** on phase 0's coverage figures
+    (`docs/decisions/LOG.md`), so the value is no longer provisional. `marketing` recommends 20 as a product bound and `architecture/0012` finds that a cap
     hurts the feature because coverage rises monotonically — the measurement settles it, and
     whatever it settles on is not a `tier_allowances` row.
 12. **The gap is reported.** Pantry entries the catalogue could not resolve, and entries resolved

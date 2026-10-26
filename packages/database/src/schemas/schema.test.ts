@@ -166,6 +166,60 @@ describe('a plan waiting for its day (project 015)', () => {
   });
 });
 
+describe('a cupboard somebody typed (project 022)', () => {
+  /**
+   * The two partial unique indexes, and why one would not do.
+   *
+   * Postgres counts NULLs as distinct, so a plain `unique(user_id,
+   * ingredient_id)` lets every *unresolved* label in twice over — the entry
+   * nobody could resolve is exactly the one a double tap duplicates. One index
+   * holds the resolved rows by what they resolved to, the other holds the rest
+   * by their normalised word, and each has to carry the predicate that keeps it
+   * off the other's rows.
+   */
+  const indexes = config('pantry_items').indexes;
+
+  /**
+   * `sqlToQuery` renders the TypeScript key (`ingredientId`); the snake_case
+   * mapping happens in the client at query time, and migration `0068` has the
+   * real predicate. Accept either so the assertion describes the predicate
+   * rather than the naming convention — `isUserId`'s reason, above.
+   */
+  function predicateOf(name: string): string {
+    const index = indexes.find(candidate => candidate.config.name === name);
+
+    const where = index?.config.where;
+
+    expect(index?.config.unique, name).toBe(true);
+    expect(where, name).toBeDefined();
+
+    return new PgDialect().sqlToQuery(where as NonNullable<typeof where>).sql;
+  }
+
+  it('holds one entry per catalogue row, over the rows that have one', () => {
+    const index = indexes.find(candidate => candidate.config.name === 'pantry_items_one_per_ingredient');
+
+    expect(index?.config.columns.map(column => (column as { name: string }).name)).toEqual(['userId', 'ingredientId']);
+    expect(predicateOf('pantry_items_one_per_ingredient')).toMatch(/"ingredient_?[iI]d" is not null$/);
+  });
+
+  it('holds one entry per normalised word, over the rows that resolved to nothing', () => {
+    const index = indexes.find(candidate => candidate.config.name === 'pantry_items_one_per_unresolved_label');
+
+    expect(index?.config.columns.map(column => (column as { name: string }).name)).toEqual(['userId', 'normalisedLabel']);
+    expect(predicateOf('pantry_items_one_per_unresolved_label')).toMatch(/"ingredient_?[iI]d" is null$/);
+  });
+
+  it('keeps nothing that would make it a standing larder', () => {
+    // No date, no expiry, no "is this still true" (PRD 022, criterion 6): the
+    // draft is spent by the generation that reads it, which is what makes a
+    // freshness model unnecessary rather than deferred.
+    const names = config('pantry_items').columns.map(column => column.name);
+
+    expect(names.filter(name => /expir|best_before|caducid|spent|remind/i.test(name))).toEqual([]);
+  });
+});
+
 describe('a passkey (PLAN 011 phase 5)', () => {
   it('holds one credential id once, whoever registered it: a sign-in finds the key by that id alone', () => {
     const unique = config('passkey').uniqueConstraints.find(constraint => constraint.name === 'passkey_credential_id_unique');

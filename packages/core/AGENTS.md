@@ -609,6 +609,33 @@ a person's plate as *less food*.
   whether the read pays for a day and a tier at all. Before gating anything else that
   "finishes", find the row that says when, and read it.
 
+## A pantry says what is in the house, and changes no pick
+
+A cupboard somebody typed (`domain/Pantry`, `repositories/Pantry`, `controllers/Pantry`,
+project 022) is **the shopping list's input and nothing else**. Phase 0 measured the
+alternative over 112 fortnights and the owner struck it on 2026-10-23
+(`docs/decisions/LOG.md`): the whole of what a cupboard buys — 17.7% of a fortnight's
+real-food rows at thirty items — comes from *declaring* it, while steering the plan with it
+bought one meal in forty-two at the share that cost nothing and broke the fortnight's egg cap
+in three plans of four at the shares that bought anything visible.
+
+- **It is never a restriction.** A pantry entry may not reach a `SafetyProfile`, may not be
+  read as an intolerance, a dislike, a diet or a condition, and may **never remove a dish** —
+  the same rule as the one above, for the same reason, and the failure mode is worse here:
+  what somebody *has* is not what somebody *may eat*.
+- **It changes no pick.** Nothing in `Rotation`, `Balance` or the scheduler takes a pantry.
+  Do not add a rank, a share, a reserve, a sort key or a "for the future" field for one, and
+  do not write a comment, a field name or a test name as if the plan leaned on a cupboard.
+  Reopening that is a project with a measurement, not a patch.
+- **Only the slug ever leaves.** The typed label is the person's: it goes back to them in
+  their own read and reaches no prompt, no log line and no error message — which is why the
+  repository keeps Zod's message out of its own `DatabaseOperationError`, and why there is no
+  logger in any of these files. A label the catalogue could not resolve is **kept with its
+  word and a null id**, never dropped and never guessed.
+- **The normaliser is `domain/Safety`'s**, reused whole. A second one — in TypeScript or in
+  SQL — would make the resolver and `pantry_items_one_per_unresolved_label` disagree about
+  what two words are the same word.
+
 ## ⛔ Anti-patterns
 
 ### 1. Database calls in controllers

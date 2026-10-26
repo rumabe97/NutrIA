@@ -1,5 +1,6 @@
 export * from './FullProfile.dto.js';
 export * from './Goal.dto.js';
+export * from './Pantry.dto.js';
 export * from './Preferences.dto.js';
 export * from './Profile.dto.js';
 export * from './ProfileConsent.dto.js';

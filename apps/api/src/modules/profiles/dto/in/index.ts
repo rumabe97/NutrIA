@@ -1,3 +1,4 @@
+export * from './AddPantryItem.dto.js';
 export * from './GiveProfileConsent.dto.js';
 export * from './SetTourSeen.dto.js';
 export * from './UpdateGoal.dto.js';

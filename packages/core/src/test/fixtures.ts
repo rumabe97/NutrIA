@@ -1,5 +1,6 @@
 import type { Goal, Preferences, Profile } from 'core/entities/Profile';
 import type { KitchenStance } from 'core/entities/Kitchen';
+import type { PantryItem } from 'core/entities/Pantry';
 import type { Professional } from 'core/entities/Professional';
 import type { SafetyProfile } from 'core/entities/Safety';
 import type { User } from 'core/entities/User';
@@ -98,6 +99,22 @@ export function makePreferences(overrides?: Partial<Preferences>): Preferences {
  */
 export function makeKitchenStance(overrides?: Partial<KitchenStance>): KitchenStance {
   return { appliance: 'oven', stance: 'missing', ...overrides };
+}
+
+/**
+ * One thing in the cupboard, resolved to a catalogue row and with no amount —
+ * which is *"I have some"*, the commonest honest answer and the one a bag of
+ * rice nobody weighed gives.
+ */
+export function makePantryItem(overrides?: Partial<PantryItem>): PantryItem {
+  return {
+    id: 'b1c2d3e4-f506-4a7b-8c9d-0e1f2a3b4c5d',
+    grams: null,
+    ingredientId: 'c2d3e4f5-0617-4b8c-9d0e-1f2a3b4c5d6e',
+    label: 'Arroz largo',
+    unit: null,
+    ...overrides
+  };
 }
 
 /** An account the owner made a professional (`0059`), with no practice paid for yet. */
