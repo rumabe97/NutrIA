@@ -139,7 +139,8 @@ and it would re-open a published privacy boundary for it.
 
 ### Phase 1 — The pantry a person types exists, and resolves
 
-- [x] done — built 2026-10-23, finished and verified 2026-10-26, `LOG.md` phase 1. The migration
+- [x] done — commit `6fe0bd91` ("A cupboard a person types exists, resolves to the catalogue, and
+  is bounded at sixty") — built 2026-10-23, finished and verified 2026-10-26, `LOG.md` phase 1. The migration
   is `0068_a_cupboard_a_person_types.sql`, reviewed at opus @ high and safe as written; the four
   defects that review found in the TypeScript around it are fixed with a test each. The commit
   reference is backfilled by the next run, after the owner commits.
@@ -197,8 +198,15 @@ and it would re-open a published privacy boundary for it.
 
 ### Phase 2 — The fortnight's list comes back with what you already have
 
-- [ ] pending
-- **Dispatch**: `backend` — `/execute-project 022 phase 2`.
+- [x] done — 2026-10-26, `LOG.md` phase 2. Verified from the main checkout: 11 tasks green and
+  **33 e2e tests across the two suites the verification names**, eleven of them new. Three
+  amendments, all decided before execution and recorded in step 1; one finding left open on
+  purpose and carried into phase 3's step 0 (the `wholeMeals` undercount); one debt written down
+  (`spendPantry` runs after `persist`, not after `markSucceeded`). The commit reference is
+  backfilled by the next run, after the owner commits.
+- **Dispatch**: `backend` — `/execute-project 022 phase 2`, **then `tests` for the e2e suite**:
+  `ownership.json` excludes `apps/api/test/` from `backend`, which phase 1 found the hard way
+  (`LOG.md`, phase 1, deviation 3). Two dispatches, not one.
 - **Goal**: a generation spends the draft: the list is seeded, the ask is recorded on the plan,
   the draft is cleared. No steering yet, and no screen yet.
 - **Scope**: `apps/api/src/modules/meal-plans/services/PlanGeneration.service.ts`,
@@ -206,10 +214,28 @@ and it would re-open a published privacy boundary for it.
   `packages/core/src/domain/ShoppingList/**`, their specs, one e2e.
 - **Steps**:
   1. At list build (`PlanGeneration.service.ts:624`), seed `boughtGrams` from the resolved draft
-     through `carriedBought` (`PlanRepository.ts:1417`) inside `replaceGeneratedItems` (`:1454`)
-     — the function that already carries a shop across a rebuild, reused rather than copied.
-     An entry with no amount means *"I have some"*, not *"I have all of it"*: it is capped at the
-     plan's need and never beyond.
+     through `carriedBought` (`PlanRepository.ts:1417`) ~~inside `replaceGeneratedItems`
+     (`:1454`)~~ → **amended 2026-10-26, before execution: at the first insert
+     (`PlanRepository.ts:361-383`) and not in the rebuild.** `replaceGeneratedItems` is the
+     *rebuild* path — swaps, the mid-plan rebuild, project 015's cut — while a plan's first list is
+     inserted by a plain `insert(shoppingListItems)` that never mentions `boughtGrams`, so the
+     column takes its `'0'` default. Seeding at that first insert is also the smaller change:
+     every later rebuild carries the seed for free, because `replaceGeneratedItems` already reads
+     `existing.boughtGrams` and passes it through `carriedBought`. One seeding path, not two.
+     ~~An entry with no amount means *"I have some"*, not *"I have all of it"*~~ → **amended
+     2026-10-26: an entry with no amount seeds the whole row, ticked.** The sentence cannot be
+     implemented as written: `0091` gives a tick exactly two meanings, the whole plan's need or
+     none of it, so there is no *"some"* state in the list's data model and inventing one is a
+     schema change this phase's scope forbids. What settles it is that **phase 0 priced this
+     feature with no amounts at all** — its larders were slug lists, and the 17.7% of a
+     fortnight's rows it measured counted a row as held because the cupboard named the
+     ingredient. The unit of the promise is rows, and criterion 4's own sentence is *«la compra
+     baja de 38 a 27 cosas»*. So an amount is capped at the row's need by `carriedBought`, and no
+     amount is `carriedBought(totalGrams, totalGrams)`. The owner can reverse this cheaply while
+     phase 3 is unbuilt, and the comment in the code names phase 0 so the next reader can.
+     A third amendment follows from the first: `ShoppingItemDraft`
+     (`packages/core/src/entities/Plan/Plan.ts:227`) carries neither `boughtGrams` nor `checked`,
+     so it gains them, optional, and the first insert writes both columns.
   2. Record the ask in `generationMetadata` beside `kitchenShare` and `fixedMeals`, with the
      comment saying what it is for: a re-roll pre-fills from it, and the plan says what it was
      asked with.
@@ -230,6 +256,20 @@ and it would re-open a published privacy boundary for it.
   ```
 
 ### Phase 3 — The screen, and the sentence it is allowed to say
+
+- **Step 0, added 2026-10-26 from phase 2's finding**: close the `wholeMeals` undercount **before
+  any sentence is written**. A plate carries a cooked slug and no cupboard holds one, so a rice,
+  pasta or dry-pulse meal is never counted as cooked from the house — while the list, which buys a
+  cooked grain dry (`0078`), *is* pre-bought correctly, so `coveredRows` is unaffected. Map with
+  `toDry(item.slug, 0)?.drySlug ?? item.slug` in `pantryPlates`, in
+  `apps/api/scripts/evaluate-plans.mjs`'s `pantryPlateMetrics.whole` and in the e2e case
+  **together**, then **re-run phase 0's cohort** so the figure the screen quotes is measured. Phase
+  0's own *≈9 of 54* was measured with the same gap and is replaced by whatever the re-run says.
+  **The `??` is load-bearing**: `drySlug` is `string | null` (`domain/Yield/Yield.ts:42`), because a
+  cooked food whose dry counterpart the catalogue does not hold goes on a row of its own
+  *"(en seco)"* — so a bare `toDry(...)?.drySlug` would drop exactly those plates instead of
+  counting them.
+  See `LOG.md`, phase 2, § *The finding phase 2 leaves open*.
 
 - [ ] pending
 - **Dispatch**: `frontend` — `/execute-project 022 phase 3`. `legal` reviews **before** it ships

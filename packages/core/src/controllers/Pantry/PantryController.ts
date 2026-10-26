@@ -5,6 +5,7 @@ import { PantryRepository } from '#repositories/Pantry';
 import { SafetyRepository } from '#repositories/Safety';
 
 import type { AddPantryItem, PantryItem } from 'core/entities/Pantry';
+import type { PantryHolding } from 'core/domain/ShoppingList';
 import type { MeasurementUnit } from 'core/entities/Plan';
 
 /**
@@ -140,6 +141,50 @@ export const PantryController = {
     await PantryRepository.clear(userId);
 
     return { items: [], maxItems: MAX_PANTRY_ITEMS };
+  },
+
+  /**
+   * The cupboard as a generation spends it (project 022 phase 2): one holding
+   * per resolved catalogue row, with the amount where somebody gave one, and a
+   * count of the words the catalogue had no answer for.
+   *
+   * **A method here rather than a read of the repository**, because nothing
+   * outside this module should have to know that `ingredientId` is a column.
+   * `PantryEntryView` deliberately carries the slug and not the id — the slug
+   * is the only part of an entry that may leave the product — while the
+   * shopping list's rows are keyed by the id, so both come back from the one
+   * place that already holds the catalogue read.
+   *
+   * **The label never comes back**, in any form, so nothing the generation does
+   * with a cupboard can put somebody's word in a prompt, a log or an error
+   * (PRD 022, criterion 7). `unresolved` is a number for the same reason: the
+   * plan records *that* three words went unanswered and never *which*.
+   *
+   * An unresolved entry is left out of `holdings` and not dropped from the
+   * cupboard: there is no list row for a word the catalogue cannot answer, and
+   * guessing one is the thing this feature may not do.
+   *
+   * **It reads and it changes nothing.** The draft is cleared by `clear`, once
+   * the generation has succeeded, and never as a side effect of being read — a
+   * generation that fails leaves what somebody typed where they left it.
+   */
+  async forGeneration(userId: string): Promise<{ readonly holdings: readonly PantryHolding[]; readonly unresolved: number }> {
+    const items = await PantryRepository.findByUser(userId);
+    const slugs = await slugsFor(items);
+    const holdings = items.flatMap(item => {
+      if (item.ingredientId === null) {
+        return [];
+      }
+
+      const slug = slugs.get(item.ingredientId);
+
+      // The catalogue row went away between the entry being written and this
+      // read: the column cascades, but a read already in flight can still hold
+      // the id. No slug, no row to seed.
+      return slug === undefined ? [] : [{ grams: item.grams, ingredientId: item.ingredientId, slug }];
+    });
+
+    return { holdings, unresolved: items.filter(item => item.ingredientId === null).length };
   },
 
   /** What this account says is in the house, in the order it was said. One read tells a screen everything. */

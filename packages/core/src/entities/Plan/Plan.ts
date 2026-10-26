@@ -225,7 +225,22 @@ export type MealDraft = {
 };
 
 export type ShoppingItemDraft = {
+  /**
+   * What is already bought of this row the moment the list is written: the
+   * cupboard somebody typed before the fortnight existed, seeded through
+   * `carriedBought` (project 022 phase 2, `0091`). Absent is the column's
+   * default — a plan generated with no cupboard, which is every plan before
+   * this project.
+   */
+  readonly boughtGrams?: number;
   readonly category: IngredientCategory;
+  /**
+   * Derived from `boughtGrams` and never set beside it: `0091` keeps the flag
+   * for one release and defines it as "the whole plan's need is covered", so
+   * both fields of a draft come out of one `carriedBought` call and the two can
+   * never disagree.
+   */
+  readonly checked?: boolean;
   readonly displayQuantity: number;
   readonly displayUnit: MeasurementUnit;
   /** Whether a range's sum of this row is rounded up to the 5 g step (`0078`) — see `core/domain/ShoppingList`. */

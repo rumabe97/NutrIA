@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildShoppingList, fromDisplay, rangeList, rangeQuantity, toDisplay, unresolvedSlugs } from 'core/domain/ShoppingList';
+import {
+  buildShoppingList,
+  carriedBought,
+  fromDisplay,
+  pantryPlates,
+  rangeList,
+  rangeQuantity,
+  seedFromPantry,
+  toDisplay,
+  unresolvedSlugs
+} from 'core/domain/ShoppingList';
 import { makeCatalogue, makeCatalogueIngredient, makeDish } from '#test/fixtures';
 import type { PlanAssignment, ScheduledMeal } from 'core/entities/Plan';
 import type { ShoppingRangeRow } from 'core/domain/ShoppingList';
@@ -482,5 +492,155 @@ describe('fromDisplay — what somebody typed, in grams (0096)', () => {
     const ticked = Math.min(Math.max(0, neededGrams), totalGrams);
 
     expect(fromDisplay(1200, 'g', null, totalGrams)).toBe(ticked);
+  });
+});
+
+/**
+ * What a shop already done survives (`0091`).
+ *
+ * Moved here with `carriedBought` itself (project 022 phase 2): it is no longer
+ * only a rebuild's rule. The ownership walk in the write's own statement is
+ * covered end to end; the bound an amount is held to —
+ * `ROUND(LEAST(GREATEST(…)))` against the row it lands on — is **not** covered
+ * over HTTP yet, because today's suites only ever send a tick. Project 020
+ * phase 5 owns those four cases; until they land, what proves the bound is a
+ * hand-run rehearsal against the local Postgres, recorded in that project's LOG.
+ */
+describe('carriedBought — a rebuild keeps what was bought, capped at the new need', () => {
+  it('carries the amount through a rebuild that leaves the row the same size', () => {
+    expect(carriedBought(500, 1200)).toEqual({ boughtGrams: 500, checked: false });
+  });
+
+  it('caps it at the new need when a swap shrinks the row', () => {
+    expect(carriedBought(1200, 800)).toEqual({ boughtGrams: 800, checked: true });
+  });
+
+  it('reads as bought when the amount covers the new need exactly', () => {
+    expect(carriedBought(800, 800)).toEqual({ boughtGrams: 800, checked: true });
+  });
+
+  it('starts a row nobody had bought at zero — an ingredient new to the plan', () => {
+    expect(carriedBought(undefined, 600)).toEqual({ boughtGrams: 0, checked: false });
+  });
+
+  it('never carries a negative amount, whatever a row holds', () => {
+    expect(carriedBought(-50, 600)).toEqual({ boughtGrams: 0, checked: false });
+  });
+});
+
+describe('carriedBought — a row that needs nothing is untouched, not bought', () => {
+  it('leaves a zero-need row unticked, the one place 0091’s two sentences collide', () => {
+    expect(carriedBought(0, 0)).toEqual({ boughtGrams: 0, checked: false });
+    expect(carriedBought(undefined, 0)).toEqual({ boughtGrams: 0, checked: false });
+  });
+});
+
+/** The list a fortnight of one 1,200 g tomato meal builds: one row, 1,200 g. */
+function tomatoList() {
+  return buildShoppingList(dated(meal([{ grams: 1200, slug: 'tomate' }])), catalogue);
+}
+
+describe('seedFromPantry — the first list comes back with what is already in the house', () => {
+  it('seeds a whole row, ticked, for an entry with no amount — phase 0 priced this feature on rows', () => {
+    const seeded = seedFromPantry(tomatoList(), [{ grams: null, ingredientId: 'ing-tomate', slug: 'tomate' }]);
+
+    expect(seeded.items[0]).toMatchObject({ boughtGrams: 1200, checked: true, slug: 'tomate' });
+    expect(seeded.coveredRows).toBe(1);
+  });
+
+  it('seeds the amount given, and leaves the remainder to buy when it is less than the need', () => {
+    const seeded = seedFromPantry(tomatoList(), [{ grams: 500, ingredientId: 'ing-tomate', slug: 'tomate' }]);
+
+    expect(seeded.items[0]).toMatchObject({ boughtGrams: 500, checked: false, totalGrams: 1200 });
+    // Named by the cupboard but still on the list: `coveredRows` counts rows
+    // nobody has to visit, which this one is not.
+    expect(seeded.coveredRows).toBe(0);
+  });
+
+  it('caps an amount at the row’s own need — a bag bigger than the fortnight is not more than the fortnight', () => {
+    const seeded = seedFromPantry(tomatoList(), [{ grams: 5000, ingredientId: 'ing-tomate', slug: 'tomate' }]);
+
+    expect(seeded.items[0]).toMatchObject({ boughtGrams: 1200, checked: true });
+  });
+
+  it('leaves a row the cupboard does not name untouched, rather than out', () => {
+    const seeded = seedFromPantry(tomatoList(), [{ grams: null, ingredientId: 'ing-arroz', slug: 'arroz' }]);
+
+    expect(seeded.items).toHaveLength(1);
+    expect(seeded.items[0]).toMatchObject({ boughtGrams: 0, checked: false, slug: 'tomate' });
+    expect(seeded.coveredRows).toBe(0);
+  });
+
+  it('writes a zero over every row for an empty cupboard, which is what a plan without one stores', () => {
+    const seeded = seedFromPantry(tomatoList(), []);
+
+    expect(seeded.items.map(item => [item.boughtGrams, item.checked])).toEqual([[0, false]]);
+    expect(seeded.coveredRows).toBe(0);
+  });
+
+  it('takes two entries resolving to one catalogue row as one claim, the last of them', () => {
+    const seeded = seedFromPantry(tomatoList(), [
+      { grams: 300, ingredientId: 'ing-tomate', slug: 'tomate' },
+      { grams: 900, ingredientId: 'ing-tomate', slug: 'tomate' }
+    ]);
+
+    expect(seeded.items[0]).toMatchObject({ boughtGrams: 900 });
+  });
+
+  it('seeds the dry row a cooked grain merges onto (`0078`), which is the row the coarse word resolves to', () => {
+    // 2,400 g of cooked rice is 800 g dry, and the cupboard's *arroz* is the dry
+    // food: if the two keyed differently, somebody with rice would be told to buy rice.
+    const list = buildShoppingList(dated(meal([{ grams: 2400, slug: 'arroz' }])), catalogue);
+    const seeded = seedFromPantry(list, [{ grams: null, ingredientId: 'ing-arroz', slug: 'arroz' }]);
+
+    expect(seeded.items[0]).toMatchObject({ checked: true, slug: 'arroz' });
+    expect(seeded.items[0]?.boughtGrams).toBe(seeded.items[0]?.totalGrams);
+    expect(seeded.coveredRows).toBe(1);
+  });
+});
+
+describe('pantryPlates — the meals cooked from nothing but what was already there', () => {
+  const held = new Set(['tomate', 'huevo']);
+
+  it('counts a meal whose every item was in the house, and not one that needed anything else', () => {
+    const plan = assignment(
+      meal([
+        { grams: 100, slug: 'tomate' },
+        { grams: 58, slug: 'huevo' }
+      ]),
+      meal([
+        { grams: 100, slug: 'tomate' },
+        { grams: 200, slug: 'arroz' }
+      ])
+    );
+
+    expect(pantryPlates(plan, held)).toEqual({ meals: 2, wholeMeals: 1 });
+  });
+
+  it('reads the plate as served: a side nobody had is a meal that needed a shop', () => {
+    // `ScheduledMeal.ingredients` is the whole meal, its accompaniments
+    // included — which is why the figure is read off it and not off the dish.
+    const plan = assignment(
+      meal([
+        { grams: 100, slug: 'tomate' },
+        { grams: 40, slug: 'pan' }
+      ])
+    );
+
+    expect(pantryPlates(plan, held)).toEqual({ meals: 1, wholeMeals: 0 });
+  });
+
+  it('counts none for an empty cupboard, where `every` would otherwise say all of them', () => {
+    expect(pantryPlates(assignment(meal([{ grams: 100, slug: 'tomate' }])), new Set())).toEqual({ meals: 1, wholeMeals: 0 });
+  });
+
+  it('counts a meal with nothing on it as cooked from nowhere', () => {
+    expect(pantryPlates(assignment(meal([])), held)).toEqual({ meals: 1, wholeMeals: 0 });
+  });
+
+  it('counts presence and never amount — 40 g of the rice somebody has is the rice somebody has', () => {
+    const plan = assignment(meal([{ grams: 40, slug: 'tomate' }]));
+
+    expect(pantryPlates(plan, held)).toEqual({ meals: 1, wholeMeals: 1 });
   });
 });
