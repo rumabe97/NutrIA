@@ -474,3 +474,174 @@ about the cupboard. It now reads the account's own row through `UserController.g
   readable: whatever starts reading it is phase 2's work and nothing else.
 - **Running the e2e suite here needs `NUTRIA_LOCAL_PG=1`** and `pnpm db:local start`. Without it
   every test fails at sign-up with a 500 that has nothing to do with the code under test.
+
+## Phase 2 — The fortnight's list comes back with what you already have (2026-10-26)
+
+- **Executor**: the product code by **`backend` (opus @ medium)** in its own worktree, the
+  dispatch the plan names; the integration, the three amendments decided before it started and
+  every verification that needs a database **directly, opus @ medium, from the main checkout**.
+  The e2e suite by **`tests`**, because `ownership.json` excludes `apps/api/test/` from
+  `backend` — the plan's Dispatch line says so now, which phase 1 learned the hard way.
+- **Result**: **done.**
+- **Scope held**: `PlanGeneration.service.ts` and its spec, `PlanRepository.ts` and its spec,
+  `domain/ShoppingList` and its spec, `entities/Plan/Plan.ts` and `controllers/Pantry` (both
+  amended into the scope below), and the e2e suite. No screen, no prompt change, no new
+  provider call, and nothing that orders, filters or reserves anything by what is in a cupboard.
+
+### What it does, and where the shape carries the rule
+
+The cupboard is read **after `buildShoppingList`** — after scheduling, after validation, after
+the safety gate, after everything that chooses a dish has finished choosing. That is what makes
+*"a pantry changes no pick"* a property of the shape of this code rather than a promise about it,
+and it is why criterion 8 needs no test to be true: nothing the read returns can reach the pool,
+the rotation, the scheduler or `promptPreferences` from that far down the function.
+
+The list is seeded at its **first insert** and nowhere else, so every later rebuild carries the
+seed for free through the `carriedBought` that `replaceGeneratedItems` already applies. The
+cut plan's list (project 015) is deliberately left unseeded: that shop is already somebody's own.
+
+The draft is cleared **after the plan is saved**, skipped when the job's deadline has passed, and
+a failure to clear can never fail the generation — the plan is committed by then, and a throw
+would hand somebody `GENERATION_FAILED` for a fortnight they already have. The warning carries
+the error's message and never a label.
+
+`generationMetadata.pantry` is `null` for a generation nobody told anything to — not a row of
+zeroes — because *"nobody said anything"* and *"somebody said something that covered nothing"*
+are different facts and phase 3's sentence may only be said about the second.
+
+### The two figures, as implemented
+
+- **`wholeMeals` of `meals`** — a meal counts when it has ingredients and **every** one of them,
+  its accompaniment included, is in the resolved cupboard. Presence, never amount. Mirrors
+  `pantryPlateMetrics.whole` in phase 0's instrument, so the sentence the screen will say is the
+  number the project was priced on. An empty cupboard gives 0 and not all of them, which is the
+  `every`-over-an-empty-list trap closed on purpose.
+- **`coveredRows` of `rows`** — rows whose seed covers their **whole** need, which is a row
+  nobody has to visit. Not every row the cupboard merely named: an amount below the row's need
+  leaves a remainder on the list. Phase 0's `covered` counted `pantry.has(row.slug)`, which
+  coincided with this only because phase 0 had no amounts at all.
+
+Also stored: `asked` as `{ slug, grams }` pairs — slugs, the one part of an entry that may leave
+the product — and `unresolved` as a **count**, so the plan records that three words went
+unanswered and never which.
+
+### Evidence
+
+From the main checkout, against the local Postgres, each exit code the command's own:
+
+| command | result |
+|---|---|
+| `pnpm --filter core build` | clean |
+| `pnpm turbo lint ts:check test --filter=core --filter=api` | **11 tasks successful** |
+| `NUTRIA_LOCAL_PG=1 pnpm --filter api test:e2e test/generation.e2e-spec.ts test/pantry.e2e-spec.ts` | **2 suites, 33 tests passed, 49.6 s** — eleven of them new |
+| `pnpm deadcode` / `pnpm check:leaks` | no findings / clean |
+
+`generation.e2e-spec.ts` passing is the load-bearing line: it generates real fortnights against
+the real library, so the seed, the record and the clearing are exercised by the path a person
+takes and not by a stand-in. Phase 1's `pantry.e2e-spec.ts` still passes beside it.
+
+**The eleven cases live in `generation.e2e-spec.ts`** under *the cupboard the fortnight was asked
+with (022 phase 2)*, sharing one generated fortnight rather than generating per case — the whole
+file is 22 cases in 33 s because of it. They prove: a no-amount entry pre-buys its whole row and
+leaves nothing on it; a part-filled row keeps `needed(range) − bought` **under the fortnight, one
+week and one chosen day** (`0091`); an amount above the need is capped at the need; an unresolved
+word seeds no row and is counted without being named; the seed survives a swap, capped at the new
+need; a failed generation leaves the cupboard untouched and a successful one empties it; one
+account's cupboard reaches no row of another's list; the plan row carries slugs and counts and
+**no typed word anywhere in `to_jsonb(meal_plans.*)::text`**; and a fortnight nobody told anything
+to stores `pantry: null` with every row untouched.
+
+**The cupboard those cases type is chosen, not written down**, and that is the test's own finding:
+the first version hard-coded *«pechuga de pollo»*, which this library has no row for, so three
+cases passed while covering nothing. It now derives its entries from a fortnight the same run
+generated — most-cooked-with first, each ingredient's own catalogue name as the label — and checks
+what the product resolved them to. `wholeMeals` recomputed from `recipe_ingredients` and
+`meal_accompaniments` came out **non-vacuous at 10 of 42**, which is the undercount above seen from
+the other side: it reads low, not zero.
+
+### Deviations from plan
+
+1. **Seeded at the first insert (`PlanRepository.ts:361-383`), not inside
+   `replaceGeneratedItems`.** The plan's step 1 named the rebuild path; a plan's **first** list is
+   inserted by a plain `insert(shoppingListItems)` that never mentioned `boughtGrams`, so the
+   column took its `'0'` default. Seeding there is also the smaller change, because the rebuild
+   then carries it for free. **One seeding path, so a swap can never reseed from a draft that has
+   been spent.** Decided before execution; plan amended.
+2. **An entry with no amount seeds the whole row, ticked** — the plan's sentence said the
+   opposite and cannot be implemented: `0091` gives a tick exactly two meanings, so there is no
+   *"some"* state in this data model, and inventing one is a schema change this scope forbids.
+   What settles it is that **phase 0 priced this feature with no amounts at all**. Decided before
+   execution; plan amended; the owner was told, and it is reversible while phase 3 is unbuilt.
+3. **`ShoppingItemDraft` gains optional `boughtGrams` and `checked`**, derived from one
+   `carriedBought` call so the two can never disagree. Scope amended for
+   `entities/Plan/Plan.ts`.
+4. **`carriedBought` moved from `PlanRepository` to `domain/ShoppingList`.** Not cosmetic:
+   importing it where it was would have created **the first `domain` → `#repositories` edge in
+   `packages/core`**, and computing the seed in `apps/api` would have made that app import a
+   repository `Plan.ts:172` calls private to `core`. One clamp, two callers, neither owning it.
+   `0091`'s own text stays correct — it names `PlanRepository` only as the sole reader and writer
+   of the two tables, which is unchanged — and no `AGENTS.md` mentions the function. **One stale
+   pointer is left on purpose**: the architect's report
+   `docs/reference/architecture/0012-…-2026-10-22.md` names `PlanRepository.ts:1417` at `:138`,
+   `:421` and `:461`. It is a dated analysis and dated analyses are not rewritten.
+5. **`PantryController.forGeneration` added** rather than reading `PantryRepository` from outside
+   the pantry's module: nothing outside it should have to know that `ingredientId` is a column,
+   and the one place that already holds the catalogue read is where both the id and the slug can
+   come from. The label comes back in no form at all.
+
+### A debt, written down rather than hidden
+
+`spendPantry` runs in `generate()` after `persist`, not in `PlanJobRunner` after
+`markSucceeded`. The plan's step 3 says *"when the job succeeds"*, and this is a moment earlier:
+**if `markSucceeded` failed, a plan would exist, its job would read failed, and the cupboard would
+be empty.** The runner is outside this phase's scope, and this position covers every caller of
+`generate`. The cost of the rare case is bounded — the person regenerates, and that second plan
+does not lean on the cupboard — and the alternative inside scope, clearing before `persist`, is
+worse: a failed save would lose what somebody typed. Worth moving the day `PlanJobRunner` is
+open for another reason.
+
+### The finding phase 2 leaves open, deliberately
+
+**`wholeMeals` undercounts, and so did phase 0's own figure.** `tests` found it while writing the
+suite and the implementer left the behaviour alone, which was the right call: the contract was to
+mirror phase 0's definitions so the screen's number is a number the project measured.
+
+The asymmetry is the dry/cooked line (`0078`). The cupboard and the shopping **list** agree on the
+dry row — *«tengo arroz»* resolves to `arroz-largo-crudo`, and `ShoppingList.ts:106` buys a cooked
+grain dry (`dry?.drySlug && catalogue.has(dry.drySlug) ? dry.drySlug : item.slug`) — so
+`seedFromPantry` *does* pre-buy the rice row and **`coveredRows` is right**. But a **plate** carries
+the cooked slug (`arroz-blanco-cocido`, which `domain/Yield` maps to `arroz-largo-crudo`), and no
+cupboard holds a cooked slug, so `pantryPlates` never counts a rice, pasta or dry-pulse meal as one
+cooked from the house. Verified in all three places: `Yield.ts:21`, `ShoppingList.ts:106`, and
+`evaluate-plans.mjs:640`, whose `whole` compares raw plate slugs with no mapping at all.
+
+So **phase 0's *≈9 of 54 whole meals* is itself an undercount** — its larders were dry slugs
+(`arroz-bomba-crudo`, `pasta-integral-seca`, `pan-integral`) — and the instrument that priced this
+project has the same gap as the code that now ships. The figure is conservative in both, which is
+the safe direction for a sentence a product says about itself, and the half of criterion 4 that
+sells the feature (*«la compra baja de 38 a 27 cosas»*) is **unaffected**.
+
+**It is phase 3's first step, not a patch here**, because closing it in `pantryPlates` alone would
+store a figure larger than anything this project has measured, and the sentence would quote an
+unmeasured number. The fix is `toDry(slug, 0)?.drySlug ?? slug` in `pantryPlates`, in the
+instrument and in the e2e case together — `drySlug` is nullable — followed by a re-run of phase 0's
+cohort so the number the screen says is measured again.
+
+### Notes for the next phase
+
+- **Close the `wholeMeals` undercount before the sentence is written** — the section above, and the
+  doc comment on `pantryPlates`, which states it where the next reader will be.
+- **Phase 3 reads `generationMetadata.pantry` and must parse it.** That column is
+  `Record<string, unknown>` (`entities/Plan/Plan.ts:274`) — `kitchenShare`'s own precedent, which
+  the plan told this phase to follow — so the shape is pinned by a unit test and by nothing in the
+  type system. The shape to parse is `PantryRecord` in `PlanGeneration.service.ts`:
+  `{ asked, coveredRows, meals, rows, unresolved, wholeMeals }`, or `null`.
+- **The sentence is read, never recomputed.** The cupboard is cleared immediately after the plan
+  is saved, so by the time a screen asks there is nothing left to recompute from. `null` means
+  nobody was told anything and the sentence may not be said at all.
+- **The honest numbers** are `coveredRows` of `rows` and `wholeMeals` of `meals`, both as defined
+  above. Phase 0's figures for a thirty-item cupboard were *≈19 of ≈105 real-food rows* and
+  *≈9 of 54 meals*; do not promise *"one row in four"*, which the PRD's own § *Problem* has
+  marked superseded.
+- **Nothing reads the pantry before the plan is picked, and phase 3 must not change that.** The
+  screen says what the generation already did; it does not ask the cupboard anything new.

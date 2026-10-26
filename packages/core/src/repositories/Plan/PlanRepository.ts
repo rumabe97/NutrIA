@@ -10,6 +10,7 @@ import { recipeImages, recipeIngredients, recipes } from 'database/schema/recipe
 import { shoppingListItems, shoppingLists } from 'database/schema/shopping';
 
 import { ConflictError, DatabaseOperationError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
+import { carriedBought } from 'core/domain/ShoppingList';
 import { FALLBACK_LOCALE } from '#repositories/Recipe';
 import type {
   Macros,
@@ -365,22 +366,32 @@ export const PlanRepository = {
         }
 
         if (draft.shoppingItems.length > 0) {
-          await tx
-            .insert(shoppingListItems)
-            .values(
-              draft.shoppingItems.map(item => ({
-                category: item.category,
-                displayQuantity: String(item.displayQuantity),
-                displayUnit: item.displayUnit,
-                dryRounded: item.dryRounded,
-                gramsPerUnit: item.gramsPerUnit === null ? null : String(item.gramsPerUnit),
-                ingredientId: item.ingredientId,
-                listId: list.id,
-                name: item.name,
-                perDay: item.perDay,
-                totalGrams: String(item.totalGrams)
-              }))
-            );
+          await tx.insert(shoppingListItems).values(
+            draft.shoppingItems.map(item => ({
+              // What a cupboard already covers of this row, seeded at the
+              // list's **first** insert and nowhere else (project 022 phase
+              // 2). Every later rebuild carries it for free, because
+              // `replaceGeneratedItems` reads the stored amount and passes it
+              // through the same `carriedBought`: one seeding path, so a
+              // swap can never reseed from a draft that has been spent.
+              // Absent is the column's own default, which is what a
+              // generation with no cupboard writes.
+              boughtGrams: String(item.boughtGrams ?? 0),
+              category: item.category,
+              // Derived, never independent (`0091`): the draft computed both
+              // from one `carriedBought`, so the two cannot disagree here.
+              checked: item.checked ?? false,
+              displayQuantity: String(item.displayQuantity),
+              displayUnit: item.displayUnit,
+              dryRounded: item.dryRounded,
+              gramsPerUnit: item.gramsPerUnit === null ? null : String(item.gramsPerUnit),
+              ingredientId: item.ingredientId,
+              listId: list.id,
+              name: item.name,
+              perDay: item.perDay,
+              totalGrams: String(item.totalGrams)
+            }))
+          );
         }
 
         return plan.id;
@@ -1402,34 +1413,14 @@ export type MealAccompanimentRead = {
 };
 
 /**
- * What a rebuild carries onto a row it rewrites (`0091`): the amount already
- * bought, never more than what the plan now needs of it, with the tick derived
- * from the two.
- *
- * Capped because a swap or an event can shrink a row — a fortnight that needed
- * 1.2 kg of chicken may need 800 g after it, and leaving 1.2 kg bought would
- * say somebody has more than the plan asks for. Floored because a stored
- * amount is never negative and this is the one place a rebuild could introduce
- * one. Exported, and pure, so the rule is provable without a database — the SQL
- * around it (the list rebuilt in one transaction) is covered end to end, while
- * an **amount** through HTTP is not yet: project 020 phase 5 owns those cases.
- */
-export function carriedBought(bought: number | undefined, totalGrams: number): { readonly boughtGrams: number; readonly checked: boolean } {
-  const carried = Math.min(Math.max(bought ?? 0, 0), totalGrams);
-
-  // `totalGrams > 0` for the same reason the write derives it that way: a row
-  // that needs nothing is untouched, not bought.
-  return { boughtGrams: carried, checked: carried >= totalGrams && totalGrams > 0 };
-}
-
-/**
  * What a write asks of a row (`0091`), before the row's own need bounds it.
  *
  * An amount is the finer claim and wins when both arrive. A tick is what the
  * web build live during a deploy still sends, and means the whole plan's need
  * (`all`) or none of it (`none`) — which is exactly what `checked` asserted
  * when it was the only truth. Pure and exported for the same reason as
- * `carriedBought`: the clamp is SQL, the choice is not.
+ * `carriedBought` in `core/domain/ShoppingList`: the clamp is SQL, the choice
+ * is not.
  */
 export function boughtAsk(asked: SetShoppingItem): { readonly grams: number; readonly kind: 'amount' } | { readonly kind: 'all' | 'none' } {
   if (asked.boughtGrams !== undefined) {

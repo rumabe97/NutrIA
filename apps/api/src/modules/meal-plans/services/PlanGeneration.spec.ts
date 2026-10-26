@@ -5,6 +5,7 @@ import { OnboardingIncompleteError, ProfileConsentRequiredError } from 'core/ent
 import { CheckInController } from 'core/controllers/CheckIn';
 import { EventController } from 'core/controllers/Event';
 import { OnboardingController } from 'core/controllers/Onboarding';
+import { PantryController } from 'core/controllers/Pantry';
 import { PlanController, PlanJobController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
 import { FixedMealController } from 'core/controllers/FixedMeal';
@@ -154,6 +155,10 @@ type Mocks = {
   catalogue: Catalogue;
   events: readonly EventView[];
   onboarding: unknown;
+  /** What the cupboard holds when the list is built (project 022 phase 2); empty when absent. */
+  pantry: { grams: number | null; ingredientId: string; slug: string }[];
+  /** How many cupboard words the catalogue had no answer for; none when absent. */
+  pantryUnresolved: number;
   persist: jest.Mock;
   /** What the context's way of eating and free-from foods rule out, as `buildContext` merges them. */
   preferences: PreferenceExclusions;
@@ -228,6 +233,10 @@ function build(overrides: Partial<Mocks> = {}) {
   jest.spyOn(PlanJobController, 'persist').mockImplementation(persist as never);
   // Nothing under way to cut unless a case says so (project 015).
   jest.spyOn(PlanController, 'cutComposition').mockResolvedValue(null);
+  // An empty cupboard unless a case says so (project 022 phase 2), and a
+  // `clear` that does nothing: the generation calls it once it has saved.
+  jest.spyOn(PantryController, 'forGeneration').mockResolvedValue({ holdings: overrides.pantry ?? [], unresolved: overrides.pantryUnresolved ?? 0 });
+  jest.spyOn(PantryController, 'clear').mockResolvedValue({ items: [], maxItems: 60 });
   jest
     .spyOn(PlanJobController, 'dates')
     .mockResolvedValue({ start: overrides.start ?? new Date().toISOString().slice(0, 10), today: new Date().toISOString().slice(0, 10) });
@@ -1076,5 +1085,123 @@ describe('PlanGenerationService', () => {
       await expect(service.generate('usr-1', 'job-1', async () => Promise.resolve())).rejects.toMatchObject({ code: 'GENERATION_UNSAFE_CONTENT' });
       expect(persist).not.toHaveBeenCalled();
     });
+  });
+});
+
+/*
+ * Project 022 phase 2: a generation spends the cupboard. Every dish in the
+ * fixture pool is made of `arroz`, so a fortnight's list is one row and every
+ * meal is a meal of rice — which is what makes the two stored figures readable
+ * here without a second fixture.
+ */
+describe('PlanGenerationService — the cupboard the plan was asked with (022)', () => {
+  type Seeded = { boughtGrams?: number; checked?: boolean; ingredientId: string; totalGrams: number };
+  type WithPantry = Draft & {
+    generationMetadata: Draft['generationMetadata'] & {
+      pantry: {
+        asked: { grams: number | null; slug: string }[];
+        coveredRows: number;
+        meals: number;
+        rows: number;
+        unresolved: number;
+        wholeMeals: number;
+      } | null;
+    };
+    shoppingItems: Seeded[];
+  };
+
+  it('seeds a row the cupboard names with no amount as bought in full, and records what it was asked with', async () => {
+    const { persist, service } = build({ pantry: [{ grams: null, ingredientId: 'ing-arroz', slug: 'arroz' }] });
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    const draft = persist.mock.calls[0]?.[1] as WithPantry;
+    const row = draft.shoppingItems[0];
+
+    expect(row?.boughtGrams).toBe(row?.totalGrams);
+    expect(row?.checked).toBe(true);
+    expect(draft.generationMetadata.pantry).toMatchObject({ asked: [{ grams: null, slug: 'arroz' }], coveredRows: 1, rows: 1, unresolved: 0 });
+    // Every meal of this pool is rice, and the cupboard has the rice.
+    expect(draft.generationMetadata.pantry?.wholeMeals).toBe(draft.generationMetadata.pantry?.meals);
+  });
+
+  it('seeds the amount given and leaves the remainder to buy, counting no row as one nobody has to visit', async () => {
+    const { persist, service } = build({ pantry: [{ grams: 200, ingredientId: 'ing-arroz', slug: 'arroz' }] });
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    const draft = persist.mock.calls[0]?.[1] as WithPantry;
+
+    expect(draft.shoppingItems[0]?.boughtGrams).toBe(200);
+    expect(draft.shoppingItems[0]?.checked).toBe(false);
+    expect(draft.generationMetadata.pantry?.coveredRows).toBe(0);
+    // The plates figure is presence and not amount: 200 g of the rice somebody
+    // has is still a plate cooked from the cupboard (phase 0's definition).
+    expect(draft.generationMetadata.pantry?.wholeMeals).toBe(draft.generationMetadata.pantry?.meals);
+  });
+
+  it('records nothing at all, and seeds nothing, for a generation nobody told anything to', async () => {
+    const { persist, service } = build();
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    const draft = persist.mock.calls[0]?.[1] as WithPantry;
+
+    expect(draft.generationMetadata.pantry).toBeNull();
+    // Zero and unticked, which is the column's own default: a list seeded by
+    // nothing is the list every plan before this project stored.
+    expect(draft.shoppingItems[0]).toMatchObject({ boughtGrams: 0, checked: false });
+  });
+
+  it('records that words went unanswered without recording the words, and seeds no row for them', async () => {
+    const { persist, service } = build({ pantry: [], pantryUnresolved: 3 });
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    const draft = persist.mock.calls[0]?.[1] as WithPantry;
+
+    expect(draft.generationMetadata.pantry).toMatchObject({ asked: [], coveredRows: 0, unresolved: 3, wholeMeals: 0 });
+    expect(JSON.stringify(draft.generationMetadata.pantry)).not.toMatch(/label/i);
+    expect(draft.shoppingItems[0]).toMatchObject({ boughtGrams: 0, checked: false });
+  });
+
+  it('clears the cupboard once the plan is saved, and not before it', async () => {
+    const { persist, service } = build({ pantry: [{ grams: null, ingredientId: 'ing-arroz', slug: 'arroz' }] });
+    // Taken after `build`, which is where the stub is installed, and cleared of
+    // whatever an earlier case in this file left on it.
+    const clear = jest.spyOn(PantryController, 'clear').mockClear();
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    expect(persist).toHaveBeenCalled();
+    expect(clear).toHaveBeenCalledWith('usr-1');
+    expect(clear.mock.invocationCallOrder[0]).toBeGreaterThan(persist.mock.invocationCallOrder[0] as number);
+  });
+
+  it('leaves the cupboard where somebody left it when the generation fails', async () => {
+    const { service } = build({ reusable: [] });
+    const clear = jest.spyOn(PantryController, 'clear').mockClear();
+
+    await expect(service.generate('usr-1', 'job-1', async () => Promise.resolve())).rejects.toBeDefined();
+    expect(clear).not.toHaveBeenCalled();
+  });
+
+  it('leaves the cupboard alone when the job’s deadline has already passed', async () => {
+    const { service } = build();
+    const clear = jest.spyOn(PantryController, 'clear').mockClear();
+
+    await expect(service.generate('usr-1', 'job-1', async () => Promise.resolve(), undefined, AbortSignal.abort())).rejects.toMatchObject({
+      code: 'GENERATION_TIMED_OUT'
+    });
+    expect(clear).not.toHaveBeenCalled();
+  });
+
+  it('still saves the plan when the cupboard will not empty — a stale draft is not a failed generation', async () => {
+    const { persist, service } = build({ pantry: [{ grams: null, ingredientId: 'ing-arroz', slug: 'arroz' }] });
+
+    jest.spyOn(PantryController, 'clear').mockRejectedValue(new Error('no'));
+
+    await expect(service.generate('usr-1', 'job-1', async () => Promise.resolve())).resolves.toBe('plan-1');
+    expect(persist).toHaveBeenCalled();
   });
 });

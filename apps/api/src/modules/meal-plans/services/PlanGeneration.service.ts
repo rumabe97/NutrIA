@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { OnboardingIncompleteError, ProfileConsentRequiredError } from 'core/entities/Error';
 import { normaliseForMatching } from 'core/domain/Safety';
-import { buildShoppingList, unresolvedSlugs } from 'core/domain/ShoppingList';
+import { buildShoppingList, pantryPlates, seedFromPantry, unresolvedSlugs } from 'core/domain/ShoppingList';
 import { dishSafety } from 'core/domain/Safety';
 import { leaningSlugs } from 'core/domain/Preference';
 import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
@@ -15,6 +15,7 @@ import { minimumDailyKcal, targetViolations } from 'core/domain/Nutrition';
 import { CheckInController } from 'core/controllers/CheckIn';
 import { EventController } from 'core/controllers/Event';
 import { OnboardingController } from 'core/controllers/Onboarding';
+import { PantryController } from 'core/controllers/Pantry';
 import { PlanController, PlanJobController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
@@ -35,6 +36,7 @@ import type { GenerationContext } from 'core/controllers/Recipe';
 import { FRESH_DISHES_PER_SLOT, narrowerShares, rotatePool, withApplianceShare } from 'core/domain/Variety';
 import type { Rotation } from 'core/domain/Variety';
 import type { PlanDraft } from 'core/entities/Plan';
+import type { SeededShoppingRow, ShoppingRow } from 'core/domain/ShoppingList';
 
 /**
  * Stage **codes**, not labels. Each is written to the job before the stage runs,
@@ -622,6 +624,17 @@ export class PlanGenerationService {
     }
 
     const shopping = buildShoppingList(withDates(scheduled.assignment, start), context.catalogue, context.locale);
+    // What is already in the house, read **here** and not with the profile at
+    // the top: the cupboard shortens the shop and changes no pick (the owner,
+    // 2026-10-23), so it is read after everything that chooses a dish has
+    // finished choosing. Nothing it carries can reach `promptPreferences` from
+    // this far down the function, which is what makes PRD 022 criterion 5 a
+    // property of the shape of this code rather than a promise about it.
+    //
+    // Only `holdings` and a count come back — never anybody's word.
+    const pantry = await PantryController.forGeneration(userId);
+    const seeded = seedFromPantry(shopping, pantry.holdings);
+    const plates = pantryPlates(scheduled.assignment, new Set(pantry.holdings.map(holding => holding.slug)));
     // A plan that waits for its day may cut the one under way (project 015):
     // that plan's list is rebuilt from the days it keeps, saved with the cut.
     const cutShoppingItems = dates.start > dates.today ? await this.cutListFor(userId, dates.start, context) : undefined;
@@ -634,18 +647,24 @@ export class PlanGenerationService {
 
     await markStep(STEPS.saving);
 
-    return PlanJobController.persist(
+    const planId = await PlanJobController.persist(
       userId,
       {
         ...this.toDraft(
           scheduled.assignment,
-          shopping,
+          seeded,
           built,
           targets,
           context,
           jobId,
           rotation,
-          { advisories: advisorySummary, fallback, kitchenShare, quality },
+          {
+            advisories: advisorySummary,
+            fallback,
+            kitchenShare,
+            pantry: pantryRecord(pantry, seeded.coveredRows, shopping.items.length, plates),
+            quality
+          },
           start,
           loads,
           dates.today,
@@ -655,6 +674,38 @@ export class PlanGenerationService {
       },
       byProfessional
     );
+
+    await this.spendPantry(userId, deadline);
+
+    return planId;
+  }
+
+  /**
+   * Empties the cupboard, now that the plan it was typed for exists.
+   *
+   * **On success and only on success.** A generation that threw never reaches
+   * this line, and one whose deadline passed is skipped by the same check that
+   * refuses to save past it: that job has already been reported as failed, and
+   * somebody told to retry must find their cupboard where they left it. Which
+   * is also why `PantryController.clear` is idempotent — a retry, or a
+   * generation that found nothing there, is not a failure.
+   *
+   * **And it can never fail the generation.** The plan is committed by the time
+   * this runs; a cupboard that did not empty is one stale draft the next
+   * generation spends anyway, while a throw here would hand somebody
+   * `GENERATION_FAILED` for a plan they already have. The warning carries the
+   * reason and **never a label**: the repository deliberately keeps Zod's
+   * message out of its own error precisely so a failure over these rows cannot
+   * quote somebody's word, and this is not where one starts.
+   */
+  private async spendPantry(userId: string, deadline?: AbortSignal): Promise<void> {
+    if (deadline?.aborted) {
+      return;
+    }
+
+    await PantryController.clear(userId).catch((error: unknown) => {
+      this.logger.warn(`The cupboard was not cleared after the plan was saved: ${error instanceof Error ? error.message : 'unknown'}`);
+    });
   }
 
   /**
@@ -794,7 +845,7 @@ export class PlanGenerationService {
 
   private toDraft(
     assignment: PlanAssignment,
-    shopping: ReturnType<typeof buildShoppingList>,
+    shopping: { readonly items: readonly SeededShoppingRow[] },
     built: Awaited<ReturnType<PoolBuilder['build']>>,
     targets: NutritionTargets,
     context: GenerationContext,
@@ -804,8 +855,15 @@ export class PlanGenerationService {
       advisories,
       fallback,
       kitchenShare,
+      pantry,
       quality
-    }: { readonly advisories: readonly string[]; readonly fallback: Fallback; readonly kitchenShare: number | null; readonly quality: PlanQuality },
+    }: {
+      readonly advisories: readonly string[];
+      readonly fallback: Fallback;
+      readonly kitchenShare: number | null;
+      readonly pantry: PantryRecord | null;
+      readonly quality: PlanQuality;
+    },
     start: Date,
     loads: Loads,
     today: string,
@@ -871,6 +929,18 @@ export class PlanGenerationService {
         // what it cost to keep them.
         kitchenShare,
         locale: context.locale,
+        // What the cupboard was asked with, and what it then did — stored the
+        // way `kitchenShare` is and for the reason `fixedMeals` gives: a plan
+        // already generated keeps what it was generated with, so a re-roll
+        // pre-fills from `asked` and the record dies with the plan (PRD 022,
+        // criterion 6). `null` is a generation nobody told anything to, which
+        // is every plan before project 022.
+        //
+        // **Slugs and counts, never a word.** `asked` holds catalogue slugs,
+        // the one part of an entry that may leave the product, and `unresolved`
+        // says how many words the catalogue had no answer for without saying
+        // which (PRD 022, criterion 7).
+        pantry,
         poolSeed: rotation.seed,
         quality,
         scheduledAt: start.toISOString()
@@ -897,9 +967,22 @@ function withDates(assignment: PlanAssignment, start: Date) {
   return { days: assignment.days.map(day => ({ ...day, date: isoDate(addDays(start, day.dayIndex - 1)) })) };
 }
 
-/** A built list as a plan stores it, the per-day breakdown a range is read from included (`0091`). */
-function toShoppingItems(shopping: ReturnType<typeof buildShoppingList>): PlanDraft['shoppingItems'] {
+/**
+ * A built list as a plan stores it, the per-day breakdown a range is read from
+ * included (`0091`), and what a cupboard already covers of each row seeded into
+ * it (project 022 phase 2).
+ *
+ * `boughtGrams` and `checked` travel together because `seedFromPantry` derived
+ * them from one `carriedBought` call, and the repository writes them in the
+ * same insert for the same reason.
+ */
+function toShoppingItems(shopping: { readonly items: readonly MaybeSeededRow[] }): PlanDraft['shoppingItems'] {
   return shopping.items.map(item => ({
+    // Absent for the list of the plan **being cut** (project 015), which the
+    // repository rewrites through `replaceGeneratedItems`: that plan's shop is
+    // already somebody's own and is carried from the stored rows, not seeded
+    // from a cupboard that was spent a fortnight ago.
+    ...(item.boughtGrams !== undefined && { boughtGrams: item.boughtGrams, checked: item.checked === true }),
     category: item.category,
     displayQuantity: item.displayQuantity,
     displayUnit: item.displayUnit,
@@ -931,12 +1014,70 @@ function byDay<T extends { readonly date: string; readonly dayIndex: number }>(
   return [...days.values()];
 }
 
+/** A built row, with the cupboard's seed on it or without — the cut plan's list has none. */
+type MaybeSeededRow = Partial<Pick<SeededShoppingRow, 'boughtGrams' | 'checked'>> & ShoppingRow;
+
 /**
  * How the plan came to be scheduled from something other than its first pool.
  * `full_library` is the rescue from no plan at all; `wider_rotation` is the
  * rescue from a plan that missed its macros (`0046`).
  */
 type Fallback = 'full_library' | 'wider_rotation' | null;
+
+/**
+ * What a generation was asked from the cupboard, and the two figures the
+ * sentence after the plan reads (PRD 022, criterion 4: *«9 de 42 comidas usan
+ * solo lo que ya tenías. La compra baja de 38 a 27 cosas.»*).
+ *
+ * **Stored rather than recomputed**, because the sentence is about the moment
+ * the plan was made: the cupboard is cleared immediately after, so by the time
+ * a screen asks, there is nothing left to recompute it from.
+ *
+ * `rows` and `meals` are the denominators, so the sentence needs no second
+ * read. `coveredRows` counts rows the cupboard hands back bought **in full** —
+ * rows nobody has to visit — and not every row it merely named, because an
+ * amount below the row's need leaves a remainder to buy. `wholeMeals` counts a
+ * meal whose every item, its accompaniment included, was already in the house;
+ * both are phase 0's own definitions, so what the screen says is what the
+ * project was priced on.
+ */
+type PantryRecord = {
+  readonly asked: readonly { readonly grams: number | null; readonly slug: string }[];
+  readonly coveredRows: number;
+  readonly meals: number;
+  readonly rows: number;
+  readonly unresolved: number;
+  readonly wholeMeals: number;
+};
+
+/**
+ * The cupboard's record, or `null` when there was no cupboard at all.
+ *
+ * `null` rather than a row of zeroes: a plan that was told nothing and a plan
+ * told about a cupboard that covered nothing are different facts, and the
+ * sentence in phase 3 may only be said about the second. An entry the catalogue
+ * could not answer still counts as having been told something — it is in
+ * `unresolved`, and phase 5 is what reads those.
+ */
+function pantryRecord(
+  pantry: { readonly holdings: readonly { readonly grams: number | null; readonly slug: string }[]; readonly unresolved: number },
+  coveredRows: number,
+  rows: number,
+  plates: { readonly meals: number; readonly wholeMeals: number }
+): PantryRecord | null {
+  if (pantry.holdings.length === 0 && pantry.unresolved === 0) {
+    return null;
+  }
+
+  return {
+    asked: pantry.holdings.map(holding => ({ grams: holding.grams, slug: holding.slug })),
+    coveredRows,
+    meals: plates.meals,
+    rows,
+    unresolved: pantry.unresolved,
+    wholeMeals: plates.wholeMeals
+  };
+}
 
 /** The days that eat for something, by index, and what the bounds would not allow. */
 type Loads = {

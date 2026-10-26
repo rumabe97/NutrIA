@@ -326,6 +326,141 @@ export function toDisplay(totalGrams: number, defaultUnit: ShoppingDraftItem['di
 }
 
 /**
+ * What a rebuild carries onto a row it rewrites (`0091`): the amount already
+ * bought, never more than what the plan now needs of it, with the tick derived
+ * from the two.
+ *
+ * Capped because a swap or an event can shrink a row — a fortnight that needed
+ * 1.2 kg of chicken may need 800 g after it, and leaving 1.2 kg bought would
+ * say somebody has more than the plan asks for. Floored because a stored
+ * amount is never negative and this is the one place a rebuild could introduce
+ * one. Pure, so the rule is provable without a database — the SQL around it
+ * (the list rebuilt in one transaction) is covered end to end, while an
+ * **amount** through HTTP is not yet: project 020 phase 5 owns those cases.
+ *
+ * Here rather than in `PlanRepository`, where it was written, because it is no
+ * longer only a rebuild's rule and it never was the repository's: `seedFromPantry`
+ * below hands a **brand-new** list the amounts somebody already has, and a
+ * cupboard has to be clamped by exactly the arithmetic a rebuild is clamped by
+ * (project 022 phase 2). One clamp, two callers, and neither of them owns it.
+ */
+export function carriedBought(bought: number | undefined, totalGrams: number): { readonly boughtGrams: number; readonly checked: boolean } {
+  const carried = Math.min(Math.max(bought ?? 0, 0), totalGrams);
+
+  // `totalGrams > 0` for the same reason the write derives it that way: a row
+  // that needs nothing is untouched, not bought.
+  return { boughtGrams: carried, checked: carried >= totalGrams && totalGrams > 0 };
+}
+
+/**
+ * One thing in the cupboard, as the list reads it (project 022 phase 2).
+ *
+ * Only an entry the catalogue **resolved** reaches here: a list row is keyed by
+ * `ingredientId`, and a word nothing in the catalogue answers has no row to
+ * seed — kept in the cupboard, guessed at nowhere.
+ *
+ * `grams` is null for *"I have some"*, the honest answer for a bag of rice
+ * nobody weighed; `seedFromPantry` says what that is taken to mean and why.
+ * `slug` rides beside the id for `pantryPlates` alone, which reads a meal's own
+ * ingredients and those carry slugs.
+ *
+ * **The person's own word is not in this type**, in any form. Nothing a
+ * generation does with a cupboard can reach a prompt, a log or an error
+ * (PRD 022, criterion 7).
+ */
+export type PantryHolding = { readonly grams: number | null; readonly ingredientId: string; readonly slug: string };
+
+/** A built row with what the cupboard already covers of it, ready for the list's first insert. */
+export type SeededShoppingRow = ShoppingRow & { readonly boughtGrams: number; readonly checked: boolean };
+
+/**
+ * A fortnight's list handed back with what somebody already has marked bought,
+ * at the moment the list is first written (project 022 phase 2, `0091`).
+ *
+ * Every amount goes through `carriedBought`, the same arithmetic a rebuild
+ * carries a shop across with, so the cap at the row's own need and the derived
+ * tick cannot drift between the two paths. A row the cupboard does not name is
+ * returned untouched rather than left out, so the caller writes one shape.
+ *
+ * **An entry with no amount seeds the whole row, ticked.** It reads as *"I have
+ * all of this"* rather than *"I have some"*, and the reason is a measurement:
+ * **phase 0 priced this entire feature with no amounts at all** — its cupboards
+ * were slug lists, and the 17.7% of a fortnight's rows it measured counted a
+ * row as held because the cupboard *named* the ingredient. The unit of the
+ * promise is rows (PRD criterion 4: *«la compra baja de 38 a 27 cosas»*), and
+ * `0091` gives a tick exactly two meanings — the whole plan's need, or none of
+ * it — so there is no *"some"* state in this data model to put a half-held row
+ * into, and inventing one is a schema change. Somebody who has half a bag types
+ * the half.
+ *
+ * `coveredRows` is the figure that sentence reads: rows nobody has to visit,
+ * which is a row whose seed covers its **whole** need — not merely a row the
+ * cupboard named, because an amount below the need leaves the row on the list
+ * with a remainder on it.
+ */
+export function seedFromPantry(
+  list: ShoppingList,
+  holdings: readonly PantryHolding[]
+): { readonly coveredRows: number; readonly items: readonly SeededShoppingRow[] } {
+  // Two cupboard entries resolving to one catalogue row are one claim about one
+  // row, not two: the last wins, as the catalogue's own id → slug map keeps the
+  // last of equal rows.
+  const held = new Map(holdings.map(holding => [holding.ingredientId, holding.grams]));
+  const items = list.items.map(item => {
+    if (!held.has(item.ingredientId)) {
+      return { ...item, boughtGrams: 0, checked: false };
+    }
+
+    return { ...item, ...carriedBought(held.get(item.ingredientId) ?? item.totalGrams, item.totalGrams) };
+  });
+
+  return { coveredRows: items.filter(item => item.checked).length, items };
+}
+
+/**
+ * What the cupboard reached on the plates: *«9 de 42 comidas usan solo lo que ya
+ * tenías»* (PRD 022, criterion 4).
+ *
+ * Read off a meal's own `ingredients` — the plate **as it is served**, its
+ * accompaniment included — and not off the dish's: a side is bought like
+ * everything else, so a meal is only *"what I already had"* when the side was
+ * too. This is phase 0's own definition (`evaluate-plans.mjs`,
+ * `pantryPlateMetrics.whole`), so the number the screen says is the number the
+ * project was priced on.
+ *
+ * Presence and never amount, also as phase 0 measured it: a meal using 40 g of
+ * the rice somebody has is a meal cooked from the cupboard whether or not the
+ * bag was ever weighed.
+ *
+ * **A plate of a cooked grain is never counted, and this figure undercounts for
+ * anybody who owns rice, pasta or dry pulses.** The cupboard and the *list*
+ * agree on the dry row — *«tengo arroz»* resolves to the dry food and
+ * `buildShoppingList` buys a cooked grain dry (`0078`), so `seedFromPantry`
+ * does pre-buy it — while a plate carries the **cooked** slug, which no
+ * cupboard holds. It is left that way deliberately: `pantryPlateMetrics.whole`
+ * in `evaluate-plans.mjs` has the identical asymmetry, so phase 0's *≈9 of 54*
+ * was measured with it, and closing it here would make this figure larger than
+ * anything the project was ever priced on. Closing it is a re-measurement, not a
+ * one-line fix: it means mapping a plate's slug through
+ * `toDry(slug, 0)?.drySlug ?? slug` **here and in the instrument together** —
+ * `drySlug` is nullable, because a cooked food whose dry counterpart the
+ * catalogue lacks goes on its own "(en seco)" row. Found by `tests` while
+ * writing the end-to-end suite; the owner's call, through phase 3.
+ */
+export function pantryPlates(assignment: ShoppingSource, slugs: ReadonlySet<string>): { readonly meals: number; readonly wholeMeals: number } {
+  const meals = assignment.days.flatMap(day => day.meals);
+
+  return {
+    meals: meals.length,
+    // A meal with nothing on it is not a meal cooked from the cupboard, and an
+    // empty cupboard cooked none of them: `every` over an empty list says yes
+    // to both.
+    wholeMeals:
+      slugs.size === 0 ? 0 : meals.filter(meal => meal.ingredients.length > 0 && meal.ingredients.every(item => slugs.has(item.slug))).length
+  };
+}
+
+/**
  * Aisle order first, then the name — collated in the list's own language.
  *
  * The locale matters here: `localeCompare` with the wrong one puts accented

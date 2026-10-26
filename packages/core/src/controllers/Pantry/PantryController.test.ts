@@ -175,3 +175,58 @@ describe('PantryController.clear', () => {
     expect(findByUser).not.toHaveBeenCalled();
   });
 });
+
+describe('PantryController.forGeneration', () => {
+  it('gives the generation the catalogue id a list row is keyed by, and the amount beside it', async () => {
+    findByUser.mockResolvedValue([makePantryItem({ grams: 500, ingredientId: RICE.id, label: 'Arroz largo', unit: 'g' })]);
+
+    await expect(PantryController.forGeneration(USER)).resolves.toEqual({
+      holdings: [{ grams: 500, ingredientId: 'ing-rice', slug: 'arroz-largo-crudo' }],
+      unresolved: 0
+    });
+  });
+
+  it('never hands back the person’s own word, in any form', async () => {
+    findByUser.mockResolvedValue([RESOLVED, UNRESOLVED]);
+
+    const spent = await PantryController.forGeneration(USER);
+
+    expect(JSON.stringify(spent)).not.toContain('arroz,');
+    expect(JSON.stringify(spent)).not.toContain('sobrasada');
+  });
+
+  it('counts the words the catalogue could not answer and seeds no row for them', async () => {
+    findByUser.mockResolvedValue([RESOLVED, UNRESOLVED]);
+
+    await expect(PantryController.forGeneration(USER)).resolves.toEqual({
+      holdings: [{ grams: null, ingredientId: 'ing-rice', slug: 'arroz-largo-crudo' }],
+      unresolved: 1
+    });
+  });
+
+  it('skips the catalogue read entirely when nothing in the cupboard resolved', async () => {
+    findByUser.mockResolvedValue([UNRESOLVED]);
+
+    await expect(PantryController.forGeneration(USER)).resolves.toEqual({ holdings: [], unresolved: 1 });
+    expect(listMatchableIngredients).not.toHaveBeenCalled();
+  });
+
+  it('leaves out an id the catalogue no longer holds — there is no row to seed for it', async () => {
+    findByUser.mockResolvedValue([RESOLVED, makePantryItem({ id: 'b1c2d3e4-5f60-4718-8293-a4b5c6d7e8f9', ingredientId: 'ing-gone', label: 'atún' })]);
+
+    await expect(PantryController.forGeneration(USER)).resolves.toEqual({
+      holdings: [{ grams: null, ingredientId: 'ing-rice', slug: 'arroz-largo-crudo' }],
+      unresolved: 0
+    });
+  });
+
+  it('changes nothing: the cupboard is cleared by the generation that succeeded, never by being read', async () => {
+    findByUser.mockResolvedValue([RESOLVED]);
+
+    await PantryController.forGeneration(USER);
+
+    expect(clear).not.toHaveBeenCalled();
+    expect(add).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+  });
+});
