@@ -51,6 +51,9 @@ ordering inside that pick — not a fifth reason in `isPreferredDish` (`:247`), 
 bucket is the measured dilution `0102` paid for and which a 15-item pantry would fill with 86%
 of the library. Which composition it is — a sort key with no quota, its own quota out of the
 five the appliance leaves, or composed with it — is phase 0's to decide and nobody else's.
+**Phase 0 decided, and the owner then struck the phase**: the composition is the rank with its own
+rung on `narrowerShares` at a small share, and it is not being built (2026-10-23). What follows in
+this paragraph is the shape the steering would take, not anything the product does.
 
 **No prompt change in this project.** The rank is computed from `CandidateDish.ingredients`,
 which the pool already holds, so nothing reaches `promptPreferences` and
@@ -63,7 +66,9 @@ and it would re-open a published privacy boundary for it.
 
 ### Phase 0 — Price it before building it
 
-- [x] done — measured 2026-10-23, `LOG.md` phase 0. The **stop signal did not fire**: no slot
+- [x] done — commit `fd041f50` ("A cupboard is priced before it is built, and the shop it
+  shortens turns out to be the declaring and not the steering") — measured 2026-10-23,
+  `LOG.md` phase 0. The **stop signal did not fire**: no slot
   under 19 in `rank`, and the rung brings rescues *below* the no-pantry baseline (14 → 10–12 of
   112 fortnights) with every day still in band. Phase 4 therefore stands by its own criterion —
   and whether it is worth building is the owner's at this gate, because what the steering buys
@@ -72,6 +77,9 @@ and it would re-open a published privacy boundary for it.
 - **Dispatch**: ~~`plan-evaluator`~~ → **executed directly, opus @ medium** (the profile's
   implementation row) — `/execute-project 022 phase 0` — **owner-approves**: whether the
   steering half exists at all, and what the bound on pantry items is.
+  **Answered by the owner on 2026-10-23**, on this phase's figures and recorded in
+  [`docs/decisions/LOG.md`](../../decisions/LOG.md): the steering half is **not** built — phase 4
+  is struck below — and the bound is **60**. The gate is closed.
   **Amended 2026-10-23, during execution**, for two reasons that are facts about the tools and
   not about the design: `plan-evaluator` holds no `Write` or `Edit` and its own brief says *"You
   edit nothing"*, while steps 1–4 below are edits to `evaluate-plans.mjs`; and the role agents
@@ -131,20 +139,35 @@ and it would re-open a published privacy boundary for it.
 
 ### Phase 1 — The pantry a person types exists, and resolves
 
-- [ ] pending
+- [x] done — built 2026-10-23, finished and verified 2026-10-26, `LOG.md` phase 1. The migration
+  is `0068_a_cupboard_a_person_types.sql`, reviewed at opus @ high and safe as written; the four
+  defects that review found in the TypeScript around it are fixed with a test each. The commit
+  reference is backfilled by the next run, after the owner commits.
 - **Dispatch**: `backend` — `/execute-project 022 phase 1`. The migration is reviewed by
   `migration-reviewer` before the phase closes: **opus @ high**, above the profile's row,
   because a migration runs against production during the API's build with no staging in between.
+  **Amended 2026-10-23, during execution**: the e2e suite below is **not `backend`'s to write** —
+  `ownership.json` excludes `apps/api/test/` from that role, and `tests` is the only agent that
+  may write or run those suites. So this phase is two dispatches, `backend` then `tests`, and a
+  phase whose scope names a suite in `apps/api/test/` always will be.
 - **Goal**: the draft table, the resolver that turns a cupboard word into a catalogue row, and
   the routes that write it — with no screen and no generation change.
 - **Scope**: `packages/database/src/schemas/`, `packages/database/src/migrations/`,
+  `packages/core/src/entities/Pantry/**` (amended 2026-10-23: the repository parses its rows with
+  a Zod schema and `packages/core/AGENTS.md` keeps Zod schemas in `entities/`),
   `packages/core/src/domain/Pantry/**`, `packages/core/src/repositories/Pantry/**`,
   `packages/core/src/controllers/Pantry/**` (or the profiles controller if that is where the
   kitchen's sibling sits), `apps/api/src/modules/profiles/**`, one e2e suite in
   `apps/api/test/`.
 - **Steps**:
   1. `userOwned('pantry_items', …)` with `label`, nullable `ingredientId`, nullable `grams`,
-     nullable `unit` — the shape and the comment style of `kitchen.schema.ts`.
+     nullable `unit` — the shape and the comment style of `kitchen.schema.ts` — **and a fifth
+     column, `normalisedLabel`** (amended 2026-10-23, during execution): step 2's second index is
+     on the normalised word, and Postgres cannot reproduce `normaliseForMatching` — NFD, Unicode
+     diacritics stripped, punctuation flattened — in an immutable index expression. A SQL
+     normaliser that nearly agreed with the resolver's would be a second normaliser, which is the
+     one thing this feature may not have, so the value is written by the repository and read by
+     the index alone.
   2. The uniqueness as **two partial unique indexes**: `(user_id, ingredient_id) where
      ingredient_id is not null`, and `(user_id, <normalised label>)` for the rows with none.
      Written in the database for the reason `kitchen_equipment_one_per_appliance` is: a double
@@ -156,7 +179,8 @@ and it would re-open a published privacy boundary for it.
      product's problem. An entry that resolves to nothing is **kept, with its label, unresolved**
      — never dropped, never guessed.
   4. The bound checked where it is written, refused as **422 naming the field**, the same on both
-     tiers, with phase 0's number (provisionally 60). Not a `tier_allowances` row.
+     tiers, with the number the owner settled on 2026-10-23 — **60** — and not as something still
+     provisional ([`docs/decisions/LOG.md`](../../decisions/LOG.md)). Not a `tier_allowances` row.
   5. Routes to list, add, remove and clear, user-scoped, denials as 404 the way every other
      user-owned resource answers.
 - **Acceptance criteria**: PRD 6 (a draft, user-owned, that nothing outlives), PRD 7 (only slugs
@@ -242,7 +266,16 @@ and it would re-open a published privacy boundary for it.
 
 ### Phase 4 — The rank, measured, behind a flag
 
-- [ ] pending — **struck if phase 0's stop signal fired**
+- [ ] **struck 2026-10-23 — the owner's decision at phase 0's `owner-approves` gate**
+  ([`docs/decisions/LOG.md`](../../decisions/LOG.md)), and **not** because the stop signal fired:
+  it did not. Deferred, not cancelled. The reason is worth, not safety: at the one share that
+  costs nothing the rank buys one meal in forty-two, and the shares that buy a visible gain break
+  the fortnight's egg cap in three plans of four (`LOG.md`, phase 0, § 4 and § 5).
+  **Do not start this phase.** It reopens on real usage — people filling sixty-item cupboards who
+  still report the shop as long — and the first thing to measure then is the repair in `LOG.md`'s
+  notes for the next phase: never let the cupboard's reserve take a dish that would break a
+  per-fortnight cap. Everything below is kept as the shape the steering would take, not as work
+  that is pending.
 - **Dispatch**: `backend-high` — `/execute-project 022 phase 4` — **owner-approves**: the cohort
   numbers before the flag flips. Above the profile's implementation row on purpose: this re-opens
   `applianceShare`, a constant 021 measured twice and saturated at 14 of 19.

@@ -295,10 +295,20 @@ read only the PRD would promise *"one row in four"*. The PRD is his approved con
 block names what it supersedes, points here, and changes no other sentence — but it is an
 amendment to an approved document made by an executor, and it is flagged rather than assumed.
 
+**The gate was answered the same day.** 2026-10-23, in the owner's own session, on these figures:
+the steering half is **not** built — phase 4 struck, deferred and not cancelled, with its reopen
+condition written into its status line — and **the bound is 60**. He also accepted § 7's correction
+to the PRD as written, so the *superseded in part* block stands. A second line in
+[`docs/decisions/LOG.md`](../../decisions/LOG.md) records all of it, and it narrows the entry of
+2026-10-22 on purpose: *«a steer and not a filter»* is the shape the steering would have taken, not
+something this product does, and until phase 4 exists a pantry changes no pick. Phases 1, 2, 3 and
+5 may not be written as if it did.
+
 ### Notes for the next phase
 
 - **Phases 1, 2, 3 and 5 are unaffected by anything measured here and carry the whole of the
-  promise.** Phase 1's provisional bound of **60** is supported: use it.
+  promise.** Phase 1's bound of **60** is supported by the measurement and was settled by the
+  owner on 2026-10-23: use it, and not as a provisional number.
 - **Phase 2 must store the measured figures**, and phase 3's sentence must read them. The
   honest numbers for a 30-item cupboard are *≈19 of ≈105 real-food rows already bought* and
   *≈9 of 54 meals using only what you had* — not the PRD's *"one row in four"*.
@@ -314,3 +324,153 @@ amendment to an approved document made by an executor, and it is flagged rather 
   `NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs --rotate 8 --flag accompaniments
   --pantry despensa-30 --pantry-share 5 --json <file>`. One run is ~35 s at 3 seeds and ~2 min
   at 8; they are heavy and this machine takes one at a time.
+
+## Phase 1 — The pantry a person types exists, and resolves (2026-10-23, finished 2026-10-26)
+
+- **Executor**: three agents and this checkout. The product code by **`backend` (opus @ medium)**
+  in its own worktree, which is the dispatch the plan names. The e2e suite by **`tests` (opus)**,
+  because `ownership.json` excludes `apps/api/test/` from `backend` and `tests` is the only agent
+  that may write or run those suites. The migration by **`migration-reviewer` (opus @ high)**, the
+  floor a migration gets here. The integration, the four fixes the review found, the e2e suite's
+  one broken guard and every verification that needs a database: **directly, opus @ medium, from
+  the main checkout**.
+- **Result**: **done.**
+- **Scope held**: the plan's scope plus `packages/core/src/entities/Pantry/**` and
+  `apps/api/test/`, both amended into it. Nothing outside the pantry's own files except five
+  barrels, `profiles.module.ts`, `schemas/index.ts`, `schema.test.ts`, `fixtures.ts`, the
+  migration journal and `apps/api/test/README.md`. No screen, no generation change, no prompt
+  change.
+
+### What was built
+
+`pantry_items` as `userOwned` — so `user_id` cascades, and deleting the account deletes the
+cupboard, which is the whole of what criterion 6 asks of the deletion half: `auth.config.ts`
+enables `deleteUser` precisely because *"the cascade from `user.id` is what actually removes a
+person's health data"*, and there is no table list anywhere to add this one to. Its uniqueness is
+**two partial unique indexes** (`0068_a_cupboard_a_person_types.sql`), because Postgres counts
+NULLs as distinct and one plain `unique(user_id, ingredient_id)` lets every *unresolved* label in
+twice over.
+
+The resolver reuses `core/domain/Safety`'s index, normaliser and curated synonyms whole and adds
+one thing: a curated map of eleven coarse words, so *«tengo arroz»* lands on the dry food a
+fortnight's list is written against (`0078`). `queso` is deliberately absent — thirty-eight
+cheeses and no ordinary answer — so it stays unresolved and reaches `/admin` as a gap worth a word
+(phase 5).
+
+The bound is sixty, the same on both tiers, refused as a 422 naming `label`, and checked **inside**
+the repository's transaction-scoped advisory lock against rows read in the same transaction that
+writes — the read-then-compare a security scan found in `EventController.add` on 2026-09-22. The
+two partial indexes are not that defence: they stop the same thing being named twice and say
+nothing about sixty entries racing past a count.
+
+### Evidence
+
+Every command from the main checkout, against the local Postgres (69 migrations, 930 ingredients,
+1,638 recipes):
+
+| command | result |
+|---|---|
+| `node scripts/check-migrations.mjs --drift` | `0 new, 69 in all, journal and snapshot in order, schema and migrations agree` |
+| `pnpm --filter core build` | clean |
+| `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api` | **11 tasks successful** — core 145 files / 4,169 tests, database 5 / 56, api green |
+| `NUTRIA_LOCAL_PG=1 pnpm --filter api test:e2e test/pantry.e2e-spec.ts` | **11 passed, 11 total**, 14.5 s |
+| `pnpm format` / `pnpm deadcode` / `pnpm check:leaks` | 7 tasks Prettier-clean / no findings / clean |
+
+The pantry's own unit tests are **65 in `core` across five files and 8 in `api`**. Each exit code
+above is the command's own: a first pass of this sweep piped every step through `tail` and reported
+`exit=0` for all of them, which is `tail`'s status and not the command's — the same trap memory
+records for `gate.sh`, fallen into three times in this session before the script was rewritten
+without pipes.
+
+**Criterion 7, checked rather than asserted.** `health-boundary.spec.ts` is unchanged and passing.
+There is no log line in any file this phase added — `grep` over all of them for `Logger`, `logger`
+and `console.` returns nothing — and the repository deliberately keeps Zod's message out of its own
+`DatabaseOperationError`, because a `ZodError` over these rows would quote a label. The only
+reference to the pantry anywhere outside its own module is `profiles.module.ts`, the wiring: phase
+2 is what will read it.
+
+**The e2e suite needed the local-Postgres flag, and the failure looked like the code's.** Without
+`NUTRIA_LOCAL_PG=1` all eleven tests fail in ten seconds at sign-up with a 500 whose cause is
+`better-auth` unable to query `rate_limit` — the connection goes to Neon, whose dev quota is spent
+until 2026-11-01. Nothing to do with the pantry.
+
+### Deviations from plan
+
+1. **A fifth column, `normalised_label`.** Step 2's second index is on the normalised word and
+   Postgres cannot reproduce `normaliseForMatching` — NFD, diacritics stripped, punctuation
+   flattened — in an immutable index expression; a SQL normaliser that nearly agreed with the
+   resolver's would be a second normaliser, which is the one thing this feature may not have.
+   Written by the repository, read by the index alone. Plan amended.
+2. **`packages/core/src/entities/Pantry/**` added to the scope**, because the repository parses its
+   rows with a Zod schema and `packages/core/AGENTS.md` keeps Zod schemas in `entities/`. Plan
+   amended.
+3. **The e2e suite is not `backend`'s to write** — `ownership.json` excludes `apps/api/test/` from
+   that role — so the phase is two dispatches. Plan amended, and this is a **plan error** rather
+   than an execution one: any phase whose scope names a suite in `apps/api/test/` has the same
+   shape, and the planner should split the dispatch when writing it.
+4. **The coarse word is a curated map of eleven, not a family.** The catalogue holds no bare
+   `arroz` row and the column holds one id, so the real question is which single row a coarse word
+   means — and a word with no ordinary answer is better left unresolved than answered wrongly.
+5. **The routes are `/pantry`, not under `/profile`.** The kitchen, the sibling the plan pointed
+   at, has no module of its own — it rides `PATCH /profile/preferences` — so there was no
+   controller to extend. `/pantry` is where `fixed-meals`, `events` and `vacations` sit, and the
+   files are in the profiles module as the scope says.
+6. **The Nest class is also called `PantryController`**, beside `core`'s, mirroring
+   `ProfilesController` / `ProfileController`.
+
+### The migration's review, and the four defects it found
+
+`migration-reviewer` at opus and high effort: **`0068` is safe to ship as written, no P0, no P1,
+nothing in the SQL to change.** Both FK statements take `SHARE ROW EXCLUSIVE` on the *referenced*
+tables (`user`, `ingredients`), which blocks writes there and not reads, for milliseconds on an
+empty table with indexed primary keys — but it leaves a warning for later: a future deploy that
+ships a long backfill in the same pending batch as a key to `user` would hold that lock for the
+whole backfill. The two predicates **partition** the table, so every row is covered by exactly one
+index. And a partial unique index is **not** usable as an `ON CONFLICT` arbiter unless the
+statement repeats its predicate — there is no upsert here, but a refactor to `onConflictDoUpdate`
+must carry it or fail with 42P10.
+
+Its four findings were checked against the files before any of them was fixed, and all four were
+real:
+
+- **P2 — a 500 where a 422 belonged.** `grams: 0.004` passed the body schema, was written as
+  `0.00` into `numeric(9,2)`, and failed `.positive()` on the read back. The floor is now `0.01`,
+  which is the column's floor and not a taste.
+- **P3 — a label of punctuation alone replaced the previous one.** `normaliseForMatching('🍅')` is
+  the empty string, which is the key the unresolved index holds *and* the key the repository
+  matches on, so a second such entry silently updated the first. Refused now as a 422 naming
+  `label`, which is what `resolveCustomAllergens` does by dropping an empty key.
+- **P3 — the same word once resolved and once not**, reachable when the catalogue learns a word
+  between two writes. **Fixed differently from the review's suggestion**: letting the resolved
+  branch also match on the label would, with an unresolved row *and* a resolved row for another
+  ingredient standing, write two rows for one ingredient and break
+  `pantry_items_one_per_ingredient`. The twin is absorbed inside the lock instead — where the
+  resolved row exists it stays and the twin is deleted, and where it does not the twin becomes the
+  resolved row in place, keeping the order it was typed in. Two tests, one per branch.
+- **P3 — two comments asserted what nothing enforced.** `unit` with no amount is now refused
+  (422 naming `unit`), and the cascade carries its reason: `SET NULL` would let a catalogue
+  deletion *fail* against the unresolved index with a 23505 naming nobody, during the API's build
+  against production. `food_preferences.ingredientId` — the same shape, a typed label beside a
+  nullable id — cascades for the same reason; `custom_allergens` is the one that uses `SET NULL`,
+  because there the failure direction is a claim of enforcement outliving the thing enforced.
+
+**One fix to the e2e suite, which was the suite's own guard and not the product's.** It read the
+tier back from `GET /billing` before asserting the bound — a good instinct, so that a `setTier`
+that did nothing could not leave the test measuring the free account twice. But with no Stripe
+configured, which is every environment but production, that route answers its `available: false`
+arm: the two tiers' allowances and no `tier` at all. The guard read `undefined` and failed a test
+about the cupboard. It now reads the account's own row through `UserController.getUser`.
+
+### Notes for the next phase
+
+- **Phase 2 spends the draft through `PantryController`**, from the meal-plans side, and
+  `PantryController.clear` is what it calls once the draft is spent — idempotent on purpose, so a
+  generation that finds an empty cupboard is not a failure.
+- **`PantryEntryView.slug` is the only part of an entry that may leave the product.** The label is
+  the person's; it goes back to them and nowhere else.
+- **The honest numbers for the sentence phase 3 will write** are in phase 0's § 1 and the notes
+  above it: *≈19 of ≈105 real-food rows already bought* at thirty items, not *"one row in four"*.
+- **`pantry_items` has no reader outside its own module yet**, which is what makes phase 2's diff
+  readable: whatever starts reading it is phase 2's work and nothing else.
+- **Running the e2e suite here needs `NUTRIA_LOCAL_PG=1`** and `pnpm db:local start`. Without it
+  every test fails at sign-up with a 500 that has nothing to do with the code under test.

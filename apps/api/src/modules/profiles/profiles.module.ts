@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 
-import { ProfilesController } from './controllers/index.js';
-import { ProfilesService } from './services/index.js';
+import { PantryController, ProfilesController } from './controllers/index.js';
+import { PantryService, ProfilesService } from './services/index.js';
 
-@Module({ controllers: [ProfilesController], providers: [ProfilesService] })
+@Module({ controllers: [PantryController, ProfilesController], providers: [PantryService, ProfilesService] })
 export class ProfilesModule {}
