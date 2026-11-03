@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { InputParseError, NotFoundError } from 'core/entities/Error';
 import { MAX_PANTRY_ITEMS } from 'core/entities/Pantry';
 import { makePantryItem } from '#test/fixtures';
-import { PantryController } from 'core/controllers/Pantry';
+import { PANTRY_CATALOGUE_PAGE, PantryController } from 'core/controllers/Pantry';
 
 import type { MatchableIngredient } from 'core/domain/Safety';
+import type { PantryCatalogueFood, ResolvedPantryEntry } from '#repositories/Pantry';
 import type { PantryItem } from 'core/entities/Pantry';
-import type { ResolvedPantryEntry } from '#repositories/Pantry';
 
 const add =
   vi.fn<
@@ -17,6 +17,9 @@ const clear = vi.fn<(userId: string) => Promise<void>>();
 const findByUser = vi.fn<(userId: string) => Promise<readonly PantryItem[]>>();
 const remove = vi.fn<(userId: string, id: string) => Promise<boolean>>();
 const listMatchableIngredients = vi.fn<() => Promise<readonly MatchableIngredient[]>>();
+const listCatalogue = vi.fn<(locale: string) => Promise<readonly PantryCatalogueFood[]>>();
+const platesByIngredient = vi.fn<() => Promise<ReadonlyMap<string, number>>>();
+const findByUserId = vi.fn<(userId: string) => Promise<{ readonly locale: string } | undefined>>();
 
 // Wrapped in arrows rather than passed directly: `vi.mock`'s factory is hoisted
 // above these declarations, so naming them eagerly is a TDZ error.
@@ -25,14 +28,32 @@ vi.mock('#repositories/Pantry', () => ({
     add: (userId: string, entry: ResolvedPantryEntry, allow: (others: readonly PantryItem[]) => Promise<void> | void) => add(userId, entry, allow),
     clear: (userId: string) => clear(userId),
     findByUser: (userId: string) => findByUser(userId),
+    listCatalogue: (locale: string) => listCatalogue(locale),
     remove: (userId: string, id: string) => remove(userId, id)
   }
 }));
+
+vi.mock('#repositories/Recipe', () => ({ FALLBACK_LOCALE: 'es-ES', RecipeRepository: { platesByIngredient: () => platesByIngredient() } }));
+
+vi.mock('#repositories/Profile', () => ({ ProfileRepository: { findByUserId: (userId: string) => findByUserId(userId) } }));
 
 vi.mock('#repositories/Safety', () => ({ SafetyRepository: { listMatchableIngredients: () => listMatchableIngredients() } }));
 
 const USER = 'usr-1';
 const RICE: MatchableIngredient = { id: 'ing-rice', name: 'Arroz largo', slug: 'arroz-largo-crudo' };
+const SOBRASADA: MatchableIngredient = { id: 'ing-sobrasada', name: 'Sobrasada', slug: 'sobrasada' };
+/** A food of the accompaniment catalogue: served beside a plate every week, listed by almost no recipe. */
+const BREAD: MatchableIngredient = { id: 'ing-bread', name: 'Pan integral', slug: 'pan-integral' };
+/**
+ * The library as the plate counts see it: the rice is cooked under a **different
+ * slug** from the one a cupboard resolves to, which is the whole of what
+ * `platesAsBought` exists for, and the sobrasada is a catalogue row no dish
+ * cooks.
+ */
+const PLATES: ReadonlyMap<string, number> = new Map([
+  ['arroz-blanco-cocido', 28],
+  ['cebolla', 5]
+]);
 const RESOLVED = makePantryItem({ ingredientId: RICE.id, label: 'arroz' });
 const UNRESOLVED = makePantryItem({ id: 'd4e5f607-1829-4c0d-9e1f-2a3b4c5d6e7f', ingredientId: null, label: 'sobrasada' });
 
@@ -48,6 +69,9 @@ function writes(standing: readonly PantryItem[] = [], written: readonly PantryIt
 beforeEach(() => {
   vi.clearAllMocks();
   listMatchableIngredients.mockResolvedValue([RICE]);
+  listCatalogue.mockResolvedValue([]);
+  platesByIngredient.mockResolvedValue(PLATES);
+  findByUserId.mockResolvedValue({ locale: 'es-ES' });
   findByUser.mockResolvedValue([]);
   remove.mockResolvedValue(true);
   clear.mockResolvedValue();
@@ -64,7 +88,7 @@ describe('PantryController.read', () => {
     findByUser.mockResolvedValue([RESOLVED]);
 
     await expect(PantryController.read(USER)).resolves.toEqual({
-      items: [{ id: RESOLVED.id, grams: null, label: 'arroz', slug: 'arroz-largo-crudo', unit: null }],
+      items: [{ id: RESOLVED.id, cookedWith: true, grams: null, label: 'arroz', slug: 'arroz-largo-crudo', unit: null }],
       maxItems: MAX_PANTRY_ITEMS
     });
   });
@@ -86,6 +110,55 @@ describe('PantryController.read', () => {
     await PantryController.read(USER);
 
     expect(listMatchableIngredients).not.toHaveBeenCalled();
+    expect(platesByIngredient).not.toHaveBeenCalled();
+  });
+
+  it('says the library cooks nothing with an entry it cooks nothing with, and keeps the entry', async () => {
+    listMatchableIngredients.mockResolvedValue([RICE, SOBRASADA]);
+    findByUser.mockResolvedValue([makePantryItem({ ingredientId: SOBRASADA.id, label: 'sobrasada' })]);
+
+    const view = await PantryController.read(USER);
+
+    // `cookedWith: false` with a slug is a different fact from `slug: null`, and
+    // PRD 12 counts them apart: this is a dish to write, not a food to add.
+    expect(view.items[0]).toMatchObject({ cookedWith: false, slug: 'sobrasada' });
+    expect(view.items).toHaveLength(1);
+  });
+
+  it('is told the truth about the rice we cook most, which no plate carries by the name a cupboard uses', async () => {
+    findByUser.mockResolvedValue([RESOLVED]);
+
+    const view = await PantryController.read(USER);
+
+    // The cupboard's «arroz» is `arroz-largo-crudo`; the 28 plates cook
+    // `arroz-blanco-cocido`. Asking only about the resolved slug would have said
+    // «todavía no cocinamos nada con esto».
+    expect(view.items[0]).toMatchObject({ cookedWith: true, slug: 'arroz-largo-crudo' });
+  });
+
+  it('asks what the library cooks once, not once per entry', async () => {
+    findByUser.mockResolvedValue([RESOLVED, makePantryItem({ id: 'c3d4e5f6-0718-4293-8a4b-5c6d7e8f9a0b', ingredientId: RICE.id })]);
+
+    await PantryController.read(USER);
+
+    expect(platesByIngredient).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not tell somebody we do nothing with their bread, which we serve beside a plate every week', async () => {
+    listMatchableIngredients.mockResolvedValue([RICE, BREAD]);
+    findByUser.mockResolvedValue([makePantryItem({ ingredientId: BREAD.id, label: 'pan' })]);
+
+    // No recipe lists it; the accompaniment catalogue does. The plate count is
+    // still zero, which is the ordering's business and not this field's.
+    expect((await PantryController.read(USER)).items[0]).toMatchObject({ cookedWith: true, slug: 'pan-integral' });
+  });
+
+  it('an entry with no slug has no food to ask about, and is never cooked with', async () => {
+    findByUser.mockResolvedValue([RESOLVED, UNRESOLVED]);
+
+    const view = await PantryController.read(USER);
+
+    expect(view.items[1]).toMatchObject({ cookedWith: false, slug: null });
   });
 });
 
@@ -227,6 +300,150 @@ describe('PantryController.forGeneration', () => {
 
     expect(clear).not.toHaveBeenCalled();
     expect(add).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+  });
+});
+
+describe('PantryController.catalogue', () => {
+  /**
+   * The matchable rows and the named rows of one catalogue, which is the pair the
+   * route has to keep in step: `listMatchableIngredients` is one row per name per
+   * locale, `listCatalogue` one row per food.
+   */
+  const MATCHABLE: readonly MatchableIngredient[] = [
+    RICE,
+    { id: RICE.id, name: 'Long grain rice', slug: RICE.slug },
+    { id: 'ing-onion', name: 'Cebolla', slug: 'cebolla' },
+    SOBRASADA
+  ];
+  const NAMED: readonly PantryCatalogueFood[] = [
+    { id: RICE.id, name: 'Arroz largo', slug: RICE.slug },
+    { id: 'ing-onion', name: 'Cebolla', slug: 'cebolla' },
+    { id: SOBRASADA.id, name: 'Sobrasada', slug: SOBRASADA.slug }
+  ];
+  const WITH_BREAD: readonly PantryCatalogueFood[] = [...NAMED, { id: BREAD.id, name: 'Pan integral', slug: BREAD.slug }];
+
+  beforeEach(() => {
+    listMatchableIngredients.mockResolvedValue(MATCHABLE);
+    listCatalogue.mockResolvedValue(NAMED);
+  });
+
+  it('offers a word the resolver then answers — the one failure this route exists to prevent', async () => {
+    const [offered] = await PantryController.catalogue(USER, 'arro', 'es-ES');
+
+    expect(offered).toBeDefined();
+
+    // The round trip: what the picker offered, added, comes back as the slug the
+    // picker said it would be.
+    await PantryController.add(USER, { grams: null, label: offered?.name ?? '', unit: null });
+
+    const resolvedTo = add.mock.calls[0]?.[1].ingredientId;
+
+    expect(NAMED.find(food => food.id === resolvedTo)?.slug).toBe(offered?.slug);
+  });
+
+  it('answers a coarse word with the row an add would land on, which is no substring of its name', async () => {
+    // «arroz» is in `COARSE_LABELS`, not in any name of this fixture bar the
+    // rice's own — the resolver's answer is added to the matches for exactly this.
+    const slugs = (await PantryController.catalogue(USER, 'arroz', 'es-ES')).map(food => food.slug);
+
+    expect(slugs).toContain(RICE.slug);
+  });
+
+  it('matches a name in the other locale, because the index it uses holds every locale', async () => {
+    const slugs = (await PantryController.catalogue(USER, 'long grain', 'en-GB')).map(food => food.slug);
+
+    expect(slugs).toEqual([RICE.slug]);
+  });
+
+  it('offers the whole catalogue, a food nothing is cooked with included, and says which is which', async () => {
+    const offered = await PantryController.catalogue(USER, null, 'es-ES');
+
+    expect(offered).toEqual([
+      { cookedWith: true, name: 'Arroz largo', slug: 'arroz-largo-crudo' },
+      { cookedWith: true, name: 'Cebolla', slug: 'cebolla' },
+      // Kept and offered: a cupboard holds what it holds, and this is the honest
+      // answer `/admin` aggregates into the library's to-do list (PRD 12).
+      { cookedWith: false, name: 'Sobrasada', slug: 'sobrasada' }
+    ]);
+  });
+
+  it('puts the most-cooked-with food first and then sorts by name, in the reader’s own language', async () => {
+    // 28 plates of rice through the dry/cooked mapping, 5 of onion, none of
+    // sobrasada — and the two names that tie are collated, not compared by code unit.
+    expect((await PantryController.catalogue(USER, null, 'es-ES')).map(food => food.slug)).toEqual(['arroz-largo-crudo', 'cebolla', 'sobrasada']);
+  });
+
+  it('says we do something with a food we only serve as a side, and still sorts it after the cooked ones', async () => {
+    listMatchableIngredients.mockResolvedValue([...MATCHABLE, BREAD]);
+    listCatalogue.mockResolvedValue(WITH_BREAD);
+
+    const offered = await PantryController.catalogue(USER, null, 'es-ES');
+
+    expect(offered.find(food => food.slug === BREAD.slug)).toEqual({ cookedWith: true, name: 'Pan integral', slug: BREAD.slug });
+    // Zero plates, so it sorts with the uncooked-with rows and by name among
+    // them: the floor is on the answer, never on the order.
+    expect(offered.map(food => food.slug)).toEqual(['arroz-largo-crudo', 'cebolla', 'pan-integral', 'sobrasada']);
+  });
+
+  it('hands back at most fifty foods, for a word and for no word alike', async () => {
+    listCatalogue.mockResolvedValue(
+      Array.from({ length: 120 }, (_, index) => ({ id: `ing-${index}`, name: `Comida ${index}`, slug: `comida-${index}` }))
+    );
+    listMatchableIngredients.mockResolvedValue(
+      Array.from({ length: 120 }, (_, index) => ({ id: `ing-${index}`, name: `Comida ${index}`, slug: `comida-${index}` }))
+    );
+
+    await expect(PantryController.catalogue(USER, null, 'es-ES')).resolves.toHaveLength(PANTRY_CATALOGUE_PAGE);
+    await expect(PantryController.catalogue(USER, 'comida', 'es-ES')).resolves.toHaveLength(PANTRY_CATALOGUE_PAGE);
+  });
+
+  it('answers nothing for a word the catalogue has no answer for, rather than guessing one', async () => {
+    await expect(PantryController.catalogue(USER, 'queso', 'es-ES')).resolves.toEqual([]);
+  });
+
+  it('offers the top of the catalogue for the empty word a picker sends before anybody types', async () => {
+    // The route's body defaults `q` to the empty string, so this is the real
+    // first request of every picker — the same answer as no word at all.
+    await expect(PantryController.catalogue(USER, '', 'es-ES')).resolves.toEqual(await PantryController.catalogue(USER, null, 'es-ES'));
+  });
+
+  it('offers everything for a word that normalises to nothing, as a picker with an emoji in it should', async () => {
+    await expect(PantryController.catalogue(USER, '🍅', 'es-ES')).resolves.toHaveLength(NAMED.length);
+  });
+
+  it('asks the library what it cooks once per answer', async () => {
+    await PantryController.catalogue(USER, 'arroz', 'es-ES');
+
+    expect(platesByIngredient).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads the profile’s language only for a caller that sent none', async () => {
+    await PantryController.catalogue(USER, null, 'en-GB');
+
+    expect(findByUserId).not.toHaveBeenCalled();
+    expect(listCatalogue).toHaveBeenCalledWith('en-GB');
+
+    findByUserId.mockResolvedValue({ locale: 'en-GB' });
+    await PantryController.catalogue(USER, null, null);
+
+    expect(findByUserId).toHaveBeenCalledWith(USER);
+    expect(listCatalogue).toHaveBeenLastCalledWith('en-GB');
+  });
+
+  it('falls back to Spanish for an account with no profile and no header', async () => {
+    findByUserId.mockResolvedValue(undefined);
+
+    await PantryController.catalogue(USER, null, null);
+
+    expect(listCatalogue).toHaveBeenCalledWith('es-ES');
+  });
+
+  it('changes nothing: offering a food writes nothing to anybody’s cupboard', async () => {
+    await PantryController.catalogue(USER, 'arroz', 'es-ES');
+
+    expect(add).not.toHaveBeenCalled();
+    expect(clear).not.toHaveBeenCalled();
     expect(remove).not.toHaveBeenCalled();
   });
 });

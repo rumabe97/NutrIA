@@ -1,4 +1,6 @@
+import { ACCOMPANIMENTS } from 'core/domain/Accompaniment';
 import { matchCustomAllergen, normaliseForMatching, toMatchIndex } from 'core/domain/Safety';
+import { toDry } from 'core/domain/Yield';
 
 import type { MatchableIngredient } from 'core/domain/Safety';
 
@@ -114,4 +116,126 @@ export function resolvePantryLabel(label: string, ingredients: readonly Matchabl
   // so a target that left the catalogue resolves to nothing instead of to a row
   // that is no longer there.
   return coarse === undefined ? null : (index.get(normaliseForMatching(coarse)) ?? null);
+}
+
+/**
+ * The library's plate counts, keyed by the food a **cupboard** would name it by.
+ *
+ * The same dual mapping `pantryPlates`'s own `held` applies, read from the other
+ * end. A plate carries the **cooked** slug — `arroz-blanco-cocido`, 28 of them in
+ * this library — while *«tengo arroz»* resolves to `arroz-largo-crudo`
+ * (`COARSE_LABELS`), the dry row a fortnight's list buys (`0078`). Counting only
+ * the slug a plate carries would tell somebody *«todavía no cocinamos nada con
+ * esto»* about the rice we cook most.
+ *
+ * Both names keep a count, and the cooked one keeps its own: somebody who types
+ * the cooked food's name is answered too, which is the superset `held` settled on
+ * for the same reason. `drySlug` is nullable — `pasta-cocida` has no dry row and
+ * is bought *"en seco"* — so the null check is load-bearing and not defensive
+ * noise.
+ *
+ * **It is an ordering and a yes/no, never a census.** A recipe that cooks both
+ * the dry food and its cooked counterpart is counted twice under the dry name,
+ * which moves it up a list and can never make `cookedWith` wrong. No figure the
+ * product quotes is read from here.
+ */
+export function platesAsBought(plates: ReadonlyMap<string, number>): ReadonlyMap<string, number> {
+  const counted = new Map(plates);
+
+  for (const [slug, count] of plates) {
+    const dry = toDry(slug, 0)?.drySlug;
+
+    if (dry !== undefined && dry !== null) {
+      counted.set(dry, (counted.get(dry) ?? 0) + count);
+    }
+  }
+
+  return counted;
+}
+
+/**
+ * The catalogue rows a picker's word should offer, by ingredient id, or null for
+ * *"no word, offer everything"*.
+ *
+ * **The index is `resolvePantryLabel`'s own**, which is the whole point of the
+ * route this serves: a picker that offers a word the resolver then misses would
+ * hand somebody an entry that covers no shopping row and says nothing about why.
+ * So the keys matched here are `toMatchIndex`'s — every catalogue name in every
+ * locale, plus the slug — and `resolvePantryLabel`'s own answer is added to them,
+ * which is what carries the curated synonyms and the coarse words: *«arroz»* is
+ * no substring of `arroz-largo-crudo`'s name, and that row is the one an add
+ * would land on.
+ *
+ * Substring and not prefix, because a picker is typed into the middle of a name
+ * as often as the start of one — *«garbanzo»* for *«Garbanzos secos»*, *«natural»*
+ * for *«Atún al natural»*. Ordering is the caller's: this answers which rows, not
+ * which first.
+ */
+export function pantryCatalogueMatches(query: string, ingredients: readonly MatchableIngredient[]): ReadonlySet<string> | null {
+  const key = pantryKey(query);
+
+  if (key === '') {
+    return null;
+  }
+
+  const ids = new Set<string>();
+
+  for (const [indexed, id] of toMatchIndex(ingredients)) {
+    if (indexed.includes(key)) {
+      ids.add(id);
+    }
+  }
+
+  const resolved = resolvePantryLabel(query, ingredients);
+
+  if (resolved !== null) {
+    ids.add(resolved);
+  }
+
+  return ids;
+}
+
+/**
+ * Every food this library can serve **beside** a plate, as a cupboard names it.
+ *
+ * The accompaniment catalogue is a **code constant** (`domain/Accompaniment`),
+ * which is what makes it answerable here at all: it is the same in dev, in CI
+ * and in production, so *«todavía no cocinamos nada con esto»* means the same
+ * thing everywhere. `meal_accompaniments` would not do — that table is one row
+ * per accompaniment of a **generated** meal, so reading it would turn this into
+ * *"has anybody ever been served this as a side"*, a fact about the user base
+ * and not about the library, and it is empty in dev and in CI (the lead's
+ * correction, 2026-11-03).
+ *
+ * Expanded through the same dual mapping as everything else here, so a cooked
+ * side also credits the dry food it is bought as. Two of the catalogue's own
+ * cooked slugs — `alubias-negras-cocidas`, `remolacha-cocida` — have no dry
+ * counterpart in `COOKED_YIELDS` on purpose (a cooked legume is bought cooked,
+ * in a jar), and they keep their own name alone.
+ */
+const SERVED_BESIDE: ReadonlySet<string> = new Set(
+  ACCOMPANIMENTS.flatMap(side =>
+    side.portions.flat().flatMap(item => {
+      const dry = toDry(item.slug, 0)?.drySlug;
+
+      return dry === undefined || dry === null ? [item.slug] : [item.slug, dry];
+    })
+  )
+);
+
+/**
+ * Whether the library does anything with this food: cooks it on a plate, or
+ * serves it beside one.
+ *
+ * **One definition, because two fields wear this name** — an entry of the
+ * cupboard and a row of the picker — and a screen that said one thing in the
+ * list and another in the picker would be worse than either answer. The plate
+ * count comes from `platesAsBought`; the sides are a floor on it and never part
+ * of the **ordering**, which stays the number that says how much of the library
+ * a food actually reaches (the lead's call, 2026-11-03). So bread, oil, salt or
+ * a yoghurt — served every week and listed by almost no recipe — are no longer
+ * told we cook nothing with them, and they still sort last.
+ */
+export function cookedWith(slug: string, plated: ReadonlyMap<string, number>): boolean {
+  return (plated.get(slug) ?? 0) > 0 || SERVED_BESIDE.has(slug);
 }

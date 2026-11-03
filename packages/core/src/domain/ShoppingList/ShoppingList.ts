@@ -456,8 +456,36 @@ export function pantryPlates(assignment: ShoppingSource, slugs: ReadonlySet<stri
     // empty cupboard cooked none of them: `every` over an empty list says yes
     // to both.
     wholeMeals:
-      slugs.size === 0 ? 0 : meals.filter(meal => meal.ingredients.length > 0 && meal.ingredients.every(item => slugs.has(item.slug))).length
+      slugs.size === 0 ? 0 : meals.filter(meal => meal.ingredients.length > 0 && meal.ingredients.every(item => held(item.slug, slugs))).length
   };
+}
+
+/**
+ * Whether the cupboard holds what this plate's ingredient is **bought** as
+ * (project 022 phase 3, step 0).
+ *
+ * Either side matches, and both are needed. A plate carries the **cooked** slug
+ * — `arroz-blanco-cocido` — while the list buys a cooked grain **dry**
+ * (`0078`, and the mapping at the top of this file), which is the row a
+ * cupboard's *«tengo arroz»* resolves to and pre-buys. Asking only about the
+ * plate's own slug therefore never counted a rice, pasta or dry-pulse meal as
+ * one cooked from the house, which is the undercount phase 2 found and left
+ * standing on purpose; asking only about the dry one would lose the person who
+ * typed the cooked food's own name, which the catalogue also answers.
+ *
+ * No catalogue is needed for it. The list checks `catalogue.has(drySlug)`
+ * because it must choose **one** row to charge for; this only asks whether
+ * either name is in a cupboard, and a cupboard can only hold slugs the
+ * catalogue gave it.
+ */
+function held(slug: string, pantry: ReadonlySet<string>): boolean {
+  if (pantry.has(slug)) {
+    return true;
+  }
+
+  const dry = toDry(slug, 0)?.drySlug;
+
+  return dry !== undefined && dry !== null && pantry.has(dry);
 }
 
 /**

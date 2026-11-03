@@ -643,4 +643,37 @@ describe('pantryPlates — the meals cooked from nothing but what was already th
 
     expect(pantryPlates(plan, held)).toEqual({ meals: 1, wholeMeals: 1 });
   });
+
+  /*
+   * The undercount phase 2 found and phase 3 step 0 closed. A plate carries the
+   * **cooked** slug while the list buys a cooked grain **dry** (`0078`), which
+   * is the row *«tengo arroz»* resolves to — so before this, the one meal a
+   * cupboard of rice most obviously cooked was the one meal it never counted.
+   * Without the mapping both of these read `wholeMeals: 0`.
+   */
+  it('counts a plate of cooked rice for a cupboard that holds the dry rice the list buys', () => {
+    const plan = assignment(meal([{ grams: 150, slug: 'arroz-blanco-cocido' }]));
+
+    expect(pantryPlates(plan, new Set(['arroz-largo-crudo']))).toEqual({ meals: 1, wholeMeals: 1 });
+  });
+
+  it('counts it for a cupboard that holds the cooked name too, which the catalogue also answers', () => {
+    // Both directions, because a cupboard resolves whatever somebody typed: the
+    // dry food is what the coarse word lands on, and the cooked food is a
+    // catalogue row of its own that somebody can name.
+    const plan = assignment(meal([{ grams: 150, slug: 'arroz-blanco-cocido' }]));
+
+    expect(pantryPlates(plan, new Set(['arroz-blanco-cocido']))).toEqual({ meals: 1, wholeMeals: 1 });
+  });
+
+  it('still needs every item: the rice counts, the thing beside it does not', () => {
+    const plan = assignment(
+      meal([
+        { grams: 150, slug: 'arroz-blanco-cocido' },
+        { grams: 80, slug: 'merluza' }
+      ])
+    );
+
+    expect(pantryPlates(plan, new Set(['arroz-largo-crudo']))).toEqual({ meals: 1, wholeMeals: 0 });
+  });
 });

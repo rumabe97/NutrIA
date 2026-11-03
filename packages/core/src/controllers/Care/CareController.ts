@@ -3,7 +3,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { CareRepository } from '#repositories/Care';
 import { HealthController } from 'core/controllers/Health';
 import { isCheckInDue, nudgedKcal } from 'core/controllers/CheckIn';
-import { PlanController } from 'core/controllers/Plan';
+import { PlanController, withoutPantry } from 'core/controllers/Plan';
 import { ProfessionalRepository } from '#repositories/Professional';
 import { ProfileController } from 'core/controllers/Profile';
 import { ProgressController } from 'core/controllers/Progress';
@@ -37,7 +37,7 @@ import type {
   SetClientReview,
   SetLinkHealth
 } from 'core/entities/Care';
-import type { JobView, MealDetailView, PlanSummaryView, PlanView } from 'core/controllers/Plan';
+import type { JobView, MealDetailView, PlanSummaryView, SharedPlanView } from 'core/controllers/Plan';
 import type { PracticeOfferView } from 'core/controllers/Billing';
 import type { FortnightView, ProgressSummaryView } from 'core/controllers/Progress';
 import type { ResolvedTargets } from 'core/domain/Nutrition';
@@ -205,7 +205,7 @@ export interface CareFortnightView extends Omit<FortnightView, 'checkIn'> {
 export interface CareClientOverviewView {
   client: CareClientLinkView;
   health?: SharedHealthView;
-  plan: PlanView | null;
+  plan: SharedPlanView | null;
   plans: readonly PlanSummaryView[];
   progress: Omit<ProgressSummaryView, 'fortnights'> & { fortnights: readonly CareFortnightView[] };
   targets: ResolvedTargets | null;
@@ -746,7 +746,9 @@ export const CareController = {
   async overview(professional: Pick<CareSession, 'id'>, linkId: string, locale: string | null = null): Promise<CareClientOverviewView> {
     return CareController.withClient(professional.id, linkId, 'overview', 'read', async (clientId, access) => {
       const [plan, plans, progress, targets] = await Promise.all([
-        PlanController.getActivePlan(clientId, locale),
+        // Stripped of what the client's cupboard did: four counts no care screen
+        // reads, kept off this boundary by decision (`legal` P2-9, 2026-11-03).
+        PlanController.getActivePlan(clientId, locale).then(withoutPantry),
         // `professional`: the tier being read is the client's, and a dietitian who
         // cannot see what their client was served cannot do this job (`0021` § *Amended*).
         PlanController.listPlans(clientId, undefined, undefined, 'professional'),
@@ -781,8 +783,10 @@ export const CareController = {
    * The plan waiting for the professional's review (`0060`), or null —
    * through `withClient` (`review`, `read`), in the reader's language.
    */
-  async pendingPlan(professional: Pick<CareSession, 'id'>, linkId: string, locale: string | null = null): Promise<PlanView | null> {
-    return CareController.withClient(professional.id, linkId, 'review', 'read', clientId => PlanController.getPendingPlan(clientId, locale));
+  async pendingPlan(professional: Pick<CareSession, 'id'>, linkId: string, locale: string | null = null): Promise<SharedPlanView | null> {
+    return CareController.withClient(professional.id, linkId, 'review', 'read', async clientId =>
+      withoutPantry(await PlanController.getPendingPlan(clientId, locale))
+    );
   },
 
   /**
@@ -828,9 +832,9 @@ export const CareController = {
    * completed and this one becomes it, with the trail row, in one transaction
    * (`review`, `write`). Nothing pending is the same 404, and writes nothing.
    */
-  async publishPlan(professional: Pick<CareSession, 'id'>, linkId: string, locale: string | null = null): Promise<PlanView> {
-    return CareController.withClient(professional.id, linkId, 'review', 'write', (clientId, _access, record) =>
-      PlanController.publish(clientId, record, locale)
+  async publishPlan(professional: Pick<CareSession, 'id'>, linkId: string, locale: string | null = null): Promise<SharedPlanView> {
+    return CareController.withClient(professional.id, linkId, 'review', 'write', async (clientId, _access, record) =>
+      withoutPantry(await PlanController.publish(clientId, record, locale))
     );
   },
 

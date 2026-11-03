@@ -8,7 +8,7 @@ import { CareController } from './CareController';
 
 import type { ActiveLink, Roster, RosterLink } from '#repositories/Care';
 import type { CareAccessAction, CareAccessEntry, CareAccessKind, CareLink } from 'core/entities/Care';
-import type { JobView, PlanView } from 'core/controllers/Plan';
+import type { JobView, PlanView, withoutPantry as withoutPantryFn } from 'core/controllers/Plan';
 import type { ProgressSummaryView } from 'core/controllers/Progress';
 import type { RecordAccess } from '#repositories/Care';
 import type { ResolvedTargets } from 'core/domain/Nutrition';
@@ -44,7 +44,7 @@ const roster = vi.fn<(professionalId: string, now: Date) => Promise<Roster>>();
 const accessLog = vi.fn<(clientId: string, limit: number, beforeId: string | null) => Promise<readonly CareAccessEntry[]>>();
 const findProfessional = vi.fn<(userId: string) => Promise<object | null>>();
 const isEnabled = vi.fn<(key: string, fallback: boolean) => Promise<boolean>>();
-const getActivePlan = vi.fn<(userId: string, locale: string | null) => Promise<null>>();
+const getActivePlan = vi.fn<(userId: string, locale: string | null) => Promise<PlanView | null>>();
 const listPlans = vi.fn<(userId: string) => Promise<readonly []>>();
 const summary = vi.fn<(userId: string) => Promise<ProgressSummaryView>>();
 const targets = vi.fn<(userId: string) => Promise<ResolvedTargets | null>>();
@@ -67,7 +67,7 @@ vi.mock('#repositories/Care', () => ({
 }));
 vi.mock('#repositories/Professional', () => ({ ProfessionalRepository: { find: (userId: string) => findProfessional(userId) } }));
 vi.mock('#repositories/Settings', () => ({ SettingsRepository: { isEnabled: (key: string, fallback: boolean) => isEnabled(key, fallback) } }));
-vi.mock('core/controllers/Plan', () => ({
+vi.mock('core/controllers/Plan', async () => ({
   PlanController: {
     getActivePlan: (...args: Parameters<typeof getActivePlan>) => getActivePlan(...args),
     getJob: (...args: Parameters<typeof getJob>) => getJob(...args),
@@ -75,7 +75,10 @@ vi.mock('core/controllers/Plan', () => ({
     listPlans: (userId: string) => listPlans(userId),
     professionalMayGenerate: (userId: string) => professionalMayGenerate(userId),
     publish: (...args: Parameters<typeof publish>) => publish(...args)
-  }
+  },
+  // The real one, not a stub: whether the cupboard's counts cross to a
+  // professional is a thing these cases are about (`legal` P2-9).
+  withoutPantry: (await vi.importActual<{ withoutPantry: typeof withoutPantryFn }>('../Plan/PlanController')).withoutPantry
 }));
 vi.mock('core/controllers/Progress', () => ({ ProgressController: { summary: (userId: string) => summary(userId) } }));
 vi.mock('core/controllers/Profile', () => ({
@@ -632,7 +635,9 @@ describe('CareController.accessLog', () => {
 
 describe('review before publishing (0060)', () => {
   const TX = { transaction: 'the write’s' };
-  const PLAN = { id: 'plan-2', status: 'active' } as PlanView;
+  const PLAN = { id: 'plan-2', pantry: { coveredRows: 19, meals: 54, rows: 105, wholeMeals: 9 }, status: 'active' } as PlanView;
+  /** The same plan as it may cross to a professional: the four pantry counts off it. */
+  const SHARED = { id: 'plan-2', status: 'active' };
   const JOB: JobView = { id: 'job-1', error: null, errorDetail: null, pendingReview: true, planId: 'plan-2', status: 'succeeded', step: 'done' };
   const JOB_ID = '2d3e4f5a-6b7c-4d8e-9f0a-1b2c3d4e5f6a';
   const MEAL_ID = '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f';
@@ -651,6 +656,16 @@ describe('review before publishing (0060)', () => {
     await expect(CareController.pendingPlan(PRO, LINK_ID, 'en-GB')).resolves.toBeNull();
     expect(logAccess).toHaveBeenCalledExactlyOnceWith(CLIENT_ID, reviewRow('read'));
     expect(getPendingPlan).toHaveBeenCalledWith(CLIENT_ID, 'en-GB');
+  });
+
+  it('does not show the professional what the client’s cupboard did', async () => {
+    activeLink.mockResolvedValue(access());
+    getPendingPlan.mockResolvedValue(PLAN);
+
+    // `/privacidad` § «Tu dietista en NutrIA» enumerates what crosses, and four
+    // counts no care screen reads do not join that list by type alias
+    // (`legal` P2-9, and the lead's ruling, 2026-11-03).
+    await expect(CareController.pendingPlan(PRO, LINK_ID)).resolves.toEqual(SHARED);
   });
 
   it('follows a job as the professional, who is handed the plan id; a job id that is not an id is a 404 with no row', async () => {
@@ -673,7 +688,9 @@ describe('review before publishing (0060)', () => {
       return PLAN;
     });
 
-    await expect(CareController.publishPlan(PRO, LINK_ID)).resolves.toBe(PLAN);
+    // The counts are off it here too: publishing is the same boundary read from
+    // the other side.
+    await expect(CareController.publishPlan(PRO, LINK_ID)).resolves.toEqual(SHARED);
     expect(publish).toHaveBeenCalledWith(CLIENT_ID, expect.any(Function), null);
     expect(logAccess).toHaveBeenCalledExactlyOnceWith(CLIENT_ID, reviewRow('write'), TX);
 
@@ -773,5 +790,17 @@ describe('CareController.generatePlan — only when there is a reason (0060)', (
 
     expect(start).not.toHaveBeenCalled();
     expect(logAccess).not.toHaveBeenCalled();
+  });
+});
+
+describe('what the client’s plan carries across the care boundary (legal P2-9)', () => {
+  it('leaves the cupboard’s counts off the client page’s plan', async () => {
+    activeLink.mockResolvedValue(access());
+    getActivePlan.mockResolvedValue({ id: 'plan-3', pantry: { coveredRows: 19, meals: 54, rows: 105, wholeMeals: 9 }, status: 'active' } as PlanView);
+
+    const page = await CareController.overview(PRO, LINK_ID);
+
+    expect(page.plan).toEqual({ id: 'plan-3', status: 'active' });
+    expect(JSON.stringify(page)).not.toContain('coveredRows');
   });
 });

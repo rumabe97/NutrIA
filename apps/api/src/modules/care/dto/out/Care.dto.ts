@@ -1,4 +1,4 @@
-import type { JobView, MealDetailView, PlanView } from 'core/controllers/Plan';
+import type { JobView, MealDetailView, SharedPlanView } from 'core/controllers/Plan';
 import type {
   CareAccessPageView,
   CareClientLinkView,
@@ -41,8 +41,16 @@ export type CareClientTargetsDto = ResolvedTargets;
 /** A link as its professional sees it, after turning review on or off (`0060`). */
 export type CareClientLinkDto = CareClientLinkView;
 
-/** A client's plan as their professional reviews or publishes it: the same shape `GET /meal-plans/:id` answers. */
-export type CareClientPlanDto = PlanView;
+/**
+ * A client's plan as their professional reviews or publishes it: the shape
+ * `GET /meal-plans/:id` answers **without** what the client's cupboard did.
+ *
+ * `SharedPlanView` and not `PlanView`, which is a decision and no longer an
+ * alias (`legal` P2-9, 2026-11-03): the four pantry counts are harmless and no
+ * care screen reads them, so they do not cross a boundary `/privacidad`
+ * enumerates.
+ */
+export type CareClientPlanDto = SharedPlanView;
 
 /** One of the client's generations; `planId` is carried while the plan waits for review. */
 export type CareClientJobDto = JobView;

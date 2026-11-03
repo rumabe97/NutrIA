@@ -21,6 +21,7 @@ import { database } from 'database';
 import { MAX_PANTRY_ITEMS } from 'core/entities/Pantry';
 import { PlanJobController } from 'core/controllers/Plan';
 import { rangeQuantity } from 'core/domain/ShoppingList';
+import { toDry } from 'core/domain/Yield';
 
 import type { Account } from './harness.js';
 import type { INestApplication } from '@nestjs/common';
@@ -176,6 +177,20 @@ const WITHOUT_AMOUNT = 40;
  * criterion 4's sentence reads.
  */
 type Cupboard = {
+  /**
+   * The foods a cupboard can only reach **through what they are bought as**
+   * (project 022 phase 3a, step 0): a plate carries `arroz-blanco-cocido` and
+   * the list buys `arroz-largo-crudo` (`0078`), so the dry food is a row of the
+   * shop and never a slug on a plate, while the cooked one is the other way
+   * about — and `withoutAmount` below, which is the intersection of the two
+   * sides, therefore holds neither.
+   *
+   * Without these entries the cupboard this suite types cannot tell the mapped
+   * rule from the raw one, and the `wholeMeals` recomputed here would agree with
+   * the product's by luck. Each one is the **dry** food, which is what somebody
+   * owns and what a shopping row is named after.
+   */
+  readonly mappedOnly: readonly string[];
   /** The one entry with an amount under its row's need. */
   readonly part: string;
   /** The one entry with an amount far above it. */
@@ -183,6 +198,9 @@ type Cupboard = {
   /** Everything named with no amount at all, most-cooked-with first. */
   readonly withoutAmount: readonly string[];
 };
+
+/** How many mapped-only foods the cupboard names — enough for a whole plate to be reachable, well inside the sixty with the forty above. */
+const MAPPED_ONLY = 10;
 
 function cupboardFrom(rows: ReadonlyMap<string, SluggedRow>, plates: ReadonlyMap<string, readonly string[]>): Cupboard {
   const uses = new Map<string, number>();
@@ -209,7 +227,42 @@ function cupboardFrom(rows: ReadonlyMap<string, SluggedRow>, plates: ReadonlyMap
     );
   }
 
-  return { part, plenty, withoutAmount: coverable.filter(slug => slug !== part && slug !== plenty).slice(0, WITHOUT_AMOUNT) };
+  // Cooked on a plate, bought as something else, and that something else is a
+  // row of this fortnight's shop: the three conditions that make a cupboard
+  // entry reachable **only** through the mapping. Most-cooked-with first, as
+  // above, so the plates it can wholly cover are the likeliest ones.
+  const mappedOnly = [...uses.keys()]
+    .filter(slug => !rows.has(slug))
+    .map(slug => toDry(slug, 0)?.drySlug)
+    .filter((dry): dry is string => dry !== undefined && dry !== null && rows.has(dry) && !uses.has(dry));
+
+  return {
+    mappedOnly: [...new Set(mappedOnly)].slice(0, MAPPED_ONLY),
+    part,
+    plenty,
+    withoutAmount: coverable.filter(slug => slug !== part && slug !== plenty).slice(0, WITHOUT_AMOUNT)
+  };
+}
+
+/**
+ * Whether a cupboard holds what this plate's ingredient is **bought** as —
+ * `pantryPlates`'s own `held` (`core/domain/ShoppingList`), and the rule phase
+ * 3a's step 0 replaced `pantry.has(item.slug)` with.
+ *
+ * Written out here rather than imported, for the reason every recomputation in
+ * this file is: a test that asked the product for the rule it is checking would
+ * stay green with the rule reverted. Both null arms are real and distinct —
+ * `toDry` answers `undefined` for a food that is not cooked at all, and
+ * `drySlug: null` for one with no dry row (`pasta-cocida`, bought *"en seco"*).
+ */
+function heldAsBought(slug: string, pantry: ReadonlyMap<string, number | null>): boolean {
+  if (pantry.has(slug)) {
+    return true;
+  }
+
+  const dry = toDry(slug, 0)?.drySlug;
+
+  return dry !== undefined && dry !== null && pantry.has(dry);
 }
 
 type Sql = <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]>;
@@ -445,7 +498,7 @@ describe('plan generation', () => {
       select ingredient_names.name, ingredients.slug
       from ingredients
       join ingredient_names on ingredient_names.ingredient_id = ingredients.id and ingredient_names.locale = 'es-ES'
-      where ingredients.slug = any(${[cupboard.part, cupboard.plenty, ...cupboard.withoutAmount]})`;
+      where ingredients.slug = any(${[cupboard.part, cupboard.plenty, ...cupboard.withoutAmount, ...cupboard.mappedOnly]})`;
     const nameOf = new Map(names.map(row => [row.slug, row.name]));
     const standing = new Map<string, number | null>();
 
@@ -474,6 +527,30 @@ describe('plan generation', () => {
       }
 
       standing.set(slug, grams);
+    }
+
+    // The dry foods whose plates carry the cooked name instead — the entries
+    // step 0's fix exists for, and the ones `cupboard.withoutAmount` cannot
+    // contain by construction. Load-bearing like the two above: a cupboard that
+    // held none of them would leave the mapped rule and the raw one
+    // indistinguishable, so a word of theirs that resolved elsewhere stops the
+    // suite instead of leaving a case proving nothing.
+    for (const slug of cupboard.mappedOnly) {
+      const label = nameOf.get(slug);
+
+      if (label === undefined || !(await type(label, slug))) {
+        throw new Error(
+          `«${label ?? slug}» did not resolve to ${slug}, so no plate of this fortnight is reachable only through what it is bought as`
+        );
+      }
+
+      standing.set(slug, null);
+    }
+
+    if (cupboard.mappedOnly.length === 0) {
+      throw new Error(
+        'This fortnight cooks nothing that is bought as something else, so the dual mapping has nothing to reach and `wholeMeals` cannot be told from its old rule'
+      );
     }
 
     expect((await addPantry(alice, { label: UNRESOLVABLE })).status).toBe(201);
@@ -782,7 +859,14 @@ describe('plan generation', () => {
 
     it('counts a plate cooked only from what was already in the house, as phase 0 counted it (criterion 4)', async () => {
       const plates = await mealSlugs(plan.id);
-      const whole = [...plates.values()].filter(slugs => slugs.length > 0 && slugs.every(slug => held.has(slug)));
+      // **What the cupboard holds the plate's ingredient as**, not the slug the
+      // plate carries (phase 3a, step 0): a rice plate carries
+      // `arroz-blanco-cocido` and the cupboard holds `arroz-largo-crudo`, the
+      // row the list buys and the entry a *«tengo arroz»* makes (`0078`). This
+      // assertion compared raw slugs until 2026-11-03, which is the rule the fix
+      // replaced — it agreed with `pantryPlates` only because the cupboard
+      // `cupboardFrom` builds could hold no mapped food at all.
+      const whole = [...plates.values()].filter(slugs => slugs.length > 0 && slugs.every(slug => heldAsBought(slug, held)));
 
       expect(plates.size).toBe(record.meals);
       // Non-vacuous on purpose: the cupboard names the forty things this
@@ -795,6 +879,92 @@ describe('plan generation', () => {
       // `evaluate-plans.mjs`'s own `pantryPlateMetrics.whole`: the number the
       // screen will say is the number the project was priced on.
       expect(record.wholeMeals).toBe(whole.length);
+    });
+
+    /**
+     * The dual mapping, asked of a fortnight this run really generated — and
+     * **what this case can and cannot pin**, said out loud because a reader will
+     * otherwise take it for the pin it is not.
+     *
+     * It can pin that `wholeMeals` is counted under the mapped rule *whenever
+     * the two rules disagree on this fortnight*, and it checks that the cupboard
+     * and the plates can make them disagree at all: the cupboard holds dry foods
+     * whose cooked counterparts are served here, which `cupboard.withoutAmount`
+     * can never contain, and the two rules really do give different answers
+     * about those ingredients.
+     *
+     * It cannot pin the **figure** reliably, and nothing in this file can. A
+     * plate counts as whole only when *every* one of its ingredients is held, a
+     * fortnight of this library serves one or two plates of a mapped grain out
+     * of fifty-four, and those are the library's elaborate dishes — the two this
+     * run served were short of salmon, sesame, teriyaki, edamame, red pepper,
+     * prawns and tamari, none of which a cupboard of forty foods holds. So
+     * `wholeMeals` under the two rules is usually the same number, and a case
+     * that demanded otherwise would be red on most runs for a reason that is not
+     * a defect. The pin on that line lives where it can be held still:
+     * `ShoppingList.test.ts`, where one of step 0's three unit cases fails when
+     * the line is reverted, and `pantry.e2e-spec.ts`, where `cookedWith` on a
+     * mapped food is true **only** through `platesAsBought` and is red end to
+     * end without it.
+     */
+    it('counts the cupboard against what each plate’s food is bought as, on a fortnight that can tell the two rules apart (step 0)', async () => {
+      const plates = await mealSlugs(plan.id);
+      // The cooked foods this fortnight serves that the cupboard holds only the
+      // dry name of: the ingredients the two rules disagree about.
+      const cooked = [...new Set([...plates.values()].flat())].filter(slug => cupboard.mappedOnly.includes(toDry(slug, 0)?.drySlug ?? ''));
+
+      if (cooked.length === 0) {
+        throw new Error(
+          `This fortnight serves nothing the cupboard holds the dry name of, so the two rules cannot differ on any ingredient of it. The cupboard's mapped foods were ${cupboard.mappedOnly.join(', ')}`
+        );
+      }
+
+      // Each half read rather than assumed: the dry food is in the cupboard,
+      // the cooked one is not, and the raw rule therefore says no about an
+      // ingredient the mapped rule says yes about.
+      expect(cupboard.mappedOnly.every(slug => held.has(slug))).toBe(true);
+      expect(cooked.filter(slug => held.has(slug))).toEqual([]);
+      expect(cooked.filter(slug => heldAsBought(slug, held))).toEqual(cooked);
+
+      const over = (rule: (slug: string) => boolean) => [...plates.values()].filter(slugs => slugs.length > 0 && slugs.every(rule)).length;
+      // The rule before the fix: the plate's own slug and nothing else.
+      const raw = over(slug => held.has(slug));
+      const mapped = over(slug => heldAsBought(slug, held));
+
+      // The recorded figure is the mapped count, which is the same as the raw
+      // one on a fortnight where no plate of a mapped grain happens to be
+      // wholly covered — and strictly larger on one where it is.
+      expect(record.wholeMeals).toBe(mapped);
+      expect(mapped).toBeGreaterThanOrEqual(raw);
+    });
+
+    it('carries the four counts on the plan the web reads, and the same on a read by id (phase 3a, step 3)', async () => {
+      const figures = { coveredRows: record.coveredRows, meals: record.meals, rows: record.rows, wholeMeals: record.wholeMeals };
+      const read: Response = await request(httpServer(app)).get(`/${PREFIX}/meal-plans/${plan.id}`).set('Cookie', alice.cookie).expect(200);
+
+      // The counts and **nothing else**: `asked` and `unresolved` stay in the
+      // column, because the slugs somebody was asked about have no reason to
+      // leave the product and a screen can say nothing truthful with them
+      // (criterion 7).
+      expect((await active(alice)).pantry).toEqual(figures);
+      expect((read.body as PlanView).pantry).toEqual(figures);
+
+      // Said once more off the response's own bytes: no word, no slug, nowhere.
+      for (const word of ['zzxqv', 'plutonia', ...cupboard.mappedOnly]) {
+        expect({ found: read.text.includes(word), word }).toEqual({ found: false, word });
+      }
+    });
+
+    it('says null on the plan of a fortnight nobody told anything to, and not a row of zeroes (criterion 10)', async () => {
+      // `null` and not `{ coveredRows: 0, … }`: a plan told about nothing and a
+      // plan whose cupboard covered nothing are different facts, and the
+      // sentence phase 3b writes may only be said about the second. The key is
+      // **there**, because this reader owns the plan — an absent key is the
+      // other answer, the one a dietitian gets.
+      const carols = await active(carol);
+
+      expect(carols.pantry).toBeNull();
+      expect('pantry' in carols).toBe(true);
     });
 
     it('spends the cupboard once the plan is saved', async () => {

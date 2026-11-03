@@ -12,8 +12,9 @@
   Execution starts at phase 0, which writes no product code.
 - **Type**: standard
 - **PRD**: [`./PRD.md`](./PRD.md). Criterion coverage: 1 → phase 0; 2 → phases 0 and 4; 3 →
-  phases 0 and 4; 4 → phase 4; 5 → phases 2 and 3; 6 → phases 1 and 2; 7 → phases 1 and 3;
-  8 → phases 1, 3 and 4; 9 → phase 3; 10 → phase 3; 11 → phases 0 and 1; 12 → phase 5.
+  phases 0 and 4; 4 → phase 4; 5 → phases 2 and 3b; 6 → phases 1 and 2; 7 → phases 1, 3a and
+  3b; 8 → phases 1, 3a, 3b and 4; 9 → phase 3b; 10 → phase 3b; 11 → phases 0 and 1; 12 → phases
+  3a and 5 (3a makes the two halves distinguishable, 5 aggregates them).
 - **Routing profile**: `tiered` (`AGENTS.md` § Model routing) — planning and review opus @
   high, implementation opus @ medium, mechanical sonnet. **Two deviations, each justified in
   its phase**: phase 1's migration review is opus @ high (the standing floor for a migration,
@@ -255,24 +256,85 @@ and it would re-open a published privacy boundary for it.
   pnpm --filter api test:e2e test/generation.e2e-spec.ts test/pantry.e2e-spec.ts
   ```
 
-### Phase 3 — The screen, and the sentence it is allowed to say
+### Phase 3a — The seams the screen needs
 
-- **Step 0, added 2026-10-26 from phase 2's finding**: close the `wholeMeals` undercount **before
-  any sentence is written**. A plate carries a cooked slug and no cupboard holds one, so a rice,
-  pasta or dry-pulse meal is never counted as cooked from the house — while the list, which buys a
-  cooked grain dry (`0078`), *is* pre-bought correctly, so `coveredRows` is unaffected. Map with
-  `toDry(item.slug, 0)?.drySlug ?? item.slug` in `pantryPlates`, in
-  `apps/api/scripts/evaluate-plans.mjs`'s `pantryPlateMetrics.whole` and in the e2e case
-  **together**, then **re-run phase 0's cohort** so the figure the screen quotes is measured. Phase
-  0's own *≈9 of 54* was measured with the same gap and is replaced by whatever the re-run says.
-  **The `??` is load-bearing**: `drySlug` is `string | null` (`domain/Yield/Yield.ts:42`), because a
-  cooked food whose dry counterpart the catalogue does not hold goes on a row of its own
-  *"(en seco)"* — so a bare `toDry(...)?.drySlug` would drop exactly those plates instead of
-  counting them.
-  See `LOG.md`, phase 2, § *The finding phase 2 leaves open*.
+**Amended 2026-11-03, before execution.** Phase 3 was one phase dispatched to `frontend` over
+`apps/web` alone. Three of its four steps turned out to have nothing to read: `generationMetadata`
+reaches no DTO the web calls (`kitchenShare` is stored and never surfaced, and `fixedMealsOf` is
+the only reader of that column anywhere), `PantryEntryView` carries no *"the library cooks nothing
+with this"* field — `slug: null` says something else, and PRD 12 counts the two separately — and
+there is no route that lists the catalogue, so a picker has nothing to pick from. So the phase is
+two: the seams, then the screen. One phase, one pull request, twice.
+
+- **Step 0, added 2026-10-26 from phase 2's finding, DONE 2026-11-03**: the `wholeMeals` undercount
+  is closed in `pantryPlates` (`held`, which matches the plate's own slug **or** its dry
+  counterpart) and in `apps/api/scripts/evaluate-plans.mjs` (`pantryPlateMetrics`, both `uses` and
+  `whole`). The third location, the e2e case, is step 4 below, because it is `apps/api/test` and
+  `tests` owns it. **Phase 0's figures stand and are not replaced**: the re-run over `despensa-30`
+  came back byte-identical, and the reason is structural, not a cohort accident — see `LOG.md`,
+  phase 3a, § *Step 0*. The `??` was load-bearing exactly as written: `drySlug` is nullable.
+
+- [x] done
+- **Dispatch**: `backend` for steps 1–3, `tests` for step 4. Neither ships without the other:
+  the screen is phase 3b and reads all three.
+- **Goal**: the three facts the screen must say are readable on routes the web already calls, and
+  nothing about what a cupboard *does* changes.
+- **Scope**: `packages/core/src/controllers/{Pantry,Plan}/**`, `packages/core/src/domain/Pantry/**`,
+  `packages/core/src/repositories/{Pantry,Recipe,Safety}/**`,
+  `apps/api/src/modules/profiles/**`, `apps/api/src/modules/meal-plans/dto/out/**`,
+  `apps/api/test/{generation,pantry}.e2e-spec.ts`.
+- **Steps**:
+  1. **`POST /pantry/catalogue`, the word in the body** — what the picker offers, so that a
+     screen never has to invent a food's name. **Not a `GET` with `?q=`**, which was this step's
+     first shape: *Search Params* is a recorded field of every Vercel runtime log entry, the live
+     `/privacidad` promises *«Los registros del servidor y de errores no guardan lo que escribes»*,
+     and `0100` chose a `POST` for `/fixed-meals/not-offered` in exactly those words. `legal`'s
+     P1-1 of 2026-11-03 (`docs/legal/pantry.md`), relayed to the implementer before the route
+     existed. At most **50** rows, each `{ cookedWith, name, slug }`, ordered by how
+     many of the library's plates cook it and then by name; with no `q`, the top 50. Matching is
+     `resolvePantryLabel`'s own index (`toMatchIndex` over `ingredient_names` plus the slug), so
+     **what the picker finds is exactly what an add resolves to** — a picker that offers a word
+     the resolver then misses is the one failure this route exists to prevent, and a spec pins it.
+     The whole catalogue is offered and not only what the library cooks with: a cupboard holds
+     what it holds, and an entry we cook nothing with is the honest answer PRD 12 aggregates.
+  2. **`cookedWith` on `PantryEntryView`** — whether the library plates this entry's food,
+     **through the same dual mapping as `held`**: a cupboard's *«arroz»* resolves to
+     `arroz-largo-crudo`, which no plate carries and 28 plates reach through
+     `arroz-blanco-cocido`, so asking only about the resolved slug would tell somebody
+     *«todavía no cocinamos nada con esto»* about the rice we cook most. One repository read of
+     the ingredient ids the library uses, mapped through `COOKED_YIELDS`, shared with step 1's
+     ordering.
+     **But `arroz-largo-crudo` is a trap as the example to build a test on** (`tests`, 2026-11-03):
+     it is an ingredient of the `arroz-blanco` and `arroz-rojo` accompaniments
+     (`Accompaniment.ts:457`, `:495`), so the side floor answers `cookedWith: true` for it whatever
+     the plate counts say, and a case built on it passes with the mapping reverted — green for the
+     wrong reason. The food that pins the mapping is one plated **only** under its cooked name and
+     **not** a side; the suite picks it at run time. Do not reinstate the weaker case.
+  3. **The measured figures, on the plan the web reads.** `PlanController.pantryOf(userId, planId)`
+     in `fixedMealsOf`'s shape — parsed defensively out of `generationMetadata`, `null` for a plan
+     that recorded none — surfaced as `pantry: { coveredRows, meals, rows, wholeMeals } | null` on
+     the DTO behind `/meal-plans/active`. **No label and no slug**: counts only, so criterion 7
+     needs no new exception and `health-boundary.spec.ts` is untouched.
+  4. **The e2e case, step 0's third location** (`tests`): `generation.e2e-spec.ts`'s recomputation
+     of `whole` compares raw plate slugs, which is the rule the fix replaced, so it must recompute
+     the same way `pantryPlates` now does — and gains a case where a plate is reached **only**
+     through the mapping, so the fix is pinned by a test that fails without it. Cases for 1–3 in
+     `pantry.e2e-spec.ts`: the picker's answer resolves on add, an entry nothing is cooked with
+     comes back `cookedWith: false` and stays, and the figures are on the plan after a generation.
+- **Acceptance criteria**: PRD 7 (only slugs and counts leave the product; nothing hand-written),
+  PRD 8 (nothing here is a restriction, and `cookedWith` removes no dish), and PRD 12's two halves
+  stay distinguishable — unresolved is `slug: null`, uncooked-with is `cookedWith: false`.
+- **Verification**:
+  ```bash
+  pnpm --filter core build
+  pnpm turbo lint ts:check test --filter=core --filter=api
+  pnpm --filter api test:e2e test/generation.e2e-spec.ts test/pantry.e2e-spec.ts
+  ```
+
+### Phase 3b — The screen, and the sentence it is allowed to say
 
 - [ ] pending
-- **Dispatch**: `frontend` — `/execute-project 022 phase 3`. `legal` reviews **before** it ships
+- **Dispatch**: `frontend`. `legal` answers its four questions **before** this ships
   (**owner-approves**: its findings), `accessibility` reviews the picker, and
   **human-verify**: the owner opens it on his iPhone.
 - **Goal**: somebody can say what is in the house, is told the truth before committing, and is
@@ -281,22 +343,26 @@ and it would re-open a published privacy boundary for it.
   `apps/web/src/i18n/dictionaries/**`, `packages/ui` if a control is missing.
 - **Steps**:
   1. The picker over the catalogue on the generation path (`GenerationProgress.tsx:114` is where
-     a fortnight is asked for today) — **never a free-text box**: `/privacidad` allows exactly
-     one hand-written exception and `0100` is it.
-  2. The honest sentence before anybody commits, with the ~100-ingredient fact in it, and the
-     verb **`aprovechar`** — never *«a partir de»*. No count promised before generation.
-  3. Per entry, when nothing in the library cooks it: *«Todavía no cocinamos nada con esto»*, and
-     it **stays** in the list.
-  4. After the plan exists, the one measured sentence, read from phase 2's stored figures.
+     a fortnight is asked for today) — **never a free-text box**: what somebody types filters
+     phase 3a's `POST /pantry/catalogue`, and what is sent is a row the catalogue answered —
+     **the `name` it was given, unmodified**, which is the string the resolver re-answers.
+     `/privacidad` allows exactly one hand-written exception and `0100` is it.
+  2. The honest sentence before anybody commits, with the ~100-ingredient fact in it (a
+     fortnight needs **90–120 distinct ingredients**, PRD § *Problem*), and the verb
+     **`aprovechar`** — never *«a partir de»*. No count promised before generation.
+  3. Per entry, when nothing in the library cooks it — `slug: null` or `cookedWith: false`:
+     *«Todavía no cocinamos nada con esto»*, and it **stays** in the list.
+  4. After the plan exists, the one measured sentence, read from `pantry` on the plan and never
+     recomputed. `null` means nobody was told anything and the sentence is not said at all.
   5. `legal`'s four questions answered in `docs/legal/` before this ships: the picker against
      `/privacidad`, retention and the DSAR export of a spent draft, that sending only slugs
      leaves `0100`'s boundary intact so no consent version moves, and that a pantry entry can
      never be read as an intolerance or a diet.
 - **Acceptance criteria**: PRD 9 (legal reviewed and answered), PRD 10 (the screen says the
-  honest thing, reviewed with `apple-web-design`, P0 and P1 fixed, looked at with
-  `/local-probe` at 320/390/1280 in both appearances and **both languages**), PRD 7 and 8 again
-  at the surface: nothing typed is sent anywhere, and no wording invites somebody to declare a
-  restriction here.
+  honest thing, **exactly one number** and only after the plan exists, reviewed with
+  `apple-web-design`, P0 and P1 fixed, looked at with `/local-probe` at 320/390/1280 in both
+  appearances and **both languages**), PRD 7 and 8 again at the surface: nothing typed is sent
+  anywhere, and no wording invites somebody to declare a restriction here.
 - **Verification**:
   ```bash
   pnpm turbo lint ts:check test --filter=web --filter=ui
@@ -364,8 +430,17 @@ and it would re-open a published privacy boundary for it.
   `apps/api/src/modules/admin/**`.
 - **Steps**:
   1. Aggregate counts only — how many accounts named a thing, never which account named it.
+     **`legal`'s P2-6 (2026-11-03) adds two conditions**: a word the catalogue could not answer is
+     shown only above a **threshold of two accounts** and never verbatim from one, which is
+     `0028`'s *"a screen that cannot read anyone"* held to; and if any such word is ever shown,
+     `/privacidad`'s *«Lo que nos escribes»* bullet gains it, because the owner reading words
+     people typed is a disclosure of a different kind from a model never seeing them.
   2. Two groups, because the answer differs: *not in the catalogue* (add an ingredient) and *in
-     the catalogue but in no recipe* (513 of 930 today — write dishes).
+     the catalogue but in no recipe* (513 of 930 today — write dishes). **The first group may be
+     empty, and that is the picker working**: phase 3b picks from the catalogue, so from the
+     screen every entry resolves and `slug: null` cannot arise — the group survives for entries
+     that reached the route another way, and this phase reports it at whatever size it has rather
+     than inventing a free-text box to fill it (`legal`'s P2-6, same date).
 - **Acceptance criteria**: PRD 12. The page shows no personal data and no label traceable to one
   person.
 - **Verification**:

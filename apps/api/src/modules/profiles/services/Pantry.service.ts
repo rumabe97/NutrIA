@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { PantryController } from 'core/controllers/Pantry';
 
 import type { AddPantryItemDto } from '../dto/in/index.js';
-import type { PantryDto } from '../dto/out/index.js';
+import type { PantryCatalogueDto, PantryDto } from '../dto/out/index.js';
 
 /**
  * The cupboard's one seam onto `packages/core`.
@@ -17,6 +17,10 @@ import type { PantryDto } from '../dto/out/index.js';
 export class PantryService {
   async add(userId: string, body: AddPantryItemDto): Promise<PantryDto> {
     return PantryController.add(userId, body);
+  }
+
+  async catalogue(userId: string, query: string | null, locale: string | null): Promise<PantryCatalogueDto> {
+    return PantryController.catalogue(userId, query, locale);
   }
 
   async clear(userId: string): Promise<PantryDto> {

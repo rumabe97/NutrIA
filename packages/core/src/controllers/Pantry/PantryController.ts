@@ -1,7 +1,9 @@
+import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { InputParseError, NotFoundError } from 'core/entities/Error';
 import { MAX_PANTRY_ITEMS } from 'core/entities/Pantry';
-import { pantryKey, resolvePantryLabel } from 'core/domain/Pantry';
+import { cookedWith, pantryCatalogueMatches, pantryKey, platesAsBought, resolvePantryLabel } from 'core/domain/Pantry';
 import { PantryRepository } from '#repositories/Pantry';
+import { ProfileRepository } from '#repositories/Profile';
 import { SafetyRepository } from '#repositories/Safety';
 
 import type { AddPantryItem, PantryItem } from 'core/entities/Pantry';
@@ -26,11 +28,47 @@ import type { MeasurementUnit } from 'core/entities/Plan';
  */
 export interface PantryEntryView {
   readonly id: string;
+  /**
+   * Whether the library plates this entry's food (project 022 phase 3a).
+   *
+   * **A different fact from `slug: null`, and PRD 12 counts the two apart**: a
+   * null slug is *"the catalogue has no such food"*, this is *"it has it and no
+   * dish cooks it"* — the first is an ingredient to add, the second a dish to
+   * write, and `/admin` answers them differently. Always false for an entry with
+   * no slug, which has no food to ask about.
+   *
+   * **It is a sentence and never a restriction**: nothing removes the entry,
+   * nothing is shown as refused, and this reaches no `SafetyProfile`, no pool
+   * and no pick (PRD 022, criterion 8). The screen says *«todavía no cocinamos
+   * nada con esto»* and the entry **stays**.
+   *
+   * Read through `platesAsBought`'s dual mapping, so a cupboard of *«arroz»* —
+   * `arroz-largo-crudo`, which no plate carries — is told the truth about the
+   * 28 plates that cook it as `arroz-blanco-cocido`. **A food the library only
+   * ever serves beside a plate counts too** (`domain/Pantry`'s `cookedWith`):
+   * bread, oil, salt and a yoghurt are served every week and listed by almost
+   * no recipe.
+   */
+  readonly cookedWith: boolean;
   readonly grams: number | null;
   readonly label: string;
   /** Null for an entry the catalogue has no answer for. Kept, never dropped, never guessed. */
   readonly slug: string | null;
   readonly unit: MeasurementUnit | null;
+}
+
+/**
+ * One food the picker may offer, which is one food an add will land on.
+ *
+ * **No id and no amount.** The id is the catalogue's own key and the body of
+ * `POST /pantry` deliberately takes neither it nor a slug (`AddPantryItem.dto`):
+ * a screen sends back the `name` it was given, the resolver answers it in code,
+ * and what the entry *is* is never decided by something a request carried.
+ */
+export interface PantryCatalogueFoodView {
+  readonly cookedWith: boolean;
+  readonly name: string;
+  readonly slug: string;
 }
 
 /**
@@ -43,20 +81,26 @@ export interface PantryView {
   readonly maxItems: number;
 }
 
+/**
+ * How many foods a picker is handed at once.
+ *
+ * Fifty rather than everything: nine hundred rows is not a list anybody reads,
+ * and a picker's answer is a shortlist to choose from, not the catalogue. It
+ * bounds the response for a typed word and for no word alike, so there is one
+ * size of answer and not two.
+ */
+export const PANTRY_CATALOGUE_PAGE = 50;
+
 // --- Presenters ---------------------------------------------------------------
 
-function presentEntry(item: PantryItem, slugs: ReadonlyMap<string, string>): PantryEntryView {
-  return {
-    id: item.id,
-    grams: item.grams,
-    label: item.label,
-    slug: item.ingredientId === null ? null : (slugs.get(item.ingredientId) ?? null),
-    unit: item.unit
-  };
+function presentEntry(item: PantryItem, slugs: ReadonlyMap<string, string>, plated: ReadonlyMap<string, number>): PantryEntryView {
+  const slug = item.ingredientId === null ? null : (slugs.get(item.ingredientId) ?? null);
+
+  return { id: item.id, cookedWith: slug !== null && cookedWith(slug, plated), grams: item.grams, label: item.label, slug, unit: item.unit };
 }
 
-function presentPantry(items: readonly PantryItem[], slugs: ReadonlyMap<string, string>): PantryView {
-  return { items: items.map(item => presentEntry(item, slugs)), maxItems: MAX_PANTRY_ITEMS };
+function presentPantry(items: readonly PantryItem[], slugs: ReadonlyMap<string, string>, plated: ReadonlyMap<string, number>): PantryView {
+  return { items: items.map(item => presentEntry(item, slugs, plated)), maxItems: MAX_PANTRY_ITEMS };
 }
 
 // --- Controller ---------------------------------------------------------------
@@ -127,7 +171,61 @@ export const PantryController = {
       }
     );
 
-    return presentPantry(items, slugsOf(catalogue));
+    return presentPantry(items, slugsOf(catalogue), await platedFor(items));
+  },
+
+  /**
+   * What the picker offers for a word somebody is typing, at most
+   * `PANTRY_CATALOGUE_PAGE` foods; the most-cooked-with foods of the catalogue
+   * with no word at all.
+   *
+   * **This exists so that what a picker offers is what an add resolves to.** The
+   * rows come out of `resolvePantryLabel`'s own index — every catalogue name in
+   * every locale, plus the slug, plus the curated synonyms and the coarse words
+   * through the resolver itself — so a word the picker answered can never be a
+   * word the resolver then misses, which would be an entry covering no shopping
+   * row and nothing on the screen to say why. A unit spec pins the round trip.
+   *
+   * **The whole catalogue is offered, not only what the library cooks with**: a
+   * cupboard holds what it holds, and a food nothing is cooked with comes back
+   * with `cookedWith: false`, which is the honest answer and the one `/admin`
+   * aggregates into the library's to-do list (PRD 022, criterion 12). Ordering
+   * it by plates first is how the useful rows come up without any row being
+   * withheld — **by plates alone**, so a food the library only serves as a side
+   * is answered honestly (`cookedWith: true`) and still sorts last, because
+   * plates are what say how much of the library a food reaches.
+   *
+   * **The answer is the same for everybody**, and it is never narrowed by
+   * anything on the `SafetyProfile`: a picker that quietly left out somebody's
+   * declared allergens would be performing the inference criterion 8 forbids,
+   * in the catalogue instead of the scheduler, and it would tell them the
+   * catalogue is missing a food we have. Do not add a filter here.
+   *
+   * Not user-scoped in its data — it is the shared catalogue — and the session's
+   * id is taken all the same, for the language to show a name in and because a
+   * route of this product does not read anything without one. The word arrives
+   * in a **body** and not a query string, which is the route's own doc comment's
+   * reasoning (`0100`, and `/privacidad` on what logs keep); `''` and `null` are
+   * the same ask, because that is what a picker sends before anybody has typed.
+   */
+  async catalogue(userId: string, query: string | null, locale: string | null = null): Promise<readonly PantryCatalogueFoodView[]> {
+    // The web app sends the tag it is rendering in, so the profile is read only
+    // for a caller that sent none — `ProfileController.restrictions`' own
+    // cascade, and the same one `PlanController` resolves a plan's language with.
+    const resolved = locale ?? (await ProfileRepository.findByUserId(userId))?.locale ?? FALLBACK_LOCALE;
+    const [named, matchable, plates] = await Promise.all([
+      PantryRepository.listCatalogue(resolved),
+      SafetyRepository.listMatchableIngredients(),
+      RecipeRepository.platesByIngredient()
+    ]);
+    const plated = platesAsBought(plates);
+    const wanted = query === null ? null : pantryCatalogueMatches(query, matchable);
+
+    return named
+      .filter(food => wanted === null || wanted.has(food.id))
+      .map(food => ({ cookedWith: cookedWith(food.slug, plated), name: food.name, slug: food.slug }))
+      .sort(byPlatesThenName(plated, resolved))
+      .slice(0, PANTRY_CATALOGUE_PAGE);
   },
 
   /**
@@ -190,8 +288,9 @@ export const PantryController = {
   /** What this account says is in the house, in the order it was said. One read tells a screen everything. */
   async read(userId: string): Promise<PantryView> {
     const items = await PantryRepository.findByUser(userId);
+    const [slugs, plated] = await Promise.all([slugsFor(items), platedFor(items)]);
 
-    return presentPantry(items, await slugsFor(items));
+    return presentPantry(items, slugs, plated);
   },
 
   /**
@@ -215,6 +314,20 @@ export const PantryController = {
   }
 };
 
+/**
+ * Most-cooked-with first, then the name, collated in the reader's own language —
+ * the shopping list's own ordering rule, for the same reason: a list of food read
+ * by a person is sorted the way their language sorts.
+ *
+ * The slug breaks the last tie, so two foods sharing a name come back in the same
+ * order on every request and a picker does not reshuffle under somebody's hands.
+ */
+function byPlatesThenName(plated: ReadonlyMap<string, number>, locale: string): (a: PantryCatalogueFoodView, b: PantryCatalogueFoodView) => number {
+  const collator = new Intl.Collator(locale);
+
+  return (a, b) => (plated.get(b.slug) ?? 0) - (plated.get(a.slug) ?? 0) || collator.compare(a.name, b.name) || a.slug.localeCompare(b.slug);
+}
+
 /** The catalogue read, skipped entirely for a cupboard with nothing resolved in it. */
 async function slugsFor(items: readonly PantryItem[]): Promise<ReadonlyMap<string, string>> {
   if (!items.some(item => item.ingredientId !== null)) {
@@ -222,6 +335,22 @@ async function slugsFor(items: readonly PantryItem[]): Promise<ReadonlyMap<strin
   }
 
   return slugsOf(await SafetyRepository.listMatchableIngredients());
+}
+
+/**
+ * What the library cooks, as a cupboard names it — skipped for a cupboard with
+ * nothing resolved in it, exactly as the catalogue read above is.
+ *
+ * **One read per answer, never one per entry.** `platesByIngredient` returns the
+ * whole map for that reason, and `platesAsBought` folds the dry/cooked mapping
+ * into it once.
+ */
+async function platedFor(items: readonly PantryItem[]): Promise<ReadonlyMap<string, number>> {
+  if (!items.some(item => item.ingredientId !== null)) {
+    return new Map();
+  }
+
+  return platesAsBought(await RecipeRepository.platesByIngredient());
 }
 
 /**

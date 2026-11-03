@@ -1,16 +1,21 @@
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { aliasedTable, and, asc, eq, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
+import { ingredientNames, ingredients } from 'database/schema/food';
 import { pantryItems } from 'database/schema/pantry';
 
 import { ConflictError, DatabaseOperationError, InputParseError } from 'core/entities/Error';
+import { FALLBACK_LOCALE } from '#repositories/Recipe';
 import { pantryItemSchema } from 'core/entities/Pantry';
 
 import type { PantryItem } from 'core/entities/Pantry';
 
 /** As `KitchenRepository` and `FixedMealRepository`: enough turns at the lock for this account's double submit, retry and burst to each get one. */
 const LOCK_ATTEMPTS = 8;
+
+/** One food of the catalogue as a picker offers it: the id the matcher answers with, the slug an entry keeps, and the name to show. */
+export type PantryCatalogueFood = { readonly id: string; readonly name: string; readonly slug: string };
 
 /** The row a write resolved to, as the caller hands it over — the resolution is the controller's. */
 export type ResolvedPantryEntry = {
@@ -221,6 +226,47 @@ export const PantryRepository = {
       const found = await database().select(COLUMNS).from(pantryItems).where(eq(pantryItems.userId, userId)).orderBy(asc(pantryItems.createdAt));
 
       return found.map(row => parse(row));
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Every food the catalogue holds, with the name to show it by: id, slug and
+   * the name in `locale`, falling back to Spanish and then to the slug.
+   *
+   * **Not user-scoped and not a safety read** — reference data, as
+   * `listAllergens` is. It is the picker's half of the catalogue: the *matching*
+   * half stays `SafetyRepository.listMatchableIngredients`, whose rows are one
+   * per name per locale so that *«broccoli»* and *«brócoli»* reach the same food.
+   * This one is one row per food, because a list offers a thing once.
+   *
+   * **The whole catalogue, with no country filter**, unlike
+   * `RecipeRepository.loadCatalogue` (`0034`): what the picker offers has to be
+   * exactly what `resolvePantryLabel` answers, and that resolver reads the
+   * unfiltered catalogue. A cupboard holds what it holds, and a row this country
+   * does not sell is still a row somebody may already have.
+   *
+   * Leaner than `loadCatalogue` on purpose: a picker needs a name, and loading
+   * macros and allergen links to show one would read the shelf to print a label.
+   *
+   * Mode: one read, two left joins, as `loadCatalogue` resolves the same two
+   * names.
+   */
+  async listCatalogue(locale: string): Promise<readonly PantryCatalogueFood[]> {
+    try {
+      const requested = aliasedTable(ingredientNames, 'requested_name');
+      const fallback = aliasedTable(ingredientNames, 'fallback_name');
+      const rows = await database()
+        .select({ id: ingredients.id, fallbackName: fallback.name, requestedName: requested.name, slug: ingredients.slug })
+        .from(ingredients)
+        .leftJoin(requested, and(eq(requested.ingredientId, ingredients.id), eq(requested.locale, locale)))
+        .leftJoin(fallback, and(eq(fallback.ingredientId, ingredients.id), eq(fallback.locale, FALLBACK_LOCALE)));
+
+      // The slug is the last resort, as it is in `loadCatalogue`: a food with no
+      // name in any locale is a broken seed, and offering "pan-integral" says so
+      // where offering nothing hides it.
+      return rows.map(row => ({ id: row.id, name: row.requestedName ?? row.fallbackName ?? row.slug, slug: row.slug }));
     } catch (error: unknown) {
       throw wrap(error);
     }

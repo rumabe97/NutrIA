@@ -14,7 +14,7 @@
 | --- | --- |
 | Controller (*responsable*) | {name} (see `legalIdentity.ts`) |
 | Processing | (1) meal planning with health and belief data, with generative AI; (2) communicating data to dietitian-nutritionists (project 004) |
-| Version / date | 0.5 draft, 2026-10-16. 0.5 records the kitchen (`0102`, project 021: §§ 1.2 and 1.3) — a closed enum per appliance, optional, no free text, no new recipient, period or art. 9 datum, and no new criterion from the AEPD's list, so nothing is scored again. Previously: 0.4 draft, 2026-10-03 (0.3: 2026-09-28; 0.2: 2026-09-26; 0.1: 2026-09-25). 0.4 records project 011's account measures (phases 1 to 7, in `main`; phase 8, the sign-up that reveals nothing, **unmerged**: PR #217 — true once merged; [`analysis.md` § 4.1 ter](./analysis.md)): R8, R10 and M13, not scored again (011's phase 10 does that); no new health datum, no new criterion from the AEPD's list. 0.3 reviewed the onboarding trim (`0067`, **unmerged**: branch `feat/onboarding-cleanup` — true once merged): §§ 1.2, 1.3, 2, R2, § 6. 0.2 reviewed only the AI processing (`0064`: OpenRouter): §§ 1.3, 1.4, 2, R2, R14, M3, M4, § 5 and § 6 |
+| Version / date | 0.6 draft, 2026-11-03. 0.6 records the cupboard (project 022, phases 1 and 2 in `main`, the screen in phase 3b: §§ 1.2 and 1.3) — an optional list of catalogue foods a person says they already have, spent by the generation that reads it, which reaches no model, changes no pick and adds no recipient, transfer or period of its own, so **nothing is scored again**; it is not an art. 9 datum on the conditional position in [`pantry.md`](./pantry.md) § 5.3, and that condition (no inference, and a screen that invites none) is what § 6 of that document asks the owner to approve. Previously: 0.5 draft, 2026-10-16, which records the kitchen (`0102`, project 021: §§ 1.2 and 1.3) — a closed enum per appliance, optional, no free text, no new recipient, period or art. 9 datum, and no new criterion from the AEPD's list, so nothing is scored again. Previously: 0.4 draft, 2026-10-03 (0.3: 2026-09-28; 0.2: 2026-09-26; 0.1: 2026-09-25). 0.4 records project 011's account measures (phases 1 to 7, in `main`; phase 8, the sign-up that reveals nothing, **unmerged**: PR #217 — true once merged; [`analysis.md` § 4.1 ter](./analysis.md)): R8, R10 and M13, not scored again (011's phase 10 does that); no new health datum, no new criterion from the AEPD's list. 0.3 reviewed the onboarding trim (`0067`, **unmerged**: branch `feat/onboarding-cleanup` — true once merged): §§ 1.2, 1.3, 2, R2, § 6. 0.2 reviewed only the AI processing (`0064`: OpenRouter): §§ 1.3, 1.4, 2, R2, R14, M3, M4, § 5 and § 6 |
 | Approval | pending — the controller's signature and date |
 | DPO (*DPD*) | not appointed (not mandatory: [`analysis.md` § 5.2](./analysis.md#52-dpo--not-mandatory-today)) |
 | Why it is mandatory | The AEPD's list (art. 35.4), criteria 1, 4, 8 and 10; art. 28.2.c LOPDGDD — [`analysis.md` § 5.1](./analysis.md#51-dpia--mandatory) |
@@ -49,6 +49,7 @@
 | Declared health | conditions, medication, supplements | yes (health) |
 | Cooking and food preferences | meal shape, maximum cooking time, cuisines, tastes | no |
 | The kitchen (`0102`, project 021) | for each of ten appliances, "does not have it", "has it" or "would rather cook with it"; a row only for the ones somebody spoke about, no free text | no (an appliance reveals no health, religion or belief) |
+| The cupboard (project 022) | what somebody says is already in the house before a fortnight is generated: a catalogue food, their own word for it, an optional amount and unit; at most sixty, a row only for what they named; and on the plan, the slugs and amounts it was asked with plus five counts | no — **conditionally**, and the condition is the whole of it: a food *can* reveal a state of health by deduction (`leche-sin-lactosa`), so what keeps it outside art. 9 is that nothing infers a restriction from it. The read happens after every pick, so there is no path from it to a dish. [`pantry.md`](./pantry.md) § 5 **[lawyer]** |
 | Use of the plan | meals eaten or skipped, ratings, comments, check-ins | may contain health |
 | The care relationship (004) | the link, the consent version, the access trail | it reveals the person is a dietitian's patient |
 | Professional | registration number, the grant, acceptance of the agreement | no |
@@ -57,7 +58,9 @@
 ### 1.3 Life cycle
 
 1. **Capture**: onboarding and the profile (the user), the invitation (the professional types
-   an address), the check-in and daily ticks (the user), targets and plans (the professional).
+   an address), the check-in and daily ticks (the user), targets and plans (the professional),
+   **the cupboard** before a generation (the user, through a picker over our own catalogue and
+   never a free-text box — project 022, phase 3b).
 2. **Storage**: PostgreSQL on Neon (`eu-central-1`); Neon's restore copy; a manual export on
    the owner's machine.
 3. **Use**: deterministic computation of targets (`packages/core/domain/Nutrition`),
@@ -72,7 +75,11 @@
    that runs the model (after `0064`); to Stripe; to the mail provider; to Sentry (with no
    personal data).
 5. **Deletion**: cascading when the account is deleted; invitations at 14 days; health on
-   withdrawal of consent; no purge for metrics and generation jobs.
+   withdrawal of consent; no purge for metrics and generation jobs; **the cupboard** (project 022)
+   by the generation that reads it — or by the next one, in the two branches where that clear is
+   skipped or fails — or by the person, and what the plan recorded of it with the plan; the one
+   case with no end of its own is a draft nobody ever generates from
+   ([`pantry.md`](./pantry.md) §§ 3.1 and 3.2).
 
 ### 1.4 Assets and processors
 
