@@ -1054,3 +1054,33 @@ nothing about `packages/core`. The changes were cosmetic (Prettier re-wrapped th
 ternary step 0 had left on one line); the gate was then run **again from the top**, as `/ship`
 requires, rather than from the step that failed — which is how `deadcode` and `leaks` got run at
 all, since the first run never reached them.
+
+### CI, and a precondition that could not hold there
+
+The pull request ([#317](https://github.com/rumabe97/NutrIA/pull/317)) was **red on `end-to-end`
+at the first run**, on four cases of `pantry.e2e-spec.ts`'s `cookedWith` group, and the cause was
+the suite and not the product. `lint · types · tests` was green.
+
+The group chooses its three foods from the library the run actually has, which is right — ~1,100
+dishes here against CI's ~90 — but it chose them with a **fatal** precondition: no mapped-only dry
+food, `throw`. On CI there is none (the error printed *«the mapped-only slugs were: none»*; here it
+is `mijo`), and because the throw was in `beforeAll` it took down all four cases, including the two
+that never read that food.
+
+The fix keeps the intent and drops the fatality, for the two preconditions that are facts about the
+dish library:
+
+- **mapped-only dry food** and **side-only accompaniment** are now `Food | undefined`. Each absence
+  records why, and the case that reads it prints that reason and asserts nothing. The dual mapping
+  is pinned where no library is needed — `packages/core`'s `Pantry.test.ts` — and both answers of
+  `cookedWith` are still pinned on CI: `false` on a food no dish cooks, `true` on
+  `arroz-largo-crudo` through the `SERVED_BESIDE` constant.
+- **the food no dish cooks still stops the suite.** The catalogue is seeded by migration and holds
+  930 foods on every machine, so finding none is a defect, not a small library.
+
+Proved both ways before pushing, because a skip path nobody exercises is a skip path that lies:
+with the discovery forced to find nothing — CI's condition, reproduced — **21 passed / 21** with
+both reasons printed; with the real library, **21 passed / 21** and no skip. The rule a future
+agent should not have to rediscover is in `apps/api/test/README.md`'s row for the suite: a
+precondition that is a fact about the **dish library** may not be fatal; one about the
+**catalogue** may.
