@@ -9,7 +9,7 @@ import {
   QuotaExceededError
 } from 'core/entities/Error';
 
-import { PlanController, PlanJobController } from './PlanController';
+import { PlanController, PlanJobController, withoutPantry } from './PlanController';
 
 import type { MealSizeView } from 'core/controllers/Profile';
 import type { personToday } from '../Profile/PersonDay';
@@ -17,6 +17,8 @@ import type { personToday } from '../Profile/PersonDay';
 type Job = { id: string; error: string | null; errorDetail: string | null; planId: string | null; status: string; step: string | null };
 type ChainRow = { id: string; endDate: string; opens?: boolean; redo: boolean; replacedRedos: number; status: string; version: number };
 type Row = { id: string; endDate: string; startDate: string; status: string; version: number };
+/** A plan row as `findById` and `findActive` really return one: whatever `generationMetadata` holds, typed as the column is. */
+type MetadataRow = ChainRow & { generationMetadata?: Record<string, unknown> | null };
 
 const claim = vi.fn<(userId: string, startDate?: string | null) => Promise<Job | undefined>>();
 const activateDue = vi.fn<(userId: string, today: string) => Promise<boolean>>(async () => false);
@@ -27,7 +29,7 @@ const admit = vi.fn<(jobId: string, record: unknown) => Promise<void>>();
 const isPublishable = vi.fn<(userId: string) => Promise<boolean>>();
 const flags = vi.fn<() => Promise<{ premium: boolean; professional: boolean }>>();
 const findJob = vi.fn<(userId: string, jobId: string) => Promise<(Job & { planStatus: string | null }) | undefined>>();
-const findActive = vi.fn<(userId: string) => Promise<ChainRow | undefined>>();
+const findActive = vi.fn<(userId: string) => Promise<MetadataRow | undefined>>();
 const findPending = vi.fn<(userId: string) => Promise<ChainRow | undefined>>();
 const findChain = vi.fn<(userId: string, withPending?: boolean) => Promise<readonly ChainRow[]>>();
 const findHistory = vi.fn<(userId: string, limit: number, offset: number) => Promise<readonly Row[]>>();
@@ -48,7 +50,8 @@ type StoredItem = {
   perDay: Record<string, number> | null;
   totalGrams: string;
 };
-const findById = vi.fn<(userId: string, planId: string) => Promise<ChainRow | undefined>>();
+const findById = vi.fn<(userId: string, planId: string, withPending?: boolean) => Promise<MetadataRow | undefined>>();
+const findDaysWithMeals = vi.fn<(planId: string, locale?: string) => Promise<readonly never[]>>(async () => []);
 const findShoppingList =
   vi.fn<(planId: string, locale?: string) => Promise<{ id: string; items: readonly StoredItem[]; planId: string } | undefined>>();
 const setItemBought = vi.fn<(userId: string, itemId: string, asked: unknown) => Promise<boolean>>();
@@ -68,6 +71,7 @@ vi.mock('#repositories/Plan', () => ({
     findActive: (u: string) => findActive(u),
     findById: (...args: Parameters<typeof findById>) => findById(...args),
     findChain: (...args: Parameters<typeof findChain>) => findChain(...args),
+    findDaysWithMeals: (...args: Parameters<typeof findDaysWithMeals>) => findDaysWithMeals(...args),
     findHistory: (u: string, l: number, o: number) => findHistory(u, l, o),
     findPending: (u: string) => findPending(u),
     findScheduled: (u: string) => findScheduled(u),
@@ -952,5 +956,115 @@ describe('PlanController.setShoppingItemBought — an amount, or the tick it rep
     setItemBought.mockResolvedValue(false);
 
     await expect(PlanController.setShoppingItemBought('usr-1', 'itm-1', { boughtGrams: 1 })).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe('PlanController.pantryOf — what the cupboard did to this fortnight (022 phase 3a)', () => {
+  const PLAN_ID = 'plan-pantry';
+  const FIGURES = { coveredRows: 19, meals: 54, rows: 105, wholeMeals: 9 };
+
+  function recorded(pantry: unknown): MetadataRow {
+    return { id: PLAN_ID, endDate: '2026-11-16', generationMetadata: { pantry }, redo: false, replacedRedos: 0, status: 'active', version: 7 };
+  }
+
+  beforeEach(() => {
+    findById.mockReset();
+    findActive.mockReset();
+    findDaysWithMeals.mockClear();
+    activateDue.mockResolvedValue(false);
+  });
+
+  it('reads the four counts off the plan, as the screen says them and never recomputes them', async () => {
+    findById.mockResolvedValue(recorded({ ...FIGURES, asked: [{ grams: 500, slug: 'arroz-largo-crudo' }], unresolved: 3 }));
+
+    await expect(PlanController.pantryOf('usr-1', PLAN_ID)).resolves.toEqual(FIGURES);
+  });
+
+  it('hands back no slug and no label, whatever the plan recorded beside the counts', async () => {
+    findById.mockResolvedValue(recorded({ ...FIGURES, asked: [{ grams: null, slug: 'arroz-largo-crudo' }], unresolved: 3 }));
+
+    const figures = await PlanController.pantryOf('usr-1', PLAN_ID);
+
+    // `asked` stays in the column: the slugs are the only part of a cupboard
+    // that may leave the product and still have no reason to (PRD 022, 7).
+    expect(JSON.stringify(figures)).not.toContain('arroz');
+    expect(Object.keys(figures ?? {})).toEqual(['coveredRows', 'meals', 'rows', 'wholeMeals']);
+  });
+
+  it('answers null for a plan nobody told anything to, which is not a cupboard that covered nothing', async () => {
+    findById.mockResolvedValue(recorded(null));
+
+    await expect(PlanController.pantryOf('usr-1', PLAN_ID)).resolves.toBeNull();
+  });
+
+  it('answers null for every plan generated before the cupboard existed', async () => {
+    findById.mockResolvedValue({ id: PLAN_ID, endDate: '2026-01-14', redo: false, replacedRedos: 0, status: 'completed', version: 1 });
+
+    await expect(PlanController.pantryOf('usr-1', PLAN_ID)).resolves.toBeNull();
+  });
+
+  it('answers null rather than throwing on a shape the column should not hold', async () => {
+    // That column is `Record<string, unknown>`: nothing in the type system
+    // stands behind it, and a crash here would be a crash on somebody's only
+    // fortnight (`fixedMealsOf`'s own reason).
+    for (const shape of [42, 'none', [], { coveredRows: 19 }, { ...FIGURES, wholeMeals: '9' }, { ...FIGURES, rows: Number.NaN }]) {
+      findById.mockResolvedValue(recorded(shape));
+
+      await expect(PlanController.pantryOf('usr-1', PLAN_ID)).resolves.toBeNull();
+    }
+  });
+
+  it('answers null for a plan of another account, which simply is not found', async () => {
+    findById.mockResolvedValue(undefined);
+
+    await expect(PlanController.pantryOf('usr-1', PLAN_ID)).resolves.toBeNull();
+  });
+
+  it('carries the figures on the active plan the web reads, off the row it already had', async () => {
+    findActive.mockResolvedValue(recorded(FIGURES));
+
+    const plan = await PlanController.getActivePlan('usr-1');
+
+    expect(plan?.pantry).toEqual(FIGURES);
+    // No second read for them: the figures came off `findActive`'s own row.
+    expect(findById).not.toHaveBeenCalled();
+  });
+
+  it('carries null on a plan that recorded nothing, so a screen says the sentence at all', async () => {
+    findActive.mockResolvedValue(recorded(null));
+
+    await expect(PlanController.getActivePlan('usr-1')).resolves.toMatchObject({ pantry: null });
+  });
+});
+
+describe('withoutPantry — what a reader who does not own the plan is shown', () => {
+  const PLAN = {
+    id: 'plan-1',
+    days: [],
+    endDate: '2026-11-16',
+    pantry: { coveredRows: 19, meals: 54, rows: 105, wholeMeals: 9 },
+    startDate: '2026-11-03',
+    status: 'active',
+    strategy: null,
+    version: 7
+  };
+
+  it('removes the key rather than nulling it, because null would say nobody was told anything', async () => {
+    const shared = withoutPantry(PLAN);
+
+    expect('pantry' in shared).toBe(false);
+    // Everything else crosses exactly as it did: this is a field taken off, not
+    // a different plan.
+    expect(Object.keys(shared).sort()).toEqual(['days', 'endDate', 'id', 'startDate', 'status', 'strategy', 'version']);
+    expect(shared.version).toBe(PLAN.version);
+    expect(shared.status).toBe(PLAN.status);
+  });
+
+  it('keeps a null plan null — a client with no plan is not a plan with no cupboard', () => {
+    expect(withoutPantry(null)).toBeNull();
+  });
+
+  it('leaves nothing of the cupboard anywhere in what crosses', () => {
+    expect(JSON.stringify(withoutPantry(PLAN))).not.toContain('pantry');
   });
 });

@@ -1089,6 +1089,13 @@ describe('care', () => {
       await completeOnboarding(app, underWay);
       await completeOnboarding(app, due);
 
+      // A cupboard typed before the fortnight that spends it, so the plan the
+      // professional reads below is one that really did record what somebody
+      // had at home (project 022 phase 3a). Without it `pantry` would be null
+      // on the client's own view too and *«the key is absent»* would be proved
+      // of a plan that had nothing to hide.
+      await request(server()).post(`/${PREFIX}/pantry`).set('Cookie', underWay.cookie).send({ grams: 300, label: 'tomate', unit: 'g' }).expect(201);
+
       for (const who of [underWay, due]) {
         await expect(generateAndWait(app, who)).resolves.toMatchObject({ status: 'succeeded' });
       }
@@ -1299,6 +1306,34 @@ describe('care', () => {
         ]);
         // Overview first, then health — not merely both, in either order.
         expect((written[0]?.createdAt ?? '') <= (written[1]?.createdAt ?? '')).toBe(true);
+      });
+
+      it('shows the professional nothing of what the client’s cupboard did — the key absent, not null (022 phase 3a)', async () => {
+        const read = await overview(readerA, links.underWay ?? '').expect(200);
+        const page = read.body as Overview;
+        const plan = (page.plan ?? {}) as Record<string, unknown>;
+
+        expect(page.plan).not.toBeNull();
+        // **Absent, and that is the assertion.** `null` is the answer for a
+        // fortnight nobody told anything to, and this client told theirs about a
+        // cupboard before it was generated — so `pantry: null` here would be a
+        // false statement made to a dietitian rather than a withheld one, which
+        // is why `toBeNull` would be the wrong check (`legal` P2-9, and the
+        // lead's ruling of 2026-11-03: what crosses to a professional is
+        // enumerated).
+        expect('pantry' in plan).toBe(false);
+        expect(Object.keys(plan)).not.toContain('pantry');
+
+        // And the client's own read of the same plan does carry it, so the
+        // absence above is this boundary's and not a figure nobody records.
+        const own: Response = await request(server()).get(`/${PREFIX}/meal-plans/active`).set('Cookie', underWay.cookie).expect(200);
+
+        expect((own.body as { pantry: unknown }).pantry).toEqual({
+          coveredRows: expect.any(Number),
+          meals: expect.any(Number),
+          rows: expect.any(Number),
+          wholeMeals: expect.any(Number)
+        });
       });
 
       it('carries no client’s account id or address, for any client', async () => {

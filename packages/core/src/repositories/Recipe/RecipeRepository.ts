@@ -932,6 +932,37 @@ export const RecipeRepository = {
     }
   },
 
+  /**
+   * How many of the library's plates cook each food, by the ingredient's slug.
+   *
+   * **One read for two readers** (project 022 phase 3a): it orders what the
+   * cupboard's picker offers, and it answers `cookedWith` on an entry already in
+   * the cupboard. Neither may ask it per entry or ask it twice, which is why it
+   * comes back as the whole map rather than taking a slug.
+   *
+   * Plate counts, not usage: `recipe_ingredients` is unique on
+   * `(recipe_id, ingredient_id)`, so a row is a dish and the count is dishes. The
+   * whole library, user-written dishes included — an aggregate over every recipe
+   * is what *"the library cooks this"* means, and the number never leaves this
+   * package as a figure: it decides an order and a yes/no, both of which an extra
+   * dish can only make more generous.
+   *
+   * Mode: one grouped read over the `recipe_ingredients_ingredient_idx` index.
+   */
+  async platesByIngredient(): Promise<ReadonlyMap<string, number>> {
+    try {
+      const rows = await database()
+        .select({ plates: sql<number>`count(*)::int`, slug: ingredients.slug })
+        .from(recipeIngredients)
+        .innerJoin(ingredients, eq(ingredients.id, recipeIngredients.ingredientId))
+        .groupBy(ingredients.slug);
+
+      return new Map(rows.map(row => [row.slug, Number(row.plates)]));
+    } catch (error: unknown) {
+      throw wrap(error, 'recipe_ingredients');
+    }
+  },
+
   /** Whether a recipe exists. Mode: one read by primary key. */
   async recipeExists(recipeId: string): Promise<boolean> {
     try {

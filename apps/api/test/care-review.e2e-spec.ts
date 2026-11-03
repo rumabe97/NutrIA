@@ -497,6 +497,12 @@ describe('care review', () => {
     beforeAll(async () => {
       first = (await activeOf(lived)) as PlanView;
       expect(first).not.toBeNull();
+
+      // A cupboard typed before the fortnight that will spend it (project 022
+      // phase 3a), so the plan the professional reads and publishes below is one
+      // that really did record what this client had at home: without it the
+      // *«no pantry key»* cases would be proved of a plan with nothing to hide.
+      await request(server()).post(`/${PREFIX}/pantry`).set('Cookie', lived.cookie).send({ grams: 300, label: 'tomate', unit: 'g' }).expect(201);
     });
 
     it('has review on by default, and nothing pending before they ask', async () => {
@@ -528,6 +534,12 @@ describe('care review', () => {
       expect(next.days).toHaveLength(14);
       expect((await planRows(lived.id)).find(row => row.status === 'pending_review')?.id).toBe(next.id);
       expect(await stageOf(proA, links.lived)).toMatchObject({ stage: 'plan_awaiting_review' });
+      // **Without what the client's cupboard did, and the key absent rather than
+      // null** (`CareClientPlanDto` is `SharedPlanView`, project 022 phase 3a):
+      // `null` would say *«nobody told this fortnight anything»* about a
+      // fortnight this client declared a cupboard for, which is a false
+      // statement where absence is a withheld one.
+      expect('pantry' in (next as unknown as Record<string, unknown>)).toBe(false);
 
       // The same job, through the link: the professional is given the plan to open.
       const polled: Response = await jobOf(proA, links.lived, clientJobId).expect(200);
@@ -631,6 +643,9 @@ describe('care review', () => {
         })
       ).resolves.toEqual(['write']);
       expect(published).toMatchObject({ id: next.id, status: 'active' });
+      // The publish answer is the same shared view as the pending read: the
+      // cupboard's counts do not cross on the way back either.
+      expect('pantry' in (published as unknown as Record<string, unknown>)).toBe(false);
 
       const rows = await planRows(lived.id);
 
@@ -639,7 +654,17 @@ describe('care review', () => {
       expect(rows.find(row => row.id === first.id)?.status).toBe('completed');
 
       // The client now lives the new one, by every read, and the old one is history.
-      expect((await activeOf(lived))?.id).toBe(next.id);
+      const lives = await activeOf(lived);
+
+      expect(lives?.id).toBe(next.id);
+      // Their own read of that very plan carries the four counts, so the two
+      // absences above are this boundary's and not a figure nobody records.
+      expect(lives?.pantry).toEqual({
+        coveredRows: expect.any(Number),
+        meals: expect.any(Number),
+        rows: expect.any(Number),
+        wholeMeals: expect.any(Number)
+      });
 
       const list: Response = await shoppingListOf(lived).expect(200);
 

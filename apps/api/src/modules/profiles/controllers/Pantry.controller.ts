@@ -1,11 +1,11 @@
-import { Controller, Delete, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import { AddPantryItemDto } from '../dto/in/index.js';
-import { CurrentUser, ZodBody } from '../../../shared/index.js';
+import { AddPantryItemDto, PantryCatalogueQueryDto } from '../dto/in/index.js';
+import { CurrentUser, Locale, ZodBody } from '../../../shared/index.js';
 import { PantryService } from '../services/index.js';
 
-import type { PantryDto } from '../dto/out/index.js';
+import type { PantryCatalogueDto, PantryDto } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 
 /**
@@ -37,6 +37,45 @@ export class PantryController {
   @Post()
   async add(@CurrentUser() user: SessionUser, @ZodBody(AddPantryItemDto) body: AddPantryItemDto): Promise<PantryDto> {
     return this.pantry.add(user.id, body);
+  }
+
+  @ApiOkResponse({
+    description:
+      'At most fifty foods, each with whether the library cooks anything with it, most-cooked-with first and then by name. The whole catalogue is offered, uncooked-with foods included.'
+  })
+  @ApiOperation({
+    summary:
+      'What the picker may offer for a word being typed; the most-cooked-with foods with no word. Matched by the resolver’s own index, so a food offered here is the food an add lands on.'
+  })
+  /**
+   * **A read sent as a POST, and the reason is the log and not REST.**
+   *
+   * This writes nothing — it answers what the picker may offer — and it is a
+   * `POST` so that the word somebody is typing travels in a body. Vercel's
+   * runtime log records a request's *Search Params* beside its path, which is a
+   * store we cannot redact, while `/privacidad` promises that *«los registros
+   * del servidor y de errores no guardan lo que escribes»*; a picker is typed
+   * into once per keystroke, so `?q=` would keep every word somebody tried,
+   * including the ones they deleted, and some food words (*«leche sin
+   * lactosa»*) can support an inference about health. `0100` made exactly this
+   * choice for `POST /fixed-meals/not-offered`. **Do not turn it back into a
+   * `GET`** without reading that decision and `docs/legal/pantry.md`.
+   *
+   * 200 and not 201: nothing was created.
+   *
+   * The answer is the same for everybody. It is **never** narrowed by anything
+   * on the safety profile — a picker that quietly hid somebody's allergens
+   * would be performing the inference criterion 8 forbids, in the catalogue
+   * instead of the scheduler.
+   */
+  @HttpCode(200)
+  @Post('catalogue')
+  async catalogue(
+    @CurrentUser() user: SessionUser,
+    @Locale() locale: string | null,
+    @ZodBody(PantryCatalogueQueryDto) body: PantryCatalogueQueryDto
+  ): Promise<PantryCatalogueDto> {
+    return this.pantry.catalogue(user.id, body.q, locale);
   }
 
   @ApiOkResponse({ description: 'Emptied. Answers the empty cupboard, and says so for one that was already empty.' })

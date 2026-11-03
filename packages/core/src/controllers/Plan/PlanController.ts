@@ -132,10 +132,56 @@ export interface PlanDayView {
   totals: { carbsG: number; fatG: number; fiberG: number; kcal: number; proteinG: number };
 }
 
+/**
+ * What the cupboard this fortnight was asked with actually did (project 022),
+ * read off the plan and never recomputed.
+ *
+ * **Counts, and nothing else.** No label and no slug: the typed word is the
+ * person's and the plan's own record keeps the slugs it was asked with
+ * (`generationMetadata.pantry.asked`), which stay there and reach no view, no
+ * prompt and no log (PRD 022, criterion 7 — which is why
+ * `health-boundary.spec.ts` needs no new exception for this).
+ *
+ * `null` when the plan recorded nothing, which is a plan **nobody told anything
+ * to** — not a cupboard that covered nothing. The two are different facts and
+ * only the second may be said out loud, so a screen reading `null` says nothing
+ * at all.
+ */
+export interface PlanPantryView {
+  /** Rows the cupboard covered whole — rows nobody has to visit. Of `rows`. */
+  readonly coveredRows: number;
+  /** Plates the fortnight serves. The denominator of `wholeMeals`. */
+  readonly meals: number;
+  /** Rows the fortnight's list had. The denominator of `coveredRows`. */
+  readonly rows: number;
+  /** Plates cooked **only** from the cupboard. Of `meals`. */
+  readonly wholeMeals: number;
+}
+
+/**
+ * A plan as a reader who is **not** its owner sees it: everything the owner's
+ * view carries except what their cupboard did.
+ *
+ * `PlanDto` and `CareClientPlanDto` were both `PlanView`, so a field added for
+ * the web's own plan screen crossed to the dietitian by type alias rather than
+ * by decision (`legal`, P2-9, 2026-11-03; the lead's ruling the same day). The
+ * counts are harmless — four integers about a plan the professional reads in
+ * full, naming no food — and they are kept off that path all the same, because
+ * no care screen reads them and a field that crosses unused is the kind of
+ * thing that is read a year later as *"we show the professional your
+ * cupboard"*. `/privacidad` § *Tu dietista en NutrIA* is an enumeration, and an
+ * enumeration is only true while nothing drifts into it.
+ *
+ * `CARE_CONSENT_VERSION` does not move for it: nothing new crosses.
+ */
+export type SharedPlanView = Omit<PlanView, 'pantry'>;
+
 export interface PlanView {
   id: string;
   days: readonly PlanDayView[];
   endDate: string;
+  /** What the cupboard did to this fortnight, or null for a plan nobody told anything to (project 022 phase 3a). */
+  pantry: PlanPantryView | null;
   startDate: string;
   status: string;
   strategy: NutritionTargets | null;
@@ -909,6 +955,28 @@ export const PlanController = {
   },
 
   /**
+   * What the cupboard did to one plan of theirs, or null (project 022 phase 3a).
+   *
+   * `fixedMealsOf`'s shape, and for its reason: `generationMetadata` is
+   * `Record<string, unknown>` with nothing in the type system behind it, so what
+   * comes out of it is parsed defensively here and a plan that recorded nothing
+   * — every plan generated before phase 2 — answers `null` rather than throwing
+   * or inventing zeroes.
+   *
+   * Owner-scoped by `findById`, with a plan under review included: it is their
+   * own plan either way, and the figures say nothing a review could change. A
+   * plan id from another account is simply not found, which this answers as
+   * `null` — the figures are a property of a plan, so *"no plan"* and *"a plan
+   * that recorded nothing"* are the same answer to a reader who may see
+   * neither.
+   */
+  async pantryOf(userId: string, planId: string): Promise<PlanPantryView | null> {
+    const plan = await PlanRepository.findById(userId, planId, true);
+
+    return pantryFigures(plan?.generationMetadata);
+  },
+
+  /**
    * Whether this reader may open a past fortnight of this account's
    * (`0021` § *Amended*, `Allowance.ts` § *What may be sold*).
    *
@@ -1147,6 +1215,9 @@ function assemble(
       };
     }),
     endDate: plan.endDate,
+    // Off the row this function already holds: no second read, and every plan a
+    // reader can open answers the same way about its own cupboard.
+    pantry: pantryFigures(plan.generationMetadata),
     startDate: plan.startDate,
     status: plan.status,
     strategy: plan.strategy,
@@ -1156,6 +1227,68 @@ function assemble(
 
 function round(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+/**
+ * The same plan with the cupboard's figures taken off it, for a reader who does
+ * not own it.
+ *
+ * The key is **removed and not nulled**: `null` on `pantry` means *"nobody told
+ * this plan anything"*, which would be a false statement to make to a
+ * professional about a fortnight their client may well have declared a cupboard
+ * for. Absent says the only true thing — this reader is not shown it — which is
+ * the shape `CareClientOverviewView.health` already uses for the other datum
+ * that may or may not cross.
+ */
+export function withoutPantry(plan: PlanView): SharedPlanView;
+export function withoutPantry(plan: PlanView | null): SharedPlanView | null;
+
+export function withoutPantry(plan: PlanView | null): SharedPlanView | null {
+  if (plan === null) {
+    return null;
+  }
+
+  const { pantry: _pantry, ...shared } = plan;
+
+  return shared;
+}
+
+/**
+ * The cupboard's four counts out of a plan's `generationMetadata`, or null.
+ *
+ * Defensive for `fixedMealsOf`'s reason and no other: that column is
+ * `Record<string, unknown>` (`entities/Plan/Plan.ts`), so every plan generated
+ * before project 022 phase 2 has nothing under `pantry`, and a plan written by a
+ * version that recorded a different shape must read as *"nothing was recorded"*
+ * rather than as a crash on somebody's only fortnight. **All four or none**: a
+ * sentence quoting three of them and guessing the fourth would be a number the
+ * product never measured.
+ *
+ * **It takes the counts and leaves the rest where it is.** `asked` — the slugs
+ * the generation was told about — and `unresolved` stay in the column and reach
+ * no view: `asked` is the one part of a cupboard that may leave the product and
+ * still has no reason to, and a screen cannot say a truthful thing with it
+ * (PRD 022, criterion 7).
+ */
+function pantryFigures(metadata: Record<string, unknown> | null | undefined): PlanPantryView | null {
+  const recorded = metadata?.['pantry'];
+
+  if (typeof recorded !== 'object' || recorded === null) {
+    return null;
+  }
+
+  const { coveredRows, meals, rows, wholeMeals } = recorded as Partial<Record<keyof PlanPantryView, unknown>>;
+
+  if (!isCount(coveredRows) || !isCount(meals) || !isCount(rows) || !isCount(wholeMeals)) {
+    return null;
+  }
+
+  return { coveredRows, meals, rows, wholeMeals };
+}
+
+/** A count as the column can hold one: a finite number, which `JSON.parse` may also have handed back as a string or a null. */
+function isCount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
 }
 
 /**

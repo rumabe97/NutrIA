@@ -94,3 +94,26 @@ export const addPantryItemSchema = z
   .refine(entry => entry.unit === null || entry.grams !== null, { message: 'A unit needs an amount', path: ['unit'] });
 
 export type AddPantryItem = z.infer<typeof addPantryItemSchema>;
+
+/**
+ * The word a picker is asking about, as the route takes it — **in a body, and
+ * that is a privacy decision rather than a REST one**.
+ *
+ * A search is a read, and a read is a `GET`; this one is a `POST` because
+ * Vercel's runtime log records a request's *Search Params* beside its path,
+ * which is a store we cannot redact, while `/privacidad` promises in so many
+ * words that *«los registros del servidor y de errores no guardan lo que
+ * escribes»*. `0100` made the same choice for `POST /fixed-meals/not-offered`,
+ * a read that is a POST for this reason and no other — and a picker is typed
+ * into once per keystroke, so a query string would keep every word somebody
+ * typed, the deleted ones included. Some of those words (*«leche sin
+ * lactosa»*, *«pan sin gluten»*) can support an inference about health, which
+ * is the last thing that should sit in a third party's log.
+ *
+ * Absent and empty mean the same thing — *"nothing typed yet"* — because that
+ * is what a picker sends before anybody has typed, and the answer to it is the
+ * top of the catalogue rather than an error.
+ */
+export const pantryCatalogueQuerySchema = z.object({ q: z.string().trim().max(MAX_PANTRY_LABEL_LENGTH).default('') });
+
+export type PantryCatalogueQuery = z.infer<typeof pantryCatalogueQuerySchema>;

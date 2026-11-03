@@ -645,3 +645,442 @@ cohort so the number the screen says is measured again.
   marked superseded.
 - **Nothing reads the pantry before the plan is picked, and phase 3 must not change that.** The
   screen says what the generation already did; it does not ask the cupboard anything new.
+
+## Phase 3a — The seams the screen needs (2026-11-03)
+
+- **Executor**: step 0 **directly, opus @ medium, from the main checkout** — it is `packages/core`
+  and a script, not frontend work, and it had to be true before anybody wrote a sentence. Steps
+  1–3 by **`backend`**, step 4 by **`tests`** (`ownership.json` keeps `apps/api/test/` out of
+  `backend`, which phase 1 learned the hard way).
+- **Result**: **done** — gate green on its second run (see § *The gate* below).
+- **Scope held**: `domain/ShoppingList` and its spec, `apps/api/scripts/evaluate-plans.mjs`. No
+  screen, no route and no stored shape changed by step 0.
+
+### Step 0 — the `wholeMeals` undercount, closed; and phase 0's figures stand
+
+`pantryPlates` asks a private `held(slug, pantry)` instead of `pantry.has(item.slug)`: the
+cupboard holds the plate's own slug **or** the dry food that plate is bought as
+(`toDry(slug, 0)?.drySlug`, nullable, so a cooked food with no dry row keeps its own *"(en seco)"*
+name instead of being dropped). The same function went into `evaluate-plans.mjs`'s
+`pantryPlateMetrics`. 68 unit tests pass; of the three added, **one fails when the line is
+reverted**, which is how it was proved to be load-bearing rather than decorative.
+
+**Phase 0's *≈9 of 54* needs no replacing.** The cohort re-run — `despensa-30`, `--rotate 8`
+`--flag accompaniments` `--pantry-share 0`, 14 profiles × 8 seeds = 112 fortnights — came back
+**byte-identical** to the same cohort measured before the fix: 13,830 rows (12,189 of them real
+food), 2,815 rows held (20%) and 2,089 of the real-food ones (17%); 5,301 plates of 6,048 (88%)
+using something of the cupboard, 5,043 (83%) using something that is not a seasoning, and **956
+(16%) cooked only from it — 8.5 of the 54 plates of a fortnight**. No slot under 19, no narrowed
+fortnight.
+
+That is structural and not a seed accident, and the two measurements that say so cost seconds
+rather than a cohort. First, which cooked foods this library actually plates, and what each is
+bought as — **over the library's 1,685 recipes and their 10,131 ingredient rows**. Both queries
+were written to union `meal_accompaniments` in as well and it contributed **nothing**, because
+that table is **plan data and not library data**: a row per accompaniment of a *generated* meal,
+0 rows here (0 meals and 0 plans too, this being a library-only database). The library's own
+sides are a code constant, `core/domain/Accompaniment`, which is what the evaluator reads when
+its plate metrics count an accompaniment — so the plate figures further up **do** include sides
+and these two tables do not. The conclusions are recipe-level and the union's absence changes
+none of them:
+
+| cooked slug | plates | bought as |
+| --- | --- | --- |
+| `arroz-blanco-cocido` | 28 | `arroz-largo-crudo` |
+| `quinoa-cocida` | 28 | `quinoa-cruda` |
+| `arroz-integral-cocido` | 21 | `arroz-integral-crudo` |
+| `cuscus-cocido` | 20 | `cuscus-crudo` |
+| `arroz-basmati-cocido` | 15 | `arroz-basmati-crudo` |
+| `fideos-de-arroz-cocidos` | 8 | `fideos-de-arroz-secos` |
+| `pasta-integral-cocida` | 6 | `pasta-integral-seca` |
+| `trigo-sarraceno-cocido` | 4 | `trigo-sarraceno` |
+| `pasta-cocida` | 3 | **no dry row — *"en seco"*** |
+| `bulgur-cocido` | 2 | `bulgur-crudo` |
+| `arroz-salvaje-cocido`, `mijo-cocido` | 1 each | `arroz-salvaje-crudo`, `mijo` |
+| `cebada-cocida`, `espelta-cocida`, `polenta-cocida` | 0 | — |
+
+Second, the whole library under both rules — every recipe, no scheduler and no side, so a bound
+and not a cohort figure:
+
+| larder | uses, old rule | uses, new | whole, old | whole, new |
+| --- | --- | --- | --- | --- |
+| `despensa-15` | 1,117 | 1,117 | 72 | 72 |
+| `despensa-30` | 1,523 | 1,523 | 353 | 353 |
+| `despensa-60` | 1,636 | 1,636 | 414 | **418** |
+| the coarse map's own 16 targets | 1,100 | **1,107** | 35 | **37** |
+
+So the larders phase 0 quotes **cannot** move: the only newly reachable food any of them holds is
+`pasta-integral-seca`, and its six plates were already counted as *using* the cupboard through
+something else and are not wholly covered by it. `despensa-60` gains four recipes of 1,685,
+which no sentence quotes. `arroz-bomba-crudo`, which all four larders hold, has no cooked
+counterpart in `COOKED_YIELDS` at all, and this library cooks bomba rice dry.
+
+**What the fix does buy is the word the product recommends.** *«arroz»* resolves to
+`arroz-largo-crudo` (`COARSE_LABELS`), which no plate carries and which this library reaches only
+through `arroz-blanco-cocido` — 28 plates that were invisible to that cupboard before. The
+coarse cupboard's own figures move with it, 1,100 → 1,107 and 35 → 37.
+
+### The open question step 0 found and does not answer
+
+A cupboard made of the **coarse map's own sixteen targets** covers 1,100 of 1,685 recipes but only
+**35 of them wholly**, against `despensa-30`'s 353 — and in the plan cohort, measured the same way
+as everything above, **1 whole plate of 6,048** against 956. It is **composition and not size**: a
+plate counts as whole with its accompaniment included, and those targets are staples — oil, salt,
+flour, sugar, bread, milk, tinned tuna — with almost no vegetable and one protein among them,
+while `despensa-30` carries the vegetable drawer and a fresh protein.
+
+It is **not quoted anywhere**, because an equal-size comparison was never run and 16 against 30 is
+not one. What it does say is that the sentence phase 3b writes must not promise coverage on the
+strength of `despensa-30`'s 17%: that larder was written by somebody reading the catalogue, which
+is the flattery phase 0's own plan warned about. The honest reading is that this is phase 5's
+library to-do list seen from the other end, and it is the first thing to measure if anybody ever
+wants to quote a figure for a cupboard typed in coarse words.
+
+### Deviations from plan, step 0
+
+1. **`held` matches either name**, not only the mapped one — a superset of the plan's
+   `toDry(item.slug, 0)?.drySlug ?? item.slug`. Somebody who names the cooked food is answered by
+   the catalogue too, and losing them to fix the dry case would have traded one undercount for
+   another. The function's own comment says why where the next reader will be.
+2. **`pantryPlateMetrics.uses` got the mapping as well**, though the plan named only `whole`. The
+   two numbers come off the same plate and the same cupboard; leaving one mapped and the other
+   raw would have produced a report whose own columns disagree.
+3. **The e2e case is step 4 of this phase, not part of step 0.** The plan said "in the e2e case
+   together"; `apps/api/test/` belongs to `tests`, and `generation.e2e-spec.ts` recomputes `whole`
+   with the rule the fix replaced, so it is a change that must be made *and run* by the agent that
+   owns and runs that suite.
+
+### Why phase 3 became two phases
+
+Written up in `PLAN.md` at phase 3a's head, and the short of it: three of the four steps the
+screen was dispatched to build had nothing to read. `generationMetadata` reaches **no** DTO the
+web calls — `kitchenShare` is stored and never surfaced, and `PlanController.fixedMealsOf` is the
+only reader of that column anywhere in the product — so step 4's measured sentence had no source.
+`PantryEntryView` carries `{ grams, id, label, slug, unit }` and no *"the library cooks nothing
+with this"* field, and `slug: null` is a different fact that PRD 12 counts separately, so step 3's
+per-entry sentence had no signal. And no route lists the catalogue to anybody but `/admin`, so
+step 1's picker had nothing to pick from. A phase whose scope was `apps/web` alone could not
+deliver any of the three, and finding that out in a worktree after dispatch would have cost a
+round trip.
+
+### `legal`'s review, delivered before the screen's first string (criterion 9)
+
+`docs/legal/pantry.md` (new), with `README.md`, `record-of-processing.md` and `dpia.md` (0.6)
+updated around it. **Nine findings, three of them P1**, and the four questions answered:
+
+1. **The picker stays inside `/privacidad`'s promise, with no new exception and no consent version
+   moving** — and for a stronger reason than the PRD assumed: **no cupboard datum reaches a model
+   at all.** The read is at `PlanGeneration.service.ts:635`, *after* `buildShoppingList` at `:626`,
+   and `health-boundary.spec.ts:295-334`'s allowed keys hold no pantry key (the two `pantry`
+   strings in the AI module are the ingredient *category*). `PROFILE_CONSENT_VERSION`,
+   `HEALTH_CONSENT_VERSION` and `CARE_CONSENT_VERSION` all stay where they are, and `/condiciones`
+   needs nothing. **But `/privacidad` must change for a cupboard to exist at all**, AI or no AI:
+   its *«Qué datos recogemos y para qué»* is a closed enumeration and this is a new category
+   (art. 13.1.c, 5.1.a RGPD). Four edits are drafted ready to paste in § 2.2 — Spanish, English and
+   `textos/02` — with `privacy.updated` moved. **Phase 3b's work, before it writes a string.**
+2. **Retention is defensible as built**, and it corrects two things this plan's own prose says:
+   the clear is *skipped* past the job's deadline and the draft also survives a clear that throws,
+   so no policy may say *«en cuanto se genera el plan, la borramos»* flatly; and **a draft nobody
+   ever spends has no end at all** (P2-4). On the export, the route it checked is that **there is
+   none** — `GET /users/me/export` is still P2-9 in `analysis.md` and `/privacidad` answers access
+   and portability by mail. A copy answered today must carry the live `pantry_items` rows and each
+   plan's `generationMetadata.pantry.asked`; a **spent** draft is not in it, because art. 15.1
+   reaches data being processed and carries no duty to reconstruct what retention correctly
+   removed. Portability reaches `asked`, not the derived counts.
+3. **Criterion 7's boundary is intact, checked rather than assumed**, and § 4 names the six things
+   that would break it. Two were live this week, and both are settled above: the search word in a
+   query string (P1-1 → the route is a `POST`), and the plan DTO shared with the care path (P2-9 →
+   the counts do not cross to a dietitian).
+4. **Criterion 8 has a real legal hinge, and it is the screen.** *«Tengo leche sin lactosa»*, picked
+   from our own catalogue, **is** capable of revealing health under the CJEU's deduction test — so
+   what keeps the cupboard out of art. 9 is **not** the datum but the fact that **nothing infers a
+   restriction from it**. For the kitchen (`0102`) the analysis could say both halves; here only the
+   second carries the row, which makes the position art. 6.1.b with no art. 9 exception,
+   **conditional and marked `[lawyer]`**. § 5.4 therefore gives the screen **nine prohibitions** —
+   among them a verb of capacity, framing the list as what somebody eats, asking why, a
+   *«sin lactosa»* facet, echoing an entry back as a trait, any bridge to the restriction screens,
+   any promise that the plan will avoid *by* the cupboard, a free-text box, and styling
+   `cookedWith: false` as a warning — and **two required sentences**, one drafted: *«Esto no cambia
+   lo que evitamos… son esas, y no esta lista, las que dejan un plato fuera de tu plan.»* If the
+   wording crosses that line the cost is a new checkbox and `PROFILE_CONSENT_VERSION` raised, with
+   every account asked again.
+
+The inverse misreading — somebody believing a food they left **out** of the cupboard is one the
+plan will avoid — is P1-3's other half and `legal`'s own P0 line if it ever ships.
+
+`legal` could not reach EUR-Lex or curia from this session, so no paragraph of C-21/23 is quoted;
+§ 5.1 says so in the text, and the position does not rest on one. The same caveat is on WP242
+rev.01 in § 3.3.
+
+**Two of `legal`'s findings changed a decision rather than a text.**
+
+- **P2-9, settled the strict way and against `legal`'s own recommendation**: the plan's pantry
+  counts **do not cross to a dietitian**. `PlanDto` and `CareClientPlanDto` are both `PlanView`,
+  so a field added for `/meal-plans/active` is served by the care read path for free; `legal`
+  preferred (a), deciding out loud that a professional may see four integers about a plan they
+  already read in full, and it is right that nothing is revealed by them. The reason for taking
+  (b) instead is the finding's own: `0059`'s design is that **what crosses to a professional is
+  enumerated**, no care screen will read these counts, and a field that crosses unused is exactly
+  the drift the finding warns about. If a dietitian's screen ever wants the figure, it is added
+  then, on purpose, with the enumeration updated.
+- **P2-6 found a tension in criterion 12 that nobody had seen**: with a picker over the catalogue,
+  **`slug: null` cannot arise from the screen at all**, so phase 5's *not in the catalogue* group
+  is fed by nothing the product does. The answer is not to put a free-text box back — PRD § *Scope*
+  forbids it and § 4 of `legal`'s document counts it among the six things that would break
+  criterion 7 — but to let that group be as small as the picker makes it, which is written into
+  phase 5's step 2 now. The half that pays for itself is the other one: resolved, and no recipe
+  cooks it (513 of 930 ingredients today).
+
+**The owner's three answers of 2026-11-03** are one dated line in `docs/decisions/LOG.md`: no mail
+for the `/privacidad` edit (the date does the work, as on 2026-10-20), the retention criterion
+stated in the policy and **no sweep built**, and `legal`'s art. 9 position left conditional and
+`[lawyer]`-marked without blocking the screen. `legal` was told, and records them in its own § 7.
+
+### Steps 1–3 — what was built
+
+**Executor**: `backend` (opus @ medium) in its own worktree, `agent/022-phase-3a/backend`
+(`7ca02e75`, `e66ae2d6`, `25028c3b`), brought into the main checkout as uncommitted work and
+verified **byte-identical** against the branch before the worktree was removed. The agent
+committed on its own branch, which this project's hand-off does not allow it to do; it is
+recoverable because the owner still makes the real commit from the main checkout, and the branch
+is kept as a safety net until he does.
+
+1. **`POST /pantry/catalogue`** `{ q }` → a bare array of at most **50**
+   `{ cookedWith, name, slug }`, ordered by how many of the library's plates cook the food and then
+   by name through `Intl.Collator`. Absent, `''` and `'   '` are **one ask** — what a picker sends
+   before anybody types — and answer the top 50; a word past `MAX_PANTRY_LABEL_LENGTH` is a 422
+   that does not echo it. The language comes from `Accept-Language`, then the profile, then
+   `es-ES`, which is `ProfileController.restrictions`' own cascade.
+   **It is a `POST` because of the log and not because of REST**, and the route's doc comment says
+   so with the three reasons: Vercel records a request's *Search Params*, `/privacidad` promises
+   *«los registros del servidor y de errores no guardan lo que escribes»*, and a picker is typed
+   into once per keystroke, so a query string would keep every word somebody tried **including the
+   ones they deleted**. `0100` made the same choice for `POST /fixed-meals/not-offered`. A spec
+   asserts the `GET` answers **404**: if that ever answers 200, the decision has been undone.
+   **The matching is `resolvePantryLabel`'s own index** — every catalogue name in every locale plus
+   the slug, substring rather than prefix, **plus the resolver's own answer**, which is what carries
+   `SYNONYMS` and `COARSE_LABELS`: *«arroz»* is no substring of `arroz-largo-crudo`'s name and that
+   is the row an add lands on. A unit spec pins the round trip, which is the one failure this route
+   exists to prevent. The answer is **never narrowed by anything on the `SafetyProfile`**: a picker
+   that hid somebody's declared allergen would perform criterion 8's forbidden inference in the
+   catalogue instead of the scheduler, and would also tell them the catalogue lacks a food we have.
+2. **`cookedWith` on `PantryEntryView`**, one definition shared by the entry and by the picker's
+   row so the two can never drift: `(plated.get(slug) ?? 0) > 0 || SERVED_BESIDE.has(slug)`, always
+   `false` for an entry with no slug. `platesAsBought` credits a plate's cooked slug to the dry food
+   a cupboard names it by **and** keeps the cooked name's own count, which is `held`'s superset
+   again. `SERVED_BESIDE` is built once at module scope from `ACCOMPANIMENTS`
+   (`core/domain/Accompaniment`, 85 entries, 106 distinct portion slugs) through the same mapping —
+   `alubias-negras-cocidas` and `remolacha-cocida` are the catalogue's two cooked sides with no
+   `COOKED_YIELDS` row, a cooked legume being bought cooked in a jar, so they keep their own name
+   alone. **Measured: 420 of the 930 catalogue foods are cooked-with by plates, 434 with the side
+   floor — 14 newly answered**, every one a food this library serves beside a plate and no recipe
+   lists (melón, cerezas, albaricoque, níspero, acelga, judía verde congelada, remolacha cocida,
+   yuca, mazorca de maíz, plátano macho, kimchi, alga wakame, miso, cayena). The **ordering** stays
+   on `recipe_ingredients` alone, so bread, oil and salt are answered honestly and still sort last.
+3. **`pantry: { coveredRows, meals, rows, wholeMeals } | null` on `PlanView`**, filled inside
+   `assemble` from the row `findActive`/`findById` already loaded, so it costs **no extra query**;
+   `PlanController.pantryOf(userId, planId)` is the accessor for a caller holding only an id.
+   `pantryFigures` parses it out of `generationMetadata` defensively in `fixedMealsOf`'s shape, and
+   takes **all four or none** — a sentence quoting three and guessing the fourth would be a number
+   the product never measured. `asked` and `unresolved` stay in the column and reach no view.
+
+**One shared read**: `RecipeRepository.platesByIngredient()`, one grouped read over
+`recipe_ingredients ⨝ ingredients`, used by both the ordering and `cookedWith` and never per entry
+(a spec asserts `toHaveBeenCalledTimes(1)`); skipped entirely when nothing in the cupboard
+resolved. Plus `PantryRepository.listCatalogue(locale)`, one row per food with the
+locale/`es-ES`/slug name cascade, **unfiltered by country** so the picker and the resolver cannot
+disagree. **No migration and no schema change**: `cookedWith` is computed, never stored.
+
+### Deviations from plan, steps 1–3
+
+1. **The route is a `POST`, not the `GET ?q=` the plan first named.** `legal`'s P1-1, accepted and
+   amended into the plan before the route existed. 200 and not 201, because nothing is created.
+2. **`pantry` went onto `PlanView` and is filled in `assemble`**, not only on the active route.
+   `findActive` already selects `generation_metadata`, so every plan a reader can open answers
+   truthfully about its own cupboard; a field present but always `null` on `/scheduled` would have
+   been a lie. The accessor the plan specified exists beside it.
+3. **The counts are kept off the care path, against `legal`'s own recommendation** — the reasoning
+   is in the § above. It cost a presenter: `SharedPlanView = Omit<PlanView, 'pantry'>` and
+   `withoutPantry`, applied at **three** care reads (`overview`'s plan as well as `pendingPlan` and
+   `publishPlan`), with the key **removed rather than nulled**, because `null` would tell a
+   dietitian *"nobody told this plan anything"* about a fortnight whose client did declare a
+   cupboard. `CareClientOverviewView.health`'s absent-or-present shape is the precedent, and
+   `CareAccess.test.ts` pins it with the real presenter in the module mock rather than a stub.
+4. **The display name needed a locale the phase block did not mention** — the `Accept-Language` →
+   profile → `es-ES` cascade above.
+5. **`q` arrives through `ZodBody`**, which the first `GET` shape could not use; `ZodQuery` is
+   admin-local and `CareLinks.controller` is the non-admin precedent for a plain query.
+6. **One fixture outside the pantry was patched**: `Care.controller.spec.ts:441` casts a literal to
+   the care plan view and needed the field removed with the type.
+7. **The side floor reads a code constant, not a table.** My first instruction named
+   `meal_accompaniments`; it is **plan data** — `mealId`, `recipeId`, `servings` per generated meal,
+   0 rows locally and in CI — so `cookedWith` would have meant *"has anybody ever been served this
+   as a side"*, a fact about the user base that answers differently in each environment. Corrected
+   before it was built, and the implementer had reached the same conclusion independently.
+
+**Evidence, steps 1–3** (`backend`'s worktree, before integration): `pnpm --filter core build`
+clean; `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api` **11 tasks
+successful, 11 total**; `pnpm --filter api format` clean; `pnpm deadcode` no findings;
+`pnpm check:leaks` clean.
+
+### Step 4 — the suites, and where step 0's pin actually lives
+
+**Executor**: `tests` (opus @ medium), in the **main checkout** and deliberately not in a worktree:
+phase 3a's product code was uncommitted there, and a worktree is built from a commit.
+
+| Suite | Result | Time |
+| --- | --- | --- |
+| `test/pantry.e2e-spec.ts` | **21 passed / 21** | 30.2 s |
+| `test/generation.e2e-spec.ts` | **25 passed / 25** | 36.2 s |
+| `test/care.e2e-spec.ts` | **72 passed / 72** | 94.6 s |
+| `test/care-review.e2e-spec.ts` | **34 passed / 34** | 214.4 s |
+
+`apps/api` lint, `ts:check` and format green. No suite reported `0 total`.
+
+**The plan's step 0 asked for a third location and it could not be delivered there — proved, not
+assumed.** With `held` reverted to `pantry.has(slug)`, rebuilt, `generation.e2e-spec.ts` stays
+**25/25**; the file was restored md5-identical afterwards. The mechanism was measured rather than
+guessed: the suite's cupboard now deliberately holds the dry foods whose plates only ever carry
+the cooked name, and the fortnight under test **did** serve two such plates of 42 — both of them
+the library's elaborate dishes, so neither was *wholly* covered, and `wholeMeals` was 12 under
+either rule. A 1,685-dish library puts a mapped grain on ~1.7% of plates; a fortnight is 54
+plates, so whether one is wholly covered is luck, and **a case demanding `mapped > raw` would be
+red on most runs for something that is not a defect** — the first version of it was exactly that,
+and its own non-vacuity guard caught it on the first run.
+
+So the pin lives where it is deterministic, and both halves were proved by reverting:
+
+- `ShoppingList.test.ts:657` — reverting `held` turns exactly **1 of core's 4,239** unit tests red.
+- `pantry.e2e-spec.ts`, *"says the library cooks with a dry food whose plates only ever carry its
+  cooked name"* — reverting the mapping inside `platesAsBought` turns exactly **1 of pantry's 20**
+  cases red. **That is the dual mapping pinned end to end, over HTTP, against the real catalogue**,
+  which is what the plan's step 0 was after; what cannot be pinned is the statistics, and the
+  case's own comment says so.
+
+**The en-GB round trip holds, on the first arm of the name cascade.** All **930** catalogue foods
+carry an `en-GB` name as well as an `es-ES` one, and they are different words (*Long-grain rice* /
+*Arroz largo*), so the case first asserts that more than half the offered names differ from the
+Spanish ones — it is not the Spanish round trip under another header — and then sends all 50 names
+of a whole `en-GB` answer back **unmodified** as labels: fifty in, fifty entries out, each with the
+slug it was offered as. `legal` has since moved this into its § 4 *confirmed* list, because
+*«siempre con los nombres de nuestras listas»* is a promise about **our vocabulary and not about
+Spanish**: a picker that fell back to the Spanish name for an English reader would have put a word
+nobody chose from a list into the one field of this feature that is text.
+
+**A third known red, and it is not ours.** `accompaniments.e2e-spec.ts` fails **1 of 14** at
+`:370` (*keeps the sides through a professional's review*) — proved pre-existing in a **fresh
+worktree at `71fa1d4a`**, twice, and the main checkout with phase 3a in it fails identically on a
+third run. The *4 of 14* first reported was the shared library churned by a killed full pass, not
+the commit, which is why the third run was made rather than leaving a count nobody could explain.
+Same class as `kitchen`: this machine's library cooks `pasta-cocida` in 3 recipes and
+`pasta-integral-cocida` in 6, where CI's ~90 dishes carry none. **Its cause is still open, and my
+reading differs from the executor's**: it read the row as named after the cooked food, but
+`ShoppingList.ts:142` names exactly that case *«Pasta (en seco)»* and `PlanController.ts:403`
+and `:1741` name it *«Pasta»* — neither path produces *«Pasta cocida»*, so the string is most
+likely the **side's own** name and `expectListCoversSides` is matching it against a list whose row
+was renamed on purpose, which would make it a blind spot in the suite's own helper. Deliberately
+**not fixed inside this phase**: a repair to an unrelated suite would muddy the pull request, and
+CI is green on it. If the helper turns out to be right and the list wrong, that is a bigger
+conversation than a test fix, because it would mean a shopping row named after a cooked weight
+nobody can buy — the confusion `0078` exists to prevent.
+
+**Two findings from the suite, both informational.** `arroz-largo-crudo` is a **trap** as the
+plan's named example for `cookedWith` (it is an ingredient of the `arroz-blanco` and `arroz-rojo`
+accompaniments, so the side floor answers `true` for it whatever the plate counts say, and a case
+built on it passes with the mapping reverted) — written into `PLAN.md` step 2 so nobody reinstates
+the weaker case. And **Nest's route-miss 404 echoes the query string** in its own body
+(`Cannot GET /api/v1/pantry/catalogue?q=arroz`): nothing stores it and the only recipient is the
+sender, so `legal` gave it no severity of its own, but it is now the second bullet of its P1-1 as
+the cost of ever going back — as a `GET`, a word somebody mistyped or deleted would be echoed
+twice over. It also leaves one rule for the web: a client-side error reporter that sent a failed
+response's **body** would carry that echo to Sentry, which `/privacidad` promises never receives
+what somebody wrote.
+
+The run left 26 `review-*` accounts behind when it was killed; the executor deleted them and
+verified `user`, `pantry_items`, `meal_plans`, `care_links`, `care_invitations` and
+`care_access_log` back at zero, so the local database is library-only again.
+
+### A defect found on the way, in code this project did not touch
+
+**The shopping list's *"(en seco)"* name is undone when the list is read back**, and the
+`accompaniments` red is the symptom nobody had traced. `tests` printed the three name sets from a
+failing run: the list row read `Pasta cocida` — the raw catalogue name — while the meal detail said
+`Pasta` and the sides never mentioned pasta at all. Neither of the two readings offered for it was
+right: it is not the suite's helper matching a side's own name, and it is not
+`buildShoppingList`, which gets this case right.
+
+The chain, read in the code afterwards:
+
+- `buildShoppingList` (`ShoppingList.ts:103-142`) does the right thing twice over. A cooked food
+  with no dry counterpart keeps **its own row** (`drySlug` is null, so the merge cannot happen),
+  the row's grams are the **dry** weight (`dry?.dryGrams ?? item.grams`), `dried.add(slug)` marks
+  it, and the name becomes `` `${withoutCooked(name)} ${dryLabel(locale)}` `` — *«Pasta (en
+  seco)»*. That is `0078` honoured exactly.
+- `PlanRepository.findShoppingList` (`:800-817`) then reads the stored row and **overrides its
+  name with the catalogue's own**: `name: row.translated ?? row.item.name`, a `leftJoin` on
+  `ingredient_names` for the reader's locale. Its doc comment explains why it exists — a snapshot
+  left somebody who switched language with a Spanish list forever — and for every **merged** row
+  the override is right, because the slug is by then the dry food and its catalogue name is the
+  one to show. For the **unmerged** row it silently reinstates the cooked name over the one the
+  domain deliberately rewrote.
+
+So the row says *«Pasta cocida»* and its quantity is **dry weight** — the one confusion `0078`
+exists to prevent, in the direction nobody checks: somebody reading *«Pasta cocida, 260 g»*
+reasonably buys six hundred grams of a packet. `COOKED_YIELDS` has exactly one such food
+(`pasta-cocida`, `drySlug: null`), this library cooks it in 3 recipes of 1,685, and CI's ~90
+dishes carry none — which is why the suite is red only here and only when a fortnight serves one,
+and why `tests` saw 0, 1 and 4 failures on different runs of the same code.
+
+**Not fixed here, and not `tests`' to fix**: it is product code, outside this project's scope, and
+a repair inside phase 3a's commit would muddy a pull request about a cupboard. The fix is small
+and local — the read already stores `dryRounded` and the slug, so the decoration is
+`buildShoppingList:142`'s own condition applied once more — and it should be **one function in
+`domain/ShoppingList` called by both**, for the reason `carriedBought` was moved there in phase 2:
+two expressions of one rule are two things to keep true. It wants a test at the repository level,
+because no unit test of the domain can see a read undoing it.
+
+Raised with the owner on 2026-11-03 as its own change, after phase 3a.
+
+### The gate
+
+`sh .claude/skills/ship/scripts/gate.sh --full` — **green**: migrations, checks (lint, types,
+tests with coverage), web-build, static, format, deadcode, leaks. It notes uncommitted `.md` files
+outside `docs/local/`, which is `docs/legal/pantry.md` waiting for the owner's commit.
+
+**Its first run was red on `format`**, and the lesson is worth the line: seven files in
+`packages/core` had never been through Prettier — two of them mine from step 0, five the
+implementer's — because `backend` ran `pnpm --filter api format` and reported it clean, which says
+nothing about `packages/core`. The changes were cosmetic (Prettier re-wrapped the `wholeMeals`
+ternary step 0 had left on one line); the gate was then run **again from the top**, as `/ship`
+requires, rather than from the step that failed — which is how `deadcode` and `leaks` got run at
+all, since the first run never reached them.
+
+### CI, and a precondition that could not hold there
+
+The pull request ([#317](https://github.com/rumabe97/NutrIA/pull/317)) was **red on `end-to-end`
+at the first run**, on four cases of `pantry.e2e-spec.ts`'s `cookedWith` group, and the cause was
+the suite and not the product. `lint · types · tests` was green.
+
+The group chooses its three foods from the library the run actually has, which is right — ~1,100
+dishes here against CI's ~90 — but it chose them with a **fatal** precondition: no mapped-only dry
+food, `throw`. On CI there is none (the error printed *«the mapped-only slugs were: none»*; here it
+is `mijo`), and because the throw was in `beforeAll` it took down all four cases, including the two
+that never read that food.
+
+The fix keeps the intent and drops the fatality, for the two preconditions that are facts about the
+dish library:
+
+- **mapped-only dry food** and **side-only accompaniment** are now `Food | undefined`. Each absence
+  records why, and the case that reads it prints that reason and asserts nothing. The dual mapping
+  is pinned where no library is needed — `packages/core`'s `Pantry.test.ts` — and both answers of
+  `cookedWith` are still pinned on CI: `false` on a food no dish cooks, `true` on
+  `arroz-largo-crudo` through the `SERVED_BESIDE` constant.
+- **the food no dish cooks still stops the suite.** The catalogue is seeded by migration and holds
+  930 foods on every machine, so finding none is a defect, not a small library.
+
+Proved both ways before pushing, because a skip path nobody exercises is a skip path that lies:
+with the discovery forced to find nothing — CI's condition, reproduced — **21 passed / 21** with
+both reasons printed; with the real library, **21 passed / 21** and no skip. The rule a future
+agent should not have to rediscover is in `apps/api/test/README.md`'s row for the suite: a
+precondition that is a fact about the **dish library** may not be fatal; one about the
+**catalogue** may.

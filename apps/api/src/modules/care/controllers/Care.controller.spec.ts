@@ -438,7 +438,16 @@ describe('care routes', () => {
     const MEAL_ID = '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f';
     const JOB_ID = '2d3e4f5a-6b7c-4d8e-9f0a-1b2c3d4e5f6a';
     const JOB: JobView = { id: JOB_ID, error: null, errorDetail: null, pendingReview: false, planId: null, status: 'queued', step: null };
-    const PLAN = { id: 'plan-1', days: [], endDate: '2026-10-07', startDate: '2026-09-24', status: 'active', strategy: null, version: 2 } as PlanView;
+    const PLAN = {
+      id: 'plan-1',
+      days: [],
+      endDate: '2026-10-07',
+      pantry: null,
+      startDate: '2026-09-24',
+      status: 'active',
+      strategy: null,
+      version: 2
+    } as PlanView;
     const REVIEWED: CareClientLinkView = { ...OVERVIEW.client, reviewBeforePublish: false };
     const record = jest.fn<Parameters<ForClient<unknown>>[1]>();
 

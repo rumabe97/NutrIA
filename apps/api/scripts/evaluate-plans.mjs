@@ -142,6 +142,7 @@ import { MEAL_SLOTS } from 'core/entities/Plan';
 import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
 import { isBlocking, PLAN_TOLERANCE, planBandMiss, validatePlan } from 'core/domain/PlanValidation';
 import { buildShoppingList } from 'core/domain/ShoppingList';
+import { toDry } from 'core/domain/Yield';
 import {
   breaksDishRule,
   breaksPatternDish,
@@ -631,14 +632,42 @@ function shoppingMetrics(assignment, catalogue, startDay, pantry) {
  */
 function pantryPlateMetrics(days, pantry) {
   const meals = days.flatMap(day => day.meals);
-  const uses = (meal, only) => meal.ingredients.some(item => pantry.has(item.slug) && !(only && PANTRY_STAPLES.has(item.slug)));
+  const uses = (meal, only) => meal.ingredients.some(item => held(item.slug, pantry) && !(only && PANTRY_STAPLES.has(item.slug)));
 
   return {
     foodPlates: meals.filter(meal => uses(meal, true)).length,
     meals: meals.length,
     plates: meals.filter(meal => uses(meal, false)).length,
-    whole: meals.filter(meal => meal.ingredients.every(item => pantry.has(item.slug))).length
+    whole: meals.filter(meal => meal.ingredients.every(item => held(item.slug, pantry))).length
   };
+}
+
+/**
+ * Whether the cupboard holds what this plate's ingredient is **bought** as
+ * (project 022 phase 3 step 0, 2026-10-26) — the same rule as `held` in
+ * `core/domain/ShoppingList`, and it must stay the same rule.
+ *
+ * **This is a correction to phase 0's own measurement.** A plate carries the
+ * cooked slug (`arroz-blanco-cocido`) while `buildShoppingList` buys a cooked
+ * grain dry (`0078`), which is the row a cupboard's *«tengo arroz»* resolves to
+ * — and the larders of phase 0 were dry slugs. So every figure below that reads
+ * a plate's slugs undercounted: a rice, pasta or dry-pulse meal was never
+ * counted as one cooked from the house. Phase 0's *≈9 of 54 whole meals* was
+ * measured with that gap, and whatever this instrument says now replaces it.
+ *
+ * Either name matches, because both are reachable: the dry food is what a
+ * coarse word lands on, and the cooked food is a catalogue row somebody can
+ * name. `?? null` is not enough — `drySlug` is nullable, for a cooked food whose
+ * dry counterpart the catalogue does not hold.
+ */
+function held(slug, pantry) {
+  if (pantry.has(slug)) {
+    return true;
+  }
+
+  const dry = toDry(slug, 0)?.drySlug;
+
+  return dry !== undefined && dry !== null && pantry.has(dry);
 }
 
 /** How many of this dish's distinct ingredients somebody with this pantry would still have to buy. */
