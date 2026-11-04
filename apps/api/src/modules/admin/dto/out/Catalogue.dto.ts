@@ -1,5 +1,7 @@
 import type {
   AdminCatalogueQualityView,
+  AdminCupboardUncookedView,
+  AdminCupboardUnresolvedView,
   AdminIngredientsView,
   AdminRecipesView,
   AdminRecipeView,
@@ -40,3 +42,9 @@ export type PictureDiscardDto = PictureDiscardView;
 
 /** The owner's retry of a dish's picture: it is being drawn. */
 export type PictureRetryDto = PictureRetryView;
+
+/** Words nobody could resolve, held by two accounts or more, as counts of accounts. A snapshot of what is held now; never an account, never a word as typed (P2-6, `0028`). */
+export type AdminCupboardUnresolvedDto = AdminCupboardUnresolvedView;
+
+/** Catalogue ingredients no recipe uses, with how many accounts hold each. A snapshot; reference data plus an aggregate (`0028`). */
+export type AdminCupboardUncookedDto = AdminCupboardUncookedView;

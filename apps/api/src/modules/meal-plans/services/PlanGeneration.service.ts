@@ -33,7 +33,7 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { TargetBounds } from 'core/domain/Nutrition';
 import type { PlanQuality, PlanViolation } from 'core/domain/PlanValidation';
 import type { GenerationContext } from 'core/controllers/Recipe';
-import { FRESH_DISHES_PER_SLOT, narrowerShares, rotatePool, withApplianceShare } from 'core/domain/Variety';
+import { FRESH_DISHES_PER_SLOT, narrowerRungs, rotatePool, withRung } from 'core/domain/Variety';
 import type { Rotation } from 'core/domain/Variety';
 import type { PlanDraft } from 'core/entities/Plan';
 import type { SeededShoppingRow, ShoppingRow } from 'core/domain/ShoppingList';
@@ -199,6 +199,29 @@ export class PlanGenerationService {
     // What they were served last time is excluded from reuse and named to the model.
     // A disliked dish is excluded like last fortnight's, for good; a liked one goes to
     // the front of the library pick. Both are also named to the model (0014).
+    // **The one place the cupboard is read before a dish is chosen**, and only
+    // with the owner's switch on (project 022 phase 4, `pantryRank`). Everything
+    // it carries leaves this function as catalogue slugs on `rotation`, which
+    // `pool.build` is never handed — so no word and no slug of it can be a field
+    // of `promptPreferences`, which is PRD 022 **criterion 7** («nothing
+    // hand-written reaches the model»), and that part is a property of this
+    // code's shape rather than a promise about it.
+    //
+    // **What this does not claim, and the invariant review of 2026-11-04 was
+    // right to refuse to sign**: with the switch on, the prompt's *text* becomes
+    // a function of the cupboard, because the dishes already accepted are named
+    // to the model as ones to avoid (`PoolBuilder.service.ts`'s `excludeSlugs`)
+    // and the cupboard reordered which those are. No field of the request
+    // carries the cupboard; the pick does. That is the same channel the product
+    // already sanctions for a dietary pattern's lean (`0077`, ARCHITECTURE
+    // § Invariants, pinned over one catalogue by `PoolPrompt.spec.ts`), which is
+    // why it is not a defect — but the sentence "nothing of the cupboard reaches
+    // the model" is true of content and not of influence, and whoever flips the
+    // switch is owed that distinction rather than this comment's old wording.
+    //
+    // Read once, so what steered the pick is what the shopping list is seeded
+    // from and what the plan records below.
+    const ranked = (await SettingsController.pantryRank()) ? await PantryController.forGeneration(userId) : null;
     const rotation: Rotation = {
       avoidSlugs: new Set([...history.recentDishes.map(dish => dish.slug), ...verdicts.disliked.map(dish => dish.slug)]),
       // Their kitchens and their foods lean the library pick without narrowing
@@ -211,6 +234,10 @@ export class PlanGenerationService {
       preferCuisines: new Set(profile.cuisines.map(cuisine => normaliseForMatching(cuisine))),
       preferIngredientSlugs: leaningSlugs(context.preferences),
       preferSlugs: new Set(verdicts.liked.map(dish => dish.slug)),
+      // What is already in the house leans the pick by an order, never a filter
+      // and never a seat in `isPreferredDish`'s bucket (`Rotation.pantrySlugs`).
+      // A cupboard with nothing resolved in it leans nothing.
+      ...(ranked && ranked.holdings.length > 0 && { pantrySlugs: new Set(ranked.holdings.map(holding => holding.slug)) }),
       seed: `${userId}:${history.nextVersion}`
     };
     const [reusable, everything, libraryUsage] = await Promise.all([
@@ -369,6 +396,8 @@ export class PlanGenerationService {
      * way for the bands (`narrowerShares`).
      */
     let kitchenShare: number | null = null;
+    /** The same for the cupboard's share (`narrowerRungs`): `null` for the full one, and for a fortnight rescued from the whole library. */
+    let pantryShare: number | null = null;
 
     if (!scheduled.ok) {
       this.logger.warn(
@@ -510,8 +539,8 @@ export class PlanGenerationService {
        */
       const fromBuilder = built.dishes.filter(dish => !inPool.has(dish.slug));
 
-      for (const share of narrowerShares(rotation)) {
-        const narrowed = RecipeController.rotateFor(everything, slots, context, withApplianceShare(rotation, share));
+      for (const rung of narrowerRungs(rotation)) {
+        const narrowed = RecipeController.rotateFor(everything, slots, context, withRung(rotation, rung));
         const pool = [...new Map([...fromBuilder, ...narrowed].map(dish => [dish.slug, dish])).values()];
         const retried = schedulePlan({
           pinned,
@@ -537,10 +566,13 @@ export class PlanGenerationService {
           continue;
         }
 
-        this.logger.log(`Macros missed with the kitchen's full share; ${share} dishes a slot missed by less`);
+        this.logger.log(
+          `Macros missed with the preferences' full share; kitchen ${rung.applianceShare ?? 'full'}, cupboard ${rung.pantryShare ?? 'full'} dishes a slot missed by less`
+        );
         scheduled = retried;
         violations = retriedViolations;
-        kitchenShare = share;
+        kitchenShare = rung.applianceShare;
+        pantryShare = rung.pantryShare;
 
         if (planBandMiss(violations) === 0) {
           break;
@@ -549,7 +581,15 @@ export class PlanGenerationService {
     }
 
     if (fallback === null && planBandMiss(violations) > 0) {
-      const rest = rotatePool(everything, slots, rotation, Number.POSITIVE_INFINITY);
+      // The whole library: the cupboard's rank has no cap to be scarce against
+      // here, and a rescued fortnight keeps no share of it. Omitting `kindsOf`
+      // here is safe **by construction** since the invariant review of
+      // 2026-11-04: `pantryRank` fails closed, so a rotation that names a
+      // cupboard without the repair ranks nothing, and the unrepaired rank is
+      // something to ask for by name (`UNREPAIRED_RANK`, which only the
+      // evaluator passes). The `pantryShare: 0` stays because a rescued
+      // fortnight keeps no share, not because it is what makes this line safe.
+      const rest = rotatePool(everything, slots, withRung(rotation, { applianceShare: null, pantryShare: 0 }), Number.POSITIVE_INFINITY);
       const wider = [...new Map([...built.dishes, ...rest].map(dish => [dish.slug, dish])).values()];
       const retried = schedulePlan({
         pinned,
@@ -575,6 +615,7 @@ export class PlanGenerationService {
           // The share is a quota in a pool and this pool is the whole library:
           // whatever rung the loop above settled on, nothing is reserved here.
           kitchenShare = null;
+          pantryShare = null;
         }
       }
     }
@@ -624,15 +665,24 @@ export class PlanGenerationService {
     }
 
     const shopping = buildShoppingList(withDates(scheduled.assignment, start), context.catalogue, context.locale);
-    // What is already in the house, read **here** and not with the profile at
-    // the top: the cupboard shortens the shop and changes no pick (the owner,
-    // 2026-10-23), so it is read after everything that chooses a dish has
-    // finished choosing. Nothing it carries can reach `promptPreferences` from
-    // this far down the function, which is what makes PRD 022 criterion 5 a
-    // property of the shape of this code rather than a promise about it.
+    // What is already in the house. With the owner's `pantryRank` switch **off**
+    // — the default, and the product as phases 1 to 3 shipped it — it is read
+    // **here** and not with the profile at the top: the cupboard shortens the
+    // shop and changes no pick (the owner, 2026-10-23), so it is read after
+    // everything that chooses a dish has finished choosing, and nothing it
+    // carries can reach `promptPreferences` from this far down the function.
+    //
+    // With the switch **on** it was read once at the top (`ranked`, before the
+    // rotation) and is reused here, so what steered the pick is what the list is
+    // seeded from. That moves the read and not the boundary for **content**: it
+    // left that read as catalogue slugs on `rotation`, which `pool.build` is
+    // never handed, so PRD 022 criterion 7 is still a property of the shape of
+    // this code — and `PlanGeneration.spec.ts` pins it with a slug that no dish
+    // could carry. It does move what the prompt's text depends on; the comment
+    // at the read itself says how far that goes.
     //
     // Only `holdings` and a count come back — never anybody's word.
-    const pantry = await PantryController.forGeneration(userId);
+    const pantry = ranked ?? (await PantryController.forGeneration(userId));
     const seeded = seedFromPantry(shopping, pantry.holdings);
     const plates = pantryPlates(scheduled.assignment, new Set(pantry.holdings.map(holding => holding.slug)));
     // A plan that waits for its day may cut the one under way (project 015):
@@ -663,6 +713,8 @@ export class PlanGenerationService {
             fallback,
             kitchenShare,
             pantry: pantryRecord(pantry, seeded.coveredRows, shopping.items.length, plates),
+            pantryRanked: rotation.pantrySlugs !== undefined,
+            pantryShare,
             quality
           },
           start,
@@ -856,12 +908,16 @@ export class PlanGenerationService {
       fallback,
       kitchenShare,
       pantry,
+      pantryRanked,
+      pantryShare,
       quality
     }: {
       readonly advisories: readonly string[];
       readonly fallback: Fallback;
       readonly kitchenShare: number | null;
       readonly pantry: PantryRecord | null;
+      readonly pantryRanked: boolean;
+      readonly pantryShare: number | null;
       readonly quality: PlanQuality;
     },
     start: Date,
@@ -941,6 +997,18 @@ export class PlanGenerationService {
         // says how many words the catalogue had no answer for without saying
         // which (PRD 022, criterion 7).
         pantry,
+        // Whether the cupboard was **asked** to steer this plan, and the rung it
+        // ended on if the bands made it give way — beside `kitchenShare` and read
+        // the same way: `null` is the full share, or the whole library after a
+        // rescue (`fallback` says which), so what the bands cost the cupboard is
+        // countable. `pantryRanked` is what tells "the full share" from "no
+        // steering", which a bare `null` cannot (project 022 phase 4, PRD 4). It
+        // stays true for a fortnight whose rung took the share to zero: the pair
+        // is what tells "asked and then given up" from "never asked", and
+        // counting `pantryRanked` alone as "the cupboard changed something" is
+        // the one way to misread this field.
+        pantryRanked,
+        pantryShare,
         poolSeed: rotation.seed,
         quality,
         scheduledAt: start.toISOString()

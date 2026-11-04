@@ -101,6 +101,15 @@ anybody else: if another agent needs it, send it.
 - **A finding goes to whoever owns the file**, not to the lead: severity (P0–P3),
   `path:line`, what is wrong, the smallest fix. One message per owner, all findings in it.
   The lead gets the summary in your hand-back.
+- **Unless the lead has taken the pen on that file**, which it says in so many words when it
+  does. Then the finding goes to the lead **only**, and the owner does not act on it even if
+  it arrives: a file with two writers produces two different fixes for one finding, and
+  merging two good fixes leaves comments describing the one that lost (project 022 phase 4,
+  2026-11-04 — it happened twice that day, once with a reviewer's finding reaching an
+  implementer whose text a third agent was describing, and once with two agents fixing the
+  same `P2` in two checkouts). The lead owes the other side of that bargain: when it takes
+  the pen it must say so to everybody holding a finding, and when it gives it back it must
+  say that too.
 - **Reviewers speak early.** `seo` and `accessibility` tell `frontend` what a new screen
   must have — title and description keys, heading outline, labels, targets — while it is
   being built, then verify once it is merged. A requirement sent at the start costs a

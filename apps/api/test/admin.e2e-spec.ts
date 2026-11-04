@@ -2940,4 +2940,284 @@ describe('admin', () => {
       });
     });
   });
+
+  /*
+   * What the cupboards say the library cannot cook (project 022 phase 5). The console reads
+   * nobody (`0028`): both lists are counts of accounts, and the first one has a floor the
+   * repository's own `HAVING` holds. `pantry_items` is empty on every database, so every
+   * row these cases rely on is one the block writes itself, through the product's own
+   * `POST /pantry`, under `@e2e.invalid` accounts the suite's `afterAll` deletes.
+   *
+   * Nothing here pins a number that is a fact about a dish library: how many ingredients
+   * no recipe cooks, and in which order, differs between this machine and CI. Only the
+   * catalogue (migrated, 930 ingredients everywhere) is asserted about, and as "at least one".
+   */
+  describe('the cupboard gaps', () => {
+    const stamp = Date.now();
+    const KEYS_PAGE = ['offset', 'rows', 'size', 'total'];
+    const KEYS_UNRESOLVED = ['accounts', 'word'];
+    const KEYS_UNCOOKED = ['accounts', 'category', 'name', 'slug'];
+    /** Words no catalogue could hold. Three spellings of one word, so the grouping is shown to be on the normalised label. */
+    const SHARED_A = `Zzxqv Plútonia ${stamp}`;
+    const SHARED_B = `zzxqv plutonia ${stamp}`;
+    const SHARED_C = `ZZXQV  PLUTONIA ${stamp}!`;
+    const SHARED_WORD = `zzxqv plutonia ${stamp}`;
+    const PAIR = `qqvzx pareja ${stamp}`;
+    const LONE = `Zzxqv Solitaria ${stamp}`;
+    const LONE_WORD = `zzxqv solitaria ${stamp}`;
+
+    const gaps: Account[] = [];
+
+    const get = (path: string, cookie?: string) => {
+      const call = request(httpServer(app)).get(`/${PREFIX}/admin/${path}`);
+
+      return cookie === undefined ? call : call.set('Cookie', cookie);
+    };
+
+    type Row<Fields> = Paged<Fields>;
+    const unresolved = async (query = 'size=100') =>
+      (await get(`catalogue/cupboard/unresolved?${query}`, owner.cookie).expect(200)).body as Row<{ accounts: number; word: string }>;
+    const uncooked = async (query = 'size=100') =>
+      (await get(`catalogue/cupboard/uncooked?${query}`, owner.cookie).expect(200)).body as Row<{
+        accounts: number;
+        category: string;
+        name: string;
+        slug: string;
+      }>;
+
+    const type = (who: Account, label: string) => request(httpServer(app)).post(`/${PREFIX}/pantry`).set('Cookie', who.cookie).send({ label });
+    const cupboard = async (who: Account) =>
+      (
+        (await request(httpServer(app)).get(`/${PREFIX}/pantry`).set('Cookie', who.cookie).expect(200)).body as {
+          items: { id: string; slug: string | null }[];
+        }
+      ).items;
+
+    type Sql = <Result>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Result[]>;
+    const sql = () => (database() as unknown as { readonly $client: Sql }).$client;
+
+    beforeAll(async () => {
+      for (const label of ['a', 'b', 'c', 'd']) {
+        const account = await register(app, `admin-gaps-${label}-${stamp}@e2e.invalid`);
+
+        made.push(account.cookie);
+        gaps.push(account);
+      }
+
+      const [a, b, c, d] = gaps as [Account, Account, Account, Account];
+
+      // Three accounts hold one word, two hold another, one holds a third.
+      await type(a, SHARED_A).expect(201);
+      await type(b, SHARED_B).expect(201);
+      await type(c, SHARED_C).expect(201);
+      await type(a, PAIR).expect(201);
+      await type(b, PAIR).expect(201);
+      await type(d, LONE).expect(201);
+    }, 120_000);
+
+    it('do not exist for an ordinary account, nor for a caller with no session — even with a query they would refuse', async () => {
+      const paths = ['unresolved', 'uncooked'].flatMap(route =>
+        ['', '?offset=0&size=10', '?q=plutonia', '?min=1', '?threshold=1', '?size=nope', '?size=0'].map(
+          query => `catalogue/cupboard/${route}${query}`
+        )
+      );
+
+      for (const path of paths) {
+        const asOrdinary: Response = await get(path, ordinary.cookie);
+        const asNobody: Response = await get(path);
+
+        expect({ nobody: asNobody.status, ordinary: asOrdinary.status, path }).toEqual({ nobody: 404, ordinary: 404, path });
+        // The same body to the byte, so the answer does not tell a signed-in caller from an anonymous one.
+        expect({ path, same: asOrdinary.text === asNobody.text }).toEqual({ path, same: true });
+      }
+    });
+
+    it('list a word two accounts or more hold, by its normalised form, and never a word one account holds', async () => {
+      const page = await unresolved();
+      const found = Object.fromEntries(page.rows.map(row => [row.word, row.accounts]));
+
+      expect(Object.keys(page).sort()).toEqual(KEYS_PAGE);
+      // Three spellings of one word are one word held by three accounts; two accounts hold the other.
+      expect(found[SHARED_WORD]).toBe(3);
+      expect(found[PAIR]).toBe(2);
+      // The lone word is absent, looked for exactly and by any fragment of it.
+      expect(found[LONE_WORD]).toBeUndefined();
+      expect(JSON.stringify(page).includes('solitaria')).toBe(false);
+
+      // The floor holds for every row, not only the ones this block made.
+      for (const row of page.rows) {
+        expect(row.accounts).toBeGreaterThanOrEqual(2);
+      }
+
+      // Most held first.
+      const counts = page.rows.map(row => row.accounts);
+
+      expect(counts).toEqual([...counts].sort((x, y) => y - x));
+    });
+
+    it('count only the words that passed the floor in `total`, and page on that total', async () => {
+      const page = await unresolved();
+
+      // Everything fits one page here, so a count taken before the floor would be higher than the rows by the lone word.
+      expect(page.rows.length).toBeLessThan(100);
+      expect(page.total).toBe(page.rows.length);
+      expect({ offset: page.offset, size: page.size }).toEqual({ offset: 0, size: 100 });
+
+      const first = await unresolved('offset=0&size=1');
+      const second = await unresolved('offset=1&size=1');
+
+      expect({ offset: first.offset, size: first.size, total: first.total }).toEqual({ offset: 0, size: 1, total: page.total });
+      expect(first.rows.map(row => row.word)).toEqual(page.rows.slice(0, 1).map(row => row.word));
+      expect(second.rows.map(row => row.word)).toEqual(page.rows.slice(1, 2).map(row => row.word));
+      expect(second.total).toBe(page.total);
+
+      // Past the end: no rows, and the same total.
+      const beyond = await unresolved(`offset=${page.total}&size=10`);
+
+      expect(beyond.rows).toEqual([]);
+      expect(beyond.total).toBe(page.total);
+    });
+
+    it('move a word over the floor when a second account holds it, and back under it when that account lets go', async () => {
+      const second = await register(app, `admin-gaps-e-${stamp}@e2e.invalid`);
+
+      made.push(second.cookie);
+      expect((await unresolved()).rows.some(row => row.word === LONE_WORD)).toBe(false);
+
+      await type(second, LONE).expect(201);
+
+      expect((await unresolved()).rows.find(row => row.word === LONE_WORD)?.accounts).toBe(2);
+
+      await request(httpServer(app)).delete(`/${PREFIX}/pantry`).set('Cookie', second.cookie).expect(200);
+
+      expect((await unresolved()).rows.some(row => row.word === LONE_WORD)).toBe(false);
+    }, 120_000);
+
+    it('carry no personal data: exactly the keys of the page and of its rows, and nothing an account typed as typed', async () => {
+      for (const route of ['unresolved', 'uncooked']) {
+        const response = await get(`catalogue/cupboard/${route}?size=100`, owner.cookie).expect(200);
+        const page = response.body as Paged<Record<string, unknown>>;
+
+        expect(Object.keys(page).sort()).toEqual(KEYS_PAGE);
+        expect(page.rows.length).toBeGreaterThan(0);
+
+        for (const row of page.rows) {
+          expect({ keys: Object.keys(row).sort(), route }).toEqual({ keys: route === 'unresolved' ? KEYS_UNRESOLVED : KEYS_UNCOOKED, route });
+        }
+
+        // Nothing about an account can ride along under any name: not its id, not its address.
+        for (const person of [...gaps, owner, ordinary]) {
+          expect(response.text).not.toContain(person.id);
+          expect(response.text).not.toContain(person.email);
+        }
+
+        // A label as typed (capitals, accent, a trailing mark) is not the grouping key and is never returned.
+        for (const typed of [SHARED_A, SHARED_C, LONE]) {
+          expect(response.text).not.toContain(typed);
+        }
+      }
+    });
+
+    it('list catalogue ingredients no recipe mentions, each used by none, and how many accounts hold them', async () => {
+      const page = await uncooked();
+
+      expect(Object.keys(page).sort()).toEqual(KEYS_PAGE);
+      // The catalogue is migrated, so "at least one" is true on every machine; how many there are is a fact about the dish library and is not pinned.
+      expect(page.total).toBeGreaterThanOrEqual(1);
+      expect(page.rows.length).toBeGreaterThanOrEqual(1);
+      expect(page.rows.length).toBeLessThanOrEqual(Math.min(page.total, 100));
+
+      const used = await sql()<{ slug: string }>`
+        select distinct ingredients.slug
+        from ingredients
+        join recipe_ingredients on recipe_ingredients.ingredient_id = ingredients.id
+        where ingredients.slug = any(${page.rows.map(row => row.slug)})`;
+
+      expect(used).toEqual([]);
+
+      for (const row of page.rows) {
+        expect(typeof row.accounts).toBe('number');
+        expect(row.name.length).toBeGreaterThan(0);
+        expect(row.category.length).toBeGreaterThan(0);
+      }
+
+      const counts = page.rows.map(row => row.accounts);
+
+      expect(counts).toEqual([...counts].sort((x, y) => y - x));
+    });
+
+    it('floor the count of an uncooked ingredient one account holds at 0, sorted with the zeros, and show 2 once a second account holds it', async () => {
+      const [a, b] = gaps as [Account, Account];
+      const before = await uncooked();
+      let held = '';
+
+      // A catalogue name resolves to its food, but a coarse word may resolve elsewhere: take the first of these rows (not the very first, so a move to the top is visible) whose own name resolves to itself.
+      for (const candidate of before.rows.slice(1, 31)) {
+        const known = new Set((await cupboard(a)).map(item => item.id));
+
+        if ((await type(a, candidate.name)).status !== 201) {
+          continue;
+        }
+
+        const added = (await cupboard(a)).filter(item => !known.has(item.id));
+
+        if (added.some(item => item.slug === candidate.slug)) {
+          held = candidate.slug;
+          break;
+        }
+
+        // It resolved to something else, or to nothing: take it out again so no stranger is counted.
+        for (const item of added) {
+          await request(httpServer(app)).delete(`/${PREFIX}/pantry/${item.id}`).set('Cookie', a.cookie).expect(200);
+        }
+      }
+
+      expect(held).not.toBe('');
+
+      const slugs = (page: { rows: readonly { slug: string }[] }) => page.rows.map(row => row.slug);
+      const row = (page: { rows: readonly { accounts: number; name: string; slug: string }[] }) => page.rows.find(found => found.slug === held);
+
+      // One account holds it: the row is there, its figure is 0 — not 1, not absent — and it has not moved, because the ORDER BY reads the floored figure too. A floor on the SELECT alone would put it above every zero, which is the same fact told by position.
+      const alone = await uncooked();
+
+      expect(row(alone)).toBeDefined();
+      expect(row(alone)?.accounts).toBe(0);
+      expect(slugs(alone)).toEqual(slugs(before));
+      expect(alone.total).toBe(before.total);
+
+      // A second account: 2, the row still there, and now above every row that reads below 2.
+      await type(b, row(before)?.name ?? '').expect(201);
+
+      const pair = await uncooked();
+      const at = slugs(pair).indexOf(held);
+
+      expect(row(pair)?.accounts).toBe(2);
+      expect(pair.total).toBe(before.total);
+      expect(at).toBeGreaterThanOrEqual(0);
+      expect(at).toBeLessThan(slugs(before).indexOf(held));
+      expect(pair.rows.slice(0, at).every(found => found.accounts >= 2)).toBe(true);
+
+      // No figure on the page is 1, whatever else the machine holds: it is 0 or 2 and over.
+      expect(pair.rows.some(found => found.accounts === 1)).toBe(false);
+    }, 120_000);
+
+    it('refuse any parameter but offset and size as INVALID_INPUT, and accept those two', async () => {
+      for (const route of ['unresolved', 'uncooked']) {
+        for (const query of ['q=plutonia', 'min=1', 'threshold=1', 'offset=0&size=10&q=x', 'size=nope', 'size=0', 'size=101', 'offset=-1']) {
+          const refused: Response = await get(`catalogue/cupboard/${route}?${query}`, owner.cookie);
+
+          expect({ code: (refused.body as { code?: string }).code, query, route, status: refused.status }).toEqual({
+            code: 'INVALID_INPUT',
+            query,
+            route,
+            status: 422
+          });
+        }
+
+        const fine = (await get(`catalogue/cupboard/${route}?offset=0&size=1`, owner.cookie).expect(200)).body as Paged<unknown>;
+
+        expect({ offset: fine.offset, size: fine.size }).toEqual({ offset: 0, size: 1 });
+      }
+    });
+  });
 });

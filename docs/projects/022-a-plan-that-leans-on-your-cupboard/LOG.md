@@ -1261,3 +1261,626 @@ one `generation.e2e-spec.ts` pins on the plan. The sentence itself, on a real pl
 (`multer`, high, `>= 2.0.0 < 2.5.0`): the override's key moves from the range it no longer matches
 to the one it does. That is the decision of 2026-09-21 applied, not a decision of this project, and
 it is **its own commit and its own pull request** — the two changes share a tree and nothing else.
+
+## Phase 5 — What the catalogue could not cook (2026-11-04)
+
+- **Executor**: **`backend`** for the read, **`frontend-low`** for the page, **`tests`** for the
+  end-to-end cases — **the plan's dispatch line was wrong and was amended before execution**. It
+  named `frontend-low` alone, which does not survive its own *Scope*: the read lives in
+  `apps/api/src/modules/admin/**` and in `packages/core`, neither of which `frontend` owns. Phase
+  1 learned the same lesson about `apps/api/test/`. The pricing stood: each half was small.
+- **Result**: in progress — the read and the page are built and verified; the end-to-end cases and
+  one legal text are what remain.
+- **Scope held**: the two admin routes and their specs, one console page, the console's navigation
+  and both dictionaries. No migration, no stored column, nothing on a screen anybody but the owner
+  can reach.
+
+### What was measured before anything was dispatched
+
+On the local database, 2026-11-04: **930 ingredients**, **513 that no `recipe_ingredients` row
+mentions** — the plan's figure, confirmed — and **0 rows in `pantry_items`**.
+
+So **both groups are empty here**, and the second one is the one that matters: *«in the catalogue,
+cooked by nothing»* is 513 rows whatever anybody's cupboard holds, while *«a word we could not
+answer»* can only ever report **cupboards that are still unspent**. A cupboard is deleted by the
+generation that spends it, and a plan keeps slugs and amounts but **no word anybody typed**, so
+there is no history to report and there never will be. On top of that, phase 3b's picker offers
+only catalogue foods, so `slug: null` cannot arise from the screen at all. An empty first group is
+the picker working, and both the view's doc comment and the page itself say so in those words —
+without that, the next person to look will take it for a defect.
+
+### The read
+
+Two routes rather than one with a `group` parameter, because the two groups have different row
+shapes and the page makes two calls:
+
+- `GET /admin/catalogue/cupboard/unresolved` → `{ accounts, word }`, grouped over
+  `normalised_label`, `count(distinct user_id)`, **`HAVING >= 2`**. The threshold is
+  `UNRESOLVED_WORD_THRESHOLD` in the repository's own SQL, so **no caller can ask for less** and
+  `total` counts only the groups that pass. No `label` as typed, no `user_id`, no row id is
+  selected — `legal`'s P2-6 and `0028` both.
+- `GET /admin/catalogue/cupboard/uncooked` → `{ accounts, category, name, slug }`, most-held
+  first. **No threshold here, and the reason is written in the repository rather than assumed**:
+  the row is a catalogue ingredient, reference data `/admin/catalogo/ingredientes` already lists
+  in full, and the only thing added is an aggregate.
+
+Both take only `offset` and `size`, on a `.strict()` schema, so `q`, `min` or `threshold` is a
+422 — a deviation from most neighbours, which silently strip unknown keys, and the right one for a
+read whose bound is a legal constraint.
+
+**One question went back to `legal` rather than being settled by the implementer or by me.**
+`uncooked` reports `accounts: 1`, and on a user base this small that tells the owner exactly one
+account holds a given food. P2-6 set its threshold for words people type and said nothing about
+catalogue rows; the implementer flagged the gap instead of quietly closing it, which was right.
+
+### The page
+
+`/admin/catalogo/despensa`, in the console's *Catálogo* group, two sections that each say **which
+answer they are**: *«añadir un alimento al catálogo»* and *«escribir platos con esto»*. The first
+has no filter, no size control and no input at all — a control there would imply the minimum can
+be lowered. It says a word is shown only above `UNRESOLVED_THRESHOLD` accounts, reading the
+constant rather than printing a 2 of its own, and that this is deliberate.
+
+**The empty state is the main state and is written as one**: *«Ninguna palabra llega al mínimo»*,
+with the sentence that an empty list is the picker working and that the list is a snapshot and not
+a history.
+
+**Verified**: `pnpm turbo lint ts:check test --filter=web --filter=ui` green;
+`apple-web-design` **PASS**, no P0 or P1; and `/local-probe` on the page at **320, 390 and 1280,
+light and dark, in Spanish and in English** — twelve runs, all 200, no sideways scroll, the right
+`h1` in each language. The second section draws its 513 rows paged 25 at a time; at 320 px the
+table scrolls its own region with the first column pinned, which is the console's existing
+behaviour and not this page's invention.
+
+### The end-to-end cases, and two things they corrected on the way
+
+Eight cases at the end of `admin.e2e-spec.ts`, which **write their own rows** — `pantry_items`
+is empty on every database, so a suite that hopes to find data proves nothing. One word typed by
+three accounts in three spellings (*«Zzxqv Plútonia»*, *«zzxqv plutonia»*, *«ZZXQV  PLUTONIA!»*)
+comes back as **one** word with `accounts: 3`; a word two accounts hold comes back as 2; a lone
+word is absent, exactly and as any fragment; and it **appears** when a second account types it and
+**disappears** when that account empties its cupboard — the floor pinned from both sides. The
+bodies are checked key by key: `offset/rows/size/total`, then exactly `accounts, word` and exactly
+`accounts, category, name, slug`, with no id or address of any account anywhere in them. Both
+routes answer the guard's 404 to an ordinary account and to no session over seven queries each,
+including the ones that would otherwise be a 422 — a route must not confirm its own existence to
+somebody who may not see it — and the two bodies are asserted identical to the byte, which the
+other admin routes do not check.
+
+**Nothing library-shaped is pinned**: no count and no order for the uncooked list, only `total >= 1`
+against the catalogue every database has. That is the lesson of 2026-11-03 applied on purpose.
+
+**And the floor's case was proved by breaking it, not by passing.** Three runs, in order: as it
+stands (green), with the repository's `orderBy(desc(accounts), …)` changed to `desc(held)` — the raw
+count — and then restored. The middle run fails, and **where** it fails is the whole point:
+
+```
+expect(received).toEqual(expected) // deep equality
+- Expected  - 1
++ Received  + 1
+@@ -1,8 +1,8 @@
+  Array [
+-   "aceite-de-aguacate",
+    "aceite-de-cacahuete",
++   "aceite-de-aguacate",
+    "aceite-de-guindilla",
+```
+
+The row one account holds (`aceite-de-cacahuete`) climbs above its zero-count neighbour: the leak is
+**by position**, and the figure in the body was still floored, so the `accounts` assertion on that
+same case **passed in that run**. A floor on the `SELECT` alone would have shipped looking tested.
+Run 3 restored the line and the file is identical to the original; `packages/core` was rebuilt before
+each run, so what was measured is what the tree says.
+
+Two corrections came out of the run, and both were things this project had been repeating:
+
+- **The known red in `admin.e2e-spec.ts` has a name.** It is *«never name who made a dish»*
+  (`:2193`): the case needs a recipe with `source = 'ai'` and a `created_by`, and this database has
+  none, so `expect(dish).toBeDefined()` fails. It is a fact about the **dish library**, not an
+  off-by-one on a count, and it does not read `user` at all — it fails identically on the baseline.
+  We had called it "a data precondition" for days without naming it. **It is also not
+  deterministic**, which is new as of the three runs above: it failed in runs 1 and 3 and on the
+  baseline, and **passed in run 2**, because what it needs depends on what the generation earlier in
+  that block happens to write. Anybody who meets that red should know that re-running it can turn it
+  green with nothing fixed — otherwise they will spend an hour looking for a cause where there
+  isn't one. It is recorded in `apps/api/test/README.md` for that reason. **Open, and worth one look the
+  next time anybody is in that file**: whether the generation earlier in that block should have
+  produced such a recipe under the stub model.
+- **A stranded probe account was failing the global teardown of every e2e run on this machine**,
+  not quietly sitting there: `global-teardown.ts` counts every `%.invalid` account left in the
+  database and throws. It could not be removed through any door the product has — `delete` is
+  `DELETE /users/me` and needs a cookie that was gone, the account had a second factor so its
+  constant password was not enough, and Better Auth's admin plugin is not enabled here. So
+  `account.mjs` gained **`forget <address>`**, the one write in that script that does not go
+  through a route, bounded by the production guard, by the local database and by an
+  `@probe.invalid` address only the probe makes; it deletes the row, which is what
+  `DELETE /users/me` comes to in the data (48 of the 55 foreign keys to `user` cascade, the other
+  7 are `set null` by design). The skill now says the cookie file is the only handle and that
+  accounts are deleted **before** the directory is cleared.
+
+### The one state nobody had seen
+
+The words table had never been drawn **with data**: it needs two accounts holding the same
+unresolvable word, and no database here had one. Closed by making it rather than by arguing about
+it — two throwaway accounts, two words the catalogue cannot answer, sent through `POST /pantry`
+like any client, then the page probed at 320 px in both appearances. It draws *«2 en total»* and
+the two words with their counts, **normalised and lower-cased**: P2-6's *«never verbatim from
+one»* visible on the screen and not only in the SQL. Both accounts and the admin deleted
+afterwards; `user` holds no `.invalid` address and `pantry_items` is back to 0.
+
+**Deviations**: the first list is capped at 100 rows with a line saying so when there are more,
+rather than paged — a list that needs paging is a problem we do not have and may never have. In
+English the catalogue category *«Cupboard»* shares its word with the page's own name; both are
+correct and it was left alone.
+
+### What `legal` answered, and the finding it brought with it
+
+P2-6 asked for a `/privacidad` sentence *«once a typed word is shown»* and left it undrafted. Three
+things came back, and two of them changed the product rather than a text.
+
+**The sentence does not go where P2-6 said it would.** *«Lo que nos escribes»* is the suggestions
+inbox; the cupboard already has a bullet of its own, and the larger of the two reads is not writing
+at all — it counts accounts per catalogue slug. So it is the **fifth edit to § 2.2**, two sentences
+appended to *«Lo que ya tienes en casa»* in both dictionaries and in `textos/02`, pasted verbatim.
+Three choices inside it are worth keeping: *«nunca la lista de nadie en particular»* and not
+*«nunca vemos de quién es»*, because the second would be false — the owner can query his own
+database — while the first describes the query, which selects no `user_id`; *«en minúsculas y sin
+acentos»*, because `normalised_label` is not the word as typed and saying nothing would promise
+more than the product does; and the conditional *«si alguna vez nos llega una palabra…»*, because
+the picker cannot produce one and the sentence must not insinuate that the screen invites typing.
+
+**And it is a deadline, not a wording.** The counts are a **further purpose** of data collected for
+the shopping list, so art. 13.3 owes the information *«con anterioridad a dicho tratamiento
+ulterior»*: the sentence must be live **no later than** the deploy that lets those two routes be
+called in production. Same change is fine; routes first is the duty missed. For the same reason the
+text carries **no `⟦marca⟧`** — the inverse of phase 3b's reasoning, where a mark could only have
+delayed text that was harmlessly early. Here a mark could make it late.
+
+**P2-10, raised and built the same day.** The implementer had already flagged that `uncooked`'s
+`accounts: 1` lets the owner infer that exactly one account holds a food, and I had answered that a
+catalogue row is reference data and the count an aggregate. `legal` disagreed and **checked instead
+of arguing**: the uncooked set holds `leche-sin-lactosa`, `galletas-sin-gluten`,
+`pan-rallado-sin-gluten`, `pesto-vegano`, `cerveza-sin-alcohol` and `vino-sin-alcohol` —
+**structurally**, because a recipe library is written against *«leche»* and *«pasta»*, never
+against their clinical variants. *«Leche sin lactosa — 1 cuenta»* beside *«arroz — 12»*, on a
+cohort of friends the owner knows by name, is a path to one person and is the one inference § 5.3
+says this product never makes. Not art. 9 — decision (c) stays shut — but arts. 25.1 and 5.1.c: a
+count of 1 is not the least data the purpose needs, because nobody writes a recipe for one person's
+jar. **My instruction was the thing that was wrong, and it was reversed.**
+
+The fix is **two expressions and that is the whole point**: the floor goes in the `SELECT`
+(`case when … >= UNRESOLVED_WORD_THRESHOLD then … else 0 end`) **and in the `ORDER BY`**, because
+`desc()` on the raw count sorts the one-account rows above the zero rows and hands the distinction
+back by position. A `HAVING` was refused on sight: it would have dropped every 0 and 1 row and gutted
+a 513-row list whose whole purpose is to be complete. All 513 rows stay; only the figure is bounded.
+
+On the screen, where a bounded figure can still publish an untruth: the column reads **«Cuentas que
+lo tienen, a partir de dos»**, a floored `0` renders as **«menos de dos»** and never *«ninguna»*,
+and the *«cómo se cuenta»* note says a figure appears only from two accounts up — in both languages.
+
+**What moved with it, checked rather than assumed**: `record-of-processing.md` (yesterday's line
+said *«no new purpose»*; today there is one — art. 30.1.b) and `dpia.md` (§ 1.3's *Use* step
+enumerated who reads the cupboard and the owner was not among them; 0.6.1, nothing re-scored).
+**What did not**: every consent version, `TERMS_VERSION`, `textos/05`, and the legal-basis section —
+art. 6.4's factors are met and recital 50 says a compatible further purpose needs no separate basis.
+
+### The coordination failure, which is the executor's and worth the lines
+
+Three agents were live on one phase at once, and the phase's own record would be dishonest without
+this. `legal` sent its finding straight to `backend`, which built the floor; `frontend`, which knew
+neither, hardened its text *«so it is safe either way»* and wrote **«En la lista de ingredientes sí
+se muestra una cuenta sola»** — a sentence that had become false twenty minutes earlier, on the one
+screen whose purpose is to be exact about what can be attributed to a person. It also started a full
+gate of its own beside the evaluator run, which is how this machine dies.
+
+Nothing shipped wrong: the sentence was caught and replaced within the hour and the gate was
+stopped. But the cause was not the agent's. **Three writers on one file, with findings travelling
+between them and not through the one who was supposed to know the order of things.** What it costs
+to avoid: when a reviewer's finding changes code that a second agent's text describes, the executor
+takes the pen — one writer — and tells the others to stop. That is what was done, late rather than
+early.
+
+**And taking the pen has its own cost, which showed up an hour later.** The sentence the executor
+pasted into `en-GB.ts` carried a straight apostrophe in *«anybody's own list»*, inside a
+single-quoted string: a **syntax error**, in a dictionary that had passed its checks before that
+edit existed. Nobody ran anything over it, because the agents had already finished and the full gate
+was still queued behind two other jobs. It was found by the frontend agent's `ts:check`, about
+forty minutes later, while it was adding phase 4's flag strings — and it stopped instead of fixing a
+line it had no context for, which is the right behaviour and the inverse of the mistake above. The
+viñeta already wrote `plan’s` typographically, so the fix was the typographic apostrophe in **both**
+the dictionary and `docs/legal/textos/02-politica-privacidad.md`: a published legal sentence and the
+string actually served have to be the same text to the character.
+
+The lesson is not "do not take the pen"; it is that **the executor's own edits are the ones nobody
+reviews**, so they are the ones that need the gate run against them before the hand-off and not
+after it. The gate would have caught this one. An hour of a broken dictionary on a branch costs
+nothing; the same edit made after a green gate, on the way to a merge, is how a red `main` happens.
+
+## Phase 4 — The rank, measured, behind a flag (2026-11-04)
+
+**Executor**: `backend-high`, in the worktree `.claude/worktrees/backend-pantry-rank`
+(`agent/pantry-rank/backend`, base `4a537739`, nothing staged or committed). It sits after phase 5
+in this file because that is the order it happened in: the owner reversed the October deferral
+(*«haz la 4 también»*) while phase 5's read was already being built, and this machine runs one
+heavy job at a time, so the evaluator waited for it.
+
+### What was built
+
+The rank is `Rotation.pantrySlugs` and `Rotation.pantryShare`, ordered by **how many distinct
+ingredients somebody would still have to buy** — never a boolean — placed after the food groups
+and before the appliance. It reorders and never filters: the library stays whole, the cap stays
+the same size, and what is held back is the rotation's own tail. Ties go to the person's own
+shuffle, so two people with one cupboard are not handed one pick.
+
+**The repair**, which is what the October deferral was waiting for, is the first thing built and
+the first thing measured: a dish of a capped kind enters the cupboard's reserve only if the slot's
+pick would not then hold more of that kind than it held with no cupboard at all. The kinds come
+from a new `cappedKinds` in `Balance.ts` — eggs counted by the egg, capped starch bases, meat, red
+meat, processed, fish and shellfish — handed in by `RecipeController.rotateFor`.
+
+**The rung** is `narrowerRungs` with `withRung`: the share is given up before the bands are
+missed, so the cupboard is not lost inside `wider_rotation` together with the rotation's variety,
+its avoid list and its food-group reserves. With no cupboard named, `narrowerRungs` equals
+`narrowerShares` exactly, one number per rung — so nothing changes for anybody who names none.
+
+**On the plan**, `generationMetadata` gains `pantryShare` beside `kitchenShare`, plus
+`pantryRanked`. The second is an addition to the plan's shape and it is load-bearing: a bare null
+share cannot tell *«cuota completa»* from *«sin dirección»*, and the two have to be countable
+apart for anybody to ever audit this.
+
+**The flag** is `pantryRank`, key `pantry_rank`, `audience: 'owner'`, fallback **off**. Off, the
+cupboard is read after every dish has been chosen and only shortens the shop — the product exactly
+as phases 1 to 3 shipped it, and the owner's own words at phase 0's gate (2026-10-23): the cupboard
+shortens the shop and changes no pick. On, it is read once at the top and reused, so what steered
+the pick is what the shopping list is seeded from. It reaches `rotation` as catalogue slugs only;
+`pool.build` is never handed them, and `PlanGeneration.spec.ts` pins that with a slug no dish
+carries (PRD criterion 5).
+
+**The evaluator** now calls the real code path instead of a mirror of it. Run with
+`--pantry-repair off` it was byte-identical to phase 0's mirror on every fortnight, which is what
+makes the refactor an identity rather than a new instrument; `--pantry-repair on|off` is new.
+
+### The numbers, and what they are measured against
+
+Cohort: 14 profiles × 8 seeds = **112 fortnights**, local Postgres, library **1681**. The baseline
+has moved since phase 0 (library 1638 → 1681, no-pantry rescues 14 → 16), so every comparison here
+is against **today's** declared-cupboard-with-no-steering control, which reproduces the old code on
+all 112 fortnights. A phase-0 figure quoted beside one of these is marked as such.
+
+**The repair holds where it mattered.** Eggs, 30 items, at share 14 — the share that deferred this
+project in October:
+
+| Eggs, 30 items, share 14 | Unrepaired | Repaired |
+| --- | --- | --- |
+| Fortnights holding the cap | 32% | **62%** (baseline 62%) |
+| Paired lost against gained | −31 | **0** |
+| Eggs served per fortnight | +6.56 | +0.5 to +0.7 |
+
+At 60 items and share 14 the paired net goes from −9 to +1 on eggs and from −11 to +2 on starches.
+At the shipped share the repair is a seatbelt and not a steering input: it changes almost nothing.
+
+**At the shipped share (5), all 112 fortnights stay in band.** This table is the run with **no
+preferred appliance** (`--rotate 8 --flag accompaniments`, no `--prefer`), against the same cohort's
+share-0 control; the kitchen's own cohort is the table below it and has a different control, which
+is why two rescue baselines appear in this entry.
+
+| Cupboard, no preferred appliance | Plates using something from it | Meals wholly from the house | Rows to buy | Rescues |
+| --- | --- | --- | --- | --- |
+| 30 items | 5069 → 5197 (+2.5%, 8 of 8 seeds) | 1048 → 1052 (about zero) | ~27 fewer per seed | 16 → 12 |
+| 60 items | 5658 → 5718 | 1175 → **1462** (+24%, 8 of 8 seeds) | ~55 fewer per seed | 16 → 12 |
+
+With `--prefer air_fryer` the same cohort's control is **18** and share 5 is **15** — a preferred
+appliance costs rescues before any cupboard is named, which is why the two numbers must never be
+quoted against each other. Both tallies were taken from the raw runs
+(`ctl-s0.json`, `rep-s5.json`, `k-ctl-s0.json`, `k-first-s5.json`, `ctl60.json`, `rep60-s5.json`:
+plans whose `fallback` is set, out of 112), and not from the executor's summary.
+
+**The rescue drop is the rung, not the steering** — and it is *inferred* from phase 0 § 3, which
+measured the rung on its own, **not re-measured in this phase**. Nobody ran this cohort without the
+rung, so that attribution is the earlier phase's evidence carried forward, not this one's.
+
+**Criterion 3, the kitchen** (`--prefer air_fryer`, median over the ten four-meal profiles of 56
+plates, cohort total in brackets; 021's floor is 20):
+
+| Share | 30 items | 60 items |
+| --- | --- | --- |
+| 0 (control) | 35.5 (2868) | 35.5 (2868) |
+| **5** | **36 (2887)** | **34.5 (2860)** |
+| 8 | 35 (2781) | — |
+| 14 | 24 (2070, −28%) | 28.5 (2340) |
+| 19 | **14 (1265) — below the floor of 20** | — |
+
+### The two choices the plan left to this phase
+
+**The share is 5** (`PANTRY_DISHES_PER_SLOT`, and the tree holds 5, checked by reading it and not
+by trusting the report). It is the only share that leaves the kitchen intact at both cupboard sizes
+— 36 and 34.5 against a control of 35.5 — and it already buys +24% whole-house meals at 60 items.
+Its neighbour at 8 buys about +1% at 30 items; 14 costs a quarter of the air-fryer plates and buys
+no whole-house meals at 30 items at all, and what it does buy is only there with no preferred
+appliance or a 60-item cupboard (+39%). 19 is discarded outright by criterion 3. This is a
+constant, not a per-person lever.
+
+**The cupboard yields first** (`PANTRY_YIELDS = 'first'`). At share 5 with an air fryer, the
+cupboard yielding first keeps 2887 air-fryer plates against 2693 the other way round (−6.7%), and
+the cupboard loses almost nothing for it: 5307 against 5297 plates using something from the house,
+1095 against 1096 whole-house meals, 15 against 14 rescues. At 14 the gap is +9.5% of air-fryer
+plates kept. The reason is that a preferred appliance is a standing taste that shapes every
+fortnight, while a cupboard is one fortnight's. Phase 0's figures pointed the same way (2285
+against 2120 plates; 18 against 12 rescues), with a wider rescue gap than today's 16 against 12.
+The other order's one real gain is rescues at share 14 (12 against 16), which is not the shipped
+share.
+
+### The residual nobody explained, in the words it goes to the owner in
+
+«A cuota 5 queda un residuo pequeño y repetido que la reparación no elimina: saldo emparejado −4
+huevos, −6 almidones y −8 topes de carne en unas 110 quincenas (aproximadamente +0,1 comida de
+carne por quincena), con el mismo signo sin reparar y con una despensa de 60 ítems, y ausente a
+cuota 14 y 19. No se ha identificado la causa y no puede descartarse que sea un defecto de la
+reparación; es entregable porque la bandera sale apagada y su tamaño es de ruido, pero el dueño
+debe verlo.»
+
+What argues it is not a filtering defect: the share only reorders and removes no dish, no slot ever
+fell below 19 across 18 runs, days in band hold at 1568/1568 in nearly every variant, and rescues
+fall. The balance score moves 75.9% → 74.2%. The two hypotheses that were **not** tested are worth
+keeping, because they are what somebody would check next: that the «meat» kind is computed on one
+serving while the scheduler scales servings, and that per-slot neutrality does not stop the
+scheduler from choosing more meat dishes out of a differently ordered pool.
+
+**Reading the code settles half of that, and the executor's own comments say it out loud.** The
+repair's neutrality is **per slot**: `pantryRank` computes its ceiling from `pickWith([])`, the
+slot's own pick with no cupboard, and `cappedKinds` states that it is *«not slot-aware on purpose —
+the caps count a fortnight, and a slot's pick is counted against its own pick without a cupboard»*.
+The caps it is protecting are **per fortnight**. A per-slot guarantee cannot imply a per-fortnight
+one, so a small fortnight-level residual is a **predicted consequence of the shape chosen**, not an
+anomaly in it — which is a different thing from a defect and should be read as one. What is still
+unexplained is the part the shape does not predict: why **meat** specifically, repeated across three
+series, and why it disappears at shares 14 and 19. A full per-fortnight repair is a different design
+(it would need the fortnight's running counts inside the rank, which is pool-wide state the rotation
+does not have) and it is not what this phase was asked for.
+
+### Stop conditions, and the one thing that is not one
+
+Neither stop condition fired in any variant. Rescues never rose: 16 at worst, against controls of
+16–18 with an appliance and 11–12 without. *«Plates using a pantry item no better than the
+no-pantry run»* was never close — the smallest improvement was +15 per seed in 8 of 8 seeds, and no
+individual seed got worse.
+
+What is **not** a stop condition but the owner should see anyway: **whole-house meals are flat at 30
+items and share 5** (1048 → 1052), and flat-to-slightly-down with an appliance at share 14 (−0.6 per
+seed). That is close in shape to the *«one meal in forty-two»* that made him defer this in October;
+the difference is that the worth now lives in large cupboards (+24% at 60 items) and in ~27 to ~55
+fewer rows to buy per seed. The only criterion that fails anywhere is criterion 3 at share 19, which
+discards 19 rather than the phase.
+
+### Deviations from plan, phase 4
+
+**The scope grew, and the plan is amended in the same change.** Declared: `Rotation.ts`,
+`PlanGeneration.service.ts` and their specs. Also touched, each with its reason:
+`Balance.ts`/`Balance.test.ts` (`cappedKinds`, which the repair needs),
+`RecipeController.ts`/`RecipeController.test.ts` (`rotateFor` passes the kinds through),
+`Flag.ts`/`Flag.test.ts` and `SettingsController.ts` (the flag itself),
+`apps/api/src/modules/billing/services/Billing.spec.ts` (one `FlagSet` literal that had to grow
+with the new key) and `apps/api/scripts/evaluate-plans.mjs` (the instrument now calls the real
+code). No docs, no web, no migration, no new environment variable from the executor.
+
+**A new flag is never only a flag.** `FlagName` is a union, so adding one leaves the web's
+`Record<FlagName, string>` in `admin/ajustes/registro/page.tsx:71` incomplete and reddens
+`apps/web`'s `ts:check` by itself — and the owner cannot answer an `owner-approves` gate on a
+switch he has no way to throw. So the label, the three strings in both dictionaries and a
+`FlagSwitch` on `/admin/ajustes` ship **with** this phase. The consequence was spotted by the
+frontend agent reading its own type error and not by the phase that created it; the general rule
+belongs in the report of any phase that adds a flag.
+
+**`pantryRanked` is an addition** to the plan's step 3, which asked only for `pantryShare`.
+
+**Where the cupboard is read moved**, under the flag and only under it, and the invariant comment
+at `PlanGeneration.service.ts:646` was rewritten to say so rather than left describing the old
+shape.
+
+### What is not tested, stated rather than left to be found
+
+The nulling of `pantryShare` in the `wider_rotation` rescue is in the code with **no direct test**:
+the executor dropped a case of its own that the fixture could not reach. Checked against `main`
+rather than taken on trust — the whole diff deletes no `it(` or `describe(` block, so no coverage
+that pre-dates this phase was lost.
+
+The share constant is **not pinned by a spec** either: `Rotation.test.ts` asserts only that it is
+greater than zero and otherwise uses `Math.floor(PANTRY_DISHES_PER_SLOT / 2)`, deliberately
+share-agnostic so the suite survives a re-measurement. The measurement in this entry is therefore
+the only thing that says 5, which is an argument for reading this entry before changing it.
+
+### The invariant review, and the one claim it refused to sign
+
+`invariant-reviewer` read the whole diff before it was brought into the main checkout, on the
+question *«nothing of what somebody has at home may reach the model»*. **No P0.** Four P2 and two
+P3, none of them holding the merge, and it ran nothing.
+
+**What it confirmed by tracing rather than by trusting the spec**: `rotation` never crosses into
+`pool.build` — every consumer is inside `core/domain/Variety`, `BuildPoolInput` has no field a
+rotation could occupy, and `promptPreferences`'s arguments are unchanged. And no cupboard **word**
+exists on this path to leak in the first place: `PantryController.forGeneration` returns
+`{ grams, ingredientId, slug }`, so `normalised_label` never leaves the repository. Ownership holds
+on every path, including both rescues and the cut list. Off is off at five separate divergence
+points, each a no-op, which is the code-reading counterpart of the byte-identical evaluator run.
+
+**What it refused to sign, and it is right**: with the switch on, the prompt's *text* becomes a
+function of the cupboard. The dishes already accepted are named to the model as ones to avoid
+(`PoolBuilder.service.ts`'s `excludeSlugs`), and the cupboard reordered which those are. No field of
+the request carries the cupboard; **the pick does**. Before this phase the cupboard was read after
+the pick and the prompt was cupboard-independent — that property is gone when the flag is on.
+
+It graded that **P2 and not P1** on an argument worth keeping: this is the same channel the product
+already sanctions and documents for a dietary pattern's lean (`0077`, `ARCHITECTURE.md`
+§ Invariants, pinned over one catalogue by `PoolPrompt.spec.ts`), and the PRD's criterion 7 is
+satisfied to the letter because `promptPreferences` gains no key and `health-boundary.spec.ts` needs
+no new exception. **The comments were the thing that was wrong**, and they are fixed in this change:
+they claimed the criterion was "a property of this code's shape" without qualification, which is
+true of content and false of influence, and they cited criterion **5** (the provider-call counter)
+where they meant **7** (nothing hand-written reaches the model). Whoever flips that switch is owed
+the distinction, so it is now written at the read itself.
+
+### What `legal` answered, and why it is not «nothing to do until the flip»
+
+The question put to it was the flip-time one: whether a prompt whose text depends on what is in
+somebody's house is a communication of that to the processors behind the model, whether art. 13.3
+puts the policy ahead of the flip, and whether the record or the DPIA move. Its answer changed what
+this commit has to contain.
+
+**It is not a communication, and not because the inference is weak.** A weak inference is still an
+inference — that is the whole of P2-10. It is because of what is in the transmission: art. 4.2 needs
+a cupboard datum made available, and what travels is a set of shared-library dish slugs that the
+cupboard *caused*. **The product already does exactly this with art. 9 data, in public**: a dietary
+pattern leans the library pick and is kept out of the prompt's liked foods (`0077`,
+`ARCHITECTURE.md`), and `/privacidad` says it in so many words — *«le llega el efecto, nunca el
+dato»*. If a lawful transmission's causal history were a disclosure of its inputs, that published
+sentence would already be false. Why this comes out the other way from P2-10, which is the same
+reasoning: there the output *was* the information, one step, for a reader already holding the other
+half; here a recipient would need the library, the rank's algorithm and seed, the person's avoid
+list, likes, dislikes, the group reserves and the caps, and the map back is many-to-one and lossy
+by construction. Recital 26's *means reasonably likely to be used* fails. One `[lawyer]` line, and
+being wrong is cheap: same processors, same art. 28 contract, same purpose — a stricter reading
+changes the notice, not the lawfulness.
+
+**But two published sentences stop being true the moment the flag moves, and that is worse than a
+missing notice.** `/privacidad` and the pantry screen both said *«No cambia los platos que elegimos
+ni quita ninguno»*, and with the flag on the first half is false (the second half survives: an order
+is not a filter). Arts. 5.1.a and 13.1.c, and on the screen TRLGDCU art. 20 and Ley 3/1991 art. 5,
+because there it is a product claim. **P1-11 — and P0 the moment the switch moves.**
+
+**And the gate cannot be a deploy.** `pantryRank` is a row in `app_settings`, read per generation,
+flipped from `/admin/ajustes`. There is no build between the click and the next plan, so phase 5's
+*«ship the text in the same change»* is unavailable here: what keeps those sentences true today is
+that nobody has pressed the button. So both texts are written **true in both states**, and they are
+in this commit rather than in the one that flips the flag — which is the opposite of how phase 5's
+deadline worked, and the thing easiest to get backwards.
+
+The asymmetry inside that, which is `legal`'s and worth repeating: **the policy may describe a
+capability; the screen may not promise one that is switched off.** So the policy's bullet gained two
+sentences that hold either way, pasted from `textos/02` and checked character by character against
+it in both languages, and the screen's `pantry.intro` simply **lost** its last clause (option g1).
+Option g2, text that names the steering, was refused for a reason worth keeping: it would need a
+signed-in screen to read owner-audience state.
+
+**The record and the DPIA each stated, as fact, a measure this phase removes** — *«read after every
+pick, so nothing can reach the pool»* and *«there is no path from it to a dish»*. Both are amended to
+two-state text (P2-12). **Nothing was re-scored and decision (c) stays shut**, but the art. 9
+position **lost one of its two legs**: the structural guarantee is gone, and what carries it alone is
+that no restriction is inferred or presented, that the rank reads ingredient slugs and nothing about
+their meaning, and that it is an order and never a filter. So § 5.4's wording discipline matters more
+than it did, the screen's `keeps` sentence is now load-bearing and may not be removed, and
+prohibition 7 is split: *avoid* and *exclude* stay forbidden in both states, *prefer* may be said as
+a share with the flag on, while *«solo con lo que tienes»* and *«adaptado a tu despensa»* stay
+forbidden whatever the flag says. The dictionary comment that justified the old sentence said it was
+true *«porque no hay camino desde esa lectura hasta una elección»*; that path now exists, so the
+comment says instead which sentences carry the position and that they are not to be touched without
+`legal`.
+
+**`legal` also corrected the premise of its own documents by checking it**: it had written «merged
+2026-11-04», and `main` is at `4a537739` with the work uncommitted, so the record and the DPIA — the
+two documents a regulator reads — would have asserted a production state that does not exist. They
+now say *unmerged, true once merged*.
+
+**Left for the flip, not for this commit**: `health-boundary.spec.ts` green with the flag **on**,
+which is the only mechanical proof that no cupboard slug reaches the prompt by the new route, and it
+belongs with the change that turns the flag on, together with `tests-5`'s four cases. Separately and
+**not** a phase 4 cost: P3-13, the policy's *«Lo que recibe el modelo»* enumeration does not name the
+already-chosen dish list it has been sending all along.
+
+**Three more things came out of it and are fixed here.** The repair **was** an argument and not a
+guarantee: `rotatePool` without `kindsOf` returned the unrepaired rank, and the whole-library rescue
+is already a production call that omits it — safe *only* because it passes `pantryShare: 0`. It is
+now a guarantee: `pantryRank` **fails closed**, so a rotation that names a cupboard without the
+repair ranks nothing, and the unrepaired shape is asked for by name (`UNREPAIRED_RANK`), which only
+the evaluator passes. The repaired path — the one the 112 fortnights were measured on — is
+**byte-identical** to what was measured; that was checked by reading the two versions side by side
+before the change was taken, because a guard that quietly moved the shipped path would have
+invalidated every number above. The flag's **declaration** was pinned by nothing: `flagsFor`'s own test asserts that the
+filter obeys whatever each flag declares, which pins the mechanism for every new flag but leaves a
+commit free to change this one to `signed-in` and break no test — so it now has the same explicit
+declaration pin that `checkInReminders` and `professional` carry, and for the same reason. And the
+justification for the repair named five cupboard staples as *«the capped list to the letter»* when
+only three of the five are capped (`STARCH_RULES.capped` is `pasta`, `rice`, `grains`: potato and
+bread are not); the argument survives, the sentence did not.
+
+What is left to `tests-5`, briefed but deliberately **not** written into this change, because the
+flag is off and they are the pins the *flip* needs: a plan identical with the flag off and on over
+one seed; `pool.build`'s `preferences` argument deep-equal with the flag off and on, which is the
+only durable pin on the paragraph above; `pantryRanked` telling a full share from no steering; the
+specs asserting *whose* id `forGeneration` was called with; and the `wider_rotation` nulling, which
+has no direct test at all.
+
+### The third coordination failure of the day, and it is the executor's again
+
+The invariant review's findings were sent to `backend-4`, `tests-5` and the executor in the same
+round. The executor fixed the code findings in the main checkout; `backend-4`, which had not been
+told to stand down, fixed the same findings in its worktree — **two different fixes for one
+finding**. The executor's was a comment and a guard note; `backend-4`'s was the better answer, a
+**fail-closed** rank, which is what the finding actually asked for.
+
+Resolved by taking the stronger fix file by file rather than wholesale: `Rotation.ts`,
+`Rotation.test.ts`, `RecipeController.test.ts`, `evaluate-plans.mjs` and the spec's title from
+`backend-4`; `PlanGeneration.service.ts`, `Balance.ts` and `Flag.test.ts` kept from here, because
+those carried the influence distinction, the capped-list correction and the declaration pin, which
+its copies did not have. Two things the merge itself broke had to be fixed with it: the rescue
+comment, which still said the `pantryShare: 0` literal was what made that call safe when the fail-
+closed guard now is, and the accuracy fix on the capped list, which its copy of `Rotation.ts` had
+reverted. **A merge of two good fixes produces a false comment unless somebody reads both**, which
+is the whole argument for one writer per file.
+
+**The cause is the executor's and it is the same one as this morning's**, in a new shape: the
+instruction *«findings to me and I distribute»* was given to the reviewer **after** it had already
+delivered, and `backend-4` was never told the pen had moved. And `invariant-4` was right to answer
+that it had followed the house rule: `docs/reference/agent-team.md` § *Talking to each other* says
+*«a finding goes to whoever owns the file, not to the lead»*. The documented rule is good for speed
+and it is what the next reviewer will do, so the fix is not to overrule it but to name its one
+exception — **when the lead has taken the pen on a file, findings on that file go to the lead and
+the owner does not act** — which is now written there.
+
+### The gate
+
+`sh .claude/skills/ship/scripts/gate.sh --full` **green** over both phases together: migrations,
+checks (lint, types, tests with coverage), the web build with every public page still static,
+format, dead code and the leak scan. It went red twice first, both times on the executor's own
+edits and neither on an agent's: the apostrophe above, and `en-GB.ts:365`, where the new
+`belowFloor` key sat after `caption` instead of before it — `apps/web` allows zero lint warnings, so
+a sort-order warning is a red, and it was wrong in one language only because the Spanish block had
+it right.
+
+**One end-to-end suite was run against this phase's code, and it was a gap worth closing rather than
+disclosing.** After phase 4 came into the main checkout the only suite anybody had run was phase 5's
+`admin.e2e-spec.ts`; `pantry.e2e-spec.ts` — 3a's, the one that drives a whole generation and checks
+that the plan carries what the cupboard did — had never seen phase 4's code. It passes, 21 of 21,
+with `packages/core` rebuilt first and `pantryRank` verified present in the rebuilt `dist`. What that
+proves is the **flag-off** path, which is the path that ships; no end-to-end run anywhere has yet
+seen a cupboard steer a plan, and that is the first item on the flip's list.
+
+`owner-approves` on the cohort numbers, and the flag ships **off**, so the merge does not need the
+answer — the flip does. What the owner is being asked to ratify or overrule: **the share at 5** and
+**the cupboard yielding first**, both of which the plan explicitly left to this phase, and whether
+the unexplained residual is acceptable at a share where the flag is off until he says otherwise.
+The `docs/decisions/LOG.md` line gets written when he answers, not before.
+
+### The owner's answer, and the two things that moved with it (2026-11-05)
+
+**Answered.** The owner read the report of the three questions and the executor's
+recommendation and said *«haz pr, merge, lo que haga falta tu solo, termina ambas fases bien y
+completas»*. Written out so it can be contradicted rather than inferred: the **share stays at 5**,
+the **cupboard keeps yielding before the appliance**, and the **residual is accepted while the flag
+is off**. The `docs/decisions/LOG.md` line this entry promised is written, and the phase is closed
+in the plan. What the answer does not cover, and what no instruction to ship can, is the flip:
+`pantry_rank` ships off and [`../../legal/pantry.md`](../../legal/pantry.md) § 9.6 is unchanged by
+any of this.
+
+**And one thing moved on its own: `privacy.updated`.** It read *«4 de noviembre de 2026»* / *«4
+November 2026»*, moved for phase 3b, which shipped that day — these two phases did not make it into
+that deploy. The rule in § *What else moves* of the legal file is the day the text goes live and not
+the day it was written, so both dictionaries now read **5 November** and the file's own row records
+it. It is the one line in this change that is true because of a deploy rather than because of code:
+if the merge does not reach production today either, it moves again.
+
+**The executor committed and pushed this one.** Every phase of this project until now left the
+commit to the owner, which is the house rule (`/execute-project` step 8); for these two he said
+otherwise, in the same sentence quoted above. The merge is recorded by the commit hash the plan's
+next backfill carries, not claimed here: this file is written before the push, and a record may not
+state as done something that has not happened yet. The gate, the pull request's checks and the
+production verification are in the hand-off, not in this entry.

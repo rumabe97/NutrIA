@@ -109,6 +109,41 @@ incomplete in the same change.*
 - [ ] (lead) `/condiciones` does **not** change, and neither does `Allowance.ts`: the kitchen is free on both tiers, so there is nothing contractual to say.
 - [ ] (whoever opens it) If the dietitian's workspace ever shows a client's kitchen, that is a new disclosure: "Tu dietista en NutrIA" changes first and `CARE_CONSENT_VERSION` goes up. Today the `/consulta` DTOs carry no kitchen.
 
+## 0 decies. Before switching the `pantryRank` flag on (project 022 phase 4)
+
+*Phase 4 is **unmerged** at the time of writing (2026-11-04: in a working tree, with `main` at
+`4a537739`); every box below is true once it is. This one has a shape the other sections do not.
+**The switch is a row in `app_settings`**, read
+per generation (`SettingsController.pantryRank()`) and flipped from `/admin/ajustes` through
+`POST /admin/settings/flag` — so there is no deploy between the click and the next plan, and
+nothing here can be timed "with the change". Everything below has to be **already live** when the
+owner clicks. The detail and the drafted texts are in [`pantry.md`](./pantry.md) § 9.*
+
+- [ ] (frontend) `/privacidad`'s cupboard bullet replaced with § 9.5 **(f)** in `es-ES.ts`,
+      `en-GB.ts` and [`textos/02`](./textos/02-politica-privacidad.md), with `privacy.updated` on
+      the day it goes live. **Today's bullet says *«No cambia los platos que elegimos ni quita
+      ninguno»*, and with the flag on the first half of that is false** (**P1-11**). The
+      replacement is written to be true whichever way the flag sits, so it can — and should — ship
+      before the owner has decided anything.
+- [ ] (frontend) The pantry screen's `pantry.intro`: § 9.5 **(g1)** (delete the last clause) or
+      **(g2)** (two strings chosen by the flag), **not both**, and the stale comment above it at
+      `es-ES.ts:2422` with it. (g1) needs no flag on the client; whether (g2) is reachable is
+      `frontend`'s call. The *«Esto no cambia lo que evitamos»* sentence stays exactly where it is
+      and matters more than before.
+- [ ] (legal/lead) § 5.4 re-read against every string the screen shows **with the flag on**, under
+      prohibition 7 as [`pantry.md`](./pantry.md) § 9.4 amends it: *avoid* and *exclude* stay
+      forbidden in both states; *prefer* may be said only with the flag on, only as a share, and
+      never as *«solo con lo que tienes»* or *«adaptado a tu despensa»* — it is at most five of the
+      nineteen dishes offered per meal, and a missed macro band walks it to zero.
+- [ ] (tests) `health-boundary.spec.ts` green **with the flag on**, which is the only mechanical
+      proof that no cupboard slug reaches the prompt by the new route; and the pin that
+      `pool.build` is never handed the rotation.
+- [ ] (lead) **No consent version and no `TERMS_VERSION`**: the model receives no cupboard datum in
+      either state, so `profileConsent.ai` and *«Lo que recibe el modelo»* do not change, and
+      nothing of this crosses to a dietitian (`pantryRanked` reaches no view at all).
+- [ ] (owner) The two `[lawyer]` lines of § 9.2 and § 9.3 on the list for the hour. **Neither
+      blocks the flip**: being wrong on either costs a notice, not the feature.
+
 ## 0 bis. Before setting `AI_PROVIDER=openrouter` in production (`0064`)
 
 > Production has been running with `AI_PROVIDER=stub` since 2026-09-26: nothing goes out to

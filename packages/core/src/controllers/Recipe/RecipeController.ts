@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { fitSlots, libraryUsage, SECOND_CUT_SLOTS } from 'core/domain/MealFit';
 import { hasUsableMethod } from 'core/domain/Method';
 import { rotatePool } from 'core/domain/Variety';
-import { reserveGroups } from 'core/domain/Balance';
+import { cappedKinds, reserveGroups } from 'core/domain/Balance';
 import { bestEffortExclusions, dishSafety, mentionsUnresolvedAllergy } from 'core/domain/Safety';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { ProfileRepository } from '#repositories/Profile';
@@ -1068,7 +1068,15 @@ export const RecipeController = {
    * being read again (`narrowerShares`, `0102`).
    */
   rotateFor(library: readonly CandidateDish[], slots: readonly MealSlot[], context: GenerationContext, rotation: Rotation): readonly CandidateDish[] {
-    return rotatePool(library, slots, rotation, undefined, (inSlot, slot, taken) => reserveGroups(inSlot, slot, context.catalogue, taken));
+    return rotatePool(
+      library,
+      slots,
+      rotation,
+      undefined,
+      (inSlot, slot, taken) => reserveGroups(inSlot, slot, context.catalogue, taken),
+      // Read only when a cupboard is ranked: what keeps its reserve inside the table's caps (project 022 phase 4).
+      cappedKinds(context.catalogue)
+    );
   },
 
   /** `instructions` alone, nothing else about the recipe. See `RecipeRepository.setInstructionsOnly`. */

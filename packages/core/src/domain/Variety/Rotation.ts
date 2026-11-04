@@ -132,6 +132,43 @@ const REUSED_DISHES_PER_SLOT = DISHES_NEEDED_PER_SLOT;
  */
 const APPLIANCE_DISHES_PER_SLOT = Math.floor((REUSED_DISHES_PER_SLOT * 3) / 4);
 
+/**
+ * Dishes a slot keeps for what is already in the house (project 022 phase 4),
+ * inside `REUSED_DISHES_PER_SLOT`, after the food groups and **before** the
+ * appliance — the composition phase 0 measured and the only one it measured
+ * with the rung (`LOG.md` § 3).
+ *
+ * **A ceiling and not a floor, like `APPLIANCE_DISHES_PER_SLOT`, and for the
+ * same reason**: it can cost the bands, and then it must give way before the
+ * rotation does (`narrowerRungs`). Without that rung the quota is the cliff
+ * `0102` already paid for — rescues up from 14 of 112 fortnights to 23, with
+ * days out of band — and with it every day stayed in band.
+ *
+ * **Five, and measured over 112 fortnights** (14 profiles × 8 seeds, 2026-11-04,
+ * the repaired rank, the cupboard yielding first): every day stayed inside all
+ * four macros, rescues *fell* (16 → 12 of 112 with a thirty-item cupboard), and
+ * a preferred air fryer lost nothing (median 36 of 56 plates against 35.5, 2,887
+ * against 2,868 in all). What five buys is a function of how much the person
+ * put in the cupboard and it is the owner's to weigh: with sixty items it is
+ * +16% of meals cooked wholly from the house (1,424 against 1,226), with thirty
+ * it is about +2.5% of plates using something of it and no more whole meals than
+ * before. **Fourteen buys more and costs the kitchen**: +39% whole meals at
+ * sixty items, and 28% of an air fryer's plates. It stays a constant and not a
+ * knob because a constant priced on one cupboard is not priced — the cohort
+ * numbers are in project 022's `LOG.md`, phase 4.
+ */
+export const PANTRY_DISHES_PER_SLOT = 5;
+
+/**
+ * Which preference gives way first when the bands are missed and somebody has
+ * both a cupboard and a preferred appliance — phase 4's to choose, and chosen
+ * on the figures in `LOG.md`. `first`: the cupboard is given up before the
+ * appliance gives up anything; `last`: the reverse.
+ */
+export type PantryYields = 'first' | 'last';
+
+export const PANTRY_YIELDS: PantryYields = 'first';
+
 /** How many of a slot's cap this rotation keeps for a preferred appliance: its own rung, or the full share. */
 function shareOf(rotation: Rotation): number {
   if (!rotation.preferAppliances || rotation.preferAppliances.size === 0) {
@@ -139,6 +176,15 @@ function shareOf(rotation: Rotation): number {
   }
 
   return Math.max(0, Math.min(rotation.applianceShare ?? APPLIANCE_DISHES_PER_SLOT, APPLIANCE_DISHES_PER_SLOT));
+}
+
+/** How many of a slot's cap this rotation keeps for what is in the house: its own rung, or the full share, and nothing without a cupboard. */
+function pantryShareOf(rotation: Rotation): number {
+  if (!rotation.pantrySlugs || rotation.pantrySlugs.size === 0) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(rotation.pantryShare ?? PANTRY_DISHES_PER_SLOT, PANTRY_DISHES_PER_SLOT));
 }
 
 /**
@@ -176,6 +222,53 @@ export function withApplianceShare(rotation: Rotation, share: number): Rotation 
 }
 
 /**
+ * One step down the ladder: what each preference is left with when the bands
+ * were missed. `null` is "keeps the share it had", a number is the rung it
+ * stands on, and zero is none of it.
+ */
+export type Rung = { readonly applianceShare: number | null; readonly pantryShare: number | null };
+
+/**
+ * The rungs to try, widest first, when a plan built on this rotation misses a
+ * macro band — `narrowerShares` for the appliance and the same half-then-none
+ * for the cupboard, in the order `yields` says (project 022 phase 4, PRD 4).
+ *
+ * The bands outrank every preference (`0045` before `0102`), and the rescue that
+ * honours that replaces the pool with the whole library: the rotation's variety,
+ * its avoid list, its food-group reserves, the appliance **and** the cupboard,
+ * all at once. A share with no rung is a cliff; this is the rung. A group is
+ * walked with the other already spent — so `first` gives the cupboard up
+ * entirely before the appliance loses anything, and `last` the reverse.
+ *
+ * With no cupboard it is exactly `narrowerShares`, one number per rung, which
+ * is what keeps every plan that names none the plan it was before.
+ */
+export function narrowerRungs(rotation: Rotation, yields: PantryYields = PANTRY_YIELDS): readonly Rung[] {
+  const appliance = narrowerShares(rotation);
+  const share = pantryShareOf(rotation);
+  const pantry = share <= 0 ? [] : [...new Set([Math.floor(share / 2), 0])].filter(rung => rung < share);
+
+  if (yields === 'last') {
+    return [
+      ...appliance.map(rung => ({ applianceShare: rung, pantryShare: null })),
+      ...pantry.map(rung => ({ applianceShare: appliance.length > 0 ? 0 : null, pantryShare: rung }))
+    ];
+  }
+
+  return [
+    ...pantry.map(rung => ({ applianceShare: null, pantryShare: rung })),
+    ...appliance.map(rung => ({ applianceShare: rung, pantryShare: pantry.length > 0 ? 0 : null }))
+  ];
+}
+
+/** This rotation on one rung: the only way to build one, so a rung means the same thing wherever it is walked to. */
+export function withRung(rotation: Rotation, rung: Rung): Rotation {
+  const narrowed = rung.applianceShare === null ? rotation : withApplianceShare(rotation, rung.applianceShare);
+
+  return rung.pantryShare === null ? narrowed : { ...narrowed, pantryShare: rung.pantryShare };
+}
+
+/**
  * The dishes a slot takes first, chosen from that slot's dishes in shuffled
  * order, knowing which dishes an earlier slot already took: see `rotatePool`.
  */
@@ -194,6 +287,23 @@ export type Rotation = {
   readonly applianceShare?: number;
   /** Slugs this user was served last fortnight, and dishes they disliked. Never offered. */
   readonly avoidSlugs: ReadonlySet<string>;
+  /**
+   * How many of each slot's cap the cupboard may hold when it is not the full
+   * `PANTRY_DISHES_PER_SLOT`: set only to walk **down** `narrowerRungs`, and
+   * clamped to the full share so it can never ask for more than was measured.
+   */
+  readonly pantryShare?: number;
+  /**
+   * What is already in the house, as catalogue slugs (project 022 phase 4):
+   * the dishes somebody would have to buy fewest items for are ranked up, as
+   * many as `pantryShare` leaves, after the food groups and before the
+   * appliance. **An order and never a filter, and never a leaning**:
+   * `isPreferredDish` is one bucket for four reasons and a fifth tenant would
+   * fill it with most of the library (`0102`'s dilution). Absent — every caller
+   * but a generation with the cupboard's rank switched on — the pick is
+   * exactly what it was.
+   */
+  readonly pantrySlugs?: ReadonlySet<string>;
   /**
    * Appliances they would rather cook with (`0102`). A dish that needs one goes
    * to the front of the pick **and holds a share of every slot's cap**
@@ -292,6 +402,150 @@ function applianceShare(inSlot: readonly CandidateDish[], rotation: Rotation, re
   return wanted <= 0 ? [] : inSlot.filter(dish => !already.has(dish.slug) && prefersAppliance(dish, rotation)).slice(0, wanted);
 }
 
+/**
+ * The capped kinds a dish counts towards — eggs, a capped starch base, meat,
+ * red meat, processed meat, fish and shellfish: the foods a fortnight's table
+ * limits (`BALANCE_CAPS`, `STARCH_RULES`). Supplied by the caller, who holds the
+ * catalogue this file does not; see `cappedKinds`.
+ */
+export type CappedKinds = (dish: CandidateDish) => readonly string[];
+
+/**
+ * The one way to ask for the rank **without** the repair, by name, so that it
+ * can never be what a caller gets by leaving an argument out: a rotation that
+ * names a cupboard and supplies neither `kindsOf` nor this ranks nothing
+ * (`pantryRank` fails closed). Only the evaluator, measuring what the repair
+ * is worth, passes it.
+ */
+export const UNREPAIRED_RANK = 'unrepaired' as const;
+
+/** How many dishes of each capped kind a pick holds. */
+function kindCounts(pick: readonly CandidateDish[], kindsOf: CappedKinds): ReadonlyMap<string, number> {
+  const counts = new Map<string, number>();
+
+  for (const dish of pick) {
+    for (const kind of kindsOf(dish)) {
+      counts.set(kind, (counts.get(kind) ?? 0) + 1);
+    }
+  }
+
+  return counts;
+}
+
+/** Items somebody would have to buy for this dish: its distinct ingredients the house does not hold. */
+function itemsToBuy(dish: CandidateDish, held: ReadonlySet<string>): number {
+  return new Set(dish.ingredients.map(item => item.slug).filter(slug => !held.has(slug))).size;
+}
+
+/**
+ * The dishes of a slot kept for what is already in the house: those somebody
+ * would have to buy **fewest items** for, in that order, as many as this
+ * rotation's share leaves once the dishes the food groups reserved that already
+ * use something from the house are counted.
+ *
+ * **A rank and never a boolean** (PRD 022 § *Outcome* 3), and an order and
+ * never a filter: the dish that costs nothing to buy for goes first, then the
+ * one that needs one more thing, with ties left to the person's own shuffle
+ * (`Array.prototype.sort` is stable). It reads `CandidateDish.ingredients` and
+ * nothing else, so no word of the cupboard goes anywhere near a prompt.
+ *
+ * **The repair** (`LOG.md` phase 0, notes for the next phase; the owner's entry
+ * of 2026-11-04): *the cupboard's reserve never takes a dish that would take the
+ * fortnight past a cap*. What people put in a cupboard is eggs, rice, pasta,
+ * potato and bread, and eggs, rice and pasta are capped by the table (potato and
+ * bread are not: `STARCH_RULES.capped` is `pasta`, `rice`, `grains`), so ranking
+ * by what is not to be bought ranks capped foods high — and at the shares that
+ * bought a visible gain it broke the egg maximum in three plans of four. With `kindsOf`, a candidate of a capped
+ * kind enters only when the slot's final pick would not hold **more** of that
+ * kind than the pick without any cupboard did: the rank may exchange an egg
+ * dish for an egg dish the house can cook, never add one. **Without `kindsOf`
+ * it ranks nothing**: the repair is not a discipline the caller is trusted to
+ * remember, and the unrepaired rank is something to ask for by name
+ * (`UNREPAIRED_RANK`), as only the evaluator does.
+ */
+function pantryRank(
+  inSlot: readonly CandidateDish[],
+  rotation: Rotation,
+  reserved: readonly CandidateDish[],
+  perSlot: number,
+  kindsOf: CappedKinds | typeof UNREPAIRED_RANK | undefined
+): readonly CandidateDish[] {
+  const share = pantryShareOf(rotation);
+  const held = rotation.pantrySlugs;
+
+  if (share <= 0 || !held) {
+    return [];
+  }
+
+  const touchesHouse = (dish: CandidateDish): boolean => dish.ingredients.some(item => held.has(item.slug));
+  const wanted = share - reserved.filter(touchesHouse).length;
+
+  // Fail closed: the repair is what keeps the rank inside the table's caps, so a
+  // caller that names a cupboard and forgot to supply it gets no rank at all
+  // rather than the shape that broke the egg maximum. The unrepaired rank is a
+  // thing to ask for by name (`UNREPAIRED_RANK`).
+  if (wanted <= 0 || !kindsOf) {
+    return [];
+  }
+
+  const already = new Set(reserved.map(dish => dish.slug));
+  const ranked = inSlot
+    .filter(dish => !already.has(dish.slug))
+    .map(dish => ({ dish, toBuy: itemsToBuy(dish, held) }))
+    .sort((left, right) => left.toBuy - right.toBuy)
+    .map(entry => entry.dish);
+
+  if (kindsOf === UNREPAIRED_RANK) {
+    return ranked.slice(0, wanted);
+  }
+
+  const cache = new Map<string, readonly string[]>();
+
+  const cached: CappedKinds = dish => {
+    const known = cache.get(dish.slug);
+
+    if (known) {
+      return known;
+    }
+
+    const kinds = kindsOf(dish);
+
+    cache.set(dish.slug, kinds);
+
+    return kinds;
+  };
+
+  // The pick this slot would make with the cupboard `kept`, to the dish.
+  const pickWith = (kept: readonly CandidateDish[]): readonly CandidateDish[] => {
+    const early = [...reserved, ...kept];
+
+    return [...new Set([...early, ...applianceShare(inSlot, rotation, early), ...inSlot])].slice(0, perSlot);
+  };
+
+  const ceiling = kindCounts(pickWith([]), cached);
+  const kept: CandidateDish[] = [];
+
+  for (const dish of ranked) {
+    if (kept.length >= wanted) {
+      break;
+    }
+
+    // No capped kind, nothing to repair: the common case costs nothing.
+    if (cached(dish).length === 0) {
+      kept.push(dish);
+      continue;
+    }
+
+    const counts = kindCounts(pickWith([...kept, dish]), cached);
+
+    if ([...counts].every(([kind, count]) => count <= (ceiling.get(kind) ?? 0))) {
+      kept.push(dish);
+    }
+  }
+
+  return kept;
+}
+
 /** FNV-1a. A string in, a well-mixed 32-bit integer out; enough to seed a generator. */
 function hash(seed: string): number {
   let value = 0x811c9dc5;
@@ -358,13 +612,22 @@ export function seededShuffle<T>(items: readonly T[], seed: string): T[] {
  * rest: given that slot's dishes in shuffled order, it returns the ones the
  * fortnight's food groups need (`reserveGroups`), and they come first; the
  * rest fill the slot as before. Without it, the pick is what it always was.
+ *
+ * `rotation.pantrySlugs` (project 022 phase 4) adds a third ordering: after the
+ * groups and before the appliance, up to `pantryShare` dishes ranked by how few
+ * items would have to be bought (`pantryRank`). `kindsOf` is what keeps that
+ * rank inside the table's caps; the caller that has the catalogue supplies it
+ * (`RecipeController.rotateFor`), and a caller that names a cupboard and does not
+ * gets no cupboard rank at all (`UNREPAIRED_RANK` is the evaluator's explicit way
+ * to measure the rank without the repair).
  */
 export function rotatePool(
   dishes: readonly CandidateDish[],
   slots: readonly MealSlot[],
   rotation: Rotation,
   perSlot: number = REUSED_DISHES_PER_SLOT,
-  reserve?: PoolReserve
+  reserve?: PoolReserve,
+  kindsOf?: CappedKinds | typeof UNREPAIRED_RANK
 ): CandidateDish[] {
   const eligible = seededShuffle(
     dishes.filter(dish => !rotation.avoidSlugs.has(dish.slug)),
@@ -382,9 +645,12 @@ export function rotatePool(
     const reserved = reserve ? reserve(inSlot, slot, new Set(taken.keys())) : [];
     // After the groups, never instead of them: a legume minimum is what
     // validation refuses a fortnight for, and a preference is not — so the
-    // share takes from what the cap has left once the groups are kept.
-    const kitchen = applianceShare(inSlot, rotation, reserved);
-    const ordered = reserved.length + kitchen.length > 0 ? [...new Set([...reserved, ...kitchen, ...inSlot])] : inSlot;
+    // cupboard takes from what the cap has left once the groups are kept, and
+    // the appliance from what is left after both (project 022 phase 4).
+    const house = pantryRank(inSlot, rotation, reserved, perSlot, kindsOf);
+    const early = [...reserved, ...house];
+    const kitchen = applianceShare(inSlot, rotation, early);
+    const ordered = early.length + kitchen.length > 0 ? [...new Set([...early, ...kitchen, ...inSlot])] : inSlot;
 
     for (const dish of ordered) {
       if (count >= perSlot) {

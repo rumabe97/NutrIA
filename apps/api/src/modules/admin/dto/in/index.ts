@@ -1,6 +1,7 @@
 export * from './AcceptPictureCandidate.dto.js';
 export * from './AccountsQuery.dto.js';
 export * from './AuditQuery.dto.js';
+export * from './CupboardGapQuery.dto.js';
 export * from './FeedbackQuery.dto.js';
 export * from './GenerationsQuery.dto.js';
 export * from './GrantProfessional.dto.js';

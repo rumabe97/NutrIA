@@ -28,7 +28,7 @@
  *
  * Usage (from the repository root, against the local Postgres `pnpm db:local` runs —
  * never Neon):
- *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--without oven[,blender]] [--prefer air_fryer[,grill]] [--share N] [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds] [--exceptions]] [--pins N [--pin-slot <slot>] [--per-day N] [--pins-from kept.json]] [--pantry <larder|slugs> [--pantry-mode rank|filter|bucket] [--pantry-share N]]
+ *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--without oven[,blender]] [--prefer air_fryer[,grill]] [--share N] [--start YYYY-MM-DD] [--only <profile>] [--rotate [seeds] [--exceptions]] [--pins N [--pin-slot <slot>] [--per-day N] [--pins-from kept.json]] [--pantry <larder|slugs> [--pantry-mode rank|filter|bucket] [--pantry-share N] [--pantry-yields first|last] [--pantry-repair on|off]]
  *
  * `--pantry <larder|slugs>` (project 022 phase 0) says what is already in the
  * house: the name of one of the hand-written larders (`LARDERS` — `despensa-15`,
@@ -53,6 +53,12 @@
  * (`narrowerRungs`). It is the composition question criterion 3 turns on, so a
  * `--prefer` run's kitchen figures mean one thing under `first` and another
  * under `last`, and the run prints which one it was.
+ *
+ * `--pantry-repair on|off` (project 022 phase 4, default `on`) says whether the
+ * rank is kept inside the table's caps — the product's own behaviour, since the
+ * rank is now `Rotation.pantrySlugs` and goes through `RecipeController.rotateFor`
+ * like every other pick. `off` calls `rotatePool` with `UNREPAIRED_RANK`, asked for by name: phase
+ * 0's rank, the one that broke the egg cap, measured so the repair is a figure.
  *
  * `--pantry-share N` is the rank's quota per slot: 0 is no quota at all, and
  * `DISHES_NEEDED_PER_SLOT` (19) is the whole cap, which is a sort key with no
@@ -171,14 +177,16 @@ import {
   legumeKind,
   MAIN_SLOTS,
   mainProtein,
-  narrowerShares,
+  narrowerRungs,
   rotatePool,
   SNACK_KIND_SLOTS,
   snackKind,
   STARCH_RULES,
   starchBase,
   starchCap,
-  withApplianceShare
+  UNREPAIRED_RANK,
+  withApplianceShare,
+  withRung
 } from 'core/domain/Variety';
 import { plateFoodMax, plateFoods } from 'core/domain/PlateFood';
 
@@ -523,49 +531,6 @@ const LARDERS = {
 const PANTRY_MODES = new Set(['bucket', 'filter', 'rank']);
 
 /**
- * The rungs a plan that missed a macro band walks down, widest first, when a
- * cupboard holds a share of the slots as well as an appliance (PRD criterion 4).
- *
- * `narrowerShares` is the appliance's own ladder and the reason this one exists:
- * the bands outrank every preference (`0045` before `0102`), and the rescue that
- * honours that replaces the pool with the whole library — which costs the person
- * the rotation's variety, its avoid list, its food-group reserves, the appliance
- * **and** the cupboard, all at once. A quota with no rung is therefore a cliff,
- * and `0102` already paid for finding that out once.
- *
- * **Which of the two yields first is the composition, and it is measured rather
- * than assumed** (`--pantry-yields`). `first` gives the cupboard up entirely
- * before the appliance gives up anything, on the reading that an appliance is a
- * standing preference shaping every fortnight somebody will ever get while a
- * cupboard is one fortnight's, so `0102`'s rule — give up what costs the person
- * least, first — points at the cupboard. `last` is the same ladder read the
- * other way, and it exists because that reading is arguable: the cupboard is the
- * more specific and more recent ask, and a person who has just typed what is in
- * the house may well mind losing it more. Criterion 3's figures mean different
- * things under the two orders, so a run says which one produced them.
- */
-function narrowerRungs(rotation, pantryShare, yields) {
-  const appliance = narrowerShares(rotation);
-  const pantry = pantryShare <= 0 ? [] : [...new Set([Math.floor(pantryShare / 2), 0])].filter(rung => rung < pantryShare);
-
-  // `null` on either side of a rung means "that one keeps the share it had": a
-  // rung gives up one preference and leaves the other exactly as it was, so the
-  // order of the two groups below is the whole of what separates the two
-  // compositions. The second group is walked with the first already spent.
-  if (yields === 'last') {
-    return [
-      ...appliance.map(rung => ({ appliance: rung, pantry: null })),
-      ...pantry.map(rung => ({ appliance: appliance.length > 0 ? 0 : null, pantry: rung }))
-    ];
-  }
-
-  return [
-    ...pantry.map(rung => ({ appliance: null, pantry: rung })),
-    ...appliance.map(rung => ({ appliance: rung, pantry: pantry.length > 0 ? 0 : null }))
-  ];
-}
-
-/**
  * The slugs this pantry names that the catalogue does not hold.
  *
  * Checked against the real catalogue inside the run's transaction and never in
@@ -670,57 +635,9 @@ function held(slug, pantry) {
   return dry !== undefined && dry !== null && pantry.has(dry);
 }
 
-/** How many of this dish's distinct ingredients somebody with this pantry would still have to buy. */
-function missingItems(dish, pantry) {
-  return new Set(dish.ingredients.map(item => item.slug).filter(slug => !pantry.has(slug))).size;
-}
-
 /** Whether the pantry covers every ingredient of this dish — the hard filter `architecture/0012` refused. */
 function coveredWhole(dish, pantry) {
   return dish.ingredients.every(item => pantry.has(item.slug));
-}
-
-/**
- * The dishes of a slot kept for what is already in the house: the ones somebody
- * would have to buy fewest items for, in that order, as many as the quota
- * leaves.
- *
- * **A rank and never a boolean** (PRD § *Outcome* 3). A fifth reason in
- * `isPreferredDish` would be one more tenant of the single bucket all four
- * leanings share, and a 15-item larder puts most of the library in it — which is
- * the dilution `0102` measured and `APPLIANCE_DISHES_PER_SLOT` exists because
- * of. So this orders instead of partitioning, and it is handed to `rotatePool`
- * as part of its `reserve`, **after** what the food groups keep: a legume
- * minimum is what validation refuses a fortnight for and a pantry is not.
- *
- * It is the instrument's mirror of the shape phase 4 would implement in
- * `Rotation.ts`, not a parallel scheduler: everything else on the path —
- * the shuffle, the appliance share, the cap, the rescues — is the real code's.
- * Where it sits in the truncation order is the composition being measured, and
- * `quota` is the knob: 0 is no quota at all, and `DISHES_NEEDED_PER_SLOT` is the
- * whole of a slot's cap, which is a sort key with no quota rather than a share.
- */
-function pantryReserve(inSlot, reserved, pantry, quota) {
-  if (quota <= 0 || pantry.size === 0) {
-    return [];
-  }
-
-  const already = new Set(reserved.map(dish => dish.slug));
-  const wanted = quota - reserved.filter(dish => missingItems(dish, pantry) < dish.ingredients.length).length;
-
-  if (wanted <= 0) {
-    return [];
-  }
-
-  // A stable sort over the slot's **shuffled** order, so two dishes somebody
-  // would buy the same number of things for are still picked by the seed and the
-  // pick stays theirs. `Array.prototype.sort` is stable by specification.
-  return inSlot
-    .filter(dish => !already.has(dish.slug))
-    .map(dish => ({ dish, missing: missingItems(dish, pantry) }))
-    .sort((left, right) => left.missing - right.missing)
-    .slice(0, wanted)
-    .map(entry => entry.dish);
 }
 
 // ---------------------------------------------------------------------------
@@ -941,6 +858,7 @@ function parseArgs(argv) {
     only: null,
     pantry: null,
     pantryMode: 'rank',
+    pantryRepair: true,
     pantryShare: 5,
     pantryYields: 'first',
     perDay: 1,
@@ -1082,6 +1000,15 @@ function parseArgs(argv) {
       }
 
       options.pantryShare = Math.min(size, DISHES_NEEDED_PER_SLOT);
+    } else if (arg === '--pantry-repair') {
+      const mode = argv[(index += 1)];
+
+      if (mode !== 'on' && mode !== 'off') {
+        console.error('--pantry-repair needs on (the rank is kept inside the table’s caps, as the product does) or off (phase 0’s unrepaired rank)');
+        process.exit(2);
+      }
+
+      options.pantryRepair = mode === 'on';
     } else if (arg === '--pantry-yields') {
       const order = argv[(index += 1)];
 
@@ -2054,24 +1981,19 @@ async function measureRotations(profile, shared, options) {
   };
   /**
    * Every pick this run makes, so the rank and the ladder the bands walk it down
-   * are the same composition.
+   * are the same composition — and, since project 022 phase 4, the **real**
+   * one: `RecipeController.rotateFor` is the one place that says what a
+   * rotation reserves, and a cupboard is a field of the rotation it is handed
+   * (`pantrySlugs`, `pantryShare`) and not a parallel scheduler built here.
    *
-   * Without a pantry it is `RecipeController.rotateFor`, which is the one place
-   * that says what a rotation reserves — and calling it with `whole` is exactly
-   * what `reusablePool(slots, context, rotation)` did here before, since that is
-   * `rotateFor` over the same `servable` library this function already read into
-   * `whole`. One read per profile instead of one per seed, the same pick.
-   *
-   * With a pantry ranked, it is the same call with the cupboard's reserve
-   * appended to the food groups' — after them, never instead of them.
+   * `--pantry-repair off` is the one departure and it is on purpose: it calls
+   * `rotatePool` with `UNREPAIRED_RANK`, asked for by name, which is exactly the rank phase 0
+   * measured and the shape that broke the egg cap in three plans of four, so
+   * the repair is a figure and not an assertion.
    */
-  const rotate = (pool, rot, share = options.pantryShare) =>
-    ranked
-      ? rotatePool(pool, slots, rot, undefined, (inSlot, slot, taken) => {
-          const reserved = reserveGroups(inSlot, slot, context.catalogue, taken);
-
-          return [...reserved, ...pantryReserve(inSlot, reserved, pantry, share)];
-        })
+  const rotate = (pool, rot) =>
+    ranked && !options.pantryRepair
+      ? rotatePool(pool, slots, rot, undefined, (inSlot, slot, taken) => reserveGroups(inSlot, slot, context.catalogue, taken), UNREPAIRED_RANK)
       : RecipeController.rotateFor(pool, slots, context, rot);
   // The rules are written once and stand over every seed, which is what weekly means.
   const pins = pinsFor(slots, everything, inputFor, options, profile.slug, daySolvable);
@@ -2112,6 +2034,9 @@ async function measureRotations(profile, shared, options) {
           ? new Set([...leaningSlugs(context.preferences), ...pantry])
           : leaningSlugs(context.preferences),
       preferSlugs: new Set(),
+      // The cupboard's rank (project 022 phase 4): its slugs and the share it may
+      // hold, which `--pantry-share` sets and `narrowerRungs` walks down.
+      ...(ranked ? { pantrySlugs: pantry, pantryShare: options.pantryShare } : {}),
       seed: `${profile.slug}:${seed}`
     };
     const reusable = rotate(everything, rotation);
@@ -2156,12 +2081,8 @@ async function measureRotations(profile, shared, options) {
     let pantryShare = null;
 
     if (missedBand) {
-      for (const rung of narrowerRungs(rotation, ranked ? options.pantryShare : 0, options.pantryYields)) {
-        const narrowed = rotate(
-          everything,
-          rung.appliance === null ? rotation : withApplianceShare(rotation, rung.appliance),
-          rung.pantry === null ? options.pantryShare : rung.pantry
-        );
+      for (const rung of narrowerRungs(rotation, options.pantryYields)) {
+        const narrowed = rotate(everything, withRung(rotation, rung));
         const retried = schedule(narrowed);
 
         if (!retried.ok) {
@@ -2177,8 +2098,8 @@ async function measureRotations(profile, shared, options) {
         scheduled = retried;
         violations = retriedViolations;
         usedPool = narrowed;
-        kitchenShare = rung.appliance;
-        pantryShare = rung.pantry;
+        kitchenShare = rung.applianceShare;
+        pantryShare = rung.pantryShare;
 
         if (planBandMiss(violations) === 0) {
           break;
@@ -2187,7 +2108,7 @@ async function measureRotations(profile, shared, options) {
     }
 
     if (fallback === null && planBandMiss(violations) > 0) {
-      const rest = rotatePool(everything, slots, rotation, Number.POSITIVE_INFINITY);
+      const rest = rotatePool(everything, slots, withRung(rotation, { applianceShare: null, pantryShare: 0 }), Number.POSITIVE_INFINITY);
       const wider = [...new Map([...reusable, ...rest].map(dish => [dish.slug, dish])).values()];
       const retried = schedule(wider);
 
