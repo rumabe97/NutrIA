@@ -34,7 +34,10 @@ allowBuilds:
 #
 #   brace-expansion, js-yaml   — denial of service on crafted input (via eslint, glob, …)
 #   browserslist, baseline-…   — unbounded memory / a crash on an untrusted config
-#   multer                     — denial of service on multipart bodies (via @nestjs/platform-express)
+#   multer                     — denial of service on multipart bodies, and since 2.5.0 a second one
+#                                through a `fileFilter` still running after the request is gone
+#                                (GHSA-q7qp-rjg7-q26m); both via @nestjs/platform-express, which
+#                                pins `multer: 2.4.0` exactly, so no lockfile refresh can move it
 #   vite, esbuild, @babel/core — the dev server and the build toolchain
 #   smol-toml                  — development only
 #   source-map-js              — event-loop denial of service through indexed section offsets
@@ -52,7 +55,7 @@ overrides:
   'browserslist@<4.28.7': '^4.28.7'
   'baseline-browser-mapping@<2.11.0': '^2.11.0'
   'js-yaml@>=4.0.0 <4.3.2': '^4.3.2'
-  'multer@<2.3.0': '^2.3.0'
+  'multer@<2.5.0': '^2.5.0'
   'smol-toml@<1.7.1': '^1.7.1'
   'source-map-js@<1.2.2': '^1.2.2'
   'vite@>=8.0.0 <8.0.16': '^8.0.16'
