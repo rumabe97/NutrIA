@@ -10,6 +10,7 @@ import type { AllowancesView } from 'core/controllers/Plan';
 import type { EventView } from 'core/controllers/Event';
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { Metadata } from 'next';
+import type { PantryView } from 'core/controllers/Pantry';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,10 +24,13 @@ export default async function GeneratingPage() {
   // request that was never going to be accepted.
   await redirectIfOnboardingIncomplete();
 
-  // What will shape this fortnight, fetched before the job exists: the events
-  const [events, allowances, profile] = await Promise.all([
+  // What will shape this fortnight, fetched before the job exists: the events,
+  // what is left of the caps, the profile's shape — and the cupboard, which is
+  // the one of these somebody can still fill while on this screen.
+  const [events, allowances, pantry, profile] = await Promise.all([
     serverApi<readonly EventView[]>('/events'),
     serverApi<AllowancesView>('/meal-plans/allowances'),
+    serverApi<PantryView>('/pantry'),
     serverApi<FullProfileView>('/profile')
   ]);
   const shape = profile?.preferences?.mealShape;
@@ -42,6 +46,7 @@ export default async function GeneratingPage() {
           ? { answerKey: mealSizeKey(size.largestMainKcal, shape), count: mealCount(shape), kcal: size.largestMainKcal, suggestion: size.suggestion }
           : null
       }
+      pantry={pantry ?? null}
       redoNextAt={allowances?.planRedo.nextAt ?? null}
       startOptions={allowances?.startOptions ?? []}
     />

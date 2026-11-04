@@ -274,7 +274,9 @@ two: the seams, then the screen. One phase, one pull request, twice.
   came back byte-identical, and the reason is structural, not a cohort accident — see `LOG.md`,
   phase 3a, § *Step 0*. The `??` was load-bearing exactly as written: `drySlug` is nullable.
 
-- [x] done
+- [x] done — commit `c1624d1d` ("A cupboard is picked from the catalogue, an entry says whether we
+  cook anything with it, and the plan carries what the cupboard did", #317, merged 2026-11-03), with
+  `f5ffc5cf` on the same pull request for a suite precondition CI's smaller library could not hold
 - **Dispatch**: `backend` for steps 1–3, `tests` for step 4. Neither ships without the other:
   the screen is phase 3b and reads all three.
 - **Goal**: the three facts the screen must say are readable on routes the web already calls, and
@@ -333,7 +335,10 @@ two: the seams, then the screen. One phase, one pull request, twice.
 
 ### Phase 3b — The screen, and the sentence it is allowed to say
 
-- [ ] pending
+- [ ] in progress — built, reviewed and probed on 2026-11-04 (`LOG.md`, phase 3b). What is
+  left is not work: the owner's commit, and **human-verify** — his iPhone, where VoiceOver's
+  reading of the add and remove announcements and the amount field's decimal keypad are the
+  two things no probe on this machine can answer
 - **Dispatch**: `frontend`. `legal` answers its four questions **before** this ships
   (**owner-approves**: its findings), `accessibility` reviews the picker, and
   **human-verify**: the owner opens it on his iPhone.

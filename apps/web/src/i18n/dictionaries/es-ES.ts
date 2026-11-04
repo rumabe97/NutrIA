@@ -2360,6 +2360,59 @@ export const esES = {
     '/verificar-email': { title: 'Correo confirmado' }
   },
 
+  /*
+   * The cupboard (project 022, phase 3b). Every string was held against the nine
+   * prohibitions of `docs/legal/pantry.md` § 5.4: no verb of capacity or
+   * tolerance, no framing of the list as what somebody eats, never why, no
+   * clinical facet, no entry echoed as a trait, no bridge to the restriction
+   * screens, no promise the plan avoids or prefers by the cupboard, no free-text
+   * box, and `notCooked` is a fact about us and never a warning.
+   */
+  pantry: {
+    add: 'Añadir',
+    added: 'Añadido',
+    addedStatus: '{name} está en tu lista.',
+    addFor: 'Añadir {name}',
+    amount: 'Cantidad en gramos (opcional)',
+    amountHint: 'Se aplica a lo siguiente que añadas. Si no la sabes, déjala en blanco: es lo más habitual.',
+    amountInvalid: 'Escribe una cantidad mayor que cero, o déjala en blanco.',
+    bound: '{count} de {max} en tu lista.',
+    boundFull: 'Tu lista está llena, con {max} alimentos. Quita uno para poder añadir otro.',
+    entries: 'En tu lista',
+    /*
+     * The honest sentence, before anybody commits (PRD 022 criterion 10): the verb
+     * is «aprovechar», never «a partir de»; the 90–120 is the marketing report's
+     * figure for a fortnight; no count of what it will cover is promised; and it
+     * says the cupboard changes no dish, because that is what is true today.
+     */
+    intro:
+      'Opcional. Si nos dices qué alimentos de nuestra lista tienes en casa, y cuánto si lo sabes, los aprovechamos en la lista de la compra de este plan: te vendrán marcados como comprados. Un plan de dos semanas necesita entre 90 y 120 ingredientes distintos, así que lo que tengas cubrirá una parte de la compra, nunca toda. No cambia los platos que elegimos ni quita ninguno.',
+    /*
+     * Required by § 5.4 (P1-3): the misreading to stop is not "you infer an
+     * intolerance" but "a food I left out is one the plan will avoid". One-way: it
+     * says where restrictions are declared and does not link there or invite
+     * anybody to declare one here.
+     */
+    keeps:
+      'Esto no cambia lo que evitamos. Tus alergias, tus intolerancias y tu forma de comer se dicen en tu perfil, y son esas, y no esta lista, las que dejan un plato fuera de tu plan.',
+    /* After the plan exists: the one measured figure, read from the plan and never recomputed (§ 6, P2-7). */
+    measured: 'Aprovechamos lo que tenías en casa en {count} productos de tu lista de la compra, que ya vienen marcados como comprados.',
+    measuredNone: 'Nada de lo que nos dijiste que tenías en casa cubrió un producto de tu lista de la compra.',
+    measuredOne: 'Aprovechamos lo que tenías en casa en 1 producto de tu lista de la compra, que ya viene marcado como comprado.',
+    noResults: 'No encontramos ese alimento en nuestra lista.',
+    /* A fact about our library, in the first person plural: never an error, and the entry stays (§ 5.4, point 9). */
+    notCooked: 'Todavía no cocinamos nada con esto',
+    remove: 'Quitar',
+    removedStatus: '{name} ya no está en tu lista.',
+    removeFor: 'Quitar {name}',
+    resultsFound: '{count} alimentos de nuestra lista.',
+    resultsList: 'Alimentos de nuestra lista',
+    search: 'Buscar en nuestra lista de alimentos',
+    searching: 'Buscando…',
+    showMore: 'Ver {count} alimentos más',
+    title: 'Lo que ya tienes en casa'
+  },
+
   passkeys: {
     add: 'Añadir una llave de acceso',
     addBody: 'Escribe tu contraseña. Después tu dispositivo te pedirá Face ID, tu huella o su código para crear la llave.',
@@ -2743,6 +2796,15 @@ export const esES = {
           'Alergias e intolerancias: las que eliges de la lista, las que escribes a mano y su gravedad. Para que ningún plan te proponga algo que te puede hacer daño.',
           'Tu forma de comer: por ejemplo vegetariana, sin gluten o sin lactosa, y las cocinas que te gustan o no. Para ajustar los platos.',
           'Tu cocina: cuánto tiempo como máximo quieres dedicar a un plato y, si nos lo cuentas, cuáles de los aparatos de nuestra lista tienes, cuáles no tienes y con cuáles prefieres cocinar. Para no proponerte un plato que no puedas cocinar y para que los que se hacen con lo que prefieres salgan primero. Si no nos cuentas nada, damos por supuesto que tienes fuego, horno, microondas y batidora.',
+          /*
+           * Fuente: arts. 13.1.c y 13.2.a RGPD (fines, base y plazo) y art. 5.1.a (transparencia).
+           * «No cambia los platos que elegimos ni quita ninguno» describe el código: la despensa se
+           * lee en PlanGeneration.service.ts:635, después de buildShoppingList (:626). «No la
+           * leemos como…» es la que sostiene la base del art. 6.1.b sin excepción del art. 9
+           * (docs/legal/pantry.md § 5.3): una declaración de no inferencia, y es verdad porque no
+           * hay camino desde esa lectura hasta una elección.
+           */
+          'Lo que ya tienes en casa: si antes de generar un plan nos dices qué alimentos de nuestra lista tienes en casa, y cuánto si lo sabes, guardamos esa lista mientras la escribes. Para que la lista de la compra de ese plan venga con lo que ya tienes marcado como comprado. No cambia los platos que elegimos ni quita ninguno, y no la leemos como una alergia, una intolerancia ni una forma de comer: lo que tienes en casa no es lo que puedes comer. Al generarse el plan la borramos y, si un fallo lo impidiera, la gasta el siguiente plan que generes.',
           'Enfermedades, medicación y suplementos: solo si decides contárnoslo, bajo un consentimiento aparte que puedes retirar en cualquier momento sin borrar el resto de tu cuenta.',
           'Cómo llevas el plan: qué comidas marcas como hechas o saltadas, tus valoraciones y comentarios de los platos, tu peso a lo largo del tiempo y tus check-ins quincenales. Para que el siguiente plan lo tenga en cuenta.',
           'Pagos: si contratas Premium, Stripe cobra y nosotros guardamos solo el identificador de tu suscripción y su estado. Nunca vemos el número de tu tarjeta.',
@@ -2816,7 +2878,17 @@ export const esES = {
       {
         heading: 'Cuánto tiempo guardamos tus datos',
         paragraphs: [
-          'Mientras tu cuenta exista. Al borrarla, todo lo que hay en ella se borra al momento: perfil, alergias, salud, planes, listas de la compra, progreso y consentimientos.',
+          /*
+           * Fuente: art. 13.2.a RGPD (plazo o criterio) y art. 5.1.e (limitación del plazo), y art. 17
+           * en la enumeración «lo que dijiste que tenías en casa» (una enumeración que no nombra una
+           * categoría se lee como que esa categoría sobrevive; la cascada existe en
+           * schemas/_utils.ts:41-43). Las tres vidas del segundo párrafo son las del código:
+           * PlanGeneration.service.ts:678 y :701-706 (se gasta con la generación), :665 y :1062-1077
+           * (lo anotado en el plan). «Hasta que lo gaste el siguiente plan» cierra P2-4: un borrador
+           * que nadie gasta no tiene fin, así que el plazo se enuncia en vez de inventarse un barrido.
+           */
+          'Mientras tu cuenta exista. Al borrarla, todo lo que hay en ella se borra al momento: perfil, alergias, salud, planes, listas de la compra, lo que dijiste que tenías en casa, progreso y consentimientos.',
+          'Lo que nos dices que tienes en casa vive hasta que se genera el plan que lo aprovecha, que lo borra. Si no generas ninguno —o si un fallo impidió borrarlo—, se queda ahí hasta que lo gaste el siguiente plan que generes, lo borres tú o borres la cuenta. De ese plan queda anotado con qué alimentos y cantidades se pidió, y eso se borra con el plan.',
           'Si alguien crea una cuenta con una dirección y nadie la confirma, la borramos a los treinta días del alta: el nombre, el correo y la contraseña con los que se creó desaparecen. Solo la borramos si no hay nada más en ella: ninguna sesión, ningún perfil, ningún plan y ninguna actividad anotada en nuestros registros. Después queda solo una anotación de que ese día se borró una cuenta sin confirmar, sin el correo, sin el nombre y sin nada que lleve a nadie. En cuanto confirmas tu dirección, tu cuenta se queda mientras tú quieras.',
           'El registro de seguridad de tu cuenta se guarda mientras exista tu cuenta; al borrarla deja de estar ligado a ti. Además se borra a los 12 meses.',
           'Nuestro proveedor de base de datos guarda, por su cuenta, un historial breve para poder recuperarnos de un fallo; puedes pedirnos el plazo exacto en {email}.',
@@ -2864,7 +2936,7 @@ export const esES = {
       }
     ],
     title: 'Política de privacidad',
-    updated: 'Última actualización: 13 de octubre de 2026'
+    updated: 'Última actualización: 4 de noviembre de 2026'
   },
   profile: {
     account: 'Cuenta',

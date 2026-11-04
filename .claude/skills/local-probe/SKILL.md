@@ -82,6 +82,19 @@ node $S/account.mjs create "$PROBE_DIR/cookie.txt"
 node $S/probe.mjs --paths /inicio,/plan,/perfil --cookie-file "$PROBE_DIR/cookie.txt" --dismiss
 ```
 
+**A signed-in screen in English is a cookie, not a path.** `/en/plan/generando` is a 404:
+the `/en/` prefix exists for the public pages, while a signed-in render reads
+`nutria_locale` first and `Accept-Language` after it (`apps/web/src/i18n/server.ts`). Append
+the locale to a copy of the cookie file and probe with that:
+
+```bash
+(cat "$PROBE_DIR/cookie.txt"; printf '; nutria_locale=en-GB') > "$PROBE_DIR/cookie-en.txt"
+node $S/probe.mjs --paths /plan/generando --cookie-file "$PROBE_DIR/cookie-en.txt" --dismiss --dir "$PROBE_DIR/en"
+```
+
+A separate `--dir` keeps the English shots from overwriting the Spanish ones, which are
+named after the path and not the language.
+
 The account is signed up through the API, opened and walked through onboarding the way
 `apps/api/test/harness.ts` does it — when an onboarding step changes there, change it in
 `account.mjs`. `--dismiss` presses Escape: a new account opens the welcome tour, which
