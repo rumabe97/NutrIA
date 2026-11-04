@@ -8,6 +8,9 @@
 //            prints the address it made; --admin also makes it an admin, for the console,
 //            and --two-factor turns on the second factor the console demands of one
 //        node account.mjs delete <cookie-file>     deletes it through the API
+//        node account.mjs forget <address>
+//            the last resort for an account whose cookie file is gone: deletes the row
+//            itself, and only for an @probe.invalid address on the local database
 //        node account.mjs link <professional-cookie-file> <client-cookie-file>
 //            makes the first account a professional with an open practice, and links the
 //            second to it through a real invitation, accepted with consent
@@ -23,7 +26,13 @@
 //            dish (`0011` § 4 a)
 //
 // Every account made here is deleted before the probe ends. The cookie file is how:
-// keep it in the scratchpad, never in the repository.
+// keep it in the scratchpad, never in the repository — and **delete the accounts before
+// you clear that directory, not after**. `delete` is `DELETE /users/me` with that cookie
+// and there is no other door in the product: the password is the constant below, but an
+// account made `--two-factor` cannot sign in again without its TOTP secret, and this
+// product does not enable Better Auth's admin plugin, so nothing can remove a user on its
+// behalf. `forget` exists because one was stranded that way on 2026-11-04 and every e2e
+// run on the machine then failed its global teardown, which counts `%.invalid` accounts.
 //
 // `link` exists so a probe never writes a link, a grant or an invitation by hand: those go
 // through the same core functions the API's routes call (grant, invite, accept), with their
@@ -64,13 +73,13 @@ const twoFactor = args.includes('--two-factor');
 const [action, cookieFile, clientCookieFile] = args.filter(arg => arg !== '--admin' && arg !== '--two-factor');
 
 if (
-  !['create', 'delete', 'link', 'compromise', 'age', 'premium'].includes(action) ||
+  !['create', 'delete', 'forget', 'link', 'compromise', 'age', 'premium'].includes(action) ||
   !cookieFile ||
   (action === 'link' && !clientCookieFile) ||
   ((admin || twoFactor) && action !== 'create')
 ) {
   console.error(
-    'usage: node account.mjs create <cookie-file> [--admin] [--two-factor] | delete <cookie-file> | link <professional-cookie-file> <client-cookie-file> | compromise <cookie-file> | age <cookie-file> | premium <cookie-file>'
+    'usage: node account.mjs create <cookie-file> [--admin] [--two-factor] | delete <cookie-file> | forget <address> | link <professional-cookie-file> <client-cookie-file> | compromise <cookie-file> | age <cookie-file> | premium <cookie-file>'
   );
   process.exit(2);
 }
@@ -149,6 +158,39 @@ const fromApi = createRequire(`${ROOT}apps/api/package.json`);
 const load = specifier => import(pathToFileURL(fromApi.resolve(specifier)).href);
 const switchMarker = `${cookieFile}.switch-was-off`;
 const premiumMarker = `${cookieFile}.premium-was-off`;
+
+if (action === 'forget') {
+  // **The one write here that does not go through a route, and the only one.**
+  // `delete` is the way; this is for the account `delete` can no longer reach, whose
+  // cookie file is gone. It builds no state — it removes a throwaway account the product
+  // itself has no door to — and it is bounded three ways: the production guard above, a
+  // local database, and an address no mailbox can ever resolve to (RFC 2606) that only
+  // this script makes.
+  //
+  // Deleting the row is what `DELETE /users/me` comes to in the data: every one of the 48
+  // foreign keys that reference `user` cascades, and the 7 that do not are `set null` on
+  // purpose — the rows the product keeps without a person, like a dietitian's name in a
+  // client's access log.
+  const address = cookieFile;
+
+  if (!address.endsWith('@probe.invalid')) {
+    console.error('[probe] forget only removes an account this script made (@probe.invalid)');
+    process.exit(2);
+  }
+
+  const { closeDatabase, database } = await load('database');
+  const sql = database().$client;
+
+  try {
+    const gone = await sql`delete from "user" where email = ${address} returning email`;
+
+    console.log(gone.length > 0 ? `[probe] forgot ${address}` : `[probe] no such account: ${address}`);
+  } finally {
+    await closeDatabase();
+  }
+
+  process.exit(0);
+}
 
 if (action === 'delete') {
   try {

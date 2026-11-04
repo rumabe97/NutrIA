@@ -86,7 +86,7 @@ Resumen `/admin` · Personas: `/admin/cuentas`, `/admin/profesionales`, `/admin/
 `/admin/consentimientos`, `/admin/personas/retencion` (monthly cohorts, counts only, a cell null below 20 people) · Producto: `/admin/producto`, `/admin/producto/planes`, `/admin/producto/planes/calidad` (sums only; "pocos datos" and no figure under 10 plans),
 `/admin/notificaciones` · Generación: `/admin/generacion`, `/admin/generacion/ia` ·
 Catálogo: `/admin/catalogo` (takes `?check=` from Calidad), `/admin/catalogo/[id]/imagen` (the review of a picture the judge rejected, `0072`, and of any published one, project 010: not in the navigation, linked from its row on Recetas — a rejected row then draws no retry button — the retry deletes the picture and only the review page says so first. The accept against the judge is two steps in one dialog, `components/PictureAcceptAction`: the warning that names the flagged allergens, then a box to tick and the button that publishes; it sends back exactly the allergen keys it showed, and a refusal that means the picture changed is read by the owner, never retried. Any published picture — the judge's or one accepted by hand — has this page, with the dish's ingredients and "Retirar", the only place it is drawn; one accepted by hand says so on its Recetas row and here. Which of these the page shows is `catalogo/pictureReview.ts`), `/admin/catalogo/calidad`,
-`/admin/catalogo/ingredientes`, `/admin/catalogo/imagenes` · Ajustes: `/admin/ajustes`,
+`/admin/catalogo/ingredientes`, `/admin/catalogo/despensa` (what the catalogue could not cook for held cupboards: counts of accounts, a word only from two accounts up, the floor in the API's query and never a control; an empty first list is the picker working), `/admin/catalogo/imagenes` · Ajustes: `/admin/ajustes`,
 `/admin/ajustes/registro`, `/admin/ajustes/sistema`. Tables are `components/AdminTable` over
 `ui/DataTable` on a `Card`: a GET form that works without JavaScript, all state in the URL,
 free text always named `q` (the API log redacts only `q`), cells on one line except prose.
@@ -358,6 +358,25 @@ concrete, no AI marketing. And never claim something works that does not — an 
 mid-plan on the free tier says it applies to the next plan rather than pretending the
 fortnight changed, and a control the tier does not grant is not drawn disabled, it is not
 drawn.
+
+**And never claim something does not happen when a switch can make it happen.** The cupboard
+screen's strings (`pantry.*`) are governed by [`docs/legal/pantry.md`](../../docs/legal/pantry.md)
+§ 5.4, and two of them are load-bearing rather than decorative (`legal`, P1-11, 2026-11-04):
+
+- `pantry.intro` must be true with the owner's `pantryRank` switch **on and off**. It used to end
+  by saying the cupboard changes no dish; with the switch on that is false, and the switch is a row
+  in `app_settings` thrown from `/admin/ajustes` — **there is no deploy between the click and the
+  next plan** in which to swap a sentence. A screen may describe what the product does; it may not
+  promise a capability that is switched off, which is why the fix was to drop the claim rather than
+  to write flag-conditional text (that would need a signed-in screen to read owner-audience state).
+- `pantry.keeps` — the sentence saying the list is not a declaration — may not be removed. Since
+  phase 4 it is part of what carries the art. 9 position: the structural guarantee that nothing
+  about the cupboard could reach a dish is gone, and what replaces it is that no restriction is
+  inferred or presented.
+
+§ 5.4's prohibition 7 is split accordingly: *avoid* and *exclude* stay forbidden whatever the flag
+says, *prefer* may be said as a share when it is on, and *«solo con lo que tienes»* and *«adaptado a
+tu despensa»* stay forbidden in both states. Re-word any of this with `legal`, not alone.
 
 ## Styles
 

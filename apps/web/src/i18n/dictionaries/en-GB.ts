@@ -29,6 +29,10 @@ export const enGB: Dictionary = {
       signedUp: 'Signed up'
     },
     manualHint: 'Confirming their address leaves the account waiting and sends you a mail. You open it from this list.',
+    pantryRankHint:
+      'On: when a plan is generated, what the person already has at home is read before the dishes are chosen, and dishes that need fewer things bought are offered first. The plan’s promise still comes first.',
+    pantryRankLabel: 'Cupboard in the plan (use what is already at home)',
+    pantryRankOffHint: 'Off: dishes are chosen as they always have been. The cupboard is still read afterwards, to shorten the shopping list.',
     picturesHint:
       'On: the first time somebody opens a dish with no picture, one is drawn, and everyone who opens it afterwards sees it. Once the month’s cap is reached, no more are drawn until next month.',
     picturesLabel: 'Draw the dish pictures',
@@ -346,6 +350,36 @@ export const enGB: Dictionary = {
     yes: 'Yes'
   },
 
+  adminCupboard: {
+    howCounted: [
+      'Both lists are a snapshot of what is held now, not a history: a cupboard is deleted when the plan that spends it is generated.',
+      'Accounts are counted, never who, and in both lists a figure appears only from two accounts up: so nothing can be traced to one person.',
+      'An ingredient with no dish says how many accounts hold it now, from two up; for most of them, fewer than two.'
+    ],
+    intro: 'What the catalogue could not cook with what people have at home: counts of accounts, never who.',
+    title: 'Cupboard',
+    uncooked: {
+      answer:
+        'The answer is to write dishes with these ingredients: they are in the catalogue, but no recipe uses them. The ones most accounts hold now come first.',
+      belowFloor: 'fewer than two',
+      caption: 'Catalogue ingredients no recipe uses',
+      columns: { accounts: 'Accounts holding it, from two up', category: 'Category', name: 'Ingredient' },
+      empty: 'Every ingredient in the catalogue is in some recipe.',
+      title: 'Ingredients with no dish'
+    },
+    unresolved: {
+      answer: 'The answer is to add a food to the catalogue.',
+      caption: 'Words the catalogue could not resolve',
+      columns: { accounts: 'Accounts', word: 'Word' },
+      emptyBody:
+        'The cupboard picker only offers catalogue foods, so nothing normally goes unresolved: an empty list is the picker working. This list is a snapshot of what is held now, not a history.',
+      emptyTitle: 'No word reaches the minimum',
+      firstOnly: 'Showing the {shown} most repeated of {total}.',
+      threshold: 'A word is shown only when at least {count} accounts have entered it. That is deliberate: this screen cannot lower the minimum.',
+      title: 'Words with no food in the catalogue'
+    }
+  },
+
   /* `/admin/buzon`: messages per week, then every message as it was written (`0037`). */
   adminInbox: {
     caption: 'Messages',
@@ -509,6 +543,7 @@ export const enGB: Dictionary = {
       ai: 'AI and models',
       auditLog: 'Audit log',
       consents: 'Consents',
+      cupboard: 'Cupboard',
       inbox: 'Inbox',
       ingredients: 'Ingredients',
       log: 'Log',
@@ -2216,6 +2251,7 @@ export const enGB: Dictionary = {
     '/admin/catalogo': { title: 'Recipes' },
     '/admin/catalogo/[id]/imagen': { title: 'Review a picture' },
     '/admin/catalogo/calidad': { title: 'Quality' },
+    '/admin/catalogo/despensa': { title: 'Cupboard' },
     '/admin/catalogo/imagenes': { title: 'Pictures' },
     '/admin/catalogo/ingredientes': { title: 'Ingredients' },
     '/admin/consentimientos': { title: 'Consents' },
@@ -2281,7 +2317,7 @@ export const enGB: Dictionary = {
     boundFull: 'Your list is full, with {max} foods. Remove one to add another.',
     entries: 'On your list',
     intro:
-      'Optional. If you tell us which foods from our list you already have at home, and how much where you know it, we make use of them in this plan’s shopping list: they come back ticked as bought. A two-week plan needs between 90 and 120 different ingredients, so what you have covers part of the shop, never all of it. It changes none of the dishes we choose and removes none of them.',
+      'Optional. If you tell us which foods from our list you already have at home, and how much where you know it, we make use of them in this plan’s shopping list: they come back ticked as bought. A two-week plan needs between 90 and 120 different ingredients, so what you have covers part of the shop, never all of it.',
     keeps:
       'This changes nothing about what we avoid. Your allergies, your intolerances and how you eat are set in your profile, and those — not this list — are what keep a dish out of your plan.',
     measured: 'What you had at home covers {count} products on your shopping list, and they already come ticked as bought.',
@@ -2684,7 +2720,7 @@ export const enGB: Dictionary = {
           'How you eat: for example vegetarian, gluten-free or lactose-free, and the cuisines you like or not. To fit the dishes to you.',
           'Your kitchen: the most time you want to spend on one dish and, if you tell us, which of the appliances on our list you have, which you do not have and which you would rather cook with. So that no plan offers you a dish you cannot cook, and so the dishes made with what you prefer come first. If you tell us nothing, we assume you have a hob, an oven, a microwave and a blender.',
           /* Source: see the Spanish bullet; arts. 13.1.c, 13.2.a and 5.1.a GDPR, and docs/legal/pantry.md § 5.3 for the non-inference statement. */
-          'What you already have at home: if, before generating a plan, you tell us which foods from our list you already have, and how much where you know it, we keep that list while you are writing it. So that the plan’s shopping list comes back with what you already have ticked as bought. It changes none of the dishes we choose and removes none of them, and we never read it as an allergy, an intolerance or a way of eating: what you have at home is not what you can eat. We delete it when the plan is generated and, if a failure ever prevented that, the next plan you generate spends it.',
+          'What you already have at home: if, before generating a plan, you tell us which foods from our list you already have, and how much where you know it, we keep that list while you are writing it. So that the plan’s shopping list comes back with what you already have ticked as bought and, if we have it switched on, so that when we choose the dishes some of those made with what you already have come first. Your list can then change which dishes end up in your plan, but it removes no dish and decides nothing about what you avoid, and we never read it as an allergy, an intolerance or a way of eating: what you have at home is not what you can eat. We delete it when the plan is generated and, if a failure ever prevented that, the next plan you generate spends it. To know which foods our recipes are missing we also look at that list, but only as a count: how many accounts have each food, never anybody’s own list, and only from two accounts up. If a word our list cannot answer ever reaches us, it goes into that count in lower case and without accents.',
           'Conditions, medication and supplements: only if you choose to tell us, under a separate consent you can withdraw at any time without deleting the rest of your account.',
           'How the plan is going: which meals you mark as eaten or skipped, your ratings and comments on dishes, your weight over time and your fortnightly check-ins. So the next plan takes them into account.',
           'Payments: if you subscribe to Premium, Stripe takes the payment and we keep only the identifier for your subscription and its status. We never see your card number.',
@@ -2808,7 +2844,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Privacy policy',
-    updated: 'Last updated: 4 November 2026'
+    updated: 'Last updated: 5 November 2026'
   },
 
   profile: {

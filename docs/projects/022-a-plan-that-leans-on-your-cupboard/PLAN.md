@@ -335,10 +335,12 @@ two: the seams, then the screen. One phase, one pull request, twice.
 
 ### Phase 3b — The screen, and the sentence it is allowed to say
 
-- [ ] in progress — built, reviewed and probed on 2026-11-04 (`LOG.md`, phase 3b). What is
-  left is not work: the owner's commit, and **human-verify** — his iPhone, where VoiceOver's
-  reading of the add and remove announcements and the amount field's decimal keypad are the
-  two things no probe on this machine can answer
+- [ ] in progress — built, reviewed and probed on 2026-11-04 (`LOG.md`, phase 3b), and
+  **shipped**: commit `4a537739` ("You can say what is already in the house before a fortnight is
+  asked for, and afterwards the plan says what it did with it", #319). What is left is not work and
+  is not code: **human-verify** — his iPhone, where VoiceOver's reading of the add and remove
+  announcements and the amount field's decimal keypad are the two things no probe on this machine
+  can answer. It stays unchecked until he has looked
 - **Dispatch**: `frontend`. `legal` answers its four questions **before** this ships
   (**owner-approves**: its findings), `accessibility` reviews the picker, and
   **human-verify**: the owner opens it on his iPhone.
@@ -377,12 +379,32 @@ two: the seams, then the screen. One phase, one pull request, twice.
 
 ### Phase 4 — The rank, measured, behind a flag
 
-- [ ] **struck 2026-10-23 — the owner's decision at phase 0's `owner-approves` gate**
+- [x] **done — 2026-11-05. `owner-approves` answered by the owner on 2026-11-05**, after the
+  report that put this phase's three open questions and the executor's recommendation in front of
+  him: *«haz pr, merge, lo que haga falta tu solo, termina ambas fases bien y completas»*. What
+  that answer covers, written out so it can be contradicted: the **share at 5**, the **cupboard
+  yielding before the appliance**, and the **residual accepted while the flag is off** — which is
+  how it shipped. What it does **not** cover, and what no instruction to ship can: flipping
+  `pantry_rank`. That still needs [`docs/legal/pantry.md`](../../legal/pantry.md) § 9.6 worked
+  through, the on-state proofs green and the two `[lawyer]` lines read. Built and measured
+  2026-11-04 ([`LOG.md`](./LOG.md) § Phase 4). **Reopened 2026-11-04 by the owner** —
+  *«haz la 4 también»*, which reverses the deferral
+  below and nothing else about it. What still stands, because it was never the deferral's doing:
+  the **`owner-approves` gate on the cohort numbers before the flag flips**, the flag shipping
+  **off**, and the stop conditions in *Acceptance criteria*. The first thing measured is the
+  repair in phase 0's notes — never let the cupboard's reserve take a dish that would break a
+  per-fortnight cap — because the shares that bought a visible gain broke the egg cap in three
+  plans of four, and that is what deferred this in the first place. Queued behind phase 5's read:
+  this is an evaluator phase and this machine runs one heavy job at a time.
+
+  The deferral it reverses, kept as written:
+
+  **struck 2026-10-23 — the owner's decision at phase 0's `owner-approves` gate**
   ([`docs/decisions/LOG.md`](../../decisions/LOG.md)), and **not** because the stop signal fired:
   it did not. Deferred, not cancelled. The reason is worth, not safety: at the one share that
   costs nothing the rank buys one meal in forty-two, and the shares that buy a visible gain break
   the fortnight's egg cap in three plans of four (`LOG.md`, phase 0, § 4 and § 5).
-  **Do not start this phase.** It reopens on real usage — people filling sixty-item cupboards who
+  **Do not start this phase** *(superseded by the line above, 2026-11-04)*. It reopens on real usage — people filling sixty-item cupboards who
   still report the shop as long — and the first thing to measure then is the repair in `LOG.md`'s
   notes for the next phase: never let the cupboard's reserve take a dish that would break a
   per-fortnight cap. Everything below is kept as the shape the steering would take, not as work
@@ -394,6 +416,17 @@ two: the seams, then the screen. One phase, one pull request, twice.
   the promise still outranking it.
 - **Scope**: `packages/core/src/domain/Variety/Rotation.ts`,
   `apps/api/src/modules/meal-plans/services/PlanGeneration.service.ts`, their specs.
+  **Amended 2026-11-04, after the work and recorded in [`LOG.md`](./LOG.md) § Deviations**: the
+  repair needed `cappedKinds` (`packages/core/src/domain/Balance/Balance.ts`) and the kinds reach
+  the rank through `RecipeController.rotateFor`; the flag needs
+  `packages/core/src/domain/Flag/Flag.ts` and `SettingsController`; one `FlagSet` literal in
+  `apps/api/src/modules/billing/services/Billing.spec.ts` had to grow with the new key; the
+  evaluator (`apps/api/scripts/evaluate-plans.mjs`) now calls the real code path instead of a
+  mirror of it; and the flag reaches `apps/web` — a new `FlagName` leaves the
+  `Record<FlagName, string>` of `admin/ajustes/registro/page.tsx` incomplete and reddens the
+  web's `ts:check` by itself, so the label, its three strings in both dictionaries and a
+  `FlagSwitch` on `/admin/ajustes` ship with this phase: an `owner-approves` gate on a switch
+  the owner cannot throw is not a gate.
 - **Steps**:
   1. The rank — ordered by **how many items somebody would have to buy**, never a boolean — in
      the ordering `rotatePool` already does (`Rotation.ts:376`), in the composition phase 0 chose
@@ -427,8 +460,16 @@ two: the seams, then the screen. One phase, one pull request, twice.
 
 ### Phase 5 — What the catalogue could not cook
 
-- [ ] pending
-- **Dispatch**: `frontend-low` — `/execute-project 022 phase 5`.
+- [x] done — 2026-11-04, [`LOG.md`](./LOG.md) § Phase 5. The read, the page, the floor in both
+  the `SELECT` and the `ORDER BY`, the eight end-to-end cases (the floor's proved by breaking it),
+  the probe at three widths in both languages, and `legal`'s review with P2-6 and P2-10 closed.
+  The commit reference is backfilled by the next run, after the owner commits.
+- **Dispatch**: **amended 2026-11-04, before execution** — `backend` for the read, then
+  `frontend-low` for the page, then `tests` for the route's end-to-end case. The original line
+  named `frontend-low` alone, which does not survive its own **Scope**: the read behind the page
+  lives in `apps/api/src/modules/admin/**` and in `packages/core` (a repository aggregate and an
+  `Admin*Controller`), neither of which `frontend` owns — phase 1 learned the same lesson about
+  `apps/api/test/` the hard way. The pricing stands: each half is small.
 - **Goal**: the entries nobody could resolve, and the ones resolved to an ingredient no recipe
   uses, become the library's own to-do list.
 - **Scope**: `apps/web/src/app/(admin)/admin/catalogo/**`, the read behind it in
@@ -441,7 +482,8 @@ two: the seams, then the screen. One phase, one pull request, twice.
      `/privacidad`'s *«Lo que nos escribes»* bullet gains it, because the owner reading words
      people typed is a disclosure of a different kind from a model never seeing them.
   2. Two groups, because the answer differs: *not in the catalogue* (add an ingredient) and *in
-     the catalogue but in no recipe* (513 of 930 today — write dishes). **The first group may be
+     the catalogue but in no recipe* (**513 of 930, confirmed on 2026-11-04** against the local
+     library — write dishes). **The first group may be
      empty, and that is the picker working**: phase 3b picks from the catalogue, so from the
      screen every entry resolves and `slug: null` cannot arise — the group survives for entries
      that reached the route another way, and this phase reports it at whatever size it has rather

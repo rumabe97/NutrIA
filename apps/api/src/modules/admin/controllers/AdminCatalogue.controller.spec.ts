@@ -4,7 +4,11 @@ import express from 'express';
 import request from 'supertest';
 import { Test } from '@nestjs/testing';
 
-import { AdminCatalogueController as CoreCatalogue, AdminQualityController as CoreQuality } from 'core/controllers/Admin';
+import {
+  AdminCatalogueController as CoreCatalogue,
+  AdminCupboardController as CoreCupboard,
+  AdminQualityController as CoreQuality
+} from 'core/controllers/Admin';
 import { NotFoundError, PictureRetryRefusedError } from 'core/entities/Error';
 import { RecipeController } from 'core/controllers/Recipe';
 
@@ -205,6 +209,55 @@ describe('AdminCatalogueController', () => {
 
     await get('quality?period=7').expect(200);
     expect(quality).toHaveBeenLastCalledWith(7, expect.any(String));
+  });
+
+  /* Project 022 phase 5: what the library could not cook for a cupboard — counts of accounts, never which. */
+  describe('the cupboard gaps', () => {
+    it('is 404 for an ordinary account on both lists, whatever it asks, and reads nothing', async () => {
+      role = 'user';
+      const unresolved = jest.spyOn(CoreCupboard, 'unresolved');
+      const uncooked = jest.spyOn(CoreCupboard, 'uncooked');
+
+      for (const path of ['cupboard/unresolved', 'cupboard/uncooked', 'cupboard/unresolved?size=1', 'cupboard/uncooked?q=sal']) {
+        await get(path).expect(404);
+      }
+
+      expect(unresolved).not.toHaveBeenCalled();
+      expect(uncooked).not.toHaveBeenCalled();
+    });
+
+    it('answers the owner a page of each, offset and size validated and typed', async () => {
+      role = 'admin';
+      const unresolved = jest
+        .spyOn(CoreCupboard, 'unresolved')
+        .mockResolvedValue({ offset: 5, rows: [{ accounts: 2, word: 'tofu ahumado' }], size: 10, total: 6 });
+      const uncooked = jest.spyOn(CoreCupboard, 'uncooked').mockResolvedValue({ offset: 0, rows: [], size: 25, total: 0 });
+
+      const words = await get('cupboard/unresolved?offset=5&size=10').expect(200);
+
+      expect(unresolved).toHaveBeenCalledWith({ offset: 5, size: 10 });
+      expect(words.body).toEqual({ offset: 5, rows: [{ accounts: 2, word: 'tofu ahumado' }], size: 10, total: 6 });
+
+      await get('cupboard/uncooked').expect(200);
+      expect(uncooked).toHaveBeenCalledWith({ offset: 0, size: 25 });
+    });
+
+    it('refuses anything but a page — no free string, no way to lower the threshold — with 422 before reading', async () => {
+      role = 'admin';
+      const unresolved = jest.spyOn(CoreCupboard, 'unresolved');
+      const uncooked = jest.spyOn(CoreCupboard, 'uncooked');
+
+      for (const list of ['unresolved', 'uncooked']) {
+        for (const query of ['q=tofu', 'min=1', 'threshold=1', 'size=0', 'size=101', 'offset=-1', 'size=a']) {
+          const response = await get(`cupboard/${list}?${query}`).expect(422);
+
+          expect((response.body as { code: string }).code).toBe('INVALID_INPUT');
+        }
+      }
+
+      expect(unresolved).not.toHaveBeenCalled();
+      expect(uncooked).not.toHaveBeenCalled();
+    });
   });
 
   it('answers the owner one page of ingredients, by name from the start when nothing is asked', async () => {

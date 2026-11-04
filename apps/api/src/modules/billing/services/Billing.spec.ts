@@ -81,6 +81,7 @@ function harness(
       automaticActivation: true,
       checkInReminders: false,
       dishPictures: false,
+      pantryRank: false,
       premium: options.premium ?? true,
       professional: false
     });

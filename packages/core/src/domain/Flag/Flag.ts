@@ -12,7 +12,7 @@
  * service is first deployed and every day a migration runs before a seed.
  */
 
-export type FlagName = 'accompaniments' | 'automaticActivation' | 'checkInReminders' | 'dishPictures' | 'premium' | 'professional';
+export type FlagName = 'accompaniments' | 'automaticActivation' | 'checkInReminders' | 'dishPictures' | 'pantryRank' | 'premium' | 'professional';
 
 export type FlagAudience =
   /** The owner, on `/admin`, and nobody else. */
@@ -94,6 +94,21 @@ export const FLAGS: Readonly<Record<FlagName, Flag>> = {
    * is the meal's `pictureStatus`, never the flag.
    */
   dishPictures: { audience: 'signed-in', fallback: false, key: 'dish_pictures' },
+
+  /**
+   * Whether what a person says is in the house leans the fortnight's pick
+   * (project 022 phase 4): the dishes somebody would have to buy fewest items
+   * for are ranked up inside the rotation, with the bands still outranking it.
+   * The cupboard is read before a dish is chosen only when this is on.
+   *
+   * Falls back to off, and off is **the product as it is today to the bit**:
+   * a declared cupboard shortens the shopping list and changes no pick, which is
+   * what phases 1 to 3 shipped. Turning it on is the owner's call, made on the
+   * cohort numbers in `LOG.md` phase 4 and not before — a missing row must never
+   * be what starts steering a fortnight. Owner-only: no screen decides anything
+   * on it; generation reads it (`SettingsController.pantryRank`).
+   */
+  pantryRank: { audience: 'owner', fallback: false, key: 'pantry_rank' },
 
   /**
    * Whether the paid tier exists at all.

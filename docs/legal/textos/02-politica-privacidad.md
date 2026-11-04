@@ -148,6 +148,38 @@
 >   diccionarios. **Van sin marca ⟦⟧ a propósito**: el texto y la pantalla se publican en el mismo
 >   cambio, y hasta que esa pantalla esté en producción ninguna cuenta puede escribir una
 >   despensa, así que no hay un día en que el texto vaya por delante de lo que el producto hace.
+>   **Añadido el 2026-11-04, fase 5 (y tampoco lleva marca ⟦⟧)**: dos frases más al final de esa
+>   misma viñeta, por los dos recuentos que el propietario puede leer en `/admin` sobre las
+>   despensas — cuántas cuentas tienen cada alimento del catálogo que ninguna receta usa, y una
+>   palabra que la lista no reconozca, normalizada, a partir de dos cuentas. Es un **fin ulterior**
+>   del mismo dato, así que el artículo es el **13.3** y manda el momento: el texto tiene que estar
+>   publicado **no más tarde** del día en que esas dos rutas se puedan llamar en producción. Por eso
+>   no lleva marca: una marca retrasa una frase, y esta frase no se puede retrasar — al contrario que
+>   la de la fase 3b, que solo podía ir por delante. Sin base jurídica nueva (art. 6.4 y
+>   considerando 50: un fin ulterior compatible no requiere base aparte), así que «Por qué podemos
+>   tratar estos datos» **no cambia**; sin correo de aviso y sin subir ninguna versión de
+>   consentimiento ni `TERMS_VERSION`. **La frase de arriba es la variante (e1)**, con el suelo de
+>   dos cuentas aplicado también al recuento por alimento, **y es la que vale**: el suelo se
+>   construyó el mismo 2026-11-04 (finding **P2-10**, en el `SELECT` y en el `ORDER BY` de
+>   `AdminCupboardRepository.uncooked()`). Si algún día ese suelo se quitara, esta frase pasa a ser
+>   falsa y hay que volver a la **(e2)**: sale «y solo a partir de dos cuentas» de la primera frase y
+>   la segunda termina «…en minúsculas y sin acentos, y solo si la tienen dos cuentas o más». Las dos
+>   redacciones completas, los artículos y el porqué: [`../pantry.md`](../pantry.md) § 6, P2-6 y
+>   P2-10.
+>   **Enmendado el 2026-11-04, fase 4 (y sin marca ⟦⟧, por una razón distinta de las demás)**: con
+>   la bandera `pantryRank` encendida, lo que alguien tiene en casa **sí** cambia qué platos se
+>   eligen —ordena la elección de la biblioteca, hasta cinco de los diecinueve platos que se
+>   ofrecen por comida—, así que la frase *«No cambia los platos que elegimos ni quita ninguno»*
+>   dejaba de ser verdad. Las dos frases afectadas se sustituyen por las de
+>   [`../pantry.md`](../pantry.md) § 9.5 (f), escritas para ser **ciertas con la bandera encendida
+>   y apagada**. Esa bandera es una fila de `app_settings` que el propietario conmuta desde
+>   `/admin/ajustes` **sin despliegue**: no hay un cambio de código en el que canjear un texto por
+>   otro, así que este texto tiene que estar publicado **antes** de que nadie toque el interruptor
+>   — y por eso no lleva marca, porque una marca retrasa una frase que precisamente no puede
+>   llegar tarde. Al modelo **no le llega ningún dato de la despensa** en ninguno de los dos
+>   estados, así que «La inteligencia artificial» no cambia y no sube ninguna versión de
+>   consentimiento ni `TERMS_VERSION`. El porqué, el art. 4.2 y las dos líneas `[lawyer]`:
+>   [`../pantry.md`](../pantry.md) § 9.
 >   **No es un cambio «importante»**: ningún dato de salud, ningún destinatario, finalidad, base
 >   ni transferencia nueva — sin correo de aviso (**decidido por el propietario el 2026-11-03**:
 >   nadie tiene todavía el dato que se añade) y sin subir `PROFILE_CONSENT_VERSION`,
@@ -192,7 +224,7 @@
 - **Alergias e intolerancias**: las que eliges de la lista, las que escribes a mano y su gravedad. Para que ningún plan te proponga algo que te puede hacer daño.
 - **Tu forma de comer**: por ejemplo vegetariana, sin gluten o sin lactosa, y la cocina que te gusta o no. Para ajustar los platos. ⟦cocina⟧ En su lugar, «y la cocina que te gusta o no» pasa a ser «y las cocinas que te gustan o no»: con la viñeta siguiente, «la cocina» se lee como los aparatos. ⟦fin⟧
 - ⟦cocina⟧ **Tu cocina**: cuánto tiempo como máximo quieres dedicar a un plato y, si nos lo cuentas, cuáles de los aparatos de nuestra lista tienes, cuáles no tienes y con cuáles prefieres cocinar. Para no proponerte un plato que no puedas cocinar y para que los que se hacen con lo que prefieres salgan primero. Si no nos cuentas nada, damos por supuesto que tienes fuego, horno, microondas y batidora. ⟦fin⟧
-- **Lo que ya tienes en casa**: si antes de generar un plan nos dices qué alimentos de nuestra lista tienes en casa, y cuánto si lo sabes, guardamos esa lista mientras la escribes. Para que la lista de la compra de ese plan venga con lo que ya tienes marcado como comprado. No cambia los platos que elegimos ni quita ninguno, y no la leemos como una alergia, una intolerancia ni una forma de comer: lo que tienes en casa no es lo que puedes comer. Al generarse el plan la borramos y, si un fallo lo impidiera, la gasta el siguiente plan que generes.
+- **Lo que ya tienes en casa**: si antes de generar un plan nos dices qué alimentos de nuestra lista tienes en casa, y cuánto si lo sabes, guardamos esa lista mientras la escribes. Para que la lista de la compra de ese plan venga con lo que ya tienes marcado como comprado y, si lo tenemos activado, para que al elegir los platos vayan delante algunos de los que se hacen con lo que ya tienes. Tu lista puede entonces cambiar qué platos acaban en tu plan, pero no quita ningún plato ni decide lo que evitas, y no la leemos como una alergia, una intolerancia ni una forma de comer: lo que tienes en casa no es lo que puedes comer. Al generarse el plan la borramos y, si un fallo lo impidiera, la gasta el siguiente plan que generes. Para saber qué alimentos les faltan a nuestras recetas miramos también esa lista, pero solo como un recuento: cuántas cuentas tienen cada alimento, nunca la lista de nadie en particular, y solo a partir de dos cuentas. Si alguna vez nos llega una palabra que nuestra lista no reconoce, entra en ese recuento en minúsculas y sin acentos.
 - **Enfermedades, medicación y suplementos**: solo si decides contárnoslo, bajo un consentimiento aparte que puedes retirar en cualquier momento sin borrar el resto de tu cuenta.
 - **Cómo llevas el plan**: qué comidas marcas como hechas o saltadas, tus valoraciones y comentarios de los platos, tu peso a lo largo del tiempo y tus check-ins quincenales. Para que el siguiente plan lo tenga en cuenta.
 - **Pagos**: si contratas Premium o un plan de consulta, Stripe cobra y nosotros guardamos solo el identificador de cliente y de suscripción, su estado y cuándo termina el periodo. Nunca vemos el número de tu tarjeta.
@@ -211,7 +243,26 @@ nada la leía, y por eso nunca se había descrito aquí — un dato guardado y n
 un dato que la política tenga que nombrar con un fin, porque no tenía ninguno. `0067`
 («the about-you step now sends the country») le da uno: el catálogo de ingredientes
 excluye por país (`ingredients.countries`, `0034-a-plan-is-built-from-what-you-can-buy.md`),
-así que desde que se lee, hay que decirlo. No es dato de salud ni de creencia. -->
+así que desde que se lee, hay que decirlo. No es dato de salud ni de creencia.
+Nueva (las dos últimas frases de «Lo que ya tienes en casa», 2026-11-04, proyecto 022 fase 5):
+art. 13.3 RGPD (información sobre otro fin, **con anterioridad** al tratamiento ulterior) — es el
+artículo que manda aquí, no solo el 13.1.c, porque el dato se recogió para la lista de la compra y
+esto es un fin distinto; art. 5.1.b (limitación de la finalidad, con los fines estadísticos del art.
+89.1 no incompatibles); art. 6.4 a-e (factores de compatibilidad: la relación es directa, el
+contexto es el del propio producto, la naturaleza es la de la posición condicional de
+`../pantry.md` § 5.3, no hay consecuencia para nadie y las garantías son la agregación y el suelo) y
+considerando 50 («no se requiere una base jurídica aparte, distinta de la que permitió la obtención
+de los datos personales»), que es por lo que «Por qué podemos tratar estos datos» no cambia; arts.
+25.1 y 5.1.c para el suelo. El código: `AdminCupboardRepository.unresolved()` agrupa por
+`normalised_label` y su `HAVING` exige dos cuentas o más (`UNRESOLVED_WORD_THRESHOLD = 2`);
+`uncooked()` cuenta cuentas por ingrediente del catálogo que ninguna receta usa. **Ninguna de las dos
+consultas selecciona `user_id`**: por eso la frase dice «nunca la lista de nadie en particular»
+—que describe la consulta— y **no** «nunca vemos de quién es», que sería falsa, porque el
+responsable puede consultar su propia base de datos. «En minúsculas y sin acentos» es
+`normaliseForMatching` (`core/domain/Safety`), lo que se guarda en `normalisedLabel`. La condicional
+«si alguna vez nos llega una palabra que nuestra lista no reconoce» es deliberada: el selector solo
+ofrece alimentos del catálogo, así que de la pantalla no sale ninguna palabra sin resolver, y la
+frase no debe insinuar que la pantalla invita a escribir (`../pantry.md` § 5.4). -->
 
 
 ### Cuáles de estos datos son especialmente protegidos
@@ -398,7 +449,7 @@ Si cambiamos algo importante, lo diremos aquí con la fecha y te avisaremos por 
 - **Allergies and intolerances**: the ones you pick from the list, the ones you type yourself, and how severe they are. So that no plan offers you something that could harm you.
 - **How you eat**: for example vegetarian, gluten-free or lactose-free, and the cuisines you like or not. To fit the dishes to you.
 - ⟦kitchen⟧ **Your kitchen**: the most time you want to spend on one dish and, if you tell us, which of the appliances on our list you have, which you do not have and which you would rather cook with. So that no plan offers you a dish you cannot cook, and so the dishes made with what you prefer come first. If you tell us nothing, we assume you have a hob, an oven, a microwave and a blender. ⟦end⟧
-- **What you already have at home**: if, before generating a plan, you tell us which foods from our list you already have, and how much where you know it, we keep that list while you are writing it. So that the plan’s shopping list comes back with what you already have ticked as bought. It changes none of the dishes we choose and removes none of them, and we never read it as an allergy, an intolerance or a way of eating: what you have at home is not what you can eat. We delete it when the plan is generated and, if a failure ever prevented that, the next plan you generate spends it.
+- **What you already have at home**: if, before generating a plan, you tell us which foods from our list you already have, and how much where you know it, we keep that list while you are writing it. So that the plan’s shopping list comes back with what you already have ticked as bought and, if we have it switched on, so that when we choose the dishes some of those made with what you already have come first. Your list can then change which dishes end up in your plan, but it removes no dish and decides nothing about what you avoid, and we never read it as an allergy, an intolerance or a way of eating: what you have at home is not what you can eat. We delete it when the plan is generated and, if a failure ever prevented that, the next plan you generate spends it. To know which foods our recipes are missing we also look at that list, but only as a count: how many accounts have each food, never anybody’s own list, and only from two accounts up. If a word our list cannot answer ever reaches us, it goes into that count in lower case and without accents.
 - **Conditions, medications and supplements**: only if you choose to tell us, under a separate consent you can withdraw at any time without deleting the rest of your account.
 - **How the plan is going**: which meals you mark as eaten or skipped, your ratings and comments on dishes, your weight over time and your fortnightly check-ins. So the next plan takes them into account.
 - **Payments**: if you buy Premium or a practice plan, Stripe takes the payment and we keep only the customer and subscription identifiers, their status and when the period ends. We never see your card number.

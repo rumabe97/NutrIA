@@ -34,6 +34,10 @@ export const esES = {
       signedUp: 'Se han registrado'
     },
     manualHint: 'Al confirmar su correo la cuenta queda esperando y te avisamos a ti. La abres tú desde esta lista.',
+    pantryRankHint:
+      'Encendido: al generar un plan, lo que la persona ya tiene en casa se lee antes de elegir los platos, y se ofrecen primero los que obligan a comprar menos cosas. La promesa del plan sigue por encima.',
+    pantryRankLabel: 'Despensa en el plan (aprovechar lo que ya hay en casa)',
+    pantryRankOffHint: 'Apagado: los platos se eligen como siempre. La despensa se sigue leyendo después, para acortar la lista de la compra.',
     picturesHint:
       'Encendido: la primera vez que alguien abre un plato sin imagen se dibuja una, y la ven todos los que lo abran después. Al llegar al tope del mes no se dibuja ninguna más hasta el mes siguiente.',
     picturesLabel: 'Dibujar las imágenes de los platos',
@@ -369,6 +373,38 @@ export const esES = {
     yes: 'Sí'
   },
 
+  /* `/admin/catalogo/despensa`: what the catalogue could not cook for the cupboards people hold. */
+  adminCupboard: {
+    howCounted: [
+      'Las dos listas son una foto de lo que se guarda ahora, no un historial: una despensa se borra cuando el plan que la gasta se genera.',
+      'Se cuentan cuentas, nunca quiénes, y en las dos listas una cifra solo aparece a partir de dos cuentas: así no se puede atribuir a una persona.',
+      'Un ingrediente sin ningún plato dice cuántas cuentas lo tienen ahora, a partir de dos; de la mayoría, menos de dos.'
+    ],
+    intro: 'Qué no supo cocinar el catálogo con lo que la gente tiene en casa: cifras de cuentas, nunca quién.',
+    title: 'Despensa',
+    uncooked: {
+      answer:
+        'La respuesta es escribir platos con estos ingredientes: están en el catálogo, pero ninguna receta los usa. Primero, los que más cuentas tienen ahora.',
+      belowFloor: 'menos de dos',
+      caption: 'Ingredientes del catálogo que ninguna receta usa',
+      columns: { accounts: 'Cuentas que lo tienen, a partir de dos', category: 'Categoría', name: 'Ingrediente' },
+      empty: 'Todos los ingredientes del catálogo están en alguna receta.',
+      title: 'Ingredientes sin ningún plato'
+    },
+    unresolved: {
+      answer: 'La respuesta es añadir un alimento al catálogo.',
+      caption: 'Palabras que el catálogo no supo resolver',
+      columns: { accounts: 'Cuentas', word: 'Palabra' },
+      emptyBody:
+        'El selector de la despensa solo ofrece alimentos del catálogo, así que lo normal es que nada se quede sin resolver: una lista vacía es el selector funcionando. Esta lista es una foto de lo que se guarda ahora, no un historial.',
+      emptyTitle: 'Ninguna palabra llega al mínimo',
+      firstOnly: 'Se muestran las {shown} más repetidas de {total}.',
+      threshold:
+        'Una palabra solo se muestra cuando al menos {count} cuentas la han puesto. Es deliberado: el mínimo no se puede bajar desde esta pantalla.',
+      title: 'Palabras sin alimento en el catálogo'
+    }
+  },
+
   /* `/admin/buzon`: messages per week, then every message as it was written (`0037`). */
   adminInbox: {
     caption: 'Mensajes',
@@ -541,6 +577,7 @@ export const esES = {
       ai: 'IA y modelos',
       auditLog: 'Registro de acciones',
       consents: 'Consentimientos',
+      cupboard: 'Despensa',
       inbox: 'Buzón',
       ingredients: 'Ingredientes',
       log: 'Registro',
@@ -2312,6 +2349,7 @@ export const esES = {
     '/admin/catalogo': { title: 'Recetas' },
     '/admin/catalogo/[id]/imagen': { title: 'Revisar una imagen' },
     '/admin/catalogo/calidad': { title: 'Calidad' },
+    '/admin/catalogo/despensa': { title: 'Despensa' },
     '/admin/catalogo/imagenes': { title: 'Imágenes' },
     '/admin/catalogo/ingredientes': { title: 'Ingredientes' },
     '/admin/consentimientos': { title: 'Consentimientos' },
@@ -2382,11 +2420,19 @@ export const esES = {
     /*
      * The honest sentence, before anybody commits (PRD 022 criterion 10): the verb
      * is «aprovechar», never «a partir de»; the 90–120 is the marketing report's
-     * figure for a fortnight; no count of what it will cover is promised; and it
-     * says the cupboard changes no dish, because that is what is true today.
+     * figure for a fortnight; and no count of what it will cover is promised.
+     *
+     * It used to end by saying the cupboard changes no dish. That clause is gone
+     * (`legal`, P1-11, 2026-11-04): with the owner's `pantryRank` switch on it is
+     * false, and the switch is a row in `app_settings` — there is no deploy
+     * between the click and the next plan in which to change a sentence. What is
+     * left is true in both positions, which is what a screen owes; a screen may
+     * not promise a capability that is switched off, which is why the other
+     * option — text that names the steering — was refused. The `keeps` sentence
+     * below is load-bearing now and must stay on the screen.
      */
     intro:
-      'Opcional. Si nos dices qué alimentos de nuestra lista tienes en casa, y cuánto si lo sabes, los aprovechamos en la lista de la compra de este plan: te vendrán marcados como comprados. Un plan de dos semanas necesita entre 90 y 120 ingredientes distintos, así que lo que tengas cubrirá una parte de la compra, nunca toda. No cambia los platos que elegimos ni quita ninguno.',
+      'Opcional. Si nos dices qué alimentos de nuestra lista tienes en casa, y cuánto si lo sabes, los aprovechamos en la lista de la compra de este plan: te vendrán marcados como comprados. Un plan de dos semanas necesita entre 90 y 120 ingredientes distintos, así que lo que tengas cubrirá una parte de la compra, nunca toda.',
     /*
      * Required by § 5.4 (P1-3): the misreading to stop is not "you infer an
      * intolerance" but "a food I left out is one the plan will avoid". One-way: it
@@ -2798,13 +2844,24 @@ export const esES = {
           'Tu cocina: cuánto tiempo como máximo quieres dedicar a un plato y, si nos lo cuentas, cuáles de los aparatos de nuestra lista tienes, cuáles no tienes y con cuáles prefieres cocinar. Para no proponerte un plato que no puedas cocinar y para que los que se hacen con lo que prefieres salgan primero. Si no nos cuentas nada, damos por supuesto que tienes fuego, horno, microondas y batidora.',
           /*
            * Fuente: arts. 13.1.c y 13.2.a RGPD (fines, base y plazo) y art. 5.1.a (transparencia).
-           * «No cambia los platos que elegimos ni quita ninguno» describe el código: la despensa se
-           * lee en PlanGeneration.service.ts:635, después de buildShoppingList (:626). «No la
-           * leemos como…» es la que sostiene la base del art. 6.1.b sin excepción del art. 9
-           * (docs/legal/pantry.md § 5.3): una declaración de no inferencia, y es verdad porque no
-           * hay camino desde esa lectura hasta una elección.
+           *
+           * Enmendado el 2026-11-04 (fase 4, legal P1-11). Antes decía que la despensa «no cambia
+           * los platos que elegimos ni quita ninguno», y eso describía el código: se leía después
+           * de buildShoppingList. Con la bandera `pantryRank` encendida ordena la elección, así
+           * que la frase dejaba de ser verdad y se ha sustituido por una escrita para ser cierta
+           * con la bandera encendida y apagada. La bandera es una fila de `app_settings` que se
+           * conmuta sin despliegue: este texto tiene que estar publicado **antes** del clic, no
+           * canjearse en él.
+           *
+           * «No quita ningún plato ni decide lo que evitas» y «no la leemos como…» son ahora las
+           * que sostienen la base del art. 6.1.b sin excepción del art. 9
+           * (docs/legal/pantry.md § 5.3): la garantía estructural —no había camino desde esa
+           * lectura hasta una elección— ya no existe, y lo que queda es que no se infiere ni se
+           * presenta ninguna restricción, que el rango lee slugs de ingredientes y nada sobre su
+           * significado, y que es un orden y nunca un filtro. Son frases que cargan peso: no se
+           * tocan sin volver a pasar por `legal`.
            */
-          'Lo que ya tienes en casa: si antes de generar un plan nos dices qué alimentos de nuestra lista tienes en casa, y cuánto si lo sabes, guardamos esa lista mientras la escribes. Para que la lista de la compra de ese plan venga con lo que ya tienes marcado como comprado. No cambia los platos que elegimos ni quita ninguno, y no la leemos como una alergia, una intolerancia ni una forma de comer: lo que tienes en casa no es lo que puedes comer. Al generarse el plan la borramos y, si un fallo lo impidiera, la gasta el siguiente plan que generes.',
+          'Lo que ya tienes en casa: si antes de generar un plan nos dices qué alimentos de nuestra lista tienes en casa, y cuánto si lo sabes, guardamos esa lista mientras la escribes. Para que la lista de la compra de ese plan venga con lo que ya tienes marcado como comprado y, si lo tenemos activado, para que al elegir los platos vayan delante algunos de los que se hacen con lo que ya tienes. Tu lista puede entonces cambiar qué platos acaban en tu plan, pero no quita ningún plato ni decide lo que evitas, y no la leemos como una alergia, una intolerancia ni una forma de comer: lo que tienes en casa no es lo que puedes comer. Al generarse el plan la borramos y, si un fallo lo impidiera, la gasta el siguiente plan que generes. Para saber qué alimentos les faltan a nuestras recetas miramos también esa lista, pero solo como un recuento: cuántas cuentas tienen cada alimento, nunca la lista de nadie en particular, y solo a partir de dos cuentas. Si alguna vez nos llega una palabra que nuestra lista no reconoce, entra en ese recuento en minúsculas y sin acentos.',
           'Enfermedades, medicación y suplementos: solo si decides contárnoslo, bajo un consentimiento aparte que puedes retirar en cualquier momento sin borrar el resto de tu cuenta.',
           'Cómo llevas el plan: qué comidas marcas como hechas o saltadas, tus valoraciones y comentarios de los platos, tu peso a lo largo del tiempo y tus check-ins quincenales. Para que el siguiente plan lo tenga en cuenta.',
           'Pagos: si contratas Premium, Stripe cobra y nosotros guardamos solo el identificador de tu suscripción y su estado. Nunca vemos el número de tu tarjeta.',
@@ -2936,7 +2993,7 @@ export const esES = {
       }
     ],
     title: 'Política de privacidad',
-    updated: 'Última actualización: 4 de noviembre de 2026'
+    updated: 'Última actualización: 5 de noviembre de 2026'
   },
   profile: {
     account: 'Cuenta',

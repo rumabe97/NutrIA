@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { AdminCatalogueController, AdminQualityController } from 'core/controllers/Admin';
+import { AdminCatalogueController, AdminCupboardController, AdminQualityController } from 'core/controllers/Admin';
 import { RecipeController } from 'core/controllers/Recipe';
 
 import { DishPictureService, PictureCandidatesService } from '../../ai/services/index.js';
@@ -9,6 +9,8 @@ import { STEPS_VERSION } from '../../ai/prompts/PoolPrompt.js';
 
 import type {
   AdminCatalogueQualityDto,
+  AdminCupboardUncookedDto,
+  AdminCupboardUnresolvedDto,
   AdminIngredientsDto,
   AdminRecipeDto,
   AdminRecipesDto,
@@ -17,7 +19,13 @@ import type {
   PictureRemoveDto,
   PictureRetryDto
 } from '../dto/out/index.js';
-import type { AcceptPictureCandidateDto, IngredientCatalogueQueryDto, PeriodQueryDto, RecipeCatalogueQueryDto } from '../dto/in/index.js';
+import type {
+  AcceptPictureCandidateDto,
+  CupboardGapQueryDto,
+  IngredientCatalogueQueryDto,
+  PeriodQueryDto,
+  RecipeCatalogueQueryDto
+} from '../dto/in/index.js';
 
 /** The catalogue's two tables. The queries arrive validated; the rules — and the macros — are `packages/core`'s. */
 @Injectable()
@@ -59,6 +67,16 @@ export class AdminCatalogueService {
     await this.candidates.discard(recipeId, actorId);
 
     return { status: 'discarded' };
+  }
+
+  /** Catalogue ingredients in no recipe, with how many accounts hold each: an aggregate, no threshold (reference data). */
+  async cupboardUncooked(query: CupboardGapQueryDto): Promise<AdminCupboardUncookedDto> {
+    return AdminCupboardController.uncooked(query);
+  }
+
+  /** Words the catalogue could not answer, held by two accounts or more; the threshold is core's query, not this service's. */
+  async cupboardUnresolved(query: CupboardGapQueryDto): Promise<AdminCupboardUnresolvedDto> {
+    return AdminCupboardController.unresolved(query);
   }
 
   async ingredients(query: IngredientCatalogueQueryDto): Promise<AdminIngredientsDto> {

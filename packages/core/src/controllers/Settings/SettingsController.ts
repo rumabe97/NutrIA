@@ -80,6 +80,11 @@ export const SettingsController = {
     return flagsFrom(await SettingsRepository.all());
   },
 
+  /** Whether what is in the house leans a fortnight's pick (project 022 phase 4). Asked by generation, once, before it chooses. */
+  async pantryRank(): Promise<boolean> {
+    return SettingsRepository.isEnabled(FLAGS.pantryRank.key, FLAGS.pantryRank.fallback);
+  },
+
   /** What an audience is allowed to see of them. */
   async read(audience: FlagAudience = 'signed-in'): Promise<SettingsView> {
     return { flags: flagsFor(await SettingsController.flags(), audience) };

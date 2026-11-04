@@ -171,7 +171,30 @@ for f in cookie pro client admin; do [ -f "$PROBE_DIR/$f.txt" ] && node $S/accou
 sh $S/servers.sh stop
 ```
 
-Both, even when the probe failed half-way — especially then. `stop` only kills what is
+Both, even when the probe failed half-way — especially then.
+
+**The cookie file is the only handle on a throwaway account.** `delete` is
+`DELETE /users/me` with that cookie, and there is no other door: the password is a constant
+but an account made `--two-factor` cannot sign in again without its TOTP secret, and this
+product does not enable Better Auth's admin plugin, so nothing can remove a user on its
+behalf. Lose the file and the account stays in `nutria_local` until the database is reset —
+which costs the machine's AI-written recipes and so costs a measurement. **So delete the
+accounts before you clear the probe directory, not after**, and if a run dies half-way, look
+for the cookie files before anything else.
+
+When one is stranded anyway, there is **one** way back, and it is the only write in this
+skill that does not go through a route:
+
+```bash
+NUTRIA_LOCAL_PG=1 node $S/account.mjs forget <address>   # @probe.invalid only, local only
+```
+
+It deletes the row, which is what `DELETE /users/me` comes to in the data — of the 55
+foreign keys that reference `user`, 48 cascade and the 7 that do not are `set null` by
+design. It refuses any address that is not `@probe.invalid` and the production guard still
+runs. **Why it had to exist**: an admin account was stranded this way on 2026-11-04, and
+`global-teardown.ts` counts every `%.invalid` account left in the database — so one lost
+cookie file failed the teardown of *every* e2e run on the machine until it was cleared. `stop` only kills what is
 listening on 3000 and 3001 and looks like Node, and says so when it does not.
 
 ## What this cannot tell you

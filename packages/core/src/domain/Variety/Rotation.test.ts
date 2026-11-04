@@ -4,10 +4,14 @@ import {
   DISHES_NEEDED_PER_SLOT,
   FRESH_DISHES_PER_SLOT,
   isPreferredDish,
+  narrowerRungs,
   narrowerShares,
+  PANTRY_DISHES_PER_SLOT,
   rotatePool,
   seededShuffle,
-  withApplianceShare
+  UNREPAIRED_RANK,
+  withApplianceShare,
+  withRung
 } from 'core/domain/Variety';
 import type { CandidateDish, MealSlot } from 'core/entities/Plan';
 
@@ -378,5 +382,200 @@ describe('rotatePool with a reservation (019 phase 2)', () => {
         .sort()
     );
     expect(seen).toEqual([0, 10]);
+  });
+});
+
+describe("the cupboard's rank (project 022 phase 4)", () => {
+  const lunch: readonly MealSlot[] = ['lunch'];
+  const house = new Set(['arroz', 'huevo', 'tomate']);
+  // Forty dishes of three ingredients each. Every tenth holds three things the
+  // house has, every tenth plus one holds two, and the rest hold none: so the
+  // rank has a strict order to produce and the cap has far more than it can take.
+  const shelf = (): readonly CandidateDish[] =>
+    library(40, lunch).map((dish, index): CandidateDish => ({
+      ...dish,
+      ingredients: [
+        { grams: 100, slug: index % 10 === 0 ? 'arroz' : `a-${index}` },
+        { grams: 100, slug: index % 10 === 0 || index % 10 === 1 ? 'tomate' : `b-${index}` },
+        { grams: 100, slug: index % 10 === 0 ? 'huevo' : `c-${index}` }
+      ]
+    }));
+  const plain = { avoidSlugs: nothingAvoided, seed: 'user-a:1' };
+  const kept = { ...plain, pantrySlugs: house };
+  const slugsOf = (pool: readonly CandidateDish[]): string[] => pool.map(dish => dish.slug);
+
+  it('is the pick it always was for a rotation that names no cupboard, and for one on its bottom rung', () => {
+    const before = slugsOf(rotatePool(shelf(), lunch, plain, 12));
+
+    expect(slugsOf(rotatePool(shelf(), lunch, { ...plain, pantryShare: 4 }, 12))).toEqual(before);
+    expect(slugsOf(rotatePool(shelf(), lunch, { ...kept, pantryShare: 0 }, 12))).toEqual(before);
+    expect(slugsOf(rotatePool(shelf(), lunch, { ...plain, pantrySlugs: new Set() }, 12))).toEqual(before);
+  });
+
+  it('puts the dishes somebody would buy fewest items for into the cap, fewest first, and no more than the share', () => {
+    const pool = rotatePool(shelf(), lunch, { ...kept, pantryShare: 3 }, 12, undefined, UNREPAIRED_RANK);
+    const toBuy = (dish: CandidateDish): number => dish.ingredients.filter(item => !house.has(item.slug)).length;
+    const inRotation = rotatePool(shelf(), lunch, plain, 12);
+    const gained = pool.filter(dish => !inRotation.some(other => other.slug === dish.slug));
+
+    // The four dishes that cost nothing to buy for are all in the library; three of the cap's twelve are theirs.
+    expect(pool.filter(dish => toBuy(dish) === 0).length).toBeGreaterThanOrEqual(3);
+    expect(pool).toHaveLength(12);
+    // It only ever exchanged: whatever it added, it took the same number away.
+    expect(gained.length).toBeLessThanOrEqual(3);
+  });
+
+  it('is an order and never a filter: the library is whole, the cap is the same size, and what was held back is the rotation own tail', () => {
+    const library40 = shelf();
+    const pool = rotatePool(library40, lunch, kept, 12, undefined, UNREPAIRED_RANK);
+
+    expect(pool).toHaveLength(12);
+    expect(new Set(slugsOf(pool)).size).toBe(12);
+    // Nothing the cupboard did removed a dish from what the person may be offered.
+    expect(slugsOf(rotatePool(library40, lunch, kept, Number.POSITIVE_INFINITY, undefined, UNREPAIRED_RANK)).sort()).toEqual(
+      slugsOf(library40).sort()
+    );
+  });
+
+  it('ties go to the person own shuffle, so two people with one cupboard are not handed one pick', () => {
+    const left = slugsOf(rotatePool(shelf(), lunch, { ...kept, pantryShare: 5, seed: 'user-a:1' }, 12, undefined, UNREPAIRED_RANK));
+    const right = slugsOf(rotatePool(shelf(), lunch, { ...kept, pantryShare: 5, seed: 'user-b:1' }, 12, undefined, UNREPAIRED_RANK));
+
+    expect(left).not.toEqual(right);
+  });
+
+  it('keeps what the food groups reserved, and counts a reserved dish that already uses the house against its share', () => {
+    const pool = shelf();
+    // Two dishes that use the house, reserved by the groups: with a share of two
+    // the cupboard has nothing left to take, so the pick is the groups' and the rotation's own.
+    const reserved = pool.filter(dish => dish.slug === 'dish-10' || dish.slug === 'dish-20');
+    const reserve = (inSlot: readonly CandidateDish[]): readonly CandidateDish[] => inSlot.filter(dish => reserved.includes(dish));
+    const groupsOnly = slugsOf(rotatePool(pool, lunch, plain, 6, reserve));
+    const withHouse = slugsOf(rotatePool(pool, lunch, { ...kept, pantryShare: 2 }, 6, reserve, UNREPAIRED_RANK));
+
+    expect(withHouse).toEqual(expect.arrayContaining(['dish-10', 'dish-20']));
+    expect(withHouse).toEqual(groupsOnly);
+    // One more share and it takes exactly one dish the rotation would not have.
+    const wider = slugsOf(rotatePool(pool, lunch, { ...kept, pantryShare: 3 }, 6, reserve, UNREPAIRED_RANK));
+
+    expect(wider).toEqual(expect.arrayContaining(['dish-10', 'dish-20']));
+    expect(wider.filter(slug => !groupsOnly.includes(slug)).length).toBeLessThanOrEqual(1);
+  });
+
+  it('ranks nothing when a caller names a cupboard and supplies no repair, rather than ranking unrepaired', () => {
+    const before = slugsOf(rotatePool(shelf(), lunch, plain, 12));
+
+    expect(slugsOf(rotatePool(shelf(), lunch, kept, 12))).toEqual(before);
+    expect(slugsOf(rotatePool(shelf(), lunch, kept, 12, undefined, UNREPAIRED_RANK))).not.toEqual(before);
+  });
+
+  it('cannot be asked for more of a slot than the measurement allows', () => {
+    expect(slugsOf(rotatePool(shelf(), lunch, { ...kept, pantryShare: 99 }, 12, undefined, UNREPAIRED_RANK))).toEqual(
+      slugsOf(rotatePool(shelf(), lunch, kept, 12, undefined, UNREPAIRED_RANK))
+    );
+    expect(PANTRY_DISHES_PER_SLOT).toBeGreaterThan(0);
+  });
+
+  describe('the repair: it exchanges a capped food for the same food, and never adds one', () => {
+    // Eggs are the capped kind here. Every dish with `huevo` is an egg dish; the
+    // house holds the egg, so ranking alone would crowd the pick with them.
+    const eggsOf = (dish: CandidateDish): readonly string[] => (dish.ingredients.some(item => item.slug === 'huevo') ? ['eggs'] : []);
+    const eggy = (): readonly CandidateDish[] =>
+      library(40, lunch).map((dish, index): CandidateDish => ({
+        ...dish,
+        ingredients: [
+          { grams: 100, slug: index % 2 === 0 ? 'huevo' : `a-${index}` },
+          { grams: 100, slug: `b-${index}` }
+        ]
+      }));
+    const eggDishes = (pool: readonly CandidateDish[]): number => pool.filter(dish => eggsOf(dish).length > 0).length;
+    const egg = { ...plain, pantryShare: 6, pantrySlugs: new Set(['huevo']) };
+
+    const seeds = ['a:1', 'b:2', 'c:3', 'd:4', 'e:5', 'f:6', 'g:7', 'h:8'];
+
+    it('without it the rank holds more egg dishes than the rotation did', () => {
+      const before = seeds.reduce((sum, seed) => sum + eggDishes(rotatePool(eggy(), lunch, { ...plain, seed }, 12)), 0);
+      const ranked = seeds.reduce((sum, seed) => sum + eggDishes(rotatePool(eggy(), lunch, { ...egg, seed }, 12, undefined, UNREPAIRED_RANK)), 0);
+
+      expect(ranked).toBeGreaterThan(before);
+    });
+
+    it('with it the pick holds no more egg dishes than the rotation without a cupboard', () => {
+      for (const seed of seeds) {
+        const before = eggDishes(rotatePool(eggy(), lunch, { ...plain, seed }, 12));
+        const repaired = eggDishes(rotatePool(eggy(), lunch, { ...egg, seed }, 12, undefined, eggsOf));
+
+        expect(repaired).toBeLessThanOrEqual(before);
+      }
+    });
+
+    it('still ranks within the capped kind: the egg dish the house can cook best is the one that stays', () => {
+      const dishes = library(40, lunch).map((dish, index): CandidateDish => ({
+        ...dish,
+        ingredients:
+          index < 20
+            ? [
+                { grams: 100, slug: 'huevo' },
+                { grams: 100, slug: index === 7 ? 'tomate' : `x-${index}` }
+              ]
+            : [{ grams: 100, slug: `y-${index}` }]
+      }));
+      const pool = rotatePool(
+        dishes,
+        lunch,
+        { ...plain, pantryShare: 1, pantrySlugs: new Set(['huevo', 'tomate']), seed: 'u:1' },
+        5,
+        undefined,
+        eggsOf
+      );
+
+      expect(slugsOf(pool)).toContain('dish-7');
+    });
+  });
+
+  describe('the ladder', () => {
+    const both = { ...kept, preferAppliances: new Set<Appliance>(['air_fryer']) };
+    const applianceFull = narrowerShares(both);
+
+    it('is exactly the appliance ladder when no cupboard is named, one number per rung', () => {
+      expect(narrowerRungs({ ...plain, preferAppliances: new Set<Appliance>(['air_fryer']) })).toEqual(
+        applianceFull.map(rung => ({ applianceShare: rung, pantryShare: null }))
+      );
+      expect(narrowerRungs(plain)).toEqual([]);
+    });
+
+    it('gives the cupboard up entirely before the appliance loses anything, by default', () => {
+      expect(narrowerRungs(both)).toEqual([
+        { applianceShare: null, pantryShare: Math.floor(PANTRY_DISHES_PER_SLOT / 2) },
+        { applianceShare: null, pantryShare: 0 },
+        ...applianceFull.map(rung => ({ applianceShare: rung, pantryShare: 0 }))
+      ]);
+    });
+
+    it('can be walked the other way round', () => {
+      expect(narrowerRungs(both, 'last')).toEqual([
+        ...applianceFull.map(rung => ({ applianceShare: rung, pantryShare: null })),
+        { applianceShare: 0, pantryShare: Math.floor(PANTRY_DISHES_PER_SLOT / 2) },
+        { applianceShare: 0, pantryShare: 0 }
+      ]);
+    });
+
+    it('offers nothing for a cupboard already on its bottom rung, and nothing for an empty one', () => {
+      expect(narrowerRungs({ ...kept, pantryShare: 0 })).toEqual([]);
+      expect(narrowerRungs({ ...plain, pantrySlugs: new Set() })).toEqual([]);
+    });
+
+    it('builds a rung from one preference at a time, leaving the other as it was', () => {
+      const onlyHouse = withRung(both, { applianceShare: null, pantryShare: 2 });
+
+      expect(onlyHouse.pantryShare).toBe(2);
+      expect(onlyHouse.applianceShare).toBeUndefined();
+      expect(onlyHouse.preferAppliances).toBe(both.preferAppliances);
+
+      const onlyKitchen = withRung(both, { applianceShare: 0, pantryShare: null });
+
+      expect(onlyKitchen.pantryShare).toBeUndefined();
+      expect(onlyKitchen.preferAppliances?.size).toBe(0);
+    });
   });
 });

@@ -56,6 +56,7 @@ export const ADMIN_SECTIONS: readonly AdminNavSection[] = [
       { href: '/admin/catalogo', label: 'recipes' },
       { href: '/admin/catalogo/calidad', label: 'quality' },
       { href: '/admin/catalogo/ingredientes', label: 'ingredients' },
+      { href: '/admin/catalogo/despensa', label: 'cupboard' },
       { href: '/admin/catalogo/imagenes', label: 'pictures' }
     ]
   },

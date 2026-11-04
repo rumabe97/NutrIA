@@ -5,13 +5,14 @@ import { NO_PREFERENCE_EXCLUSIONS, resolvePreferences } from 'core/domain/Prefer
 import { DEFAULT_KITCHEN, kitchenOf } from 'core/entities/Kitchen';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 import { toCatalogue } from 'core/entities/Plan';
+import { rotatePool, UNREPAIRED_RANK } from 'core/domain/Variety';
 import { makeCatalogueIngredient } from '#test/fixtures';
 
 import { RecipeController } from './RecipeController';
 
 import type { GenerationContext } from './RecipeController';
 import type { Allergen, SafetyProfile } from 'core/entities/Safety';
-import type { CatalogueIngredient } from 'core/entities/Plan';
+import type { CandidateDish, CatalogueIngredient } from 'core/entities/Plan';
 import type { Appliance, Kitchen, KitchenStance } from 'core/entities/Kitchen';
 import type { LibraryRecipe } from 'core/domain/MealFit';
 import type { ReusableRecipe } from '#repositories/Recipe';
@@ -581,5 +582,71 @@ describe('RecipeController.libraryUsage — what the library cooks lunch and din
     expect(omnivore.get('lunch')).toEqual(new Set(['i-lentejas', 'i-cebolla']));
     expect(omnivore.has('dinner')).toBe(false);
     expect(vegan.get('dinner')).toEqual(new Set(['i-lentejas', 'i-cebolla']));
+  });
+});
+
+describe('RecipeController.rotateFor — the cupboard stays inside the table’s caps (project 022 phase 4)', () => {
+  const egg = makeCatalogueIngredient({ id: 'i-huevo', classes: ['animal', 'egg'], name: 'Huevo', slug: 'huevo' });
+  const context: GenerationContext = {
+    catalogue: toCatalogue([egg]),
+    dietaryPatterns: [],
+    locale: 'es-ES',
+    preferences: resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: [], dislikedLabels: [], ingredients: [egg] }),
+    safety: NO_RESTRICTIONS
+  };
+  // Forty lunches, one in five of them two eggs, and the house holds the egg: ranking alone would put every one of them in the cap.
+  const library: readonly CandidateDish[] = Array.from({ length: 40 }, (_unused, index) => ({
+    cookMinutes: 10,
+    cuisine: null,
+    difficulty: 'easy' as const,
+    ingredients: [
+      { grams: index % 5 === 0 ? 110 : 80, slug: index % 5 === 0 ? 'huevo' : `otro-${index}` },
+      { grams: 100, slug: `base-${index}` }
+    ],
+    name: `Plato ${index}`,
+    prepMinutes: 5,
+    servings: 1,
+    slots: ['lunch' as const],
+    slug: `plato-${index}`,
+    steps: [{ text: 'Mezclar' }]
+  }));
+  const eggDishes = (pool: readonly CandidateDish[]): number => pool.filter(dish => dish.ingredients.some(item => item.slug === 'huevo')).length;
+  const seeds = ['a:1', 'b:2', 'c:3', 'd:4', 'e:5', 'f:6', 'g:7', 'h:8'];
+
+  it('never hands over more egg dishes than the same rotation without a cupboard would, whoever the person is', () => {
+    for (const seed of seeds) {
+      const plain = { avoidSlugs: new Set<string>(), seed };
+      const house = { ...plain, pantrySlugs: new Set(['huevo']) };
+
+      expect(eggDishes(RecipeController.rotateFor(library, ['lunch'], context, house))).toBeLessThanOrEqual(
+        eggDishes(RecipeController.rotateFor(library, ['lunch'], context, plain))
+      );
+    }
+  });
+
+  it('is the unrepaired rank — and so does crowd the cap with eggs — only when it is asked for by name', () => {
+    const crowded = seeds.reduce(
+      (sum, seed) =>
+        sum +
+        eggDishes(
+          rotatePool(
+            library,
+            ['lunch'],
+            { avoidSlugs: new Set<string>(), pantrySlugs: new Set(['huevo']), seed },
+            undefined,
+            undefined,
+            UNREPAIRED_RANK
+          )
+        ),
+      0
+    );
+    const repaired = seeds.reduce(
+      (sum, seed) =>
+        sum +
+        eggDishes(RecipeController.rotateFor(library, ['lunch'], context, { avoidSlugs: new Set<string>(), pantrySlugs: new Set(['huevo']), seed })),
+      0
+    );
+
+    expect(crowded).toBeGreaterThan(repaired);
   });
 });

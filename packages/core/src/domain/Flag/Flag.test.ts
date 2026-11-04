@@ -9,6 +9,7 @@ describe('flagsFrom', () => {
       automaticActivation: true,
       checkInReminders: false,
       dishPictures: false,
+      pantryRank: false,
       premium: false,
       professional: false
     });
@@ -38,6 +39,7 @@ describe('flagsFrom', () => {
       automaticActivation: false,
       checkInReminders: false,
       dishPictures: false,
+      pantryRank: false,
       premium: true,
       professional: false
     });
@@ -88,5 +90,18 @@ describe('the registry itself', () => {
   it('leaves the dietitian workspace off until somebody says otherwise, and tells only the owner', () => {
     expect(FLAGS.professional).toMatchObject({ audience: 'owner', fallback: false });
     expect('professional' in flagsFor(fallbackFlags(), 'signed-in')).toBe(false);
+  });
+
+  /*
+   * An empty settings table must never be what starts steering a fortnight by
+   * what somebody has at home (project 022 phase 4), and the position of that
+   * switch is nobody's business but the owner's. `flagsFor`'s own test pins the
+   * **mechanism** — the filter obeys whatever each flag declares — so only a
+   * line like this one pins the **declaration**: without it, a commit changing
+   * this flag to `signed-in` breaks no test.
+   */
+  it('leaves the cupboard out of the pick until somebody says otherwise, and tells only the owner', () => {
+    expect(FLAGS.pantryRank).toMatchObject({ audience: 'owner', fallback: false });
+    expect('pantryRank' in flagsFor(fallbackFlags(), 'signed-in')).toBe(false);
   });
 });

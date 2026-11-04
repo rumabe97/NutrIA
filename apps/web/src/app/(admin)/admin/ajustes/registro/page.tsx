@@ -73,6 +73,7 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
     automaticActivation: admin.automaticActivation,
     checkInReminders: admin.remindersTitle,
     dishPictures: admin.picturesLabel,
+    pantryRank: admin.pantryRankLabel,
     premium: admin.premiumLabel,
     professional: admin.professionalLabel
   };

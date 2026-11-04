@@ -123,6 +123,15 @@ export default async function AdminSettingsPage() {
               onHint={t.accompanimentsHint}
             />
           </li>
+          <li className={styles.row} id="despensa">
+            <FlagSwitch
+              enabled={flags.pantryRank ?? false}
+              flag="pantryRank"
+              label={t.pantryRankLabel}
+              offHint={t.pantryRankOffHint}
+              onHint={t.pantryRankHint}
+            />
+          </li>
         </Card>
       </section>
 

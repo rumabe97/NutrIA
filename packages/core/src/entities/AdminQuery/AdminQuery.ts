@@ -249,3 +249,13 @@ export type IngredientCatalogueQuery = z.infer<typeof ingredientCatalogueQuerySc
 export const retentionQuerySchema = z.object({}).strict();
 
 export type RetentionQuery = z.infer<typeof retentionQuerySchema>;
+
+/**
+ * The cupboard's two gap lists (`GET /admin/catalogue/cupboard/unresolved` and `/uncooked`, project 022 phase 5):
+ * a page and nothing else. **Strict, and with no `q`**: no filter takes a free string, and a key this schema does not know
+ * is a 422 `INVALID_INPUT` rather than being ignored — the one place a caller could ask for fewer accounts than the
+ * threshold is a parameter, so there is none (`docs/legal/pantry.md` P2-6).
+ */
+export const cupboardGapQuerySchema = z.object({ offset, size }).strict();
+
+export type CupboardGapQuery = z.infer<typeof cupboardGapQuerySchema>;

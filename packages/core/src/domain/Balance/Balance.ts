@@ -555,6 +555,44 @@ export function heldMaximums(
   return checks;
 }
 
+/**
+ * The capped foods a dish counts towards, as the table's maximums read them
+ * (`heldMaximums`, `STARCH_RULES`): eggs, fish and shellfish, meat, red meat,
+ * processed meat, and each capped starch base (`starch:pasta`, `starch:rice`,
+ * `starch:grains`); a kind appears once per dish, except eggs, which appear once
+ * per egg because that is how the cap counts. One serving, as stored — a rank
+ * over a pool has no servings to scale to yet.
+ *
+ * What the cupboard's rank reads to keep its reserve from taking a dish that
+ * would take a fortnight past a cap (`rotatePool`'s `kindsOf`, project 022
+ * phase 4): what people actually put in a cupboard is eggs, rice, pasta, potato
+ * and bread, and three of those five are capped (eggs, and `rice` and `pasta` of
+ * `STARCH_RULES.capped`; potato and bread are not). Ranking by what is not to be
+ * bought therefore ranks capped foods high, which is the whole reason the repair
+ * has to exist. Not slot-aware on purpose — the caps count a fortnight, and
+ * a slot's pick is counted against its own pick without a cupboard.
+ */
+export function cappedKinds(catalogue: Catalogue): (dish: CandidateDish) => readonly string[] {
+  const capped: ReadonlySet<string> = new Set(STARCH_RULES.capped);
+
+  return dish => {
+    const groups = servingGroups(dish, catalogue);
+    const served = mealServings(groups);
+    const base = starchBase(dish);
+
+    return [
+      // The egg cap counts **by the egg** (`heldMaximums`), so a dish with three
+      // counts three: exchanging a one-egg dish for a three-egg one is not neutral.
+      ...Array.from({ length: eggsCounted(groups.eggs) }, () => 'eggs'),
+      ...(served.fishOrShellfish ? ['fishAndShellfish'] : []),
+      ...(served.meat ? ['meat'] : []),
+      ...(served.redMeat ? ['redMeat'] : []),
+      ...(served.processed ? ['processed'] : []),
+      ...(base !== null && capped.has(base) ? [`starch:${base}`] : [])
+    ];
+  };
+}
+
 /** The minimums the scheduler holds (019 phase 4, `0085`). */
 export type FloorName = 'fish' | 'legumes' | 'oilyFish';
 

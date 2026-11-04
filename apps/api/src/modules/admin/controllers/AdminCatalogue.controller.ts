@@ -23,12 +23,20 @@ import {
 import { INGREDIENT_CATEGORIES, MEAL_SLOTS } from 'core/entities/Plan';
 
 import { AdminCatalogueService } from '../services/index.js';
-import { AcceptPictureCandidateDto, IngredientCatalogueQueryDto, PeriodQueryDto, RecipeCatalogueQueryDto } from '../dto/in/index.js';
+import {
+  AcceptPictureCandidateDto,
+  CupboardGapQueryDto,
+  IngredientCatalogueQueryDto,
+  PeriodQueryDto,
+  RecipeCatalogueQueryDto
+} from '../dto/in/index.js';
 import { CurrentUser, RateLimit, Roles, ZodBody } from '../../../shared/index.js';
 import { PERIOD_PARAMETER, ZodQuery } from './ZodQuery.js';
 
 import type {
   AdminCatalogueQualityDto,
+  AdminCupboardUncookedDto,
+  AdminCupboardUnresolvedDto,
   AdminIngredientsDto,
   AdminRecipeDto,
   AdminRecipesDto,
@@ -205,5 +213,29 @@ export class AdminCatalogueController {
   @Get('ingredients')
   async ingredients(@ZodQuery(IngredientCatalogueQueryDto) query: IngredientCatalogueQueryDto): Promise<AdminIngredientsDto> {
     return this.catalogue.ingredients(query);
+  }
+
+  @ApiOkResponse({
+    description:
+      'One page of the catalogue ingredients no recipe mentions, most held first then by name, each with `accounts`: how many accounts hold it in a cupboard right now, floored: 0 means fewer than two, never none. A snapshot — a cupboard is deleted by the generation that spends it. The row is catalogue reference data; the count is an aggregate and is never below the two-account threshold; never which account. 422 INVALID_INPUT for any parameter but `offset` and `size`.'
+  })
+  @ApiOperation({ summary: 'Ingredients in the catalogue that no recipe cooks, and how many cupboards hold them (project 022)' })
+  @ApiQuery({ name: 'offset', required: false, type: Number })
+  @ApiQuery(PAGE_SIZE)
+  @Get('cupboard/uncooked')
+  async cupboardUncooked(@ZodQuery(CupboardGapQueryDto) query: CupboardGapQueryDto): Promise<AdminCupboardUncookedDto> {
+    return this.catalogue.cupboardUncooked(query);
+  }
+
+  @ApiOkResponse({
+    description:
+      'One page of the words people typed that the catalogue has no ingredient for, in their normalised form, each held by two accounts or more (`accounts`), most held first. The threshold is in the query: a word one account holds is never returned, and neither is a label as typed or any id. A snapshot of cupboards still unspent, so an empty page is the picker working. 422 INVALID_INPUT for any parameter but `offset` and `size`.'
+  })
+  @ApiOperation({ summary: 'Words the catalogue could not answer, held by two accounts or more (project 022)' })
+  @ApiQuery({ name: 'offset', required: false, type: Number })
+  @ApiQuery(PAGE_SIZE)
+  @Get('cupboard/unresolved')
+  async cupboardUnresolved(@ZodQuery(CupboardGapQueryDto) query: CupboardGapQueryDto): Promise<AdminCupboardUnresolvedDto> {
+    return this.catalogue.cupboardUnresolved(query);
   }
 }

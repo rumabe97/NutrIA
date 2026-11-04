@@ -157,6 +157,8 @@ type Mocks = {
   onboarding: unknown;
   /** What the cupboard holds when the list is built (project 022 phase 2); empty when absent. */
   pantry: { grams: number | null; ingredientId: string; slug: string }[];
+  /** The `pantryRank` flag (project 022 phase 4); off when absent. */
+  pantryRank: boolean;
   /** How many cupboard words the catalogue had no answer for; none when absent. */
   pantryUnresolved: number;
   persist: jest.Mock;
@@ -228,6 +230,8 @@ function build(overrides: Partial<Mocks> = {}) {
   jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [], liked: [] });
   // The accompaniments flag, off unless a test turns it on (project 016).
   jest.spyOn(SettingsController, 'accompaniments').mockResolvedValue(overrides.accompaniments ?? false);
+  // The cupboard's rank, off unless a test turns it on (project 022 phase 4).
+  jest.spyOn(SettingsController, 'pantryRank').mockResolvedValue(overrides.pantryRank ?? false);
   jest.spyOn(CheckInController, 'latestForGeneration').mockResolvedValue(null);
   jest.spyOn(EventController, 'list').mockResolvedValue(overrides.events ?? []);
   jest.spyOn(PlanJobController, 'persist').mockImplementation(persist as never);
@@ -448,8 +452,8 @@ describe('PlanGenerationService', () => {
     const bands = new Set(['carbs_out_of_band', 'fat_out_of_band', 'kcal_out_of_band', 'protein_below_target']);
     const bandAdvisories = (advisories: readonly string[]) => advisories.filter(line => bands.has(line.split(' ')[0] ?? ''));
 
-    function withSkewedCatalogue(rotated: CandidateDish[], library: CandidateDish[], kitchen: Kitchen | null = null) {
-      const mocks = build({ reusable: rotated });
+    function withSkewedCatalogue(rotated: CandidateDish[], library: CandidateDish[], kitchen: Kitchen | null = null, extra: Partial<Mocks> = {}) {
+      const mocks = build({ reusable: rotated, ...extra });
 
       jest
         .spyOn(RecipeController, 'generationContext')
@@ -531,6 +535,41 @@ describe('PlanGenerationService', () => {
       expect(bandAdvisories(draft.generationMetadata.advisories)).toEqual([]);
       expect(draft.generationMetadata.kitchenShare).not.toBeNull();
       expect(draft.generationMetadata.fallback).toBeNull();
+    });
+
+    /*
+     * The same finding for the cupboard (project 022 phase 4, PRD 4). What the
+     * house holds is the fat here, so ranking it into every slot is what keeps
+     * the fortnight out of band — and the rescue that answers a band miss by
+     * reading the whole library would deliver the bands with **no** cupboard on
+     * any plate. So the cupboard's share is given up first, by degrees, and the
+     * plan says which rung it ended on.
+     */
+    it('gives up the cupboard for the bands before it gives up the rotation, and records the rung', async () => {
+      const house = [
+        { grams: null, ingredientId: 'ing-arroz', slug: 'arroz' },
+        { grams: null, ingredientId: 'ing-graso', slug: 'graso' }
+      ];
+      const { persist, service } = withSkewedCatalogue(fatty, [...fatty, ...pool('pan')], null, { pantry: house, pantryRank: true });
+
+      await service.generate('user-1', 'job-1', async () => Promise.resolve());
+
+      const draft = persist.mock.calls[0]?.[1] as {
+        generationMetadata: {
+          advisories: readonly string[];
+          fallback: string | null;
+          kitchenShare: number | null;
+          pantryRanked: boolean;
+          pantryShare: number | null;
+        };
+      };
+
+      expect(bandAdvisories(draft.generationMetadata.advisories)).toEqual([]);
+      expect(draft.generationMetadata.fallback).toBeNull();
+      expect(draft.generationMetadata.pantryRanked).toBe(true);
+      expect(draft.generationMetadata.pantryShare).not.toBeNull();
+      // Only the cupboard narrowed: nobody stated a kitchen.
+      expect(draft.generationMetadata.kitchenShare).toBeNull();
     });
 
     it('records no narrowing for a kitchen nobody stated', async () => {
@@ -1203,5 +1242,71 @@ describe('PlanGenerationService — the cupboard the plan was asked with (022)',
 
     await expect(service.generate('usr-1', 'job-1', async () => Promise.resolve())).resolves.toBe('plan-1');
     expect(persist).toHaveBeenCalled();
+  });
+});
+
+describe('PlanGenerationService — the cupboard leans the pick only when the owner says so (022 phase 4)', () => {
+  type Ranked = Draft & { generationMetadata: Draft['generationMetadata'] & { pantryRanked: boolean; pantryShare: number | null } };
+  const house = [{ grams: null, ingredientId: 'ing-arroz', slug: 'arroz' }];
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    schedulePlan.mockClear();
+  });
+
+  it('hands the rotation no cupboard while the flag is off, and records that nothing steered', async () => {
+    const { persist, service } = build({ pantry: house });
+    const reusablePool = jest.spyOn(RecipeController, 'reusablePool');
+    const read = jest.spyOn(PantryController, 'forGeneration').mockClear();
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    const rotation = reusablePool.mock.calls.find(call => call[2] !== undefined)?.[2];
+    const draft = persist.mock.calls[0]?.[1] as Ranked;
+
+    expect(rotation?.pantrySlugs).toBeUndefined();
+    expect(draft.generationMetadata.pantryRanked).toBe(false);
+    expect(draft.generationMetadata.pantryShare).toBeNull();
+    // Off, the cupboard is read once, where it always was: after the pick, for the list.
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
+  it('hands the rotation the slugs the cupboard holds when it is on, reads the cupboard once, and still records what it was asked with', async () => {
+    const { persist, service } = build({ pantry: house, pantryRank: true });
+    const reusablePool = jest.spyOn(RecipeController, 'reusablePool');
+    const read = jest.spyOn(PantryController, 'forGeneration').mockClear();
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    const rotation = reusablePool.mock.calls.find(call => call[2] !== undefined)?.[2];
+    const draft = persist.mock.calls[0]?.[1] as Ranked & { generationMetadata: { pantry: { asked: { slug: string }[] } | null } };
+
+    expect([...(rotation?.pantrySlugs ?? [])]).toEqual(['arroz']);
+    expect(draft.generationMetadata.pantryRanked).toBe(true);
+    // The full share, no band missed: no rung to record.
+    expect(draft.generationMetadata.pantryShare).toBeNull();
+    expect(draft.generationMetadata.pantry?.asked).toEqual([{ grams: null, slug: 'arroz' }]);
+    // One read for the pick and the list alike: what steered is what the list was seeded from.
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not rank a cupboard with nothing in it', async () => {
+    const { persist, service } = build({ pantry: [], pantryRank: true });
+    const reusablePool = jest.spyOn(RecipeController, 'reusablePool');
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    expect(reusablePool.mock.calls.find(call => call[2] !== undefined)?.[2]?.pantrySlugs).toBeUndefined();
+    expect((persist.mock.calls[0]?.[1] as Ranked).generationMetadata.pantryRanked).toBe(false);
+  });
+
+  it('puts no word and no slug of the cupboard in what the model is told (PRD 022 criterion 7)', async () => {
+    const { buildPool, service } = build({ pantry: [{ grams: null, ingredientId: 'ing-quesito', slug: 'quesito-en-porciones' }], pantryRank: true });
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    const asked = JSON.stringify(buildPool.mock.calls[0]?.[0]);
+
+    expect(asked).not.toContain('quesito');
   });
 });

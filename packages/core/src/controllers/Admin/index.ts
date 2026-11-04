@@ -2,6 +2,7 @@ export * from './AdminAlertController';
 export * from './AdminCatalogueController';
 export * from './AdminConsentController';
 export * from './AdminController';
+export * from './AdminCupboardController';
 export * from './AdminLogController';
 export * from './AdminNotificationController';
 export * from './AdminPlanQualityController';

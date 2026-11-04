@@ -4,6 +4,7 @@ import {
   BALANCE_CAPS,
   balanceOf,
   balanceSupply,
+  cappedKinds,
   floorCount,
   heldMaximums,
   heldMinimums,
@@ -551,5 +552,35 @@ describe('heldMinimums', () => {
     };
 
     expect(floorCount(oily, [keptOily, ...placements])).toBe(1);
+  });
+});
+
+describe('cappedKinds', () => {
+  const kinds = cappedKinds(catalogue);
+  const dish = (slug: string, ingredients: CandidateDish['ingredients']) => makeDish({ ingredients, slots: ['lunch', 'dinner'], slug });
+
+  it('names the foods the table caps a dish counts towards, and nothing for a dish that is none of them', () => {
+    expect(kinds(dish('pollo', [{ grams: 150, slug: 'pechuga-de-pollo' }]))).toEqual(['meat']);
+    expect(kinds(dish('ternera', [{ grams: 150, slug: 'filete-de-ternera' }]))).toEqual(['meat', 'redMeat']);
+    expect(kinds(dish('merluza', [{ grams: 120, slug: 'merluza' }]))).toEqual(['fishAndShellfish']);
+    expect(kinds(dish('gambas', [{ grams: 120, slug: 'gambas' }]))).toEqual(['fishAndShellfish']);
+    expect(kinds(dish('croquetas', [{ grams: 60, slug: 'croquetas-de-jamon-congeladas' }]))).toContain('processed');
+    expect(kinds(dish('calabacin', [{ grams: 200, slug: 'calabacin' }]))).toEqual([]);
+  });
+
+  it('counts eggs by the egg, because that is how the cap counts them', () => {
+    expect(kinds(dish('tortilla', [{ grams: 165, slug: 'huevo' }]))).toEqual(['eggs', 'eggs', 'eggs']);
+    // A trace of egg is no egg: less than half of one counts as none.
+    expect(kinds(dish('pizca', [{ grams: 10, slug: 'huevo' }]))).toEqual([]);
+  });
+
+  it('reads one serving of a dish that makes several', () => {
+    expect(kinds({ ...dish('estofado', [{ grams: 400, slug: 'filete-de-ternera' }]), servings: 10 })).toEqual([]);
+    expect(kinds({ ...dish('estofado', [{ grams: 400, slug: 'filete-de-ternera' }]), servings: 2 })).toEqual(['meat', 'redMeat']);
+  });
+
+  it('names a capped starch base, and not the starches the table leaves free', () => {
+    expect(kinds(dish('pasta', [{ grams: 200, slug: 'pasta-cocida' }]))).toEqual(['starch:pasta']);
+    expect(kinds(dish('patatas', [{ grams: 250, slug: 'patata' }]))).toEqual([]);
   });
 });
