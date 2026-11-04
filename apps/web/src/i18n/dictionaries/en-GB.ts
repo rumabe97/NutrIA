@@ -2265,6 +2265,41 @@ export const enGB: Dictionary = {
     '/verificar-email': { title: 'Email confirmed' }
   },
 
+  /*
+   * The cupboard (project 022, phase 3b). Held against the nine prohibitions of
+   * `docs/legal/pantry.md` § 5.4, like the Spanish.
+   */
+  pantry: {
+    add: 'Add',
+    added: 'Added',
+    addedStatus: '{name} is on your list.',
+    addFor: 'Add {name}',
+    amount: 'Amount in grams (optional)',
+    amountHint: "It applies to the next food you add. If you don't know it, leave it blank: that is the most common answer.",
+    amountInvalid: 'Enter an amount above zero, or leave it blank.',
+    bound: '{count} of {max} on your list.',
+    boundFull: 'Your list is full, with {max} foods. Remove one to add another.',
+    entries: 'On your list',
+    intro:
+      'Optional. If you tell us which foods from our list you already have at home, and how much where you know it, we make use of them in this plan’s shopping list: they come back ticked as bought. A two-week plan needs between 90 and 120 different ingredients, so what you have covers part of the shop, never all of it. It changes none of the dishes we choose and removes none of them.',
+    keeps:
+      'This changes nothing about what we avoid. Your allergies, your intolerances and how you eat are set in your profile, and those — not this list — are what keep a dish out of your plan.',
+    measured: 'What you had at home covers {count} products on your shopping list, and they already come ticked as bought.',
+    measuredNone: 'None of what you told us you had at home covered a product on your shopping list.',
+    measuredOne: 'What you had at home covers 1 product on your shopping list, and it already comes ticked as bought.',
+    noResults: 'We could not find that food on our list.',
+    notCooked: 'We do not cook anything with this yet',
+    remove: 'Remove',
+    removedStatus: '{name} is no longer on your list.',
+    removeFor: 'Remove {name}',
+    resultsFound: '{count} foods from our list.',
+    resultsList: 'Foods from our list',
+    search: 'Search our list of foods',
+    searching: 'Searching…',
+    showMore: 'Show {count} more foods',
+    title: 'What you already have at home'
+  },
+
   passkeys: {
     add: 'Add a passkey',
     addBody: 'Enter your password. Your device will then ask for Face ID, your fingerprint or its passcode to create the passkey.',
@@ -2648,6 +2683,8 @@ export const enGB: Dictionary = {
           'Allergies and intolerances: the ones you pick from the list, the ones you type yourself, and how severe they are. So that no plan offers you something that could harm you.',
           'How you eat: for example vegetarian, gluten-free or lactose-free, and the cuisines you like or not. To fit the dishes to you.',
           'Your kitchen: the most time you want to spend on one dish and, if you tell us, which of the appliances on our list you have, which you do not have and which you would rather cook with. So that no plan offers you a dish you cannot cook, and so the dishes made with what you prefer come first. If you tell us nothing, we assume you have a hob, an oven, a microwave and a blender.',
+          /* Source: see the Spanish bullet; arts. 13.1.c, 13.2.a and 5.1.a GDPR, and docs/legal/pantry.md § 5.3 for the non-inference statement. */
+          'What you already have at home: if, before generating a plan, you tell us which foods from our list you already have, and how much where you know it, we keep that list while you are writing it. So that the plan’s shopping list comes back with what you already have ticked as bought. It changes none of the dishes we choose and removes none of them, and we never read it as an allergy, an intolerance or a way of eating: what you have at home is not what you can eat. We delete it when the plan is generated and, if a failure ever prevented that, the next plan you generate spends it.',
           'Conditions, medication and supplements: only if you choose to tell us, under a separate consent you can withdraw at any time without deleting the rest of your account.',
           'How the plan is going: which meals you mark as eaten or skipped, your ratings and comments on dishes, your weight over time and your fortnightly check-ins. So the next plan takes them into account.',
           'Payments: if you subscribe to Premium, Stripe takes the payment and we keep only the identifier for your subscription and its status. We never see your card number.',
@@ -2721,7 +2758,9 @@ export const enGB: Dictionary = {
       {
         heading: 'How long we keep your data',
         paragraphs: [
-          'While your account exists. When you delete it, everything in it is deleted at once: profile, allergies, health, plans, shopping lists, progress and consents.',
+          /* Source: see the Spanish paragraph; arts. 13.2.a, 5.1.e and 17 GDPR. */
+          'While your account exists. When you delete it, everything in it is deleted at once: profile, allergies, health, plans, shopping lists, what you told us you already had at home, progress and consents.',
+          'What you tell us you already have at home lives until the plan that uses it is generated, which deletes it. If you never generate one — or if a failure prevented that deletion — it stays there until the next plan you generate spends it, until you delete it, or until you delete your account. The plan itself records which foods and amounts it was asked with, and that is deleted with the plan.',
           'If somebody creates an account with an address and nobody confirms it, we delete it thirty days after the sign-up: the name, the email address and the password it was created with are gone. We only delete it if there is nothing else in it: no session, no profile, no plan and no activity recorded in our records. What is left is a single note saying that an unconfirmed account was deleted that day, with no email address, no name and nothing that leads to anybody. Once you confirm your address, your account stays for as long as you want it.',
           'The security record of your account is kept while your account exists; when you delete it, it stops being linked to you. It is also deleted after 12 months.',
           'Our database provider keeps, on its own, a short history to let us recover from a fault; you can ask us for the exact window at {email}.',
@@ -2769,7 +2808,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Privacy policy',
-    updated: 'Last updated: 13 October 2026'
+    updated: 'Last updated: 4 November 2026'
   },
 
   profile: {

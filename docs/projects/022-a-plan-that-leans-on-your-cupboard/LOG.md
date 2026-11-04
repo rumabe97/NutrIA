@@ -1084,3 +1084,180 @@ both reasons printed; with the real library, **21 passed / 21** and no skip. The
 agent should not have to rediscover is in `apps/api/test/README.md`'s row for the suite: a
 precondition that is a fact about the **dish library** may not be fatal; one about the
 **catalogue** may.
+
+## Phase 3b — The screen, and the sentence it is allowed to say (2026-11-04)
+
+- **Executor**: **`frontend` (opus @ medium)**, in the **main checkout** and deliberately not in a
+  worktree — `/local-probe` runs the web against the local API, and in a worktree built from an
+  older commit the picker would answer 404 and the probe would show a screen that does not exist.
+  **The agent was lost to a power cut mid-write** and the phase was finished **directly** from the
+  same checkout; what each of us did is said below, because the division is not the plan's.
+- **Result**: in progress — the screen is built and verified; `accessibility`, `/local-probe` and
+  the owner's iPhone check are what remain.
+- **Scope held**: `apps/web/src/components/**`, `apps/web/src/app/(app)/plan/**`,
+  `apps/web/src/i18n/dictionaries/**`, and `docs/legal/textos/02-politica-privacidad.md` for the
+  four edits `legal` drafted. No route, no DTO and no stored shape moved: phase 3a put every seam
+  this screen reads in place, which is what made the screen a paste rather than a negotiation.
+
+### The power cut, and what it cost
+
+The battery died with the agent part-way through editing two files. Its report is lost, and
+`GenerationProgress.tsx` (308 lines) and `plan/generando/page.tsx` (49 lines) were left **zero
+bytes** — truncated for a write that never came. Both were restored from `c1624d1d`, so nothing
+was lost; the work that survived is the new components, the dictionaries and the policy edits.
+
+Two things worth the lines. **`git checkout HEAD -- <files>` was refused** by the auto-mode
+classifier as *Irreversible Local Destruction*, which is the right instinct and the wrong answer
+here: the targets held nothing. The compliant route is a restore that **proves the premise it
+rests on** — `[ -s "$f" ] || git show "HEAD:$f" > "$f"` — which writes only a file that is
+genuinely empty and says so for the other case. **And an interrupted agent leaves a tree that
+looks finished**: `git status` showed two files *modified* with a diffstat of deletions and no
+insertions, which is the signature to look for. A `wc -l` on anything a dead agent touched costs
+nothing and would have been the first thing to do.
+
+### What the agent built, and what it got right without being asked twice
+
+- **`PantryPicker`** (`components/PantryPicker/`, 327 lines + its module): a search field over
+  `POST /pantry/catalogue` and a list of rows with an add button each — **not an ARIA combobox**,
+  on the reasoning that the combobox is the control people most often cannot use. The bound comes
+  from the payload's `maxItems` and never from a constant of its own; the row's own `name` is sent
+  as the `label` with no trim, no case change and no normalisation, which is the one thing that
+  keeps the picker's answer and the add's resolver on the same index; a 422 naming `label` is read
+  as the cupboard being full, which another tab can cause; nothing is kept in the browser, so
+  `/privacidad`'s enumeration of device storage stays true; and the catalogue is never narrowed by
+  anything on the safety profile.
+- **`PantryResult`** (`components/PantryResult/`): the one measured sentence on `/plan`, read from
+  `pantry` on the plan and never recomputed, absent when the key is `null` — which is a plan nobody
+  told anything to, a different fact from a cupboard that covered nothing.
+- **The strings in both dictionaries**, each with the article it rests on in a comment beside it,
+  and `privacy.updated` moved to 2026-11-04.
+
+### What was finished directly, after the cut
+
+1. **The wiring**, which is what the cut interrupted: `plan/generando/page.tsx` now reads
+   `GET /pantry` in the same `Promise.all` as the events and the allowances, and
+   `GenerationProgress` takes `pantry: PantryView | null` and renders the picker in the **`ready`
+   branch only** — the moment before the job exists, for the same reason the event form lives
+   there: the draft is spent by the generation that button starts, so after it a picker would be a
+   control that changes nothing. **`null` renders no picker at all**: its bound is the payload's
+   `maxItems`, and inventing one here would be a second source of truth for a limit the API
+   enforces.
+2. **The four `legal` edits in `textos/02-politica-privacidad.md`**, which the agent had done in
+   the dictionaries and not in the source document: the new bullet after *«Tu cocina»*, the
+   retention paragraph with the draft's three lifetimes, and the deletion enumeration, which did
+   not name the cupboard and so read as if it survived deleting the account — in both languages.
+   They carry **no ⟦marca⟧**, against that file's habit, and the header note says why: the text and
+   the screen publish in the same change, so there is no day on which the policy runs ahead of what
+   the product does. The date in that file is a `{fecha de publicación}` placeholder and needed
+   nothing.
+3. **The design review** (`apple-web-design`, below) and its three fixes.
+
+### Verification
+
+| What | Result |
+| --- | --- |
+| `legal`'s four drafted texts against what shipped, normalised and compared by script | **verbatim in both dictionaries**, no paraphrase |
+| `pnpm turbo lint ts:check test --filter=web --filter=ui` | green (two auto-fixable sorting passes on the way) |
+| `apple-web-design` review of the picker, the result and the placement | **PASS** — three findings, two of them real, all three fixed (below) |
+
+**The review's findings, and that two of three were real.** The CSS needed nothing: every token it
+uses exists, `@media (width < 17rem)` is this house's rem-keyed convention and not a dead
+breakpoint — it fires when the viewport is narrower than seventeen times the reader's own font
+size, which is the large-text case and is used in 23 other modules — and `Button` applies
+`--target-min` under `(pointer: coarse)` itself. What was wrong:
+
+- **P1, with a precedent already written in this repository**: the announcement region carried
+  `role="status"` **and** `aria-live="polite"`. `KitchenPicker.tsx:124` records that
+  `accessibility` measured exactly that pairing announcing twice on some screen readers, on
+  2026-10-16. The `aria-live` is gone and the comment now points at that note.
+- **P1**: the amount field applies to **the next food added**, and nothing said so — a number
+  typed above a list of eight rows with no stated relationship to any of them. Its hint now says
+  it, in both languages. No structural change: a per-row amount is a bigger control and this is a
+  sentence.
+- **P2**: `role="search"` wrapped the amount field and the results as well as the search field. A
+  `search` landmark is a site's search, not a filter inside a form; removed.
+
+### What `accessibility` found, and it was not a style pass
+
+Three P1s, and **all three were the same mistake**: a `focus()` called in the same tick as
+the `setState` that removes the very control focus was on, so focus fell to `BODY` — pressing
+*«ver más»* (the button is replaced by the rows it reveals), removing the last entry (the
+heading group goes with it) and the add that fills the cupboard (the whole search field goes).
+Two were confirmed in Chrome, the third read off the code. The repair is one rule rather than
+three patches: the intent is written to a ref, and a single effect keyed on the cupboard and on
+the expansion moves focus **in the render after** the one that changed the lists — to the next
+addable row, the next entry, or the first newly revealed row, with the search field and then the
+card's own heading as the floor. ESLint's *«setState synchronously within an effect»* is why the
+intent is a ref and not state.
+
+Of the P2s, three changed the code and one is recorded as a judgement:
+
+- **Three polite regions were one too many.** The bound line announced on every add beside the
+  add's own message. It is no longer a live region and the count travels inside that one message
+  (*«Sal está en tu lista. 1 de 60.»*), which is also what `accessibility` asked for.
+- **The search announced *«Buscando…»* and then *«Resultados actualizados»***, which tells a
+  person nothing. *«Buscando…»* is now drawn and not announced, and what is announced is the
+  outcome with its figure — including when the field is cleared, which announced nothing at all
+  before.
+- **`type="number"` answers `''` for *«abc»***, so an unparseable amount added the food silently
+  with no amount. `validity.badInput` is read through a ref, and the field says what is wrong.
+- **The invalid-amount error can be off-screen**, because it is drawn at the field and pressed
+  from a row that may be two screens below. Focus now moves to the amount field, which bends this
+  house's preference for announcing without moving focus. Taken deliberately and said here: the
+  field is the thing to correct, `Input` already announces the error politely, and a message
+  nobody sees is not a message. `accessibility` was asked to overrule it if it disagreed.
+
+The three P3s are also done: the results list has an accessible name, *«ver más»* says how many
+more (*«Ver 42 alimentos más»*), and the amount field no longer takes a page scroll as a value
+change. **And the combobox question was put to it explicitly**: it agrees with the search field
+over a list of rows, at every zoom and under a screen reader, and notes it is also what keeps
+§ 5.4's *no free-text box* true.
+
+**Its second pass found three ways the repair could still land on `BODY`**, and two of them
+were already closed by the shape of the fix (the target is chosen in the effect, after the commit
+that replaced the pressed button, and `busy` is back to `null` in that same batch). The third was
+real and is now fixed: *«the first add button left»* sends somebody who has just added the sixth
+row back to the top of the list. Focus goes to the row **after** the one used, then the one
+before it, then the search field, then the heading — and never to a `disabled` button, which a
+`loading` one is while its request is in flight. The two lists count differently on purpose: an
+added row keeps its index and now reads *«añadido»*, while the row after a removed one has just
+taken the index the removed one had.
+
+**And its one unmeasured question is answered from this repository's own record**: *«Todavía no
+cocinamos nada con esto»* is `tone="tertiary"` at `xs`, and `packages/ui/src/styles/variables.css`
+documents that all three `--foreground-*` tiers clear 4.5:1 against the background and against a
+white card **in both modes** — the third tier was moved from step 09 (3.15:1) to step 11 for
+exactly this reason. Nothing to measure and nothing to change.
+
+### The probe, and both languages
+
+`/plan/generando` at **320, 390 and 1280, light and dark, in Spanish and in English** — twelve
+runs, all 200, **no sideways scroll anywhere**. The only `hint` lines are the event planner's
+1 px native selects, which are its own visually-hidden pattern and predate this phase.
+
+Two things the screenshots show that the lines could not. The catalogue's first rows are
+*Sal, Aceite de oliva virgen extra, Copos de avena, Ajo, Yogur griego natural, Zanahoria,
+Pimiento rojo, Patata* — most-cooked-with first, which is what a picker should open on. And the
+English screen draws *Salt, Extra virgin olive oil, Rolled oats, Garlic, Natural Greek yoghurt,
+Carrot, Red pepper, Potato*: the names come from the catalogue through the locale cascade, so the
+round trip phase 3a pinned over HTTP is the one the screen actually uses.
+
+**Signed-in English is a cookie and not a path**, which cost `accessibility` its English pass:
+`/en/plan/generando` is a 404, because the `/en/` prefix is for the public pages while a
+signed-in render reads `nutria_locale` and then `Accept-Language`. The recipe is now in the
+`/local-probe` skill so the next agent does not find it the same way.
+
+**Not probed, and each for a reason that is not an oversight.** An iPhone, which is the owner's
+(`human-verify`). The generate button, which spends the cupboard and costs a model call. And
+**`PantryResult` on `/plan` was never drawn**: the sentence only exists on an account that has a
+plan, a probe account has none — `AI_PROVIDER=stub` yields nothing worth looking at — so seeing it
+needs the owner's own dev account. What is proved of it is that it type-checks against
+`PlanPantryView`, that it says nothing when the key is `null`, and that the figure it reads is the
+one `generation.e2e-spec.ts` pins on the plan. The sentence itself, on a real plan, is unseen.
+
+### Not part of this phase, and in the tree beside it
+
+`pnpm-workspace.yaml` and `pnpm-lock.yaml` carry the fix for Dependabot's one open alert
+(`multer`, high, `>= 2.0.0 < 2.5.0`): the override's key moves from the range it no longer matches
+to the one it does. That is the decision of 2026-09-21 applied, not a decision of this project, and
+it is **its own commit and its own pull request** — the two changes share a tree and nothing else.

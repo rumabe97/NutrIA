@@ -4,6 +4,7 @@ import { activeLocale, getDictionary } from 'i18n/server';
 
 import { CtaLink } from 'components/CtaLink';
 import { EmptyState } from 'components/EmptyState';
+import { PantryResult } from 'components/PantryResult';
 import { PlanBrowser } from 'components/PlanBrowser';
 import { PlanPendingNotice } from 'components/PlanPendingNotice';
 
@@ -63,6 +64,7 @@ export default async function PlanPage() {
             {interpolate(dictionary.plan.scheduledLink, { date: next })}
           </CtaLink>
         ) : null}
+        <PantryResult pantry={plan.pantry} />
         <PlanBrowser events={events ?? []} midPlan={midPlan} plan={plan} redo={allowances?.planRedo ?? null} />
       </Fragment>
     );

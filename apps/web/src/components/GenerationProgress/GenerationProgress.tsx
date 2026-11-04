@@ -12,6 +12,7 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { CtaLink } from 'components/CtaLink';
 import { EventPlanner } from 'components/EventPlanner';
 import { MealSizeNote } from 'components/MealSizeNote';
+import { PantryPicker } from 'components/PantryPicker';
 import { StartDatePicker } from 'components/StartDatePicker';
 
 import { api, ApiError, messageFor } from 'lib/api';
@@ -24,6 +25,7 @@ import type { AllowancesView, JobView } from 'core/controllers/Plan';
 import type { EventAllowance } from 'components/EventPlanner';
 import type { EventView } from 'core/controllers/Event';
 import type { MealSizeSuggestion } from 'lib/mealSize';
+import type { PantryView } from 'core/controllers/Pantry';
 
 /**
  * Polling backs off: 1 s, 2 s, 4 s, then every 6 s. The first answers arrive
@@ -58,6 +60,13 @@ interface GenerationProgressProps {
    * key its answer is kept under (`mealSizeKey`). Null when nothing needs saying.
    */
   mealSize: { answerKey: string; count: number; kcal: number; suggestion: MealSizeSuggestion | null } | null;
+  /**
+   * The cupboard as `GET /pantry` answers it, bound and all, or `null` when that
+   * read failed. The picker is then not offered at all: its bound is the
+   * payload's `maxItems` and a constant of our own would be a second source of
+   * truth for a limit the API enforces.
+   */
+  pantry: PantryView | null;
   /** The first day a redo is available again, when none is left. */
   redoNextAt: string | null;
   /** Today and the seven days after, each with what choosing it costs. */
@@ -84,7 +93,7 @@ function notAnsweredOnServer(): boolean {
  * script of reassuring messages (PRD criterion 8). The bar is indeterminate for
  * the same reason: the pipeline reports stages, not a percentage.
  */
-export function GenerationProgress({ allowance, defaultStart, events, mealSize, redoNextAt, startOptions }: GenerationProgressProps) {
+export function GenerationProgress({ allowance, defaultStart, events, mealSize, pantry, redoNextAt, startOptions }: GenerationProgressProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -239,6 +248,18 @@ export function GenerationProgress({ allowance, defaultStart, events, mealSize, 
         {startOptions.length > 0 ? (
           <div className={styles.before}>
             <StartDatePicker onChange={setStartDate} options={startOptions} redoNextAt={redoNextAt} value={startDate} />
+          </div>
+        ) : null}
+
+        {/* The cupboard, in the same moment and for the same reason: the draft is
+            spent by the generation this button starts (`0102`'s shape, project
+            022), so after the job there is nothing left for a picker to fill.
+            It carries its own honest sentence — what is in the house shortens
+            the list and changes no dish — because that sentence has to be read
+            before anybody commits, not after. */}
+        {pantry ? (
+          <div className={styles.before}>
+            <PantryPicker pantry={pantry} />
           </div>
         ) : null}
 

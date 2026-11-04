@@ -139,6 +139,21 @@
 >   diccionario que ⟦barrido-sin-confirmar⟧ (casilla § 0 quater del
 >   [`go-live-checklist.md`](../go-live-checklist.md)).
 >
+> - **La despensa (2026-11-03, proyecto 022 fase 3b, y sin marca ⟦⟧ ninguna)**: la lista de los alimentos que
+>   alguien ya tiene en casa, que una generación gasta. Son cuatro cambios en los dos idiomas:
+>   **una viñeta propia** en «Qué datos recogemos y para qué», detrás de «Tu cocina» —que no la
+>   cubre: un aparato no es un alimento—; **un párrafo nuevo** en «Cuánto tiempo guardamos tus
+>   datos» con las tres vidas del borrador; **la enumeración del borrado**, que no nombraba la
+>   despensa y por eso se leía como que sobrevive a borrar la cuenta; y `privacy.updated` en los
+>   diccionarios. **Van sin marca ⟦⟧ a propósito**: el texto y la pantalla se publican en el mismo
+>   cambio, y hasta que esa pantalla esté en producción ninguna cuenta puede escribir una
+>   despensa, así que no hay un día en que el texto vaya por delante de lo que el producto hace.
+>   **No es un cambio «importante»**: ningún dato de salud, ningún destinatario, finalidad, base
+>   ni transferencia nueva — sin correo de aviso (**decidido por el propietario el 2026-11-03**:
+>   nadie tiene todavía el dato que se añade) y sin subir `PROFILE_CONSENT_VERSION`,
+>   `HEALTH_CONSENT_VERSION`, `CARE_CONSENT_VERSION` ni `TERMS_VERSION`. Los textos tal cual, los
+>   artículos y el porqué de cada frase: [`../pantry.md`](../pantry.md) § 2.2.
+>
 > **D5 (2026-09-29)**: cuando la fase 7 del proyecto 008 guarde la versión de las
 > condiciones, la línea «Cuenta» de «Qué datos recogemos» la nombra
 > ([`../2026-09-29-accepting-the-legal-texts.md`](../2026-09-29-accepting-the-legal-texts.md) § 6.B);
@@ -177,6 +192,7 @@
 - **Alergias e intolerancias**: las que eliges de la lista, las que escribes a mano y su gravedad. Para que ningún plan te proponga algo que te puede hacer daño.
 - **Tu forma de comer**: por ejemplo vegetariana, sin gluten o sin lactosa, y la cocina que te gusta o no. Para ajustar los platos. ⟦cocina⟧ En su lugar, «y la cocina que te gusta o no» pasa a ser «y las cocinas que te gustan o no»: con la viñeta siguiente, «la cocina» se lee como los aparatos. ⟦fin⟧
 - ⟦cocina⟧ **Tu cocina**: cuánto tiempo como máximo quieres dedicar a un plato y, si nos lo cuentas, cuáles de los aparatos de nuestra lista tienes, cuáles no tienes y con cuáles prefieres cocinar. Para no proponerte un plato que no puedas cocinar y para que los que se hacen con lo que prefieres salgan primero. Si no nos cuentas nada, damos por supuesto que tienes fuego, horno, microondas y batidora. ⟦fin⟧
+- **Lo que ya tienes en casa**: si antes de generar un plan nos dices qué alimentos de nuestra lista tienes en casa, y cuánto si lo sabes, guardamos esa lista mientras la escribes. Para que la lista de la compra de ese plan venga con lo que ya tienes marcado como comprado. No cambia los platos que elegimos ni quita ninguno, y no la leemos como una alergia, una intolerancia ni una forma de comer: lo que tienes en casa no es lo que puedes comer. Al generarse el plan la borramos y, si un fallo lo impidiera, la gasta el siguiente plan que generes.
 - **Enfermedades, medicación y suplementos**: solo si decides contárnoslo, bajo un consentimiento aparte que puedes retirar en cualquier momento sin borrar el resto de tu cuenta.
 - **Cómo llevas el plan**: qué comidas marcas como hechas o saltadas, tus valoraciones y comentarios de los platos, tu peso a lo largo del tiempo y tus check-ins quincenales. Para que el siguiente plan lo tenga en cuenta.
 - **Pagos**: si contratas Premium o un plan de consulta, Stripe cobra y nosotros guardamos solo el identificador de cliente y de suscripción, su estado y cuándo termina el periodo. Nunca vemos el número de tu tarjeta.
@@ -303,7 +319,8 @@ Algunos de estos proveedores son empresas de Estados Unidos o tratan datos allí
 
 ### Cuánto tiempo guardamos tus datos
 
-- Mientras tu cuenta exista. Al borrarla, todo lo que hay en ella se borra al momento: perfil, alergias, salud, planes, listas, progreso, consentimientos, enlaces con tu dietista y el registro de accesos. Antes cancelamos cualquier suscripción que tengas.
+- Mientras tu cuenta exista. Al borrarla, todo lo que hay en ella se borra al momento: perfil, alergias, salud, planes, listas, lo que dijiste que tenías en casa, progreso, consentimientos, enlaces con tu dietista y el registro de accesos. Antes cancelamos cualquier suscripción que tengas.
+- Lo que nos dices que tienes en casa vive hasta que se genera el plan que lo aprovecha, que lo borra. Si no generas ninguno —o si un fallo impidió borrarlo—, se queda ahí hasta que lo gaste el siguiente plan que generes, lo borres tú o borres la cuenta. De ese plan queda anotado con qué alimentos y cantidades se pidió, y eso se borra con el plan.
 - ⟦barrido-sin-confirmar⟧ Si alguien crea una cuenta con una dirección y nadie la confirma, la borramos a los treinta días del alta: el nombre, el correo y la contraseña con los que se creó desaparecen. Solo la borramos si no hay nada más en ella: ninguna sesión, ningún perfil, ningún plan y ninguna actividad anotada en nuestros registros. Después queda solo una anotación de que ese día se borró una cuenta sin confirmar, sin el correo, sin el nombre y sin nada que lleve a nadie. En cuanto confirmas tu dirección, tu cuenta se queda mientras tú quieras. ⟦fin⟧
 - Una invitación se borra en cuanto la aceptas o la rechazas; si no respondes, caduca a los 14 días y se borra, con tu dirección, como muy tarde al día siguiente.
 - ⟦registro-seguridad⟧ El registro de seguridad de tu cuenta se guarda mientras exista tu cuenta; al borrarla deja de estar ligado a ti. ⟦si purga-seguridad⟧ Además se borra a los 12 meses. ⟦fin⟧
@@ -381,6 +398,7 @@ Si cambiamos algo importante, lo diremos aquí con la fecha y te avisaremos por 
 - **Allergies and intolerances**: the ones you pick from the list, the ones you type yourself, and how severe they are. So that no plan offers you something that could harm you.
 - **How you eat**: for example vegetarian, gluten-free or lactose-free, and the cuisines you like or not. To fit the dishes to you.
 - ⟦kitchen⟧ **Your kitchen**: the most time you want to spend on one dish and, if you tell us, which of the appliances on our list you have, which you do not have and which you would rather cook with. So that no plan offers you a dish you cannot cook, and so the dishes made with what you prefer come first. If you tell us nothing, we assume you have a hob, an oven, a microwave and a blender. ⟦end⟧
+- **What you already have at home**: if, before generating a plan, you tell us which foods from our list you already have, and how much where you know it, we keep that list while you are writing it. So that the plan’s shopping list comes back with what you already have ticked as bought. It changes none of the dishes we choose and removes none of them, and we never read it as an allergy, an intolerance or a way of eating: what you have at home is not what you can eat. We delete it when the plan is generated and, if a failure ever prevented that, the next plan you generate spends it.
 - **Conditions, medications and supplements**: only if you choose to tell us, under a separate consent you can withdraw at any time without deleting the rest of your account.
 - **How the plan is going**: which meals you mark as eaten or skipped, your ratings and comments on dishes, your weight over time and your fortnightly check-ins. So the next plan takes them into account.
 - **Payments**: if you buy Premium or a practice plan, Stripe takes the payment and we keep only the customer and subscription identifiers, their status and when the period ends. We never see your card number.
@@ -457,7 +475,8 @@ Some of these providers are US companies or process data there: Vercel, Neon, St
 
 ### How long we keep your data
 
-- While your account exists. When you delete it, everything in it is deleted at once: profile, allergies, health, plans, lists, progress, consents, links with your dietitian and the access record. Before that, we cancel any subscription you have.
+- While your account exists. When you delete it, everything in it is deleted at once: profile, allergies, health, plans, lists, what you told us you already had at home, progress, consents, links with your dietitian and the access record. Before that, we cancel any subscription you have.
+- What you tell us you already have at home lives until the plan that uses it is generated, which deletes it. If you never generate one — or if a failure prevented that deletion — it stays there until the next plan you generate spends it, until you delete it, or until you delete your account. The plan itself records which foods and amounts it was asked with, and that is deleted with the plan.
 - ⟦unconfirmed-sweep⟧ If somebody creates an account with an address and nobody confirms it, we delete it thirty days after the sign-up: the name, the email address and the password it was created with are gone. We only delete it if there is nothing else in it: no session, no profile, no plan and no activity recorded in our records. What is left is a single note saying that an unconfirmed account was deleted that day, with no email address, no name and nothing that leads to anybody. Once you confirm your address, your account stays for as long as you want it. ⟦end⟧
 - An invitation is deleted as soon as you accept or decline it; if you do not answer, it expires after 14 days and is deleted, with your address, by the following day at the latest.
 - ⟦security-record⟧ The security record of your account is kept while your account exists; when you delete it, it stops being linked to you. ⟦if purge⟧ It is also deleted after 12 months. ⟦end⟧

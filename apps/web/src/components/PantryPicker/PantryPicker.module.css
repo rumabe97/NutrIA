@@ -1,0 +1,75 @@
+/* The card is the generation screen's other blocks' sibling: it starts from the
+   left inside a shell that centres its copy. */
+.card {
+  display: grid;
+  gap: var(--gap-block);
+  text-align: start;
+}
+
+.title {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-04);
+  margin: 0;
+}
+
+.subtitle {
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+  margin: 0;
+}
+
+/* The one sentence that says the list is not a declaration. A rule at the start
+   marks it as a note without borrowing a warning's colour. */
+.keeps {
+  border-inline-start: 3px solid var(--color-brand-fill);
+  padding-inline-start: var(--space-04);
+}
+
+.group {
+  display: grid;
+  gap: var(--space-03);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-02);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  align-items: center;
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-control);
+  display: flex;
+  gap: var(--space-04);
+  justify-content: space-between;
+  padding: var(--space-03) var(--space-04);
+}
+
+.what {
+  display: grid;
+  gap: var(--space-01);
+  min-inline-size: 0;
+}
+
+.name {
+  font-size: var(--font-size-03);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.failure {
+  color: var(--color-error-text);
+}
+
+/* The text is large for this screen: the action goes under its name rather
+   than squeezing it. */
+@media (width < 17rem) {
+  .row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
