@@ -77,6 +77,7 @@ describe('ErrorReporter', () => {
       graphQL: { document: false, variables: false },
       httpBodies: [],
       httpHeaders: { request: false, response: false },
+      mcp: { inputs: false, outputs: false },
       queues: false,
       stackFrameVariables: false,
       urlQueryParams: false,
