@@ -404,7 +404,7 @@ two: the seams, then the screen. One phase, one pull request, twice.
   how it shipped. What it does **not** cover, and what no instruction to ship can: flipping
   `pantry_rank`. That still needs [`docs/legal/pantry.md`](../../legal/pantry.md) § 9.6 worked
   through, the on-state proofs green and the two `[lawyer]` lines read. **He flipped it later
-  that day**, with the first of those three done and the other two not: § 9.6 records which boxes
+  that day**, with § 9.6's two texts live and the rest of it not: § 9.6 records which boxes
   were ticked after the click, and the `[lawyer]` lines are on his list and stay open. Built and
   measured
   2026-11-04 ([`LOG.md`](./LOG.md) § Phase 4). **Reopened 2026-11-04 by the owner** —
