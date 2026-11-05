@@ -5,8 +5,8 @@ import { Public, RateLimit } from '../../../shared/index.js';
 import { CspReportService } from '../services/index.js';
 
 /**
- * Where a browser reports what the web's report-only Content-Security-Policy would have
- * blocked (project 011, phase 9).
+ * Where a browser reports what the web's enforcing Content-Security-Policy
+ * blocked (project 011, phase 10; it was report-only in phase 9).
  *
  * Public, because the browser sends it without credentials, and rate limited by address:
  * the one signed-out route that writes a log line. The body is read by a parser registered

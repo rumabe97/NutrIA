@@ -560,7 +560,7 @@ code:
 - granting the first professional from `/admin`, and only then turning the `professional`
   flag on.
 
-### 10. Accounts are harder to take — planned (`0074`)
+### 10. Accounts are harder to take — delivered (`0074`), the policy enforcing
 
 Added on 2026-10-01, the owner: "quiero mejorar la seguridad del usuario". The project is
 [`011-accounts-are-harder-to-take`](./projects/011-accounts-are-harder-to-take/), and the
@@ -575,8 +575,27 @@ It covers:
 - the owner's delayed removal of a lost factor;
 - a per-account sign-in brake, a sign-up that reveals nothing, and a CSP.
 
-Its phase 0 waits on the owner, who runs a read-only count query. The second factor must
-reach professionals before the `professional` flag goes on (§9).
+**All ten phases shipped**, the last of them in this change: the Content-Security-Policy stops
+being report-only and **enforces**. It ran report-only from 2026-10-09 (#212), and the header's
+name is the only thing that moved — the value is the same one browsers have been measuring
+against for four weeks.
+
+**The evidence for enforcing is not the one the plan asked for, and the difference is worth
+knowing.** PRD 14 says "enforcing once a week of reports shows no legitimate violation", and that
+week exists nowhere: the service keeps no report **by design** (phase 9, `legal` — the log line is
+the whole record, with no document URL, no query and no address), and Vercel's runtime-log
+retention is an hour on Hobby and a day on Pro. What stands in its place is a `/local-probe` walk
+over a production build with the policy **already enforcing**: 24 screens — 7 public, 11 signed-in,
+6 of the console — with **zero violations, zero console errors and zero failed requests**, plus the
+origins read out of the code (no external script, no webfont host, no analytics, and the one
+provider avatar the API sends is rendered by nothing). What that walk cannot reach is the dish
+picture served from Vercel Blob, which a local run on the stub model never draws — it is in
+`img-src` and it has been in the report-only policy all along.
+
+What is left is not code: the second factor must reach professionals before the `professional`
+flag goes on (§ 9), and three of the project's `human-verify` gates — phases 2, 3 and 8, each of
+them something only a phone can answer — were never recorded as met, so the PRD stays short of
+`delivered` until they are.
 
 ## Later / someday
 

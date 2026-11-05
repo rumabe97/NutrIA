@@ -630,7 +630,11 @@ records what was decided.
 
 ### Phase 10 — Enforce, and close the project
 
-- [ ] pending
+- [x] done — built, reviewed and verified 2026-11-05 ([`LOG.md`](./LOG.md)); **the commit is the
+  owner's**, and so is the one decision it carries: PRD 14's *week of reports* is unobtainable by
+  phase 9's own design, so enforcing rests on a `/local-probe` walk with the policy already on
+  (24 screens, zero violations) and on the origins read out of the code. Two checks are
+  deploy-time and named in Verification below
 - **Dispatch**: opus @ high — `/execute-project 011 phase 10`. Reviews: `legal`,
   `invariant-reviewer`. — owner-gated: at least 7 days after phase 9 reached production,
   the owner says yes to reading the API's logs for `csp-report` lines through the Vercel
@@ -640,6 +644,12 @@ records what was decided.
   breached passwords, the per-account brake, the removal procedure) and anything else
   `legal` names; `apps/api/AGENTS.md`, `apps/web/AGENTS.md`; `docs/ROADMAP.md`;
   `docs/ARCHITECTURE.md` if the auth section names the factors; the LOG.
+  **Amended 2026-11-05, during execution**: also every comment that names the phase the
+  policy is in, because one of them stops being true the moment the header changes —
+  `apps/web/csp.js`, `knip.config.ts`'s `apps/web` note, and the `csp-report` module's
+  controller and service class comments. And `apps/web/next.config.test.ts`, a new file:
+  `invariant-reviewer`'s P2-1 is that nothing in the repository pinned the header's **name**,
+  so a revert to `-Report-Only` was a silent, green change.
 - **Steps**:
   1. Read a week of reports. Every legitimate violation is either added to the policy or
      explained in the LOG. Switch the header to `Content-Security-Policy`.
@@ -651,6 +661,17 @@ records what was decided.
   - `pnpm turbo lint ts:check test`.
   - After deploy: `/local-probe` walk with zero violations; `curl -sI` shows the enforcing
     header; `/` still cached.
+  - **Added 2026-11-05 (`invariant-reviewer`, P2-2) — the one thing no probe reaches**: after
+    the deploy, confirm a **real stored dish picture loads**.
+    `img-src https://*.public.blob.vercel-storage.com` is the policy's only external origin and
+    nothing exercises it, before or after: a local run serves `data:` pictures on
+    `AI_PROVIDER=stub`, and the walk above cannot reach a published one either. What makes it
+    worth a line of its own is that `packages/ui`'s `Picture` turns a failed `<img>` into the
+    quiet plate through `onError`, and a CSP-blocked image fires `onError` — so a wrong entry
+    here looks exactly like *«no picture drawn yet»*, on every card and meal page, for
+    everybody, with an hour of Vercel logs as the only other trace. Either open a signed-in meal
+    page whose dish has a published picture with the console open, or read one `recipe` picture
+    URL from production read-only and `curl -sI` it.
 
 ### Follow-up — The refused-provider copy assumes a password account
 
