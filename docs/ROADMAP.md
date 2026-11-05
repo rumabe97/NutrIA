@@ -271,6 +271,26 @@ found by agents passing through on their way to something else. Phase 5b, which 
    deliberately leaves for its own measured change: the cooking time, which is a single
    ceiling for fourteen days, and
    `difficulty`, stored on every dish and read by nothing — now § 6 below, with evidence.
+5b. **A plan that leans on what is already in the house.** Asked for on 2026-10-20, approved
+   2026-10-23:
+   [`022-a-plan-that-leans-on-your-cupboard`](./projects/022-a-plan-that-leans-on-your-cupboard/) —
+   somebody names up to sixty foods from our own catalogue that they already have, the fortnight's
+   shopping list comes back with those rows already ticked as bought, and the cupboard is **spent
+   with the plan it was asked with**: no standing larder, so no freshness model, no maintenance
+   screen, and retention answers itself. **The promise turned out to belong to the declaring and
+   not to the steering.** Phase 0 measured a hard filter impossible for good — with hand-written
+   cupboards it builds 3 of 42 fortnights at fifteen items, and `morning_snack` offers **0** dishes
+   of the nineteen a slot needs — while merely declaring a thirty-item cupboard already covers
+   **17.7%** of a fortnight's real-food rows. The steering was built anyway, behind `pantry_rank`
+   and measured over 112 fortnights: a share of **5 of the 19 dishes offered per slot**, the
+   cupboard giving way before a preferred appliance, and the macro bands outranking both, so the
+   share walks to zero rather than taking a day out of band. **The owner switched it on in
+   production on 2026-11-05.** Free on both tiers, and no part of the cupboard reaches the model —
+   the AI module cannot even **import** it, which `health-boundary.spec.ts` now enforces at the
+   import rather than at the prompt. What it deliberately leaves: the screen says the cupboard
+   shortens the shop and stays silent about the pick (the wording that would name it was priced
+   and parked, 2026-11-05), the residual at share 5 that the repair does not remove, and phase
+   3b's two phone-only accessibility behaviours, which only a real device can answer.
 6. **How long a dish takes, and how much work it is.** Not approved, and the next thing 021
    argues for. Today the cooking time is **one number for fourteen days** — the prompt's
    `MAXIMUM TIME PER DISH`, gated by `withinTime` (the limit plus a fifth, rounded up to the

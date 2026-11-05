@@ -7,12 +7,20 @@
 > **Audience**: agents primarily, humans review. **Committed**: yes. **Written by**: the
 > planner via `/plan-project`, 2026-10-23; approved by the owner before execution starts.
 
-- **Status**: **done — every phase shipped and merged, 2026-11-05.** Phases 0, 1, 2, 3a, 3b
-  (`4a537739`, #319) and 4 and 5 (`a142e8ad`, #321) are in production. **Two things this does not
-  mean.** The steering ships **switched off**: `pantry_rank` falls back to off, so what people have
-  today is the cupboard shortening the shopping list and changing no pick, and flipping it needs
-  [`docs/legal/pantry.md`](../../legal/pantry.md) § 9.6 first — the on-state proofs are briefed and
-  deliberately unwritten. And phase 3b's `human-verify` was closed by instruction rather than met,
+- **Status**: **done and live — every phase shipped and merged, and the steering switched on,
+  2026-11-05.** Phases 0, 1, 2, 3a, 3b (`4a537739`, #319) and 4 and 5 (`a142e8ad`, #321) are in
+  production. The owner threw `pantry_rank` on his own account the same day
+  (*«Encendido el interruptor»*), so what people get now is the cupboard
+  both shortening the shopping list and leaning the pick, inside the bands; the proofs
+  [`docs/legal/pantry.md`](../../legal/pantry.md) § 9.6 asked for are written and green
+  (`1b776580`, #326), three of them after the click, and § 9.6 marks which. **Three things this
+  does not mean.** The screen carries (g1) and not (g2), so it is true about the shop and silent
+  about the pick — a copy decision the owner delegated on 2026-11-05 and the close-out **parked**
+  with its price written down ([`docs/decisions/LOG.md`](../../decisions/LOG.md)): it is not a
+  copy change, because a sentence chosen by the flag needs a signed-in screen to read
+  owner-audience state. The residual at share 5 was accepted *while the flag was off* and is now
+  live behaviour, re-accepted the same day and still unmeasured since. And phase 3b's
+  `human-verify` was closed by instruction rather than met,
   so two accessibility behaviours are unverified on a real device; the phase's own line says which.
   Approved by the owner on **2026-10-23** (*«si, lo he leído y lo apruebo»*), PRD the same day.
 - **Type**: standard
@@ -395,7 +403,10 @@ two: the seams, then the screen. One phase, one pull request, twice.
   yielding before the appliance**, and the **residual accepted while the flag is off** — which is
   how it shipped. What it does **not** cover, and what no instruction to ship can: flipping
   `pantry_rank`. That still needs [`docs/legal/pantry.md`](../../legal/pantry.md) § 9.6 worked
-  through, the on-state proofs green and the two `[lawyer]` lines read. Built and measured
+  through, the on-state proofs green and the two `[lawyer]` lines read. **He flipped it later
+  that day**, with § 9.6's two texts live and the rest of it not: § 9.6 records which boxes
+  were ticked after the click, and the `[lawyer]` lines are on his list and stay open. Built and
+  measured
   2026-11-04 ([`LOG.md`](./LOG.md) § Phase 4). **Reopened 2026-11-04 by the owner** —
   *«haz la 4 también»*, which reverses the deferral
   below and nothing else about it. What still stands, because it was never the deferral's doing:

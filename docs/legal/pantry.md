@@ -1352,6 +1352,13 @@ is set in your profile.
      narrowerShares: la despensa es lo primero que se rebaja cuando falla una banda. (g1) y (g2)
      son alternativas; publicar las dos a la vez diría dos cosas distintas en la misma pantalla. -->
 
+**(g2) was priced and parked on 2026-11-05** (§ 9.6, and
+[`../decisions/LOG.md`](../decisions/LOG.md)) — not on legal grounds, since (g1) is true in both
+states and prohibition 7 forbids a false promise and not a silence, but on cost: *«two strings
+chosen by the flag»* reads like a copy change and is not one, because no signed-in screen may read
+an owner-audience flag in this product today. The drafting above is left exactly as it is, so the
+day somebody builds it the text is already written and `legal` is re-reading rather than drafting.
+
 **Where each one goes.** (f): `es-ES.ts:2840`, `en-GB.ts:2718`,
 [`textos/02`](./textos/02-politica-privacidad.md)'s bullet in both languages — in place there, since it
 is true today as well. (g): `pantry.intro`, `es-ES.ts:2427` and the `en-GB` twin, plus the comment
@@ -1378,7 +1385,15 @@ it was finished late is a checklist nobody can trust afterwards.
       (g2) — § 9.5's drafted wording, which names it as a share — is the text that says what is
       actually happening. Prohibition 7 forbids a false promise and not a silence, and the duty to
       describe the capability is discharged by the policy, so this is the owner's copy decision
-      rather than a correction owed.
+      rather than a correction owed. **Decided 2026-11-05: (g1) stands and (g2) is parked.** The
+      owner delegated his whole pending list that day (*«Haz lo que dependa de mí lo más
+      recomendado, y cierra todo»*), and pricing (g2) is what moved it: it is **not** a copy
+      change. Two strings chosen by the flag need a signed-in screen to read owner-audience state —
+      `pantryRank` would have to leave `audience: 'owner'` (`Flag.ts:111`, pinned at
+      `Flag.test.ts:104`), the one switch `SettingsView` shows would gain a second field, and
+      `apps/web/AGENTS.md` records that same design as the one refused when (g1) was chosen. So it
+      reopens as a project with `legal` re-wording the text, and nothing is owed while it waits
+      ([`../decisions/LOG.md`](../decisions/LOG.md), 2026-11-05).
 - [x] § 5.4 re-read against every string the screen shows with the flag **on**, under prohibition 7
       as § 9.4 amends it. The `keeps` sentence is load-bearing now and must still be on the screen.
       **Done 2026-11-05, after the click. No prohibition is broken**, and the re-read is cheap to
@@ -1416,9 +1431,15 @@ it was finished late is a checklist nobody can trust afterwards.
       `CareAccess.test.ts` pins what may cross to a professional as the four pantry counts and
       nothing else, and the new `pantryRanked` pin reads the column rather than a view, because no
       route carries it.
-- [ ] This section's `[lawyer]` lines (§ 9.2 and § 9.3) on the owner's list. Neither blocks the
-      flip: being wrong on either costs a notice, not the feature. **Still open, and still the
-      owner's.**
+- [x] This section's `[lawyer]` lines (§ 9.2 and § 9.3) on the owner's list. Neither blocks the
+      flip: being wrong on either costs a notice, not the feature. **On his list since 2026-11-05**,
+      which is all this box asked for — and the two questions themselves **stay open**, because an
+      agent answering a question drafted for a lawyer's hour is the one thing this document refuses
+      to do (the banner, § 0). They are written to be asked once: § 9.2 is *does a transmission
+      whose content was ordered by a datum the recipient never receives amount to a communication of
+      that datum*, which `0077` already makes load-bearing for art. 9 data elsewhere in this
+      product; § 9.3 is whether the gate is art. 13.3 or only art. 5.1.a, which changes nothing
+      about what was actually done.
 
 **What the flip does not close.** The residual measured at share 5 — a small loss the repair does
 not remove, half of which the code explains (the repair is neutral per slot while the caps count a
@@ -1426,7 +1447,11 @@ fortnight) and the rest of which is unexplained — was accepted *while the flag
 ([`../decisions/LOG.md`](../decisions/LOG.md), 2026-11-05). With the flag on it is live behaviour in
 real fortnights. It is small, it is measured over 112 of them and every day stayed in band, so it is
 not an alarm; but the sentence that made it survivable has changed, and whoever reads this next
-should know that it was accepted under the other one.
+should know that it was accepted under the other one. **Re-accepted with the flag on, 2026-11-05**,
+by the same instruction that parked (g2), and with no new measurement — hours of evaluator weighed
+against 112 fortnights in which every day stayed in band. What replaces the measurement is a
+trigger: the first plan that misses a band with a cupboard on it is read here first, and what runs
+then is the `plan-evaluator` over the real library across the cohort and never one seed.
 
 ---
 
