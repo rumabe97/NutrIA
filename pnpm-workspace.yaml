@@ -62,6 +62,17 @@ allowBuilds:
 # discovery that quietly matches nothing reads as a green run with no tests in it. Nothing here
 # calls `glob` itself or passes it a signal, so the finding does not reach this product. Revisit
 # when jest and `@sentry/bundler-plugins` declare `^14`; dismissing the alert is the owner's call.
+#
+# NOT overridden either, and for a reason no entry can get around — `minimatch`
+# (GHSA-g3hv-75wg-m249, moderate): a crafted pattern amplifies through `globParts` into a denial
+# of service. Vulnerable below 11.0.1, which is every copy here but `3.1.5`, and the consumers
+# declare `^9.0.4` (`glob@10.5.0`), `^10.2.2` (`glob@13.0.6`, `@typescript-eslint/typescript-estree`,
+# `test-exclude`) — and `@nestjs/cli@12.0.8` pins **`10.2.6` exactly**, so an override scoped to the
+# vulnerable range cannot satisfy it at all, never mind without crossing a major. What the advisory
+# needs is an attacker-supplied *pattern*: every pattern in this repository is ours — jest's
+# `testMatch`, eslint's globs, Sentry's sourcemap upload — and none comes from a request or from
+# anything a person types. So the amplification has no way in. Revisit when `@nestjs/cli` and
+# `typescript-eslint` move; like `glob`, dismissing the alert is the owner's call and not an agent's.
 overrides:
   'brace-expansion@<1.1.18': '^1.1.18'
   'brace-expansion@>=2.0.0 <2.1.4': '^2.1.4'
