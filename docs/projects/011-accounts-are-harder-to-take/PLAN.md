@@ -672,6 +672,10 @@ records what was decided.
     everybody, with an hour of Vercel logs as the only other trace. Either open a signed-in meal
     page whose dish has a published picture with the console open, or read one `recipe` picture
     URL from production read-only and `curl -sI` it.
+    **Confirmed by the owner on 2026-11-05**, on the deploy that enforced it (`442926f9`, #329):
+    he opened a meal of his own plan in production and *«se ve la foto»*. So the policy's only
+    external origin is exercised, by the only means that could exercise it, and P2-2 is closed
+    rather than carried.
 
 ### Follow-up — The refused-provider copy assumes a password account
 
