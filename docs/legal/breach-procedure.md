@@ -173,7 +173,14 @@ Keep the evidence in the incident's folder, outside the repository (§ 9). They 
 1. **Vercel's logs** — the `nutria-api` and web projects → *Logs*. On the Hobby plan Vercel
    keeps **only one hour** of logs. Filter by the interval, the route (for instance
    `/api/v1/care/*`) and the status code, and copy or export what comes out. Note the
-   `requestId`s. The logs carry no health data: pino redacts them.
+   `requestId`s. The logs carry no health data: pino redacts them. A
+   `csp-report directive=… blocked=…` line is worth copying with the rest: since project
+   011's phase 10 the web's Content-Security-Policy **enforces**, and such a line means
+   either that something was injected into a page and the browser refused it — the one
+   signal there is of an attempt — or that the policy is blocking something the app really
+   needs. It has the same one-hour life as everything else here, nothing stores it, and
+   nothing alerts on it, so it is not how a breach gets noticed
+   ([`dpia.md`](./dpia.md) § 4, M20).
 2. **Sessions**, before deleting them. In Neon, the SQL Editor, read-only:
    `select id, "userId", "ipAddress", "userAgent", "createdAt", "expiresAt" from session where …;`.
    Keep the result.

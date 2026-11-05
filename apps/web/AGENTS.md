@@ -260,15 +260,29 @@ than getting a second, conflicting value. Static headers keep the public pages
 prerendered and cached. Before using any of the three denied features, change the policy
 in the same commit.
 
-**Content-Security-Policy** (`csp.js`, sent as `Content-Security-Policy-Report-Only` — nothing
-is blocked yet; project 011 phase 10 enforces it after a week of clean reports). No nonces, so
-pages stay static: scripts and styles allow `'unsafe-inline'`. **To add an origin**: put it in
-the one directive that loads it (`img-src` for pictures, `connect-src` for `fetch`, never
-`default-src`), say in `csp.js`'s comment what loads from it, and pin it in `csp.test.ts`. A
-navigation (Google sign-in, a map link) needs no entry; a script, frame or image from a new
-host does. Browsers post violations to `POST /csp-report` in the API, which logs the
-directive and the blocked origin only — read them in the API's runtime logs
-(`csp-report directive=… blocked=…`).
+**Content-Security-Policy** (`csp.js`, sent as `Content-Security-Policy` — it **enforces**
+since project 011 phase 10; it was report-only from phase 9). No nonces, so pages stay static:
+scripts and styles allow `'unsafe-inline'`. **To add an origin**: put it in the one directive
+that loads it (`img-src` for pictures, `connect-src` for `fetch`, never `default-src`), say in
+`csp.js`'s comment what loads from it, and pin it in `csp.test.ts`. Getting this wrong no longer
+costs a log line: the resource does not load, on everybody's screen, and the first person to
+notice is whoever's picture is missing. A navigation (Google sign-in, a map link) needs no entry;
+a script, frame or image from a new host does.
+
+**The header's name is pinned too**, by `next.config.test.ts`: it imports `next.config.js`'s
+default export, calls `headers()` and asserts both that `Content-Security-Policy` is sent and
+that no key ends in `-Report-Only`. That case exists because `csp.test.ts` pins the policy's
+*value* and nothing else, so without it putting `-Report-Only` back would be a silent, green
+change. If a policy has to be loosened, loosen the directive and say why in `csp.js` — never by
+renaming the header.
+
+Browsers still post violations to `POST /csp-report` in the API, which logs the directive and
+the blocked origin only (`csp-report directive=… blocked=…`). **Those logs are the only record
+and they are not a week's worth**: the service keeps nothing in the database on purpose (phase 9,
+`legal`), and Vercel's runtime-log retention is an hour on Hobby and a day on Pro — so a
+question like *"has anything been blocked since we enforced?"* can only be answered about the
+last hour, and a week of evidence does not exist anywhere. What stands in for it is a
+`/local-probe` walk over a production build with the console open.
 
 ## Offline
 

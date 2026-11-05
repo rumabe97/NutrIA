@@ -51,11 +51,11 @@ export function blockedOrigin(raw: string | undefined): string {
 }
 
 /**
- * Report-only CSP violations (project 011, phase 9).
+ * CSP violations: what the enforcing policy blocked (project 011, phase 10; report-only in phase 9).
  *
  * Logs the directive and the blocked origin — never the document URL, a query string or the
- * client address — and keeps nothing: the log line is the record, read by whoever decides
- * to enforce the policy.
+ * client address — and keeps nothing: the log line is the record, read by whoever
+ * has to loosen or fix the policy.
  */
 @Injectable()
 export class CspReportService {

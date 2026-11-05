@@ -22,7 +22,11 @@ const upstreamBase = upstreamUrl?.pathname.replace(/\/+$/, '');
  * The simple security headers on every page (report `0007` § 3.2 D7): no framing — the
  * reset link carries its token in the URL — no MIME sniffing, the origin and not the path
  * in a referrer, and none of the three powerful features, which nothing in this app uses.
- * The CSP is report-only (project 011 phase 9) and built in `csp.js`; nothing is blocked.
+ * The CSP **enforces** (project 011 phase 10) and is built in `csp.js`. It shipped
+ * report-only in phase 9 and the name is the only thing that changed here: a violation now
+ * blocks instead of being reported, so adding an origin to `csp.js` is the difference
+ * between a picture appearing and a picture not appearing. `report-uri` stays — an
+ * enforcing policy still reports what it blocked, which is how a wrong policy is found.
  *
  * The proxied API paths are left out. The API answers with its own set (helmet: a stricter
  * `no-referrer`, its own CSP), and a second value for the same header on a proxied response
@@ -35,7 +39,7 @@ const SECURITY_HEADERS = [
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
   {
-    key: 'Content-Security-Policy-Report-Only',
+    key: 'Content-Security-Policy',
     value: contentSecurityPolicy({ apiUrl: process.env.NEXT_PUBLIC_API_URL, development: process.env.NODE_ENV !== 'production' })
   }
 ];

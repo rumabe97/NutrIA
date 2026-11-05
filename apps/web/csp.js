@@ -2,11 +2,13 @@
  * The Content-Security-Policy of the web app, on its own so a test can pin it and so
  * `next.config.js` stays a list of what is sent, not of what the policy says.
  *
- * Report-only (project 011, phase 9): a browser reports what it would have blocked and
- * blocks nothing. There are no nonces — a nonce makes a page dynamic and `/` must stay
- * prerendered and cached — so scripts and styles allow `'unsafe-inline'`, which Next's own
- * bootstrap needs. What the policy still catches is a foreign origin, a plugin, a framing
- * parent and a changed `<base>`.
+ * **Enforcing** since project 011 phase 10; it shipped report-only in phase 9, where a browser
+ * reported what it would have blocked and blocked nothing. An origin missing from the directive
+ * that loads it is now a resource that does not load, so read the rule in `apps/web/AGENTS.md`
+ * § Security headers before adding one. There are no nonces — a nonce makes a page dynamic and
+ * `/` must stay prerendered and cached — so scripts and styles allow `'unsafe-inline'`, which
+ * Next's own bootstrap needs. What the policy still catches is a foreign origin, a plugin, a
+ * framing parent and a changed `<base>`.
  *
  * Every origin below is one the app really loads from:
  *

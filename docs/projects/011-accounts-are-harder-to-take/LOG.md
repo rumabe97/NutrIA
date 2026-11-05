@@ -1322,3 +1322,113 @@
 - **Timing**: the sweep has no flag and rides the daily cron at 08:05 UTC, so its first run is 2026-10-10. The text ships before it. Nothing is at risk in that run either way: the phase 8 check of 2026-10-08 found 0 unconfirmed accounts in production, out of 8.
 - **Evidence**: `pnpm --filter core exec vitest run src/repositories/User/UserRepository.test.ts` 41 tests green; `pnpm --filter web ts:check` green; both dictionaries formatted.
 - **Left for the owner**, recorded in `legal`'s checklist § 0 septies: from now on open only confirmed accounts, because opening an unconfirmed one takes it out of the sweep for good and makes the mail's promise untrue for it. The `confirmed` filter in `/admin` shows which are which.
+
+## Phase 10 — Enforce, and close the project (2026-11-05)
+
+- **Executor**: the lead directly (opus @ high, which is the phase's Dispatch), with the two
+  reviews its Dispatch names — `legal` and `invariant-reviewer` — plus `backend-5` and
+  `frontend-5` on two findings the review routed to them. The phase touches one header name and
+  a shelf of records; no role owns that shape, so it was not sent to one.
+- **Result**: built and verified; **not committed** — the commit is the owner's, and so is one
+  decision this phase cannot take for him (below). `pnpm turbo lint ts:check test`: **21 of 21
+  green**.
+
+### What changed
+
+- **`apps/web/next.config.js`** — the key goes from `Content-Security-Policy-Report-Only` to
+  `Content-Security-Policy`. That is the whole behavioural change. The policy's **value** is
+  untouched, and it is the value production has been sending since 2026-10-09 (#212), read back
+  from `curl -sI https://nutr-ia-web-phi.vercel.app/` the same day to be sure.
+- **`apps/web/next.config.test.ts`** — new, from `invariant-reviewer`'s P2-1: nothing in the
+  repository pinned the header's **name**, so a revert to `-Report-Only` was a silent, green
+  change. It imports the config's default export, calls `headers()`, and asserts that
+  `Content-Security-Policy` is sent, that no key ends in `-Report-Only`, and that the four other
+  security headers are still there. Written by `frontend-5`; 6 tests, green, and 21 green across
+  it, `csp.test.ts` and `headersSource.test.ts`.
+- **Every comment that named the phase the policy was in** — `apps/web/csp.js`,
+  `apps/web/AGENTS.md` § Security headers, `apps/api/AGENTS.md` § Security invariants, the
+  `csp-report` controller and service class docs, `knip.config.ts`'s `apps/web` note. Four of
+  those six were found by the review (P3-1) rather than by the change; the scope line is amended
+  to name them, because a comment that says "report-only" stops being true at the same instant
+  the header does.
+- **`docs/legal/`, by `legal`**: `dpia.md` to **0.7** — R8 scored again and **unchanged at 3**
+  with the two legs it has always stood on written out, R10 confirmed at 1, M13 rewritten to what
+  is in production (phase 8 unconditional since #217; phase 7b and the 30-day sweep recorded for
+  the first time), and a new **M20** for the web's security headers; `record-of-processing.md`
+  rows 1 and 7, which never recorded the violation report itself; `breach-procedure.md` § 4; and
+  one item in `go-live-checklist.md` § 2 for the day a checkout arrives.
+- **`docs/ROADMAP.md`** § 10 — the project reads *delivered* instead of *planned*, with what is
+  left.
+
+### The gate the plan asked for could not be met, and was not skipped
+
+Step 1 says *"Read a week of reports"*. **That week does not exist and cannot be reconstructed**,
+and the reason is a decision this project took on purpose: phase 9 made `CspReportService` keep
+**nothing** — the log line is the whole record, with no document URL, no query and no address —
+and Vercel's runtime-log retention is **one hour** on Hobby, one day on Pro. So the acceptance
+criterion (**PRD 14**, *"enforcing once a week of reports shows no legitimate violation"*) is
+**not met as written**, and nobody should later read this entry as if it were.
+
+What was done instead, and why it is not nothing:
+
+- **A `/local-probe` walk over a production build with the policy already enforcing**: 24 screens
+  — 7 public, 11 signed-in, 6 of the console — at `desktop`/`light`, deliberately one view and one
+  scheme because the policy does not vary with either. **Zero CSP violations, zero console errors,
+  zero failed requests.** `probe.mjs` reports a console error as a hint, and an enforcing policy
+  logs one for every refusal, so a violation could not have passed quietly.
+- **`/en` separately**, with a `securitypolicyviolation` listener rather than the console: **0
+  violations**. It is the one page the probe could not finish, and the cause is not the policy —
+  one RSC prefetch of `/en/registro` never settles, so `networkidle` times out; `curl` answers 200
+  in 9 ms and `/` and `/en/registro` both settle with no open request. **Recorded, not fixed: it
+  is outside this phase.**
+- **The origins read out of the code**: no external script, no webfont host, no analytics
+  (`@vercel/analytics` and `@vercel/speed-insights` are not dependencies and are imported
+  nowhere), `apps/web/public` holds only `favicon.ico` and `sw.js`, and the one provider avatar
+  the API sends (`user.image`) is rendered by nothing — `Avatar` exists in `packages/ui` and no
+  screen imports it. The only external addresses in the source are `maps.apple.com`,
+  `www.google.com/maps` and `myaccount.google.com`, all plain link navigations, which no CSP
+  directive governs.
+
+### What is still not proved, and it is one thing
+
+`img-src https://*.public.blob.vercel-storage.com` is the policy's **only** external origin and
+**nothing exercises it, before or after the deploy** (`invariant-reviewer`, P2-2): a local run on
+`AI_PROVIDER=stub` serves `data:` pictures. What makes it worth more than a note is that
+`packages/ui`'s `Picture` turns a failed `<img>` into the quiet plate through `onError`, and a
+blocked image fires `onError` — so a wrong entry here would look exactly like *«no picture drawn
+yet»*, on every card and meal page, for everybody, with an hour of Vercel logs as the only other
+trace. The shape is right in principle (`VercelBlobPictureStore.spec.ts` pins
+`https://<store>.public.blob.vercel-storage.com/…`, one label under the wildcard) and unverified
+in fact. The phase's Verification has gained the line that closes it after the deploy.
+
+### Reviews
+
+- **`invariant-reviewer`**: **no P0**. P2-1 (the untested header name) and P3s applied here; P2-2
+  is the paragraph above, now a verification step. It answered the four questions put to it: the
+  dish-picture path is covered in principle in all three forms `pictureSource` can produce;
+  `POST /csp-report` leaks nothing (`blockedOrigin` keeps an origin or a bare scheme word, zod
+  strips `document-uri`, `referrer` and `sample` before anything is logged); none of the
+  invariants it owns moves; and no form in `apps/web` posts cross-origin — or natively at all.
+- **`legal`**: **no P0, no P1**, and the question that mattered came back clean — **no document
+  under `docs/legal/` and no published text claims monitoring that the one-hour retention
+  falsifies**. `/privacidad` and `/condiciones` stay true word for word, and no consent version
+  moves. Its two P2s are this entry's own subject (say that step 1 was substituted, which is said
+  above) and the deploy-time read below. ENS does not apply: RD 311/2022 art. 2 reaches none of
+  the categories NutrIA falls in.
+
+### Left for the owner, and the first one has a clock on it
+
+1. **The decision this phase cannot take for him**: PRD 14's week of reports is unobtainable, so
+   enforcing rests on the evidence above. **Recommended: ship it.** The policy has been measured
+   by real browsers for four weeks in report-only; what changes is only whether a refusal is
+   obeyed; and the alternative — building somewhere to keep reports and waiting another week —
+   buys a week of a friends beta's traffic for a week of delay.
+2. **Within the hour after the deploy**, read the API's runtime logs for `csp-report` lines. It is
+   the only window in which that evidence will ever exist (`legal`, and § 6 order 11 of the
+   EIPD). It needs an authorisation the Vercel MCP asks for by a link that expires in ten minutes,
+   so it is one click then one read, and it has to be on the day.
+3. **A real stored dish picture must be seen to load** once this is in production — the one thing
+   no check reaches.
+4. **The PRD stays short of `delivered`**: three of this project's `human-verify` gates — phases
+   2, 3 and 8 — were never recorded as met, and each is something only a phone can answer. Step 3
+   of this phase makes the PRD's status wait on them, so it waits.
