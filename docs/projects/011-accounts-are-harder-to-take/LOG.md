@@ -1379,8 +1379,12 @@ What was done instead, and why it is not nothing:
 - **`/en` separately**, with a `securitypolicyviolation` listener rather than the console: **0
   violations**. It is the one page the probe could not finish, and the cause is not the policy —
   one RSC prefetch of `/en/registro` never settles, so `networkidle` times out; `curl` answers 200
-  in 9 ms and `/` and `/en/registro` both settle with no open request. **Recorded, not fixed: it
-  is outside this phase.**
+  in 9 ms and `/` and `/en/registro` both settle with no open request. **Re-checked on the live
+  site after the deploy and it does not happen there**: `/en` in production settles with 0
+  violations, 0 console errors, 0 failed requests and **0 requests left open**. So it was this
+  machine's build and not the product, and there is nothing to carry forward — which is worth
+  saying, because "recorded, not fixed" in a closed project's LOG is where a non-finding goes to
+  look like a finding for ever.
 - **The origins read out of the code**: no external script, no webfont host, no analytics
   (`@vercel/analytics` and `@vercel/speed-insights` are not dependencies and are imported
   nowhere), `apps/web/public` holds only `favicon.ico` and `sw.js`, and the one provider avatar
