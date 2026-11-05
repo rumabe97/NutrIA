@@ -1427,8 +1427,37 @@ in fact. The phase's Verification has gained the line that closes it after the d
    the only window in which that evidence will ever exist (`legal`, and § 6 order 11 of the
    EIPD). It needs an authorisation the Vercel MCP asks for by a link that expires in ten minutes,
    so it is one click then one read, and it has to be on the day.
-3. **A real stored dish picture must be seen to load** once this is in production — the one thing
-   no check reaches.
+3. ~~**A real stored dish picture must be seen to load** once this is in production — the one
+   thing no check reaches.~~ **Done, 2026-11-05**: the owner opened a meal of his own plan with
+   the enforcing policy live and reported *«se ve la foto»*. `img-src` holds for the Blob store,
+   and the one risk this phase could not retire by itself is retired.
 4. **The PRD stays short of `delivered`**: three of this project's `human-verify` gates — phases
    2, 3 and 8 — were never recorded as met, and each is something only a phone can answer. Step 3
    of this phase makes the PRD's status wait on them, so it waits.
+
+## Phase 10 — what production said, and the one gap closed by the owner (2026-11-05)
+
+The policy enforces in production since `442926f9` (#329): both deployments succeeded, `main`'s
+own CI for that commit is green, and what production serves carries `content-security-policy` with
+**no `report-only` anywhere** — with `/` still `x-vercel-cache: HIT`, which is PRD 14's other half.
+
+**Evidence the plan did not ask for, because it could not have known it was available.** The walk
+before the merge was a production *build* on this machine; after the deploy, the same browser was
+pointed at the **live site**: `/`, `/acceder`, `/registro`, `/privacidad`, `/condiciones`,
+`/en/acceder` and `/en/privacidad` — 200 each, no overflow, **no console-error hint on any of
+them** — and three of those re-opened with a direct `securitypolicyviolation` listener: **0
+violations, 0 console errors, 0 failed requests, 0 requests left open**. That is the public half of
+the real site, not a build of it.
+
+**And the half no probe could reach was closed by the owner the same evening**: he opened a meal of
+his own plan and the dish picture drew. That is the only way `img-src
+https://*.public.blob.vercel-storage.com` can be exercised at all, and it is exactly the failure
+mode that would have been invisible — `Picture` turns a blocked `<img>` into the quiet plate.
+
+**What was not obtained**: the hour-after-deploy read of `csp-report` lines (§ 6, order 11). The
+Vercel MCP answers 403 without the owner approving team access, the approval link lives ten
+minutes, and it was not clicked inside the hour. Not worked around. It would have added the
+signed-in screens of real traffic to the evidence above; what it was *for* — catching a legitimate
+resource being blocked — is answered for the public pages by the live walk and for the one external
+origin by the owner's own eyes. The step stays in the EIPD as the standing routine for the **next**
+change to the policy, where it will again be the only window there is.
