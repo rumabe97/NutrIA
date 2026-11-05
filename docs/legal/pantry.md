@@ -1361,20 +1361,72 @@ text when a thing goes live, and the whole point here is that the text must be l
 
 ### 9.6 Before the owner touches the toggle
 
-- [ ] **(f) live in `es-ES.ts`, `en-GB.ts` and `textos/02`**, with `privacy.updated` moved. This is
+**The toggle was turned on by the owner on 2026-11-05**, by his own account, and the boxes below
+were not all ticked when he did it. They are ticked here as each one was actually answered, with
+the three that were answered *after* the click marked as such — because a checklist that cannot say
+it was finished late is a checklist nobody can trust afterwards.
+
+- [x] **(f) live in `es-ES.ts`, `en-GB.ts` and `textos/02`**, with `privacy.updated` moved. This is
       the gate: not a deploy to align with, a sentence that must already be published when the
-      click happens.
-- [ ] **(g1) or (g2) live** on the pantry screen, and the stale comment at `es-ES.ts:2422` with it.
-- [ ] § 5.4 re-read against every string the screen shows with the flag **on**, under prohibition 7
+      click happens. **Done before the click**, in `a142e8ad` (#321), and verified in what
+      production serves: both `/privacidad` and `/en/privacidad` carry «si lo tenemos activado» /
+      "if we have it switched on" and the 5 November date.
+- [x] **(g1) or (g2) live** on the pantry screen, and the stale comment at `es-ES.ts:2422` with it.
+      **(g1)**, before the click: `pantry.intro` ends at «nunca toda.» / "never all of it." and no
+      longer claims the cupboard changes no dish. **One thing this leaves open, and it is now a
+      choice and not a gap**: with the flag on, (g1) is true but silent about the steering, and
+      (g2) — § 9.5's drafted wording, which names it as a share — is the text that says what is
+      actually happening. Prohibition 7 forbids a false promise and not a silence, and the duty to
+      describe the capability is discharged by the policy, so this is the owner's copy decision
+      rather than a correction owed.
+- [x] § 5.4 re-read against every string the screen shows with the flag **on**, under prohibition 7
       as § 9.4 amends it. The `keeps` sentence is load-bearing now and must still be on the screen.
-- [ ] `health-boundary.spec.ts` green with the flag **on**, which is the only mechanical proof that
+      **Done 2026-11-05, after the click. No prohibition is broken**, and the re-read is cheap to
+      repeat because **no screen reads the flag** (`pantryRank` is `audience: 'owner'`, and a grep
+      of `apps/web/src` outside the console finds nothing), so the strings are the same in both
+      positions — which is why the rule in `apps/web/AGENTS.md` is *«true with the flag on and
+      off»*. Checked one by one: no verb of capacity or tolerance as a category (1); the register is
+      «lo que ya tienes en casa» throughout and never «mi dieta» (2); nothing asks why (3); the
+      picker offers a search over our catalogue and no clinical facet, tab or filter (4); every
+      sentence is about the list or the shop and none about a body (5); `keeps` says where
+      restrictions are declared and links nowhere (6); nothing promises an avoidance, and neither
+      «solo con lo que tienes» nor «adaptado a tu despensa» appears (7); the screen has no
+      free-text box — a word our list does not hold cannot be added, it answers «No encontramos ese
+      alimento en nuestra lista» (8); and `notCooked` renders at `tone="tertiary"`, the quietest
+      tone there is, with the entry still in the list (9). Both required sentences are present in
+      both languages.
+- [x] `health-boundary.spec.ts` green with the flag **on**, which is the only mechanical proof that
       no cupboard slug reached the prompt by this new route; and `PlanGeneration.spec.ts`'s pin that
-      `pool.build` is never handed the rotation.
-- [ ] The measured sentence still reads from `generationMetadata.pantry` after the plan and is never
-      recomputed (P2-7), and `pantryRanked` still reaches no view — `pantryFigures` reads only
-      `metadata['pantry']` and the care path strips it (P2-9).
+      `pool.build` is never handed the rotation. **Done 2026-11-05, after the click**, and written
+      stronger than this line asked for. `health-boundary.spec.ts` now forbids the **import**:
+      `core/controllers/Pantry`, `core/entities/Pantry`, `#repositories/Pantry`, `Pantry.controller`
+      and `Pantry.service` are unreachable from the AI module, which fails on the import rather than
+      on the prompt — 37 of 37. `PlanGeneration.spec.ts` carries five pins: the request handed to
+      `pool.build` is deep-equal with the cupboard steering and without it; a slug that exists
+      **only** in the cupboard appears in no field of it; the cupboard is on the rotation only with
+      the switch on, and never on the whole-library read beside it; `forGeneration` is asked for the
+      generating account and no other; and `pantryRanked` tells the asking from an empty cupboard
+      and from a switch that is off — 55 of 55. **And the gap none of those could close**: every one
+      of them mocks the library read, so until `generation.e2e-spec.ts` got its three cases the
+      switched-on path had never executed against a real catalogue, a real cupboard and a real
+      generation. It does now, 28 of 28: the fortnight builds, the plan records the steering, and
+      phase 2's seeding of the shopping list still happens with the switch on.
+- [x] The measured sentence still reads from `generationMetadata.pantry` after the plan and is never
+      recomputed (P2-7), and `pantryRanked` still reaches no view — the care path strips it (P2-9).
+      `CareAccess.test.ts` pins what may cross to a professional as the four pantry counts and
+      nothing else, and the new `pantryRanked` pin reads the column rather than a view, because no
+      route carries it.
 - [ ] This section's `[lawyer]` lines (§ 9.2 and § 9.3) on the owner's list. Neither blocks the
-      flip: being wrong on either costs a notice, not the feature.
+      flip: being wrong on either costs a notice, not the feature. **Still open, and still the
+      owner's.**
+
+**What the flip does not close.** The residual measured at share 5 — a small loss the repair does
+not remove, half of which the code explains (the repair is neutral per slot while the caps count a
+fortnight) and the rest of which is unexplained — was accepted *while the flag was off*
+([`../decisions/LOG.md`](../decisions/LOG.md), 2026-11-05). With the flag on it is live behaviour in
+real fortnights. It is small, it is measured over 112 of them and every day stayed in band, so it is
+not an alarm; but the sentence that made it survivable has changed, and whoever reads this next
+should know that it was accepted under the other one.
 
 ---
 

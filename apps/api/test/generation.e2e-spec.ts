@@ -21,7 +21,9 @@ import { database } from 'database';
 import { MAX_PANTRY_ITEMS } from 'core/entities/Pantry';
 import { PlanJobController } from 'core/controllers/Plan';
 import { rangeQuantity } from 'core/domain/ShoppingList';
+import { SettingsController } from 'core/controllers/Settings';
 import { toDry } from 'core/domain/Yield';
+import { UNAUDITED } from 'core/entities/Audit';
 
 import type { Account } from './harness.js';
 import type { INestApplication } from '@nestjs/common';
@@ -287,6 +289,19 @@ type PantryRecord = {
   readonly unresolved: number;
   readonly wholeMeals: number;
 };
+
+/**
+ * What a plan recorded of the **steering** (project 022 phase 4), which is a
+ * different question from the block above: that one is what the cupboard was
+ * asked with, this one is whether it was asked to lean the pick at all and what
+ * the macro bands left of its share.
+ */
+async function rankedOf(planId: string): Promise<{ pantryRanked?: boolean; pantryShare?: number | null }> {
+  const [row] = await sql()<{ generationMetadata: { pantryRanked?: boolean; pantryShare?: number | null } | null }>`
+    select generation_metadata as "generationMetadata" from meal_plans where id = ${planId}`;
+
+  return row?.generationMetadata ?? {};
+}
 
 async function pantryRecordOf(planId: string): Promise<PantryRecord | null | undefined> {
   const [row] = await sql()<{ generationMetadata: { pantry?: PantryRecord | null } | null }>`
@@ -1120,5 +1135,96 @@ describe('plan generation', () => {
     // The slot is a row, not a return value: the next attempt reads the claim
     // the winner left behind and is refused in its turn.
     await expect(PlanJobController.start(bob.id)).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  /*
+   * **The one thing no other test in this repository can answer** (project 022
+   * phase 4): whether the switched-**on** path runs at all.
+   *
+   * Everything else about the rank is proved where it is cheap — `Rotation.test.ts`
+   * on the ordering and the repair, `RecipeController.test.ts` on `rotateFor`,
+   * `PlanGeneration.spec.ts` on what the model is told and what reaches the
+   * rotation. All of those mock the library read. So until this case existed, the
+   * line `SettingsController.pantryRank()` guards had never executed against a
+   * real catalogue, a real cupboard and a real generation — and the owner turned
+   * the flag on in production on 2026-11-05. A throw in there would have failed
+   * every fortnight for every account with a cupboard, and nothing would have
+   * caught it before somebody's plan did.
+   *
+   * It flips a **global** switch, so it owns one and gives it back in `afterAll`,
+   * the way `events-premium.e2e-spec.ts` owns `premium` — and it is last in the
+   * file on purpose: every plan above it was generated with the switch off, which
+   * is what those cases are about.
+   */
+  describe('a fortnight asked for with the cupboard steering the pick (022 phase 4, the switch on)', () => {
+    /**
+     * Words a person types, every one of which this catalogue resolves and this
+     * library cooks with — so the cupboard has something real to steer by.
+     *
+     * *«pechuga de pollo»* and not *«pollo»*: the bare word resolves to nothing
+     * here, which is a legitimate state that `pantry.e2e-spec.ts` owns, and it
+     * would make the two assertions below about the wrong thing. `arroz` comes
+     * back as `arroz-largo-crudo`, because what a cupboard holds is what it was
+     * bought as (`toDry`), which is the mapping phase 3a added.
+     */
+    const TYPED = ['arroz', 'huevo', 'patata', 'tomate', 'pechuga de pollo'];
+
+    let steered: Account;
+    let steeredPlanId: string;
+    let outcome: string;
+
+    beforeAll(async () => {
+      await SettingsController.setFlag('pantryRank', true, UNAUDITED);
+
+      steered = await register(app, `generation-ranked-${Date.now()}@e2e.invalid`);
+
+      await completeOnboarding(app, steered);
+
+      for (const label of TYPED) {
+        await request(httpServer(app)).post(`/${PREFIX}/pantry`).set('Cookie', steered.cookie).send({ label }).expect(201);
+      }
+
+      const job = await generateAndWait(app, steered);
+
+      outcome = job.status;
+
+      const plan: PlanView = await active(steered);
+
+      steeredPlanId = plan.id;
+    }, 180_000);
+
+    afterAll(async () => {
+      // Given back whatever this file did with it, so a later suite in the same
+      // database never generates under a switch it did not ask for.
+      await SettingsController.setFlag('pantryRank', false, UNAUDITED);
+      // Its own account goes the way this file deletes every other one: through
+      // the route, whose cascade takes the plan, the list and the cupboard with it.
+      await request(httpServer(app)).delete(`/${PREFIX}/users/me`).set('Cookie', steered.cookie);
+    });
+
+    it('builds the fortnight instead of failing on the one line that had never run', () => {
+      expect(outcome).toBe('succeeded');
+    });
+
+    it('records that the cupboard was asked to steer it, and what the bands left of its share', async () => {
+      const recorded = await rankedOf(steeredPlanId);
+
+      // `pantryRanked` is the asking and not the outcome: it stays true when a
+      // rung took the share to zero, which is exactly why the share is stored
+      // beside it rather than inferred from it.
+      expect(recorded.pantryRanked).toBe(true);
+      expect(recorded).toHaveProperty('pantryShare');
+    });
+
+    it('still does everything the switched-off fortnight did with the same cupboard', async () => {
+      const stored = await pantryRecordOf(steeredPlanId);
+
+      // Phase 2's behaviour is not a casualty of phase 4: the plan was asked
+      // with five words, resolved all five, and the cupboard is spent — which is
+      // the product people have with the switch in either position.
+      expect(stored?.asked).toHaveLength(TYPED.length);
+      expect(stored?.unresolved).toBe(0);
+      expect((await pantryOf(steered)).items).toEqual([]);
+    });
   });
 });

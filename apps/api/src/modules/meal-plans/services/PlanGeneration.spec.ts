@@ -1310,3 +1310,145 @@ describe('PlanGenerationService — the cupboard leans the pick only when the ow
     expect(asked).not.toContain('quesito');
   });
 });
+
+/*
+ * Project 022 phase 4, and the pins the **flip** needed rather than the merge.
+ * The owner turned `pantry_rank` on in production on 2026-11-05; these are what
+ * make the four sentences that position rests on mechanical instead of reviewed.
+ *
+ * What they are not: a measurement. How well the rank works is 112 fortnights in
+ * `LOG.md` phase 4, and no unit spec can speak for that. What they pin is the
+ * shape — what the model is told, what reaches the pick, whose cupboard it was,
+ * and what the plan records — which is the half a reviewer cannot re-derive by
+ * reading, and the half that would break silently.
+ */
+describe('PlanGenerationService — the cupboard steers the pick and nothing else (022 phase 4)', () => {
+  /*
+   * A slug that exists **only** in the cupboard, so "it did not reach the model"
+   * is proved against a string that has nowhere else to come from. The fixture
+   * pool is made of `arroz`, so the real holding beside it is the one that
+   * actually steers; the canary steers nothing and is only ever a leak.
+   */
+  const CANARY = 'SENTINEL-DESPENSA-leche-sin-lactosa';
+  const house = [
+    { grams: null, ingredientId: 'ing-arroz', slug: 'arroz' },
+    { grams: null, ingredientId: 'ing-canario', slug: CANARY }
+  ];
+
+  const requestOf = (buildPool: { mock: { calls: unknown[][] } }): Record<string, unknown> =>
+    (buildPool.mock.calls[0]?.[0] as { preferences: Record<string, unknown> }).preferences;
+
+  /*
+   * The sentence in `PlanGeneration.service.ts`, made a test: with the switch on,
+   * *no field of the request* carries the cupboard. The influence is real and
+   * lives elsewhere — the cupboard reorders which dishes are accepted, and the
+   * builder names those to the model as ones to avoid (`excludeSlugs`, which is
+   * `Omit`ted from what `pool.build` is even handed and computed inside it). This
+   * pin is about content, which is what `pantry.md` § 9.2 and PRD criterion 7
+   * claim; the influence is written down beside it and is not a defect.
+   */
+  it('hands the model the same request whether the cupboard is steering or not, and leaks no slug of it', async () => {
+    const off = build({ pantry: house, pantryRank: false });
+
+    await off.service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    const on = build({ pantry: house, pantryRank: true });
+
+    await on.service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    expect(requestOf(on.buildPool)).toEqual(requestOf(off.buildPool));
+
+    // Every slug, not only the canary: a field that carried the cupboard would
+    // carry what the catalogue did resolve too.
+    for (const holding of house) {
+      expect(JSON.stringify(requestOf(on.buildPool))).not.toContain(holding.slug);
+    }
+  });
+
+  /*
+   * And the other half of the same claim: with the switch on the cupboard does
+   * reach **the pick**, which is the only thing it is allowed to reach. Read off
+   * the rotation `reusablePool` is handed, because that is the boundary the
+   * service itself draws.
+   */
+  /*
+   * One `build` per case on purpose. Two of them in one test spy the same
+   * `reusablePool` twice, and then `mock.calls[0]` is whichever spy answered
+   * first — which is how the first version of this test read an empty rotation
+   * and called it a missing cupboard.
+   */
+  it('puts no cupboard on the rotation while the switch is off', async () => {
+    const { service } = build({ pantry: house, pantryRank: false });
+
+    // `build` spies `reusablePool`; the recorded calls survive into the next
+    // case, so without this the index below is whichever test ran first. The
+    // first version of these two read exactly that and passed by running first.
+    jest.mocked(RecipeController.reusablePool).mockClear();
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    const rotation = jest.mocked(RecipeController.reusablePool).mock.calls[0]?.[2] as { pantrySlugs?: Set<string> } | undefined;
+
+    expect(rotation).toBeDefined();
+    expect(rotation?.pantrySlugs).toBeUndefined();
+  });
+
+  it('puts the cupboard on the rotation when the switch is on, and never on the library read beside it', async () => {
+    const { service } = build({ pantry: house, pantryRank: true });
+
+    jest.mocked(RecipeController.reusablePool).mockClear();
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    const calls = jest.mocked(RecipeController.reusablePool).mock.calls;
+
+    const rotation = calls[0]?.[2] as { pantrySlugs?: Set<string> } | undefined;
+
+    expect([...(rotation?.pantrySlugs ?? [])].sort()).toEqual([CANARY, 'arroz'].sort());
+    // The second read is the whole library, deliberately without a rotation
+    // (`everything`): the rescue reads it, and a cupboard there would be a
+    // cupboard the bands could not escape.
+    expect(calls[1]?.[2]).toBeUndefined();
+  });
+
+  /* Whose cupboard. The one mistake here would not fail anything else. */
+  it('reads the cupboard of the account the plan is for, and of nobody else', async () => {
+    const { service } = build({ pantry: house, pantryRank: true });
+
+    jest.mocked(PantryController.forGeneration).mockClear();
+
+    await service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    expect(jest.mocked(PantryController.forGeneration).mock.calls.every(([userId]) => userId === 'usr-1')).toBe(true);
+    expect(jest.mocked(PantryController.forGeneration)).toHaveBeenCalledWith('usr-1');
+  });
+
+  /*
+   * `pantryRanked` is *«the cupboard was asked to steer»* and nothing else — it
+   * stays true when a rung took the share to zero, and counting it alone as "the
+   * cupboard changed something" is the one way to misread the field. These three
+   * cases are what tell the reading apart from the plausible wrong ones.
+   */
+  it('records the asking and not the outcome: steering, an empty cupboard, and a switch that is off', async () => {
+    const steering = build({ pantry: house, pantryRank: true });
+
+    await steering.service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    const empty = build({ pantry: [], pantryRank: true });
+
+    await empty.service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    const switchedOff = build({ pantry: house, pantryRank: false });
+
+    await switchedOff.service.generate('usr-1', 'job-1', async () => Promise.resolve());
+
+    const ranked = (persist: { mock: { calls: unknown[][] } }): boolean =>
+      (persist.mock.calls[0]?.[1] as { generationMetadata: { pantryRanked: boolean } }).generationMetadata.pantryRanked;
+
+    expect(ranked(steering.persist)).toBe(true);
+    // Nothing resolved to steer with, so nothing was asked of it: a cupboard of
+    // words the catalogue did not know must not read as a steered fortnight.
+    expect(ranked(empty.persist)).toBe(false);
+    expect(ranked(switchedOff.persist)).toBe(false);
+  });
+});
