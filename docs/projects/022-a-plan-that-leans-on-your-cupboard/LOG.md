@@ -1884,3 +1884,37 @@ otherwise, in the same sentence quoted above. The merge is recorded by the commi
 next backfill carries, not claimed here: this file is written before the push, and a record may not
 state as done something that has not happened yet. The gate, the pull request's checks and the
 production verification are in the hand-off, not in this entry.
+
+## Close-out — What is shipped, what is switched off, and what nobody has looked at on a phone (2026-11-05)
+
+**Every phase of project 022 is merged.** Phases 0, 1, 2 and 3a and 3b went out as `4a537739`
+(#319); phases 4 and 5 as `a142e8ad` (#321), verified serving in production — both
+`/privacidad` and `/en/privacidad` carry «si lo tenemos activado» / "if we have it switched on"
+and the 5 November date, and the 4 November one is gone from both.
+
+**The feature people have today is the declared cupboard, not the steered plan.** `pantry_rank`
+falls back to off, and off is phases 1 to 3 to the bit: the cupboard shortens the shopping list
+and changes no pick. The rank is built, measured and merged behind that switch. Nothing about
+the flip has moved: [`../../legal/pantry.md`](../../legal/pantry.md) § 9.6 stands as written —
+the two texts live (they are), the on-state proofs green (they are briefed and deliberately
+unwritten), the two `[lawyer]` lines read.
+
+**Phase 3b's `human-verify` was closed and not met.** The owner said *«La 3B ciérralo»* on
+2026-11-05 without reporting that he had opened the screen on his iPhone, and an instruction to
+close a gate is not the verification the gate asked for — so the record says which it was. What
+stays unverified on a device, and will stay unverified until somebody looks: **VoiceOver's reading
+of the add and remove announcements**, and **whether the amount field brings up a decimal keypad**.
+Both are phone-only by nature, which is why the gate existed; everything a probe can answer was
+answered on this machine. If he has in fact looked, one line here turns this into
+*«confirmed by human on <date>»* — it is a cheap correction and worth making, because an
+accessibility claim nobody checked is the kind of debt that is only found by the person it fails.
+
+**Two advisories and a third that cannot be closed** travelled with the close-out rather than with
+a phase: `qs` is on the patched 6.16.1 (#322), `glob` is left open with its reasoning written into
+`pnpm-workspace.yaml` — closing it would cross a major for jest's test discovery and coverage, which
+that file forbids — and `deepmerge` has no patched version anywhere today.
+
+**What the project leaves for somebody else**, in the order it will matter: the flip and its proofs;
+the residual at share 5 that the repair does not remove, measured, recorded and unexplained; and
+`legal`'s P3-13, which is that the policy's «Lo que recibe el modelo» does not name the list of
+already-chosen dishes the prompt carries.
