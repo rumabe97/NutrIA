@@ -7,9 +7,14 @@
 > **Audience**: agents primarily, humans review. **Committed**: yes. **Written by**: the
 > planner via `/plan-project`, 2026-10-23; approved by the owner before execution starts.
 
-- **Status**: **approved** — by the owner on **2026-10-23**, who said he had read the six
-  phases (*«si, lo he leído y lo apruebo»*). The PRD it executes was approved the same day.
-  Execution starts at phase 0, which writes no product code.
+- **Status**: **done — every phase shipped and merged, 2026-11-05.** Phases 0, 1, 2, 3a, 3b
+  (`4a537739`, #319) and 4 and 5 (`a142e8ad`, #321) are in production. **Two things this does not
+  mean.** The steering ships **switched off**: `pantry_rank` falls back to off, so what people have
+  today is the cupboard shortening the shopping list and changing no pick, and flipping it needs
+  [`docs/legal/pantry.md`](../../legal/pantry.md) § 9.6 first — the on-state proofs are briefed and
+  deliberately unwritten. And phase 3b's `human-verify` was closed by instruction rather than met,
+  so two accessibility behaviours are unverified on a real device; the phase's own line says which.
+  Approved by the owner on **2026-10-23** (*«si, lo he leído y lo apruebo»*), PRD the same day.
 - **Type**: standard
 - **PRD**: [`./PRD.md`](./PRD.md). Criterion coverage: 1 → phase 0; 2 → phases 0 and 4; 3 →
   phases 0 and 4; 4 → phase 4; 5 → phases 2 and 3b; 6 → phases 1 and 2; 7 → phases 1, 3a and
@@ -335,12 +340,16 @@ two: the seams, then the screen. One phase, one pull request, twice.
 
 ### Phase 3b — The screen, and the sentence it is allowed to say
 
-- [ ] in progress — built, reviewed and probed on 2026-11-04 (`LOG.md`, phase 3b), and
-  **shipped**: commit `4a537739` ("You can say what is already in the house before a fortnight is
-  asked for, and afterwards the plan says what it did with it", #319). What is left is not work and
-  is not code: **human-verify** — his iPhone, where VoiceOver's reading of the add and remove
-  announcements and the amount field's decimal keypad are the two things no probe on this machine
-  can answer. It stays unchecked until he has looked
+- [x] done — commit `4a537739` ("You can say what is already in the house before a fortnight is
+  asked for, and afterwards the plan says what it did with it", #319). Built, reviewed and probed on
+  2026-11-04 (`LOG.md`, phase 3b). **Its `human-verify` gate was closed by the owner on 2026-11-05
+  — *«La 3B ciérralo»* — and not met**: he did not report having opened it on his iPhone, and a
+  record may not turn an instruction to close into a verification that happened. So the two things
+  no probe on this machine can answer are **still unverified on a device**, and they are named here
+  rather than lost: VoiceOver's reading of the add and remove announcements, and whether the amount
+  field brings up a decimal keypad. Everything a probe *can* answer was answered — `accessibility`'s
+  review, 12 probe cases at 320/390/1280 in both schemes and both languages, and the design review
+  at PASS with no P0 and no P1
 - **Dispatch**: `frontend`. `legal` answers its four questions **before** this ships
   (**owner-approves**: its findings), `accessibility` reviews the picker, and
   **human-verify**: the owner opens it on his iPhone.
@@ -379,7 +388,7 @@ two: the seams, then the screen. One phase, one pull request, twice.
 
 ### Phase 4 — The rank, measured, behind a flag
 
-- [x] **done — 2026-11-05. `owner-approves` answered by the owner on 2026-11-05**, after the
+- [x] **done — commit `a142e8ad` (#321). `owner-approves` answered by the owner on 2026-11-05**, after the
   report that put this phase's three open questions and the executor's recommendation in front of
   him: *«haz pr, merge, lo que haga falta tu solo, termina ambas fases bien y completas»*. What
   that answer covers, written out so it can be contradicted: the **share at 5**, the **cupboard
@@ -460,7 +469,7 @@ two: the seams, then the screen. One phase, one pull request, twice.
 
 ### Phase 5 — What the catalogue could not cook
 
-- [x] done — 2026-11-04, [`LOG.md`](./LOG.md) § Phase 5. The read, the page, the floor in both
+- [x] done — commit `a142e8ad` (#321), built 2026-11-04, [`LOG.md`](./LOG.md) § Phase 5. The read, the page, the floor in both
   the `SELECT` and the `ORDER BY`, the eight end-to-end cases (the floor's proved by breaking it),
   the probe at three widths in both languages, and `legal`'s review with P2-6 and P2-10 closed.
   The commit reference is backfilled by the next run, after the owner commits.
