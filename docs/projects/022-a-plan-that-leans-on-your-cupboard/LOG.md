@@ -1892,12 +1892,16 @@ production verification are in the hand-off, not in this entry.
 `/privacidad` and `/en/privacidad` carry «si lo tenemos activado» / "if we have it switched on"
 and the 5 November date, and the 4 November one is gone from both.
 
-**The feature people have today is the declared cupboard, not the steered plan.** `pantry_rank`
-falls back to off, and off is phases 1 to 3 to the bit: the cupboard shortens the shopping list
-and changes no pick. The rank is built, measured and merged behind that switch. Nothing about
-the flip has moved: [`../../legal/pantry.md`](../../legal/pantry.md) § 9.6 stands as written —
-the two texts live (they are), the on-state proofs green (they are briefed and deliberately
-unwritten), the two `[lawyer]` lines read.
+**The feature people have today is the declared cupboard *and* the steered plan, since
+2026-11-05.** `pantry_rank` fell back to off for one day: the owner threw it on his own account
+(*«Encendido el interruptor»*), so the cupboard now both shortens the shopping list and leans the
+pick, always under the bands. What it cost that the switch is a row and not a deploy is written in
+[`../../legal/pantry.md`](../../legal/pantry.md) § 9.6: the two texts were live and verified in
+what production serves **before** the click (boxes f and g1), and three boxes were answered
+**after** it — the § 5.4 re-read, the on-state specs and the end-to-end case that is the only thing
+which ever executed the switched-on path, all green in `1b776580` (#326). § 9.6 marks each late one
+as late. The two `[lawyer]` lines are on the owner's list and stay open; neither blocks anything,
+and being wrong on either costs a notice and not the feature.
 
 **Phase 3b's `human-verify` was closed and not met.** The owner said *«La 3B ciérralo»* on
 2026-11-05 without reporting that he had opened the screen on his iPhone, and an instruction to
@@ -1914,7 +1918,50 @@ a phase: `qs` is on the patched 6.16.1 (#322), `glob` is left open with its reas
 `pnpm-workspace.yaml` — closing it would cross a major for jest's test discovery and coverage, which
 that file forbids — and `deepmerge` has no patched version anywhere today.
 
-**What the project leaves for somebody else**, in the order it will matter: the flip and its proofs;
-the residual at share 5 that the repair does not remove, measured, recorded and unexplained; and
+**What the project leaves for somebody else**, in the order it will matter: **(g2)**, the screen's
+drafted wording that would name the steering as a share, parked on 2026-11-05 with its price
+written down; the residual at share 5 that the repair does not remove, measured, recorded,
+unexplained and now live behaviour; and
 `legal`'s P3-13, which is that the policy's «Lo que recibe el modelo» does not name the list of
 already-chosen dishes the prompt carries.
+
+---
+
+## Close-out — 2026-11-05, the owner's pending list
+
+*«Haz lo que dependa de mí lo más recomendado, y cierra todo. Quiero empezar el próximo proyecto.»*
+Everything this project had left in the owner's hands, answered by delegation on the day it was
+handed to him. It is here as well as in [`../../decisions/LOG.md`](../../decisions/LOG.md) because
+three of these are what somebody reading this project will come looking for.
+
+- **The screen keeps (g1), and (g2) is parked with its price named.** (g1) is on the screen and is
+  true in both positions of the flag; (g2) — [`../../legal/pantry.md`](../../legal/pantry.md)
+  § 9.5's drafted wording, which names the steering as a share — is the better product and was
+  recommended to the owner in those words. **The recommendation was made without pricing it**, and
+  the price is what moves it out of a close-out: *«two strings chosen by the flag»* needs a
+  signed-in screen to read owner-audience state, so `pantryRank` would leave `audience: 'owner'`
+  (`Flag.ts:111`, pinned at `Flag.test.ts:104`), the one switch `SettingsView` shows would gain a
+  second field, and `apps/web/AGENTS.md` records that exact design as the one **refused** when (g1)
+  was chosen. Nothing is owed while it waits: § 5.4's prohibition 7 forbids a false promise, not a
+  silence, and the duty to describe the capability is discharged by `/privacidad`. It reopens as a
+  small project, with `legal` re-wording and not an agent alone.
+- **The residual at share 5 is re-accepted, now that it is live, and without a new measurement.**
+  It was accepted *«while the flag is off»* and the flag is on, so the sentence that made it
+  survivable had expired. Re-accepted deliberately rather than measured: hours of evaluator against
+  112 fortnights in which every day stayed in band. What replaces the measurement is a trigger — the
+  first plan that misses a band with a cupboard on it is read here first, and what runs then is the
+  `plan-evaluator` over the real library across the cohort, never one seed.
+- **The two `[lawyer]` lines stay open, and that is their honest end.** They are on the owner's
+  list, which is all § 9.6's box ever asked for; neither blocks anything; and an agent writing the
+  answer to a question drafted for a lawyer's hour is the one thing that document refuses to do.
+- **Phase 3b's two phone-only behaviours stay unverified.** VoiceOver's add and remove
+  announcements, and whether the amount field brings up a decimal keypad. Nobody but the owner can
+  run VoiceOver on the owner's iPhone, so delegation cannot close this one; the line above says how
+  cheaply it turns into *«confirmed by human on <date>»*.
+- **What production itself has done with the switch on could not be read from this machine.** The
+  read-only probe is refused by the permission classifier (*Production Reads*), so this project's
+  record contains no direct evidence of whether a fortnight has yet been generated with
+  `pantry_rank` on, nor of whether any generation failed. It was not worked around and not routed
+  through a second tool; the command stays in the owner's hands. What there is instead: the
+  end-to-end case runs the same code on two differently sized catalogues, and production's own
+  health and both deployments are green for `1b776580`.
