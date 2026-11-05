@@ -53,6 +53,22 @@ describe('the health-data boundary around the AI module', () => {
    * professional reads or writes about a client is theirs and the client's,
    * never a prompt's (`0059`).
    */
+  /*
+   * And the cupboard goes behind the same wall, from the day the owner can turn
+   * its steering on (project 022 phase 4, `pantryRank`, switched on 2026-11-05).
+   *
+   * It is not health data, and its `docs/legal/pantry.md` § 9.2 position says so:
+   * ingredient slugs, nothing about what they mean to anybody, and no restriction
+   * inferred from them. **What makes that position hold is this wall.** A person
+   * types the foods in their own house into a picker, and the catalogue can hold a
+   * food whose own name carries a clinical qualifier — *«leche sin lactosa»*,
+   * *«pan sin gluten»* — so a slug of theirs in a prompt would be a person's typed
+   * word *and* capable of revealing a condition, which is both boundaries of this
+   * file at once. The switch does not change what is reachable from here: with it
+   * on, everything the cupboard touches leaves `PlanGeneration.service.ts` as
+   * catalogue slugs on `rotation`, and `pool.build` is never handed that. These
+   * rows are what makes the next import of it fail instead of ship.
+   */
   it.each([
     'core/controllers/Admin',
     'core/controllers/Health',
@@ -63,7 +79,14 @@ describe('the health-data boundary around the AI module', () => {
     '#repositories/Care',
     'core/controllers/Professional',
     'core/entities/Professional',
-    '#repositories/Professional'
+    '#repositories/Professional',
+    'core/controllers/Pantry',
+    'core/entities/Pantry',
+    '#repositories/Pantry',
+    // The API's own half, which lives under `profiles` — a module this file cannot
+    // forbid wholesale, because a prompt is built from somebody's preferences.
+    'Pantry.controller',
+    'Pantry.service'
   ])('imports nothing from %s', specifier => {
     const offenders = sources.filter(path => readFileSync(path, 'utf8').includes(specifier));
 
