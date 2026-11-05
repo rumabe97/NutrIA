@@ -61,7 +61,9 @@ allowBuilds:
 # version nobody declared — which this block's second rule forbids, and for more than style: a
 # discovery that quietly matches nothing reads as a green run with no tests in it. Nothing here
 # calls `glob` itself or passes it a signal, so the finding does not reach this product. Revisit
-# when jest and `@sentry/bundler-plugins` declare `^14`; dismissing the alert is the owner's call.
+# when jest and `@sentry/bundler-plugins` declare `^14`. **Dismissed on GitHub by the owner,
+# 2026-11-05, as `not_used`** (alert 78) — so nothing will warn about it again: when those
+# packages move, this entry is what remembers that an override became possible.
 #
 # NOT overridden either, and for a reason no entry can get around — `minimatch`
 # (GHSA-g3hv-75wg-m249, moderate): a crafted pattern amplifies through `globParts` into a denial
@@ -75,7 +77,9 @@ allowBuilds:
 # needs is an attacker-supplied *pattern*: every pattern in this repository is ours — jest's
 # `testMatch`, eslint's globs, Sentry's sourcemap upload — and none comes from a request or from
 # anything a person types. So the amplification has no way in. Revisit when `@nestjs/cli` and
-# `typescript-eslint` move; like `glob`, dismissing the alert is the owner's call and not an agent's.
+# `typescript-eslint` move. **Dismissed on GitHub by the owner, 2026-11-05, as `tolerable_risk`**
+# (alert 79): the function is used on every pattern, what is absent is an attacker's control of
+# one — which is why it is not `not_used`.
 #
 # And a third one, which no entry could close even if it were willing to cross a major —
 # `deepmerge` (GHSA-gcqx-w48m-w2h4, low): `mergeObject()` lets a crafted key poison the prototype
@@ -85,8 +89,17 @@ allowBuilds:
 # and what it merges is this repository's own jest configuration: objects that are files in this
 # tree, never a request body and never anything a person types, so no attacker-controlled key
 # reaches the call. With `glob` and `minimatch` above, this accounts for all three alerts GitHub
-# counts open on `main`. Revisit if a `4.3.2` is ever published; until then the only way to clear
-# it is a dismissal, which is the owner's call.
+# counts open on `main`. Revisit if a `4.3.2` is ever published. **Dismissed on GitHub by the
+# owner, 2026-11-05, as `tolerable_risk`** (alert 77).
+#
+# **All three were dismissed on 2026-11-05 and GitHub now counts zero open advisories on `main`.**
+# That number is therefore no longer evidence of anything: a dismissal is permanent, it survives
+# the day a patch is published, and nothing will raise these three again. **This block is the only
+# thing that remembers them**, so the rule that follows is not optional — when `@nestjs/cli`,
+# `typescript-eslint`, jest or `@sentry/bundler-plugins` move, or a `deepmerge@4.3.2` appears,
+# whoever notices adds the scoped entry and deletes the block it belongs to. The agent
+# recommended leaving them open for exactly this reason and the owner decided otherwise, which is
+# his call to make; what the recommendation buys instead is this paragraph.
 overrides:
   'brace-expansion@<1.1.18': '^1.1.18'
   'brace-expansion@>=2.0.0 <2.1.4': '^2.1.4'
