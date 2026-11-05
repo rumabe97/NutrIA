@@ -67,12 +67,26 @@ allowBuilds:
 # (GHSA-g3hv-75wg-m249, moderate): a crafted pattern amplifies through `globParts` into a denial
 # of service. Vulnerable below 11.0.1, which is every copy here but `3.1.5`, and the consumers
 # declare `^9.0.4` (`glob@10.5.0`), `^10.2.2` (`glob@13.0.6`, `@typescript-eslint/typescript-estree`,
-# `test-exclude`) — and `@nestjs/cli@12.0.8` pins **`10.2.6` exactly**, so an override scoped to the
-# vulnerable range cannot satisfy it at all, never mind without crossing a major. What the advisory
+# `test-exclude`) — and `@nestjs/cli` pins **`10.2.6` exactly**, so an override scoped to the
+# vulnerable range cannot satisfy it at all, never mind without crossing a major. The exact pin
+# survived the dependency group of 2026-11-05: `12.0.8` pinned it, `12.0.11` pins the same version,
+# and neither advisory moved with the group — `glob` is still `10.5.0` and `13.0.6`, `minimatch`
+# still `3.1.5`, `9.0.9` and `10.2.6`. What the advisory
 # needs is an attacker-supplied *pattern*: every pattern in this repository is ours — jest's
 # `testMatch`, eslint's globs, Sentry's sourcemap upload — and none comes from a request or from
 # anything a person types. So the amplification has no way in. Revisit when `@nestjs/cli` and
 # `typescript-eslint` move; like `glob`, dismissing the alert is the owner's call and not an agent's.
+#
+# And a third one, which no entry could close even if it were willing to cross a major —
+# `deepmerge` (GHSA-gcqx-w48m-w2h4, low): `mergeObject()` lets a crafted key poison the prototype
+# of the object it returns. The vulnerable range is `>= 4.2.0, <= 4.3.1` and **4.3.1 is the newest
+# version published**, so the advisory's own `first_patched_version` is `null` — there is nothing
+# for an override to point at, in any range. One copy, `jest-config@30.5.2`'s, declared `^4.3.1`,
+# and what it merges is this repository's own jest configuration: objects that are files in this
+# tree, never a request body and never anything a person types, so no attacker-controlled key
+# reaches the call. With `glob` and `minimatch` above, this accounts for all three alerts GitHub
+# counts open on `main`. Revisit if a `4.3.2` is ever published; until then the only way to clear
+# it is a dismissal, which is the owner's call.
 overrides:
   'brace-expansion@<1.1.18': '^1.1.18'
   'brace-expansion@>=2.0.0 <2.1.4': '^2.1.4'

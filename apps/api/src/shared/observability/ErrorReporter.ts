@@ -12,8 +12,8 @@ type ResolvedDataCollection = ReturnType<NodeClient['getDataCollectionOptions']>
 /**
  * Sentry 11 collects by default what 10 collected only with `sendDefaultPii`:
  * request bodies, headers, cookies, query strings, the user, database query
- * data, queue arguments, gen-AI inputs and outputs and the local variables of
- * every stack frame. This is a health product, so each category is switched off
+ * data, queue arguments, gen-AI inputs and outputs, the content of MCP calls and
+ * the local variables of every stack frame. This is a health product, so each category is switched off
  * by name. Written as an exhaustive literal (`satisfies` the SDK's own
  * `ResolvedDataCollection`, where every field and nested field is required) so a field a later SDK adds stops the type-check until
  * somebody decides it — an omitted field would silently take the collecting
@@ -21,6 +21,16 @@ type ResolvedDataCollection = ReturnType<NodeClient['getDataCollectionOptions']>
  *
  * `frameContextLines` is the one that stays on: it is lines of this project's
  * own source code around each frame, never a runtime value.
+ *
+ * `mcp` is the first field that guard actually caught. `@sentry/node@11.10.0`
+ * added it — the content of MCP requests and responses, tool-call arguments and
+ * tool results — and `tsc` stopped compiling until somebody said what to do with
+ * it, which is the whole purpose of writing this out in full. Off, like the rest.
+ * This process is not an MCP server and loads no MCP instrumentation, so there is
+ * nothing for it to collect today; it is written by name anyway, because the
+ * release that gives it something to collect must not also be the release that
+ * discovers nobody had decided. The SDK would have fallen back to `genAI`, which
+ * is off as well — but a default that happens to be right is not a decision.
  */
 export const DATA_COLLECTION = {
   cookies: false,
@@ -30,6 +40,7 @@ export const DATA_COLLECTION = {
   graphQL: { document: false, variables: false },
   httpBodies: [],
   httpHeaders: { request: false, response: false },
+  mcp: { inputs: false, outputs: false },
   queues: false,
   stackFrameVariables: false,
   urlQueryParams: false,
