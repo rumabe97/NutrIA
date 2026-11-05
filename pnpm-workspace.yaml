@@ -40,6 +40,10 @@ allowBuilds:
 #                                pins `multer: 2.4.0` exactly, so no lockfile refresh can move it
 #   vite, esbuild, @babel/core — the dev server and the build toolchain
 #   smol-toml                  — development only
+#   qs                         — `qs.stringify` with `arrayFormat: 'comma'` throws an uncaught
+#                                TypeError on an array element whose own `toString` is not callable
+#                                (GHSA-6pq8-jhm2-2vcw). Express's own copy; `body-parser` already
+#                                pulls the patched one, so this only lifts the one express pins
 #   source-map-js              — event-loop denial of service through indexed section offsets
 #   zod                        — memory exhausted validating oversized constrained collections;
 #                                the copy is `@vercel/oidc`'s, under `@vercel/blob`, not ours
@@ -48,6 +52,16 @@ allowBuilds:
 #   esbuild@<=0.24.2           — drizzle-kit's loader pins 0.18; the advisory is about esbuild's
 #                                dev server, which drizzle-kit never starts. Checked:
 #                                `pnpm --filter database generate` still runs on 0.25.
+#
+# NOT overridden, on purpose — `glob` (GHSA-3g3m-2fjr-6pw4, moderate): an `AbortSignal` is not
+# honoured, so a traversal carries on after its own timeout. The advisory covers everything up to
+# 14.0.1 and is fixed only in 14.0.2, and every consumer here declares `^13.0.6` (`@jest/reporters`,
+# `jest-config`, `jest-runtime`, `@sentry/bundler-plugins`) or `^10.4.1` (`test-exclude`). An entry
+# would therefore cross a major for all of them and put jest's test discovery and coverage on a
+# version nobody declared — which this block's second rule forbids, and for more than style: a
+# discovery that quietly matches nothing reads as a green run with no tests in it. Nothing here
+# calls `glob` itself or passes it a signal, so the finding does not reach this product. Revisit
+# when jest and `@sentry/bundler-plugins` declare `^14`; dismissing the alert is the owner's call.
 overrides:
   'brace-expansion@<1.1.18': '^1.1.18'
   'brace-expansion@>=2.0.0 <2.1.4': '^2.1.4'
@@ -56,6 +70,7 @@ overrides:
   'baseline-browser-mapping@<2.11.0': '^2.11.0'
   'js-yaml@>=4.0.0 <4.3.2': '^4.3.2'
   'multer@<2.5.0': '^2.5.0'
+  'qs@>=6.7.0 <=6.16.0': '^6.16.1'
   'smol-toml@<1.7.1': '^1.7.1'
   'source-map-js@<1.2.2': '^1.2.2'
   'vite@>=8.0.0 <8.0.16': '^8.0.16'
