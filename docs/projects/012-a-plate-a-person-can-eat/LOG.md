@@ -53,7 +53,10 @@
 The two things this project left open were the owner's: *generate a plan once the merge deploys*,
 and *a read-only check of the new plan in production*. Both are answered, by one read-only
 transaction against production (`default_transaction_read_only`, host asserted, counts and
-percentages only, nobody named).
+percentages only, nobody named) — plus **one meal shape, the owner's own**, because the plan
+he asked to have checked cannot be judged against anybody else's, and a shape is a statement
+about how somebody eats. The other seven accounts' shapes were not read; see *what the read
+could not answer* below.
 
 **1. He regenerated.** Five fortnights exist on his account, the newest of 2026-10-20 — four of
 them after #186 merged on 2026-10-01. Twenty-two plans in all were generated across production
