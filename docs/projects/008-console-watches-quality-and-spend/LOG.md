@@ -559,7 +559,11 @@
     the newest plan of 2026-10-20. So the baseline cannot be compared yet, and what the
     charts would show is seven points. The quality of the plans themselves *was* measured
     from the stored rows instead (project 012's closing entry: 275 of 298 days inside ±5%
-    on all four macros, every miss but fourteen of them fat or protein). Retention's
+    on all four macros, and **every miss is fat or protein** — energy and carbohydrate are
+    298/298, fat 287/298, protein 284/298, so 23 misses over 23 days at most and fewer if
+    any day misses both). The denominator was checked rather than assumed: **7 plans and 7
+    generation jobs** since 2026-10-15, against 22 plans since 2026-10-01 — the same seven
+    either way, so the screen really has nothing like ten to score. Retention's
     "Usó la app" column still needs somebody signed in to look at it.
   - After a month with `AI_TEXT_MONTHLY_CAP_USD` set, compare the gauge with OpenRouter's
     panel; a gap of more than 10 % is investigated before relying on the warnings.
