@@ -350,14 +350,15 @@ two: the seams, then the screen. One phase, one pull request, twice.
 
 - [x] done — commit `4a537739` ("You can say what is already in the house before a fortnight is
   asked for, and afterwards the plan says what it did with it", #319). Built, reviewed and probed on
-  2026-11-04 (`LOG.md`, phase 3b). **Its `human-verify` gate was closed by the owner on 2026-11-05
-  — *«La 3B ciérralo»* — and not met**: he did not report having opened it on his iPhone, and a
-  record may not turn an instruction to close into a verification that happened. So the two things
-  no probe on this machine can answer are **still unverified on a device**, and they are named here
-  rather than lost: VoiceOver's reading of the add and remove announcements, and whether the amount
-  field brings up a decimal keypad. Everything a probe *can* answer was answered — `accessibility`'s
-  review, 12 probe cases at 320/390/1280 in both schemes and both languages, and the design review
-  at PASS with no P0 and no P1
+  2026-11-04 (`LOG.md`, phase 3b). **Its `human-verify` gate was closed by instruction on 2026-11-05
+  — *«La 3B ciérralo»* — and met on 2026-11-06**: the record kept the two apart, naming the two
+  things no probe on this machine can answer rather than letting the instruction stand in for
+  them, and a day later they could therefore be *asked*. The owner confirmed both on his iPhone:
+  **VoiceOver announces the add and the remove**, and **the amount field brings up the decimal
+  keypad**. That is what the distinction was for — an instruction to close is not a verification,
+  and only a record that says so leaves something answerable later. Everything a probe *can*
+  answer was answered — `accessibility`'s review, 12 probe cases at 320/390/1280 in both schemes
+  and both languages, and the design review at PASS with no P0 and no P1
 - **Dispatch**: `frontend`. `legal` answers its four questions **before** this ships
   (**owner-approves**: its findings), `accessibility` reviews the picker, and
   **human-verify**: the owner opens it on his iPhone.

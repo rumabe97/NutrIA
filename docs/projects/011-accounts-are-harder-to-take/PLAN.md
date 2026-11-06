@@ -10,12 +10,12 @@
 - **Status**: **done — every phase shipped and merged, 2026-11-05**, phase 10 with it
   (`442926f9`, #329): the Content-Security-Policy enforces in production, and the dish picture was
   confirmed to draw under it by the owner the same evening (`95788403`, #330). Approved by the
-  owner on **2026-10-01**. **The PRD is deliberately not `delivered`**: phase 10's own step 3 makes
-  that status wait on three `human-verify` gates — **phases 2, 3 and 8** — that were never recorded
-  as met, and each is something only a phone can answer (changing the password and watching the
-  other session fall; turning the second factor on with an authenticator; signing up a throwaway
-  address and confirming it). One line each in [`LOG.md`](./LOG.md) turns them into
-  *«confirmed by human on <date>»*.
+  owner on **2026-10-01**. **The PRD is `delivered` since 2026-11-06.** Phase 10's own step 3 made
+  that status wait on three `human-verify` gates — **phases 2, 3 and 8** — and the owner
+  confirmed all three that day, each being something only a phone can answer (changing the
+  password and watching the other session fall; turning the second factor on with an
+  authenticator; signing up a throwaway address and confirming it). What each one actually
+  answered is in [`LOG.md`](./LOG.md)'s closing entry.
 - **Type**: standard
 - **PRD**: [./PRD.md](./PRD.md). Every acceptance criterion is mapped at the end of this file.
 - **Routing profile**: `tiered`, with **every code phase at `quality-max` (opus @ high)**.

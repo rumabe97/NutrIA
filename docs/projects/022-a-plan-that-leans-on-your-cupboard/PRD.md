@@ -5,7 +5,13 @@
 > **Audience**: humans and agents. **Committed**: yes. **Written by**: an agent via
 > `/plan-project`, 2026-10-22 — approved by the owner before the plan is written.
 
-- **Status**: **approved** — by the owner on **2026-10-23** (*«lo apruebo»*), who had already
+- **Status**: **delivered** — all six phases shipped, the rank switched on in production by the
+  owner on **2026-11-05**, and phase 3b's two device checks confirmed on his iPhone on
+  **2026-11-06** (VoiceOver's announcements and the decimal keypad). What stays open is outside
+  the code and blocks nothing: the two `[lawyer]` lines of
+  [`docs/legal/pantry.md`](../../legal/pantry.md) §§ 9.2 and 9.3, which wait for an hour with a
+  lawyer the owner confirmed on 2026-11-06 he has not had yet.
+- **Approved** — by the owner on **2026-10-23** (*«lo apruebo»*), who had already
   taken on 2026-10-22 the two decisions it could not be planned without, both recorded below.
   [`PLAN.md`](./PLAN.md) follows from it and he approved it the same day, having read its six
   phases.
