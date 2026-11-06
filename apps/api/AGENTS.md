@@ -678,8 +678,12 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   fail because a mailbox did). It says only that an account is waiting: **no address, no name, no
   id, no activation link**, because the mail outlives everything (no deletion deadline in the
   owner's inbox). It links to the console's `/admin/cuentas?activated=no`, where the owner sees who
-  it is and activates. `GET /admin/activate` stays for mails already sent, until their tokens
-  expire; no new mail issues one. Its log line carries no user id.
+  it is and activates. `GET /admin/activate`, which honoured the links in mails sent before that
+  change, was **removed on 2026-11-06**: `621a1a4a` (#163) took the token out of the mail on
+  2026-09-29 and a token lived thirty days, so from ~2026-10-29 it could only answer 404. There is no activation route a mail can reach, and a
+  new one would be a `@Public()` route on a `@Roles('admin')` controller — the combination that
+  404'd silently for weeks the last time (`apps/api/test/admin.e2e-spec.ts` says what it cost).
+  The notice's log line carries no user id.
 - **Admin** (`0028`, `0068`): the console's routes, all `@Roles('admin')` on the controller
   class so a new route is guarded by default — a non-admin and no session get 404, before any
   query parameter is read (guards run before pipes). Nothing selected is a person's own — no

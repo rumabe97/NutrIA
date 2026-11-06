@@ -6,24 +6,25 @@ import { Test } from '@nestjs/testing';
 
 import { UserController } from 'core/controllers/User';
 
-import { activationToken } from '../../auth/services/ActivationLink.js';
 import { AdminAccountsController } from './AdminAccounts.controller.js';
 import { AdminAccountsService } from '../services/index.js';
 import { AdminGuard } from '../../../shared/guards/index.js';
 import { AllExceptionsFilter } from '../../../shared/filters/index.js';
-import { ENV } from '../../../config/index.js';
 
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
 
 const PREFIX = 'api/v1';
-const SECRET = 'a'.repeat(48);
 
 /**
- * The one-click link out of the owner's mail. It is `@Public()` on a controller
- * that is `@Roles('admin')`, which is the whole reason this spec exists: the
- * combination used to 404 for everybody, and a stale token 404s too, so the
- * button looked broken rather than guarded.
+ * Who the trail names as the actor of an opening and of a tier move (`0071`).
+ *
+ * This spec was written for the one-click link out of the owner's mail — a
+ * `@Public()` route on a `@Roles('admin')` controller, a combination that used to
+ * 404 for everybody. That route was removed on 2026-11-06, every token it could
+ * honour having expired, and what is left is the console's own two routes, which
+ * always have a session: the point of the remaining cases is that the session is
+ * what the trail records.
  */
 describe('AdminAccountsController', () => {
   let app: INestApplication;
@@ -33,11 +34,7 @@ describe('AdminAccountsController', () => {
       controllers: [AdminAccountsController],
       providers: [
         AdminAccountsService,
-        { provide: ENV, useValue: { APP_URL: 'https://nutria.example', BETTER_AUTH_SECRET: SECRET } },
-        // The session that stands in for the owner on the routes that have
-        // one — activate-by-id and setTier. The one-click link has none,
-        // which is exactly the request it has to survive: no session guard
-        // stands in above `AdminGuard` for it either.
+        // The session that stands in for the owner on both routes.
         {
           provide: APP_GUARD,
           useValue: {
@@ -73,41 +70,6 @@ describe('AdminAccountsController', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
-  });
-
-  /**
-   * The owner clicked a button in their own mail, which is Spanish, so the
-   * queue they land on is the Spanish one — the account they just opened may
-   * read the product in anything.
-   */
-  it("sends the one-click link back to the queue, in the owner's language", async () => {
-    jest.spyOn(UserController, 'activate').mockResolvedValue({ email: 'ana@example.invalid' });
-
-    const response = await request(app.getHttpServer() as Server)
-      .get(`/${PREFIX}/admin/activate`)
-      .query({ token: activationToken('usr-9', SECRET) })
-      .expect(302);
-
-    expect(response.headers.location).toBe('https://nutria.example/admin?abierta=ana%40example.invalid');
-  });
-
-  it('answers 404 to a forged token, like every other denial', async () => {
-    await request(app.getHttpServer() as Server)
-      .get(`/${PREFIX}/admin/activate`)
-      .query({ token: 'not-a-token' })
-      .expect(404);
-  });
-
-  /* `0071`: the trail names the click, never the session it never had. */
-  it('records the mail link, never a session, as the actor of the click', async () => {
-    const activate = jest.spyOn(UserController, 'activate').mockResolvedValue({ email: 'ana@example.invalid' });
-
-    await request(app.getHttpServer() as Server)
-      .get(`/${PREFIX}/admin/activate`)
-      .query({ token: activationToken('usr-9', SECRET) })
-      .expect(302);
-
-    expect(activate).toHaveBeenCalledWith({ id: 'usr-9' }, { actorId: null, via: 'mail_link' });
   });
 
   /* `0071`: the console always has a session, so the trail always names it. */

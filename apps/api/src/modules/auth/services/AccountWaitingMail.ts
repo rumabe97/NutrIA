@@ -19,8 +19,11 @@ const WAITING_ACCOUNTS_PATH = '/admin/cuentas?activated=no';
  * The mail names nobody and carries no activation link: it points at the
  * console's Cuentas filtered to the waiting accounts, where the owner sees who
  * it is and opens the account. It does not even take the account, so nothing
- * about the person can reach it. `GET /admin/activate` still honours the links
- * in mails sent before this change until they expire; no new mail issues one.
+ * about the person can reach it. The route that honoured the links in mails sent
+ * before this change, `GET /admin/activate`, was removed on 2026-11-06, once every
+ * token it could accept had expired: `621a1a4a` (#163) took the token out of this
+ * mail on 2026-09-29 and a token lived thirty days. An old mail's button now
+ * reaches nothing.
  *
  * Never throws and is never awaited by the caller: a sign-up that failed
  * because the owner's inbox was unreachable would be the product punishing a
