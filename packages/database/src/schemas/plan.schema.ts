@@ -114,6 +114,15 @@ export const planDays = pgTable(
  * Macros are snapshotted onto the meal rather than recomputed from the recipe:
  * a historical plan must keep showing the numbers the user actually ate, even
  * after the recipe or an ingredient is later corrected.
+ *
+ * **These macros already include the meal's accompaniments.** `withAccompaniments`
+ * (`Scheduler.ts`) stores `addMacros(plate.macros, set.macros)`, on purpose, so that
+ * the day's totals, `validatePlan`, the allergy gate and the shopping list all see
+ * what the person eats rather than only the plate. So a query that sums `meals` and
+ * joins `meal_accompaniments` **double-counts**: on 2026-11-06 one did, and reported a
+ * production day 24% over its energy target that was in fact 1.5% under it. Sum
+ * `meals` alone for a day; read `meal_accompaniments` only to say what was beside
+ * something.
  */
 export const meals = pgTable(
   'meals',

@@ -39,10 +39,13 @@ The milestone is met, and has been in production since 2026-09-07.
   the console watches rather than shows: catalogue and plan quality, text-AI spend against
   a 5 USD cap, an audit log of admin actions, "active" that means used, retention, the
   sweep, crons and mail, consents, and a daily mail to the owner when something is off
-  (`0071`; #155–#163). Closed by the owner on 2026-09-29. Still to do, time-bound: review
-  plan quality and retention with real data from mid-October, compare the text-spend gauge
-  with OpenRouter after a month, and remove the mail-link activation route once its tokens
-  expire (~2026-10-29).
+  (`0071`; #155–#163). Closed by the owner on 2026-09-29. Its three time-bound leftovers were
+  worked through on 2026-11-06: the mail-link activation route is **removed** (#337, once every
+  token it could honour had expired), the text-spend gauge's own figures are **read and
+  recorded** for the owner to compare with OpenRouter's panel (November 0.0249 USD against a
+  5 USD cap), and the plan-quality review is **half-answered** — the console cannot show a
+  baseline yet, because production has seven generations since mid-October rather than ten,
+  so the plans were measured from their stored rows instead (project 012's closing entry).
 - [`009-owner-reviews-rejected-pictures`](./projects/009-owner-reviews-rejected-pictures/) —
   the owner is mailed when dish pictures fail; a picture the judge rejected waits seven days
   in a private store only the owner can see, and can be published against the judge, in
@@ -346,6 +349,27 @@ found by agents passing through on their way to something else. Phase 5b, which 
    (`0102` § *Adding an appliance to the catalogue is adding a promise*) is a promise with a
    zero behind it. The spread to design against is measured: **129 of that batch's 169 dishes
    fit a 30-minute limit and 40 do not.**
+- **Fat is the macro that misses, on a real profile, and only fat.** Found on 2026-11-06 by
+  the read-only look at production that project 012's last open line asked for — not by an
+  agent looking for it, and not by the evaluator, which is the part worth noticing. Over
+  **298 days** of every plan generated in production since #186, **275 are inside ±5% on all
+  four macros**; per macro it is energy **298/298**, carbohydrate **298/298**, fat
+  **287/298**, protein **284/298**. On the owner's own newest plan (2026-10-20), read day by
+  day, it is **10 of 14**, and **all four misses are fat**: +14.8%, +14.8%, +15.2% and
+  **+23.7%**, while energy stays within 2.7% and the other two within 4.9% on every one of
+  the fourteen. **How it was measured, which bounds what it can be used for**: an inclusive
+  ±5% computed over the stored `meals` rows against each day's stored targets — **not**
+  through the product's own `validatePlan`/`planQuality`, which is the verdict that counts.
+  Re-measuring with those, over a cohort on the real library, is step one of this item and
+  may well move the numbers. **Why it is not project 012's to answer**: 012 promised the macro promise
+  would not get *worse* (its criterion 3, measured against `main` over the evaluator's
+  profiles) and it did not — this is a standing gap that predates it. **Why no profile in
+  the evaluator's set shows it** is the first question, and it is the cheap one: the
+  evaluator's stand-ins are synthetic, and this is a real shape (a light morning snack at 6%
+  of the day, lunch 49%, dinner 45%) on a real library. Then the design question, which is
+  `0076`/`0081` territory: what the scheduler should give up when fat is the one that will
+  not fit, given that energy, protein and carbohydrate all land. **Measure first, on the
+  real library and over a cohort** — never one seed, and never one plan, this one included.
 
 ## Next, in this order
 
