@@ -125,8 +125,8 @@ found by agents passing through on their way to something else. Phase 5b, which 
   alone, so `POST /fixed-meals/not-offered` and `POST /fixed-meals/request` are still at
   **~2.7 s** on a weekday that carries a rule (021's LOG, phase 5b). Those two routes are
   what is left of it.
-- **The health panel clips the labels somebody ticks, at the browser's largest text.**
-  Found 2026-10-16 by an accessibility probe passing through on its way to something else,
+- **The health panel clips the labels somebody ticks, at the browser's largest text — done**
+  (2026-11-06). Found 2026-10-16 by an accessibility probe passing through on its way to something else,
   and it is the same shape as the defect that same probe had just found on the fixed-meal
   screen — the dangerous one, where the document's own horizontal overflow reads **0** so
   nothing can be scrolled to what is cut off. At 320 px with a 32 px root, opening
@@ -142,6 +142,17 @@ found by agents passing through on their way to something else. Phase 5b, which 
   where a `fieldset`'s user-agent minimum pins it, and `overflow-wrap: anywhere` rather than
   `break-word`, which does not reduce min-content width. Small, self-contained, and nobody's
   current work.
+  **What shipped**: the 173 px reproduced exactly, and 113 px more at 390 px that nobody had
+  recorded. Three rules, each measured: the card's own column `minmax(0, 1fr)`, the chips
+  track `minmax(min(100%, 14rem), 1fr)` — `auto-fit` honours its minimum before it honours
+  the container, and 14rem is 448 px at a 32 px root — and `min-inline-size: 0` on the
+  `fieldset`, whose user-agent minimum would otherwise hold it open. **It also uncovered
+  what it had been hiding**: with the row no longer 448 px wide, «Cerrar» ended 13 px past
+  the card, so the title row wraps. **0 px at 320 and at 390, nothing past the edge,
+  four columns at 1280 untouched.** `overflow-wrap: anywhere` was *not* taken: the one word
+  that needs more than the row has (`gastroesofágico`, 236 px against 230) now sits 6 px
+  over its fieldset and 19 px inside the card, which is cheaper than breaking a word that
+  reads whole — phase 5b measured that property at 2.7× a row's height.
 - **Two suites fail on a developer's library and pass on CI's, and it is their premise that
   is wrong.** Found twice on 2026-10-16 by two agents who were not looking for it. A full
   local run (55 suites, 786 tests, 28 minutes) ends `2 failed`: `generation.e2e-spec.ts` →

@@ -1,12 +1,26 @@
-/* A `components/Card`; this is its inside. */
+/* A `components/Card`; this is its inside.
+
+   `minmax(0, 1fr)` and not the implicit `auto`: an auto column is sized by the
+   widest thing in it, so one child that asks for more than the card has takes
+   the whole card past the screen with it. Measured at 320 px with the browser's
+   font size at 32 px, that is what `chips` below used to do — the heading, the
+   intro and the fieldset all came out 448 px wide with their right edge at 493.
+   This track cannot exceed the card whatever a child asks for. */
 .panel {
   display: grid;
   gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
 }
 
+/* `flex-wrap` for the one case it fires in: at 320 px with the font size at
+   32 px the name and the button want 268 px of a 230 px row, and without it the
+   button ends 13 px past the card — measured, after the grid below was fixed and
+   stopped hiding it. Wrapped, «Cerrar» drops under «Salud» and both stay inside
+   the card; at any ordinary size nothing moves. */
 .heading {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-03);
   justify-content: space-between;
 }
@@ -69,11 +83,15 @@
   padding: var(--space-03) var(--space-04);
 }
 
+/* `min-inline-size: 0` is not redundant: a `fieldset` carries
+   `min-inline-size: min-content` in the user-agent stylesheet, so it refuses to
+   shrink below its widest word however narrow the grid track above it is. */
 .fieldset {
   border: 0;
   display: grid;
   gap: var(--space-03);
   margin: 0;
+  min-inline-size: 0;
   padding: 0;
 }
 
@@ -83,10 +101,28 @@
   padding: 0;
 }
 
+/* The conditions somebody ticks to say what they cannot eat, so this is the one
+   row on the panel that must never be half off the screen.
+
+   `min(100%, 14rem)` and not `14rem`: `auto-fit` honours the minimum before it
+   honours the container, and 14rem is 448 px once the reader's font size is
+   32 px — 128 px more than a 320 px screen has. The document's own overflow
+   stays 0 while that happens (`html, body { overflow-x: clip }` in `ui/base.css`),
+   so nothing can be scrolled to what is cut off: at 320/32 the fieldset, this
+   row and every condition label were 448 px wide, 173 px of the panel past the
+   edge, and the labels read «Intolerancia a la lac…». Two columns still appear
+   wherever 14rem of them fit, and the four at 1280 are untouched.
+
+   What is left, measured and left alone: at 320/32 this row is 236 px against
+   the fieldset's 230, because «gastroesofágico» is one word and a grid item
+   will not shrink below it. It ends 19 px inside the card, nothing is cut, and
+   `overflow-wrap: anywhere` is what would close those six pixels — the same
+   property that cost a row 2.7× its height in project 021 phase 5b, to break a
+   word that today reads whole. */
 .chips {
   display: grid;
   gap: var(--space-02);
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
 }
 
 .supplement {
