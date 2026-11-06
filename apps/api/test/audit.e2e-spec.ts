@@ -3,8 +3,6 @@ import request from 'supertest';
 
 import { UserController } from 'core/controllers/User';
 
-import { activationToken } from '../src/modules/auth/services/ActivationLink.js';
-
 import {
   auditCount,
   auditRowById,
@@ -108,24 +106,14 @@ describe('audit: one row per admin mutation, and the trail that reads them back'
     expect(row).toMatchObject({ actorId: owner.id, entity: 'user', entityId: null, ipHash: null, metadata: { via: 'console' }, subjectUserId: id });
   });
 
-  it('writes account.activated {via: mail_link} for the owner-mail button, with no actor', async () => {
-    const email = `audit-link-${stamp}@e2e.invalid`;
-
-    byEmail.push(email);
-    await request(httpServer(app)).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name: 'Link', password: PASSWORD }).expect(200);
-
-    const id = await idOf(email);
-    const token = activationToken(id, process.env.BETTER_AUTH_SECRET ?? '');
-    const before = await auditCount('account.activated');
-
-    await request(httpServer(app)).get(`/${PREFIX}/admin/activate`).query({ token }).expect(302);
-
-    await expect(auditCount('account.activated')).resolves.toBe(before + 1);
-
-    const row = await latestAuditRow('account.activated');
-
-    expect(row).toMatchObject({ actorId: null, entity: 'user', entityId: null, ipHash: null, metadata: { via: 'mail_link' }, subjectUserId: id });
-  });
+  /*
+   * `{via: mail_link}` had a case here until 2026-11-06, when the route that wrote
+   * it was removed — every token it could honour had expired. **The value itself
+   * stays in the trail**: rows written before that date say `mail_link`, and
+   * history is not edited to match the code. Nothing writes it any more, so there
+   * is nothing left to drive; if an opening ever gets a second actor-less path, it
+   * gets its own case rather than this one back.
+   */
 
   /**
    * The one case that goes through Better Auth's real verification route

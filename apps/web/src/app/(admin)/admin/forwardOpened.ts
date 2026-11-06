@@ -9,10 +9,16 @@ import type { PageQuery } from 'components/PeriodSelector';
 import type { UserView } from 'core/controllers/User';
 
 /**
- * Resumen's one redirect: the mailed activation link lands on `/admin?abierta=…` (the
- * API's `GET /admin/activate` keeps sending it there) and the banner that says which
- * account was opened lives on Cuentas, so a request carrying `abierta` goes on to
- * `/admin/cuentas` with every parameter kept. Without it, this does nothing.
+ * Resumen's one redirect: a request carrying `abierta` goes on to `/admin/cuentas`
+ * with every parameter kept, because the banner that says which account was opened
+ * lives there. Without it, this does nothing.
+ *
+ * **Nothing sends that parameter any more.** It arrived from the mailed activation
+ * link through the API's `GET /admin/activate`, which was removed on 2026-11-06 once
+ * every token it could honour had expired. This and the banner it forwards to are
+ * now reachable only by typing the parameter by hand; removing the pair is a
+ * separate, web-side change, and the gate cannot see it because the page still
+ * calls this.
  *
  * The gate's question is asked here again, first. The console's layout and its page
  * render at the same time, so the layout's 404 is not guaranteed to land before this

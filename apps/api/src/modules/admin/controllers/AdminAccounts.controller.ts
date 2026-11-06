@@ -1,18 +1,14 @@
-import { Controller, Get, Inject, Param, Patch, Post, Query, Res } from '@nestjs/common';
-import { ApiCreatedResponse, ApiExcludeEndpoint, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { ACCOUNT_SORTS, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, PAGE_SIZES, SORT_DIRECTIONS, YES_NO } from 'core/entities/AdminQuery';
-import { DEFAULT_WEB_LOCALE, webUrl } from 'core/domain/WebUrl';
 
 import { AdminAccountsService } from '../services/index.js';
-import { ENV } from '../../../config/index.js';
-import { CurrentUser, Public, Roles, ZodBody } from '../../../shared/index.js';
+import { CurrentUser, Roles, ZodBody } from '../../../shared/index.js';
 import { AccountsQueryDto, SetTierDto } from '../dto/in/index.js';
 import { ZodQuery } from './ZodQuery.js';
 
 import type { AccountsDto, ActivatedAccountDto, TierChangedDto } from '../dto/out/index.js';
-import type { Env } from '../../../config/index.js';
-import type { Response } from 'express';
 import type { SessionUser } from '../../../shared/index.js';
 
 /**
@@ -26,10 +22,7 @@ import type { SessionUser } from '../../../shared/index.js';
 @Controller('admin')
 @Roles('admin')
 export class AdminAccountsController {
-  constructor(
-    private readonly accounts: AdminAccountsService,
-    @Inject(ENV) private readonly env: Env
-  ) {}
+  constructor(private readonly accounts: AdminAccountsService) {}
 
   @ApiOkResponse({
     description:
@@ -69,32 +62,5 @@ export class AdminAccountsController {
   @Patch('accounts/:id/tier')
   async setTier(@Param('id') id: string, @ZodBody(SetTierDto) body: SetTierDto, @CurrentUser() owner: SessionUser): Promise<TierChangedDto> {
     return this.accounts.setTier(id, body, owner.id);
-  }
-
-  /**
-   * The button in the owner's mail (`0030`).
-   *
-   * Kept only for mails already in the inbox, whose tokens stay valid until
-   * they expire: no new mail issues one (the account-waiting mail links to the
-   * console instead). Delete this route, and `ActivationLink`, once they have.
-   *
-   * Public because it is clicked from an inbox, where there is no session — the
-   * signed token is the authority, it names one account, it expires, and it can
-   * do nothing else. A bad or stale token is a 404 like every other denial, so
-   * the route tells a stranger nothing.
-   *
-   * It redirects to the admin screen rather than answering JSON: whoever
-   * clicked is a person, and the useful next thing to see is the queue.
-   */
-  @ApiExcludeEndpoint()
-  @Get('activate')
-  @Public()
-  async activateByLink(@Query('token') token: string | undefined, @Res() response: Response): Promise<void> {
-    const opened = await this.accounts.activateByToken(token);
-
-    // Whoever clicked is the owner, out of the owner's own mail, which is
-    // Spanish (`AccountWaitingMail`) — not the account holder, whose language
-    // has nothing to do with which admin screen the owner lands on.
-    response.redirect(webUrl(this.env.APP_URL, `/admin?abierta=${encodeURIComponent(opened.email)}`, DEFAULT_WEB_LOCALE));
   }
 }

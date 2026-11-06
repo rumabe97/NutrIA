@@ -555,6 +555,12 @@
     and check that retention's "Usó la app" fills in from 2026-10-06.
   - After a month with `AI_TEXT_MONTHLY_CAP_USD` set, compare the gauge with OpenRouter's
     panel; a gap of more than 10 % is investigated before relying on the warnings.
-  - Around 2026-10-29, remove `GET /admin/activate` and `ActivationLink`, once the tokens
-    already mailed have expired (`docs/legal/go-live-checklist.md`). The owner deletes
-    the old account-waiting mails.
+  - ~~Around 2026-10-29, remove `GET /admin/activate` and `ActivationLink`, once the tokens
+    already mailed have expired (`docs/legal/go-live-checklist.md`).~~ **Done 2026-11-06**,
+    eight days late: the route, `ActivationLink`, its spec and the three cases that minted
+    tokens to prove the route still honoured them are gone, and with them the `ENV`
+    injection both the controller and the service only had for the signing secret. The last
+    token was minted on 2026-09-29 and lived thirty days, so the route could only answer 404
+    by the time it was deleted. **Still the owner's**: delete the old account-waiting mails
+    from the inbox — their tokens now open nothing, but the addresses in them are a copy of
+    account data outside the system that deletes it with the account.
