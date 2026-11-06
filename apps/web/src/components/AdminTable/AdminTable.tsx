@@ -91,8 +91,12 @@ interface AdminTableProps {
   words: Dictionary['adminConsole']['table'];
 }
 
-/** Parameters a new search, filter or order leaves behind: the page, and the banner of a mailed link. */
-const TRANSIENT = ['abierta', 'offset'];
+/**
+ * Parameters a new search, filter or order leaves behind: the page it was on. `abierta` was
+ * here too, for the banner of a mailed activation link, until that link's route was removed on
+ * 2026-11-06 and the parameter stopped having a sender.
+ */
+const TRANSIENT = ['offset'];
 
 /**
  * The table's anchor. Every link it draws and the form without JavaScript land on it, so
@@ -163,7 +167,7 @@ export function AdminTable({
       ...column,
       sorted,
       sortHint: hint,
-      sortHref: `${tableHref(pathname, query, { abierta: undefined, dir: next, offset: undefined, sort: order.value })}#${ANCHOR}`
+      sortHref: `${tableHref(pathname, query, { dir: next, offset: undefined, sort: order.value })}#${ANCHOR}`
     };
   });
 
@@ -176,8 +180,7 @@ export function AdminTable({
       })
     : interpolate(words.count, { count: number(total) });
 
-  const pageHref = (offset: number) =>
-    `${tableHref(pathname, query, { abierta: undefined, offset: offset > 0 ? String(offset) : undefined })}#${ANCHOR}`;
+  const pageHref = (offset: number) => `${tableHref(pathname, query, { offset: offset > 0 ? String(offset) : undefined })}#${ANCHOR}`;
   const previousHref = paging && paging.offset > 0 ? pageHref(Math.max(paging.offset - paging.size, 0)) : undefined;
   const nextHref = paging && paging.offset + paging.size < total ? pageHref(paging.offset + paging.size) : undefined;
   const range =

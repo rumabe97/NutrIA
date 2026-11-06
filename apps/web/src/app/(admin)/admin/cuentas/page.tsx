@@ -46,8 +46,10 @@ const PATHNAME = '/admin/cuentas';
  * Milestones only, never content (`0028`): whether onboarding was finished and when,
  * how many plans, when the account last did anything, whether it is a professional.
  *
- * The mailed activation link lands on `/admin?abierta=…`, and Resumen sends it here:
- * the banner says which account was opened.
+ * Until 2026-11-06 this page also carried a banner naming the account a mailed
+ * activation link had just opened, reached through `/admin?abierta=…`. The route that
+ * sent that parameter was removed once every token it could honour had expired, so the
+ * banner could no longer be reached and went with it.
  */
 export default async function AdminAccountsPage({ searchParams }: { searchParams: Promise<PageQuery> }) {
   const query = await searchParams;
@@ -69,7 +71,6 @@ export default async function AdminAccountsPage({ searchParams }: { searchParams
   const since = formatDate(RECORDING_STARTS, locale, { day: 'numeric', month: 'long', year: 'numeric' });
   const t = dictionary.adminAccounts;
   const premium = settings?.flags?.premium ?? false;
-  const opened = typeof query.abierta === 'string' ? [query.abierta] : (query.abierta ?? []);
   const date = (iso: string) => formatDate(iso.slice(0, 10), locale, { day: 'numeric', month: 'short', year: 'numeric' });
   const yesNo = (value: boolean) => (value ? common.yes : common.no);
   const yesNoOptions = [
@@ -140,12 +141,6 @@ export default async function AdminAccountsPage({ searchParams }: { searchParams
       <AdminPageHeader intro={t.intro} title={t.title}>
         <PeriodSelector current={period} label={common.period} optionLabel={common.periodOption} pathname={PATHNAME} query={query} />
       </AdminPageHeader>
-
-      {opened.length > 0 ? (
-        <p className={styles.opened} role="status">
-          {interpolate(t.justOpened, { email: opened.join(', ') })}
-        </p>
-      ) : null}
 
       {people ? (
         <AdminSection title={t.signUpsTitle}>
