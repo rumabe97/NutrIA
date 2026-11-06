@@ -105,13 +105,15 @@ that setup lives now rather than here.
 ## Next
 
 **Fixing a meal, and the tail project 021 hands on.** The two things the owner asked for on
-2026-10-16 head the list: the second of them shipped in #292 (`0103`), and the first is half
-done — the picker is off the slow path and the two routes beside it are not. The rest was
+2026-10-16 head the list: the second of them shipped in #292 (`0103`), and the first turned
+out to have gone with it — measured route by route on 2026-11-06, which is how that was
+found out. The rest was
 found by agents passing through on their way to something else. Phase 5b, which held
 `apps/api/src/modules/fixed-meals/**` uncommitted when this was written, shipped in #291 and
 #292, so none of this waits on anybody's current work.
 
-- **It takes seconds when the day already holds a rule, and it should not.** Measured in
+- **It takes seconds when the day already holds a rule, and it should not — done**, by
+  `0103`, and found out by measuring (2026-11-06). Measured in
   phase 5b: `pinnable` with a non-empty `held` is **2.7 s** on an 851-dish pool — its own
   comment says "about 14 ms each" per candidate, which is true and ruinous over a pool.
   `POST /fixed-meals/not-offered` and `POST /fixed-meals/request` pay it on every call for a
@@ -120,11 +122,30 @@ found by agents passing through on their way to something else. Phase 5b, which 
   dish by dish; it is the right instrument for the handful of dishes a search asks about and
   the **wrong** one for the whole offer, where asking it 851 times would be slower than what
   is there now. So this needs its own measurement per route, not a substitution.
-  **Where it stands**: #292 took the picker (`GET /fixed-meals/fixable`) off the whole-pool
-  filter — **82 ms** for three rules on three days — and left the other two deliberately
-  alone, so `POST /fixed-meals/not-offered` and `POST /fixed-meals/request` are still at
-  **~2.7 s** on a weekday that carries a rule (021's LOG, phase 5b). Those two routes are
-  what is left of it.
+  **Where it stood, and it was wrong**: this said #292 took only the picker
+  (`GET /fixed-meals/fixable`) off the whole-pool filter and left the other two at ~2.7 s.
+  It did not. All four routes share one assembly — `FixedMealsService.offerFor` — and
+  `0103` took `held` out of *it*, so the whole-pool `dayHolds` went from every route at
+  once. (The **82 ms** quoted here was `honourability`'s row in 021's own table, for three
+  rules on three days, and never a figure about the picker.)
+  **Measured per route, which is what this item asked for** (2026-11-06, through the real
+  routes on the local library — 1,732 recipes, a 300-dish lunch offer and a 193-dish
+  dinner one, medians of five, against the same account on a weekday that carries a rule
+  and one that does not):
+
+  | | holds a rule | holds nothing |
+  | --- | --- | --- |
+  | `POST /fixed-meals/not-offered` | **96 ms** | 94 ms |
+  | `POST /fixed-meals/request` (model stubbed) | **175 ms** | 138 ms |
+  | `GET /fixed-meals/fixable` | 101 ms | 94 ms |
+  | `POST /fixed-meals/consequence` | 119 ms | 91 ms |
+  | `GET /fixed-meals/honourability` | 90 ms | — |
+
+  The rule costs `not-offered` **2 ms**, not 2.6 s. Where the day's arithmetic is still
+  paid is `consequence`, which is the point of `0103`: **28 ms**, once, for the one dish
+  somebody touched. `request`'s number is everything around the model call, which is where
+  the 2.7 s was; with a real provider the model is what that route waits for. Nothing to
+  fix, so nothing was changed but the record and `pinnable`'s own stale comment.
 - **The health panel clips the labels somebody ticks, at the browser's largest text — done**
   (2026-11-06). Found 2026-10-16 by an accessibility probe passing through on its way to something else,
   and it is the same shape as the defect that same probe had just found on the fixed-meal
