@@ -493,7 +493,7 @@ number up with there, and tabular digits read as slightly wrong in running text.
 ### Large text
 
 A phone set to large text (the browser's font size, which is what `rem` follows) must
-still fit, with nothing running off the edge. Two tools, and nothing else:
+still fit, with nothing running off the edge. Three tools, and nothing else:
 
 - **Side gutters are capped by the screen**: `--gutter-page` and `--gutter-card` are
   `min(<space>, <vw>)`, each `vw` being that space at 320px, so normal text is untouched
@@ -505,10 +505,27 @@ still fit, with nothing running off the edge. Two tools, and nothing else:
   their names, buttons wrap their label, the day chips take two rows and the bottom
   bar goes to icons. A rule that should change only for large text goes there, so
   normal text keeps its layout exactly.
+- **No track asks for more than the box that holds it.** `repeat(auto-fit, minmax(min(100%,
+  14rem), 1fr))` and never `minmax(14rem, 1fr)`: `auto-fit` honours the minimum before it
+  honours the container, and `14rem` is **448 px** on a 320 px screen once the reader's
+  font is 32 px. A card's own column is `minmax(0, 1fr)` and not the implicit `auto`, which
+  is sized by its widest child; a `fieldset` also needs `min-inline-size: 0`, because the
+  user-agent stylesheet gives it `min-content` and it will not shrink without it. This is
+  the third screen to be fixed for it (onboarding in 021 phase 5c, the fixed-meal row in
+  `0103`, the health panel on 2026-11-06), so it is a rule and not a fix.
 
 Check with `/local-probe` at 320 and 390 with the browser's font at 200% (CDP
 `Page.setFontSizes`; an injected `html { font-size }` does not move media queries and
 full-page screenshots drop it).
+
+**The probe's `overflow 0px` is not the whole answer**, for two reasons that bit this
+screen. `html, body { overflow-x: clip }` (`ui/base.css`) means the document's own
+overflow reads 0 while content is cut off, so what has to be measured is each element's
+`getBoundingClientRect().right` against `documentElement.clientWidth` — and
+`scrollWidth > clientWidth` box by box, which is what found a button 13 px past its card.
+And the probe opens a page; it does not press anything, so a defect inside a panel that
+opens on a tap needs a script that opens it **and fails loudly when it did not** — a
+closed panel reports a clean 0.
 
 ### Design review — every change to what somebody sees
 
