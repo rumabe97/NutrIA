@@ -139,7 +139,10 @@ found by agents passing through on their way to something else. Phase 5b, which 
   | `POST /fixed-meals/request` (model stubbed) | **175 ms** | 138 ms |
   | `GET /fixed-meals/fixable` | 101 ms | 94 ms |
   | `POST /fixed-meals/consequence` | 119 ms | 91 ms |
-  | `GET /fixed-meals/honourability` | 90 ms | — |
+
+  `GET /fixed-meals/honourability` is not in that table and should not be: it answers for
+  every rule this account has rather than for a weekday, so it has no second column. One
+  rule, **90 ms** — beside phase 5b's 76 ms on a library half this size.
 
   The rule costs `not-offered` **2 ms**, not 2.6 s. Where the day's arithmetic is still
   paid is `consequence`, which is the point of `0103`: **28 ms**, once, for the one dish
