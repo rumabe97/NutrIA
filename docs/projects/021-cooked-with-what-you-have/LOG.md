@@ -954,6 +954,16 @@ whose chosen state was colour only and invisible in forced colours.
   owner confirmed he feels it. `dayHoldsPin` is the right instrument for the handful of
   dishes a search asks about and the **wrong** one for the whole offer, so the fix needs its
   own per-route measurement. Queued in `docs/ROADMAP.md` § *Next*.
+  **Closed 2026-11-06, by the measurement it asked for and without a line of code**: `0103`
+  (#292) took `held` out of `FixedMealsService.offerFor`, which all four routes share, so
+  the whole-pool `dayHolds` left every one of them and not only the picker. Through the real
+  routes on the local library (1,732 recipes, medians of five, the same account on a weekday
+  that carries a rule and one that does not): `not-offered` **96 ms** against 94, `request`
+  **175 ms** against 138 with the model stubbed, `fixable` 101 against 94, `consequence` 119
+  against 91 — the rule costs the search **2 ms**, and the day's arithmetic is now paid once,
+  as 28 ms on the one dish somebody touched. The roadmap entry carries the table; `pinnable`'s
+  own comment, which is where the 2.7 s was read from after it stopped being true, says so
+  now.
 - **The owner asked for a product change on 2026-10-16**: a dish the day's macros cannot
   hold should warn and be choosable rather than be refused. It revisits `0101`'s gate, it
   will need a decision record, and the wording of `clashes_with_fixed` and

@@ -908,9 +908,19 @@ function dayHolds(input: SchedulerInput, dayIndex: number, pins: ReadonlyMap<Mea
  * `held` is what the day already carries. Empty — the first rule of a day, and
  * every caller before `0101` — this is exactly what it always was: a plate-fit
  * filter, and about 25 ms. With a rule already on the day it is the plate fit
- * *and* `dayHolds` per candidate, which costs about 14 ms each and is the price
- * of an offer that knows what is already fixed. It is paid once, on the rarer
- * of the two paths.
+ * *and* `dayHolds` per candidate, which costs about 14 ms each: **2.7 s** over
+ * an 851-dish pool, which is why nothing passes it any more.
+ *
+ * **No caller passes `held` since `0103`.** The day's arithmetic is asked of the
+ * one dish somebody chose, through `dayHoldsPin`, and answered as a warning they
+ * may accept — all four fixed-meal routes share the one assembly that stopped
+ * passing it, and measured through those routes on 2026-11-06 the rule on a day
+ * costs `POST /fixed-meals/not-offered` 2 ms. The parameter stays because
+ * `Scheduler.test.ts` is the reason to keep it: the whole-pool answer is the
+ * oracle `dayHoldsPin` is checked against dish by dish, and a cheap instrument
+ * with nothing to agree with is a cheap instrument nobody can trust. A new
+ * caller that passes it is choosing 14 ms per candidate, and should want
+ * `dayHoldsPin` instead.
  */
 export function pinnable(
   input: SchedulerInput,
