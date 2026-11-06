@@ -7,7 +7,9 @@
 > report [`0007`](../../reference/architecture/0007-account-security-2026-10-01.md) —
 > approved by the owner before the plan is written.
 
-- **Status**: approved — by the owner, 2026-10-01
+- **Status**: **delivered** — every phase shipped and merged by 2026-11-05, and the three
+  `human-verify` gates only a phone could answer were confirmed by the owner on **2026-11-06**
+  ([`LOG.md`](./LOG.md), the closing entry). Approved by the owner, 2026-10-01.
 - **Roadmap item**: [`docs/ROADMAP.md`](../../ROADMAP.md) § 10 — asked for by the owner on
   2026-10-01: "quiero mejorar la seguridad del usuario… contraseñas robustas… opcional
   segundo factor de autenticación"

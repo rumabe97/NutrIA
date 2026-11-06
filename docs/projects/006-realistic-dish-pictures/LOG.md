@@ -290,3 +290,5 @@
   (2026-09-28), the first week's spend is read and a served file carries its C2PA manifest.
 - **Left open, for the owner:** revoke the OpenRouter pilot key, and delete the unused
   `AI_ILLUSTRATIONS` and `GOOGLE_API_KEY` variables on the API project, if not done yet.
+- **Closed 2026-11-06**, both confirmed by the owner when he was asked: the pilot key is
+  revoked and neither variable is left on the API project. Nothing of 006 is outstanding.

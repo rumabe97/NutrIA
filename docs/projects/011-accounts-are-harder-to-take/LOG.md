@@ -279,6 +279,8 @@
   - **Human-verify, after deploy:** on the owner's iPhone, change the password in
     `/perfil` → Seguridad. The session on the computer must end, and the "Tu contraseña de
     NutrIA ha cambiado" mail must arrive. Record "confirmed by human on <date>" here.
+    **Confirmed by human on 2026-11-06**: all three parts of it — the password changed from
+    the iPhone, the computer's session ended, the mail arrived.
   - **Owner's product question:** is relisting sessions without a fresh sign-in worth a
     token-free API route?
   - **Open, minor:**
@@ -374,6 +376,8 @@
 
     Record "confirmed by human on <date>" with the iOS version. Stop signal: the
     challenge does not work inside the installed app.
+    **Confirmed by human on 2026-11-06**: turned on, signed in with a code **and** with a
+    backup code, turned off. The iOS version was not recorded — again.
   - **Owner decisions:**
     - (a) **TOTP replay:** a code is accepted again on a new challenge within about 90 s,
       because the plugin keeps no record of used codes (RFC 6238 § 5.2, NIST 800-63B "only
@@ -1465,3 +1469,31 @@ signed-in screens of real traffic to the evidence above; what it was *for* — c
 resource being blocked — is answered for the public pages by the live walk and for the one external
 origin by the owner's own eyes. The step stays in the EIPD as the standing routine for the **next**
 change to the policy, where it will again be the only window there is.
+
+## The three gates only a phone could answer — confirmed by human on 2026-11-06
+
+Asked for one by one, as options to pick rather than prose to write, and all three answered
+done and as the plan described them:
+
+- **Phase 2** — the password changed from the iPhone, **the session on the computer ended**,
+  and the «Tu contraseña de NutrIA ha cambiado» mail arrived. All three parts of that gate, not
+  the first one standing in for the rest.
+- **Phase 3** — the second factor turned on, a sign-in **with a code and another with a backup
+  code**, then turned off. **The iOS version was not recorded**, as it was not for the passkey in
+  phase 5: that is twice now, and it is the one thing these confirmations keep failing to carry.
+  It cannot be reconstructed afterwards, so if it ever matters it has to be asked in the same
+  breath as the gesture.
+- **Phase 8** — a throwaway address signed up, **confirmed**, and signed in from the installed
+  app.
+
+**So the PRD is `delivered`**, and phase 10's step 3 — the step that made the status wait — is
+discharged. What this does *not* close, and is not this project's to close: the second factor has
+to reach professionals before the `professional` flag goes on (ROADMAP § 9), which waits on the
+payments work deferred on 2026-09-25.
+
+**Why it took five weeks to collect three gestures.** Nothing about them was hard; they had been
+described in the plan since 2026-10-01 and each is a minute on a phone. What was missing was
+asking in a form that could be answered in one tap. The owner said so himself when he stopped a
+list of nine written questions and asked for the same list as options: *«es más fácil así que
+escribir»*. A `human-verify` gate is not finished when it is written down — it is finished when
+somebody is asked for it the cheap way. (who confirmed: the owner, 2026-11-06)

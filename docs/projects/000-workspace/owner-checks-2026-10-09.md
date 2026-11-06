@@ -5,6 +5,18 @@
 > already confirmed in a LOG are not repeated. **Audience**: the owner.
 > **Written by**: an agent, documents only.
 
+> **Closed 2026-11-06.** All four tasks below are moot, and the page is kept because it is the
+> record of what was asked. Checks 1, 2 and 4 were done the day this was written: project 010
+> was closed on 2026-10-09 with the owner deciding its phase 6 questions, and project 003 the
+> same day with his English walk, which is check 3. The only thing that outlived the page is
+> the § *Not yet* note below, and it is still a note: project 004's last check waits on the
+> payments work deferred on 2026-09-25. **Nothing here is owed by anybody.**
+>
+> The page was never ticked, which is worth more than the ticks would have been: a list the
+> work goes around rather than through records the asking, not the state. Each project's own
+> `PRD.md` and `LOG.md` carried the truth all along, and that is where the next such check
+> belongs.
+
 Three older projects are finished except for a handful of checks nobody but you can do.
 This page puts them in one place, quickest first, so you can clear them in one sitting —
 about 35–40 minutes of your own time, plus a one-line yes so an agent can read some data

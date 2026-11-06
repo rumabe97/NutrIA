@@ -243,7 +243,17 @@ then the documents. Each phase ends green.
 
 ### Phase 9 — The practice, on screen
 
-- [ ] in progress — built and gated locally (`pnpm turbo lint ts:check test` 21/21, web build clean); awaiting the pull request's CI for `test:e2e` (not provable on this machine, see LOG) and the human-verify gate
+- [x] done — commit `e8f84296` ("Project 004 phase 9: the practice, on screen (#99)"), with
+  `bb130d6c` (#101) after it; built and gated locally (`pnpm turbo lint ts:check test` 21/21, web
+  build clean); `test:e2e` is not provable on this machine (see LOG) and the pull request's CI is
+  what ran it, which the merge is the evidence of — the ruleset allows none without its required
+  checks. **Its `human-verify` gate is not
+  met and cannot be met today**: it needs an open practice, and that needs a paid subscription —
+  part of the payments work the owner deferred on 2026-09-25, alongside this project's own
+  go-live switch. Written as a note rather than a task in
+  [`owner-checks-2026-10-09.md`](../000-workspace/owner-checks-2026-10-09.md), and still a note.
+  Status line backfilled 2026-11-06: it had read `in progress — awaiting the pull request's CI`
+  since the merge, which is the plan going stale behind git rather than anything being undone
 - **Dispatch**: opus @ medium — `/execute-project 004 phase 9`
 - **Goal**: the professional's workspace at `/consulta`, and the owner's view of professionals on `/admin`.
 - **Scope**: `apps/web/src/app/(app)/{consulta,admin}`, new components, `apps/web/src/i18n/dictionaries`, `apps/web/src/proxy.ts`, `packages/ui` only if a component is genuinely shared. Step 0 adds `packages/core/src/{controllers/Plan,controllers/Care,repositories/Plan}`, `apps/api/src/modules/{care,meal-plans}` and `apps/api/test`, and no migration. Amended in execution: `apps/api/src/modules/billing` for one change, the customer portal returning a practice's subscriber to `/consulta` instead of `/perfil` (see LOG).
@@ -280,7 +290,9 @@ then the documents. Each phase ends green.
 
 ### Phase 10 — What is now true, and switching it on
 
-- [x] done-locally — `pnpm turbo lint ts:check test`, `pnpm format`, `pnpm -w run deadcode` and `node scripts/check-migrations.mjs --drift` all green; `sh scripts/check-leaks.sh` clean; `test:e2e` not provable on this machine (no Docker, ICU mismatch) — the pull request's CI runs the whole suite, `care`/`care-review`/`care-practice`/`professionals` included. Turning the `professional` flag on and approving the legal text (`LEGAL-REVIEW.md`) stay with the owner.
+- [x] done — commit `bab0aa26` ("Project 004 phase 10: what is now true, and how to switch it on
+  (#102)"), backfilled 2026-11-06; it had read `done-locally` since the merge.
+  `pnpm turbo lint ts:check test`, `pnpm format`, `pnpm -w run deadcode` and `node scripts/check-migrations.mjs --drift` all green; `sh scripts/check-leaks.sh` clean; `test:e2e` not provable on this machine (no Docker, ICU mismatch) — the pull request's CI runs the whole suite, `care`/`care-review`/`care-practice`/`professionals` included. Turning the `professional` flag on and approving the legal text (`LEGAL-REVIEW.md`) stay with the owner.
 - **Dispatch**: sonnet @ medium — `/execute-project 004 phase 10` — owner-approves: the consent text and the professional's agreement after a lawyer's hour (PRD Decisions 2) — owner-gated: the live practice prices and turning on the `professional` flag in production
 - **Goal**: the documents say what the product now is, the whole suite is green, and the owner has what they need to switch it on.
 - **Scope**: `docs/{PRODUCT.md,ARCHITECTURE.md,ROADMAP.md}`, `docs/reference/payments.md`, `docs/reference/deployment.md` if it names flags, `apps/api/test/README.md`, the project's `LOG.md`.

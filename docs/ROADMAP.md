@@ -595,7 +595,7 @@ code:
 - granting the first professional from `/admin`, and only then turning the `professional`
   flag on.
 
-### 10. Accounts are harder to take — delivered (`0074`), the policy enforcing
+### 10. Accounts are harder to take — done (`0074`), the policy enforcing
 
 Added on 2026-10-01, the owner: "quiero mejorar la seguridad del usuario". The project is
 [`011-accounts-are-harder-to-take`](./projects/011-accounts-are-harder-to-take/), and the
@@ -627,10 +627,16 @@ provider avatar the API sends is rendered by nothing). What that walk cannot rea
 picture served from Vercel Blob, which a local run on the stub model never draws — it is in
 `img-src` and it has been in the report-only policy all along.
 
-What is left is not code: the second factor must reach professionals before the `professional`
-flag goes on (§ 9), and three of the project's `human-verify` gates — phases 2, 3 and 8, each of
-them something only a phone can answer — were never recorded as met, so the PRD stays short of
-`delivered` until they are.
+**The three gates are met, and the PRD is `delivered`** (2026-11-06). Phases 2, 3 and 8 each
+needed a phone: the password changed and the other session falling, with its mail; the second
+factor turned on, used with a code and with a backup code, turned off; a throwaway address
+signed up and confirmed. The owner confirmed all three when he was finally asked for them as
+something to pick rather than something to write — five weeks after they were written down,
+and none of them took him a minute.
+
+What is left is not code and not this project's: the second factor must reach professionals
+before the `professional` flag goes on (§ 9), which waits on the payments work deferred on
+2026-09-25.
 
 ## Later / someday
 
