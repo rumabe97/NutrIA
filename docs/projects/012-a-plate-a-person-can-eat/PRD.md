@@ -6,7 +6,12 @@
 > `/plan-project`, from the owner's brief of 2026-10-01; approved by the owner.
 > Write repo-relative: no absolute paths, no references to other private repos.
 
-- **Status**: approved
+- **Status**: **delivered** — its one phase shipped in #186 (2026-10-01) and the two things it
+  left to the owner were answered on **2026-11-06** by a read-only look at production: he has
+  generated five fortnights since, and the newest was read day by day. See
+  [`LOG.md`](./LOG.md)'s closing entry, including the one promise this project made that
+  production does *not* keep — and which is now a roadmap item rather than a silence.
+- **Approved**
 - **Roadmap item**: none — a defect found on a real meal plan; fixed as one quick project at the owner's request
 
 ## Problem

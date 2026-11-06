@@ -7,7 +7,12 @@
 
 - **Status**: **delivered** — all six phases shipped, the rank switched on in production by the
   owner on **2026-11-05**, and phase 3b's two device checks confirmed on his iPhone on
-  **2026-11-06** (VoiceOver's announcements and the decimal keypad). What stays open is outside
+  **2026-11-06** (VoiceOver's announcements and the decimal keypad). **Live and not yet
+  exercised**: a read-only read of production on 2026-11-06 found that **no plan has ever
+  carried a cupboard** — 0 of 43, and the newest plan (2026-10-20) predates both the screen
+  (#319, 2026-11-04) and the switch. Every proof this project has is from tests and the
+  evaluator; **the first fortnight generated with something in the cupboard is the one to
+  read**, and `generation_metadata`'s `pantry` key is what to read it by. What stays open is outside
   the code and blocks nothing: the two `[lawyer]` lines of
   [`docs/legal/pantry.md`](../../legal/pantry.md) §§ 9.2 and 9.3, which wait for an hour with a
   lawyer the owner confirmed on 2026-11-06 he has not had yet.

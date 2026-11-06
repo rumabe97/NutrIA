@@ -553,8 +553,24 @@
   - From mid-October, with at least 10 scored plans in a period, review Planes › Calidad
     against the 99.4 % baseline (phase 5's verification), look at the populated charts,
     and check that retention's "Usó la app" fills in from 2026-10-06.
+    **Half-answered 2026-11-06** by a read-only read of production, and the half that is
+    left is the screen itself: **there are not 10 scored plans in any recent period** —
+    seven generations since mid-October, all `succeeded`, one attempt each, no errors, and
+    the newest plan of 2026-10-20. So the baseline cannot be compared yet, and what the
+    charts would show is seven points. The quality of the plans themselves *was* measured
+    from the stored rows instead (project 012's closing entry: 275 of 298 days inside ±5%
+    on all four macros, every miss but fourteen of them fat or protein). Retention's
+    "Usó la app" column still needs somebody signed in to look at it.
   - After a month with `AI_TEXT_MONTHLY_CAP_USD` set, compare the gauge with OpenRouter's
     panel; a gap of more than 10 % is investigated before relying on the warnings.
+    **The gauge's own figures, read on 2026-11-06** (what `analytics_events` holds for
+    `ai_call`, which is exactly what the gauge sums): **November 0.0249 USD over 72 calls**,
+    all of them `rewrite`; **October 0.3362 USD over 500 calls**, 2 of them uncosted;
+    September 0.0572 USD over 342, 54 uncosted. Against a 5 USD cap, so the warnings have
+    never been near. **The comparison itself stays the owner's**: OpenRouter's own panel is
+    behind his account and no agent reads it. The pictures' side, from what was billed:
+    October **5.2857 USD** of images and 0.0893 of judging, against the 10 USD cap;
+    November 0.0344 so far.
   - ~~Around 2026-10-29, remove `GET /admin/activate` and `ActivationLink`, once the tokens
     already mailed have expired (`docs/legal/go-live-checklist.md`).~~ **Done 2026-11-06**,
     eight days late: the route, `ActivationLink`, its spec and the three cases that minted

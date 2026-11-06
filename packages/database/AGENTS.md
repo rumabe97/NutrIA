@@ -118,6 +118,19 @@ tag built in `apps/api` (ESM) does not satisfy a signature from here (CommonJS).
   cannot carry named prepared statements across checkouts.
 - `DIRECT_DATABASE_URL` — the **direct**, session-mode endpoint. `drizzle.config.ts` only.
   DDL cannot run through the pooler.
+- **Neither of those two is production, on a developer's machine.** They point at the Neon
+  **dev** branch the local API talks to (the dev/production split of 2026-09-24). Production is a separate variable,
+  **`DATABASE_URL_PRO`**, and it exists only in this package's own `.env`. On 2026-11-06 a
+  read-only probe took `DIRECT_DATABASE_URL` for production and produced a whole page of
+  plausible, wrong answers — 165 accounts where production has 8, 1,440 picture calls at
+  0.00 USD, and no `pantry_items` table at all — and only the last of those looked like a
+  mistake rather than a finding. **So a script that reads production asserts that it is on
+  production before it prints anything**: `to_regclass('pantry_items') is not null` is the
+  cheapest such assertion today (the dev branch has no such table), and the account count is
+  the sanity check beside it. No fallback: a probe that quietly reads the wrong database is
+  worse than one that refuses to run. The host is asserted and never printed, and every
+  query goes inside `sql.begin('read only', …)` — the owner's standing rule, which the
+  repository's own hook restates on any command that names production.
 - `NUTRIA_LOCAL_PG=1` — both of the above are replaced by `LOCAL_DATABASE_URL` (`src/env.ts`),
   the loopback Postgres `pnpm db:local` runs, inside `required()`, which every connection in
   this package goes through. It beats an exported value too: dotenv, `--env-file` and Nest's
