@@ -9,16 +9,6 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
-.opened {
-  background-color: var(--color-brand-03);
-  border-radius: var(--radius-control);
-  color: var(--color-brand-12);
-  font-size: var(--font-size-02);
-  margin: 0;
-  overflow-wrap: anywhere;
-  padding: var(--space-03) var(--space-04);
-}
-
 /* The chart sits on a card: the gaps between marks are the card's colour. */
 .chart {
   --chart-surface: var(--surface-card);

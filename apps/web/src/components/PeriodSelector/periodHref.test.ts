@@ -8,8 +8,10 @@ describe('periodHref', () => {
   });
 
   it('replaces the period and keeps every other parameter, repeated ones in order', () => {
-    expect(periodHref('/admin', { abierta: ['a@example.com', 'b@example.com'], period: '30', q: 'x' }, 90)).toBe(
-      '/admin?abierta=a%40example.com&abierta=b%40example.com&q=x&period=90'
+    // Any parameter, repeated, encoded: the real one this was written for (`abierta`,
+    // from a mailed link) is gone, and what it proved is not about that name.
+    expect(periodHref('/admin', { otro: ['a@example.com', 'b@example.com'], period: '30', q: 'x' }, 90)).toBe(
+      '/admin?otro=a%40example.com&otro=b%40example.com&q=x&period=90'
     );
   });
 

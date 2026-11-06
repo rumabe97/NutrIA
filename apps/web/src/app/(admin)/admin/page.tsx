@@ -21,7 +21,6 @@ import { formatDate, formatNumber, formatUsd, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from './consoleMetadata';
-import { forwardOpened } from './forwardOpened';
 import { RECORDING_STARTS } from './recordingStart';
 
 import type { AdminSummaryView } from 'core/controllers/Admin';
@@ -51,17 +50,15 @@ const NEEDS_YOU_HREF = {
  * profile or food (`0028`).
  *
  * The API answers `/admin/summary` with a 404 to anybody but an admin, so a missing
- * answer is the same 404 here, whatever the gate above has done yet. Nothing on this
- * page redirects but `forwardOpened`, which asks the gate's question first.
- *
- * The mailed activation link lands here as `/admin?abierta=…` (the API's redirect, which
- * does not change) and is sent on to Cuentas, whose banner says which account was
- * opened.
+ * answer is the same 404 here, whatever the gate above has done yet. **Nothing on this
+ * page redirects.** It did until 2026-11-06: a mailed activation link landed here as
+ * `/admin?abierta=…` and `forwardOpened` sent it on to Cuentas, asking the gate's own
+ * question first so that a redirect could not confirm an address to a stranger. The
+ * route that sent that parameter is gone, so the forward and the banner went with it.
+ * **A redirect added here has to ask that question again** before it redirects.
  */
 export default async function AdminSummaryPage({ searchParams }: { searchParams: Promise<PageQuery> }) {
   const query = await searchParams;
-
-  await forwardOpened(query);
 
   const period = parsePeriod(query.period) ?? DEFAULT_PERIOD;
   const [dictionary, locale, summary] = await Promise.all([

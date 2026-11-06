@@ -81,7 +81,6 @@ export const enGB: Dictionary = {
       'Plans counts the account’s plans in any state. No plan is read.'
     ],
     intro: 'Who has signed up, what they still need to get in, and how far they have got.',
-    justOpened: 'Account opened: {email}',
     makeFree: 'Move to free',
     makeFreeFor: 'Move to free: {email}',
     makePremium: 'Give premium',

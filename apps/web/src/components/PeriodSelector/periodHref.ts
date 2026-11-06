@@ -6,7 +6,7 @@ export type PageQuery = Readonly<Record<string, readonly string[] | string | und
 /**
  * The same page with another period, and every other parameter kept as it came —
  * repeated ones included, in their order — so choosing a period never drops a
- * filter or the `?abierta=` of a mailed link.
+ * filter, a search or a sort somebody set.
  */
 export function periodHref(pathname: string, query: PageQuery, period: Period): string {
   const search = new URLSearchParams();

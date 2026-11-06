@@ -87,7 +87,6 @@ export const esES = {
       'Planes cuenta los planes de la cuenta en cualquier estado. Ningún plan se lee.'
     ],
     intro: 'Quién se ha registrado, qué le falta para entrar y hasta dónde ha llegado.',
-    justOpened: 'Cuenta abierta: {email}',
     makeFree: 'Pasar a gratis',
     makeFreeFor: 'Pasar a gratis: {email}',
     makePremium: 'Dar premium',

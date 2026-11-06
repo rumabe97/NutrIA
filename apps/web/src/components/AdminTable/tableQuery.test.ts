@@ -30,7 +30,7 @@ describe('readTableQuery', () => {
   });
 
   it('reads the first of a repeated parameter and ignores ones it does not know', () => {
-    expect(readTableQuery(feedbackQuerySchema, { abierta: 'x', period: '7', state: ['seen', 'waiting'] })).toMatchObject({ state: 'seen' });
+    expect(readTableQuery(feedbackQuerySchema, { otro: 'x', period: '7', state: ['seen', 'waiting'] })).toMatchObject({ state: 'seen' });
   });
 
   it('drops the parameter a rule across parameters names, instead of failing the page', () => {
@@ -54,8 +54,8 @@ describe('apiSearch', () => {
 
 describe('tableHref', () => {
   it('changes what it is told and keeps the rest, repeated values included', () => {
-    expect(tableHref('/admin/cuentas', { abierta: ['a', 'b'], period: '7', sort: 'email' }, { dir: 'asc', sort: 'plans' })).toBe(
-      '/admin/cuentas?abierta=a&abierta=b&period=7&dir=asc&sort=plans'
+    expect(tableHref('/admin/cuentas', { otro: ['a', 'b'], period: '7', sort: 'email' }, { dir: 'asc', sort: 'plans' })).toBe(
+      '/admin/cuentas?otro=a&otro=b&period=7&dir=asc&sort=plans'
     );
   });
 

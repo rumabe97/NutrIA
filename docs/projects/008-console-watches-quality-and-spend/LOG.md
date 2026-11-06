@@ -563,4 +563,6 @@
     token was minted on 2026-09-29 and lived thirty days, so the route could only answer 404
     by the time it was deleted. **Still the owner's**: delete the old account-waiting mails
     from the inbox — their tokens now open nothing, but the addresses in them are a copy of
-    account data outside the system that deletes it with the account.
+    account data outside the system that deletes it with the account. **Done: the owner
+    confirmed on 2026-11-06 that he has deleted them.** With that, and with the route gone,
+    this item is closed on both sides.
