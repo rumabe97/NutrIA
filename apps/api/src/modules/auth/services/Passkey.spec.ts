@@ -415,7 +415,19 @@ describe('passkeys', () => {
       expect((await addPasskey(auth, browser, device)).status).toBe(200);
     });
 
-    it('refuses a sign-in on possession alone: 401 AUTHENTICATION_FAILED, no session, no visit, the counter untouched', async () => {
+    /*
+     * The status is the plugin's, not ours, since `@better-auth/passkey@1.7.18`:
+     * it now verifies with `requireUserVerification` taken from our own
+     * `authenticatorSelection.userVerification` — `'required'` — so
+     * `@simplewebauthn` refuses the assertion itself and the refusal never
+     * reaches our `afterVerification` hook, which used to answer 401. A
+     * ceremony that fails validation reads as 400 from there.
+     *
+     * What this case is actually about is unchanged and still asserted below:
+     * refused, no session token, no session row, nothing counted, the counter
+     * where it was. The number moved; the second factor did not.
+     */
+    it('refuses a sign-in on possession alone: AUTHENTICATION_FAILED, no session, no visit, the counter untouched', async () => {
       const auth = build();
       const device = new Authenticator();
       await addPasskey(auth, await signUp(auth, ANA), device);
@@ -427,7 +439,7 @@ describe('passkeys', () => {
       const options = await call(auth, browser, '/passkey/generate-authenticate-options');
       const refused = await call(auth, browser, '/passkey/verify-authentication', { response: device.get(options.body?.challenge as string) });
 
-      expect(refused).toMatchObject({ body: { code: 'AUTHENTICATION_FAILED' }, status: 401 });
+      expect(refused).toMatchObject({ body: { code: 'AUTHENTICATION_FAILED' }, status: 400 });
       expect(browser.has('session_token')).toBe(false);
       expect(store.session).toHaveLength(sessions);
       expect(sessionsStarted()).toHaveLength(counted);

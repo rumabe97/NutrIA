@@ -99,13 +99,22 @@ const USER_VERIFICATION = 'required';
  *   (`authenticatorSelection`) and at sign-in (`passkeyAfter` rewrites the
  *   plugin's fixed `'preferred'`), so the browser refuses a device that
  *   cannot verify the person before anything reaches us.
- * - The answer must carry it: the plugin verifies with
- *   `requireUserVerification: false`, so its `afterVerification` hooks refuse
- *   any registration or sign-in whose authenticator data lacks the UV flag —
- *   the plugin's own 400 `FAILED_TO_VERIFY_REGISTRATION` (no key stored) and
- *   401 `AUTHENTICATION_FAILED` (no session, the counter untouched). A
- *   browser that ignores the options is caught here; the options alone are a
- *   request, never the rule.
+ * - The answer must carry it, and **two things now check that it does**. Since
+ *   `@better-auth/passkey@1.7.18` the plugin verifies with
+ *   `requireUserVerification` read from the `authenticatorSelection` above —
+ *   `'required'`, so `@simplewebauthn` refuses the ceremony itself, before any
+ *   hook runs. The hooks below stay as the second line, for the case that check
+ *   is ever relaxed: they refuse any registration or sign-in whose authenticator
+ *   data lacks the UV flag. Either way nothing is stored, no session is opened
+ *   and the counter is left where it was.
+ *
+ *   **The status is the library's, not ours**: a ceremony that fails validation
+ *   reads as 400 `AUTHENTICATION_FAILED`, where our own hook used to answer 401.
+ *   The number moved when the check moved; the refusal did not, and the web app
+ *   never read it (`passkeySignInRefusal` branches on the code and on 429). Up to
+ *   1.7.15 the plugin passed `requireUserVerification: false` and these hooks
+ *   were the only thing standing between a tapped security key and a session —
+ *   which is why they were written, and why they are kept.
  */
 export const PASSKEY_USER_VERIFICATION: Pick<PasskeyOptions, 'authentication' | 'authenticatorSelection' | 'registration'> = {
   authentication: {
