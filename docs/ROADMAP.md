@@ -702,8 +702,11 @@ before the `professional` flag goes on (§ 9), which waits on the payments work 
 
 ## Last, and deliberately so
 
-**The assistant.** Nutrition-scoped, context-efficient, with the medical boundaries in
-`PRODUCT.md` enforced rather than requested.
+**The assistant — started 2026-11-09 as
+[project 023](./projects/023-an-assistant-that-answers-from-your-plan/PRD.md).** Nutrition-scoped,
+context-efficient, with the medical boundaries in `PRODUCT.md` enforced rather than requested.
+Everything below is why it waited here; the paragraph at the end says what changed and what did
+not.
 
 It sits at the end of this file, not because it is the least valuable — it may be the most
 — but because of what it costs. Every message a user sends is a model call, on the same
@@ -727,3 +730,40 @@ per-meal carbohydrate split in the insulin answer — exactly the figure a diabe
 would dose from — so figures about the plan must come from this service, never from
 the model; free text needs its own allergen check before it is shown; and the free
 models' terms on what they keep must be read before anybody's words are sent to them.
+
+**What changed, on 2026-11-09.** Exactly one thing: the money. The owner's Claude subscription
+carries API credits of its own — about 100 € a cycle, **expiring unspent** — so the assistant can
+pay from a different pocket than plan generation, and the choice between answering a question and
+building a plan is not a choice any more. It is its own `AiFeature`, its own monthly ceiling and
+its own daily allowance per person, because a shared ceiling would be this same paragraph in a
+new currency.
+
+Both of the hard halves survived the change, and both are in the project rather than in a prompt:
+the assistant reads exactly what the plan generator reads and the mechanical wall around the AI
+module gains no exception; and the service computes every figure, hands the set to the model, and
+checks membership of every number in the answer before a person sees it. The 2026-09-12 probe's
+three lessons are carried verbatim — figures come from this service, free text gets its own
+allergen check, and the provider's terms on what it keeps are read first. On the last one, this
+provider's pages say it does not train on commercial Customer Content and that its
+data-processing addendum is incorporated by reference; that is what they say, dated, for the
+lawyer's pending hour to confirm, and `/privacidad` changes before the switch is thrown
+([`0104`](./decisions/0104-the-assistant-answers-and-the-service-is-the-only-source-of-a-number.md)).
+
+Two things were tightened by the owner the same evening and are in the project rather than
+here: its subject is nutrition and dietetics and nothing else, enforced by a label the route
+branches on rather than by a hope about the prose; and it may write a recipe when somebody asks
+for one, which makes the allergen net on its answers the only thing between a model's own words
+and what a person eats — everywhere else in this product a suggestion becomes a plate only after
+ids have been compared.
+
+It keeps a history, which this project's own first draft had decided against: the shortest
+privacy sentence available was *nothing you type is stored*, and it bought a chat nobody could
+reread or carry on. The owner overruled it the same day. What that costs is written in the
+project: free text about food eventually holds a condition somebody volunteered, so the opening
+warning says not to type clinical details, retention and deletion ride the lawyer's pending hour,
+and the thread cascades from the account while the billing rows name nobody — which is what lets a
+deletion take every word without changing what was billed.
+
+What is still deliberately not built: acting on a plan, generating one, reading anybody's recorded
+conditions, answering anything that is not about food, and anybody at all — the console and the
+owner included — reading somebody's conversation.

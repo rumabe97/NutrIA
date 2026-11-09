@@ -2,9 +2,12 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { generateObject, jsonSchema } from 'ai';
 
 import {
+  ASSISTANT_CALL_SETTINGS,
+  assistantCostUsd,
   NO_TRAINING_PROVIDER,
   nonStrictSchema,
   openRouterRequest,
+  resolveAssistantModel,
   resolveCallSettings,
   resolveModel,
   resolveOutputCap,
@@ -341,5 +344,95 @@ describe('resolvePictureSettings', () => {
     expect(
       resolvePictureSettings(validateEnv({ ...base, AI_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'k', OPENROUTER_IMAGE_API_KEY: '' }))
     ).toBeNull();
+  });
+});
+
+/**
+ * The assistant calls Anthropic beside whatever provider generation runs on,
+ * not instead of it (`0104` clause 6). Every one of these rows is a way that
+ * could have been got wrong by reusing `resolveModel`, which switches on
+ * `AI_PROVIDER` and would have forced the choice between moving every plan
+ * generation to Anthropic and having no assistant at all.
+ */
+describe('the assistant\u2019s own provider', () => {
+  const base = {
+    APP_URL: 'http://localhost:3000',
+    BETTER_AUTH_SECRET: 'a'.repeat(32),
+    BETTER_AUTH_URL: 'http://localhost:3001',
+    DATABASE_URL: 'postgresql://user:pass@host/db'
+  };
+
+  it('is there while generation runs on OpenRouter, which is how production runs', () => {
+    const env = validateEnv({
+      ...base,
+      AI_PROVIDER: 'openrouter',
+      AI_PROVIDER_ONLY: 'deepinfra',
+      ANTHROPIC_API_KEY: 'sk-ant-test',
+      OPENROUTER_API_KEY: 'test-openrouter-key'
+    });
+    const model = resolveAssistantModel(env) as Exclude<LanguageModel, string>;
+
+    expect(model.modelId).toBe('claude-haiku-5-5');
+    expect(model.provider).toContain('anthropic');
+    // And generation is untouched: the two live side by side.
+    expect((resolveModel(env) as Exclude<LanguageModel, string>).provider).toContain('openrouter');
+  });
+
+  it('is absent, rather than an error, when nobody has given it a key', () => {
+    expect(resolveAssistantModel(validateEnv({ ...base }))).toBeNull();
+    expect(resolveAssistantModel(validateEnv({ ...base, ANTHROPIC_API_KEY: '   ' }))).toBeNull();
+  });
+
+  it('takes the model it is told to, and only an Anthropic one', () => {
+    const env = validateEnv({ ...base, AI_ASSISTANT_MODEL: 'claude-opus-5-5', ANTHROPIC_API_KEY: 'sk-ant-test' });
+
+    expect((resolveAssistantModel(env) as Exclude<LanguageModel, string>).modelId).toBe('claude-opus-5-5');
+    expect(() => validateEnv({ ...base, AI_ASSISTANT_MODEL: 'gemini-3.6-flash', ANTHROPIC_API_KEY: 'sk-ant-test' })).toThrow(/AI_ASSISTANT_MODEL/);
+  });
+
+  /**
+   * `AI_REWRITE_MODEL` is checked against the configured provider, which is the
+   * right question for the sweep and the wrong one here: under `google` that
+   * rule rejects every Claude id, and under `openrouter` it checks nothing.
+   */
+  it('is checked against Anthropic whatever AI_PROVIDER says', () => {
+    const google = { ...base, AI_PROVIDER: 'google', ANTHROPIC_API_KEY: 'sk-ant-test', GOOGLE_API_KEY: 'g' };
+
+    expect(() => validateEnv({ ...google, AI_ASSISTANT_MODEL: 'claude-haiku-5-5' })).not.toThrow();
+    expect(() => validateEnv({ ...google, AI_ASSISTANT_MODEL: 'gemini-3.6-flash' })).toThrow(/AI_ASSISTANT_MODEL/);
+  });
+
+  it('lets the SDK retry, which OpenRouter\u2019s settings would not', () => {
+    expect(ASSISTANT_CALL_SETTINGS).toEqual({ maxRetries: 2, sessionHeader: null });
+    expect(resolveCallSettings({ AI_PROVIDER: 'openrouter' } as Env).maxRetries).toBe(0);
+  });
+});
+
+/**
+ * Anthropic returns no cost with an answer, so a call this service does not
+ * price is a call the month\u2019s ceiling never sees.
+ */
+describe('assistantCostUsd', () => {
+  it('prices a call from the model\u2019s published prices', () => {
+    expect(assistantCostUsd('claude-haiku-5-5', { inputTokens: 1_000_000, outputTokens: 0 })).toBe(0.1);
+    expect(assistantCostUsd('claude-haiku-5-5', { inputTokens: 0, outputTokens: 1_000_000 })).toBe(0.5);
+    expect(assistantCostUsd('claude-sonnet-5-5', { inputTokens: 1_000_000, outputTokens: 1_000_000 })).toBe(12);
+    expect(assistantCostUsd('claude-opus-5-5', { inputTokens: 1_000_000, outputTokens: 1_000_000 })).toBe(24);
+  });
+
+  it('prices a dated snapshot as the model it is a snapshot of', () => {
+    expect(assistantCostUsd('claude-haiku-5-5-20260401', { inputTokens: 1_000_000, outputTokens: 0 })).toBe(0.1);
+    expect(assistantCostUsd('CLAUDE-HAIKU-5-5', { inputTokens: 1_000_000, outputTokens: 0 })).toBe(0.1);
+  });
+
+  /**
+   * A model nobody priced records no cost rather than a wrong one: the console
+   * counts uncosted calls apart and says its sum is a floor
+   * (`AdminAiRepository`), which is a true statement where a guess would be a
+   * false one.
+   */
+  it('says nothing rather than something wrong about a model it does not know', () => {
+    expect(assistantCostUsd('claude-fable-9', { inputTokens: 1_000_000, outputTokens: 1_000_000 })).toBeNull();
+    expect(assistantCostUsd('claude-haiku-5', { inputTokens: 1_000_000, outputTokens: 0 })).toBeNull();
   });
 });

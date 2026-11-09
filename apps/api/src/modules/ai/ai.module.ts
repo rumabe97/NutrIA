@@ -10,8 +10,14 @@ import {
   AI_PICTURES,
   AI_REWRITE_CLIENT,
   AI_SECRETS,
+  ASSISTANT_CALL_SETTINGS,
+  ASSISTANT_CAP,
+  ASSISTANT_CLIENT,
+  ASSISTANT_MODEL,
+  ASSISTANT_SETTINGS,
   PICTURE_CANDIDATE_CLOCK,
   picturesStubbed,
+  resolveAssistantModel,
   resolveCallSettings,
   resolveModel,
   resolveOutputCap,
@@ -19,6 +25,7 @@ import {
   resolveRewriteModel
 } from './ai.config.js';
 import { AiClient } from './clients/AiClient.js';
+import { AnthropicStreamingClient } from './clients/AnthropicStreamingClient.js';
 import { BackgroundTaskService } from '../../shared/services/index.js';
 import { DishPictureService, PictureCandidatesService, PoolBuilder, RecipeRewriter } from './services/index.js';
 import { OpenRouterImageClient } from './clients/OpenRouterImageClient.js';
@@ -28,6 +35,7 @@ import { PictureImageClient } from './clients/PictureImageClient.js';
 import { PictureJudgeClient } from './clients/PictureJudgeClient.js';
 import { PictureStore } from './clients/PictureStore.js';
 import { providerCredentials } from './clients/redact.js';
+import { StreamingAiClient } from './clients/StreamingAiClient.js';
 import { StructuredAiClient } from './clients/StructuredAiClient.js';
 import { StubPictureCandidateStore, StubPictureImageClient, StubPictureJudgeClient, StubPictureStore } from './clients/StubPictureClients.js';
 import { VercelBlobPictureCandidateStore } from './clients/VercelBlobPictureCandidateStore.js';
@@ -46,6 +54,8 @@ import type { Env } from '../../config/index.js';
 @Module({
   exports: [
     AiClient,
+    ASSISTANT_CAP,
+    ASSISTANT_CLIENT,
     DishPictureService,
     PictureCandidatesService,
     PictureCandidateStore,
@@ -53,7 +63,8 @@ import type { Env } from '../../config/index.js';
     PictureJudgeClient,
     PictureStore,
     PoolBuilder,
-    RecipeRewriter
+    RecipeRewriter,
+    StreamingAiClient
   ],
   providers: [
     envProvider,
@@ -63,6 +74,23 @@ import type { Env } from '../../config/index.js';
     { inject: [ENV], provide: AI_OUTPUT_CAP, useFactory: (env: Env) => resolveOutputCap(env) },
     { inject: [ENV], provide: AI_SECRETS, useFactory: (env: Env) => providerCredentials(env) },
     { provide: AiClient, useClass: StructuredAiClient },
+    // The assistant (project 023, `0104`): its own Anthropic client, on its own
+    // key and its own model, beside whatever provider generation runs on. With no
+    // `ANTHROPIC_API_KEY` the model is null and both clients report themselves
+    // unavailable, which is how the API boots and generates plans with no
+    // assistant rather than refusing to boot.
+    { inject: [ENV], provide: ASSISTANT_MODEL, useFactory: (env: Env) => resolveAssistantModel(env) },
+    { provide: ASSISTANT_SETTINGS, useValue: ASSISTANT_CALL_SETTINGS },
+    { inject: [ENV], provide: ASSISTANT_CAP, useFactory: (env: Env) => env.AI_ASSISTANT_MONTHLY_CAP_USD ?? null },
+    { provide: StreamingAiClient, useClass: AnthropicStreamingClient },
+    // The label call (`0104` clause 2) goes through the structured client that
+    // already exists, on the assistant's model: a question's label is a schema
+    // with one field, and nothing about it needs a second implementation.
+    {
+      inject: [ENV, AI_SECRETS],
+      provide: ASSISTANT_CLIENT,
+      useFactory: (env: Env, secrets: readonly string[]) => new StructuredAiClient(resolveAssistantModel(env), ASSISTANT_CALL_SETTINGS, secrets)
+    },
     // The rewrite sweep's own client, on `AI_REWRITE_MODEL` where it is set.
     {
       inject: [ENV, AI_CALL_SETTINGS, AI_SECRETS],
