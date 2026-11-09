@@ -78,6 +78,7 @@ function harness(
     .spyOn(SettingsController, 'flags')
     .mockResolvedValue({
       accompaniments: false,
+      assistant: false,
       automaticActivation: true,
       checkInReminders: false,
       dishPictures: false,

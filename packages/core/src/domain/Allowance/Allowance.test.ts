@@ -5,6 +5,8 @@ import {
   ALLOWANCE_NAMES,
   ALLOWANCES,
   allowancesFor,
+  assistantStanding,
+  assistantWindow,
   eventStanding,
   mealSwapStanding,
   midPlanEventStanding,
@@ -307,5 +309,76 @@ describe('ALLOWANCE_BOUNDS', () => {
   it('registers every allowance, so none is unmovable from the console', () => {
     expect([...ALLOWANCE_NAMES].sort()).toEqual(Object.keys(ALLOWANCES).sort());
     expect([...ALLOWANCE_NAMES].sort()).toEqual(Object.keys(ALLOWANCE_BOUNDS).sort());
+  });
+});
+
+describe('assistantWindow', () => {
+  const plan = { endDate: '2026-11-23', startDate: '2026-11-10' };
+
+  it('counts over the plan in progress, and resets the day after it ends', () => {
+    expect(assistantWindow(plan, '2026-11-15')).toEqual({ resetsOn: '2026-11-24', since: '2026-11-10' });
+    expect(assistantWindow(plan, '2026-11-10')).toEqual({ resetsOn: '2026-11-24', since: '2026-11-10' });
+    expect(assistantWindow(plan, '2026-11-23')).toEqual({ resetsOn: '2026-11-24', since: '2026-11-10' });
+  });
+
+  /** A new account with no plan is the first person who will ever use this. */
+  it('counts the last fourteen days, today included, for somebody with no plan running', () => {
+    expect(assistantWindow(undefined, '2026-11-15')).toEqual({ resetsOn: null, since: '2026-11-02' });
+  });
+
+  it('treats a plan that has ended, or not begun, as no plan', () => {
+    expect(assistantWindow(plan, '2026-11-24').resetsOn).toBeNull();
+    expect(assistantWindow(plan, '2026-11-09').since).toBe('2026-10-27');
+  });
+
+  it('crosses a month and a year the way a calendar does', () => {
+    expect(assistantWindow(undefined, '2027-01-05').since).toBe('2026-12-23');
+  });
+});
+
+describe('assistantStanding', () => {
+  const window = { resetsOn: '2026-11-24', since: '2026-11-10' };
+
+  it('counts down the fortnight’s messages like every other counted allowance', () => {
+    expect(assistantStanding({ messages: 19, offTopic: 0 }, window)).toMatchObject({ allowed: true, limit: 20, remaining: 1, used: 19 });
+    expect(assistantStanding({ messages: 20, offTopic: 0 }, window)).toMatchObject({ allowed: false, remaining: 0 });
+    expect(assistantStanding({ messages: 20, offTopic: 0 }, window, allowancesFor('premium'))).toMatchObject({ allowed: true, limit: 100 });
+  });
+
+  /** Past the ceiling the route calls no model at all for the rest of the fortnight. */
+  it('stops labelling once the fortnight’s off-topic cuts reach their ceiling', () => {
+    expect(assistantStanding({ messages: 5, offTopic: 9 }, window).labelling).toBe(true);
+    expect(assistantStanding({ messages: 5, offTopic: 10 }, window).labelling).toBe(false);
+  });
+
+  it('carries the window, so the screen can say when it resets', () => {
+    expect(assistantStanding({ messages: 0, offTopic: 0 }, window).window).toBe(window);
+  });
+});
+
+describe('the assistant’s two limits', () => {
+  it('ship as the marketing report priced them: one question a day on free, one at every meal on premium', () => {
+    expect(allowancesFor('free').assistantMessagesPerFortnight).toBe(20);
+    expect(allowancesFor('premium').assistantMessagesPerFortnight).toBe(100);
+  });
+
+  it('keep the off-topic ceiling the same on both tiers, because it is an abuse control and not a benefit', () => {
+    expect(allowancesFor('free').assistantOffTopicPerFortnight).toBe(allowancesFor('premium').assistantOffTopicPerFortnight);
+  });
+
+  /** Zero would stop the assistant labelling anything at all. */
+  it('never let the console set the off-topic ceiling to zero', () => {
+    expect(ALLOWANCE_BOUNDS.assistantOffTopicPerFortnight.floor).toBe(1);
+    expect(resolveAllowances([{ name: 'assistantOffTopicPerFortnight', tier: 'free', value: 0 }]).free.assistantOffTopicPerFortnight).toBe(10);
+  });
+
+  it('take a console override, and never let premium fall below free', () => {
+    const resolved = resolveAllowances([
+      { name: 'assistantMessagesPerFortnight', tier: 'free', value: 100 },
+      { name: 'assistantMessagesPerFortnight', tier: 'premium', value: 60 }
+    ]);
+
+    expect(resolved.free.assistantMessagesPerFortnight).toBe(100);
+    expect(resolved.premium.assistantMessagesPerFortnight).toBe(100);
   });
 });

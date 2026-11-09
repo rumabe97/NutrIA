@@ -484,6 +484,13 @@
       "when": 1792771756445,
       "tag": "0068_a_cupboard_a_person_types",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1794258039479,
+      "tag": "0069_an_assistant_counts_what_was_sent",
+      "breakpoints": true
     }
   ]
 }

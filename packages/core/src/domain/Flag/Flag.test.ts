@@ -6,6 +6,7 @@ describe('flagsFrom', () => {
   it('gives every flag its declared fallback when the table is empty', () => {
     expect(flagsFrom([])).toEqual({
       accompaniments: false,
+      assistant: false,
       automaticActivation: true,
       checkInReminders: false,
       dishPictures: false,
@@ -36,6 +37,7 @@ describe('flagsFrom', () => {
       ])
     ).toEqual({
       accompaniments: false,
+      assistant: false,
       automaticActivation: false,
       checkInReminders: false,
       dishPictures: false,

@@ -469,6 +469,8 @@ describe('billing', () => {
           // the product without somebody being told here first.
           allowances: {
             free: {
+              assistantMessagesPerFortnight: 20,
+              assistantOffTopicPerFortnight: 10,
               dishRequestsPerMonth: 0,
               eventsPerPlan: 3,
               fixedMeals: 1,
@@ -477,6 +479,8 @@ describe('billing', () => {
               planRedosPerFortnight: 1
             },
             premium: {
+              assistantMessagesPerFortnight: 100,
+              assistantOffTopicPerFortnight: 10,
               dishRequestsPerMonth: 3,
               eventsPerPlan: 7,
               fixedMeals: 3,

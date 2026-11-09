@@ -15,6 +15,7 @@ export const enGB: Dictionary = {
     accompanimentsHint: 'On: new plans, swaps and rebuilds set bread, salad or fruit beside large meals, and the plate drops to a normal serving.',
     accompanimentsLabel: 'Accompaniments (bread, salad, fruit)',
     accompanimentsOffHint: 'Off: no new accompaniments are added. Those a plan already has are still shown.',
+    assistantLabel: 'Nutrition assistant',
     automaticActivation: 'Automatic activation',
     automaticHint: 'Whoever confirms their address is in. Nothing for you to do.',
     events: { app_used: 'Used the app', session_started: 'Sign-ins', swap_requested: 'Meal swaps asked for' },
@@ -184,6 +185,9 @@ export const enGB: Dictionary = {
   /* `/admin/ajustes/registro` (`0071`): who did each account or setting mutation, and when. */
   adminAllowances: {
     bounds: 'Ships as {shipped}. Between {floor} and {ceiling}.',
+    costAssistant: 'Two model calls a message, under a tenth of a cent: a premium account at its limit costs about 0.18 $ a month.',
+    costAssistantOffTopic:
+      'Each off-topic question costs one call to label it. Past this number nothing is called: the assistant gives the same answer to everything for the rest of the fortnight.',
     costDishRequests:
       'One model call a request, and only the one that ends in a dish is charged for: about 0.04 $ a stored dish, nearly all of it its picture. A refused request spends neither the allowance nor money worth counting.',
     costEvents: 'Declaring a day that eats differently costs nothing: it is scheduling, not a model call.',
@@ -195,6 +199,8 @@ export const enGB: Dictionary = {
     free: 'Free',
     intro:
       'How much each subscription allows. A number outside its bounds is refused rather than clamped, and until somebody moves one it is whatever the code ships.',
+    labelAssistant: 'Messages to the assistant, per fortnight',
+    labelAssistantOffTopic: 'Off-topic questions it checks, per fortnight',
     labelDishRequests: 'Dishes they may ask us for, a month',
     labelEvents: 'Days that eat for something, per plan',
     labelFixedMeals: 'Meals fixed every week',
@@ -205,9 +211,15 @@ export const enGB: Dictionary = {
     save: 'Save',
     spend:
       'It comes out of the month’s picture budget, which is one budget for everybody: at the cap drawing stops for everyone, not only for whoever spent it.',
+    spendAssistant:
+      'It comes out of the assistant’s monthly cap, which is one for everybody: when it is reached, it stops answering anyone. Where it weighs is the free row: a thousand free accounts at 200 would spend about 370 $ a month, three times the credit.',
     spendLink: 'See the picture spend',
     title: 'What each subscription allows',
     whole: 'It has to be a whole number.',
+    whyAssistant:
+      'Two hundred a fortnight is four messages at every meal of a three-meal plan, plus its two long conversations: that is company, not a question about the plan.',
+    whyAssistantOffTopic:
+      'An abuse control, not a benefit, so it is the same on both subscriptions. Thirty is three a day of someone testing it; never zero, because at zero the assistant would check nothing at all.',
     whyDishRequests:
       'Six a month is every standing rule rewritten twice over, which is churn and not a routine. The money does not bound it: even six cost what a single redo’s pictures do.',
     whyEvents: 'Above seven has no effect: a load is one to three days and two events may not share one, so a fortnight holds seven at most.',

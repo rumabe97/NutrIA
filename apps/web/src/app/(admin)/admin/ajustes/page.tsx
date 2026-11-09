@@ -47,16 +47,23 @@ export default async function AdminSettingsPage() {
   const words = dictionary.adminSettings;
   const limits = dictionary.adminAllowances;
   const { flags } = settings;
-  // The five, in the order the console reads them rather than the registry's:
-  // what people use most first, then the two that cannot be raised from here —
-  // the structural one and the one that spends money — last, where their
-  // warnings are the last things read before either is moved.
+  // Every limit, in the order the console reads them rather than the registry's:
+  // what people use most first, then the ones that cannot be moved lightly — the
+  // structural one and the ones that spend money — last, where their warnings
+  // are the last things read before any of them is moved.
   const rows = [
     { cost: limits.costSwaps, label: limits.labelSwaps, name: 'mealSwapsPerPlan', why: limits.whySwaps },
     { cost: limits.costEvents, label: limits.labelEvents, name: 'eventsPerPlan', why: limits.whyEvents },
     { cost: limits.costMidPlan, label: limits.labelMidPlan, name: 'midPlanEventsPerPlan', why: limits.whyMidPlan },
     { cost: limits.costFixedMeals, label: limits.labelFixedMeals, name: 'fixedMeals', why: limits.whyFixedMeals },
     { cost: limits.costDishRequests, label: limits.labelDishRequests, name: 'dishRequestsPerMonth', why: limits.whyDishRequests },
+    { cost: limits.costAssistant, label: limits.labelAssistant, name: 'assistantMessagesPerFortnight', why: limits.whyAssistant },
+    {
+      cost: limits.costAssistantOffTopic,
+      label: limits.labelAssistantOffTopic,
+      name: 'assistantOffTopicPerFortnight',
+      why: limits.whyAssistantOffTopic
+    },
     { cost: limits.costRedos, label: limits.labelRedos, name: 'planRedosPerFortnight', why: limits.whyRedos }
   ] as const;
 
@@ -162,6 +169,12 @@ export default async function AdminSettingsPage() {
               {row.name === 'planRedosPerFortnight' ? (
                 <Text size="xs" tone="tertiary">
                   {limits.spend} <Link href="/admin/catalogo/imagenes">{limits.spendLink}</Link>
+                </Text>
+              ) : null}
+              {/* `0097`: a financial number is never moved without its spend in front of whoever moves it — and here the row that weighs is free's. */}
+              {row.name === 'assistantMessagesPerFortnight' ? (
+                <Text size="xs" tone="tertiary">
+                  {limits.spendAssistant}
                 </Text>
               ) : null}
               <div className={styles.tiers}>

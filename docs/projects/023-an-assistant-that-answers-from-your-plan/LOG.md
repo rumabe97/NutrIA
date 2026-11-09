@@ -354,3 +354,74 @@ Asked with options, both answered with the recommended one:
   and over streaming it live and retracting it, the one shape in which a person may already have
   read a food they cannot eat. Phase 4's step 1 and phase 5's step 1 are amended to say so.
 
+## Phase 3 — The stores, the limits and the migration (2026-11-09)
+
+- **Executor**: opus @ high, directly; `marketing` and `migration-reviewer` (opus @ high, its floor)
+  commissioned as the plan asks.
+- **Result**: done.
+- **What was built**: the `assistant` flag (off); `assistantMessagesPerFortnight` (free 20,
+  premium 100, ceiling 200, `financial`) and `assistantOffTopicPerFortnight` (10 on both, ceiling
+  30, floor 1); `assistantWindow` and `assistantStanding`; the `assistant_usage` ledger and its
+  repository; `ai_messages.decline`; migration `0069`; the console's two rows; greetings in scope
+  for the label.
+- **Evidence**:
+  - `pnpm --filter core test:coverage` — **157 files, 4,427 tests**, floors holding.
+    `pnpm --filter api test` — 125 suites, 1,755. `pnpm --filter web test` — 35 files, 302.
+  - The billing end-to-end suite against the local Postgres — **62 of 62**: it hard-codes every
+    limit on purpose, and now names the assistant's two.
+  - `pnpm ts:check` 9/9, `pnpm lint` 7/7, `pnpm format` 7/7.
+  - `node scripts/check-migrations.mjs --drift` clean; `0069` applied locally.
+  - `/local-probe` on `/admin/ajustes` as a two-factor admin: 320, 390 and 1280 px, light and dark,
+    six of six at 200 with no overflow; the two new rows looked at on their own at 320 px in both
+    schemes. Design review against `apple-web-design`: the same row component and tokens as the
+    six limits beside it, nothing new to judge; no P0 or P1. One P2 left as it is because every
+    row already has it: «0,18 $» may wrap between the figure and the sign.
+  - The probe account deleted and both servers stopped.
+- **`migration-reviewer`'s verdict**: **no P0, P1 or P2 — safe to ship.** It read production in
+  a read-only session by the repository's rules (`DATABASE_URL_PRO`, host asserted and never
+  printed, `pantry_items` required): 8 accounts, **0 rows in `ai_messages` and
+  `ai_conversations`**, 69 migrations applied, so `0069` runs next. Rolling the deploy back needs
+  no schema change — the old API never names the new column or table. Four P3s:
+  1. *Changing the decline list is a constraint change on a populated table* — **done**: the
+     comment on `AI_MESSAGE_DECLINES` now says how to add and how to remove a code safely.
+  2. *A `(conversation_id, created_at)` index on `ai_messages` is cheapest now, while it is
+     empty* — **not taken**: a thread is read by conversation, a few dozen rows at most, and the
+     existing `ai_messages_conversation_idx` serves that; if phase 4's measurements say
+     otherwise, it is a hand-built release, which is the cost of waiting and is recorded here.
+  3. *The plan and `0104` clause 7 named tables that do not exist* — **closed**: phase 3 is
+     rewritten as built in the plan, the schema comment no longer cites clause 7 for what it did
+     not say, and `docs/decisions/LOG.md` maps clause 7 onto the real tables.
+  4. *Retention of the ledger* — **for phase 7**, below.
+- **Deviations from plan** (the plan's phase 3 is rewritten as built, in this change):
+  - **No new conversation tables.** `ai_conversations` and `ai_messages` were created by the
+    workspace's first migration for exactly this, and nothing had ever used them. The plan said
+    to create them; the code to read before planning was the schema, and this time it was read
+    one phase late.
+  - **No `assistant_calls`.** The `ai_call` event phase 1 records is already that row: one per
+    call, priced, naming nobody, and what `AI_TEXT_MONTHLY_CAP_USD` already reads.
+  - **A ledger the plan did not have, `assistant_usage`**, found by the `marketing` report: a
+    count read from the messages a person may delete is a count that deleting refills.
+  - **The scope widened to the console and to four fixtures**, for the reason the plan's phase
+    3 now gives.
+- **Decisions**: a line in `docs/decisions/LOG.md` mapping `0104` clause 7 onto what was built.
+- **Notes for phase 4**:
+  - Write one `assistant_usage` row for **every** message, cut, refused or withheld — the unit is
+    a message sent. Then `assistantStanding(usageSince(userId, madridMidnight(window.since)))`.
+  - **The count is read, then written, so two simultaneous sends can both pass with one
+    message left.** Acceptable for a cost-bounded allowance; say "about", never "exactly". If it
+    must be exact, `DishRequestRepository`'s transaction-scoped advisory lock is the precedent.
+  - `ai_messages.content` is `NOT NULL` since `0000`. A declined turn carries its code in
+    `decline` and an empty string in `content`, rather than a migration to relax the column.
+  - The `assistant` switch's row on `/admin/ajustes` is **phase 7's**, when it is thrown; only its
+    name for the settings log exists now.
+- **Notes for phase 7, for the `legal` agent**: `assistant_usage` is a store of its own. Deleting a
+  message leaves its ledger row **on purpose**, each row names a person with a time and an
+  off-topic flag, it is insert-only, and only the current fortnight is ever read. `/privacidad`
+  must not suggest that deleting a message deletes everything about it — and pruning rows older
+  than the longest window (about fifteen days) is cheap data minimisation the agent may well ask
+  for.
+- **The owner's decision, left open and his** (`marketing` § "What is not mine to decide"): with
+  no checkout, a free account that reaches 20 meets a premium card with nowhere to go. The
+  report's option for the friends beta is to raise free to 100 from the console until a checkout
+  exists — one click, about 1.50 $ a month across eight accounts.
+

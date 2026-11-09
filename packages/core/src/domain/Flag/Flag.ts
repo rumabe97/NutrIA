@@ -12,7 +12,8 @@
  * service is first deployed and every day a migration runs before a seed.
  */
 
-export type FlagName = 'accompaniments' | 'automaticActivation' | 'checkInReminders' | 'dishPictures' | 'pantryRank' | 'premium' | 'professional';
+export type FlagName =
+  'accompaniments' | 'assistant' | 'automaticActivation' | 'checkInReminders' | 'dishPictures' | 'pantryRank' | 'premium' | 'professional';
 
 export type FlagAudience =
   /** The owner, on `/admin`, and nobody else. */
@@ -56,6 +57,18 @@ export const FLAGS: Readonly<Record<FlagName, Flag>> = {
    * stores the sides (`meal_accompaniments`).
    */
   accompaniments: { audience: 'owner', fallback: false, key: 'accompaniments' },
+
+  /**
+   * Whether the nutrition assistant exists at all (project 023, `0104`).
+   *
+   * Falls back to off, and off is the product exactly as it was: no route of
+   * the assistant answers anything but 404, and no screen offers it. It lands
+   * dark on purpose — every phase of 023 ships to production with this off — and
+   * the owner throws it once `/privacidad` says what the assistant does with what
+   * somebody types (phase 7), not before. Signed-in, because the screen decides
+   * on it whether to offer the assistant at all.
+   */
+  assistant: { audience: 'signed-in', fallback: false, key: 'assistant' },
 
   /**
    * Confirming the address opens the account, unless the owner says otherwise
