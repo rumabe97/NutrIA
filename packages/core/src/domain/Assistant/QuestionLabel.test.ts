@@ -34,6 +34,13 @@ describe('LABEL_EXAMPLES', () => {
     expect(LABEL_EXAMPLES).toContainEqual({ label: 'off_topic', question: '¿Qué dieta sigue un futbolista famoso?' });
   });
 
+  /** A greeting cut as off topic would cost a newcomer a message and a step towards the off-topic ceiling. */
+  it('puts a greeting and a question about the assistant itself in scope, and says so to the model', () => {
+    expect(LABEL_EXAMPLES).toContainEqual({ label: 'nutrition', question: 'Hola' });
+    expect(LABEL_EXAMPLES).toContainEqual({ label: 'nutrition', question: '¿Qué puedes hacer?' });
+    expect(LABEL_SYSTEM_PROMPT).toContain('a greeting');
+  });
+
   it('is described to the model in the same three words the code branches on', () => {
     for (const label of QUESTION_LABELS) {
       expect(LABEL_SYSTEM_PROMPT).toContain(`"${label}"`);

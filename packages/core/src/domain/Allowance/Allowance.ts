@@ -73,6 +73,32 @@ export type Tier = 'free' | 'premium';
 
 export type Allowances = {
   /**
+   * Messages a person may send the nutrition assistant per fortnight (project
+   * 023, priced in `docs/reference/marketing/assistant-messages.md`).
+   *
+   * **Every message sent counts**, a cut or a withheld one included: the unit is
+   * one a person can count themselves. The fortnight is the plan in progress, or
+   * the last fourteen days for somebody with none (`assistantWindow`).
+   *
+   * **Counted from the usage ledger, never from the conversation.** A person may
+   * delete any message or a whole thread, and a count read from those rows would
+   * hand the allowance back for every deletion — the limit would become a
+   * reward for deleting history. The ledger holds no text and goes only with
+   * the account.
+   */
+  readonly assistantMessagesPerFortnight: number;
+  /**
+   * Off-topic questions the assistant will label per fortnight before it stops
+   * labelling — the owner's *«un poco de límite en comprobar esto»* (PRD 3).
+   *
+   * **An abuse control, not a tier benefit**, so the same on both tiers. Each
+   * label is a model call; past this, every message gets the standing sentence
+   * with no call at all, for the rest of the fortnight. Set above a confused
+   * newcomer's waste — a greeting is in scope and costs nothing here — so that
+   * nobody new is treated as an abuser.
+   */
+  readonly assistantOffTopicPerFortnight: number;
+  /**
    * Dishes a person may ask us to write, per calendar month (report `0011`).
    *
    * **Spent when a dish is stored, never when a request is made.** The output
@@ -90,7 +116,16 @@ export type Allowances = {
 };
 
 const BY_TIER: Readonly<Record<Tier, Allowances>> = {
-  free: { dishRequestsPerMonth: 0, eventsPerPlan: 3, fixedMeals: 1, mealSwapsPerPlan: 5, midPlanEventsPerPlan: 0, planRedosPerFortnight: 1 },
+  free: {
+    assistantMessagesPerFortnight: 20,
+    assistantOffTopicPerFortnight: 10,
+    dishRequestsPerMonth: 0,
+    eventsPerPlan: 3,
+    fixedMeals: 1,
+    mealSwapsPerPlan: 5,
+    midPlanEventsPerPlan: 0,
+    planRedosPerFortnight: 1
+  },
   // Seven events and not ten: the eighth was never possible. A load is one to
   // three days and two events may not share one, so a fortnight admits seven —
   // `0044` named that rule as the bound and then wrote ten anyway. Nobody loses
@@ -101,12 +136,26 @@ const BY_TIER: Readonly<Record<Tier, Allowances>> = {
   // that refused nothing up to four (`0099`): it is the number the `marketing`
   // audit priced as worth paying for, and three standing rules still leave
   // eleven days of every fourteen to the planner.
-  premium: { dishRequestsPerMonth: 3, eventsPerPlan: 7, fixedMeals: 3, mealSwapsPerPlan: 20, midPlanEventsPerPlan: 3, planRedosPerFortnight: 3 }
+  // The assistant: about one question a day plus a first conversation on free,
+  // and a question at every meal with a follow-up on premium — the `marketing`
+  // report's anchors, so the numbers can be said and not only stored.
+  premium: {
+    assistantMessagesPerFortnight: 100,
+    assistantOffTopicPerFortnight: 10,
+    dishRequestsPerMonth: 3,
+    eventsPerPlan: 7,
+    fixedMeals: 3,
+    mealSwapsPerPlan: 20,
+    midPlanEventsPerPlan: 3,
+    planRedosPerFortnight: 3
+  }
 };
 
 export type AllowanceName = keyof Allowances;
 
 export const ALLOWANCE_NAMES = [
+  'assistantMessagesPerFortnight',
+  'assistantOffTopicPerFortnight',
   'dishRequestsPerMonth',
   'eventsPerPlan',
   'fixedMeals',
@@ -158,6 +207,18 @@ export type AllowanceLimits = {
  * is what a future change has to argue with.
  */
 export const ALLOWANCE_BOUNDS: Readonly<Record<AllowanceName, AllowanceLimits>> = {
+  assistantMessagesPerFortnight: {
+    ceiling: 200,
+    floor: 0,
+    kind: 'financial',
+    why: 'Two hundred a fortnight is four messages at every meal of a three-meal plan plus its two long conversations, which is company and not a question about the plan; the money does not bound this one — at under a tenth of a cent a message, an account at the ceiling costs about 0.37 $ a month — but it spends from a monthly assistant cap that stops answering for everybody.'
+  },
+  assistantOffTopicPerFortnight: {
+    ceiling: 30,
+    floor: 1,
+    kind: 'financial',
+    why: 'An abuse control and not a benefit: each off-topic question costs a label call, and past this the assistant stops labelling for the fortnight. Thirty is three a day of someone testing it, which no real person needs; the floor is one and not zero, because zero would stop the assistant labelling anything at all.'
+  },
   dishRequestsPerMonth: {
     ceiling: 6,
     floor: 0,
@@ -251,6 +312,8 @@ export function resolveAllowances(stored: readonly StoredAllowance[] = []): Read
   // 1
   const of = (tier: Tier, name: AllowanceName): number => believed.get(`${tier}:${name}`) ?? BY_TIER[tier][name];
   const free: Allowances = {
+    assistantMessagesPerFortnight: of('free', 'assistantMessagesPerFortnight'),
+    assistantOffTopicPerFortnight: of('free', 'assistantOffTopicPerFortnight'),
     dishRequestsPerMonth: of('free', 'dishRequestsPerMonth'),
     eventsPerPlan: of('free', 'eventsPerPlan'),
     fixedMeals: of('free', 'fixedMeals'),
@@ -262,6 +325,8 @@ export function resolveAllowances(stored: readonly StoredAllowance[] = []): Read
   const freeFinal: Allowances = { ...free, midPlanEventsPerPlan: Math.min(free.midPlanEventsPerPlan, free.eventsPerPlan) };
   // 2, against the free that actually applies
   const premium: Allowances = {
+    assistantMessagesPerFortnight: Math.max(of('premium', 'assistantMessagesPerFortnight'), freeFinal.assistantMessagesPerFortnight),
+    assistantOffTopicPerFortnight: Math.max(of('premium', 'assistantOffTopicPerFortnight'), freeFinal.assistantOffTopicPerFortnight),
     dishRequestsPerMonth: Math.max(of('premium', 'dishRequestsPerMonth'), freeFinal.dishRequestsPerMonth),
     eventsPerPlan: Math.max(of('premium', 'eventsPerPlan'), freeFinal.eventsPerPlan),
     fixedMeals: Math.max(of('premium', 'fixedMeals'), freeFinal.fixedMeals),
@@ -471,6 +536,58 @@ function dayBefore(isoDate: string): string {
   date.setUTCDate(date.getUTCDate() - 1);
 
   return date.toISOString().slice(0, 10);
+}
+
+/**
+ * The fortnight the assistant's allowance and its off-topic ceiling are counted
+ * over (project 023, PRD 9).
+ *
+ * **The product's fortnight, not a calendar one**: the plan in progress, when
+ * today falls inside it, which resets the day after it ends — the same date a
+ * new fortnight may be generated (`planRedoStanding`). Somebody with no plan
+ * running still has an assistant, so their window is **the last fourteen days**,
+ * today included. That window has no single reset date — messages come back one
+ * at a time as they age out — so `resetsOn` is null and the screen says
+ * «en los últimos 14 días» instead of a date.
+ */
+export type AssistantWindow = { readonly resetsOn: string | null; readonly since: string };
+
+/** The plan in progress, or a rolling fourteen days. `today` and both dates are Madrid days (`YYYY-MM-DD`). */
+export function assistantWindow(active: { readonly endDate: string; readonly startDate: string } | undefined, today: string): AssistantWindow {
+  if (active && active.startDate <= today && today <= active.endDate) {
+    return { resetsOn: dayAfter(active.endDate), since: active.startDate };
+  }
+
+  const since = new Date(`${today}T00:00:00Z`);
+
+  since.setUTCDate(since.getUTCDate() - 13);
+
+  return { resetsOn: null, since: since.toISOString().slice(0, 10) };
+}
+
+/**
+ * Where a person stands with the assistant this fortnight: the allowance as
+ * every counted one is told (`countedStanding`), the window it is counted over,
+ * and whether a question may still be **labelled** at all.
+ *
+ * `labelling` is the off-topic ceiling (PRD 3): once a fortnight's off-topic
+ * cuts reach it, the route answers every message with the standing sentence and
+ * calls no model, so somebody who is not here about food cannot spend the
+ * service's money finding that out over and over.
+ */
+export type AssistantStanding = CountedStanding & { readonly labelling: boolean; readonly window: AssistantWindow };
+
+/** The standing, from what the usage ledger counted since `window.since`. */
+export function assistantStanding(
+  used: { readonly messages: number; readonly offTopic: number },
+  window: AssistantWindow,
+  limits: Allowances = ALLOWANCES
+): AssistantStanding {
+  return {
+    ...countedStanding(used.messages, limits.assistantMessagesPerFortnight),
+    labelling: used.offTopic < limits.assistantOffTopicPerFortnight,
+    window
+  };
 }
 
 function dayAfter(isoDate: string): string {

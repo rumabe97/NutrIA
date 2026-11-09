@@ -209,8 +209,9 @@ When this ships:
    `planRedosPerFortnight` already counts one, with the last fourteen days as the window for
    somebody who has no plan running. The numbers are `assistantMessagesPerFortnight` in
    `Allowance.ts`, free and premium, priced by the `marketing` agent, admin-overridable like
-   every other allowance, and counted from the messages the person actually sent. A test asserts
-   premium's is never the smaller.
+   every other allowance, and counted from a **text-free ledger** of the messages the person sent
+   — never from the conversation, which they may delete, so deleting a message never hands one
+   back. A test asserts premium's is never the smaller.
 10. **The conversation is kept, and it belongs to one person.** Threads are listed newest first,
     rereadable, and can be carried on; the model is replayed a bounded window of the thread it is
     continuing, not the whole of it. The person can delete one message or a whole conversation at

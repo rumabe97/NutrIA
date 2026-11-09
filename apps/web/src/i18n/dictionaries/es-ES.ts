@@ -20,6 +20,7 @@ export const esES = {
       'Encendido: los planes, cambios de plato y reconstrucciones nuevos ponen pan, ensalada o fruta junto a las comidas grandes, y el plato baja a una ración normal.',
     accompanimentsLabel: 'Acompañamientos (pan, ensalada, fruta)',
     accompanimentsOffHint: 'Apagado: no se añaden acompañamientos nuevos. Los que ya tiene un plan se siguen viendo.',
+    assistantLabel: 'Asistente de nutrición',
     automaticActivation: 'Activación automática',
     automaticHint: 'Quien confirma su correo entra directamente. Tú no tienes que hacer nada.',
     events: { app_used: 'Usaron la app', session_started: 'Entradas', swap_requested: 'Cambios de comida pedidos' },
@@ -196,6 +197,9 @@ export const esES = {
   /* `/admin/ajustes/registro` (`0071`): quién hizo cada mutación de cuenta o de ajuste, y cuándo. */
   adminAllowances: {
     bounds: 'De fábrica {shipped}. Entre {floor} y {ceiling}.',
+    costAssistant: 'Dos llamadas al modelo por mensaje, menos de una décima de céntimo: una cuenta premium al tope cuesta unos 0,18 $ al mes.',
+    costAssistantOffTopic:
+      'Cada pregunta fuera de tema cuesta una llamada para etiquetarla. Pasado este número no se llama a nada: el asistente contesta lo mismo a todo lo que quede de quincena.',
     costDishRequests:
       'Una llamada al modelo por petición, y solo se cobra la que acaba en plato: unos 0,04 $ por plato guardado, casi todo su foto. Una petición rechazada no gasta cupo ni dinero que importe.',
     costEvents: 'Declarar un día que come distinto no cuesta nada: es planificación, no una llamada al modelo.',
@@ -207,6 +211,8 @@ export const esES = {
     free: 'Gratis',
     intro:
       'Cuántos usos permite cada suscripción. Un número fuera de sus límites se rechaza, no se recorta, y mientras nadie mueva uno vale el que trae el código.',
+    labelAssistant: 'Mensajes al asistente por quincena',
+    labelAssistantOffTopic: 'Preguntas fuera de tema que comprueba por quincena',
     labelDishRequests: 'Platos que puede pedirnos al mes',
     labelEvents: 'Días que comen distinto, por plan',
     labelFixedMeals: 'Comidas fijas cada semana',
@@ -217,9 +223,15 @@ export const esES = {
     save: 'Guardar',
     spend:
       'Sale del presupuesto de fotos del mes, que es uno para todos: al llegar al tope deja de dibujar para todo el mundo, no solo para quien gastó.',
+    spendAssistant:
+      'Sale del tope mensual del asistente, que es uno para todos: al llegar, deja de contestar a todo el mundo. Donde pesa es en gratis: mil cuentas gratis a 200 gastarían unos 370 $ al mes, tres veces el crédito.',
     spendLink: 'Ver el gasto en imágenes',
     title: 'Qué permite cada suscripción',
     whole: 'Tiene que ser un número entero.',
+    whyAssistant:
+      'Doscientos por quincena son cuatro mensajes en cada comida de un plan de tres, más sus dos conversaciones largas: eso ya es compañía, no una pregunta sobre el plan.',
+    whyAssistantOffTopic:
+      'Es un control de abuso, no una ventaja, así que es igual en las dos suscripciones. Treinta son tres al día de alguien probándolo; nunca cero, porque con cero el asistente no comprobaría nada.',
     whyDishRequests:
       'Seis al mes es reescribir dos veces cada comida fija, que es cambiar de idea y no una rutina. El dinero no lo acota: incluso seis cuestan lo que las fotos de una sola replanificación.',
     whyEvents: 'Más de 7 no hace nada: una carga dura de uno a tres días y dos no pueden compartir día, así que en una quincena caben siete.',
