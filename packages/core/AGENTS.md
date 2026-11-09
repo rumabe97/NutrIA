@@ -25,7 +25,13 @@ domain       →  [entities]          ← nothing else, ever
 ```
 
 `domain/` is where the deterministic safety code lives — the allergy validator and the
-nutrition maths. It has no I/O and no framework dependency, which is what makes it fast to
+nutrition maths, and since project 023 the assistant's screens (`domain/Assistant`: the
+nutritional-figure check, the allergen net on its answers, the clinical lexicon, `claimsToAct`;
+[`0104`](../../docs/decisions/0104-the-assistant-answers-and-the-service-is-the-only-source-of-a-number.md),
+[`0105`](../../docs/decisions/0105-only-a-nutritional-figure-has-to-be-the-services.md)). Two rules
+there that look like simplifications and are not: the figure set is **keyed by nutrient** — a flat
+list let lunch's `33 %` validate «33 g de grasa» — and it holds **no structural constants**, which
+would let «5 g de proteína» through. It has no I/O and no framework dependency, which is what makes it fast to
 test exhaustively and impossible to bypass by rewiring. It carries the highest coverage
 floor in the workspace (see `vitest.config.ts`). See
 [`docs/decisions/0004`](../../docs/decisions/0004-deterministic-safety-layer.md).

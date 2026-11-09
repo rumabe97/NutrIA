@@ -6,6 +6,7 @@ import {
   mentionsUnresolvedAllergy,
   normaliseForMatching,
   resolveCustomAllergens,
+  synonymsOf,
   toMatchIndex
 } from 'core/domain/Safety';
 
@@ -185,5 +186,16 @@ describe('mentionsUnresolvedAllergy — the name and the method, checked in code
   it('lets a dish through that names none of it, and does nothing without a label', () => {
     expect(mentionsUnresolvedAllergy(dish('Ensalada verde', 'Aliñar y servir'), ['nuez'])).toBe(false);
     expect(mentionsUnresolvedAllergy(dish('Ensalada con nueces'), [])).toBe(false);
+  });
+});
+
+describe('synonymsOf', () => {
+  it('reads the curated list backwards, from what the catalogue calls a food to how people write it', () => {
+    expect(synonymsOf('Patata')).toEqual(['papa', 'papas', 'patatas']);
+    expect(synonymsOf('cacahuetes')).toEqual(['cacahuate', 'cacahuete', 'mani']);
+  });
+
+  it('says nothing for a food the list never mentions, rather than guessing a form', () => {
+    expect(synonymsOf('lentejas')).toEqual([]);
   });
 });

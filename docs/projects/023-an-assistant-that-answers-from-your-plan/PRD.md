@@ -163,14 +163,19 @@ When this ships:
    with the same sentence **without labelling anything at all** — no call, no spend — for the
    rest of that fortnight. The number is admin-overridable like every other limit, and a test
    proves the (n+1)th off-topic message makes no provider call.
-4. **No figure in an answer is the model's.** The service computes the figures a question needs
-   — the day's targets and totals, a meal's macros, adherence — and hands that **set** to the
-   model, so it can say *"tu jueves son 2.079 kcal"* in its own words. What the answer may not
-   contain is a number that is not in the set it was given: numbers are extracted from the
-   answer and checked for membership before it is shown, and an answer carrying a figure of the
-   model's own invention is withheld. Proven with the model stubbed to answer with a plausible
-   wrong figure — which must not reach the screen — and with a stub that quotes the supplied
-   figures, which must.
+4. **No nutritional figure in an answer is the model's.** The service computes the figures a
+   question needs — the day's targets and totals, a meal's macros, the meal shape — and hands that
+   **set** to the model, so it can say *"tu jueves son 2.079 kcal"* in its own words. What the
+   answer may not contain is a **nutritional figure** — an amount of energy, an amount of a
+   macronutrient, or a percentage of either — that is not in the set it was given (within the
+   product's own ±5 %), and an answer carrying one of the model's own invention is withheld. A
+   recipe's quantities (`200 g de arroz`, `2 huevos`) are not nutritional figures and are not
+   checked; the same recipe claiming `45 g de hidratos` is. A nutritional figure written in words
+   (`unas dos mil calorías`) cannot be checked and is withheld. *Amended 2026-11-09 by
+   [`0105`](../../decisions/0105-only-a-nutritional-figure-has-to-be-the-services.md): the first
+   version checked every number, which contradicted this PRD's own promise of recipes with their
+   quantities.* Proven with the model stubbed to answer with a plausible wrong figure — which must
+   not reach the screen — and with a stub that quotes the supplied figures, which must.
 5. **The wall holds.** `health-boundary.spec.ts` passes with no row added to its exception
    lists, and its checks extend over the assistant's own sources: the assistant's module
    imports nothing from `Health`, `Care`, `Professional`, `Pantry`, `Admin`, their

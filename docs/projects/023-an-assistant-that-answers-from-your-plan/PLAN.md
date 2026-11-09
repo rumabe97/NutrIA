@@ -99,7 +99,8 @@ Decisions recorded with this plan:
 
 ### Phase 1 — The assistant can speak: a streaming text client behind the wall
 
-- [ ] in progress — steps 1–7 done 2026-11-09; **step 8 blocked**: it needs an
+- [ ] in progress — steps 1–7 done 2026-11-09, commit `993d5db7` ("The assistant can speak, on
+  its own provider and its own budget…", #344); **step 8 blocked**: it needs an
   `ANTHROPIC_API_KEY` in `apps/api/.env`, which is the owner's to put there
 - **Dispatch**: opus @ medium — `/execute-project 023 phase 1` — owner-gated: an
   `ANTHROPIC_API_KEY` in `apps/api/.env` for the one local stream, and nothing on Vercel yet.
@@ -184,7 +185,7 @@ Decisions recorded with this plan:
 
 ### Phase 2 — What it may read, and what it may never say
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 023 phase 2` — **`quality-max`, per AGENTS.md
   § Model routing: this phase is AI output validation and allergy validation.**
 - **Goal**: the pure half of the assistant — the context it is given, the figure set, the
@@ -202,35 +203,45 @@ Decisions recorded with this plan:
      rows and the profile's targets — not recomputed by hand. Remember what the production read
      of 2026-11-06 cost: **`meals.kcal` already includes the meal's accompaniments**, so a day's
      total is the `meals` rows alone and summing both double-counts by 20–30%.
-  3. `figuresAreAllSupplied(answer, set)`: extracts every number from the answer — Spanish and
-     English decimal and thousands separators, percentages, ranges, times of day, quantities
-     with units — and reports the first that is not in the set. Tolerances are explicit and
+  3. `figuresAreAllSupplied(answer, set)`: extracts every **nutritional figure** from the answer
+     — an amount of energy, of a macronutrient, or a percentage of either; Spanish and English
+     decimal and thousands separators; ranges — and reports the first that is not in the set.
+     *Amended while building it, by [`0105`](../../decisions/0105-only-a-nutritional-figure-has-to-be-the-services.md):
+     this step first said "every number", which would have withheld every recipe the PRD promises,
+     since `200 g de arroz` is a number no service supplies. A recipe's quantities, dates, times
+     and temperatures are not checked; a nutritional figure spelt out in words is withheld. And
+     the set is **keyed by nutrient** — energy, protein, carbohydrate, fat, fibre, share, plus
+     sugar and saturated fat, which are never supplied — because a flat list let lunch's `33 %`
+     validate «33 g de grasa».* Tolerances are explicit and
      tested: a rounded figure (`2.079` → `2080`, `2,1 g` → `2.07 g`) is a member, an invented
      one is not. The hard cases get tests of their own: a number that is part of a word, a
      date, and a dish name with a number in it.
-     **The set is not only the plan's figures.** It also holds, by design: the numbers the
-     person themselves typed into the question — an answer may repeat them — and the structural
-     constants a sentence about this product cannot avoid (fourteen days, the number of meals in
-     a day, and whatever of their age, weight or height they put in the question). Without
-     those, the first ordinary question gets withheld, and phase 2 discovers as a blocker what
-     this line could have told it.
+     **The set is not only the plan's figures.** It also holds the numbers the person themselves
+     typed into the question — an answer may repeat them. *The structural constants this step
+     first listed (fourteen days, meals a day) were **dropped**: they were for a check that read
+     every number, and in this one a `5` or a `100` in the set would let `5 g de proteína` and
+     `100 g de grasa` through.*
   4. **The label, and the prompt that produces it.** `questionLabel` is a schema with one
      field of three values — `nutrition`, `clinical`, `off_topic` — and a one-line reason, plus
      the system prompt that asks for it: what this product is about, what counts as its subject
      (a recipe, an ingredient, a macro, a doubt about a dish, an idea, a recommendation, what to
      change and why), and what does not. The domain's part is the schema, the prompt text and
-     `declineFor(label)` — the sentence each decline shows, in both languages, naming what the
-     assistant is for. **The route branches on the value; nothing reads the reason but a log
+     `declineFor(label)` — *as built, a decline **code** (`ASSISTANT_DECLINES`), not a sentence:
+     the words live in the web app's dictionaries (phase 5), the way every refusal in this
+     product reaches a screen, so a stored thread re-renders in the language it is read in.* **The route branches on the value; nothing reads the reason but a log
      line with no question in it.** Tested as data: a table of questions with their expected
      label, including the ones that look off topic and are not (*«¿el café me rompe el ayuno?»*,
      *«¿puedo congelar esto?»*) and the ones that look on topic and are not (*«¿qué dieta sigue
-     [una persona pública]?»*).
+     [una persona pública]?»*). *As built, `LABEL_EXAMPLES` is that table as typed data — the
+     fixture phase 6 runs against real models. Only a model produces a label, and none is called
+     from `core`, so this package tests the table's shape, not its outcomes.*
   5. **What an answer may be.** The assistant proposes food, so the prompt states the shape:
      ideas and recipes are welcome, quantities are welcome, and it never writes a plan or
-     announces a change — asked for either, it says so and points at the generator. A
-     `refusesToAct` test table makes that a tested expectation of the answer and not only an
-     instruction in a prompt, so a model that starts volunteering fortnights is caught by a test
-     rather than by a person.
+     announces a change — asked for either, it says so and points at the generator. *As built,
+     `claimsToAct(answer)`: a first-person claim of a change in either language, or five or more
+     distinct days laid out, withholds the answer with the decline `acting` — a check on the
+     answer, not only an instruction, so a model that starts volunteering fortnights is caught by
+     code rather than by a person.*
   6. `clinicalRefusal(question)`: the lexicon — doses and units, insulin and medication words,
      pregnancy, eating disorders, a child's feeding — in both languages, matching on word
      boundaries, returning which category fired. It carries its own comment saying what it is:
@@ -249,9 +260,13 @@ Decisions recorded with this plan:
      first, never splitting a question from its answer. It is a pure function over the stored
      rows, so the cost of a long conversation is a tested property rather than a surprise on the
      bill.
-  9. The system prompt's text lives here as data, in both languages, so it is diffable and
-     testable: what the assistant is, what it refuses, that it never gives a figure it was not
-     given, and that it names a professional for anything clinical.
+  9. The system prompt's text lives here as data, so it is diffable and testable: what the
+     assistant is, what it refuses, that it never gives a figure it was not given, and that it
+     names a professional for anything clinical. *As built, **one** English prompt told the
+     language to answer in, the way `PoolPrompt` is, rather than one per language to keep in
+     step; versioned (`ASSISTANT_PROMPT_VERSION`), and carrying the context as its data block —
+     the same object `figureSet` reads, so the figures shown and the figures checked cannot
+     disagree.*
 - **Acceptance criteria**: PRD 2 (the label and the cut), PRD 4, PRD 6, PRD 7, PRD 10's replay
   window, and PRD 5 for the new domain's shape.
 - **Verification**:
@@ -336,8 +351,13 @@ Decisions recorded with this plan:
      month's `assistant_calls` spend against `AI_ASSISTANT_MONTHLY_CAP_USD`; run
      `clinicalRefusal` **before any call**; ask for the **label** and cut on `clinical` or
      `off_topic` without ever starting the stream; load the thread and take `historyWindow` of
-     it; build the context and the figure set; stream; and run `figuresAreAllSupplied` and
-     `answerNamesAnAllergen` before the last chunk is released. A message row is written in every
+     it; build the context and the figure set; stream; and **release the answer sentence by
+     sentence, each one only after `figuresAreAllSupplied`, `answerNamesAnAllergen` and
+     `claimsToAct` have passed on everything written so far** — the owner's choice of 2026-11-09,
+     over buffering the whole answer (safe and slow) and streaming it live then retracting it
+     (fluid, and the one shape where a person may already have read a food they cannot eat). On
+     a hit the stream stops, what was not yet released is discarded, and the decline code follows
+     the sentences already shown, which were checked and were safe. A message row is written in every
      one of those outcomes — a refusal, a cut, a withheld answer, a success — and a call row only
      when a provider was actually asked, so the allowance counts what a person sent and the gauge
      counts what the service spent, and they are allowed to differ.
@@ -402,11 +422,13 @@ Decisions recorded with this plan:
 - **Scope**: `apps/web/src/app/**`, `apps/web/src/components/**`, `apps/web/src/i18n/dictionaries/**`,
   `packages/ui/**` only if a control is genuinely missing, and their tests.
 - **Steps**:
-  1. The screen: a question field, the conversation above it, the answer appearing as it
-     arrives, and a clear state for each outcome — declined as off topic, refused as clinical,
+  1. The screen: a question field, the conversation above it, the answer appearing **sentence
+     by sentence, as each passes the checks** (phase 4), and a clear state for each outcome — declined as off topic, refused as clinical,
      withheld by the allergen net, over the fortnight's allowance, over the month's ceiling, the
      model unavailable, the connection lost mid-answer. A decline is not an error: it reads as
-     the assistant saying what it is for, not as something broken.
+     the assistant saying what it is for, not as something broken. A decline that arrives **after**
+     some sentences were shown is added beneath them, never in their place: what was shown was
+     checked, and taking it back would say otherwise.
   2. **The warning opens every conversation.** Commissioned from the `legal` agent at the start
      of this phase and approved by the owner, it is the first thing in the thread, in both
      languages, before the field accepts anything — not a banner somebody dismisses once, but a
