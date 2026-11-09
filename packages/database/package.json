@@ -45,14 +45,14 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
-    "@vitest/coverage-istanbul": "^5.0.5",
+    "@vitest/coverage-istanbul": "^5.1.0",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9.39.2",
     "eslint-configuration": "workspace:*",
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "typescript-configuration": "workspace:*",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "files": [
     "dist"
