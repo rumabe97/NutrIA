@@ -63,7 +63,7 @@
     "@vitest/coverage-istanbul": "^5.0.5",
     "eslint": "^9.39.2",
     "eslint-configuration": "workspace:*",
-    "jsdom": "^30.1.3",
+    "jsdom": "^31.0.0",
     "prettier": "^3.9.10",
     "typescript-configuration": "workspace:*",
     "vitest": "^5.0.5"
