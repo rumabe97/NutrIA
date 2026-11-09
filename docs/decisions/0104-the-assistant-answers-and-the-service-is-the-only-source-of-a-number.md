@@ -5,7 +5,7 @@
 > draft one immediately after any decision that constrains future work. ADRs are
 > immutable: a changed decision is a NEW record that supersedes the old one.
 
-- **Status**: accepted
+- **Status**: accepted — clause 4's **scope** superseded by [`0105`](./0105-only-a-nutritional-figure-has-to-be-the-services.md): only a nutritional figure is checked, so a recipe's quantities are not
 - **Date**: 2026-11-09
 - **Project**: docs/projects/023-an-assistant-that-answers-from-your-plan
 

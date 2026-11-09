@@ -203,3 +203,154 @@
     chunk, through the real provider and then through `smoke:function`. Until it is run, nobody
     knows whether the deployment hands over a progressive response or one buffered lump.
 
+## Phase 2 — What it may read, and what it may never say (2026-11-09)
+
+- **Executor**: opus @ high, directly, on the owner's *«ve haciendo las fases siguientes»* — the
+  phase's `quality-max` routing, met.
+- **Result**: done. Pure functions only, in `packages/core/src/domain/Assistant/`, plus one
+  additive export in `domain/Safety`. No Nest module, no route, no HTTP.
+- **What was built**:
+  - `assistantContext` — what the model is told about a person, and the only shape it can be
+    told it in: the person-level half of `PromptContext`, the plan as stored, and the foods they
+    cannot eat. A day's total is its `meals` rows summed **and nothing else**, and accompaniments
+    arrive as names only, so the double count the 2026-11-06 production read made cannot be made.
+  - `figureSet` + `figuresAreAllSupplied` — the nutritional-figure check (PRD 4), with
+    `parseLocaleNumber` and `numbersIn`.
+  - `questionLabelSchema`, `declineFor`, `LABEL_SYSTEM_PROMPT`, `LABEL_EXAMPLES`,
+    `ASSISTANT_DECLINES` — the label and the codes a cut or a withheld answer carries (PRD 2).
+  - `claimsToAct` — an answer that claims a change or lays out a plan is withheld (PRD 1's
+    "answer only", as code).
+  - `clinicalRefusal` — the lexicon, run before any call (PRD 6, first layer).
+  - `forbiddenFoods` + `answerNamesAnAllergen` — the allergen net (PRD 7), and `synonymsOf`
+    added to `domain/Safety/CustomAllergen.ts`: the curated synonym list read backwards.
+  - `historyWindow` — what of a kept thread is replayed (PRD 10's window).
+  - `assistantSystemPrompt` + `ASSISTANT_PROMPT_VERSION`.
+  - `Assistant.boundary.test.ts` — the health wall, written again for this folder (PRD 5).
+- **Evidence**:
+  - `pnpm --filter core test:coverage` — **156 files, 4,409 tests, all passing** after the review
+    round (4,272 before this phase: 135 in the assistant's domain, 2 for `synonymsOf`), and the
+    domain's coverage floors hold.
+  - The new folder alone: **135 tests; 100 % statements, functions and lines; 95.6 % branches**
+    (the net 90.6 %, over the 90 % floor).
+  - `pnpm ts:check` — 9 of 9 tasks. `pnpm lint` — 7 of 7. Prettier clean.
+  - `pnpm --filter core build` — clean. `health-boundary.spec.ts` in the API — 39 passing, the
+    file **untouched this phase**: no exception row added.
+  - `figuresAreAllSupplied`'s table: **21 rows shown and 15 withheld**, each case named — the
+    rounding, the false-positive and the kind-confusion cases individually, as the plan asked.
+- **Deviations from plan** (each amended into the plan in this same change):
+  - **The figure check reads nutritional figures, not every number** —
+    [`0105`](../../decisions/0105-only-a-nutritional-figure-has-to-be-the-services.md),
+    superseding the scope of `0104` clause 4, with PRD criterion 4 amended to match. The contract
+    contradicted itself: it withheld any number the service did not supply *and* promised recipes
+    with their quantities, and every recipe has `200 g de arroz` in it. Nobody reconciled the two
+    when the owner asked for recipes the same evening; building the check is where it surfaced.
+    The dangerous figure — the per-meal carbohydrate split the 2026-09-12 probe caught — is a
+    nutritional one and is still checked.
+  - **The structural constants were dropped from the set**, and that is a correction, not a
+    simplification: in a check that reads only figures bound to a nutritional unit, a `5` or a
+    `100` in the set would have let `5 g de proteína` and `100 g de grasa` through.
+  - **Decline codes, not sentences.** `declineFor` returns a code; the words are the web app's
+    (phase 5), as every refusal in this product is, so a stored thread re-renders in the
+    language it is read in.
+  - **One English system prompt**, told the language, like `PoolPrompt` — not one per language.
+  - **`LABEL_EXAMPLES` is a fixture, not a test of outcomes.** Only a model labels; none is
+    called from `core`. Phase 6 runs the table against real models.
+- **Found while building it, and fixed before it shipped**:
+  - Two false positives the first patterns had, which would have withheld exactly what the owner
+    asked for: «para subir la proteína, añade 150 g de pechuga» read as a protein figure, and «usa
+    nata al 18 %» as a fat figure. The gap allowed between a nutrient and its amount no longer
+    admits a comma or a verb, and both cases are now rows in the table so a future widening
+    cannot quietly undo them.
+  - **The allergen net's usability hole is closed by the prompt, not by loosening the net.** The
+    honest answer to «¿qué uso en vez de huevo?» names egg. The model is now handed the excluded
+    foods and told never to write them, not even to warn of them — so a withheld answer means the
+    model broke a rule it was given, and «Puedes usar plátano maduro…» answers the same question
+    and is shown. Both are rows in the table.
+  - The net adds plural and singular forms, which `CustomAllergen.ts` refuses on principle. The
+    comment in both files now says why that is not a contradiction: there a derived form becomes a
+    *promise*, here it only *withholds*, so over-matching is this file's safe direction and that
+    file's dangerous one.
+  - Free-text allergies that matched no catalogue row (`unenforceableLabels`) are **searched for
+    and never told** — they are never sent to a model (prompt 4.0.0), and searching the answer
+    after the fact is not sending them.
+  - The root `pnpm ts:check` caught what vitest does not look at: a test fixture with
+    `goal: 'maintain'` where the value is `'maintenance'`, and `import.meta` in a package that
+    compiles to CommonJS. Both fixed; the second the way `provenance.test.ts` already does it.
+- **Found in review, and fixed before the boundary — the most important change of the phase.**
+  The first figure set was **one flat list** of every number in the context. A fortnight puts some
+  350 figures in it, between 0 and 2,500, each with a ±5 % band, and almost any amount of grams
+  lands within 5 % of *something*: lunch's `33 %` share made «33 g de grasa» a supplied figure, and
+  the carbohydrate target made «240 g de proteína» one. The one-day fixture was too sparse to show
+  it. The set is now **keyed by nutrient**, each pattern says which nutrient it read, and sugar and
+  saturated fat — never supplied — have empty sets, so «62 g de azúcar» on a 62 g carbohydrate meal
+  is withheld instead of passing as carbohydrate. The question contributes its nutritional figures
+  by kind, so «tengo 30 años» no longer whitelists every 30. Six rows name these cases.
+- **And one regression the fix itself introduced, caught by the table.** Closing the label patterns
+  against backtracking («Proteína: 45 g» must not be read as «Proteína: 4») first forbade any
+  separator after the amount — so «Calorías: 700.», with its sentence-ending full stop, stopped
+  matching and an invented figure **passed**. The rule is now "no digit, and no separator followed
+  by a digit". The existing row «Calorías: 700» going green when it should have stayed red is what
+  showed it.
+- **Known gaps, kept as tests rather than hidden**: the clinical lexicon lets «mi azúcar en sangre
+  está alta», «tomo algo para el tiroides» and «me pincho por las noches» through — the label is
+  what must catch them. And a quantity is not a figure, so «toma 300 g de arroz en cada comida» is
+  not withheld by the figure check even though it implies a carbohydrate amount (`0105`,
+  Consequences).
+- **Decisions**: [`0105`](../../decisions/0105-only-a-nutritional-figure-has-to-be-the-services.md),
+  and its line in `docs/decisions/LOG.md`.
+- **Notes for phase 3**:
+  - `assistant_messages` needs a **decline column** holding one of `ASSISTANT_DECLINES` (null for
+    an answer that was shown), so a cut question and its decline are stored as a code and not as
+    prose — and so `historyWindow`'s `replay` flag can be derived from it rather than stored
+    twice: a turn is replayed only when neither it nor its partner was declined.
+  - The off-topic ceiling counts rows whose decline is `off_topic`, in the same fortnight window
+    as the allowance.
+- **Notes for phase 4 — one of them a decision the owner has to see**:
+  - **PRD 1 and PRDs 4 and 7 pull against each other, and this phase's functions make it concrete.**
+    PRD 1 says an answer *appears progressively*; 4 and 7 say an answer with an invented figure or
+    a forbidden food is *withheld* — and `figuresAreAllSupplied`, `answerNamesAnAllergen` and
+    `claimsToAct` judge a **whole** answer. A hit in the last sentence means the first ten were
+    already on screen. The plan's "before the last chunk is released" quietly assumes the server
+    buffers everything, which would make phase 1's streaming pointless. Three honest shapes, and
+    the choice changes what phase 5's screen is:
+    1. **Buffer, then release** — nothing is shown until every check passes. Safest, and the answer
+       arrives whole after a wait, which is what streaming was meant to avoid.
+    2. **Check as it streams, sentence by sentence** — each sentence released only once the checks
+       pass on everything so far. Mostly progressive; a hit stops the answer mid-way, and what was
+       already shown was already safe.
+    3. **Stream visibly and retract** — show everything, and replace it with the decline on a hit.
+       The most fluid, and the one where a person may already have read the forbidden food.
+    The planner's recommendation is **2**: it keeps the streaming the owner was promised, and it
+    never shows a sentence the checks have not passed. To be put to the owner with options before
+    phase 4 builds the route.
+
+  - `forbiddenFoods` needs every ingredient's names **in every locale** (`ingredient_names`) with
+    its allergen links, and every declared allergen's names. Loading them is the route's; the
+    function is pure and tested here.
+  - The label call goes through `ASSISTANT_CLIENT` — the existing `StructuredAiClient` on the
+    assistant's model — with `questionLabelSchema` as its schema. Check `isAvailable` first: its
+    null-model message says "check AI_PROVIDER", which is the wrong hint for this client.
+  - `historyWindow` returns `{ role, text }`, which is `AiTurn` exactly.
+- **Notes for phase 6**:
+  - **, A measurement this phase could not make**: seed invented figures into real
+    answers over a real fortnight and count how many the check lets through. Kind by kind, the set
+    is still dense — fourteen days of per-meal protein at ±5 % cover a lot of the line. That count
+    decides whether ±5 % is the right band, or whether per-meal figures should leave the set for
+    day-level ones (`0105`, Consequences).
+
+## The owner's two decisions at phase 2's boundary (2026-11-09)
+
+Asked with options, both answered with the recommended one:
+
+- **Each phase ships as it finishes.** The executor runs the whole of `/ship` at every phase
+  boundary — the full gate, the pull request, CI, the merge, and production checked — and goes on
+  to the next. Safe to do because nothing of the assistant is reachable until phase 7: no route,
+  no screen, no switch. The gates the plan names still stop it: `owner-gated`, `owner-approves`
+  and `human-verify` are not boundaries this authorisation reaches past.
+- **The answer appears sentence by sentence, each one already checked.** The figure check, the
+  allergen net and `claimsToAct` judge a whole answer, and PRD 1 promises one that appears as it is
+  written; the two meet by releasing each sentence only once the checks pass on everything written
+  so far. Chosen over buffering the whole answer, which would make phase 1's streaming pointless,
+  and over streaming it live and retracting it, the one shape in which a person may already have
+  read a food they cannot eat. Phase 4's step 1 and phase 5's step 1 are amended to say so.
+

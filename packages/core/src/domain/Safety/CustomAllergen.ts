@@ -93,6 +93,24 @@ const SYNONYMS: ReadonlyMap<string, string> = new Map([
 ]);
 
 /**
+ * Every other way a person writes what the catalogue calls `name` — `SYNONYMS`
+ * read backwards, for the assistant's allergen net (project 023,
+ * `core/domain/Assistant`).
+ *
+ * The same curated list, used the other way round and for the opposite purpose.
+ * Here a synonym turns somebody's words into a catalogue row, so a wrong one
+ * *promises* an exclusion that is not there. There it widens the words an
+ * answer is searched for, so a wrong one at worst withholds an answer that was
+ * safe. That asymmetry is why the net may add morphology of its own and this file
+ * may not.
+ */
+export function synonymsOf(name: string): readonly string[] {
+  const key = normaliseForMatching(name);
+
+  return [...SYNONYMS].filter(([, target]) => target === key).map(([typed]) => typed);
+}
+
+/**
  * Builds the lookup once per save.
  *
  * A key that two different ingredients claim is dropped rather than resolved to
