@@ -64,15 +64,22 @@ export type AnalyticsEvent = (typeof ANALYTICS_EVENTS)[number];
 
 /**
  * Which part of the service spent a model call (`0071`): plan dishes, a meal
- * swap, the nightly step rewrite, or a dish somebody asked us to write
- * (`dish_request`, `0011` § 4 a).
+ * swap, the nightly step rewrite, a dish somebody asked us to write
+ * (`dish_request`, `0011` § 4 a), or the assistant (project 023).
  *
  * `dish_request` is its own value and not `swap`'s, for the same reason its
  * prompt field is its own: it is the one call carrying words a person typed, so
  * every log, count and filter that groups by feature can tell it apart without
  * anybody having to remember that it hides inside another.
+ *
+ * `assistant` is its own for a stronger reason than tidiness: it spends a
+ * **different provider on a different budget** (`0104`), and the ceiling it
+ * answers to is its own, so a talkative fortnight can never be what stops a plan
+ * being built. It is also the only feature that spends more than one call per
+ * thing it does — one to label the question, one to answer it — which is why
+ * "calls" and "messages" are different numbers wherever both are shown.
  */
-export type AiFeature = 'dish_request' | 'plan' | 'rewrite' | 'swap';
+export type AiFeature = 'assistant' | 'dish_request' | 'plan' | 'rewrite' | 'swap';
 
 /** The crons a `cron_run` names (`vercel.json`'s five; `twoFactorRemovals` since PLAN 011 phase 4). */
 export const CRON_JOBS = ['reminders', 'rewrite', 'verifications', 'activations', 'twoFactorRemovals'] as const;

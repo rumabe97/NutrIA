@@ -43,6 +43,19 @@ const DEFAULT_MODEL = {
   stub: 'none'
 } as const;
 
+/**
+ * The assistant's model when `AI_ASSISTANT_MODEL` is empty (project 023).
+ *
+ * Not in `DEFAULT_MODEL` above, which is indexed by `AI_PROVIDER`: the assistant
+ * does not read `AI_PROVIDER` at all. The owner chose this tier on 2026-11-09
+ * with the three monthly costs in front of him, and phase 6 of the project
+ * measures whether it holds.
+ */
+const DEFAULT_ASSISTANT_MODEL = 'claude-haiku-5-5';
+
+/** What an Anthropic model id contains, whichever provider the rest of the service uses. */
+const ANTHROPIC_MODEL_PREFIX = 'claude';
+
 /** Cheap sanity check on a hand-edited pairing; substrings, not an allowlist. */
 const MODEL_PREFIX: Partial<Record<keyof typeof DEFAULT_MODEL, readonly string[]>> = { anthropic: ['claude'], google: ['gemini', 'gemma'] };
 
@@ -204,6 +217,28 @@ function isEcPrivateKey(pem: string): boolean {
  * every task it runs. A spec asserts the two agree.
  */
 const envObject = z.object({
+  /*
+   * The assistant's model (project 023, `0104`). Anthropic's, always — the
+   * assistant builds its own client from `ANTHROPIC_API_KEY` and does **not**
+   * ride `AI_PROVIDER`, which names one provider and names `openrouter` in
+   * production (`0064`). So its check is `claude` unconditionally, unlike
+   * `AI_REWRITE_MODEL`, whose check follows the configured provider and would
+   * reject this value under `google` and ignore it under `openrouter`.
+   *
+   * Empty means `DEFAULT_ASSISTANT_MODEL`. Moving it is how the model is changed
+   * after project 023 phase 6 measures the three: a variable on the deployment,
+   * not a release.
+   */
+  AI_ASSISTANT_MODEL: optional(z.string()),
+  /*
+   * Dollars a calendar month (UTC) the **assistant** may spend, summed from its
+   * own `ai_call` events (`feature: 'assistant'`). Separate from
+   * `AI_TEXT_MONTHLY_CAP_USD` on purpose and not by accident: one shared ceiling
+   * is how a talkative fortnight would stop a plan being built, which is the
+   * exact reason the assistant waited at the bottom of the roadmap for two
+   * months. Unset means no ceiling, which is only sane while the switch is off.
+   */
+  AI_ASSISTANT_MONTHLY_CAP_USD: optional(z.coerce.number().positive().max(1000)),
   AI_BASE_URL: optional(z.url()),
   /*
    * How long the model half of a generation may take in all — every round of
@@ -500,6 +535,7 @@ const envSchema = envObject
   // Fill the provider's own default before anything reads AI_MODEL.
   .transform(env => ({
     ...env,
+    AI_ASSISTANT_MODEL: env.AI_ASSISTANT_MODEL ?? DEFAULT_ASSISTANT_MODEL,
     AI_MODEL: (env.AI_PROVIDER === 'omniroute' ? env.OMNIROUTE_MODEL : undefined) ?? env.AI_MODEL ?? DEFAULT_MODEL[env.AI_PROVIDER],
     SWAGGER_ENABLED: env.SWAGGER_ENABLED === undefined ? env.NODE_ENV === 'development' : env.SWAGGER_ENABLED === 'true'
   }))
@@ -511,6 +547,18 @@ const envSchema = envObject
         code: 'custom',
         message: `"${env.AI_MODEL}" does not look like a ${env.AI_PROVIDER} model (expected one containing ${expected.join(' or ')}). Leave AI_MODEL empty to use the provider's default, "${DEFAULT_MODEL[env.AI_PROVIDER]}".`,
         path: ['AI_MODEL']
+      });
+    }
+
+    // The assistant's model is Anthropic's whatever the rest of the service runs
+    // on, so this check does not consult `AI_PROVIDER`. Under `google`,
+    // `MODEL_PREFIX` would reject a Claude id; under `openrouter` it would check
+    // nothing at all. Both would be the wrong answer to the same question.
+    if (!env.AI_ASSISTANT_MODEL.toLowerCase().includes(ANTHROPIC_MODEL_PREFIX)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `"${env.AI_ASSISTANT_MODEL}" does not look like an Anthropic model (expected one containing ${ANTHROPIC_MODEL_PREFIX}). The assistant always calls Anthropic, whatever AI_PROVIDER says. Leave it empty for "${DEFAULT_ASSISTANT_MODEL}".`,
+        path: ['AI_ASSISTANT_MODEL']
       });
     }
 

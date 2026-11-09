@@ -48,6 +48,22 @@ describe('the health-data boundary around the AI module', () => {
   });
 
   /*
+   * The sweep above is recursive, so the assistant's own sources were inside this
+   * wall from the moment they were written — nothing had to be added for project
+   * 023 and nothing was. What this row adds is the other direction: it fails if
+   * the assistant's client is ever *moved out* of this module, which is the one
+   * edit that would leave it unchecked while every assertion here still passed.
+   * The assistant is the feature with the most reason to want health data and the
+   * least right to it (`0104` clause 3).
+   */
+  it.each(['clients/AnthropicStreamingClient.ts', 'clients/StreamingAiClient.ts'])(
+    'sweeps %s, so the assistant cannot leave this wall unnoticed',
+    file => {
+      expect(sources.map(path => path.slice(HERE.length + 1))).toContain(file);
+    }
+  );
+
+  /*
    * The professional's side goes behind the same wall (PRD 004, criterion 11):
    * a link is how a professional reaches a client's conditions, and what a
    * professional reads or writes about a client is theirs and the client's,

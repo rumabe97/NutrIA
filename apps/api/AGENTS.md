@@ -288,6 +288,29 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   provider again, and the plan records `fallback: full_library`. What still fails is
   a library that genuinely cannot fill a fortnight, which is `GENERATION_AI_UNAVAILABLE`
   when the provider failed and `POOL_TOO_SMALL` when there simply is none.
+- **The assistant has its own provider, and it is not `AI_PROVIDER`'s** (project 023,
+  [`0104`](../../docs/decisions/0104-the-assistant-answers-and-the-service-is-the-only-source-of-a-number.md)).
+  `resolveModel` switches on `AI_PROVIDER`, which names **one** provider for the whole service
+  and names `openrouter` in production: anything that rode it would force a choice between
+  moving every plan generation to Anthropic and having no assistant. So `resolveAssistantModel`
+  builds its own client from `ANTHROPIC_API_KEY` and `AI_ASSISTANT_MODEL` — checked against
+  `claude` unconditionally, unlike `AI_REWRITE_MODEL`, whose check follows the configured
+  provider and would reject a Claude id under `google` and check nothing under `openrouter`. Two
+  providers at once is deliberate: it is also what keeps `AI_ASSISTANT_MONTHLY_CAP_USD` and
+  `AI_TEXT_MONTHLY_CAP_USD` apart, so a talkative fortnight cannot stop a plan being built.
+  **Do not merge them**, and do not give the assistant's key a boot requirement: with no key the
+  assistant is off and everything else still works.
+- **Anthropic returns no cost, so the assistant prices its own calls** (`assistantCostUsd`): a
+  dated price list in `ai.config.ts`, an unrecognised model recording **no** cost rather than a
+  wrong one. Without it `AI_ASSISTANT_MONTHLY_CAP_USD` would be a ceiling nothing ever reaches,
+  which is worse than no ceiling because it looks like one. A stream nobody reads to the end is
+  **counted but not costed** — the tokens never arrive — so the month's sum is a floor and what
+  bounds that path is the person's own allowance, not the cap.
+- **Free text from a model gets its own boundary** (`StreamingAiClient`), never a method on
+  `AiClient`: everything downstream of that one depends on structured output, which is what
+  `docs/ARCHITECTURE.md` § Invariants means by never parsing free text. Prose is only safe behind
+  the screens project 023 builds — the question labelled before it is asked, the figures checked
+  against a set the service supplied, the allergens checked before a word is shown.
 - **The rewrite sweep is off by default** (`AI_REWRITE_STEPS`), because a free-tier project's daily request cap is generation's. Turn it on with billing, or deliberately, for a while. Through the gateway the rewrite sweep runs on free models — `AI_REWRITE_MODEL` can keep it off a combo's Gemini step — and the daily cron in `vercel.json` calls it.
 - **A sweep is bounded in time, not only in number** (`RewriteLimits`). One cron call is one invocation of the 300-second function, and through the gateway a rewrite takes 22–74 seconds: ten in a row outlived the function. Three lanes, no call started with under 90 seconds left, every call ended by 240 seconds with `untilAborted` — a transport that ignores its signal cannot keep the sweep past its deadline.
 - **The sweep stops at the first exhausted quota** (`isQuotaExhausted`), and so does a picture's drawing. The provider's

@@ -343,6 +343,98 @@ function required(value: string | undefined, name: string): string {
   return value;
 }
 
+/** The assistant's model (project 023) — `resolveAssistantModel`. Null means no key, so no assistant. */
+export const ASSISTANT_MODEL = Symbol('ASSISTANT_MODEL');
+
+/**
+ * The assistant's structured client, for labelling a question before it is
+ * answered (`0104` clause 2). The same provider and the same model as the
+ * stream: one factory, two calls, one feature on the gauge.
+ */
+export const ASSISTANT_CLIENT = Symbol('ASSISTANT_CLIENT');
+
+/** `AI_ASSISTANT_MONTHLY_CAP_USD`: the month's assistant spend at which it stops answering. */
+export const ASSISTANT_CAP = Symbol('ASSISTANT_CAP');
+
+/**
+ * How the assistant's calls are made: a direct provider, so the SDK may retry
+ * and there is no session to file them under.
+ *
+ * Not `resolveCallSettings(env)`, which answers for `AI_PROVIDER` — in
+ * production, `openrouter`, whose settings are `maxRetries: 0` because
+ * OpenRouter does its own fallback inside one request. Anthropic does not, so a
+ * retry here is the SDK's to make.
+ */
+export const ASSISTANT_SETTINGS = Symbol('ASSISTANT_SETTINGS');
+
+/** The value behind that token, also used where the client is built by hand. */
+export const ASSISTANT_CALL_SETTINGS: AiCallSettings = Object.freeze({ maxRetries: 2, sessionHeader: null });
+
+/**
+ * The assistant's own model, from the assistant's own key.
+ *
+ * **It does not go through `resolveModel`**, and that is the point. That function
+ * switches on `AI_PROVIDER`, which names *one* provider for the whole service and
+ * names `openrouter` in production (`0064`): riding it would mean choosing between
+ * moving every plan generation to Anthropic and having no assistant. So the
+ * assistant reads `ANTHROPIC_API_KEY` directly and leaves generation's provider
+ * exactly where it is. Two providers at once, deliberately — it is the same fact
+ * that keeps the two budgets apart (`0104` clause 6).
+ *
+ * Null when there is no key, which is not an error: the API boots, plans
+ * generate, and the assistant's route says it is unavailable. The key cannot be
+ * required at boot the way a provider's key is, because nothing else needs it.
+ */
+export function resolveAssistantModel(env: Env): LanguageModel | null {
+  const key = env.ANTHROPIC_API_KEY?.trim();
+
+  return key ? createAnthropic({ apiKey: key })(env.AI_ASSISTANT_MODEL) : null;
+}
+
+/**
+ * What a thousand input and a thousand output tokens cost, in dollars, per
+ * model — the provider's published prices, read on 2026-11-09.
+ *
+ * Here because **Anthropic returns no cost with an answer**: OpenRouter puts one
+ * in the body and the gateway in its headers (`gateway.ts`), and the month's
+ * ceiling is read from what was billed. Without this table every assistant call
+ * would record no cost, and `AI_ASSISTANT_MONTHLY_CAP_USD` would be a ceiling
+ * nothing ever reached.
+ *
+ * It is a price list in code, so it will go stale. What that costs is bounded on
+ * purpose: an unrecognised model records no cost rather than a wrong one, the
+ * console already counts uncosted calls apart and says its sum is a floor
+ * (`AdminAiRepository`), and the wall that actually stops spending is the key's
+ * own monthly limit on the provider's side — never this.
+ */
+const ASSISTANT_PRICES: Readonly<Record<string, { readonly inputPerMillion: number; readonly outputPerMillion: number }>> = Object.freeze({
+  'claude-haiku-5-5': { inputPerMillion: 0.1, outputPerMillion: 0.5 },
+  'claude-opus-5-5': { inputPerMillion: 4, outputPerMillion: 20 },
+  'claude-sonnet-5-5': { inputPerMillion: 2, outputPerMillion: 10 }
+});
+
+/**
+ * What one assistant call cost, or null when its model is not in the price list
+ * above — a dated snapshot, not an authority.
+ *
+ * A dated id (`claude-haiku-5-5-20260401`) prices as the model it is a snapshot
+ * of: matched by the longest known id it starts with, so a more specific entry
+ * always wins over a shorter one that is also a prefix of it.
+ */
+export function assistantCostUsd(model: string, usage: { readonly inputTokens: number; readonly outputTokens: number }): number | null {
+  const id = model.toLowerCase();
+  const matched = Object.keys(ASSISTANT_PRICES)
+    .filter(known => id === known || id.startsWith(`${known}-`))
+    .sort((one, other) => other.length - one.length)[0];
+  const price = matched === undefined ? undefined : ASSISTANT_PRICES[matched];
+
+  if (!price) {
+    return null;
+  }
+
+  return (usage.inputTokens * price.inputPerMillion + usage.outputTokens * price.outputPerMillion) / 1_000_000;
+}
+
 /** The dish pictures' settings — `resolvePictureSettings`. */
 export const AI_PICTURES = Symbol('AI_PICTURES');
 

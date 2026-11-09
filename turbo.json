@@ -3,6 +3,8 @@
   "agentGuidance": false,
   "ui": "tui",
   "globalEnv": [
+    "AI_ASSISTANT_MODEL",
+    "AI_ASSISTANT_MONTHLY_CAP_USD",
     "AI_BASE_URL",
     "AI_BUDGET_SECONDS",
     "AI_FALLBACK_MODELS",
