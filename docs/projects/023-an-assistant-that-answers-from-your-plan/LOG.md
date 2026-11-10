@@ -522,3 +522,57 @@ Asked with options, both answered with the recommended one:
     `ASSISTANT_UNAVAILABLE` carries `budget`, `no_model` or `provider` in `message`.
   - A plan-shaped answer is cut on its fifth day name, so up to four day-lines can be shown
     before the cut; the screen should not read as though they were a plan.
+
+## Phase 5 — The screen (2026-11-10)
+
+- **Executor**: opus @ high, directly; the `legal` agent for the warning, the `accessibility` agent for the review.
+- **Result**: built; **human-verify pending** (below).
+- **What was built**: `/asistente` (a new conversation and the list of earlier ones, newest first) and
+  `/asistente/[id]` (one conversation, carried on, deletable whole), both 404 while the switch is off;
+  `components/AssistantChat` (the thread, the answer appearing as it is written, a sentence for every
+  decline and every refusal, per-message delete with its consequence said first);
+  `components/ConversationDelete`; `lib/assistant.ts` (the NDJSON reader and `threadItems`, which puts
+  the warning first in every thread); a card on `/inicio` only while the switch is on; the
+  professional-supervision notice beside the conversation whenever the profile carries it (PRD 6).
+- **The warning**: the `legal` agent's text, **approved by the owner as written on 2026-11-10**
+  (`docs/legal/assistant-warning.md` § 1), both languages, with its link to `/privacidad#asistente`
+  (the anchor is phase 7's). Drawn as NutrIA's notice — a sunken surface with an edge, not an answer's
+  card. `lib/assistant.test.ts` fails if a thread can be drawn without it, or if it is a placeholder.
+- **Two P0s the `legal` agent found in phases 2 and 4, fixed here** (owner's choices in
+  `docs/decisions/LOG.md`, 2026-11-10): **F1** — the model was told the names of what a person's
+  allergies forbid, against the profile consent; `excludedFoods` is gone from the context and the
+  prompt (1.1.0), the boundary test fails on any allergy-shaped key, and the e2e asserts the prompt
+  never carries the declared allergen. **F2** — a question judged clinical was kept word for word and
+  titled its conversation; it is now stored empty with its code, and the screen says it was not kept.
+  The switch was never on: neither left the building.
+- **Evidence**:
+  - `assistant.e2e-spec.ts`: 21 of 21 (with F1 and F2 asserted). Core: 152 assistant tests. Web: 307
+    tests, `tsc`, lint.
+  - `/local-probe` on `/asistente`, `/inicio` and an unknown thread at 320/390/1280, light and dark,
+    with the switch turned on **locally** through the admin API and off again: all fit, no `hint:`. The
+    screenshots looked at: the warning first, the field labelled, the empty state, the card on
+    `/inicio`. A question sent in both languages shows the 503 sentence (no model key locally) and
+    keeps the question in the field. An unknown thread renders the 404 page.
+  - **Design review** (`apple-web-design`): **PASS** — no P0 or P1; fixed: the focus lost when the
+    send button disabled itself, the warning styled like an answer, a negative-margin header.
+  - **`accessibility` agent**: two P1s and four P2s, **all fixed**: focus thrown to the heading when
+    the address changed mid-answer (the address no longer changes; a reload finds the thread in the
+    list); focus lost when a delete confirmation opened or closed (it now moves into it and back);
+    a dimmed focus ring on the not-pressable button; controls truly disabled mid-answer when the last
+    message was spent; two errors not announced; identical delete names. P3s fixed: typing during an
+    answer is no longer wiped, a repeated status is announced again, the title breaks between words.
+- **Not seen locally, and why**: a streaming answer, a stored thread and its delete controls — the
+  local API has no model key, so no answer and no stored turn can be made by hand without writing a
+  row, which this repository does not do. The e2e suite and the accessibility agent's mocked stream
+  covered them. **Whether the platform buffers the stream** is the human-verify below.
+- **Deviations from plan** (amended in the plan):
+  - **No `/en/asistente`.** Signed-in screens keep their Spanish address in every language and take
+    the language from the profile's cookie (`(app)/layout.tsx`); English is checked at `/asistente`
+    with the English cookie.
+  - **The address does not change to the thread's after the first answer** (focus, above).
+  - **Turns written in this visit have no delete button until the page is read again**: their ids come
+    from the server, and the stream does not carry them.
+- **human-verify (pending)**: the owner opens `/asistente` on his iPhone and says whether the words
+  arrive as they are written. **It needs the switch on in production, and the switch must not be on
+  for anybody before phase 7's `/privacidad`.** The switch has one audience (every signed-in account),
+  so this waits for the owner's decision — see the report of this phase.

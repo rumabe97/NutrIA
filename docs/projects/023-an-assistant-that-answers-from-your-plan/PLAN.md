@@ -353,7 +353,7 @@ Decisions recorded with this plan:
 
 ### Phase 4 — The route
 
-- [x] done
+- [x] done — commit `336487e` ("A person can ask the assistant a question and read the answer while it is written, a sentence at a time and each one already checked")
 - **Dispatch**: opus @ high — `/execute-project 023 phase 4` — deviation from `tiered`'s
   implementation row: it wires AI output validation and an allergy screen into a request path.
 - **Goal**: a signed-in person can ask the API a question and get a stream back, under every
@@ -434,7 +434,7 @@ Decisions recorded with this plan:
 
 ### Phase 5 — The screen
 
-- [ ] pending
+- [ ] in progress — built 2026-11-10; human-verify pending (LOG.md § Phase 5)
 - **Dispatch**: opus @ high — `/execute-project 023 phase 5` — deviation from `tiered`'s
   implementation row: the screen is where the allergen net's and the refusal's words reach a
   person, so it is the display half of AI output validation. — owner-approves: the warning's wording, from
@@ -474,6 +474,10 @@ Decisions recorded with this plan:
      the screenshots **opened and looked at**, because a green line says the page fits, not that
      the page is right. Remember the localhost artefact: count the 429s in `api.log` before
      believing a page is broken.
+- **Amended as built (2026-11-10)**: no `/en/asistente` — signed-in screens keep one address and
+  take their language from the profile's cookie; the address stays `/asistente` after the first
+  answer (changing it mid-answer moved focus); the `legal` agent's F1 and F2 were fixed in this
+  phase (`docs/decisions/LOG.md`, 2026-11-10). See LOG.md § Phase 5.
 - **Acceptance criteria**: PRD 1 in full; PRD 12 (the warning); PRD 10 (the history as a person
   uses it); PRD 6's notice; and PRD 2's and PRD 7's words as a person actually reads them.
 - **Verification**:

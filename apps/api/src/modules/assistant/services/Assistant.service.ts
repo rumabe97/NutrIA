@@ -205,11 +205,14 @@ export class AssistantService {
     // Somebody else's conversation is a 404 here, before any model is asked.
     const earlier = ask.conversationId === undefined ? [] : (await AssistantController.thread(userId, ask.conversationId)).turns;
     const decline = await this.decide(userId, claim, labelling, question, signal);
+    // A question the code itself judged clinical is most likely about somebody's health: it is
+    // **not kept**, word for word or as a title — only its code (`docs/legal/assistant-warning.md` F2).
+    const kept = decline === 'clinical' ? '' : question;
     // Opened only once there is something to put in it: a question a provider could not label leaves no empty thread.
-    const conversationId = ask.conversationId ?? (await AssistantController.open(userId, undefined, question));
+    const conversationId = ask.conversationId ?? (await AssistantController.open(userId, undefined, kept));
 
     // A cut question carries its code too, so it is never replayed paired with somebody else's answer.
-    await AssistantController.append(userId, conversationId, { content: question, decline, role: 'user' });
+    await AssistantController.append(userId, conversationId, { content: kept, decline, role: 'user' });
 
     if (decline !== null) {
       await AssistantController.append(userId, conversationId, { content: '', decline, role: 'assistant' });
@@ -331,7 +334,6 @@ export class AssistantService {
         })),
         dietaryPatterns: preferences.dietaryPatterns.filter(pattern => NAMEABLE_PATTERNS.has(pattern)),
         dislikedNames: preferences.dislikedNames,
-        excludedFoods: forbidden.filter(food => food.told).map(food => food.display),
         goal: preferences.goal,
         kitchen: generation.preferences.kitchen,
         language: languageName(generation.locale),

@@ -1,0 +1,25 @@
+.confirm {
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-control);
+  display: grid;
+  gap: var(--space-02);
+  padding: var(--space-03);
+}
+
+.text {
+  color: var(--foreground-01);
+  font-size: var(--font-size-02);
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02);
+}
+
+@media (forced-colors: active) {
+  .confirm {
+    border: 1px solid CanvasText;
+  }
+}

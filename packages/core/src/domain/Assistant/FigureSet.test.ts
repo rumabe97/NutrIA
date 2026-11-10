@@ -17,7 +17,6 @@ const CONTEXT = assistantContext({
   ],
   dietaryPatterns: [],
   dislikedNames: [],
-  excludedFoods: [],
   goal: null,
   kitchen: null,
   language: 'Spanish',

@@ -65,6 +65,7 @@ export const UNINDEXED_PATHS: readonly PagePath[] = [
  */
 export const PRIVATE_PATHS: readonly PagePath[] = [
   '/admin',
+  '/asistente',
   '/check-in',
   '/compra',
   '/consentimiento',

@@ -1191,6 +1191,56 @@ export const enGB: Dictionary = {
     signOut: 'Sign out'
   },
 
+  assistant: {
+    answerLabel: 'The assistant’s answer',
+    back: 'All conversations',
+    cancel: 'Cancel',
+    conversationsEmptyBody: 'Your conversations with the assistant will appear here, the most recent first, so you can pick them up again.',
+    conversationsEmptyTitle: 'You have not asked anything yet',
+    conversationsTitle: 'Your conversations',
+    cutOff: 'The connection dropped while it was writing. What you see had already been checked; ask again to carry on.',
+    declines: {
+      acting: 'I cannot change your plan or write you a whole one. I can give you ideas; changes are made from Plan.',
+      allergen: 'I stopped here because the answer was about to name something you told us you cannot have. Try asking it another way.',
+      clinical:
+        'This is one for a health professional: doses, medication, pregnancy, eating disorders or feeding a child. Ask your doctor or a registered dietitian.',
+      invented_figure:
+        'I stopped here because I was about to give you a figure that does not come from your plan. Your meals’ figures and your targets are in Plan.',
+      off_topic: 'I can only help with nutrition: your plan, recipes, ingredients and macros. Ask me something about those.'
+    },
+    deleteAnswerLabel: 'Delete this answer',
+    deleteConversation: 'Delete conversation',
+    deleteConversationBody:
+      'This whole conversation will be deleted, everything you wrote and every answer. It cannot be undone. The messages still count towards your fortnight’s limit.',
+    deleteConversationConfirm: 'Delete for good',
+    deleted: 'Message deleted.',
+    deleteMessage: 'Delete',
+    deleteMessageBody: 'This message will be deleted. It cannot be undone, and it still counts towards your fortnight’s limit.',
+    deleteMessageLabel: 'Delete this message',
+    deleteQuestionLabel: 'Delete your question',
+    done: 'Answer finished.',
+    field: 'Your question',
+    fieldHint: 'About your plan, a recipe, an ingredient or your macros. Up to {max} characters.',
+    gone: 'This conversation no longer exists.',
+    intro: 'Ask about your plan, recipes, ingredients and macros. It answers from what it knows of your plan and never changes it.',
+    left: '{remaining} of {limit} messages left this fortnight.',
+    leftRolling: '{remaining} of {limit} messages left over the last 14 days.',
+    newConversation: 'New conversation',
+    overAllowance: 'You have used your {limit} messages for this fortnight. They come back on {date}.',
+    overAllowanceRolling: 'You have used your {limit} messages for the last 14 days. They come back as the days go by.',
+    send: 'Send',
+    sending: 'Writing…',
+    threadLabel: 'Conversation with the assistant',
+    title: 'Assistant',
+    unavailableBudget: 'The assistant has reached its limit for this month and is back on the 1st. Your plan and everything else keep working.',
+    updated: 'Last on {date}',
+    warning:
+      'You are talking to an AI assistant, not a person: it can get things wrong, and what it says does not replace the advice of a doctor or a registered dietitian-nutritionist. What you type is sent to the model that answers and kept so you can come back to the conversation, so please do not write about conditions, medication or anything else about your health here. If you have an allergy, add it to your profile, which is where we take it into account. You can delete a message or the whole conversation whenever you like. More in the {privacy}.',
+    warningLabel: 'Notice',
+    warningPrivacy: 'privacy policy',
+    withdrawn: 'Question not kept: it was about health.',
+    you: 'You'
+  },
   auth: {
     askNewLink: 'Ask for a new link',
     backToSignIn: 'Back to sign in',
@@ -1422,6 +1472,9 @@ export const enGB: Dictionary = {
 
   dashboard: {
     activePlan: 'Your plan is active',
+    assistantBody: 'Ask about your plan, a recipe or an ingredient.',
+    assistantCta: 'Open the assistant',
+    assistantTitle: 'Assistant',
     availableNow: 'available now',
     checkIn: '· next review {when}',
     checkInDoneNote: 'Check-in done. Create the next plan whenever you like.',
@@ -1484,6 +1537,7 @@ export const enGB: Dictionary = {
 
   errors: {
     accountNotActivated: 'Your account has not been activated yet.',
+    assistantUnavailable: 'The assistant cannot answer right now. Try again later.',
     boundaryBody: 'It may be an intermittent connection. Try again; if it keeps failing, your data is safe.',
     boundaryHome: 'Go to the dashboard',
     boundaryTitle: 'We could not load this page',
@@ -2283,6 +2337,7 @@ export const enGB: Dictionary = {
     '/admin/producto/planes': { title: 'Plans' },
     '/admin/producto/planes/calidad': { title: 'Plan quality' },
     '/admin/profesionales': { title: 'Professionals' },
+    '/asistente': { title: 'Assistant' },
     '/cambiar-contrasena': { title: 'Change your password' },
     '/check-in': { title: "The fortnight's check-in" },
     '/compra': { title: 'The shopping' },

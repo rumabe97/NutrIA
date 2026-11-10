@@ -29,7 +29,6 @@ function input(overrides: Partial<AssistantContextInput> = {}): AssistantContext
     days: [day('2026-11-10')],
     dietaryPatterns: ['omnivore'],
     dislikedNames: [],
-    excludedFoods: ['huevo'],
     goal: 'maintenance',
     kitchen: null,
     language: 'Spanish',

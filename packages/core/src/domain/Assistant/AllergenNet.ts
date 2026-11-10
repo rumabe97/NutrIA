@@ -12,11 +12,11 @@ export type NetAllergen = { readonly id: string; readonly names: readonly string
 /**
  * One food this person cannot eat, as the net looks for it.
  *
- * `told` says whether the model is given its name. A free-text allergy that
- * resolved to no catalogue row (`unenforceableLabels`) is searched for and
- * **never told**: those labels are never sent to a model (prompt 4.0.0), and
- * searching an answer for them is not the same as sending them — it happens
- * here, after the model has answered, and withholds rather than promises.
+ * `told` marks a food the catalogue resolved (true) apart from a free-text
+ * allergy that matched no row (false). **Neither is sent to a model** since
+ * 2026-11-10 (`docs/decisions/LOG.md`): the profile consent says the model
+ * never receives allergies, so the net searches answers for them here, after
+ * the model has answered, and withholds rather than promises.
  */
 export type ForbiddenFood = { readonly display: string; readonly terms: readonly string[]; readonly told: boolean };
 
@@ -137,10 +137,11 @@ export function forbiddenFoods(
  * it never edits one, because an answer with a word taken out is an answer
  * nobody reviewed.
  *
- * It is strict on purpose, and the prompt makes that fair: the model is handed
- * these foods by name and told never to write them, not even to say avoid
- * them. «En vez de huevo, usa…» is withheld because it broke a rule it was
- * given; «Puedes usar plátano maduro…» answers the same question and is shown.
+ * It is strict on purpose. The model is **not told** these foods (they are
+ * health data, and the consent says it never receives them); it is told that
+ * answers are checked against allergies it does not know and to answer a
+ * "what instead of" with the alternatives alone. «En vez de huevo, usa…» is
+ * withheld; «Puedes usar plátano maduro…» answers the same question and is shown.
  */
 export function answerNamesAnAllergen(answer: string, forbidden: readonly ForbiddenFood[]): ForbiddenFood | null {
   const text = ` ${normaliseForMatching(answer)} `;
