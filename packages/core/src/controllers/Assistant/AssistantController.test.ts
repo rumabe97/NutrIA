@@ -12,6 +12,8 @@ const repository = vi.hoisted(() => ({
   deleteConversation: vi.fn(),
   deleteTurn: vi.fn(),
   findConversation: vi.fn(),
+  forgetOldUsage: vi.fn(),
+  forgetQuietConversations: vi.fn(),
   listConversations: vi.fn(),
   markOffTopic: vi.fn(),
   releaseUse: vi.fn(),
@@ -136,5 +138,16 @@ describe('AssistantController.claim', () => {
     repository.claimUse.mockResolvedValueOnce(null);
 
     await expect(AssistantController.claim('user-1', standing)).rejects.toMatchObject({ kind: 'assistant_message', nextAt: '2026-11-24' });
+  });
+});
+
+describe('AssistantController.forget', () => {
+  it('deletes conversations quiet for six months and count rows past sixty days, by date alone', async () => {
+    repository.forgetQuietConversations.mockResolvedValueOnce(2);
+    repository.forgetOldUsage.mockResolvedValueOnce(9);
+
+    await expect(AssistantController.forget(new Date('2026-11-10T10:00:00Z'))).resolves.toEqual({ assistantConversations: 2, assistantUsageRows: 9 });
+    expect(repository.forgetQuietConversations).toHaveBeenCalledWith(new Date('2026-05-10T10:00:00Z'));
+    expect(repository.forgetOldUsage).toHaveBeenCalledWith(new Date('2026-09-11T10:00:00Z'));
   });
 });

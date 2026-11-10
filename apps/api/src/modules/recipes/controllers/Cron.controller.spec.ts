@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 
+import { AssistantRetentionService } from '../../assistant/services/AssistantRetention.service.js';
 import { AuthRetentionService } from '../../auth/services/AuthRetention.service.js';
 import { CheckInReminderService } from '../../notifications/index.js';
 import { CronController } from './Cron.controller.js';
@@ -31,6 +32,7 @@ describe('the cron routes', () => {
   const forget = jest.fn(async () => Promise.resolve());
   const forgetVerifications = jest.fn(async () => Promise.resolve(0));
   const forgetAuth = jest.fn(async () => Promise.resolve({ authAuditRows: 0, signInFailures: 0, unconfirmedAccounts: 0 }));
+  const forgetAssistant = jest.fn(async () => Promise.resolve({ assistantConversations: 0, assistantUsageRows: 0 }));
   const activate = jest.fn(async () => Promise.resolve({ activated: 0, failed: 0 }));
   const removeTwoFactors = jest.fn(async () => Promise.resolve({ failed: 0, removed: 0 }));
   const record = jest.fn(async (_job: string, _counts: Readonly<Record<string, 'cap' | number>>) => Promise.resolve());
@@ -55,6 +57,7 @@ describe('the cron routes', () => {
         { provide: CheckInReminderService, useValue: { sweep } },
         { provide: ExpiredInvitationsService, useValue: { forget } },
         { provide: ExpiredVerificationsService, useValue: { forget: forgetVerifications } },
+        { provide: AssistantRetentionService, useValue: { forget: forgetAssistant } },
         { provide: AuthRetentionService, useValue: { forget: forgetAuth } },
         { provide: TwoFactorRemovalsService, useValue: { run: removeTwoFactors } },
         { provide: CronRunService, useValue: { record } },
@@ -405,23 +408,49 @@ describe('the cron routes', () => {
   it('deletes the expired verification rows on its own route, then the authentication retention, and answers how many', async () => {
     forgetVerifications.mockResolvedValueOnce(5);
     forgetAuth.mockResolvedValueOnce({ authAuditRows: 4, signInFailures: 3, unconfirmedAccounts: 2 });
+    forgetAssistant.mockResolvedValueOnce({ assistantConversations: 1, assistantUsageRows: 6 });
     const server = await boot(SECRET);
 
     const response = await request(server).get('/cron/sweep-verifications').set('Authorization', bearer(SECRET)).expect(200);
 
-    expect(response.body).toEqual({ authAuditRows: 4, deleted: 5, signInFailures: 3, unconfirmedAccounts: 2 });
+    expect(response.body).toEqual({
+      assistantConversations: 1,
+      assistantUsageRows: 6,
+      authAuditRows: 4,
+      deleted: 5,
+      signInFailures: 3,
+      unconfirmedAccounts: 2
+    });
     expect(forgetVerifications).toHaveBeenCalledTimes(1);
     expect(forgetAuth).toHaveBeenCalledTimes(1);
+    // The assistant's retention runs whether its switch is on or off (project 023 phase 7).
+    expect(forgetAssistant).toHaveBeenCalledTimes(1);
     expect(forget).not.toHaveBeenCalled();
     expect(sweep).not.toHaveBeenCalled();
     expect(rewriteOutdated).not.toHaveBeenCalled();
     // 0071: the run says it finished, with its count, so the console's silent-cron watch sees it.
     expect(record).toHaveBeenCalledTimes(1);
-    expect(record).toHaveBeenCalledWith('verifications', { authAuditRows: 4, deleted: 5, signInFailures: 3, unconfirmedAccounts: 2 });
+    expect(record).toHaveBeenCalledWith('verifications', {
+      assistantConversations: 1,
+      assistantUsageRows: 6,
+      authAuditRows: 4,
+      deleted: 5,
+      signInFailures: 3,
+      unconfirmedAccounts: 2
+    });
   });
 
   it('records no verification sweep that did not finish', async () => {
     forgetVerifications.mockRejectedValueOnce(new Error('database down'));
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/sweep-verifications').set('Authorization', bearer(SECRET)).expect(500);
+
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('records no sweep whose assistant retention did not finish', async () => {
+    forgetAssistant.mockRejectedValueOnce(new Error('database down'));
     const server = await boot(SECRET);
 
     await request(server).get('/cron/sweep-verifications').set('Authorization', bearer(SECRET)).expect(500);

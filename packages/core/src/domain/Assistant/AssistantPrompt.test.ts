@@ -12,9 +12,7 @@ const CONTEXT = assistantContext({
       targets: { carbsG: 240, fatG: 69, fiberG: 30, kcal: 2079, proteinG: 130 }
     }
   ],
-  dietaryPatterns: [],
   dislikedNames: [],
-  goal: 'maintenance',
   kitchen: null,
   language: 'Spanish',
   likedFoods: [],

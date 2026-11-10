@@ -139,6 +139,17 @@ export default async function AdminSettingsPage() {
               onHint={t.pantryRankHint}
             />
           </li>
+          {/* The assistant (project 023): thrown only once /privacidad describes it and the notice mail has gone out
+              (docs/legal/go-live-checklist.md § 0 undecies). Off, asking it is a 404 for everybody. */}
+          <li className={styles.row} id="asistente">
+            <FlagSwitch
+              enabled={flags.assistant ?? false}
+              flag="assistant"
+              label={t.assistantLabel}
+              offHint={t.assistantOffHint}
+              onHint={t.assistantHint}
+            />
+          </li>
         </Card>
       </section>
 

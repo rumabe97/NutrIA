@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
@@ -209,6 +209,33 @@ export const AssistantRepository = {
         .where(ownedConversation(userId, conversationId));
 
       return row ? { ...row, title: row.title ?? '' } : null;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /** Every ledger row older than `before`, which no window can read any more (the `legal` agent's F3). Returns how many went. */
+  async forgetOldUsage(before: Date): Promise<number> {
+    try {
+      const deleted = await database().delete(assistantUsage).where(lt(assistantUsage.createdAt, before)).returning({ id: assistantUsage.id });
+
+      return deleted.length;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Every conversation nobody has continued since `before`, its turns with it
+   * (`onDelete: 'cascade'`) — the six-month retention the owner chose on
+   * 2026-11-10 (`docs/decisions/LOG.md`). `updatedAt` is the last turn's time:
+   * `appendTurn` sets it. Returns how many went.
+   */
+  async forgetQuietConversations(before: Date): Promise<number> {
+    try {
+      const deleted = await database().delete(aiConversations).where(lt(aiConversations.updatedAt, before)).returning({ id: aiConversations.id });
+
+      return deleted.length;
     } catch (error: unknown) {
       throw wrap(error);
     }

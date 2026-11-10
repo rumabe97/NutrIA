@@ -1,7 +1,7 @@
 import type { AssistantContext } from './AssistantContext';
 
 /** Bumped whenever the words below change, and recorded beside every call that used them. */
-export const ASSISTANT_PROMPT_VERSION = '1.1.0';
+export const ASSISTANT_PROMPT_VERSION = '1.2.0';
 
 /**
  * The assistant's system prompt: one, in English, told the language to answer

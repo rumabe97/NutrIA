@@ -15,7 +15,9 @@ export const enGB: Dictionary = {
     accompanimentsHint: 'On: new plans, swaps and rebuilds set bread, salad or fruit beside large meals, and the plate drops to a normal serving.',
     accompanimentsLabel: 'Accompaniments (bread, salad, fruit)',
     accompanimentsOffHint: 'Off: no new accompaniments are added. Those a plan already has are still shown.',
+    assistantHint: 'On: any account can ask the assistant at /asistente, within its fortnight’s message limit and the month’s spending cap.',
     assistantLabel: 'Nutrition assistant',
+    assistantOffHint: 'Off: /asistente does not exist for anybody. Any conversations can still be read and deleted.',
     automaticActivation: 'Automatic activation',
     automaticHint: 'Whoever confirms their address is in. Nothing for you to do.',
     events: { app_used: 'Used the app', session_started: 'Sign-ins', swap_requested: 'Meal swaps asked for' },
@@ -2803,6 +2805,8 @@ export const enGB: Dictionary = {
           'Two-step verification, only if you turn it on: the secret of your authenticator app and your backup codes, encrypted, failed code attempts and, in the security record, when you turn it on, turn it off or use a backup code. If you turn it off, we delete the secret and the codes. If you lose your phone and your backup codes, you can ask us, from your account’s address, to remove it: we email you right away, it is removed 48 to 72 hours later and, if you sign in with a code or a passkey before then, it is cancelled (if signing in with your password does not ask you for the code, write to us from that address and we will cancel it); it is noted in the security record. So that, even if someone knows your password, they cannot get into your account.',
           "Passkeys, only if you add one: its identifier and public key; what your device tells us about it, such as whether it syncs across your devices, how it connects or what kind of device or app keeps it; the name of your browser and system we save it under; when you added it and, in the security record, when one is added or removed. The secret part of the key, your Face ID, your fingerprint and your device's passcode never reach us: the key stays on your device or, if you sync your passkeys (for example with iCloud or Google), with the service you choose for that. We delete it if you remove it, or when you change or reset your password. So that you can sign in without a password.",
           'Product use: we record, linked to your account, when you sign in and when you ask to change a dish, and nothing more. To know whether the product works.',
+          'What you type to the assistant, if you use it: your questions, their answers and the title of each conversation, which is the first words of your first question. So that you can come back to the conversation. More under "The assistant".',
+          'How many messages you send the assistant: when you send each one and whether it was about something other than nutrition, without the text. To apply each fortnight’s message limit.',
           'What you write to us: messages in the feedback box, so we can read and answer them.'
         ],
         paragraphs: []
@@ -2810,13 +2814,13 @@ export const enGB: Dictionary = {
       {
         heading: 'Which of these are specially protected',
         paragraphs: [
-          'The law gives special protection to health data and to data revealing religious beliefs. On NutrIA these are: your allergies and intolerances; your weight, height and goal, because they say something about your health; a way of eating such as gluten-free or lactose-free, or one tied to a religion; your conditions, medications and supplements; and anything you write about how the plan agrees with you.'
+          'The law gives special protection to health data and to data revealing religious beliefs. On NutrIA these are: your allergies and intolerances; your weight, height and goal, because they say something about your health; a way of eating such as gluten-free or lactose-free, or one tied to a religion; your conditions, medications and supplements; and anything you write about how the plan agrees with you. So would anything you write about your health in a conversation with the assistant, although we ask you not to.'
         ]
       },
       {
         heading: 'Why we may process this data',
         paragraphs: [
-          'To provide the service you ask for (contract): your account, profile, plans, payments and service emails.',
+          'To provide the service you ask for (contract): your account, profile, plans, conversations with the assistant, payments and service emails.',
           'With your explicit consent: your allergies and intolerances, your body and goal and your way of eating, which you give with a checkbox of its own when you create your profile. Without them we cannot make a safe plan for you, so without that consent we do not generate plans; you can withdraw it at any time by deleting that data from your profile. Your conditions, medications and supplements, under a separate, optional consent. Each consent is stored with its date and the version of the text you accepted.',
           'Our legitimate interest: recording product use and technical errors to keep it working, with no health data, and protecting accounts: the security record, the brakes against abuse and the security notices we send you. You can object by writing to us.',
           'Legal obligation: keeping what tax law requires about payments (Stripe does this).'
@@ -2827,7 +2831,7 @@ export const enGB: Dictionary = {
         heading: 'Your dietitian on NutrIA',
         paragraphs: [
           'A dietitian-nutritionist can invite you by email to follow your plan with them on NutrIA. Only a professional we have given access to, after checking their registration number, can do so. The invitation lasts 14 days; we use your address only to send it and delete it with the invitation: as soon as you answer or, if you do not, by the day after it expires at the latest.',
-          'Nothing is shared unless you accept. If you do, your dietitian will see your name, your daily targets and how they were worked out, your plans, how much of each fortnight you follow, your weight over time and your check-in answers. They can set your targets, generate and change your plans, and review each new plan before you see it. Your conditions, medications and supplements only if you tick that separate box. They will not see your allergies or intolerances, your email address or your written comments.',
+          'Nothing is shared unless you accept. If you do, your dietitian will see your name, your daily targets and how they were worked out, your plans, how much of each fortnight you follow, your weight over time and your check-in answers. They can set your targets, generate and change your plans, and review each new plan before you see it. Your conditions, medications and supplements only if you tick that separate box. They will not see your allergies or intolerances, your email address, your written comments or your conversations with the assistant.',
           'Every time your dietitian looks at or changes something, it is recorded and you can see it on your profile under "Who has accessed".',
           'You can end the link from your profile at any time, and from the next request your dietitian stops seeing your data. You can also stop sharing just your health without ending the link. Your targets, your history and your last published plan stay with you.',
           'Who is responsible for what: NutrIA is responsible for your data on NutrIA and discloses it to your dietitian because you ask it to. Your dietitian is responsible, on their own account and under professional secrecy, for what they do with what they see in their practice, such as what they note in your clinical record; for that, contact them. For everything held on NutrIA, write to us at {email}: we are your contact point.',
@@ -2837,20 +2841,36 @@ export const enGB: Dictionary = {
       {
         heading: 'Artificial intelligence',
         paragraphs: [
-          "NutrIA's dishes and recipes are designed by an artificial-intelligence model or come from our library of dishes already designed and checked. Our own code checks every dish before it reaches you: a declared allergen does not reach your plan even if the model gets it wrong. The AI makes no decision about you: the calorie and protein bounds are applied by fixed rules, not by the model.",
+          'NutrIA\'s dishes and recipes are designed by an artificial-intelligence model or come from our library of dishes already designed and checked. Our own code checks every dish before it reaches you: a declared allergen does not reach your plan even if the model gets it wrong. The AI makes no decision about you: the calorie and protein bounds are applied by fixed rules, not by the model. The assistant, which answers questions about your plan, uses another model and has its own section, "The assistant".',
           'What the model receives when it designs new dishes for your plan: your daily targets and your goal (for example, losing weight), which meals you eat and how much time you want to spend cooking each dish, which kitchen appliances you do not have and which ones you would rather cook with, whether you are vegetarian or vegan, the cuisines and foods you like, the names of dishes you liked, disliked or ate last fortnight, and your closed check-in answers (hunger, difficulty, rating). Always by the names on our lists. It never receives your name, email, age, sex, weight or height, anything you typed yourself — except the name of a dish, if you ask it for one —, your allergies or intolerances, any other way of eating (gluten-free, lactose-free, halal, kosher…), or your conditions, medications or supplements. What you cannot or will not eat we remove first, in our code, from the catalogue of foods it sees: it gets the effect, never the datum.',
           "Where it goes: the request goes to OpenRouter (OpenRouter, Inc., United States), which processes it on our behalf and passes it to the company that runs the model: DeepInfra or CoreWeave, also in the United States. The model is Gemma 4 31B and, if it does not answer, DeepSeek V4.1 Flash; they are open models run by those companies: what is sent to design your dishes never goes through Google's or DeepSeek's own services.",
-          'Nobody trains on it or keeps it: we only use providers that delete the request as soon as they answer and do not use it to train or improve any model. We require this in our OpenRouter account and again in every request. OpenRouter keeps only technical data about each request (size, time, cost), not its content.',
-          'If you ask it for a dish: you can ask us for a dish our library does not have by typing its name. That name is the only thing written by you that reaches the model, and it travels with the rest of the request to the same companies. Write only the dish’s name: it is sent as it is, so do not put anything about you or about anybody else there. We do not keep what you type: as soon as the model answers, your text is gone, and it is left in no record. What does stay is the dish, with the name and the recipe the model writes, in the same library as every other: it may turn up in somebody else’s plan, and it does not say who asked for it.',
+          'What is sent to design your dishes is kept by nobody and used for no training: for that we only use providers that delete the request as soon as they answer and do not use it to train or improve any model. We require this in our OpenRouter account and again in every request. OpenRouter keeps only technical data about each request (size, time, cost), not its content. The assistant works differently, as explained under "The assistant".',
+          'If you ask it for a dish: you can ask us for a dish our library does not have by typing its name. That name is the only thing written by you that reaches the model that designs the dishes, and it travels with the rest of the request to the same companies. Write only the dish’s name: it is sent as it is, so do not put anything about you or about anybody else there. We do not keep what you type there: as soon as the model answers, your text is gone, and it is left in no record. What does stay is the dish, with the name and the recipe the model writes, in the same library as every other: it may turn up in somebody else’s plan, and it does not say who asked for it.',
           'One exception you should know about: OpenRouter may pass a small sample of requests, with nothing linking them to our account or to you, through a model that tags them with a topic for its public usage statistics. It does not keep the text, only the tag.',
           'The pictures of the dishes are generated by another model, from the recipe alone: its name, its ingredients and in what proportion. It never receives anything of yours, not even who opened the dish. The request goes to OpenRouter, which passes it to Google (Vertex AI), and a model run by DeepInfra reviews every picture before it is published. None of them keeps the request or trains on it. If that model clearly sees in the picture a food carrying an allergen the recipe does not have, the picture is rejected, and it is published only if we then review it by hand and decide to publish it; something shaped like what the dish already has or its name says, such as its bread or its milk, does not count, because a picture cannot show what it is made of. That review is not a guarantee: the picture may show something the dish does not contain, and what the dish contains is what its ingredient list says. The pictures are stored on Vercel, shown to everyone who sees that dish, and carry the "AI" mark; the files also carry an invisible, machine-readable mark saying they were generated by AI.',
           'Until 26 September 2026 some of the models we used were free versions hosted in the United States whose providers could use what they received to improve their models. We no longer use any of them.'
         ]
       },
       {
+        id: 'asistente',
+        heading: 'The assistant',
+        paragraphs: [
+          'If you use the assistant, what you type is sent to an artificial-intelligence model so that it can answer you, and kept in your account so that you can come back to the conversation. The assistant only talks about nutrition — your plan, recipes, ingredients and macros —, is not a doctor or a dietitian-nutritionist, and never changes your plan.',
+          'What the model receives with each question: your question; the earlier questions and answers of that same conversation, up to a limit; and, so that it can talk about your plan, the days of your active plan with their dishes, side dishes and figures, your daily targets and each day’s own, how much each meal weighs in your day, how much time you want to spend cooking, the appliances in your kitchen, the cuisines and foods you like, the names of the dishes you love and of those you dislike, and the language it should answer in. What comes from your profile and your plan always goes by the names on our lists. It never receives your name, email, age, sex, weight, height or goal, your allergies or intolerances, your way of eating (not even whether you are vegetarian or vegan), or your conditions, medications or supplements.',
+          'Before answering, the same model reads your question to decide whether it is about nutrition, whether it is one for a health professional, or whether it has nothing to do with what it does. Some health questions — about conditions, doses, medication, pregnancy or breastfeeding, eating disorders or feeding a child — our own code catches first, and those reach no model at all. A question our code or the model judges to be about health is not kept: all that stays in the conversation is a mark that there was one.',
+          'Our code checks every sentence of the answer before showing it to you, and stops the answer there if it was about to name something you cannot have according to the allergies and intolerances on your profile, to give you a figure that does not come from your plan, or to say it has changed your plan. We do that check ourselves: the model is not told your allergies. So if you have an allergy, add it to your profile: if you only write it in the conversation, none of our checks takes it into account.',
+          'Where it goes: to Anthropic, which processes it on our behalf. Our contract is with Anthropic Ireland, Limited, in Ireland. The model is Claude Haiku 5.5. Anthropic stores what it receives in the United States and may work out the answer on servers in other countries. Its terms forbid it to train its models on it and, according to its own pages, it deletes the question and the answer from its systems within 30 days at most; if its automated systems flag a conversation as breaking its usage rules, it may keep it for up to 2 years, and the score from that review for up to 7. Deleting a conversation here does not delete that copy.',
+          'Your conversations are kept in your account, each with a title made from the first words of your first question. Nobody else reads them on NutrIA: they do not appear in our admin console, your dietitian does not see them if you have one, and they go into no record. You can delete a message or a whole conversation whenever you like, and it is deleted at once. Otherwise a conversation deletes itself six months after its last message, and all of them are deleted when you delete your account.',
+          'To apply each fortnight’s message limit we keep, for every message you send, when you sent it and whether it was about something other than nutrition, without its text. That count is not deleted when you delete a message — which is why a deleted message still counts — and it deletes itself after 60 days, or when you delete your account.',
+          'We process your questions and their answers to provide the service you ask for (contract). The allergies and intolerances on your profile, which we check the answers against, remain under the consent you gave us for them.',
+          'We remind you at the start of every conversation: please do not write about conditions, medication or anything else about your health in the assistant. If you do anyway, it is sent and kept like the rest of the conversation, until you delete it or it deletes itself.'
+        ]
+      },
+      {
         heading: 'Who we share your data with',
         list: [
           'OpenRouter, and DeepInfra or CoreWeave, which run the artificial-intelligence model, as explained in "Artificial intelligence". They are in the United States.',
+          'Anthropic, which runs the assistant’s model, if you use it, as explained in "The assistant". Our contract is with Anthropic Ireland, Limited, in Ireland; it stores the data in the United States.',
           'Vercel (hosting for the website, the API and the pictures of the dishes, in the European Union) and Neon (database, in the European Union). Both are US companies.',
           'Stripe, if you subscribe to Premium, to charge the subscription. Stripe processes and keeps payment data under its own policies.',
           'Our email provider, for confirmation, password-reset and invitation emails, account security notices (such as your password having changed, which cannot be turned off) and notices you turn on.',
@@ -2862,14 +2882,15 @@ export const enGB: Dictionary = {
       {
         heading: 'Transfers outside the European Union',
         paragraphs: [
-          "Some of these providers are US companies or process data there: Vercel, Neon, Stripe, the email provider, Sentry, OpenRouter, DeepInfra and CoreWeave. Vercel, Neon, Stripe and Sentry are certified under the EU-US Data Privacy Framework, which the European Commission recognises as an adequate safeguard; with the email provider we rely on that same framework or on the Commission's standard contractual clauses. OpenRouter is not in that framework: with it we rely on the standard contractual clauses. DeepInfra and CoreWeave receive the request from OpenRouter and commit to it not to keep it or train on it; the request carries nothing that identifies you. You can ask us for the details of each safeguard at {email}."
+          'Some of these providers are US companies or process data there: Vercel, Neon, Stripe, the email provider, Sentry, OpenRouter, DeepInfra, CoreWeave and Anthropic. Vercel, Neon, Stripe and Sentry are certified under the EU-US Data Privacy Framework, which the European Commission recognises as an adequate safeguard; with the email provider we rely on that same framework or on the Commission’s standard contractual clauses. OpenRouter is not in that framework: with it we rely on the standard contractual clauses. DeepInfra and CoreWeave receive the request from OpenRouter and commit to it not to keep it or train on it; the request carries nothing that identifies you. With Anthropic our contract is through Anthropic Ireland, Limited, in Ireland; Anthropic stores the data in the United States and, to work out an answer, may process them in other countries. Anthropic is not in the Data Privacy Framework, and those transfers rest on the Commission’s standard contractual clauses, which are part of its data processing agreement. You can ask us for the details of each safeguard at {email}.'
         ]
       },
       {
         heading: 'How long we keep your data',
         paragraphs: [
           /* Source: see the Spanish paragraph; arts. 13.2.a, 5.1.e and 17 GDPR. */
-          'While your account exists. When you delete it, everything in it is deleted at once: profile, allergies, health, plans, shopping lists, what you told us you already had at home, progress and consents.',
+          'While your account exists. When you delete it, everything in it is deleted at once: profile, allergies, health, plans, shopping lists, what you told us you already had at home, progress, conversations with the assistant and consents.',
+          'Your conversations with the assistant delete themselves six months after their last message, unless you delete them first, and the count of the messages you send it after 60 days. Anthropic deletes what it received from the assistant within 30 days at most, or up to 2 years later if its systems flag it as breaking its usage rules (more under "The assistant").',
           'What you tell us you already have at home lives until the plan that uses it is generated, which deletes it. If you never generate one — or if a failure prevented that deletion — it stays there until the next plan you generate spends it, until you delete it, or until you delete your account. The plan itself records which foods and amounts it was asked with, and that is deleted with the plan.',
           'If somebody creates an account with an address and nobody confirms it, we delete it thirty days after the sign-up: the name, the email address and the password it was created with are gone. We only delete it if there is nothing else in it: no session, no profile, no plan and no activity recorded in our records. What is left is a single note saying that an unconfirmed account was deleted that day, with no email address, no name and nothing that leads to anybody. Once you confirm your address, your account stays for as long as you want it.',
           'The security record of your account is kept while your account exists; when you delete it, it stops being linked to you. It is also deleted after 12 months.',
@@ -2880,9 +2901,9 @@ export const enGB: Dictionary = {
       {
         heading: 'Your rights',
         list: [
-          'Access: see what data we hold, from your profile or by asking by email.',
+          'Access: see what data we hold, from your profile — and your conversations, from the assistant — or by asking by email.',
           'Rectification: correct it, from your profile for almost everything.',
-          'Erasure: delete your account from your profile, or ask by email.',
+          'Erasure: delete your account from your profile, or ask by email; and a message or a conversation with the assistant, from the assistant itself.',
           'Portability: receive your data in a structured file to take to another service; ask us by email.',
           'Restriction: ask us to stop using a piece of data while we resolve your complaint about it.',
           'Objection: to the product-use record, by writing to us.',
@@ -2918,7 +2939,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Privacy policy',
-    updated: 'Last updated: 5 November 2026'
+    updated: 'Last updated: 10 November 2026'
   },
 
   profile: {
@@ -3282,7 +3303,8 @@ export const enGB: Dictionary = {
         paragraphs: [
           'Recipes and plans are generated with the help of artificial intelligence and validated by our own code before you see them. They can still contain mistakes: a cooking time, a quantity, an unclear step. Use your judgement in the kitchen, above all with food safety: cook meat, fish and eggs through, and keep the cold chain.',
           'The pictures of the dishes are also generated by artificial intelligence, from the recipe, and we mark them as such. They are for illustration only: they are not a photo of the dish you will cook and may not show all of its ingredients or its real quantities. What each dish contains is what its ingredient list says, and that list is the one that takes your allergies into account.',
-          'If you ask us for a dish by typing its name, that text is sent to the artificial intelligence. Write only a dish’s name: it is not a place to tell us anything about you or about anybody else. We may not act on a request, and the dish that comes out may not fit your plan, in which case you never see it. The one that does is kept in our library of dishes — the same one for everybody — under the name the model writes, and it does not say who asked for it.'
+          'If you ask us for a dish by typing its name, that text is sent to the artificial intelligence. Write only a dish’s name: it is not a place to tell us anything about you or about anybody else. We may not act on a request, and the dish that comes out may not fit your plan, in which case you never see it. The one that does is kept in our library of dishes — the same one for everybody — under the name the model writes, and it does not say who asked for it.',
+          'The assistant answers questions about your plan, recipes, ingredients and macros with artificial intelligence. It can get things wrong, and what it says is not the advice of a doctor or a dietitian-nutritionist. It never changes your plan: changes are made from Plan. It may not answer a question — if it is about health, if it is not about nutrition, or if the answer was about to name something you have told us you cannot have or to give you a figure that does not come from your plan — and, if it stops an answer part-way, what you have already read had been checked. Please do not write about conditions, medication or anything else about your health in it: what you type is sent to the model that answers and kept in your account, as the privacy policy explains.'
         ]
       },
       {
@@ -3295,7 +3317,7 @@ export const enGB: Dictionary = {
           'If we change the price, we will tell you in advance and you can cancel before it applies.'
         ],
         paragraphs: [
-          'NutrIA can be used for free, with limits on the plans you can redo, the meals you can swap and the events in each plan. On the free plan you see the fortnight you are living, in full and always; fortnights that have ended are kept all the same, and seeing them in the app is part of Premium. Kept they are either way: you can ask us for a copy of your data whenever you like, as the privacy policy explains. Food safety — allergies, intolerances and nutrients — is the same with Premium and without it.',
+          'NutrIA can be used for free, with limits on the plans you can redo, the meals you can swap, the events in each plan and the messages you can send the assistant each fortnight. A message to the assistant counts even if you delete it afterwards. If in a fortnight you ask it many questions that are not about nutrition, it stops answering for the rest of that fortnight, and if the assistant reaches its spending limit for the month, it stops answering everybody until the 1st; your plan and everything else keep working. On the free plan you see the fortnight you are living, in full and always; fortnights that have ended are kept all the same, and seeing them in the app is part of Premium. Kept they are either way: you can ask us for a copy of your data whenever you like, as the privacy policy explains. Food safety — allergies, intolerances and nutrients — is the same with Premium and without it.',
           'Premium, when it is available, raises those limits for a monthly or yearly subscription. The price is shown, tax included, before you pay, and the payment is handled by Stripe.'
         ]
       },
@@ -3305,14 +3327,15 @@ export const enGB: Dictionary = {
           "Accessing, or trying to access, other people's data.",
           'Extracting the content automatically, or reselling the plans or the recipes.',
           'Using the service in a way that degrades it for others, for example generating plans in bulk or by script.',
-          'Trying to get around the limits of the free plan or the security measures.'
+          'Trying to get around the limits of the free plan or the security measures.',
+          'Using the assistant for anything other than nutrition, or trying to make it say what it must not or get around its checks.'
         ],
         paragraphs: ['NutrIA is for your personal use. We may suspend or close an account that does any of the following:']
       },
       {
         heading: 'Intellectual property',
         paragraphs: [
-          'The application, its design and its words belong to NutrIA. The plans and recipes you receive are for your personal use: cook them, print them, share them with the people you eat with. What you write — your profile, your comments — remains yours; if you send us a suggestion, we may use it to improve the product without owing you anything for it.'
+          'The application, its design and its words belong to NutrIA. The plans and recipes you receive are for your personal use: cook them, print them, share them with the people you eat with. What you write — your profile, your comments, your questions to the assistant — remains yours; if you send us a suggestion, we may use it to improve the product without owing you anything for it.'
         ]
       },
       {
@@ -3333,7 +3356,7 @@ export const enGB: Dictionary = {
       {
         heading: 'Liability',
         paragraphs: [
-          'We answer for damage we cause deliberately or through gross negligence, and for everything the law does not allow us to exclude. We do not answer for health decisions you take from a plan without speaking to a professional, nor for the products you buy. None of this limits the rights you have as a consumer.',
+          'We answer for damage we cause deliberately or through gross negligence, and for everything the law does not allow us to exclude. We do not answer for health decisions you take from a plan or from an answer of the assistant without speaking to a professional, nor for the products you buy. None of this limits the rights you have as a consumer.',
           'If you use NutrIA with a dietitian, their advice is their responsibility as a professional; what NutrIA does — how it calculates, what it checks and what it shows you — is ours.'
         ]
       },
@@ -3351,7 +3374,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Terms of use',
-    updated: 'Last updated: 19 October 2026'
+    updated: 'Last updated: 10 November 2026'
   },
 
   tour: {

@@ -186,6 +186,19 @@
 >   `HEALTH_CONSENT_VERSION`, `CARE_CONSENT_VERSION` ni `TERMS_VERSION`. Los textos tal cual, los
 >   artículos y el porqué de cada frase: [`../pantry.md`](../pantry.md) § 2.2.
 >
+> - **El asistente (2026-11-10, proyecto 023 fase 7, sin marca ⟦⟧)**: una sección nueva,
+>   `id: 'asistente'`, detrás de «La inteligencia artificial», y once cambios en las secciones de
+>   abajo, en los dos idiomas (R1–R12). **El texto exacto, su fuente frase a frase y dónde va cada
+>   uno están en [`../assistant-privacy.md`](../assistant-privacy.md) § 3**, que es la fuente de
+>   esas frases hasta que se pasen a este fichero; las secciones de abajo todavía no las llevan.
+>   Va sin marca porque el texto, el barrido que borra las conversaciones a los seis meses y el
+>   recuento a los 60 días se publican en el mismo cambio, antes de que el propietario encienda
+>   el interruptor `assistant`: no hay un día en que el texto vaya por delante del código. **Es
+>   un cambio «importante»** (un destinatario nuevo, Anthropic, y un almacén nuevo de texto libre):
+>   lleva el correo de [`06`](./06-correos.md) § Q antes del interruptor. No sube ninguna versión
+>   de consentimiento (F5 se arregló quitando el objetivo y la forma de comer de lo que recibe el
+>   modelo); `TERMS_VERSION` sí sube a `2.2.0` por [`03`](./03-condiciones-uso.md) § J.
+>
 > **D5 (2026-09-29)**: cuando la fase 7 del proyecto 008 guarde la versión de las
 > condiciones, la línea «Cuenta» de «Qué datos recogemos» la nombra
 > ([`../2026-09-29-accepting-the-legal-texts.md`](../2026-09-29-accepting-the-legal-texts.md) § 6.B);

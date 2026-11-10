@@ -79,6 +79,14 @@ without a dose field, because dosing is out of scope and a field nothing may rea
 not exist. Supplements contribute a protein figure that is *displayed* beside the targets
 and never deducted from what a plan must supply.
 
+All of this is about what the product **records**. The assistant (project 023) sends a model
+what a person types into a conversation, and nothing can stop somebody typing a condition or a
+medication there. That text is governed instead by the warning that opens every conversation,
+which asks them not to, and by `/privacidad` § «El asistente». It produces none of the three
+things above. A question the code itself judges clinical is not kept. Anything else typed is
+kept only for its author, until they delete it or six months after the conversation's last
+message.
+
 ## Scope
 
 **v1 includes** the full loop, and nothing outside it:

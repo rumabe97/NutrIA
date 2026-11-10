@@ -233,3 +233,32 @@ The controller declares that he has reviewed this assessment and taken on the ac
 
 Date: __________ Signature: __________ (outside the repository: the signature is not
 published)
+
+## 8. Addendum 2026-11-10: the assistant (project 023; art. 35.11 review)
+
+**What changes in the risk**: three things.
+
+1. **A new store of free text written by the person** (`ai_conversations`, `ai_messages`),
+   which may hold health data they type despite the warning (art. 9.1; C-184/20).
+2. **A new processor** for that text and for a context built from the profile and the plan:
+   Anthropic, through Anthropic Ireland, Limited, with an onward transfer to the US and, with
+   `"global"` inference, possibly to other countries.
+3. **A per-person usage ledger** (`assistant_usage`), with no text.
+
+The full inventory is in [`assistant-privacy.md`](./assistant-privacy.md) § 1, and the record is
+row 10.
+
+**Risks to a real person, and what stands against each.**
+
+| Risk | Likelihood before the measures | Measures | Residual |
+| --- | --- | --- | --- |
+| R-A1. Somebody types a condition or a medication and it is sent and kept | likely, sooner or later | the warning at the start of every conversation (AI Act art. 50.1 and minimisation); the lexicon stops the clearest cases before any call; a question judged clinical is stored empty (F2); deletion at will; six months; nobody else reads it | low, and **not legitimised**: no art. 9.2 exception fits volunteered text (**[lawyer]**, `assistant-warning.md` § 4, 17(a)) |
+| R-A2. Health data reach Anthropic from the profile | was present: allergy names (F1) and the goal and the way of eating (F5) | both removed on 2026-11-10; the boundary test fails on any allergy-, goal- or diet-shaped key; the health wall (`health-boundary.spec.ts`) holds | low (the targets remain, **[lawyer]** 17(g)) |
+| R-A3. Somebody else reads a conversation (the owner, a professional, a breach) | possible | owner-scoped repository, 404 to others; no console screen, export, care-link reader, log line or error report; database access only to fix a fault; Neon's encryption at rest | low; a database breach would expose conversations as it would any table (breach procedure applies) |
+| R-A4. An answer names a food a person is allergic to | possible: a model's own words | the allergen net on every sentence against the **profile's** allergies, on our server; the stored answers are screened again against today's allergies before being shown or replayed; the warning sends allergies to the profile | low; the net matches on spelling (`AllergenNet.ts`), so it stays a risk to measure (phase 6) |
+| R-A5. Anthropic keeps the content longer than we do | certain for up to 30 days; up to 2 years if flagged | the policy says so; a no-training clause; a DPA with SCCs; minimisation of what is sent | medium for a flagged conversation, which our deletion cannot reach (**[lawyer]** 17(j)) |
+| R-A6. Somebody takes an answer as medical advice | possible | the warning; the clinical refusals; the terms (T1, T4); an intended purpose outside the MDR | low |
+
+**Verdict**: with these measures the residual risk is acceptable. **No prior consultation**
+(art. 36.1). The conditions are the boxes of [`go-live-checklist.md`](./go-live-checklist.md)
+§ 0 undecies. The controller signs this addendum with § 7.

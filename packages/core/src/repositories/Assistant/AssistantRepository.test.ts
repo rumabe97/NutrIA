@@ -192,6 +192,15 @@ describe('the conversations', () => {
   });
 });
 
+describe('the retention', () => {
+  it('says how many conversations and count rows went', async () => {
+    answers.deleted = [{ id: 'a' }, { id: 'b' }];
+
+    await expect(AssistantRepository.forgetQuietConversations(new Date())).resolves.toBe(2);
+    await expect(AssistantRepository.forgetOldUsage(new Date())).resolves.toBe(2);
+  });
+});
+
 describe('failures', () => {
   it('report as the domain’s own error, never the driver’s', async () => {
     failure = new Error('connection reset');
@@ -201,6 +210,8 @@ describe('failures', () => {
       () => AssistantRepository.markOffTopic('user-1', 'u-1'),
       () => AssistantRepository.releaseUse('user-1', 'u-1'),
       () => AssistantRepository.usageSince('user-1', new Date()),
+      () => AssistantRepository.forgetQuietConversations(new Date()),
+      () => AssistantRepository.forgetOldUsage(new Date()),
       () => AssistantRepository.createConversation('user-1', 'x'),
       () => AssistantRepository.findConversation('user-1', 'c-1'),
       () => AssistantRepository.listConversations('user-1'),
