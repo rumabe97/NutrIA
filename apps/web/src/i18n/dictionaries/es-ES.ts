@@ -20,7 +20,10 @@ export const esES = {
       'Encendido: los planes, cambios de plato y reconstrucciones nuevos ponen pan, ensalada o fruta junto a las comidas grandes, y el plato baja a una ración normal.',
     accompanimentsLabel: 'Acompañamientos (pan, ensalada, fruta)',
     accompanimentsOffHint: 'Apagado: no se añaden acompañamientos nuevos. Los que ya tiene un plan se siguen viendo.',
+    assistantHint:
+      'Encendido: cualquier cuenta puede preguntar al asistente en /asistente, con su límite de mensajes por quincena y el tope de gasto del mes.',
     assistantLabel: 'Asistente de nutrición',
+    assistantOffHint: 'Apagado: /asistente no existe para nadie. Las conversaciones que haya se pueden seguir leyendo y borrando.',
     automaticActivation: 'Activación automática',
     automaticHint: 'Quien confirma su correo entra directamente. Tú no tienes que hacer nada.',
     events: { app_used: 'Usaron la app', session_started: 'Entradas', swap_requested: 'Cambios de comida pedidos' },
