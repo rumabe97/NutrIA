@@ -8,6 +8,7 @@ import { Test } from '@nestjs/testing';
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
+import { AssistantController } from 'core/controllers/Assistant';
 import { SettingsController } from 'core/controllers/Settings';
 import { TextSpend } from 'core/controllers/Analytics';
 import { UNAUDITED } from 'core/entities/Audit';
@@ -555,6 +556,30 @@ describe('the assistant (023 phase 4)', () => {
 
     expect(list[0]?.title).toBe('¿Y de postre?');
     expect(JSON.stringify(list)).not.toContain('pastillas');
+  });
+
+  it('forgets a conversation nobody continued for six months, and count rows past sixty days, and nothing newer', async () => {
+    const person = await make('retention');
+    const old = String(ndjson(await ask(person, { message: '¿Qué tal el arroz?' }).expect(200))[0]?.id);
+    const recent = String(ndjson(await ask(person, { message: '¿Y la quinoa?' }).expect(200))[0]?.id);
+
+    // Aged by hand on the local database, the way the plan suites shift plans back: time is what this tests.
+    await sql()`update ai_conversations set updated_at = now() - interval '7 months' where id = ${old}`;
+    await sql()`update assistant_usage set created_at = now() - interval '61 days'
+      where id = (select id from assistant_usage where user_id = ${person.id} order by created_at limit 1)`;
+
+    const run = await AssistantController.forget();
+
+    expect(run.assistantConversations).toBeGreaterThanOrEqual(1);
+    expect(run.assistantUsageRows).toBeGreaterThanOrEqual(1);
+
+    const [left] = await sql()<{ messages: number; oldOnes: number; recentOnes: number; usage: number }>`
+      select (select count(*)::int from ai_conversations where id = ${old}) as "oldOnes",
+             (select count(*)::int from ai_messages where conversation_id = ${old}) as messages,
+             (select count(*)::int from ai_conversations where id = ${recent}) as "recentOnes",
+             (select count(*)::int from assistant_usage where user_id = ${person.id}) as usage`;
+
+    expect(left).toEqual({ messages: 0, oldOnes: 0, recentOnes: 1, usage: 1 });
   });
 
   it('leaves nothing of what was said once the account is deleted', async () => {

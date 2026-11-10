@@ -9,7 +9,10 @@ import { z } from 'zod';
  * `1.x` is the three texts of 21, 25 and 28 September, which were never
  * recorded; `2.0.0` is the first that is; `2.1.0` is the text of 19 October
  * 2026, which put earlier fortnights behind Premium (`0021` § *Amended*,
- * `docs/legal/textos/03-condiciones-uso.md` § D bis). No account is
+ * `docs/legal/textos/03-condiciones-uso.md` § D bis); `2.2.0` is the text of
+ * 10 November 2026, which added the assistant — its messages' limit, its
+ * acceptable use and its answers in the liability clause (project 023 phase 7,
+ * `docs/legal/assistant-privacy.md` § 2). No account is
  * backfilled: the eight created under `2.0.0` saw `2.0.0`, and with no email
  * sent this column is the only trace of which text each account was shown.
  *
@@ -21,7 +24,7 @@ import { z } from 'zod';
  * Only `/condiciones` is recorded: the privacy policy is informed, never
  * accepted, and has no version here.
  */
-export const TERMS_VERSION = '2.1.0';
+export const TERMS_VERSION = '2.2.0';
 
 /**
  * The authenticated account. Better Auth owns this row, so the shape mirrors

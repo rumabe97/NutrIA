@@ -1,4 +1,3 @@
-import type { Goal } from 'core/entities/Profile';
 import type { Kitchen } from 'core/entities/Kitchen';
 import type { Macros, NutritionTargets } from 'core/entities/Nutrition';
 import type { MealSlot } from 'core/entities/Plan';
@@ -27,9 +26,7 @@ export type AssistantContextInput = {
   readonly cookingTimeMinutes: number | null;
   readonly cuisines: readonly string[];
   readonly days: readonly AssistantDayInput[];
-  readonly dietaryPatterns: readonly string[];
   readonly dislikedNames: readonly string[];
-  readonly goal: Goal['type'] | null;
   readonly kitchen: Kitchen | null;
   readonly language: string;
   readonly likedFoods: readonly string[];
@@ -67,9 +64,13 @@ export type AssistantDay = {
  * What the assistant is told about one person (project 023, `0104` clause 3).
  *
  * **Exactly what the plan generator already tells a model, and nothing more**:
- * the person-level half of `PromptContext` — goal, patterns, cuisines, cooking
- * time, the dishes and foods they like and dislike, their kitchen, the meal
- * shape — plus the plan the service built. The per-generation half
+ * the person-level half of `PromptContext` — cuisines, cooking time, the dishes
+ * and foods they like and dislike, their kitchen, the meal shape — plus the
+ * plan the service built. **Less than the generator, on purpose**: the goal and
+ * the way of eating are health data under `/privacidad`, consented to "only to
+ * work out your targets and choose your dishes", so a model answering questions
+ * is told neither (owner, 2026-11-10; the `legal` agent's F5). Nor any allergy
+ * (F1). The targets and the plan's figures stay. The per-generation half
  * (`needBySlot`, `excludeSlugs`, `loadedTargets`, `swapWish`, `dishRequest`,
  * `avoidNames`) is not here because no question needs it.
  *
@@ -84,9 +85,7 @@ export type AssistantContext = {
   readonly cuisines: readonly string[];
   /** The active plan, oldest day first; empty when there is none, which is a context and not an error. */
   readonly days: readonly AssistantDay[];
-  readonly dietaryPatterns: readonly string[];
   readonly dislikedNames: readonly string[];
-  readonly goal: Goal['type'] | null;
   readonly kitchen: Kitchen | null;
   readonly language: string;
   readonly likedFoods: readonly string[];
@@ -158,9 +157,7 @@ export function assistantContext(input: AssistantContextInput): AssistantContext
     cookingTimeMinutes: input.cookingTimeMinutes,
     cuisines: names(input.cuisines, ASSISTANT_MAX_NAMES),
     days,
-    dietaryPatterns: names(input.dietaryPatterns, ASSISTANT_MAX_NAMES),
     dislikedNames: names(input.dislikedNames, ASSISTANT_MAX_NAMES),
-    goal: input.goal,
     kitchen: input.kitchen,
     language: input.language,
     likedFoods: names(input.likedFoods, ASSISTANT_MAX_NAMES),

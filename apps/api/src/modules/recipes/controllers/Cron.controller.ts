@@ -3,6 +3,7 @@ import { ApiExcludeController } from '@nestjs/swagger';
 
 import { CheckInReminderService } from '../../notifications/index.js';
 import { CronRunService } from '../services/index.js';
+import { AssistantRetentionService } from '../../assistant/services/AssistantRetention.service.js';
 import { AuthRetentionService } from '../../auth/services/AuthRetention.service.js';
 import { CronSecretGuard } from '../../../shared/guards/index.js';
 import { DuePlansService } from '../../meal-plans/services/DuePlans.service.js';
@@ -55,6 +56,7 @@ const REWRITES_PER_SWEEP = 12;
 export class CronController {
   constructor(
     private readonly alerts: OwnerAlertsService,
+    private readonly assistantRetention: AssistantRetentionService,
     private readonly authRetention: AuthRetentionService,
     private readonly candidates: PictureCandidatesService,
     private readonly duePlans: DuePlansService,
@@ -153,12 +155,14 @@ export class CronController {
    * longer prunes them inside a reset, so a reset for an unknown address costs
    * the same round trips as one for a real one. Then the authentication's
    * retention (phase 7): the sign-in brake's rows a day quiet, and the `auth.*`
-   * audit rows older than twelve months. Spends nothing and needs no switch.
+   * audit rows older than twelve months. Then the assistant's (project 023): its
+   * conversations quiet for six months and its count's rows past sixty days.
+   * Spends nothing and needs no switch.
    */
   @Get('sweep-verifications')
   async sweepVerifications(): Promise<VerificationSweepDto> {
     const deleted = await this.verifications.forget();
-    const run = { deleted, ...(await this.authRetention.forget()) };
+    const run = { deleted, ...(await this.authRetention.forget()), ...(await this.assistantRetention.forget()) };
 
     // At the end, so the record says the run finished and the console's silent-cron watch sees it (`0071`).
     await this.runs.record('verifications', run);

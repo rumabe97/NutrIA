@@ -29,6 +29,19 @@ export function conversationTitle(question: string): string {
   return `${(lastSpace > TITLE_LENGTH / 2 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
 }
 
+/** A conversation nobody has continued for this long is deleted (owner, 2026-11-10). */
+export const ASSISTANT_CONVERSATION_RETENTION_MONTHS = 6;
+
+/**
+ * Ledger rows older than this are deleted. Well past any window the allowance
+ * reads — one plan's fortnight, or the last fourteen days — so no count changes
+ * (the `legal` agent's F3, `docs/legal/assistant-warning.md` § 3.1).
+ */
+export const ASSISTANT_USAGE_RETENTION_DAYS = 60;
+
+/** What one run of the assistant's retention deleted. */
+export type AssistantRetentionRun = { readonly assistantConversations: number; readonly assistantUsageRows: number };
+
 /**
  * The assistant's bookkeeping (project 023): where a person stands in their
  * fortnight, and their conversations. **No model is called from here** — the
@@ -95,6 +108,24 @@ export const AssistantController = {
     if (!(await AssistantRepository.deleteTurn(userId, turnId, conversationTitle))) {
       throw new NotFoundError();
     }
+  },
+
+  /**
+   * The assistant's retention, run by the daily sweep: conversations quiet for
+   * six months, and ledger rows past any window. Nobody's in particular — by
+   * date alone.
+   */
+  async forget(now: Date = new Date()): Promise<AssistantRetentionRun> {
+    const quietSince = new Date(now);
+
+    quietSince.setUTCMonth(quietSince.getUTCMonth() - ASSISTANT_CONVERSATION_RETENTION_MONTHS);
+
+    const usageBefore = new Date(now.getTime() - ASSISTANT_USAGE_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+
+    return {
+      assistantConversations: await AssistantRepository.forgetQuietConversations(quietSince),
+      assistantUsageRows: await AssistantRepository.forgetOldUsage(usageBefore)
+    };
   },
 
   /** A claimed message the label found off topic. */

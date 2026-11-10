@@ -2944,6 +2944,8 @@ export const esES = {
           'Verificación en dos pasos, solo si la activas: el secreto de tu aplicación de autenticación y tus códigos de respaldo, cifrados, los intentos fallidos de código y, en el registro de seguridad, cuándo la activas, la desactivas o usas un código de respaldo. Si la desactivas, borramos el secreto y los códigos. Si pierdes el teléfono y los códigos de respaldo, puedes pedirnos, desde la dirección de tu cuenta, que la quitemos: te avisamos por correo al momento, entre 48 y 72 horas después se quita y, si entras antes con un código o con una llave de acceso, se cancela (si al entrar con tu contraseña no te pide el código, escríbenos desde esa dirección y la cancelamos); en el registro de seguridad queda anotado. Para que, aunque alguien sepa tu contraseña, no entre en tu cuenta.',
           'Llaves de acceso, solo si añades una: su identificador y su clave pública; lo que tu dispositivo nos dice de ella, como si se sincroniza entre tus dispositivos, cómo se conecta o qué tipo de aparato o aplicación la guarda; el nombre de tu navegador y sistema con el que la guardamos; cuándo la añadiste y, en el registro de seguridad, cuándo se añade o se quita una. La parte secreta de la llave, tu Face ID, tu huella y el código de tu dispositivo nunca nos llegan: la llave se queda en tu dispositivo o, si sincronizas tus llaves (por ejemplo, con iCloud o Google), en el servicio que tú eliges para ello. La borramos si la quitas, o al cambiar o restablecer la contraseña. Para que puedas entrar sin contraseña.',
           'Uso del producto: registramos, ligado a tu cuenta, cuándo abres sesión y cuándo pides cambiar un plato, sin más detalle. Para saber si el producto funciona.',
+          'Lo que escribes al asistente, si lo usas: tus preguntas, sus respuestas y el título de cada conversación, que son las primeras palabras de tu primera pregunta. Para que puedas retomar la conversación. Más en «El asistente».',
+          'Cuántos mensajes envías al asistente: cuándo envías cada uno y si era sobre otra cosa que la nutrición, sin el texto. Para aplicar el límite de mensajes de cada quincena.',
           'Lo que nos escribes: los mensajes del buzón de sugerencias, para leerlos y responderte.'
         ],
         paragraphs: []
@@ -2951,13 +2953,13 @@ export const esES = {
       {
         heading: 'Cuáles de estos datos son especialmente protegidos',
         paragraphs: [
-          'La ley protege especialmente los datos de salud y los que revelan creencias religiosas. En NutrIA lo son: tus alergias e intolerancias; tu peso, tu altura y tu objetivo, porque dicen algo de tu salud; una forma de comer como «sin gluten» o «sin lactosa», o una ligada a una religión; tus enfermedades, tu medicación y tus suplementos; y lo que escribas sobre cómo te sienta el plan.'
+          'La ley protege especialmente los datos de salud y los que revelan creencias religiosas. En NutrIA lo son: tus alergias e intolerancias; tu peso, tu altura y tu objetivo, porque dicen algo de tu salud; una forma de comer como «sin gluten» o «sin lactosa», o una ligada a una religión; tus enfermedades, tu medicación y tus suplementos; y lo que escribas sobre cómo te sienta el plan. También lo sería lo que escribas sobre tu salud en una conversación con el asistente, aunque te pedimos que no lo hagas.'
         ]
       },
       {
         heading: 'Por qué podemos tratar estos datos',
         paragraphs: [
-          'Para darte el servicio que pides (contrato): tu cuenta, tu perfil, tus planes, tus pagos y los correos del servicio.',
+          'Para darte el servicio que pides (contrato): tu cuenta, tu perfil, tus planes, tus conversaciones con el asistente, tus pagos y los correos del servicio.',
           'Con tu consentimiento explícito: tus alergias e intolerancias, tu cuerpo y tu objetivo y tu forma de comer, que nos das con una casilla propia al crear tu perfil. Sin ellos no podemos hacer un plan seguro para ti, por eso sin ese consentimiento no generamos planes; puedes retirarlo cuando quieras borrando esos datos desde tu perfil. Tus enfermedades, tu medicación y tus suplementos, con un consentimiento aparte, opcional. Cada consentimiento se guarda con su fecha y la versión del texto que aceptaste.',
           'Por nuestro interés legítimo: registrar el uso del producto y los errores técnicos para que funcione, sin datos de salud, y proteger las cuentas: el registro de seguridad, los frenos contra el abuso y los avisos de seguridad que te enviamos. Puedes oponerte escribiéndonos.',
           'Por obligación legal: conservar lo que la ley fiscal exige de los pagos (lo hace Stripe).'
@@ -2968,7 +2970,7 @@ export const esES = {
         heading: 'Tu dietista en NutrIA',
         paragraphs: [
           'Un dietista-nutricionista puede invitarte por correo a llevar tu plan en NutrIA con su ayuda. Solo un profesional al que hemos dado acceso tras comprobar su número de colegiado puede hacerlo. Su invitación dura 14 días; tu dirección la usamos solo para enviártela y la borramos con la invitación: en cuanto respondes o, si no respondes, como muy tarde el día después de que caduque.',
-          'Nada se comparte si no aceptas. Si aceptas, tu dietista verá tu nombre, tus objetivos diarios y cómo se calcularon, tus planes, cuánto sigues cada quincena, tu peso a lo largo del tiempo y tus respuestas a los check-ins. Podrá fijar tus objetivos, generar y cambiar tus planes, y revisar cada plan nuevo antes de que lo veas. Tus enfermedades, tu medicación y tus suplementos solo si marcas esa casilla aparte. No verá tus alergias ni intolerancias, tu correo ni tus comentarios escritos.',
+          'Nada se comparte si no aceptas. Si aceptas, tu dietista verá tu nombre, tus objetivos diarios y cómo se calcularon, tus planes, cuánto sigues cada quincena, tu peso a lo largo del tiempo y tus respuestas a los check-ins. Podrá fijar tus objetivos, generar y cambiar tus planes, y revisar cada plan nuevo antes de que lo veas. Tus enfermedades, tu medicación y tus suplementos solo si marcas esa casilla aparte. No verá tus alergias ni intolerancias, tu correo, tus comentarios escritos ni tus conversaciones con el asistente.',
           'Cada vez que tu dietista mira o cambia algo, queda anotado y lo ves en tu perfil, en «Quién ha accedido».',
           'Puedes terminar el enlace cuando quieras desde tu perfil, y desde la siguiente petición tu dietista deja de ver tus datos. También puedes dejar de compartir solo tu salud sin terminar el enlace. Tus objetivos, tu historial y tu último plan publicado se quedan contigo.',
           'Quién responde de qué: NutrIA es responsable de tus datos en NutrIA y te los comunica a tu dietista porque tú lo pides. Tu dietista es responsable, por su cuenta y bajo su secreto profesional, de lo que haga con lo que ve en su consulta, por ejemplo lo que anote en tu historia clínica; para eso, dirígete a tu dietista. Para todo lo que está en NutrIA, escríbenos a {email}: somos tu punto de contacto.',
@@ -2978,20 +2980,36 @@ export const esES = {
       {
         heading: 'La inteligencia artificial',
         paragraphs: [
-          'Los platos y las recetas de NutrIA los diseña un modelo de inteligencia artificial o salen de nuestra biblioteca de platos ya diseñados y comprobados. Nuestro propio código comprueba cada plato antes de que te llegue: un alérgeno declarado no llega a tu plan aunque el modelo se equivoque. La IA no toma ninguna decisión sobre ti: los límites de calorías y de proteína los aplican reglas fijas, no el modelo.',
+          'Los platos y las recetas de NutrIA los diseña un modelo de inteligencia artificial o salen de nuestra biblioteca de platos ya diseñados y comprobados. Nuestro propio código comprueba cada plato antes de que te llegue: un alérgeno declarado no llega a tu plan aunque el modelo se equivoque. La IA no toma ninguna decisión sobre ti: los límites de calorías y de proteína los aplican reglas fijas, no el modelo. El asistente, que contesta preguntas sobre tu plan, usa otro modelo y tiene su propia sección, «El asistente».',
           'Lo que recibe el modelo cuando diseña platos nuevos para tu plan: tus objetivos diarios y tu objetivo (por ejemplo, perder peso), qué comidas haces y cuánto tiempo quieres dedicar a cocinar cada plato, los aparatos de cocina que no tienes y aquellos con los que prefieres cocinar, si eres vegetariano o vegano, las cocinas y los alimentos que te gustan, los nombres de los platos que te gustaron, que no te gustaron o que comiste la quincena anterior, y tus respuestas cerradas al check-in (hambre, dificultad, nota). Siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu sexo, tu peso ni tu altura, nada que hayas escrito a mano —salvo el nombre de un plato, si tú se lo pides—, tus alergias ni intolerancias, ninguna otra forma de comer (sin gluten, sin lactosa, halal, kósher…), ni tus enfermedades, tu medicación o tus suplementos. Lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, del catálogo de alimentos que ve: le llega el efecto, nunca el dato.',
           'A quién va: la petición va a OpenRouter (OpenRouter, Inc., Estados Unidos), que la trata por encargo nuestro y la pasa a la empresa que ejecuta el modelo: DeepInfra o CoreWeave, también en Estados Unidos. El modelo es Gemma 4 31B y, si no responde, DeepSeek V4.1 Flash; son modelos abiertos que ejecutan esas empresas: lo que se envía para diseñar tus platos nunca pasa por los servicios de Google ni de DeepSeek.',
-          'Nadie entrena con ello ni lo guarda: solo usamos proveedores que borran la petición en cuanto responden y no la usan para entrenar ni mejorar ningún modelo. Lo exigimos en nuestra cuenta de OpenRouter y otra vez en cada petición. OpenRouter guarda solo datos técnicos de cada petición (tamaño, tiempo, coste), no su contenido.',
-          'Si tú le pides un plato: puedes pedirnos un plato que no está en nuestra biblioteca escribiendo su nombre. Ese nombre es lo único escrito por ti que llega al modelo, y viaja con el resto de la petición a las mismas empresas. Escribe solo el nombre del plato: se envía tal cual, así que ahí no cuentes nada sobre ti ni sobre nadie. No guardamos lo que escribes: en cuanto el modelo responde, tu texto desaparece, y no queda en ningún registro. Lo que sí se queda es el plato, con el nombre y la receta que escribe el modelo, en la misma biblioteca que todos los demás: puede acabar en el plan de otra persona, y no dice quién lo pidió.',
+          'Lo que se envía para diseñar tus platos no lo guarda nadie ni se usa para entrenar: para eso solo usamos proveedores que borran la petición en cuanto responden y no la usan para entrenar ni mejorar ningún modelo. Lo exigimos en nuestra cuenta de OpenRouter y otra vez en cada petición. OpenRouter guarda solo datos técnicos de cada petición (tamaño, tiempo, coste), no su contenido. El asistente funciona de otra forma, como se explica en «El asistente».',
+          'Si tú le pides un plato: puedes pedirnos un plato que no está en nuestra biblioteca escribiendo su nombre. Ese nombre es lo único escrito por ti que llega al modelo que diseña los platos, y viaja con el resto de la petición a las mismas empresas. Escribe solo el nombre del plato: se envía tal cual, así que ahí no cuentes nada sobre ti ni sobre nadie. No guardamos lo que escribes ahí: en cuanto el modelo responde, tu texto desaparece, y no queda en ningún registro. Lo que sí se queda es el plato, con el nombre y la receta que escribe el modelo, en la misma biblioteca que todos los demás: puede acabar en el plan de otra persona, y no dice quién lo pidió.',
           'Una excepción que debes conocer: OpenRouter puede pasar una pequeña muestra de peticiones, sin nada que las ligue a nuestra cuenta ni a ti, por un modelo que les pone una etiqueta de tema para sus estadísticas públicas de uso. No guarda el texto, solo la etiqueta.',
           'Las imágenes de los platos las genera otro modelo, a partir solo de la receta: su nombre, sus ingredientes y en qué proporción. Nunca recibe nada tuyo, ni siquiera quién ha abierto el plato. La petición va a OpenRouter, que la pasa a Google (Vertex AI), y un modelo que ejecuta DeepInfra revisa cada imagen antes de que se publique. Ninguno guarda la petición ni la usa para entrenar. Si ese modelo ve con claridad en la imagen un alimento con un alérgeno que la receta no lleva, la imagen se rechaza, y solo se publica si después la revisamos a mano y decidimos publicarla; no cuenta lo que tiene la forma de algo que el plato ya tiene o que su nombre dice, como su pan o su leche, porque una imagen no muestra de qué está hecho. Esa revisión no es una garantía: la imagen puede mostrar algo que el plato no lleva, y lo que lleva lo dice su lista de ingredientes. Las imágenes se guardan en Vercel, se muestran a todas las personas que ven ese plato y llevan la marca «IA»; los ficheros llevan además una marca invisible y legible por máquina que dice que están generados por IA.',
           'Hasta el 26 de septiembre de 2026 algunos de los modelos que usábamos eran versiones gratuitas alojadas en Estados Unidos cuyos proveedores podían usar lo que recibían para mejorar sus modelos. Ya no usamos ninguno de ellos.'
         ]
       },
       {
+        id: 'asistente',
+        heading: 'El asistente',
+        paragraphs: [
+          'Si usas el asistente, lo que escribes se envía a un modelo de inteligencia artificial para que te responda, y se guarda en tu cuenta para que puedas retomar la conversación. El asistente solo habla de nutrición —tu plan, recetas, ingredientes y macros—, no es un médico ni un dietista-nutricionista y nunca cambia tu plan.',
+          'Lo que recibe el modelo con cada pregunta: tu pregunta; las preguntas y respuestas anteriores de esa misma conversación, hasta un límite; y, para que pueda hablar de tu plan, los días de tu plan activo con sus platos, sus acompañamientos y sus cifras, tus objetivos diarios y los de cada día, cuánto pesa cada comida en tu día, cuánto tiempo quieres dedicar a cocinar, los aparatos de tu cocina, las cocinas y los alimentos que te gustan, los nombres de los platos que te encantan y de los que no te gustan, y el idioma en que tiene que contestarte. Lo que viene de tu perfil y de tu plan va siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu sexo, tu peso, tu altura ni tu objetivo, tus alergias ni intolerancias, tu forma de comer (ni siquiera si eres vegetariano o vegano), ni tus enfermedades, tu medicación o tus suplementos.',
+          'Antes de contestar, el mismo modelo lee tu pregunta para decidir si es de nutrición, si le corresponde a un profesional sanitario o si no tiene que ver con lo que hace. Algunas preguntas de salud —sobre enfermedades, dosis, medicación, embarazo o lactancia, trastornos de la conducta alimentaria o la alimentación de un niño— las detecta antes nuestro propio código, y esas no llegan a ningún modelo. Una pregunta que nuestro código o el modelo consideran de salud no se guarda: en la conversación queda solo la marca de que la hubo.',
+          'Nuestro código revisa cada frase de la respuesta antes de enseñártela, y la para ahí si iba a nombrar algo que no puedes tomar según las alergias e intolerancias de tu perfil, a darte una cifra que no sale de tu plan o a decir que ha cambiado tu plan. Esa revisión la hacemos nosotros: al modelo no le decimos tus alergias. Por eso, si tienes una alergia, añádela a tu perfil: si solo la escribes en la conversación, ninguna de nuestras comprobaciones la tiene en cuenta.',
+          'A quién va: a Anthropic, que la trata por encargo nuestro. Contratamos con Anthropic Ireland, Limited, en Irlanda. El modelo es Claude Haiku 5.5. Anthropic guarda lo que recibe en Estados Unidos y puede calcular la respuesta en servidores de otros países. Sus condiciones le prohíben entrenar sus modelos con ello y, según dice en sus páginas, borra la pregunta y la respuesta de sus sistemas como mucho a los 30 días; si sus sistemas automáticos marcan una conversación como contraria a sus normas de uso, puede guardarla hasta 2 años, y la puntuación de esa revisión hasta 7. Borrar aquí una conversación no borra esa copia.',
+          'Tus conversaciones se guardan en tu cuenta, cada una con un título hecho con las primeras palabras de tu primera pregunta. Nadie más las lee en NutrIA: no aparecen en nuestra consola de administración, no las ve tu dietista si tienes uno y no van a ningún registro. Puedes borrar un mensaje o una conversación entera cuando quieras, y se borra al momento. Si no, una conversación se borra sola seis meses después de su último mensaje, y todas se borran al borrar tu cuenta.',
+          'Para aplicar el límite de mensajes de cada quincena guardamos, por cada mensaje que envías, cuándo lo enviaste y si era sobre otra cosa que la nutrición, sin su texto. Ese recuento no se borra al borrar un mensaje —por eso un mensaje borrado sigue contando— y se borra solo a los 60 días, o al borrar tu cuenta.',
+          'Tratamos tus preguntas y sus respuestas para darte el servicio que pides (contrato). Las alergias e intolerancias de tu perfil, con las que revisamos las respuestas, siguen bajo el consentimiento que nos diste para ellas.',
+          'Te lo recordamos al empezar cada conversación: no escribas en el asistente enfermedades, medicación ni otros datos de tu salud. Si aun así lo haces, se envía y se guarda como el resto de la conversación, hasta que lo borres o se borre solo.'
+        ]
+      },
+      {
         heading: 'Con quién compartimos tus datos',
         list: [
           'OpenRouter, y DeepInfra o CoreWeave, que ejecutan el modelo de inteligencia artificial, como se explica en «La inteligencia artificial». Están en Estados Unidos.',
+          'Anthropic, que ejecuta el modelo del asistente, si lo usas, como se explica en «El asistente». Contratamos con Anthropic Ireland, Limited, en Irlanda; guarda los datos en Estados Unidos.',
           'Vercel (alojamiento de la web, la API y las imágenes de los platos, en la Unión Europea) y Neon (base de datos, en la Unión Europea). Son empresas de Estados Unidos.',
           'Stripe, si contratas Premium, para cobrar la suscripción. Stripe procesa y conserva los datos de pago según sus propias políticas.',
           'Nuestro proveedor de correo, para los correos de confirmación, recuperación de contraseña, invitaciones, avisos de seguridad de tu cuenta (como que tu contraseña ha cambiado, que no se pueden desactivar) y avisos que actives.',
@@ -3003,7 +3021,7 @@ export const esES = {
       {
         heading: 'Transferencias fuera de la Unión Europea',
         paragraphs: [
-          'Algunos de estos proveedores son empresas de Estados Unidos o tratan datos allí: Vercel, Neon, Stripe, el proveedor de correo, Sentry, OpenRouter, DeepInfra y CoreWeave. Vercel, Neon, Stripe y Sentry están certificados en el Marco de Privacidad de Datos UE-EE. UU., que la Comisión Europea reconoce como garantía suficiente; con el proveedor de correo nos apoyamos en ese mismo marco o en las cláusulas contractuales tipo de la Comisión. OpenRouter no está en ese marco: con él nos apoyamos en las cláusulas contractuales tipo. DeepInfra y CoreWeave reciben la petición de OpenRouter y se comprometen con él a no guardarla ni usarla para entrenar; la petición no lleva nada que te identifique. Puedes pedirnos el detalle de cada garantía en {email}.'
+          'Algunos de estos proveedores son empresas de Estados Unidos o tratan datos allí: Vercel, Neon, Stripe, el proveedor de correo, Sentry, OpenRouter, DeepInfra, CoreWeave y Anthropic. Vercel, Neon, Stripe y Sentry están certificados en el Marco de Privacidad de Datos UE-EE. UU., que la Comisión Europea reconoce como garantía suficiente; con el proveedor de correo nos apoyamos en ese mismo marco o en las cláusulas contractuales tipo de la Comisión. OpenRouter no está en ese marco: con él nos apoyamos en las cláusulas contractuales tipo. DeepInfra y CoreWeave reciben la petición de OpenRouter y se comprometen con él a no guardarla ni usarla para entrenar; la petición no lleva nada que te identifique. Con Anthropic contratamos a través de Anthropic Ireland, Limited, en Irlanda; Anthropic guarda los datos en Estados Unidos y, para calcular una respuesta, puede tratarlos en otros países. Anthropic no está en el Marco de Privacidad de Datos, y esos envíos se apoyan en las cláusulas contractuales tipo de la Comisión, que forman parte de su acuerdo de tratamiento de datos. Puedes pedirnos el detalle de cada garantía en {email}.'
         ]
       },
       {
@@ -3018,7 +3036,8 @@ export const esES = {
            * (lo anotado en el plan). «Hasta que lo gaste el siguiente plan» cierra P2-4: un borrador
            * que nadie gasta no tiene fin, así que el plazo se enuncia en vez de inventarse un barrido.
            */
-          'Mientras tu cuenta exista. Al borrarla, todo lo que hay en ella se borra al momento: perfil, alergias, salud, planes, listas de la compra, lo que dijiste que tenías en casa, progreso y consentimientos.',
+          'Mientras tu cuenta exista. Al borrarla, todo lo que hay en ella se borra al momento: perfil, alergias, salud, planes, listas de la compra, lo que dijiste que tenías en casa, progreso, conversaciones con el asistente y consentimientos.',
+          'Tus conversaciones con el asistente se borran solas seis meses después de su último mensaje, si no las borras antes, y el recuento de los mensajes que le envías, a los 60 días. Anthropic borra lo que recibió del asistente como mucho a los 30 días, o hasta 2 años después si sus sistemas lo marcan como contrario a sus normas de uso (más en «El asistente»).',
           'Lo que nos dices que tienes en casa vive hasta que se genera el plan que lo aprovecha, que lo borra. Si no generas ninguno —o si un fallo impidió borrarlo—, se queda ahí hasta que lo gaste el siguiente plan que generes, lo borres tú o borres la cuenta. De ese plan queda anotado con qué alimentos y cantidades se pidió, y eso se borra con el plan.',
           'Si alguien crea una cuenta con una dirección y nadie la confirma, la borramos a los treinta días del alta: el nombre, el correo y la contraseña con los que se creó desaparecen. Solo la borramos si no hay nada más en ella: ninguna sesión, ningún perfil, ningún plan y ninguna actividad anotada en nuestros registros. Después queda solo una anotación de que ese día se borró una cuenta sin confirmar, sin el correo, sin el nombre y sin nada que lleve a nadie. En cuanto confirmas tu dirección, tu cuenta se queda mientras tú quieras.',
           'El registro de seguridad de tu cuenta se guarda mientras exista tu cuenta; al borrarla deja de estar ligado a ti. Además se borra a los 12 meses.',
@@ -3029,9 +3048,9 @@ export const esES = {
       {
         heading: 'Tus derechos',
         list: [
-          'Acceso: ver qué datos tenemos, desde tu perfil o pidiéndolos por correo.',
+          'Acceso: ver qué datos tenemos, desde tu perfil —y tus conversaciones, desde el asistente— o pidiéndolos por correo.',
           'Rectificación: corregirlos, desde tu perfil en casi todo.',
-          'Supresión: borrar tu cuenta desde tu perfil, o pedirlo por correo.',
+          'Supresión: borrar tu cuenta desde tu perfil, o pedirlo por correo; y un mensaje o una conversación del asistente, desde el propio asistente.',
           'Portabilidad: recibir tus datos en un archivo estructurado para llevarlos a otro servicio; pídenoslo por correo.',
           'Limitación: pedirnos que dejemos de usar un dato mientras resolvemos una reclamación tuya sobre él.',
           'Oposición: al registro de uso del producto, escribiéndonos.',
@@ -3067,7 +3086,7 @@ export const esES = {
       }
     ],
     title: 'Política de privacidad',
-    updated: 'Última actualización: 5 de noviembre de 2026'
+    updated: 'Última actualización: 10 de noviembre de 2026'
   },
   profile: {
     account: 'Cuenta',
@@ -3425,7 +3444,8 @@ export const esES = {
         paragraphs: [
           'Las recetas y los planes se generan con ayuda de inteligencia artificial y se validan con nuestro propio código antes de mostrártelos. Aun así pueden contener errores: un tiempo de cocción, una cantidad, un paso poco claro. Usa tu criterio en la cocina, sobre todo con la seguridad alimentaria: cocina bien la carne, el pescado y los huevos, y respeta la cadena de frío.',
           'Las imágenes de los platos también las genera una inteligencia artificial, a partir de la receta, y las marcamos como tales. Son orientativas: no son una foto del plato que vas a cocinar y pueden no mostrar todos sus ingredientes ni su cantidad real. Lo que lleva cada plato lo dice su lista de ingredientes, y es la que tiene en cuenta tus alergias.',
-          'Si nos pides un plato escribiendo su nombre, ese texto se envía a la inteligencia artificial. Escribe solo el nombre de un plato: no es un sitio para contar nada sobre ti ni sobre nadie. Podemos no atender una petición, y puede que el plato que salga no encaje en tu plan y no llegues a verlo. El que sí salga se guarda en nuestra biblioteca de platos —la misma para todo el mundo— con el nombre que escriba el modelo, y no dice quién lo pidió.'
+          'Si nos pides un plato escribiendo su nombre, ese texto se envía a la inteligencia artificial. Escribe solo el nombre de un plato: no es un sitio para contar nada sobre ti ni sobre nadie. Podemos no atender una petición, y puede que el plato que salga no encaje en tu plan y no llegues a verlo. El que sí salga se guarda en nuestra biblioteca de platos —la misma para todo el mundo— con el nombre que escriba el modelo, y no dice quién lo pidió.',
+          'El asistente contesta con inteligencia artificial a preguntas sobre tu plan, recetas, ingredientes y macros. Puede equivocarse, y lo que dice no es el consejo de un médico ni de un dietista-nutricionista. Nunca cambia tu plan: los cambios se hacen desde Plan. Puede no contestar una pregunta —si es de salud, si no es de nutrición, o si la respuesta iba a nombrar algo que nos has dicho que no puedes tomar o a darte una cifra que no sale de tu plan— y, si para una respuesta a medias, lo que ya has leído estaba revisado. No escribas en él enfermedades, medicación ni otros datos de tu salud: lo que escribes se envía al modelo que responde y se guarda en tu cuenta, como explica la política de privacidad.'
         ]
       },
       {
@@ -3438,7 +3458,7 @@ export const esES = {
           'Si cambiamos el precio, te avisaremos con antelación y podrás cancelar antes de que se aplique.'
         ],
         paragraphs: [
-          'NutrIA se puede usar gratis, con unos límites en los planes que puedes rehacer, las comidas que puedes cambiar y los eventos de cada plan. Con el plan gratuito ves la quincena que estás viviendo, entera y siempre; las quincenas que ya terminaron se guardan igual, y verlas en la aplicación forma parte de Premium. Guardadas lo están en cualquier caso: puedes pedirnos una copia de tus datos cuando quieras, como explica la política de privacidad. La seguridad alimentaria —alergias, intolerancias y nutrientes— es la misma con Premium y sin él.',
+          'NutrIA se puede usar gratis, con unos límites en los planes que puedes rehacer, las comidas que puedes cambiar, los eventos de cada plan y los mensajes que puedes enviar al asistente cada quincena. Un mensaje al asistente cuenta aunque después lo borres. Si en una quincena le haces muchas preguntas que no son de nutrición, deja de contestar durante el resto de esa quincena, y si el asistente llega a su límite de gasto del mes, deja de contestar a todo el mundo hasta el día 1; tu plan y todo lo demás siguen funcionando. Con el plan gratuito ves la quincena que estás viviendo, entera y siempre; las quincenas que ya terminaron se guardan igual, y verlas en la aplicación forma parte de Premium. Guardadas lo están en cualquier caso: puedes pedirnos una copia de tus datos cuando quieras, como explica la política de privacidad. La seguridad alimentaria —alergias, intolerancias y nutrientes— es la misma con Premium y sin él.',
           'Premium, cuando está disponible, amplía esos límites con una suscripción mensual o anual. El precio se muestra, con impuestos, antes de pagar, y el pago lo gestiona Stripe.'
         ]
       },
@@ -3448,14 +3468,15 @@ export const esES = {
           'Acceder o intentar acceder a datos de otras personas.',
           'Extraer el contenido de forma automatizada, o revender los planes o las recetas.',
           'Usar el servicio de forma que lo degrade para los demás, por ejemplo generando planes de forma masiva o automatizada.',
-          'Intentar saltarse los límites del plan gratuito o las medidas de seguridad.'
+          'Intentar saltarse los límites del plan gratuito o las medidas de seguridad.',
+          'Usar el asistente para algo que no sea la nutrición, o intentar que diga lo que no debe o que se salte sus comprobaciones.'
         ],
         paragraphs: ['NutrIA es para tu uso personal. Podemos suspender o cerrar una cuenta que haga alguna de estas cosas:']
       },
       {
         heading: 'Propiedad intelectual',
         paragraphs: [
-          'La aplicación, su diseño y sus textos son de NutrIA. Los planes y las recetas que recibes son para tu uso personal: cocínalos, imprímelos, compártelos con quien comes. Lo que tú escribes —tu perfil, tus comentarios— sigue siendo tuyo; si nos envías una sugerencia, podemos usarla para mejorar el producto sin deberte nada por ello.'
+          'La aplicación, su diseño y sus textos son de NutrIA. Los planes y las recetas que recibes son para tu uso personal: cocínalos, imprímelos, compártelos con quien comes. Lo que tú escribes —tu perfil, tus comentarios, tus preguntas al asistente— sigue siendo tuyo; si nos envías una sugerencia, podemos usarla para mejorar el producto sin deberte nada por ello.'
         ]
       },
       {
@@ -3476,7 +3497,7 @@ export const esES = {
       {
         heading: 'Responsabilidad',
         paragraphs: [
-          'Respondemos de los daños que causemos por dolo o negligencia grave, y de todo aquello que la ley no permite excluir. No respondemos de las decisiones de salud que tomes a partir de un plan sin consultar a un profesional, ni de los productos que compres. Nada de esto limita los derechos que tienes como consumidor.',
+          'Respondemos de los daños que causemos por dolo o negligencia grave, y de todo aquello que la ley no permite excluir. No respondemos de las decisiones de salud que tomes a partir de un plan o de una respuesta del asistente sin consultar a un profesional, ni de los productos que compres. Nada de esto limita los derechos que tienes como consumidor.',
           'Si usas NutrIA con un dietista, lo que te aconseje es responsabilidad suya como profesional; lo que haga NutrIA —cómo calcula, qué comprueba y qué te muestra— es responsabilidad nuestra.'
         ]
       },
@@ -3494,7 +3515,7 @@ export const esES = {
       }
     ],
     title: 'Condiciones de uso',
-    updated: 'Última actualización: 19 de octubre de 2026'
+    updated: 'Última actualización: 10 de noviembre de 2026'
   },
 
   tour: {

@@ -5,6 +5,7 @@ import { envProvider } from '../../config/index.js';
 import { ExpiredInvitationsService } from '../care/services/ExpiredInvitations.service.js';
 import { DuePlansService } from '../meal-plans/services/DuePlans.service.js';
 import { EmailModule } from '../email/email.module.js';
+import { AssistantRetentionService } from '../assistant/services/AssistantRetention.service.js';
 import { AuthRetentionService } from '../auth/services/AuthRetention.service.js';
 import { ExpiredVerificationsService } from '../auth/services/ExpiredVerifications.service.js';
 import { NotificationsModule } from '../notifications/index.js';
@@ -24,6 +25,7 @@ import { TwoFactorRemovalsService } from '../auth/services/TwoFactorRemovals.ser
   // `EmailModule`: the removal of a second factor is mailed to the account (PLAN 011 phase 4).
   imports: [EmailModule, NotificationsModule, OwnerAlertsModule],
   providers: [
+    AssistantRetentionService,
     AuthRetentionService,
     CronRunService,
     DuePlansService,

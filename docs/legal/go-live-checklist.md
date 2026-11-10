@@ -144,6 +144,31 @@ owner clicks. The detail and the drafted texts are in [`pantry.md`](./pantry.md)
 - [ ] (owner) The two `[lawyer]` lines of § 9.2 and § 9.3 on the list for the hour. **Neither
       blocks the flip**: being wrong on either costs a notice, not the feature.
 
+## 0 undecies. Before switching the `assistant` switch on (project 023 phase 7)
+
+*Written 2026-11-10. Every box comes from [`assistant-privacy.md`](./assistant-privacy.md), which
+holds the texts, the reasons and the sources (§ 10 there). The switch is a row flipped from
+`/admin` with no deploy, so everything below has to be **already live** when the owner clicks.*
+
+- [ ] (backend) F5 in production: neither `goal` nor `dietaryPatterns` in `AssistantContext`
+      (prompt 1.2.0), the boundary test failing on any goal- or diet-shaped key.
+- [ ] (backend) The daily sweep deletes `ai_conversations` six calendar months after
+      `updated_at` (cascading to `ai_messages`) and `assistant_usage` after 60 days, in
+      `/api/v1/cron/sweep-verifications`, deployed with the text.
+- [ ] (frontend) `/privacidad`: the `asistente` section and R1–R12, both languages, with
+      `privacy.updated`. `/condiciones`: T1–T5, with `TERMS_VERSION` `2.2.0` and `terms.updated` in
+      the same commit. `legal.test.ts` green and `check:leaks` clean.
+- [ ] (owner) `PRODUCT.md` gains the sentence in `assistant-privacy.md` § 5.
+- [ ] (owner) In the Console: the key's organisation is under Anthropic's Commercial Terms. On the
+      invoice: the entity is Anthropic Ireland, Limited. In production: `AI_ASSISTANT_MODEL` is
+      empty or `claude-haiku-5-5`. Decided: whether inference is pinned to the US.
+- [ ] (owner) The mail of [`textos/06`](./textos/06-correos.md) § Q sent to every account; the
+      switch thrown no earlier than the next day.
+- [ ] (after) A way to answer a portability request for conversations without anybody reading
+      them (P2).
+- [ ] The lawyer's hour: [`assistant-warning.md`](./assistant-warning.md) § 4 item 17 (a)–(g) and
+      [`assistant-privacy.md`](./assistant-privacy.md) § 9 (h)–(n).
+
 ## 0 bis. Before setting `AI_PROVIDER=openrouter` in production (`0064`)
 
 > Production has been running with `AI_PROVIDER=stub` since 2026-09-26: nothing goes out to

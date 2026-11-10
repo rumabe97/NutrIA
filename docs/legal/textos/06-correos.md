@@ -448,3 +448,27 @@ línea que tiene que leerse en dos segundos lo empeora—, sino en la operativa:
 propietario activa solo cuentas confirmadas (casilla del
 [`../go-live-checklist.md`](../go-live-checklist.md) § 0 septies) y, si se quiere en
 el código, la consola no deja activar una cuenta con `emailVerified = false`.
+
+---
+
+## Q. Aviso del asistente (una vez, antes de encender el interruptor `assistant`, proyecto 023 fase 7)
+
+**Cuándo**: a cada cuenta, una vez, **después** de publicar `/privacidad` y `/condiciones` nuevas
+y **antes** del interruptor, que se enciende como pronto al día siguiente. `{date}` = el día en
+que el propietario piensa encenderlo; si se retrasa, no se reenvía, pero nunca se adelanta.
+
+**Por qué**: la política y las condiciones prometen las dos «te avisaremos por correo antes de
+que se aplique» para un cambio importante. Un destinatario nuevo (Anthropic), un almacén nuevo de
+texto libre y un límite nuevo lo son. No es el caso del 2026-10-20, que estrechó una pantalla y no
+añadió ningún destinatario. Si el propietario no lo envía, la consecuencia y el porqué de no
+encender el interruptor sin él están en [`../assistant-privacy.md`](../assistant-privacy.md) § 6.
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `Llega el asistente de NutrIA, y cambian la política de privacidad y las condiciones` | `NutrIA’s assistant is coming, and the privacy policy and terms are changing` |
+| `intro` | `A partir del {date}, NutrIA tiene un asistente: puedes preguntarle por tu plan, por recetas, ingredientes y macros, y te contesta una inteligencia artificial. Es opcional: si no lo usas, no se envía ni se guarda nada nuevo sobre ti.` | `From {date}, NutrIA has an assistant: you can ask it about your plan, recipes, ingredients and macros, and an artificial intelligence answers. It is optional: if you do not use it, nothing new about you is sent or kept.` |
+| `what` | `Si lo usas, lo que escribes se envía a Anthropic, que ejecuta el modelo, junto con tu plan, tus objetivos diarios y tus gustos; nunca tu nombre, tu correo, tu peso, tus alergias ni tu salud. Anthropic no entrena con ello y lo borra como mucho a los 30 días, salvo que sus sistemas lo marquen como contrario a sus normas de uso. Tus conversaciones se guardan en tu cuenta para que puedas retomarlas: no las ve tu dietista ni aparecen en nuestra consola, puedes borrarlas cuando quieras y se borran solas seis meses después de su último mensaje. Por favor, no escribas en el asistente nada sobre tu salud.` | `If you use it, what you type is sent to Anthropic, which runs the model, together with your plan, your daily targets and your tastes; never your name, email, weight, allergies or health. Anthropic does not train on it and deletes it within 30 days at most, unless its systems flag it as breaking its usage rules. Your conversations are kept in your account so that you can come back to them: your dietitian does not see them and they do not appear in our console, you can delete them whenever you like, and they delete themselves six months after their last message. Please do not write anything about your health in the assistant.` |
+| `terms` | `Las condiciones de uso cambian para incluirlo: los mensajes al asistente tienen un límite por quincena, más alto con Premium; el asistente puede equivocarse y no sustituye a un profesional; y no respondemos de las decisiones de salud que tomes a partir de una respuesta suya sin consultar a un profesional, como ya pasaba con los planes.` | `The terms of use change to include it: messages to the assistant have a limit each fortnight, higher with Premium; the assistant can get things wrong and does not replace a professional; and we do not answer for health decisions you take from one of its answers without speaking to a professional, as was already the case with plans.` |
+| `choose` | `Los detalles están en {privacyUrl}, en «El asistente», y en {termsUrl}. Si tienes cualquier duda, escríbenos a {email}. Si no estás de acuerdo, puedes no usar el asistente o borrar tu cuenta desde tu perfil.` | `The details are at {privacyUrl}, under "The assistant", and at {termsUrl}. If you have any question, write to us at {email}. If you do not agree, you can simply not use the assistant, or delete your account from your profile.` |
+
+<!-- Fuente: política vigente, «Cambios en esta política»; condiciones vigentes, «Cambios en estas condiciones»; RGPD arts. 12.1, 13.1.e-f y 13.3; TRLGDCU art. 60.1. Lo que dice de Anthropic, tal como lo dicen sus páginas el 2026-11-10 (../assistant-privacy.md § 8). «Nunca tu peso, tus alergias ni tu salud»: AssistantContext tras F1 y F5 (sin alergias, objetivo ni forma de comer). «Si no lo usas, no se envía ni se guarda nada nuevo»: no se escribe ninguna fila ni se hace ninguna llamada hasta que alguien envía un mensaje. Correo de servicio, no comercial: LSSI art. 21 no aplica. Sin plantilla hoy: si se envía a mano, en copia oculta. {privacyUrl} = /privacidad#asistente (o /en/privacidad#asistente); {termsUrl} = /condiciones (o /en/condiciones). -->

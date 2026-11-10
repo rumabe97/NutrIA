@@ -27,7 +27,7 @@ import { normaliseForMatching } from 'core/domain/Safety';
 
 import { ASSISTANT_CLIENT } from '../../ai/ai.config.js';
 import { ENV } from '../../../config/index.js';
-import { languageName, NAMEABLE_CUISINES, NAMEABLE_PATTERNS } from '../../ai/prompts/PoolPrompt.js';
+import { languageName, NAMEABLE_CUISINES } from '../../ai/prompts/PoolPrompt.js';
 import { likedFoodNames, promptPreferences } from '../../meal-plans/services/GenerationShared.js';
 import { StreamingAiClient } from '../../ai/clients/StreamingAiClient.js';
 
@@ -289,13 +289,14 @@ export class AssistantService {
   }
 
   /**
-   * What the model is told, and the foods it is told never to write.
+   * What the model is told, and the foods the net looks for (never told).
    *
-   * **Exactly what the plan generator reads, through the same doors**:
-   * `promptPreferences` for the person, the same allow-lists for the patterns
-   * and the cuisines a model may be told (`NAMEABLE_PATTERNS`,
-   * `NAMEABLE_CUISINES`), and the plan as a `SharedPlanView` — the cupboard is
-   * dropped at that line, by type, before anything here could read it.
+   * **Less than the plan generator reads, through the same doors**:
+   * `promptPreferences` for the person, the same allow-list for the cuisines a
+   * model may be told (`NAMEABLE_CUISINES`), and the plan as a `SharedPlanView`
+   * — the cupboard is dropped at that line, by type, before anything here could
+   * read it. No allergy, no goal and no way of eating: health data consented to
+   * for the plan alone (`docs/decisions/LOG.md`, 2026-11-10, F1 and F5).
    */
   private async context(userId: string): Promise<{ readonly context: AssistantContext; readonly forbidden: readonly ForbiddenFood[] }> {
     const [profile, verdicts, generation, active, allergens, today] = await Promise.all([
@@ -332,9 +333,7 @@ export class AssistantService {
           // A day from before event days carries no targets of its own: the fortnight's, then the person's.
           targets: day.targets ?? plan?.strategy ?? targets
         })),
-        dietaryPatterns: preferences.dietaryPatterns.filter(pattern => NAMEABLE_PATTERNS.has(pattern)),
         dislikedNames: preferences.dislikedNames,
-        goal: preferences.goal,
         kitchen: generation.preferences.kitchen,
         language: languageName(generation.locale),
         likedFoods: preferences.likedFoods,

@@ -501,3 +501,30 @@ falta, porque el texto no se guarda (condición 2 de P0-3 al 2026-10-13) y lo qu
 —nombre y receta— lo escribe el modelo, no la persona. Si algún día el texto escrito se
 guardara o se mostrara, haría falta cláusula de contenido de usuario (uso aceptable,
 licencia, retirada) y esta frase **no bastaría**. -->
+
+---
+
+## J. El asistente (proyecto 023 fase 7, 2026-11-10)
+
+**Dónde**: namespace `terms` de `es-ES.ts` y `en-GB.ts`. Cinco cambios (T1–T5): un cuarto
+párrafo en «Contenido generado con inteligencia artificial», el límite de mensajes y lo que lo
+rodea en «El plan gratuito y Premium», una viñeta en «Uso aceptable», «o de una respuesta del
+asistente» en «Responsabilidad» y «tus preguntas al asistente» en «Propiedad intelectual». **El
+texto exacto en los dos idiomas, lo publicado hoy que sustituye y la fuente de cada frase están
+en [`../assistant-privacy.md`](../assistant-privacy.md) § 4**, que es la fuente de esas frases.
+
+**`TERMS_VERSION` de `2.1.0` a `2.2.0`, con `terms.updated`, en el mismo commit**: T2 añade un
+límite y T4 extiende una exclusión, y los dos cambian el sentido. A diferencia de § I, **sí** es un
+cambio importante: lleva el correo de [`06`](./06-correos.md) § Q antes del interruptor.
+
+**Lo que § I dejó dicho y aquí se cumple**: «si algún día el texto escrito se guardara… haría
+falta cláusula de contenido de usuario (uso aceptable, licencia, retirada)». El asistente guarda
+lo que se escribe. Cada pieza queda cubierta:
+
+- uso aceptable: T3;
+- que sigue siendo de quien lo escribe: T5;
+- retirada: borrar un mensaje o una conversación, en la pantalla, y los seis meses de la política.
+
+No hace falta licencia aparte: el texto no se publica ni se reutiliza. Se guarda para su autor y
+se envía al modelo para contestarle, que es el contrato. **[abogado]** si se quiere una licencia
+expresa de todos modos.

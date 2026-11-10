@@ -837,9 +837,13 @@ what is already in production, as soon as possible.
   obligations (chapter V) belong to their providers; NutrIA's share is informing (art. 50)
   and literacy (art. 4). Changing model does not change this, but it does change the policy
   (§ 4.4).
-- **Art. 50.1** (direct interaction with people): there is no conversational assistant in the
-  code (the `ai_conversations`/`ai_messages` tables exist; nothing uses them). If one is
-  built, it will have to say it is an AI.
+- **Art. 50.1** (direct interaction with people): **since project 023 there is a
+  conversational assistant** behind the `assistant` switch, on Anthropic. NutrIA is its
+  provider. It says it is an AI at the start of every conversation:
+  [`assistant-warning.md`](./assistant-warning.md) for the warning, and
+  [`assistant-privacy.md`](./assistant-privacy.md) for what `/privacidad` and `/condiciones`
+  say about it. Until 2026-11-10 this line said there was none, which was true until phases
+  1–5 of that project.
 - **Art. 50.2** (synthetic content marked "in a machine-readable format"): recipes (text) and
   illustrations (images, Gemini). Applicable from 2/8/2026, but Regulation 2026/1744 gives
   systems placed on the market **before** 2/8/2026 until **2/12/2026**. The exception —

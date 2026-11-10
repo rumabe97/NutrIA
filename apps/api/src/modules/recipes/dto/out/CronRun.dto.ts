@@ -1,3 +1,4 @@
+import type { AssistantRetentionRun } from 'core/controllers/Assistant';
 import type { ReminderRun } from '../../../notifications/index.js';
 import type { RewriteHeldBack, RewriteRun } from '../../../ai/index.js';
 import type { AuthRetentionRun } from '../../../auth/services/AuthRetention.service.js';
@@ -14,7 +15,7 @@ export type RewriteRunDto = RewriteHeldBack | RewriteRun;
  * the authentication's retention deleted after it (PLAN 011 phase 7): quiet
  * sign-in brake rows and `auth.*` audit rows past twelve months.
  */
-export type VerificationSweepDto = AuthRetentionRun & { readonly deleted: number };
+export type VerificationSweepDto = AssistantRetentionRun & AuthRetentionRun & { readonly deleted: number };
 
 /** What the nightly activation did (project 015): plans made active on their day, and owners it could not reach. */
 export type PlanActivationDto = { readonly activated: number; readonly failed: number };

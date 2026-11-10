@@ -576,3 +576,43 @@ Asked with options, both answered with the recommended one:
   arrive as they are written. **It needs the switch on in production, and the switch must not be on
   for anybody before phase 7's `/privacidad`.** The switch has one audience (every signed-in account),
   so this waits for the owner's decision — see the report of this phase.
+
+## Phase 7 — The legal text, then the switch (2026-11-10)
+
+- **Executor**: opus @ high, directly; the `legal` agent for `docs/legal/` and the texts.
+- **Result**: the pages and the retention are built and go out in this change; **owner-gated**
+  past it (below).
+- **The order the owner chose** (2026-11-10, with options): phase 7 before phase 5's iPhone look,
+  because that look needs the switch on, and the switch is one audience — every signed-in account —
+  that must not see the assistant before `/privacidad` tells them about it. Phases 5 and 7 close
+  together on that look.
+- **What was built**:
+  - **Retention** (the owner's six months; the `legal` agent's F3): `AssistantController.forget` —
+    conversations whose `updated_at` (the last added turn) is more than six calendar months old,
+    cascading to their turns, and `assistant_usage` rows past 60 days — in the daily
+    `/cron/sweep-verifications` (08:05 UTC) through `AssistantRetentionService`, switch on or off.
+    The plan's scope listed no backend for this phase; the retention is where the legal ruling
+    becomes true, so it is here (amended).
+  - **F5** (the `legal` agent, mid-phase): the goal and the way of eating are health data under the
+    policy, consented to "only" for targets and dishes; the assistant no longer sends either
+    (prompt 1.2.0). Owner's choice, `docs/decisions/LOG.md`.
+  - **`/privacidad`** gains «El asistente» (`#asistente`, where the warning's link already points)
+    and twelve changes (R1–R12); **`/condiciones`** five (T1–T5), `TERMS_VERSION` 2.2.0 with
+    `terms.updated`; both dated 10 November 2026. Texts verbatim from
+    `docs/legal/assistant-privacy.md`, approved by the owner the same day. **`PRODUCT.md`** gains the
+    sentence on what a person types (plan step 3).
+  - `docs/legal/` (the `legal` agent): `assistant-privacy.md`, and `analysis.md`,
+    `record-of-processing.md`, `dpia.md`, `go-live-checklist.md`, `textos/02`, `03`, `06` updated.
+- **Evidence**: `assistant.e2e-spec.ts` 22/22 (the retention against real Postgres: a conversation
+  aged seven months and a count row aged 61 days go, the newer ones stay); the cron spec 38/38;
+  core assistant controller and repository 28; web legal tests 23; `pnpm ts:check`.
+- **Owner-gated, in this order** (the go-live checklist § 0 undecies):
+  1. The pages are live (this change deployed).
+  2. **The owner sends the notice mail** (`docs/legal/textos/06-correos.md` § Q) to every account.
+  3. **No earlier than the next day, the owner throws the `assistant` switch** in `/admin/ajustes`.
+  4. **human-verify** (phases 5 and 7): his own first conversation on his iPhone — whether the words
+     arrive as they are written — recorded here as "confirmed by human on <date>".
+  5. `docs/decisions/LOG.md` gains the dated line: live, on which model, under which ceiling.
+- **Rides the lawyer's hour**: `docs/legal/assistant-warning.md` § 4 item 17 (a)–(g) and
+  `docs/legal/assistant-privacy.md` § 9 (h)–(n). **After the switch, P2**: a way to answer a
+  portability request for conversations without anybody reading them.

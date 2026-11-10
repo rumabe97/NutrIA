@@ -524,7 +524,7 @@ Decisions recorded with this plan:
 
 ### Phase 7 — The legal text, then the switch
 
-- [ ] pending
+- [ ] in progress — pages and retention built 2026-11-10; owner-gated: the mail, then the switch, then the iPhone (LOG.md § Phase 7)
 - **Dispatch**: opus @ high, with the `legal` agent owning `docs/legal/` —
   `/execute-project 023 phase 7` — owner-approves: the privacy text and the processor named in
   it. — owner-gated: the owner throws the `assistant` switch in `/admin` once the text is live.
@@ -558,6 +558,10 @@ Decisions recorded with this plan:
      reference rather than signed separately.
   7. The pages ship. Then the owner turns the switch on, and `docs/decisions/LOG.md` gains the
      dated line saying the assistant is live, on which model, and under which ceiling.
+- **Amended as built (2026-11-10)**: the scope gains the retention in `packages/core` and
+  `apps/api` (conversations six months after their last turn, the count after 60 days, in the
+  daily sweep), because the `legal` agent's ruling is only true once the code deletes; and the
+  `legal` agent's F5 (no goal or way of eating to the model) was fixed here. See LOG.md § Phase 7.
 - **Acceptance criteria**: PRD 13, and the delivery of PRD 1 — reachable at last.
 - **Verification**:
   - the legal pages' own tests, `pnpm --filter web test`, `pnpm check:leaks`
