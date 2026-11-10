@@ -616,3 +616,35 @@ Asked with options, both answered with the recommended one:
 - **Rides the lawyer's hour**: `docs/legal/assistant-warning.md` § 4 item 17 (a)–(g) and
   `docs/legal/assistant-privacy.md` § 9 (h)–(n). **After the switch, P2**: a way to answer a
   portability request for conversations without anybody reading them.
+
+## The screen, reshaped as a chat app (2026-11-10)
+
+- **Why**: the owner, after the first look: *«No me gusta la ux/ui. Quiero que sea un nuevo apartado
+  en el menú, y el chat lo quiero como claude… Ahora los mensajes bajan todo el rato, junto con la
+  caja de texto; y no se vacía.»*
+- **What changed**: «Asistente» is a destination in the menu (desktop header and bottom bar), only
+  while the switch is on (`GET /settings` in the signed-in layout); the `/inicio` card is gone. The
+  conversation has the screen to itself: the history in a side column on a wide screen and in a sheet
+  on a narrow one, with «Nueva»; the person's words in a bubble at the end of the line, the answers as
+  plain text across the column; the box stuck to the foot of the screen, above the bottom bar and
+  right above the keyboard once focused, growing with what is typed, **emptied the moment a question
+  is sent** and refilled only if it never left; Enter sends, Shift+Enter starts a line; the end of the
+  answer stays in view unless the person scrolled up. After a new conversation's first answer — never
+  in the middle of one — the address becomes the thread's and the history gains it.
+- **Checked**: `/local-probe` at 320/390/1280, light and dark, on `/asistente`, a thread, `/inicio`
+  and `/plan` (the six-item bottom bar): all fit; one hint judged and fixed (the field under 44 px on
+  touch). A two-turn thread was made on the local database through `AssistantController` for a
+  `@probe.invalid` account (deleted after), and a further question sent with the stream simulated in
+  the browser: the box empties, focus stays in it, the composer sits at the foot. Web: lint, types,
+  307 tests.
+- **Second pass, the same day** (the owner, from his phone: *«estaría guay que interpretara los
+  asteriscos, que sea markdown, y que interprete fallos ortográficos… el error tiene que salir en
+  mensaje normal, explicando el fallo y por qué no puede contestar»*, and *«no me gusta el focus
+  del cuadro de texto»*): answers are drawn as a small Markdown (`lib/markdown.ts` — paragraphs,
+  lists, bold lines for headings, bold, italic, code; built as elements, never HTML; tested); a
+  decline and every failure are said as the assistant's own plain message, each saying what failed,
+  that it did not count, and what to do (provider, no model, monthly ceiling, connection); the label
+  and the answer prompts read typos as meant (`LABEL_SYSTEM_PROMPT` with two typed-on-a-phone
+  examples; `ASSISTANT_PROMPT_VERSION` 1.3.0, which also allows that Markdown); the box's focus is
+  its edge in the brand's colour with a soft halo, not a second ring. Looked at in a real browser at
+  390, light and dark, with a simulated Markdown answer and a simulated provider failure.

@@ -1,13 +1,16 @@
+/* The conversation's column: centred, a reading width, as tall as the screen so the box sits at its foot. */
 .page {
-  display: grid;
-  gap: var(--gap-region);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-block);
   margin-inline: auto;
-  max-inline-size: 44rem;
+  max-inline-size: 46rem;
+  min-block-size: calc(100dvh - 3.5rem - var(--space-07) - var(--space-10));
   min-inline-size: 0;
 }
 
 .header {
-  align-items: start;
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-03);
@@ -15,37 +18,14 @@
 }
 
 .title {
-  font-size: var(--font-size-09);
+  font-size: var(--font-size-05);
   font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--tracking-headline);
-  line-height: var(--line-height-02);
-  margin: 0;
-  /* A long title breaks between words, and inside one only when it does not fit at all. */
   hyphens: auto;
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-03);
+  margin: 0;
+  min-inline-size: 0;
   overflow-wrap: break-word;
-  text-wrap: balance;
-}
-
-/* The title and the line under it are one block: the heading's gap, not the region's. */
-.intro {
-  display: grid;
-  gap: var(--gap-heading);
-  max-width: 40rem;
-  text-wrap: pretty;
-}
-
-.back {
-  color: var(--color-brand-11);
-  font-size: var(--font-size-03);
-  justify-self: start;
-}
-
-@media (pointer: coarse) {
-  .back {
-    align-items: center;
-    display: inline-flex;
-    min-block-size: var(--target-min);
-  }
 }
 
 /* The same notice, in the same words, as the profile's. */
@@ -54,58 +34,8 @@
   border-inline-start: 3px solid var(--color-warning);
   border-radius: var(--radius-control);
   color: var(--foreground-02);
-  font-size: var(--font-size-03);
+  font-size: var(--font-size-02);
   line-height: var(--line-height-04);
   margin: 0;
-  padding: var(--space-04);
-}
-
-.history {
-  display: grid;
-  gap: var(--gap-heading);
-}
-
-.heading {
-  font-size: var(--font-size-05);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--tracking-title);
-  margin: 0;
-}
-
-.list {
-  display: grid;
-  gap: var(--space-02);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-a.item {
-  color: inherit;
-  display: grid;
-  gap: var(--space-01);
-  min-inline-size: 0;
-  text-decoration: none;
-}
-
-a.item:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.itemTitle {
-  font-size: var(--font-size-03);
-  font-weight: var(--font-weight-medium);
-  overflow-wrap: anywhere;
-}
-
-.itemDate {
-  color: var(--foreground-02);
-  font-size: var(--font-size-02);
-}
-
-@media (pointer: coarse) {
-  a.item {
-    min-block-size: var(--target-min);
-  }
+  padding: var(--space-03) var(--space-04);
 }

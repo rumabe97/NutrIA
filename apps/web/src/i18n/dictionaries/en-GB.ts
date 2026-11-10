@@ -1181,6 +1181,7 @@ export const enGB: Dictionary = {
   },
 
   appNav: {
+    assistant: 'Assistant',
     brandHome: 'NutrIA — home',
     consulta: 'Practice',
     home: 'Home',
@@ -1208,7 +1209,8 @@ export const enGB: Dictionary = {
         'This is one for a health professional: doses, medication, pregnancy, eating disorders or feeding a child. Ask your doctor or a registered dietitian.',
       invented_figure:
         'I stopped here because I was about to give you a figure that does not come from your plan. Your meals’ figures and your targets are in Plan.',
-      off_topic: 'I can only help with nutrition: your plan, recipes, ingredients and macros. Ask me something about those.'
+      off_topic:
+        'I could not see anything about nutrition in your question, so I cannot answer it: I only talk about your plan, recipes, ingredients and macros. If a typo slipped in, write it again and I will try once more.'
     },
     deleteAnswerLabel: 'Delete this answer',
     deleteConversation: 'Delete conversation',
@@ -1221,6 +1223,7 @@ export const enGB: Dictionary = {
     deleteMessageLabel: 'Delete this message',
     deleteQuestionLabel: 'Delete your question',
     done: 'Answer finished.',
+    enterHint: 'Enter sends; Shift+Enter, a new line.',
     field: 'Your question',
     fieldHint: 'About your plan, a recipe, an ingredient or your macros. Up to {max} characters.',
     gone: 'This conversation no longer exists.',
@@ -1228,13 +1231,20 @@ export const enGB: Dictionary = {
     left: '{remaining} of {limit} messages left this fortnight.',
     leftRolling: '{remaining} of {limit} messages left over the last 14 days.',
     newConversation: 'New conversation',
+    newShort: 'New',
     overAllowance: 'You have used your {limit} messages for this fortnight. They come back on {date}.',
     overAllowanceRolling: 'You have used your {limit} messages for the last 14 days. They come back as the days go by.',
+    placeholder: 'Type your question',
     send: 'Send',
     sending: 'Writing…',
     threadLabel: 'Conversation with the assistant',
     title: 'Assistant',
     unavailableBudget: 'The assistant has reached its limit for this month and is back on the 1st. Your plan and everything else keep working.',
+    unavailableNetwork:
+      'Your question did not reach me: the connection seems to have dropped. It did not count as a message; it is back in the box to send when it returns.',
+    unavailableNoModel: 'I cannot answer anybody right now: the assistant is not connected to its model. It did not count as a message; try later.',
+    unavailableProvider:
+      'I could not read your question: the service that lets me answer failed just now. It did not count as a message; it is back in the box to send in a moment.',
     updated: 'Last on {date}',
     warning:
       'You are talking to an AI assistant, not a person: it can get things wrong, and what it says does not replace the advice of a doctor or a registered dietitian-nutritionist. What you type is sent to the model that answers and kept so you can come back to the conversation, so please do not write about conditions, medication or anything else about your health here. If you have an allergy, add it to your profile, which is where we take it into account. You can delete a message or the whole conversation whenever you like. More in the {privacy}.',
@@ -1474,9 +1484,6 @@ export const enGB: Dictionary = {
 
   dashboard: {
     activePlan: 'Your plan is active',
-    assistantBody: 'Ask about your plan, a recipe or an ingredient.',
-    assistantCta: 'Open the assistant',
-    assistantTitle: 'Assistant',
     availableNow: 'available now',
     checkIn: '· next review {when}',
     checkInDoneNote: 'Check-in done. Create the next plan whenever you like.',

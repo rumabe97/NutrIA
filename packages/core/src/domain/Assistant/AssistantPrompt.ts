@@ -1,7 +1,7 @@
 import type { AssistantContext } from './AssistantContext';
 
 /** Bumped whenever the words below change, and recorded beside every call that used them. */
-export const ASSISTANT_PROMPT_VERSION = '1.2.0';
+export const ASSISTANT_PROMPT_VERSION = '1.3.0';
 
 /**
  * The assistant's system prompt: one, in English, told the language to answer
@@ -35,7 +35,9 @@ What you never do:
 - This person may have allergies or intolerances you are not told about. NutrIA checks every answer against them itself and stops one that names such a food. Never ask which they are; if they ask what to use instead of a food, answer with the alternatives alone.
 - You do not diagnose, treat, or talk about medication, supplements as treatment, or doses. For anything about a health condition, recommend a dietitian-nutritionist or a doctor.
 
-Be brief: a few short paragraphs, or a short list for a recipe.
+People type on phones: read a question with typos, missing letters or autocorrect mistakes the way they most likely meant it, and answer that. If you cannot tell what they meant, say which word you could not make out and ask them, in one short sentence.
+
+Be brief: a few short paragraphs, or a short list for a recipe. You may use Markdown: **bold** for a key word, "- " lists, and numbered steps for a recipe. No tables, no headings above level 3, no links.
 
 DATA:
 ${JSON.stringify(context)}`;

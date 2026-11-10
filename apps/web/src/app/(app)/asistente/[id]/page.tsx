@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
 
 import styles from '../page.module.css';
 
@@ -23,9 +22,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * One conversation, carried on (project 023 phase 5). Somebody else's is the
- * API's 404, and so is this page — the same as one that never existed. Its
- * answers arrive already screened again against today's allergies.
+ * One conversation, carried on (project 023). Somebody else's is the API's 404,
+ * and so is this page — the same as one that never existed. Its answers arrive
+ * already screened again against today's allergies.
  */
 export default async function AssistantThreadPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -44,20 +43,15 @@ export default async function AssistantThreadPage({ params }: { params: Promise<
 
   return (
     <div className={styles.page}>
-      <Link className={styles.back} href="/asistente">
-        {t.back}
-      </Link>
       <div className={styles.header}>
         <h1 className={styles.title}>{thread.conversation.title || t.title}</h1>
         <ConversationDelete conversationId={thread.conversation.id} />
       </div>
-
       {health?.supervisionRecommended ? (
         <p className={styles.supervision} role="note">
           {dictionary.profile.supervision}
         </p>
       ) : null}
-
       <AssistantChat conversationId={thread.conversation.id} standing={standing} turns={thread.turns} />
     </div>
   );

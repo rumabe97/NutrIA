@@ -41,12 +41,25 @@ const PRACTICE_DESTINATION = {
   label: 'consulta'
 } as const;
 
+/**
+ * The assistant (project 023) — before the profile, only while its switch is
+ * on. Display only, like the practice: `/asistente` 404s server-side while the
+ * switch is off, so a stale flag draws a link that leads nowhere, never a hole.
+ */
+const ASSISTANT_DESTINATION = {
+  href: '/asistente',
+  icon: 'M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-9l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1ZM8 10h8M8 13h5',
+  label: 'assistant'
+} as const;
+
 interface AppNavProps {
+  /** The `assistant` switch (`GET /settings`), display only — see `ASSISTANT_DESTINATION`. */
+  assistant?: boolean;
   /** `UserView.professional` (`GET /users/me`), display only — see `PRACTICE_DESTINATION`. */
   professional?: boolean;
 }
 
-export function AppNav({ professional = false }: AppNavProps) {
+export function AppNav({ assistant = false, professional = false }: AppNavProps) {
   const dictionary = useDictionary();
   const pathname = usePathname();
   const router = useRouter();
@@ -54,7 +67,8 @@ export function AppNav({ professional = false }: AppNavProps) {
   const { available, offline } = useOffline();
   // Offline, only what opens: the screens with a copy on this device, and nothing
   // that needs the server — switching language and signing out both do (`0053`).
-  const allDestinations = professional ? [...DESTINATIONS, PRACTICE_DESTINATION] : DESTINATIONS;
+  const clientDestinations = assistant ? [...DESTINATIONS.slice(0, -1), ASSISTANT_DESTINATION, ...DESTINATIONS.slice(-1)] : DESTINATIONS;
+  const allDestinations = professional ? [...clientDestinations, PRACTICE_DESTINATION] : clientDestinations;
   const destinations = allDestinations.filter(destination => available(destination.href));
 
   async function handleSignOut() {
