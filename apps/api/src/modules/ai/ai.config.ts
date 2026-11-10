@@ -78,6 +78,12 @@ export function resolveRewriteModel(env: Env): LanguageModel | null {
 
 /** How each call is made, which depends on who is on the other end. */
 export type AiCallSettings = {
+  /**
+   * What a call cost when no gateway says so. A direct provider returns tokens and
+   * no price, and a ceiling read from calls with no cost is a ceiling that never
+   * arrives — the assistant's label calls were exactly that (023 phase 4 review).
+   */
+  readonly costOf?: (model: string, usage: { readonly inputTokens: number; readonly outputTokens: number }) => number | null;
   /** How many times the SDK repeats a failed call before the caller hears of it. */
   readonly maxRetries: number;
   /** The header a gateway files a call's session under. Null for a direct provider, which is sent none. */
@@ -368,7 +374,7 @@ export const ASSISTANT_CAP = Symbol('ASSISTANT_CAP');
 export const ASSISTANT_SETTINGS = Symbol('ASSISTANT_SETTINGS');
 
 /** The value behind that token, also used where the client is built by hand. */
-export const ASSISTANT_CALL_SETTINGS: AiCallSettings = Object.freeze({ maxRetries: 2, sessionHeader: null });
+export const ASSISTANT_CALL_SETTINGS: AiCallSettings = Object.freeze({ costOf: assistantCostUsd, maxRetries: 2, sessionHeader: null });
 
 /**
  * The assistant's own model, from the assistant's own key.

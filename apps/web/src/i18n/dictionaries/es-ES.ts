@@ -127,6 +127,14 @@ export const esES = {
 
   /* `/admin/generacion/ia`: calls, tokens and spend of the text models over the period, and by model. */
   adminAi: {
+    assistantCalls: 'Este mes: {count} llamadas al modelo (la etiqueta de cada pregunta y su respuesta), {spent} en total.',
+    assistantChart: 'Gasto del asistente contra su tope',
+    assistantEmpty: 'El asistente no tiene tope configurado.',
+    assistantNoCap: 'Sin tope propio: el asistente no tiene dónde pararse este mes. Ponlo en AI_ASSISTANT_MONTHLY_CAP_USD.',
+    assistantNote:
+      'Aparte del gasto de arriba y con su propio tope: al llegar a él, el asistente deja de contestar hasta el mes que viene, y los planes y la reescritura nocturna siguen igual.',
+    assistantOver: 'El asistente ha llegado a su tope: no contesta a nadie hasta el mes que viene.',
+    assistantTitle: 'Asistente',
     averageMs: 'Tiempo medio por llamada',
     averageNote: 'Periodo anterior: {seconds}',
     calls: 'Llamadas al modelo',

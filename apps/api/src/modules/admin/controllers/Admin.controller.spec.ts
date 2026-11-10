@@ -183,7 +183,7 @@ describe('AdminController', () => {
       .expect(200);
 
     expect(response.body).toEqual({ period: 7 });
-    expect(ai).toHaveBeenCalledWith(7, expect.any(Date), undefined);
+    expect(ai).toHaveBeenCalledWith(7, expect.any(Date), undefined, undefined);
 
     ai.mockClear();
 

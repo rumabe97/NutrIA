@@ -8,11 +8,12 @@
  * This stands a plain Node server in front of the exported function, the way the
  * function runtime does — imported through `vercel/index.js`, the committed shim
  * the platform is actually pointed at, so the re-export is exercised too — and
- * checks three things that each catch a real class of failure:
+ * checks four things that each catch a real class of failure:
  *
  *   - the app boots at all and reaches the database;
  *   - an unauthenticated read is 404, not 401 — the deny-as-404 invariant, which
  *     depends on the global guard and the exception filter both being wired;
+ *   - the assistant's routes are mounted and deny as 404 without a session;
  *   - an unmatched route returns the JSON envelope, not express's HTML page,
  *     which only holds if the fallback was registered *after* init().
  *
@@ -30,7 +31,9 @@ import handler from '../vercel/index.js';
 const server = createServer((request, response) => {
   handler(request, response).catch(error => {
     console.error('handler rejected:', error.message);
-    if (!response.headersSent) {response.statusCode = 500;}
+    if (!response.headersSent) {
+      response.statusCode = 500;
+    }
     response.end();
   });
 });
@@ -46,6 +49,10 @@ async function hit(path) {
 
 await hit('/api/v1/health');
 await hit('/api/v1/profile');
+// The assistant (project 023): mounted, and denied as 404 without a session —
+// switch on or off. That its answer streams is proved in `assistant.e2e-spec.ts`
+// through the same compression; a session and a model key are what this lacks.
+await hit('/api/v1/assistant/standing');
 await hit('/nope');
 
 server.close();

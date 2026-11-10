@@ -109,4 +109,6 @@
   font-size: var(--font-size-03);
   margin: 0;
   max-inline-size: var(--prose-max);
+  /* A variable's name (`AI_ASSISTANT_MONTHLY_CAP_USD`) has no space to break at: at 320 px it pushed its card past the screen's edge. */
+  overflow-wrap: anywhere;
 }

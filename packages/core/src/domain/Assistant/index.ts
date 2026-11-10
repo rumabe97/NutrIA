@@ -6,3 +6,4 @@ export * from './ClinicalRefusal';
 export * from './FigureSet';
 export * from './HistoryWindow';
 export * from './QuestionLabel';
+export * from './SentenceRelease';

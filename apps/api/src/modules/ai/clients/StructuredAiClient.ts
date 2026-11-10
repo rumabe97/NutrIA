@@ -90,7 +90,7 @@ export class StructuredAiClient extends AiClient {
       // repository swallows its own errors (`0033`).
       await AnalyticsController.record('ai_call', null, {
         answeredModel: call.answeredModel,
-        costUsd: call.gateway?.costUsd ?? null,
+        costUsd: call.gateway?.costUsd ?? this.settings.costOf?.(model, usage) ?? null,
         feature,
         inputTokens: usage.inputTokens,
         model,

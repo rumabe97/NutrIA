@@ -33,6 +33,29 @@ describe('StructuredAiClient', () => {
   });
 
   /**
+   * A direct provider answers tokens and no price. Without `costOf` the call is
+   * logged uncosted, and a monthly ceiling read from uncosted calls never
+   * arrives — the assistant's label calls were (023 phase 4 review).
+   */
+  it('prices a call no gateway priced, with the settings’ own price', async () => {
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => ({
+        content: [{ text: '{"label":"nutrition"}', type: 'text' }],
+        finishReason: { raw: 'stop', unified: 'stop' },
+        usage: { inputTokens: { cacheRead: 0, cacheWrite: 0, noCache: 2000, total: 2000 }, outputTokens: { reasoning: 0, text: 10, total: 10 } },
+        warnings: []
+      })
+    });
+    const record = jest.spyOn(AnalyticsController, 'record').mockResolvedValue(undefined);
+    const priced = new StructuredAiClient(model, { costOf: (_model, usage) => usage.inputTokens / 1000, maxRetries: 0, sessionHeader: null }, []);
+
+    await priced.generate({ feature: 'assistant', prompt: '¿Y la avena?', schema: jsonSchema({ type: 'object' }), system: 'Label' });
+
+    expect(record).toHaveBeenCalledWith('ai_call', null, expect.objectContaining({ costUsd: 2, feature: 'assistant' }));
+    record.mockRestore();
+  });
+
+  /**
    * What happened on the platform: the signal fired and the request ran on
    * until the function was killed. Here the model never answers and never
    * listens to the signal — the budget still ends the call.

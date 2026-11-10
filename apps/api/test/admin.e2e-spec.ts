@@ -1486,6 +1486,10 @@ describe('admin', () => {
       'spentUsd',
       'sweepPaused',
       'uncostedCalls',
+      // The assistant's month, apart (project 023): `calls`, `costUsd`, `uncostedCalls`,
+      // and `capUsd`/`share` with its own cap — counts and dollars, never a word anybody said.
+      'assistant',
+      'capUsd',
       'models',
       'period',
       'spendPerDay',
@@ -1949,7 +1953,9 @@ describe('admin', () => {
         expect(Object.keys(view).sort()).toEqual(['callsPerDay', 'models', 'month', 'period', 'spendPerDay', 'tokensPerDay', 'totals', 'window']);
 
         // No cap in this environment: no gauge, the keys absent, not null (`text-cap.e2e-spec.ts` runs with one).
-        expect(Object.keys(view.month).sort()).toEqual(['byFeature', 'monthStart', 'spentUsd', 'uncostedCalls']);
+        expect(Object.keys(view.month).sort()).toEqual(['assistant', 'byFeature', 'monthStart', 'spentUsd', 'uncostedCalls']);
+        // The assistant's month, apart and with no cap here either (project 023).
+        expect(Object.keys(view.month.assistant).sort()).toEqual(['calls', 'costUsd', 'uncostedCalls']);
         expect(view.month.byFeature.map(entry => entry.feature)).toEqual(['plan', 'swap', 'rewrite', 'unknown']);
         expect(view.month.byFeature.reduce((total, entry) => total + entry.costUsd, 0)).toBeCloseTo(view.month.spentUsd, 5);
         expect(view.period).toBe(period);

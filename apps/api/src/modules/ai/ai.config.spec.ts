@@ -403,7 +403,8 @@ describe('the assistant\u2019s own provider', () => {
   });
 
   it('lets the SDK retry, which OpenRouter\u2019s settings would not', () => {
-    expect(ASSISTANT_CALL_SETTINGS).toEqual({ maxRetries: 2, sessionHeader: null });
+    // And prices its calls itself: Anthropic direct answers tokens, never a price.
+    expect(ASSISTANT_CALL_SETTINGS).toEqual({ costOf: assistantCostUsd, maxRetries: 2, sessionHeader: null });
     expect(resolveCallSettings({ AI_PROVIDER: 'openrouter' } as Env).maxRetries).toBe(0);
   });
 });

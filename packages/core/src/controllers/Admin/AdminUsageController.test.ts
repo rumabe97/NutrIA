@@ -293,6 +293,7 @@ describe('the text models’ month (0071)', () => {
 
     expect(ai.monthByFeature).toHaveBeenCalledWith(new Date('2026-09-01T00:00:00Z'));
     expect(month).toEqual({
+      assistant: { calls: 0, costUsd: 0, uncostedCalls: 0 },
       byFeature: [
         { calls: 3, costUsd: 0.2, feature: 'plan' },
         { calls: 0, costUsd: 0, feature: 'swap' },
@@ -314,5 +315,19 @@ describe('the text models’ month (0071)', () => {
     ai.monthByFeature.mockResolvedValue([{ calls: 1, costUsd: 3.99, feature: 'plan', uncosted: 0 }]);
 
     expect((await AdminUsageController.ai(7, NOW, 5)).month).toMatchObject({ share: 0.798, sweepPaused: false });
+  });
+
+  it('keeps the assistant apart: its own row and gauge, never in the text month or its gauge (023)', async () => {
+    ai.monthByFeature.mockResolvedValue([
+      { calls: 1, costUsd: 3, feature: 'plan', uncosted: 0 },
+      { calls: 40, costUsd: 2, feature: 'assistant', uncosted: 3 }
+    ]);
+
+    const { month } = await AdminUsageController.ai(7, NOW, 5, 4);
+
+    expect(month).toMatchObject({ share: 0.6, spentUsd: 3, sweepPaused: false, uncostedCalls: 0 });
+    expect(month.byFeature.map(row => row.feature)).not.toContain('assistant');
+    expect(month.byFeature.find(row => row.feature === 'unknown')).toEqual({ calls: 0, costUsd: 0, feature: 'unknown' });
+    expect(month.assistant).toEqual({ calls: 40, capUsd: 4, costUsd: 2, share: 0.5, uncostedCalls: 3 });
   });
 });

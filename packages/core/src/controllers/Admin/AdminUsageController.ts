@@ -172,11 +172,14 @@ export const AdminUsageController = {
    * The period's usage: totals against the period before, calls and tokens
    * per day, and the calls by model.
    */
-  async ai(period: Period, now = new Date(), textCapUsd?: number): Promise<AdminAiView> {
+  async ai(period: Period, now = new Date(), textCapUsd?: number, assistantCapUsd?: number): Promise<AdminAiView> {
     const window = windowFor(period, now);
     const days = madridDayKeys(window.from, window.to);
     const firstDay = madridDayKey(window.from);
-    const [rows, month] = await Promise.all([AdminAiRepository.callsPerDay(window.previousFrom, window.to), AdminTextSpend.month(now, textCapUsd)]);
+    const [rows, month] = await Promise.all([
+      AdminAiRepository.callsPerDay(window.previousFrom, window.to),
+      AdminTextSpend.month(now, textCapUsd, assistantCapUsd)
+    ]);
     const current = rows.filter(row => row.day >= firstDay);
     const previous = rows.filter(row => row.day < firstDay);
     const inPeriod = current.reduce(add, ZERO);

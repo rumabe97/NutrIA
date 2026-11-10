@@ -34,7 +34,11 @@ export const REDACTED_PATHS = [
   // the same reason as the three above — the night somebody turns body logging
   // on to debug something.
   'req.body.name',
-  'req.body.query'
+  'req.body.query',
+  // What a person asks the assistant (project 023, PRD 8): the text goes to the
+  // model and to their own conversation, and nowhere else. The answer is never
+  // logged at all; it is a response body, and no response body is.
+  'req.body.message'
 ] as const;
 
 /**

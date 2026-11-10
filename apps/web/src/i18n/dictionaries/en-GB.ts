@@ -117,6 +117,14 @@ export const enGB: Dictionary = {
   },
 
   adminAi: {
+    assistantCalls: 'This month: {count} model calls (each question’s label and its answer), {spent} in all.',
+    assistantChart: 'The assistant’s spend against its cap',
+    assistantEmpty: 'The assistant has no cap set.',
+    assistantNoCap: 'No cap of its own: nothing stops the assistant this month. Set AI_ASSISTANT_MONTHLY_CAP_USD.',
+    assistantNote:
+      'Apart from the spend above and against its own cap: once it is reached, the assistant stops answering until next month, and plans and the nightly rewrite carry on.',
+    assistantOver: 'The assistant has reached its cap: it answers nobody until next month.',
+    assistantTitle: 'Assistant',
     averageMs: 'Average time per call',
     averageNote: 'Previous period: {seconds}',
     calls: 'Model calls',

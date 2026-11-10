@@ -353,7 +353,7 @@ Decisions recorded with this plan:
 
 ### Phase 4 — The route
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 023 phase 4` — deviation from `tiered`'s
   implementation row: it wires AI output validation and an allergy screen into a request path.
 - **Goal**: a signed-in person can ask the API a question and get a stream back, under every
@@ -402,6 +402,12 @@ Decisions recorded with this plan:
      asserts the admin surface has no path to `assistant_messages`.
   5. `docs/ARCHITECTURE.md` gains the module, the wall around it, and the two-store split with
       the reason for it.
+- **Amended as built (2026-11-09)**: the ask flow is in the API's `AssistantService` (it
+  holds the stream client, which lives behind the AI module's wall), with core keeping the
+  stores, the standing and every check; allowance and availability are checked before the
+  off-topic ceiling, all before any call; a provider that cannot label is a 503 `provider`; the
+  chunk proof is an e2e case through `compression()`, and `smoke:function` checks the route is
+  mounted and 404 without a session. See LOG.md § Phase 4.
 - **Acceptance criteria**: PRD 1 (the API half), PRD 2, PRD 3, PRD 4, PRD 6, PRD 7, PRD 8,
   PRD 9, PRD 10, PRD 11.
 - **Verification**:

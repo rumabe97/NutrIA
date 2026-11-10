@@ -36,7 +36,7 @@ export class AdminService {
   constructor(@Inject(ENV) private readonly env: Env) {}
 
   async ai(query: PeriodQueryDto): Promise<AdminAiDto> {
-    return AdminUsageController.ai(query.period, new Date(), this.env.AI_TEXT_MONTHLY_CAP_USD);
+    return AdminUsageController.ai(query.period, new Date(), this.env.AI_TEXT_MONTHLY_CAP_USD, this.env.AI_ASSISTANT_MONTHLY_CAP_USD);
   }
 
   async analytics(): Promise<AdminAnalyticsDto> {

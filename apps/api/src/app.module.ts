@@ -6,6 +6,7 @@ import { envProvider, validateAndExposeEnv } from './config/index.js';
 import { DatabaseModule } from './database/database.module.js';
 import { AdminModule } from './modules/admin/index.js';
 import { AiModule } from './modules/ai/index.js';
+import { AssistantModule } from './modules/assistant/index.js';
 import { AuthModule } from './modules/auth/index.js';
 import { BillingModule } from './modules/billing/index.js';
 import { CareModule } from './modules/care/index.js';
@@ -41,6 +42,7 @@ import { LoggingModule } from './shared/logging/index.js';
     DatabaseModule,
     AdminModule,
     AiModule,
+    AssistantModule,
     AuthModule,
     BillingModule,
     CareModule,
