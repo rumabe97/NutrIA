@@ -16,6 +16,7 @@ import { RootShell } from '../_shared/RootShell';
 
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+import type { SettingsView } from 'core/controllers/Settings';
 import type { UserView } from 'core/controllers/User';
 
 export const viewport: Viewport = siteViewport;
@@ -35,7 +36,12 @@ export async function generateMetadata(): Promise<Metadata> {
  * public pages could not afford.
  */
 export default async function AppLayout({ children }: Readonly<{ children: ReactNode }>) {
-  const [locale, , user] = await Promise.all([activeLocale(), redirectUnlessReady(), serverApi<UserView>('/users/me')]);
+  const [locale, , user, settings] = await Promise.all([
+    activeLocale(),
+    redirectUnlessReady(),
+    serverApi<UserView>('/users/me'),
+    serverApi<SettingsView>('/settings')
+  ]);
   // When this screen was made. A server component runs once per request, so
   // this is the request's moment, not a value that drifts between renders.
   const renderedAt = new Date().getTime();
@@ -47,7 +53,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       {/* Stamped with the moment this screen was made, so a stored copy can say how old it is (`0053`). */}
       <OfflineProvider renderedAt={renderedAt}>
         <div className={styles.shell}>
-          <AppNav professional={user?.professional ?? false} />
+          <AppNav assistant={settings?.flags.assistant ?? false} professional={user?.professional ?? false} />
           <main className={styles.content} id={MAIN_ID}>
             <OfflineCopy />
             {children}

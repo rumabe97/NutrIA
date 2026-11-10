@@ -1,0 +1,116 @@
+/* A wide screen: the history is its own column, there as long as the page is. */
+.sidebar {
+  display: none;
+}
+
+/* A narrow one: a bar above the conversation, the history in a sheet. */
+.bar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02);
+  justify-content: space-between;
+}
+
+@media (width >= 64rem) {
+  .sidebar {
+    align-content: start;
+    align-self: start;
+    display: grid;
+    gap: var(--space-03);
+    max-block-size: calc(100dvh - 3.5rem - var(--space-07) * 2);
+    overflow-y: auto;
+    position: sticky;
+    top: calc(3.5rem + var(--space-07));
+  }
+
+  .bar {
+    display: none;
+  }
+}
+
+.newButton {
+  justify-self: stretch;
+}
+
+.newShort {
+  gap: var(--space-01);
+}
+
+.newShort svg {
+  block-size: 16px;
+  inline-size: 16px;
+}
+
+.heading {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-medium);
+  margin: var(--space-02) 0 0;
+}
+
+.list {
+  display: grid;
+  gap: var(--space-01);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.item {
+  border-radius: var(--radius-control);
+  color: var(--foreground-01);
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+  padding: var(--space-02) var(--space-03);
+  text-decoration: none;
+}
+
+.item:hover {
+  background-color: var(--surface-sunken);
+}
+
+/* The open one, said twice: a surface and a heavier title. */
+.item[aria-current='page'] {
+  background-color: var(--color-brand-03);
+}
+
+.item[aria-current='page'] .itemTitle {
+  font-weight: var(--font-weight-semibold);
+}
+
+.item:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.itemTitle {
+  font-size: var(--font-size-03);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemDate {
+  color: var(--foreground-02);
+  font-size: var(--font-size-01);
+}
+
+.empty {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  margin: 0;
+}
+
+@media (pointer: coarse) {
+  .item {
+    min-block-size: var(--target-min);
+  }
+}
+
+@media (forced-colors: active) {
+  .item[aria-current='page'] {
+    border: 1px solid Highlight;
+  }
+}

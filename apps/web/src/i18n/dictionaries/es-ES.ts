@@ -1219,6 +1219,7 @@ export const esES = {
   },
 
   appNav: {
+    assistant: 'Asistente',
     brandHome: 'NutrIA — inicio',
     consulta: 'Consulta',
     home: 'Inicio',
@@ -1259,6 +1260,7 @@ export const esES = {
     deleteMessageLabel: 'Borrar este mensaje',
     deleteQuestionLabel: 'Borrar tu pregunta',
     done: 'Respuesta terminada.',
+    enterHint: 'Enter envía; Mayús+Enter, salto de línea.',
     field: 'Tu pregunta',
     fieldHint: 'Sobre tu plan, una receta, un ingrediente o tus macros. Hasta {max} caracteres.',
     gone: 'Esta conversación ya no existe.',
@@ -1266,8 +1268,10 @@ export const esES = {
     left: 'Te quedan {remaining} de {limit} mensajes esta quincena.',
     leftRolling: 'Te quedan {remaining} de {limit} mensajes en los últimos 14 días.',
     newConversation: 'Nueva conversación',
+    newShort: 'Nueva',
     overAllowance: 'Has usado tus {limit} mensajes de esta quincena. Vuelven el {date}.',
     overAllowanceRolling: 'Has usado tus {limit} mensajes de los últimos 14 días. Vuelven a medida que pasen los días.',
+    placeholder: 'Escribe tu pregunta',
     send: 'Enviar',
     sending: 'Escribiendo…',
     threadLabel: 'Conversación con el asistente',
@@ -1511,9 +1515,6 @@ export const esES = {
 
   dashboard: {
     activePlan: 'Tu plan está activo',
-    assistantBody: 'Pregunta por tu plan, una receta o un ingrediente.',
-    assistantCta: 'Abrir el asistente',
-    assistantTitle: 'Asistente',
     availableNow: 'ya disponible',
     checkIn: '· próxima revisión {when}',
     checkInDoneNote: 'Check-in hecho. Cuando quieras, crea el siguiente plan.',

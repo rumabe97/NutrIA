@@ -1,0 +1,18 @@
+.shell {
+  display: grid;
+  gap: var(--gap-block);
+  /* One track no wider than the screen: an implicit `auto` track is sized by its widest child. */
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+.main {
+  min-inline-size: 0;
+}
+
+@media (width >= 64rem) {
+  .shell {
+    gap: var(--space-08);
+    grid-template-columns: 15rem minmax(0, 1fr);
+  }
+}

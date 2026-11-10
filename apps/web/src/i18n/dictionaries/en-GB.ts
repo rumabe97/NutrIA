@@ -1181,6 +1181,7 @@ export const enGB: Dictionary = {
   },
 
   appNav: {
+    assistant: 'Assistant',
     brandHome: 'NutrIA — home',
     consulta: 'Practice',
     home: 'Home',
@@ -1221,6 +1222,7 @@ export const enGB: Dictionary = {
     deleteMessageLabel: 'Delete this message',
     deleteQuestionLabel: 'Delete your question',
     done: 'Answer finished.',
+    enterHint: 'Enter sends; Shift+Enter, a new line.',
     field: 'Your question',
     fieldHint: 'About your plan, a recipe, an ingredient or your macros. Up to {max} characters.',
     gone: 'This conversation no longer exists.',
@@ -1228,8 +1230,10 @@ export const enGB: Dictionary = {
     left: '{remaining} of {limit} messages left this fortnight.',
     leftRolling: '{remaining} of {limit} messages left over the last 14 days.',
     newConversation: 'New conversation',
+    newShort: 'New',
     overAllowance: 'You have used your {limit} messages for this fortnight. They come back on {date}.',
     overAllowanceRolling: 'You have used your {limit} messages for the last 14 days. They come back as the days go by.',
+    placeholder: 'Type your question',
     send: 'Send',
     sending: 'Writing…',
     threadLabel: 'Conversation with the assistant',
@@ -1474,9 +1478,6 @@ export const enGB: Dictionary = {
 
   dashboard: {
     activePlan: 'Your plan is active',
-    assistantBody: 'Ask about your plan, a recipe or an ingredient.',
-    assistantCta: 'Open the assistant',
-    assistantTitle: 'Assistant',
     availableNow: 'available now',
     checkIn: '· next review {when}',
     checkInDoneNote: 'Check-in done. Create the next plan whenever you like.',

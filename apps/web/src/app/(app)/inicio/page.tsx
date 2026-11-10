@@ -66,7 +66,7 @@ export default async function DashboardPage() {
   await redirectIfOnboardingIncomplete();
   await redirectIfProfileConsentMissing();
 
-  const [dictionary, locale, user, profile, plan, scheduled, shopping, weight, checkIn, trips, assistant] = await Promise.all([
+  const [dictionary, locale, user, profile, plan, scheduled, shopping, weight, checkIn, trips] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<UserView>('/users/me'),
@@ -79,9 +79,7 @@ export default async function DashboardPage() {
     serverApi<ShoppingListView>('/shopping-lists/active'),
     serverApi<WeightView>('/progress/weight'),
     serverApi<CheckInStatusView>('/check-ins/status'),
-    serverApi<readonly VacationView[]>('/vacations'),
-    // 404 into null while the `assistant` switch is off: then there is no card.
-    serverApi<{ readonly allowed: boolean }>('/assistant/standing')
+    serverApi<readonly VacationView[]>('/vacations')
   ]);
 
   const t = dictionary.dashboard;
@@ -276,18 +274,6 @@ export default async function DashboardPage() {
                 </p>
               ) : null}
             </Card>
-
-            {assistant ? (
-              <Card as="section" className={`${styles.railBlock} ${styles.assistant}`}>
-                <h2 className={styles.targetsTitle}>{t.assistantTitle}</h2>
-                <Text size="sm" tone="secondary">
-                  {t.assistantBody}
-                </Text>
-                <CtaLink href="/asistente" size="sm" variant="secondary">
-                  {t.assistantCta}
-                </CtaLink>
-              </Card>
-            ) : null}
           </aside>
         ) : null}
       </div>
