@@ -334,6 +334,13 @@ describe('the assistant (023 phase 4)', () => {
     expect(textOf(events)).toBe('');
     expect(endOf(events)).toEqual({ decline: 'clinical', type: 'end' });
     expect({ labels: labeller.calls, streams: streamer.calls }).toEqual(before);
+
+    // Judged clinical by the code itself, so not kept: neither the words nor a title made of them (legal F2).
+    const [kept] = await sql()<{ texts: string | null; titles: string | null }>`
+      select string_agg(m.content, '|') as texts, string_agg(distinct c.title, '|') as titles
+      from ai_conversations c join ai_messages m on m.conversation_id = c.id where c.user_id = ${person.id}`;
+
+    expect(`${String(kept?.texts)} ${String(kept?.titles)}`).not.toContain('insulina');
     streamer.answers.length = 0;
   });
 
@@ -389,6 +396,8 @@ describe('the assistant (023 phase 4)', () => {
 
     expect(textOf(events).toLowerCase()).not.toContain('leche');
     expect(endOf(events)).toEqual({ decline: 'allergen', type: 'end' });
+    // The net works on our side: the model was never told what this person cannot eat (legal F1).
+    expect(streamer.requests.at(-1)?.system.toLowerCase()).not.toMatch(/leche|milk/);
   });
 
   it('withholds a food that contains the allergen, even split across two chunks, and answers screened again once an allergy is declared', async () => {

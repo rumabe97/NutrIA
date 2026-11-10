@@ -1228,6 +1228,56 @@ export const esES = {
     signOut: 'Cerrar sesión'
   },
 
+  assistant: {
+    answerLabel: 'Respuesta del asistente',
+    back: 'Todas las conversaciones',
+    cancel: 'Cancelar',
+    conversationsEmptyBody: 'Aquí aparecerán tus conversaciones con el asistente, la más reciente primero, para que puedas retomarlas.',
+    conversationsEmptyTitle: 'Todavía no has preguntado nada',
+    conversationsTitle: 'Tus conversaciones',
+    cutOff: 'Se cortó la conexión mientras escribía. Lo que ves ya estaba revisado; vuelve a preguntar para seguir.',
+    declines: {
+      acting: 'No puedo cambiar tu plan ni escribirte uno entero. Sí puedo darte ideas; los cambios se hacen desde Plan.',
+      allergen: 'He parado aquí porque la respuesta iba a nombrar algo que nos has dicho que no puedes tomar. Prueba a preguntarlo de otra forma.',
+      clinical:
+        'Esto le corresponde a un profesional sanitario: dosis, medicación, embarazo, trastornos de la conducta alimentaria o la alimentación de un niño. Consúltalo con tu médico o con un dietista-nutricionista.',
+      invented_figure:
+        'He parado aquí porque iba a darte una cifra que no sale de tu plan. Las cifras de tus comidas y tus objetivos las tienes en Plan.',
+      off_topic: 'Solo puedo ayudarte con nutrición: tu plan, recetas, ingredientes y macros. Pregúntame algo de eso.'
+    },
+    deleteAnswerLabel: 'Borrar esta respuesta',
+    deleteConversation: 'Borrar conversación',
+    deleteConversationBody:
+      'Se borrará esta conversación entera, con todo lo que escribiste y todas las respuestas. No se puede deshacer. Los mensajes siguen contando para tu límite de la quincena.',
+    deleteConversationConfirm: 'Borrar para siempre',
+    deleted: 'Mensaje borrado.',
+    deleteMessage: 'Borrar',
+    deleteMessageBody: 'Se borrará este mensaje. No se puede deshacer, y sigue contando para tu límite de la quincena.',
+    deleteMessageLabel: 'Borrar este mensaje',
+    deleteQuestionLabel: 'Borrar tu pregunta',
+    done: 'Respuesta terminada.',
+    field: 'Tu pregunta',
+    fieldHint: 'Sobre tu plan, una receta, un ingrediente o tus macros. Hasta {max} caracteres.',
+    gone: 'Esta conversación ya no existe.',
+    intro: 'Pregunta sobre tu plan, recetas, ingredientes y macros. Contesta con lo que sabe de tu plan y nunca lo cambia.',
+    left: 'Te quedan {remaining} de {limit} mensajes esta quincena.',
+    leftRolling: 'Te quedan {remaining} de {limit} mensajes en los últimos 14 días.',
+    newConversation: 'Nueva conversación',
+    overAllowance: 'Has usado tus {limit} mensajes de esta quincena. Vuelven el {date}.',
+    overAllowanceRolling: 'Has usado tus {limit} mensajes de los últimos 14 días. Vuelven a medida que pasen los días.',
+    send: 'Enviar',
+    sending: 'Escribiendo…',
+    threadLabel: 'Conversación con el asistente',
+    title: 'Asistente',
+    unavailableBudget: 'El asistente ha llegado a su límite de este mes y vuelve el día 1. Tu plan y todo lo demás siguen funcionando.',
+    updated: 'Última vez el {date}',
+    warning:
+      'Estás hablando con un asistente de inteligencia artificial, no con una persona: puede equivocarse, y lo que dice no sustituye el consejo de un médico ni de un dietista-nutricionista colegiado. Lo que escribes se envía al modelo que responde y se guarda para que puedas retomar la conversación, así que no escribas aquí enfermedades, medicación ni otros datos de tu salud. Si tienes una alergia, añádela a tu perfil, que es donde la tenemos en cuenta. Puedes borrar un mensaje o la conversación entera cuando quieras. Más en la {privacy}.',
+    warningLabel: 'Aviso',
+    warningPrivacy: 'política de privacidad',
+    withdrawn: 'Pregunta no guardada: era sobre salud.',
+    you: 'Tú'
+  },
   auth: {
     askNewLink: 'Pedir un enlace nuevo',
     backToSignIn: 'Volver a acceder',
@@ -1458,6 +1508,9 @@ export const esES = {
 
   dashboard: {
     activePlan: 'Tu plan está activo',
+    assistantBody: 'Pregunta por tu plan, una receta o un ingrediente.',
+    assistantCta: 'Abrir el asistente',
+    assistantTitle: 'Asistente',
     availableNow: 'ya disponible',
     checkIn: '· próxima revisión {when}',
     checkInDoneNote: 'Check-in hecho. Cuando quieras, crea el siguiente plan.',
@@ -1521,6 +1574,7 @@ export const esES = {
 
   errors: {
     accountNotActivated: 'Tu cuenta todavía no está activada.',
+    assistantUnavailable: 'El asistente no puede contestar ahora mismo. Prueba más tarde.',
     boundaryBody: 'Puede ser una conexión intermitente. Vuelve a intentarlo; si sigue fallando, tus datos están a salvo.',
     boundaryHome: 'Ir al inicio',
     boundaryTitle: 'No hemos podido cargar esta página',
@@ -2381,6 +2435,7 @@ export const esES = {
     '/admin/producto/planes': { title: 'Planes' },
     '/admin/producto/planes/calidad': { title: 'Calidad de los planes' },
     '/admin/profesionales': { title: 'Profesionales' },
+    '/asistente': { title: 'Asistente' },
     '/cambiar-contrasena': { title: 'Cambia tu contraseña' },
     '/check-in': { title: 'Check-in de la quincena' },
     '/compra': { title: 'La compra' },

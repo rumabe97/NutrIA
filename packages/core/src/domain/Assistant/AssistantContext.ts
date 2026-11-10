@@ -9,9 +9,6 @@ export const ASSISTANT_MAX_DAYS = 14;
 /** The most names any one list carries. A person's taste is not improved by the eightieth dish. */
 export const ASSISTANT_MAX_NAMES = 40;
 
-/** The most foods the "never write these" list carries — every food linked to a declared allergen. */
-export const ASSISTANT_MAX_EXCLUDED = 150;
-
 /** One meal of the active plan, as the service stored it. */
 export type AssistantMealInput = {
   /** Names only: their macros are already inside `macros` (see `AssistantMeal`). */
@@ -32,8 +29,6 @@ export type AssistantContextInput = {
   readonly days: readonly AssistantDayInput[];
   readonly dietaryPatterns: readonly string[];
   readonly dislikedNames: readonly string[];
-  /** What the model is told never to write (`forbiddenFoods`, its `told` half only). */
-  readonly excludedFoods: readonly string[];
   readonly goal: Goal['type'] | null;
   readonly kitchen: Kitchen | null;
   readonly language: string;
@@ -91,13 +86,6 @@ export type AssistantContext = {
   readonly days: readonly AssistantDay[];
   readonly dietaryPatterns: readonly string[];
   readonly dislikedNames: readonly string[];
-  /**
-   * The foods this person cannot eat, by the catalogue's names, which the model
-   * is told **never to write — not even to say avoid them**. That instruction is
-   * what lets `answerNamesAnAllergen` be strict: an answer naming one of these
-   * broke a rule it was given, rather than tripping over a net.
-   */
-  readonly excludedFoods: readonly string[];
   readonly goal: Goal['type'] | null;
   readonly kitchen: Kitchen | null;
   readonly language: string;
@@ -172,7 +160,6 @@ export function assistantContext(input: AssistantContextInput): AssistantContext
     days,
     dietaryPatterns: names(input.dietaryPatterns, ASSISTANT_MAX_NAMES),
     dislikedNames: names(input.dislikedNames, ASSISTANT_MAX_NAMES),
-    excludedFoods: names(input.excludedFoods, ASSISTANT_MAX_EXCLUDED),
     goal: input.goal,
     kitchen: input.kitchen,
     language: input.language,

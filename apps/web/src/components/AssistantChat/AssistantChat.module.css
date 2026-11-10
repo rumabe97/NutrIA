@@ -1,0 +1,191 @@
+/* The conversation, then the field. One column; the field stays below what it answers. */
+.root {
+  display: grid;
+  gap: var(--gap-block);
+  min-inline-size: 0;
+}
+
+.thread {
+  display: grid;
+  gap: var(--space-04);
+  list-style: none;
+  margin: 0;
+  min-inline-size: 0;
+  padding: 0;
+}
+
+.turn {
+  display: grid;
+  gap: var(--space-01);
+  justify-items: start;
+  min-inline-size: 0;
+}
+
+/* The person's own words sit to the end, the assistant's to the start: the reading order is the list's either way. */
+.user {
+  justify-items: end;
+}
+
+.speaker {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-medium);
+  margin: 0;
+}
+
+.bubble {
+  border-radius: var(--radius-card);
+  font-size: var(--font-size-03);
+  line-height: var(--line-height-04);
+  margin: 0;
+  max-inline-size: min(36rem, 100%);
+  overflow-wrap: anywhere;
+  padding: var(--space-03) var(--space-04);
+  white-space: pre-wrap;
+}
+
+.assistant .bubble {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  color: var(--foreground-01);
+}
+
+.user .bubble {
+  background-color: var(--color-brand-03);
+  color: var(--foreground-01);
+}
+
+/* The warning is a message of the assistant's, set apart by an edge, not by alarm. */
+/* The warning is NutrIA's notice, not one of the model's answers: no card, a sunken surface
+   and an edge — the shape of the profile's supervision notice — and the full width. */
+.assistant .warning {
+  background-color: var(--surface-sunken);
+  border: 0;
+  border-inline-start: 3px solid var(--color-warning);
+  border-radius: var(--radius-control);
+  color: var(--foreground-01);
+  max-inline-size: 100%;
+}
+
+/* A question not kept: said in a quieter voice, on the person's own side. */
+.user .withdrawn {
+  background-color: var(--surface-sunken);
+  color: var(--foreground-02);
+  font-style: italic;
+}
+
+/* A decline is the assistant saying what it is for: its own message, quieter, never red. */
+.assistant .decline {
+  background-color: var(--surface-sunken);
+  color: var(--foreground-02);
+}
+
+.writing {
+  min-block-size: calc(var(--line-height-04) * 1em);
+}
+
+.dots {
+  color: var(--foreground-02);
+}
+
+.delete {
+  justify-self: inherit;
+}
+
+.confirm {
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-control);
+  display: grid;
+  gap: var(--space-02);
+  max-inline-size: min(36rem, 100%);
+  padding: var(--space-03);
+}
+
+.confirmText {
+  color: var(--foreground-01);
+  font-size: var(--font-size-02);
+  margin: 0;
+}
+
+.confirmActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02);
+}
+
+.problem {
+  background-color: var(--surface-sunken);
+  border-inline-start: 3px solid var(--color-warning);
+  border-radius: var(--radius-control);
+  color: var(--foreground-01);
+  font-size: var(--font-size-03);
+  margin: 0;
+  padding: var(--space-03) var(--space-04);
+}
+
+.form {
+  display: grid;
+  gap: var(--space-02);
+  justify-items: start;
+  min-inline-size: 0;
+}
+
+.label {
+  color: var(--foreground-01);
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+}
+
+.field {
+  background: var(--background-01);
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-control);
+  color: inherit;
+  font: inherit;
+  inline-size: 100%;
+  min-inline-size: 0;
+  padding: var(--space-03);
+  resize: vertical;
+}
+
+.field:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* The send button says it cannot be pressed with a paler fill, and keeps its focus — and a focus
+   ring at full strength, which an `opacity` on the button would dim along with it. */
+.form button[aria-disabled='true'] {
+  background-color: color-mix(in srgb, var(--color-brand-fill) 45%, var(--surface-card));
+  cursor: not-allowed;
+}
+
+.field:read-only {
+  color: var(--foreground-02);
+}
+
+.hint {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  margin: 0;
+}
+
+@media (forced-colors: active) {
+  .bubble,
+  .confirm,
+  .problem {
+    border: 1px solid CanvasText;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dots {
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.45;
+  }
+}

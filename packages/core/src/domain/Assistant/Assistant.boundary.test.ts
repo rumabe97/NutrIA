@@ -59,7 +59,6 @@ describe('the health-data boundary around the assistant’s domain', () => {
         days: [],
         dietaryPatterns: [],
         dislikedNames: [],
-        excludedFoods: [],
         goal: null,
         kitchen: null,
         language: 'Spanish',
@@ -76,7 +75,6 @@ describe('the health-data boundary around the assistant’s domain', () => {
       'days',
       'dietaryPatterns',
       'dislikedNames',
-      'excludedFoods',
       'goal',
       'kitchen',
       'language',
@@ -86,5 +84,7 @@ describe('the health-data boundary around the assistant’s domain', () => {
       'targets'
     ]);
     expect(keys.filter(key => /condition|medication|supplement|pantry|cupboard|health|care/i.test(key))).toEqual([]);
+    // Nor a person's allergies, by any name: the profile consent says the model never receives them (023 phase 5, F1).
+    expect(keys.filter(key => /allerg|intoleran|exclu|forbid|avoid/i.test(key))).toEqual([]);
   });
 });

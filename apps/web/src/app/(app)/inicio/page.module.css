@@ -44,6 +44,17 @@
   min-inline-size: 0;
 }
 
+/* The way into the assistant: a title, a line, a link — only while its switch is on. */
+.assistant {
+  display: grid;
+  gap: var(--space-02);
+  justify-items: start;
+}
+
+.assistant > h2 {
+  margin: 0;
+}
+
 /* Three reference panels on the one card, told apart by a hairline rather
    than by three boxes: the targets, the shopping count, the weight. */
 .railBlock > section {

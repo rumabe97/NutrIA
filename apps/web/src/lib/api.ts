@@ -10,6 +10,7 @@ import type { Dictionary } from '../i18n/dictionaries/es-ES';
  */
 export type ApiErrorCode =
   | 'ACCOUNT_NOT_ACTIVATED'
+  | 'ASSISTANT_UNAVAILABLE'
   | 'CARE_LINK_EXISTS'
   | 'CONFLICT'
   | 'EMAIL_NOT_VERIFIED'
@@ -66,6 +67,7 @@ export class ApiError extends Error {
  */
 const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
   ACCOUNT_NOT_ACTIVATED: 'accountNotActivated',
+  ASSISTANT_UNAVAILABLE: 'assistantUnavailable',
   CARE_LINK_EXISTS: 'careLinkExists',
   CONFLICT: 'conflict',
   EMAIL_NOT_VERIFIED: 'emailNotVerified',

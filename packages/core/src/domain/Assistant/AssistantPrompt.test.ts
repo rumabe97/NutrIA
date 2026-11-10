@@ -14,7 +14,6 @@ const CONTEXT = assistantContext({
   ],
   dietaryPatterns: [],
   dislikedNames: [],
-  excludedFoods: ['huevo'],
   goal: 'maintenance',
   kitchen: null,
   language: 'Spanish',
@@ -56,7 +55,9 @@ describe('assistantSystemPrompt', () => {
     expect(prompt).toContain('never say you did');
     expect(prompt).toContain('never write a plan of several days');
     expect(prompt).toContain('only a figure from DATA');
-    expect(prompt).toContain('not even to say they should avoid them');
+    // Told that answers are checked for allergies, and never which ones (legal F1).
+    expect(prompt).toContain('allergies or intolerances you are not told about');
+    expect(prompt.toLowerCase()).not.toContain('huevo');
     expect(prompt).toContain('dietitian-nutritionist or a doctor');
   });
 });
