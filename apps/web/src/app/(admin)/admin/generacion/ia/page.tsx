@@ -79,6 +79,7 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
     id: row.feature,
     cells: { calls: number(row.calls), cost: dollars(row.costUsd), feature: t.features[row.feature] }
   }));
+  const assistantCalls = interpolate(t.assistantCalls, { count: number(month.assistant.calls), spent: dollars(month.assistant.costUsd) });
   const uncosted = month.uncostedCalls === 1 ? t.uncosted.one : interpolate(t.uncosted.many, { count: number(month.uncostedCalls) });
 
   const rows = models.map(model => ({
@@ -135,6 +136,40 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
           ) : null}
           {month.uncostedCalls > 0 ? <p className={styles.line}>{uncosted}</p> : null}
           {month.capUsd === undefined ? null : <p className={styles.line}>{t.monthOnlyOnWarns}</p>}
+        </div>
+      </AdminSection>
+
+      <AdminSection note={t.assistantNote} title={t.assistantTitle}>
+        <div className={styles.month}>
+          {month.assistant.capUsd === undefined ? (
+            <Card>
+              <p className={styles.line}>{assistantCalls}</p>
+              <p className={styles.line}>{t.assistantNoCap}</p>
+            </Card>
+          ) : (
+            <Card>
+              <Gauge
+                cap={month.assistant.capUsd}
+                capLabel={t.cap}
+                className={styles.chart}
+                dataLabel={common.dataLabel}
+                emptyLabel={t.assistantEmpty}
+                formatValue={dollars}
+                labelsHeader={t.assistantTitle}
+                locale={locale}
+                overLabel={t.over}
+                title={t.assistantChart}
+                value={month.assistant.costUsd}
+                valueLabel={t.spent}
+              />
+            </Card>
+          )}
+          {month.assistant.share !== undefined && month.assistant.share >= 1 ? (
+            <p className={styles.warning} data-over="true">
+              {t.assistantOver}
+            </p>
+          ) : null}
+          {month.assistant.capUsd === undefined ? null : <p className={styles.line}>{assistantCalls}</p>}
         </div>
       </AdminSection>
 

@@ -144,7 +144,16 @@ describe('the text models’ month against a cap (0071, phase 4)', () => {
     before = await month();
     summaryBefore = await summaryMonth();
 
-    expect(Object.keys(before).sort()).toEqual(['byFeature', 'capUsd', 'monthStart', 'share', 'spentUsd', 'sweepPaused', 'uncostedCalls']);
+    expect(Object.keys(before).sort()).toEqual([
+      'assistant',
+      'byFeature',
+      'capUsd',
+      'monthStart',
+      'share',
+      'spentUsd',
+      'sweepPaused',
+      'uncostedCalls'
+    ]);
     expect(before.capUsd).toBe(cap);
     expect(before.byFeature.map(entry => entry.feature)).toEqual(FEATURES);
 

@@ -100,7 +100,7 @@ export class SafetyViolationError extends Error {
  */
 export class QuotaExceededError extends Error {
   constructor(
-    public readonly kind: 'dish_request' | 'event' | 'fixed_meal' | 'meal_swap' | 'mid_plan_event' | 'plan_redo',
+    public readonly kind: 'assistant_message' | 'dish_request' | 'event' | 'fixed_meal' | 'meal_swap' | 'mid_plan_event' | 'plan_redo',
     public readonly nextAt: string | null = null
   ) {
     super('Quota exceeded');
@@ -368,5 +368,23 @@ export class PremiumOnlyError extends Error {
   constructor(readonly kind: 'past_plan') {
     super(`Premium only: ${kind}`);
     this.name = 'PremiumOnlyError';
+  }
+}
+
+/**
+ * The assistant cannot answer anybody right now (project 023): no key was
+ * given to it (`no_model`), its month's spend has reached
+ * `AI_ASSISTANT_MONTHLY_CAP_USD` (`budget`), or the provider failed before a
+ * word was written (`provider`).
+ *
+ * **503 and not 404**: the feature exists and the person may use it — it is
+ * down, for everybody, until the key is set or the month turns. Thrown before
+ * the question enters the conversation, so nothing is stored and nothing is
+ * counted against the person's allowance.
+ */
+export class AssistantUnavailableError extends Error {
+  constructor(public readonly reason: 'budget' | 'no_model' | 'provider') {
+    super('The assistant is unavailable');
+    this.name = 'AssistantUnavailableError';
   }
 }

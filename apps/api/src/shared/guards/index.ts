@@ -1,4 +1,5 @@
 export * from './Admin.guard.js';
+export * from './AssistantSwitch.guard.js';
 export * from './CronSecret.guard.js';
 export * from './GlobalGuards.js';
 export * from './PasswordChange.guard.js';

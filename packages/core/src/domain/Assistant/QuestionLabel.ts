@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import type { AssistantDecline } from 'core/entities/Assistant';
+
 /**
  * What a question is about, as a model labels it before anything is answered
  * (`0104` clause 2).
@@ -25,25 +27,9 @@ export const questionLabelSchema = z.object({ label: z.enum(QUESTION_LABELS), re
 
 export type QuestionLabel = z.infer<typeof questionLabelSchema>;
 
-/**
- * Why the assistant did not answer, as a **code** — the words are the web
- * app's, in its dictionaries (project 023 phase 5), the way every refusal in
- * this product reaches a screen (`passkeySignInRefusal`). A stored thread then
- * re-renders in the language the person reads it in, instead of freezing in the
- * one it was written in.
- *
- * - `off_topic` — not nutrition or dietetics; cut before anything was written.
- * - `clinical` — a dose, a medication or a situation § Users sends to a
- *   professional; cut before anything was written.
- * - `allergen` — the answer named a food this person cannot eat; withheld.
- * - `invented_figure` — the answer stated a nutritional figure nobody supplied;
- *   withheld.
- * - `acting` — the answer claimed to have changed something, or wrote a plan;
- *   withheld, because it changes nothing and somebody would believe it did.
- */
-export const ASSISTANT_DECLINES = ['acting', 'allergen', 'clinical', 'invented_figure', 'off_topic'] as const;
-
-export type AssistantDecline = (typeof ASSISTANT_DECLINES)[number];
+/** The decline codes live with the stored turn (`core/entities/Assistant`); the domain names them from there. */
+export { ASSISTANT_DECLINES } from 'core/entities/Assistant';
+export type { AssistantDecline } from 'core/entities/Assistant';
 
 /** What a label means for the question: null to answer it, or the code to cut it with. */
 export function declineFor(label: QuestionLabelValue): AssistantDecline | null {

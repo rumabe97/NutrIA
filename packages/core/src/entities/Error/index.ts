@@ -1,5 +1,6 @@
 export {
   AccountNotActivatedError,
+  AssistantUnavailableError,
   CareLinkExistsError,
   ConflictError,
   DatabaseOperationError,

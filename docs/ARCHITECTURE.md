@@ -98,7 +98,7 @@ Thirty-seven tables in `packages/database/src/schemas/`, grouped by file:
 | `plan.schema.ts` | `meal_plans`, `plan_days`, `meals`, `meal_completions`, `meal_feedback`, `favorite_recipes`, `disliked_recipes`, `plan_generation_jobs` |
 | `shopping.schema.ts` | `shopping_lists`, `shopping_list_items` |
 | `progress.schema.ts` | `progress_entries`, `check_ins` |
-| `ai.schema.ts` | `ai_conversations`, `ai_messages` |
+| `ai.schema.ts` | `ai_conversations`, `ai_messages`, `assistant_usage` |
 | `platform.schema.ts` | `notifications`, `notification_preferences`, `audit_logs`, `analytics_events` |
 
 Shapes worth knowing:
@@ -387,6 +387,33 @@ and only one of them knew.
 test to import nothing from the Health controller, entities or repository, and the pino
 redaction list carries the three health fields. The failure worth catching is the import
 that makes a medication reachable from a prompt, not the prompt that finally contains one.
+
+**The assistant answers; it never acts, and every screen between it and the screen is
+code** (project 023, `0104`, `0105`). `apps/api/src/modules/assistant` is one route that
+streams NDJSON and four that read or delete a person's own conversations. Asking and the
+standing sit behind the `assistant` switch (off: 404, read before onboarding); reading and
+deleting do not, so a switch thrown off never strands what somebody said. Its order is the
+design: the fortnight's allowance (429) and the assistant's own monthly ceiling
+(`AI_ASSISTANT_MONTHLY_CAP_USD`, 503) before anything is stored; the message **claimed** in
+one transaction under a lock on the person, so a burst cannot pass on one count; the off-topic ceiling and
+the clinical lexicon before any model is asked; one labelling call that can cut the
+question; and then the answer, **released a sentence at a time, each only after the figure
+check, the allergen net and `claimsToAct` have passed on everything written so far**. A hit
+stops the stream and the decline follows what was already shown. It reads what the plan
+generator reads, through the same doors (`promptPreferences`, the nameable patterns and
+cuisines, the plan as a `SharedPlanView`), and `assistant-boundary.spec.ts` walls the
+module off from health, care, the cupboard and the console the way the AI module is.
+
+**What was said and what was counted live apart.** `ai_conversations` / `ai_messages` hold
+the text and are the person's to delete, turn by turn (the first question's words leave the
+title with it), and an answer is screened again against today's allergies whenever it is
+shown or replayed; `assistant_usage` holds only that a
+message was sent (and whether it was off-topic), with no text, so deleting a conversation
+refunds nothing; the spend is `ai_call` events with `feature: 'assistant'`, which name
+nobody and survive the account. The console reads the spend — its own row and gauge,
+never in the text gauge that pauses the nightly rewrite — and has no path to a
+conversation, asserted by test. The question is on pino's redaction list, and the error
+reporter carries no request body for any route.
 
 **Nutrition tolerances are asymmetric where the nutrition is, and measured in the units
 the rule actually means.** Energy, carbohydrate and fat are each held to ±5% in both

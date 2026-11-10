@@ -1,6 +1,9 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { LOGGED_REQUEST_HEADERS, LOGGED_RESPONSE_HEADERS, serializeRequest, serializeResponse } from './pino.js';
+import { askAssistantSchema } from 'core/entities/Assistant';
+import pino from 'pino';
+
+import { LOGGED_REQUEST_HEADERS, LOGGED_RESPONSE_HEADERS, REDACTED_PATHS, serializeRequest, serializeResponse } from './pino.js';
 
 /*
  * A production log line once carried a platform bearer credential valid for
@@ -228,5 +231,31 @@ describe('the allow-lists themselves', () => {
       expect(JSON.stringify(line)).not.toMatch(/ana|lentejas/);
       expect(line.url).toContain('[redacted]');
     }
+  });
+});
+
+/*
+ * What a person types to the assistant goes to the model and to their own
+ * conversation, and to no log line (project 023, PRD 8). Tied to the request's
+ * schema, so a field added to it without joining the list fails here.
+ */
+describe('the assistant’s free text', () => {
+  it('lists every text field of the question a person sends', () => {
+    const textFields = Object.keys(askAssistantSchema.shape).filter(field => field !== 'conversationId');
+
+    expect(textFields.length).toBeGreaterThan(0);
+
+    for (const field of textFields) {
+      expect(REDACTED_PATHS).toContain(`req.body.${field}`);
+    }
+  });
+
+  it('never writes the question, even with the body logged', () => {
+    const lines: string[] = [];
+    const logger = pino({ redact: { paths: [...REDACTED_PATHS], remove: true } }, { write: (line: string) => lines.push(line) });
+
+    logger.info({ req: { body: { conversationId: 'c', message: 'QUESTION-insulina' } } }, 'request');
+
+    expect(lines.join('')).not.toContain('QUESTION-insulina');
   });
 });

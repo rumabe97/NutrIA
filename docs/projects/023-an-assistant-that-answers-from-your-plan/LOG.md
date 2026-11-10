@@ -425,3 +425,100 @@ Asked with options, both answered with the recommended one:
   report's option for the friends beta is to raise free to 100 from the console until a checkout
   exists — one click, about 1.50 $ a month across eight accounts.
 
+
+## Phase 4 — The route (2026-11-09)
+
+- **Executor**: opus @ high, directly; `invariant-reviewer` on the diff.
+- **Result**: done.
+- **What was built**: `apps/api/src/modules/assistant` — `POST /assistant/messages` streaming
+  NDJSON (`conversation`, `text`…, `end {decline}` or `error`), `GET /assistant/standing`,
+  `GET /assistant/conversations[/:id]`, `DELETE /assistant/conversations/:id` and
+  `DELETE /assistant/messages/:id`, ownership from the session on every one; asking and the
+  standing behind `AssistantSwitchGuard` (off: 404, then onboarding), reading and deleting not. `releaseSentences` /
+  `flushSentences` in `core/domain/Assistant`; the conversation store and `AssistantController`
+  in core; `AssistantUnavailableError` (503 `budget` / `no_model` / `provider`); the assistant's
+  row and gauge on `/admin/generacion/ia`; `req.body.message` on pino's redaction list.
+- **Evidence**:
+  - `assistant.e2e-spec.ts` against the local Postgres — **21 of 21** after the review below:
+    switch off is 404 on asking and the standing, for an unfinished account too, while the list
+    still reads; no session is 404; of a burst of five at one message left, exactly one 200; a stream with ≥2 text events into an owned thread, the second
+    question replaying the first exchange; 422 on an empty or 1001-character message; the
+    allowance refusing the next message (429) with a 14-day window and `resetsOn: null` without a
+    plan, and the day after `endDate` with one; a clinical question refused with **no** label or
+    stream call; an off-topic question cut with nothing written, and past the ceiling **neither
+    model asked**; an invented figure withheld with the sentences before it kept, and absent from
+    the store; a declared allergen (milk) withheld; a plan-shaped answer cut with no plan
+    generated; a second person 404 on read, delete, delete-turn and post-into; deleting a
+    conversation leaves the count; deleting a turn leaves the other; deleting the account leaves
+    no conversation and no ledger row; past `AI_ASSISTANT_MONTHLY_CAP_USD` a 503 with nothing
+    counted, the text gauge unchanged and **a plan still generated**.
+  - **Streaming through compression**: one case assembles the app with helmet and
+    `compression()` in `CreateApp`'s order, asks for gzip over a real socket and times the
+    chunks. A mutation (`Cache-Control: no-store` and `text/plain`) fails it — the body came back
+    gzipped — and restoring the headers passes it.
+  - `admin.e2e-spec.ts` and `text-cap.e2e-spec.ts` updated for the month's new `assistant` key
+    (and the console's key allow-list); both pass. `admin`'s *never name who made a dish* needs an
+    AI dish with an author made by an earlier suite: it fails alone on this database and passes in
+    sequence — not this change.
+  - `assistant-boundary.spec.ts`: the module imports nothing from health, care, the professional,
+    the cupboard or the console; nothing under the console (API, core, web) mentions the
+    conversation tables or their code. `pino.spec.ts`: every text field of the request schema is
+    redacted, and a logged body never carries the question.
+  - Core: Admin, Analytics, Assistant controllers/repositories/domain — 300 tests.
+  - `/local-probe` on `/admin/generacion/ia` as a two-factor admin, 320/390/1280 px, light and
+    dark: all 200, no overflow. The section looked at on its own at 320 px found the variable's
+    name pushing its card past the screen edge — **fixed** with `overflow-wrap: anywhere` on the
+    page's lines. Design review against `apple-web-design`: the same `Card`, `Gauge` and line
+    styles as «Este mes»; no P0 or P1.
+- **`invariant-reviewer`'s verdict**: **no P0**; two P1s and five P2s, **fixed in this change**:
+  - *P1 — the allowance was read, then written after the label call*, so a burst at one message
+    left all passed. Now `AssistantRepository.claimUse` counts and inserts in one transaction
+    under `pg_advisory_xact_lock` on the person (the `MailBudgetRepository` precedent), before any
+    model is asked; a 404 or a provider failure after it gives the claim back. e2e: five at once,
+    one 200 and four 429.
+  - *P1 — deleting the first question left its words in the conversation's title.* `deleteTurn`
+    now re-titles from the next question, or empties the title, in the same transaction. e2e.
+  - *P2 — label calls were logged uncosted* (a direct provider returns no price), so the monthly
+    ceiling was a floor. `AiCallSettings.costOf` prices them with `assistantCostUsd`; spec.
+    **Still uncosted, and accepted**: an answer cut on a decline is abandoned mid-stream, so its
+    tokens never arrive — the console's uncosted count shows how many.
+  - *P2 — switch off, an unfinished account got 409, not 404*: the switch guard now runs before
+    its own onboarding check. *P2 — the deletes sat behind the switch*: now only asking and the
+    standing do. *P2 — `turns` and `appendTurn` took no user id*: both are bounded by the owner
+    now. *P2 — stored answers were never screened again*: an answer naming a food the person has
+    since declared is shown and replayed as the `allergen` decline. All with e2e cases, plus a
+    contained food split across two chunks and a free-text allergy never told to the model.
+  - *P3s*: a cut question now carries its decline, so it is never replayed paired with another
+    answer; the conversation is opened only after the label, so a provider failure leaves no
+    empty thread. **Left**: the 503 while the budget is spent reports to Sentry on every ask, and
+    the console's period tiles still include assistant dollars beside a month gauge that does not;
+    the off-topic ceiling is read, not claimed, so a burst can pass it by a few — a few labels,
+    never an answer.
+- **Deviations from plan** (amended in the plan):
+  - **The ask flow lives in the API service, not the core controller.** The stream client is the
+    API's (`0104`: the model lives behind the AI module's wall), so the orchestration that holds it
+    does too; core keeps the stores, the standing and every check.
+  - **Order**: allowance (429) and availability/budget (503) come first and store nothing; then
+    the thread; then the off-topic ceiling and the clinical lexicon, both before any call. The plan
+    put the off-topic ceiling first; neither order asks a model, and this one tells a person over
+    their allowance so before anything else.
+  - **A label the provider cannot give is a 503 `provider`**, not counted — the message was
+    never answered.
+  - **The usage row is claimed before the label**, under a lock: a cut counts, an answer counts
+    before it is asked for; a 429 or a `budget`/`no_model` 503 counts nothing, and a 404 or a
+    `provider` 503 gives its claim back.
+  - **`smoke:function` cannot prove the chunks**: through the exported function the route needs a
+    session and a model key the script does not have. It now checks the route is mounted and
+    denies as 404; the chunk proof moved to the e2e case above, through the same compression.
+    **What neither proves** is whether the platform's own layer buffers — that rests on phase 5's
+    look on a phone.
+  - Sentry needed nothing: `ErrorReporter.ts` already drops every request body.
+  - Lists are the newest 50 conversations, not paged; enough for a fortnight's allowance.
+- **Notes for phase 5**:
+  - The stream's first line is `{type:'conversation', id}`; the last is `end` with `decline` (null
+    when the answer finished) or `error`. Declines: `acting`, `allergen`, `clinical`,
+    `invented_figure`, `off_topic` — each needs its sentence on the screen.
+  - 429 `QUOTA_EXCEEDED` carries `kind: 'assistant_message'` and the reset; 503
+    `ASSISTANT_UNAVAILABLE` carries `budget`, `no_model` or `provider` in `message`.
+  - A plan-shaped answer is cut on its fifth day name, so up to four day-lines can be shown
+    before the cut; the screen should not read as though they were a plan.

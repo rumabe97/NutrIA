@@ -3,6 +3,7 @@ import { isAPIError } from 'better-auth/api';
 
 import {
   AccountNotActivatedError,
+  AssistantUnavailableError,
   CareLinkExistsError,
   ConflictError,
   DatabaseOperationError,
@@ -318,6 +319,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (exception instanceof UnderMinimumAgeError) {
       // 422: the request is well formed, the birth date is refused.
       return { code: 'UNDER_MINIMUM_AGE', message: 'NutrIA es para mayores de 18 años.', statusCode: HttpStatus.UNPROCESSABLE_ENTITY };
+    }
+
+    if (exception instanceof AssistantUnavailableError) {
+      // 503, not 404: the assistant exists and this person may use it — it is
+      // down for everybody, with no key or past its month's ceiling, until that
+      // changes. `message` says which, so the screen can say when to come back.
+      return { code: 'ASSISTANT_UNAVAILABLE', message: exception.reason, statusCode: HttpStatus.SERVICE_UNAVAILABLE };
     }
 
     if (exception instanceof QuotaExceededError) {
