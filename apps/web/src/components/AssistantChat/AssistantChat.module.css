@@ -87,16 +87,6 @@
   white-space: pre-wrap;
 }
 
-/* A decline is the assistant saying what it is for: its own line, quieter, never red. */
-.decline {
-  border-inline-start: 3px solid var(--border-01);
-  color: var(--foreground-02);
-  font-size: var(--font-size-03);
-  line-height: var(--line-height-04);
-  margin: 0;
-  padding-inline-start: var(--space-03);
-}
-
 /* Three dots while the first words are on their way. */
 .thinking {
   margin: 0;
@@ -200,16 +190,6 @@
   gap: var(--space-02);
 }
 
-.problem {
-  background-color: var(--surface-sunken);
-  border-inline-start: 3px solid var(--color-warning);
-  border-radius: var(--radius-control);
-  color: var(--foreground-01);
-  font-size: var(--font-size-03);
-  margin: 0;
-  padding: var(--space-03) var(--space-04);
-}
-
 /*
  * The box to write in: stuck to the foot of the screen, above the bottom bar on
  * a phone — and right above the keyboard once the field has focus, when the
@@ -247,9 +227,26 @@ body:has(.field:focus) .composer {
   padding: var(--space-02) var(--space-02) var(--space-02) var(--space-04);
 }
 
+/*
+ * Focused: the edge takes the brand's colour (over 3:1 against the page, so the
+ * state is seen) with a soft halo, instead of a second ring drawn outside the
+ * border — the box is the field, and one edge is enough to say where typing goes.
+ */
+.box {
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
 .box:focus-within {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
+  border-color: var(--color-brand-fill);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-fill) 18%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .box {
+    transition: none;
+  }
 }
 
 .field {
@@ -330,7 +327,6 @@ body:has(.field:focus) .composer {
 @media (forced-colors: active) {
   .bubble,
   .confirm,
-  .problem,
   .notice,
   .box {
     border: 1px solid CanvasText;

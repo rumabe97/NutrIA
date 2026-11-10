@@ -10,6 +10,8 @@ import { Link } from 'ui/components/Link';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { withLocale } from 'i18n/routes';
 
+import { AssistantMarkdown } from 'components/AssistantMarkdown';
+
 import { api, ApiError, messageFor } from 'lib/api';
 import { askAssistant, threadItems } from 'lib/assistant';
 import { formatDate, interpolate } from 'lib/format';
@@ -196,8 +198,13 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
         return resetLine();
       }
 
-      if (error.code === 'ASSISTANT_UNAVAILABLE' && error.message === 'budget') {
-        return t.unavailableBudget;
+      if (error.code === 'ASSISTANT_UNAVAILABLE') {
+        // Said by the assistant: what failed, that it cost no message, and what to do.
+        return error.message === 'budget' ? t.unavailableBudget : error.message === 'provider' ? t.unavailableProvider : t.unavailableNoModel;
+      }
+
+      if (error.code === 'NETWORK') {
+        return t.unavailableNetwork;
       }
 
       if (error.code === 'NOT_FOUND') {
@@ -348,12 +355,17 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
             <li className={mine ? styles.user : styles.assistant} key={turn.key}>
               <p className="visually-hidden">{mine ? t.you : t.answerLabel}</p>
               {turn.content !== '' ? (
-                <p className={mine ? styles.bubble : styles.answer}>{turn.content}</p>
+                mine ? (
+                  <p className={styles.bubble}>{turn.content}</p>
+                ) : (
+                  <AssistantMarkdown className={styles.answer} text={turn.content} />
+                )
               ) : mine ? (
                 // A question judged clinical is not kept, only its code: it is said, not shown.
                 <p className={`${styles.bubble} ${styles.withdrawn}`}>{t.withdrawn}</p>
               ) : null}
-              {!mine && turn.decline ? <p className={styles.decline}>{t.declines[turn.decline]}</p> : null}
+              {/* A decline is the assistant saying what it is for, in its own words — an answer like any other. */}
+              {!mine && turn.decline ? <p className={styles.answer}>{t.declines[turn.decline]}</p> : null}
 
               {turn.id ? (
                 confirming === turn.key ? (
@@ -410,21 +422,23 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
                 <span className="visually-hidden">{t.sending}</span>
               </p>
             ) : (
-              <p className={styles.answer}>{writing}</p>
+              <AssistantMarkdown className={styles.answer} text={writing} />
             )}
           </li>
         )}
+
+        {/* What went wrong is said by the assistant, as a message of its own — never a box over the conversation. */}
+        {problem ? (
+          <li className={styles.assistant}>
+            <p className="visually-hidden">{t.answerLabel}</p>
+            <p className={styles.answer}>{problem}</p>
+          </li>
+        ) : null}
       </ol>
 
       <p className="visually-hidden" role="status">
         {status}
       </p>
-
-      {problem ? (
-        <p className={styles.problem} role="alert">
-          {problem}
-        </p>
-      ) : null}
 
       <form
         className={styles.composer}

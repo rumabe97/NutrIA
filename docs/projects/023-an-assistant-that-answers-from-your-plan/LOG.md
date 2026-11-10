@@ -637,3 +637,14 @@ Asked with options, both answered with the recommended one:
   `@probe.invalid` account (deleted after), and a further question sent with the stream simulated in
   the browser: the box empties, focus stays in it, the composer sits at the foot. Web: lint, types,
   307 tests.
+- **Second pass, the same day** (the owner, from his phone: *«estaría guay que interpretara los
+  asteriscos, que sea markdown, y que interprete fallos ortográficos… el error tiene que salir en
+  mensaje normal, explicando el fallo y por qué no puede contestar»*, and *«no me gusta el focus
+  del cuadro de texto»*): answers are drawn as a small Markdown (`lib/markdown.ts` — paragraphs,
+  lists, bold lines for headings, bold, italic, code; built as elements, never HTML; tested); a
+  decline and every failure are said as the assistant's own plain message, each saying what failed,
+  that it did not count, and what to do (provider, no model, monthly ceiling, connection); the label
+  and the answer prompts read typos as meant (`LABEL_SYSTEM_PROMPT` with two typed-on-a-phone
+  examples; `ASSISTANT_PROMPT_VERSION` 1.3.0, which also allows that Markdown); the box's focus is
+  its edge in the brand's colour with a soft halo, not a second ring. Looked at in a real browser at
+  390, light and dark, with a simulated Markdown answer and a simulated provider failure.

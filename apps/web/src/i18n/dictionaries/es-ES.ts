@@ -1247,7 +1247,8 @@ export const esES = {
         'Esto le corresponde a un profesional sanitario: dosis, medicación, embarazo, trastornos de la conducta alimentaria o la alimentación de un niño. Consúltalo con tu médico o con un dietista-nutricionista.',
       invented_figure:
         'He parado aquí porque iba a darte una cifra que no sale de tu plan. Las cifras de tus comidas y tus objetivos las tienes en Plan.',
-      off_topic: 'Solo puedo ayudarte con nutrición: tu plan, recetas, ingredientes y macros. Pregúntame algo de eso.'
+      off_topic:
+        'No he visto en tu pregunta nada de nutrición, así que no la puedo contestar: solo hablo de tu plan, recetas, ingredientes y macros. Si se te ha colado una errata, vuelve a escribirla y lo intento de nuevo.'
     },
     deleteAnswerLabel: 'Borrar esta respuesta',
     deleteConversation: 'Borrar conversación',
@@ -1277,6 +1278,12 @@ export const esES = {
     threadLabel: 'Conversación con el asistente',
     title: 'Asistente',
     unavailableBudget: 'El asistente ha llegado a su límite de este mes y vuelve el día 1. Tu plan y todo lo demás siguen funcionando.',
+    unavailableNetwork:
+      'No me ha llegado tu pregunta: parece que se ha perdido la conexión. No te ha contado como mensaje; la tienes otra vez en la caja para enviarla cuando vuelva.',
+    unavailableNoModel:
+      'Ahora mismo no puedo contestar a nadie: el asistente no está conectado a su modelo. No te ha contado como mensaje; prueba más tarde.',
+    unavailableProvider:
+      'No he podido leer tu pregunta: el servicio que me hace contestar ha fallado justo ahora. No te ha contado como mensaje; la tienes otra vez en la caja para enviarla en un momento.',
     updated: 'Última vez el {date}',
     warning:
       'Estás hablando con un asistente de inteligencia artificial, no con una persona: puede equivocarse, y lo que dice no sustituye el consejo de un médico ni de un dietista-nutricionista colegiado. Lo que escribes se envía al modelo que responde y se guarda para que puedas retomar la conversación, así que no escribas aquí enfermedades, medicación ni otros datos de tu salud. Si tienes una alergia, añádela a tu perfil, que es donde la tenemos en cuenta. Puedes borrar un mensaje o la conversación entera cuando quieras. Más en la {privacy}.',

@@ -1,0 +1,44 @@
+.root {
+  display: grid;
+  gap: var(--space-03);
+  min-inline-size: 0;
+}
+
+.root p,
+.root ul,
+.root ol {
+  margin: 0;
+}
+
+.root p {
+  /* The answer's own colour, over the base stylesheet's quieter paragraph. */
+  color: inherit;
+  white-space: pre-line;
+}
+
+.root ul,
+.root ol {
+  display: grid;
+  gap: var(--space-02);
+  padding-inline-start: var(--space-06);
+}
+
+.root li::marker {
+  color: var(--foreground-02);
+}
+
+.root strong {
+  font-weight: var(--font-weight-semibold);
+}
+
+.root code {
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-control);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.9em;
+  padding: 0 0.3em;
+}
+
+.heading {
+  font-weight: var(--font-weight-semibold);
+}
