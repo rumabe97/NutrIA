@@ -124,6 +124,45 @@ export function forbiddenFoods(
 }
 
 /**
+ * The words before a food that say it is being **left out**, normalised as
+ * `normaliseForMatching` writes them, each with an optional article after it.
+ * A closed list, and only these: «sin huevo», «en vez de huevo», «sustituir el
+ * huevo», «without egg», «instead of egg». Not «no lleva huevo» or «egg-free»:
+ * those **claim** a dish lacks the food, and a wrong claim is what this net is
+ * for. A word that puts the food in — «usa huevo», «por huevo» — never excuses.
+ */
+const LEAVING_OUT = new RegExp(
+  `(?:^| )(?:${[
+    'sin',
+    'en vez de',
+    'en vez del',
+    'en lugar de',
+    'en lugar del',
+    'sustituir',
+    'sustituye',
+    'sustituyes',
+    'reemplazar',
+    'reemplaza',
+    'without',
+    'instead of',
+    'replace',
+    'substitute'
+  ].join('|')})(?: (?:el|la|los|las|lo|tu|tus|the|your|a|an|un|una))?$`
+);
+
+/** Where `term` stands in `text` (both padded with spaces), every time. */
+function positions(text: string, term: string): readonly number[] {
+  const found: number[] = [];
+  const needle = ` ${term} `;
+
+  for (let at = text.indexOf(needle); at !== -1; at = text.indexOf(needle, at + 1)) {
+    found.push(at);
+  }
+
+  return found;
+}
+
+/**
  * The first food an answer names that this person cannot eat, or null — the
  * allergen net (PRD criterion 7).
  *
@@ -137,14 +176,25 @@ export function forbiddenFoods(
  * it never edits one, because an answer with a word taken out is an answer
  * nobody reviewed.
  *
- * It is strict on purpose. The model is **not told** these foods (they are
- * health data, and the consent says it never receives them); it is told that
- * answers are checked against allergies it does not know and to answer a
- * "what instead of" with the alternatives alone. «En vez de huevo, usa…» is
- * withheld; «Puedes usar plátano maduro…» answers the same question and is shown.
+ * It is strict on purpose, with **one narrow exception** (owner, 2026-11-11,
+ * after the model measurement withheld two safe egg-free tortillas): a food
+ * the person **named in their own question** may be named back when it is
+ * being left out — right after a word in `LEAVING_OUT`. «¿Qué le pongo en vez
+ * de huevo?» → «Para sustituir el huevo, usa harina de garbanzo» is shown.
+ * **Every** mention must be excused: one more «huevo» anywhere else, a food
+ * the question never named, or a question that is not given, and the answer is
+ * withheld as before. The model is still not told the foods (they are health
+ * data, and the consent says it never receives them).
  */
-export function answerNamesAnAllergen(answer: string, forbidden: readonly ForbiddenFood[]): ForbiddenFood | null {
+export function answerNamesAnAllergen(answer: string, forbidden: readonly ForbiddenFood[], question = ''): ForbiddenFood | null {
   const text = ` ${normaliseForMatching(answer)} `;
+  const asked = ` ${normaliseForMatching(question)} `;
 
-  return forbidden.find(food => food.terms.some(term => text.includes(` ${term} `))) ?? null;
+  return (
+    forbidden.find(food => {
+      const named = food.terms.some(term => asked.includes(` ${term} `));
+
+      return food.terms.some(term => positions(text, term).some(at => !named || !LEAVING_OUT.test(text.slice(0, at))));
+    }) ?? null
+  );
 }

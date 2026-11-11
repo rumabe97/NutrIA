@@ -403,6 +403,45 @@ describe('the assistant (023 phase 4)', () => {
     expect(endOf(events)).toEqual({ decline: 'allergen', type: 'end' });
     // The net works on our side: the model was never told what this person cannot eat (legal F1).
     expect(streamer.requests.at(-1)?.system.toLowerCase()).not.toMatch(/leche|milk/);
+
+    // The word people write, not only the catalogue's category: plain «leche» names no catalogue row.
+    streamer.answers.push(['Un vaso de leche templada.']);
+    expect(endOf(ndjson(await ask(person, { message: '¿Algo caliente antes de dormir?' }).expect(200)))).toEqual({
+      decline: 'allergen',
+      type: 'end'
+    });
+  });
+
+  it('lets the food the person asked to replace be named as what is left out, and nothing more (owner, 2026-11-11)', async () => {
+    const [milk] = await sql()<{ id: string }>`select id from allergens where key = 'milk'`;
+    const person = await make('instead', [String(milk?.id)]);
+    const question = '¿Qué le pongo al café en vez de leche?';
+
+    streamer.answers.push(['Para sustituir la leche, prueba una bebida de avena. ', 'Sin leche queda más ligero.']);
+
+    const shown = ndjson(await ask(person, { message: question }).expect(200));
+
+    expect(endOf(shown)).toEqual({ decline: null, type: 'end' });
+    expect(textOf(shown)).toContain('bebida de avena');
+
+    // One mention that puts it back in, and the rest of the answer is withheld as before.
+    streamer.answers.push(['Sin leche queda bien. ', 'Aunque con un poco de leche entera queda mejor.']);
+
+    const withheld = ndjson(await ask(person, { message: question }).expect(200));
+
+    expect(textOf(withheld)).toBe('Sin leche queda bien. ');
+    expect(endOf(withheld)).toEqual({ decline: 'allergen', type: 'end' });
+
+    // A question that never named it: «sin leche» is withheld, exactly as strict as before.
+    streamer.answers.push(['Un café sin leche.']);
+    expect(endOf(ndjson(await ask(person, { message: '¿Qué tomo para desayunar?' }).expect(200)))).toEqual({ decline: 'allergen', type: 'end' });
+
+    // Read back, each answer is judged with its own question: the first stays shown.
+    const copy = (await request(server()).get(`/${PREFIX}/assistant/conversations/export`).set('Cookie', person.cookie).expect(200)).body as {
+      conversations: { turns: { content: string; role: string }[] }[];
+    };
+
+    expect(copy.conversations.flatMap(conversation => conversation.turns).some(turn => turn.content.includes('bebida de avena'))).toBe(true);
   });
 
   it('withholds a food that contains the allergen, even split across two chunks, and answers screened again once an allergy is declared', async () => {

@@ -112,3 +112,38 @@ describe('answerNamesAnAllergen', () => {
     expect(answerNamesAnAllergen(answer, forbidden)).toBeNull();
   });
 });
+
+/**
+ * The one exception (owner, 2026-11-11): a food the person named in their own
+ * question, named back only as what is left out. Each row withheld below is a
+ * way the exception could have been too wide.
+ */
+describe('answerNamesAnAllergen, with the person’s own question', () => {
+  const forbidden = forbiddenFoods(profile(), INGREDIENTS, ALLERGENS);
+  const question = 'Quiero hacer una tortilla para cenar, ¿qué le pongo en vez de huevo?';
+
+  it.each([
+    ['«sustituir el huevo»', 'Para sustituir el huevo en una tortilla puedes usar harina de garbanzo.'],
+    ['«sin huevo»', 'Para una tortilla sin huevo, la harina de garbanzo es la más parecida.'],
+    ['«en vez de huevo»', 'En vez de huevo, usa plátano maduro.'],
+    ['«en lugar del huevo»', 'En lugar del huevo, tofu sedoso.'],
+    ['every mention left out', 'Sin huevo queda bien: para sustituir los huevos, harina de garbanzo.']
+  ])('shows %s', (_case, answer) => {
+    expect(answerNamesAnAllergen(answer, forbidden, question)).toBeNull();
+  });
+
+  it.each([
+    ['one mention that is not left out', 'Sin huevo queda seca; mejor añade un huevo.', 'huevo'],
+    ['a food put in, after «por»', 'Cambia la harina por huevo.', 'huevo'],
+    ['a claim that a dish lacks it', 'La mayonesa de bote no lleva huevo.', 'huevo'],
+    ['a claim, even about the food asked about', 'Este bizcocho no lleva huevo.', 'huevo'],
+    ['a forbidden food the question never named, left out or not', 'En vez de huevo, sin nueces, usa almendras.', 'nueces'],
+    ['a word between the marker and the food', 'Sin quitar el huevo, añade harina.', 'huevo']
+  ])('withholds %s', (_case, answer, display) => {
+    expect(answerNamesAnAllergen(answer, forbidden, question)?.display).toBe(display);
+  });
+
+  it('is exactly as strict as before with no question', () => {
+    expect(answerNamesAnAllergen('Para una tortilla sin huevo, harina de garbanzo.', forbidden)?.display).toBe('huevo');
+  });
+});

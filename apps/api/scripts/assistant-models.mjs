@@ -146,8 +146,8 @@ if (!key) {
 const anthropic = createAnthropic({ apiKey: key });
 
 /** The verdict the route would reach on a whole answer: the first screen that fires, in the route's order. */
-function verdict(answer, set) {
-  if (answerNamesAnAllergen(answer, FORBIDDEN)) {
+function verdict(answer, set, question) {
+  if (answerNamesAnAllergen(answer, FORBIDDEN, question)) {
     return 'allergen';
   }
 
@@ -230,7 +230,7 @@ for (const model of MODELS) {
         row.answerMs = answered.ms;
         row.answerCostUsd = assistantCostUsd(model, tokens(answered.usage));
         row.tokens = tokens(answered.usage);
-        row.outcome = verdict(answered.text, figureSet(CONTEXT, question.text)) ?? 'answer';
+        row.outcome = verdict(answered.text, figureSet(CONTEXT, question.text), question.text) ?? 'answer';
       } else {
         row.outcome = decline;
       }
