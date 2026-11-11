@@ -9,12 +9,12 @@
   min-inline-size: 160px;
 }
 
-/* Palette tokens on purpose, the one place in this app: a scanner wants dark modules on a
-   light ground, in the dark scheme too. Inverted, many authenticators read nothing. */
+/* A scanner wants dark modules on a light ground, in every theme: inverted, many
+   authenticators read nothing. So these two tokens are the same in every theme. */
 .light {
-  fill: var(--color-white);
+  fill: var(--color-code-ground);
 }
 
 .dark {
-  fill: var(--color-black);
+  fill: var(--color-code-ink);
 }

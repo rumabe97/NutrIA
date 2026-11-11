@@ -54,7 +54,7 @@
 
 .indicator {
   align-items: center;
-  color: var(--color-white);
+  color: var(--color-on-brand-fill);
   display: flex;
   justify-content: center;
 }

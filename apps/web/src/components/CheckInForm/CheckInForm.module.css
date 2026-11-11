@@ -5,7 +5,7 @@
 }
 
 .error {
-  background-color: var(--color-red-03);
+  background-color: var(--color-error-surface);
   border-radius: var(--radius-control);
   color: var(--color-error-text);
   margin: 0;

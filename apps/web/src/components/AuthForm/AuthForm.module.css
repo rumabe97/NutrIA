@@ -22,7 +22,7 @@
 /* role="alert" so a screen reader hears the failure without moving focus and
    losing the user's place in the form. */
 .error {
-  background-color: var(--color-red-03);
+  background-color: var(--color-error-surface);
   border-radius: var(--radius-control);
   color: var(--color-error-text);
   font-size: var(--font-size-03);

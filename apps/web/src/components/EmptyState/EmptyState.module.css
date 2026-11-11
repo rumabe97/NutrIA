@@ -24,7 +24,7 @@
 }
 
 .warning {
-  border-color: var(--color-amber-06);
+  border-color: var(--color-warning-border);
 }
 
 /*

@@ -19,7 +19,7 @@
 }
 
 .cell {
-  background-color: var(--color-gray-04);
+  background-color: var(--color-track);
   block-size: 0.5rem;
   border-radius: var(--radius-full);
   transition: background-color var(--duration-fast) var(--ease-default);
@@ -39,5 +39,5 @@
 }
 
 .strip:hover .cell[data-state='future'] {
-  background-color: var(--color-gray-05);
+  background-color: var(--color-track-hover);
 }

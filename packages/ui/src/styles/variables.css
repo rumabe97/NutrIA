@@ -4,7 +4,12 @@
 
    Most tokens need no media query: the gray scale in colors.css already
    flips between modes. --color-gray-01 is near-white in light and
-   near-black in dark, so --background-01 just works in both. */
+   near-black in dark, so --background-01 just works in both.
+
+   The colours below are the neutral default: what a page with no
+   `data-theme` and no theme file of its own gets (`apps/docs`). An app with
+   themes (`0106`) redefines every colour token, per theme, in its own file
+   under `[data-theme]`; a new colour token added here is added there too. */
 
 :root {
   /* ── Spacing scale (4px base) ──────────────────────────────────────
@@ -171,6 +176,8 @@
   --color-highlighted: var(--color-gray-05-alpha);
   --color-selected: var(--color-gray-05-alpha);
   --color-switch: var(--color-gray-05);
+  /* The switch's knob: white in both schemes, on the track and on the fill. */
+  --color-switch-thumb: var(--color-white);
 
   /* ── Focus ring ──────────────────────────────────────────────────────
      Applied globally via `:focus-visible` in `ui/styles/base.css`. */
@@ -224,6 +231,7 @@
   /* The same for a destructive button. Red 11 clears 4.5:1 with white in
      light; in dark the scale's 11 is a pastel, so the deeper 08 carries it. */
   --color-error-fill: light-dark(var(--color-red-11), var(--color-red-08));
+  --color-on-error-fill: var(--color-white);
 }
 
 /*

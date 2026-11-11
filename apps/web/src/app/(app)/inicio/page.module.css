@@ -90,7 +90,7 @@
 }
 
 .notice {
-  background-color: var(--color-amber-03);
+  background-color: var(--color-warning-surface);
   border-radius: var(--radius-control);
   color: var(--color-warning-text);
   margin-top: var(--gap-heading);

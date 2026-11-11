@@ -75,5 +75,5 @@
 }
 
 .danger {
-  border-color: var(--color-red-06);
+  border-color: var(--color-error-border);
 }
