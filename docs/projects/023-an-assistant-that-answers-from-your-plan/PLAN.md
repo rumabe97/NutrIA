@@ -99,9 +99,7 @@ Decisions recorded with this plan:
 
 ### Phase 1 — The assistant can speak: a streaming text client behind the wall
 
-- [ ] in progress — steps 1–7 done 2026-11-09, commit `993d5db7` ("The assistant can speak, on
-  its own provider and its own budget…", #344); **step 8 blocked**: it needs an
-  `ANTHROPIC_API_KEY` in `apps/api/.env`, which is the owner's to put there
+- [x] done — commit `993d5db7` (#344); step 8 measured 2026-11-11: 43 chunks, first at 773 ms (LOG.md)
 - **Dispatch**: opus @ medium — `/execute-project 023 phase 1` — owner-gated: an
   `ANTHROPIC_API_KEY` in `apps/api/.env` for the one local stream, and nothing on Vercel yet.
 - **Goal**: one function that streams Spanish text from Anthropic, inside the `ai` module,
@@ -490,7 +488,7 @@ Decisions recorded with this plan:
 
 ### Phase 6 — Which model, decided by measurement
 
-- [ ] pending
+- [x] done — 2026-11-11, `docs/reference/assistant-models-2026-11-11.md`: keep `claude-haiku-5-5` (the default; nothing to set)
 - **Dispatch**: opus @ high — `/execute-project 023 phase 6` — deviation justified: the phase's
   output is a production configuration read from free-text answers about insulin, doses and
   allergens, which is a judgement, not a script. — owner-gated: the owner sets
