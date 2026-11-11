@@ -242,3 +242,21 @@
 - **Waiting on the owner (human-verify)**: the five themes on his iPhone — no flash on opening,
   the browser bar's colour following the theme, dark ink on the bright buttons of Oscuro and
   Pulso, and the strength of the background glow now that it draws as intended.
+
+## After phase 1b — the theme menu opened out of sight on a scrolled page (2026-11-11)
+
+- **Reported by the owner** on his iPhone, minutes after 1b went live: scroll, press «Tema», and
+  the menu «desaparece, parece que se sube arriba del todo».
+- **Cause**: `ui/components/Dropdown` was modal. A modal Radix menu locks the page's scroll by
+  setting `overflow: hidden` on `<body>`; with `overflow-x: clip` on `<html>` that makes `<body>`
+  the scroll container, so a sticky header stops sticking to the screen and returns to the top
+  of the document, taking the menu anchored to it. Measured at a scroll of 1,500 px: the menu was
+  placed at y = −1,448.
+- **Fix**: the menu is not modal. It closes on a press outside and on Escape, and stays under its
+  trigger. Measured again at the same scroll: y = 52 on a phone, 46 on a desktop, right under the
+  button.
+- **Why the probes missed it**: every probe opened a page at its top. A control in a sticky header
+  is now also tried on a scrolled page.
+- **Note for phase 3**: `Select`, `Dialog` and `Drawer` lock the scroll the same way, so the
+  header leaves the screen while one is open. Behind a dialog's overlay nobody sees it; behind a
+  select they may. The shell phase decides whether the lock or the header's stickiness changes.
