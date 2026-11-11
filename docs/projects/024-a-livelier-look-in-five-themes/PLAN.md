@@ -106,7 +106,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 
 ### Phase 1a — The theme mechanism, with today's colours
 
-- [ ] pending
+- [x] done — 2026-11-11 (LOG.md)
 - **Dispatch**: opus @ high — `/execute-project 024 phase 1a` — deviation justified: every later
   phase and every theme stands on this mechanism.
 - **Goal**: `data-theme`, the contrast gate and the colour test exist and pass, and **nothing a
@@ -149,6 +149,16 @@ What the code looks like today, and what that decides (read on 2026-11-11):
   «Apariencia», both dictionaries, `AGENTS.md` § CSS conventions and § Branding,
   `packages/ui/AGENTS.md` § Fonts, `apps/web/AGENTS.md` § Styles, a new decision record.
 - **Steps**:
+  0. Carried from phase 1a (LOG.md):
+     - `--card-shadow` and `--grain-opacity` are `light-dark()` of things that are not colours,
+       which the browser rejects: today no card draws its shadow and the grain is painted at
+       full opacity. Both are given real per-theme values here, as part of the new look.
+     - `--color-chart-*` are still `light-dark()` pairs in ui's palette and follow only
+       `color-scheme`. Each theme defines its chart colours in `themes.css`.
+     - `scripts/check-contrast.mjs` treats any rule it does not know as a problem: it learns
+       the `prefers-contrast: more` and `forced-colors` blocks, and the new pairs (on-accent text
+       at both ends of the gradient, ring colours on their track, the deep-tomato label).
+     - The storage key is `nutria-theme` (`ui/utils/themeScript`); the switch imports it.
   1. The five blocks in `themes.css`, starting from the values measured in the PRD
      (§ "What changes from the sheets") and adjusted until the contrast script passes in each.
      Alto contraste under `prefers-contrast: more`; a `forced-colors` block.
@@ -201,11 +211,28 @@ What the code looks like today, and what that decides (read on 2026-11-11):
      rules with it, each keeping its words and its role (`role="alert"` where it had one).
   3. `Rings` in `packages/ui`: one to four concentric rings from values and maxima, with a text
      alternative that states every figure, drawn in SVG, filling on arrival.
-  4. Motion utilities: count-up for a figure, ring fill, the bar marker's slide, the staggered
-     list that exists. All under the single reduced-motion rule in `base.css`.
+  4. **The motion system**, in `packages/ui/src/styles/motion.css` and tokens, for every later
+     phase to draw from and none to reinvent (PRD § "The design" — Motion; criterion 15):
+     - tokens: three springs (gentle, lively, firm) as `linear()` easings with a cubic-bezier
+       fallback, the entrance durations (200–600 ms), the stagger and its cap of eight;
+     - entrances: rise, fade, scale-in, and the staggered list that exists;
+     - figures: ring sweep, bar and column grow, line draw (stroke-dashoffset), gauge swing, and a
+       count-up hook for the number beside each, which writes the final value for assistive
+       technology at once and animates only what is seen;
+     - place: the shared-axis forward/back that exists, a sheet's rise, a menu unfolding from its
+       trigger, and the View Transition names for a card that grows into its page;
+     - answers: press, toggle spring, tick, strike-through, drop-in and close-up for list rows;
+     - an in-view trigger (one `IntersectionObserver`, the `Reveal` that exists, extended) so a
+       figure below the fold animates when it is reached, once.
+     Only `transform`, `opacity` and SVG stroke are animated. Everything sits under the single
+     reduced-motion rule in `base.css`; the count-up and the observer check the preference in
+     script and write final values directly.
+  5. Every chart component of `packages/ui` (`BarChart`, `ColumnChart`, `LineChart`, `DonutChart`,
+     `Gauge`, `Sparkline`, `StatTile`) gets its entrance from that system, keeping its data table
+     and its text alternative.
 - **Items**: one checkbox per `packages/ui` component, then one per stylesheet holding a
   coloured-edge rule (the list is in LOG.md's phase 0 entry).
-- **Acceptance criteria**: PRD 10; PRD 7 and 9 for the components.
+- **Acceptance criteria**: PRD 10; PRD 7 and 9 for the components; PRD 15 for the charts.
 - **Verification**: gate `--full`; `pnpm --filter ui test`;
   `grep -rnE "border-(inline-start|left)(-width)?: *[2-9]px" apps/web/src packages/ui/src`
   returns nothing but dividers named in LOG.md; `/local-probe` on the docs app's component pages
@@ -230,7 +257,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
   4. The header: brand, language, theme, sign-out. At 320 px sign-out is an icon with its name.
   5. The hatched pattern as a CSS background behind the header, drifting slowly and following
      the scroll; still, and absent in Alto contraste and `forced-colors`.
-- **Acceptance criteria**: PRD 13; PRD 7 at 320 px; PRD 15 (the 404s and the offline behaviour).
+- **Acceptance criteria**: PRD 13; PRD 7 at 320 px; PRD 16 (the 404s and the offline behaviour).
 - **Verification**: gate `--full`; `/local-probe` at 320, 360, 390, 768 and 1280 on `/inicio`,
   `/plan`, `/asistente` (box focused and not), `/compra`, in Claro, Oscuro and Alto contraste;
   the offline probe steps in `apps/web/AGENTS.md` § Offline; `apple-web-design` REVIEW.
@@ -255,7 +282,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
   4. The picture stays a plain `<img>` at its original bytes, with its «IA» mark and name; the
      strip is a near-opaque surface unless the review accepts a material there.
   5. A dish card opens into its page with a View Transition where the browser has it.
-- **Acceptance criteria**: PRD 1 for these routes; PRD 7, 9, 11; PRD 15.
+- **Acceptance criteria**: PRD 1 for these routes; PRD 7, 9, 11, 15; PRD 16.
 - **Verification**: gate `--full`; the inventory's tables for these routes ticked line by line in
   LOG.md; `/local-probe` with an account that has a plan, in five themes at 390 and Claro/Oscuro
   at 320 and 1280; `apple-web-design` REVIEW.
@@ -277,7 +304,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
   - [ ] Asistente (new conversation and a thread)
   - [ ] Perfil, with every section and the account's security cards
   - [ ] Plan being made, and its failure states
-- **Acceptance criteria**: PRD 1, 7, 9, 11, 15 for these routes.
+- **Acceptance criteria**: PRD 1, 7, 9, 11, 15, 16 for these routes.
 - **Verification**: as phase 4.
 
 ### Phase 6 — Onboarding and the screens that had no sheet
@@ -364,7 +391,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 - **Steps**: the three approved pages first (Resumen, Interruptores, IA y modelos), then the
   sheet, then the rest as one batch. No figure, filter or action is added or removed.
 - **Items**: one checkbox per console route.
-- **Acceptance criteria**: PRD 1, 7, 9, 11 for these routes; PRD 15 (the 404 for a non-admin).
+- **Acceptance criteria**: PRD 1, 7, 9, 11 for these routes; PRD 16 (the 404 for a non-admin).
 - **Verification**: gate `--full`; `admin.e2e-spec.ts` untouched and green in CI; `/local-probe`
   with a two-factor admin account at 390 and 1280, Claro and Oscuro.
 
@@ -384,7 +411,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
      lists only `apps/api/src/modules/email/templates`.
   5. The baseline script against production: every line of phase 0's files is present or its
      absence is explained in LOG.md.
-- **Acceptance criteria**: PRD 1–15.
+- **Acceptance criteria**: PRD 1–16.
 - **Verification**: the above, each with its output in LOG.md.
 
 ## Hand-off
@@ -401,12 +428,17 @@ Standing rules for every phase of this project:
   every theme the phase touches and both languages, and reads the 320 px screenshots first. A
   long word, a long dish name, a translated label and 200 % text are tried on purpose. What does
   not fit wraps or stacks. A hit fails the phase; it is not a hint to judge.
+- **Nothing simply appears** (PRD § Motion, criterion 15, the owner's instruction). Every phase
+  gives its screens their arrival, their figures their entrance and their controls their answer,
+  from the motion system of phase 2 — never a duration or an easing typed in a component. Only
+  `transform`, `opacity` and SVG stroke; no layout shift; never gate a tap on an animation. Each
+  phase records a throttled performance trace of its busiest screen and a reduced-motion look.
 - **Never a raw colour, a palette step or a theme name in a component.** New need, new semantic
   token, defined in all five themes, and the contrast script's pair list updated.
 - **Every phase**: `gate.sh --full`, `/local-probe` (320 px and a dark theme first, then look at
   the screenshots), the `apple-web-design` REVIEW with P0 and P1 fixed, and the verdict in the
-  pull request. The owner's three exceptions (PRD criterion 9: the drifting pattern, the wide
-  gradient, the large radii) are named there when a phase builds one; nothing else is excused.
+  pull request. The owner's four exceptions (PRD criterion 9: the drifting pattern, generous motion,
+  the wide gradient, the large radii) are named there when a phase builds one; nothing else is excused.
 - **One heavy job at a time** on the owner's machine. Tests run on the local Postgres only.
 - **Shipping**: the owner authorised the agent to ship each phase (2026-11-11). `owner-approves`,
   `human-verify` and anything red still stop it. Each phase is its own branch and pull request.

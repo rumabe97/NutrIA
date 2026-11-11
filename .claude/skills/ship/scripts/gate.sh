@@ -7,7 +7,8 @@
 #
 # Usage: sh .claude/skills/ship/scripts/gate.sh [--full] [log-dir]
 #   --full   everything CI's required check runs: coverage instead of plain tests, the web
-#            build, and every public page still static. Slower; run it before a pull request.
+#            build, every public page still static, and every theme's contrast. Slower; run
+#            it before a pull request.
 # Each step's full output goes to <log-dir>/gate-<step>.log; a failure prints its tail.
 
 full=0
@@ -37,6 +38,7 @@ if [ "$full" -eq 1 ]; then
   step checks pnpm turbo lint ts:check test:coverage
   step web-build env NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1 pnpm --filter web build
   step static node scripts/check-static-pages.mjs
+  step contrast node scripts/check-contrast.mjs
 else
   step checks pnpm turbo lint ts:check test
 fi

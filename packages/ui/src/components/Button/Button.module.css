@@ -118,7 +118,7 @@
 
 .button.destructive {
   background-color: var(--color-error-fill);
-  color: var(--color-white);
+  color: var(--color-on-error-fill);
 }
 
 .button.destructive:hover:not(:disabled) {

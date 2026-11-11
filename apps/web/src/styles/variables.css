@@ -8,33 +8,11 @@
    information, not marketing. */
 
 :root {
-  /* ── Accent ────────────────────────────────────────────────────────────
-     A muted olive-green. Green is the obvious choice for nutrition and also
-     the reason so many of these products look alike, so this one is
-     desaturated far enough to sit next to food photography without competing
-     with it. Steps mirror the Radix scale contract documented in
-     ui/styles/variables: 09 is the solid fill, 11 is the AA-passing text step. */
-  --color-brand-01: light-dark(#fcfdfb, #131610);
-  --color-brand-02: light-dark(#f7faf3, #181c13);
-  --color-brand-03: light-dark(#eef4e6, #1e2418);
-  --color-brand-04: light-dark(#e4ecd8, #242c1c);
-  --color-brand-05: light-dark(#d9e3ca, #2b3421);
-  --color-brand-06: light-dark(#cbd8b7, #333e27);
-  --color-brand-07: light-dark(#b8c99f, #3f4c2f);
-  --color-brand-08: light-dark(#9db47e, #506237);
-  --color-brand-09: light-dark(#5f7a3d, #6d8a46);
-  --color-brand-10: light-dark(#546d35, #7d9b53);
-  --color-brand-11: light-dark(#475c2c, #a3c07a);
-  --color-brand-12: light-dark(#232d15, #e8f0dc);
-
-  /* The fill under a white label, in both schemes. The dark step 09 above is
-     lightened so it reads on a dark ground, and a white label on it measures
-     3.9:1 — under the 4.5:1 a button's text needs. The light step 09 clears it
-     (4.8:1) and still stands 3.9:1 off the dark page, so the fill is that value
-     in both schemes; hover is one step deeper (5.8:1). WCAG relative luminance,
-     measured, not eyeballed. */
-  --color-brand-fill: #5f7a3d;
-  --color-brand-fill-hover: #546d35;
+  /* ── Colour ───────────────────────────────────────────────────────────
+     Every colour this product paints — the olive accent, the surfaces, the
+     card's highlight, the ambient light — is a value of a theme, and lives in
+     styles/themes.css (`0106`), selected by `data-theme` on <html>. This file
+     keeps what does not change with the theme. */
 
   /* ── Editorial type scale ─────────────────────────────────────────────
      Extends (never replaces) the ui scale, which tops out at 60px. Marketing
@@ -103,29 +81,18 @@
   /* Below this the product is one column; above it, screens with a rail split. */
   --breakpoint-wide: 64rem;
 
-  /* ── Surfaces ─────────────────────────────────────────────────────────
-     A single raised card token, so every card in the product agrees. */
-  --surface-card: light-dark(#ffffff, #1a1a1a);
-  --surface-sunken: var(--color-gray-02);
-
-  /* A hairline of light along a card's top edge and a shadow beneath it. Two
-     cheap cues that a surface sits *above* the page rather than being a
-     differently-coloured region of it — which is most of what made flat cards on
-     a flat ground read as bland. */
+  /* ── Card shadow ──────────────────────────────────────────────────────
+     A shadow beneath a card, read by components/Card beside the highlight in
+     styles/themes.css. Not a working value today: `light-dark()` takes colours
+     only, so a pair of whole shadows is invalid, and so is Card's whole
+     `box-shadow` that reads it — no card has drawn its shadow or its highlight.
+     Kept exactly as it is so that phase 1a of project 024 changes nothing on
+     screen; phase 1b gives it a value per theme. */
   --card-shadow: light-dark(0 1px 2px rgb(24 28 20 / 4%), 0 1px 2px rgb(0 0 0 / 40%));
-  --card-highlight: light-dark(rgb(255 255 255 / 90%), rgb(255 255 255 / 6%));
 
-  /* ── Ambient light ────────────────────────────────────────────────────
-     Three soft pools of colour behind everything, plus grain.
-
-     Deliberately not a gradient across the whole page, which reads as a theme;
-     these are lights in a room. Kept far below the text contrast threshold —
-     the brightest is 7% — because the job is to stop the ground being *nothing*,
-     not to be noticed. Warm at the top left, brand green at the right, cool at
-     the foot, so scrolling passes through a slow shift rather than a flat field. */
-  --glow-warm: light-dark(rgb(212 196 148 / 22%), rgb(160 140 80 / 10%));
-  --glow-brand: light-dark(rgb(95 122 61 / 13%), rgb(109 138 70 / 12%));
-  --glow-cool: light-dark(rgb(140 165 190 / 14%), rgb(90 120 160 / 9%));
-  /* Grain is what stops a large soft gradient banding on an 8-bit display. */
+  /* Grain is what stops a large soft gradient banding on an 8-bit display.
+     Not a working value today either: `light-dark()` of two numbers is
+     invalid, so the grain layer is drawn at the initial opacity, 1. Kept as it
+     is for the same reason as the card shadow; phase 1b decides. */
   --grain-opacity: light-dark(0.028, 0.05);
 }

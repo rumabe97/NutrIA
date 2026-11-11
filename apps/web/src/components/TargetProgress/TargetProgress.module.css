@@ -28,7 +28,7 @@
 }
 
 .track {
-  background-color: var(--color-gray-04);
+  background-color: var(--color-track);
   block-size: 0.25rem;
   border-radius: var(--radius-full);
   grid-column: 1 / -1;

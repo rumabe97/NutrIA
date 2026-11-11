@@ -23,7 +23,7 @@
 }
 
 .thumb {
-  background-color: var(--color-white);
+  background-color: var(--color-switch-thumb);
   border-radius: var(--radius-full);
   display: block;
   height: 21px;

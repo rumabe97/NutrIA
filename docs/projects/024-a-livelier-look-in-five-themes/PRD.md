@@ -52,10 +52,31 @@ changes from the sheets" lists where the built product must differ from them to 
   day on its page, meals done on Progreso, and the plan being made.
 - **Navigation.** On a phone, a floating bar with the six destinations, the current one named.
   On a wide screen, a rail at the side. The console keeps its grouped menu.
-- **Motion.** Rings fill and figures count up on arrival; the header's hatched pattern drifts and
-  follows the scroll; the bar's marker slides between destinations; a dish card opens into its
-  page; lists arrive staggered. CSS and the View Transitions API only, no WebGL, and all of it
-  stops under `prefers-reduced-motion`.
+- **Motion, and plenty of it** (owner, 2026-11-11: *«los anillos, gráficos, etc., tienen que
+  tener animaciones de entrada, súper fluidas… mete todas las animaciones posibles para que la
+  web quede atractiva y no sea monótona y aburrida»*). Nothing on a screen simply appears:
+  - **Every figure that measures something draws itself in**: rings sweep to their value, bars
+    and columns grow, a line chart draws along its path, a gauge swings, and the number beside
+    each counts up to its value.
+  - **Every screen arrives**: its title, then its blocks, staggered; a list's rows one after
+    another; a picture fades up from its placeholder.
+  - **Every change of place is a movement**: the bar's marker slides to the new destination, a
+    dish card grows into its page and back, a day slides to the next in the direction of travel,
+    a step of onboarding or of the check-in moves forward and back, a sheet rises, a menu unfolds
+    from its button.
+  - **Every action answers**: a button presses in, a switch and a checkbox spring, a meal marked
+    done ticks and its ring moves at once, a row checked off the shopping list strikes through
+    and settles, an added item drops in, a removed one closes up, a saved field confirms.
+  - **The page is alive while still**: the header's pattern drifts and follows the scroll, and
+    the plan being made shows its progress moving.
+  - **What keeps it fluid**: only `transform` and `opacity` are animated, and SVG stroke for
+    drawn figures, so nothing re-lays the page; springs and eases come from tokens, never from a
+    number typed in a component; an entrance lasts between 200 and 600 ms and a list's stagger
+    stops after eight rows, so nobody waits for a screen; nothing shifts the layout; nothing
+    blocks a tap — an element in mid-entrance already works.
+  - CSS, the Web Animations API and View Transitions only: no animation library, no WebGL.
+  - **All of it stops under `prefers-reduced-motion`**: figures show their final value at once,
+    screens change by a short fade or not at all.
 - **Notes.** No box with a coloured left edge anywhere. A note is a flat, square-cornered block
   or a line between hairlines. The assistant's warning keeps every word of its approved text.
 
@@ -181,9 +202,10 @@ Measured on 2026-11-11, before any code:
    recorded before phase 1. Fonts are self-hosted, subset and preloaded; the hero picture has
    dimensions and priority, so nothing shifts. The `seo` agent reports no finding above P2.
 9. **`apple-web-design`.** Its REVIEW is run on every screen family as it is built; P0 and P1
-   are fixed before that phase ships. **Three exceptions, and only these, are the owner's**
-   (2026-11-11, with the stricter options in front of him): the header's pattern drifts by
-   itself, the gradient is used as widely as the sheets show (buttons, edges, labels at display
+   are fixed before that phase ships. **Four exceptions, and only these, are the owner's**
+   (2026-11-11; the first three chosen with the stricter options in front of him, the fourth in
+   his own words): the header's pattern drifts by itself, motion is used generously and for
+   delight as § "The design" lists it, the gradient is used as widely as the sheets show (buttons, edges, labels at display
    size, a word of a title), and corners are as round as the sheets (up to 30 px). Each is
    recorded by name in the phase that builds it. Everything else the skill asks for holds:
    contrast, targets, reduced motion (under which the pattern is still), semantic controls, one
@@ -203,7 +225,13 @@ Measured on 2026-11-11, before any code:
     the mail program on his iPhone and in Gmail on the web, in a light and a dark setting: legible,
     the button works, nothing is cut. A mail program that ignores gradients, web fonts or a dark
     preference still shows a complete, legible mail.
-15. **What shipped on 2026-11-11 survives**: the assistant's warning text, the `data-ai-generated`
+15. **It moves, and it stays fluid.** Every chart, ring, bar and counted figure in the product has
+    an entrance; every route has an arrival; every control in § "The design" answers. Measured in
+    Chrome with a 4× CPU throttle on Inicio, the plan, a dish, Progreso and the console's summary:
+    no long task over 50 ms caused by an animation, no layout shift (CLS 0), and no animated
+    property other than `transform`, `opacity` and SVG stroke. With reduced motion on, a
+    recording of the same screens shows no movement beyond a fade.
+16. **What shipped on 2026-11-11 survives**: the assistant's warning text, the `data-ai-generated`
     marks, «Descargar mis conversaciones», and every 404 a person without the right is given.
 
 ## How it ships

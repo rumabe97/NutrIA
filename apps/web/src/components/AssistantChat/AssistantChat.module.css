@@ -240,7 +240,7 @@ body:has(.field:focus) .composer {
 
 .box:focus-within {
   border-color: var(--color-brand-fill);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-fill) 18%, transparent);
+  box-shadow: 0 0 0 3px var(--color-brand-halo);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -313,7 +313,7 @@ body:has(.field:focus) .composer {
 
 /* Not pressable: a paler disc, the focus ring at full strength. */
 .send[aria-disabled='true'] {
-  background-color: color-mix(in srgb, var(--color-brand-fill) 40%, var(--surface-card));
+  background-color: var(--color-brand-fill-disabled);
   cursor: not-allowed;
 }
 

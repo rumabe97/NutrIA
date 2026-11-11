@@ -15,7 +15,7 @@
 }
 
 .track {
-  background-color: var(--color-gray-04);
+  background-color: var(--color-track);
   border-radius: var(--radius-full);
   height: 4px;
   overflow: hidden;
@@ -149,7 +149,7 @@
 }
 
 .error {
-  background-color: var(--color-red-03);
+  background-color: var(--color-error-surface);
   border-radius: var(--radius-control);
   color: var(--color-error-text);
   font-size: var(--font-size-03);
