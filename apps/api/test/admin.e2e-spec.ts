@@ -1959,7 +1959,17 @@ describe('admin', () => {
         const view = response.body as AdminAiView;
 
         // Exactly the period's keys (`0068` § Removed: today's quota readout is gone) and the month (`0071`).
-        expect(Object.keys(view).sort()).toEqual(['callsPerDay', 'models', 'month', 'period', 'spendPerDay', 'tokensPerDay', 'totals', 'window']);
+        expect(Object.keys(view).sort()).toEqual([
+          'assistantFailures',
+          'callsPerDay',
+          'models',
+          'month',
+          'period',
+          'spendPerDay',
+          'tokensPerDay',
+          'totals',
+          'window'
+        ]);
 
         // No cap in this environment: no gauge, the keys absent, not null (`text-cap.e2e-spec.ts` runs with one).
         expect(Object.keys(view.month).sort()).toEqual(['assistant', 'byFeature', 'monthStart', 'spentUsd', 'uncostedCalls']);
