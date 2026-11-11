@@ -19,7 +19,6 @@
   position: absolute;
   right: 1rem;
   top: 1rem;
-  transition: color 0.15s;
 }
 
 .copy:hover {
@@ -29,6 +28,13 @@
 /* ── Shiki output ── */
 .root :global(.shiki) {
   padding: 1.25rem 1.5rem;
+}
+
+/* A long line wraps inside the block rather than running past a phone's edge, where the
+   block's own clip would cut it off unread. */
+.root :global(.shiki code) {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 @media (prefers-color-scheme: dark) {

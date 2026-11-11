@@ -2,7 +2,10 @@
    set into the page, the chosen segment filled in the text colour. */
 .list {
   background-color: var(--surface-sunken);
-  border-radius: var(--radius-full);
+  /* A rounded track around rounded segments, not a pill: when the segments do
+     not fit one row on a narrow screen they wrap, and a pill that wraps becomes
+     a blob. The corners nest, so the gap around a segment is even. */
+  border-radius: calc(var(--radius-control) + var(--space-01));
   display: inline-flex;
   flex-wrap: wrap;
   gap: var(--space-01);

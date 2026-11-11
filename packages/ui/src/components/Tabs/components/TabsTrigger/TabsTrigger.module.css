@@ -1,13 +1,14 @@
 .trigger {
   background: none;
   border: 1px solid transparent;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-control);
   color: var(--foreground-02);
   cursor: pointer;
-  flex: 1 1 auto;
   font-size: var(--font-size-03);
   font-weight: var(--font-weight-medium);
+  flex: 1 1 auto;
   padding: var(--space-02) var(--space-04);
+  text-align: center;
   transition: transform var(--duration-fast) var(--spring-firm);
 }
 
