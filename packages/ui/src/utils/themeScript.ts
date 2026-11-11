@@ -41,7 +41,8 @@ interface StoredTheme {
  * unknown value, an empty store and a store that throws (Safari with storage blocked
  * throws on the read) all mean Automático.
  *
- * @knipignore Exported for its test, which holds `THEME_SCRIPT` to the same answers.
+ * `ui/utils/theme` reads the device with it after the first paint; its test holds
+ * `THEME_SCRIPT` to the same answers.
  */
 export function storedTheme(read: () => string | null): StoredTheme | null {
   try {

@@ -11,7 +11,8 @@ Component library for the monorepo. Rules here are more specific than the root `
 - `src/hooks/` — shared React hooks (used in 2+ apps)
 - `src/utils/` — shared utilities (used in 2+ apps)
 - `src/styles/` — global token files (`colors.css`, `variables.css`, `base.css`, `classnames.css`)
-- `src/fonts/` — font definitions
+- `src/fonts/` — font definitions, the files and their licences (§ Fonts)
+- `scripts/` — `build-fonts.sh`, which rebuilds the subsets from the upstream files
 
 ## Why we wrap Radix primitives (instead of re-exporting)
 
@@ -40,51 +41,81 @@ Don't add new Next-specific dependencies to other components without a similarly
 
 ## Fonts
 
-`src/fonts/` ships two files, and the difference between them matters:
+`src/fonts/` ships two families (project 024, `0107`), each as an untouched upstream file, the
+subset the apps load, and its licence:
 
 | File | What it is | Shipped to browsers |
 | --- | --- | --- |
-| `font.full.woff2` | Inter Variable (RSMS), untouched upstream. 352,240 bytes, 2,937 glyphs, axes `opsz` 14–32 and `wght` 100–900 | **no** — nothing imports it |
-| `font.woff2` | the subset derived from it, and the only file `font.ts` loads. 116,308 bytes, 1,167 glyphs, axes `opsz` 14–32 and `wght` 400–700 | yes, and preloaded on every response |
+| `text.full.ttf` | Figtree Variable, untouched upstream (`erikdkennedy/figtree` at `032dfa7`, `fonts/variable/Figtree[wght].ttf`). 62,712 bytes, axis `wght` 300–900 | **no** — nothing imports it |
+| `text.woff2` | its subset, `--main-font`: every word that is not a heading. 22,464 bytes, axis `wght` 400–700 | yes, preloaded on every response |
+| `display.full.ttf` | Bricolage Grotesque Variable, untouched upstream (`ateliertriay/bricolage` at `84745e5`, `fonts/variable/BricolageGrotesque[opsz,wdth,wght].ttf`). 408,496 bytes, axes `opsz` 12–96, `wdth` 75–100, `wght` 200–800 | **no** |
+| `display.woff2` | its subset, `--display-font`: `h1`–`h6` (`ui/styles/base`). 85,020 bytes, axes `opsz` 12–96 and `wght` 600–800, width pinned at 100 | yes, preloaded on every response |
+| `OFL-Figtree.txt`, `OFL-BricolageGrotesque.txt` | each family's SIL Open Font License 1.1, from the same commits | no — it travels with the files, as the licence requires |
 
-The full file is kept purely so the subset can be rebuilt. Delete it and the subset becomes a binary nobody can regenerate.
+A first visit downloads 107,484 bytes of font — the single Inter file it replaced was 116,308.
+The full files are kept purely so the subsets can be rebuilt. Delete one and its subset becomes
+a binary nobody can regenerate.
 
-### Regenerating `font.woff2`
+`font.ts` exports `font` (Figtree, `--main-font`) and `displayFont` (Bricolage Grotesque,
+`--display-font`). An app mounts the variables of the faces it uses on `<body>` (`apps/web`
+mounts both). Headings read `var(--display-font, var(--main-font))`, so an app that mounts only
+the text face (`apps/docs`) gets it on its headings too. Neither variable may be read through a
+token declared on `:root`: they are set below it, and the token would resolve to nothing.
 
-Needs `fonttools` and `brotli`, which are Python and not workspace dependencies — install them into a throwaway virtualenv rather than the repo:
+### Regenerating the subsets
+
+`scripts/build-fonts.sh` does it — the instancing, the subsetting and the recompression for both
+families — from the two `*.full.ttf` files. It needs `fonttools`, `brotli` and `zopfli`, which
+are Python and not workspace dependencies; install them into a throwaway virtualenv rather than
+the repo, and pass its `bin` directory:
 
 ```sh
 python3 -m venv /tmp/fontenv
-/tmp/fontenv/bin/pip install 'fonttools[woff]' brotli
+/tmp/fontenv/bin/pip install 'fonttools[woff]' brotli zopfli
+sh packages/ui/scripts/build-fonts.sh /tmp/fontenv/bin
 ```
 
-Then, from `packages/ui/src/fonts/`:
-
-```sh
-# 1. Narrow the weight axis to the range the token scale actually defines.
-/tmp/fontenv/bin/fonttools varLib.instancer font.full.woff2 wght=400:700 --output=/tmp/wght.ttf
-
-# 2. Subset to the characters the products render, and recompress.
-/tmp/fontenv/bin/pyftsubset /tmp/wght.ttf \
-  --output-file=font.woff2 \
-  --unicodes='U+0000-00FF,U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2000-206F,U+20A0-20C0,U+2113,U+2122,U+2190-2199,U+21E7,U+2200-22FF,U+2300-232B,U+2325,U+2713,U+2717,U+26A0,U+2C60-2C7F,U+A720-A7FF,U+FEFF,U+FFFD' \
-  --layout-features+=tnum \
-  --flavor=woff2 \
-  --with-zopfli
-```
+To update a family, replace its `*.full.ttf` with the upstream variable file (and its OFL text,
+if it changed), note the commit in the table above, and run the script.
 
 ### Why those flags
 
-- **The unicode ranges** are Google Fonts' published `latin` and `latin-ext`, plus the symbols this workspace prints that neither covers: the arrow block (`←→↑↓↔↕`), the maths operators (`−≤≥≠≈`), the Mac modifier keys `Spotlight` and `ContextMenu` render (`⌘⌫⇧⌥⌃`), `✓✗` and `⚠`. Spanish needs nothing beyond Latin-1; `latin-ext` is there for foreign ingredient and account names, and it is the expensive half — dropping it would save roughly another 59KB if that trade ever looks worth making.
-- **`--layout-features+=tnum`** is not optional. `tnum` is absent from pyftsubset's default feature set, and ~25 rules across the apps set `font-variant-numeric: tabular-nums`. Drop it and every figure in every table starts jittering. The `+=` matters too: plain `=` would replace the defaults and take `kern`, `calt`, `ccmp` and `mark` with it.
-- **`wght=400:700`** is the whole range `--font-weight-regular` … `--font-weight-bold` spans. Widening the token scale means widening this *and* the `weight` string in `font.ts` — all three have to agree, or the browser silently clamps.
-- **Optical sizing is deliberately kept.** `font-optical-sizing: auto` is the CSS initial value, so browsers drive the `opsz` axis from the font size on their own and headings genuinely use it. Pinning it to `opsz=14` would save about 41KB and quietly flatten every display heading to the 14pt design.
-- **Stylistic sets are deliberately dropped** (`ss01`–`ss08`, `cv01`–`cv14`, `salt`, `dlig`, `zero`, `case`, `sups`, `subs`, `ordn`). Nothing sets `font-feature-settings`. If a component ever needs one, add it with `--layout-features+=` and regenerate.
+- **The unicode ranges** are Google Fonts' published `latin` and `latin-ext`, plus the symbols
+  this workspace prints that neither covers: the arrow block (`←→↑↓↔↕`), the maths operators
+  (`−≤≥≠≈`), the Mac modifier keys `Spotlight` and `ContextMenu` render (`⌘⌫⇧⌥⌃`), `✓✗` and `⚠`.
+  A glyph the upstream font does not draw is simply absent and the system font draws it: neither
+  family has `✓✗⚠⌘`, and Figtree has no `≈`. Spanish needs nothing beyond Latin-1.
+- **`--layout-features+=tnum`** is not optional. `tnum` is absent from pyftsubset's default
+  feature set, and ~25 rules across the apps set `font-variant-numeric: tabular-nums`. Drop it
+  and every figure in every table starts jittering. The `+=` matters too: plain `=` would
+  replace the defaults and take `kern`, `calt`, `ccmp` and `mark` with it.
+- **`wght=400:700` for text, `wght=600:800` for headings** are the ranges the weight tokens span:
+  `--font-weight-regular` … `--font-weight-bold` for text, `--font-weight-semibold` …
+  `--font-weight-heavy` (800) for headings. Widening a token range means widening the script's
+  range *and* the `weight` string in `font.ts` — all three have to agree, or the browser silently
+  clamps. A heading asked for 500 is drawn at 600, the lightest the display file carries.
+- **Bricolage's width is pinned at 100** (`wdth=100`): nothing asks for a condensed heading, and
+  the axis is a quarter of the file.
+- **Its optical size is deliberately kept.** `font-optical-sizing: auto` is the CSS initial
+  value, so browsers drive the `opsz` axis from the font size on their own: a card's title gets
+  the 12–14pt drawing, the hero the 96pt one. Pinning it would save about 37KB and flatten every
+  heading to one size's design.
+- **Stylistic sets are deliberately dropped.** Nothing sets `font-feature-settings`. If a
+  component ever needs one, add it with `--layout-features+=` and regenerate.
 
 Whatever changes, keep these true:
 
-- **The Arial fallback override must not move.** Next.js computes `ascent-override: 89.79%` / `descent-override: 22.36%` / `size-adjust: 107.89%` from `unitsPerEm`, the `hhea` metrics, and the mean advance width of `a`–`z` and space. Subsetting preserves all of them — but instancing the *weight default* away from 400, or dropping a lowercase letter, would shift `size-adjust` and reintroduce the layout shift the override exists to prevent. Verify after regenerating: build `apps/web` and grep the emitted CSS for `@font-face`.
-- **No `unicode-range` descriptor.** It looks like it belongs and would do nothing: `next/font/local` preloads the file with a `Link` header on every response, so the browser has already fetched it before any range check could spare it. It would only start paying if the font were split into a preloaded `latin` file and a lazy `latin-ext` one — which `next/font/local` cannot express in a single family, since each call mints its own family name.
+- **The fallback overrides are Next.js's to compute.** `next/font/local` derives
+  `ascent-override` / `descent-override` / `size-adjust` for each family's Arial fallback from
+  `unitsPerEm`, the `hhea` metrics and the mean advance width of `a`–`z` and space, at build
+  time. Subsetting preserves all of them; dropping a lowercase letter would shift `size-adjust`
+  and reintroduce the layout shift the override exists to prevent. Verify after regenerating:
+  build `apps/web` and read the two `@font-face` fallback blocks in the emitted CSS.
+- **No `unicode-range` descriptor.** It looks like it belongs and would do nothing:
+  `next/font/local` preloads each file with a `Link` header on every response, so the browser has
+  already fetched it before any range check could spare it.
+- **The same two files in every theme.** No theme may load a face, a weight or a file the
+  others do not (`docs/legal/2026-11-11-redesign.md` § 1.7, T4).
 
 ## Component structure
 
@@ -335,15 +366,16 @@ The full token catalog lives in [`src/styles/variables.css`](src/styles/variable
 | Spacing (padding / margin / gap) | `--space-01` … `--space-12`                                                  |
 | Font size                        | `--font-size-01` … `--font-size-11`                                          |
 | Line height                      | `--line-height-01` … `--line-height-06`                                      |
-| Font weight                      | `--font-weight-regular` / `medium` / `semibold` / `bold`                     |
+| Font weight                      | `--font-weight-regular` / `medium` / `semibold` / `bold`; `--font-weight-heavy` (800, headings only — the text face stops at 700) |
 | Component height                 | `--height-xs` / `s` / `m` / `l` / `xl`; `--target-min` (44px, applied under `(pointer: coarse)`) |
-| Radius                           | `--radius-control` / `card` / `sheet` (10/14/20 — reach for these first); `--radius-01` … `--radius-05`, `--radius-full` |
+| Radius                           | `--radius-control` / `card` / `sheet` (10/14/20 here; an app may round them further — NutrIA's are 12/24/28), `--radius-button` (a button's own corner; the control's by default, a pill in NutrIA) — reach for these first; `--radius-01` … `--radius-05`, `--radius-full` |
 | Surfaces                         | `--background-01` / `02` / `highlight`, `--color-glass`, `--color-overlay`   |
 | Text                             | `--foreground-01` / `02` / `03` / `disabled`                                 |
-| Border                           | `--border-01` (dividers), `--border-interactive` (the edge of a control)     |
+| Border                           | `--border-01` (dividers), `--border-interactive` (the edge of a control), drawn `--border-width-interactive` thick (1px; 2px in a high-contrast theme) |
 | Interactive                      | `--color-hover`, `--color-highlighted`, `--color-selected`, `--color-switch` |
 | State                            | `--color-success`, `--color-error`, `--color-warning` (+ `-text` variants); `--color-error-fill` under a white label |
-| Brand                            | `--color-brand-01` … `--color-brand-12`; `--color-brand-fill` / `-fill-hover` / `--color-on-brand-fill` for anything filled — an app overrides the fill when its step 09 does not clear 4.5:1 with white in both schemes |
+| Brand                            | `--color-brand-01` … `--color-brand-12`; `--color-brand-fill` → `--color-brand-fill-end` (`--gradient-brand-fill`) / `-fill-hover` / `--color-on-brand-fill` for anything filled — the label clears 4.5:1 on both ends; `--color-accent-start/mid/end` (`--gradient-accent`) for what carries no small text |
+| Rings and highlight              | `--color-ring-1` … `-4` on `--color-ring-track` (3:1 against the track and the card); `--color-highlight-fill` / `--color-on-highlight-fill` for the one figure a screen leads with |
 | Shadow                           | `--shadow-s` / `m` / `l`                                                     |
 | Focus ring                       | `--focus-ring-color` / `-width` / `-offset` (applied globally via `:focus-visible`) |
 | Motion                           | `--duration-fast` / `normal` / `slow`, `--ease-default` / `spring`           |

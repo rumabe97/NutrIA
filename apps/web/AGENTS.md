@@ -244,7 +244,7 @@ when `UserView.hasPassword`** (the plugin's routes take the password, and the AP
 `/enable` without one); a Google-only account keeps the sentence pointing to Google's own.
 Every change is an inline step behind the password (`TwoFactorPasswordStep`): on →
 `TwoFactorSetup` (the QR drawn in the page from `uqr`'s module grid by `TwoFactorQr` —
-dark on white in both schemes, the one place palette tokens are used — the `otpauth://` link
+dark on white in every theme, `--color-code-ink` on `--color-code-ground` — the `otpauth://` link
 for an app on this device, the key in text) → the first right code turns it on →
 `TwoFactorBackupCodes`, the ten codes shown this once with copy, a `.txt` download and "Los he
 guardado" before "Terminar"; off (red confirm) and "Generar códigos nuevos" likewise. The codes
@@ -403,9 +403,40 @@ every root layout renders):
 4. `ui/styles/classnames` — shared utility classes
 5. `ui/styles/motion` — the entrance / exit / shared-axis utilities
 6. `styles/globals.css` — app-specific global styles only
-7. `styles/variables.css` — app-level token overrides (must be last)
+7. `styles/variables.css` — app-level tokens that do not change with the theme: the editorial
+   type scale, tracking, rhythm, gutters, corners
+8. `styles/themes.css` — every colour, per theme (must be last)
 
-`src/styles/variables.css` is where all branding and token overrides go. To change the accent color, remap `--color-brand-01`–`--color-brand-12` to any palette scale. Never reference palette tokens (`--color-gray-*`, `--color-blue-*`, etc.) directly.
+**Every colour is a value of a theme** (`0106`, `0107`). `src/styles/themes.css` holds five
+blocks — Claro, Oscuro, Huerta, Pulso, Alto contraste — selected by `data-theme` on `<html>` (and
+on any element, which is how Perfil's «Apariencia» previews each theme), plus Automático: no
+attribute, the Claro block on a light device, Oscuro on a dark one, Alto contraste under
+`prefers-contrast: more`; and a `forced-colors` block that wins over all of them. A new colour
+need is a new semantic token, defined in **every** block, with its pair added to
+`scripts/check-contrast.mjs`, which fails the gate when a block lacks a token another has, when an
+Automático block drifts from the block it stands for, or when a declared pair falls under its
+floor. A component never names a theme, a palette step or a raw colour: `styles/colours.test.ts`
+fails on any of them in a module stylesheet. Never reference palette tokens (`--color-gray-*`,
+`--color-blue-*`, etc.) from this app.
+
+What the families are for: `--color-brand-fill` → `--color-brand-fill-end`
+(`--gradient-brand-fill`) under a label, which clears 4.5:1 on both ends; `--color-brand-11`,
+the one colour for small accent text; `--color-accent-start/mid/end` (`--gradient-accent`), the
+bright gradient, only where there is no small text on it; `--color-ring-*` on
+`--color-ring-track`; `--color-highlight-fill` with `--color-on-highlight-fill`; and
+`--color-chart-*`, each 4.5:1 on its theme's card.
+
+The theme a person chooses is kept on the device and only paints the page — the `legal` agent's
+conditions in `docs/legal/2026-11-11-redesign.md` § 1.7. Choose and read it only through
+`ui/components/ThemeSwitch` (the header menu, wrapped by `components/ThemeSwitcher`) and
+`ui/hooks/useTheme` (Perfil's `components/AppearancePicker`). Nothing else reads the stored
+value, sends it, or decides anything by it. The colours a stylesheet cannot reach — the icons,
+the manifest, `theme-color`, the shared-link picture — come from `src/lib/brandColours.ts`, which
+a test holds to `themes.css`.
+
+**Type**: Figtree for text and Bricolage Grotesque for headings (`ui/fonts`, both mounted in
+`RootShell`); `h1`–`h6` take the display face from `ui/styles/base`. A class that should look like
+a heading on an element that is not one reads `var(--display-font)` itself.
 
 `src/styles/globals.css` is for app-specific styles only — the shared reset already lives in `ui/styles/base`.
 
@@ -433,7 +464,8 @@ number up with there, and tabular digits read as slightly wrong in running text.
 ### Surfaces and controls (`0057`)
 
 - **A card is `components/Card`.** It is the one raised surface: `--surface-card`, a
-  hairline border, `--radius-card`, the highlight-and-shadow pair, `--card-padding`. A
+  hairline border, `--radius-card`, the highlight-and-shadow pair (`--card-highlight`,
+  `--card-shadow`, both per theme), `--card-padding`. A
   stylesheet that declares that recipe itself is a regression. `padding="sm"` for a tile,
   `padding="lg"` for a card that is the whole screen; `as` for the element (`section`,
   `li`, `dl`, a `Link`). A module that overrides the card's own properties on a link card
@@ -475,8 +507,10 @@ number up with there, and tabular digits read as slightly wrong in running text.
 - **And give it a `forced-colors` block.** That mode erases every background, so a state
   drawn only with one disappears entirely: the track takes an `outline`, the chosen one a
   `border: 1px solid Highlight`. A system colour sticks without `forced-color-adjust`.
-- **Radii are semantic**: `--radius-control` (inputs, buttons, chips that are not pills,
-  notices), `--radius-card`, `--radius-sheet` (dialogs, the hero preview). Not the numeric
+- **Radii are semantic**: `--radius-control` (inputs, chips that are not pills, notices),
+  `--radius-button` (every `ui/components/Button`, a pill here), `--radius-card`,
+  `--radius-sheet` (dialogs, the hero preview). 12/24/28 px and a pill in this app
+  (`styles/variables.css`; the corners the owner chose, PRD 024 criterion 9). Not the numeric
   scale.
 - **Every tappable thing is `--target-min` tall under `(pointer: coarse)`** — `Button`,
   `Input`, `Select`, `Checkbox` and `SettingSwitch` already are; a new chip, pill,
