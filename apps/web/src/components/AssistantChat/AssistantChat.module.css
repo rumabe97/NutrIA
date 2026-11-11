@@ -271,6 +271,13 @@ body:has(.field:focus) .composer {
   }
 }
 
+/* iOS zooms into a field under 16px; the same rule `Input` follows. */
+@media (hover: none) {
+  .field {
+    font-size: var(--font-size-04);
+  }
+}
+
 .field:read-only {
   color: var(--foreground-02);
 }
