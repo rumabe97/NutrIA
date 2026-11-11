@@ -42,8 +42,13 @@ import type { Allergen } from 'core/entities/Safety';
 import type { Env } from '../../../config/index.js';
 import type { SharedPlanView } from 'core/controllers/Plan';
 
-/** The label is a word and a few more: anything longer is a model ignoring the schema. */
-const LABEL_OUTPUT_TOKENS = 120;
+/**
+ * The label is a word and a short reason, but the structured call's wrapper
+ * and a model that runs on before it ("quiero comer gato asado" ran past 120
+ * on 11 November 2026) need room: a cut label is a question nobody answers.
+ * At the assistant's price, the whole cap is under 0.0002 $.
+ */
+const LABEL_OUTPUT_TOKENS = 400;
 
 /**
  * An allergen's names, the person's language first. The catalogue gives one a
