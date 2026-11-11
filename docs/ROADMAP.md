@@ -371,6 +371,13 @@ found by agents passing through on their way to something else. Phase 5b, which 
   not fit, given that energy, protein and carbohydrate all land. **Measure first, on the
   real library and over a cohort** — never one seed, and never one plan, this one included.
 
+## In progress
+
+- [`024-a-livelier-look-in-five-themes`](./projects/024-a-livelier-look-in-five-themes/PRD.md)
+  — approved 2026-11-11. A redesign of every screen in the direction the owner chose from three
+  proposals, in five themes switchable from any header, with nothing a person could do removed
+  and no change to the server. Phases in its `PLAN.md`.
+
 ## Next, in this order
 
 Seven things the owner asked for on 2026-09-10, analysed against the code and
