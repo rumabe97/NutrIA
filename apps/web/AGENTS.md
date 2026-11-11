@@ -478,9 +478,9 @@ Perfil while its switch is on, Consulta last for a professional, and offline onl
   viewport and the header stays on screen.
 - **Focus in the header never scrolls the page.** The header's `scroll-padding-block-start`
   keeps a focused field from hiding under it, and Chrome applied it to the header's own controls
-  and to the menus that unfold under it too, moving a scrolled page up by the header's height.
-  `.header *` and `[data-radix-popper-content-wrapper] *` carry a negative scroll margin that
-  cancels it (`--app-header-clearance`). Anything new that sits in the sticky header inherits it.
+  too, moving a scrolled page up by the header's height whenever one took focus. `.header *`
+  carries a negative scroll margin that cancels it (`--app-header-clearance`). Anything new that
+  sits in the sticky header inherits it.
 - `(app)/not-found.tsx` is the signed-in tree's 404, inside the shell, in the dictionary's words.
 
 ### Rhythm

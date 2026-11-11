@@ -260,8 +260,9 @@ html:has(.header) {
 
 /* …except for what is in the header itself, which is always on screen: Chrome counts a
    control in a sticky header as hidden by that padding and scrolled a scrolled page up by
-   it — 368px at 390px wide — whenever language, theme or sign-out took focus. The menus
-   that open from it do the same; `styles/globals.css` gives them the same margin. */
+   it — 368px at 390px wide — whenever language, theme or sign-out took focus, which is
+   also what opening and closing «Tema» did (its button takes focus back). The menu's own
+   rows, fixed to the screen, never moved the page: measured, arrows included. */
 .header * {
   scroll-margin-block-start: calc(-1 * var(--app-header-clearance, 0px));
 }

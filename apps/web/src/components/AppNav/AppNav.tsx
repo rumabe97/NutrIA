@@ -52,7 +52,14 @@ export function AppNav({ assistant = false, professional = false }: AppNavProps)
   // Offline, only what opens: the screens with a copy on this device, and nothing
   // that needs the server — switching language and signing out both do (`0053`).
   const destinations = destinationsFor({ assistant, available, professional });
-  // A press counts only on the screen it was made on: once the address moves, it says where we are.
+
+  // The screen arrived — or any other did: from here the address says where we are. Forgotten
+  // during the render that sees the new address (React's "adjust state when a value changes"),
+  // so a press never comes back on a return to the screen it was made on.
+  if (pressed && pressed.from !== pathname) {
+    setPressed(null);
+  }
+
   const current = pressed?.from === pathname ? pressed.href : currentHref(pathname, destinations);
 
   useMarkerSlide(navRef, current);
