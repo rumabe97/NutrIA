@@ -1240,6 +1240,7 @@ export const enGB: Dictionary = {
     deleteQuestionLabel: 'Delete your question',
     done: 'Answer finished.',
     enterHint: 'Enter sends; Shift+Enter, a new line.',
+    export: { downloading: 'Downloading {file}.', fileName: 'nutria-conversations-{date}.json', label: 'Download my conversations' },
     field: 'Your question',
     fieldHint: 'About your plan, a recipe, an ingredient or your macros. Up to {max} characters.',
     gone: 'This conversation no longer exists.',

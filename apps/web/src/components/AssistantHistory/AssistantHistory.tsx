@@ -9,6 +9,7 @@ import { buttonClassName } from 'ui/components/Button';
 import { Drawer } from 'ui/components/Drawer';
 import { useDictionary } from 'i18n/LocaleProvider';
 
+import { ConversationExport } from './ConversationExport';
 import { ConversationLinks } from './ConversationLinks';
 
 import type { AssistantConversation } from 'lib/assistant';
@@ -33,6 +34,7 @@ export function AssistantHistory({ conversations }: { readonly conversations: re
           {t.conversationsTitle}
         </h2>
         <ConversationLinks conversations={conversations} />
+        {conversations.length > 0 ? <ConversationExport /> : null}
       </aside>
 
       <div className={styles.bar}>
@@ -47,6 +49,7 @@ export function AssistantHistory({ conversations }: { readonly conversations: re
           }
         >
           <ConversationLinks conversations={conversations} onPick={() => setOpen(false)} />
+          {conversations.length > 0 ? <ConversationExport /> : null}
         </Drawer>
         <Link className={buttonClassName({ className: styles.newShort, size: 'sm', variant: 'secondary' })} href="/asistente">
           <svg aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

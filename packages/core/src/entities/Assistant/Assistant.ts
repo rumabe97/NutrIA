@@ -67,3 +67,24 @@ export type AssistantTurn = {
   readonly decline: AssistantDecline | null;
   readonly role: 'assistant' | 'user';
 };
+
+/**
+ * A person's own copy of everything they said to the assistant and what it
+ * answered (art. 20 RGPD): built for them alone, downloaded by them, read by
+ * nobody else on the way (PRD 11). A declined turn carries its code, as stored.
+ */
+export type AssistantExport = {
+  readonly conversations: readonly {
+    readonly id: string;
+    readonly createdAt: Date;
+    readonly title: string;
+    readonly turns: readonly {
+      readonly content: string;
+      readonly createdAt: Date;
+      readonly decline: AssistantDecline | null;
+      readonly role: 'assistant' | 'user';
+    }[];
+    readonly updatedAt: Date;
+  }[];
+  readonly exportedAt: Date;
+};

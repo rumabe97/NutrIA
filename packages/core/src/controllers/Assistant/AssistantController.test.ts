@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { allowancesFor } from 'core/domain/Allowance';
 import { NotFoundError } from 'core/entities/Error';
 
-import { AssistantController, conversationTitle } from './AssistantController';
+import { AssistantController, conversationTitle, groupExport } from './AssistantController';
 
 const repository = vi.hoisted(() => ({
   appendTurn: vi.fn(),
@@ -11,6 +11,7 @@ const repository = vi.hoisted(() => ({
   createConversation: vi.fn(),
   deleteConversation: vi.fn(),
   deleteTurn: vi.fn(),
+  everything: vi.fn(),
   findConversation: vi.fn(),
   forgetOldUsage: vi.fn(),
   forgetQuietConversations: vi.fn(),
@@ -149,5 +150,45 @@ describe('AssistantController.forget', () => {
     await expect(AssistantController.forget(new Date('2026-11-10T10:00:00Z'))).resolves.toEqual({ assistantConversations: 2, assistantUsageRows: 9 });
     expect(repository.forgetQuietConversations).toHaveBeenCalledWith(new Date('2026-05-10T10:00:00Z'));
     expect(repository.forgetOldUsage).toHaveBeenCalledWith(new Date('2026-09-11T10:00:00Z'));
+  });
+});
+
+describe('the copy a person downloads', () => {
+  const at = (minute: number) => new Date(`2026-11-11T10:${String(minute).padStart(2, '0')}:00Z`);
+  const row = (conversationId: string, role: 'assistant' | 'user' | null, minute: number, content: string | null = 'x') => ({
+    content,
+    conversationCreatedAt: at(0),
+    conversationId,
+    conversationUpdatedAt: at(9),
+    decline: null,
+    role,
+    title: `t-${conversationId}`,
+    turnCreatedAt: role === null ? null : at(minute)
+  });
+
+  it('groups the rows into conversations, turns in order, and keeps an empty one empty', () => {
+    const grouped = groupExport([row('c-1', 'user', 1, 'Hola'), row('c-1', 'assistant', 2, 'Buenas'), row('c-2', null, 0, null)]);
+
+    expect(grouped).toEqual([
+      {
+        id: 'c-1',
+        createdAt: at(0),
+        title: 't-c-1',
+        turns: [
+          { content: 'Hola', createdAt: at(1), decline: null, role: 'user' },
+          { content: 'Buenas', createdAt: at(2), decline: null, role: 'assistant' }
+        ],
+        updatedAt: at(9)
+      },
+      { id: 'c-2', createdAt: at(0), title: 't-c-2', turns: [], updatedAt: at(9) }
+    ]);
+  });
+
+  it('is read through the person’s own id, and says when it was made', async () => {
+    repository.everything.mockResolvedValue([]);
+    const now = new Date('2026-11-11T12:00:00Z');
+
+    await expect(AssistantController.everything('user-1', now)).resolves.toEqual({ conversations: [], exportedAt: now });
+    expect(repository.everything).toHaveBeenCalledWith('user-1');
   });
 });

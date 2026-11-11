@@ -120,6 +120,36 @@ describe('the usage ledger', () => {
 });
 
 describe('the conversations', () => {
+  it('reads everything of this person’s for their copy, an untitled one as an empty title', async () => {
+    const at = new Date('2026-11-11T10:00:00Z');
+
+    answers.selected = [
+      {
+        content: 'Hola',
+        conversationCreatedAt: at,
+        conversationId: 'c-1',
+        conversationUpdatedAt: at,
+        decline: null,
+        role: 'user',
+        title: null,
+        turnCreatedAt: at
+      }
+    ];
+
+    await expect(AssistantRepository.everything('user-1')).resolves.toEqual([
+      {
+        content: 'Hola',
+        conversationCreatedAt: at,
+        conversationId: 'c-1',
+        conversationUpdatedAt: at,
+        decline: null,
+        role: 'user',
+        title: '',
+        turnCreatedAt: at
+      }
+    ]);
+  });
+
   it('creates one titled by the service, and returns its id', async () => {
     answers.inserted = [{ id: 'c-1' }];
 

@@ -672,3 +672,11 @@ Asked with options, both answered with the recommended one:
 - **Deviation**: the script's label cap still said 120. It now says 400, the same as `LABEL_OUTPUT_TOKENS` after #353.
 - **Decision**: keep `claude-haiku-5-5` (`docs/reference/assistant-models-2026-11-11.md`). This is the default, so the owner has nothing to set.
 - **For later, not done**: whether the net should let «sin X» / «en vez de X» through is a question for the safety layer (`0004`), not for this phase.
+
+## 2026-11-11 — After the project: a person downloads their own conversations (P2)
+
+- **Why**: the owner asked for it after the switch: *«Haz 1 y 2»*. Art. 20 reaches conversations, and PRD 11 forbids anyone but the person from reading them. `docs/legal/assistant-privacy.md` § 2.6 and § 10, box 8, asked for a way to answer that does not involve the owner.
+- **What**: `GET /assistant/conversations/export` returns a JSON copy of every conversation, bounded only by the session's user id. It is not behind the switch, like reading, and is limited to 10 an hour. The answers are screened against today's allergies, as the screen does. The history gets «Descargar mis conversaciones», in the side column and in the phone's sheet, and the file is built on the device.
+- **PRD 11, read precisely**: "no export reads a conversation" means nobody else's. **This download is the only export allowed.** It belongs to the person, is reached by their session alone, and no console, admin or professional path may ever reach it or anything like it.
+- **Fixed on the way** (`invariant-reviewer`, P1): an answer cut part-way keeps the sentences it had already shown. Those sentences were never screened again against an allergy declared later, so the old text came back in a thread and would have come back in the file. `screened` now checks every assistant turn that has text, whatever its decline. The e2e case fails without the fix.
+- **Checked**: core 33 tests; `assistant.e2e-spec.ts` 22/22 on local Postgres; web 312. `/local-probe` at 320/390/1280, light and dark: the button sits under the list. On desktop and on the phone's sheet, a click downloads `nutria-conversaciones-<fecha>.json` holding the conversation. The target is 44 px on touch.
