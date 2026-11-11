@@ -390,3 +390,16 @@
 - **Not in this phase, by the executor's own count**: 26 of the 48 `ui` components keep phase
   1b's look (layout and type primitives and a few leaf components), and 23 colour or size
   transitions remain in `apps/web` stylesheets that phases 3–8 rebuild.
+
+## After phase 2 — a select's words were blue on an iPhone (2026-11-11)
+
+- **Reported by the owner**, with a screenshot of Perfil in Pulso: «Elige un día» and «Elige una
+  comida» in the system's blue.
+- **Cause**: `ui/components/Select` named no colour on its trigger. Its `.label` did, but Radix's
+  `Value` drops the class it is given, so the words took the `<button>`'s own colour — which on
+  iOS Safari is the system blue. Chrome paints `buttontext`, so no probe showed it.
+- **Fix**: the trigger names its colour (the text colour for a chosen value, one tier quieter for
+  the placeholder), and the reset in `ui/styles/base` makes every `button`, `input`, `select` and
+  `textarea` inherit the page's colour unless its own stylesheet says otherwise.
+- **Not looked at in a browser**: phase 3's executor holds the local ports. Unit tests and the
+  gate are green; the owner's iPhone is the check.

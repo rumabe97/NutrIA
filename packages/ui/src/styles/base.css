@@ -66,10 +66,17 @@ video {
   max-width: 100%;
 }
 
+/*
+ * A control's words are the page's words unless its own stylesheet says otherwise. Without
+ * this, iOS Safari paints the text of a <button> or a <select> that names no colour in its
+ * system blue, and every engine paints a field in its own `fieldtext`, which is not a theme's
+ * ink (found on the fixed-meal selects, project 024).
+ */
 button,
 input,
 select,
 textarea {
+  color: inherit;
   font: inherit;
 }
 
