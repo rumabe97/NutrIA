@@ -91,6 +91,36 @@ body::after {
   z-index: -1;
 }
 
+/*
+ * The signed-in app draws neither: its header carries the hatched pattern instead
+ * (project 024 phase 3, `components/AppNav`), on the flat paper of the theme. The
+ * public pages and the console keep their light and grain.
+ */
+body:has([data-shell='app'])::before,
+body:has([data-shell='app'])::after {
+  content: none;
+}
+
+/*
+ * A sticky header stays on screen while a select, a dialog or a drawer is open.
+ *
+ * Those lock the page's scroll the Radix way (`react-remove-scroll`): `overflow:
+ * hidden` on `<body>`, marked `data-scroll-locked`. With `ui/styles/base`'s
+ * `overflow-x: clip` on `<html>`, the root is not `visible`, so body's value is not
+ * carried to the viewport: `<body>` becomes a scroll container of its own that
+ * never scrolls, a sticky header latches to it, and on a scrolled page the header —
+ * and a menu anchored to it — leaves for the top of the document (LOG, after phase
+ * 1b: measured at y = −1,448 at a scroll of 1,500 px).
+ *
+ * For as long as the lock lasts, `<html>` lets go of its clip. Body's `hidden` then
+ * goes to the viewport, as the lock means it to: the page stops scrolling where it
+ * is, nothing scrolls sideways, and the header stays stuck to the screen. Outside a
+ * lock nothing changes, so the clip keeps doing its job everywhere else.
+ */
+html:has(> body[data-scroll-locked]) {
+  overflow-x: visible;
+}
+
 /* Reveal-on-scroll, driven by an IntersectionObserver in
    components/Reveal. Declared globally rather than per-module so every section
    animates identically and there is one place to disable it.

@@ -1,0 +1,24 @@
+/* The error boundary's shape (`error.module.css`): one centred column, the sentence, the way home. */
+.shell {
+  margin-inline: auto;
+  max-width: var(--prose-max);
+  padding-block: var(--space-09);
+  text-align: center;
+}
+
+.title {
+  font-size: var(--font-size-08);
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+  justify-content: center;
+  margin-top: var(--gap-block);
+}
