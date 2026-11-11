@@ -654,3 +654,8 @@ Asked with options, both answered with the recommended one:
 - **Why**: the owner's iPhone hit five failures in a row at 07:02; production's `ai_call` rows said `ok: false`, no status, 1.3 s — and nothing more, because the failed row never carried the kind of failure the client already knew. The owner asked for a log table; a table holding the question or the answer would contradict `/privacidad` as published, so the existing row carries the reason instead.
 - **What**: a failed `ai_call` now records `failure` (`provider` / `invalid_output` / `timeout` / `abandoned`), `errorType` (the provider's own code, e.g. `overloaded_error`, read by `providerErrorType` — never its message) and `finishReason`. `/admin/generacion/ia` lists the assistant's latest 10 failures (when, step, model, reason). The label step's warning log names the failure kind and status.
 - **Checked**: core and API specs; local probe of `/admin/generacion/ia` with three seeded local rows (removed after).
+
+## 2026-11-11 — The label step has room to finish
+
+- **Why**: the owner asked «quiero comer gato asado» at 09:14 and the console's new failure list said: label step, `claude-haiku-5-5`, cut off at the length limit. The label's cap was 120 output tokens; the model ran past it on a provocative question.
+- **What**: `LABEL_OUTPUT_TOKENS` 120 → 400 (under 0.0002 $ at Haiku's price); the label prompt asks for a reason of at most ten words, nothing before or after, and not to argue with a shocking question; `ASSISTANT_PROMPT_VERSION` 1.3.1.
