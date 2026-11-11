@@ -1,0 +1,39 @@
+import { CountUp } from 'ui/components/CountUp';
+import { PropsTable } from 'components/PropsTable';
+
+# CountUp
+
+A number that counts up to its value when it arrives — the number beside a ring, a bar, a tile (`ui/hooks/useCountUp`, `ui/styles/motion` figures).
+
+Three layers in one cell: the final text, invisible, holding the width so nothing beside it moves while the digits grow; the counting figure, hidden from assistive technology; and the final text again for assistive technology, there from the first moment and never changing. Only what is seen moves.
+
+- Below the fold it waits until it is reached, then counts once.
+- Under reduced motion it is the final value, and nothing is written.
+- A figure the server painted is left alone when the page wakes up after the reader could already have read it: counting it back from zero would be a flash, not an entrance.
+
+`StatTile` uses it when given `amount`.
+
+## Example
+
+<Preview code={`import { CountUp } from 'ui/components/CountUp';
+
+export default function Example() {
+  return <CountUp locale="en-GB" text="2,246 kcal" value={2246} />;
+}`}>
+  <p style={{ fontSize: '2rem', fontWeight: 800 }}>
+    <CountUp locale="en-GB" text="2,246 kcal" value={2246} />
+  </p>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "value", type: "number", default: "—", description: "**Required.** The number counted up to" },
+  { prop: "locale", type: "string", default: "—", description: "**Required.** The locale the counting figure is written in" },
+  { prop: "text", type: "string", default: "`value` formatted", description: "How the figure finally reads, when the caller formats it itself" },
+  { prop: "format", type: "Intl.NumberFormatOptions", default: "whole numbers for a whole value", description: "How the counting figure is written on its way" }
+]} />
+
+## The hook
+
+`useCountUp(value, ref, format)` returns the value to render — always the final one — and writes the counting into the text of `ref`, frame by frame, without a render. Use it directly only when `CountUp`'s three layers do not fit; then hide the counting element from assistive technology and give it the final value beside it.

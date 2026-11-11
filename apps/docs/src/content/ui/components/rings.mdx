@@ -1,0 +1,62 @@
+import { Rings } from 'ui/components/Rings';
+import { PropsTable } from 'components/PropsTable';
+
+# Rings
+
+One to four concentric progress rings: the day's targets, a dish's share of the day, meals done, the plan being made. Drawn in SVG with round caps, each ring on its track, in `--color-ring-1` … `-4` over `--color-ring-track`. A value over its maximum is a full ring, never more.
+
+Each ring sweeps to its value when it arrives (`ui/styles/motion`, figures). Rings below the fold wait until they are reached (`InView`); under reduced motion they are simply there.
+
+## Examples
+
+### The day's four targets
+
+<Preview code={`import { Rings } from 'ui/components/Rings';
+
+export default function Example() {
+  return (
+    <Rings
+      items={[
+        { label: 'Calories', max: 2246, value: 1880, valueText: '1,880 of 2,246 kcal' },
+        { label: 'Protein', max: 113, value: 104, valueText: '104 of 113 g' },
+        { label: 'Carbohydrates', max: 291, value: 238, valueText: '238 of 291 g' },
+        { label: 'Fat', max: 70, value: 61, valueText: '61 of 70 g' }
+      ]}
+      label="Today's targets"
+    />
+  );
+}`}>
+  <Rings items={[{ label: 'Calories', max: 2246, value: 1880, valueText: '1,880 of 2,246 kcal' }, { label: 'Protein', max: 113, value: 104, valueText: '104 of 113 g' }, { label: 'Carbohydrates', max: 291, value: 238, valueText: '238 of 291 g' }, { label: 'Fat', max: 70, value: 61, valueText: '61 of 70 g' }]} label="Today's targets" />
+</Preview>
+
+### One ring, small; and a value over its maximum
+
+<Preview code={`<Rings items={[{ label: 'Meals done', max: 42, value: 38, valueText: '38 of 42' }]} label="Meals done" size="sm" />
+<Rings items={[{ label: 'Calories', max: 2000, value: 2400 }]} label="Over" size="sm" />`}>
+  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
+    <Rings items={[{ label: 'Meals done', max: 42, value: 38, valueText: '38 of 42' }]} label="Meals done" size="sm" />
+    <Rings items={[{ label: 'Calories', max: 2000, value: 2400 }]} label="Over" size="sm" />
+  </div>
+</Preview>
+
+### Large
+
+<Preview code={`<Rings items={…} label="Today's targets" size="lg" />`}>
+  <Rings items={[{ label: 'Calories', max: 2246, value: 1880 }, { label: 'Protein', max: 113, value: 104 }, { label: 'Carbohydrates', max: 291, value: 238 }]} label="Three rings" size="lg" />
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "items", type: "RingsItem[]", default: "—", description: "**Required.** One to four measures, outermost first: `{ label, value, max, valueText?, tone? }`. A fifth is not drawn" },
+  { prop: "label", type: "string", default: "—", description: "**Required.** The group's name" },
+  { prop: "size", type: "'sm' | 'md' | 'lg'", default: "'md'", description: "6, 9 or 12rem — never wider than the box that holds it" },
+  { prop: "RingsItem.valueText", type: "string", default: "'value / max'", description: "The figures in words, for assistive technology" },
+  { prop: "RingsItem.tone", type: "1 | 2 | 3 | 4", default: "its place", description: "Which `--color-ring-*` it is drawn in" }
+]} />
+
+## Accessibility
+
+The text alternative is a **visually hidden list**, one item per ring ("Calories: 1,880 of 2,246 kcal"), inside a group named by `label`; the picture is `aria-hidden`. A list rather than a `role="img"` with one long `aria-label`: four figures in one label are read as a single breathless sentence that cannot be stepped through, while a list says how many measures there are and lets a screen reader move from one to the next.
+
+When a screen draws a visible legend with the same figures, it should not also keep this list — say so to the component then, rather than reading every figure twice.

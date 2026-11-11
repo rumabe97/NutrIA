@@ -1,0 +1,72 @@
+import { Note } from 'ui/components/Note';
+import { PropsTable } from 'components/PropsTable';
+
+# Note
+
+Something the screen needs the reader to know, set apart from the words around it. A flat, square-cornered block on its own ground: an icon for the tone and the tone in a word, so it never rests on colour alone. It replaced the boxes with a coloured inline-start edge (project 024): there is no edge, no rounded box.
+
+Under a field, `layout="inline"` is the same note as one line — the icon and the words, nothing around them.
+
+It sets no role of its own. A note that must interrupt passes `role="alert"`; one that should be announced when it appears, `role="status"`.
+
+## Examples
+
+### Information, warning, error, success
+
+<Preview code={`import { Note } from 'ui/components/Note';
+
+export default function Example() {
+  return (
+    <Note title="Your plan is with your dietitian" tone="info" toneLabel="Note">
+      You will get it here as soon as it is reviewed.
+    </Note>
+  );
+}`}>
+  <FullWidth>
+    <div style={{ display: 'grid', gap: '1rem' }}>
+      <Note title="Your plan is with your dietitian" tone="info" toneLabel="Note">You will get it here as soon as it is reviewed.</Note>
+      <Note title="Your meals will be large" tone="warning" toneLabel="Warning">Two meals a day carry the whole day's energy.</Note>
+      <Note role="alert" tone="error" toneLabel="Error">The code has expired. Ask for a new one.</Note>
+      <Note tone="success" toneLabel="Done">Saved.</Note>
+    </div>
+  </FullWidth>
+</Preview>
+
+### The word, shown
+
+`showToneLabel` draws the tone word as a label over the words — the assistant's opening warning, «Aviso».
+
+<Preview code={`<Note showToneLabel={true} tone="warning" toneLabel="Warning">
+  You are talking to an artificial intelligence assistant, not a person.
+</Note>`}>
+  <FullWidth>
+    <Note showToneLabel={true} tone="warning" toneLabel="Warning">You are talking to an artificial intelligence assistant, not a person.</Note>
+  </FullWidth>
+</Preview>
+
+### Under a field
+
+<Preview code={`<Note as="p" layout="inline" role="alert" tone="error" toneLabel="Error">
+  Write a number between 30 and 300.
+</Note>`}>
+  <Note as="p" layout="inline" role="alert" tone="error" toneLabel="Error">Write a number between 30 and 300.</Note>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "tone", type: "'info' | 'warning' | 'error' | 'success'", default: "'info'", description: "The kind of note: drawn by the icon and the ground" },
+  { prop: "toneLabel", type: "string", default: "—", description: "The tone in a word, from the caller's dictionary. Visually hidden unless `showToneLabel`; never inside the title" },
+  { prop: "showToneLabel", type: "boolean", default: "false", description: "Draw the tone word as a visible label" },
+  { prop: "title", type: "ReactNode", default: "—", description: "A title over the words" },
+  { prop: "titleAs", type: "'h2' | 'h3' | 'h4' | 'p' | 'strong'", default: "'p'", description: "The title's element; a heading when it heads a section" },
+  { prop: "layout", type: "'block' | 'inline'", default: "'block'", description: "`inline`: the line under a field, no ground" },
+  { prop: "as", type: "'div' | 'section' | 'aside' | 'p' | 'li'", default: "'div'", description: "The element. Inside `p` the inner boxes are spans, so it can stand where a paragraph stood" },
+  { prop: "role", type: "string", default: "—", description: "Forwarded as given: `alert`, `status`, or none" }
+]} />
+
+## Accessibility
+
+- The icon is `aria-hidden`; the tone is said by `toneLabel`, read before the words ("Error: The code has expired").
+- A heading title keeps its own name: the tone word sits outside it.
+- In `forced-colors`, the block keeps its shape with a line in the system's text colour.

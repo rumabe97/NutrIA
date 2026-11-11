@@ -507,7 +507,7 @@ number up with there, and tabular digits read as slightly wrong in running text.
 - **And give it a `forced-colors` block.** That mode erases every background, so a state
   drawn only with one disappears entirely: the track takes an `outline`, the chosen one a
   `border: 1px solid Highlight`. A system colour sticks without `forced-color-adjust`.
-- **Radii are semantic**: `--radius-control` (inputs, chips that are not pills, notices),
+- **Radii are semantic**: `--radius-control` (inputs, chips that are not pills; a note is square, `ui/components/Note`),
   `--radius-button` (every `ui/components/Button`, a pill here), `--radius-card`,
   `--radius-sheet` (dialogs, the hero preview). 12/24/28 px and a pill in this app
   (`styles/variables.css`; the corners the owner chose, PRD 024 criterion 9). Not the numeric
@@ -589,13 +589,30 @@ in this repository. **Without it, do not skip the review: do it against this sec
 
 ### Motion
 
-Use the utilities from `ui/styles/motion`: `.motion-enter` for something arriving,
-`.motion-list` for a list arriving (the stagger is on the children), `.motion-forward` /
-`.motion-back` for a shared-axis change where direction carries meaning.
+Nothing on a screen simply appears (project 024, PRD § Motion, criterion 15). Everything comes
+from `ui/styles/motion` and its tokens — the docs app's **Motion** page lists every class:
 
-- **Never gate interaction on an animation.** No `pointer-events`, no `visibility`, no
-  handler wired on `animationend`. An element mid-entrance is a working element that
-  happens to be moving.
+- **Entrances**: `.motion-enter` for something arriving, `.motion-fade` for a picture over its
+  placeholder, `.motion-scale-in`, and `.motion-list` for a list (the stagger is on the children
+  and stops growing at the eighth).
+- **Figures**: `ui/components/Rings`, the charts and `StatTile` (with `amount`) draw themselves
+  in; `ui/components/CountUp` for any other counted number.
+- **Place**: `.motion-forward` / `.motion-back` for a shared-axis change where direction carries
+  meaning, `.motion-sheet`, `.motion-unfold` (menus do it themselves), and the View Transition
+  names `dish-<id>`, `dish-title-<id>`, `day-<index>` for a card growing into its page.
+- **Answers**: `Button` presses, `Switch` and `Checkbox` spring; `.motion-drop-in` for an item
+  added, `.motion-close-up` for one being removed, `.motion-strike` for a row checked off.
+- **Below the fold**: wrap a figure in `ui/components/InView`, or a whole landing-page section in
+  `components/Reveal`; both use the one shared observer and only arm what is still unseen.
+
+Rules:
+
+- **Only `transform`, `opacity` and SVG stroke** are animated or transitioned — never a colour, a
+  size, a position or a margin. A duration or an easing typed in a stylesheet is a regression: use
+  the tokens.
+- **Never gate interaction on an animation.** No `pointer-events`, no `visibility`, no handler
+  wired on `animationend`. An element mid-entrance is a working element that happens to be moving.
+  A row closing up is removed by the caller's own state after `--duration-fast`.
 - Reduced motion is handled once, in `ui/styles/base`, which collapses every animation and
   transition. Do not add a second `prefers-reduced-motion` guard.
 - Replay an entrance by changing the element's `key`, not by toggling a class.

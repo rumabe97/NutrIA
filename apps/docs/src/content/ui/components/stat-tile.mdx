@@ -5,7 +5,7 @@ import { PropsTable } from 'components/PropsTable';
 
 One headline figure: what it is, the figure, and optionally how it moved against the previous period, a note and a sparkline (decision `0069`). The change is drawn as ▲ / ▼ and a signed percentage, and said as a sentence through `changeLabel`, so its meaning never rests on an arrow or a colour. When the previous period was zero no percentage means anything, and none is drawn.
 
-`value` is a string: the page formats the figure. Put tiles in a list or a grid of your own; the tile is one `<div>`.
+`value` is a string: the page formats the figure. Pass the number as `amount` too and the figure counts up to it when the tile arrives. Put tiles in a list or a grid of your own; the tile is one `<div>`.
 
 ## Examples
 
@@ -22,13 +22,14 @@ export default function Example() {
       label="Sign-ups"
       locale="en-GB"
       note="Confirmed accounts only"
+      amount={1204}
       sparkline={[12, 18, 9, 22, 15, 7, 19, 24, 21, 30]}
       value="1,204"
     />
   );
 }`}>
   <FullWidth>
-    <StatTile change={{ current: 1204, previous: 1075 }} changeLabel="{change} against the previous period" goodDirection="up" label="Sign-ups" locale="en-GB" note="Confirmed accounts only" sparkline={[12, 18, 9, 22, 15, 7, 19, 24, 21, 30]} value="1,204" />
+    <StatTile amount={1204} change={{ current: 1204, previous: 1075 }} changeLabel="{change} against the previous period" goodDirection="up" label="Sign-ups" locale="en-GB" note="Confirmed accounts only" sparkline={[12, 18, 9, 22, 15, 7, 19, 24, 21, 30]} value="1,204" />
   </FullWidth>
 </Preview>
 
@@ -53,6 +54,8 @@ export default function Example() {
 <PropsTable data={[
   { prop: "label", type: "string", default: "—", description: "**Required.** What the figure is" },
   { prop: "value", type: "string", default: "—", description: "**Required.** The figure, already formatted" },
+  { prop: "amount", type: "number", default: "—", description: "The figure as a number: it counts up to `value` when the tile arrives (`CountUp`). `value` is still what is drawn at the end and what a screen reader reads" },
+  { prop: "amountFormat", type: "Intl.NumberFormatOptions", default: "whole numbers for a whole amount", description: "How the counting figure is written on its way" },
   { prop: "locale", type: "string", default: "—", description: "**Required.** Locale for the percentage" },
   { prop: "change", type: "{ current: number; previous: number }", default: "—", description: "Draws ▲ / ▼ and the signed percentage; nothing when `previous` is 0" },
   { prop: "changeLabel", type: "string", default: "—", description: "The change in words for a screen reader; `{change}` becomes the percentage. A string so a tile can cross into a client component" },
