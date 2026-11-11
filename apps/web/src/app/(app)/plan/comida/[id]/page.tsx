@@ -93,7 +93,11 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
       </Link>
 
       <span className={styles.slot}>{interpolate(dictionary.meal.dayOf, { day: meal.dayIndex, slot: slotLabel(meal.slot, dictionary) })}</span>
-      <h1 className={styles.title}>{meal.name}</h1>
+      {/* The dish and its method were written by a model — every recipe in the library was, the
+          seed included — so both carry the machine-readable mark (AI Act art. 50.2). */}
+      <h1 className={styles.title} data-ai-generated="true">
+        {meal.name}
+      </h1>
 
       <div className={styles.facts}>
         {totalMinutes > 0 ? (
@@ -252,7 +256,7 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
       {meal.steps.length > 0 ? (
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>{dictionary.meal.steps}</h2>
-          <ol className={styles.steps}>
+          <ol className={styles.steps} data-ai-generated="true">
             {meal.steps.map(step => (
               <li className={styles.step} key={step.text}>
                 {/* The step, then what the cook watches for and how long it takes —

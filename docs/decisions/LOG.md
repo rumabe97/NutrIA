@@ -242,3 +242,9 @@
   A claim such as «no lleva huevo» is never excused, because a wrong claim is what the net is for. With no question given, the net is exactly as strict as before. A stored answer is judged with its own question. `AllergenNet.test.ts` lists each way the exception could have been too wide, and the e2e case does the same end to end.
 
   **Found on the way and fixed with it.** For a milk or lactose allergy the net searched «leche y derivados» and «milk», but never plain «leche». No catalogue row is called just «Leche», so «un vaso de leche» reached a person allergic to milk. The API now adds everyday names to category labels, which can only withhold more: milk and lactose get «leche», «lácteos» and «dairy»; tree nuts get «frutos secos». (who decided: owner, the exception; agent, the everyday names, as a safety fix in the net's safe direction)
+- 2026-11-11 — **Model-written text carries a machine-readable mark** (AI Act art. 50.2; `docs/legal/2026-11-11-lawyer-hour-brief.md` H7, raised by the `legal` agent that day). The owner said «haz el 2». The mark is in three places, with nothing visible changing:
+  1. **API.** An `AI-Generated: true` header on every route that returns dishes or the assistant's words: the plan and meal routes, a swap, the fixed-meal searches, the answer stream, a thread and the export.
+  2. **HTML.** `data-ai-generated="true"` on the recipe page's title and method and on every assistant answer.
+  3. **Download.** `generatedBy: 'ai' | 'person'` on each turn of the assistant's downloadable copy.
+
+  The rule for new routes is in `apps/api/AGENTS.md`. Whether this is enough for text is the lawyer's question H7(b), and the brief's provisional reading is yes, since robust watermarking of short text is not technically feasible. The recipes' deadline was 2026-12-02; the assistant's was already running from its switch-on. (who decided: owner, to build it; agent, the shape)

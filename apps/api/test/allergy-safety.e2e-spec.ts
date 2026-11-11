@@ -157,11 +157,16 @@ describe('allergy safety', () => {
     const active: Response = await request(server).get(`/${PREFIX}/meal-plans/active`).set('Cookie', user.cookie).expect(200);
     const plan = active.body as PlanView;
 
+    // Model-written dishes carry the machine-readable mark (AI Act art. 50.2).
+    expect(active.headers['ai-generated']).toBe('true');
+
     const forbidden = ['Pan integral', 'Copos de avena'];
 
     for (const day of plan.days) {
       for (const meal of day.meals) {
         const detail: Response = await request(server).get(`/${PREFIX}/meal-plans/meals/${meal.id}`).set('Cookie', user.cookie).expect(200);
+
+        expect(detail.headers['ai-generated']).toBe('true');
 
         for (const ingredient of (detail.body as { ingredients: readonly { name: string }[] }).ingredients) {
           // Shaped so a failure names the offending ingredient, the day and the slot.

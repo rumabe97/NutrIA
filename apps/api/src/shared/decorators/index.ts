@@ -1,3 +1,4 @@
+export * from './AiGenerated.decorator.js';
 export * from './AllowPasswordChangePending.decorator.js';
 export * from './AllowUnverified.decorator.js';
 export * from './BeforePractice.decorator.js';

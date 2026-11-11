@@ -30,7 +30,8 @@ function inlines(nodes: readonly Inline[]) {
  */
 export function AssistantMarkdown({ className, text }: { readonly className?: string; readonly text: string }) {
   return (
-    <div className={[styles.root, className].filter(Boolean).join(' ')}>
+    // A model's words, marked as such for anything reading the page (AI Act art. 50.2).
+    <div className={[styles.root, className].filter(Boolean).join(' ')} data-ai-generated="true">
       {parseMarkdown(text).map((block, index) => {
         const key = String(index);
 
