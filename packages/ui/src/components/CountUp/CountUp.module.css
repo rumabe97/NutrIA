@@ -1,0 +1,15 @@
+/* One cell, two layers: the invisible final text sets the width, the counting
+   figure is drawn over it. Digits that grow never push a neighbour. */
+.root {
+  display: inline-grid;
+  font-variant-numeric: tabular-nums;
+}
+
+.sizer,
+.figure {
+  grid-area: 1 / 1;
+}
+
+.sizer {
+  visibility: hidden;
+}

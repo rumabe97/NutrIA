@@ -81,37 +81,63 @@
   --target-min: 44px;
 
   /* ── Motion ──────────────────────────────────────────────────────────
-     Use these for all transition-duration and animation-duration values.
-     Override in variables.css to slow down or speed up the entire UI. */
+     Every duration and easing in every stylesheet comes from here; a number
+     typed in a component is a regression (PRD 024, § Motion). The utilities
+     that use them are in `ui/styles/motion`.
+
+     Three short durations for a control answering, three for something
+     arriving: an entrance lasts between 200 and 600 ms, so nobody waits for a
+     screen. */
   --duration-fast: 0.15s; /* hover states, focus rings, tab highlights */
   --duration-normal: 0.2s; /* component state changes (accordion, switch) */
   --duration-slow: 0.35s; /* overlay and modal entrance / exit */
+  --duration-enter-short: 200ms; /* a row, a chip, a menu */
+  --duration-enter: 400ms; /* a block, a card, a sheet */
+  --duration-enter-long: 600ms; /* a figure drawing itself: a ring, a bar, a line */
 
   --ease-default: ease;
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1); /* snappy enter, soft land */
 
+  /* Three springs. `linear()` draws a real damped spring (sampled from one, see
+     `motion.css`); a browser without it gets the cubic-bezier, the nearest curve
+     it can draw. They are redefined under `@supports` below, because a custom
+     property is not validated and so cannot fall back by being declared twice.
+
+     - gentle: critically damped, no overshoot. Anything that must not pass its
+       value — a ring sweeping to 100 %, a bar growing to its top, a sheet.
+     - lively: overshoots by about an eighth and settles. A switch's knob, a
+       tick, something dropped in: the answer to a tap.
+     - firm: overshoots by 3 %, settles fast. A press, a menu unfolding. */
+  --spring-gentle: cubic-bezier(0.22, 1, 0.36, 1);
+  --spring-lively: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --spring-firm: cubic-bezier(0.2, 1.1, 0.4, 1);
+
   /* Named transitions, so an entrance is the same motion everywhere it appears.
      Durations above are the vocabulary; these are the sentences.
 
-     `enter` is spring-eased and slow enough to be read as movement; `exit` is
-     faster and linear-ish, because leaving should not be savoured. `axis` is the
-     shared-axis pair used when one thing replaces another in a sequence — an
-     onboarding step, a plan day — where direction carries meaning.
+     `enter` is something arriving; `exit` is faster, because leaving should not
+     be savoured. `axis` is the shared-axis pair used when one thing replaces
+     another in a sequence — an onboarding step, a plan day — where direction
+     carries meaning. `figure` is a measure drawing itself in.
 
      None of these may gate interaction. An element animating in is clickable
      from the first frame; nothing here sets `pointer-events`, and nothing waits
      on `animationend` before wiring a handler. `ui/styles/base` already collapses
      every animation under `prefers-reduced-motion: reduce`, so these inherit that
      and need no guard of their own. */
-  --motion-enter: var(--duration-normal) var(--ease-spring);
+  --motion-enter: var(--duration-enter) var(--spring-gentle);
+  --motion-enter-short: var(--duration-enter-short) var(--spring-gentle);
   --motion-exit: var(--duration-fast) var(--ease-default);
-  --motion-axis: var(--duration-normal) var(--ease-spring);
+  --motion-axis: var(--duration-enter) var(--spring-gentle);
+  --motion-figure: var(--duration-enter-long) var(--spring-gentle);
+  --motion-answer: var(--duration-enter-short) var(--spring-lively);
   /* How far an entering element travels. Small on purpose: motion that moves a
      long way reads as decoration rather than as the thing arriving. */
-  --motion-distance: 0.5rem;
-  /* Between siblings in a list. Ten items is 360ms end to end, which is the most
-     a stagger can be before it becomes a queue the reader is waiting in. */
-  --motion-stagger: 40ms;
+  --motion-distance: 0.75rem;
+  /* Between siblings in a list. The stagger stops growing at the eighth row
+     (`.motion-list`), so the longest wait is 8 × 50 = 400 ms before the last
+     row starts. */
+  --motion-stagger: 50ms;
 
   /* ── Z-index layers ──────────────────────────────────────────────────
      Named by role, not by number. Never hardcode z-index in components. */
@@ -145,6 +171,8 @@
   --background-01: var(--color-gray-01);
   --background-02: var(--color-gray-02);
   --background-highlight: var(--color-gray-04);
+  /* A ground set into the page or a card: a note, a track. An app with themes gives it its own value. */
+  --surface-sunken: var(--color-gray-02);
 
   /* ── Text ──────────────────────────────────────────────────────────
      All three tiers are text tiers, and all three meet WCAG AA (4.5:1) against
@@ -213,6 +241,9 @@
   --color-success-text: var(--color-green-11);
   --color-error-text: var(--color-red-11);
   --color-warning-text: var(--color-amber-11);
+  /* The ground of a warning or an error note (`ui/components/Note`); its `-text` holds 4.5:1 on it. */
+  --color-warning-surface: var(--color-amber-03);
+  --color-error-surface: var(--color-red-03);
 
   /* ── Brand ───────────────────────────────────────────────────────────
      Defaults to blue. Override in your app's styles/variables.css
@@ -292,5 +323,42 @@
     --shadow-s: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-m: 0 4px 16px rgba(0, 0, 0, 0.4);
     --shadow-l: 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* The springs, drawn as springs where the browser can (`linear()`: Chrome 113,
+   Safari 17.2, Firefox 112). Each is sampled from a damped spring over its
+   settle time — gentle ζ 1 ω 12, lively ζ 0.55 ω 14, firm ζ 0.75 ω 18. */
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --spring-gentle: linear(0, 0.099, 0.285, 0.471, 0.624, 0.741, 0.825, 0.884, 0.924, 0.951, 0.968, 0.98, 0.987, 0.992, 0.995, 0.997, 1);
+    --spring-lively: linear(
+      0,
+      0.094,
+      0.306,
+      0.552,
+      0.775,
+      0.946,
+      1.057,
+      1.113,
+      1.126,
+      1.113,
+      1.085,
+      1.054,
+      1.026,
+      1.005,
+      0.992,
+      0.985,
+      0.984,
+      0.986,
+      0.99,
+      0.994,
+      0.997,
+      1,
+      1.001,
+      1.002,
+      1
+    );
+    --spring-firm: linear(0, 0.074, 0.237, 0.424, 0.6, 0.745, 0.856, 0.933, 0.983, 1.011, 1.025, 1.028, 1.027, 1.022, 1.017, 1.012, 1.007, 1.004, 1);
   }
 }

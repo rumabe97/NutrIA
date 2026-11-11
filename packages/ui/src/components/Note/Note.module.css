@@ -1,0 +1,111 @@
+/* A flat, square-cornered block: an icon in its own column, the words beside it.
+   No edge, no rounded box — the ground and the icon carry the tone, and the word
+   (`toneLabel`) carries it for everybody who does not see either. */
+.note {
+  align-items: start;
+  background-color: var(--surface-sunken);
+  border-radius: 0;
+  color: var(--foreground-01);
+  column-gap: var(--space-03);
+  display: grid;
+  font-size: var(--font-size-03);
+  grid-template-columns: auto minmax(0, 1fr);
+  line-height: var(--line-height-04);
+  padding: var(--space-04);
+  text-align: start;
+}
+
+.icon {
+  block-size: 1.25em;
+  flex: none;
+  inline-size: 1.25em;
+  /* Sit on the first line of the words: half the line's leading. */
+  margin-block-start: calc((1lh - 1.25em) / 2);
+}
+
+.body {
+  display: grid;
+  gap: var(--space-01);
+  min-inline-size: 0;
+  overflow-wrap: break-word;
+}
+
+/* The words a caller puts inside keep their own spacing; the note only spaces
+   its own boxes. */
+.body > :is(p, ul, ol, div) {
+  margin: 0;
+}
+
+.title,
+.toneLabel {
+  color: var(--foreground-01);
+  display: block;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: var(--font-weight-semibold);
+  line-height: inherit;
+  margin: 0;
+}
+
+/* ── Tones ── */
+
+.info .icon {
+  color: var(--color-brand-11);
+}
+
+.success .icon {
+  color: var(--color-success-text);
+}
+
+.warning {
+  background-color: var(--color-warning-surface);
+}
+
+.warning .icon {
+  color: var(--color-warning-text);
+}
+
+.error {
+  background-color: var(--color-error-surface);
+}
+
+.error .icon {
+  color: var(--color-error-text);
+}
+
+/* ── The line under a field ──
+   Icon and words, no ground: it belongs to the field above it, not to the page. */
+.inline {
+  background-color: transparent;
+  column-gap: var(--space-02);
+  font-size: var(--font-size-02);
+  padding: 0;
+}
+
+.inline.error {
+  color: var(--color-error-text);
+}
+
+.inline.warning {
+  color: var(--color-warning-text);
+}
+
+.inline.success {
+  color: var(--color-success-text);
+}
+
+.inline.info {
+  color: var(--foreground-02);
+}
+
+.inline .icon {
+  color: inherit;
+}
+
+/* Every ground is erased: the block keeps its shape with a line of the
+   system's text colour, and the icon keeps its tone by shape. */
+@media (forced-colors: active) {
+  .block {
+    border: 1px solid CanvasText;
+  }
+}

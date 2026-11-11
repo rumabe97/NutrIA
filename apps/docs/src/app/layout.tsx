@@ -2,6 +2,7 @@ import 'ui/styles/colors';
 import 'ui/styles/variables';
 import 'ui/styles/base';
 import 'ui/styles/classnames';
+import 'ui/styles/motion';
 
 import 'styles/globals.css';
 import 'styles/variables.css';
