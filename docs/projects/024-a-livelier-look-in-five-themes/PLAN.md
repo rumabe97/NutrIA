@@ -135,7 +135,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 
 ### Phase 1b — New colours, new type, five themes and the switch
 
-- [ ] pending
+- [ ] in progress — built and shipped 2026-11-11; human-verify pending: the owner's iPhone (LOG.md)
 - **Dispatch**: opus @ medium — `/execute-project 024 phase 1b` — human-verify: the owner
   switches themes on his iPhone on a public page, a signed-in screen and the console; no flash,
   and each theme is legible.

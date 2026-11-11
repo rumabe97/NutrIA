@@ -36,7 +36,7 @@
 
 .pill {
   align-items: center;
-  border: 1px solid var(--border-interactive);
+  border: var(--border-width-interactive) solid var(--border-interactive);
   border-radius: var(--radius-full);
   cursor: pointer;
   display: inline-flex;
@@ -71,7 +71,7 @@
 
 .message {
   background: var(--background-01);
-  border: 1px solid var(--border-interactive);
+  border: var(--border-width-interactive) solid var(--border-interactive);
   border-radius: var(--radius-control);
   color: inherit;
   font: inherit;

@@ -20,7 +20,16 @@ export const THEME_STORAGE_KEY = 'nutria-theme';
  */
 const THEMES = { claro: 'light', contraste: 'light', huerta: 'light', oscuro: 'dark', pulso: 'dark' } as const;
 
-type Theme = keyof typeof THEMES;
+/** One of the five themes a person can choose. */
+export type Theme = keyof typeof THEMES;
+
+/** What a person can choose: a theme, or Automático — which is no stored value at all. */
+export type ThemeChoice = 'auto' | Theme;
+
+/** The scheme the browser paints its own surfaces in under a theme. */
+export function schemeOf(theme: Theme): (typeof THEMES)[Theme] {
+  return THEMES[theme];
+}
 
 interface StoredTheme {
   colorScheme: (typeof THEMES)[Theme];
@@ -32,7 +41,8 @@ interface StoredTheme {
  * unknown value, an empty store and a store that throws (Safari with storage blocked
  * throws on the read) all mean Automático.
  *
- * @knipignore Exported for its test, which holds `THEME_SCRIPT` to the same answers.
+ * `ui/utils/theme` reads the device with it after the first paint; its test holds
+ * `THEME_SCRIPT` to the same answers.
  */
 export function storedTheme(read: () => string | null): StoredTheme | null {
   try {

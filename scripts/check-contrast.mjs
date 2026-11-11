@@ -11,9 +11,15 @@
 // It also fails when the file is out of shape, because a theme that is missing a token is a
 // theme that silently falls back to another one's colour:
 //   - a theme lacks a token another theme defines, or names no `color-scheme`;
-//   - Automático on a dark device (the `prefers-color-scheme: dark` block) is not exactly the
-//     theme it stands for, or Automático on a light device is not;
+//   - an Automático block is not exactly the theme it stands for: the light device's (no
+//     attribute), the dark device's (`prefers-color-scheme: dark`) and the one a device asking
+//     for more contrast gets (`prefers-contrast: more`);
+//   - the `forced-colors: active` block is missing, leaves a token out, or gives one anything
+//     but a system colour (or `none`, `transparent`, a number, a length);
 //   - a pair names a token no theme defines, or a value this script cannot read.
+//
+// A pair's ground may be a stack, bottom first — a highlighted row on a translucent menu is
+// `['--color-glass', '--color-highlighted']` — and each layer is painted on the one below.
 //
 // A pair that fails TODAY, in today's design, is not fixed here: it is listed in KNOWN_TODAY
 // with the ratio it measured, so it cannot get worse and so a later phase knows what it has
@@ -25,10 +31,16 @@ import { readFileSync } from 'node:fs';
 const fileFlag = process.argv.indexOf('--file');
 const file = fileFlag === -1 ? new URL('../apps/web/src/styles/themes.css', import.meta.url) : process.argv[fileFlag + 1];
 
-/** Which theme Automático shows, by the device's scheme. */
-const AUTO = { dark: 'oscuro', light: 'claro' };
+/** Which theme Automático shows, by what the device asks for. */
+const AUTO = { contrast: 'contraste', dark: 'oscuro', light: 'claro' };
 
-const FLOORS = { display: 3, edge: 3, ring: 3, text: 4.5 };
+// `mark`: a ring's colour against what it is drawn on (WCAG 1.4.11). `chart`: a chart's mark,
+// held to 4.5:1 in every theme — what `prefers-contrast: more` used to raise the chart colours
+// to (`0069`), so a theme needs no second set for that preference.
+const FLOORS = { chart: 4.5, display: 3, edge: 3, mark: 3, ring: 3, text: 4.5 };
+
+/** What a `forced-colors` block may give a token: a CSS system colour, or no colour at all. */
+const SYSTEM = /^(?:accentcolor|accentcolortext|activetext|buttonborder|buttonface|buttontext|canvas|canvastext|field|fieldtext|graytext|highlight|highlighttext|linktext|mark|marktext|selecteditem|selecteditemtext|visitedtext|none|transparent|[\d.]+(?:px)?)$/i;
 
 // The grounds a word or a control sits on. `--color-glass` is translucent: it is measured on
 // the page it floats over.
@@ -49,9 +61,17 @@ const PAIRS = [
   ...['--background-01', '--surface-card', '--color-error-surface'].map(bg => ({ bg, fg: '--color-error-text', kind: 'text' })),
   ...['--background-01', '--surface-card', '--color-warning-surface'].map(bg => ({ bg, fg: '--color-warning-text', kind: 'text' })),
   ...['--background-01', '--surface-card'].map(bg => ({ bg, fg: '--color-success-text', kind: 'text' })),
-  // A label on a fill: the primary button at rest and under a pointer, and the destructive one.
+  // A label on a fill: the primary button at both ends of its gradient and under a pointer,
+  // and the destructive one.
   { bg: '--color-brand-fill', fg: '--color-on-brand-fill', kind: 'text' },
+  { bg: '--color-brand-fill-end', fg: '--color-on-brand-fill', kind: 'text' },
   { bg: '--color-brand-fill-hover', fg: '--color-on-brand-fill', kind: 'text' },
+  // The highlighted tile's words.
+  { bg: '--color-highlight-fill', fg: '--color-on-highlight-fill', kind: 'text' },
+  // The theme switch's menu (ui/ThemeSwitch on ui/Dropdown): every item on the translucent
+  // menu, the one under the pointer or the keyboard, and the chosen one's tick.
+  ...['--foreground-01', '--foreground-02'].map(fg => ({ bg: ['--color-glass', '--color-highlighted'], fg, kind: 'text' })),
+  { bg: '--color-glass', fg: '--color-brand-11', kind: 'text' },
   { bg: '--color-error-fill', fg: '--color-on-error-fill', kind: 'text' },
   // The edge that says where a control is (inputs, secondary buttons, checkboxes, switches).
   ...SOLID_SURFACES.map(bg => ({ bg, fg: '--border-interactive', kind: 'edge' })),
@@ -62,7 +82,15 @@ const PAIRS = [
   // An invalid field's edge.
   ...['--background-01', '--surface-card'].map(bg => ({ bg, fg: '--color-error', kind: 'edge' })),
   // The focus ring, on every solid ground (ui/styles/base).
-  ...SOLID_SURFACES.map(bg => ({ bg, fg: '--focus-ring-color', kind: 'ring' }))
+  ...SOLID_SURFACES.map(bg => ({ bg, fg: '--focus-ring-color', kind: 'ring' })),
+  // Progress rings, against their track and against the card around them.
+  ...['--color-ring-1', '--color-ring-2', '--color-ring-3', '--color-ring-4'].flatMap(fg =>
+    ['--color-ring-track', '--surface-card'].map(bg => ({ bg, fg, kind: 'mark' }))
+  ),
+  // Chart marks on the card a chart sits in (`0069`), and on the page for a chart that has none.
+  ...['1', '2', '3', '4', '5', '6', 'success', 'failure', 'neutral'].flatMap(step =>
+    ['--surface-card', '--background-01'].map(bg => ({ bg, fg: `--color-chart-${step}`, kind: 'chart' }))
+  )
 ];
 
 /**
@@ -123,19 +151,28 @@ function parse(css, media = null) {
 
 const rules = parse(readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''));
 const themes = {};
-const automatic = { dark: {}, light: {} };
+const automatic = { contrast: {}, dark: {}, light: {} };
 const shared = {};
+const forced = {};
 const problems = [];
+let forcedSeen = false;
 
 for (const { declarations, media, selectors } of rules) {
+  const isForced = /^\(\s*forced-colors:\s*active\s*\)$/.test(media ?? '');
+
   for (const selector of selectors) {
-    const named = selector.match(/^:root\[data-theme='([a-z]+)'\]$/);
+    // A theme answers to `data-theme` on <html> and on any element (a preview of it).
+    const named = selector.match(/^(?::root)?\[data-theme='([a-z]+)'\]$/);
 
     if (named && media === null) Object.assign((themes[named[1]] ??= {}), declarations);
     else if (selector === ':root:not([data-theme])' && media === null) Object.assign(automatic.light, declarations);
-    else if (selector === ':root:not([data-theme])' && /prefers-color-scheme:\s*dark/.test(media ?? '')) Object.assign(automatic.dark, declarations);
-    else if (selector === ':root' && media === null) Object.assign(shared, declarations);
-    else problems.push(`a rule this script does not know how to read: ${media ? `@media ${media} ` : ''}${selector}`);
+    else if (selector === ':root:not([data-theme])' && /^\(\s*prefers-color-scheme:\s*dark\s*\)$/.test(media ?? '')) Object.assign(automatic.dark, declarations);
+    else if (selector === ':root:not([data-theme])' && /^\(\s*prefers-contrast:\s*more\s*\)$/.test(media ?? '')) Object.assign(automatic.contrast, declarations);
+    else if ((selector === ':root' || selector === '[data-theme]') && media === null) Object.assign(shared, declarations);
+    else if ((selector === ':root:not([data-theme])' || selector === '[data-theme]') && isForced) {
+      Object.assign(forced, declarations);
+      forcedSeen = true;
+    } else problems.push(`a rule this script does not know how to read: ${media ? `@media ${media} ` : ''}${selector}`);
   }
 }
 
@@ -163,6 +200,17 @@ for (const [scheme, theme] of Object.entries(AUTO)) {
   const differ = [...new Set([...Object.keys(automatic[scheme]), ...Object.keys(themes[theme])])].filter(key => automatic[scheme][key] !== themes[theme][key]);
 
   if (differ.length > 0) problems.push(`Automático on a ${scheme} device is not the ${theme} block: ${differ.join(', ')}`);
+}
+
+// Forced colours win over every theme, so every token a theme defines is mapped there, and only
+// to what the browser will not repaint.
+if (!forcedSeen) problems.push('no @media (forced-colors: active) block for :root:not([data-theme]) and [data-theme]');
+else {
+  const unmapped = everyToken.filter(token => !(token in forced));
+  const wrong = Object.entries(forced).filter(([token, value]) => token.startsWith('--') && !SYSTEM.test(value));
+
+  if (unmapped.length > 0) problems.push(`the forced-colors block leaves out ${unmapped.join(', ')}`);
+  if (wrong.length > 0) problems.push(`the forced-colors block gives a non-system value: ${wrong.map(([token, value]) => `${token}: ${value}`).join(', ')}`);
 }
 
 // ── Colours ─────────────────────────────────────────────────────────────────────────────
@@ -280,13 +328,15 @@ for (const name of names) {
   const read = token => colour(resolve(token, values));
 
   for (const { bg, fg, kind } of PAIRS) {
-    const key = `${name} ${fg} on ${bg}`;
+    const layers = [bg].flat();
+    const key = `${name} ${fg} on ${layers.join(' + ')}`;
 
     try {
       // Whatever is translucent sits on what is under it: the page on white (a browser's
-      // canvas), the ground on the page, the word or the line on the ground.
+      // canvas), the ground on the page (each layer of a stacked ground on the one below), the
+      // word or the line on the ground.
       const page = over(read('--background-01'), [255, 255, 255, 1]);
-      const ground = over(read(bg), page);
+      const ground = layers.reduce((under, layer) => over(read(layer), under), page);
       const measured = ratio(over(read(fg), ground), ground);
       const floor = FLOORS[kind];
       const known = KNOWN_TODAY[key];

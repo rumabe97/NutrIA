@@ -6,6 +6,7 @@ import { dictionaryFor } from 'i18n/server';
 import { withLocale } from 'i18n/routes';
 
 import { LocaleSwitcher } from 'components/LocaleSwitcher';
+import { ThemeSwitcher } from 'components/ThemeSwitcher';
 
 import { MAIN_ID } from './mainId';
 
@@ -27,6 +28,7 @@ export function AuthShell({ children, locale }: Readonly<{ children: ReactNode; 
         {/* Signing up in the wrong language is a bad first ten minutes. */}
         <div className={styles.locale}>
           <LocaleSwitcher compact={true} />
+          <ThemeSwitcher />
         </div>
         {/* The brand link and the language switcher sit above it, so the form is
             what the skip link and a route change both land on. */}

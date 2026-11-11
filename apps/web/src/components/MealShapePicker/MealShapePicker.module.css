@@ -42,7 +42,7 @@
 
 .pill {
   align-items: center;
-  border: 1px solid var(--border-interactive);
+  border: var(--border-width-interactive) solid var(--border-interactive);
   border-radius: var(--radius-control);
   cursor: pointer;
   display: flex;

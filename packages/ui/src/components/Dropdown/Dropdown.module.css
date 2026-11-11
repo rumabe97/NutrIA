@@ -21,6 +21,13 @@
   width: fit-content;
 }
 
+/* A finger's height on a phone; a pointer keeps the control's. */
+@media (pointer: coarse) {
+  .trigger {
+    min-block-size: var(--target-min);
+  }
+}
+
 .trigger:hover:not(:disabled) {
   background: var(--color-hover);
 }

@@ -73,6 +73,13 @@
   color: var(--foreground-01);
 }
 
+/* The header's controls, kept together at the row's end: language, theme, sign-out. */
+.actions {
+  align-items: center;
+  display: flex;
+  gap: var(--space-03);
+}
+
 /* A bare text button computes to the height of its own line — 21px — in a
    sticky header that a thumb reaches for while the page moves under it. The
    row is centred, so the extra height costs nothing: a control's height on a
@@ -86,32 +93,62 @@
   display: inline-flex;
   font: inherit;
   font-size: var(--font-size-03);
-  min-height: var(--height-m);
+  justify-content: center;
+  /* Stated once; a phone only changes what it reads. */
+  min-block-size: var(--sign-out-floor, var(--height-m));
+  min-inline-size: var(--sign-out-floor, 0);
   padding-block: var(--space-01);
   padding-inline: 0;
   /* A two-word control never breaks in half; if the row is short, it shrinks elsewhere. */
   white-space: nowrap;
 }
 
+/* The icon is for the narrow screen below; with room, the words say it. */
+.signOutIcon {
+  block-size: 20px;
+  display: none;
+  flex: none;
+  inline-size: 20px;
+}
+
 @media (pointer: coarse) {
   .signOut {
-    min-height: var(--target-min);
+    --sign-out-floor: var(--target-min);
   }
 }
 
 /*
- * Below 360px the row cannot hold the wordmark, the language switch and
- * "Cerrar sesión" at once, and the sign-out wrapped onto two lines. The mark
- * alone carries the brand there — the bottom bar names every destination, so
- * nothing needed for orientation is lost. The link keeps its aria-label.
+ * Below 360px the row cannot hold the wordmark, the language switch, the theme
+ * menu and "Cerrar sesión" at once (PRD 024 § "What changes from the sheets",
+ * 5). The mark alone carries the brand there — the bottom bar names every
+ * destination, so nothing needed for orientation is lost, and the link keeps
+ * its aria-label — and sign-out becomes an icon whose name is still its words,
+ * kept for screen readers and hidden from the eye.
  */
 @media (width < 22.5rem) {
   .inner {
     gap: var(--space-04);
   }
 
+  .actions {
+    gap: var(--space-02);
+  }
+
   .wordmark {
     display: none;
+  }
+
+  .signOutIcon {
+    display: block;
+  }
+
+  .signOutLabel {
+    block-size: 1px;
+    clip-path: inset(50%);
+    inline-size: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
   }
 }
 

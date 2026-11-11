@@ -4,7 +4,7 @@
   align-items: center;
   background-color: var(--background-01);
   border-radius: var(--radius-control);
-  border: 1px solid var(--border-interactive);
+  border: var(--border-width-interactive) solid var(--border-interactive);
   cursor: pointer;
   display: inline-flex;
   font-size: var(--font-size-03);

@@ -208,22 +208,24 @@ Four-file token system. **Never hardcode colors, sizes, or shadows — always us
 | Spacing     | `--space-01` … `--space-12` (4px base: 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80, 96px)                                  |
 | Font size   | `--font-size-01` … `--font-size-12` (11px → 60px scale)                                                                 |
 | Line height | `--line-height-01` … `--line-height-06` (1 → 2)                                                                         |
-| Font weight | `--font-weight-regular` (400), `--font-weight-medium` (500), `--font-weight-semibold` (600), `--font-weight-bold` (700) |
-| Radius      | `--radius-01` (4px) … `--radius-05` (16px), `--radius-full` (9999px)                                                    |
+| Font weight | `--font-weight-regular` (400), `--font-weight-medium` (500), `--font-weight-semibold` (600), `--font-weight-bold` (700), `--font-weight-heavy` (800, headings only) |
+| Radius      | `--radius-01` (4px) … `--radius-05` (16px), `--radius-full` (9999px); semantic `--radius-control`, `--radius-card`, `--radius-sheet`, `--radius-button` (an app may round them further) |
 | Sizing      | `--height-xs` (20px), `--height-s` (24px), `--height-m` (32px), `--height-l` (40px), `--height-xl` (48px)               |
 | Surfaces    | `--background-01`, `--background-02`, `--background-highlight`                                                          |
 | Text        | `--foreground-01`, `--foreground-02`, `--foreground-03` (all three meet AA — 02 and 03 are the same value today, see `0041`), `--foreground-disabled` |
-| Borders     | `--border-01` (dividers, card edges), `--border-interactive` (what says a control is a control — inputs, secondary buttons, checkboxes; `0041`) |
+| Borders     | `--border-01` (dividers, card edges), `--border-interactive` (what says a control is a control — inputs, secondary buttons, checkboxes; `0041`), drawn `--border-width-interactive` thick |
 | Interactive | `--color-hover`, `--color-highlighted`, `--color-selected`, `--color-glass`, `--color-overlay`, `--color-switch`        |
 | States      | `--color-success`, `--color-error`, `--color-warning`                                                                   |
 | Shadows     | `--shadow-s`, `--shadow-m`, `--shadow-l`, `--shadow-focus`                                                              |
 | Motion      | `--duration-fast` (0.15s), `--duration-normal` (0.2s), `--duration-slow` (0.35s), `--ease-default`, `--ease-spring`     |
 | Z-index     | `--z-base`, `--z-dropdown`, `--z-overlay`, `--z-modal`, `--z-toast`, `--z-tooltip`                                      |
-| Brand       | `--color-brand-01` … `--color-brand-12` (defaults to blue — see branding below)                                         |
+| Brand       | `--color-brand-01` … `--color-brand-12` (defaults to blue — see branding below); `--color-brand-fill` → `--color-brand-fill-end` under a label; `--color-accent-start/mid/end` for what carries no small text; `--color-ring-*`, `--color-highlight-fill` |
 
 **`packages/ui/src/styles/base.css`** — shared CSS reset (box-sizing, body defaults, font-smoothing, heading/paragraph defaults). Imported by every app; do not duplicate this content in `globals.css`.
 
-**`apps/*/src/styles/variables.css`** — app-level overrides. Override any semantic token here. Never reference palette tokens (`--color-gray-*`) directly from an app.
+**`apps/*/src/styles/variables.css`** — app-level overrides of the tokens that do not change with a theme (type scale, spacing, rhythm, corners). Never reference palette tokens (`--color-gray-*`) directly from an app.
+
+**`apps/*/src/styles/themes.css`** — an app with themes (`0106`, `0107`; `apps/web`) defines every colour token here, once per theme, in a block selected by `data-theme`, plus the Automático blocks and a `forced-colors` block. `scripts/check-contrast.mjs` reads it in the gate. An app without one (`apps/docs`) keeps ui's neutral default.
 
 **Import order in app layouts (must follow this order):**
 
@@ -231,36 +233,54 @@ Four-file token system. **Never hardcode colors, sizes, or shadows — always us
 2. `ui/styles/variables` — semantic tokens
 3. `ui/styles/base` — shared CSS reset
 4. `ui/styles/classnames` — shared utility classes
-5. `styles/globals.css` — app-specific global styles
-6. `styles/variables.css` — app-level token overrides (must come last)
+5. `ui/styles/motion` — motion utilities (where the app uses them)
+6. `styles/globals.css` — app-specific global styles
+7. `styles/variables.css` — app-level token overrides
+8. `styles/themes.css` — the theme blocks, where the app has them (must come last)
 
 No utility class frameworks (no Tailwind). Module CSS only.
 
 ### Branding a new project
 
-To remap the visual language for a new project, override tokens in `apps/your-app/src/styles/variables.css`:
+Colour and everything else are branded in two different places.
+
+**Colour, in an app with themes** (`0106`): every colour token gets a value in each block of
+`apps/your-app/src/styles/themes.css` — never a palette step and never `light-dark()`, the block
+is the scheme. A theme is a block; a sixth theme is a sixth block and no component changes.
 
 ```css
-/* Change brand accent from blue to green */
+[data-theme='claro'],
+:root:not([data-theme]) {
+  color-scheme: light;
+  --background-01: #fbf5ea;
+  --color-brand-fill: #b93a12;
+  /* … every colour token, in every block */
+}
+```
+
+**Colour, in an app without themes**: remap the brand scale in `styles/variables.css`, and
+dark mode follows ui's palette:
+
+```css
 :root {
   --color-brand-01: var(--color-green-01);
   /* … through --color-brand-12 */
   --color-brand-12: var(--color-green-12);
 }
+```
 
-/* Change spacing density */
+**Everything else** — spacing, corners, type — is overridden in `styles/variables.css`:
+
+```css
 :root {
   --space-04: 0.75rem; /* tighten the base unit */
-}
-
-/* Change radius style — e.g. sharp corners everywhere */
-:root {
-  --radius-full: 4px;
-  --radius-01: 0;
+  --radius-card: 24px; /* rounder cards */
+  --radius-button: var(--radius-full); /* pill buttons, inputs untouched */
 }
 ```
 
-You can also override `--background-01`, `--foreground-01`, `--border-01` etc. to change the surface/text palette. **Never reference `--color-gray-*` or any palette token directly** — always go through the semantic layer so dark mode keeps working automatically.
+**Never reference `--color-gray-*` or any palette token directly** from a component — always go
+through the semantic layer, so every theme and both schemes keep working.
 
 ### Per-instance style overrides
 

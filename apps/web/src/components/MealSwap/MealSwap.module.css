@@ -41,7 +41,7 @@
 .option {
   align-items: flex-start;
   background-color: var(--surface-card);
-  border: 1px solid var(--border-interactive);
+  border: var(--border-width-interactive) solid var(--border-interactive);
   border-radius: var(--radius-control);
   cursor: pointer;
   display: flex;

@@ -1,0 +1,139 @@
+/* The card is a `components/Card`; this is its inside, shaped like the language panel above it. */
+.panel {
+  display: grid;
+  gap: var(--gap-heading);
+}
+
+.title {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-04);
+  margin: 0;
+}
+
+/* Two to a row on a phone, as many as fit on a wide screen; never a track wider than the card. */
+.options {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 7rem), 1fr));
+  margin-block-start: var(--space-02);
+}
+
+/* The whole tile is the label: a finger hits the picture or the name. The chosen one says so
+   with an edge in the accent and a heavier name, never by colour alone. */
+.option {
+  border: var(--border-width-interactive) solid transparent;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  display: grid;
+  gap: var(--space-02);
+  min-inline-size: 0;
+  padding: var(--space-02);
+}
+
+.option:hover {
+  background-color: var(--color-hover);
+}
+
+.option:has(.radio:checked) {
+  border-color: var(--color-brand-09);
+}
+
+.option:has(.radio:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* ── The preview: a page in miniature, drawn in that theme's own tokens ─────── */
+.preview {
+  aspect-ratio: 16 / 10;
+  border: 1px solid var(--border-01);
+  border-radius: calc(var(--radius-control) - 2px);
+  display: flex;
+  overflow: hidden;
+}
+
+.swatch {
+  background-color: var(--background-01);
+  display: flex;
+  flex: 1 1 0;
+  min-inline-size: 0;
+  padding: 18% 12% 0;
+}
+
+.card {
+  align-content: start;
+  background-color: var(--surface-card);
+  border-start-end-radius: var(--space-02);
+  border-start-start-radius: var(--space-02);
+  display: grid;
+  flex: 1 1 auto;
+  gap: 12%;
+  padding: 14% 12%;
+}
+
+.ink,
+.soft,
+.fill {
+  border-radius: var(--radius-full);
+  block-size: 0.3rem;
+  display: block;
+}
+
+.ink {
+  background-color: var(--foreground-01);
+  inline-size: 80%;
+}
+
+.soft {
+  background-color: var(--foreground-02);
+  inline-size: 55%;
+}
+
+.fill {
+  background-color: var(--color-brand-fill);
+  background-image: var(--gradient-brand-fill);
+  block-size: 0.55rem;
+  inline-size: 60%;
+}
+
+/* ── The radio and the name ─────────────────────────────────────────────────── */
+.choice {
+  align-items: center;
+  display: flex;
+  gap: var(--space-02);
+  min-block-size: var(--height-s);
+  min-inline-size: 0;
+}
+
+/* The native radio, in the accent; its focus is drawn on the whole tile above. */
+.radio {
+  accent-color: var(--color-brand-fill);
+  block-size: 1rem;
+  flex: none;
+  inline-size: 1rem;
+  margin: 0;
+}
+
+.radio:focus-visible {
+  outline: none;
+}
+
+.name {
+  color: var(--foreground-01);
+  font-size: var(--font-size-03);
+  line-height: var(--line-height-03);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.option:has(.radio:checked) .name {
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Forced colours erase the swatches' grounds; the chosen tile keeps a system edge. */
+@media (forced-colors: active) {
+  .option:has(.radio:checked) {
+    border-color: Highlight;
+  }
+}

@@ -1,0 +1,72 @@
+/* The same row as `DropdownOption`, with a slot for the tick at its start so the labels of a
+   chosen and an unchosen option line up. */
+.option {
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  align-items: center;
+  border-radius: var(--radius-01);
+  color: var(--foreground-01);
+  cursor: pointer;
+  display: flex;
+  font-size: var(--font-size-03);
+  gap: var(--space-02);
+  line-height: var(--line-height-03);
+  /* The minimum is stated once, here; a phone only changes what it reads. */
+  min-block-size: var(--option-floor, var(--height-m));
+  padding: var(--space-01) var(--space-03) var(--space-01) var(--space-02);
+  user-select: none;
+}
+
+/* A finger's height on a phone. */
+@media (pointer: coarse) {
+  .option {
+    --option-floor: var(--target-min);
+  }
+}
+
+.option:not(:first-of-type) {
+  margin-top: var(--space-01);
+}
+
+/* Under the pointer and under the keyboard, the same: Radix moves `data-highlighted` with focus. */
+.option[data-highlighted] {
+  background: var(--color-highlighted);
+}
+
+/* The keyboard also gets the house focus ring (ui/styles/base), drawn inside the row so the
+   menu's edge does not cut it. */
+.option:focus-visible {
+  outline-offset: calc(var(--focus-ring-width) * -1);
+}
+
+/* The chosen one is said twice: the tick, and the weight. */
+.option[data-state='checked'] {
+  font-weight: var(--font-weight-semibold);
+}
+
+.slot {
+  align-items: center;
+  block-size: 16px;
+  color: var(--color-brand-11);
+  display: inline-flex;
+  flex: none;
+  inline-size: 16px;
+  justify-content: center;
+}
+
+.indicator {
+  display: inline-flex;
+}
+
+.indicator svg {
+  block-size: 16px;
+  inline-size: 16px;
+}
+
+/* The menu's highlight is a background, which forced colours erase: the row keeps an outline. */
+@media (forced-colors: active) {
+  .option[data-highlighted] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}

@@ -1,0 +1,22 @@
+/* A round icon button, the height of the language switch beside it on a pointer and a finger's
+   size on a phone (Dropdown's trigger already grows to `--target-min` there). `button.trigger`
+   (element and class) so it wins over Dropdown's own trigger rule whatever order the two
+   stylesheets land in. */
+button.trigger {
+  justify-content: center;
+  min-inline-size: var(--height-m);
+  padding: 0;
+}
+
+@media (pointer: coarse) {
+  button.trigger {
+    min-inline-size: var(--target-min);
+  }
+}
+
+.icon {
+  block-size: 20px;
+  display: block;
+  flex: none;
+  inline-size: 20px;
+}

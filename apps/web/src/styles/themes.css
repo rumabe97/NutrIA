@@ -1,293 +1,912 @@
-/* NutrIA's themes (`0106`).
+/* NutrIA's themes (`0106`, `0107`).
 
-   A theme is one block of colour token values, selected by `data-theme` on
-   <html>: `claro`, `oscuro` (and, from phase 1b of project 024, `huerta`,
-   `pulso` and `contraste`). The inline script in `_shared/RootShell` sets the
-   attribute before the first paint from the choice kept on the device
-   (`ui/utils/themeScript`). No attribute is Automático: the Claro block on a
-   light device and the Oscuro block on a dark one, so a page whose script did
-   not run is still legible.
+   A theme is one block of colour token values, selected by `data-theme` on <html>: `claro`,
+   `oscuro`, `huerta`, `pulso` and `contraste`. The inline script in `_shared/RootShell` sets
+   the attribute before the first paint from the choice kept on the device
+   (`ui/utils/themeScript`); the switch (`ui/components/ThemeSwitch`) sets it when a person
+   chooses. No attribute is Automático: the Claro block on a light device, the Oscuro block on a
+   dark one, and the Alto contraste block when the device asks for more contrast — so a page whose
+   script did not run is still legible.
+
+   The same blocks also answer to `data-theme` on any element, so a preview of a theme (Perfil,
+   «Apariencia») is drawn with that theme's own values, whatever the page wears.
 
    Rules for this file:
 
-   - Every colour token is defined in every theme, as a value — never a
-     palette step (`--color-gray-*` and the rest belong to ui's neutral default,
-     which `apps/docs` keeps) and never `light-dark()`: the block is the scheme.
-   - `color-scheme` follows the theme, so form controls, scrollbars and the
-     palette's own `light-dark()` pairs (the chart colours, `0069`) follow it too.
-   - The Automático dark block repeats the Oscuro block exactly.
-     `scripts/check-contrast.mjs` fails if the two disagree, if a theme lacks a
-     token another theme has, or if a declared foreground/background pair falls
-     under its contrast floor.
-   - Components read these tokens and never name a theme; a test fails on a
-     raw colour, a palette step or a theme name in a module stylesheet
-     (`styles/colours.test.ts`).
+   - Every token is defined in every theme, as a value — never a palette step (`--color-gray-*`
+     and the rest belong to ui's neutral default, which `apps/docs` keeps) and never
+     `light-dark()`: the block is the scheme.
+   - `color-scheme` follows the theme, so form controls and scrollbars follow it too.
+   - The Automático blocks repeat the blocks they stand for exactly.
+     `scripts/check-contrast.mjs` fails if one disagrees, if a theme lacks a token another theme
+     has, or if a declared foreground/background pair falls under its contrast floor.
+   - `forced-colors: active` wins over every theme: the last block maps every colour to a system
+     colour.
+   - Components read these tokens and never name a theme; a test fails on a raw colour, a palette
+     step or a theme name in a module stylesheet (`styles/colours.test.ts`).
 
-   The values are exactly what the light and dark schemes resolved to before
-   themes existed, so this file changed nothing a person sees. */
+   What each family is for:
 
-/* ── Claro ─────────────────────────────────────────────────────────────────
-   Chosen, and Automático on a light device. */
-:root[data-theme='claro'],
-:root:not([data-theme]) {
+   - `--color-brand-fill` → `--color-brand-fill-end` is the gradient under a label
+     (`--color-on-brand-fill`); the label clears 4.5:1 on both ends. `--color-brand-11` is the one
+     colour for small accent text (links, labels, the capitals above a title).
+   - `--color-accent-start/mid/end` is the bright gradient, for what carries no small text: rings,
+     bars, a pattern, a display word.
+   - `--color-ring-1…4` draw progress in a fixed order on `--color-ring-track`; each clears 3:1
+     against the track and the card. `--color-chart-*` are the charts' (`0069`), each clearing
+     4.5:1 against its theme's card, which is what `prefers-contrast: more` used to raise them to.
+   - `--card-shadow` and `--grain-opacity` were invalid `light-dark()` values until this file
+     gave them one per theme (project 024, phase 1b). */
+
+/* ── Claro ───────────────────────────────────────────────────────────────────────────────────
+   Warm paper, a tomato-to-saffron accent, olive and plum beside it. Chosen, and Automático on a
+   light device. */
+:root:not([data-theme]),
+[data-theme='claro'] {
   color-scheme: light;
 
   /* Surfaces */
-  --background-01: #fcfcfc;
-  --background-02: #f8f8f8;
-  --background-highlight: #ededed;
-  /* A single raised card, so every card in the product agrees, and the
-     ground a segmented control's chosen half sits on. */
-  --surface-card: #ffffff;
-  --surface-sunken: #f8f8f8;
-  /* A hairline of light along a card's top edge (components/Card). */
-  --card-highlight: rgb(255 255 255 / 90%);
-  --color-glass: hsla(0, 0%, 100%, 0.85);
-  --color-overlay: rgba(0, 0, 0, 0.4);
+  --background-01: #fbf5ea;
+  --background-02: #f7efe1;
+  --background-highlight: #ede1ce;
+  --surface-card: #f3e9d9;
+  --surface-sunken: #efe4d3;
+  --card-highlight: rgb(255 253 248 / 70%);
+  --color-glass: rgb(251 245 234 / 86%);
+  --color-overlay: rgb(43 30 24 / 45%);
 
   /* Text */
-  --foreground-01: #171717;
-  --foreground-02: #6f6f6f;
-  --foreground-03: #6f6f6f;
-  --foreground-disabled: #c7c7c7;
+  --foreground-01: #2b1e18;
+  --foreground-02: #6f5a4d;
+  --foreground-03: #6f5a4d;
+  --foreground-disabled: #b9a795;
 
   /* Edges */
-  --border-01: #e2e2e2;
-  --border-interactive: #8f8f8f;
-  --focus-ring-color: rgba(0, 0, 0, 0.478);
+  --border-01: #e6d8c3;
+  --border-interactive: #8a7262;
+  --border-width-interactive: 1px;
+  --focus-ring-color: rgb(43 30 24 / 62%);
 
   /* Interactive */
-  --color-hover: rgba(0, 0, 0, 0.047);
-  --color-highlighted: rgba(0, 0, 0, 0.09);
-  --color-selected: rgba(0, 0, 0, 0.09);
-  --color-switch: #e8e8e8;
-  --color-switch-thumb: #ffffff;
-  /* The empty part of a progress bar, and the same track under a pointer. */
-  --color-track: #ededed;
-  --color-track-hover: #e8e8e8;
+  --color-hover: rgb(43 30 24 / 5%);
+  --color-highlighted: rgb(43 30 24 / 9%);
+  --color-selected: rgb(43 30 24 / 9%);
+  --color-switch: #e3d4be;
+  --color-switch-thumb: #fffdf8;
+  --color-track: #eaddc9;
+  --color-track-hover: #e3d4be;
 
-  /* States: step 09 fills and edges, step 11 text, a tinted ground and a
-     border for a notice of that state. */
-  --color-success: #30a46c;
-  --color-success-text: #18794e;
-  --color-error: #e5484d;
-  --color-error-text: #cd2b31;
-  --color-error-surface: #ffefef;
-  --color-error-border: #f9c6c6;
-  --color-error-fill: #cd2b31;
+  /* States */
+  --color-success: #5e8238;
+  --color-success-text: #4a6a28;
+  --color-error: #c42b2b;
+  --color-error-text: #b42318;
+  --color-error-surface: #fbe4de;
+  --color-error-border: #f2bfb3;
+  --color-error-fill: #b42318;
   --color-on-error-fill: #ffffff;
-  --color-warning: #ffb224;
-  --color-warning-text: #ad5700;
-  --color-warning-surface: #fff4d5;
-  --color-warning-border: #ffd386;
+  --color-warning: #e09a1a;
+  --color-warning-text: #8f5300;
+  --color-warning-surface: #fbebc8;
+  --color-warning-border: #f0cf86;
 
-  /* Accent: a muted olive-green. Green is the obvious choice for nutrition and
-     also the reason so many of these products look alike, so this one is
-     desaturated far enough to sit next to food photography without competing
-     with it. Steps follow the Radix scale contract in ui/styles/variables: 09
-     is the solid, 11 the text step. */
-  --color-brand-01: #fcfdfb;
-  --color-brand-02: #f7faf3;
-  --color-brand-03: #eef4e6;
-  --color-brand-04: #e4ecd8;
-  --color-brand-05: #d9e3ca;
-  --color-brand-06: #cbd8b7;
-  --color-brand-07: #b8c99f;
-  --color-brand-08: #9db47e;
-  --color-brand-09: #5f7a3d;
-  --color-brand-10: #546d35;
-  --color-brand-11: #475c2c;
-  --color-brand-12: #232d15;
-  /* The fill under a white label. Light step 09 clears 4.5:1 with white
-     (4.8:1); hover is one step deeper (5.8:1). */
-  --color-brand-fill: #5f7a3d;
-  --color-brand-fill-hover: #546d35;
+  /* Accent */
+  --color-brand-01: #fff9f4;
+  --color-brand-02: #fdf0e6;
+  --color-brand-03: #fae3d5;
+  --color-brand-04: #f6d4c1;
+  --color-brand-05: #f1c2aa;
+  --color-brand-06: #eaab8e;
+  --color-brand-07: #e08f6c;
+  --color-brand-08: #d06b45;
+  --color-brand-09: #bc4a18;
+  --color-brand-10: #a9400f;
+  --color-brand-11: #b23710;
+  --color-brand-12: #4a1a0a;
+  --color-brand-fill: #b93a12;
+  --color-brand-fill-end: #c4501a;
+  --color-brand-fill-hover: #9c2e0c;
   --color-on-brand-fill: #ffffff;
+  --color-accent-start: #e2512b;
+  --color-accent-mid: #ee6f2a;
+  --color-accent-end: #f0a22c;
 
-  /* A two-factor code is dark modules on a light ground in every theme:
-     inverted, many authenticators read nothing. */
+  /* Rings and the highlighted tile */
+  --color-ring-1: #d2481f;
+  --color-ring-2: #5e8238;
+  --color-ring-3: #a86b00;
+  --color-ring-4: #8b3f6b;
+  --color-ring-track: #eaddc9;
+  --color-highlight-fill: #f6c453;
+  --color-on-highlight-fill: #2b1e18;
+
+  /* Charts */
+  --color-chart-1: #b93a12;
+  --color-chart-2: #4a6a28;
+  --color-chart-3: #8b3f6b;
+  --color-chart-4: #8f5300;
+  --color-chart-5: #2f6f8f;
+  --color-chart-6: #6b4e9b;
+  --color-chart-success: #476f26;
+  --color-chart-failure: #7e1f3a;
+  --color-chart-neutral: #6f5a4d;
+
+  /* Two-factor code */
   --color-code-ground: #ffffff;
   --color-code-ink: #000000;
 
-  /* Shadows */
-  --shadow-s: 0 1px 2px rgba(0, 0, 0, 0.141);
-  --shadow-m: 0 4px 16px rgba(0, 0, 0, 0.22);
-  --shadow-l: 0 8px 32px rgba(0, 0, 0, 0.439);
+  /* Depth */
+  --shadow-s: 0 1px 2px rgb(74 46 24 / 12%);
+  --shadow-m: 0 6px 20px rgb(74 46 24 / 16%);
+  --shadow-l: 0 16px 40px rgb(74 46 24 / 22%);
+  --card-shadow: 0 1px 2px rgb(74 46 24 / 6%), 0 8px 24px rgb(74 46 24 / 6%);
 
-  /* Ambient light: three soft pools behind everything (styles/globals),
-     warm at the top left, brand green at the right, cool at the foot — kept
-     far below any contrast threshold, lights in a room rather than a theme. */
-  --glow-warm: rgb(212 196 148 / 22%);
-  --glow-brand: rgb(95 122 61 / 13%);
-  --glow-cool: rgb(140 165 190 / 14%);
+  /* Ambient light */
+  --glow-warm: rgb(240 162 44 / 16%);
+  --glow-brand: rgb(226 81 43 / 9%);
+  --glow-cool: rgb(139 63 107 / 7%);
+  --grain-opacity: 0.03;
 }
 
-/* ── Oscuro ────────────────────────────────────────────────────────────────
-   Chosen. Automático on a dark device repeats this block below. */
-:root[data-theme='oscuro'] {
+/* ── Oscuro ──────────────────────────────────────────────────────────────────────────────────
+   Aubergine, never black: the same accent, brightened to read on a dark ground, with dark ink
+   on the fill. Chosen; Automático on a dark device repeats this block below. */
+[data-theme='oscuro'] {
   color-scheme: dark;
 
   /* Surfaces */
-  --background-01: #161616;
-  --background-02: #1c1c1c;
-  --background-highlight: #282828;
-  --surface-card: #1a1a1a;
-  --surface-sunken: #1c1c1c;
-  --card-highlight: rgb(255 255 255 / 6%);
-  --color-glass: hsla(0, 0%, 11%, 0.85);
-  --color-overlay: rgba(0, 0, 0, 0.6);
+  --background-01: #2a1b26;
+  --background-02: #301f2c;
+  --background-highlight: #45303f;
+  --surface-card: #3a2735;
+  --surface-sunken: #33222f;
+  --card-highlight: rgb(251 239 227 / 6%);
+  --color-glass: rgb(42 27 38 / 86%);
+  --color-overlay: rgb(14 8 12 / 62%);
 
   /* Text */
-  --foreground-01: #ededed;
-  --foreground-02: #a0a0a0;
-  --foreground-03: #a0a0a0;
-  --foreground-disabled: #505050;
+  --foreground-01: #fbefe3;
+  --foreground-02: #c9aeb9;
+  --foreground-03: #c9aeb9;
+  --foreground-disabled: #6e5664;
 
   /* Edges */
-  --border-01: #343434;
-  --border-interactive: #707070;
-  --focus-ring-color: hsla(0, 0%, 100%, 0.446);
+  --border-01: #503848;
+  --border-interactive: #9a7f8c;
+  --border-width-interactive: 1px;
+  --focus-ring-color: rgb(251 239 227 / 62%);
 
   /* Interactive */
-  --color-hover: hsla(0, 0%, 100%, 0.056);
-  --color-highlighted: hsla(0, 0%, 100%, 0.103);
-  --color-selected: hsla(0, 0%, 100%, 0.103);
-  --color-switch: #2e2e2e;
-  --color-switch-thumb: #ffffff;
-  --color-track: #282828;
-  --color-track-hover: #2e2e2e;
+  --color-hover: rgb(251 239 227 / 6%);
+  --color-highlighted: rgb(251 239 227 / 11%);
+  --color-selected: rgb(251 239 227 / 11%);
+  --color-switch: #553c4e;
+  --color-switch-thumb: #fbefe3;
+  --color-track: #4a3344;
+  --color-track-hover: #553c4e;
 
   /* States */
-  --color-success: #30a46c;
-  --color-success-text: #4cc38a;
-  --color-error: #e5484d;
-  --color-error-text: #ff6369;
-  --color-error-surface: #3c181a;
-  --color-error-border: #671e22;
-  /* Red 11 is a pastel in dark, so the deeper step 08 carries a white label. */
-  --color-error-fill: #aa2429;
+  --color-success: #8db255;
+  --color-success-text: #a9cb78;
+  --color-error: #ff6b6b;
+  --color-error-text: #ff8a8a;
+  --color-error-surface: #4a1e28;
+  --color-error-border: #7a2a38;
+  --color-error-fill: #b8333a;
   --color-on-error-fill: #ffffff;
-  --color-warning: #ffb224;
-  --color-warning-text: #f1a10d;
-  --color-warning-surface: #341c00;
-  --color-warning-border: #573300;
+  --color-warning: #f0a23c;
+  --color-warning-text: #ffc65c;
+  --color-warning-surface: #4a3020;
+  --color-warning-border: #6e4a28;
 
   /* Accent */
-  --color-brand-01: #131610;
-  --color-brand-02: #181c13;
-  --color-brand-03: #1e2418;
-  --color-brand-04: #242c1c;
-  --color-brand-05: #2b3421;
-  --color-brand-06: #333e27;
-  --color-brand-07: #3f4c2f;
-  --color-brand-08: #506237;
-  --color-brand-09: #6d8a46;
-  --color-brand-10: #7d9b53;
-  --color-brand-11: #a3c07a;
-  --color-brand-12: #e8f0dc;
-  /* Dark step 09 is lightened to read on a dark ground, and a white label on
-     it measures 3.9:1. The light step clears 4.5:1 and still stands 3.9:1 off
-     the dark page, so the fill keeps it here. */
-  --color-brand-fill: #5f7a3d;
-  --color-brand-fill-hover: #546d35;
-  --color-on-brand-fill: #ffffff;
+  --color-brand-01: #2f1d25;
+  --color-brand-02: #3a2128;
+  --color-brand-03: #4a2629;
+  --color-brand-04: #5a2b2b;
+  --color-brand-05: #6b3230;
+  --color-brand-06: #803b35;
+  --color-brand-07: #9c4a3e;
+  --color-brand-08: #c25a42;
+  --color-brand-09: #ff6e45;
+  --color-brand-10: #ff8257;
+  --color-brand-11: #ff9b7a;
+  --color-brand-12: #ffe3d8;
+  --color-brand-fill: #ff6e45;
+  --color-brand-fill-end: #ff8a3d;
+  --color-brand-fill-hover: #ff865f;
+  --color-on-brand-fill: #2a1b26;
+  --color-accent-start: #ff6e45;
+  --color-accent-mid: #ff8a3d;
+  --color-accent-end: #ffc65c;
 
+  /* Rings and the highlighted tile */
+  --color-ring-1: #ff6e45;
+  --color-ring-2: #9bc062;
+  --color-ring-3: #ffc65c;
+  --color-ring-4: #d58bb5;
+  --color-ring-track: #4a3344;
+  --color-highlight-fill: #ffc65c;
+  --color-on-highlight-fill: #2a1b26;
+
+  /* Charts */
+  --color-chart-1: #ff6e45;
+  --color-chart-2: #9bc062;
+  --color-chart-3: #d58bb5;
+  --color-chart-4: #ffc65c;
+  --color-chart-5: #7db7d9;
+  --color-chart-6: #a88ce0;
+  --color-chart-success: #7fa650;
+  --color-chart-failure: #ffa3b5;
+  --color-chart-neutral: #a98e9b;
+
+  /* Two-factor code */
   --color-code-ground: #ffffff;
   --color-code-ink: #000000;
 
-  /* Shadows */
-  --shadow-s: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-m: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-l: 0 8px 32px rgba(0, 0, 0, 0.5);
+  /* Depth */
+  --shadow-s: 0 1px 2px rgb(10 4 8 / 40%);
+  --shadow-m: 0 6px 20px rgb(10 4 8 / 45%);
+  --shadow-l: 0 16px 40px rgb(10 4 8 / 55%);
+  --card-shadow: 0 1px 2px rgb(10 4 8 / 30%), 0 8px 24px rgb(10 4 8 / 20%);
 
   /* Ambient light */
-  --glow-warm: rgb(160 140 80 / 10%);
-  --glow-brand: rgb(109 138 70 / 12%);
-  --glow-cool: rgb(90 120 160 / 9%);
+  --glow-warm: rgb(255 138 61 / 9%);
+  --glow-brand: rgb(255 110 69 / 7%);
+  --glow-cool: rgb(213 139 181 / 7%);
+  --grain-opacity: 0.05;
 }
 
-/* ── Automático on a dark device ───────────────────────────────────────────
-   The Oscuro block, repeated: CSS has no way to select a block by a media
-   query and an attribute in one selector. The contrast script fails when the
-   two differ. */
+/* ── Huerta ──────────────────────────────────────────────────────────────────────────────────
+   Light and fresh: mint paper, leaf green as the accent, lime as the highlight, tomato beside
+   them. */
+[data-theme='huerta'] {
+  color-scheme: light;
+
+  /* Surfaces */
+  --background-01: #f1f8ef;
+  --background-02: #ebf4e8;
+  --background-highlight: #dcebd7;
+  --surface-card: #e3f0df;
+  --surface-sunken: #e8f2e4;
+  --card-highlight: rgb(250 255 248 / 70%);
+  --color-glass: rgb(241 248 239 / 86%);
+  --color-overlay: rgb(19 38 26 / 45%);
+
+  /* Text */
+  --foreground-01: #13261a;
+  --foreground-02: #4d6354;
+  --foreground-03: #4d6354;
+  --foreground-disabled: #a3b7a6;
+
+  /* Edges */
+  --border-01: #cfe3ca;
+  --border-interactive: #6b7f70;
+  --border-width-interactive: 1px;
+  --focus-ring-color: rgb(19 38 26 / 62%);
+
+  /* Interactive */
+  --color-hover: rgb(19 38 26 / 5%);
+  --color-highlighted: rgb(19 38 26 / 9%);
+  --color-selected: rgb(19 38 26 / 9%);
+  --color-switch: #cfe3ca;
+  --color-switch-thumb: #fafff8;
+  --color-track: #d3e6cd;
+  --color-track-hover: #c8dfc1;
+
+  /* States */
+  --color-success: #2e7d32;
+  --color-success-text: #22612a;
+  --color-error: #c8401e;
+  --color-error-text: #a8321a;
+  --color-error-surface: #fbe6dc;
+  --color-error-border: #f0c1ae;
+  --color-error-fill: #a8321a;
+  --color-on-error-fill: #ffffff;
+  --color-warning: #d99a12;
+  --color-warning-text: #7d5200;
+  --color-warning-surface: #f6efc8;
+  --color-warning-border: #e6d27f;
+
+  /* Accent */
+  --color-brand-01: #f6fbf4;
+  --color-brand-02: #eaf5e6;
+  --color-brand-03: #dbeed5;
+  --color-brand-04: #cbe5c3;
+  --color-brand-05: #b8daae;
+  --color-brand-06: #a0cb93;
+  --color-brand-07: #82b873;
+  --color-brand-08: #5e9d50;
+  --color-brand-09: #2e7d32;
+  --color-brand-10: #276e2b;
+  --color-brand-11: #22612a;
+  --color-brand-12: #0f2a14;
+  --color-brand-fill: #2a7339;
+  --color-brand-fill-end: #2f7d3a;
+  --color-brand-fill-hover: #225f2e;
+  --color-on-brand-fill: #ffffff;
+  --color-accent-start: #3fa34d;
+  --color-accent-mid: #7bc043;
+  --color-accent-end: #c6ee5a;
+
+  /* Rings and the highlighted tile */
+  --color-ring-1: #c8401e;
+  --color-ring-2: #2e7d32;
+  --color-ring-3: #8a5a00;
+  --color-ring-4: #7a3f8f;
+  --color-ring-track: #d3e6cd;
+  --color-highlight-fill: #c6ee5a;
+  --color-on-highlight-fill: #13261a;
+
+  /* Charts */
+  --color-chart-1: #276e2b;
+  --color-chart-2: #b03a2e;
+  --color-chart-3: #7a3f8f;
+  --color-chart-4: #8a5a00;
+  --color-chart-5: #2f6f8f;
+  --color-chart-6: #5b4fa8;
+  --color-chart-success: #3a6e27;
+  --color-chart-failure: #8a1f2e;
+  --color-chart-neutral: #4d6354;
+
+  /* Two-factor code */
+  --color-code-ground: #ffffff;
+  --color-code-ink: #000000;
+
+  /* Depth */
+  --shadow-s: 0 1px 2px rgb(19 38 26 / 12%);
+  --shadow-m: 0 6px 20px rgb(19 38 26 / 15%);
+  --shadow-l: 0 16px 40px rgb(19 38 26 / 22%);
+  --card-shadow: 0 1px 2px rgb(19 38 26 / 6%), 0 8px 24px rgb(19 38 26 / 6%);
+
+  /* Ambient light */
+  --glow-warm: rgb(198 238 90 / 18%);
+  --glow-brand: rgb(63 163 77 / 10%);
+  --glow-cool: rgb(200 64 30 / 5%);
+  --grain-opacity: 0.03;
+}
+
+/* ── Pulso ───────────────────────────────────────────────────────────────────────────────────
+   Dark and vivid: deep indigo, a coral-to-pink fill with dark ink on it, a gradient that runs on
+   to violet, lime as the highlight. */
+[data-theme='pulso'] {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --background-01: #140b2d;
+  --background-02: #180e33;
+  --background-highlight: #2a1a4d;
+  --surface-card: #21143f;
+  --surface-sunken: #1a0f38;
+  --card-highlight: rgb(246 242 255 / 6%);
+  --color-glass: rgb(20 11 45 / 86%);
+  --color-overlay: rgb(6 3 16 / 64%);
+
+  /* Text */
+  --foreground-01: #f6f2ff;
+  --foreground-02: #b3a8cf;
+  --foreground-03: #b3a8cf;
+  --foreground-disabled: #564a78;
+
+  /* Edges */
+  --border-01: #33235a;
+  --border-interactive: #8b7cb5;
+  --border-width-interactive: 1px;
+  --focus-ring-color: rgb(246 242 255 / 66%);
+
+  /* Interactive */
+  --color-hover: rgb(246 242 255 / 6%);
+  --color-highlighted: rgb(246 242 255 / 11%);
+  --color-selected: rgb(246 242 255 / 11%);
+  --color-switch: #3a2a66;
+  --color-switch-thumb: #f6f2ff;
+  --color-track: #33235a;
+  --color-track-hover: #3d2b69;
+
+  /* States */
+  --color-success: #7fd858;
+  --color-success-text: #b5f23d;
+  --color-error: #ff6b8a;
+  --color-error-text: #ff8fa6;
+  --color-error-surface: #3d1033;
+  --color-error-border: #6e1d4a;
+  --color-error-fill: #c42a5a;
+  --color-on-error-fill: #ffffff;
+  --color-warning: #ffc447;
+  --color-warning-text: #ffd27a;
+  --color-warning-surface: #3a2420;
+  --color-warning-border: #6a4626;
+
+  /* Accent */
+  --color-brand-01: #1c0e2e;
+  --color-brand-02: #261033;
+  --color-brand-03: #36143a;
+  --color-brand-04: #46183f;
+  --color-brand-05: #581c43;
+  --color-brand-06: #6e2248;
+  --color-brand-07: #8c2c4a;
+  --color-brand-08: #b8394a;
+  --color-brand-09: #ff5a36;
+  --color-brand-10: #ff6e4e;
+  --color-brand-11: #ff8a70;
+  --color-brand-12: #ffe2da;
+  --color-brand-fill: #ff5a36;
+  --color-brand-fill-end: #ff2e93;
+  --color-brand-fill-hover: #ff6e4e;
+  --color-on-brand-fill: #140b2d;
+  --color-accent-start: #ff5a36;
+  --color-accent-mid: #ff2e93;
+  --color-accent-end: #7a3bff;
+
+  /* Rings and the highlighted tile */
+  --color-ring-1: #ff5a36;
+  --color-ring-2: #b5f23d;
+  --color-ring-3: #ffc447;
+  --color-ring-4: #ff7ab8;
+  --color-ring-track: #33235a;
+  --color-highlight-fill: #b5f23d;
+  --color-on-highlight-fill: #140b2d;
+
+  /* Charts */
+  --color-chart-1: #ff5a36;
+  --color-chart-2: #b5f23d;
+  --color-chart-3: #a98bff;
+  --color-chart-4: #ffc447;
+  --color-chart-5: #5fd3f3;
+  --color-chart-6: #ff7ab8;
+  --color-chart-success: #6faa3a;
+  --color-chart-failure: #ff9fb2;
+  --color-chart-neutral: #8b7cb5;
+
+  /* Two-factor code */
+  --color-code-ground: #ffffff;
+  --color-code-ink: #000000;
+
+  /* Depth */
+  --shadow-s: 0 1px 2px rgb(4 2 12 / 45%);
+  --shadow-m: 0 6px 20px rgb(4 2 12 / 50%);
+  --shadow-l: 0 16px 40px rgb(4 2 12 / 60%);
+  --card-shadow: 0 1px 2px rgb(4 2 12 / 35%), 0 8px 24px rgb(4 2 12 / 25%);
+
+  /* Ambient light */
+  --glow-warm: rgb(255 90 54 / 10%);
+  --glow-brand: rgb(255 46 147 / 9%);
+  --glow-cool: rgb(122 59 255 / 12%);
+  --grain-opacity: 0.05;
+}
+
+/* ── Alto contraste ──────────────────────────────────────────────────────────────────────────
+   Black on pure white. One solid accent and no gradient (every accent stop is the same colour), no
+   glow, no grain, no shadow, edges twice as thick. Text clears 7:1 where it can. Chosen, and
+   Automático under `prefers-contrast: more`, which repeats this block below. */
+[data-theme='contraste'] {
+  color-scheme: light;
+
+  /* Surfaces */
+  --background-01: #ffffff;
+  --background-02: #ffffff;
+  --background-highlight: #e6e6e6;
+  --surface-card: #ffffff;
+  --surface-sunken: #f0f0f0;
+  --card-highlight: transparent;
+  --color-glass: #ffffff;
+  --color-overlay: rgb(0 0 0 / 70%);
+
+  /* Text */
+  --foreground-01: #000000;
+  --foreground-02: #333333;
+  --foreground-03: #333333;
+  --foreground-disabled: #767676;
+
+  /* Edges */
+  --border-01: #595959;
+  --border-interactive: #000000;
+  --border-width-interactive: 2px;
+  --focus-ring-color: #000000;
+
+  /* Interactive */
+  --color-hover: rgb(0 0 0 / 8%);
+  --color-highlighted: rgb(0 0 0 / 14%);
+  --color-selected: rgb(0 0 0 / 14%);
+  --color-switch: #595959;
+  --color-switch-thumb: #ffffff;
+  --color-track: #d9d9d9;
+  --color-track-hover: #cccccc;
+
+  /* States */
+  --color-success: #1f5f1f;
+  --color-success-text: #1f5f1f;
+  --color-error: #9b0000;
+  --color-error-text: #9b0000;
+  --color-error-surface: #fff0f0;
+  --color-error-border: #9b0000;
+  --color-error-fill: #9b0000;
+  --color-on-error-fill: #ffffff;
+  --color-warning: #6b4a00;
+  --color-warning-text: #6b4a00;
+  --color-warning-surface: #fff8e0;
+  --color-warning-border: #6b4a00;
+
+  /* Accent */
+  --color-brand-01: #ffffff;
+  --color-brand-02: #f2f2f2;
+  --color-brand-03: #e6e6e6;
+  --color-brand-04: #d4d4d4;
+  --color-brand-05: #eab7a6;
+  --color-brand-06: #d98d74;
+  --color-brand-07: #c46a4d;
+  --color-brand-08: #a8401f;
+  --color-brand-09: #8a2508;
+  --color-brand-10: #6e1d06;
+  --color-brand-11: #8a2508;
+  --color-brand-12: #3a0f02;
+  --color-brand-fill: #8a2508;
+  --color-brand-fill-end: #8a2508;
+  --color-brand-fill-hover: #6e1d06;
+  --color-on-brand-fill: #ffffff;
+  --color-accent-start: #8a2508;
+  --color-accent-mid: #8a2508;
+  --color-accent-end: #8a2508;
+
+  /* Rings and the highlighted tile */
+  --color-ring-1: #8a2508;
+  --color-ring-2: #1f5f1f;
+  --color-ring-3: #6b4a00;
+  --color-ring-4: #5e2a6e;
+  --color-ring-track: #d9d9d9;
+  --color-highlight-fill: #000000;
+  --color-on-highlight-fill: #ffffff;
+
+  /* Charts */
+  --color-chart-1: #0b5394;
+  --color-chart-2: #8a2508;
+  --color-chart-3: #1f5f1f;
+  --color-chart-4: #6b4a00;
+  --color-chart-5: #5e2a6e;
+  --color-chart-6: #006b6b;
+  --color-chart-success: #1f6f1f;
+  --color-chart-failure: #7a0000;
+  --color-chart-neutral: #4d4d4d;
+
+  /* Two-factor code */
+  --color-code-ground: #ffffff;
+  --color-code-ink: #000000;
+
+  /* Depth */
+  --shadow-s: none;
+  --shadow-m: none;
+  --shadow-l: none;
+  --card-shadow: none;
+
+  /* Ambient light */
+  --glow-warm: transparent;
+  --glow-brand: transparent;
+  --glow-cool: transparent;
+  --grain-opacity: 0;
+}
+
+/* ── Automático on a dark device ─────────────────────────────────────────────────────────
+   The Oscuro block, repeated: CSS cannot select a block by a media query and an attribute in one
+   selector. The contrast script fails when the two differ. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
 
-    --background-01: #161616;
-    --background-02: #1c1c1c;
-    --background-highlight: #282828;
-    --surface-card: #1a1a1a;
-    --surface-sunken: #1c1c1c;
-    --card-highlight: rgb(255 255 255 / 6%);
-    --color-glass: hsla(0, 0%, 11%, 0.85);
-    --color-overlay: rgba(0, 0, 0, 0.6);
+    /* Surfaces */
+    --background-01: #2a1b26;
+    --background-02: #301f2c;
+    --background-highlight: #45303f;
+    --surface-card: #3a2735;
+    --surface-sunken: #33222f;
+    --card-highlight: rgb(251 239 227 / 6%);
+    --color-glass: rgb(42 27 38 / 86%);
+    --color-overlay: rgb(14 8 12 / 62%);
 
-    --foreground-01: #ededed;
-    --foreground-02: #a0a0a0;
-    --foreground-03: #a0a0a0;
-    --foreground-disabled: #505050;
+    /* Text */
+    --foreground-01: #fbefe3;
+    --foreground-02: #c9aeb9;
+    --foreground-03: #c9aeb9;
+    --foreground-disabled: #6e5664;
 
-    --border-01: #343434;
-    --border-interactive: #707070;
-    --focus-ring-color: hsla(0, 0%, 100%, 0.446);
+    /* Edges */
+    --border-01: #503848;
+    --border-interactive: #9a7f8c;
+    --border-width-interactive: 1px;
+    --focus-ring-color: rgb(251 239 227 / 62%);
 
-    --color-hover: hsla(0, 0%, 100%, 0.056);
-    --color-highlighted: hsla(0, 0%, 100%, 0.103);
-    --color-selected: hsla(0, 0%, 100%, 0.103);
-    --color-switch: #2e2e2e;
-    --color-switch-thumb: #ffffff;
-    --color-track: #282828;
-    --color-track-hover: #2e2e2e;
+    /* Interactive */
+    --color-hover: rgb(251 239 227 / 6%);
+    --color-highlighted: rgb(251 239 227 / 11%);
+    --color-selected: rgb(251 239 227 / 11%);
+    --color-switch: #553c4e;
+    --color-switch-thumb: #fbefe3;
+    --color-track: #4a3344;
+    --color-track-hover: #553c4e;
 
-    --color-success: #30a46c;
-    --color-success-text: #4cc38a;
-    --color-error: #e5484d;
-    --color-error-text: #ff6369;
-    --color-error-surface: #3c181a;
-    --color-error-border: #671e22;
-    --color-error-fill: #aa2429;
+    /* States */
+    --color-success: #8db255;
+    --color-success-text: #a9cb78;
+    --color-error: #ff6b6b;
+    --color-error-text: #ff8a8a;
+    --color-error-surface: #4a1e28;
+    --color-error-border: #7a2a38;
+    --color-error-fill: #b8333a;
     --color-on-error-fill: #ffffff;
-    --color-warning: #ffb224;
-    --color-warning-text: #f1a10d;
-    --color-warning-surface: #341c00;
-    --color-warning-border: #573300;
+    --color-warning: #f0a23c;
+    --color-warning-text: #ffc65c;
+    --color-warning-surface: #4a3020;
+    --color-warning-border: #6e4a28;
 
-    --color-brand-01: #131610;
-    --color-brand-02: #181c13;
-    --color-brand-03: #1e2418;
-    --color-brand-04: #242c1c;
-    --color-brand-05: #2b3421;
-    --color-brand-06: #333e27;
-    --color-brand-07: #3f4c2f;
-    --color-brand-08: #506237;
-    --color-brand-09: #6d8a46;
-    --color-brand-10: #7d9b53;
-    --color-brand-11: #a3c07a;
-    --color-brand-12: #e8f0dc;
-    --color-brand-fill: #5f7a3d;
-    --color-brand-fill-hover: #546d35;
-    --color-on-brand-fill: #ffffff;
+    /* Accent */
+    --color-brand-01: #2f1d25;
+    --color-brand-02: #3a2128;
+    --color-brand-03: #4a2629;
+    --color-brand-04: #5a2b2b;
+    --color-brand-05: #6b3230;
+    --color-brand-06: #803b35;
+    --color-brand-07: #9c4a3e;
+    --color-brand-08: #c25a42;
+    --color-brand-09: #ff6e45;
+    --color-brand-10: #ff8257;
+    --color-brand-11: #ff9b7a;
+    --color-brand-12: #ffe3d8;
+    --color-brand-fill: #ff6e45;
+    --color-brand-fill-end: #ff8a3d;
+    --color-brand-fill-hover: #ff865f;
+    --color-on-brand-fill: #2a1b26;
+    --color-accent-start: #ff6e45;
+    --color-accent-mid: #ff8a3d;
+    --color-accent-end: #ffc65c;
 
+    /* Rings and the highlighted tile */
+    --color-ring-1: #ff6e45;
+    --color-ring-2: #9bc062;
+    --color-ring-3: #ffc65c;
+    --color-ring-4: #d58bb5;
+    --color-ring-track: #4a3344;
+    --color-highlight-fill: #ffc65c;
+    --color-on-highlight-fill: #2a1b26;
+
+    /* Charts */
+    --color-chart-1: #ff6e45;
+    --color-chart-2: #9bc062;
+    --color-chart-3: #d58bb5;
+    --color-chart-4: #ffc65c;
+    --color-chart-5: #7db7d9;
+    --color-chart-6: #a88ce0;
+    --color-chart-success: #7fa650;
+    --color-chart-failure: #ffa3b5;
+    --color-chart-neutral: #a98e9b;
+
+    /* Two-factor code */
     --color-code-ground: #ffffff;
     --color-code-ink: #000000;
 
-    --shadow-s: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-m: 0 4px 16px rgba(0, 0, 0, 0.4);
-    --shadow-l: 0 8px 32px rgba(0, 0, 0, 0.5);
+    /* Depth */
+    --shadow-s: 0 1px 2px rgb(10 4 8 / 40%);
+    --shadow-m: 0 6px 20px rgb(10 4 8 / 45%);
+    --shadow-l: 0 16px 40px rgb(10 4 8 / 55%);
+    --card-shadow: 0 1px 2px rgb(10 4 8 / 30%), 0 8px 24px rgb(10 4 8 / 20%);
 
-    --glow-warm: rgb(160 140 80 / 10%);
-    --glow-brand: rgb(109 138 70 / 12%);
-    --glow-cool: rgb(90 120 160 / 9%);
+    /* Ambient light */
+    --glow-warm: rgb(255 138 61 / 9%);
+    --glow-brand: rgb(255 110 69 / 7%);
+    --glow-cool: rgb(213 139 181 / 7%);
+    --grain-opacity: 0.05;
   }
 }
 
-/* ── The same recipe in every theme ────────────────────────────────────────
-   Tokens derived from a theme's own values, so a theme never has to restate
-   them. Resolved on <html>, where the theme's values are. */
-:root {
+/* ── Automático on a device that asks for more contrast ───────────────────────────────────
+   The Alto contraste block, repeated, and after the dark one so it wins on a dark device too.
+   The contrast script fails when the two differ. */
+@media (prefers-contrast: more) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+
+    /* Surfaces */
+    --background-01: #ffffff;
+    --background-02: #ffffff;
+    --background-highlight: #e6e6e6;
+    --surface-card: #ffffff;
+    --surface-sunken: #f0f0f0;
+    --card-highlight: transparent;
+    --color-glass: #ffffff;
+    --color-overlay: rgb(0 0 0 / 70%);
+
+    /* Text */
+    --foreground-01: #000000;
+    --foreground-02: #333333;
+    --foreground-03: #333333;
+    --foreground-disabled: #767676;
+
+    /* Edges */
+    --border-01: #595959;
+    --border-interactive: #000000;
+    --border-width-interactive: 2px;
+    --focus-ring-color: #000000;
+
+    /* Interactive */
+    --color-hover: rgb(0 0 0 / 8%);
+    --color-highlighted: rgb(0 0 0 / 14%);
+    --color-selected: rgb(0 0 0 / 14%);
+    --color-switch: #595959;
+    --color-switch-thumb: #ffffff;
+    --color-track: #d9d9d9;
+    --color-track-hover: #cccccc;
+
+    /* States */
+    --color-success: #1f5f1f;
+    --color-success-text: #1f5f1f;
+    --color-error: #9b0000;
+    --color-error-text: #9b0000;
+    --color-error-surface: #fff0f0;
+    --color-error-border: #9b0000;
+    --color-error-fill: #9b0000;
+    --color-on-error-fill: #ffffff;
+    --color-warning: #6b4a00;
+    --color-warning-text: #6b4a00;
+    --color-warning-surface: #fff8e0;
+    --color-warning-border: #6b4a00;
+
+    /* Accent */
+    --color-brand-01: #ffffff;
+    --color-brand-02: #f2f2f2;
+    --color-brand-03: #e6e6e6;
+    --color-brand-04: #d4d4d4;
+    --color-brand-05: #eab7a6;
+    --color-brand-06: #d98d74;
+    --color-brand-07: #c46a4d;
+    --color-brand-08: #a8401f;
+    --color-brand-09: #8a2508;
+    --color-brand-10: #6e1d06;
+    --color-brand-11: #8a2508;
+    --color-brand-12: #3a0f02;
+    --color-brand-fill: #8a2508;
+    --color-brand-fill-end: #8a2508;
+    --color-brand-fill-hover: #6e1d06;
+    --color-on-brand-fill: #ffffff;
+    --color-accent-start: #8a2508;
+    --color-accent-mid: #8a2508;
+    --color-accent-end: #8a2508;
+
+    /* Rings and the highlighted tile */
+    --color-ring-1: #8a2508;
+    --color-ring-2: #1f5f1f;
+    --color-ring-3: #6b4a00;
+    --color-ring-4: #5e2a6e;
+    --color-ring-track: #d9d9d9;
+    --color-highlight-fill: #000000;
+    --color-on-highlight-fill: #ffffff;
+
+    /* Charts */
+    --color-chart-1: #0b5394;
+    --color-chart-2: #8a2508;
+    --color-chart-3: #1f5f1f;
+    --color-chart-4: #6b4a00;
+    --color-chart-5: #5e2a6e;
+    --color-chart-6: #006b6b;
+    --color-chart-success: #1f6f1f;
+    --color-chart-failure: #7a0000;
+    --color-chart-neutral: #4d4d4d;
+
+    /* Two-factor code */
+    --color-code-ground: #ffffff;
+    --color-code-ink: #000000;
+
+    /* Depth */
+    --shadow-s: none;
+    --shadow-m: none;
+    --shadow-l: none;
+    --card-shadow: none;
+
+    /* Ambient light */
+    --glow-warm: transparent;
+    --glow-brand: transparent;
+    --glow-cool: transparent;
+    --grain-opacity: 0;
+  }
+}
+
+/* ── The same recipe in every theme ────────────────────────────────────────────────────
+   Tokens derived from a theme's own values, so a theme never has to restate them. Declared on
+   every element that carries a theme, so a preview re-derives them from its own values. */
+:root,
+[data-theme] {
   /* The soft halo of a focused box whose border already turned the accent. */
   --color-brand-halo: color-mix(in srgb, var(--color-brand-fill) 18%, transparent);
   /* A filled control that cannot be pressed: the fill, paled into the card. */
   --color-brand-fill-disabled: color-mix(in srgb, var(--color-brand-fill) 40%, var(--surface-card));
+  --gradient-brand-fill: linear-gradient(135deg, var(--color-brand-fill), var(--color-brand-fill-end));
+  --gradient-accent: linear-gradient(135deg, var(--color-accent-start), var(--color-accent-mid), var(--color-accent-end));
+}
+
+/* ── Forced colours ───────────────────────────────────────────────────────────────────────
+   Windows High Contrast and its kin replace every colour with the person's own. Mapping the
+   tokens to system colours keeps what a token *means* — text, an edge, a fill, a highlight —
+   when the browser repaints, and it wins over every theme: last in the file, and as specific as
+   the most specific theme selector. No gradient, no glow, no grain, no shadow. */
+@media (forced-colors: active) {
+  :root:not([data-theme]),
+  [data-theme] {
+    --background-01: Canvas;
+    --background-02: Canvas;
+    --background-highlight: Canvas;
+    --surface-card: Canvas;
+    --surface-sunken: Canvas;
+    --card-highlight: transparent;
+    --color-glass: Canvas;
+    --color-overlay: transparent;
+    --foreground-01: CanvasText;
+    --foreground-02: CanvasText;
+    --foreground-03: CanvasText;
+    --foreground-disabled: GrayText;
+    --border-01: CanvasText;
+    --border-interactive: ButtonBorder;
+    --border-width-interactive: 2px;
+    --focus-ring-color: Highlight;
+    --color-hover: Highlight;
+    --color-highlighted: Highlight;
+    --color-selected: Highlight;
+    --color-switch: Canvas;
+    --color-switch-thumb: ButtonText;
+    --color-track: Canvas;
+    --color-track-hover: Canvas;
+    --color-success: Highlight;
+    --color-success-text: CanvasText;
+    --color-error: Highlight;
+    --color-error-text: CanvasText;
+    --color-error-surface: Canvas;
+    --color-error-border: Highlight;
+    --color-error-fill: Highlight;
+    --color-on-error-fill: HighlightText;
+    --color-warning: Highlight;
+    --color-warning-text: CanvasText;
+    --color-warning-surface: Canvas;
+    --color-warning-border: Highlight;
+    --color-brand-01: Canvas;
+    --color-brand-02: Canvas;
+    --color-brand-03: Canvas;
+    --color-brand-04: Canvas;
+    --color-brand-05: Canvas;
+    --color-brand-06: Canvas;
+    --color-brand-07: Canvas;
+    --color-brand-08: Highlight;
+    --color-brand-09: Highlight;
+    --color-brand-10: Highlight;
+    --color-brand-11: LinkText;
+    --color-brand-12: LinkText;
+    --color-brand-fill: Highlight;
+    --color-brand-fill-end: Highlight;
+    --color-brand-fill-hover: Highlight;
+    --color-on-brand-fill: HighlightText;
+    --color-accent-start: Highlight;
+    --color-accent-mid: Highlight;
+    --color-accent-end: Highlight;
+    --color-ring-1: Highlight;
+    --color-ring-2: Highlight;
+    --color-ring-3: Highlight;
+    --color-ring-4: Highlight;
+    --color-ring-track: Canvas;
+    --color-highlight-fill: Highlight;
+    --color-on-highlight-fill: HighlightText;
+    --color-chart-1: Highlight;
+    --color-chart-2: Highlight;
+    --color-chart-3: Highlight;
+    --color-chart-4: Highlight;
+    --color-chart-5: Highlight;
+    --color-chart-6: Highlight;
+    --color-chart-success: Highlight;
+    --color-chart-failure: Highlight;
+    --color-chart-neutral: Highlight;
+    --color-code-ground: Canvas;
+    --color-code-ink: CanvasText;
+    --shadow-s: none;
+    --shadow-m: none;
+    --shadow-l: none;
+    --card-shadow: none;
+    --glow-warm: transparent;
+    --glow-brand: transparent;
+    --glow-cool: transparent;
+    --grain-opacity: 0;
+  }
 }
