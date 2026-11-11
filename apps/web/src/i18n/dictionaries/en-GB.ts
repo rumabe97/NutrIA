@@ -122,6 +122,22 @@ export const enGB: Dictionary = {
     assistantCalls: 'This month: {count} model calls (each question’s label and its answer), {spent} in all.',
     assistantChart: 'The assistant’s spend against its cap',
     assistantEmpty: 'The assistant has no cap set.',
+    assistantFailures: {
+      caption: 'The assistant’s latest failures',
+      columns: { at: 'When', model: 'Model', reason: 'Reason', step: 'Step' },
+      empty: 'No failure recorded.',
+      note: 'The latest {count} model calls that came to nothing, whatever the period. Only the kind of failure: never the question or the answer.',
+      reasons: {
+        abandoned: 'The person left the screen before it finished',
+        cut: 'Answer cut off at the length limit',
+        invalid: 'The model answered in a shape that cannot be used',
+        provider: 'Anthropic refused or failed the call',
+        timeout: 'No answer within the time allowed',
+        unknown: 'No reason recorded (from before this was recorded)'
+      },
+      steps: { answer: 'Answer', label: 'Label the question' },
+      title: 'Latest failures'
+    },
     assistantNoCap: 'No cap of its own: nothing stops the assistant this month. Set AI_ASSISTANT_MONTHLY_CAP_USD.',
     assistantNote:
       'Apart from the spend above and against its own cap: once it is reached, the assistant stops answering until next month, and plans and the nightly rewrite carry on.',

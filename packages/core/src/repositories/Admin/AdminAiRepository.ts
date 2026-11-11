@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, sql } from 'drizzle-orm';
 
 import { analyticsEvents } from 'database/schema/platform';
 import { database } from 'database';
@@ -49,17 +49,62 @@ export type AiMonthRow = {
 };
 
 /**
+ * One assistant call to the model that came back with nothing usable: when,
+ * which step, which model, and why — as the codes the clients record
+ * (`StructuredAiClient`, `AnthropicStreamingClient`), never the provider's prose,
+ * the question or the answer. Each field is null on a row written before it was
+ * recorded.
+ */
+export type AssistantFailureRow = {
+  readonly at: Date;
+  /** The provider's own error type (`overloaded_error`…). */
+  readonly errorType: string | null;
+  /** `provider`, `invalid_output`, `timeout` or `abandoned`. */
+  readonly failure: string | null;
+  /** How an unusable answer ended: `length` is the output cap. */
+  readonly finishReason: string | null;
+  /** `answer` for the written answer; null for the label every question gets first. */
+  readonly kind: string | null;
+  readonly model: string | null;
+  readonly ms: number | null;
+  readonly status: number | null;
+};
+
+/**
  * The `ai_call` properties this repository reads (`StructuredAiClient`). A closed
  * union, because the key is written into the SQL with `sql.raw`: no value that did
  * not come from this list can ever reach it.
  */
-type AiCallKey = 'answeredModel' | 'costUsd' | 'feature' | 'inputTokens' | 'model' | 'ms' | 'outputTokens' | 'provider' | 'reasoningTokens';
+type AiCallKey =
+  | 'answeredModel'
+  | 'costUsd'
+  | 'errorType'
+  | 'failure'
+  | 'feature'
+  | 'finishReason'
+  | 'inputTokens'
+  | 'kind'
+  | 'model'
+  | 'ms'
+  | 'outputTokens'
+  | 'provider'
+  | 'reasoningTokens'
+  | 'status';
 
 /** The property's text when the event recorded a string there, else null. */
 function text(key: AiCallKey): SQL<string | null> {
   return sql<
     string | null
   >`case when jsonb_typeof(${analyticsEvents.properties} -> ${sql.raw(`'${key}'`)}) = 'string' then ${analyticsEvents.properties} ->> ${sql.raw(`'${key}'`)} end`;
+}
+
+/** The property's number when the event recorded one there, else null. Written as a constant key, never input. */
+function number(key: AiCallKey): SQL<number | null> {
+  return sql<
+    number | null
+  >`case when jsonb_typeof(${analyticsEvents.properties} -> ${sql.raw(`'${key}'`)}) = 'number' then (${analyticsEvents.properties} ->> ${sql.raw(`'${key}'`)})::numeric end`.mapWith(
+    Number
+  );
 }
 
 /** The property's number when the event recorded one there, else 0 — summed. Written as a constant key, never input. */
@@ -85,6 +130,38 @@ export const AI_CALL_FIELDS = {
  * counts, clocks and model names.
  */
 export const AdminAiRepository = {
+  /**
+   * The assistant's latest failed calls, the newest first: at most `limit` rows,
+   * whatever the period. Mode: the `(event, created_at)` index, read backwards.
+   */
+  async assistantFailures(limit: number): Promise<readonly AssistantFailureRow[]> {
+    try {
+      return await database()
+        .select({
+          at: analyticsEvents.createdAt,
+          errorType: text('errorType'),
+          failure: text('failure'),
+          finishReason: text('finishReason'),
+          kind: text('kind'),
+          model: text('model'),
+          ms: number('ms'),
+          status: number('status')
+        })
+        .from(analyticsEvents)
+        .where(
+          and(
+            eq(analyticsEvents.event, 'ai_call'),
+            sql`${analyticsEvents.properties} ->> 'feature' = 'assistant'`,
+            sql`${analyticsEvents.properties} -> 'ok' = 'false'::jsonb`
+          )
+        )
+        .orderBy(desc(analyticsEvents.createdAt))
+        .limit(limit);
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   /**
    * Every `ai_call` in `[from, to)`, grouped by Madrid day, the model asked
    * for, the model that answered, the provider and the outcome. Sums, never

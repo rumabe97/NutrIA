@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AdminController, aiModelOf } from './AdminController';
-import { AdminUsageController, countByReason, modelsOf } from './AdminUsageController';
+import { AdminUsageController, ASSISTANT_FAILURES, countByReason, modelsOf } from './AdminUsageController';
 
 import type { AdminAiRepository as Ai, AiCallDayRow, AdminSeriesRepository as Series } from '#repositories/Admin';
 
-const ai = vi.hoisted(() => ({ callsPerDay: vi.fn<(typeof Ai)['callsPerDay']>(), monthByFeature: vi.fn<(typeof Ai)['monthByFeature']>() }));
+const ai = vi.hoisted(() => ({
+  assistantFailures: vi.fn<(typeof Ai)['assistantFailures']>(),
+  callsPerDay: vi.fn<(typeof Ai)['callsPerDay']>(),
+  monthByFeature: vi.fn<(typeof Ai)['monthByFeature']>()
+}));
 const series = vi.hoisted(() => ({ pictureSpendPerDay: vi.fn<(typeof Series)['pictureSpendPerDay']>() }));
 const failedPictures = vi.hoisted(() => vi.fn<() => Promise<{ provenance: Record<string, unknown> | null; released: boolean }[]>>());
 
@@ -42,6 +46,7 @@ function row(overrides: Partial<AiCallDayRow>): AiCallDayRow {
 beforeEach(() => {
   vi.restoreAllMocks();
   ai.monthByFeature.mockResolvedValue([]);
+  ai.assistantFailures.mockResolvedValue([]);
   ai.callsPerDay.mockResolvedValue([
     // The period before: 14–21 September.
     row({ calls: 5, costUsd: 0.1, day: '2026-09-20', failed: true, timed: 5, totalMs: 5000 }),
@@ -73,6 +78,26 @@ beforeEach(() => {
 });
 
 describe('AdminUsageController.ai', () => {
+  it('lists the assistant’s latest failures as the repository gives them, however long the period', async () => {
+    const failure = {
+      at: new Date('2026-09-28T06:02:48Z'),
+      errorType: 'overloaded_error',
+      failure: 'provider',
+      finishReason: null,
+      kind: null,
+      model: 'claude-haiku-5-5',
+      ms: 1351,
+      status: 529
+    };
+
+    ai.assistantFailures.mockResolvedValueOnce([failure]);
+
+    const view = await AdminUsageController.ai(7, NOW);
+
+    expect(ai.assistantFailures).toHaveBeenCalledWith(ASSISTANT_FAILURES);
+    expect(view.assistantFailures).toEqual([failure]);
+  });
+
   it('reads the period and the one before it in one go, and tells them apart by the day', async () => {
     const view = await AdminUsageController.ai(7, NOW);
 

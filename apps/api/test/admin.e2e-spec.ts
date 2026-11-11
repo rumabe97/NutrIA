@@ -1490,6 +1490,15 @@ describe('admin', () => {
       // and `capUsd`/`share` with its own cap — counts and dollars, never a word anybody said.
       'assistant',
       'capUsd',
+      // The assistant's latest failed calls: when, which step, which model and why — codes, never words.
+      'assistantFailures',
+      'at',
+      'errorType',
+      'failure',
+      'finishReason',
+      'kind',
+      'ms',
+      'status',
       'models',
       'period',
       'spendPerDay',

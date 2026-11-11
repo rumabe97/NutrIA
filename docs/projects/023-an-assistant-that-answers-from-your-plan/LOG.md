@@ -648,3 +648,9 @@ Asked with options, both answered with the recommended one:
   examples; `ASSISTANT_PROMPT_VERSION` 1.3.0, which also allows that Markdown); the box's focus is
   its edge in the brand's colour with a soft halo, not a second ring. Looked at in a real browser at
   390, light and dark, with a simulated Markdown answer and a simulated provider failure.
+
+## 2026-11-11 — The assistant's failures say why
+
+- **Why**: the owner's iPhone hit five failures in a row at 07:02; production's `ai_call` rows said `ok: false`, no status, 1.3 s — and nothing more, because the failed row never carried the kind of failure the client already knew. The owner asked for a log table; a table holding the question or the answer would contradict `/privacidad` as published, so the existing row carries the reason instead.
+- **What**: a failed `ai_call` now records `failure` (`provider` / `invalid_output` / `timeout` / `abandoned`), `errorType` (the provider's own code, e.g. `overloaded_error`, read by `providerErrorType` — never its message) and `finishReason`. `/admin/generacion/ia` lists the assistant's latest 10 failures (when, step, model, reason). The label step's warning log names the failure kind and status.
+- **Checked**: core and API specs; local probe of `/admin/generacion/ia` with three seeded local rows (removed after).

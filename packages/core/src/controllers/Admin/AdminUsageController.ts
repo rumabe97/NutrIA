@@ -8,7 +8,7 @@ import { presentWindow } from './AdminSeriesController';
 
 import type { AdminPicturesView, AiModelUsage } from './AdminController';
 import type { TextMonthView } from './AdminTextSpend';
-import type { AiCallDayRow } from '#repositories/Admin';
+import type { AiCallDayRow, AssistantFailureRow } from '#repositories/Admin';
 import type { DaySeries, DaySeriesGroup, PeriodComparison, PeriodWindowView } from './AdminSeriesController';
 import type { Period } from 'core/entities/Period';
 import type { PictureReason } from 'core/entities/DishPicture';
@@ -38,6 +38,12 @@ export type AiPeriodTotals = {
  * here, deliberately.
  */
 export type AdminAiView = {
+  /**
+   * The assistant's latest failed calls (at most `ASSISTANT_FAILURES`), whatever
+   * the period: when, which step, which model and why, as codes — never the
+   * question, the answer or the provider's prose.
+   */
+  readonly assistantFailures: readonly AssistantFailureRow[];
   /** Provider requests per day, whatever their outcome. */
   readonly callsPerDay: DaySeries;
   /**
@@ -93,6 +99,9 @@ export function countByReason(rows: readonly { readonly provenance: Record<strin
 
   return [...counts].map(([reason, n]) => ({ n, reason })).sort((a, b) => b.n - a.n || a.reason.localeCompare(b.reason));
 }
+
+/** How many of the assistant's latest failed calls the page lists. */
+export const ASSISTANT_FAILURES = 10;
 
 /** The two token series, in the order a stacked chart draws them. */
 export const TOKEN_KEYS = ['input', 'output'] as const;
@@ -176,9 +185,10 @@ export const AdminUsageController = {
     const window = windowFor(period, now);
     const days = madridDayKeys(window.from, window.to);
     const firstDay = madridDayKey(window.from);
-    const [rows, month] = await Promise.all([
+    const [rows, month, assistantFailures] = await Promise.all([
       AdminAiRepository.callsPerDay(window.previousFrom, window.to),
-      AdminTextSpend.month(now, textCapUsd, assistantCapUsd)
+      AdminTextSpend.month(now, textCapUsd, assistantCapUsd),
+      AdminAiRepository.assistantFailures(ASSISTANT_FAILURES)
     ]);
     const current = rows.filter(row => row.day >= firstDay);
     const previous = rows.filter(row => row.day < firstDay);
@@ -191,6 +201,7 @@ export const AdminUsageController = {
       );
 
     return {
+      assistantFailures,
       callsPerDay: { days, values: per(row => row.calls) },
       models: modelsOf(current),
       month,
