@@ -62,7 +62,9 @@
     animation:
       hatch-drift var(--duration-drift) var(--ease-drift) infinite,
       hatch-follow auto linear both;
-    animation-range: normal, 0 14rem;
+    animation-range:
+      normal,
+      0 14rem;
     animation-timeline: auto, scroll(root);
   }
 }

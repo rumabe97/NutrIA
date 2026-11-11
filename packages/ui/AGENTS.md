@@ -439,7 +439,9 @@ component author:
   hook writes the counting into the visible figure's text node, frame by frame, without a render,
   and a hidden copy holds the width so nothing beside it moves.
 - **Reduced motion** is the one rule in `base.css`; a hook that moves something itself checks
-  `utils/prefersReducedMotion` and writes the final value.
+  `utils/prefersReducedMotion` and writes the final value. The rule also puts
+  `animation-timeline` back on the clock: a duration never reaches an animation driven by the
+  scroll, so a scroll-driven movement would otherwise keep following the scroll.
 
 ## Notes and rings
 
