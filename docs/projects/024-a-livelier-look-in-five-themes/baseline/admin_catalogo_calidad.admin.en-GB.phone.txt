@@ -1,0 +1,11 @@
+# /admin/catalogo/calidad · admin · en-GB · phone · 200
+button "Menu"
+heading "Days the rewrite was active" [level=#]
+heading "Quality" [level=#]
+heading "Rewrite history" [level=#]
+heading "Should be zero" [level=#]
+heading "Step rewrite" [level=#]
+heading "Worth a look" [level=#]
+link "# days"
+link "Dishes that fit no meal # Check"
+link "Skip to content"

@@ -1,0 +1,26 @@
+# /inicio · plan · en-GB · phone · 200
+button "English" [pressed]: EN
+button "Español": ES
+button "Log" [disabled]
+button "Mark as eaten"
+button "Sign out"
+heading "Good afternoon, Probe." [level=#]
+heading "Today" [level=#]
+heading "Your daily targets · estimated" [level=#]
+link "Adjust →"
+link "Assistant"
+link "Breakfast Yogur con avena scaw.ij.c # kcal · # g P"
+link "Dinner Tacos mexicanos de frijoles refritos con queso y aguacate # kcal · # g P"
+link "Home"
+link "Lunch Alubias blancas con almejas al ajillo # kcal · # g P"
+link "NutrIA — home"
+link "Plan"
+link "Profile"
+link "Progress"
+link "See all # days →"
+link "See how it is going →"
+link "See the list →"
+link "Shopping"
+link "Skip to content"
+link "Up next · Dinner Tacos mexicanos de frijoles refritos con queso y aguacate # kcal · # g P"
+textbox "Today"

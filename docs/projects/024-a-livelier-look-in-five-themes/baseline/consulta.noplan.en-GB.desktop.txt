@@ -1,0 +1,14 @@
+# /consulta · noplan · en-GB · desktop · 200
+button "English" [pressed]: EN
+button "Español": ES
+button "Sign out"
+heading "#" [level=#]
+heading "This page could not be found." [level=#]
+link "Assistant"
+link "Home"
+link "NutrIA — home"
+link "Plan"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"

@@ -1,0 +1,14 @@
+# /plan/historial · plan · es-ES · desktop · 200
+button "Cerrar sesión"
+button "English": EN
+button "Español" [pressed]: ES
+heading "Tus planes" [level=#]
+link "# días · del # nov al # nov Plan # Actual"
+link "Asistente"
+link "Compra"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"

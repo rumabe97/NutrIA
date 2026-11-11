@@ -64,14 +64,15 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 
 ### Phase 0 — What exists, written down
 
-- [ ] pending
+- [x] done — 2026-11-11 (LOG.md)
 - **Dispatch**: sonnet @ medium — `/execute-project 024 phase 0`
 - **Goal**: the inventory acceptance criterion 1 is checked against, and the figures later
   phases must not fall below.
-- **Scope**: `docs/projects/024-a-livelier-look-in-five-themes/inventory.md`, `LOG.md`,
+- **Scope**: `docs/projects/024-a-livelier-look-in-five-themes/inventory/` and `baseline/`, `LOG.md`,
+  `.claude/skills/local-probe/scripts/baseline.mjs`,
   `docs/legal/` (the `legal` agent only). No product code.
 - **Steps**:
-  1. `inventory.md`: for each of the 64 routes, read the page and the components it renders and
+  1. `inventory/`: for each of the 64 routes, read the page and the components it renders and
      list every control, link, form field, state and message a person can reach — signed out,
      free, premium, professional, admin, offline, empty, error — with the dictionary key of its
      words, so both languages are covered by construction. One table per route, grouped as the
@@ -93,13 +94,13 @@ What the code looks like today, and what that decides (read on 2026-11-11):
   5. Confirm both typefaces' licences (SIL OFL) from their upstream repositories, and note where
      the licence text will live.
 - **Items**:
-  - [ ] signed-in app (20 routes)
-  - [ ] console (22 routes)
-  - [ ] public and legal (6 routes)
-  - [ ] sign-in family (16 routes)
-  - [ ] shared shell: headers, navigation, offline banner, tour, toasts, error and 404 screens
-- **Acceptance criteria**: PRD 1 (first half); the baseline for PRD 7; PRD open questions closed.
-- **Verification**: every `page.tsx` under `apps/web/src/app` appears once in `inventory.md`
+  - [x] signed-in app (20 routes)
+  - [x] console (22 routes)
+  - [x] public and legal (6 routes)
+  - [x] sign-in family (16 routes)
+  - [x] shared shell: headers, navigation, offline banner, tour, toasts, error and 404 screens
+- **Acceptance criteria**: PRD 1 (first half); the baseline for PRD 8; PRD open questions closed.
+- **Verification**: every `page.tsx` under `apps/web/src/app` appears once in `inventory/`
   (a `find` against the headings); the baseline script run twice gives identical files;
   `sh scripts/check-leaks.sh` clean.
 
@@ -158,15 +159,21 @@ What the code looks like today, and what that decides (read on 2026-11-11):
   3. `ThemeSwitch` in `packages/ui`: a labelled button opening a menu of six radio items, built
      on the existing `Dropdown`, keyboard and screen-reader complete, named in both languages.
      It sets the attribute, `color-scheme`, the stored value and the `theme-color` meta. Rendered
-     beside the language switch in all four headers — the console has no language switch today
-     and gains only the theme one.
+     beside the language switch in the three headers that exist (`SiteHeader`, `AuthShell`,
+     `AppNav`). **The console has no header at all** — only its menu — so there the switch goes
+     in the menu's bar below 60rem and at the foot of the sidebar above it.
+     The `legal` agent's conditions hold (`docs/legal/2026-11-11-redesign.md` § 1.7): nothing is
+     stored until the person chooses; the value never leaves the device, in any cookie, header
+     or log; no theme fetches a resource the others do not; the value only paints the page.
   4. «Apariencia» in Perfil: the same six as a radio group of small previews.
   5. Icons, manifest and OG image take their colours from one module, in the new palette. The
      leaf keeps its shape.
-  6. Apply the `legal` agent's answer from phase 0, if it named a sentence.
+  6. `/privacidad` needs no change for the switch to ship. The `legal` agent recommends one
+     sentence (P3) listing the three choices kept on the device; it is added only if the owner
+     approves its wording, with `privacy.updated` and no version bump.
   7. Rewrite the documents in scope for the new token system, and write the decision record that
      supersedes the numbers of `0041` and `0057` this phase changes.
-- **Acceptance criteria**: PRD 3, 4, 5; PRD 7 for fonts; PRD 2.
+- **Acceptance criteria**: PRD 3, 4, 5; PRD 8 for fonts; PRD 2.
 - **Verification**:
   - gate `--full`; `pnpm --filter ui test && pnpm --filter web test`; `pnpm --filter docs build`
   - the baseline diff: only the theme switch's lines are new, none is gone
@@ -198,7 +205,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
      list that exists. All under the single reduced-motion rule in `base.css`.
 - **Items**: one checkbox per `packages/ui` component, then one per stylesheet holding a
   coloured-edge rule (the list is in LOG.md's phase 0 entry).
-- **Acceptance criteria**: PRD 9; PRD 6 and 8 for the components.
+- **Acceptance criteria**: PRD 10; PRD 7 and 9 for the components.
 - **Verification**: gate `--full`; `pnpm --filter ui test`;
   `grep -rnE "border-(inline-start|left)(-width)?: *[2-9]px" apps/web/src packages/ui/src`
   returns nothing but dividers named in LOG.md; `/local-probe` on the docs app's component pages
@@ -223,7 +230,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
   4. The header: brand, language, theme, sign-out. At 320 px sign-out is an icon with its name.
   5. The hatched pattern as a CSS background behind the header, drifting slowly and following
      the scroll; still, and absent in Alto contraste and `forced-colors`.
-- **Acceptance criteria**: PRD 12; PRD 6 at 320 px; PRD 14 (the 404s and the offline behaviour).
+- **Acceptance criteria**: PRD 13; PRD 7 at 320 px; PRD 15 (the 404s and the offline behaviour).
 - **Verification**: gate `--full`; `/local-probe` at 320, 360, 390, 768 and 1280 on `/inicio`,
   `/plan`, `/asistente` (box focused and not), `/compra`, in Claro, Oscuro and Alto contraste;
   the offline probe steps in `apps/web/AGENTS.md` § Offline; `apple-web-design` REVIEW.
@@ -248,7 +255,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
   4. The picture stays a plain `<img>` at its original bytes, with its «IA» mark and name; the
      strip is a near-opaque surface unless the review accepts a material there.
   5. A dish card opens into its page with a View Transition where the browser has it.
-- **Acceptance criteria**: PRD 1 for these routes; PRD 6, 8, 10; PRD 14.
+- **Acceptance criteria**: PRD 1 for these routes; PRD 7, 9, 11; PRD 15.
 - **Verification**: gate `--full`; the inventory's tables for these routes ticked line by line in
   LOG.md; `/local-probe` with an account that has a plan, in five themes at 390 and Claro/Oscuro
   at 320 and 1280; `apple-web-design` REVIEW.
@@ -270,7 +277,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
   - [ ] Asistente (new conversation and a thread)
   - [ ] Perfil, with every section and the account's security cards
   - [ ] Plan being made, and its failure states
-- **Acceptance criteria**: PRD 1, 6, 8, 10, 14 for these routes.
+- **Acceptance criteria**: PRD 1, 7, 9, 11, 15 for these routes.
 - **Verification**: as phase 4.
 
 ### Phase 6 — Onboarding and the screens that had no sheet
@@ -286,7 +293,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
      stop for the owner.
   2. Build what he approved. Onboarding keeps every step, every field's validation and its
      resume-where-you-left behaviour.
-- **Acceptance criteria**: PRD 11; PRD 1, 6, 8, 10 for these routes.
+- **Acceptance criteria**: PRD 12; PRD 1, 7, 9, 11 for these routes.
 - **Verification**: as phase 4, plus the onboarding walked end to end with a new probe account.
 
 ### Phase 7 — The public pages
@@ -298,15 +305,22 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 - **Scope**: `(es)/**`, `en/**`, `_shared/{Landing,LegalScreen,AuthShell}*`, `SiteHeader`, the
   sign-in components, dictionaries. Not a word of the legal texts.
 - **Steps**:
-  1. Landing: the approved hero with real dish pictures, **only as the `legal` agent's phase-0
-     answer allows**: the original bytes, never re-encoded (so the C2PA record survives, `0066`),
-     each with its «IA» mark and accessible name, with width, height and priority declared so
-     nothing shifts. If the answer is no, the hero is drawn without photographs and the owner is
-     shown it first. Then every section and FAQ the page has today.
+  1. Landing: the approved hero with real dish pictures, under every condition of
+     `docs/legal/2026-11-11-redesign.md` § 2.8: each picture carries its «IA» mark and accessible
+     name in the prerendered HTML, never covered by an overlap, a crop or an animation; the
+     original bytes, with no `next/image`, `srcset` or derived placeholder; only published
+     pictures the reviewer accepted, of `seed` or `ai` dishes, looked at by the owner beside their
+     ingredients; the caption `landing.heroPicturesNote` beside them; never the word «foto»; no
+     generated picture in `og:image`, JSON-LD, the manifest or the sitemap.
+     **Original bytes weigh about 170 KB each and phase 0 measured Performance 99, LCP 1.5 s.**
+     To hold that: at most three pictures, the large one eager with its dimensions, the rest
+     lazy. If the median falls more than three points, the hero is drawn with one picture or
+     none and the owner is shown it first. A lighter derived file needs `legal` again.
+     Then every section and FAQ the page has today.
   2. Sign-in family: every provider, the passkey path, every error and the legal notice.
   3. The legal pages: the same text, set for reading.
   4. The `seo` agent reviews metadata, canonicals, `hreflang`, sitemap and structured data.
-- **Acceptance criteria**: PRD 7; PRD 1, 6, 8, 10 for these routes.
+- **Acceptance criteria**: PRD 8; PRD 1, 7, 9, 11 for these routes.
 - **Verification**: gate `--full` (static pages); Lighthouse mobile on the landing page, median of
   five runs against phase 0's median: SEO 100, Accessibility 100, Performance within three points,
   LCP and CLS not worse; `web` `legal.test.ts`; `/local-probe`
@@ -334,7 +348,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
   6. Send each mail to a probe inbox through the local mail catcher, and to the owner's address
      only from his own actions in production after the phase ships.
 - **Items**: one checkbox per template (fourteen and the layout).
-- **Acceptance criteria**: PRD 13; PRD 2 (the text unchanged).
+- **Acceptance criteria**: PRD 14; PRD 2 (the text unchanged).
 - **Verification**: `pnpm --filter api test`; the API e2e suites untouched and green in CI; the
   text-equality spec; screenshots of every mail rendered at 360 and 600 px, light and dark.
 
@@ -350,7 +364,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 - **Steps**: the three approved pages first (Resumen, Interruptores, IA y modelos), then the
   sheet, then the rest as one batch. No figure, filter or action is added or removed.
 - **Items**: one checkbox per console route.
-- **Acceptance criteria**: PRD 1, 6, 8, 10 for these routes; PRD 14 (the 404 for a non-admin).
+- **Acceptance criteria**: PRD 1, 7, 9, 11 for these routes; PRD 15 (the 404 for a non-admin).
 - **Verification**: gate `--full`; `admin.e2e-spec.ts` untouched and green in CI; `/local-probe`
   with a two-factor admin account at 390 and 1280, Claro and Oscuro.
 
@@ -362,7 +376,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 - **Goal**: every acceptance criterion shown to hold across the finished product.
 - **Scope**: fixes only, wherever the checks find them; `LOG.md`; the documents.
 - **Steps**:
-  1. `inventory.md` walked line by line against production; each line ticked or fixed.
+  1. `inventory/` walked line by line against production; each line ticked or fixed.
   2. The `accessibility` agent audits every family in every theme; the `seo` agent the public
      tree; `apple-web-design` AUDIT on the whole.
   3. Reduced motion, `forced-colors`, `prefers-contrast`, 200 % text and 320 px, on every family.
@@ -370,7 +384,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
      lists only `apps/api/src/modules/email/templates`.
   5. The baseline script against production: every line of phase 0's files is present or its
      absence is explained in LOG.md.
-- **Acceptance criteria**: PRD 1–14.
+- **Acceptance criteria**: PRD 1–15.
 - **Verification**: the above, each with its output in LOG.md.
 
 ## Hand-off
@@ -380,13 +394,18 @@ Standing rules for every phase of this project:
 - **Scope is `apps/web` and `packages/ui`, and the mail templates in phase 7b.** Any other
   change that seems to need the API is a plan amendment and the owner's decision, not an edit.
 - **The inventory is the contract for behaviour, and the baseline is its check.** Before a
-  screen ships, its table in `inventory.md` is ticked line by line in LOG.md and the baseline
+  screen ships, its table in `inventory/` is ticked line by line in LOG.md and the baseline
   script's diff for its routes is read: a control may move or be renamed on purpose; none may go.
+- **Nothing overflows and nothing is cut** (PRD 6, the owner's first condition). Every phase runs
+  the probe's overflow check on every route it can reach, at 320, 360, 390, 768 and 1280 px, in
+  every theme the phase touches and both languages, and reads the 320 px screenshots first. A
+  long word, a long dish name, a translated label and 200 % text are tried on purpose. What does
+  not fit wraps or stacks. A hit fails the phase; it is not a hint to judge.
 - **Never a raw colour, a palette step or a theme name in a component.** New need, new semantic
   token, defined in all five themes, and the contrast script's pair list updated.
 - **Every phase**: `gate.sh --full`, `/local-probe` (320 px and a dark theme first, then look at
   the screenshots), the `apple-web-design` REVIEW with P0 and P1 fixed, and the verdict in the
-  pull request. The owner's three exceptions (PRD criterion 8: the drifting pattern, the wide
+  pull request. The owner's three exceptions (PRD criterion 9: the drifting pattern, the wide
   gradient, the large radii) are named there when a phase builds one; nothing else is excused.
 - **One heavy job at a time** on the owner's machine. Tests run on the local Postgres only.
 - **Shipping**: the owner authorised the agent to ship each phase (2026-11-11). `owner-approves`,

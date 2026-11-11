@@ -1,0 +1,12 @@
+# /admin/catalogo/despensa · admin · en-GB · phone · 200
+button "Apply"
+button "Menu"
+combobox "Per page"
+heading "Cupboard" [level=#]
+heading "Ingredients with no dish" [level=#]
+heading "No word reaches the minimum" [level=#]
+heading "Words with no food in the catalogue" [level=#]
+link "Next"
+link "Skip to content"
+option "#"
+option "#" [selected]

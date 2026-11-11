@@ -1,0 +1,9 @@
+# /admin/profesionales · admin · es-ES · phone · 200
+button "Aplicar"
+button "Menú"
+heading "Profesionales" [level=#]
+link "Correo , ordenar de forma ascendente"
+link "Desde , orden descendente; ordenar de forma ascendente"
+link "Saltar al contenido"
+link "Vínculos , ordenar de forma descendente"
+searchbox "Buscar por correo"

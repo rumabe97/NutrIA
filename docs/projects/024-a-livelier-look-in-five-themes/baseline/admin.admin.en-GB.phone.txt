@@ -1,0 +1,10 @@
+# /admin · admin · en-GB · phone · 200
+button "Menu"
+heading "Needs you" [level=#]
+heading "Overview" [level=#]
+heading "Trends" [level=#]
+link "# days"
+link "Accounts waiting for activation #"
+link "Failed generations in the last # h #"
+link "Skip to content"
+link "Unseen messages #"

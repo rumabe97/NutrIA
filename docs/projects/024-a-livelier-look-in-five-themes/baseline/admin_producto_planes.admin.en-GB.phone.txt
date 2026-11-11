@@ -1,0 +1,7 @@
+# /admin/producto/planes · admin · en-GB · phone · 200
+button "Menu"
+heading "In the period" [level=#]
+heading "Plans" [level=#]
+heading "State now" [level=#]
+link "# days"
+link "Skip to content"

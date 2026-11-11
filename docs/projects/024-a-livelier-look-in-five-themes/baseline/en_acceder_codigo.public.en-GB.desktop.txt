@@ -1,0 +1,15 @@
+# /en/acceder/codigo · public · en-GB · desktop · 200 → /en/acceder
+button "Continue with Google"
+button "English" [pressed]: EN
+button "Español": ES
+button "Sign in with a passkey"
+button "Sign in"
+heading "Welcome back" [level=#]
+link "Create one"
+link "Forgotten your password?"
+link "NutrIA — home"
+link "privacy policy (opens in a new tab)"
+link "Skip to content"
+link "terms of use (opens in a new tab)"
+textbox "Email address"
+textbox "Password"

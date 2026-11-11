@@ -1,0 +1,44 @@
+# /en · public · en-GB · phone · 200
+button "Can I change a meal I don’t fancy?"
+button "Can I delete my data?"
+button "Does this replace a dietitian or my doctor?"
+button "English" [pressed]: EN
+button "Español": ES
+button "How do you handle allergies?"
+button "What happens to my previous plans?"
+button "Why fourteen days?"
+heading "A model does not decide what matters." [level=#]
+heading "AI does not decide your safety" [level=#]
+heading "Allergies are a hard limit" [level=#]
+heading "Can I change a meal I don’t fancy?" [level=#]
+heading "Can I delete my data?" [level=#]
+heading "Does this replace a dietitian or my doctor?" [level=#]
+heading "Four steps. After that, it repeats itself." [level=#]
+heading "Fourteen-day plans" [level=#]
+heading "Frequently asked questions" [level=#]
+heading "How do you handle allergies?" [level=#]
+heading "It adapts" [level=#]
+heading "Nutrition assistant" [level=#]
+heading "Nutrition that adapts to you." [level=#]
+heading "Progress without obsession" [level=#]
+heading "Shopping list, done for you" [level=#]
+heading "Stop deciding what’s for dinner." [level=#]
+heading "Swap any meal" [level=#]
+heading "The numbers are not improvised" [level=#]
+heading "We build your plan" [level=#]
+heading "We know where the line is" [level=#]
+heading "What happens to my previous plans?" [level=#]
+heading "Why fourteen days?" [level=#]
+heading "You follow it at your pace" [level=#]
+heading "You tell us how you live" [level=#]
+heading "Your plan knows you skip breakfast." [level=#]
+link "Create account"
+link "Create my plan"
+link "How it works"
+link "NutrIA — home"
+link "Personalisation"
+link "Privacy"
+link "Questions"
+link "Sign in"
+link "Skip to content"
+link "Terms"

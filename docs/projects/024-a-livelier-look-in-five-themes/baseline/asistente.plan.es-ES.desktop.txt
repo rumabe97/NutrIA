@@ -1,0 +1,18 @@
+# /asistente · plan · es-ES · desktop · 200
+button "Cerrar sesión"
+button "English": EN
+button "Enviar" [disabled]
+button "Español" [pressed]: ES
+heading "Asistente" [level=#]
+heading "Tus conversaciones" [level=#]
+link "Asistente"
+link "Compra"
+link "Inicio"
+link "Nueva conversación"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "política de privacidad"
+link "Progreso"
+link "Saltar al contenido"
+textbox "Tu pregunta"

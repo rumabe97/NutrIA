@@ -1,0 +1,26 @@
+# /admin/personas/retencion · admin · es-ES · desktop · 200
+heading "Hizo algo (aproximada)" [level=#]
+heading "Retención" [level=#]
+heading "Usó la app" [level=#]
+link "Buzón"
+link "Calidad de los planes"
+link "Calidad"
+link "Consentimientos"
+link "Cuentas"
+link "Despensa"
+link "Embudo y actividad"
+link "IA y modelos"
+link "Imágenes"
+link "Ingredientes"
+link "Interruptores"
+link "Notificaciones"
+link "Planes"
+link "Profesionales"
+link "Recetas"
+link "Registro de acciones"
+link "Registro"
+link "Resumen"
+link "Retención"
+link "Saltar al contenido"
+link "Sistema"
+link "Volver a NutrIA"

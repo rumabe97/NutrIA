@@ -1,0 +1,28 @@
+# /plan · plan · es-ES · phone · 200
+button "# dom"
+button "# jue"
+button "# lun"
+button "# mar"
+button "# mié"
+button "# sáb"
+button "# vie"
+button "Cerrar sesión"
+button "English": EN
+button "Español" [pressed]: ES
+button "Marcar como hecha"
+button "Semana #"
+button "Semana #" [pressed]
+heading "Tu plan" [level=#]
+link "Asistente"
+link "Cena Tacos mexicanos de frijoles refritos con queso y aguacate # kcal · # g P"
+link "Comida Alubias blancas con almejas al ajillo # kcal · # g P"
+link "Compra"
+link "Desayuno Yogur con avena scaw.ij.c # kcal · # g P"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Planes anteriores →"
+link "Progreso"
+link "Rehacer el plan"
+link "Saltar al contenido"

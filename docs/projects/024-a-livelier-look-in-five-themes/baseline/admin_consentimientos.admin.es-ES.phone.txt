@@ -1,0 +1,5 @@
+# /admin/consentimientos · admin · es-ES · phone · 200
+button "Menú"
+heading "Consentimientos por versión" [level=#]
+heading "Consentimientos" [level=#]
+link "Saltar al contenido"

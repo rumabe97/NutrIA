@@ -1,0 +1,37 @@
+# /admin/buzon · admin · es-ES · desktop · 200
+button "Aplicar"
+combobox "Estado"
+combobox "Por página"
+heading "Buzón" [level=#]
+heading "Mensajes" [level=#]
+heading "Todos los mensajes" [level=#]
+link "# días"
+link "Buzón"
+link "Calidad de los planes"
+link "Calidad"
+link "Consentimientos"
+link "Cuentas"
+link "Despensa"
+link "Embudo y actividad"
+link "Fecha , orden descendente; ordenar de forma ascendente"
+link "IA y modelos"
+link "Imágenes"
+link "Ingredientes"
+link "Interruptores"
+link "Notificaciones"
+link "Planes"
+link "Profesionales"
+link "Recetas"
+link "Registro de acciones"
+link "Registro"
+link "Resumen"
+link "Retención"
+link "Saltar al contenido"
+link "Sistema"
+link "Volver a NutrIA"
+option "#"
+option "#" [selected]
+option "Sin ver"
+option "Todos" [selected]
+option "Vistos"
+searchbox "Buscar en el mensaje o el correo"

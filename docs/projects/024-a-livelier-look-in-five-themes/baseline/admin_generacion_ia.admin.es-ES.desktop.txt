@@ -1,0 +1,31 @@
+# /admin/generacion/ia · admin · es-ES · desktop · 200
+heading "Asistente" [level=#]
+heading "Este mes" [level=#]
+heading "IA y modelos" [level=#]
+heading "Por día" [level=#]
+heading "Por función" [level=#]
+heading "Por modelo" [level=#]
+heading "Últimos fallos" [level=#]
+link "# días"
+link "Buzón"
+link "Calidad de los planes"
+link "Calidad"
+link "Consentimientos"
+link "Cuentas"
+link "Despensa"
+link "Embudo y actividad"
+link "IA y modelos"
+link "Imágenes"
+link "Ingredientes"
+link "Interruptores"
+link "Notificaciones"
+link "Planes"
+link "Profesionales"
+link "Recetas"
+link "Registro de acciones"
+link "Registro"
+link "Resumen"
+link "Retención"
+link "Saltar al contenido"
+link "Sistema"
+link "Volver a NutrIA"

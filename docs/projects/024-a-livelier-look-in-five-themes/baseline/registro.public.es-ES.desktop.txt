@@ -1,0 +1,14 @@
+# /registro · public · es-ES · desktop · 200
+button "Continuar con Google"
+button "Crear mi plan"
+button "English": EN
+button "Español" [pressed]: ES
+heading "Crea tu cuenta" [level=#]
+link "Accede"
+link "condiciones de uso (se abre en una pestaña nueva)"
+link "NutrIA — inicio"
+link "política de privacidad (se abre en una pestaña nueva)"
+link "Saltar al contenido"
+textbox "Contraseña"
+textbox "Correo electrónico"
+textbox "Nombre"

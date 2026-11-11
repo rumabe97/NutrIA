@@ -1,0 +1,11 @@
+# /admin/generacion/ia · admin · en-GB · phone · 200
+button "Menu"
+heading "AI and models" [level=#]
+heading "Assistant" [level=#]
+heading "By feature" [level=#]
+heading "By model" [level=#]
+heading "Latest failures" [level=#]
+heading "Per day" [level=#]
+heading "This month" [level=#]
+link "# days"
+link "Skip to content"

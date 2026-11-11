@@ -1,0 +1,11 @@
+# /admin/catalogo/imagenes · admin · en-GB · phone · 200
+button "Menu"
+heading "Current state" [level=#]
+heading "Given back, not failed" [level=#]
+heading "In the period" [level=#]
+heading "Pictures" [level=#]
+heading "This month" [level=#]
+heading "Why they failed" [level=#]
+link "# days"
+link "Change in Settings"
+link "Skip to content"

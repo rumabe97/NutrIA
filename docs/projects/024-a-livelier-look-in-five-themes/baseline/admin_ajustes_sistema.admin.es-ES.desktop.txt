@@ -1,0 +1,30 @@
+# /admin/ajustes/sistema · admin · es-ES · desktop · 200
+heading "Correo" [level=#]
+heading "Integraciones" [level=#]
+heading "Límites" [level=#]
+heading "Sistema" [level=#]
+heading "Tareas programadas" [level=#]
+heading "Versiones" [level=#]
+link "# días"
+link "Buzón"
+link "Calidad de los planes"
+link "Calidad"
+link "Consentimientos"
+link "Cuentas"
+link "Despensa"
+link "Embudo y actividad"
+link "IA y modelos"
+link "Imágenes"
+link "Ingredientes"
+link "Interruptores"
+link "Notificaciones"
+link "Planes"
+link "Profesionales"
+link "Recetas"
+link "Registro de acciones"
+link "Registro"
+link "Resumen"
+link "Retención"
+link "Saltar al contenido"
+link "Sistema"
+link "Volver a NutrIA"

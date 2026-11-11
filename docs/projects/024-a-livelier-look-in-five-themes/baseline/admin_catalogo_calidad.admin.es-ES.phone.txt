@@ -1,0 +1,11 @@
+# /admin/catalogo/calidad · admin · es-ES · phone · 200
+button "Menú"
+heading "Calidad" [level=#]
+heading "Debería ser cero" [level=#]
+heading "Días con actividad de la reescritura" [level=#]
+heading "Historia de la reescritura" [level=#]
+heading "Para mirar" [level=#]
+heading "Reescritura de los pasos" [level=#]
+link "# días"
+link "Platos que no encajan con ninguna comida # Revisar"
+link "Saltar al contenido"

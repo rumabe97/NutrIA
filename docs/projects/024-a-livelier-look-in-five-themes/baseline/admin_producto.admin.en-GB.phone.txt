@@ -1,0 +1,7 @@
+# /admin/producto · admin · en-GB · phone · 200
+button "Menu"
+heading "Activity" [level=#]
+heading "Funnel and activity" [level=#]
+heading "Funnel" [level=#]
+link "# days"
+link "Skip to content"

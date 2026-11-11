@@ -1,0 +1,29 @@
+# /en/condiciones · public · en-GB · desktop · 200
+button "English" [pressed]: EN
+button "Español": ES
+heading "Acceptable use" [level=#]
+heading "Allergies and intolerances" [level=#]
+heading "Availability and changes to the service" [level=#]
+heading "Changes to these terms" [level=#]
+heading "Content generated with artificial intelligence" [level=#]
+heading "Governing law" [level=#]
+heading "How this contract is made" [level=#]
+heading "If you work with a dietitian" [level=#]
+heading "Intellectual property" [level=#]
+heading "Liability" [level=#]
+heading "Terms of use" [level=#]
+heading "The free plan and Premium" [level=#]
+heading "What NutrIA is, and what it is not" [level=#]
+heading "Who provides the service" [level=#]
+heading "Your account" [level=#]
+link "Create account"
+link "Create my plan"
+link "How it works"
+link "NutrIA — home"
+link "Personalisation"
+link "Privacy"
+link "Questions"
+link "Safety"
+link "Sign in"
+link "Skip to content"
+link "Terms"

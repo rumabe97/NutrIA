@@ -1,0 +1,10 @@
+# /admin · admin · es-ES · phone · 200
+button "Menú"
+heading "Necesita tu atención" [level=#]
+heading "Resumen" [level=#]
+heading "Tendencias" [level=#]
+link "# días"
+link "Cuentas esperando activación #"
+link "Generaciones fallidas en las últimas # h #"
+link "Mensajes sin ver #"
+link "Saltar al contenido"

@@ -1,0 +1,22 @@
+# /plan/comida/<id> · plan · es-ES · phone · 200
+button "Cambiar plato # de #"
+button "Cerrar sesión"
+button "English": EN
+button "Español" [pressed]: ES
+button "Hecha"
+button "Me gusta"
+button "No me gusta"
+button "Saltada"
+heading "¿Qué te ha parecido?" [level=#]
+heading "Ingredientes" [level=#]
+heading "Preparación" [level=#]
+heading "Yogur con avena scaw.ij.c" [level=#]
+link "← Volver al plan"
+link "Asistente"
+link "Compra"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"

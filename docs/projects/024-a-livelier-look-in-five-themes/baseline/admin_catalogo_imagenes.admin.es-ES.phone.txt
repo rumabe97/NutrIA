@@ -1,0 +1,11 @@
+# /admin/catalogo/imagenes · admin · es-ES · phone · 200
+button "Menú"
+heading "Devueltas, no fallidas" [level=#]
+heading "En el periodo" [level=#]
+heading "Estado actual" [level=#]
+heading "Este mes" [level=#]
+heading "Imágenes" [level=#]
+heading "Por qué fallaron" [level=#]
+link "# días"
+link "Cambiar en Ajustes"
+link "Saltar al contenido"

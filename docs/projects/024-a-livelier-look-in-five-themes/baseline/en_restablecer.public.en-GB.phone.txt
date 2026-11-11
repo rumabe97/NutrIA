@@ -1,0 +1,7 @@
+# /en/restablecer · public · en-GB · phone · 200
+button "English" [pressed]: EN
+button "Español": ES
+heading "Choose a new password" [level=#]
+link "Ask for a new link"
+link "NutrIA — home"
+link "Skip to content"

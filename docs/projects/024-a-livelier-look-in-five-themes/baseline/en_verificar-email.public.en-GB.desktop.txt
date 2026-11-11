@@ -1,0 +1,8 @@
+# /en/verificar-email · public · en-GB · desktop · 200
+button "English" [pressed]: EN
+button "Español": ES
+heading "Email confirmed" [level=#]
+link "NutrIA — home"
+link "reset it right now, and any other session open on it will be closed."
+link "Sign in"
+link "Skip to content"

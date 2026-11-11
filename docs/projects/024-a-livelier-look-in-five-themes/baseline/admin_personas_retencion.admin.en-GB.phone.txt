@@ -1,0 +1,6 @@
+# /admin/personas/retencion · admin · en-GB · phone · 200
+button "Menu"
+heading "Did something (approximate)" [level=#]
+heading "Retention" [level=#]
+heading "Used the app" [level=#]
+link "Skip to content"

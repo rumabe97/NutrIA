@@ -1,0 +1,8 @@
+# /verificar-email · public · es-ES · phone · 200
+button "English": EN
+button "Español" [pressed]: ES
+heading "Correo confirmado" [level=#]
+link "Iniciar sesión"
+link "NutrIA — inicio"
+link "restablécela ahora mismo, y se cerrará cualquier otra sesión abierta en ella."
+link "Saltar al contenido"

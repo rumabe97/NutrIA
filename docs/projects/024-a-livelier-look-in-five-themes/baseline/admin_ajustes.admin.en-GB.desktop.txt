@@ -1,0 +1,41 @@
+# /admin/ajustes · admin · en-GB · desktop · 200
+button "Save" [disabled]
+button "Send me a test notification"
+heading "Access" [level=#]
+heading "Notifications" [level=#]
+heading "Product" [level=#]
+heading "Switches" [level=#]
+heading "What each subscription allows" [level=#]
+link "Accounts"
+link "AI and models"
+link "Audit log"
+link "Back to NutrIA"
+link "Consents"
+link "Cupboard"
+link "Funnel and activity"
+link "Inbox"
+link "Ingredients"
+link "Log"
+link "Notifications"
+link "Overview"
+link "Pictures"
+link "Plan quality"
+link "Plans"
+link "Professionals"
+link "Quality"
+link "Recipes"
+link "Retention"
+link "See the picture spend"
+link "Skip to content"
+link "Switches"
+link "System"
+spinbutton "Free": "#"
+spinbutton "Premium": "#"
+switch "Accompaniments (bread, salad, fruit)"
+switch "Automatic activation" [checked]
+switch "Check-in reminder"
+switch "Cupboard in the plan (use what is already at home)"
+switch "Draw the dish pictures"
+switch "Nutrition assistant" [checked]
+switch "Paid tier"
+switch "Practice for dietitians" [checked]

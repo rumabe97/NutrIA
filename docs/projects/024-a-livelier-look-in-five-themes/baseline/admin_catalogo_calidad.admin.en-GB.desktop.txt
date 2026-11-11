@@ -1,0 +1,31 @@
+# /admin/catalogo/calidad · admin · en-GB · desktop · 200
+heading "Days the rewrite was active" [level=#]
+heading "Quality" [level=#]
+heading "Rewrite history" [level=#]
+heading "Should be zero" [level=#]
+heading "Step rewrite" [level=#]
+heading "Worth a look" [level=#]
+link "# days"
+link "Accounts"
+link "AI and models"
+link "Audit log"
+link "Back to NutrIA"
+link "Consents"
+link "Cupboard"
+link "Dishes that fit no meal # Check"
+link "Funnel and activity"
+link "Inbox"
+link "Ingredients"
+link "Log"
+link "Notifications"
+link "Overview"
+link "Pictures"
+link "Plan quality"
+link "Plans"
+link "Professionals"
+link "Quality"
+link "Recipes"
+link "Retention"
+link "Skip to content"
+link "Switches"
+link "System"

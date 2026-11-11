@@ -1,0 +1,31 @@
+# /admin/catalogo/imagenes · admin · en-GB · desktop · 200
+heading "Current state" [level=#]
+heading "Given back, not failed" [level=#]
+heading "In the period" [level=#]
+heading "Pictures" [level=#]
+heading "This month" [level=#]
+heading "Why they failed" [level=#]
+link "# days"
+link "Accounts"
+link "AI and models"
+link "Audit log"
+link "Back to NutrIA"
+link "Change in Settings"
+link "Consents"
+link "Cupboard"
+link "Funnel and activity"
+link "Inbox"
+link "Ingredients"
+link "Log"
+link "Notifications"
+link "Overview"
+link "Pictures"
+link "Plan quality"
+link "Plans"
+link "Professionals"
+link "Quality"
+link "Recipes"
+link "Retention"
+link "Skip to content"
+link "Switches"
+link "System"

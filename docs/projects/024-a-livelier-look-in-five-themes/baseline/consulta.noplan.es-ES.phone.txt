@@ -1,0 +1,14 @@
+# /consulta · noplan · es-ES · phone · 200
+button "Cerrar sesión"
+button "English": EN
+button "Español" [pressed]: ES
+heading "#" [level=#]
+heading "This page could not be found." [level=#]
+link "Asistente"
+link "Compra"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"
