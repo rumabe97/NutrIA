@@ -29,7 +29,9 @@ export function Dropdown(props: DropdownProps) {
   const ariaLabel = 'aria-label' in props ? props['aria-label'] : undefined;
 
   return (
-    <Root>
+    // Not modal: a modal menu locks the body's scroll (`overflow: hidden`), which un-sticks a
+    // sticky header on a scrolled page and opens a header's menu far above the screen.
+    <Root modal={false}>
       <Trigger aria-label={ariaLabel} className={className ? `${styles.trigger} ${className}` : styles.trigger}>
         {prefix ? prefix : null}
         <span className={styles.label}>{label}</span>
