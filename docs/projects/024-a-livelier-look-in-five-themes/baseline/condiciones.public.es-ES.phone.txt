@@ -1,0 +1,27 @@
+# /condiciones · public · es-ES · phone · 200
+button "English": EN
+button "Español" [pressed]: ES
+heading "Alergias e intolerancias" [level=#]
+heading "Cambios en estas condiciones" [level=#]
+heading "Cómo se celebra este contrato" [level=#]
+heading "Condiciones de uso" [level=#]
+heading "Contenido generado con inteligencia artificial" [level=#]
+heading "Disponibilidad y cambios en el servicio" [level=#]
+heading "El plan gratuito y Premium" [level=#]
+heading "Ley aplicable" [level=#]
+heading "Propiedad intelectual" [level=#]
+heading "Qué es NutrIA, y qué no es" [level=#]
+heading "Quién presta el servicio" [level=#]
+heading "Responsabilidad" [level=#]
+heading "Si trabajas con un dietista" [level=#]
+heading "Tu cuenta" [level=#]
+heading "Uso aceptable" [level=#]
+link "Acceder"
+link "Cómo funciona"
+link "Condiciones"
+link "Crear cuenta"
+link "NutrIA — inicio"
+link "Personalización"
+link "Preguntas"
+link "Privacidad"
+link "Saltar al contenido"

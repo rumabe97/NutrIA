@@ -1,0 +1,6 @@
+# /admin/notificaciones · admin · es-ES · phone · 200
+button "Menú"
+heading "Avisos" [level=#]
+heading "Notificaciones" [level=#]
+link "# días"
+link "Saltar al contenido"

@@ -1,0 +1,22 @@
+# /plan/comida/<id> · plan · en-GB · phone · 200
+button "Eaten"
+button "English" [pressed]: EN
+button "Español": ES
+button "I like it"
+button "Not for me"
+button "Sign out"
+button "Skipped"
+button "Swap this dish # of #"
+heading "Ingredients" [level=#]
+heading "Method" [level=#]
+heading "What did you think?" [level=#]
+heading "Yogur con avena scaw.ij.c" [level=#]
+link "← Back to the plan"
+link "Assistant"
+link "Home"
+link "NutrIA — home"
+link "Plan"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"

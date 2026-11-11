@@ -1,0 +1,20 @@
+# /inicio · noplan · en-GB · phone · 200
+button "English" [pressed]: EN
+button "Español": ES
+button "Log" [disabled]
+button "Sign out"
+heading "Good afternoon, Probe." [level=#]
+heading "No plan yet" [level=#]
+heading "Your daily targets · estimated" [level=#]
+link "Adjust →"
+link "Assistant"
+link "Create my plan"
+link "Home"
+link "NutrIA — home"
+link "Plan"
+link "Profile"
+link "Progress"
+link "See how it is going →"
+link "Shopping"
+link "Skip to content"
+textbox "Today"

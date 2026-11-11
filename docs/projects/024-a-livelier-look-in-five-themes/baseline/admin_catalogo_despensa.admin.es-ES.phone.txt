@@ -1,0 +1,12 @@
+# /admin/catalogo/despensa · admin · es-ES · phone · 200
+button "Aplicar"
+button "Menú"
+combobox "Por página"
+heading "Despensa" [level=#]
+heading "Ingredientes sin ningún plato" [level=#]
+heading "Ninguna palabra llega al mínimo" [level=#]
+heading "Palabras sin alimento en el catálogo" [level=#]
+link "Saltar al contenido"
+link "Siguiente"
+option "#"
+option "#" [selected]

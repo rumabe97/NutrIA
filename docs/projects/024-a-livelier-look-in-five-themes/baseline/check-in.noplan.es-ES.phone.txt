@@ -1,0 +1,20 @@
+# /check-in · noplan · es-ES · phone · 200 → /inicio
+button "Anotar" [disabled]
+button "Cerrar sesión"
+button "English": EN
+button "Español" [pressed]: ES
+heading "Buenas tardes, Probe." [level=#]
+heading "Todavía no tienes plan" [level=#]
+heading "Tus objetivos diarios · estimados" [level=#]
+link "Ajustar →"
+link "Asistente"
+link "Compra"
+link "Crear mi plan"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"
+link "Ver tu evolución →"
+textbox "Hoy"

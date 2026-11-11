@@ -1,0 +1,9 @@
+# /recuperar · public · es-ES · phone · 200
+button "English": EN
+button "Enviar enlace"
+button "Español" [pressed]: ES
+heading "Recuperar contraseña" [level=#]
+link "NutrIA — inicio"
+link "Saltar al contenido"
+link "Volver a acceder"
+textbox "Correo electrónico"

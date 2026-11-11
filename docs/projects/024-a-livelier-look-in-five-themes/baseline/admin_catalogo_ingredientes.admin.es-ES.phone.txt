@@ -1,0 +1,17 @@
+# /admin/catalogo/ingredientes · admin · es-ES · phone · 200
+button "Aplicar"
+button "Menú"
+combobox "Por página"
+heading "Ingredientes" [level=#]
+heading "Todos los ingredientes" [level=#]
+link "Categoría , ordenar de forma ascendente"
+link "Grasas (g) , ordenar de forma descendente"
+link "Hidratos (g) , ordenar de forma descendente"
+link "kcal , ordenar de forma descendente"
+link "Nombre , orden ascendente; ordenar de forma descendente"
+link "Proteína (g) , ordenar de forma descendente"
+link "Saltar al contenido"
+link "Siguiente"
+option "#"
+option "#" [selected]
+searchbox "Buscar por nombre"

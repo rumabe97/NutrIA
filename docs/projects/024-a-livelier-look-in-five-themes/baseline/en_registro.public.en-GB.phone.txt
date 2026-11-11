@@ -1,0 +1,14 @@
+# /en/registro · public · en-GB · phone · 200
+button "Continue with Google"
+button "Create my plan"
+button "English" [pressed]: EN
+button "Español": ES
+heading "Create your account" [level=#]
+link "NutrIA — home"
+link "privacy policy (opens in a new tab)"
+link "Sign in"
+link "Skip to content"
+link "terms of use (opens in a new tab)"
+textbox "Email address"
+textbox "Name"
+textbox "Password"

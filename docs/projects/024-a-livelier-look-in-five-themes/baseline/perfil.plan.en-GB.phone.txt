@@ -1,0 +1,68 @@
+# /perfil · plan · en-GB · phone · 200
+button "Add a passkey"
+button "Add"
+button "Adjust my targets"
+button "Change password"
+button "Delete my account"
+button "English" [pressed]
+button "English" [pressed]: EN
+button "Español"
+button "Español": ES
+button "Fix this meal" [disabled]
+button "Pause the plan" [disabled]
+button "See the tour"
+button "Send" [disabled]
+button "Sign out"
+button "Turn on"
+button "Withdraw consent and delete this data"
+combobox "Which day": Choose a day
+combobox "Which meal": Choose a meal
+heading "#-step verification" [level=#]
+heading "Account" [level=#]
+heading "Danger zone" [level=#]
+heading "Delete my account" [level=#]
+heading "Fixed meals" [level=#]
+heading "Goal" [level=#]
+heading "Health data consent" [level=#]
+heading "Health" [level=#]
+heading "Help" [level=#]
+heading "Holidays" [level=#]
+heading "How NutrIA works" [level=#]
+heading "How you eat" [level=#]
+heading "Language" [level=#]
+heading "Notices and language" [level=#]
+heading "Passkeys" [level=#]
+heading "Password" [level=#]
+heading "Personal details" [level=#]
+heading "Preferences" [level=#]
+heading "Premium" [level=#]
+heading "Reminders" [level=#]
+heading "Restrictions" [level=#]
+heading "Security" [level=#]
+heading "What would you improve?" [level=#]
+heading "Where you are signed in" [level=#]
+heading "Your daily targets" [level=#]
+heading "Your details" [level=#]
+heading "Your kitchen" [level=#]
+heading "Your plan" [level=#]
+heading "Your profile" [level=#]
+link "Assistant"
+link "Edit"
+link "Home"
+link "NutrIA — home"
+link "Plan"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"
+radio "An idea" [checked]
+radio "Something else"
+radio "Something is broken"
+switch "Also notify me on this device"
+switch "Email me when the fortnight ends" [checked]
+textbox "Current password"
+textbox "From"
+textbox "New password"
+textbox "Repeat the password"
+textbox "Until"
+textbox "Your message"

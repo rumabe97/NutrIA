@@ -1,0 +1,68 @@
+# /perfil · noplan · es-ES · desktop · 200
+button "Activar"
+button "Ajustar mis objetivos"
+button "Añadir una llave de acceso"
+button "Añadir"
+button "Borrar mi cuenta"
+button "Cambiar contraseña"
+button "Cerrar sesión"
+button "English"
+button "English": EN
+button "Enviar" [disabled]
+button "Español" [pressed]
+button "Español" [pressed]: ES
+button "Fijar esta comida" [disabled]
+button "Pausar el plan" [disabled]
+button "Retirar el consentimiento y borrar estos datos"
+button "Ver el tutorial"
+combobox "Qué comida": Elige una comida
+combobox "Qué día": Elige un día
+heading "¿Qué mejorarías?" [level=#]
+heading "Avisos e idioma" [level=#]
+heading "Avisos" [level=#]
+heading "Ayuda" [level=#]
+heading "Borrar mi cuenta" [level=#]
+heading "Comidas fijas" [level=#]
+heading "Cómo comes" [level=#]
+heading "Cómo funciona NutrIA" [level=#]
+heading "Consentimiento de datos de salud" [level=#]
+heading "Contraseña" [level=#]
+heading "Cuenta" [level=#]
+heading "Datos personales" [level=#]
+heading "Dónde tienes la sesión abierta" [level=#]
+heading "Idioma" [level=#]
+heading "Llaves de acceso" [level=#]
+heading "Objetivo" [level=#]
+heading "Preferencias" [level=#]
+heading "Premium" [level=#]
+heading "Restricciones" [level=#]
+heading "Salud" [level=#]
+heading "Seguridad" [level=#]
+heading "Tu cocina" [level=#]
+heading "Tu perfil" [level=#]
+heading "Tu plan" [level=#]
+heading "Tus datos" [level=#]
+heading "Tus objetivos diarios" [level=#]
+heading "Vacaciones" [level=#]
+heading "Verificación en dos pasos" [level=#]
+heading "Zona peligrosa" [level=#]
+link "Asistente"
+link "Compra"
+link "Editar"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"
+radio "Algo falla"
+radio "Otra cosa"
+radio "Una idea" [checked]
+switch "Avísame por correo cuando acabe la quincena" [checked]
+switch "Avisarme también en este dispositivo"
+textbox "Contraseña actual"
+textbox "Desde"
+textbox "Hasta"
+textbox "Nueva contraseña"
+textbox "Repite la contraseña"
+textbox "Tu mensaje"

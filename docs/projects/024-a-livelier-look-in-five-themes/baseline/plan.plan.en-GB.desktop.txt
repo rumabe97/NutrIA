@@ -1,0 +1,28 @@
+# /plan · plan · en-GB · desktop · 200
+button "# Fri # Nov"
+button "# Mon # Nov"
+button "# Sat # Nov"
+button "# Sun # Nov"
+button "# Thu # Nov"
+button "# Tue # Nov"
+button "# Wed # Nov"
+button "English" [pressed]: EN
+button "Español": ES
+button "Mark as eaten"
+button "Sign out"
+button "Week #"
+button "Week #" [pressed]
+heading "Your plan" [level=#]
+link "Assistant"
+link "Breakfast Yogur con avena scaw.ij.c # kcal · # g P"
+link "Dinner Tacos mexicanos de frijoles refritos con queso y aguacate # kcal · # g P"
+link "Earlier plans →"
+link "Home"
+link "Lunch Alubias blancas con almejas al ajillo # kcal · # g P"
+link "NutrIA — home"
+link "Plan"
+link "Profile"
+link "Progress"
+link "Redo the plan"
+link "Shopping"
+link "Skip to content"

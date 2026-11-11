@@ -1,0 +1,17 @@
+# /admin/catalogo/ingredientes · admin · en-GB · phone · 200
+button "Apply"
+button "Menu"
+combobox "Per page"
+heading "All ingredients" [level=#]
+heading "Ingredients" [level=#]
+link "Carbs (g) , sort descending"
+link "Category , sort ascending"
+link "Fat (g) , sort descending"
+link "kcal , sort descending"
+link "Name , sorted ascending; sort descending"
+link "Next"
+link "Protein (g) , sort descending"
+link "Skip to content"
+option "#"
+option "#" [selected]
+searchbox "Search by name"

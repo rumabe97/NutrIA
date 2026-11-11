@@ -1,0 +1,31 @@
+# /admin/catalogo/calidad · admin · es-ES · desktop · 200
+heading "Calidad" [level=#]
+heading "Debería ser cero" [level=#]
+heading "Días con actividad de la reescritura" [level=#]
+heading "Historia de la reescritura" [level=#]
+heading "Para mirar" [level=#]
+heading "Reescritura de los pasos" [level=#]
+link "# días"
+link "Buzón"
+link "Calidad de los planes"
+link "Calidad"
+link "Consentimientos"
+link "Cuentas"
+link "Despensa"
+link "Embudo y actividad"
+link "IA y modelos"
+link "Imágenes"
+link "Ingredientes"
+link "Interruptores"
+link "Notificaciones"
+link "Planes"
+link "Platos que no encajan con ninguna comida # Revisar"
+link "Profesionales"
+link "Recetas"
+link "Registro de acciones"
+link "Registro"
+link "Resumen"
+link "Retención"
+link "Saltar al contenido"
+link "Sistema"
+link "Volver a NutrIA"

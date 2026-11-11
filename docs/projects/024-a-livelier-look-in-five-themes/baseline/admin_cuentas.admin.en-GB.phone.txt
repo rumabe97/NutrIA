@@ -1,0 +1,16 @@
+# /admin/cuentas · admin · en-GB · phone · 200
+button "Apply"
+button "Menu"
+combobox "Per page"
+heading "Accounts" [level=#]
+heading "Every account" [level=#]
+heading "Sign-ups" [level=#]
+link "# days"
+link "Email , sort ascending"
+link "Last activity , sort descending"
+link "Plans , sort descending"
+link "Signed up , sorted descending; sort ascending"
+link "Skip to content"
+option "#"
+option "#" [selected]
+searchbox "Search by email"

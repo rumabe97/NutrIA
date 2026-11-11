@@ -1,0 +1,10 @@
+# /admin/ajustes/sistema · admin · es-ES · phone · 200
+button "Menú"
+heading "Correo" [level=#]
+heading "Integraciones" [level=#]
+heading "Límites" [level=#]
+heading "Sistema" [level=#]
+heading "Tareas programadas" [level=#]
+heading "Versiones" [level=#]
+link "# días"
+link "Saltar al contenido"

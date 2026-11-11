@@ -1,0 +1,45 @@
+# / · public · es-ES · desktop · 200
+button "¿Cómo tratáis las alergias?"
+button "¿Esto sustituye a un dietista o a mi médico?"
+button "¿Por qué catorce días?"
+button "¿Puedo borrar mis datos?"
+button "¿Puedo cambiar una comida que no me gusta?"
+button "¿Qué pasa con mis planes anteriores?"
+button "English": EN
+button "Español" [pressed]: ES
+heading "¿Cómo tratáis las alergias?" [level=#]
+heading "¿Esto sustituye a un dietista o a mi médico?" [level=#]
+heading "¿Por qué catorce días?" [level=#]
+heading "¿Puedo borrar mis datos?" [level=#]
+heading "¿Puedo cambiar una comida que no me gusta?" [level=#]
+heading "¿Qué pasa con mis planes anteriores?" [level=#]
+heading "Alergias como límite duro" [level=#]
+heading "Asistente de nutrición" [level=#]
+heading "Cambia cualquier comida" [level=#]
+heading "Creamos tu plan" [level=#]
+heading "Cuatro pasos. Después, se repite solo." [level=#]
+heading "Deja de decidir qué cenar." [level=#]
+heading "La IA no decide sobre tu seguridad" [level=#]
+heading "Lista de la compra automática" [level=#]
+heading "Lo importante no lo decide un modelo." [level=#]
+heading "Lo sigues a tu ritmo" [level=#]
+heading "Los números no se improvisan" [level=#]
+heading "Nos cuentas cómo vives" [level=#]
+heading "Nutrición que se adapta a ti." [level=#]
+heading "Planes de catorce días" [level=#]
+heading "Preguntas frecuentes" [level=#]
+heading "Progreso sin obsesión" [level=#]
+heading "Sabemos dónde está el límite" [level=#]
+heading "Se adapta" [level=#]
+heading "Tu plan sabe que te saltas el desayuno." [level=#]
+link "Acceder"
+link "Cómo funciona"
+link "Condiciones"
+link "Crear cuenta"
+link "Crear mi plan"
+link "NutrIA — inicio"
+link "Personalización"
+link "Preguntas"
+link "Privacidad"
+link "Saltar al contenido"
+link "Seguridad"

@@ -1,0 +1,17 @@
+# /admin/buzon · admin · en-GB · phone · 200
+button "Apply"
+button "Menu"
+combobox "Per page"
+combobox "State"
+heading "Every message" [level=#]
+heading "Inbox" [level=#]
+heading "Messages" [level=#]
+link "# days"
+link "Date , sorted descending; sort ascending"
+link "Skip to content"
+option "#"
+option "#" [selected]
+option "All" [selected]
+option "Seen"
+option "Unseen"
+searchbox "Search the message or the email"

@@ -1,0 +1,41 @@
+# /admin/ajustes · admin · es-ES · desktop · 200
+button "Enviarme un aviso de prueba"
+button "Guardar" [disabled]
+heading "Acceso" [level=#]
+heading "Interruptores" [level=#]
+heading "Notificaciones" [level=#]
+heading "Producto" [level=#]
+heading "Qué permite cada suscripción" [level=#]
+link "Buzón"
+link "Calidad de los planes"
+link "Calidad"
+link "Consentimientos"
+link "Cuentas"
+link "Despensa"
+link "Embudo y actividad"
+link "IA y modelos"
+link "Imágenes"
+link "Ingredientes"
+link "Interruptores"
+link "Notificaciones"
+link "Planes"
+link "Profesionales"
+link "Recetas"
+link "Registro de acciones"
+link "Registro"
+link "Resumen"
+link "Retención"
+link "Saltar al contenido"
+link "Sistema"
+link "Ver el gasto en imágenes"
+link "Volver a NutrIA"
+spinbutton "Gratis": "#"
+spinbutton "Premium": "#"
+switch "Acompañamientos (pan, ensalada, fruta)"
+switch "Activación automática" [checked]
+switch "Asistente de nutrición" [checked]
+switch "Consulta para dietistas" [checked]
+switch "Despensa en el plan (aprovechar lo que ya hay en casa)"
+switch "Dibujar las imágenes de los platos"
+switch "Nivel de pago"
+switch "Recordatorio del check-in"

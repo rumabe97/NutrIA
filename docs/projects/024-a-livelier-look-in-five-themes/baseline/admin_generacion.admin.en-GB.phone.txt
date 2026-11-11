@@ -1,0 +1,13 @@
+# /admin/generacion · admin · en-GB · phone · 200
+button "Apply"
+button "Menu"
+combobox "Per page"
+heading "All generations" [level=#]
+heading "Failures by reason" [level=#]
+heading "In the period" [level=#]
+heading "Log" [level=#]
+link "# days"
+link "Skip to content"
+option "#"
+option "#" [selected]
+searchbox "Search by address"

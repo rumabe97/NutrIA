@@ -1,0 +1,18 @@
+# /asistente · noplan · en-GB · phone · 200
+button "English" [pressed]: EN
+button "Español": ES
+button "Send" [disabled]
+button "Sign out"
+button "Your conversations"
+heading "Assistant" [level=#]
+link "Assistant"
+link "Home"
+link "New"
+link "NutrIA — home"
+link "Plan"
+link "privacy policy"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"
+textbox "Your question"

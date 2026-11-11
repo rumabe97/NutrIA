@@ -1,0 +1,30 @@
+# /privacidad · public · es-ES · desktop · 200
+button "English": EN
+button "Español" [pressed]: ES
+heading "Cambios en esta política" [level=#]
+heading "Cómo protegemos tus datos" [level=#]
+heading "Con quién compartimos tus datos" [level=#]
+heading "Cookies y almacenamiento en tu dispositivo" [level=#]
+heading "Cuáles de estos datos son especialmente protegidos" [level=#]
+heading "Cuánto tiempo guardamos tus datos" [level=#]
+heading "El asistente" [level=#]
+heading "La inteligencia artificial" [level=#]
+heading "Menores de edad" [level=#]
+heading "Política de privacidad" [level=#]
+heading "Por qué podemos tratar estos datos" [level=#]
+heading "Qué datos recogemos y para qué" [level=#]
+heading "Quién trata tus datos" [level=#]
+heading "Transferencias fuera de la Unión Europea" [level=#]
+heading "Tu dietista en NutrIA" [level=#]
+heading "Tus derechos" [level=#]
+link "Acceder"
+link "Cómo funciona"
+link "Condiciones"
+link "Crear cuenta"
+link "Crear mi plan"
+link "NutrIA — inicio"
+link "Personalización"
+link "Preguntas"
+link "Privacidad"
+link "Saltar al contenido"
+link "Seguridad"

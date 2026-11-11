@@ -1,0 +1,7 @@
+# /restablecer · public · es-ES · desktop · 200
+button "English": EN
+button "Español" [pressed]: ES
+heading "Elige una contraseña nueva" [level=#]
+link "NutrIA — inicio"
+link "Pedir un enlace nuevo"
+link "Saltar al contenido"

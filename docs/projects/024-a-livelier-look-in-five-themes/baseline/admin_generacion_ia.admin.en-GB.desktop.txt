@@ -1,0 +1,31 @@
+# /admin/generacion/ia · admin · en-GB · desktop · 200
+heading "AI and models" [level=#]
+heading "Assistant" [level=#]
+heading "By feature" [level=#]
+heading "By model" [level=#]
+heading "Latest failures" [level=#]
+heading "Per day" [level=#]
+heading "This month" [level=#]
+link "# days"
+link "Accounts"
+link "AI and models"
+link "Audit log"
+link "Back to NutrIA"
+link "Consents"
+link "Cupboard"
+link "Funnel and activity"
+link "Inbox"
+link "Ingredients"
+link "Log"
+link "Notifications"
+link "Overview"
+link "Pictures"
+link "Plan quality"
+link "Plans"
+link "Professionals"
+link "Quality"
+link "Recipes"
+link "Retention"
+link "Skip to content"
+link "Switches"
+link "System"

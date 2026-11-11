@@ -1,0 +1,14 @@
+# /compra · noplan · en-GB · phone · 200
+button "English" [pressed]: EN
+button "Español": ES
+button "Sign out"
+heading "No list yet" [level=#]
+link "Assistant"
+link "Home"
+link "NutrIA — home"
+link "Plan"
+link "Profile"
+link "Progress"
+link "See my plan"
+link "Shopping"
+link "Skip to content"

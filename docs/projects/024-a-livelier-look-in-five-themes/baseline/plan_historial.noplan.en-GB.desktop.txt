@@ -1,0 +1,14 @@
+# /plan/historial · noplan · en-GB · desktop · 200
+button "English" [pressed]: EN
+button "Español": ES
+button "Sign out"
+heading "Your plans" [level=#]
+link "Assistant"
+link "Home"
+link "NutrIA — home"
+link "Plan"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"
+link "Your plan"

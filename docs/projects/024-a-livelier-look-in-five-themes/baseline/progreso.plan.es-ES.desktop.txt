@@ -1,0 +1,19 @@
+# /progreso · plan · es-ES · desktop · 200
+button "Cerrar sesión"
+button "English": EN
+button "Español" [pressed]: ES
+heading "# nov – # nov" [level=#]
+heading "Tu peso" [level=#]
+heading "Tu progreso" [level=#]
+heading "Tus quincenas" [level=#]
+link "Anotar el peso de hoy →"
+link "Asistente"
+link "Compra"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"
+link "Todos tus planes →"
+link "Ver el plan →"

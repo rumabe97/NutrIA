@@ -1,0 +1,15 @@
+# /cambiar-contrasena · public · es-ES · desktop · 200 → /acceder
+button "Acceder"
+button "Continuar con Google"
+button "English": EN
+button "Entrar con llave de acceso"
+button "Español" [pressed]: ES
+heading "Bienvenido de nuevo" [level=#]
+link "¿Has olvidado tu contraseña?"
+link "condiciones de uso (se abre en una pestaña nueva)"
+link "Crea la tuya"
+link "NutrIA — inicio"
+link "política de privacidad (se abre en una pestaña nueva)"
+link "Saltar al contenido"
+textbox "Contraseña"
+textbox "Correo electrónico"

@@ -1,0 +1,10 @@
+# /admin/ajustes/sistema · admin · en-GB · phone · 200
+button "Menu"
+heading "Integrations" [level=#]
+heading "Limits" [level=#]
+heading "Mail" [level=#]
+heading "Scheduled jobs" [level=#]
+heading "System" [level=#]
+heading "Versions" [level=#]
+link "# days"
+link "Skip to content"

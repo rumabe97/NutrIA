@@ -1,0 +1,9 @@
+# /en/recuperar · public · en-GB · desktop · 200
+button "English" [pressed]: EN
+button "Español": ES
+button "Send link"
+heading "Reset your password" [level=#]
+link "Back to sign in"
+link "NutrIA — home"
+link "Skip to content"
+textbox "Email address"

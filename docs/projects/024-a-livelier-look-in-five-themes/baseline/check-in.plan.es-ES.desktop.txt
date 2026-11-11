@@ -1,0 +1,14 @@
+# /check-in · plan · es-ES · desktop · 200
+button "Cerrar sesión"
+button "English": EN
+button "Español" [pressed]: ES
+heading "Todavía no toca" [level=#]
+link "Asistente"
+link "Compra"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"
+link "Volver al inicio"

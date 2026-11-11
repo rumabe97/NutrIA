@@ -1,0 +1,26 @@
+# /inicio · plan · es-ES · phone · 200
+button "Anotar" [disabled]
+button "Cerrar sesión"
+button "English": EN
+button "Español" [pressed]: ES
+button "Marcar como hecha"
+heading "Buenas tardes, Probe." [level=#]
+heading "Hoy" [level=#]
+heading "Tus objetivos diarios · estimados" [level=#]
+link "Ajustar →"
+link "Asistente"
+link "Cena Tacos mexicanos de frijoles refritos con queso y aguacate # kcal · # g P"
+link "Comida Alubias blancas con almejas al ajillo # kcal · # g P"
+link "Compra"
+link "Desayuno Yogur con avena scaw.ij.c # kcal · # g P"
+link "Inicio"
+link "Lo siguiente · Cena Tacos mexicanos de frijoles refritos con queso y aguacate # kcal · # g P"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"
+link "Ver la lista →"
+link "Ver los # días →"
+link "Ver tu evolución →"
+textbox "Hoy"

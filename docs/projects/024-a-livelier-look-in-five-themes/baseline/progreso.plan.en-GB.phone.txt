@@ -1,0 +1,19 @@
+# /progreso · plan · en-GB · phone · 200
+button "English" [pressed]: EN
+button "Español": ES
+button "Sign out"
+heading "# Nov – # Nov" [level=#]
+heading "Your fortnights" [level=#]
+heading "Your progress" [level=#]
+heading "Your weight" [level=#]
+link "All your plans →"
+link "Assistant"
+link "Home"
+link "Log today's weight →"
+link "NutrIA — home"
+link "Plan"
+link "Profile"
+link "Progress"
+link "See the plan →"
+link "Shopping"
+link "Skip to content"

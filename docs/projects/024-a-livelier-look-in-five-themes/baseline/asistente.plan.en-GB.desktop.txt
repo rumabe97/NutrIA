@@ -1,0 +1,18 @@
+# /asistente · plan · en-GB · desktop · 200
+button "English" [pressed]: EN
+button "Español": ES
+button "Send" [disabled]
+button "Sign out"
+heading "Assistant" [level=#]
+heading "Your conversations" [level=#]
+link "Assistant"
+link "Home"
+link "New conversation"
+link "NutrIA — home"
+link "Plan"
+link "privacy policy"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"
+textbox "Your question"

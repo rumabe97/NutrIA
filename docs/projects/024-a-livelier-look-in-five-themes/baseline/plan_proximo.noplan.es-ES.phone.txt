@@ -1,0 +1,14 @@
+# /plan/proximo · noplan · es-ES · phone · 200 → /plan
+button "Cerrar sesión"
+button "English": EN
+button "Español" [pressed]: ES
+heading "Todavía no tienes plan" [level=#]
+link "Asistente"
+link "Compra"
+link "Crear mi plan"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"

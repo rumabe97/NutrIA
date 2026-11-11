@@ -162,17 +162,25 @@ Measured on 2026-11-11, before any code:
 5. **Contrast, measured by a script that runs in the gate**: in every theme, text and its ground
    hold 4.5:1 (3:1 at display size), a control's edge and a focus ring hold 3:1, for every token
    pair the components actually use.
-6. **Accessibility.** In every theme: keyboard reaches and operates everything, focus is always
+6. **Nothing overflows, and nothing is cut** — the owner's first condition (2026-11-11, on a
+   320 px test render whose ring legend ran out of its card: *«lo más importante es que nada se
+   desborde, todo se vea bien»*). On every route, in every theme and both languages, at 320, 360,
+   390, 768 and 1280 px and at 200 % text: no sideways scroll, no element wider than its
+   container, no text clipped or hidden behind another element or the floating bar. Content that
+   does not fit wraps or stacks; it is never shrunk below its size or cut with an ellipsis unless
+   it was already so today. The probe's overflow check (scrolled **or clipped**) runs on every
+   reachable route in every phase and a hit fails the phase.
+7. **Accessibility.** In every theme: keyboard reaches and operates everything, focus is always
    visible, every target is at least 44 px on touch, the page reflows at 320 px and at 200 %
    text with no sideways scroll, `forced-colors` and `prefers-contrast: more` are honoured, and
    every animation stops under `prefers-reduced-motion`. The `accessibility` agent reports no
    finding above P2 on any screen.
-7. **SEO.** The public pages stay statically rendered, with the same titles, descriptions,
+8. **SEO.** The public pages stay statically rendered, with the same titles, descriptions,
    canonicals, `hreflang`, sitemap and structured data as today, or better. Lighthouse on the
    landing page, mobile: SEO 100, Accessibility 100, and Performance no lower than the figure
    recorded before phase 1. Fonts are self-hosted, subset and preloaded; the hero picture has
    dimensions and priority, so nothing shifts. The `seo` agent reports no finding above P2.
-8. **`apple-web-design`.** Its REVIEW is run on every screen family as it is built; P0 and P1
+9. **`apple-web-design`.** Its REVIEW is run on every screen family as it is built; P0 and P1
    are fixed before that phase ships. **Three exceptions, and only these, are the owner's**
    (2026-11-11, with the stricter options in front of him): the header's pattern drifts by
    itself, the gradient is used as widely as the sheets show (buttons, edges, labels at display
@@ -180,22 +188,22 @@ Measured on 2026-11-11, before any code:
    recorded by name in the phase that builds it. Everything else the skill asks for holds:
    contrast, targets, reduced motion (under which the pattern is still), semantic controls, one
    primary action, and no material on content.
-9. **No coloured-left-edge note remains**: a search of the stylesheets for a thick inline-start
+10. **No coloured-left-edge note remains**: a search of the stylesheets for a thick inline-start
    border on a note finds none.
-10. **Every screen is looked at** with `/local-probe` at 320, 390 and 1280 px, in Claro and
+11. **Every screen is looked at** with `/local-probe` at 320, 390 and 1280 px, in Claro and
     Oscuro at least, and each remaining theme on the screens that carry the most colour, before
     it ships.
-11. **The owner sees it first where it was not drawn.** Onboarding, the plan history and next
+12. **The owner sees it first where it was not drawn.** Onboarding, the plan history and next
     plan, the professional's screens and the console's remaining pages have no approved sheet:
     each family gets one, and his approval, before it is built.
-12. **On the owner's iPhone**: the floating bar sits clear of the home indicator, steps aside for
+13. **On the owner's iPhone**: the floating bar sits clear of the home indicator, steps aside for
     the keyboard, and never covers the assistant's box or a dish page's actions; the theme button
     is reachable with a thumb; switching theme is instant.
-13. **The mails match.** Each of the fourteen mails, in both languages, is read by the owner in
+14. **The mails match.** Each of the fourteen mails, in both languages, is read by the owner in
     the mail program on his iPhone and in Gmail on the web, in a light and a dark setting: legible,
     the button works, nothing is cut. A mail program that ignores gradients, web fonts or a dark
     preference still shows a complete, legible mail.
-14. **What shipped on 2026-11-11 survives**: the assistant's warning text, the `data-ai-generated`
+15. **What shipped on 2026-11-11 survives**: the assistant's warning text, the `data-ai-generated`
     marks, «Descargar mis conversaciones», and every 404 a person without the right is given.
 
 ## How it ships
@@ -209,8 +217,8 @@ Measured on 2026-11-11, before any code:
 
 ## Open questions
 
-1. **For the `legal` agent, before phase 1**: does keeping the theme choice on the device change
+2. **For the `legal` agent, before phase 1**: does keeping the theme choice on the device change
    `/privacidad`? It is a preference the person sets, stored locally and never sent; the cookie
    and local-storage section may need one line.
-2. **Typefaces**: Bricolage Grotesque and Figtree are both under the SIL Open Font License. The
+3. **Typefaces**: Bricolage Grotesque and Figtree are both under the SIL Open Font License. The
    plan confirms the licence text travels with the subset files, as the current font's does.

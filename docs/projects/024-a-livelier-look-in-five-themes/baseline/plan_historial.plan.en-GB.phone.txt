@@ -1,0 +1,14 @@
+# /plan/historial · plan · en-GB · phone · 200
+button "English" [pressed]: EN
+button "Español": ES
+button "Sign out"
+heading "Your plans" [level=#]
+link "# days · # Nov to # Nov Plan # Current"
+link "Assistant"
+link "Home"
+link "NutrIA — home"
+link "Plan"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"

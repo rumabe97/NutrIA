@@ -1,0 +1,14 @@
+# /progreso · noplan · es-ES · phone · 200
+button "Cerrar sesión"
+button "English": EN
+button "Español" [pressed]: ES
+heading "Todavía no hay nada que medir" [level=#]
+link "Asistente"
+link "Compra"
+link "Inicio"
+link "Ir a inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"
