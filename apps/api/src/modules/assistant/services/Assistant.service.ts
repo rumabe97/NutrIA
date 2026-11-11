@@ -31,6 +31,7 @@ import { languageName, NAMEABLE_CUISINES } from '../../ai/prompts/PoolPrompt.js'
 import { likedFoodNames, promptPreferences } from '../../meal-plans/services/GenerationShared.js';
 import { StreamingAiClient } from '../../ai/clients/StreamingAiClient.js';
 
+import { AiCallError } from '../../ai/clients/AiClient.js';
 import type { AiClient } from '../../ai/clients/AiClient.js';
 import type { AiStream } from '../../ai/clients/StreamingAiClient.js';
 import type { AskAssistantDto } from '../dto/in/index.js';
@@ -273,9 +274,13 @@ export class AssistantService {
       });
 
       return object.label;
-    } catch {
-      // The reason is model prose and the question is a person's words: neither is logged.
-      this.logger.warn('The assistant could not label a question; it was not answered and not counted.');
+    } catch (error: unknown) {
+      // The model's prose and the person's words are never logged: only what kind of failure it was.
+      const failure = error instanceof AiCallError ? error.failure : null;
+
+      this.logger.warn(
+        `The assistant could not label a question (${failure ? `${failure.kind}, status ${String(failure.status ?? 'none')}` : 'unknown'}); it was not answered and not counted.`
+      );
 
       throw new AssistantUnavailableError('provider');
     }

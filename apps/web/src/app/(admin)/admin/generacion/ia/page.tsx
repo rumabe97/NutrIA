@@ -19,7 +19,9 @@ import { PeriodSelector } from 'components/PeriodSelector';
 
 import { DEFAULT_PERIOD } from 'core/entities/Period';
 
-import { formatDate, formatNumber, formatUsd, interpolate } from 'lib/format';
+import { ASSISTANT_FAILURES } from 'core/controllers/Admin';
+
+import { formatDate, formatInstant, formatNumber, formatUsd, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../../consoleMetadata';
@@ -81,6 +83,35 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
   }));
   const assistantCalls = interpolate(t.assistantCalls, { count: number(month.assistant.calls), spent: dollars(month.assistant.costUsd) });
   const uncosted = month.uncostedCalls === 1 ? t.uncosted.one : interpolate(t.uncosted.many, { count: number(month.uncostedCalls) });
+
+  const failures = t.assistantFailures;
+
+  const reasonOf = (row: AdminAiView['assistantFailures'][number]): string => {
+    const code = [row.status === null ? null : String(row.status), row.errorType].filter(Boolean).join(' ');
+
+    switch (row.failure) {
+      case 'abandoned':
+        return failures.reasons.abandoned;
+      case 'invalid_output':
+        return row.finishReason === 'length' ? failures.reasons.cut : failures.reasons.invalid;
+      case 'provider':
+        return code ? `${failures.reasons.provider} (${code})` : failures.reasons.provider;
+      case 'timeout':
+        return failures.reasons.timeout;
+      default:
+        return code ? `${failures.reasons.unknown} (${code})` : failures.reasons.unknown;
+    }
+  };
+
+  const failureRows = ai.assistantFailures.map(row => ({
+    id: `${String(row.at)}\u0000${row.kind ?? ''}`,
+    cells: {
+      at: formatInstant(new Date(row.at).getTime(), locale, { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Madrid' }),
+      model: row.model ?? '—',
+      reason: reasonOf(row),
+      step: row.kind === 'answer' ? failures.steps.answer : failures.steps.label
+    }
+  }));
 
   const rows = models.map(model => ({
     id: `${model.model}\u0000${model.provider ?? ''}`,
@@ -171,6 +202,22 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
           ) : null}
           {month.assistant.capUsd === undefined ? null : <p className={styles.line}>{assistantCalls}</p>}
         </div>
+      </AdminSection>
+
+      <AdminSection note={interpolate(failures.note, { count: number(ASSISTANT_FAILURES) })} title={failures.title}>
+        <Card className={styles.table}>
+          <DataTable
+            caption={failures.caption}
+            columns={[
+              { header: failures.columns.at, key: 'at' },
+              { header: failures.columns.step, key: 'step' },
+              { header: failures.columns.model, key: 'model' },
+              { header: failures.columns.reason, key: 'reason' }
+            ]}
+            empty={failures.empty}
+            rows={failureRows}
+          />
+        </Card>
       </AdminSection>
 
       <AdminSection note={t.featureNote} title={t.featureTitle}>

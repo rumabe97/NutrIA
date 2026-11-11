@@ -5,6 +5,7 @@ import { AnalyticsController } from 'core/controllers/Analytics';
 
 import { AiCallError, AiClient } from './AiClient.js';
 import { isQuotaExhausted } from './quota.js';
+import { providerErrorType } from './providerErrorType.js';
 import { readGateway, readOpenRouter, readQuota, withoutEcho } from './gateway.js';
 import { redactSecrets } from './redact.js';
 import { untilAborted } from './untilAborted.js';
@@ -142,7 +143,13 @@ export class StructuredAiClient extends AiClient {
       await AnalyticsController.record('ai_call', null, {
         // An invalid answer was still paid for (`0064`).
         costUsd: failure.gateway?.costUsd ?? null,
+        // Why, as codes an operator can act on and never as the provider's prose:
+        // the kind of failure, the provider's own error type, and how an unusable
+        // answer ended (`length` is the output cap, `stop` a model that ignored the schema).
+        errorType: providerErrorType(last, api?.responseBody),
+        failure: failure.kind,
         feature,
+        finishReason: invalid?.finishReason ?? null,
         model,
         ms: failure.ms,
         ok: false,

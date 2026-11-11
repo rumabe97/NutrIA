@@ -6,6 +6,7 @@ import { AnalyticsController } from 'core/controllers/Analytics';
 import { AiCallError } from './AiClient.js';
 import { AI_SECRETS, ASSISTANT_MODEL, ASSISTANT_SETTINGS, assistantCostUsd } from '../ai.config.js';
 import { isQuotaExhausted } from './quota.js';
+import { providerErrorType } from './providerErrorType.js';
 import { redactSecrets } from './redact.js';
 import { StreamingAiClient } from './StreamingAiClient.js';
 import { untilAborted } from './untilAborted.js';
@@ -233,6 +234,9 @@ export class AnthropicStreamingClient extends StreamingAiClient {
     await AnalyticsController.record('ai_call', null, {
       abandoned,
       costUsd: null,
+      // Why, as codes and never as the provider's prose (`providerErrorType`).
+      errorType: providerErrorType(last, api?.responseBody),
+      failure: abandoned ? 'abandoned' : failure.kind,
       feature,
       kind: 'answer',
       model,

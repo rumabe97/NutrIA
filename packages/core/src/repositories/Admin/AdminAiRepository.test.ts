@@ -78,3 +78,22 @@ describe('AdminSeriesRepository.pictureSpendPerDay', () => {
     );
   });
 });
+
+describe('AdminAiRepository.assistantFailures', () => {
+  it('reads only the assistant’s failed calls, the newest first, as codes and never as prose', async () => {
+    await AdminAiRepository.assistantFailures(10);
+
+    const [statement] = sent;
+    const text = statement?.sql ?? '';
+
+    expect(text).toContain(`"properties" ->> 'feature' = 'assistant'`);
+    expect(text).toContain(`"properties" -> 'ok' = 'false'::jsonb`);
+    expect(text).toContain('order by "analytics_events"."created_at" desc');
+
+    for (const key of ['errorType', 'failure', 'finishReason', 'kind', 'model']) {
+      expect(text).toContain(`case when jsonb_typeof("properties" -> '${key}') = 'string' then "properties" ->> '${key}' end`);
+    }
+
+    expect(statement?.params).toEqual(['ai_call', 10]);
+  });
+});

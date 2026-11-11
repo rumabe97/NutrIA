@@ -133,6 +133,22 @@ export const esES = {
     assistantCalls: 'Este mes: {count} llamadas al modelo (la etiqueta de cada pregunta y su respuesta), {spent} en total.',
     assistantChart: 'Gasto del asistente contra su tope',
     assistantEmpty: 'El asistente no tiene tope configurado.',
+    assistantFailures: {
+      caption: 'Últimos fallos del asistente',
+      columns: { at: 'Cuándo', model: 'Modelo', reason: 'Motivo', step: 'Paso' },
+      empty: 'Ningún fallo registrado.',
+      note: 'Las últimas {count} llamadas al modelo que no sirvieron, sea cual sea el periodo. Solo el tipo de fallo: nunca la pregunta ni la respuesta.',
+      reasons: {
+        abandoned: 'La persona cerró la pantalla antes de terminar',
+        cut: 'Respuesta cortada en el límite de longitud',
+        invalid: 'El modelo contestó en un formato que no sirve',
+        provider: 'Anthropic rechazó o falló la llamada',
+        timeout: 'Sin respuesta dentro del tiempo',
+        unknown: 'Sin motivo registrado (anterior a este registro)'
+      },
+      steps: { answer: 'Responder', label: 'Clasificar la pregunta' },
+      title: 'Últimos fallos'
+    },
     assistantNoCap: 'Sin tope propio: el asistente no tiene dónde pararse este mes. Ponlo en AI_ASSISTANT_MONTHLY_CAP_USD.',
     assistantNote:
       'Aparte del gasto de arriba y con su propio tope: al llegar a él, el asistente deja de contestar hasta el mes que viene, y los planes y la reescritura nocturna siguen igual.',
