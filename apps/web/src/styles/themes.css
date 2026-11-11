@@ -529,9 +529,9 @@
 
   /* Accent */
   --color-brand-01: #ffffff;
-  --color-brand-02: #fff5f2;
-  --color-brand-03: #fbe3db;
-  --color-brand-04: #f5cfc2;
+  --color-brand-02: #f2f2f2;
+  --color-brand-03: #e6e6e6;
+  --color-brand-04: #d4d4d4;
   --color-brand-05: #eab7a6;
   --color-brand-06: #d98d74;
   --color-brand-07: #c46a4d;
@@ -750,9 +750,9 @@
 
     /* Accent */
     --color-brand-01: #ffffff;
-    --color-brand-02: #fff5f2;
-    --color-brand-03: #fbe3db;
-    --color-brand-04: #f5cfc2;
+    --color-brand-02: #f2f2f2;
+    --color-brand-03: #e6e6e6;
+    --color-brand-04: #d4d4d4;
     --color-brand-05: #eab7a6;
     --color-brand-06: #d98d74;
     --color-brand-07: #c46a4d;

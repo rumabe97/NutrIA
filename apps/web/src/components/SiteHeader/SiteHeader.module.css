@@ -100,7 +100,13 @@
   }
 }
 
-@media (width >= 48rem) {
+/*
+ * The section links join the row only where it can hold them beside the language
+ * switch, the theme menu, «Acceder» and the call to action: at 48rem, with the
+ * theme menu added, the row ran 76px past the screen (project 024, phase 1b).
+ * Below this the footer carries the same links.
+ */
+@media (width >= 64rem) {
   .nav {
     display: flex;
   }

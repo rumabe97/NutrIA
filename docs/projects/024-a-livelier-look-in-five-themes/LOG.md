@@ -160,3 +160,85 @@
   that differed were `/admin/ajustes`, where one local switch had been left on when phase 0 was
   captured; those four baseline files now hold the switch off, which is the state a clean local
   database has. No control was lost.
+## Phase 1b — New colours, new type, five themes and the switch (2026-11-11)
+
+- **Executor**: `frontend` on opus, on branch `024-phase-1b` (on `024-phase-1a`). Nothing ran on
+  `fable`; the advisor was not consulted.
+- **Result**: done, waiting on the owner's iPhone check (human-verify).
+- **What changed**:
+  - `apps/web/src/styles/themes.css`: five blocks (Claro, Oscuro, Huerta, Pulso, Alto contraste),
+    Automático on a light, a dark and a more-contrast device, the shared derived tokens re-derived
+    on every `[data-theme]` element (so a preview is drawn in its own theme), and a
+    `forced-colors` block mapping every token to a system colour. New tokens:
+    `--color-brand-fill-end`, `--color-accent-start/mid/end`, `--color-ring-1…4`,
+    `--color-ring-track`, `--color-highlight-fill`, `--color-on-highlight-fill`,
+    `--border-width-interactive`, and per theme `--color-chart-*`, `--card-shadow`,
+    `--grain-opacity` (step 0 carried from 1a: both were invalid `light-dark()` values; cards now
+    draw their shadow and the grain its intended strength). `packages/ui` declares the new tokens'
+    neutral defaults, `--font-weight-heavy` (800), `--radius-button`, the gradients.
+  - Corners (`apps/web/src/styles/variables.css`): control 12, card 24, sheet 28, every
+    `ui/components/Button` a pill; the primary button wears `--gradient-brand-fill`.
+  - Fonts: Figtree (text, `wght` 400–700, 22,464 B) and Bricolage Grotesque (`h1`–`h6`, `wght`
+    600–800, `opsz` kept, `wdth` pinned, 85,020 B), both OFL 1.1 with their licences beside them,
+    from pinned upstream commits; Inter's two files removed. `packages/ui/scripts/build-fonts.sh`
+    replaces the manual procedure.
+  - `ui/components/ThemeSwitch` (on `Dropdown`, with new `DropdownRadioGroup` /
+    `DropdownRadioOption`), `ui/hooks/useTheme`, `ui/utils/theme`. Rendered beside the language
+    switch in `SiteHeader`, `AuthShell` and `AppNav`, and in the console's bar below 60rem and at
+    the foot of its sidebar above. «Apariencia» in Perfil (`components/AppearancePicker`): six
+    native radios with previews drawn by each theme's own tokens.
+  - At 320 px: `SiteHeader` and `AppNav` hide the wordmark below 22.5rem (the mark keeps the
+    link's name) and `AppNav`'s sign-out becomes an icon whose name is still «Cerrar sesión».
+  - Icons, manifest, `theme-color` and the shared-link picture take their colours from
+    `lib/brandColours.ts`, held to `themes.css` by a test; the leaf keeps its shape, drawn in the
+    tomato-to-saffron gradient on aubergine.
+  - `/privacidad`: the `legal` agent's sentence (§ 1.6), approved by the owner, appended to the
+    second paragraph of «Cookies y almacenamiento en tu dispositivo» in both languages;
+    `privacy.updated` is 11 November 2026; no version moved.
+- **Evidence**:
+  - `node scripts/check-contrast.mjs`: 5 themes × 77 pairs, 385 pass, 0 fail. Lowest: Claro's
+    rings on their track 3.29–3.35:1 (floor 3), Claro's small accent text on the sunken ground
+    4.85:1 (floor 4.5).
+  - Fonts: 107,484 B for both families, against 116,308 B for the one before.
+  - Unit: `ui` 506 tests, `web` 343 tests; the switch has eight of its own (nothing stored on
+    open, choose, Automático clears, two switches agree, another tab, storage blocked).
+  - Control baseline, 164 files re-run: no line gone. New: the «Tema» button on every page, and
+    on Perfil the «Apariencia» heading and its six radios.
+  - **Overflow** (PRD 6). By the executor, Automático light and dark at 320, 390 and 1280: 628
+    page loads — the 11 public paths in both languages, the signed-in routes with and without a
+    plan in both languages, the console's 20 pages — none overflowed or was cut. By the lead, on
+    the built branch: the seven busiest signed-in screens in all five themes at 320, 360, 390,
+    768 and 1280 (175 loads), four console pages in five themes at four widths: clean. **The
+    public pages at 768 px failed**: with the theme menu added, the header's row ran 76 px past
+    the screen in every theme. Fixed here — the section links join the row from 64rem, where it
+    holds them; below that the footer carries them, as it already did below 48rem. Then a new
+    sweep, `widths.mjs` (every width from 320 to 1400 in steps of 16), on 7 public paths, 11
+    signed-in routes and the console's 20: no width scrolls sideways.
+  - `gate.sh --full`: green (one earlier run failed in two API auth specs under machine load;
+    alone they pass 60 of 60, and no API file is in this change). `pnpm --filter docs build` green.
+- **Deviations from plan**:
+  - `scripts/check-contrast.mjs`, the probe's `--themes` and per-element overflow check, the root
+    `AGENTS.md` sections, this entry and ADR `0107` were written by the executor as files for the
+    lead (the edit guard).
+  - Chart colours are held to 4.5:1 on their card in every theme rather than 3:1, so no theme
+    needs a second set under `prefers-contrast: more`; ui's palette keeps its own for `apps/docs`.
+  - The sign-out icon and the wordmark rule are AppNav's and SiteHeader's own media queries, not
+    a shared component: phase 3 rebuilds the shell.
+- **Decisions**: `0107` (supersedes the numbers of `0041` and `0057`).
+- **Notes for the next phase**:
+  - The display-size gradient word (PRD § "What changes", 2) needs its own darker end: the bright
+    saffron end is under 3:1 on cream. No token exists for it yet.
+  - `--color-accent-*` is bright and not text-safe anywhere: only rings, bars, the pattern.
+  - The text face has no `✓ ✗ ⚠ ≈ ⌘`; the system face draws them.
+  - The professional's screens were not probed (`account.mjs link` still fails, phase 0 note).
+- **Lead's check, same day**: the executor stopped before its last checks, waiting on a local
+  server that had gone down; the lead took the branch, ran what was missing (above), and made two
+  changes: the header breakpoint, and Alto contraste's three lightest accent steps, which were
+  pink and drew a tinted wash on the next-meal card — they are neutral greys now, so that theme
+  has no gradient, as the PRD says. Not done here, and said so: the no-flash measurement and the
+  first-visit bytes (the script exists; the inline script's logic is unit-tested and ran in every
+  probe above, which set the theme through it), and a written `apple-web-design` review beyond
+  the executor's read of the screenshots (no P0 or P1 seen; the owner's exceptions apply).
+- **Waiting on the owner (human-verify)**: the five themes on his iPhone — no flash on opening,
+  the browser bar's colour following the theme, dark ink on the bright buttons of Oscuro and
+  Pulso, and the strength of the background glow now that it draws as intended.
