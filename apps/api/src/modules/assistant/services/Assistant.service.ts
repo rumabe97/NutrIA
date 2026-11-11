@@ -58,9 +58,23 @@ const LABEL_OUTPUT_TOKENS = 400;
  */
 function allergenNames(allergen: Allergen, locale: string): readonly string[] {
   const key = allergen.key.replace(/_/g, ' ');
+  const own = locale.startsWith('en') ? [key, allergen.labelEs] : [allergen.labelEs, key];
 
-  return locale.startsWith('en') ? [key, allergen.labelEs] : [allergen.labelEs, key];
+  return [...own, ...(EVERYDAY_NAMES[allergen.key] ?? [])];
 }
+
+/**
+ * The word a person and a model actually write, where the catalogue's label is
+ * a category: «Leche y derivados» is searched as that phrase, and «un vaso de
+ * leche» named no catalogue row (none is called just «Leche»), so it reached a
+ * person allergic to milk (found 2026-11-11). Over-matching is this net's safe
+ * direction; every word here only withholds more.
+ */
+const EVERYDAY_NAMES: Readonly<Record<string, readonly string[]>> = {
+  lactose: ['leche', 'lácteos', 'lácteo', 'dairy'],
+  milk: ['leche', 'lácteos', 'lácteo', 'dairy'],
+  tree_nuts: ['frutos secos', 'tree nut']
+};
 
 /** The foods a person may never be shown: their allergies against the catalogue, by id, with every name searched (`AllergenNet.ts`). */
 function forbiddenOf(
@@ -82,11 +96,18 @@ function screened<T extends Pick<AssistantTurn, 'content' | 'decline' | 'role'>>
   turns: readonly T[],
   forbidden: readonly ForbiddenFood[]
 ): readonly T[] {
-  return turns.map(turn =>
-    turn.role === 'assistant' && turn.content !== '' && answerNamesAnAllergen(turn.content, forbidden)
-      ? { ...turn, content: '', decline: 'allergen' }
-      : turn
-  );
+  // Each answer is judged with the question it answered, as it was when it was written (`answerNamesAnAllergen`).
+  let question = '';
+
+  return turns.map(turn => {
+    if (turn.role === 'user') {
+      question = turn.content;
+
+      return turn;
+    }
+
+    return turn.content !== '' && answerNamesAnAllergen(turn.content, forbidden, question) ? { ...turn, content: '', decline: 'allergen' } : turn;
+  });
 }
 
 /**
@@ -256,7 +277,7 @@ export class AssistantService {
       system: assistantSystemPrompt(context)
     });
 
-    return this.answer(userId, conversationId, stream, figureSet(context, question), forbidden);
+    return this.answer(userId, conversationId, stream, figureSet(context, question), forbidden, question);
   }
 
   /**
@@ -374,8 +395,8 @@ export class AssistantService {
   }
 
   /** Which screen an answer so far fails, if any — the allergen net first, because it is the one with nothing behind it. */
-  private static verdict(written: string, set: FigureSet, forbidden: readonly ForbiddenFood[]): AssistantDecline | null {
-    if (answerNamesAnAllergen(written, forbidden)) {
+  private static verdict(written: string, set: FigureSet, forbidden: readonly ForbiddenFood[], question: string): AssistantDecline | null {
+    if (answerNamesAnAllergen(written, forbidden, question)) {
       return 'allergen';
     }
 
@@ -401,7 +422,8 @@ export class AssistantService {
     conversationId: string,
     stream: AiStream,
     set: FigureSet,
-    forbidden: readonly ForbiddenFood[]
+    forbidden: readonly ForbiddenFood[],
+    question: string
   ): AsyncIterable<AssistantEventDto> {
     const logger = this.logger;
 
@@ -422,7 +444,7 @@ export class AssistantService {
             continue;
           }
 
-          decline = AssistantService.verdict(shown + released, set, forbidden);
+          decline = AssistantService.verdict(shown + released, set, forbidden, question);
 
           if (decline !== null) {
             break;
@@ -437,7 +459,7 @@ export class AssistantService {
         if (decline === null && buffer !== '') {
           const { released } = flushSentences(buffer);
 
-          decline = AssistantService.verdict(shown + released, set, forbidden);
+          decline = AssistantService.verdict(shown + released, set, forbidden, question);
 
           if (decline === null) {
             shown += released;
