@@ -1278,6 +1278,7 @@ export const esES = {
     deleteQuestionLabel: 'Borrar tu pregunta',
     done: 'Respuesta terminada.',
     enterHint: 'Enter envía; Mayús+Enter, salto de línea.',
+    export: { downloading: 'Descargando {file}.', fileName: 'nutria-conversaciones-{date}.json', label: 'Descargar mis conversaciones' },
     field: 'Tu pregunta',
     fieldHint: 'Sobre tu plan, una receta, un ingrediente o tus macros. Hasta {max} caracteres.',
     gone: 'Esta conversación ya no existe.',

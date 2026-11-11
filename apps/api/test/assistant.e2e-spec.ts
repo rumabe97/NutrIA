@@ -207,6 +207,9 @@ describe('the assistant (023 phase 4)', () => {
 
       // Reading and deleting one's own words never sit behind the switch (PRD 10).
       expect((await request(server()).get(`/${PREFIX}/assistant/conversations`).set('Cookie', person.cookie).expect(200)).body).toEqual([]);
+      expect((await request(server()).get(`/${PREFIX}/assistant/conversations/export`).set('Cookie', person.cookie).expect(200)).body).toMatchObject({
+        conversations: []
+      });
       expect(streamer.calls + labeller.calls).toBe(0);
     } finally {
       await SettingsController.setFlag('assistant', true, UNAUDITED);
@@ -221,6 +224,7 @@ describe('the assistant (023 phase 4)', () => {
   it('refuses every route without a session, with 404 rather than 401, like every protected route', async () => {
     await request(server()).get(`/${PREFIX}/assistant/standing`).expect(404);
     await request(server()).get(`/${PREFIX}/assistant/conversations`).expect(404);
+    await request(server()).get(`/${PREFIX}/assistant/conversations/export`).expect(404);
     await request(server()).post(`/${PREFIX}/assistant/messages`).send({ message: 'hola' }).expect(404);
     expect(streamer.calls + labeller.calls).toBe(0);
   });
@@ -424,6 +428,9 @@ describe('the assistant (023 phase 4)', () => {
 
     streamer.answers.push([`Una tortilla con ${name}.`]);
     await ask(later, { conversationId, message: '¿Y mañana?' }).expect(200);
+    // An answer cut part-way keeps what it had shown — a sentence naming the food, safe that day.
+    streamer.answers.push([`Merienda ${name}. `, 'Son 4321 kcal. ']);
+    await ask(later, { conversationId, message: '¿Y la merienda?' }).expect(200);
     await request(server())
       .put(`/${PREFIX}/safety/restrictions`)
       .set('Cookie', later.cookie)
@@ -438,6 +445,16 @@ describe('the assistant (023 phase 4)', () => {
       .body as { turns: { content: string; decline: string | null; role: string }[] };
 
     expect(thread.turns.at(-1)).toMatchObject({ content: '', decline: 'allergen', role: 'assistant' });
+    expect(thread.turns.filter(turn => turn.role === 'assistant').at(-2)).toMatchObject({ content: '', decline: 'allergen' });
+    expect(JSON.stringify(thread).toLowerCase()).not.toContain(name);
+
+    // The downloaded copy shows food like the screen does: the same answer, withheld.
+    const copy = (await request(server()).get(`/${PREFIX}/assistant/conversations/export`).set('Cookie', later.cookie).expect(200)).body as {
+      conversations: { turns: { content: string; decline: string | null }[] }[];
+    };
+
+    expect(JSON.stringify(copy).toLowerCase()).not.toContain(name);
+    expect(copy.conversations[0]?.turns.at(-1)).toMatchObject({ content: '', decline: 'allergen' });
 
     await ask(later, { conversationId, message: '¿Y pasado?' }).expect(200);
     expect(JSON.stringify(streamer.requests.at(-1)?.messages).toLowerCase()).not.toContain(name);
@@ -496,6 +513,18 @@ describe('the assistant (023 phase 4)', () => {
     expect(labeller.calls).toBe(labels);
     expect((await standing(other)).used).toBe(0);
     expect((await as(other).get('conversations').expect(200)).body).toEqual([]);
+
+    // The other person's copy holds nothing of the owner's; the owner's holds the whole conversation.
+    expect((await as(other).get('conversations/export').expect(200)).body).toMatchObject({ conversations: [] });
+    const copy = (await as(owner).get('conversations/export').expect(200)).body as {
+      conversations: { id: string; turns: { content: string; role: string }[] }[];
+      exportedAt: string;
+    };
+
+    expect(copy.conversations.map(conversation => conversation.id)).toEqual([conversationId]);
+    expect(copy.conversations[0]?.turns.map(turn => turn.role)).toEqual(['user', 'assistant']);
+    expect(copy.conversations[0]?.turns[0]?.content).toBe('¿Es buena la merluza?');
+    expect(Number.isNaN(Date.parse(copy.exportedAt))).toBe(false);
 
     // Still whole for its owner.
     const thread = (await as(owner).get(`conversations/${conversationId}`).expect(200)).body as { turns: unknown[] };

@@ -35,7 +35,7 @@ import { AiCallError } from '../../ai/clients/AiClient.js';
 import type { AiClient } from '../../ai/clients/AiClient.js';
 import type { AiStream } from '../../ai/clients/StreamingAiClient.js';
 import type { AskAssistantDto } from '../dto/in/index.js';
-import type { AssistantConversationDto, AssistantEventDto, AssistantStandingDto, AssistantThreadDto } from '../dto/out/index.js';
+import type { AssistantConversationDto, AssistantEventDto, AssistantExportDto, AssistantStandingDto, AssistantThreadDto } from '../dto/out/index.js';
 import type { AssistantContext, FigureSet, ForbiddenFood } from 'core/domain/Assistant';
 import type { AssistantDecline, AssistantTurn } from 'core/entities/Assistant';
 import type { Allergen } from 'core/entities/Safety';
@@ -74,10 +74,16 @@ function forbiddenOf(
   );
 }
 
-/** Stored answers screened against today's allergies: one that names a forbidden food is shown — and replayed — as the `allergen` decline. */
-function screened(turns: readonly AssistantTurn[], forbidden: readonly ForbiddenFood[]): readonly AssistantTurn[] {
+/**
+ * Stored answers screened against today's allergies: one that names a forbidden food is shown — and replayed — as the `allergen` decline.
+ * A declined answer too: one cut part-way keeps the sentences already shown, and those were checked against the allergies of that day only.
+ */
+function screened<T extends Pick<AssistantTurn, 'content' | 'decline' | 'role'>>(
+  turns: readonly T[],
+  forbidden: readonly ForbiddenFood[]
+): readonly T[] {
   return turns.map(turn =>
-    turn.role === 'assistant' && turn.decline === null && answerNamesAnAllergen(turn.content, forbidden)
+    turn.role === 'assistant' && turn.content !== '' && answerNamesAnAllergen(turn.content, forbidden)
       ? { ...turn, content: '', decline: 'allergen' }
       : turn
   );
@@ -151,6 +157,18 @@ export class AssistantService {
     const [{ conversation, turns }, forbidden] = await Promise.all([AssistantController.thread(userId, conversationId), this.forbidden(userId)]);
 
     return { conversation, turns: screened(turns, forbidden) };
+  }
+
+  /**
+   * The person's own copy of every conversation (art. 20), screened as the
+   * screen shows them: their questions as they wrote them, and an answer that
+   * names a food they cannot eat today as the `allergen` decline — a file on
+   * their phone shows food like any screen does.
+   */
+  async everything(userId: string): Promise<AssistantExportDto> {
+    const [copy, forbidden] = await Promise.all([AssistantController.everything(userId), this.forbidden(userId)]);
+
+    return { ...copy, conversations: copy.conversations.map(conversation => ({ ...conversation, turns: screened(conversation.turns, forbidden) })) };
   }
 
   async deleteConversation(userId: string, conversationId: string): Promise<void> {

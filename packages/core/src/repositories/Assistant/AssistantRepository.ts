@@ -9,6 +9,18 @@ import { DatabaseOperationError } from 'core/entities/Error';
 import type { AssistantConversation, AssistantDecline, AssistantTurn } from 'core/entities/Assistant';
 import type { SQL } from 'drizzle-orm';
 
+/** One row of a person's copy of their conversations: a turn with its conversation, or a conversation with no turn (`role` null). */
+export type AssistantExportRow = {
+  readonly content: string | null;
+  readonly conversationCreatedAt: Date;
+  readonly conversationId: string;
+  readonly conversationUpdatedAt: Date;
+  readonly decline: AssistantDecline | null;
+  readonly role: 'assistant' | 'user' | null;
+  readonly title: string;
+  readonly turnCreatedAt: Date | null;
+};
+
 /** What the usage ledger counted since a window began: every message sent, and how many were cut as off topic. */
 export type AssistantUsage = { readonly messages: number; readonly offTopic: number };
 
@@ -195,6 +207,36 @@ export const AssistantRepository = {
 
         return true;
       });
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Every conversation of this person's with every turn, for the copy they
+   * download (art. 20): one row per turn, or one with no turn for a
+   * conversation left empty. Oldest conversation first, turns in order. No
+   * page limit — the list screen's fifty are not all of them.
+   */
+  async everything(userId: string): Promise<readonly AssistantExportRow[]> {
+    try {
+      const rows = await database()
+        .select({
+          content: aiMessages.content,
+          conversationCreatedAt: aiConversations.createdAt,
+          conversationId: aiConversations.id,
+          conversationUpdatedAt: aiConversations.updatedAt,
+          decline: aiMessages.decline,
+          role: aiMessages.role,
+          title: aiConversations.title,
+          turnCreatedAt: aiMessages.createdAt
+        })
+        .from(aiConversations)
+        .leftJoin(aiMessages, eq(aiMessages.conversationId, aiConversations.id))
+        .where(eq(aiConversations.userId, userId))
+        .orderBy(asc(aiConversations.createdAt), asc(aiConversations.id), asc(aiMessages.createdAt), asc(aiMessages.id));
+
+      return rows.map(row => ({ ...row, decline: row.decline as AssistantDecline | null, title: row.title ?? '' }));
     } catch (error: unknown) {
       throw wrap(error);
     }

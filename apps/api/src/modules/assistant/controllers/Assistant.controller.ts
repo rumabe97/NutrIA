@@ -6,7 +6,7 @@ import { AssistantService } from '../services/index.js';
 import { AssistantSwitchGuard } from '../../../shared/guards/AssistantSwitch.guard.js';
 import { CurrentUser, RateLimit, ZodBody } from '../../../shared/index.js';
 
-import type { AssistantConversationDto, AssistantStandingDto, AssistantThreadDto } from '../dto/out/index.js';
+import type { AssistantConversationDto, AssistantExportDto, AssistantStandingDto, AssistantThreadDto } from '../dto/out/index.js';
 import type { Response } from 'express';
 import type { SessionUser } from '../../../shared/index.js';
 
@@ -39,6 +39,19 @@ export class AssistantController {
   @Get('conversations')
   async conversations(@CurrentUser() user: SessionUser): Promise<readonly AssistantConversationDto[]> {
     return this.assistant.conversations(user.id);
+  }
+
+  /**
+   * Declared before `conversations/:id`, which would otherwise take `export` as
+   * an id and refuse it as no UUID. Not behind the switch, like reading: a copy
+   * of what somebody said is theirs whether the assistant is on or off.
+   */
+  @ApiOkResponse({ description: 'Every conversation of theirs with its turns, as their own copy to download (art. 20).' })
+  @ApiOperation({ summary: 'Download a copy of every conversation' })
+  @Get('conversations/export')
+  @RateLimit({ limit: 10, ttlSeconds: 3600 })
+  async everything(@CurrentUser() user: SessionUser): Promise<AssistantExportDto> {
+    return this.assistant.everything(user.id);
   }
 
   @ApiOkResponse({ description: 'One conversation and its turns, oldest first. 404 for one that is not theirs.' })

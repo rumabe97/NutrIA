@@ -1,4 +1,4 @@
-import type { AssistantConversation, AssistantDecline, AssistantTurn } from 'core/entities/Assistant';
+import type { AssistantConversation, AssistantDecline, AssistantExport, AssistantTurn } from 'core/entities/Assistant';
 
 /**
  * One line of the answer stream (`POST /assistant/messages`), as NDJSON — one
@@ -36,3 +36,6 @@ export type AssistantStandingDto = {
 export type AssistantConversationDto = AssistantConversation;
 
 export type AssistantThreadDto = { readonly conversation: AssistantConversation; readonly turns: readonly AssistantTurn[] };
+
+/** A person's own copy of every conversation, for them to download (art. 20). */
+export type AssistantExportDto = AssistantExport;

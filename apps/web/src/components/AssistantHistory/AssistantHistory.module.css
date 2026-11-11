@@ -97,6 +97,25 @@
   font-size: var(--font-size-01);
 }
 
+.export {
+  border-block-start: 1px solid var(--border-01);
+  display: grid;
+  gap: var(--space-01);
+  justify-items: start;
+  margin-block-start: var(--space-02);
+  padding-block-start: var(--space-03);
+}
+
+.exportNote {
+  color: var(--foreground-02);
+  font-size: var(--font-size-01);
+  margin: 0;
+}
+
+.exportNote:empty {
+  display: none;
+}
+
 .empty {
   color: var(--foreground-02);
   font-size: var(--font-size-02);

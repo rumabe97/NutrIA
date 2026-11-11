@@ -677,3 +677,11 @@ Asked with options, both answered with the recommended one:
 
 - **Evidence**: the owner, on 2026-11-11: *«Todas hechas ya»*. He sent the notice mail, switched the assistant on and checked the screen on his iPhone. Phases 5 and 7 were confirmed by a human on 2026-11-11, and the project is closed.
 - **Left after the project**: the portability export of conversations (P2) and the items for the lawyer's hour.
+
+## 2026-11-11 — After the project: a person downloads their own conversations (P2)
+
+- **Why**: the owner asked for it after the switch: *«Haz 1 y 2»*. Art. 20 reaches conversations, and PRD 11 forbids anyone but the person from reading them. `docs/legal/assistant-privacy.md` § 2.6 and § 10, box 8, asked for a way to answer that does not involve the owner.
+- **What**: `GET /assistant/conversations/export` returns a JSON copy of every conversation, bounded only by the session's user id. It is not behind the switch, like reading, and is limited to 10 an hour. The answers are screened against today's allergies, as the screen does. The history gets «Descargar mis conversaciones», in the side column and in the phone's sheet, and the file is built on the device.
+- **PRD 11, read precisely**: "no export reads a conversation" means nobody else's. **This download is the only export allowed.** It belongs to the person, is reached by their session alone, and no console, admin or professional path may ever reach it or anything like it.
+- **Fixed on the way** (`invariant-reviewer`, P1): an answer cut part-way keeps the sentences it had already shown. Those sentences were never screened again against an allergy declared later, so the old text came back in a thread and would have come back in the file. `screened` now checks every assistant turn that has text, whatever its decline. The e2e case fails without the fix.
+- **Checked**: core 33 tests; `assistant.e2e-spec.ts` 22/22 on local Postgres; web 312. `/local-probe` at 320/390/1280, light and dark: the button sits under the list. On desktop and on the phone's sheet, a click downloads `nutria-conversaciones-<fecha>.json` holding the conversation. The target is 44 px on touch.

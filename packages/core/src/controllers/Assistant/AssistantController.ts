@@ -6,7 +6,8 @@ import { PlanController } from 'core/controllers/Plan';
 import { PlanRepository } from '#repositories/Plan';
 import { personToday } from 'core/controllers/Profile';
 
-import type { AssistantConversation, AssistantDecline, AssistantTurn } from 'core/entities/Assistant';
+import type { AssistantConversation, AssistantDecline, AssistantExport, AssistantTurn } from 'core/entities/Assistant';
+import type { AssistantExportRow } from '#repositories/Assistant';
 import type { AssistantStanding } from 'core/domain/Allowance';
 
 /** The longest title a conversation is given: the start of its first question, cut on a word. */
@@ -27,6 +28,32 @@ export function conversationTitle(question: string): string {
   const lastSpace = cut.lastIndexOf(' ');
 
   return `${(lastSpace > TITLE_LENGTH / 2 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
+}
+
+/** The export's rows, one conversation each with its turns in order. Exported for its spec. */
+export function groupExport(rows: readonly AssistantExportRow[]): AssistantExport['conversations'] {
+  const conversations: {
+    id: string;
+    createdAt: Date;
+    title: string;
+    turns: AssistantExport['conversations'][number]['turns'][number][];
+    updatedAt: Date;
+  }[] = [];
+
+  for (const row of rows) {
+    let current = conversations.at(-1);
+
+    if (current?.id !== row.conversationId) {
+      current = { id: row.conversationId, createdAt: row.conversationCreatedAt, title: row.title, turns: [], updatedAt: row.conversationUpdatedAt };
+      conversations.push(current);
+    }
+
+    if (row.role !== null && row.turnCreatedAt !== null) {
+      current.turns.push({ content: row.content ?? '', createdAt: row.turnCreatedAt, decline: row.decline, role: row.role });
+    }
+  }
+
+  return conversations;
 }
 
 /** A conversation nobody has continued for this long is deleted (owner, 2026-11-10). */
@@ -108,6 +135,15 @@ export const AssistantController = {
     if (!(await AssistantRepository.deleteTurn(userId, turnId, conversationTitle))) {
       throw new NotFoundError();
     }
+  },
+
+  /**
+   * Everything this person has said to the assistant and what it answered, as
+   * their own copy to download (art. 20). Through their id only: nobody else's
+   * conversation can be in it, and nobody else asks for it.
+   */
+  async everything(userId: string, now: Date = new Date()): Promise<AssistantExport> {
+    return { conversations: groupExport(await AssistantRepository.everything(userId)), exportedAt: now };
   },
 
   /**
