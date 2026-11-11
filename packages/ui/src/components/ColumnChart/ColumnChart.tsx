@@ -107,7 +107,7 @@ export function ColumnChart({
 
       marks.push(
         <rect
-          className={`${styles.mark} ${styles[chartToneKey(entry.tone, seriesIndex)]}`}
+          className={`${styles.mark} ${styles[chartToneKey(entry.tone, seriesIndex)]} motion-grow-y`}
           height={Math.max(1, bottom - y(to))}
           key={`${index}-${seriesIndex}`}
           width={`${markWidth}%`}
@@ -163,7 +163,7 @@ export function ColumnChart({
     >
       <svg aria-labelledby={titleId} className={styles.chart} height={HEIGHT} role="img" width="100%">
         <ChartAxes labels={axisLabels} labelY={LABEL_Y} ticks={ticks.map(tick => ({ text: tickFormat(tick), y: y(tick) }))}>
-          {marks}
+          <g className="motion-figures">{marks}</g>
         </ChartAxes>
       </svg>
     </ChartFrame>

@@ -8,7 +8,7 @@ export interface ContextMenuContentProps extends Omit<RadixContextMenuContentPro
 
 export function ContextMenuContent({ children, className, ...rest }: ContextMenuContentProps) {
   return (
-    <Content className={className ? `${styles.panel} ${className}` : styles.panel} {...rest}>
+    <Content className={`${styles.panel} motion-unfold${className ? ` ${className}` : ''}`} {...rest}>
       {children}
     </Content>
   );

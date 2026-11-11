@@ -77,7 +77,14 @@ export function Gauge({
             <title>{`${capLabel}: ${format(cap)}`}</title>
           </rect>
           {fill > 0 ? (
-            <rect className={over ? `${styles.fill} ${styles.over}` : styles.fill} height={BAR} rx={BAR / 2} width={`${fill}%`} x="0" y="0">
+            <rect
+              className={`${over ? `${styles.fill} ${styles.over}` : styles.fill} motion-grow-x`}
+              height={BAR}
+              rx={BAR / 2}
+              width={`${fill}%`}
+              x="0"
+              y="0"
+            >
               <title>{`${valueLabel}: ${format(value)}`}</title>
             </rect>
           ) : null}

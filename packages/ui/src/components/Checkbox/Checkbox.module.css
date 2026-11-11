@@ -25,24 +25,35 @@
 
 .root {
   align-items: center;
-  background-color: transparent;
-  border: 1.5px solid var(--border-interactive);
-  border-radius: var(--radius-01);
+  background-color: var(--background-01);
+  /* The box is the control's edge: 3:1, and thicker in a high-contrast theme. */
+  border: max(1.5px, var(--border-width-interactive)) solid var(--border-interactive);
+  border-radius: var(--radius-02);
   cursor: inherit;
   display: flex;
   flex-shrink: 0;
-  height: 16px;
+  height: 20px;
   justify-content: center;
   margin: 0;
   padding: 0;
-  transition:
-    background-color var(--duration-fast) var(--ease-default),
-    border-color var(--duration-fast) var(--ease-default);
-  width: 16px;
+  width: 20px;
+}
+
+/* Ticked, the box springs (`--motion-answer`, the lively spring) and the tick
+   draws itself (`.motion-tick` on its path). Both are transform and stroke. */
+@keyframes checkbox-spring {
+  from {
+    transform: scale(0.82);
+  }
+
+  to {
+    transform: none;
+  }
 }
 
 .root[data-state='checked'],
 .root[data-state='indeterminate'] {
+  animation: checkbox-spring var(--motion-answer);
   background-color: var(--color-brand-fill);
   border-color: var(--color-brand-fill);
 }
@@ -60,11 +71,14 @@
 }
 
 .check {
+  block-size: 10px;
   display: block;
+  inline-size: 12px;
 }
 
 .indeterminate {
   display: none;
+  inline-size: 12px;
 }
 
 .indicator[data-state='indeterminate'] .check {

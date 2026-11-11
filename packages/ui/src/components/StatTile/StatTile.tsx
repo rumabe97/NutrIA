@@ -1,5 +1,6 @@
 import styles from './StatTile.module.css';
 
+import { CountUp } from 'ui/components/CountUp';
 import { percentChange } from 'ui/utils/percentChange';
 import { Sparkline } from 'ui/components/Sparkline';
 
@@ -7,6 +8,14 @@ import type { ChartTone } from 'ui/types/Chart.types';
 import type { ComponentPropsWithRef, ReactNode } from 'react';
 
 export interface StatTileProps extends Omit<ComponentPropsWithRef<'div'>, 'children'> {
+  /**
+   * The figure as a number, so it can count up to `value` when the tile arrives
+   * (`ui/components/CountUp`). Optional: without it the figure simply appears. `value` stays what
+   * is finally drawn and what assistive technology reads, from the first moment.
+   */
+  amount?: number;
+  /** How the counting figure is written on its way to `value` (`Intl.NumberFormat` options, in `locale`). */
+  amountFormat?: Intl.NumberFormatOptions;
   /** The same figure for this period and the one before; drawn as ▲ / ▼ and a percentage. */
   change?: { readonly current: number; readonly previous: number };
   /**
@@ -41,6 +50,8 @@ export interface StatTileProps extends Omit<ComponentPropsWithRef<'div'>, 'child
  * previous period was zero no percentage means anything, and none is drawn.
  */
 export function StatTile({
+  amount,
+  amountFormat,
   change,
   changeLabel,
   className,
@@ -69,7 +80,7 @@ export function StatTile({
     <div className={[styles.tile, className].filter(Boolean).join(' ')} {...rest}>
       <p className={styles.label}>{label}</p>
       <div className={styles.row}>
-        <p className={styles.value}>{value}</p>
+        <p className={styles.value}>{amount === undefined ? value : <CountUp format={amountFormat} locale={locale} text={value} value={amount} />}</p>
         {sparkline ? <Sparkline className={styles.sparkline} tone={sparklineTone} values={sparkline} /> : null}
       </div>
       {text === null ? null : (

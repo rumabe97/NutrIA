@@ -43,6 +43,22 @@ export function Input({ className, describedBy: extraDescribedBy, error, hint, l
       ) : null}
       {error ? (
         <p aria-live="polite" className={styles.error} id={errorId}>
+          {/* The flat error line: an icon and the words, no edge (project 024). The field's
+              own `aria-invalid` says it is wrong; the icon says it to the eye. */}
+          <svg
+            aria-hidden="true"
+            className={styles.errorIcon}
+            fill="none"
+            focusable="false"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeWidth="1.6"
+            viewBox="0 0 20 20"
+          >
+            <circle cx="10" cy="10" r="7.25" />
+            <path d="M10 6.2v4.6" />
+            <circle cx="10" cy="13.6" fill="currentColor" r="0.9" stroke="none" />
+          </svg>
           {error}
         </p>
       ) : null}

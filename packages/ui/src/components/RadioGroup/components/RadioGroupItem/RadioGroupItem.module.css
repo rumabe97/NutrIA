@@ -28,7 +28,6 @@
   justify-content: center;
   margin: 0;
   padding: 0;
-  transition: border-color var(--duration-fast) var(--ease-default);
   width: 16px;
 }
 

@@ -111,7 +111,7 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
 
       <ul aria-label={t.tilesLabel} className={styles.tiles}>
         <Card as="li" padding="sm">
-          <StatTile label={t.totalAccounts} locale={locale} value={number(tiles.totalAccounts)} />
+          <StatTile label={t.totalAccounts} locale={locale} amount={tiles.totalAccounts} value={number(tiles.totalAccounts)} />
         </Card>
         <Card as="li" padding="sm">
           <StatTile
@@ -121,11 +121,12 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
             label={t.newAccounts}
             locale={locale}
             sparkline={tiles.newAccounts.sparkline.values}
+            amount={tiles.newAccounts.current}
             value={number(tiles.newAccounts.current)}
           />
         </Card>
         <Card as="li" padding="sm">
-          <StatTile label={t.waitingAccounts} locale={locale} value={number(tiles.waitingAccounts)} />
+          <StatTile label={t.waitingAccounts} locale={locale} amount={tiles.waitingAccounts} value={number(tiles.waitingAccounts)} />
         </Card>
         <Card as="li" padding="sm">
           <StatTile
@@ -135,6 +136,7 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
             label={t.activePeople}
             locale={locale}
             sparkline={tiles.activePeople.sparkline.values}
+            amount={tiles.activePeople.current}
             value={number(tiles.activePeople.current)}
           />
         </Card>
@@ -146,6 +148,7 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
             label={t.plansGenerated}
             locale={locale}
             sparkline={tiles.plansGenerated.sparkline.values}
+            amount={tiles.plansGenerated.current}
             value={number(tiles.plansGenerated.current)}
           />
         </Card>
@@ -156,7 +159,7 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
           <StatTile label={t.successRate} locale={locale} note={rateNote} value={rate.current === null ? '—' : percent(rate.current)} />
         </Card>
         <Card as="li" padding="sm">
-          <StatTile label={t.unreadMessages} locale={locale} value={number(tiles.unreadMessages)} />
+          <StatTile label={t.unreadMessages} locale={locale} amount={tiles.unreadMessages} value={number(tiles.unreadMessages)} />
         </Card>
         <Card as="li" padding="sm">
           <StatTile

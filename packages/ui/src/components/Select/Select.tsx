@@ -38,7 +38,7 @@ export function Select({ children, placeholder, ...rest }: SelectProps) {
         <Value className={styles.label} placeholder={placeholder} />
       </Trigger>
       <Portal>
-        <Content align="end" className={styles.content} position="popper">
+        <Content align="end" className={`${styles.content} motion-unfold`} position="popper">
           <Viewport>{children}</Viewport>
         </Content>
       </Portal>

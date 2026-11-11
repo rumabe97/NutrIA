@@ -70,4 +70,11 @@ describe('StatTile', () => {
     expect(container.firstElementChild).toHaveClass('tile');
     expect(container.firstElementChild).toHaveClass('extra');
   });
+
+  it('counts up to its figure when given the number, and reads the final figure from the first moment', () => {
+    const { container } = render(<StatTile amount={1204} label="Altas" locale="es-ES" value="1.204" />);
+    expect(screen.getByText('1.204', { selector: '.visually-hidden' })).toBeInTheDocument();
+    // The counting figure and its width-holder are hidden from a screen reader.
+    expect(container.querySelectorAll('.value [aria-hidden="true"]')).toHaveLength(2);
+  });
 });

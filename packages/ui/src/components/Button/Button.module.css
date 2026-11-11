@@ -4,16 +4,21 @@
   border: var(--border-width-interactive) solid transparent;
   cursor: pointer;
   display: inline-flex;
-  font-weight: var(--font-weight-medium);
   justify-content: center;
   line-height: var(--line-height-01);
-  transition:
-    background-color var(--duration-fast) var(--ease-default),
-    border-color var(--duration-fast) var(--ease-default),
-    color var(--duration-fast) var(--ease-default),
-    opacity var(--duration-fast) var(--ease-default);
+  font-weight: var(--font-weight-semibold);
+  /* The press is the answer to a tap (`ui/styles/motion`, answers): only the
+     transform moves, on the firm spring. A colour change on hover is instant —
+     an eased colour is a repaint on every frame for nothing anybody reads. */
+  transition: transform var(--duration-fast) var(--spring-firm);
   user-select: none;
   white-space: nowrap;
+}
+
+/* Pressed in: a button gives under the finger and springs back. A busy or
+   disabled button does not, since nothing it shows is happening. */
+.button:active:not(:disabled, [aria-busy='true']) {
+  transform: scale(0.97);
 }
 
 /* On a phone every button is at least the size of a fingertip. The three
@@ -84,6 +89,9 @@
   background-color: var(--color-brand-fill);
   /* The fill's gradient, deep enough at both ends to hold its label (themes, `0107`). */
   background-image: var(--gradient-brand-fill);
+  /* The glow the sheets draw under the one filled action: its own colour, spread
+     under it, so it reads as lit rather than as a box with a shadow. */
+  box-shadow: 0 0.5rem 1.25rem -0.5rem color-mix(in srgb, var(--color-brand-fill) 60%, transparent);
   color: var(--color-on-brand-fill);
 }
 

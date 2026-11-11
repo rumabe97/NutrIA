@@ -25,8 +25,11 @@
   color: var(--foreground-01);
   /* The display size, but never wider than the tile allows: a figure never breaks inside
      a number, so at 200 % text on a phone a long one ("12.345.678") would stick out. */
+  font-family: var(--display-font, var(--main-font)), var(--font-fallback);
   font-size: min(var(--font-size-08), 14cqi);
-  font-weight: var(--font-weight-semibold);
+  /* The heavy display figure of the sheets: the number is what the tile is for. */
+  font-weight: var(--font-weight-heavy);
+  font-variant-numeric: tabular-nums;
   line-height: var(--line-height-02);
   /* The figure keeps its width and breaks only between words, never inside a number;
      the sparkline beside it is what gives way. */

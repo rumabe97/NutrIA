@@ -1,4 +1,18 @@
+/* A segmented control (the sheets' «7 días · 30 días · 90 días»): a pill track
+   set into the page, the chosen segment filled in the text colour. */
 .list {
-  border-bottom: 1px solid var(--border-01);
-  display: flex;
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-01);
+  max-inline-size: 100%;
+  padding: var(--space-01);
+}
+
+/* Every background is erased: the track keeps its shape with a line. */
+@media (forced-colors: active) {
+  .list {
+    outline: 1px solid CanvasText;
+  }
 }

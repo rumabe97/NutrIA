@@ -1,23 +1,42 @@
 .trigger {
   background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
   color: var(--foreground-02);
   cursor: pointer;
+  flex: 1 1 auto;
   font-size: var(--font-size-03);
   font-weight: var(--font-weight-medium);
-  margin-bottom: -1px;
-  padding: 0.625rem var(--space-04);
-  transition:
-    color var(--duration-fast) var(--ease-default),
-    border-color var(--duration-fast) var(--ease-default);
+  padding: var(--space-02) var(--space-04);
+  transition: transform var(--duration-fast) var(--spring-firm);
+}
+
+/* A finger's height on a phone; a pointer keeps the segment's. */
+@media (pointer: coarse) {
+  .trigger {
+    min-block-size: var(--target-min);
+  }
 }
 
 .trigger:hover {
   color: var(--foreground-01);
 }
 
+.trigger:active {
+  transform: scale(0.97);
+}
+
+/* The chosen segment: the text colour as its ground, the page's colour as its
+   words (the inverse of body text, so it holds what body text holds), and a
+   heavier weight, so the choice never rests on colour alone. */
 .trigger[data-state='active'] {
-  border-bottom-color: var(--foreground-01);
-  color: var(--foreground-01);
+  background-color: var(--foreground-01);
+  color: var(--background-01);
+  font-weight: var(--font-weight-semibold);
+}
+
+@media (forced-colors: active) {
+  .trigger[data-state='active'] {
+    border-color: Highlight;
+  }
 }

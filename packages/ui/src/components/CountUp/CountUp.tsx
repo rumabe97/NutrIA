@@ -28,7 +28,8 @@ export interface CountUpProps extends Omit<ComponentPropsWithRef<'span'>, 'child
  */
 export function CountUp({ className, format, locale, ref, text, value, ...rest }: CountUpProps) {
   const own = useRef<HTMLSpanElement>(null);
-  const formatter = new Intl.NumberFormat(locale, format);
+  // Without options, a whole number counts in whole numbers: 1.204 never passes through 601,537.
+  const formatter = new Intl.NumberFormat(locale, format ?? (Number.isInteger(value) ? { maximumFractionDigits: 0 } : undefined));
   // Always the final value: the counting is written into `own` by the hook, never rendered.
   const settled = useCountUp(value, own, shown => formatter.format(shown));
   const final = text ?? formatter.format(settled);

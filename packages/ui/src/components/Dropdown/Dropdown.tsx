@@ -36,7 +36,7 @@ export function Dropdown(props: DropdownProps) {
         {suffix ? suffix : null}
       </Trigger>
       <Portal>
-        <Content align={align} className={styles.content}>
+        <Content align={align} className={`${styles.content} motion-unfold`}>
           {children}
         </Content>
       </Portal>
