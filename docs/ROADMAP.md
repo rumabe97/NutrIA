@@ -702,7 +702,7 @@ before the `professional` flag goes on (§ 9), which waits on the payments work 
 
 ## Last, and deliberately so
 
-**The assistant — started 2026-11-09 as
+**The assistant — started 2026-11-09 and live since 2026-11-11 as
 [project 023](./projects/023-an-assistant-that-answers-from-your-plan/PRD.md).** Nutrition-scoped,
 context-efficient, with the medical boundaries in `PRODUCT.md` enforced rather than requested.
 Everything below is why it waited here; the paragraph at the end says what changed and what did

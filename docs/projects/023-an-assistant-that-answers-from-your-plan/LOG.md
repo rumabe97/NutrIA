@@ -673,6 +673,11 @@ Asked with options, both answered with the recommended one:
 - **Decision**: keep `claude-haiku-5-5` (`docs/reference/assistant-models-2026-11-11.md`). This is the default, so the owner has nothing to set.
 - **For later, not done**: whether the net should let «sin X» / «en vez de X» through is a question for the safety layer (`0004`), not for this phase.
 
+## 2026-11-11 — Phases 5 and 7: confirmed by human
+
+- **Evidence**: the owner, on 2026-11-11: *«Todas hechas ya»*. He sent the notice mail, switched the assistant on and checked the screen on his iPhone. Phases 5 and 7 were confirmed by a human on 2026-11-11, and the project is closed.
+- **Left after the project**: the portability export of conversations (P2) and the items for the lawyer's hour.
+
 ## 2026-11-11 — After the project: a person downloads their own conversations (P2)
 
 - **Why**: the owner asked for it after the switch: *«Haz 1 y 2»*. Art. 20 reaches conversations, and PRD 11 forbids anyone but the person from reading them. `docs/legal/assistant-privacy.md` § 2.6 and § 10, box 8, asked for a way to answer that does not involve the owner.
