@@ -19,11 +19,11 @@
  * `--pattern-opacity` is 0 in Alto contraste and under forced colours.
  */
 .pattern {
-  block-size: 18rem;
+  block-size: 14rem;
   inset-block-start: 0;
   inset-inline: 0;
   /* A mask reads only alpha: any opaque token draws it. */
-  mask-image: linear-gradient(to bottom, var(--foreground-01), transparent);
+  mask-image: linear-gradient(to bottom, var(--foreground-01), transparent 85%);
   opacity: var(--pattern-opacity);
   overflow: hidden;
   pointer-events: none;
@@ -62,7 +62,7 @@
     animation:
       hatch-drift var(--duration-drift) var(--ease-drift) infinite,
       hatch-follow auto linear both;
-    animation-range: normal, 0 18rem;
+    animation-range: normal, 0 14rem;
     animation-timeline: auto, scroll(root);
   }
 }
@@ -135,7 +135,7 @@
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-06);
+  gap: var(--space-03);
   justify-content: space-between;
   row-gap: var(--space-02);
   min-block-size: var(--app-header-block);
@@ -213,18 +213,15 @@
 }
 
 /*
- * Below 360px the row cannot hold the wordmark, the language switch, the theme
+ * Below 376px the row cannot hold the wordmark, the language switch, the theme
  * menu and "Cerrar sesión" at once (PRD 024 § "What changes from the sheets",
- * 5). The mark alone carries the brand there — the bar names the current
- * destination and every link keeps its name, so nothing needed for orientation
- * is lost, and the link keeps its aria-label — and sign-out becomes an icon
- * whose name is still its words, kept for screen readers and hidden from the eye.
+ * 5; measured at 368px on a phone, where the 44px floors apply, with the heading
+ * face's wordmark). The mark alone carries the brand there — the bar names the
+ * current destination and every link keeps its name, so nothing needed for
+ * orientation is lost, and the link keeps its aria-label — and sign-out becomes
+ * an icon whose name is still its words, kept for screen readers and hidden from the eye.
  */
-@media (width < 22.5rem) {
-  .inner {
-    gap: var(--space-04);
-  }
-
+@media (width < 23.5rem) {
   .actions {
     gap: var(--space-02);
   }

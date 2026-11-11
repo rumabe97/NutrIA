@@ -146,7 +146,7 @@
   --glow-brand: rgb(226 81 43 / 9%);
   --glow-cool: rgb(139 63 107 / 7%);
   --grain-opacity: 0.03;
-  --pattern-opacity: 0.4;
+  --pattern-opacity: 0.3;
 }
 
 /* ── Oscuro ──────────────────────────────────────────────────────────────────────────────────
@@ -256,7 +256,7 @@
   --glow-brand: rgb(255 110 69 / 7%);
   --glow-cool: rgb(213 139 181 / 7%);
   --grain-opacity: 0.05;
-  --pattern-opacity: 0.35;
+  --pattern-opacity: 0.28;
 }
 
 /* ── Huerta ──────────────────────────────────────────────────────────────────────────────────
@@ -366,7 +366,7 @@
   --glow-brand: rgb(63 163 77 / 10%);
   --glow-cool: rgb(200 64 30 / 5%);
   --grain-opacity: 0.03;
-  --pattern-opacity: 0.4;
+  --pattern-opacity: 0.3;
 }
 
 /* ── Pulso ───────────────────────────────────────────────────────────────────────────────────
@@ -476,7 +476,7 @@
   --glow-brand: rgb(255 46 147 / 9%);
   --glow-cool: rgb(122 59 255 / 12%);
   --grain-opacity: 0.05;
-  --pattern-opacity: 0.35;
+  --pattern-opacity: 0.28;
 }
 
 /* ── Alto contraste ──────────────────────────────────────────────────────────────────────────
@@ -698,7 +698,7 @@
     --glow-brand: rgb(255 110 69 / 7%);
     --glow-cool: rgb(213 139 181 / 7%);
     --grain-opacity: 0.05;
-    --pattern-opacity: 0.35;
+    --pattern-opacity: 0.28;
   }
 }
 

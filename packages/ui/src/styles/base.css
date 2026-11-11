@@ -91,7 +91,13 @@ textarea {
    320ms of delay on the last child) starts at `opacity: 0`, and collapsing only the duration
    leaves each item invisible for the whole of its delay — reduced motion turned into missing
    content. `transition-delay` is deliberately left alone: a delay on a transition is used
-   here to sequence state (the bottom bar's return after a keyboard closes), not to animate. */
+   here to sequence state (the bottom bar's return after a keyboard closes), not to animate.
+
+   `animation-timeline` goes back to the document's clock too. A duration does not reach an
+   animation driven by the scroll — it is spread over the scroll whatever its duration says —
+   so without this a parallax kept moving with every scroll under reduced motion (measured on
+   the app's header pattern, project 024 phase 3). On the clock it plays in 0.01ms and holds its
+   last frame: still, and in its final place. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -99,6 +105,7 @@ textarea {
     animation-delay: 0ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-timeline: auto !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
