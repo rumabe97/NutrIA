@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import styles from './CareEndLink.module.css';
 
 import { Button } from 'ui/components/Button';
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
@@ -70,9 +71,9 @@ export function CareEndLink({ linkId, name }: CareEndLinkProps) {
       </Text>
 
       {error ? (
-        <p className={styles.error} role="alert">
+        <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
           {error}
-        </p>
+        </Note>
       ) : null}
 
       {confirming ? (

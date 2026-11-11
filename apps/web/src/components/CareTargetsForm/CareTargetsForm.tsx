@@ -7,6 +7,7 @@ import styles from './CareTargetsForm.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
@@ -109,11 +110,11 @@ export function CareTargetsForm({ linkId, targets }: CareTargetsFormProps) {
       <MacroSummary carbsG={effective.carbsG} fatG={effective.fatG} kcal={effective.kcal} proteinG={effective.proteinG} />
 
       {errors.length > 0 ? (
-        <div className={styles.errors} role="alert">
+        <Note layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
           {errors.map(error => (
             <p key={error}>{error}</p>
           ))}
-        </div>
+        </Note>
       ) : null}
 
       {editing ? (

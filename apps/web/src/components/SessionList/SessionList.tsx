@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import styles from './SessionList.module.css';
 
 import { Button } from 'ui/components/Button';
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
@@ -212,9 +213,9 @@ export function SessionList() {
       </Text>
 
       {error ? (
-        <p className={styles.error} role="alert">
+        <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
           {error}
-        </p>
+        </Note>
       ) : null}
       {/* Mounted empty, so what was closed is announced when its words arrive; out of the
           layout until then, so it adds no gap. */}
@@ -247,12 +248,12 @@ export function SessionList() {
       ) : null}
 
       {state.kind === 'notFresh' ? (
-        <div className={styles.notFresh}>
+        <Note className={styles.notFresh} tone="warning" toneLabel={dictionary.common.noteTone.warning}>
           <Text size="sm">{t.sessionsNotFresh}</Text>
           <div className={styles.actions}>
             <SignInAgainButton />
           </div>
-        </div>
+        </Note>
       ) : null}
 
       {state.kind === 'ready' ? (

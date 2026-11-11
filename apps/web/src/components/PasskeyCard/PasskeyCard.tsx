@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore }
 import styles from './PasskeyCard.module.css';
 
 import { Button } from 'ui/components/Button';
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
@@ -290,9 +291,9 @@ export function PasskeyCard({ email, hasPassword }: PasskeyCardProps) {
       ) : null}
 
       {error ? (
-        <p className={styles.error} key={attempt} role="alert">
+        <Note as="p" key={attempt} layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
           {error}
-        </p>
+        </Note>
       ) : null}
       {/* Mounted empty, so what changed is announced when its words arrive; out of the
           layout until then, so it adds no gap. */}
@@ -327,12 +328,12 @@ export function PasskeyCard({ email, hasPassword }: PasskeyCardProps) {
       ) : null}
 
       {state.kind === 'notFresh' || stale ? (
-        <div className={styles.notFresh}>
+        <Note className={styles.notFresh} tone="warning" toneLabel={dictionary.common.noteTone.warning}>
           <Text size="sm">{state.kind === 'notFresh' ? t.listNotFresh : t.stale}</Text>
           <div className={styles.actions}>
             <SignInAgainButton />
           </div>
-        </div>
+        </Note>
       ) : null}
 
       {state.kind === 'ready' && state.rows.length > 0 ? (

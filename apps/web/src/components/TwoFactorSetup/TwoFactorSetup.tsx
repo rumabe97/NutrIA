@@ -5,6 +5,7 @@ import styles from 'components/TwoFactorCard/TwoFactorCard.module.css';
 
 import { Button, buttonClassName } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
@@ -166,9 +167,9 @@ export function TwoFactorSetup({ onCancel, onConfirmed, totpUri }: TwoFactorSetu
       </h4>
 
       {error ? (
-        <p className={styles.error} key={attempt} role="alert">
+        <Note as="p" key={attempt} layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
           {error}
-        </p>
+        </Note>
       ) : null}
 
       <Input

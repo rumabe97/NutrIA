@@ -7,6 +7,7 @@ import styles from './AssistantChat.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Link } from 'ui/components/Link';
+import { Note } from 'ui/components/Note';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { withLocale } from 'i18n/routes';
 
@@ -331,8 +332,7 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
         {threadItems(shown).map(item => {
           if (item.kind === 'warning') {
             return (
-              <li className={styles.notice} key="warning">
-                <p className={styles.noticeLabel}>{t.warningLabel}</p>
+              <Note as="li" key="warning" showToneLabel={true} tone="warning" toneLabel={t.warningLabel}>
                 <p className={styles.noticeText}>
                   {t.warning.split(/(\{privacy\})/).map(part =>
                     part === PRIVACY_PLACEHOLDER ? (
@@ -344,7 +344,7 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
                     )
                   )}
                 </p>
-              </li>
+              </Note>
             );
           }
 

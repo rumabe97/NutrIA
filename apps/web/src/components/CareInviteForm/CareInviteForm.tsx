@@ -7,6 +7,7 @@ import styles from './CareInviteForm.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
@@ -109,7 +110,7 @@ export function CareInviteForm() {
       ) : null}
 
       {outcome?.kind === 'full' ? (
-        <div className={styles.full} role="alert">
+        <Note className={styles.full} role="alert" tone="warning" toneLabel={dictionary.common.noteTone.warning}>
           <Text size="sm" weight="medium">
             {interpolate(t.inviteFull, { count: formatNumber(outcome.included, locale) })}
           </Text>
@@ -121,13 +122,13 @@ export function CareInviteForm() {
               {t.inviteFullUp}
             </Button>
           </div>
-        </div>
+        </Note>
       ) : null}
 
       {outcome?.kind === 'failed' ? (
-        <p className={styles.error} role="alert">
+        <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
           {outcome.message}
-        </p>
+        </Note>
       ) : null}
     </Card>
   );

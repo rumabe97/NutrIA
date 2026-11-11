@@ -47,34 +47,6 @@
   margin: 0;
 }
 
-.applied,
-.suggestion {
-  border-inline-start: 3px solid;
-  border-radius: var(--radius-control);
-  display: grid;
-  font-size: var(--font-size-02);
-  gap: var(--space-02);
-  line-height: var(--line-height-04);
-  padding: var(--space-03) var(--space-04);
-}
-
-.applied {
-  background-color: var(--surface-sunken);
-  border-color: var(--color-success);
-  color: var(--foreground-02);
-}
-
-.suggestion {
-  background-color: var(--surface-sunken);
-  border-color: var(--color-warning);
-  color: var(--foreground-02);
-}
-
-.applied p,
-.suggestion p {
-  margin: 0;
-}
-
 .notice {
   background-color: var(--surface-sunken);
   border-radius: var(--radius-control);

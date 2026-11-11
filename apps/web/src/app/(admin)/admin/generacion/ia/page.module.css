@@ -84,24 +84,16 @@
   }
 }
 
-/* What this month's spend says, in words: a left rule for the eye, and a lead word
-   ("Aviso:" / "Warning:") so the state never rests on the colour. */
+/* What this month's spend says, in words: a warning or an error `Note` for the eye,
+   and a lead word ("Aviso:" / "Warning:", or the note's own tone word) so the
+   state never rests on the colour. */
 .month {
   display: grid;
   gap: var(--space-03);
 }
 
 .warning {
-  border-inline-start: 3px solid var(--color-warning);
-  color: var(--foreground-01);
-  font-size: var(--font-size-03);
-  margin: 0;
   max-inline-size: var(--prose-max);
-  padding-inline-start: var(--space-03);
-}
-
-.warning[data-over='true'] {
-  border-inline-start-color: var(--color-error);
 }
 
 .line {

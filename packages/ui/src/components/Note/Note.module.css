@@ -24,16 +24,20 @@
 }
 
 .body {
-  display: grid;
-  gap: var(--space-01);
+  /* Flow, not grid: a line that mixes a <strong> with text must stay one line. */
+  display: block;
   min-inline-size: 0;
   overflow-wrap: break-word;
 }
 
-/* The words a caller puts inside keep their own spacing; the note only spaces
-   its own boxes. */
-.body > :is(p, ul, ol, div) {
+/* The words a caller puts inside keep no margins of their own; the note spaces
+   its own boxes, one small step apart. */
+.body > * {
   margin: 0;
+}
+
+.body > * + *:not(:global(.visually-hidden) + *) {
+  margin-block-start: var(--space-01);
 }
 
 .title,

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import styles from './CarePublishButton.module.css';
 
 import { Button } from 'ui/components/Button';
+import { Note } from 'ui/components/Note';
 import { useDictionary } from 'i18n/LocaleProvider';
 
 import { api, ApiError, messageFor } from 'lib/api';
@@ -46,9 +47,9 @@ export function CarePublishButton({ linkId }: Readonly<{ linkId: string }>) {
         {dictionary.practice.publish}
       </Button>
       {error ? (
-        <p className={styles.error} role="alert">
+        <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
           {error}
-        </p>
+        </Note>
       ) : null}
     </div>
   );

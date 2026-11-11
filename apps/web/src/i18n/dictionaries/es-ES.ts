@@ -1514,6 +1514,7 @@ export const esES = {
     finish: 'Terminar',
     none: 'Ninguna',
     noneMasculine: 'Ninguno',
+    noteTone: { error: 'Error', info: 'Nota', success: 'Hecho', warning: 'Aviso' },
     remove: 'Quitar',
     retry: 'Reintentar',
     save: 'Guardar',

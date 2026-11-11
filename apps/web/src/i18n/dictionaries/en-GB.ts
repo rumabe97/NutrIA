@@ -1476,6 +1476,7 @@ export const enGB: Dictionary = {
     finish: 'Finish',
     none: 'None',
     noneMasculine: 'None',
+    noteTone: { error: 'Error', info: 'Note', success: 'Done', warning: 'Warning' },
     remove: 'Remove',
     retry: 'Try again',
     save: 'Save',

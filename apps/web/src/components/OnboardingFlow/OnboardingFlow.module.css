@@ -116,23 +116,10 @@
   margin-top: var(--space-08);
 }
 
-.enforced,
-.bestEffort {
-  border-inline-start: 2px solid;
-  font-size: var(--font-size-02);
-  line-height: var(--line-height-03);
+/* Each custom allergy's status, an inline `Note` under the field: matched (success) or
+   not (warning). */
+.status {
   margin-top: var(--space-03);
-  padding-inline-start: var(--space-03);
-}
-
-.enforced {
-  border-color: var(--color-success);
-  color: var(--foreground-02);
-}
-
-.bestEffort {
-  border-color: var(--color-warning);
-  color: var(--foreground-02);
 }
 
 .saveNote {

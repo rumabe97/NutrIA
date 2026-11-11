@@ -8,6 +8,7 @@ import { ColumnChart } from 'ui/components/ColumnChart';
 import { DataTable } from 'ui/components/DataTable';
 import { Gauge } from 'ui/components/Gauge';
 import { LineChart } from 'ui/components/LineChart';
+import { Note } from 'ui/components/Note';
 import { parsePeriod } from 'core/domain/Period';
 import { StatTile } from 'ui/components/StatTile';
 
@@ -159,11 +160,13 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
             </Card>
           )}
           {month.share !== undefined && month.share >= 1 ? (
-            <p className={styles.warning} data-over="true">
+            <Note as="p" className={styles.warning} tone="error">
               {t.warnOver}
-            </p>
+            </Note>
           ) : month.sweepPaused && month.share !== undefined ? (
-            <p className={styles.warning}>{interpolate(t.warnSweep, { share: percent(month.share) })}</p>
+            <Note as="p" className={styles.warning} tone="warning">
+              {interpolate(t.warnSweep, { share: percent(month.share) })}
+            </Note>
           ) : null}
           {month.uncostedCalls > 0 ? <p className={styles.line}>{uncosted}</p> : null}
           {month.capUsd === undefined ? null : <p className={styles.line}>{t.monthOnlyOnWarns}</p>}
@@ -196,9 +199,9 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
             </Card>
           )}
           {month.assistant.share !== undefined && month.assistant.share >= 1 ? (
-            <p className={styles.warning} data-over="true">
+            <Note as="p" className={styles.warning} tone="error" toneLabel={dictionary.common.noteTone.error}>
               {t.assistantOver}
-            </p>
+            </Note>
           ) : null}
           {month.assistant.capUsd === undefined ? null : <p className={styles.line}>{assistantCalls}</p>}
         </div>

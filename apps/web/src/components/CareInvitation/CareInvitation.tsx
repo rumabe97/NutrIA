@@ -8,6 +8,7 @@ import styles from './CareInvitation.module.css';
 import { Button } from 'ui/components/Button';
 import { Checkbox } from 'ui/components/Checkbox';
 import { Link } from 'ui/components/Link';
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { withLocale } from 'i18n/routes';
@@ -183,9 +184,9 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
       </Text>
 
       {error ? (
-        <p className={styles.error} role="alert">
+        <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
           {error}
-        </p>
+        </Note>
       ) : null}
 
       <div className={styles.actions}>

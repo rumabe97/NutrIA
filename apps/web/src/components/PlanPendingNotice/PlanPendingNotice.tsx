@@ -3,9 +3,9 @@ import { useSyncExternalStore } from 'react';
 
 import styles from './PlanPendingNotice.module.css';
 
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
-
-import { Card } from 'components/Card';
+import { useDictionary } from 'i18n/LocaleProvider';
 
 import { isPendingReview } from 'lib/pendingReview';
 
@@ -43,6 +43,7 @@ function alwaysAbsent(): boolean {
  * never confirmed.
  */
 export function PlanPendingNotice({ body, currentPlanId, heading = true, title }: PlanPendingNoticeProps) {
+  const dictionary = useDictionary();
   const pending = useSyncExternalStore(noSubscription, () => isPendingReview(currentPlanId), alwaysAbsent);
 
   if (!pending) {
@@ -50,7 +51,7 @@ export function PlanPendingNotice({ body, currentPlanId, heading = true, title }
   }
 
   return (
-    <Card as="section" className={styles.notice} role="status">
+    <Note as="section" role="status" toneLabel={dictionary.common.noteTone.info}>
       {heading ? (
         <h2 className={styles.title}>{title}</h2>
       ) : (
@@ -61,6 +62,6 @@ export function PlanPendingNotice({ body, currentPlanId, heading = true, title }
       <Text size="sm" tone="secondary">
         {body}
       </Text>
-    </Card>
+    </Note>
   );
 }

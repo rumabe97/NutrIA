@@ -7,6 +7,7 @@ import styles from './TargetsPanel.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
@@ -130,7 +131,7 @@ export function TargetsPanel({ targets }: { targets: ResolvedTargets }) {
       </details>
 
       {derivation.clampedBy ? (
-        <p className={styles.notice}>
+        <Note as="p" toneLabel={dictionary.common.noteTone.info}>
           {derivation.clampedBy === 'floor'
             ? interpolate(t.clampedFloor, {
                 floor: formatNumber(derivation.floorKcal, locale),
@@ -140,17 +141,21 @@ export function TargetsPanel({ targets }: { targets: ResolvedTargets }) {
                 ceiling: formatNumber(derivation.ceilingKcal, locale),
                 requested: formatNumber(derivation.requestedKcal, locale)
               })}
-        </p>
+        </Note>
       ) : null}
 
-      {overrideStatus === 'stale' ? <p className={styles.notice}>{t.stale}</p> : null}
+      {overrideStatus === 'stale' ? (
+        <Note as="p" toneLabel={dictionary.common.noteTone.info}>
+          {t.stale}
+        </Note>
+      ) : null}
 
       {errors.length > 0 ? (
-        <div className={styles.errors} role="alert">
+        <Note layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
           {errors.map(error => (
             <p key={error}>{error}</p>
           ))}
-        </div>
+        </Note>
       ) : null}
 
       {editing ? (

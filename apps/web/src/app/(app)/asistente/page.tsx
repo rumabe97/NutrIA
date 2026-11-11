@@ -1,6 +1,7 @@
 import styles from './page.module.css';
 
 import { getDictionary } from 'i18n/server';
+import { Note } from 'ui/components/Note';
 
 import { AssistantChat } from 'components/AssistantChat';
 
@@ -36,9 +37,10 @@ export default async function AssistantPage() {
     <div className={styles.page}>
       <h1 className="visually-hidden">{t.title}</h1>
       {health?.supervisionRecommended ? (
-        <p className={styles.supervision} role="note">
+        // The same notice, in the same words, as the profile's.
+        <Note as="p" role="note" tone="warning" toneLabel={dictionary.common.noteTone.warning}>
           {dictionary.profile.supervision}
-        </p>
+        </Note>
       ) : null}
       {standing ? <AssistantChat conversationId={null} standing={standing} turns={[]} /> : null}
     </div>
