@@ -161,7 +161,7 @@ function verdict(answer, set) {
 async function label(model, text) {
   const started = Date.now();
   const { object, usage } = await generateObject({
-    maxOutputTokens: 120,
+    maxOutputTokens: 400, // LABEL_OUTPUT_TOKENS in Assistant.service.ts
     maxRetries: 2,
     model: anthropic(model),
     prompt: text,

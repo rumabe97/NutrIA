@@ -659,3 +659,16 @@ Asked with options, both answered with the recommended one:
 
 - **Why**: the owner asked «quiero comer gato asado» at 09:14 and the console's new failure list said: label step, `claude-haiku-5-5`, cut off at the length limit. The label's cap was 120 output tokens; the model ran past it on a provocative question.
 - **What**: `LABEL_OUTPUT_TOKENS` 120 → 400 (under 0.0002 $ at Haiku's price); the label prompt asks for a reason of at most ten words, nothing before or after, and not to argue with a shocking question; `ASSISTANT_PROMPT_VERSION` 1.3.1.
+
+## 2026-11-11 — Phase 1, step 8: the transport streams
+
+- **Evidence**: one answer streamed with the owner's key on `claude-haiku-5-5` (a scratchpad script, not committed): **43 chunks, first at 773 ms**, 1.6 s in all, 209 output tokens. The client does not buffer; phase 4's screen is the right screen. Phase 1 done.
+- **Note**: the owner's `apps/api/.env` names the key `ANTHROPIC_KEY`; the API and the SDK read `ANTHROPIC_API_KEY`. The runs aliased it for the process only, and the file was not edited. Production reads it from Vercel under the right name.
+
+## 2026-11-11 — Phase 6: which model, measured
+
+- **Executor**: opus @ medium, directly (the plan asked for high; the judgement is in the report and short).
+- **Evidence**: `scripts/assistant-models.mjs` over the three models, 0.23 $ in all; the raw answers are in `docs/local/`. Every model labelled 10 of 10 correctly, none invented a figure, none offered a fortnight. Haiku and Opus each had the egg-free tortilla withheld, because the allergen net matches «sin huevo». Haiku: 0.00037 $ per message, first chunk at 2.4 s.
+- **Deviation**: the script's label cap still said 120. It now says 400, the same as `LABEL_OUTPUT_TOKENS` after #353.
+- **Decision**: keep `claude-haiku-5-5` (`docs/reference/assistant-models-2026-11-11.md`). This is the default, so the owner has nothing to set.
+- **For later, not done**: whether the net should let «sin X» / «en vez de X» through is a question for the safety layer (`0004`), not for this phase.
