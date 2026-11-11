@@ -3,7 +3,7 @@ import { PropsTable } from 'components/PropsTable';
 
 # Checkbox
 
-A form control that toggles between checked, unchecked, and indeterminate states. Built on [Radix UI Checkbox](https://www.radix-ui.com/primitives/docs/components/checkbox) with full keyboard navigation and WAI-ARIA compliance. The component renders a wrapping `<label>` so the visual + the label text together form the clickable target — satisfying WCAG 2.5.8 even though the visual itself is 16×16.
+A form control that toggles between checked, unchecked, and indeterminate states. Built on [Radix UI Checkbox](https://www.radix-ui.com/primitives/docs/components/checkbox) with full keyboard navigation and WAI-ARIA compliance. The component renders a wrapping `<label>` so the visual + the label text together form the clickable target — satisfying WCAG 2.5.8 even though the visual itself is 20×20.
 
 ## Examples
 
@@ -65,6 +65,6 @@ All Radix Checkbox Root props are also accepted.
 ## Accessibility
 
 - Renders with `role="checkbox"` and `aria-checked` reflecting the current state, including `"mixed"` for indeterminate.
-- The wrapping `<label>` makes the label text and visual a single ~24×24+ click target — WCAG 2.5.8 (Target Size Minimum) passes via the "Equivalent target" exception even though the visual is 16×16.
+- The wrapping `<label>` makes the label text and visual a single ~24×24+ click target — WCAG 2.5.8 (Target Size Minimum) passes via the "Equivalent target" exception even though the visual is 20×20.
 - `Space` toggles the checkbox when focused; the focus ring follows our shared `--focus-ring-*` tokens.
 - For label-less checkboxes (e.g. a "select all" in a data-table header), pass a visually-hidden node as `label` — never omit the label.

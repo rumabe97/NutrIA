@@ -2,11 +2,11 @@
   background-color: var(--color-switch);
   border-radius: var(--radius-full);
   border: var(--border-width-interactive) solid var(--border-interactive);
-  height: 25px;
+  height: 28px;
   margin: 0;
   padding: 0;
   position: relative;
-  width: 42px;
+  width: 48px;
 }
 
 /* On is the brand's fill, like a ticked checkbox and a chosen radio: one
@@ -26,13 +26,16 @@
   background-color: var(--color-switch-thumb);
   border-radius: var(--radius-full);
   display: block;
-  height: 21px;
-  transform: translateX(1px);
-  transition: transform var(--duration-normal) var(--ease-default);
-  width: 21px;
+  box-shadow: var(--shadow-s);
+  height: 22px;
+  transform: translateX(2px);
+  /* The knob springs across (`--spring-lively`): it overshoots a hair and settles,
+     the answer the sheets ask a switch to give. Only the transform moves. */
+  transition: transform var(--duration-enter-short) var(--spring-lively);
+  width: 22px;
   will-change: transform;
 }
 
 .thumb[data-state='checked'] {
-  transform: translateX(18px);
+  transform: translateX(22px);
 }

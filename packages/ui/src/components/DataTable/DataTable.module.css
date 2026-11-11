@@ -32,15 +32,21 @@
 .table th,
 .table td {
   border-block-end: 1px solid var(--border-01);
-  padding: var(--space-02) var(--space-03);
+  padding: var(--space-03);
   text-align: start;
   vertical-align: top;
 }
 
+/* The column names in small capitals over a hairline, as the sheets draw them.
+   Capitals are the stylesheet's, not the words': a screen reader reads the
+   header as written. */
 .table thead th {
   color: var(--foreground-02);
-  font-size: var(--font-size-02);
+  font-size: var(--font-size-01);
   font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-caps, 0.06em);
+  padding-block: var(--space-02);
+  text-transform: uppercase;
   /* Middle, not bottom: a sortable header's link is a touch target (--target-min tall
      on a coarse pointer) that centres its own text, so every header's words sit on
      one line only when the cells centre too. */

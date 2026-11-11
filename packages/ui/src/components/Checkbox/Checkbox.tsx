@@ -21,10 +21,18 @@ export function Checkbox({ className, label, ...rest }: CheckboxProps) {
     <Label className={wrapperClass} htmlFor={checkboxId}>
       <CheckboxPrimitive.Root className={styles.root} id={checkboxId} {...rest}>
         <CheckboxPrimitive.Indicator className={styles.indicator}>
-          <svg aria-hidden={true} className={styles.check} fill="none" height="8" viewBox="0 0 10 8" width="10">
-            <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
+          <svg aria-hidden={true} className={styles.check} fill="none" viewBox="0 0 10 8">
+            <path
+              className="motion-tick"
+              d="M1 4L3.5 6.5L9 1"
+              pathLength={1}
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="1.5"
+            />
           </svg>
-          <svg aria-hidden={true} className={styles.indeterminate} fill="none" height="2" viewBox="0 0 10 2" width="10">
+          <svg aria-hidden={true} className={styles.indeterminate} fill="none" viewBox="0 0 10 2">
             <line stroke="currentColor" strokeLinecap="round" strokeWidth="2" x1="1" x2="9" y1="1" y2="1" />
           </svg>
         </CheckboxPrimitive.Indicator>

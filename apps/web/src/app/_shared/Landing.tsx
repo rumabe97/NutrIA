@@ -4,6 +4,7 @@ import styles from './Landing.module.css';
 
 import { Accordion, AccordionItem } from 'ui/components/Accordion';
 import { dictionaryFor } from 'i18n/server';
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { withLocale } from 'i18n/routes';
 
@@ -158,11 +159,15 @@ export function Landing({ locale }: Readonly<{ locale: Locale }>) {
 
               <div className={styles.safetyGrid}>
                 {t.safety.map((item, index) => (
-                  <Reveal className={styles.safetyItem} delay={index * 80} key={item.title}>
-                    <h3 className={styles.subheading}>{item.title}</h3>
-                    <Text size="sm" tone="secondary">
-                      {item.body}
-                    </Text>
+                  <Reveal delay={index * 80} key={item.title}>
+                    {/* A flat note, not a card: a promise set apart from the prose. No tone word —
+                        nothing here is a warning or a state, and its heading says what it is. */}
+                    <Note>
+                      <h3 className={styles.subheading}>{item.title}</h3>
+                      <Text size="sm" tone="secondary">
+                        {item.body}
+                      </Text>
+                    </Note>
                   </Reveal>
                 ))}
               </div>

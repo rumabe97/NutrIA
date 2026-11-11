@@ -13,7 +13,6 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  transition: background-color var(--duration-fast) var(--ease-default);
   width: var(--height-m);
   z-index: var(--z-base);
 }

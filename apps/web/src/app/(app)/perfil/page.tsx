@@ -4,6 +4,7 @@ import styles from './page.module.css';
 
 import { activeLocale, getDictionary } from 'i18n/server';
 import { LEGAL_IDENTITY } from 'i18n/legalIdentity';
+import { Note } from 'ui/components/Note';
 import { slotsIn } from 'core/domain/MealShape';
 import { Text } from 'ui/components/Text';
 
@@ -175,9 +176,9 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
           is absent for everyone who closed it once, and this one is the whole of
           what the product is willing to say about a recorded condition. */}
       {health?.supervisionRecommended ? (
-        <p className={styles.supervision} role="note">
+        <Note as="p" className={styles.supervision} role="note" tone="warning" toneLabel={dictionary.common.noteTone.warning}>
           {t.supervision}
-        </p>
+        </Note>
       ) : null}
 
       <div className={`${styles.sections} motion-list`}>

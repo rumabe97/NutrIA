@@ -22,7 +22,7 @@ export interface AccordionContentProps extends RadixAccordionContentProps {}
 export function AccordionContent({ children, className, ...rest }: AccordionContentProps) {
   return (
     <Content className={className ? `${styles.content} ${className}` : styles.content} forceMount={true} {...rest}>
-      <div className={styles.inner}>{children}</div>
+      <div className={`${styles.inner} motion-enter`}>{children}</div>
     </Content>
   );
 }

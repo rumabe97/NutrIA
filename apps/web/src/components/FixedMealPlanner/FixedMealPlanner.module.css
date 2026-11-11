@@ -130,24 +130,10 @@
   display: none;
 }
 
-/* The sentence over the list. Indented by a rule like `.why`, because it
-   belongs to the list rather than to the card as a whole. Its rule is the
-   border colour for the same contrast reason as `.broken`. */
-.unhonoured {
-  border-inline-start: 2px solid var(--color-warning-text);
-  margin: 0;
-  padding-inline-start: var(--space-03);
-}
-
-/* The out-of-band group's sentence. Indented like its sibling and in the
-   ordinary hairline, not the amber: these rules are being served, and the two
-   groups have to be told apart by something a reader with no colour still gets
-   — which is the words. */
-.drifted {
-  border-inline-start: 2px solid var(--border-01);
-  margin: 0;
-  padding-inline-start: var(--space-03);
-}
+/* The sentence over the list is a warning `Note`; the out-of-band group's is an
+   information one, not the amber: these rules are being served, and the two
+   groups are told apart by something a reader with no colour still gets — the
+   words, and the tone word each note carries. */
 
 /* The words on a row whose day misses its numbers. Not the warning colour:
    nothing has gone wrong, so it takes the row's own secondary tone and carries
@@ -293,42 +279,20 @@
    and `overflow-wrap: anywhere` are what keep a long word from doing the same
    here.
 
-   The region stays mounted while a dish is chosen so a screen reader hears the
-   warning replace «Comprobando…»; with nothing to say it collapses, and
-   `:empty` is reachable because React renders no text node for a false branch. */
+   The region (a `Note`) stays mounted while a dish is chosen so a screen reader
+   hears the warning replace «Comprobando…»; with nothing to say it collapses.
+   Its words are its last child, and that box is `:empty` because React renders
+   no text node for a false branch. Its tone matches what it holds: information
+   while it is only saying it is working, a warning beside a warning, an error
+   beside a refusal — and the word in front of each (`.mark`, `.refusal`) says it
+   where colour cannot. */
 .consequence {
-  border-inline-start: 2px solid var(--border-01);
-  display: grid;
-  gap: var(--space-01);
-  justify-items: start;
   min-inline-size: 0;
   overflow-wrap: anywhere;
-  padding-inline-start: var(--space-03);
 }
 
-.consequence:empty {
+.consequence:has(> :last-child:empty) {
   display: none;
-}
-
-/* The rule matches what the block holds: the hairline while it is only saying it
-   is working, the warning step beside a warning, the error step beside a
-   refusal. One amber rule for all three would put a warning's colour beside a
-   refusal's words. */
-.warned {
-  border-inline-start-color: var(--color-warning-text);
-}
-
-.denied {
-  border-inline-start-color: var(--color-error-text);
-}
-
-/* Forced colours erases the rule as it erases every other border colour, so the
-   edge is a system colour there and the words inside are what carry the state. */
-@media (forced-colors: active) {
-  .warned,
-  .denied {
-    border-inline-start-color: Highlight;
-  }
 }
 
 /* A refusal in that same place: `--color-error-text` as the card's own errors,
@@ -341,15 +305,11 @@
 }
 
 /* What a search that found nothing says instead of nothing: the library's own
-   dishes of that name, and the one thing between each and this meal. Indented
-   by a rule rather than boxed — it belongs to the field above it, and a card
-   inside a card would read as a second subject. */
+   dishes of that name, and the one thing between each and this meal — a flat
+   note under the field it belongs to, not a card inside a card. */
 .why {
-  border-inline-start: 2px solid var(--border-01);
-  display: grid;
   flex: 1 1 100%;
-  gap: var(--space-02);
-  padding-inline-start: var(--space-03);
+  min-inline-size: 0;
 }
 
 .reasons {
@@ -426,12 +386,7 @@
   margin: 0;
 }
 
-/* The two standing notices on this screen: the one beside the field whose
-   content leaves the product, and the one that says a day already holds a rule.
-   Neither is a hint — a hint is gone as soon as there is text in the field, and
-   both have to be readable while somebody types. */
-.notice {
-  border-inline-start: 2px solid var(--border-01);
-  margin: 0;
-  padding-inline-start: var(--space-03);
-}
+/* The two standing notices on this screen (`Note`s): the one beside the field
+   whose content leaves the product, and the one that says a day already holds a
+   rule. Neither is a hint — a hint is gone as soon as there is text in the
+   field, and both have to be readable while somebody types. */

@@ -119,8 +119,9 @@ export function LineChart({
           <svg aria-hidden="true" height={HEIGHT} preserveAspectRatio="none" viewBox={`0 0 ${SPAN} ${HEIGHT}`} width="100%" x="0" y="0">
             {series.map((entry, seriesIndex) => (
               <polyline
-                className={`${styles.line} ${styles[chartToneKey(entry.tone, seriesIndex)]}`}
+                className={`${styles.line} ${styles[chartToneKey(entry.tone, seriesIndex)]} motion-draw`}
                 key={`${entry.name}-${seriesIndex}`}
+                pathLength={1}
                 points={labels.map((_, index) => `${((at[index] ?? 0) * SPAN).toFixed(2)},${y(finite(entry.values[index])).toFixed(2)}`).join(' ')}
                 vectorEffect="non-scaling-stroke"
               />
@@ -133,7 +134,7 @@ export function LineChart({
 
               return (
                 <circle
-                  className={dots ? `${styles.dot} ${styles[chartToneKey(entry.tone, seriesIndex)]}` : styles.target}
+                  className={dots ? `${styles.dot} ${styles[chartToneKey(entry.tone, seriesIndex)]} motion-fade` : styles.target}
                   cx={`${(at[index] ?? 0) * 100}%`}
                   cy={y(value)}
                   key={`${seriesIndex}-${index}`}

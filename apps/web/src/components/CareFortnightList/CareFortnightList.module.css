@@ -61,14 +61,3 @@
   margin: 0;
   padding: 0;
 }
-
-/* A suggestion, not a change: set apart by an edge and said in words, not by colour alone. */
-.suggestion {
-  background-color: var(--surface-sunken);
-  border-inline-start: 3px solid var(--color-brand-fill);
-  border-radius: var(--radius-control);
-  color: var(--foreground-02);
-  font-size: var(--font-size-02);
-  margin: 0;
-  padding: var(--space-02) var(--space-04);
-}

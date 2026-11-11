@@ -9,6 +9,7 @@ import styles from './FixedMealPlanner.module.css';
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
 import { MAX_DISH_REQUEST } from 'core/domain/DishRequest';
+import { Note } from 'ui/components/Note';
 import { Select, SelectOption } from 'ui/components/Select';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
@@ -768,9 +769,9 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, maxPerDay, rule
           order" would be a claim nobody checked (021 phase 5b). */}
       <div className={styles.notices} role="status">
         {honour?.judged && marks.length > 0 ? (
-          <Text className={styles.unhonoured} size="xs" tone="secondary">
+          <Note as="p" tone="warning" toneLabel={dictionary.common.noteTone.warning}>
             {marks.length === 1 ? t.unhonouredCountOne : interpolate(t.unhonouredCount, { count: marks.length })}
-          </Text>
+          </Note>
         ) : null}
 
         {/* Its own sentence, because it is its own news: these are served,
@@ -780,9 +781,9 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, maxPerDay, rule
               in days, which is how the API answers it and what the sentence
               says. */}
         {honour?.judged && driftingDays.size > 0 ? (
-          <Text className={styles.drifted} size="xs" tone="secondary">
+          <Note as="p" toneLabel={dictionary.common.noteTone.info}>
             {driftingDays.size === 1 ? t.outOfBandCountOne : interpolate(t.outOfBandCount, { count: driftingDays.size })}
-          </Text>
+          </Note>
         ) : null}
       </div>
 
@@ -975,9 +976,9 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, maxPerDay, rule
                   rule (`0103`), so this says what happens instead: the warning
                   comes when a dish is picked, before anything is fixed. */}
               {!chosen && alsoFixed.length > 0 ? (
-                <Text className={styles.notice} size="xs" tone="secondary">
+                <Note as="p" toneLabel={dictionary.common.noteTone.info}>
                   {interpolate(t.beside, { meal: t.slots[alsoFixed[0].slot].toLowerCase() })}
-                </Text>
+                </Note>
               ) : null}
 
               {chosen ? (
@@ -1003,13 +1004,7 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, maxPerDay, rule
                       «Comprobando…», and then the warning replaces that text: a
                       live region that arrives already full is often never
                       announced. */}
-                  <div
-                    aria-busy={checking}
-                    className={
-                      warningText ? `${styles.consequence} ${styles.warned}` : refused ? `${styles.consequence} ${styles.denied}` : styles.consequence
-                    }
-                    role="status"
-                  >
+                  <Note aria-busy={checking} className={styles.consequence} role="status" tone={warningText ? 'warning' : refused ? 'error' : 'info'}>
                     {checking ? (
                       <Text as="span" size="xs" tone="tertiary">
                         {t.checking}
@@ -1048,7 +1043,7 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, maxPerDay, rule
                         ) : null}
                       </Fragment>
                     )}
-                  </div>
+                  </Note>
                 </Fragment>
               ) : (
                 <Fragment>
@@ -1098,7 +1093,7 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, maxPerDay, rule
               meal — and, for the three that are a field somebody filled in, the
               way back to that field. */}
           {missing && reasons && reasons.length > 0 ? (
-            <div className={styles.why}>
+            <Note className={styles.why} toneLabel={dictionary.common.noteTone.info}>
               <Text role="status" size="xs" tone="tertiary">
                 {interpolate(reasons.length === 1 ? t.whyCountOne : t.whyCount, { count: reasons.length })}
               </Text>
@@ -1127,7 +1122,7 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, maxPerDay, rule
                   );
                 })}
               </ul>
-            </div>
+            </Note>
           ) : null}
 
           {missing ? (
@@ -1163,9 +1158,9 @@ export function FixedMealPlanner({ cookingMinutes, dishRequests, maxPerDay, rule
                       the top of a card somebody scrolled past. It is a standing
                       sentence and not a hint: a hint disappears the moment
                       there is text in the field. */}
-                  <Text className={styles.notice} size="xs" tone="secondary">
+                  <Note as="p" toneLabel={dictionary.common.noteTone.info}>
                     {t.askNotice}
-                  </Text>
+                  </Note>
 
                   {/* Secondary on purpose: this card's primary action is
                       fixing the meal, and two filled buttons in one card leave

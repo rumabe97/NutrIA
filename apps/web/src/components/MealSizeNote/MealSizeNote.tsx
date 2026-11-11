@@ -2,9 +2,9 @@ import { useId } from 'react';
 
 import styles from './MealSizeNote.module.css';
 
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
-
-import { Card } from 'components/Card';
+import { useDictionary } from 'i18n/LocaleProvider';
 
 import type { ReactNode } from 'react';
 
@@ -23,15 +23,16 @@ interface MealSizeNoteProps {
  * the caller's, so the same card serves both screens.
  */
 export function MealSizeNote({ actions, body, heading: Heading = 'h2', title }: MealSizeNoteProps) {
+  const dictionary = useDictionary();
   const titleId = useId();
 
   return (
-    <Card aria-labelledby={titleId} as="section" className={styles.note}>
+    <Note aria-labelledby={titleId} as="section" toneLabel={dictionary.common.noteTone.info}>
       <Heading className={styles.title} id={titleId}>
         {title}
       </Heading>
       <Text tone="secondary">{body}</Text>
       {actions ? <div className={styles.actions}>{actions}</div> : null}
-    </Card>
+    </Note>
   );
 }

@@ -230,11 +230,6 @@
   margin-top: var(--space-07);
 }
 
-.safetyItem {
-  border-left: 2px solid var(--color-brand-08);
-  padding-left: var(--space-05);
-}
-
 /* ── FAQ ──────────────────────────────────────────────────────────────── */
 .faq {
   margin-top: var(--space-08);

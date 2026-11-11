@@ -9,6 +9,7 @@ import { ageInYears } from 'core/domain/Nutrition';
 import { Button } from 'ui/components/Button';
 import { Checkbox } from 'ui/components/Checkbox';
 import { Input } from 'ui/components/Input';
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
@@ -560,10 +561,22 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
                   would be true of the matched ones and a lie about the rest, and
                   the reader has no way to tell which half they are in. */}
               {(profile?.customAllergens ?? []).map(entry => (
-                <p className={entry.ingredientName ? styles.enforced : styles.bestEffort} key={entry.label}>
-                  <strong>{entry.label}</strong>{' '}
-                  {entry.ingredientName ? interpolate(t.customAllergen.enforced, { ingredient: entry.ingredientName }) : t.customAllergen.bestEffort}
-                </p>
+                <Note
+                  as="p"
+                  className={styles.status}
+                  key={entry.label}
+                  layout="inline"
+                  tone={entry.ingredientName ? 'success' : 'warning'}
+                  toneLabel={entry.ingredientName ? dictionary.common.noteTone.success : dictionary.common.noteTone.warning}
+                >
+                  {/* One run of text: the note lays out its children as rows. */}
+                  <span>
+                    <strong>{entry.label}</strong>{' '}
+                    {entry.ingredientName
+                      ? interpolate(t.customAllergen.enforced, { ingredient: entry.ingredientName })
+                      : t.customAllergen.bestEffort}
+                  </span>
+                </Note>
               ))}
             </fieldset>
 

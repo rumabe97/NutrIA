@@ -30,7 +30,13 @@ interface NavigationProps {
 
 const UI_NAV: NavTree = {
   groups: [
-    { items: [{ href: '/ui', name: 'Overview' }], title: 'Basics' },
+    {
+      items: [
+        { href: '/ui', name: 'Overview' },
+        { href: '/ui/components/motion', name: 'Motion' }
+      ],
+      title: 'Basics'
+    },
     {
       items: [
         { href: '/ui/components/container', name: 'Container' },
@@ -63,6 +69,7 @@ const UI_NAV: NavTree = {
         { href: '/ui/components/collapsible', name: 'Collapsible' },
         { href: '/ui/components/column-chart', name: 'Column Chart' },
         { href: '/ui/components/context-menu', name: 'Context Menu' },
+        { href: '/ui/components/count-up', name: 'Count Up' },
         { href: '/ui/components/data-table', name: 'Data Table' },
         { href: '/ui/components/dialog', name: 'Dialog' },
         { href: '/ui/components/divider', name: 'Divider' },
@@ -76,8 +83,10 @@ const UI_NAV: NavTree = {
         { href: '/ui/components/line-chart', name: 'Line Chart' },
         { href: '/ui/components/link', name: 'Link' },
         { href: '/ui/components/marble-effect', name: 'Marble Effect' },
+        { href: '/ui/components/note', name: 'Note' },
         { href: '/ui/components/picture', name: 'Picture' },
         { href: '/ui/components/radio-group', name: 'Radio Group' },
+        { href: '/ui/components/rings', name: 'Rings' },
         { href: '/ui/components/roving-focus-group', name: 'Roving Focus Group' },
         { href: '/ui/components/select', name: 'Select' },
         { href: '/ui/components/sidebar', name: 'Sidebar' },

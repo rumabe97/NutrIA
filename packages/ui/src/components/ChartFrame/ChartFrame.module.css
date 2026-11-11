@@ -80,7 +80,7 @@
 .chevron {
   flex: none;
   height: 1em;
-  transition: rotate var(--duration-fast) var(--ease-default);
+  transition: rotate var(--duration-enter-short) var(--spring-firm);
   width: 1em;
 }
 

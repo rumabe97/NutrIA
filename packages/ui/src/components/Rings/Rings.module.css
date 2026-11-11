@@ -1,0 +1,66 @@
+.root {
+  aspect-ratio: 1;
+  display: block;
+  flex: 0 0 auto;
+  max-inline-size: 100%;
+}
+
+.sm {
+  inline-size: 6rem;
+}
+
+.md {
+  inline-size: 9rem;
+}
+
+.lg {
+  inline-size: 12rem;
+}
+
+.picture,
+.svg {
+  block-size: 100%;
+  display: block;
+  inline-size: 100%;
+}
+
+.track,
+.arc {
+  fill: none;
+}
+
+.track {
+  stroke: var(--color-ring-track);
+}
+
+.arc {
+  stroke-linecap: round;
+}
+
+.tone1 {
+  stroke: var(--color-ring-1);
+}
+
+.tone2 {
+  stroke: var(--color-ring-2);
+}
+
+.tone3 {
+  stroke: var(--color-ring-3);
+}
+
+.tone4 {
+  stroke: var(--color-ring-4);
+}
+
+/* Every colour is the system's here, so the rings keep their meaning by place
+   and length: the track a hairline of text colour, the arcs the highlight. */
+@media (forced-colors: active) {
+  .track {
+    stroke: GrayText;
+  }
+
+  .arc {
+    stroke: CanvasText;
+  }
+}

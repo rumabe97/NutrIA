@@ -29,11 +29,8 @@ export function Dropdown(props: DropdownProps) {
   const ariaLabel = 'aria-label' in props ? props['aria-label'] : undefined;
 
   return (
-    // Not modal, on purpose. A modal menu locks the page's scroll by setting `overflow: hidden`
-    // on <body>, which turns <body> into the scroll container a sticky header sticks to: opened
-    // from a header on a scrolled page, the header — and the menu anchored to it — jumped to the
-    // top of the document, out of sight (found on the theme menu, project 024). A menu needs no
-    // lock: it closes on a press outside and on Escape, and follows its trigger while open.
+    // Not modal: a modal menu locks the body's scroll (`overflow: hidden`), which un-sticks a
+    // sticky header on a scrolled page and opens a header's menu far above the screen.
     <Root modal={false}>
       <Trigger aria-label={ariaLabel} className={className ? `${styles.trigger} ${className}` : styles.trigger}>
         {prefix ? prefix : null}
@@ -41,7 +38,7 @@ export function Dropdown(props: DropdownProps) {
         {suffix ? suffix : null}
       </Trigger>
       <Portal>
-        <Content align={align} className={styles.content}>
+        <Content align={align} className={`${styles.content} motion-unfold`}>
           {children}
         </Content>
       </Portal>

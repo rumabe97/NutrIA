@@ -60,7 +60,14 @@ const PAIRS = [
   // State text, on the page, on a card and on its own notice's ground.
   ...['--background-01', '--surface-card', '--color-error-surface'].map(bg => ({ bg, fg: '--color-error-text', kind: 'text' })),
   ...['--background-01', '--surface-card', '--color-warning-surface'].map(bg => ({ bg, fg: '--color-warning-text', kind: 'text' })),
-  ...['--background-01', '--surface-card'].map(bg => ({ bg, fg: '--color-success-text', kind: 'text' })),
+  ...['--background-01', '--surface-card', '--surface-sunken'].map(bg => ({ bg, fg: '--color-success-text', kind: 'text' })),
+  // A note's words on its own ground (ui/Note): an information note is `--surface-sunken`,
+  // already above; a warning and an error have their own.
+  ...['--foreground-01', '--foreground-02'].flatMap(fg =>
+    ['--color-warning-surface', '--color-error-surface'].map(bg => ({ bg, fg, kind: 'text' }))
+  ),
+  // The chosen segment of a segmented control (ui/Tabs): the page's colour on the text colour.
+  { bg: '--foreground-01', fg: '--background-01', kind: 'text' },
   // A label on a fill: the primary button at both ends of its gradient and under a pointer,
   // and the destructive one.
   { bg: '--color-brand-fill', fg: '--color-on-brand-fill', kind: 'text' },

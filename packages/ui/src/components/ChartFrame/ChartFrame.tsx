@@ -1,6 +1,7 @@
 import styles from './ChartFrame.module.css';
 
 import { DataTable } from 'ui/components/DataTable';
+import { InView } from 'ui/components/InView';
 
 import { ChartLegend } from './components/ChartLegend';
 
@@ -80,7 +81,9 @@ export function ChartFrame({
       {empty ? (
         <p className={styles.empty}>{emptyLabel}</p>
       ) : (
-        <div className={layout === 'beside' ? `${styles.body} ${styles.beside}` : styles.body}>
+        // The marks inside draw themselves in (`ui/styles/motion`, figures) — when the chart is
+        // reached, if it starts below the fold.
+        <InView className={layout === 'beside' ? `${styles.body} ${styles.beside}` : styles.body}>
           {layout === 'stacked' ? legendView : null}
           {children}
           {layout === 'beside' ? legendView : null}
@@ -93,7 +96,7 @@ export function ChartFrame({
             </summary>
             <DataTable caption={title} className={styles.table} columns={columns} empty={emptyLabel} hideCaption={true} rows={rows} />
           </details>
-        </div>
+        </InView>
       )}
     </figure>
   );

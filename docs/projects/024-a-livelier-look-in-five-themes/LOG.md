@@ -260,3 +260,133 @@
 - **Note for phase 3**: `Select`, `Dialog` and `Drawer` lock the scroll the same way, so the
   header leaves the screen while one is open. Behind a dialog's overlay nobody sees it; behind a
   select they may. The shell phase decides whether the lock or the header's stickiness changes.
+## Phase 2 — The shared pieces (2026-11-11)
+
+- **Executor**: `frontend` on opus, branch `024-phase-2` (on `024-phase-1b-ship`), with one
+  forked helper for the 37 note replacements (no builds, no commits of its own). Nothing ran on
+  `fable`.
+- **Result**: done, for the lead's check.
+- **What changed**:
+  - **The motion system** (`ui/styles/motion.css`, tokens in `ui/styles/variables.css`): three
+    springs (`--spring-gentle` / `lively` / `firm`) as `linear()` sampled from damped springs, with
+    cubic-bezier fallbacks redefined under `@supports`; entrance durations 200 / 400 / 600 ms; named
+    transitions `--motion-enter`, `-enter-short`, `-exit`, `-axis`, `-figure`, `-answer`; stagger
+    50 ms, capped at the eighth row. Classes for entrances (rise, fade, scale-in, list), figures
+    (sweep, draw, grow-x/y, swing, `.motion-figures`), place (shared axis, sheet, unfold from
+    `--motion-origin`), answers (press, drop-in, close-up, strike, tick), and the
+    `[data-in-view='waiting']` pause. The View Transition names are documented (`dish-<id>`,
+    `dish-title-<id>`, `day-<index>`); phases 3–4 wire routes.
+  - **The in-view trigger**: `ui/hooks/useInView` over one shared `IntersectionObserver`
+    (`ui/utils/observeInView`), `ui/components/InView`; `apps/web`'s `Reveal` is now its consumer
+    (`data-reveal="waiting" | "shown"`, landing behaviour unchanged).
+  - **The count-up**: `ui/hooks/useCountUp` renders only the final value and writes the counting
+    into the visible figure's text node, without a render; `ui/components/CountUp` holds the width
+    with an invisible copy and gives assistive technology the final text at once. `StatTile` counts
+    up when given `amount` (the console's summary passes it for its six whole-number tiles).
+  - **`Note`** and **`Rings`** in `packages/ui`, with docs pages (`note`, `rings`, `count-up`,
+    `motion`) and tests.
+  - **The restyle**: Button presses (scale 0.97 on the firm spring) and the filled one carries its
+    glow; colour transitions removed everywhere (only transform and opacity move); Switch springs
+    its knob (48×28), Checkbox (20 px) springs and draws its tick; Tabs is the segmented control
+    (sunken track, chosen segment in the text colour, heavier weight); Input turns its edge to the
+    accent on focus and draws its error as icon and words; Dropdown, Select and ContextMenu unfold
+    from their trigger; Dialog rises; Accordion and Collapsible move their words instead of a
+    height; Skeleton's wave travels by transform; DataTable heads in small capitals; StatTile's
+    figure is the heavy display face. Charts: `ChartFrame` wraps its body in `InView`; bars and the
+    gauge grow, columns rise, lines and sparklines draw, donut slices sweep.
+  - **The 37 coloured-edge rules** are gone: block notices are `Note` with a tone and the tone in
+    a word (`common.noteTone` in both dictionaries), form errors are Note's flat inline line. The
+    grep finds nothing — no rule was a divider.
+  - New ui defaults: `--surface-sunken`, `--color-warning-surface`, `--color-error-surface` (the
+    web themes already define all three).
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=web --filter=ui`: 14 tasks green; `ui` 65 files /
+    532 tests (new: Note 6, Rings 8, useCountUp + CountUp 6, useInView 5, StatTile +1), `web` 39 /
+    343. `pnpm deadcode` clean. `pnpm --filter docs build` green.
+  - The edge grep over `apps/web/src` and `packages/ui/src` returns nothing.
+  - Contrast, with the patched script: 5 themes × 83 pairs, 415 pass, 0 fail.
+  - Control baseline (public both languages, `noplan` on ten app routes, the console's 20 pages;
+    164 files): no line gone. The only lines that differ from the phase-0 files are phase 1b's
+    («Tema»/«Theme» everywhere, «Apariencia» and its six radios on Perfil). A note's role and name
+    did not change anywhere. The `plan` state was **not** re-run (no generated plan on a probe
+    account).
+  - Overflow, `probe.mjs` (scrolled or cut, element by element): the docs app's 23 component pages
+    at 320/360/390/768/1280 light and dark, 230 loads, clean after two fixes (two code blocks cut at
+    320, the segmented control wrapping into a blob); the app's note screens — `/`, `/en`,
+    `/acceder`, `/en/acceder`, `/asistente`, `/perfil`, `/inicio`, `/plan`, `/plan/generando`,
+    `/onboarding/6`, `/onboarding/9`, `/check-in`, `/compra`, `/progreso` in both languages,
+    `/admin`, `/admin/generacion/ia`, `/admin/ajustes` in both — at five widths in Claro and Oscuro,
+    and `/asistente`, `/perfil`, `/inicio`, `/onboarding/9`, `/`, `/admin` in Huerta, Pulso and Alto
+    contraste: 407 loads, 0 hits. `/en` at 768 and 1280 never reaches network idle (a prefetch of
+    `/en/registro?_rsc` stays pending); it was probed with a scratch copy of the probe that waits
+    for `load` instead, clean. `widths.mjs` (320→1400 every 16 px) on 21 route/language pairs:
+    clean. The header's theme menu opened on a scrolled `/` and `/perfil` at 320 and 1280: inside
+    the screen, header stuck. Dialog and Select opened at 320 on the docs pages: inside, nothing cut.
+  - Motion (PRD 15), Chrome, 4× CPU, 390 px: CLS 0.0000 on every page measured (nine docs pages,
+    `/admin`, `/admin/generacion/ia`, `/inicio`, `/asistente`, `/perfil`, `/`). Long tasks over
+    50 ms: the same ones with reduced motion on (hydration, 150–190 ms at ~200 ms; 50–76 ms tasks
+    later) — none attributable to an animation. Properties seen animating: `opacity`, `transform`,
+    `stroke-dashoffset`, `stroke-dasharray`; on `/` also SiteHeader's `border-bottom-color` (a
+    phase-3 shell transition, not this phase's). With reduced motion: no animation longer than a
+    frame running at load, and every counted figure already final. The count-up was seen counting
+    (115 text frames on `/admin`'s first load, and again on a client navigation back to it).
+  - `apple-web-design` REVIEW of Note, Rings, Button, Switch, Checkbox, Tabs, Input and ColumnChart:
+    PASS, no P0 or P1.
+- **Deviations from plan**:
+  - `scripts/check-contrast.mjs` gains three pair groups (Note's words on its warning and error
+    grounds, success text on the sunken ground, the segmented control's chosen segment): patch in
+    `for-lead-2/`, 5 themes × 83 pairs, 415 pass.
+  - The segmented control's track and segments are nested rounded rectangles, not pills: at 320 px
+    three segments wrap, and a wrapped pill is a blob.
+  - Switch and checkbox keep the brand fill for "on", not the sheets' olive: one colour says
+    "chosen" everywhere, and a new token would have been eight blocks for a hue.
+  - The landing safety items, two console cost warnings that already begin with «Aviso:», and the
+    fixed-meal planner's live consequence carry no tone word (their own words already say it).
+  - The assistant's warning uses its own approved label («Aviso» / «Notice») as the visible tone word.
+  - `apps/docs`' code blocks now wrap long lines (two pages ran past a phone's edge).
+  - **A figure the server painted does not count up when the page hydrates more than 600 ms after
+    navigation start and the figure is already on screen** (`useCountUp`): counting a number the
+    reader has already read back from zero is a flash. On a slow phone's first load that will often
+    be the case; client navigations and figures below the fold always count. PRD 15 says every
+    counted figure has an entrance — this is the one place it may not, by design.
+  - **The restyle is the controls and figures, not all 48.** Changed: Accordion, Button, Checkbox,
+    Collapsible, ContextMenu, DataTable, Dialog, Drawer, Dropdown, Input, Select, Skeleton, Switch,
+    Tabs, StatTile, ChartFrame, BarChart, ColumnChart, LineChart, DonutChart, Gauge, Sparkline;
+    Carousel and RadioGroup lost their colour transitions. Left as 1b had them (tokens, radii, pill
+    buttons, gradient fill already applied, and nothing in the sheets asks more of them): the layout
+    and type primitives (Container, Flex, Grid, HStack, VStack, Section, Spacer, Heading, Text, Code,
+    Label, Divider), AspectRatio, Avatar, Image, Picture, Link, MarbleEffect, RovingFocusGroup,
+    Sidebar, Slider, Spinner, Spotlight, ThemeSwitch, Toaster. `apps/web`'s `Card` is untouched (not
+    in `packages/ui`; the shell and screens are phases 3–5). Switch and checkbox keep the brand fill.
+  - 23 colour/size transitions remain in `apps/web` stylesheets (SiteHeader, AppNav, MealRow,
+    AssistantChat, PlanDayNav, PeriodSelector, OptionCards, MealSwap, LocaleSwitcher, ChipGroup,
+    AdminNavList, the dish page, TargetProgress, PasswordMeter, NextMeal, PlanProgress and others):
+    screens of later phases, each to go to transform/opacity when its phase rebuilds it.
+  - `Dropdown` carries `modal={false}` (the lead's fix on main), so no menu locks the page's scroll.
+- **Notes for the next phase**:
+  - `Rings` has no visible legend; when Inicio draws one with the same figures, give `Rings` a way
+    not to repeat its hidden list.
+  - The phase-0 professional state is still not capturable (`account.mjs link`); the `Care*` and
+    `Practice*` notes were not seen in a browser.
+  - Under `(pointer: coarse)` the bare ui `Switch` is 28 px tall; every app use sits in a row
+    (`SettingSwitch`) that is the target.
+
+## Phase 1b — confirmed by human (2026-11-11)
+
+- The owner, on his iPhone, after the themes went live: *«Al cambiar de tema no parpadea, se ve
+  bien.»* Phase 1b confirmed by human on 2026-11-11. He had reported one bug the same evening (the
+  theme menu on a scrolled page, fixed in #364); nothing else.
+- **Lead's check on phase 2, same day**: branch taken into the main checkout with `main` merged
+  (the non-modal `Dropdown` of #364 kept). Contrast: 5 themes × 83 pairs, 415 pass. Overflow on
+  the built branch: eight signed-in screens with a generated plan in five themes at 320, 360, 390,
+  768 and 1280 (200 loads); four public pages in three themes at five widths; five console pages
+  in three themes at four widths; `widths.mjs` from 320 to 1,400 on twelve routes: no hit. Control
+  baseline with a plan account (the state the executor could not run), nine routes: nothing gone
+  but data — another plan's shopping items and the greeting's time of day. Read on screen: the
+  assistant's warning as a flat block with its icon, and the console's summary.
+- **Open, for the owner**: the count-up leaves a figure alone when the page hydrates late and the
+  figure is already on screen, so a number somebody has read does not jump back to zero. That is
+  narrower than PRD 15's "every counted figure"; it stays as built unless he says otherwise.
+- **Not in this phase, by the executor's own count**: 26 of the 48 `ui` components keep phase
+  1b's look (layout and type primitives and a few leaf components), and 23 colour or size
+  transitions remain in `apps/web` stylesheets that phases 3–8 rebuild.

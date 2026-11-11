@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import styles from './CareGenerateButton.module.css';
 
 import { Button } from 'ui/components/Button';
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
@@ -161,9 +162,9 @@ export function CareGenerateButton({ disabled = false, hint, label, linkId, vari
           {phase.pendingReview ? t.generateDoneReview : t.generateDoneDirect}
         </Text>
       ) : phase.kind === 'failed' ? (
-        <p className={styles.error} role="alert">
+        <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
           {phase.message}
-        </p>
+        </Note>
       ) : (
         <Text as="p" className={styles.line} size="xs" tone="tertiary">
           {hint}

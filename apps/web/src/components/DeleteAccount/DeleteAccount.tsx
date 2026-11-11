@@ -7,6 +7,7 @@ import styles from './DeleteAccount.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
@@ -120,9 +121,11 @@ export function DeleteAccount() {
       <div className={`${styles.wrapper} ${styles.confirm}`}>
         {/* An alert, so it is heard even where moving focus is not announced; the button
             below also names it as its description, so landing on it says why. */}
-        <p className={styles.signInAgain} id={reasonId} role="alert">
+        {/* Nothing went wrong and nothing was deleted: a state with its way out, so a warning
+            note, not the red box of a failure. */}
+        <Note as="p" id={reasonId} role="alert" tone="warning" toneLabel={dictionary.common.noteTone.warning}>
           {dictionary.profile.deleteSignInAgainBody}
-        </p>
+        </Note>
 
         <div className={styles.actions}>
           <Button aria-describedby={reasonId} loading={signingOut} onClick={() => void signOutAndBack()} ref={signInAgainRef} type="button">

@@ -15,10 +15,6 @@
   justify-content: space-between;
   padding: 0 var(--space-03);
   text-decoration: none;
-  transition:
-    color var(--duration-fast) var(--ease-default),
-    background var(--duration-fast) var(--ease-default),
-    border-color var(--duration-fast) var(--ease-default);
   user-select: none;
   width: 100%;
 }
@@ -49,8 +45,9 @@
   max-width: 240px;
   min-width: 160px;
   padding: var(--space-01);
-  transform-origin: var(--menu-transform-origin);
-  will-change: transform, opacity;
+  /* It unfolds from the corner of its trigger (`.motion-unfold`): Radix writes
+     that corner into its own property, handed to the motion system here. */
+  --motion-origin: var(--radix-select-content-transform-origin);
   z-index: var(--z-dropdown);
 }
 

@@ -69,7 +69,7 @@ export function BarChart({ className, dataLabel, emptyLabel, formatValue, labels
       title={title}
       titleId={titleId}
     >
-      <div className={styles.chart}>
+      <div className={`${styles.chart} motion-list`}>
         {labels.map((text, index) => {
           const share = withShares ? shares.values[index] : undefined;
           const figure = single ? format(series[0]?.values[index] ?? 0) : undefined;
@@ -97,7 +97,7 @@ export function BarChart({ className, dataLabel, emptyLabel, formatValue, labels
                       <rect className={styles.track} height={BAR} rx="2" width="100%" x="0" y={y} />
                       {value === 0 ? null : (
                         <rect
-                          className={`${styles.bar} ${styles[chartToneKey(entry.tone, seriesIndex)]}`}
+                          className={`${styles.bar} ${styles[chartToneKey(entry.tone, seriesIndex)]} motion-grow-x`}
                           height={BAR}
                           rx="2"
                           width={`${(value / (max || 1)) * 100}%`}

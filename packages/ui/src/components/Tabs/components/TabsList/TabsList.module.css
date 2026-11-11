@@ -1,4 +1,21 @@
+/* A segmented control (the sheets' «7 días · 30 días · 90 días»): a pill track
+   set into the page, the chosen segment filled in the text colour. */
 .list {
-  border-bottom: 1px solid var(--border-01);
-  display: flex;
+  background-color: var(--surface-sunken);
+  /* A rounded track around rounded segments, not a pill: when the segments do
+     not fit one row on a narrow screen they wrap, and a pill that wraps becomes
+     a blob. The corners nest, so the gap around a segment is even. */
+  border-radius: calc(var(--radius-control) + var(--space-01));
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-01);
+  max-inline-size: 100%;
+  padding: var(--space-01);
+}
+
+/* Every background is erased: the track keeps its shape with a line. */
+@media (forced-colors: active) {
+  .list {
+    outline: 1px solid CanvasText;
+  }
 }

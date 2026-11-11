@@ -19,13 +19,6 @@
   margin: 0;
 }
 
-/* The one sentence that says the list is not a declaration. A rule at the start
-   marks it as a note without borrowing a warning's colour. */
-.keeps {
-  border-inline-start: 3px solid var(--color-brand-fill);
-  padding-inline-start: var(--space-04);
-}
-
 .group {
   display: grid;
   gap: var(--space-03);

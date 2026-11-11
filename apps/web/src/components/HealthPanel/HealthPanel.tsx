@@ -9,6 +9,7 @@ import styles from './HealthPanel.module.css';
 import { Button } from 'ui/components/Button';
 import { Checkbox } from 'ui/components/Checkbox';
 import { Input } from 'ui/components/Input';
+import { Note } from 'ui/components/Note';
 import { Select, SelectOption } from 'ui/components/Select';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
@@ -201,7 +202,7 @@ export function HealthPanel({ health }: { health: HealthView }) {
       ) : null}
 
       {health.derivedExclusions.length > 0 ? (
-        <div className={styles.applied}>
+        <Note tone="success" toneLabel={dictionary.common.noteTone.success}>
           {/* Named with its cause. A restriction whose reason is invisible is one
               the user cannot argue with, and this one they did not ask for. */}
           {health.derivedExclusions.map(effect => (
@@ -209,11 +210,11 @@ export function HealthPanel({ health }: { health: HealthView }) {
               {interpolate(t.applied, { allergen: effect.allergenLabel.toLowerCase(), condition: effect.conditionLabel.toLowerCase() })}
             </p>
           ))}
-        </div>
+        </Note>
       ) : null}
 
       {health.suggestedExclusions.length > 0 ? (
-        <div className={styles.suggestion}>
+        <Note tone="warning" toneLabel={dictionary.common.noteTone.warning}>
           {/* Offered, not applied. Most people with lactose intolerance tolerate
               some lactose, so how strict to be is theirs to decide — and the
               place to decide it is the list where every other restriction lives. */}
@@ -223,7 +224,7 @@ export function HealthPanel({ health }: { health: HealthView }) {
               <Link href="/onboarding/6">{t.addSuggestionLink}</Link>.
             </p>
           ))}
-        </div>
+        </Note>
       ) : null}
 
       {!health.consentIsCurrent && recorded > 0 ? <p className={styles.notice}>{t.consentStale}</p> : null}

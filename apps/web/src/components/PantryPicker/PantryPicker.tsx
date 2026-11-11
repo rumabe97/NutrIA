@@ -5,6 +5,7 @@ import styles from './PantryPicker.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
@@ -269,9 +270,11 @@ export function PantryPicker({ pantry }: PantryPickerProps) {
       <Text size="sm" tone="secondary">
         {t.intro}
       </Text>
-      <Text className={styles.keeps} size="sm" tone="secondary">
+      {/* The one sentence that says the list is not a declaration: a note, without borrowing a
+          warning's colour. */}
+      <Note as="p" toneLabel={dictionary.common.noteTone.info}>
         {t.keeps}
-      </Text>
+      </Note>
 
       {cupboard.items.length > 0 ? (
         <div className={styles.group}>

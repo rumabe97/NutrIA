@@ -45,7 +45,7 @@ export function Sparkline({ className, tone, values }: SparklineProps) {
       preserveAspectRatio="none"
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
     >
-      <polyline className={styles.line} points={points} vectorEffect="non-scaling-stroke" />
+      <polyline className={`${styles.line} motion-draw`} pathLength={1} points={points} vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }

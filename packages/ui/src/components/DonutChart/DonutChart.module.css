@@ -8,7 +8,17 @@
   inline-size: min(9rem, 100%);
 }
 
+/* Each slice sweeps round from where it starts (its dash grows from nothing to
+   its length: an SVG stroke property, `ui/styles/motion` figures), one after
+   another (`.motion-figures` on the chart). The dash it lands on is its own. */
+@keyframes donut-sweep {
+  from {
+    stroke-dasharray: 0 400;
+  }
+}
+
 .slice {
+  animation: donut-sweep var(--motion-figure) both;
   fill: none;
   stroke: var(--tone);
   stroke-width: 16;

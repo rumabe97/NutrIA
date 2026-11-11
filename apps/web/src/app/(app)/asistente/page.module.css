@@ -27,15 +27,3 @@
   min-inline-size: 0;
   overflow-wrap: break-word;
 }
-
-/* The same notice, in the same words, as the profile's. */
-.supervision {
-  background-color: var(--surface-sunken);
-  border-inline-start: 3px solid var(--color-warning);
-  border-radius: var(--radius-control);
-  color: var(--foreground-02);
-  font-size: var(--font-size-02);
-  line-height: var(--line-height-04);
-  margin: 0;
-  padding: var(--space-03) var(--space-04);
-}

@@ -111,10 +111,11 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
 
       <ul aria-label={t.tilesLabel} className={styles.tiles}>
         <Card as="li" padding="sm">
-          <StatTile label={t.totalAccounts} locale={locale} value={number(tiles.totalAccounts)} />
+          <StatTile amount={tiles.totalAccounts} label={t.totalAccounts} locale={locale} value={number(tiles.totalAccounts)} />
         </Card>
         <Card as="li" padding="sm">
           <StatTile
+            amount={tiles.newAccounts.current}
             change={tiles.newAccounts}
             changeLabel={common.changeLabel}
             goodDirection="up"
@@ -125,10 +126,11 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
           />
         </Card>
         <Card as="li" padding="sm">
-          <StatTile label={t.waitingAccounts} locale={locale} value={number(tiles.waitingAccounts)} />
+          <StatTile amount={tiles.waitingAccounts} label={t.waitingAccounts} locale={locale} value={number(tiles.waitingAccounts)} />
         </Card>
         <Card as="li" padding="sm">
           <StatTile
+            amount={tiles.activePeople.current}
             change={tiles.activePeople}
             changeLabel={common.changeLabel}
             goodDirection="up"
@@ -140,6 +142,7 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
         </Card>
         <Card as="li" padding="sm">
           <StatTile
+            amount={tiles.plansGenerated.current}
             change={tiles.plansGenerated}
             changeLabel={common.changeLabel}
             goodDirection="up"
@@ -156,7 +159,7 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
           <StatTile label={t.successRate} locale={locale} note={rateNote} value={rate.current === null ? '—' : percent(rate.current)} />
         </Card>
         <Card as="li" padding="sm">
-          <StatTile label={t.unreadMessages} locale={locale} value={number(tiles.unreadMessages)} />
+          <StatTile amount={tiles.unreadMessages} label={t.unreadMessages} locale={locale} value={number(tiles.unreadMessages)} />
         </Card>
         <Card as="li" padding="sm">
           <StatTile

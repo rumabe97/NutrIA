@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import styles from './ProfileConsentInterstitial.module.css';
 
 import { Button } from 'ui/components/Button';
+import { Note } from 'ui/components/Note';
 import { useDictionary } from 'i18n/LocaleProvider';
 
 import { ProfileConsentFields } from 'components/ProfileConsentFields';
@@ -64,9 +65,9 @@ export function ProfileConsentInterstitial() {
           it would also pre-empt this handler before `t.note` ever showed. */}
       <form noValidate={true} onSubmit={onSubmit}>
         {error ? (
-          <p className={styles.error} role="alert">
+          <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
             {error}
-          </p>
+          </Note>
         ) : null}
 
         <ProfileConsentFields />

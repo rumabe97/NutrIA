@@ -78,6 +78,13 @@
   outline-color: var(--color-error);
 }
 
+/* Focused, the edge itself turns to the accent as well as the ring around it:
+   the field you are typing in is the one that changed, even where the ring is
+   faint against its ground. */
+.input:focus-visible:not(.invalid) {
+  border-color: var(--color-brand-11);
+}
+
 .hint {
   color: var(--foreground-02);
   font-size: var(--font-size-02);
@@ -85,9 +92,19 @@
 }
 
 .error {
+  align-items: start;
   color: var(--color-error-text);
+  display: flex;
   font-size: var(--font-size-02);
+  gap: var(--space-02);
   margin: 0;
+}
+
+.errorIcon {
+  block-size: 1.25em;
+  flex: none;
+  inline-size: 1.25em;
+  margin-block-start: calc((1lh - 1.25em) / 2);
 }
 
 @media (hover: none) {

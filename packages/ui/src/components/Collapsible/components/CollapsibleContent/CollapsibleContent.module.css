@@ -1,21 +1,25 @@
-@keyframes slideDown {
+/* Opening and closing move the words, not the box: the panel takes its height at
+   once (animating a height re-lays everything under it on every frame) and its
+   content rises in and fades out. Radix keeps the content mounted until the
+   closing animation ends, so the fade is seen. */
+@keyframes collapsible-open {
   from {
-    height: 0;
     opacity: 0;
+    transform: translateY(calc(var(--motion-distance) * -0.5));
   }
+
   to {
-    height: var(--radix-collapsible-content-height);
     opacity: 1;
+    transform: none;
   }
 }
 
-@keyframes slideUp {
+@keyframes collapsible-close {
   from {
-    height: var(--radix-collapsible-content-height);
     opacity: 1;
   }
+
   to {
-    height: 0;
     opacity: 0;
   }
 }
@@ -25,9 +29,9 @@
 }
 
 .content[data-state='open'] {
-  animation: slideDown var(--duration-normal) var(--ease-default);
+  animation: collapsible-open var(--motion-enter-short);
 }
 
 .content[data-state='closed'] {
-  animation: slideUp var(--duration-normal) var(--ease-default);
+  animation: collapsible-close var(--motion-exit);
 }

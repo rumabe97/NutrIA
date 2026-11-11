@@ -18,23 +18,7 @@
   padding: 0;
 }
 
-/* The warning: NutrIA's notice, not one of the model's answers — a sunken surface with an edge. */
-.notice {
-  background-color: var(--surface-sunken);
-  border-inline-start: 3px solid var(--color-warning);
-  border-radius: var(--radius-control);
-  display: grid;
-  gap: var(--space-01);
-  padding: var(--space-03) var(--space-04);
-}
-
-.noticeLabel {
-  color: var(--foreground-02);
-  font-size: var(--font-size-01);
-  font-weight: var(--font-weight-semibold);
-  margin: 0;
-}
-
+/* The warning (a `Note`): NutrIA's notice, not one of the model's answers. */
 .noticeText {
   color: var(--foreground-01);
   font-size: var(--font-size-02);
@@ -334,7 +318,6 @@ body:has(.field:focus) .composer {
 @media (forced-colors: active) {
   .bubble,
   .confirm,
-  .notice,
   .box {
     border: 1px solid CanvasText;
   }

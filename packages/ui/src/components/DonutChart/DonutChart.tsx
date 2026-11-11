@@ -82,7 +82,7 @@ export function DonutChart({
       title={title}
       titleId={titleId}
     >
-      <svg aria-labelledby={titleId} className={styles.chart} role="img" viewBox="0 0 100 100">
+      <svg aria-labelledby={titleId} className={`${styles.chart} motion-figures`} role="img" viewBox="0 0 100 100">
         {labels.map((text, index) => {
           const value = values[index] ?? 0;
 

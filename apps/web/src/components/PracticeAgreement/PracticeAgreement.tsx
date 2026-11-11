@@ -11,6 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from 'ui/componen
 import { Heading } from 'ui/components/Heading';
 import { interpolate } from 'i18n/interpolate';
 import { LEGAL_IDENTITY } from 'i18n/legalIdentity';
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
@@ -100,9 +101,9 @@ export function PracticeAgreement({ version }: PracticeAgreementProps) {
       </div>
 
       {error ? (
-        <p className={styles.error} role="alert">
+        <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
           {error}
-        </p>
+        </Note>
       ) : null}
 
       <div className={styles.actions}>

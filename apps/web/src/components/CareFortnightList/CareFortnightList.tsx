@@ -1,6 +1,7 @@
 import styles from './CareFortnightList.module.css';
 
 import { activeLocale, getDictionary } from 'i18n/server';
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 
 import { formatDate, formatNumber, interpolate } from 'lib/format';
@@ -62,7 +63,10 @@ export async function CareFortnightList({ fortnights }: Readonly<{ fortnights: r
           )}
 
           {fortnight.checkIn?.suggestedKcal ? (
-            <p className={styles.suggestion}>{interpolate(t.checkInSuggested, { kcal: formatNumber(fortnight.checkIn.suggestedKcal, locale) })}</p>
+            // A suggestion, not a change: set apart as a note and said in words, not by colour alone.
+            <Note as="p" toneLabel={dictionary.common.noteTone.info}>
+              {interpolate(t.checkInSuggested, { kcal: formatNumber(fortnight.checkIn.suggestedKcal, locale) })}
+            </Note>
           ) : null}
         </li>
       ))}

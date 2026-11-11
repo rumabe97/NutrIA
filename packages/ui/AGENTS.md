@@ -369,16 +369,16 @@ The full token catalog lives in [`src/styles/variables.css`](src/styles/variable
 | Font weight                      | `--font-weight-regular` / `medium` / `semibold` / `bold`; `--font-weight-heavy` (800, headings only — the text face stops at 700) |
 | Component height                 | `--height-xs` / `s` / `m` / `l` / `xl`; `--target-min` (44px, applied under `(pointer: coarse)`) |
 | Radius                           | `--radius-control` / `card` / `sheet` (10/14/20 here; an app may round them further — NutrIA's are 12/24/28), `--radius-button` (a button's own corner; the control's by default, a pill in NutrIA) — reach for these first; `--radius-01` … `--radius-05`, `--radius-full` |
-| Surfaces                         | `--background-01` / `02` / `highlight`, `--color-glass`, `--color-overlay`   |
+| Surfaces                         | `--background-01` / `02` / `highlight`, `--surface-sunken` (a ground set into the page: a note, a track), `--color-glass`, `--color-overlay`   |
 | Text                             | `--foreground-01` / `02` / `03` / `disabled`                                 |
 | Border                           | `--border-01` (dividers), `--border-interactive` (the edge of a control), drawn `--border-width-interactive` thick (1px; 2px in a high-contrast theme) |
 | Interactive                      | `--color-hover`, `--color-highlighted`, `--color-selected`, `--color-switch` |
-| State                            | `--color-success`, `--color-error`, `--color-warning` (+ `-text` variants); `--color-error-fill` under a white label |
+| State                            | `--color-success`, `--color-error`, `--color-warning` (+ `-text` variants); `--color-warning-surface` / `--color-error-surface`, a note's ground; `--color-error-fill` under a white label |
 | Brand                            | `--color-brand-01` … `--color-brand-12`; `--color-brand-fill` → `--color-brand-fill-end` (`--gradient-brand-fill`) / `-fill-hover` / `--color-on-brand-fill` for anything filled — the label clears 4.5:1 on both ends; `--color-accent-start/mid/end` (`--gradient-accent`) for what carries no small text |
 | Rings and highlight              | `--color-ring-1` … `-4` on `--color-ring-track` (3:1 against the track and the card); `--color-highlight-fill` / `--color-on-highlight-fill` for the one figure a screen leads with |
 | Shadow                           | `--shadow-s` / `m` / `l`                                                     |
 | Focus ring                       | `--focus-ring-color` / `-width` / `-offset` (applied globally via `:focus-visible`) |
-| Motion                           | `--duration-fast` / `normal` / `slow`, `--ease-default` / `spring`           |
+| Motion                           | `--spring-gentle` / `lively` / `firm` (`linear()` springs, cubic-bezier fallback), `--duration-enter-short` / `enter` / `enter-long` (200/400/600 ms), the named transitions `--motion-enter` / `-enter-short` / `-exit` / `-axis` / `-figure` / `-answer`, `--motion-stagger`; the older `--duration-fast` / `normal` / `slow` for state changes — see § Motion |
 | Z-index                          | `--z-base` / `dropdown` / `overlay` / `modal` / `toast` / `tooltip`          |
 
 ### When to tokenize vs. when raw is OK
@@ -414,6 +414,40 @@ from it bite here more than anywhere: a control is `--target-min` tall under
   import { useState } from 'react';
   import { OtherComponent } from 'components/OtherComponent';
   ```
+
+## Motion
+
+Every movement comes from `src/styles/motion.css` and the motion tokens (project 024, PRD
+§ Motion and criterion 15). The docs app's **Motion** page lists every class; what binds a
+component author:
+
+- **Only `transform`, `opacity` and SVG stroke properties are animated or transitioned.** A colour,
+  a height, a width, a margin or a background position never is: a hover's colour changes at once.
+  An accordion opens by snapping its height and rising its words.
+- **No duration or easing typed in a component** — the tokens, or a class from `motion.css`. A
+  keyframe a component needs for its own geometry (`Dialog`'s centred sheet, `Checkbox`'s spring,
+  `DonutChart`'s slices) lives in its module and reads the tokens.
+- **Global classes, not module keyframes**, for the shared motions: CSS Modules rename a keyframe
+  named in a module, so a component puts `motion-sweep`, `motion-grow-y`, `motion-draw`,
+  `motion-unfold`… on the element in its TSX.
+- **Figures wait to be seen.** `InView` (`hooks/useInView`, one `IntersectionObserver` for the page
+  in `utils/observeInView`) arms what is below the fold when the page wakes up and plays it once
+  when it is reached; `ChartFrame` and `Rings` use it, and `apps/web`'s `Reveal` is its consumer.
+  The resting state is always the final one, so the server's markup, a reader without script and
+  reduced motion all get the finished figure.
+- **A counted number** is `CountUp` (`hooks/useCountUp`): React renders only the final value; the
+  hook writes the counting into the visible figure's text node, frame by frame, without a render,
+  and a hidden copy holds the width so nothing beside it moves.
+- **Reduced motion** is the one rule in `base.css`; a hook that moves something itself checks
+  `utils/prefersReducedMotion` and writes the final value.
+
+## Notes and rings
+
+- **`Note`** is the only way to set a note apart: a flat, square-cornered block (or, under a field,
+  `layout="inline"`: icon and words), its tone carried by an icon and a word from the caller's
+  dictionary (`toneLabel`), never by colour alone. A coloured inline-start edge is a regression.
+- **`Rings`** draws one to four progress rings; its text alternative is a visually hidden list, one
+  item per ring, inside a group named by `label`.
 
 ## Client/server boundaries
 

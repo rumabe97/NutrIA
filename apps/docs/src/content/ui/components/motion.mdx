@@ -1,0 +1,63 @@
+import { InView } from 'ui/components/InView';
+import { PropsTable } from 'components/PropsTable';
+
+# Motion
+
+Every movement in the product comes from `ui/styles/motion` and the motion tokens in `ui/styles/variables` — never a duration or an easing typed in a component. Three rules hold for all of it:
+
+1. **Only `transform`, `opacity` and SVG stroke are animated.** Nothing re-lays the page; nothing shifts.
+2. **Nothing gates interaction.** An element mid-entrance works; no `pointer-events`, no handler on `animationend`.
+3. **Reduced motion is handled once**, by the rule in `ui/styles/base`. The hooks that move things themselves (`useCountUp`, `useInView`) read the preference in script and write final values.
+
+## Tokens
+
+<PropsTable data={[
+  { prop: "--spring-gentle", type: "linear() / cubic-bezier", default: "ζ 1, no overshoot", description: "Anything that must not pass its value: a ring, a bar, a sheet" },
+  { prop: "--spring-lively", type: "linear() / cubic-bezier", default: "ζ 0.55, ~12 % over", description: "The answer to a tap: a switch's knob, a tick, a drop-in" },
+  { prop: "--spring-firm", type: "linear() / cubic-bezier", default: "ζ 0.75, 3 % over", description: "A press, a menu unfolding" },
+  { prop: "--duration-enter-short / --duration-enter / --duration-enter-long", type: "time", default: "200 / 400 / 600 ms", description: "A row or a menu / a block or a sheet / a figure drawing itself" },
+  { prop: "--motion-enter, --motion-enter-short, --motion-exit, --motion-axis, --motion-figure, --motion-answer", type: "duration + easing", default: "—", description: "The named transitions the classes use" },
+  { prop: "--motion-stagger", type: "time", default: "50 ms", description: "Between rows of a list; it stops growing at the eighth row" }
+]} />
+
+`linear()` draws a sampled damped spring where the browser can; elsewhere the cubic-bezier is the nearest curve. They are redefined under `@supports`, because a custom property cannot fall back by being declared twice.
+
+## Classes
+
+<PropsTable data={[
+  { prop: ".motion-enter", type: "entrance", default: "rise", description: "One block arriving" },
+  { prop: ".motion-fade", type: "entrance", default: "fade", description: "A picture over its placeholder" },
+  { prop: ".motion-scale-in", type: "entrance", default: "scale", description: "From its own centre" },
+  { prop: ".motion-list", type: "entrance", default: "staggered rise", description: "On the container; its children rise one after another, capped at eight" },
+  { prop: ".motion-sweep", type: "figure", default: "stroke-dashoffset", description: "A ring drawn with `pathLength=100` sweeping to its value" },
+  { prop: ".motion-draw", type: "figure", default: "stroke-dashoffset", description: "A line with `pathLength=1` drawing along its path" },
+  { prop: ".motion-grow-y / .motion-grow-x", type: "figure", default: "scale", description: "A column from its baseline / a bar from where its row starts" },
+  { prop: ".motion-swing", type: "figure", default: "rotate", description: "A needle from `--motion-swing-from`" },
+  { prop: ".motion-figures", type: "figure", default: "stagger", description: "On a chart's marks' parent: one after another, capped at eight" },
+  { prop: ".motion-forward / .motion-back", type: "place", default: "shared axis", description: "One thing replacing another, in the direction of travel" },
+  { prop: ".motion-sheet", type: "place", default: "rise", description: "A sheet rising into place" },
+  { prop: ".motion-unfold", type: "place", default: "scale from origin", description: "A menu unfolding from `--motion-origin`, its trigger's corner" },
+  { prop: ".motion-press", type: "answer", default: "scale 0.97", description: "Gives under the finger (`Button` has it built in)" },
+  { prop: ".motion-drop-in", type: "answer", default: "drop", description: "An item just added" },
+  { prop: ".motion-close-up", type: "answer", default: "fade + scaleY", description: "An item being removed; the caller removes the row by its own state after `--duration-fast`, never on `animationend`" },
+  { prop: ".motion-strike", type: "answer", default: "scaleX", description: "A line drawn through a row checked off" },
+  { prop: ".motion-tick", type: "answer", default: "stroke-dashoffset", description: "A tick drawing itself (`Checkbox` has it built in)" }
+]} />
+
+## The in-view trigger
+
+`InView` (and `ui/hooks/useInView` under it) holds every entrance inside it until it is reached. Only an element that is still below the fold when the page wakes up is armed (`data-in-view="waiting"`); reaching it writes `shown` and every entrance inside plays from its start, once. One `IntersectionObserver` serves the whole page. `ChartFrame` and `Rings` use it; the web app's `Reveal` is the same trigger on a landing-page section.
+
+<Preview code={`import { InView } from 'ui/components/InView';
+
+<InView>
+  <div className="motion-enter">Arrives when it is reached.</div>
+</InView>`}>
+  <InView>
+    <p className="motion-enter">Arrives when it is reached.</p>
+  </InView>
+</Preview>
+
+## View Transition names
+
+A card that grows into its page and back shares one `view-transition-name` with the page's hero, named by the thing, never by the screen: `dish-<id>` (a dish card and the dish page's picture), `dish-title-<id>` (its name on the strip and the page's `h1`), `day-<index>` (a plan day's card and that day's page). A name must be unique on the page at the moment of the transition. The routes are wired by the phases that build those screens.
