@@ -4,7 +4,7 @@ import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nes
 import { AskAssistantDto } from '../dto/in/index.js';
 import { AssistantService } from '../services/index.js';
 import { AssistantSwitchGuard } from '../../../shared/guards/AssistantSwitch.guard.js';
-import { CurrentUser, RateLimit, ZodBody } from '../../../shared/index.js';
+import { AI_GENERATED_HEADER, AiGenerated, CurrentUser, RateLimit, ZodBody } from '../../../shared/index.js';
 
 import type { AssistantConversationDto, AssistantExportDto, AssistantStandingDto, AssistantThreadDto } from '../dto/out/index.js';
 import type { Response } from 'express';
@@ -48,6 +48,7 @@ export class AssistantController {
    */
   @ApiOkResponse({ description: 'Every conversation of theirs with its turns, as their own copy to download (art. 20).' })
   @ApiOperation({ summary: 'Download a copy of every conversation' })
+  @AiGenerated()
   @Get('conversations/export')
   @RateLimit({ limit: 10, ttlSeconds: 3600 })
   async everything(@CurrentUser() user: SessionUser): Promise<AssistantExportDto> {
@@ -56,6 +57,7 @@ export class AssistantController {
 
   @ApiOkResponse({ description: 'One conversation and its turns, oldest first. 404 for one that is not theirs.' })
   @ApiOperation({ summary: 'Read a conversation' })
+  @AiGenerated()
   @Get('conversations/:id')
   async thread(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string): Promise<AssistantThreadDto> {
     return this.assistant.thread(user.id, id);
@@ -110,7 +112,12 @@ export class AssistantController {
 
     response
       .status(HttpStatus.OK)
-      .set({ 'Cache-Control': 'no-store, no-transform', 'Content-Type': 'application/x-ndjson; charset=utf-8', 'X-Accel-Buffering': 'no' });
+      .set({
+        [AI_GENERATED_HEADER]: 'true',
+        'Cache-Control': 'no-store, no-transform',
+        'Content-Type': 'application/x-ndjson; charset=utf-8',
+        'X-Accel-Buffering': 'no'
+      });
     response.flushHeaders();
 
     try {

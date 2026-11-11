@@ -175,8 +175,8 @@ describe('the copy a person downloads', () => {
         createdAt: at(0),
         title: 't-c-1',
         turns: [
-          { content: 'Hola', createdAt: at(1), decline: null, role: 'user' },
-          { content: 'Buenas', createdAt: at(2), decline: null, role: 'assistant' }
+          { content: 'Hola', createdAt: at(1), decline: null, generatedBy: 'person', role: 'user' },
+          { content: 'Buenas', createdAt: at(2), decline: null, generatedBy: 'ai', role: 'assistant' }
         ],
         updatedAt: at(9)
       },

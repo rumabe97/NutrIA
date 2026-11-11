@@ -235,6 +235,7 @@ describe('the assistant (023 phase 4)', () => {
 
     expect(response.headers['content-type']).toMatch(/^application\/x-ndjson/);
     expect(response.headers['cache-control']).toContain('no-transform');
+    expect(response.headers['ai-generated']).toBe('true');
 
     const events = ndjson(response);
     const conversationId = events[0]?.id;
@@ -556,12 +557,15 @@ describe('the assistant (023 phase 4)', () => {
     // The other person's copy holds nothing of the owner's; the owner's holds the whole conversation.
     expect((await as(other).get('conversations/export').expect(200)).body).toMatchObject({ conversations: [] });
     const copy = (await as(owner).get('conversations/export').expect(200)).body as {
-      conversations: { id: string; turns: { content: string; role: string }[] }[];
+      conversations: { id: string; turns: { content: string; generatedBy: string; role: string }[] }[];
       exportedAt: string;
     };
 
     expect(copy.conversations.map(conversation => conversation.id)).toEqual([conversationId]);
     expect(copy.conversations[0]?.turns.map(turn => turn.role)).toEqual(['user', 'assistant']);
+    expect(copy.conversations[0]?.turns.map(turn => turn.generatedBy)).toEqual(['person', 'ai']);
+    expect((await as(owner).get(`conversations/${conversationId}`).expect(200)).headers['ai-generated']).toBe('true');
+    expect((await as(owner).get('conversations').expect(200)).headers['ai-generated']).toBeUndefined();
     expect(copy.conversations[0]?.turns[0]?.content).toBe('¿Es buena la merluza?');
     expect(Number.isNaN(Date.parse(copy.exportedAt))).toBe(false);
 

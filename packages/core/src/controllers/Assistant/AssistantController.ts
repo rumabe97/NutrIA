@@ -49,7 +49,13 @@ export function groupExport(rows: readonly AssistantExportRow[]): AssistantExpor
     }
 
     if (row.role !== null && row.turnCreatedAt !== null) {
-      current.turns.push({ content: row.content ?? '', createdAt: row.turnCreatedAt, decline: row.decline, role: row.role });
+      current.turns.push({
+        content: row.content ?? '',
+        createdAt: row.turnCreatedAt,
+        decline: row.decline,
+        generatedBy: row.role === 'assistant' ? 'ai' : 'person',
+        role: row.role
+      });
     }
   }
 

@@ -82,6 +82,8 @@ export type AssistantExport = {
       readonly content: string;
       readonly createdAt: Date;
       readonly decline: AssistantDecline | null;
+      /** Who wrote it, machine-readably: a model's answer is marked as such (AI Act art. 50.2). */
+      readonly generatedBy: 'ai' | 'person';
       readonly role: 'assistant' | 'user';
     }[];
     readonly updatedAt: Date;

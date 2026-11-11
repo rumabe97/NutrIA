@@ -1,7 +1,7 @@
 import { Controller, DefaultValuePipe, Get, Param, ParseIntPipe, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
-import { CurrentUser, Locale, RateLimit, RequiresOnboarding, ZodBody } from '../../../shared/index.js';
+import { AiGenerated, CurrentUser, Locale, RateLimit, RequiresOnboarding, ZodBody } from '../../../shared/index.js';
 import { HISTORY_PAGE, MealPlansService } from '../services/index.js';
 import { GeneratePlanDto, SetMealStatusDto, SwapMealDto } from '../dto/in/index.js';
 
@@ -55,6 +55,7 @@ export class MealPlansController {
     summary:
       "Replace one meal of the active plan, or of the plan waiting for its day, with a dish that fits — from the library, or new. Counts against that plan's swaps."
   })
+  @AiGenerated()
   @Post('meals/:id/swap')
   // A swap may reach the model; this keeps a stuck retry loop from spending the
   // fortnight's allowance in a minute, and it sits well above the allowance itself.
@@ -90,6 +91,7 @@ export class MealPlansController {
   @ApiOperation({ summary: 'The active plan with its days and meals, or null when there is none.' })
   // Declared before `:id`, or Nest matches "active" as a plan id and the route is
   // unreachable.
+  @AiGenerated()
   @Get('active')
   async active(@CurrentUser() user: SessionUser, @Locale() locale: string | null): Promise<PlanDto | null> {
     return this.plans.activePlan(user.id, locale);
@@ -98,6 +100,7 @@ export class MealPlansController {
   @ApiOkResponse({ description: 'The plan waiting for its day. 404 when there is none.' })
   @ApiOperation({ summary: 'The plan waiting for its first day (project 015), as the active plan is read. 404 when there is none.' })
   // Before `:id`, like `active`.
+  @AiGenerated()
   @Get('scheduled')
   async scheduled(@CurrentUser() user: SessionUser, @Locale() locale: string | null): Promise<PlanDto> {
     return this.plans.scheduledPlan(user.id, locale);
@@ -125,6 +128,7 @@ export class MealPlansController {
 
   @ApiOkResponse({ description: 'One plan of theirs, active or not — the past is readable (`0021`).' })
   @ApiOperation({ summary: 'One plan. A plan belonging to another account is not found.' })
+  @AiGenerated()
   @Get(':id')
   async plan(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Locale() locale: string | null): Promise<PlanDto> {
     return this.plans.plan(user.id, id, locale);
@@ -132,6 +136,7 @@ export class MealPlansController {
 
   @ApiOkResponse({ description: 'One day of a plan.' })
   @ApiOperation({ summary: 'One day of a plan.' })
+  @AiGenerated()
   @Get(':id/days/:dayIndex')
   async day(
     @CurrentUser() user: SessionUser,
@@ -144,6 +149,7 @@ export class MealPlansController {
 
   @ApiOkResponse({ description: 'The meal, scaled to the portion planned.' })
   @ApiOperation({ summary: "A meal, with ingredient quantities scaled to the portion planned — not the recipe's base." })
+  @AiGenerated()
   @Get('meals/:id')
   async meal(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Locale() locale: string | null): Promise<MealDetailDto> {
     return this.plans.meal(user.id, id, locale);

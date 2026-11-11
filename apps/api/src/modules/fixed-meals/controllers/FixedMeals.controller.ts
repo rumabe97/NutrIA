@@ -2,7 +2,7 @@ import { Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Po
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { AddFixedMealDto, DishConsequenceDto, RequestDishDto, SearchDishDto } from '../dto/in/index.js';
-import { CurrentUser, RateLimit, RequiresOnboarding, ZodBody } from '../../../shared/index.js';
+import { AiGenerated, CurrentUser, RateLimit, RequiresOnboarding, ZodBody } from '../../../shared/index.js';
 import { FixedMealsService } from '../services/index.js';
 import { InputParseError } from 'core/entities/Error';
 import { weekdaySchema } from 'core/entities/FixedMeal';
@@ -71,6 +71,7 @@ export class FixedMealsController {
   @ApiOperation({ summary: 'Which dishes can be fixed to one meal of one weekday' })
   @ApiQuery({ enum: MEAL_SLOTS, name: 'slot' })
   @ApiQuery({ description: '0-6, Monday first', name: 'weekday', type: Number })
+  @AiGenerated()
   @Get('fixable')
   async fixable(
     @CurrentUser() user: SessionUser,
@@ -110,6 +111,7 @@ export class FixedMealsController {
   // typing, with only the screen's own debounce in front of it. Generous for a
   // person who is searching, a bound for anything else.
   @RateLimit({ limit: 60, ttlSeconds: 3600 })
+  @AiGenerated()
   @Post('not-offered')
   async notOffered(@CurrentUser() user: SessionUser, @ZodBody(SearchDishDto) body: SearchDishDto): Promise<readonly NotOfferedDishDto[]> {
     return this.fixedMeals.notOffered(user.id, body.weekday, body.slot, body.query);
