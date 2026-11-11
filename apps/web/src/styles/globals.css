@@ -121,6 +121,17 @@ html:has(> body[data-scroll-locked]) {
   overflow-x: visible;
 }
 
+/*
+ * A menu open on screen never scrolls the page when one of its rows takes focus. The
+ * signed-in header's scroll padding (`components/AppNav`) counts anything in its band as
+ * hidden, and a menu unfolding under the header sits in it: opening «Tema» on a scrolled
+ * page moved the page up 368px. A popper is fixed to the screen, so the padding has
+ * nothing to say about it.
+ */
+[data-radix-popper-content-wrapper] * {
+  scroll-margin-block-start: calc(-1 * var(--app-header-clearance, 0px));
+}
+
 /* Reveal-on-scroll, driven by an IntersectionObserver in
    components/Reveal. Declared globally rather than per-module so every section
    animates identically and there is one place to disable it.

@@ -168,7 +168,10 @@
 .actions {
   align-items: center;
   display: flex;
+  /* At 200% text on a 320px phone the three no longer fit beside each other either. */
+  flex-wrap: wrap;
   gap: var(--space-03);
+  justify-content: flex-end;
 }
 
 /* A bare text button computes to the height of its own line — 21px — in a
@@ -248,7 +251,17 @@
    view stops the header's height (its row and hairline) and a gap short of the top.
    Reset under the large-text query, where the header is not sticky. */
 html:has(.header) {
-  scroll-padding-block-start: calc(var(--app-header-block) + 1px + var(--space-03));
+  --app-header-clearance: calc(var(--app-header-block) + 1px + var(--space-03));
+
+  scroll-padding-block-start: var(--app-header-clearance);
+}
+
+/* …except for what is in the header itself, which is always on screen: Chrome counts a
+   control in a sticky header as hidden by that padding and scrolled a scrolled page up by
+   it — 368px at 390px wide — whenever language, theme or sign-out took focus. The menus
+   that open from it do the same; `styles/globals.css` gives them the same margin. */
+.header * {
+  scroll-margin-block-start: calc(-1 * var(--app-header-clearance, 0px));
 }
 
 /* ── The destinations ────────────────────────────────────────────────── */
@@ -468,6 +481,8 @@ html:has(.header) {
   }
 
   html:has(.header) {
+    --app-header-clearance: 0px;
+
     scroll-padding-block-start: 0;
   }
 
