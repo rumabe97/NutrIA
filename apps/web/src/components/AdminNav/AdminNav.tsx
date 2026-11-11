@@ -10,6 +10,7 @@ import { Sidebar } from 'ui/components/Sidebar';
 import { useDictionary } from 'i18n/LocaleProvider';
 
 import { AdminNavList } from './components/AdminNavList';
+import { ThemeSwitcher } from 'components/ThemeSwitcher';
 
 /**
  * The console's navigation (`0068`), and nothing of the app's: no `AppNav`, no
@@ -37,41 +38,49 @@ export function AdminNav() {
     <div className={styles.root}>
       <header className={styles.bar}>
         <p className={styles.title}>{t.title}</p>
-        <Sidebar
-          onCloseAutoFocus={event => {
-            if (followedLink.current) {
-              followedLink.current = false;
-              event.preventDefault();
-            }
-          }}
-          onOpenChange={setOpen}
-          open={open}
-          title={t.title}
-          trigger={
-            <Button className={styles.menu} size="sm" type="button" variant="secondary">
-              <svg aria-hidden="true" className={styles.menuIcon} fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
-                <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
-              </svg>
-              {t.menu}
-            </Button>
-          }
-        >
-          <AdminNavList
-            onNavigate={href => {
-              followedLink.current = href !== pathname;
-              setOpen(false);
+        {/* The console has no header of its own: its theme menu sits in this bar, and at the
+            foot of the sidebar on a wide screen. */}
+        <div className={styles.barActions}>
+          <ThemeSwitcher />
+          <Sidebar
+            onCloseAutoFocus={event => {
+              if (followedLink.current) {
+                followedLink.current = false;
+                event.preventDefault();
+              }
             }}
-            pathname={pathname}
-          />
-          <Button className={styles.close} onClick={() => setOpen(false)} size="sm" type="button" variant="tertiary">
-            {dictionary.common.close}
-          </Button>
-        </Sidebar>
+            onOpenChange={setOpen}
+            open={open}
+            title={t.title}
+            trigger={
+              <Button className={styles.menu} size="sm" type="button" variant="secondary">
+                <svg aria-hidden="true" className={styles.menuIcon} fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
+                  <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
+                </svg>
+                {t.menu}
+              </Button>
+            }
+          >
+            <AdminNavList
+              onNavigate={href => {
+                followedLink.current = href !== pathname;
+                setOpen(false);
+              }}
+              pathname={pathname}
+            />
+            <Button className={styles.close} onClick={() => setOpen(false)} size="sm" type="button" variant="tertiary">
+              {dictionary.common.close}
+            </Button>
+          </Sidebar>
+        </div>
       </header>
 
       <div className={styles.sidebar}>
         <p className={styles.title}>{t.title}</p>
         <AdminNavList pathname={pathname} />
+        <div className={styles.sidebarFoot}>
+          <ThemeSwitcher />
+        </div>
       </div>
     </div>
   );

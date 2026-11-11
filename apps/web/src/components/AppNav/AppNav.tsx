@@ -9,6 +9,7 @@ import styles from './AppNav.module.css';
 import { useDictionary } from 'i18n/LocaleProvider';
 
 import { LocaleSwitcher } from 'components/LocaleSwitcher';
+import { ThemeSwitcher } from 'components/ThemeSwitcher';
 import { useOffline } from 'components/OfflineProvider';
 
 import { forgetOfflineCopies } from 'lib/offline';
@@ -98,15 +99,21 @@ export function AppNav({ assistant = false, professional = false }: AppNavProps)
             ))}
           </nav>
 
-          {offline ? null : (
-            <Fragment>
-              <LocaleSwitcher compact={true} />
+          <div className={styles.actions}>
+            {/* The theme only paints this device, so it works offline too. */}
+            {offline ? null : <LocaleSwitcher compact={true} />}
+            <ThemeSwitcher />
 
+            {offline ? null : (
+              // Below 360px the words step aside for the icon; they stay the button's name.
               <button className={styles.signOut} onClick={handleSignOut} type="button">
-                {dictionary.appNav.signOut}
+                <svg aria-hidden="true" className={styles.signOutIcon} fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
+                  <path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span className={styles.signOutLabel}>{dictionary.appNav.signOut}</span>
               </button>
-            </Fragment>
-          )}
+            )}
+          </div>
         </div>
       </header>
 

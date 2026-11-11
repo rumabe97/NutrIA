@@ -2,7 +2,7 @@ import { activeLocale, dictionaryFor } from 'i18n/server';
 import { LOCALES } from 'i18n/config';
 import { withLocale } from 'i18n/routes';
 
-import { PAGE_BACKGROUND } from 'lib/brandIcon';
+import { AUTO_PAGE_COLOURS } from 'lib/brandColours';
 
 import { HOME, languageUrls, SITE_URL, UNINDEXED_PATHS } from './pages';
 
@@ -16,12 +16,13 @@ const BRAND = 'NutrIA';
 /**
  * The colour a phone's browser paints its own chrome to match the page — one per
  * scheme, because the page background follows the scheme and a dark bar over a
- * light page looks like a mistake.
+ * light page looks like a mistake. These are Automático's; a chosen theme replaces
+ * them on the device (`ui/components/ThemeSwitch`, `lib/brandColours`).
  */
 export const siteViewport: Viewport = {
   themeColor: [
-    { color: PAGE_BACKGROUND.light, media: '(prefers-color-scheme: light)' },
-    { color: PAGE_BACKGROUND.dark, media: '(prefers-color-scheme: dark)' }
+    { color: AUTO_PAGE_COLOURS.light, media: '(prefers-color-scheme: light)' },
+    { color: AUTO_PAGE_COLOURS.dark, media: '(prefers-color-scheme: dark)' }
   ]
 };
 

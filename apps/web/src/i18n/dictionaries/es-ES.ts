@@ -3097,7 +3097,7 @@ export const esES = {
         heading: 'Cookies y almacenamiento en tu dispositivo',
         paragraphs: [
           'Solo usamos lo imprescindible para que el servicio funcione, y por eso no te pedimos permiso: la cookie de tu sesión, la del idioma que has elegido, la que, si marcas «confiar en este dispositivo» al verificar en dos pasos, evita pedirte el código durante 30 días en ese navegador, la que dejamos al entrar con tu contraseña para que, si otra persona prueba contraseñas con tu correo, el freno contra el abuso no te pare a ti en ese navegador (hasta 90 días; más en «Frenos contra el abuso») y, al entrar con Google o Apple, en la página para entrar (que te ofrece tus llaves de acceso) o al añadir una llave, las que ese paso necesita durante unos minutos. Ninguna es de terceros ni rastrea tu actividad en otras webs.',
-          'En el almacenamiento de tu navegador guardamos lo que marcas sin conexión hasta que se envía, un aviso de plan pendiente de revisión y, si instalas NutrIA en tu teléfono, una copia de tu plan de hoy y de la lista de la compra para usarlas sin conexión. Todo se queda en tu dispositivo.'
+          'En el almacenamiento de tu navegador guardamos lo que marcas sin conexión hasta que se envía, un aviso de plan pendiente de revisión y, si instalas NutrIA en tu teléfono, una copia de tu plan de hoy y de la lista de la compra para usarlas sin conexión. Todo se queda en tu dispositivo. También guardamos ahí lo que eliges para ver NutrIA a tu manera en ese navegador: el tema de colores, los días para los que quieres la lista de la compra y si ya respondiste a la nota sobre el tamaño de las comidas. Esas elecciones se quedan en ese navegador y no nos llegan.'
         ]
       },
       {
@@ -3114,7 +3114,7 @@ export const esES = {
       }
     ],
     title: 'Política de privacidad',
-    updated: 'Última actualización: 10 de noviembre de 2026'
+    updated: 'Última actualización: 11 de noviembre de 2026'
   },
   profile: {
     account: 'Cuenta',
@@ -3544,6 +3544,18 @@ export const esES = {
     ],
     title: 'Condiciones de uso',
     updated: 'Última actualización: 10 de noviembre de 2026'
+  },
+
+  theme: {
+    appearance: 'Apariencia',
+    appearanceHint: 'Se guarda solo en este navegador.',
+    auto: 'Automático',
+    claro: 'Claro',
+    contraste: 'Alto contraste',
+    huerta: 'Huerta',
+    label: 'Tema',
+    oscuro: 'Oscuro',
+    pulso: 'Pulso'
   },
 
   tour: {

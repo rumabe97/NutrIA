@@ -1,18 +1,24 @@
 import localFont from 'next/font/local';
 
 /**
- * `font.woff2` is a subset of `font.full.woff2`, which is the untouched
- * upstream file and the only reason this one can be rebuilt. The command that
- * derives it is in `packages/ui/AGENTS.md` § Fonts — change one, regenerate the
- * other.
+ * Two families, each a subset of the untouched upstream file beside it (`*.full.ttf`),
+ * which is the only reason it can be rebuilt: `packages/ui/scripts/build-fonts.sh` derives
+ * both, and `packages/ui/AGENTS.md` § Fonts says why each flag is there. Change one,
+ * regenerate the other.
  *
- * `weight` looks redundant on a variable font and is the opposite. Next.js only
- * writes a `font-weight` descriptor when it is given one, and an `@font-face`
- * without that descriptor means `normal` — so the browser pins the `wght` axis
- * at 400 and fakes 500, 600 and 700 by smearing the 400 masters, while still
- * paying to download the axis it refuses to use. Declaring the range is what
- * makes the file's own weights reachable. It matches the range the file
- * carries, which matches `--font-weight-regular` through `--font-weight-bold`;
- * widen all three together or not at all.
+ * - `font` is Figtree, the text face, on `--main-font`: every word that is not a heading.
+ * - `displayFont` is Bricolage Grotesque, the heading face, on `--display-font`. `ui/styles/base`
+ *   gives it to `h1`–`h6`; an app that never mounts it (`apps/docs`) keeps the text face there.
+ *
+ * `weight` looks redundant on a variable font and is the opposite. Next.js only writes a
+ * `font-weight` descriptor when it is given one, and an `@font-face` without that descriptor
+ * means `normal` — so the browser pins the `wght` axis at 400 and fakes the heavier weights by
+ * smearing the 400 masters, while still paying to download the axis it refuses to use.
+ * Declaring the range is what makes the file's own weights reachable. Each range matches the
+ * range its file carries, which matches the weight tokens (`--font-weight-regular` …
+ * `--font-weight-bold` for text, `--font-weight-semibold` … `--font-weight-heavy` for
+ * headings); widen all three together or not at all.
  */
-export const font = localFont({ src: './font.woff2', variable: '--main-font', weight: '400 700' });
+export const font = localFont({ src: './text.woff2', variable: '--main-font', weight: '400 700' });
+
+export const displayFont = localFont({ src: './display.woff2', variable: '--display-font', weight: '600 800' });

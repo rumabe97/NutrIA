@@ -2,15 +2,14 @@
    Base tokens (surfaces, text, borders, shadows, spacing, type scale) come from
    ui/styles/variables. Only the decisions specific to this product live here.
 
-   Direction: calm and near-neutral, one restrained accent. The accent marks
-   *actions*, never decoration — in a product about food, saturated colour on
-   surfaces reads as appetite signalling, and the plan should look like
-   information, not marketing. */
+   Direction (project 024, `0107`): warm paper rather than white, a heavy
+   grotesque for headings over a quiet sans, one accent that runs from tomato to
+   saffron, olive and plum beside it — in five themes, `styles/themes.css`. */
 
 :root {
   /* ── Colour ───────────────────────────────────────────────────────────
-     Every colour this product paints — the olive accent, the surfaces, the
-     card's highlight, the ambient light — is a value of a theme, and lives in
+     Every colour this product paints — the accent, the surfaces, the card's
+     highlight and shadow, the ambient light and grain — is a value of a theme, and lives in
      styles/themes.css (`0106`), selected by `data-theme` on <html>. This file
      keeps what does not change with the theme. */
 
@@ -81,18 +80,16 @@
   /* Below this the product is one column; above it, screens with a rail split. */
   --breakpoint-wide: 64rem;
 
-  /* ── Card shadow ──────────────────────────────────────────────────────
-     A shadow beneath a card, read by components/Card beside the highlight in
-     styles/themes.css. Not a working value today: `light-dark()` takes colours
-     only, so a pair of whole shadows is invalid, and so is Card's whole
-     `box-shadow` that reads it — no card has drawn its shadow or its highlight.
-     Kept exactly as it is so that phase 1a of project 024 changes nothing on
-     screen; phase 1b gives it a value per theme. */
-  --card-shadow: light-dark(0 1px 2px rgb(24 28 20 / 4%), 0 1px 2px rgb(0 0 0 / 40%));
+  /* ── Corners ─────────────────────────────────────────────────────────
+     As round as the approved sheets (project 024, `0107`; the owner's own exception
+     to the skill's restraint, PRD criterion 9): a card is a soft slab, a sheet more so,
+     and every button is a pill. Inputs and chips keep a control's corner, a little
+     rounder than ui's default, so a field never reads as a button. */
+  --radius-control: 12px;
+  --radius-card: 24px;
+  --radius-sheet: 28px;
+  --radius-button: var(--radius-full);
 
-  /* Grain is what stops a large soft gradient banding on an 8-bit display.
-     Not a working value today either: `light-dark()` of two numbers is
-     invalid, so the grain layer is drawn at the initial opacity, 1. Kept as it
-     is for the same reason as the card shadow; phase 1b decides. */
-  --grain-opacity: light-dark(0.028, 0.05);
+  /* The card's shadow and the grain's strength are colours of a theme, so they live
+     in styles/themes.css (`--card-shadow`, `--grain-opacity`). */
 }

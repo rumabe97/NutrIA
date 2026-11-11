@@ -105,3 +105,24 @@
     display: flex;
   }
 }
+
+/*
+ * Below 360px the row cannot hold the wordmark, the language switch, the theme
+ * menu and «Acceder» at once (PRD 024 § "What changes from the sheets", 5). The
+ * mark alone carries the brand there — the link keeps its aria-label — and the
+ * gaps close up, so nothing wraps and nothing runs off the edge.
+ */
+@media (width < 22.5rem) {
+  .inner {
+    gap: var(--space-03);
+    padding-inline: var(--gutter-page);
+  }
+
+  .actions {
+    gap: var(--space-02);
+  }
+
+  .wordmark {
+    display: none;
+  }
+}

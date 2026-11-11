@@ -1,7 +1,7 @@
 import { dictionaryFor } from 'i18n/server';
 import { withLocale } from 'i18n/routes';
 
-import { BRAND_GREEN, TILE_BACKGROUND } from 'lib/brandIcon';
+import { ACCENT_START, TILE_BACKGROUND } from 'lib/brandColours';
 
 import type { Locale } from 'i18n/config';
 import type { MetadataRoute } from 'next';
@@ -35,6 +35,6 @@ export function webManifest(locale: Locale): MetadataRoute.Manifest {
     scope: '/',
     short_name: 'NutrIA',
     start_url: withLocale('/', locale),
-    theme_color: BRAND_GREEN
+    theme_color: ACCENT_START
   };
 }

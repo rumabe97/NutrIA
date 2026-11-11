@@ -7,6 +7,7 @@ import { LEGAL_IDENTITY } from 'i18n/legalIdentity';
 import { slotsIn } from 'core/domain/MealShape';
 import { Text } from 'ui/components/Text';
 
+import { AppearancePicker } from 'components/AppearancePicker';
 import { Card } from 'components/Card';
 import { CareAccessLog } from 'components/CareAccessLog';
 import { CareLinkCard } from 'components/CareLinkCard';
@@ -412,7 +413,8 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
           </section>
         ) : null}
 
-        {/* How the product speaks to this person: which reminders, and in which language. */}
+        {/* How the product speaks to this person: which reminders, in which language, and
+            in which colours on this device. */}
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>{t.sectionNotices}</h2>
 
@@ -425,6 +427,8 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
           </Card>
 
           <LocaleSwitcher />
+
+          <AppearancePicker />
         </section>
 
         <section className={styles.section}>

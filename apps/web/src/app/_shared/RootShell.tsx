@@ -10,7 +10,7 @@ import 'styles/variables.css';
 import 'styles/themes.css';
 
 import { dictionaryFor } from 'i18n/server';
-import { font } from 'ui/fonts';
+import { displayFont, font } from 'ui/fonts';
 import { LocaleProvider } from 'i18n/LocaleProvider';
 import { THEME_SCRIPT } from 'ui/utils/themeScript';
 
@@ -41,6 +41,9 @@ import type { ReactNode } from 'react';
  * (`0053`): whichever root somebody arrives at, it is running by the time a
  * signed-in screen opens.
  *
+ * Both faces are mounted on `<body>`: Figtree for text, Bricolage Grotesque for headings
+ * (`ui/fonts`), each preloaded, the same two files on every page and in every theme.
+ *
  * The theme (`0106`) is applied here too, by the one script in `<head>`: it runs before
  * the first paint, so a chosen theme is never preceded by Automático's colours. It is a
  * static string, the same on every page, so nothing here reads a cookie or a header and
@@ -56,7 +59,7 @@ export function RootShell({ children, locale }: Readonly<{ children: ReactNode; 
         {/* A static string from ui/utils/themeScript, never data. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body className={font.variable}>
+      <body className={`${font.variable} ${displayFont.variable}`}>
         <SkipLink locale={locale} />
         <LocaleProvider dictionary={dictionaryFor(locale)} locale={locale}>
           <RouteAnnouncer />

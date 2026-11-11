@@ -20,7 +20,7 @@
   --input-floor: var(--height-l);
 
   background-color: var(--background-01);
-  border: 1px solid var(--border-interactive);
+  border: var(--border-width-interactive) solid var(--border-interactive);
   border-radius: var(--radius-control);
   color: var(--foreground-01);
   font-family: inherit;

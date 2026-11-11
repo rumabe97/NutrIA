@@ -38,6 +38,12 @@
   gap: var(--space-02);
 }
 
+.barActions {
+  align-items: center;
+  display: flex;
+  gap: var(--space-02);
+}
+
 .menuIcon {
   block-size: 18px;
   flex: none;
@@ -94,5 +100,13 @@
 
   .sidebar .title {
     padding-inline: var(--space-03);
+  }
+
+  /* After the list, the theme menu: the one control of the console that is not a page. */
+  .sidebarFoot {
+    border-block-start: 1px solid var(--border-01);
+    display: flex;
+    padding-block-start: var(--space-04);
+    padding-inline: var(--space-01);
   }
 }

@@ -15,7 +15,7 @@
 }
 
 .field {
-  border: 1px solid var(--border-interactive);
+  border: var(--border-width-interactive) solid var(--border-interactive);
   border-radius: var(--radius-control);
   font-size: var(--font-size-03);
   font-variant-numeric: tabular-nums;
@@ -36,7 +36,7 @@
  */
 .save {
   background-color: var(--surface-sunken);
-  border: 1px solid var(--border-interactive);
+  border: var(--border-width-interactive) solid var(--border-interactive);
   border-radius: var(--radius-control);
   color: var(--foreground-01);
   cursor: pointer;

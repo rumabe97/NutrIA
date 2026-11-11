@@ -11,7 +11,7 @@
 .week {
   align-items: center;
   background: none;
-  border: 1px solid var(--border-interactive);
+  border: var(--border-width-interactive) solid var(--border-interactive);
   border-radius: var(--radius-full);
   color: var(--foreground-02);
   cursor: pointer;

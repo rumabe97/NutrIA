@@ -2,16 +2,14 @@ import { ImageResponse } from 'next/og';
 
 import { dictionaryFor } from 'i18n/server';
 
-import { BRAND_GREEN, BrandMark, TILE_BACKGROUND } from 'lib/brandIcon';
+import { ACCENT_END, ACCENT_START, TILE_BACKGROUND, TILE_INK, TILE_SOFT } from 'lib/brandColours';
+import { BrandMark } from 'lib/brandIcon';
 
 import type { Locale } from 'i18n/config';
 
 /** 1200×630 is what every card renderer crops to; anything else gets cut somewhere. */
 export const SHARE_IMAGE_SIZE = { height: 630, width: 1200 };
 export const SHARE_IMAGE_TYPE = 'image/png';
-
-const MUTED = '#a1a1a1';
-const PAPER = '#fcfcfc';
 
 /**
  * The picture a shared link shows, in the language of the tree it is mounted
@@ -42,16 +40,18 @@ export function shareImage(locale: Locale): ImageResponse {
     >
       <div style={{ alignItems: 'center', display: 'flex' }}>
         <BrandMark size={72} />
-        <span style={{ color: PAPER, fontSize: 44, fontWeight: 600, marginLeft: 28 }}>NutrIA</span>
+        <span style={{ color: TILE_INK, fontSize: 44, fontWeight: 600, marginLeft: 28 }}>NutrIA</span>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <span style={{ color: PAPER, fontSize: 76, lineHeight: 1.15 }}>{dictionary.landing.title}</span>
-        <span style={{ color: MUTED, fontSize: 34, marginTop: 28 }}>{dictionary.manifest.description}</span>
+        <span style={{ color: TILE_INK, fontSize: 76, lineHeight: 1.15 }}>{dictionary.landing.title}</span>
+        <span style={{ color: TILE_SOFT, fontSize: 34, marginTop: 28 }}>{dictionary.manifest.description}</span>
       </div>
 
-      {/* The brand's one colour, as a rule the eye reads before the words. */}
-      <div style={{ background: BRAND_GREEN, borderRadius: 4, display: 'flex', height: 8, width: 180 }} />
+      {/* The accent, as a rule the eye reads before the words. */}
+      <div
+        style={{ backgroundImage: `linear-gradient(90deg, ${ACCENT_START}, ${ACCENT_END})`, borderRadius: 4, display: 'flex', height: 8, width: 180 }}
+      />
     </div>,
     SHARE_IMAGE_SIZE
   );

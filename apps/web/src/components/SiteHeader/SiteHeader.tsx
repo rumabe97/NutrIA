@@ -9,6 +9,7 @@ import { useDictionary } from 'i18n/LocaleProvider';
 
 import { CtaLink } from 'components/CtaLink';
 import { LocaleSwitcher } from 'components/LocaleSwitcher';
+import { ThemeSwitcher } from 'components/ThemeSwitcher';
 
 /**
  * The border only appears once the page has scrolled, so the hero starts on an
@@ -33,7 +34,7 @@ export function SiteHeader() {
       <div className={styles.inner}>
         <Link aria-label={dictionary.siteNav.brandHome} className={styles.brand} href="/">
           <span aria-hidden="true" className={styles.mark} />
-          NutrIA
+          <span className={styles.wordmark}>NutrIA</span>
         </Link>
 
         {/* The anchors are URL fragments, not copy: they stay Spanish so a link
@@ -57,6 +58,7 @@ export function SiteHeader() {
           {/* On the landing page too, and not behind a menu: someone deciding
               whether to sign up at all cannot read a label to open one. */}
           <LocaleSwitcher compact={true} />
+          <ThemeSwitcher />
           <Link className={styles.signIn} href="/acceder">
             {dictionary.siteNav.signIn}
           </Link>

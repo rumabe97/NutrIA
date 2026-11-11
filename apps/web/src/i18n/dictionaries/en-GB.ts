@@ -2946,7 +2946,7 @@ export const enGB: Dictionary = {
         heading: 'Cookies and storage on your device',
         paragraphs: [
           'We only use what is essential for the service to work, which is why we do not ask for permission: your session cookie, the cookie for the language you chose, the one that, if you tick “trust this device” when verifying in two steps, stops asking you for the code for 30 days in that browser, the one we leave when you sign in with your password so that, if someone else is trying passwords with your email, the brake against abuse does not stop you in that browser (up to 90 days; more under “Brakes against abuse”), and, when you sign in with Google or Apple, on the sign-in page (which offers you your passkeys) or when you add a passkey, the ones that step needs for a few minutes. None is third-party or tracks you on other sites.',
-          "In your browser's storage we keep the meals you tick while offline until they are sent, a notice about a plan pending review and, if you install NutrIA on your phone, a copy of today's plan and the shopping list so they work offline. It all stays on your device."
+          "In your browser's storage we keep the meals you tick while offline until they are sent, a notice about a plan pending review and, if you install NutrIA on your phone, a copy of today's plan and the shopping list so they work offline. It all stays on your device. We also keep there what you choose to see NutrIA your way in that browser: the colour theme, the days you want the shopping list for, and whether you have already answered the note about the size of your meals. Those choices stay in that browser and do not reach us."
         ]
       },
       {
@@ -2963,7 +2963,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Privacy policy',
-    updated: 'Last updated: 10 November 2026'
+    updated: 'Last updated: 11 November 2026'
   },
 
   profile: {
@@ -3399,6 +3399,18 @@ export const enGB: Dictionary = {
     ],
     title: 'Terms of use',
     updated: 'Last updated: 10 November 2026'
+  },
+
+  theme: {
+    appearance: 'Appearance',
+    appearanceHint: 'Kept only in this browser.',
+    auto: 'Automatic',
+    claro: 'Light',
+    contraste: 'High contrast',
+    huerta: 'Huerta',
+    label: 'Theme',
+    oscuro: 'Dark',
+    pulso: 'Pulso'
   },
 
   tour: {

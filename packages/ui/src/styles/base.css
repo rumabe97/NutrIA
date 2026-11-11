@@ -43,6 +43,8 @@ h4,
 h5,
 h6 {
   color: var(--foreground-01);
+  /* The display face, where the app mounts one (ui/fonts); the text face where it does not. */
+  font-family: var(--display-font, var(--main-font)), var(--font-fallback);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-02);
   overflow-wrap: break-word;

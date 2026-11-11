@@ -40,7 +40,9 @@
 }
 
 .locale {
+  align-items: center;
   display: flex;
+  gap: var(--space-02);
   justify-content: center;
   margin-bottom: var(--gap-block);
 }
