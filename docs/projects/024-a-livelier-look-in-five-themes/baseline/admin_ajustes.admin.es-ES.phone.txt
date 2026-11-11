@@ -14,7 +14,7 @@ spinbutton "Premium": "#"
 switch "Acompañamientos (pan, ensalada, fruta)"
 switch "Activación automática" [checked]
 switch "Asistente de nutrición" [checked]
-switch "Consulta para dietistas" [checked]
+switch "Consulta para dietistas"
 switch "Despensa en el plan (aprovechar lo que ya hay en casa)"
 switch "Dibujar las imágenes de los platos"
 switch "Nivel de pago"

@@ -18,4 +18,4 @@ switch "Cupboard in the plan (use what is already at home)"
 switch "Draw the dish pictures"
 switch "Nutrition assistant" [checked]
 switch "Paid tier"
-switch "Practice for dietitians" [checked]
+switch "Practice for dietitians"

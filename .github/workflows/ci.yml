@@ -96,6 +96,13 @@ jobs:
           pnpm --filter web build
           node scripts/check-static-pages.mjs
 
+      # Every theme keeps its words, its controls' edges and its focus ring legible
+      # (`0106`): the ratio of each declared token pair, per theme, against WCAG's
+      # floors. A colour change that drops one is red here, not in someone's eyes.
+      # Plain Node over the themes file — no build needed.
+      - name: Every theme's contrast
+        run: node scripts/check-contrast.mjs
+
       # Last, because it is the only check here that can be wrong. knip infers
       # reachability, so a dynamically loaded file or a subpath imports map it
       # cannot follow reads as dead code — `#repositories/*` already does, and

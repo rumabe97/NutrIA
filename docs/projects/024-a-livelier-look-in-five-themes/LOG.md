@@ -73,3 +73,90 @@
     reads «Guardad…» in Spanish. Both are noted, neither is this project's to change.
   - The header's anchor links also render on the legal pages, where their targets do not exist,
     and are hidden below 48rem with only the footer carrying them. Phase 7 decides with the page.
+
+## Phase 1a — The theme mechanism, with today's colours (2026-11-11)
+
+- **Executor**: `frontend-high` on opus. Nothing ran on `fable`; the advisor was not consulted.
+- **Result**: done. Branch `024-phase-1a`, on `024-phase-0`.
+- **Evidence**:
+  - **Nothing a person sees changed, measured two ways.** (1) Every custom property of the token
+    files, read in Chrome through real properties (`background-color`, `box-shadow`, `opacity`)
+    before and after, in six situations — light and dark device with no attribute, Claro on a
+    light and on a dark device, Oscuro on a light and on a dark device — and each of the 15
+    stylesheet reads that changed, old expression against new token: every row equal, 148 tokens
+    plus the 15 reads; the 12 new tokens are compared through the reads they replace. The same
+    over `ui`'s files alone, as `apps/docs` loads them: every row equal. (2) `/local-probe`
+    builds of `024-phase-0` and of this branch, full-page screenshots at 390 px of `/`,
+    `/acceder`, `/inicio`, `/plan` and `/admin`, light and dark, compared pixel by pixel: all
+    identical. With a theme stored on the device against the opposite scheme (Claro on a dark
+    device, Oscuro on a light one) each page is pixel-identical to the scheme it stands for.
+    One `/inicio` light pair differed at first by a focus ring on the heading: the welcome tour
+    is dismissed once per account and returns focus to the `h1`, and only the first capture saw
+    it; a fresh account on the new build reproduced it and matched pixel for pixel.
+  - `node scripts/check-contrast.mjs`: 2 themes × 46 pairs, 92 pass, 0 known from today, 0 fail,
+    0 problems. With `--file` on a copy whose Claro `--foreground-02` was `#aaaaaa` and Oscuro
+    `--border-interactive` `#3a3a3a`: 9 FAIL (2.19–2.32:1 text, 1.50–1.59:1 edge) and the
+    Automático-dark mismatch reported, exit 1.
+  - `apps/web/src/styles/colours.test.ts`: 24 tests green; with `color: #123456` and
+    `var(--color-gray-06)` appended to `Switch.module.css` it names both and fails; restored.
+  - `packages/ui/src/utils/themeScript.test.ts`: 7 tests — the five themes, unknown values,
+    `__proto__`/`constructor`/`hasOwnProperty`, a store that throws, and the inline string run as
+    the page runs it, held to the pure function's answer for every value.
+  - `pnpm turbo lint ts:check test --filter=web --filter=ui` green; `pnpm --filter docs build`
+    green; public pages still prerendered (10/10); `gate.sh --full` green (before the contrast
+    step was wired: see Deviations). No console error or warning on any captured page, hydration
+    included.
+  - `apple-web-design` REVIEW of the mechanism and the touched tokens: PASS, no P0 or P1.
+    Not new, reported for phase 1b: the `theme-color` meta still follows the device (`0106` § 6
+    gives that to the switch), and the two invalid values below.
+- **Deviations from plan**:
+  - **The contrast script, the gate step, the CI step and this entry were written by the lead**,
+    not the executor: the edit guard gives `scripts/`, `.claude/` and `docs/` to the lead, so the
+    executor handed them over as files and a patch.
+  - **`--card-shadow` and `--grain-opacity` stay in `styles/variables.css` as they were**, not in
+    `themes.css`. Both are `light-dark()` of things that are not colours (whole shadows, numbers),
+    which is invalid: today no card draws its shadow or its top highlight (Card's whole
+    `box-shadow` is invalid at computed-value time and falls to `none`), and the grain layer is
+    painted at opacity 1, not 0.028/0.05. Giving them a value per theme would have changed the
+    screen, which this phase may not do. Measured in Chrome 157.
+  - The colour test also fails on a `prefers-color-scheme` query in a module stylesheet, which
+    the plan did not list: under a chosen theme such a query paints the device's scheme. None
+    exists today.
+  - Twelve tokens were added: `--color-track`, `--color-track-hover`, `--color-error-surface`,
+    `--color-error-border`, `--color-warning-surface`, `--color-warning-border`,
+    `--color-code-ground`, `--color-code-ink`, `--color-switch-thumb`, `--color-on-error-fill`
+    (the last two also in `ui`'s neutral default, which its own components read),
+    `--color-brand-halo` and `--color-brand-fill-disabled` (derived with `color-mix()` from each
+    theme's own values in one shared block of `themes.css`). The checkbox tick reads the existing
+    `--color-on-brand-fill`.
+- **Decisions**: none new. The storage key is `nutria-theme` (`ui/utils/themeScript`,
+  `THEME_STORAGE_KEY`), beside the app's other `nutria-*` keys; the value is one of `claro`,
+  `oscuro`, `huerta`, `pulso`, `contraste`, and anything else is Automático.
+- **Notes for phase 1b**:
+  - **`KNOWN_TODAY` is empty**: every declared pair cleared its floor in both schemes. Under 3:1
+    and deliberately not in the pair list: `--border-01` (1.26:1 light, 1.45:1 dark — a divider,
+    `0041`) and the state step-09 colours drawn as a note's inline-start edge (warning
+    `#ffb224` 1.76:1 on the light page, success 3.08:1) — the edges phase 2 removes.
+  - Each new theme block must define every token the Claro block does, and the Automático dark
+    block must stay byte-for-byte the Oscuro block: the contrast script fails otherwise. A
+    `prefers-contrast: more` block for Alto contraste will need the script taught to read it
+    (today it reports any rule it does not know as a problem).
+  - The chart colours (`--color-chart-*`, `0069`) still live as `light-dark()` pairs in
+    `ui/styles/colors.css`; they follow the theme through `color-scheme`, which is right for
+    Claro/Oscuro only. Huerta and Pulso need their own chart values, in `themes.css`.
+  - `--card-shadow` and `--grain-opacity` (above): decide whether cards get the shadow they were
+    designed with and the grain its intended opacity — either is a visible change.
+  - The theme is a device preference: `forgetOfflineCopies()` must not drop `nutria-theme` on
+    sign-out. The switch updates the `theme-color` meta (`0106` § 6).
+  - Not updated here, outside this phase's scope: `apps/web/AGENTS.md` § Styles (the import list
+    now ends with `styles/themes.css`; `TwoFactorQr` no longer reads palette tokens) and the
+    § CSS conventions/§ Branding text of the root `AGENTS.md` — phase 1b rewrites both.
+  - Not run in this phase: the phase-0 baseline diff (`baseline.mjs`); the DOM changed only in
+    `<head>` (one script) and the `<html>` attributes, which the accessibility tree does not read.
+- **Lead's check, same day**: the four lead-owned files were read and put in place by the lead
+  (`scripts/check-contrast.mjs`, the gate and CI steps, this entry). `gate.sh --full` with the
+  contrast step: green. The phase-0 baseline re-run on this branch — public pages in both
+  languages, the signed-in app without a plan and the console, 164 files: 160 identical. The four
+  that differed were `/admin/ajustes`, where one local switch had been left on when phase 0 was
+  captured; those four baseline files now hold the switch off, which is the state a clean local
+  database has. No control was lost.
