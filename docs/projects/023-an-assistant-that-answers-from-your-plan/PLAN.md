@@ -8,7 +8,7 @@
 > planner agent via `/plan-project`; approved by the owner before execution starts.
 > Write repo-relative: no absolute paths, no references to other private repos.
 
-- **Status**: approved
+- **Status**: **done and live — all seven phases shipped; the owner sent the notice, switched it on and checked it on his iPhone (2026-11-11)**
 - **Type**: standard
 - **PRD**: [./PRD.md](./PRD.md) — every acceptance criterion maps to at least one phase; the
   mapping is on each phase's **Acceptance criteria** line.
@@ -432,7 +432,7 @@ Decisions recorded with this plan:
 
 ### Phase 5 — The screen
 
-- [ ] in progress — built 2026-11-10; human-verify pending (LOG.md § Phase 5)
+- [x] done — built 2026-11-10; confirmed by human on 2026-11-11 (LOG.md)
 - **Dispatch**: opus @ high — `/execute-project 023 phase 5` — deviation from `tiered`'s
   implementation row: the screen is where the allergen net's and the refusal's words reach a
   person, so it is the display half of AI output validation. — owner-approves: the warning's wording, from
@@ -522,7 +522,7 @@ Decisions recorded with this plan:
 
 ### Phase 7 — The legal text, then the switch
 
-- [ ] in progress — pages and retention built 2026-11-10; owner-gated: the mail, then the switch, then the iPhone (LOG.md § Phase 7)
+- [x] done — pages and retention built 2026-11-10; the mail sent, the switch on and the iPhone checked, confirmed by human on 2026-11-11 (LOG.md)
 - **Dispatch**: opus @ high, with the `legal` agent owning `docs/legal/` —
   `/execute-project 023 phase 7` — owner-approves: the privacy text and the processor named in
   it. — owner-gated: the owner throws the `assistant` switch in `/admin` once the text is live.

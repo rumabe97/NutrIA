@@ -672,3 +672,8 @@ Asked with options, both answered with the recommended one:
 - **Deviation**: the script's label cap still said 120. It now says 400, the same as `LABEL_OUTPUT_TOKENS` after #353.
 - **Decision**: keep `claude-haiku-5-5` (`docs/reference/assistant-models-2026-11-11.md`). This is the default, so the owner has nothing to set.
 - **For later, not done**: whether the net should let «sin X» / «en vez de X» through is a question for the safety layer (`0004`), not for this phase.
+
+## 2026-11-11 — Phases 5 and 7: confirmed by human
+
+- **Evidence**: the owner, on 2026-11-11: *«Todas hechas ya»*. He sent the notice mail, switched the assistant on and checked the screen on his iPhone. Phases 5 and 7 were confirmed by a human on 2026-11-11, and the project is closed.
+- **Left after the project**: the portability export of conversations (P2) and the items for the lawyer's hour.
