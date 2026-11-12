@@ -67,12 +67,16 @@ export default async function PlanHistoryPage() {
 
   return (
     <Fragment>
-      <h1 className={styles.title}>{t.historyTitle}</h1>
-      <Text className={styles.intro} tone="secondary">
-        {anyLocked ? t.historyLockedIntro : t.historyIntro}
-      </Text>
+      <div className="motion-enter">
+        <h1 className={styles.title}>{t.historyTitle}</h1>
+        <Text className={styles.intro} tone="secondary">
+          {anyLocked ? t.historyLockedIntro : t.historyIntro}
+        </Text>
+      </div>
 
-      <ol className={styles.list}>
+      {/* Each fortnight a card, newest first, arriving one after another: its dates in the
+          display face, then its number and how it ended as a chip. A press presses in. */}
+      <ol className={`${styles.list} motion-list`}>
         {lived.map(plan =>
           plan.locked ? (
             <li key={plan.id}>
@@ -80,7 +84,7 @@ export default async function PlanHistoryPage() {
               <Card as="div" className={styles.card} data-locked="true" data-status={status(plan)}>
                 {dates(plan)}
                 <span className={styles.meta}>
-                  <span>{interpolate(t.historyPlan, { version: plan.version })}</span>
+                  <span className={styles.version}>{interpolate(t.historyPlan, { version: plan.version })}</span>
                   <PremiumChip label={t.historyLockedChip} />
                 </span>
               </Card>
@@ -95,7 +99,7 @@ export default async function PlanHistoryPage() {
               >
                 {dates(plan)}
                 <span className={styles.meta}>
-                  <span>{interpolate(t.historyPlan, { version: plan.version })}</span>
+                  <span className={styles.version}>{interpolate(t.historyPlan, { version: plan.version })}</span>
                   <span className={styles.chip}>{chip(plan)}</span>
                 </span>
               </Card>

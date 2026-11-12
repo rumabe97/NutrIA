@@ -1,9 +1,10 @@
 .title {
   font-size: var(--font-size-09);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heavy);
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
   margin: 0 0 var(--space-03);
+  overflow-wrap: break-word;
   text-wrap: balance;
 }
 
@@ -13,63 +14,96 @@
   text-wrap: pretty;
 }
 
+/* One column on a phone; two from a tablet, where a fortnight is a card among cards. */
 .list {
   display: grid;
   gap: var(--space-03);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
+.list > li {
+  display: grid;
+  min-inline-size: 0;
+}
+
 /* A `components/Card` that is a link. `a.card`, element and class, so these
-   rules outrank the card's own whatever order the stylesheets land in. */
+   rules outrank the card's own whatever order the stylesheets land in. It presses
+   in like a button (transform only, project 024); its edge changes at once. */
 a.card {
   color: inherit;
   display: grid;
-  gap: var(--space-02);
+  gap: var(--space-03);
   text-decoration: none;
-  transition: border-color var(--duration-fast) var(--ease-default);
+  transition: transform var(--duration-fast) var(--spring-firm);
 }
 
 a.card:hover {
   border-color: var(--color-brand-fill);
 }
 
+a.card:active {
+  transform: scale(0.98);
+}
+
+.card {
+  align-content: start;
+  display: grid;
+  gap: var(--space-03);
+}
+
+/* The fortnight's dates, in the display face: what a person looks for in the list. */
 .range {
-  font-size: var(--font-size-04);
-  font-weight: var(--font-weight-semibold);
+  font-family: var(--display-font);
+  font-size: var(--font-size-06);
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--tracking-title);
   line-height: var(--line-height-02);
+  overflow-wrap: break-word;
 }
 
 .meta {
   align-items: center;
-  color: var(--foreground-02);
   display: flex;
-  font-size: var(--font-size-02);
-  gap: var(--space-03);
+  flex-wrap: wrap;
+  gap: var(--space-02) var(--space-03);
   justify-content: space-between;
 }
 
-.chip {
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-full);
+/* «Plan 2»: the small capitals over a dish's name elsewhere, in the one small accent colour. */
+.version {
+  color: var(--color-brand-11);
   font-size: var(--font-size-01);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.chip {
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-full);
+  color: var(--foreground-02);
+  font-size: var(--font-size-01);
+  font-weight: var(--font-weight-medium);
   padding: var(--space-01) var(--space-03);
   white-space: nowrap;
 }
 
+/* The plan being lived: its chip on ink, so «Actual» reads before the others. */
 .card[data-status='active'] .chip {
-  background-color: var(--color-brand-03);
-  border-color: transparent;
-  color: var(--color-brand-11);
+  background-color: var(--foreground-01);
+  color: var(--background-01);
+  font-weight: var(--font-weight-bold);
 }
 
 /* A fortnight premium opens and this account does not (`0021` § *Amended*).
-   Set apart by weight rather than by colour — a row told apart only by a tint
-   says nothing to a reader who cannot see it, and the chip beside it carries
-   the word. Still a card, still legible: it is their fortnight, not an error. */
+   Set apart by ground and weight rather than by colour alone — the chip beside it
+   carries the word. Still a card, still legible: it is their fortnight, not an error. */
 .card[data-locked='true'] {
-  background-color: var(--background-02);
+  background-color: var(--surface-sunken);
+  box-shadow: none;
 }
 
 .card[data-locked='true'] .range {
@@ -79,4 +113,14 @@ a.card:hover {
 .upsell {
   display: flex;
   margin-top: var(--gap-block);
+}
+
+@media (forced-colors: active) {
+  .chip {
+    border: 1px solid CanvasText;
+  }
+
+  .card[data-status='active'] .chip {
+    border-color: Highlight;
+  }
 }
