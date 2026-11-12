@@ -567,8 +567,9 @@
   360, 390, 768 and 1280 in Claro, Oscuro, Pulso and Alto contraste (120 loads), a professional
   with seven destinations at four widths, and `widths.mjs` from 320 to 1,400 on seven routes: no
   hit. Looked at: the pill at 390 in Claro and Pulso, seven icons at 320, the rail at 1280.
-- **For the owner to say**: the bar is glass over the page, where the approved sheet drew it in
-  dark ink; the brand stays in the header on desktop instead of at the top of the rail.
+- **Decided by the owner (2026-11-12)**, shown both side by side on the real app: the bar stays
+  glass and the brand stays in the header on desktop, over the approved sheet's dark bar and its
+  brand at the top of the rail.
 - **Waiting on the owner (human-verify)**: on his iPhone — the bar against the home indicator,
   the bar hiding for the keyboard, the assistant's box above the bar, the last row of the
   shopping list and of a plan day above the bar, the header staying put when «Tema», a select or
