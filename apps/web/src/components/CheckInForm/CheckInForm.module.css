@@ -2,14 +2,7 @@
   display: grid;
   gap: var(--space-06);
   max-width: 40rem;
-}
-
-.error {
-  background-color: var(--color-error-surface);
-  border-radius: var(--radius-control);
-  color: var(--color-error-text);
-  margin: 0;
-  padding: var(--space-03) var(--space-04);
+  min-inline-size: 0;
 }
 
 .fieldset {
@@ -36,7 +29,7 @@
 }
 
 .textarea {
-  background-color: var(--background-01);
+  background-color: var(--surface-card);
   border: var(--border-width-interactive) solid var(--border-interactive);
   border-radius: var(--radius-control);
   color: inherit;
@@ -54,7 +47,8 @@
 
 .doneTitle {
   font-size: var(--font-size-07);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heavy);
+  overflow-wrap: anywhere;
   letter-spacing: var(--tracking-headline);
   margin: 0;
 }

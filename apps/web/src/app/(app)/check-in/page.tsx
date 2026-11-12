@@ -66,11 +66,13 @@ export default async function CheckInPage() {
 
   return (
     <Fragment>
-      <h1 className={styles.title}>{t.title}</h1>
-      <Text className={styles.intro} tone="secondary">
-        {t.intro}
-      </Text>
-      <Text className={styles.adherence} size="sm" tone="tertiary">
+      <div className="motion-enter">
+        <h1 className={styles.title}>{t.title}</h1>
+        <Text className={styles.intro} tone="secondary">
+          {t.intro}
+        </Text>
+      </div>
+      <Text className={styles.adherence} size="sm" tone="secondary">
         {status.adherence === null
           ? t.adherenceNone
           : interpolate(t.adherence, { completed: status.stats.completed, marked, percent: status.adherence })}
