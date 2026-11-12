@@ -977,3 +977,32 @@
   plan.
 - **Waiting on the owner (human-verify)**: the seven checks at the end of the executor's report,
   the keyboard first.
+
+## After phase 5 — the plan being made ticks every stage before the plan opens (2026-11-12)
+
+**Reported by the owner on his iPhone, 2026-11-12**: «al generar un plan, se queda mucho rato
+en el paso 1, y ya pasa directo al plan». The rest of phase 5 he found working («Todo funciona
+bien») — **phases 4 and 5 confirmed by human on 2026-11-12**, this defect aside.
+
+**Cause**: the screen was true to the server and the server's time is lopsided. Choosing the
+dishes is nearly all of a generation; scheduling, validating, the list and the save end
+together inside one polling interval (6 s), so the screen never received those stages and
+went from one of six to the plan.
+
+**Change** (`apps/web` only; the API, the polling and the six stages are unchanged):
+`lib/generation` `stagesBetween` names the stages passed between two answers, and
+`GenerationProgress` walks them one at a time (320 ms each) instead of drawing only the last;
+on success it walks to the end, holds the closed ring at six of six for half a second and then
+opens the plan. Only stages the server has already passed are walked — still no timed script.
+What is said aloud (the live region) is where the job is, once, not each stage on the way;
+it ends with «Tu plan está listo». While the dishes are being chosen a second line says that
+this is the step that takes longest. With reduced motion nothing is played. Two new
+sentences in both dictionaries (`generation.finished`, `generation.longestStep`).
+
+**Verification**: `generation.test.ts` 7/7 (the walk's order, the end, nothing for an earlier
+or unknown stage); types and lint. In a real browser against the local API, a plan generated
+from the button: at 390 px the six stages ticked 320 ms apart, six of six, then `/plan`; at
+320 px with reduced motion, straight to six of six, then `/plan`; no sideways overflow in
+either. **Not seen**: the line under the long stage — a local generation is over before the
+first answer, so the screen never rests on that stage here. The owner's phone is where it
+shows.

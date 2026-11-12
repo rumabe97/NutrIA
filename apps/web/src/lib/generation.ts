@@ -81,15 +81,36 @@ export const GENERATION_STEPS = [
   'SAVING_PLAN'
 ] as const;
 
+/** Past the last stage: the job succeeded, so every stage is behind it. Never sent by the API. */
+export const GENERATION_DONE = 'DONE';
+
 /**
  * How many stages are behind the job: every stage before the one it reports. Nothing
  * yet (queued, or a code this screen does not know) is none, so the ring never runs
  * ahead of the server.
  */
 export function stepsBehind(step: string | null): number {
+  if (step === GENERATION_DONE) {
+    return GENERATION_STEPS.length;
+  }
+
   const index = step === null ? -1 : (GENERATION_STEPS as readonly string[]).indexOf(step);
 
   return Math.max(index, 0);
+}
+
+/**
+ * The stages the job went through between two answers, the last one included: the screen
+ * asks every few seconds and the stages after the dishes are chosen take less than that
+ * together, so an answer can be several stages on from the one before — or the end. Each
+ * is shown in turn rather than skipped. Empty when `to` is not ahead of `from`, or unknown.
+ */
+export function stagesBetween(from: string | null, to: string): readonly string[] {
+  const order: readonly string[] = [...GENERATION_STEPS, GENERATION_DONE];
+  const start = from === null ? -1 : order.indexOf(from);
+  const end = order.indexOf(to);
+
+  return end > start ? order.slice(start + 1, end + 1) : [];
 }
 
 /** A pipeline stage code, turned into a sentence. Unknown codes show as themselves. */
