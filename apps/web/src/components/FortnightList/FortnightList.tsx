@@ -46,30 +46,22 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
             {/* Dated, not numbered: a redo or a regeneration makes a new plan of the
                 same fortnight, and "Quincena 3" of a person on their first fortnight
                 asked more than it answered. The plan number stays, small. */}
+            {/* As the approved sheet draws it: the dates and how the fortnight stands in
+                small capitals, then how its meals were marked as the card's line. */}
             <div className={styles.head}>
-              <div>
-                <h3 className={styles.title}>
-                  {interpolate(t.fortnightRange, {
-                    from: formatDate(fortnight.startDate, locale, dateOptions),
-                    to: formatDate(fortnight.endDate, locale, dateOptions)
-                  })}
-                </h3>
-                <Text size="xs" tone="tertiary">
-                  {interpolate(t.planNumber, { version: fortnight.version })}
-                </Text>
-              </div>
-              <span className={styles.status} data-status={fortnight.replaced ? 'replaced' : fortnight.status}>
-                {chip(fortnight)}
-              </span>
+              <h3 className={styles.title} data-status={fortnight.replaced ? 'replaced' : fortnight.status}>
+                {interpolate(t.fortnightRange, {
+                  from: formatDate(fortnight.startDate, locale, dateOptions),
+                  to: formatDate(fortnight.endDate, locale, dateOptions)
+                })}{' '}
+                · {chip(fortnight)}
+              </h3>
+              <p className={styles.meals}>
+                {interpolate(t.mealsLine, { eaten: fortnight.meals.eaten, skipped: fortnight.meals.skipped, soFar: fortnight.meals.soFar, unmarked })}
+              </p>
             </div>
 
             <div className={styles.adherence}>
-              <div className={styles.figure}>
-                <span className={styles.percent}>{fortnight.adherence === null ? t.noData : `${formatNumber(fortnight.adherence, locale)} %`}</span>
-                <Text size="xs" tone="tertiary">
-                  {fortnight.adherence === null ? t.adherenceNone : t.adherenceLabel}
-                </Text>
-              </div>
               {/* Grows to its share when the card arrives — by `transform`, never by its width. */}
               <div aria-hidden="true" className={styles.track}>
                 <div className={`${styles.grow} motion-grow-x`}>
@@ -77,7 +69,7 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
                 </div>
               </div>
               <Text size="xs" tone="tertiary">
-                {interpolate(t.mealsLine, { eaten: fortnight.meals.eaten, skipped: fortnight.meals.skipped, soFar: fortnight.meals.soFar, unmarked })}
+                {fortnight.adherence === null ? t.adherenceNone : `${formatNumber(fortnight.adherence, locale)} % ${t.adherenceLabel}`}
               </Text>
             </div>
 
@@ -92,23 +84,28 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
               </ul>
             ) : null}
 
-            {fortnight.locked ? (
-              // The card keeps its own numbers — this screen is theirs whatever
-              // they pay — and loses only the way into the plan behind it
-              // (`0021` § *Amended*). A link that led to a wall would be a door
-              // that is not one, so the chip states it and the way out leads to
-              // what premium is, which is the one question the chip raises.
-              <span className={styles.lockedRow}>
-                <PremiumChip label={t.openPlanLocked} />
-                <Link className={styles.open} href="/perfil">
-                  {t.openPremium}
+            <div className={styles.foot}>
+              {fortnight.locked ? (
+                // The card keeps its own numbers — this screen is theirs whatever
+                // they pay — and loses only the way into the plan behind it
+                // (`0021` § *Amended*). A link that led to a wall would be a door
+                // that is not one, so the chip states it and the way out leads to
+                // what premium is, which is the one question the chip raises.
+                <span className={styles.lockedRow}>
+                  <PremiumChip label={t.openPlanLocked} />
+                  <Link className={styles.open} href="/perfil">
+                    {t.openPremium}
+                  </Link>
+                </span>
+              ) : (
+                <Link className={styles.open} href={fortnight.status === 'active' ? '/plan' : `/plan/historial/${fortnight.planId}`}>
+                  {t.openPlan}
                 </Link>
-              </span>
-            ) : (
-              <Link className={styles.open} href={fortnight.status === 'active' ? '/plan' : `/plan/historial/${fortnight.planId}`}>
-                {t.openPlan}
-              </Link>
-            )}
+              )}
+              <Text className={styles.number} size="xs" tone="tertiary">
+                {interpolate(t.planNumber, { version: fortnight.version })}
+              </Text>
+            </div>
           </Card>
         );
       })}

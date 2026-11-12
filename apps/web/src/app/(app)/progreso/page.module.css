@@ -26,7 +26,7 @@
   display: grid;
   gap: var(--space-03);
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin: 0 0 var(--gap-block);
+  margin: var(--gap-region) 0 0;
 }
 
 /* Each tile is a `components/Card` with the tight padding. */
@@ -92,15 +92,50 @@
 }
 
 .overallLine {
+  display: grid;
   flex: 1 1 8rem;
-  font-family: var(--display-font, var(--main-font));
-  font-size: var(--font-size-05);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: var(--tracking-title);
-  line-height: var(--line-height-03);
+  gap: var(--space-01);
   margin: 0;
   min-inline-size: 0;
   overflow-wrap: anywhere;
+}
+
+.overallFigure {
+  font-family: var(--display-font, var(--main-font));
+  font-size: var(--font-size-06);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-02);
+}
+
+.overallWords {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+}
+
+/* The change since the first reading: small capitals in the accent, at the head's end. */
+.delta {
+  color: var(--color-brand-11);
+  font-size: var(--font-size-01);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* The card's foot: the way to log today's weight, and where the person started. */
+.cardFoot {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-01) var(--space-04);
+  justify-content: space-between;
+}
+
+.footNote {
+  margin: 0;
 }
 
 .overallNone {

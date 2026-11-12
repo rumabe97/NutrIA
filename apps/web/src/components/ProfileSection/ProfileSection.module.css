@@ -1,26 +1,77 @@
-/* The section is a `components/Card`; what is here is its inside. */
+/* A group of answers: its heading line, then its rows. */
+.section {
+  display: grid;
+  gap: var(--space-02);
+  min-inline-size: 0;
+}
+
 .head {
   align-items: baseline;
   display: flex;
   gap: var(--space-04);
   justify-content: space-between;
-  margin-bottom: var(--gap-heading);
+  padding-inline: var(--space-01);
 }
 
-/* The card's name, as a heading: one step above the body and semibold, the
-   size every card on the profile gives its title, under the screen's own
-   section headings. */
+/* The group's name, as a heading, in the heading face: the sheets' «Objetivos», «Alergias». */
 .title {
-  font-size: var(--font-size-04);
+  font-size: var(--font-size-05);
   font-weight: var(--font-weight-bold);
-  line-height: var(--line-height-04);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-03);
   margin: 0;
   overflow-wrap: anywhere;
 }
 
-/* A grouped list: one row per answer, hairlines between them (`SummaryRow`). */
+/* The rows on one sunken ground, hairlines between them. */
 .rows {
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-card);
   display: grid;
+  margin: 0;
+  padding: 0 var(--space-04);
+}
+
+/*
+ * A name at the line's start and its answer at the end. A long answer — a list of
+ * foods, a sentence about the kitchen — takes the line under its name instead, at the
+ * start, rather than being squeezed into a narrow column beside it.
+ */
+.row {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-01) var(--space-04);
+  justify-content: space-between;
+  min-inline-size: 0;
+  padding-block: var(--space-03);
+}
+
+.row + .row {
+  border-top: 1px solid var(--border-01);
+}
+
+.label {
+  color: var(--foreground-01);
+  font-size: var(--font-size-03);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.value {
+  color: var(--foreground-02);
+  font-size: var(--font-size-03);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-medium);
+  margin: 0;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (forced-colors: active) {
+  .rows {
+    border: 1px solid CanvasText;
+  }
 }
 
 .editLink {

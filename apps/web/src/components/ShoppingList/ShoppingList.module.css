@@ -4,7 +4,11 @@
   overflow-wrap: anywhere;
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
-  margin: 0 0 var(--gap-heading);
+  margin: 0 0 var(--space-02);
+}
+
+.subtitle {
+  margin: 0;
 }
 
 .progress {
@@ -25,19 +29,33 @@
   min-inline-size: 0;
 }
 
-/* An aisle's name: the heading face, the size of a card's title. */
+/* An aisle's name and, at the line's end, how much of it is still to buy. */
+.groupHead {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-01) var(--space-03);
+  justify-content: space-between;
+  margin: 0 0 var(--gap-heading);
+}
+
+/* The heading face, the size of a card's title. */
 .groupTitle {
   font-size: var(--font-size-05);
   font-weight: var(--font-weight-bold);
   letter-spacing: var(--tracking-title);
-  margin: 0 0 var(--gap-heading);
+  margin: 0;
+  min-inline-size: 0;
   overflow-wrap: anywhere;
+}
+
+.actions {
+  margin-top: var(--gap-block);
 }
 
 /* A grouped list: the aisle's rows on one card, hairlines between them. */
 .items {
-  background-color: var(--surface-card);
-  border: 1px solid var(--border-01);
+  background-color: var(--surface-sunken);
   border-radius: var(--radius-card);
   list-style: none;
   margin: 0;
@@ -45,6 +63,7 @@
 }
 
 @media (forced-colors: active) {
+  .items,
   .progress {
     outline: 1px solid CanvasText;
   }

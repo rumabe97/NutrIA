@@ -5,9 +5,6 @@ import styles from './ProfileSection.module.css';
 
 import { useDictionary } from 'i18n/LocaleProvider';
 
-import { Card } from 'components/Card';
-import { SummaryRow } from 'components/SummaryRow';
-
 interface ProfileSectionProps {
   /** Where the edit link goes — the onboarding step that owns these fields. */
   editHref: string;
@@ -27,18 +24,25 @@ export function ProfileSection({ editHref, rows, title }: ProfileSectionProps) {
   const dictionary = useDictionary();
 
   return (
-    <Card as="section">
+    <section className={styles.section}>
+      {/* As the approved sheet draws a group of answers: its name and the way to change
+          it on one line, then the answers as rows on one sunken ground — a name at the
+          line's start, what was answered at its end. */}
       <div className={styles.head}>
         <h3 className={styles.title}>{title}</h3>
         <Link className={styles.editLink} href={editHref}>
           {dictionary.common.edit}
         </Link>
       </div>
-      <div className={styles.rows}>
+      <dl className={styles.rows}>
         {rows.map(row => (
-          <SummaryRow key={row.label} label={row.label} value={row.value} />
+          <div className={styles.row} key={row.label}>
+            <dt className={styles.label}>{row.label}</dt>
+            {/* An em dash stands in for anything not filled in yet. */}
+            <dd className={styles.value}>{row.value || '—'}</dd>
+          </div>
         ))}
-      </div>
-    </Card>
+      </dl>
+    </section>
   );
 }

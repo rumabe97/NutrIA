@@ -309,7 +309,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 
 ### Phase 6 — Onboarding and the screens that had no sheet
 
-- [ ] in progress — built 2026-11-12 with «Cambiar» on the plan's rows; owner-approves pending: the captures of these screens (LOG.md)
+- [x] done — shipped 2026-11-12 (#373), with «Cambiar» on the plan's rows; the captures approved by the owner on 2026-11-12 (LOG.md)
 - **Dispatch**: opus @ medium — `/execute-project 024 phase 6` — owner-approves: a sheet for
   onboarding and one for plan history, next plan, consent and invitation, before either is built.
 - **Goal**: the ten onboarding steps and the remaining signed-in screens in the new design.

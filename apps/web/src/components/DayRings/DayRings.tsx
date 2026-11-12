@@ -82,17 +82,19 @@ export function DayRings({ meals, targets, totals }: DayRingsProps) {
         </ul>
       </div>
 
-      <Text className={styles.caption} size="sm" tone="secondary">
-        {marked > 0 ? dictionary.dashboard.ringsDone : dictionary.dashboard.ringsNone}
-      </Text>
-      <Text className={styles.plan} size="sm" tone="tertiary">
-        {interpolate(dictionary.dashboard.ringsPlan, {
-          carbs: whole(totals.carbsG),
-          fat: whole(totals.fatG),
-          kcal: whole(totals.kcal),
-          protein: whole(totals.proteinG)
-        })}
-      </Text>
+      <div className={styles.notes}>
+        <Text className={styles.caption} size="xs" tone="secondary">
+          {marked > 0 ? dictionary.dashboard.ringsDone : dictionary.dashboard.ringsNone}
+        </Text>
+        <Text className={styles.plan} size="xs" tone="tertiary">
+          {interpolate(dictionary.dashboard.ringsPlan, {
+            carbs: whole(totals.carbsG),
+            fat: whole(totals.fatG),
+            kcal: whole(totals.kcal),
+            protein: whole(totals.proteinG)
+          })}
+        </Text>
+      </div>
     </div>
   );
 }

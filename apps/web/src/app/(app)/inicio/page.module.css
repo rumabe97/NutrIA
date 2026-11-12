@@ -77,10 +77,87 @@
   margin: 0;
 }
 
-.targetsNote,
 .macroNote {
   display: block;
   margin-top: var(--gap-heading);
+}
+
+/* The card's foot: that these are an estimate, and the way to change them at the line's end. */
+.targetsFoot {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-01) var(--space-04);
+  justify-content: space-between;
+  margin-top: var(--space-03);
+}
+
+.targetsNote {
+  flex: 1 1 9rem;
+  margin: 0;
+  min-inline-size: 0;
+}
+
+/*
+ * The sheet's two tiles, side by side while each keeps a readable width and one over the
+ * other when not. A tile is a link to a part of this screen, as tall as a target.
+ */
+.tiles {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
+}
+
+.tile {
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-card);
+  color: var(--foreground-01);
+  display: grid;
+  gap: var(--space-01);
+  min-block-size: var(--target-min);
+  min-inline-size: 0;
+  padding: var(--space-03) var(--space-04);
+  text-decoration: none;
+  transition: transform var(--duration-fast) var(--spring-firm);
+}
+
+.tile:active {
+  transform: scale(0.98);
+}
+
+.tile:hover .tileWords {
+  text-decoration: underline;
+}
+
+.tileWeight {
+  background-color: var(--color-highlight-fill);
+  color: var(--color-on-highlight-fill);
+}
+
+.tileFigure {
+  font-family: var(--display-font, var(--main-font));
+  font-size: var(--font-size-05);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-02);
+  overflow-wrap: anywhere;
+}
+
+.tileWords {
+  color: var(--foreground-02);
+  font-size: var(--font-size-01);
+  overflow-wrap: anywhere;
+}
+
+.tileWeight .tileWords {
+  color: inherit;
+}
+
+@media (forced-colors: active) {
+  .tile {
+    border: 1px solid CanvasText;
+  }
 }
 
 .meals {

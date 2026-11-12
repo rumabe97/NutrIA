@@ -98,9 +98,9 @@ export function WeightChart({ entries, targetKg }: WeightChartProps) {
 
       <figcaption className={styles.caption}>
         {/* The svg is `aria-hidden`, so without this the trend — the only thing
-            the chart is for — reaches nobody who cannot see it. Not drawn: the
-            two axes already say the same numbers to anyone who can. */}
-        <Text className="visually-hidden">
+            the chart is for — reaches nobody who cannot see it. Drawn too, as the
+            approved sheet has it: the chart in one sentence, under the line. */}
+        <Text size="sm" tone="secondary">
           {interpolate(dictionary.progress.chartSummary, {
             from: formatNumber(first.weightKg, locale, { maximumFractionDigits: 1 }),
             fromDate: formatDate(first.loggedOn, locale, dateOptions),

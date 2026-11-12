@@ -8,6 +8,7 @@ import { rangeList } from 'core/domain/ShoppingList';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
+import { AisleLeft } from 'components/AisleLeft';
 import { ShoppingActions } from 'components/ShoppingActions';
 import { ShoppingItem } from 'components/ShoppingItem';
 import { ShoppingProgress } from 'components/ShoppingProgress';
@@ -89,6 +90,11 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
   return (
     <Fragment>
       <h1 className={`${styles.title} motion-enter`}>{t.title}</h1>
+      {/* Under the title, as the sheet draws it, and it names the days the control below
+          has chosen — so it never reads as a claim about the whole plan. */}
+      <Text className={styles.subtitle} tone="secondary">
+        {interpolate(subtitle, { range: rangeName(range.choice, t, days.length) })}
+      </Text>
       {switcher}
 
       {/*
@@ -108,6 +114,7 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
       {days.length > 1 ? (
         <ShoppingRange
           days={days}
+          legendShown={Boolean(switcher)}
           onChange={next => {
             setAnnounce(true);
             setNotice('');
@@ -116,11 +123,6 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
           value={range}
         />
       ) : null}
-
-      {/* After the control, not before it: since the range filter this sentence
-          says what the days on screen cover, and a line that answers a question
-          the reader has not been asked yet reads as a claim about the whole plan. */}
-      <Text tone="secondary">{interpolate(subtitle, { range: rangeName(range.choice, t, days.length) })}</Text>
 
       {notice === '' ? null : (
         <Text className={styles.notice} size="sm" tone="secondary">
@@ -134,9 +136,6 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
           items={shown.map(item => ({ id: item.id, boughtGrams: item.boughtGrams, neededGrams: item.range.totalGrams, totalGrams: item.totalGrams }))}
         />
       </div>
-
-      {/* In the aisles' order and the reader's words, so a message reads like the list on screen. */}
-      <ShoppingActions groups={shareGroups} />
 
       {/* Only when a narrower range is what emptied the screen. An empty list read
           for the whole plan is a different thing and says nothing new here, exactly
@@ -170,7 +169,17 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
       <div className={`${styles.groups} motion-list`}>
         {groups.map(group => (
           <section className={styles.group} key={group.category}>
-            <h2 className={styles.groupTitle}>{categoryLabel(group.category, dictionary)}</h2>
+            <div className={styles.groupHead}>
+              <h2 className={styles.groupTitle}>{categoryLabel(group.category, dictionary)}</h2>
+              <AisleLeft
+                items={group.items.map(item => ({
+                  id: item.id,
+                  boughtGrams: item.boughtGrams,
+                  neededGrams: item.range.totalGrams,
+                  totalGrams: item.totalGrams
+                }))}
+              />
+            </div>
             <ul className={styles.items}>
               {group.items.map(item => (
                 <ShoppingItem
@@ -189,6 +198,12 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
             </ul>
           </section>
         ))}
+      </div>
+
+      {/* After the list, where the sheet draws the way to the shops: what is still to buy,
+          sent in the aisles' order and the reader's words, and the supermarkets nearby. */}
+      <div className={styles.actions}>
+        <ShoppingActions groups={shareGroups} />
       </div>
     </Fragment>
   );

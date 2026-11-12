@@ -1511,7 +1511,7 @@ export const enGB: Dictionary = {
       'Fourteen days are up. Take a minute to tell us how it went: weight, portions and what you would change. The next plan will take it into account.',
     checkInDueCta: 'Do the check-in',
     checkInDueTitle: 'Your fortnight check-in',
-    dayOf: 'Day {current} of {total}',
+    dayOfPlan: '{date} · day {current} of {total} of your plan',
     daysLeft: '{count} days to go',
     fortnight: 'Your fortnight',
     fortnightDay: 'Day {index}',
@@ -1547,6 +1547,7 @@ export const enGB: Dictionary = {
     shoppingCount: '{items} items across {aisles} aisles',
     shoppingCta: 'See the list →',
     shoppingTitle: 'Your shopping list',
+    shortcuts: 'Today’s shortcuts',
     targetsAdjust: 'Adjust →',
     targetsClamped:
       'We adjusted your pace: it asked for {requested} kcal and we raised it to {floor}, the daily minimum we consider safe without professional supervision.',
@@ -1554,6 +1555,9 @@ export const enGB: Dictionary = {
     targetsLabel: 'Your daily targets · {status}',
     targetsStatusEstimated: 'estimated',
     targetsStatusOverridden: 'set by you',
+    tileDay: 'See the whole day',
+    tileMeals: '{count} meals',
+    tileWeight: 'Log today’s weight',
     today: 'Today',
     todayVsTarget: 'Today, against your targets',
     tomorrow: 'tomorrow',
@@ -3117,8 +3121,9 @@ export const enGB: Dictionary = {
     openPlan: 'See the plan →',
     openPlanLocked: 'The plan, with premium',
     openPremium: 'What premium is →',
-    overallLine: '{eaten} meals eaten of the {marked} you marked',
+    overallFigure: '{eaten} of {marked}',
     overallNone: 'Mark meals as eaten or skipped and this shows how much of the plan you follow.',
+    overallWords: 'meals done of those you marked',
     planNumber: 'Plan {version}',
     reached: 'reached',
     satisfaction: 'Satisfaction {value} of 5',
@@ -3136,7 +3141,7 @@ export const enGB: Dictionary = {
     weightNone: 'You have not logged a weight yet.',
     weightStart: 'You started at {value} kg',
     weightTarget: 'Target {value} kg',
-    weightTitle: 'Your weight'
+    weightTitle: 'Weight'
   },
 
   secondFactorRequired: {
@@ -3189,6 +3194,8 @@ export const enGB: Dictionary = {
   },
 
   shopping: {
+    aisleDone: 'All in the trolley',
+    aisleLeft: '{count} to buy',
     amountEdit: 'Change what is bought: {name}',
     amountHint: '{total} in all.',
     amountLabel: 'How much you bought, in {unit}',
@@ -3218,7 +3225,7 @@ export const enGB: Dictionary = {
     rangeShowWhole: 'Show every day',
     rangeWeek1: 'Week 1',
     rangeWeek2: 'Week 2',
-    rangeWhole: 'All',
+    rangeWhole: '{count} days',
     share: 'Share what is left',
     shareCopied: 'List copied: paste it wherever you like.',
     shareNothing: 'Everything is in the trolley: nothing left to share.',
@@ -3227,7 +3234,7 @@ export const enGB: Dictionary = {
     switchCurrent: 'Current',
     switchLabel: 'Which list to show',
     switchNext: 'Next',
-    title: 'Shopping list'
+    title: 'Your shopping list'
   },
 
   siteNav: {

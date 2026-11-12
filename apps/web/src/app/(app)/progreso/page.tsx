@@ -113,6 +113,75 @@ export default async function ProgressPage() {
         </Text>
       </div>
 
+      <div className={`${styles.board} motion-list`}>
+        <Card as="section" className={styles.card}>
+          <div className={styles.head}>
+            <h2 className={styles.subtitle}>{t.weightTitle}</h2>
+            {/* The change since the first reading, at the line's end as the sheet draws it. */}
+            {weight.changeKg === null || weight.changeKg === 0 ? null : (
+              <span className={styles.delta}>
+                <span className="visually-hidden">{t.sinceStart}: </span>
+                {signed(weight.changeKg, locale)} {unit}
+              </span>
+            )}
+          </div>
+
+          {weight.latestKg === null ? (
+            <Text tone="secondary">{t.weightNone}</Text>
+          ) : (
+            <WeightChart entries={weight.entries} targetKg={weight.targetWeightKg} />
+          )}
+
+          <div className={styles.cardFoot}>
+            <Link className={styles.link} href="/inicio#peso">
+              {t.logLink}
+            </Link>
+            {weight.startingWeightKg === null ? null : (
+              <Text className={styles.footNote} size="xs" tone="tertiary">
+                {interpolate(t.weightStart, { value: kg(weight.startingWeightKg, locale) })}
+              </Text>
+            )}
+          </div>
+        </Card>
+
+        {/* The share of marked meals that were done, as a ring beside the sentence that
+            says it (the sentence is the text; the ring only its picture). Nothing marked
+            yet: the sentence that says how to start, and no empty ring to puzzle over. */}
+        <Card className={styles.overall} padding="sm">
+          {overall.adherence === null ? null : (
+            <Rings
+              className={styles.ring}
+              decorative={true}
+              items={[{ label: t.fortnightsTitle, max: overall.marked, tone: 2, value: overall.eaten }]}
+              label={t.fortnightsTitle}
+              size="sm"
+            />
+          )}
+          {overall.adherence === null ? (
+            <p className={styles.overallNone}>{t.overallNone}</p>
+          ) : (
+            // One sentence in two sizes: «38 de 42» as the figure, the rest under it.
+            <p className={styles.overallLine}>
+              <span className={styles.overallFigure}>{interpolate(t.overallFigure, { eaten: overall.eaten, marked: overall.marked })}</span>{' '}
+              <span className={styles.overallWords}>{t.overallWords}</span>
+            </p>
+          )}
+        </Card>
+      </div>
+
+      <section className={`${styles.fortnights} motion-enter`}>
+        <div className={styles.head}>
+          <h2 className={styles.subtitle}>{t.fortnightsTitle}</h2>
+          <Link className={styles.link} href="/plan/historial">
+            {t.allPlans}
+          </Link>
+        </div>
+
+        {fortnights.length === 0 ? <Text tone="secondary">{t.emptyBody}</Text> : <FortnightList fortnights={fortnights} />}
+      </section>
+
+      {/* The four figures, after what the sheet draws: the weight's line and the fortnights
+          lead, and the same readings as plain numbers close the screen. */}
       <dl className={`${styles.tiles} motion-list`}>
         {tiles.map(tile => (
           <Card className={styles.tile} key={tile.label} padding="sm">
@@ -133,59 +202,6 @@ export default async function ProgressPage() {
           </Card>
         ))}
       </dl>
-
-      <div className={`${styles.board} motion-list`}>
-        <Card as="section" className={styles.card}>
-          <div className={styles.head}>
-            <div>
-              <h2 className={styles.subtitle}>{t.weightTitle}</h2>
-              {weight.startingWeightKg === null ? null : (
-                <Text size="xs" tone="tertiary">
-                  {interpolate(t.weightStart, { value: kg(weight.startingWeightKg, locale) })}
-                </Text>
-              )}
-            </div>
-            <Link className={styles.link} href="/inicio">
-              {t.logLink}
-            </Link>
-          </div>
-
-          {weight.latestKg === null ? (
-            <Text tone="secondary">{t.weightNone}</Text>
-          ) : (
-            <WeightChart entries={weight.entries} targetKg={weight.targetWeightKg} />
-          )}
-        </Card>
-
-        {/* The share of marked meals that were done, as a ring beside the sentence that
-            says it (the sentence is the text; the ring only its picture). Nothing marked
-            yet: the sentence that says how to start, and no empty ring to puzzle over. */}
-        <Card className={styles.overall} padding="sm">
-          {overall.adherence === null ? null : (
-            <Rings
-              className={styles.ring}
-              decorative={true}
-              items={[{ label: t.fortnightsTitle, max: overall.marked, tone: 2, value: overall.eaten }]}
-              label={t.fortnightsTitle}
-              size="sm"
-            />
-          )}
-          <p className={overall.adherence === null ? styles.overallNone : styles.overallLine}>
-            {overall.adherence === null ? t.overallNone : interpolate(t.overallLine, { eaten: overall.eaten, marked: overall.marked })}
-          </p>
-        </Card>
-      </div>
-
-      <section className={`${styles.fortnights} motion-enter`}>
-        <div className={styles.head}>
-          <h2 className={styles.subtitle}>{t.fortnightsTitle}</h2>
-          <Link className={styles.link} href="/plan/historial">
-            {t.allPlans}
-          </Link>
-        </div>
-
-        {fortnights.length === 0 ? <Text tone="secondary">{t.emptyBody}</Text> : <FortnightList fortnights={fortnights} />}
-      </section>
     </Fragment>
   );
 }

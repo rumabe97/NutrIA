@@ -3,7 +3,7 @@ import styles from './ShoppingRange.module.css';
 
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
-import { formatDate } from 'lib/format';
+import { formatDate, interpolate } from 'lib/format';
 import { hasWeeks } from 'lib/shoppingRange';
 
 import type { RangeChoice, RangeSelection } from 'lib/shoppingRange';
@@ -11,6 +11,12 @@ import type { RangeChoice, RangeSelection } from 'lib/shoppingRange';
 interface ShoppingRangeProps {
   /** Every day the plan covers, in order. */
   days: readonly string[];
+  /**
+   * The legend is drawn only where another control of the same shape sits above this one
+   * (the switch between the plan under way and the one waiting); alone under the title it
+   * is the screen's only filter and its name is for a screen reader.
+   */
+  legendShown?: boolean;
   onChange: (range: RangeSelection) => void;
   value: RangeSelection;
 }
@@ -28,13 +34,13 @@ interface ShoppingRangeProps {
  * checkboxes nobody asked for would be the loudest thing on a screen whose job
  * is a list, and the three presets are what most people want.
  */
-export function ShoppingRange({ days, onChange, value }: ShoppingRangeProps) {
+export function ShoppingRange({ days, legendShown = false, onChange, value }: ShoppingRangeProps) {
   const dictionary = useDictionary();
   const locale = useLocale();
   const t = dictionary.shopping;
   // A plan too short to have a second week does not offer one.
   const presets: readonly { choice: RangeChoice; label: string }[] = [
-    { choice: 'fortnight', label: t.rangeWhole },
+    { choice: 'fortnight', label: interpolate(t.rangeWhole, { count: days.length }) },
     ...(hasWeeks(days)
       ? ([
           { choice: 'week1', label: t.rangeWeek1 },
@@ -68,7 +74,7 @@ export function ShoppingRange({ days, onChange, value }: ShoppingRangeProps) {
         its own way, and it fights a flex parent.
       */}
       <fieldset className={styles.group}>
-        <legend className={styles.legend}>{t.rangeLegend}</legend>
+        <legend className={legendShown ? styles.legend : 'visually-hidden'}>{t.rangeLegend}</legend>
         <div className={styles.presets}>
           {presets.map(preset => (
             <label className={styles.preset} key={preset.choice}>

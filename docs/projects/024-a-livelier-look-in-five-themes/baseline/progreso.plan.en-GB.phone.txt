@@ -2,10 +2,11 @@
 button "English" [pressed]: EN
 button "Español": ES
 button "Sign out"
-heading "# Nov – # Nov" [level=#]
+button "Theme"
+heading "# Nov – # Nov · In progress" [level=#]
+heading "Weight" [level=#]
 heading "Your fortnights" [level=#]
 heading "Your progress" [level=#]
-heading "Your weight" [level=#]
 link "All your plans →"
 link "Assistant"
 link "Home"

@@ -13,12 +13,14 @@ button "Pause the plan" [disabled]
 button "See the tour"
 button "Send" [disabled]
 button "Sign out"
+button "Theme"
 button "Turn on"
 button "Withdraw consent and delete this data"
 combobox "Which day": Choose a day
 combobox "Which meal": Choose a meal
 heading "#-step verification" [level=#]
 heading "Account" [level=#]
+heading "Appearance" [level=#]
 heading "Danger zone" [level=#]
 heading "Delete my account" [level=#]
 heading "Fixed meals" [level=#]
@@ -56,6 +58,12 @@ link "Progress"
 link "Shopping"
 link "Skip to content"
 radio "An idea" [checked]
+radio "Automatic" [checked]
+radio "Dark"
+radio "High contrast"
+radio "Huerta"
+radio "Light"
+radio "Pulso"
 radio "Something else"
 radio "Something is broken"
 switch "Also notify me on this device"

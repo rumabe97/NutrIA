@@ -14,10 +14,12 @@ button "Español" [pressed]: ES
 button "Fijar esta comida" [disabled]
 button "Pausar el plan" [disabled]
 button "Retirar el consentimiento y borrar estos datos"
+button "Tema"
 button "Ver el tutorial"
 combobox "Qué comida": Elige una comida
 combobox "Qué día": Elige un día
 heading "¿Qué mejorarías?" [level=#]
+heading "Apariencia" [level=#]
 heading "Avisos e idioma" [level=#]
 heading "Avisos" [level=#]
 heading "Ayuda" [level=#]
@@ -56,7 +58,13 @@ link "Plan"
 link "Progreso"
 link "Saltar al contenido"
 radio "Algo falla"
+radio "Alto contraste"
+radio "Automático" [checked]
+radio "Claro"
+radio "Huerta"
+radio "Oscuro"
 radio "Otra cosa"
+radio "Pulso"
 radio "Una idea" [checked]
 switch "Avísame por correo cuando acabe la quincena" [checked]
 switch "Avisarme también en este dispositivo"
