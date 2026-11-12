@@ -1,9 +1,15 @@
+.intro {
+  display: grid;
+  gap: var(--gap-heading);
+}
+
 .title {
   font-size: var(--font-size-09);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heavy);
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
-  margin: 0 0 var(--gap-heading);
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 /* A warning `Note`, a block below the title. */
@@ -37,14 +43,15 @@
   min-width: 0;
 }
 
+/* A section's name in the heading face, heavy, as the sheets head «Objetivos» and
+   «Seguridad»: the screen reads as a settings list of named groups. */
 .sectionTitle {
-  color: var(--foreground-02);
-  font-size: var(--font-size-02);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--tracking-caps);
-  line-height: var(--line-height-04);
+  font-size: var(--font-size-06);
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-02);
   margin: 0 0 calc(var(--gap-heading) - var(--gap-block));
-  text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 /* Premium said in sentences, with no price and no buttons under it. */
@@ -65,7 +72,10 @@
 /* A card's name: one step above the body, semibold, the same on every card here. */
 .cardTitle {
   font-size: var(--font-size-04);
+  font-weight: var(--font-weight-bold);
   line-height: var(--line-height-04);
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .danger {

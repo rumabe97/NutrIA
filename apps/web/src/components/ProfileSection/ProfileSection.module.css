@@ -12,14 +12,15 @@
    section headings. */
 .title {
   font-size: var(--font-size-04);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-bold);
   line-height: var(--line-height-04);
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
+/* A grouped list: one row per answer, hairlines between them (`SummaryRow`). */
 .rows {
   display: grid;
-  gap: var(--space-03);
 }
 
 .editLink {
@@ -27,6 +28,7 @@
   color: var(--color-brand-11);
   display: inline-flex;
   font-size: var(--font-size-03);
+  font-weight: var(--font-weight-semibold);
   text-decoration: none;
   white-space: nowrap;
 }

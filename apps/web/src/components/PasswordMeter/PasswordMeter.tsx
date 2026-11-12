@@ -5,8 +5,6 @@ import { useDictionary } from 'i18n/LocaleProvider';
 
 import { passwordMeterHint, passwordMeterLevel, passwordMeterMissing, readPasswordMeter } from './passwordMeter';
 
-const FULL = 100;
-
 interface PasswordMeterProps {
   /** Id of the standing hints — the minimum and the phrase. Goes on the field's `describedBy`. */
   hintId: string;
@@ -36,7 +34,7 @@ export function PasswordMeter({ hintId, length, levelId }: PasswordMeterProps) {
   return (
     <div className={styles.meter}>
       <div aria-hidden={true} className={styles.track}>
-        <div className={styles.bar} style={{ inlineSize: `${reading.fill * FULL}%` }} />
+        <div className={styles.bar} style={{ transform: `scaleX(${String(reading.fill)})` }} />
       </div>
       <p className={styles.status} id={levelId}>
         <span aria-atomic={true} aria-live="polite">

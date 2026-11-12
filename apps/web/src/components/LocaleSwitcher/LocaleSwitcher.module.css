@@ -81,9 +81,6 @@
   line-height: var(--line-height-01);
   padding: var(--space-02) var(--space-04);
   position: relative;
-  transition:
-    background-color var(--duration-fast) var(--ease-default),
-    color var(--duration-fast) var(--ease-default);
 }
 
 /* The segmented control keeps the height of a nav-bar control; what a thumb
