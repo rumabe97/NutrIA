@@ -28,7 +28,7 @@ export function ConversationLinks({
   }
 
   return (
-    <ul className={styles.list}>
+    <ul className={`${styles.list} motion-list`}>
       {conversations.map(conversation => {
         const href = `/asistente/${conversation.id}`;
 

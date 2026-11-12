@@ -43,9 +43,9 @@
 }
 
 .heading {
-  color: var(--foreground-02);
-  font-size: var(--font-size-02);
-  font-weight: var(--font-weight-medium);
+  color: var(--foreground-01);
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-bold);
   margin: var(--space-02) 0 0;
 }
 

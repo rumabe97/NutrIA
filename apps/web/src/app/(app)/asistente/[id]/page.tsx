@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import styles from '../page.module.css';
 
 import { getDictionary } from 'i18n/server';
+import { Note } from 'ui/components/Note';
 
 import { AssistantChat } from 'components/AssistantChat';
 import { ConversationDelete } from 'components/ConversationDelete';
@@ -42,15 +43,16 @@ export default async function AssistantThreadPage({ params }: { params: Promise<
   const t = dictionary.assistant;
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} motion-enter`}>
       <div className={styles.header}>
         <h1 className={styles.title}>{thread.conversation.title || t.title}</h1>
         <ConversationDelete conversationId={thread.conversation.id} />
       </div>
       {health?.supervisionRecommended ? (
-        <p className={styles.supervision} role="note">
+        // The same notice, in the same words, as the profile's and a new conversation's.
+        <Note as="p" role="note" tone="warning" toneLabel={dictionary.common.noteTone.warning}>
           {dictionary.profile.supervision}
-        </p>
+        </Note>
       ) : null}
       <AssistantChat conversationId={thread.conversation.id} standing={standing} turns={thread.turns} />
     </div>

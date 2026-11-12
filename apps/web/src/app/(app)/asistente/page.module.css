@@ -18,8 +18,8 @@
 }
 
 .title {
-  font-size: var(--font-size-05);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-06);
+  font-weight: var(--font-weight-heavy);
   hyphens: auto;
   letter-spacing: var(--tracking-title);
   line-height: var(--line-height-03);

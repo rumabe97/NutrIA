@@ -34,10 +34,12 @@
   min-inline-size: 0;
 }
 
+/* The person's words in the text colour's own ground, as the sheets draw them: the
+   inverse of body text (`--background-01` on `--foreground-01`, in the contrast script). */
 .bubble {
-  background-color: var(--surface-sunken);
+  background-color: var(--foreground-01);
   border-radius: var(--radius-card);
-  color: var(--foreground-01);
+  color: var(--background-01);
   font-size: var(--font-size-03);
   line-height: var(--line-height-04);
   margin: 0;
@@ -49,6 +51,7 @@
 
 /* A question not kept: said in a quieter voice, on the person's own side. */
 .withdrawn {
+  background-color: var(--surface-sunken);
   color: var(--foreground-02);
   font-style: italic;
 }
@@ -90,18 +93,18 @@
   inline-size: 6px;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .dots > span {
-    animation: pulse 1.2s ease-in-out infinite;
-  }
+/* A slow pulse while the first words are on their way. Stilled by the one
+   reduced-motion rule in `ui/styles/base`, which leaves the dots at rest. */
+.dots > span {
+  animation: pulse calc(var(--duration-enter-long) * 2) var(--ease-default) infinite;
+}
 
-  .dots > span:nth-child(2) {
-    animation-delay: 0.15s;
-  }
+.dots > span:nth-child(2) {
+  animation-delay: var(--duration-fast);
+}
 
-  .dots > span:nth-child(3) {
-    animation-delay: 0.3s;
-  }
+.dots > span:nth-child(3) {
+  animation-delay: calc(var(--duration-fast) * 2);
 }
 
 @keyframes pulse {
@@ -176,21 +179,41 @@
 
 /*
  * The box to write in: stuck to the foot of the screen, above the bottom bar on
- * a phone (`--app-bar-clearance`) — and right above the keyboard once the field has focus, when the
- * bar steps aside (`AppNav.module.css`). No band of its own behind it: the page's
- * background is a gradient, and a flat strip read as a box drawn on top of it.
+ * a phone (`--app-bar-clearance`) — and right above the keyboard once the field has
+ * focus, when the bar steps aside (`AppNav.module.css`).
+ *
+ * It has a ground of its own (project 024 phase 5): the page's colour, fading in
+ * over the top of its padding, so the conversation scrolling behind the box and the
+ * allowance line under it is never read through them (LOG phase 3, "Still open").
+ * The page's ground is flat on the signed-in screens, so the band is the page itself,
+ * not a box drawn on it. Below the composer the same ground runs on to the foot of the
+ * screen, behind the bar, so no words show in the gap between the two.
  */
 .composer {
+  background-image: linear-gradient(to bottom, transparent, var(--background-01) var(--space-04));
   bottom: var(--app-bar-clearance);
   display: grid;
   gap: var(--space-02);
   margin-block-start: auto;
-  padding-block: var(--space-04) var(--space-02);
+  padding-block: var(--space-05) var(--space-02);
   position: sticky;
+}
+
+.composer::after {
+  background-color: var(--background-01);
+  block-size: var(--app-bar-clearance);
+  content: '';
+  inset-block-start: 100%;
+  inset-inline: 0;
+  position: absolute;
 }
 
 body:has(.field:focus) .composer {
   bottom: var(--space-02);
+}
+
+body:has(.field:focus) .composer::after {
+  block-size: var(--space-02);
 }
 
 @media (width >= 48rem) {
@@ -215,22 +238,11 @@ body:has(.field:focus) .composer {
  * Focused: the edge takes the brand's colour (over 3:1 against the page, so the
  * state is seen) with a soft halo, instead of a second ring drawn outside the
  * border — the box is the field, and one edge is enough to say where typing goes.
+ * At once: only transform and opacity move (project 024).
  */
-.box {
-  transition:
-    border-color 120ms ease,
-    box-shadow 120ms ease;
-}
-
 .box:focus-within {
   border-color: var(--color-brand-fill);
   box-shadow: 0 0 0 3px var(--color-brand-halo);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .box {
-    transition: none;
-  }
 }
 
 .field {
@@ -269,6 +281,7 @@ body:has(.field:focus) .composer {
 /* Send: a filled disc with an arrow, the one primary action of the screen. */
 .send {
   align-items: center;
+  background-image: var(--gradient-brand-fill);
   background-color: var(--color-brand-fill);
   block-size: var(--target-min);
   border: 0;
@@ -286,6 +299,14 @@ body:has(.field:focus) .composer {
   inline-size: 20px;
 }
 
+.send {
+  transition: transform var(--duration-fast) var(--spring-firm);
+}
+
+.send:active {
+  transform: scale(0.92);
+}
+
 .send:hover {
   background-color: var(--color-brand-fill-hover);
 }
@@ -298,6 +319,7 @@ body:has(.field:focus) .composer {
 /* Not pressable: a paler disc, the focus ring at full strength. */
 .send[aria-disabled='true'] {
   background-color: var(--color-brand-fill-disabled);
+  background-image: none;
   cursor: not-allowed;
 }
 

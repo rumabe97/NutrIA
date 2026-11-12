@@ -352,7 +352,11 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
           const mine = turn.role === 'user';
 
           return (
-            <li className={mine ? styles.user : styles.assistant} key={turn.key}>
+            // A turn this visit added drops into place; the stored ones are simply there.
+            <li
+              className={[mine ? styles.user : styles.assistant, turn.id === null ? 'motion-drop-in' : ''].filter(Boolean).join(' ')}
+              key={turn.key}
+            >
               <p className="visually-hidden">{mine ? t.you : t.answerLabel}</p>
               {turn.content !== '' ? (
                 mine ? (
@@ -369,7 +373,7 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
 
               {turn.id ? (
                 confirming === turn.key ? (
-                  <div aria-label={t.deleteMessageLabel} className={styles.confirm} role="group">
+                  <div aria-label={t.deleteMessageLabel} className={`${styles.confirm} motion-drop-in`} role="group">
                     <p className={styles.confirmText}>{t.deleteMessageBody}</p>
                     <div className={styles.confirmActions}>
                       <Button onClick={() => void remove(turn)} ref={confirmFirst} size="sm" variant="destructive">
@@ -410,7 +414,7 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
         })}
 
         {writing === null ? null : (
-          <li className={styles.assistant}>
+          <li className={`${styles.assistant} motion-fade`}>
             <p className="visually-hidden">{t.answerLabel}</p>
             {writing === '' ? (
               <p className={styles.thinking}>
@@ -429,7 +433,7 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
 
         {/* What went wrong is said by the assistant, as a message of its own — never a box over the conversation. */}
         {problem ? (
-          <li className={styles.assistant}>
+          <li className={`${styles.assistant} motion-drop-in`}>
             <p className="visually-hidden">{t.answerLabel}</p>
             <p className={styles.answer}>{problem}</p>
           </li>
