@@ -94,6 +94,9 @@ const PAIRS = [
   ...['--color-ring-1', '--color-ring-2', '--color-ring-3', '--color-ring-4'].flatMap(fg =>
     ['--color-ring-track', '--surface-card'].map(bg => ({ bg, fg, kind: 'mark' }))
   ),
+  // A dish with no picture (project 024 phase 4, `lib/dishLook`): the moment's glyph on its
+  // ground, which is that ring colour paled into the card.
+  ...['morning', 'midday', 'snack', 'evening'].map(moment => ({ bg: `--color-slot-${moment}-ground`, fg: `--color-slot-${moment}`, kind: 'mark' })),
   // Chart marks on the card a chart sits in (`0069`), and on the page for a chart that has none.
   ...['1', '2', '3', '4', '5', '6', 'success', 'failure', 'neutral'].flatMap(step =>
     ['--surface-card', '--background-01'].map(bg => ({ bg, fg: `--color-chart-${step}`, kind: 'chart' }))

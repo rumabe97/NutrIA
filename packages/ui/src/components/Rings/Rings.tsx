@@ -18,6 +18,12 @@ export interface RingsItem {
 }
 
 export interface RingsProps extends Omit<ComponentPropsWithRef<'div'>, 'children'> {
+  /**
+   * The figures are already written beside the rings, in words a reader reaches (a visible
+   * legend): the rings are then only a picture of them, hidden from assistive technology, with
+   * no group and no list of their own to read the same figures twice.
+   */
+  decorative?: boolean;
   /** **Required.** One to four measures, outermost first. Anything after the fourth is not drawn. */
   items: readonly RingsItem[];
   /** **Required.** What the rings are, as a whole ("Objetivos de hoy"): the group's name. */
@@ -54,13 +60,18 @@ function fraction(value: number, max: number): number {
  * 2246 kcal". Not a `role="img"` with one long `aria-label`: four figures in one label are read as
  * one breathless sentence that cannot be stepped through, and a list lets a screen reader say
  * how many measures there are and move from one to the next. The picture itself is
- * `aria-hidden`; the group is named by `label`.
+ * `aria-hidden`; the group is named by `label`. Where a visible legend beside the rings already
+ * says every figure, `decorative` hides the whole drawing instead, so nothing is read twice.
+ *
+ * A ring whose value changes moves to it (`stroke-dashoffset` is transitioned on the figure
+ * spring), so a figure that grows while the screen is open — a meal marked done — is seen to.
  */
-export function Rings({ className, items, label, size = 'md', ...rest }: RingsProps) {
+export function Rings({ className, decorative = false, items, label, size = 'md', ...rest }: RingsProps) {
   const drawn = items.slice(0, 4);
+  const named = decorative ? { 'aria-hidden': true } : { 'aria-label': label, role: 'group' };
 
   return (
-    <div aria-label={label} className={[styles.root, styles[size], className].filter(Boolean).join(' ')} role="group" {...rest}>
+    <div className={[styles.root, styles[size], className].filter(Boolean).join(' ')} {...named} {...rest}>
       <InView className={styles.picture}>
         <svg aria-hidden="true" className={styles.svg} focusable="false" viewBox="0 0 100 100">
           {drawn.map((item, index) => (
@@ -94,13 +105,15 @@ export function Rings({ className, items, label, size = 'md', ...rest }: RingsPr
           </g>
         </svg>
       </InView>
-      <ul className="visually-hidden">
-        {drawn.map(item => (
-          <li key={item.label}>
-            {item.label}: {item.valueText ?? `${item.value} / ${item.max}`}
-          </li>
-        ))}
-      </ul>
+      {decorative ? null : (
+        <ul className="visually-hidden">
+          {drawn.map(item => (
+            <li key={item.label}>
+              {item.label}: {item.valueText ?? `${item.value} / ${item.max}`}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

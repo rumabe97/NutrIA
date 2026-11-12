@@ -78,6 +78,14 @@ describe('Rings', () => {
     expect(arcs(container)[0]?.parentElement).toHaveClass('motion-figures');
   });
 
+  it('is only a picture when decorative: no group, no list, hidden whole, the rings still drawn', () => {
+    const { container } = render(<Rings decorative={true} items={DAY} label="Hoy" />);
+    expect(screen.queryByRole('group')).toBeNull();
+    expect(container.querySelector('ul')).toBeNull();
+    expect(container.firstElementChild).toHaveAttribute('aria-hidden', 'true');
+    expect(arcs(container)).toHaveLength(4);
+  });
+
   it('forwards className and its size', () => {
     render(<Rings className="extra" items={DAY} label="Hoy" size="lg" />);
     const group = screen.getByRole('group');

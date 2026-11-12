@@ -1,15 +1,13 @@
 /*
- * Under the dish's minutes and difficulty: the same register as those facts,
- * with a label so it cannot be mistaken for another one of them.
+ * Under the dish's minutes and difficulty: the same register as those facts — chips —
+ * with a label so it cannot be mistaken for another one of them. The page's own grid
+ * gives the gap around it.
  */
 .equipment {
-  align-items: baseline;
+  align-items: center;
   column-gap: var(--space-03);
   display: flex;
   flex-wrap: wrap;
-  /* The facts line above it already ends on `--gap-block`; this one carries the
-     same gap to the overview, so the three read as three blocks of one rhythm. */
-  margin-block-end: var(--gap-block);
   row-gap: var(--space-02);
 }
 
@@ -27,13 +25,16 @@
   padding: 0;
 }
 
-/* Icon and word on one line, and the pair stays whole when the list wraps. */
+/* Icon and word on one chip, and the pair stays whole when the list wraps. */
 .item {
   align-items: center;
-  color: var(--foreground-02);
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-full);
+  color: var(--foreground-01);
   display: inline-flex;
   font-size: var(--font-size-03);
   gap: var(--space-02);
+  padding: var(--space-01) var(--space-03);
 }
 
 /* The text is large for this screen: the label takes its own line so the

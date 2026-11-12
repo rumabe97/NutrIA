@@ -47,9 +47,6 @@
   display: flex;
   gap: var(--space-03);
   padding: var(--space-03) var(--space-04);
-  transition:
-    background-color var(--duration-fast) var(--ease-default),
-    border-color var(--duration-fast) var(--ease-default);
 }
 
 .option:hover {
@@ -89,15 +86,25 @@
   text-wrap: pretty;
 }
 
+/* On a phone the trigger takes what is left of its row, and the whole row once it wraps
+   under the two marks — never squeezed beside them. */
 @media (width < 34rem) {
   .trigger {
-    flex: 1 1 100%;
-    margin-inline-start: 0;
+    flex: 1 1 auto;
   }
 }
 
 @media (width >= 48rem) {
   .options {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Text this large for the screen: the count goes under the label inside the button
+   rather than holding the two on one line wider than the screen. */
+@media (width < 17rem) {
+  .trigger {
+    flex-wrap: wrap;
+    row-gap: var(--space-01);
   }
 }

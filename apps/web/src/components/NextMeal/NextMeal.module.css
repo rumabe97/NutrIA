@@ -1,25 +1,49 @@
 /*
- * The one card on the dashboard that carries the accent as a wash.
- *
- * The accent marks actions, and this is the only thing on the screen a user
- * opens the dashboard to act on. Everything else is reference.
- *
- * `a.card`, element and class: `components/Card` paints the surface, and a
- * selector one step more specific is what lets this one restate the ground and
- * the border whatever order the two stylesheets land in.
+ * The picture and its strip share one grid: the picture spans both rows, the strip sits
+ * in the second, over the picture's foot. The first row never shrinks below the room the
+ * «IA» mark needs at the top, so however long the name and however large the text, the
+ * strip grows the card downwards and never climbs over the mark — nothing is clipped,
+ * nothing is positioned out of the flow.
  */
-a.card {
-  background: linear-gradient(140deg, var(--color-brand-03), var(--color-brand-02) 60%), var(--surface-card);
-  border-color: var(--color-brand-06);
+.card {
+  border-radius: var(--radius-card);
   color: inherit;
   display: grid;
-  gap: var(--space-01);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(var(--space-10), 1fr) auto;
   text-decoration: none;
-  transition: border-color var(--duration-fast) var(--ease-default);
 }
 
-a.card:hover {
-  border-color: var(--color-brand-08);
+.picture {
+  display: block;
+  grid-column: 1;
+  grid-row: 1 / 3;
+}
+
+.strip {
+  align-items: center;
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-m);
+  display: flex;
+  gap: var(--space-03);
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0 var(--space-03) var(--space-03);
+  min-inline-size: 0;
+  padding: var(--space-03) var(--space-04);
+  /* Over the picture, which its fade-in lifts into a layer of its own. */
+  position: relative;
+  z-index: 1;
+  transition: transform var(--duration-fast) var(--spring-firm);
+}
+
+.words {
+  display: grid;
+  flex: 1 1 auto;
+  gap: var(--space-01);
+  min-inline-size: 0;
 }
 
 .eyebrow {
@@ -31,10 +55,13 @@ a.card:hover {
 }
 
 .name {
-  font-size: var(--font-size-06);
-  font-weight: var(--font-weight-semibold);
+  font-family: var(--display-font, var(--main-font));
+  font-size: var(--font-size-05);
+  font-weight: var(--font-weight-bold);
   letter-spacing: var(--tracking-title);
   line-height: var(--line-height-02);
+  overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
 .meta {
@@ -43,13 +70,40 @@ a.card:hover {
   font-variant-numeric: tabular-nums;
 }
 
+/* The way in, drawn: the whole card is the link, this only says so. */
+.go {
+  align-items: center;
+  background-color: var(--foreground-01);
+  border-radius: var(--radius-full);
+  color: var(--background-01);
+  display: inline-flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  block-size: 2.5rem;
+  inline-size: 2.5rem;
+  transition: transform var(--duration-fast) var(--spring-firm);
+}
+
+.card:hover .go {
+  transform: translateX(0.125rem);
+}
+
+.card:hover .name {
+  text-decoration: underline;
+}
+
+.card:active .strip {
+  transform: scale(0.99);
+}
+
 .done {
   color: var(--foreground-02);
   margin: 0;
 }
 
-/* The picture is the first thing in the card and the only thing that is not text. */
-.picture {
-  display: block;
-  margin-bottom: var(--space-03);
+/* Large text: the arrow is decoration, and the name needs the width more. */
+@media (width < 17rem) {
+  .go {
+    display: none;
+  }
 }

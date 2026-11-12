@@ -1,0 +1,34 @@
+/*
+ * In the page: done and skipped on one side, another dish on the other, wrapping as the
+ * room runs out (`MealSwap` pushes itself to the row's end).
+ */
+.actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03) var(--space-04);
+  justify-content: space-between;
+}
+
+/*
+ * On a phone: a card held above the floating bar, at the page's gutter, on its own opaque
+ * ground with a shadow — it floats over the recipe as it scrolls by. Its height is kept
+ * free at the page's foot (`DishActions.tsx`), so the last step is never under it; past the
+ * screen's room — the swap panel open at large text — it scrolls inside itself.
+ */
+@media (width < 48rem) {
+  .actions {
+    background-color: var(--surface-card);
+    border: 1px solid var(--border-01);
+    border-radius: var(--radius-card);
+    bottom: var(--app-bar-clearance);
+    box-shadow: var(--shadow-l);
+    inset-inline: var(--gutter-page);
+    max-block-size: calc(100dvh - var(--app-header-block) - var(--app-bar-clearance) - var(--space-06));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--space-03);
+    position: fixed;
+    z-index: var(--z-dropdown);
+  }
+}

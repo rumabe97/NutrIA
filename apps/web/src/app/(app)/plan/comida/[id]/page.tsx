@@ -10,6 +10,9 @@ import { Text } from 'ui/components/Text';
 
 import { Card } from 'components/Card';
 import { CtaLink } from 'components/CtaLink';
+import { DishActions } from 'components/DishActions';
+import { DishArrival } from 'components/DishArrival';
+import { DishShare } from 'components/DishShare';
 import { EmptyState } from 'components/EmptyState';
 import { MacroSummary } from 'components/MacroSummary';
 import { MealAccompaniments } from 'components/MealAccompaniments';
@@ -20,6 +23,7 @@ import { MealSwap } from 'components/MealSwap';
 import { RecipeVerdict } from 'components/RecipeVerdict';
 
 import { difficultyLabel, slotLabel } from 'lib/generation';
+import { dishTransitionNames } from 'lib/dishTransition';
 import { formatDate, formatNumber, formatQuantity, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { resumesOn } from 'lib/vacation';
@@ -27,12 +31,14 @@ import { serverApi, serverApiResult } from 'lib/server-api';
 
 import { appMetadata } from '../../../../_shared/metadata';
 
-import type { AllowancesView, MealDetailView } from 'core/controllers/Plan';
+import type { AllowancesView, MealDetailView, PlanView } from 'core/controllers/Plan';
+import type { FullProfileView } from 'core/controllers/Profile';
+import type { Macros } from 'lib/dayRings';
 import type { MealStatus as Status } from 'core/entities/Plan';
 import type { Metadata } from 'next';
 import type { VacationView } from 'core/controllers/Vacation';
 
-const NO_BREAK_SPACE = '\u00a0';
+const NO_BREAK_SPACE = ' ';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,16 +46,39 @@ export async function generateMetadata(): Promise<Metadata> {
   return appMetadata('/plan/comida');
 }
 
+/**
+ * What the meal's day was built to hit, for its share of the day: the day's own targets
+ * on a day that eats for an event, the plan's otherwise — both read off the plan being
+ * lived. A meal of an earlier plan has neither at hand, and is measured against the
+ * person's targets in effect. Null when nothing is known: the page then shows the dish's
+ * figures alone.
+ */
+function dayTargets(meal: MealDetailView, plan: PlanView | null, profile: FullProfileView | null): Macros | null {
+  if (plan?.id === meal.planId) {
+    const day = plan.days.find(candidate => candidate.dayIndex === meal.dayIndex);
+    const targets = day?.targets ?? plan.strategy;
+
+    if (targets) {
+      return targets;
+    }
+  }
+
+  return profile?.targets?.effective ?? null;
+}
+
 export default async function MealDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await redirectIfOnboardingIncomplete();
 
   const { id } = await params;
-  const [dictionary, locale, answer, allowances, trips] = await Promise.all([
+  const [dictionary, locale, answer, allowances, trips, plan, profile] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApiResult<MealDetailView>(`/meal-plans/meals/${id}`),
     serverApi<AllowancesView>('/meal-plans/allowances'),
-    serverApi<readonly VacationView[]>('/vacations')
+    serverApi<readonly VacationView[]>('/vacations'),
+    // Only for the day's targets, which the meal's own view does not carry.
+    serverApi<PlanView | null>('/meal-plans/active'),
+    serverApi<FullProfileView>('/profile')
   ]);
   const meal = answer.body;
 
@@ -83,115 +112,131 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
   // Only a meal of the plan being lived can be marked or swapped (0021); one of
   // an earlier plan is shown as it was, and the way back leads to that plan.
   const editable = meal.planStatus === 'active';
-  // A picture, or its box while one is drawn; with none, the figures take the whole width.
-  const pictured = meal.pictureStatus !== 'none';
+  const targets = dayTargets(meal, plan, profile);
+  const names = dishTransitionNames(meal.id);
+
+  /*
+   * What can be done with this meal: eaten or skipped, and another dish — only for a meal
+   * still to come, since a plate already eaten is not something to change. The state is
+   * the message; the buttons carry it, and nothing is explained under them. Paused means
+   * paused (`0032`): marking a meal you are not eating records something that did not
+   * happen, and a swap spends an allowance on a fortnight nobody is living. The API
+   * refuses all three; the sentence says why nothing is offered.
+   */
+  const controls = editable && !away;
+  const actions = controls ? (
+    <DishActions>
+      {/* Marking waits for the day; swapping does not — changing tomorrow's
+          dinner today is the whole point of a plan you can steer. */}
+      {notYet ? (
+        <Text size="sm" tone="tertiary">
+          {interpolate(dictionary.meal.notYet, { date: formatDate(meal.date, locale, { day: 'numeric', month: 'long' }) })}
+        </Text>
+      ) : (
+        <MealStatus mealId={meal.id} status={meal.status as Status} />
+      )}
+      {allowances && meal.status === 'planned' ? (
+        <MealSwap limit={allowances.mealSwaps.limit} mealId={meal.id} remaining={allowances.mealSwaps.remaining} totalMinutes={totalMinutes} />
+      ) : null}
+    </DishActions>
+  ) : (
+    <Text className={styles.readOnly} size="sm" tone="tertiary">
+      {away
+        ? interpolate(dictionary.vacations.pausedUntil, { date: formatDate(resumesOn(away.endsOn), locale, { day: 'numeric', month: 'long' }) })
+        : dictionary.meal.readOnly}
+    </Text>
+  );
 
   return (
-    <Fragment>
+    <div className={styles.page} data-actions={controls || undefined}>
+      {/* Tells a card's View Transition that this page has arrived (`lib/dishTransition`). */}
+      <DishArrival />
+
       <Link className={styles.back} href={editable ? '/plan' : `/plan/historial/${meal.planId}`}>
         {editable ? dictionary.meal.back : dictionary.meal.backToHistory}
       </Link>
 
-      <span className={styles.slot}>{interpolate(dictionary.meal.dayOf, { day: meal.dayIndex, slot: slotLabel(meal.slot, dictionary) })}</span>
-      {/* The dish and its method were written by a model — every recipe in the library was, the
-          seed included — so both carry the machine-readable mark (AI Act art. 50.2). */}
-      <h1 className={styles.title} data-ai-generated="true">
-        {meal.name}
-      </h1>
+      <div className={styles.overview}>
+        {/* The dish first, as itself: its picture large — or its designed state, which
+            most dishes have today — with its slot and name on a strip over the picture's
+            foot. A generated picture says so: the mark on it, its name and the caption
+            (`0066`). The picture and the name share their View Transition names with
+            the card that opened this page. */}
+        <div className={`${styles.hero} motion-enter`}>
+          <MealPicture
+            name={meal.name}
+            path={meal.illustrationPath}
+            recipeId={meal.recipeId}
+            slot={meal.slot}
+            status={meal.pictureStatus}
+            transitionName={names.picture}
+          >
+            <span className={styles.slot}>{interpolate(dictionary.meal.dayOf, { day: meal.dayIndex, slot: slotLabel(meal.slot, dictionary) })}</span>
+            {/* The dish and its method were written by a model — every recipe in the library was, the
+                seed included — so both carry the machine-readable mark (AI Act art. 50.2). */}
+            <h1 className={styles.title} data-ai-generated="true" style={{ viewTransitionName: names.title }}>
+              {meal.name}
+            </h1>
+          </MealPicture>
+        </div>
 
-      <div className={styles.facts}>
-        {totalMinutes > 0 ? (
-          <span>{interpolate(dictionary.meal.totalMinutes, { minutes: totalMinutes })}</span>
-        ) : (
-          <span>{dictionary.meal.noCooking}</span>
-        )}
-        <span>{difficultyLabel(meal.difficulty, dictionary)}</span>
-        {meal.cuisine ? <span>{meal.cuisine}</span> : null}
-      </div>
+        <div className={`${styles.side} motion-list`}>
+          {actions}
 
-      {/* What the dish cannot be cooked without (`0102`), where the minutes and
-          the difficulty are: it belongs to the same question — can I make this
-          tonight — and it is read before the ingredients, not after them. */}
-      <MealEquipment dictionary={dictionary} equipment={meal.equipment} />
-
-      {/* What a cook reads before starting — the actions, the picture and the
-          figures. One column on a phone; beside the picture on a wide screen, so
-          the actions and the numbers sit together rather than a screen apart. */}
-      <div className={styles.overview} data-pictured={pictured || undefined}>
-        {/* What can be done with this meal, in one row: eaten or skipped on the left,
-            another dish on the right — and only for a meal still to come, since a
-            plate already eaten is not something to change. The state is the message;
-            the buttons carry it, and nothing is explained under them. */}
-        {editable ? (
-          <div className={styles.toolbar}>
-            {/* Paused means paused (`0032`): marking a meal you are not eating
-                records something that did not happen, and a swap spends an
-                allowance on a fortnight nobody is living. The API refuses all
-                three; this is so nobody is invited to try. */}
-            {away ? (
-              <Text size="sm" tone="tertiary">
-                {interpolate(dictionary.vacations.pausedUntil, {
-                  date: formatDate(resumesOn(away.endsOn), locale, { day: 'numeric', month: 'long' })
-                })}
-              </Text>
+          <div className={styles.facts}>
+            {totalMinutes > 0 ? (
+              <span className={styles.fact}>{interpolate(dictionary.meal.totalMinutes, { minutes: totalMinutes })}</span>
             ) : (
-              <Fragment>
-                {/* Marking waits for the day; swapping does not — changing tomorrow's
-                    dinner today is the whole point of a plan you can steer. */}
-                {notYet ? (
-                  <Text size="sm" tone="tertiary">
-                    {interpolate(dictionary.meal.notYet, { date: formatDate(meal.date, locale, { day: 'numeric', month: 'long' }) })}
-                  </Text>
-                ) : (
-                  <MealStatus mealId={meal.id} status={meal.status as Status} />
-                )}
-                {allowances && meal.status === 'planned' ? (
-                  <MealSwap
-                    limit={allowances.mealSwaps.limit}
-                    mealId={meal.id}
-                    remaining={allowances.mealSwaps.remaining}
-                    totalMinutes={totalMinutes}
-                  />
-                ) : null}
-              </Fragment>
+              <span className={styles.fact}>{dictionary.meal.noCooking}</span>
             )}
+            <span className={styles.fact}>{difficultyLabel(meal.difficulty, dictionary)}</span>
+            {meal.cuisine ? <span className={styles.fact}>{meal.cuisine}</span> : null}
           </div>
-        ) : (
-          <Text className={styles.readOnly} size="sm" tone="tertiary">
-            {dictionary.meal.readOnly}
-          </Text>
-        )}
 
-        {/* The dish's picture once one is drawn, or its box while it is being drawn
-            (`0066`). It is an AI image, and it says so: the mark on it, its name and
-            the caption. With none, the page is complete without it: the
-            specification below is the content, the picture is the bonus. */}
-        {meal.pictureStatus === 'none' ? null : (
-          <div className={styles.picture}>
-            <MealPicture name={meal.name} path={meal.illustrationPath} recipeId={meal.recipeId} status={meal.pictureStatus} />
-          </div>
-        )}
-        {/* The four numbers a cook checks before starting. */}
-        <Card as="dl" className={styles.spec}>
-          {[
-            { label: dictionary.meal.prep, value: interpolate(dictionary.meal.minutes, { value: formatNumber(meal.prepMinutes, locale) }) },
-            {
-              label: dictionary.meal.cook,
-              value:
-                meal.cookMinutes > 0 ? interpolate(dictionary.meal.minutes, { value: formatNumber(meal.cookMinutes, locale) }) : dictionary.meal.none
-            },
-            { label: dictionary.meal.servingsLabel, value: formatNumber(Math.round(meal.servings * 100) / 100, locale) },
-            { label: dictionary.meal.difficultyLabel, value: difficultyLabel(meal.difficulty, dictionary) }
-          ].map(item => (
-            <div className={styles.specItem} key={item.label}>
-              <dt className={styles.specLabel}>{item.label}</dt>
-              <dd className={styles.specValue}>{item.value}</dd>
+          {/* What the dish cannot be cooked without (`0102`), where the minutes and
+              the difficulty are: it belongs to the same question — can I make this
+              tonight — and it is read before the ingredients, not after them. */}
+          <MealEquipment dictionary={dictionary} equipment={meal.equipment} />
+
+          {/* Its share of the day, as rings with the figures and percentages in words;
+              with no target known, the dish's figures as they were. Either way the
+              note on where the figures come from stays with them. */}
+          {targets ? (
+            <div className={styles.macros}>
+              <DishShare
+                dictionary={dictionary}
+                dish={{ carbsG: meal.carbsG, fatG: meal.fatG, kcal: meal.kcal, proteinG: meal.proteinG }}
+                locale={locale}
+                targets={targets}
+              />
+              <Text size="xs" tone="tertiary">
+                {dictionary.macros.note}
+              </Text>
             </div>
-          ))}
-        </Card>
+          ) : (
+            <MacroSummary carbsG={meal.carbsG} fatG={meal.fatG} kcal={meal.kcal} note={dictionary.macros.note} proteinG={meal.proteinG} />
+          )}
 
-        <div className={styles.macros}>
-          <MacroSummary carbsG={meal.carbsG} fatG={meal.fatG} kcal={meal.kcal} note={dictionary.macros.note} proteinG={meal.proteinG} />
+          {/* The four numbers a cook checks before starting. */}
+          <Card as="dl" className={styles.spec}>
+            {[
+              { label: dictionary.meal.prep, value: interpolate(dictionary.meal.minutes, { value: formatNumber(meal.prepMinutes, locale) }) },
+              {
+                label: dictionary.meal.cook,
+                value:
+                  meal.cookMinutes > 0
+                    ? interpolate(dictionary.meal.minutes, { value: formatNumber(meal.cookMinutes, locale) })
+                    : dictionary.meal.none
+              },
+              { label: dictionary.meal.servingsLabel, value: formatNumber(Math.round(meal.servings * 100) / 100, locale) },
+              { label: dictionary.meal.difficultyLabel, value: difficultyLabel(meal.difficulty, dictionary) }
+            ].map(item => (
+              <div className={styles.specItem} key={item.label}>
+                <dt className={styles.specLabel}>{item.label}</dt>
+                <dd className={styles.specValue}>{item.value}</dd>
+              </div>
+            ))}
+          </Card>
         </div>
       </div>
 
@@ -209,7 +254,7 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
           </Text>
         </div>
 
-        <ul className={styles.ingredients}>
+        <ul className={`${styles.ingredients} motion-list`}>
           {meal.ingredients.map(ingredient => (
             <li className={styles.ingredient} key={ingredient.name}>
               <div className={styles.ingredientLine}>
@@ -286,6 +331,6 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
         <h2 className={styles.sectionTitle}>{dictionary.meal.verdictTitle}</h2>
         {away ? null : <RecipeVerdict recipeId={meal.recipeId} verdict={meal.verdict} />}
       </section>
-    </Fragment>
+    </div>
   );
 }

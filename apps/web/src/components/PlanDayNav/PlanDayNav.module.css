@@ -49,7 +49,7 @@
 .day {
   background-color: var(--surface-card);
   border: 1px solid var(--border-01);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-card);
   color: var(--foreground-02);
   cursor: pointer;
   display: grid;
@@ -58,20 +58,28 @@
   min-inline-size: 0;
   padding: var(--space-03) 0;
   text-align: center;
-  transition:
-    background-color var(--duration-fast) var(--ease-default),
-    border-color var(--duration-fast) var(--ease-default);
+  transition: transform var(--duration-fast) var(--spring-firm);
+}
+
+/* A chip presses in; its colours change at once. */
+.day:active {
+  transform: scale(0.95);
 }
 
 .day:hover {
   border-color: var(--color-brand-07);
 }
 
-/* The chosen day wears the fill that carries a white label in both schemes. */
+/* The chosen day wears the filled gradient, whose label clears 4.5:1 at both ends, and
+   its number grows heavier: a second cue beside the colour. */
 .day[aria-current='true'] {
-  background-color: var(--color-brand-fill);
+  background: var(--gradient-brand-fill);
   border-color: var(--color-brand-fill);
   color: var(--color-on-brand-fill);
+}
+
+.day[aria-current='true'] .dayIndex {
+  font-weight: var(--font-weight-bold);
 }
 
 .dayIndex {
@@ -151,5 +159,12 @@
     display: inline;
     font-size: var(--font-size-02);
     margin-inline-start: auto;
+  }
+}
+
+/* Forced colours erase the fill: the chosen day keeps a system highlight edge. */
+@media (forced-colors: active) {
+  .day[aria-current='true'] {
+    border: 2px solid Highlight;
   }
 }

@@ -592,3 +592,154 @@
   field and a link have one.
 - **Not run**: `gate.sh --full` — phase 4's executor is using the machine, which died under two
   heavy jobs on 2026-11-11. The `ui` and `web` checks ran; CI runs the rest.
+## Phase 4 — Inicio and the dish, where the food is (2026-11-12)
+
+- **Executor**: `frontend` on opus, branch `024-phase-4` (on `024-phase-3-ship`). Nothing ran on
+  `fable`; the advisor was not consulted.
+- **Result**: done, for the lead's check.
+- **What changed**:
+  - **Inicio.** The greeting is the display heading with the name in `--color-brand-11` (solid: the
+    gradient's light end does not hold 3:1 on the paper, LOG phase 1b), the plan's status line
+    under it. Then, on a plan's day: the targets card with **the rings of the day**
+    (`components/DayRings` over `ui/Rings`, `--color-ring-1…4`) — the sum of the day's meals whose
+    status is `completed` (`lib/dayRings.completedTotals`) against `profile.targets.effective`,
+    the legend in words beside the rings from a 16.5rem card (360 px) and under them below it (a
+    container query, so it holds at 320 px, in the desktop rail and at 200 % text), the sentence
+    «Lo que suman las comidas que has marcado como hechas.» — or, with nothing marked, «Aún no has
+    marcado ninguna comida como hecha. Márcala con su círculo y los anillos la irán sumando.» —
+    and the plan's own total for the day in a sentence under them («El plan de hoy suma …»). The
+    next meal as its picture (16:9) with a strip over its foot (slot, name, kcal · protein ·
+    minutes); the day's meals with thumbnails; the fortnight strip; then shopping, weight and the
+    floor-clamp notice. From 64rem the day is the main column and the targets, shopping and weight
+    the rail; one source order for both. With no day (no plan, plan ended, away) the targets card
+    follows the day's own content, so the one thing to do leads on a phone.
+  - **A tick moves the rings at once**: `components/DayStatusProvider` holds the marks made on the
+    screen since the server last answered; `MealRow` reports its optimistic mark (and the mark put
+    back on a failure); a new answer from `router.refresh()` clears them.
+  - **Dish rows** (`MealRow`, on Inicio and every `PlanBrowser`) show the dish's picture as a 1:1
+    thumbnail (lazy, `width`/`height`, original bytes, the «IA» mark at a size capped at the
+    12-point step on the small square) — or **the designed state**: the moment of the day's ring
+    colour paled into the card and a glyph per moment (`lib/dishLook`, `components/DishGlyph`;
+    morning cup, midday plate, snack apple, evening bowl). New derived tokens
+    `--color-slot-{morning,midday,snack,evening}` and `-ground`, in the shared block of
+    `themes.css` (each theme's own ring colour, so all five and Automático follow) and mapped in
+    `forced-colors`.
+  - **The plan's day**: day chips with the filled gradient on the chosen day; the day's card
+    slides in from the direction of travel (`.motion-forward` / `.motion-back`); thumbnails; and
+    the day's totals against what it was built to hit (`day.targets ?? plan.strategy`) under the
+    figures, «El día, sobre sus objetivos» (`TargetProgress`, its bars now grow by transform).
+  - **The dish page**: the picture large (or the designed state) with the slot line and the `h1`
+    on a near-opaque strip over its foot, the caption under both; facts and equipment as chips;
+    **its share of the day** (`components/DishShare`): one small ring per figure against the
+    day's target (the active plan's `day.targets ?? strategy`; for an earlier plan the person's
+    targets in effect), the figure counted up and «30 % del día» in words; the specification;
+    ingredients, accompaniments, numbered steps (`data-ai-generated` on the `h1` and the steps
+    kept), the verdict. **The actions** (Hecha, Saltada, Cambiar plato — same conditions, same
+    limits, same messages) are `components/DishActions`: below 48rem a card fixed at
+    `bottom: var(--app-bar-clearance)`, which writes its own height to `--dish-actions-block` for
+    the page's foot, so the last line is never under it; the swap panel rises inside it and the
+    card scrolls inside itself past the screen's room. From 48rem it sits in the page beside the
+    picture.
+  - **A dish card grows into its page** (`components/DishLink`, `lib/dishTransition`,
+    `components/DishArrival`): `document.startViewTransition` where it exists and motion is not
+    reduced, names `dish-<mealId>` / `dish-title-<mealId>` set on the tapped card only and on the
+    page's picture and `h1`; the update waits for the dish page to mount (at most 1.5 s).
+    Elsewhere an ordinary link.
+  - **Motion**: the screens arrive staggered (`.motion-enter`, `.motion-list`), the rings sweep
+    and their figures count (`CountUp`), the next-meal picture fades up, a tick draws itself
+    (`.motion-tick`) and presses in, the swap panel rises (`.motion-sheet`), the weight counts up
+    and its sparkline draws. Every colour transition on these screens is gone.
+  - `packages/ui`: `Rings` gains `decorative` (no group and no hidden list where a visible legend
+    already says the figures — the phase 2 note) and transitions `stroke-dashoffset`, so a ring
+    moves when its value changes; `useCountUp` counts a value that changes after arrival from the
+    one before (the late-hydration rule now applies only to the figure as it first arrives).
+  - Dictionaries: `dashboard.ringsDone`, `ringsNone`, `ringsOf`, `ringsPlan`; `meal.shareTitle`,
+    `shareOfDay`; `plan.dayVsTarget` — in both.
+  - `apps/web/vitest.config.ts` resolves the app's path aliases and JSX, so a component whose
+    markup is a contract can be rendered to a string in Node (`DishPicture.test.tsx`).
+- **Evidence** (executor, local build, local Postgres):
+  - `pnpm turbo lint ts:check test --filter=web --filter=ui`: 14 tasks green; `ui` 65 files / 534
+    tests (+2: `Rings` decorative, a count-up from the previous value), `web` 43 / 370 (+16:
+    `dayRings` 8, `dishLook` 2, `DishPicture` 6). `pnpm deadcode` clean. Contrast with the patched
+    script: 5 themes × 87 pairs, 435 pass (new: the four moment glyphs on their grounds, lowest
+    Claro 3.13:1).
+  - Control baseline (`plan` and `noplan`, `/inicio`, `/plan`, `/plan/comida/<id>`, both languages,
+    phone and desktop, 20 files): no line gone but data (dish names, the greeting's hour) and the
+    assistant's link (its local switch was off; phase 0 had it on). New: «Tema» (1b), the dish
+    page's heading «Lo que aporta a tus objetivos del día», «· # min» on the next meal's link, and
+    the pressed «Quitar la marca de hecha» of a meal marked done.
+  - Overflow (`probe.mjs`, element by element): the three routes with a generated plan (a meal
+    done, one skipped, one swapped) at 320/360/390/768/1280 × five themes × both languages: 150
+    loads, 0 hits; no plan, `/inicio` and `/plan`, five widths × Claro/Oscuro × both languages:
+    40, 0 hits. `widths.mjs` 320→1400: the three routes in both languages and the no-plan pair:
+    clean. Longest library names (99 and 90 characters) written into every dish name, title and
+    side, five widths × 100 % and 200 % text: 150 checks in five themes (Spanish) and 60 in Claro
+    and Oscuro (English), 0 runs and 0 cut boxes (the shell's hatch, cut to its band by design,
+    excluded).
+  - Dish actions, scrolled to the bottom: at 320 and 390 the last block ends 48 px above the
+    actions card, the card 12 px above the bar; at 200 % text the same order holds; at 768 the
+    rail stands in for the bar and the page ends 48 px above the screen's foot.
+  - Motion (Chrome, 4× CPU, 390 px): `/inicio` and a dish, CLS 0.0000; long tasks 165–189 ms at
+    load and 50–79 ms after, the same with reduced motion on (hydration, not animation); animated
+    properties `opacity`, `transform`, `translate`, `stroke-dashoffset`. Reduced motion: no
+    animation running 250 ms after load, every ring at its final offset on the first sample.
+  - A tick on Inicio with the server's answer held back: the rings drew 941 kcal / 42 / 131 / 28 g
+    within 150 ms and the caption changed; after the answer the same values.
+  - View Transition from `/plan` and from Inicio: one transition started, `dish-<id>` and
+    `dish-title-<id>` on the tapped card and on the page's picture and `h1`, landed on the dish.
+- **Deviations from plan**: see the hand-back.
+- **Inventory, line by line** — `inventory/app.md`, each row → where it is now:
+  - `/inicio` 1 tour → unchanged, opens here · 2 greeting `h1` → header, name in the accent · 3
+    pending-review notice → notices region, top · 4 away card → notices region · 5 «Ver mi plan»
+    → inside it · 6 check-in due → notices region · 7 plan status line → under the `h1` · 8
+    fortnight strip (link, aria-label) → its own card after «Hoy» · 9 next-meal card → large
+    picture or designed state with strip; eyebrow, name, kcal · P (minutes added), «IA» mark and
+    hidden name with a picture; link (and View Transition) to the dish · 10 «Ya no queda nada por
+    hoy.» → same place · 11 fallback plate → the designed state · 12 «Hoy» + «Ver los 14 días →»
+    → «Hoy» card heading · 13 today's macro summary → the plan's day total is the sentence under
+    the rings (`ringsPlan`); `MacroSummary` itself only when there are no targets; `macros.note`
+    at the foot of «Hoy» · 14 meal rows (tick, slot, name, sides, badges, kcal · P, link) →
+    unchanged, thumbnail added · 15 «Ingredientes» → unchanged · 16–17 plan ended + its two
+    links → main column · 18 scheduled card → main column · 19 waiting variant → main column ·
+    20 no-plan text + card + «Crear mi plan» → main column, first after the notices · 21
+    targets heading + «Ajustar →» → targets card heading · 22 targets macro summary → on a plan's
+    day each target is in the legend («de 2246 kcal»); otherwise `MacroSummary` as before · 23
+    estimate note → foot of the targets card · 24 «Hoy, sobre tus objetivos» (plan vs targets) →
+    replaced on Inicio by the rings (marked done vs targets) and the plan-total sentence; the
+    words `todayVsTarget` are now only the rings' internal label (decorative), see Deviations ·
+    25 shopping snapshot → side column card · 26–30 weight panel, sparkline, form, start + link,
+    error → side column card (figure counts up, line draws) · 31 floor-clamp notice → side column,
+    as a `Note` (warning, «Aviso»).
+  - `/plan` 1 pending notice, 2 scheduled link, 3 pantry sentence, 4 browser, 5 scheduled-only,
+    6 empty → unchanged · browser 7–12 → unchanged (title heavier) · 13 week toggle → unchanged ·
+    14 day group → chips restyled, `aria-current` kept · 15 day heading → unchanged, the card slides
+    in by direction · 16 «Comiendo para» → unchanged · 17 macro summary + note → unchanged · new:
+    «El día, sobre sus objetivos» · 18 meal rows → unchanged controls, thumbnail added · 19–24
+    events card, list, capacity, form, outcome, error → unchanged.
+  - `/plan/comida/[id]` 1 locked card → unchanged · 2 back link → top · 3 slot line → on the
+    strip · 4 `h1` `data-ai-generated` → on the strip, View Transition name · 5 facts → chips · 6
+    equipment → chips · 7 paused text → where the actions are, in the page · 8 «Podrás marcarla
+    el …» → inside the actions card · 9 Hecha / Saltada → actions card (fixed above the bar on a
+    phone) · 10 «Cambiar plato» with its panel, count, hints, alert → actions card, the panel
+    rising inside it · 11 read-only note → where the actions are · 12 picture figure, mark, alt,
+    caption, drawing wait, fallback → hero; a dish whose `pictureStatus` is `none` now shows the
+    designed state there too (no caption, nothing marked) · 13 spec list → side column card · 14
+    macro summary + note → share rings with figures and percentages, the note under them;
+    `MacroSummary` when no target is known · 15 ingredients · 16 accompaniments · 17 steps
+    (numbered badges, `data-ai-generated`) · 18 verdict → unchanged.
+- **Lead's check on phase 4 (2026-11-12)**: branch taken into the main checkout with `main`
+  merged; contrast 5 themes × 87 pairs, 435 pass. **With real pictures**, which the executor could
+  not have: the local probe plan's recipes were pointed at public pictures read from production
+  (read-only there; the rows were written to the local database and removed after), one dish in
+  five left without, and a meal marked done. On that: `/inicio`, `/plan` and the dish page at 320,
+  360, 390, 768 and 1280 in all five themes (75 loads) and `widths.mjs` from 320 to 1,400: no hit.
+  Looked at: the rings a quarter full with their legend beside them at 390 and under them at 320;
+  the next meal's picture with its «IA» mark clear of the strip; thumbnails with the mark in the
+  day's rows; the dish's picture, caption and share rings; the actions card above the bar; the
+  designed state beside real pictures; Pulso; the desktop layout.
+- **A trap for the next probe**: the picture store refuses a headless browser (the response is
+  blocked as opaque), so a probe shows the no-picture state for every dish however the data is.
+  To see pictures, fetch the bytes outside the browser and hand them to the page
+  (`page.route` on the store's host). On a person's phone they load.
+- **Not seen**: a picture that belongs to its dish (they were assigned at random), the drawing →
+  ready fade, a failed load, and the View Transition in Safari.

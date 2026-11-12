@@ -35,6 +35,7 @@
 
 .arc {
   stroke-linecap: round;
+  transition: stroke-dashoffset var(--motion-figure);
 }
 
 .tone1 {

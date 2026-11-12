@@ -22,7 +22,6 @@
   background-color: var(--color-track);
   block-size: 0.5rem;
   border-radius: var(--radius-full);
-  transition: background-color var(--duration-fast) var(--ease-default);
 }
 
 .cell[data-state='past'] {

@@ -264,7 +264,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 
 ### Phase 4 — Inicio and the dish, where the food is
 
-- [ ] pending
+- [x] done — 2026-11-12 (LOG.md)
 - **Dispatch**: opus @ medium — `/execute-project 024 phase 4`
 - **Goal**: Inicio, the plan's day and the dish page as approved, with pictures and rings.
 - **Scope**: `(app)/inicio`, `(app)/plan` and `plan/comida/[id]`, and their components

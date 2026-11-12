@@ -15,6 +15,7 @@ import { MacroShift } from 'components/MacroShift';
 import { MacroSummary } from 'components/MacroSummary';
 import { MealRow } from 'components/MealRow';
 import { PlanDayNav } from 'components/PlanDayNav';
+import { TargetProgress } from 'components/TargetProgress';
 
 import { formatDate, interpolate } from 'lib/format';
 
@@ -53,7 +54,22 @@ export function PlanBrowser({ events = [], history = null, midPlan = null, plan,
   const shortDate = (date: string) => formatDate(date, locale, { day: 'numeric', month: 'short' });
   const today = history || upcoming ? undefined : plan.days.find(day => day.date === new Date().toISOString().slice(0, 10))?.dayIndex;
   const [selected, setSelected] = useState(today ?? 1);
+  // Which way the last change of day went: the next day slides in from the end, an
+  // earlier one from the start (the shared axis, `ui/styles/motion`). None before the first.
+  const [travel, setTravel] = useState<'back' | 'forward' | null>(null);
   const day = plan.days.find(candidate => candidate.dayIndex === selected) ?? plan.days[0];
+  // What the day was built to hit: its own targets on a day that eats for an event, the
+  // plan's otherwise. Null on a plan older than both, which then shows its figures only.
+  const dayTargets = day ? (day.targets ?? plan.strategy) : null;
+
+  function select(dayIndex: number) {
+    if (dayIndex !== selected) {
+      setTravel(dayIndex > selected ? 'forward' : 'back');
+    }
+
+    setSelected(dayIndex);
+  }
+
   const canAddMidPlan = midPlan !== null && history === null && !upcoming;
 
   return (
@@ -106,10 +122,14 @@ export function PlanBrowser({ events = [], history = null, midPlan = null, plan,
       </div>
 
       <div className={styles.layout}>
-        <PlanDayNav days={plan.days} onSelect={setSelected} selected={selected} today={today} />
+        <PlanDayNav days={plan.days} onSelect={select} selected={selected} today={today} />
 
         {day ? (
-          <Card as="section" className={`${styles.card} motion-enter`} key={day.dayIndex}>
+          <Card
+            as="section"
+            className={`${styles.card} ${travel === 'forward' ? 'motion-forward' : travel === 'back' ? 'motion-back' : 'motion-enter'}`}
+            key={day.dayIndex}
+          >
             <div className={styles.dayHeading}>
               <div>
                 <Text size="lg" weight="semibold">
@@ -146,13 +166,22 @@ export function PlanBrowser({ events = [], history = null, midPlan = null, plan,
               proteinG={day.totals.proteinG}
             />
 
-            {/* Keyed on the day so switching days replays the entrance — the
-                content changed, and motion is how a reader is told that. */}
+            {/* The day's totals against what it was built to hit, the figures in words
+                beside each bar. The plan's, never what was eaten. */}
+            {dayTargets ? (
+              <div className={styles.targets}>
+                <TargetProgress label={dictionary.plan.dayVsTarget} targets={dayTargets} totals={day.totals} />
+              </div>
+            ) : null}
+
+            {/* The card is keyed on the day, so switching days replays the slide and the
+                rows' arrival — the content changed, and motion is how a reader is told that. */}
             <div className={`${styles.meals} motion-list`}>
               {day.meals.map(meal => (
                 <MealRow
                   accompaniments={meal.accompaniments}
                   id={meal.id}
+                  illustrationPath={meal.illustrationPath}
                   ingredients={meal.ingredients}
                   kcal={meal.kcal}
                   key={meal.id}
