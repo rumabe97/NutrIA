@@ -123,12 +123,20 @@
       "dependsOn": [
         "^build",
         "^test"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/web/src/styles/themes.css"
       ]
     },
     "test:coverage": {
       "dependsOn": [
         "^build",
         "^test:coverage"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/web/src/styles/themes.css"
       ],
       "outputs": [
         "coverage/**"

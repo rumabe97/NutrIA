@@ -355,7 +355,22 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 
 ### Phase 7b — The mails
 
-- [ ] pending
+- [ ] in progress — built 2026-11-13; human-verify pending: the owner reads each mail on his iPhone and in Gmail on the web, light and dark
+  - [x] `Layout.ts` — the look, Claro inline, Oscuro under `prefers-color-scheme: dark`, `color-scheme` meta
+  - [x] AccountWaiting
+  - [x] CareInvitation
+  - [x] CheckInReminder
+  - [x] CheckInSubmitted
+  - [x] ExistingAccountSignUp
+  - [x] OwnerAlert
+  - [x] OwnerDigest
+  - [x] PasskeyAdded
+  - [x] PasswordChanged
+  - [x] PasswordReset
+  - [x] ProfessionalGranted
+  - [x] TwoFactorChanged
+  - [x] TwoFactorRemoval
+  - [x] VerifyEmail
 - **Dispatch**: opus @ medium — `/execute-project 024 phase 7b` — human-verify: the owner reads
   each mail on his iPhone and in Gmail on the web, light and dark.
 - **Goal**: the fourteen mails in the new look, saying exactly what they say today.
