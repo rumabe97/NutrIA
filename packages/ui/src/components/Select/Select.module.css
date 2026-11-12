@@ -5,6 +5,9 @@
   background-color: var(--background-01);
   border-radius: var(--radius-control);
   border: var(--border-width-interactive) solid var(--border-interactive);
+  /* Named here, not left to `.label`: Radix's Value drops the class it is given, so the
+     chosen value and the placeholder take the trigger's own colour. */
+  color: var(--foreground-01);
   cursor: pointer;
   display: inline-flex;
   font-size: var(--font-size-03);
@@ -23,6 +26,11 @@
   .trigger {
     min-block-size: var(--target-min);
   }
+}
+
+/* Nothing chosen yet: the hint, a tier quieter than an answer. */
+.trigger[data-placeholder] {
+  color: var(--foreground-02);
 }
 
 .trigger:disabled {
