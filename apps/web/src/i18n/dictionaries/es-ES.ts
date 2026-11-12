@@ -2128,9 +2128,9 @@ export const esES = {
     ],
     stepsLede: 'El trabajo de planificar lo hacemos nosotros. Tú decides qué comer entre lo que ya encaja.',
     stepsTitle: 'Cuatro pasos. Después, se repite solo.',
-    title: 'Nutrición que se adapta a ti.',
+    title: 'Come bien sin pensarlo.',
     /* The end of `title` drawn in the accent; it must be the title's own last words. */
-    titleAccent: 'a ti.'
+    titleAccent: 'sin pensarlo.'
   },
 
   macros: {

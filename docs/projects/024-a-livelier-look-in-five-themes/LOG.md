@@ -1658,3 +1658,8 @@ focus stays in the box, as before.
   fixed here — the header's section links get the 44 px target on a coarse pointer, and the
   public pages reserve the sticky header's height when a focused control is scrolled into view
   (2.4.11), reset where the header is not sticky.
+- **Approved by the owner (2026-11-13)**: the captures, as they are — the hero without pictures.
+  And his decision on the headline: the sheet's, «Come bien sin pensarlo.» («Eat well without
+  thinking about it.»), its last words in the accent. This is the page's `h1` and the share
+  card's line; the title and description in the head are unchanged. The four baseline files
+  that name the heading are updated.

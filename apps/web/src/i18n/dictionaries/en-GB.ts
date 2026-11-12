@@ -2032,8 +2032,8 @@ export const enGB: Dictionary = {
     ],
     stepsLede: 'We do the planning. You decide what to eat from the things that already fit.',
     stepsTitle: 'Four steps. After that, it repeats itself.',
-    title: 'Nutrition that adapts to you.',
-    titleAccent: 'to you.'
+    title: 'Eat well without thinking about it.',
+    titleAccent: 'without thinking about it.'
   },
 
   macros: {
