@@ -338,7 +338,7 @@ export function HealthPanel({ health }: { health: HealthView }) {
             </p>
           ) : null}
 
-          <div className={styles.actions}>
+          <div className={`${styles.actions} button-row`}>
             <Button disabled={!consented} loading={pending} onClick={() => void save()} type="button">
               {pending ? dictionary.common.saving : dictionary.common.save}
             </Button>

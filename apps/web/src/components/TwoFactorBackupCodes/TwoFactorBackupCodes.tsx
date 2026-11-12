@@ -115,7 +115,7 @@ export function TwoFactorBackupCodes({ codes, email, onDone, title }: TwoFactorB
         ))}
       </ol>
 
-      <div className={styles.actions}>
+      <div className={`${styles.actions} button-row`}>
         <Button onClick={() => void copy()} type="button" variant="secondary">
           {t.copy}
         </Button>
@@ -144,7 +144,7 @@ export function TwoFactorBackupCodes({ codes, email, onDone, title }: TwoFactorB
         ) : null}
       </div>
 
-      <div className={styles.actions}>
+      <div className={`${styles.actions} button-row`}>
         <Button onClick={done} type="button">
           {t.done}
         </Button>

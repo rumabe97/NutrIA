@@ -191,7 +191,7 @@ export function TargetsPanel({ targets }: { targets: ResolvedTargets }) {
           />
           <Input inputMode="numeric" label={t.labelFat} onChange={event => setDraft({ ...draft, fatG: event.target.value })} value={draft.fatG} />
 
-          <div className={styles.actions}>
+          <div className={`${styles.actions} button-row`}>
             <Button loading={pending} type="submit">
               {pending ? dictionary.common.saving : t.saveTargets}
             </Button>
@@ -220,7 +220,7 @@ export function TargetsPanel({ targets }: { targets: ResolvedTargets }) {
           </div>
         </form>
       ) : (
-        <div className={styles.actions}>
+        <div className={`${styles.actions} button-row`}>
           <Button onClick={() => setEditing(true)} type="button" variant="secondary">
             {t.edit}
           </Button>
