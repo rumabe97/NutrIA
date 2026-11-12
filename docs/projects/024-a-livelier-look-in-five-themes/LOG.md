@@ -574,3 +574,21 @@
   the bar hiding for the keyboard, the assistant's box above the bar, the last row of the
   shopping list and of a plan day above the bar, the header staying put when «Tema», a select or
   «Tus conversaciones» opens on a scrolled page.
+
+## After phase 2 — a dish's title was boxed on arrival (2026-11-12)
+
+- **Reported by the owner**, with a screenshot of a dish page on his iPhone: the title drawn inside
+  a ring, «como seleccionado», and his instruction that it must not happen anywhere in the app.
+- **Cause**: after a route change `RouteAnnouncer` moves focus to the page's heading, and some
+  thirty components do the same with a heading, a status line or a region when a step changes or
+  a dialog closes. The global `:focus-visible` rule drew its ring on them as on a control. Safari
+  on iOS treats focus moved by script as visible focus; Chrome does only after a key press, which
+  is why it showed in one probe screenshot (after Escape) and nobody read it as a defect.
+- **Fix**, once, in `ui/styles/base`: an element only script can focus (`tabindex="-1"`) that has
+  no role draws no ring. Buttons, links, fields, and menu items, tabs and radios (which carry a
+  role) keep theirs. Focus still moves, so a screen reader announces the page as before.
+- **Checked in Chrome** on a page built from the real stylesheet, in keyboard modality: a
+  heading, a paragraph and a region focused by script have no outline; a `menuitem`, a button, a
+  field and a link have one.
+- **Not run**: `gate.sh --full` — phase 4's executor is using the machine, which died under two
+  heavy jobs on 2026-11-11. The `ui` and `web` checks ran; CI runs the rest.

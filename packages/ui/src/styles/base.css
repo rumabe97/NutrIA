@@ -85,6 +85,22 @@ textarea {
   outline-offset: var(--focus-ring-offset);
 }
 
+/*
+ * Focus moved by script to something that is not a control draws no ring.
+ *
+ * After a route change the page's heading takes focus, and so does a region when a dialog
+ * closes or a step changes: that is for a screen reader to announce from and for the next Tab
+ * to start from. It is not a control, nobody can operate it, and a ring around it reads as
+ * "selected" — on an iPhone every dish page opened with its title boxed (project 024).
+ *
+ * Only what the keyboard cannot reach by itself (`tabindex="-1"`) and that has no role: a
+ * menu item, a tab or a radio that takes focus by the arrow keys carries a role and keeps its
+ * ring, as every button, link and field does.
+ */
+:is(h1, h2, h3, h4, h5, h6, main, section, article, header, footer, div, p, ul, ol, li, span)[tabindex='-1']:not([role]):focus-visible {
+  outline: none;
+}
+
 /* Reduced-motion baseline.
    When the user's OS reports `prefers-reduced-motion: reduce`, we collapse every animation
    and transition to ~instant. Applies to every app that imports `ui/styles/base` — Carousel
