@@ -127,7 +127,7 @@ export function DeleteAccount() {
           {dictionary.profile.deleteSignInAgainBody}
         </Note>
 
-        <div className={styles.actions}>
+        <div className={`${styles.actions} button-row`}>
           <Button aria-describedby={reasonId} loading={signingOut} onClick={() => void signOutAndBack()} ref={signInAgainRef} type="button">
             {dictionary.profile.deleteSignInAgain}
           </Button>
@@ -158,7 +158,7 @@ export function DeleteAccount() {
         value={value}
       />
 
-      <div className={styles.actions}>
+      <div className={`${styles.actions} button-row`}>
         {/* Red, because this one cannot be undone: the colour is the last warning before the word typed above takes effect. */}
         <Button disabled={value !== word} loading={pending} onClick={remove} type="button" variant="destructive">
           {pending ? dictionary.profile.deletePending : dictionary.profile.deleteConfirm}

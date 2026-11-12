@@ -1519,3 +1519,28 @@ teclado». On a touch screen (`pointer: coarse`) sending now gives up the box's 
 question is on its way — after the press has landed, so nothing moves under the finger — and a
 first answer no longer puts the focus back in the box there. With a keyboard and a pointer the
 focus stays in the box, as before.
+
+## After phase 6 — buttons side by side, and a destructive button in the theme (2026-11-13)
+
+**Reported by the owner** with a capture of Perfil → «Verificación en dos pasos»: two buttons
+of one card stood one over the other, and the filled red of «Desactivar» did not belong to the
+theme. He asked for every card where it happens, and for every button's colour to be looked at.
+
+- **One rule, `button-row`** (`packages/ui/src/styles/classnames.css`): a group of buttons
+  that belong together stays on one line at the smaller button's measure; where the row is too
+  narrow for every label on one line, a label wraps inside its own button, which grows.
+  Applied to the action groups of the profile's cards: the second factor (its card, its setup,
+  its password step, its backup codes), the passkeys, the sessions, the targets, the health
+  panel, the consent card, the care link, deleting the account — and deleting a conversation.
+  The two groups that hold a sentence and a button keep wrapping as they did.
+- **The destructive button** is the error's own ink on its own pale ground with an edge of
+  that ink — the shape of a secondary button, red only in its words — instead of a filled red
+  beside the brand's filled tomato. The pair (`--color-error-text` on `--color-error-surface`)
+  is one the contrast script already holds in every theme. The other three variants were read
+  again in Claro and Oscuro and left as they are: the filled one in the brand's deep gradient,
+  the outlined one, the text one in the solid accent.
+- **Verification** (local build, a probe account with a second factor): on `/perfil` at 390 and
+  320 in Claro and at 390 in Oscuro, «Generar códigos nuevos» and «Desactivar» share one line
+  (at 320 the longer label wraps inside its button), no other group of two buttons stands on
+  two lines, no sideways scroll. NOT RUN: the confirmation states of each card in a browser
+  (they use the same rule), Huerta, Pulso and Alto contraste by eye, an iPhone.

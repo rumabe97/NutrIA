@@ -118,7 +118,7 @@ export function TwoFactorPasswordStep({ body, confirm, destructive = false, emai
         type="password"
       />
 
-      <div className={styles.actions}>
+      <div className={`${styles.actions} button-row`}>
         <Button loading={pending} type="submit" variant={destructive ? 'destructive' : 'primary'}>
           {confirm}
         </Button>
