@@ -183,7 +183,8 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
     // consent-gated steps), but every step from `goal` on is a 409 the reader
     // would meet several screens later, for a box that scrolled out of view.
     if (current?.key === 'about-you' && form.get('profileConsentGiven') !== 'on') {
-      return { profileConsentGiven: [dictionary.profileConsent.note] };
+      // The note's own words, its `{privacy}` named in words: an alert carries no link.
+      return { profileConsentGiven: [interpolate(dictionary.profileConsent.note, { privacy: dictionary.auth.legalPrivacy })] };
     }
 
     return {};

@@ -15,6 +15,7 @@ import { ProfileConsentFields } from 'components/ProfileConsentFields';
 import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
 
 import { api, messageFor } from 'lib/api';
+import { interpolate } from 'lib/format';
 
 import type { FormEvent } from 'react';
 import type { ProfileConsentView } from 'core/controllers/Profile';
@@ -40,7 +41,8 @@ export function ProfileConsentInterstitial() {
     setError(undefined);
 
     if (new FormData(event.currentTarget).get('profileConsentGiven') !== 'on') {
-      setError(t.note);
+      // The note's own words, its `{privacy}` named in words: an alert carries no link.
+      setError(interpolate(t.note, { privacy: dictionary.auth.legalPrivacy }));
 
       return;
     }
