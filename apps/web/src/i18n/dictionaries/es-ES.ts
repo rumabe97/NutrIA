@@ -1251,6 +1251,7 @@ export const esES = {
     answerLabel: 'Respuesta del asistente',
     back: 'Todas las conversaciones',
     cancel: 'Cancelar',
+    composerNotice: 'Te responde una IA: no escribas aquí datos de tu salud.',
     conversationsEmptyBody: 'Aquí aparecerán tus conversaciones con el asistente, la más reciente primero, para que puedas retomarlas.',
     conversationsEmptyTitle: 'Todavía no has preguntado nada',
     conversationsTitle: 'Tus conversaciones',
@@ -1304,7 +1305,9 @@ export const esES = {
     warning:
       'Estás hablando con un asistente de inteligencia artificial, no con una persona: puede equivocarse, y lo que dice no sustituye el consejo de un médico ni de un dietista-nutricionista colegiado. Lo que escribes se envía al modelo que responde y se guarda para que puedas retomar la conversación, así que no escribas aquí enfermedades, medicación ni otros datos de tu salud. Si tienes una alergia, añádela a tu perfil, que es donde la tenemos en cuenta. Puedes borrar un mensaje o la conversación entera cuando quieras. Más en la {privacy}.',
     warningLabel: 'Aviso',
+    warningMore: 'Aviso completo',
     warningPrivacy: 'política de privacidad',
+    warningShort: 'Hablas con una IA, no con una persona. No escribas aquí enfermedades, medicación ni otros datos de tu salud.',
     withdrawn: 'Pregunta no guardada: era sobre salud.',
     you: 'Tú'
   },

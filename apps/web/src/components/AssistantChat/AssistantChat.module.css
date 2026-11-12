@@ -18,14 +18,6 @@
   padding: 0;
 }
 
-/* The warning (a `Note`): NutrIA's notice, not one of the model's answers. */
-.noticeText {
-  color: var(--foreground-01);
-  font-size: var(--font-size-02);
-  line-height: var(--line-height-04);
-  margin: 0;
-}
-
 /* The person's words: a bubble at the end of the line. */
 .user {
   display: grid;

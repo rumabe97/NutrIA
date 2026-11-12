@@ -6,21 +6,17 @@ import { useRouter } from 'next/navigation';
 import styles from './AssistantChat.module.css';
 
 import { Button } from 'ui/components/Button';
-import { Link } from 'ui/components/Link';
-import { Note } from 'ui/components/Note';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { withLocale } from 'i18n/routes';
 
 import { AssistantMarkdown } from 'components/AssistantMarkdown';
+import { AssistantWarning } from 'components/AssistantWarning';
 
 import { api, ApiError, messageFor } from 'lib/api';
 import { askAssistant, threadItems } from 'lib/assistant';
 import { formatDate, interpolate } from 'lib/format';
 
 import type { AssistantDecline, AssistantStanding, AssistantTurn } from 'lib/assistant';
-
-/** Where the warning's link to the privacy policy goes (`docs/legal/assistant-warning.md` § 1). */
-const PRIVACY_PLACEHOLDER = '{privacy}';
 
 /** The longest question the API takes (`ASSISTANT_MESSAGE_MAX_LENGTH`). */
 const MAX_LENGTH = 1000;
@@ -72,7 +68,9 @@ function toEnd(): void {
  *
  * **The warning is the first message of every conversation**, drawn by this
  * component and not by the page, so no conversation can be shown without it
- * (PRD 12).
+ * (PRD 12): whole while the conversation has no message, folded to its AI and
+ * health sentence once it has one (`components/AssistantWarning`); and the line
+ * under the box says the same two things in every state.
  *
  * The answer arrives a sentence at a time, each already checked by the API. A
  * decline that arrives after some sentences is added **beneath** them, never in
@@ -91,6 +89,10 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
   const t = dictionary.assistant;
   const fieldId = useId();
   const hintId = useId();
+  const warningId = useId();
+  // The warning opened in full after it folded: this visit's React state only, never stored
+  // (`docs/legal/2026-11-11-redesign.md` § 6.5).
+  const [warningOpen, setWarningOpen] = useState(false);
   const [conversation, setConversation] = useState(conversationId);
   const [shown, setShown] = useState<readonly ShownTurn[]>(() =>
     turns.map(turn => ({ id: turn.id, content: turn.content, decline: turn.decline, key: turn.id, role: turn.role }))
@@ -332,19 +334,15 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
         {threadItems(shown).map(item => {
           if (item.kind === 'warning') {
             return (
-              <Note as="li" key="warning" showToneLabel={true} tone="warning" toneLabel={t.warningLabel}>
-                <p className={styles.noticeText}>
-                  {t.warning.split(/(\{privacy\})/).map(part =>
-                    part === PRIVACY_PLACEHOLDER ? (
-                      <Link href={withLocale('/privacidad#asistente', locale)} inline={true} key={part}>
-                        {t.warningPrivacy}
-                      </Link>
-                    ) : (
-                      part
-                    )
-                  )}
-                </p>
-              </Note>
+              <AssistantWarning
+                expanded={warningOpen}
+                folded={shown.length > 0}
+                fullId={warningId}
+                key="warning"
+                onToggle={() => setWarningOpen(open => !open)}
+                privacyHref={withLocale('/privacidad#asistente', locale)}
+                t={t}
+              />
             );
           }
 
@@ -488,7 +486,9 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
           </button>
         </div>
         <p className={styles.hint} id={hintId}>
-          {allowance} <span className={styles.enter}>{t.enterHint}</span>
+          {/* The persistent label of the box: an AI answers, and no health data here — in every
+              state of the warning, and read with the field (`aria-describedby`). */}
+          {t.composerNotice} {allowance} <span className={styles.enter}>{t.enterHint}</span>
         </p>
       </form>
     </div>

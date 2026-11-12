@@ -1213,6 +1213,7 @@ export const enGB: Dictionary = {
     answerLabel: 'The assistant’s answer',
     back: 'All conversations',
     cancel: 'Cancel',
+    composerNotice: 'An AI answers you: please do not write about your health here.',
     conversationsEmptyBody: 'Your conversations with the assistant will appear here, the most recent first, so you can pick them up again.',
     conversationsEmptyTitle: 'You have not asked anything yet',
     conversationsTitle: 'Your conversations',
@@ -1265,7 +1266,9 @@ export const enGB: Dictionary = {
     warning:
       'You are talking to an AI assistant, not a person: it can get things wrong, and what it says does not replace the advice of a doctor or a registered dietitian-nutritionist. What you type is sent to the model that answers and kept so you can come back to the conversation, so please do not write about conditions, medication or anything else about your health here. If you have an allergy, add it to your profile, which is where we take it into account. You can delete a message or the whole conversation whenever you like. More in the {privacy}.',
     warningLabel: 'Notice',
+    warningMore: 'Full notice',
     warningPrivacy: 'privacy policy',
+    warningShort: 'You are talking to an AI, not a person. Please do not write about conditions, medication or anything else about your health here.',
     withdrawn: 'Question not kept: it was about health.',
     you: 'You'
   },
