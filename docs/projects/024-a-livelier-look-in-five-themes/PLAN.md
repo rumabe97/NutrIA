@@ -325,7 +325,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 
 ### Phase 7 — The public pages
 
-- [ ] pending
+- [x] done — built 2026-11-12/13, the captures approved by the owner on 2026-11-13; the hero ships without pictures (the owner chooses them later, legal § 2.8); Lighthouse not run, no binary on the machine (LOG.md)
 - **Dispatch**: opus @ medium — `/execute-project 024 phase 7`
 - **Goal**: landing, the sign-in family and the two legal pages in the new design, with SEO at
   least where it was.

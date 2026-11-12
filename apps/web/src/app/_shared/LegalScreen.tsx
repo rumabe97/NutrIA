@@ -41,8 +41,8 @@ export function LegalScreen({ document, locale }: Readonly<{ document: LegalDocu
       <SiteHeader />
 
       <main className={styles.main} id={MAIN_ID}>
-        <article className={styles.article}>
-          <Heading level="1" size="xl">
+        <article className={`${styles.article} motion-enter`}>
+          <Heading className={styles.title} level="1" size="xl">
             {t.title}
           </Heading>
           <Text className={styles.updated} size="sm" tone="secondary">
@@ -57,7 +57,7 @@ export function LegalScreen({ document, locale }: Readonly<{ document: LegalDocu
 
           {t.sections.map(section => (
             <section className={styles.section} id={'id' in section ? section.id : undefined} key={section.heading}>
-              <Heading level="2" size="md">
+              <Heading className={styles.heading} level="2" size="md">
                 {section.heading}
               </Heading>
 
