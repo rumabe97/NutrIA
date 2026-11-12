@@ -1649,3 +1649,12 @@ focus stays in the box, as before.
 - **For the lead**: `seo` (metadata unchanged, nothing to change in sitemap/JSON-LD; O2 `noimageindex`
   becomes a question only with pictures) and `accessibility` reviews; Lighthouse ×5 on `/` where a
   binary exists.
+- **The lead's check and the two reviews (2026-11-13)**: `gate.sh --full` green on a quiet
+  machine (the executor's red runs were load). Read at 390 beside the sheet's crops: the
+  landing (top, further down, 1280, Oscuro, 320), `/acceder`, `/registro`, `/privacidad` — no
+  sideways scroll on any. `seo` (code only): nothing above P2; the `h1`'s text, the metadata,
+  the sitemap and the FAQ's JSON-LD unchanged; recommends `noimageindex` on `/` and `/en` when
+  the first picture is added (legal O2). `accessibility` (code only): nothing above P2; two P2
+  fixed here — the header's section links get the 44 px target on a coarse pointer, and the
+  public pages reserve the sticky header's height when a focused control is scrolled into view
+  (2.4.11), reset where the header is not sticky.

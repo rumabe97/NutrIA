@@ -108,6 +108,25 @@
   .signIn {
     min-block-size: var(--target-min);
   }
+
+  /* A tablet on its side has these links and a finger: the same target as the rest. */
+  .navLink {
+    align-items: center;
+    display: inline-flex;
+    min-block-size: var(--target-min);
+  }
+}
+
+/* Tabbing never leaves focus under the sticky header: scrolling a control into view stops
+   the header's height and a gap short of the top (WCAG 2.4.11), as the app's header does.
+   Reset under the large-text query below, where the header is not sticky. */
+html:has(.header) {
+  scroll-padding-block-start: calc(3.75rem + var(--space-03));
+}
+
+/* …except for what is in the header itself, which is always on screen. */
+.header :where(a, button, input) {
+  scroll-margin-block-start: calc(-1 * (3.75rem + var(--space-03)));
 }
 
 /*
@@ -163,5 +182,13 @@
 @media (width < 17rem) {
   .header {
     position: relative;
+  }
+
+  html:has(.header) {
+    scroll-padding-block-start: 0;
+  }
+
+  .header :where(a, button, input) {
+    scroll-margin-block-start: 0;
   }
 }
