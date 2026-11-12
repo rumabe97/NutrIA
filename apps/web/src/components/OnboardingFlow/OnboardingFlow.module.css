@@ -100,8 +100,17 @@
  * cut off could not be scrolled to (project 021 phase 5c).
  */
 .fieldset {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
   margin: 0;
   min-inline-size: 0;
+}
+
+/* A question set without a card of its own (inside the about-you card): no edge, no padding. */
+.fieldset:not(.group) {
+  border: none;
+  padding: 0;
 }
 
 /*
@@ -120,7 +129,7 @@
 }
 
 .hint {
-  margin-top: calc(var(--space-05) * -1 + var(--space-02));
+  margin: 0;
 }
 
 .allergen {
