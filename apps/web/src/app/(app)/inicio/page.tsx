@@ -106,6 +106,41 @@ export default async function DashboardPage() {
   const away = trips?.find(trip => trip.away);
   const targets = profile?.targets ?? null;
 
+  // The day's targets, and — on a day of the plan — the rings of what has been marked
+  // done against them. On a phone it comes first on a plan's day, because it is what the
+  // screen measures; with no day to measure it follows the day's own content, so the one
+  // thing to do (create a plan, come back from a trip) leads.
+  const targetsCard = targets ? (
+    <Card as="section" className={`${styles.targets} motion-enter`}>
+      <div className={styles.cardHeading}>
+        <h2 className={styles.cardTitle}>
+          {interpolate(t.targetsLabel, { status: targets.overrideStatus === 'applied' ? t.targetsStatusOverridden : t.targetsStatusEstimated })}
+        </h2>
+        <CtaLink href="/perfil" size="sm" variant="tertiary">
+          {t.targetsAdjust}
+        </CtaLink>
+      </div>
+
+      {day ? (
+        <DayRings meals={day.meals} targets={targets.effective} totals={day.totals} />
+      ) : (
+        <MacroSummary
+          carbsG={targets.effective.carbsG}
+          fatG={targets.effective.fatG}
+          kcal={targets.effective.kcal}
+          proteinG={targets.effective.proteinG}
+        />
+      )}
+
+      {/* Said on every screen the figure appears on, not only where it is
+            edited: someone acts on the number they see, not on the one they
+            once read an explanation for. */}
+      <Text className={styles.targetsNote} size="xs" tone="tertiary">
+        {t.targetsEstimate}
+      </Text>
+    </Card>
+  ) : null;
+
   const board = (
     <div className={styles.board} data-rail={targets ? true : undefined}>
       {/* What the screen wants from the person before anything it offers. Each is
@@ -142,38 +177,7 @@ export default async function DashboardPage() {
         ) : null}
       </div>
 
-      {targets ? (
-        // The day's targets, and — on a day of the plan — the rings of what has been
-        // marked done against them. First on a phone: it is what the screen measures.
-        <Card as="section" className={`${styles.targets} motion-enter`}>
-          <div className={styles.cardHeading}>
-            <h2 className={styles.cardTitle}>
-              {interpolate(t.targetsLabel, { status: targets.overrideStatus === 'applied' ? t.targetsStatusOverridden : t.targetsStatusEstimated })}
-            </h2>
-            <CtaLink href="/perfil" size="sm" variant="tertiary">
-              {t.targetsAdjust}
-            </CtaLink>
-          </div>
-
-          {day ? (
-            <DayRings meals={day.meals} targets={targets.effective} totals={day.totals} />
-          ) : (
-            <MacroSummary
-              carbsG={targets.effective.carbsG}
-              fatG={targets.effective.fatG}
-              kcal={targets.effective.kcal}
-              proteinG={targets.effective.proteinG}
-            />
-          )}
-
-          {/* Said on every screen the figure appears on, not only where it is
-              edited: someone acts on the number they see, not on the one they
-              once read an explanation for. */}
-          <Text className={styles.targetsNote} size="xs" tone="tertiary">
-            {t.targetsEstimate}
-          </Text>
-        </Card>
-      ) : null}
+      {day ? targetsCard : null}
 
       <div className={`${styles.main} motion-list`}>
         {plan ? (
@@ -263,6 +267,8 @@ export default async function DashboardPage() {
           </Fragment>
         )}
       </div>
+
+      {day ? null : targetsCard}
 
       {targets ? (
         // Reference, beside the day on a wide screen and after it on a phone: the
