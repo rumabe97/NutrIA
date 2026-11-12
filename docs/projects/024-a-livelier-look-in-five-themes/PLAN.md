@@ -240,7 +240,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 
 ### Phase 3 — The shell: header, floating bar and rail
 
-- [ ] in progress — built and shipped 2026-11-12; human-verify pending: the owner's iPhone (LOG.md)
+- [x] done — shipped 2026-11-12 (#367); confirmed by human on 2026-11-12 (LOG.md)
 - **Dispatch**: opus @ medium — `/execute-project 024 phase 3` — human-verify: on the owner's
   iPhone, the bar clears the home indicator, hides for the keyboard, and never covers the
   assistant's box, a dish page's actions or the last row of a list.
