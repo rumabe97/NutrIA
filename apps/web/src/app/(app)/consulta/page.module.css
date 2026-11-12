@@ -30,7 +30,9 @@
  * which is the order read and tabbed — does not change.
  */
 @media (width >= 64rem) {
-  .regions {
+  /* Only with patients to show: a closed practice has the plan card alone, which stays in the
+     single column rather than standing in the right half of an empty page. */
+  .regions:has(.main) {
     align-items: start;
     column-gap: var(--gap-region);
     grid-auto-flow: row dense;
@@ -38,11 +40,11 @@
     row-gap: var(--gap-block);
   }
 
-  .main {
+  .regions:has(.main) > .main {
     grid-column: 1;
   }
 
-  .side {
+  .regions:has(.main) > .side {
     grid-column: 2;
   }
 }
