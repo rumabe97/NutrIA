@@ -185,6 +185,8 @@
   background-image: linear-gradient(to bottom, transparent, var(--background-01) var(--space-04));
   bottom: var(--app-bar-clearance);
   display: grid;
+  /* No wider than the column: an implicit track took the field's own width at 200 % text. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-02);
   margin-block-start: auto;
   padding-block: var(--space-05) var(--space-02);

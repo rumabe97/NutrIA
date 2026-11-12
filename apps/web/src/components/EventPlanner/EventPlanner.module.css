@@ -1,6 +1,9 @@
 .root {
   display: grid;
   gap: var(--space-03);
+  /* A track no wider than its box (apps/web AGENTS.md § Large text): an implicit `auto`
+     track took the width of a select's words at 200 % text, 325 px on a 320 px screen. */
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .title {
@@ -50,6 +53,7 @@
 .form {
   display: grid;
   gap: var(--space-05);
+  grid-template-columns: minmax(0, 1fr);
   max-width: var(--prose-max);
 }
 
@@ -93,6 +97,7 @@
 .field {
   display: grid;
   gap: var(--space-01);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .label {
