@@ -82,6 +82,24 @@ You are talking to an AI assistant, not a person: it can get things wrong, and w
   ocasión de la primera interacción", and "se ajustará a los requisitos de accesibilidad"):
   - it is the first item of every conversation, new or reopened, before the field accepts
     anything, and nobody can dismiss it (PRD 12);
+  - *(since 2026-11-12, #371, `35d5da30`; [`2026-11-11-redesign.md`](./2026-11-11-redesign.md)
+    § 6)* it is drawn in full while the conversation has no message. Once it has one, it folds
+    to `assistant.warningShort` and a button, `assistant.warningMore`, that opens the full text
+    in place (`apps/web/src/components/AssistantWarning/AssistantWarning.tsx:41-84`;
+    `AssistantChat.tsx:337-345`). Under the box, `assistant.composerNotice` is drawn in every
+    state and is part of the field's description (`AssistantChat.tsx:457`, `:488-492`). Which
+    state is drawn is worked out from the turns on screen, and the open state is React state:
+    nothing is written to the browser, the account or the server, so every reload and every
+    new conversation starts again in full or folded. The folded line is not a new version of
+    this text; a change to `assistant.warning` still comes back here. The three strings, as
+    shipped and approved by the owner on 2026-11-12 (as recorded in
+    [project 024's `LOG.md`](../projects/024-a-livelier-look-in-five-themes/LOG.md), phase 5):
+
+    | Key | es-ES | en-GB |
+    | --- | --- | --- |
+    | `assistant.warningShort` | `Hablas con una IA, no con una persona. No escribas aquí enfermedades, medicación ni otros datos de tu salud.` | `You are talking to an AI, not a person. Please do not write about conditions, medication or anything else about your health here.` |
+    | `assistant.warningMore` | `Aviso completo` | `Full notice` |
+    | `assistant.composerNotice` | `Te responde una IA: no escribas aquí datos de tu salud.` | `An AI answers you: please do not write about your health here.` |
   - it reads as **NutrIA's notice**, not as one of the model's answers. It has its own speaker
     line (`Aviso`), it is not styled exactly like an answer, and it speaks of the assistant in
     the third person. The declines speak in the first person ("No puedo…", "He parado…"), and
