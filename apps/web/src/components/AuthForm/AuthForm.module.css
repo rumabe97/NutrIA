@@ -8,11 +8,13 @@
 }
 
 .title {
-  font-size: var(--font-size-08);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-09);
+  font-weight: var(--font-weight-heavy);
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
   margin: 0 0 var(--gap-heading);
+  overflow-wrap: break-word;
+  text-wrap: balance;
 }
 
 .subtitle {
@@ -20,10 +22,11 @@
 }
 
 /* role="alert" so a screen reader hears the failure without moving focus and
-   losing the user's place in the form. */
+   losing the user's place in the form. A flat, square block, as every note is
+   (`ui/components/Note`, project 024). */
 .error {
   background-color: var(--color-error-surface);
-  border-radius: var(--radius-control);
+  border-radius: 0;
   color: var(--color-error-text);
   font-size: var(--font-size-03);
   padding: var(--space-03) var(--space-04);
@@ -31,7 +34,7 @@
 
 .success {
   background-color: var(--color-brand-03);
-  border-radius: var(--radius-control);
+  border-radius: 0;
   color: var(--color-brand-11);
   font-size: var(--font-size-03);
   padding: var(--space-04);

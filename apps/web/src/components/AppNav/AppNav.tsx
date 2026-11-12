@@ -8,6 +8,7 @@ import styles from './AppNav.module.css';
 
 import { useDictionary } from 'i18n/LocaleProvider';
 
+import { HeaderPattern } from 'components/HeaderPattern';
 import { LocaleSwitcher } from 'components/LocaleSwitcher';
 import { ThemeSwitcher } from 'components/ThemeSwitcher';
 import { useOffline } from 'components/OfflineProvider';
@@ -100,11 +101,7 @@ export function AppNav({ assistant = false, professional = false }: AppNavProps)
 
   return (
     <Fragment>
-      {/* The hatched pattern behind the header — the owner's exception, PRD 024 criterion 9:
-          it drifts by itself. Still under reduced motion, absent in Alto contraste and forced colours. */}
-      <div aria-hidden="true" className={styles.pattern}>
-        <div className={styles.hatch} />
-      </div>
+      <HeaderPattern />
 
       <header className={styles.header} data-at-top={atTop === null ? undefined : atTop}>
         <div className={styles.inner}>
