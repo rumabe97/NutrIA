@@ -743,3 +743,21 @@
   (`page.route` on the store's host). On a person's phone they load.
 - **Not seen**: a picture that belongs to its dish (they were assigned at random), the drawing →
   ready fade, a failed load, and the View Transition in Safari.
+
+## After phase 3 — the header was clear over scrolling content on an iPhone (2026-11-12)
+
+- **Reported by the owner**, with a screenshot of `/asistente` scrolled: «Tus conversaciones» read
+  through «NutrIA» and «Nueva» through «Cerrar sesión» — «al hacer scroll pasa por debajo».
+- **Cause**: phase 3 drew the header's glass at opacity 0 and faded it in with an animation tied
+  to the scroll, wherever the browser said it supported one. His Safari says so and did not run
+  it, so the glass never came. Chrome ran it in every probe.
+- **Fix**: the glass is the default, and the top of the page is the exception, told by script
+  (`data-at-top` on the header): before the script runs, without it, or if it fails, the header
+  is readable. A short opacity transition replaces the scroll-driven one.
+- **The same day, from his iPhone**: phase 3's six checks hold («Funcionan las 6 bien») —
+  **phase 3 confirmed by human on 2026-11-12** — and the boxed title of #368 is gone («el título
+  de recuadro está bien también»). Decided by him: «Cambiar» is added to the plan's rows (a new
+  control there; its own change), and the count-up's skip on late hydration stays as built.
+- **Not run locally**: `gate.sh --full` and a browser probe — phase 5's executor holds the
+  machine and the ports. `web` tests, lint and types are green; CI runs the rest. The fix cannot
+  be seen in Chrome failing the way Safari did; the owner's iPhone is the check.
