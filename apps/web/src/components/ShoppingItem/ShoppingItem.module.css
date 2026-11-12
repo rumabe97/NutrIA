@@ -8,7 +8,7 @@
   border-bottom: 1px solid var(--border-01);
   column-gap: var(--space-02);
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   padding-block: var(--space-03);
 }
 
@@ -131,9 +131,12 @@
     flex-basis: 100%;
   }
 
-  /* Under the name, not at the far edge where it reads as the next row's. */
+  /* Under the name, not at the far edge where it reads as the next row's — and free to
+     wrap: «79,5 g por comprar» on one line at 200 % text ran 30 px past a 320 px screen. */
   .quantity {
     margin-inline-start: calc(1.15rem + var(--space-03));
+    min-inline-size: 0;
+    white-space: normal;
   }
 }
 
