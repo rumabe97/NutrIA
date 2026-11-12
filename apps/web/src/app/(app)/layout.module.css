@@ -20,6 +20,6 @@
   padding: var(--space-07) var(--gutter-page);
   /* The last row stays above the floating bar on a phone (`--app-bar-clearance` is 0
      from 48rem, where the bar is a rail). */
-  padding-bottom: calc(var(--space-09) + var(--app-bar-clearance));
+  padding-bottom: calc(var(--app-foot-space) + var(--app-bar-clearance));
   width: 100%;
 }

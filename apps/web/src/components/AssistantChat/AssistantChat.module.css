@@ -216,6 +216,25 @@ body:has(.field:focus) .composer::after {
   block-size: var(--space-02);
 }
 
+/*
+ * While the box has focus on a phone, the bar steps aside (`AppNav`) — and the room
+ * kept for it goes too. iOS does not shrink the page for the keyboard: it scrolls the
+ * focused field into view within the page as laid out. With the bar's clearance and the
+ * layout's foot still reserved, the page ended about 140pt below the box, and the box
+ * sat that far above the keyboard with an empty band between (the owner's iPhone, Pulso,
+ * 2026-11-12). With both released down to one small gap, the allowance line is the last
+ * thing on the page, so it is the last thing above the keyboard.
+ *
+ * Both tokens come back the moment focus leaves; the bar follows 300ms later. The space
+ * returns at the page's end, under a sticky box, so nothing above it moves.
+ */
+@media (width < 48rem) {
+  :global(html):has(.field:focus) {
+    --app-bar-clearance: 0rem;
+    --app-foot-space: var(--space-02);
+  }
+}
+
 @media (width >= 48rem) {
   .composer,
   body:has(.field:focus) .composer {
