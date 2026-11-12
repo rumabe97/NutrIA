@@ -161,6 +161,10 @@ Measured on 2026-11-11, before any code:
   del plan»*): the approved sheet draws «Cambiar» on each row of the plan's day, and the swap
   existed only on the dish page. Each row of the plan being lived now carries that same swap —
   one rule (`lib/mealSwap`), the same request, allowance, count and messages. No route changes.
+  **One change of behaviour, also his (2026-11-12, «Ocultarla en onboarding»)**: while the
+  questionnaire is being answered the shell shows no destinations — neither the floating bar nor
+  the rail — and they return when it is done. A single step opened from the profile to change an
+  answer keeps them.
 - The words of the legal pages and of the assistant's warning. Their look changes, not a
   sentence.
 - The logo's shape. The leaf stays and takes each theme's colours; the sheets' square mark was a

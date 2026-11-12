@@ -1343,3 +1343,63 @@ second row's panel closing the first, a swap completing with the row changed, ev
 lower and focus back on the row's button; no page error. The 768 capture read: two columns of
 options, nothing cut. Accounts deleted, servers stopped. **Owner-approves pending** — the
 captures were sent to him the same day; nothing of phase 6 is merged before his answer.
+
+## After phase 6's captures — the plan's day and the dish as the sheet draws them (2026-11-12)
+
+**The owner's answer to the phase 6 captures** was «Cambios antes», with the approved sheet
+attached: «El plan y el detalle del plan no cuadran con la maqueta. Todo se tiene que ver igual
+que la maqueta, salvo las cosas que hemos ido cambiando». He also chose, the same round, to hide
+the navigation during onboarding. Both built on `024-phase-6-ship`; nothing of #373 is merged
+before he sees the result.
+
+**What was wrong**: phases 4 and 6 kept the old plan screen's skeleton and restyled it. Measured
+against `reference/02-mobile-complete.jpg` at full size:
+
+| The sheet | What was built | Now |
+| --- | --- | --- |
+| Title «Miércoles, día 3», the fortnight and the day's kcal against its target under it | «Tu plan», the range, the history link, the redo button and its sentence, all above the days | The day is the `h1` (weekday, then «día N» in the accent), with the range, the day's kcal of its target and «hoy» under it. History and next plan keep their name as small capitals above |
+| A strip of calendar chips: weekday over date | Pills: plan-day number over weekday | Rounded squares, weekday over the date; the chip's name says the whole date and «Día N» |
+| One card a meal: picture, slot in capitals, name, «kcal · min», a small «⇄ Cambiar» pill at the line's end | One long card: four macro tiles and four bars first, then rows with a tick column, «kcal · g P», and a full-width «Cambiar plato 2 de 5» on its own line | One card a meal (`MealRow variant="card"`), «kcal · min», the pill at the line's end (it takes the next line below 360 px); the panel opens across the card |
+| Dish: chips, four small rings in one row, «Ingredientes» with «para 1 ración» at the line's end, a grouped list | A heading over 2×2 ring cards, a source note, a specification card, then the heading, a tinted note and flat rows | Four in a row from 320 px (the short word «Hidratos»), heading and serving on one line, the list on one sunken ground |
+| One action row: «Hecha» filled, «Saltada», «⇄ Cambiar» | A card of two rows, both marks outlined, «Cambiar plato 5 de 5» full width | One row: «Hecha» filled until pressed (then the toggle's wash with a tick), «Saltada» quiet, «⇄ Cambiar» as words |
+
+**Kept, though the sheet does not draw them** (PRD 1 — nothing lost), each moved rather than
+removed: the mark «hecha» on a plan's row (a disc over the picture's corner, outside the link, a
+44 px target); «+Ingredientes» under the card's words; the day's four figures, their source note
+and the bars against the day's targets (one card after the meals); «Planes anteriores» and the
+redo with its sentence (after the day); the week switch (above the strip — fourteen days do not
+fit seven chips); the flag of a day that eats for an event (under the title); the swap's count
+(in the pill's name and in the panel's sentence, no longer drawn on the pill); the
+specification card and the source note of the dish (after the ingredients); substitutes under
+each ingredient.
+
+**Differences that stay, and why**: the bar is glass and the brand sits in the header (his
+choices, phase 3); the theme switch (his); filled buttons use the deeper gradient and accent text
+is one solid deep tomato (PRD § "What changes from the sheets", 1–2); a generated picture keeps
+its «IA» mark and its caption (7); **no meal time** («8:30», «14:00») — a plan's meal carries no
+hour, and this project changes no route; the row's protein figure is no longer on the plan's
+card (the sheet's line is «kcal · min»; the figure stays on the dish and in the day's totals);
+Inicio's rows are unchanged (`variant="row"`), as he confirmed them.
+
+**Onboarding without the bar** (his decision): the step page marks the questionnaire
+(`data-questionnaire`, only when it is the flow and not one step opened from the profile); the
+shell hides its destinations for the eye and for assistive technology and releases the room it
+kept for them (`--app-bar-clearance`, `--app-rail-offset`). CSS only, so nothing flashes.
+
+**Verification** (a fresh build against the local API, a new account, real pictures loaded the
+phase-4 way and removed after):
+- DONE — overflow: `/plan`, a dish, `/inicio`, `/plan/historial`, `/onboarding/1` at 320, 360,
+  390, 768, 1280 in the five themes — 125 loads, no hit; again after the last change in Claro,
+  Oscuro and Pulso — 60 loads, no hit; `widths.mjs` on the plan, the dish and onboarding, clean;
+  200 % text at 320 and 390, Claro and Oscuro, plan and dish — 8 checks, no hit.
+- DONE — «Cambiar» from a card on a scrolled page at 320 and 768: panel inside the screen, focus
+  on its chosen option, a second card's panel closing the first, a swap completing, focus back
+  on the pill. The mark over the picture, tapped at 390: the meal is marked, the page stays on
+  `/plan` (the link under it is not followed), the card loses its swap.
+- DONE — control baseline of `/plan` and the dish, before and after: no control gone. Renamed:
+  the `h1` («Tu plan» → «Jueves, día 1»), the seven day buttons (now the whole date and «Día N»),
+  the row links (no longer carry the figures, which sit outside the link). The eight files are
+  refreshed in `baseline/`.
+- DONE — read at 390, 320 and 1280, beside the sheet's crops.
+- NOT RUN — an iPhone; the history and next-plan screens in a browser (same component, no swap
+  and no mark there; their title is the eyebrow now).

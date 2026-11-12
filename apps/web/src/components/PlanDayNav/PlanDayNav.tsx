@@ -43,15 +43,17 @@ export function PlanDayNav({ days, onSelect, selected, today }: PlanDayNavProps)
         {visible.map(day => (
           <button
             aria-current={day.dayIndex === selected}
+            // The chip shows a weekday and a date, as a calendar does; its name says the whole day.
+            aria-label={`${formatDate(day.date, locale, { day: 'numeric', month: 'long', weekday: 'long' })} · ${interpolate(dictionary.plan.day, { index: day.dayIndex })}`}
             className={day.dayIndex === today ? `${styles.day} ${styles.today}` : styles.day}
             key={day.dayIndex}
             onClick={() => onSelect(day.dayIndex)}
             type="button"
           >
-            <span className={styles.dayIndex}>{day.dayIndex}</span>
             <span className={styles.dayLabel}>{formatDate(day.date, locale, { weekday: 'short' })}</span>
-            {/* The date itself only fits where the chips become rows — the desktop rail. */}
-            <span className={styles.dayDate}>{formatDate(day.date, locale, { day: 'numeric', month: 'short' })}</span>
+            <span className={styles.dayIndex}>{formatDate(day.date, locale, { day: 'numeric' })}</span>
+            {/* Which day of the plan it is only fits where the chips become rows — the desktop rail. */}
+            <span className={styles.dayDate}>{interpolate(dictionary.plan.day, { index: day.dayIndex })}</span>
           </button>
         ))}
       </div>

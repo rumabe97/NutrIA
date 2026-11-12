@@ -1,3 +1,5 @@
+import { Fragment } from 'react';
+
 import { notFound } from 'next/navigation';
 
 import { FLOW, OnboardingFlow, TOTAL_STEPS } from 'components/OnboardingFlow';
@@ -50,5 +52,13 @@ export default async function OnboardingStepPage({
     FLOW[step - 1]?.key === 'about-you' ? serverApi<ProfileConsentView>('/profile/consent') : null
   ]);
 
-  return <OnboardingFlow allergens={allergens ?? []} consent={consent} profile={profile} returnTo={returnTo} step={step} />;
+  return (
+    <Fragment>
+      {/* The questionnaire itself — not one step opened from the profile to change an answer —
+          is answered with nothing else to go to: the shell reads this mark and puts its
+          destinations away until it is done (the owner's decision of 2026-11-12). */}
+      {returnTo === null ? <span data-questionnaire="" hidden={true} /> : null}
+      <OnboardingFlow allergens={allergens ?? []} consent={consent} profile={profile} returnTo={returnTo} step={step} />
+    </Fragment>
+  );
 }

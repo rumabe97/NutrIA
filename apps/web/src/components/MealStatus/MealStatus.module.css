@@ -1,5 +1,19 @@
+/* One line: «Hecha» takes the room, «Saltada» its own width beside it. */
 .buttons {
+  align-items: center;
   display: flex;
+  flex: 1 1 12rem;
   flex-wrap: wrap;
   gap: var(--space-02);
+  min-inline-size: 0;
+}
+
+.done {
+  flex: 1 1 6rem;
+}
+
+.check {
+  block-size: 1em;
+  flex: none;
+  inline-size: 1em;
 }

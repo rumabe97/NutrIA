@@ -1,28 +1,29 @@
 # /plan · plan · es-ES · phone · 200
-button "# dom"
-button "# jue"
-button "# lun"
-button "# mar"
-button "# mié"
-button "# sáb"
-button "# vie"
-button "Cambiar plato # de #"
+button "Cambiar plato # de #": Cambiar
 button "Cerrar sesión"
+button "domingo, # de noviembre · Día #": dom #
 button "English": EN
 button "Español" [pressed]: ES
+button "jueves, # de noviembre · Día #": jue #
+button "lunes, # de noviembre · Día #": lun #
 button "Marcar como hecha"
+button "martes, # de noviembre · Día #": mar #
+button "miércoles, # de noviembre · Día #": mié #
+button "sábado, # de noviembre · Día #": sáb #
 button "Semana #"
 button "Semana #" [pressed]
 button "Tema"
-heading "Tu plan" [level=#]
-link "Cena Pollo saag con espinacas, yogur y arroz basmati # kcal · # g P"
-link "Comida Garbanzos guisados con espinacas y comino # kcal · # g P"
+button "viernes, # de noviembre · Día #": vie #
+heading "Jueves, día #" [level=#]
+link "Cena Dal de lentejas rojas con arroz basmati"
+link "Comida Bowl mexicano de quinoa, alubias negras y maíz con queso"
 link "Compra"
-link "Desayuno Avena con yogur dedw.# # kcal · # g P"
+link "Desayuno Tortitas de avena y requesón con manzana y canela"
 link "Inicio"
 link "NutrIA — inicio"
 link "Perfil"
 link "Plan"
 link "Planes anteriores →"
 link "Progreso"
+link "Rehacer el plan"
 link "Saltar al contenido"

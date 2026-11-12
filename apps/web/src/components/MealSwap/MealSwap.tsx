@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useId, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -17,6 +17,11 @@ import { interpolate } from 'lib/format';
 import type { SwapAxis } from 'core/entities/Plan';
 
 interface MealSwapProps {
+  /**
+   * The small pill of a card in the plan's day, as the approved sheet draws it: an icon and
+   * «Cambiar». The count is not drawn on it — the panel says what is left — and stays in its name.
+   */
+  compact?: boolean;
   /** An element that says which dish this is, where the button's own words do not (a row among the day's). */
   describedBy?: string;
   /**
@@ -54,6 +59,7 @@ type Choice = 'any' | SwapAxis;
  * own line — a spent allowance and "nothing like that fits" are answers.
  */
 export function MealSwap({
+  compact = false,
   describedBy,
   limit,
   mealId,
@@ -176,7 +182,12 @@ export function MealSwap({
         aria-controls={open ? `${name}-panel` : undefined}
         aria-describedby={describedBy}
         aria-expanded={open}
+        // The pill's words are «Cambiar»; its name stays the dish page's, count included.
+        aria-label={
+          compact && !spent ? `${t.swap}${limit === undefined ? '' : ` ${interpolate(t.swapCount, { limit, remaining: left })}`}` : undefined
+        }
         className={styles.trigger}
+        data-compact={compact || undefined}
         disabled={spent || pending}
         onClick={() => setOpen(!open)}
         ref={trigger}
@@ -184,8 +195,21 @@ export function MealSwap({
         type="button"
         variant="secondary"
       >
-        {spent ? t.swapSpentShort : t.swap}
-        {spent || limit === undefined ? null : <span className={styles.count}>{interpolate(t.swapCount, { limit, remaining: left })}</span>}
+        {compact && !spent ? (
+          <Fragment>
+            <svg aria-hidden="true" className={styles.icon} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 16 16">
+              <path d="M3 5.5h9.5M10 3l2.5 2.5L10 8M13 10.5H3.5M6 8l-2.5 2.5L6 13" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {t.swapConfirm}
+          </Fragment>
+        ) : spent ? (
+          t.swapSpentShort
+        ) : (
+          t.swap
+        )}
+        {spent || compact || limit === undefined ? null : (
+          <span className={styles.count}>{interpolate(t.swapCount, { limit, remaining: left })}</span>
+        )}
       </Button>
 
       {open ? (

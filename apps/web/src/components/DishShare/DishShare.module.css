@@ -4,27 +4,21 @@
   gap: var(--gap-heading);
 }
 
-.title {
-  font-size: var(--font-size-04);
-  line-height: var(--line-height-04);
-  margin: 0;
-}
-
 /*
- * Two by two in a phone's column and the page's side column, four abreast where the box
- * has the room, one under another when it is narrow — at 200 % text, say. Judged on the
- * box, not the window.
+ * Four abreast, as the approved sheet draws them, wherever the box holds four (a phone's
+ * column does, from 320 px); two by two when it is narrower — text grown large — and one
+ * under another at 200 %. Judged on the box, not the window.
  */
 .list {
   display: grid;
-  gap: var(--space-03);
+  gap: var(--space-02);
   grid-template-columns: repeat(2, minmax(0, 1fr));
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-@container (width >= 30rem) {
+@container (width >= 17rem) {
   .list {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -39,24 +33,24 @@
 .item {
   align-content: start;
   background-color: var(--surface-sunken);
-  border-radius: var(--radius-card);
+  border-radius: calc(var(--radius-card) * 0.75);
   display: grid;
-  gap: var(--space-01);
+  gap: 0;
   justify-items: center;
   min-inline-size: 0;
-  padding: var(--space-03) var(--space-02);
+  padding: var(--space-03) var(--space-01);
   text-align: center;
 }
 
 /* The ring a little smaller than ui's `sm`, so four sit in a phone's row. */
 .item > :first-child {
-  inline-size: min(3.5rem, 100%);
+  inline-size: min(2.75rem, 100%);
   margin-block-end: var(--space-01);
 }
 
 .figure {
   font-family: var(--display-font, var(--main-font));
-  font-size: var(--font-size-05);
+  font-size: var(--font-size-04);
   font-variant-numeric: tabular-nums;
   font-weight: var(--font-weight-heavy);
   line-height: var(--line-height-02);
@@ -73,6 +67,7 @@
 .percent {
   color: var(--foreground-02);
   font-size: var(--font-size-01);
+  hyphens: auto;
   line-height: var(--line-height-03);
   overflow-wrap: anywhere;
 }

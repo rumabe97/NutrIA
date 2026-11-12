@@ -507,6 +507,16 @@ Perfil while its switch is on, Consulta last for a professional, and offline onl
   holds `MealSwap` controlled (`open`, `onOpenChange`): one panel at a time. The panel takes focus
   on its chosen option, Escape or «Cancelar» gives it back to the row's button, and every
   button's count follows the server's after a swap anywhere on the screen.
+- **The plan's day and the dish follow the approved sheet** (`reference/02-mobile-complete.jpg`;
+  the owner, 2026-11-12: «todo se tiene que ver igual que la maqueta, salvo las cosas que hemos
+  ido cambiando»). The day is the title; one card a meal (`MealRow variant="card"` — Inicio keeps
+  `row`); «⇄ Cambiar» is `MealSwap compact`, a pill whose name still carries «Cambiar plato N de
+  M»; the dish has four rings in a row, a grouped ingredient list and one action row. A control
+  the sheet does not draw is moved under what it draws, never removed, and never put back above
+  it. A difference from the sheet is either one of his decisions or a line in the project's LOG.
+- **The questionnaire has no destinations**: its step page renders `data-questionnaire` (not when
+  one step is opened from the profile) and the shell hides the bar and the rail and releases
+  their room. Do not add a second way to hide them.
 
 ### Forms on a phone (project 024 phases 5–6)
 

@@ -18,7 +18,7 @@ import { PlanDayNav } from 'components/PlanDayNav';
 import { TargetProgress } from 'components/TargetProgress';
 import { useOffline } from 'components/OfflineProvider';
 
-import { formatDate, interpolate } from 'lib/format';
+import { formatDate, formatNumber, interpolate } from 'lib/format';
 import { swapOffered } from 'lib/mealSwap';
 
 import type { EventStanding } from 'components/EventPlanner';
@@ -107,40 +107,48 @@ export function PlanBrowser({
           {dictionary.plan.upcomingBack}
         </Link>
       ) : null}
+      {/* The day is the title, as the approved sheet draws it: «Miércoles, día 3», with the
+          fortnight and the day's energy against its target under it. Which plan this is —
+          a past one, the next one — is said in the small capitals above. */}
       <div className={styles.header}>
-        <h1 className={styles.title}>{history ? dictionary.plan.historyOne : upcoming ? dictionary.plan.upcomingTitle : dictionary.plan.title}</h1>
+        {history || upcoming ? <p className={styles.eyebrow}>{history ? dictionary.plan.historyOne : dictionary.plan.upcomingTitle}</p> : null}
+        <h1 className={styles.title}>
+          {day ? (
+            <Fragment>
+              {capitalised(formatDate(day.date, locale, { weekday: 'long' }), locale)},{' '}
+              <span className={styles.dayNumber}>{interpolate(dictionary.plan.day, { index: day.dayIndex }).toLocaleLowerCase(locale)}</span>
+            </Fragment>
+          ) : (
+            dictionary.plan.title
+          )}
+        </h1>
         <Text size="sm" tone="tertiary">
           {interpolate(dictionary.plan.range, { end: shortDate(plan.endDate), start: shortDate(plan.startDate) })}
+          {day && dayTargets
+            ? ` · ${interpolate(dictionary.dashboard.ofTarget, {
+                target: formatNumber(Math.round(dayTargets.kcal), locale),
+                unit: dictionary.units.kcal,
+                value: formatNumber(Math.round(day.totals.kcal), locale)
+              })}`
+            : ''}
+          {day && day.dayIndex === today ? dictionary.plan.dayIsToday : ''}
           {history ? ` · ${history.replaced ? dictionary.plan.historyReplaced : dictionary.plan.historyFinished}` : ''}
         </Text>
-        {/* Always shown, even on a first plan: the list holds this one too, and a
-            door that appears only once there is something behind it is a door
-            nobody learns exists. */}
-        {history || upcoming ? null : (
-          <Link className={styles.historyLink} href="/plan/historial">
-            {dictionary.plan.historyLink}
-          </Link>
-        )}
-        {/* What the fortnight still allows, said before the person goes looking
-            for a button that will refuse them. A redo is a whole new plan for the
-            same days; the next fortnight is never rationed. */}
-        {redo?.kind === 'redo' && !upcoming ? (
-          <div className={styles.redo}>
-            {redo.allowed ? (
-              <Fragment>
-                <CtaLink href="/plan/generando" size="sm" variant="secondary">
-                  {dictionary.plan.redoCta}
-                </CtaLink>
-                <Text size="xs" tone="tertiary">
-                  {dictionary.plan.redoAvailable}
-                </Text>
-              </Fragment>
-            ) : (
-              <Text size="xs" tone="tertiary">
-                {interpolate(dictionary.plan.redoSpent, { date: redo.nextAt ? shortDate(redo.nextAt) : '' })}
-              </Text>
-            )}
-          </div>
+        {/* A day that eats for something says so, and says what (0043). The
+            arrows come from comparing the day's own targets with the plan's,
+            so an old plan whose event was deleted still explains itself. */}
+        {day?.loadedFor ? (
+          <span className={styles.loaded}>
+            {interpolate(dictionary.plan.loadedFor, { name: day.loadedFor })}
+            {day.targets && plan.strategy
+              ? loadShifts(day.targets, plan.strategy).map(shift => (
+                  <Fragment key={shift.macro}>
+                    {' · '}
+                    <MacroShift direction={shift.direction} label={dictionary.events[shift.macro].toLowerCase()} />
+                  </Fragment>
+                ))
+              : null}
+          </span>
         ) : null}
       </div>
 
@@ -148,57 +156,12 @@ export function PlanBrowser({
         <PlanDayNav days={plan.days} onSelect={select} selected={selected} today={today} />
 
         {day ? (
-          <Card
-            as="section"
-            className={`${styles.card} ${travel === 'forward' ? 'motion-forward' : travel === 'back' ? 'motion-back' : 'motion-enter'}`}
+          <div
+            className={`${styles.day} ${travel === 'forward' ? 'motion-forward' : travel === 'back' ? 'motion-back' : 'motion-enter'}`}
             key={day.dayIndex}
           >
-            <div className={styles.dayHeading}>
-              <div>
-                <Text size="lg" weight="semibold">
-                  {interpolate(dictionary.plan.day, { index: day.dayIndex })}
-                </Text>
-                <Text size="sm" tone="tertiary">
-                  {formatDate(day.date, locale, { day: 'numeric', month: 'long', weekday: 'long' })}
-                  {day.dayIndex === today ? dictionary.plan.dayIsToday : ''}
-                </Text>
-              </div>
-              {/* A day that eats for something says so, and says what (0043). The
-                  arrows come from comparing the day's own targets with the plan's,
-                  so an old plan whose event was deleted still explains itself. */}
-              {day.loadedFor ? (
-                <span className={styles.loaded}>
-                  {interpolate(dictionary.plan.loadedFor, { name: day.loadedFor })}
-                  {day.targets && plan.strategy
-                    ? loadShifts(day.targets, plan.strategy).map(shift => (
-                        <Fragment key={shift.macro}>
-                          {' · '}
-                          <MacroShift direction={shift.direction} label={dictionary.events[shift.macro].toLowerCase()} />
-                        </Fragment>
-                      ))
-                    : null}
-                </span>
-              ) : null}
-            </div>
-
-            <MacroSummary
-              carbsG={day.totals.carbsG}
-              fatG={day.totals.fatG}
-              kcal={day.totals.kcal}
-              note={dictionary.macros.note}
-              proteinG={day.totals.proteinG}
-            />
-
-            {/* The day's totals against what it was built to hit, the figures in words
-                beside each bar. The plan's, never what was eaten. */}
-            {dayTargets ? (
-              <div className={styles.targets}>
-                <TargetProgress label={dictionary.plan.dayVsTarget} targets={dayTargets} totals={day.totals} />
-              </div>
-            ) : null}
-
-            {/* The card is keyed on the day, so switching days replays the slide and the
-                rows' arrival — the content changed, and motion is how a reader is told that. */}
+            {/* Keyed on the day, so switching days replays the slide and the cards' arrival —
+                the content changed, and motion is how a reader is told that. One card a meal. */}
             <div className={`${styles.meals} motion-list`}>
               {day.meals.map(meal => (
                 <MealRow
@@ -228,10 +191,29 @@ export function PlanBrowser({
                         }
                       : undefined
                   }
+                  totalMinutes={meal.prepMinutes + meal.cookMinutes}
+                  variant="card"
                 />
               ))}
             </div>
-          </Card>
+
+            {/* The day's figures, after the food: what it adds up to, and against what it
+                was built to hit. The plan's, never what was eaten. */}
+            <Card as="section" className={styles.card}>
+              <MacroSummary
+                carbsG={day.totals.carbsG}
+                fatG={day.totals.fatG}
+                kcal={day.totals.kcal}
+                note={dictionary.macros.note}
+                proteinG={day.totals.proteinG}
+              />
+              {dayTargets ? (
+                <div className={styles.targets}>
+                  <TargetProgress label={dictionary.plan.dayVsTarget} targets={dayTargets} totals={day.totals} />
+                </div>
+              ) : null}
+            </Card>
+          </div>
         ) : null}
 
         {/* Adding an event with the plan under way, for the tier that has it
@@ -243,9 +225,45 @@ export function PlanBrowser({
             <EventPlanner allowance={midPlan} events={events} variant="plan" />
           </Card>
         ) : null}
+
+        {/* The plan's own doors, after the day: the earlier plans — always shown, even on a
+            first plan, since a door that appears only once there is something behind it is
+            a door nobody learns exists — and what the fortnight still allows, said before
+            the person goes looking for a button that will refuse them. A redo is a whole new
+            plan for the same days; the next fortnight is never rationed. */}
+        {history || upcoming ? null : (
+          <div className={styles.doors}>
+            <Link className={styles.historyLink} href="/plan/historial">
+              {dictionary.plan.historyLink}
+            </Link>
+            {redo?.kind === 'redo' ? (
+              <div className={styles.redo}>
+                {redo.allowed ? (
+                  <Fragment>
+                    <CtaLink href="/plan/generando" size="sm" variant="secondary">
+                      {dictionary.plan.redoCta}
+                    </CtaLink>
+                    <Text size="xs" tone="tertiary">
+                      {dictionary.plan.redoAvailable}
+                    </Text>
+                  </Fragment>
+                ) : (
+                  <Text size="xs" tone="tertiary">
+                    {interpolate(dictionary.plan.redoSpent, { date: redo.nextAt ? shortDate(redo.nextAt) : '' })}
+                  </Text>
+                )}
+              </div>
+            ) : null}
+          </div>
+        )}
       </div>
     </Fragment>
   );
+}
+
+/** «Jueves»: a weekday at the head of a title, in a language that writes it small. */
+function capitalised(word: string, locale: string): string {
+  return word.charAt(0).toLocaleUpperCase(locale) + word.slice(1);
 }
 
 type Grams = { carbsG: number; fatG: number; proteinG: number };

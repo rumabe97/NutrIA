@@ -6,13 +6,14 @@ button "I like it"
 button "Not for me"
 button "Sign out"
 button "Skipped"
-button "Swap this dish # of #"
+button "Swap this dish # of #": Change
+button "Theme"
+heading "Bowl mexicano de quinoa, alubias negras y maíz con queso" [level=#]
 heading "Ingredients" [level=#]
 heading "Method" [level=#]
 heading "What did you think?" [level=#]
-heading "Yogur con avena scaw.ij.c" [level=#]
+heading "What it brings to the day’s targets" [level=#]
 link "← Back to the plan"
-link "Assistant"
 link "Home"
 link "NutrIA — home"
 link "Plan"

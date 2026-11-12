@@ -1,10 +1,18 @@
+/* The day as the screen's title, the fortnight's line under it, as the sheet draws them. */
 .header {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-03) var(--space-05);
-  justify-content: space-between;
-  margin-bottom: var(--gap-region);
+  display: grid;
+  gap: var(--space-02);
+  justify-items: start;
+  margin-bottom: var(--gap-block);
+}
+
+.eyebrow {
+  color: var(--color-brand-11);
+  font-size: var(--font-size-01);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  margin: 0;
+  text-transform: uppercase;
 }
 
 .title {
@@ -13,6 +21,13 @@
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
   margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* «día 3» in the one accent that holds on every paper — solid, as Inicio's name is. */
+.dayNumber {
+  color: var(--color-brand-11);
+  white-space: nowrap;
 }
 
 /*
@@ -41,23 +56,20 @@
   min-inline-size: 0;
 }
 
+/* The chosen day: its meals, one card each, then the day's figures. */
+.day {
+  display: grid;
+  gap: var(--gap-block);
+  min-inline-size: 0;
+}
+
 .meals {
   display: grid;
-  margin-top: var(--gap-block);
+  gap: var(--space-03);
 }
 
 .targets {
   margin-top: var(--gap-block);
-}
-
-/* Wraps, because the chip beside the date carries a name somebody typed. */
-.dayHeading {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-03) var(--space-04);
-  justify-content: space-between;
-  margin-bottom: var(--gap-heading);
 }
 
 /* The flag on a day that eats for something: a chip, so it reads as a label
@@ -65,7 +77,6 @@
    shrink: a sixty-character event name in a chip that cannot wrap is a page
    that scrolls sideways on a phone. */
 .loaded {
-  align-self: center;
   background: var(--color-brand-03);
   border: 1px solid var(--color-brand-06);
   border-radius: var(--radius-full);
@@ -84,19 +95,24 @@
   }
 
   /* Under the day, in the day's column — not under the rail. */
-  .events {
+  .events,
+  .doors {
     grid-column: 2;
   }
 }
 
-/* The allowance line sits with the title block: one step below the range, and
-   clear of the day tabs beneath it, which are a different thing. */
+/* The earlier plans and the redo, after the day. */
+.doors {
+  display: grid;
+  gap: var(--space-03);
+  justify-items: start;
+}
+
 .redo {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-02) var(--space-04);
-  margin-block: var(--space-03) var(--space-05);
 }
 
 .back {
