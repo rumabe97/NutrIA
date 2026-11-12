@@ -46,7 +46,10 @@ export default async function AssistantThreadPage({ params }: { params: Promise<
     <div className={`${styles.page} motion-enter`}>
       <div className={styles.header}>
         <h1 className={styles.title}>{thread.conversation.title || t.title}</h1>
-        <ConversationDelete conversationId={thread.conversation.id} />
+        {/* On a phone the assistant's bar carries this, in sight however far down the page is. */}
+        <div className={styles.headerDelete}>
+          <ConversationDelete conversationId={thread.conversation.id} />
+        </div>
       </div>
       {health?.supervisionRecommended ? (
         // The same notice, in the same words, as the profile's and a new conversation's.

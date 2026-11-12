@@ -3,13 +3,79 @@
   display: none;
 }
 
-/* A narrow one: a bar above the conversation, the history in a sheet. */
+/*
+ * A narrow one: a bar above the conversation, the history in a sheet. The bar stays under
+ * the header however long the conversation is — a new one, or another, is one press away
+ * from the last answer and not a scroll back to the first (the owner, 2026-11-12). It is the
+ * bottom bar's twin: a floating capsule of the same glass, the one material the design
+ * skill allows on navigation, with the conversation passing under it.
+ */
 .bar {
   align-items: center;
+  backdrop-filter: saturate(180%) blur(16px);
+  background-color: var(--color-glass);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-m);
   display: flex;
-  flex-wrap: wrap;
   gap: var(--space-02);
   justify-content: space-between;
+  padding: calc(var(--space-01) - 1px);
+  position: sticky;
+  top: calc(var(--app-header-block) + var(--space-02));
+  z-index: 1;
+}
+
+/* A control that is its icon: a round target, the name on the element. */
+.icon {
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+  min-inline-size: var(--target-min);
+  padding: 0;
+}
+
+.icon svg {
+  block-size: 1.125rem;
+  inline-size: 1.125rem;
+}
+
+/* The delete control; once it asks, its question takes the bar's whole width, last. */
+.delete {
+  display: flex;
+  flex: 0 0 auto;
+  min-inline-size: 0;
+}
+
+.delete:has([role='group']) {
+  flex: 1 0 100%;
+  order: 1;
+}
+
+.bar:has(.delete [role='group']) {
+  border-radius: var(--radius-card);
+  flex-wrap: wrap;
+  padding: var(--space-01);
+}
+
+/* The conversation's name between the two controls: one line, the heading has it whole. */
+.current {
+  color: var(--foreground-01);
+  flex: 1 1 0;
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-semibold);
+  min-inline-size: 0;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Two worded controls on a narrow screen, or text large enough that they need the row. */
+@media (width < 22.5rem) {
+  .bar {
+    border-radius: var(--radius-card);
+    flex-wrap: wrap;
+  }
 }
 
 @media (width >= 64rem) {
@@ -131,5 +197,11 @@
 @media (forced-colors: active) {
   .item[aria-current='page'] {
     border: 1px solid Highlight;
+  }
+}
+
+@media (forced-colors: active) {
+  .bar {
+    background-color: Canvas;
   }
 }

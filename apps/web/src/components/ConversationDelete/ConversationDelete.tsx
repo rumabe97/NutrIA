@@ -15,7 +15,14 @@ import { api, messageFor } from 'lib/api';
  * before the button that does it — everything in it, for good, and still
  * counted — and the first press only asks.
  */
-export function ConversationDelete({ conversationId }: { readonly conversationId: string }) {
+export function ConversationDelete({
+  compact = false,
+  conversationId
+}: {
+  /** In the assistant's bar on a phone: the opener is a bin with the same name. */
+  readonly compact?: boolean;
+  readonly conversationId: string;
+}) {
   const dictionary = useDictionary();
   const t = dictionary.assistant;
   const router = useRouter();
@@ -52,8 +59,21 @@ export function ConversationDelete({ conversationId }: { readonly conversationId
 
   if (!confirming) {
     return (
-      <Button onClick={() => setConfirming(true)} ref={opener} size="sm" variant="tertiary">
-        {t.deleteConversation}
+      <Button
+        aria-label={compact ? t.deleteConversation : undefined}
+        className={compact ? styles.bin : undefined}
+        onClick={() => setConfirming(true)}
+        ref={opener}
+        size="sm"
+        variant="tertiary"
+      >
+        {compact ? (
+          <svg aria-hidden="true" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+          </svg>
+        ) : (
+          t.deleteConversation
+        )}
       </Button>
     );
   }

@@ -61,6 +61,11 @@ function toEnd(): void {
   window.scrollTo({ behavior: reduce ? 'auto' : 'smooth', top: document.documentElement.scrollHeight });
 }
 
+/** A screen where focus in a text box means an on-screen keyboard. */
+function onTouchScreen(): boolean {
+  return window.matchMedia('(pointer: coarse)').matches;
+}
+
 /**
  * The conversation with the assistant (project 023), in the shape of a chat
  * app: the conversation fills the column, the box to write in stays at its
@@ -144,7 +149,11 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
     try {
       if (window.sessionStorage.getItem(FOCUS_AFTER_REPLACE)) {
         window.sessionStorage.removeItem(FOCUS_AFTER_REPLACE);
-        field.current?.focus();
+
+        // Not on a phone: focus there is the keyboard, and sending put it away.
+        if (!onTouchScreen()) {
+          field.current?.focus();
+        }
       }
     } catch {
       // Storage refused (a private window): the focus is a convenience, nothing depends on it.
@@ -241,6 +250,13 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
     let answer = '';
     let started = false;
     let landedIn: string | null = conversation;
+
+    // On a phone, sending puts the keyboard away so the answer has the screen (the owner,
+    // 2026-11-12). The press itself never moved the focus — it would have moved the box
+    // from under the finger — so it is given up here, once the question is on its way.
+    if (onTouchScreen()) {
+      field.current?.blur();
+    }
 
     abort.current = controller;
     following.current = true;
@@ -489,6 +505,13 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
             aria-disabled={busy || spent || draft.trim() === '' || undefined}
             aria-label={busy ? t.sending : t.send}
             className={styles.send}
+            // Pressing it never takes the focus from the box. On a phone the press used to
+            // blur the box first: the keyboard closed, the box dropped to the screen's foot
+            // from under the finger, and the press landed on nothing — a second one was
+            // needed to send (the owner's iPhone, 2026-11-12). The box keeps its focus and
+            // the keyboard stays for the next question.
+            onMouseDown={event => event.preventDefault()}
+            onPointerDown={event => event.preventDefault()}
             type="submit"
           >
             <svg aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
