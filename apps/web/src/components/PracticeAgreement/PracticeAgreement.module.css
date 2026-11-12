@@ -1,6 +1,10 @@
 .card {
   display: grid;
   gap: var(--gap-block);
+  /* Its own column, never sized by its longest word: at 200 % text on a 320 px screen the
+     heading's longest word set the card wider than the screen (project 024 phase 6). */
+  grid-template-columns: minmax(0, 1fr);
+  overflow-wrap: break-word;
   margin-inline: auto;
   max-inline-size: var(--prose-max);
 }

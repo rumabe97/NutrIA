@@ -86,6 +86,20 @@
   flex: 1 1 auto;
 }
 
+/* Text this large for the screen: «Aceptar la invitación» is wider than the card, so the
+   label wraps inside its button rather than running past the screen. */
+@media (width < 17rem) {
+  .actions > [class] {
+    block-size: auto;
+    height: auto;
+    line-height: var(--line-height-02);
+    max-width: 100%;
+    padding-block: var(--space-02);
+    text-align: center;
+    white-space: normal;
+  }
+}
+
 @media (forced-colors: active) {
   .block {
     border: 1px solid CanvasText;
