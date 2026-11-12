@@ -1549,7 +1549,7 @@ export const esES = {
       'Han pasado catorce días. Cuéntanos en un minuto cómo ha ido: peso, cantidades y qué cambiarías. El siguiente plan lo tendrá en cuenta.',
     checkInDueCta: 'Hacer el check-in',
     checkInDueTitle: 'Tu check-in de la quincena',
-    dayOf: 'Día {current} de {total}',
+    dayOfPlan: '{date} · día {current} de {total} de tu plan',
     daysLeft: 'Quedan {count} días',
     fortnight: 'Tu quincena',
     fortnightDay: 'Día {index}',
@@ -1586,6 +1586,7 @@ export const esES = {
     shoppingCount: '{items} artículos en {aisles} pasillos',
     shoppingCta: 'Ver la lista →',
     shoppingTitle: 'Tu lista de la compra',
+    shortcuts: 'Atajos de hoy',
     targetsAdjust: 'Ajustar →',
     targetsClamped:
       'Hemos ajustado tu ritmo: pedía {requested} kcal y lo hemos subido a {floor}, el mínimo diario que consideramos seguro sin supervisión profesional.',
@@ -1593,6 +1594,9 @@ export const esES = {
     targetsLabel: 'Tus objetivos diarios · {status}',
     targetsStatusEstimated: 'estimados',
     targetsStatusOverridden: 'ajustados por ti',
+    tileDay: 'Ver el día completo',
+    tileMeals: '{count} comidas',
+    tileWeight: 'Anotar peso de hoy',
     today: 'Hoy',
     todayVsTarget: 'Hoy, sobre tus objetivos',
     tomorrow: 'mañana',
@@ -3267,8 +3271,9 @@ export const esES = {
     openPlan: 'Ver el plan →',
     openPlanLocked: 'El plan, con premium',
     openPremium: 'Qué es premium →',
-    overallLine: '{eaten} comidas hechas de {marked} que marcaste',
+    overallFigure: '{eaten} de {marked}',
     overallNone: 'Marca las comidas como hechas o saltadas y aquí verás cuánto del plan sigues.',
+    overallWords: 'comidas hechas de las que marcaste',
     planNumber: 'Plan {version}',
     reached: 'conseguido',
     satisfaction: 'Satisfacción {value} de 5',
@@ -3286,7 +3291,7 @@ export const esES = {
     weightNone: 'Aún no has anotado ningún peso.',
     weightStart: 'Empezaste en {value} kg',
     weightTarget: 'Objetivo {value} kg',
-    weightTitle: 'Tu peso'
+    weightTitle: 'Peso'
   },
 
   secondFactorRequired: {
@@ -3340,6 +3345,8 @@ export const esES = {
   },
 
   shopping: {
+    aisleDone: 'Todo en el carro',
+    aisleLeft: '{count} por comprar',
     amountEdit: 'Cambiar lo comprado: {name}',
     amountHint: 'De {total} en total.',
     amountLabel: 'Cuánto has comprado, en {unit}',
@@ -3369,7 +3376,7 @@ export const esES = {
     rangeShowWhole: 'Ver todos los días',
     rangeWeek1: 'Semana 1',
     rangeWeek2: 'Semana 2',
-    rangeWhole: 'Todos',
+    rangeWhole: '{count} días',
     share: 'Compartir lo que falta',
     shareCopied: 'Lista copiada: pégala donde quieras.',
     shareNothing: 'Ya lo tienes todo en el carro: no queda nada que compartir.',
@@ -3378,7 +3385,7 @@ export const esES = {
     switchCurrent: 'Actual',
     switchLabel: 'Qué lista ver',
     switchNext: 'Próximo',
-    title: 'Lista de la compra'
+    title: 'Tu lista de la compra'
   },
 
   siteNav: {

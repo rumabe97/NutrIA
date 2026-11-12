@@ -2,8 +2,9 @@
 button "Cerrar sesión"
 button "English": EN
 button "Español" [pressed]: ES
-heading "# nov – # nov" [level=#]
-heading "Tu peso" [level=#]
+button "Tema"
+heading "# nov – # nov · En curso" [level=#]
+heading "Peso" [level=#]
 heading "Tu progreso" [level=#]
 heading "Tus quincenas" [level=#]
 link "Anotar el peso de hoy →"

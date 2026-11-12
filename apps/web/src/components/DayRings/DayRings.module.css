@@ -19,7 +19,9 @@
   justify-items: center;
 }
 
-.rings {
+/* Two classes: the library's own size for the rings is declared after this sheet and
+   would win over one. */
+.figures .rings {
   inline-size: min(9rem, 100%);
 }
 
@@ -78,6 +80,7 @@
   column-gap: var(--space-01);
   display: flex;
   flex-wrap: wrap;
+  line-height: var(--line-height-02);
 }
 
 .value {
@@ -101,6 +104,12 @@
   text-wrap: pretty;
 }
 
+/* The two lines under the rings read as one note, close together. */
+.notes {
+  display: grid;
+  gap: var(--space-01);
+}
+
 /* Room for the rings and a column of figures beside them: 360 px and up on a phone. */
 @container (width >= 16.5rem) {
   .figures {
@@ -108,7 +117,7 @@
     justify-items: stretch;
   }
 
-  .rings {
+  .figures .rings {
     inline-size: 7rem;
   }
 
@@ -117,14 +126,37 @@
   }
 }
 
-/* Wide enough for the figures two by two beside the rings. */
-@container (width >= 26rem) {
-  .rings {
-    inline-size: 9rem;
+/*
+ * Wide enough for the figures two by two beside the rings, each figure over its target —
+ * the card of the approved sheet, on a 390 px phone and up.
+ */
+@container (width >= 19rem) {
+  .figures {
+    gap: var(--space-03);
   }
 
   .legend {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-03) var(--space-02);
+    /* The first column holds the two longest words («Carbohidratos», «de 2252 kcal»). */
+    grid-template-columns: minmax(0, 5fr) minmax(0, 4fr);
+  }
+
+  .label {
+    gap: var(--space-01);
+  }
+
+  .line {
+    display: grid;
+  }
+}
+
+@container (width >= 26rem) {
+  .figures .rings {
+    inline-size: 9rem;
+  }
+
+  .figures {
+    gap: var(--space-04);
   }
 }
 

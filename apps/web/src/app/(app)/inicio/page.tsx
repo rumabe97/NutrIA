@@ -111,15 +111,24 @@ export default async function DashboardPage() {
   // screen measures; with no day to measure it follows the day's own content, so the one
   // thing to do (create a plan, come back from a trip) leads.
   const targetsCard = targets ? (
-    <Card as="section" className={`${styles.targets} motion-enter`}>
-      <div className={styles.cardHeading}>
-        <h2 className={styles.cardTitle}>
+    <Card as="section" className={`${styles.targets} motion-enter`} padding="sm">
+      {/* On a day of the plan the card is its rings, as the approved sheet draws it: the
+          heading stays for the outline and a screen reader, and «Ajustar» goes to the
+          card's foot beside the note that these are an estimate. */}
+      {day ? (
+        <h2 className="visually-hidden">
           {interpolate(t.targetsLabel, { status: targets.overrideStatus === 'applied' ? t.targetsStatusOverridden : t.targetsStatusEstimated })}
         </h2>
-        <CtaLink href="/perfil" size="sm" variant="tertiary">
-          {t.targetsAdjust}
-        </CtaLink>
-      </div>
+      ) : (
+        <div className={styles.cardHeading}>
+          <h2 className={styles.cardTitle}>
+            {interpolate(t.targetsLabel, { status: targets.overrideStatus === 'applied' ? t.targetsStatusOverridden : t.targetsStatusEstimated })}
+          </h2>
+          <CtaLink href="/perfil" size="sm" variant="tertiary">
+            {t.targetsAdjust}
+          </CtaLink>
+        </div>
+      )}
 
       {day ? (
         <DayRings meals={day.meals} targets={targets.effective} totals={day.totals} />
@@ -135,9 +144,16 @@ export default async function DashboardPage() {
       {/* Said on every screen the figure appears on, not only where it is
             edited: someone acts on the number they see, not on the one they
             once read an explanation for. */}
-      <Text className={styles.targetsNote} size="xs" tone="tertiary">
-        {t.targetsEstimate}
-      </Text>
+      <div className={styles.targetsFoot}>
+        <Text className={styles.targetsNote} size="xs" tone="tertiary">
+          {t.targetsEstimate}
+        </Text>
+        {day ? (
+          <CtaLink href="/perfil" size="sm" variant="tertiary">
+            {t.targetsAdjust}
+          </CtaLink>
+        ) : null}
+      </div>
     </Card>
   ) : null;
 
@@ -188,7 +204,26 @@ export default async function DashboardPage() {
                     first and on its own, as the dish itself. The full day is below it. */}
                 <NextMeal hour={hour} meals={day.meals} />
 
-                <Card as="section">
+                {/* The sheet's two tiles: the weight, on the highlight fill, and the day's
+                    meals. Each is a way down this same screen — to the field that logs
+                    today's weight and to the day's list — so nothing is said twice in two
+                    places that could disagree. */}
+                <nav aria-label={t.shortcuts} className={styles.tiles}>
+                  {weight ? (
+                    <a className={`${styles.tile} ${styles.tileWeight}`} href="#peso">
+                      <span className={styles.tileFigure}>
+                        {weight.latestKg === null ? t.weightTitle : `${formatNumber(weight.latestKg, locale)} ${dictionary.units.kilogram}`}
+                      </span>
+                      <span className={styles.tileWords}>{t.tileWeight}</span>
+                    </a>
+                  ) : null}
+                  <a className={styles.tile} href="#hoy">
+                    <span className={styles.tileFigure}>{interpolate(t.tileMeals, { count: day.meals.length })}</span>
+                    <span className={styles.tileWords}>{t.tileDay}</span>
+                  </a>
+                </nav>
+
+                <Card as="section" id="hoy">
                   <div className={styles.cardHeading}>
                     {/* A heading, not a bold paragraph: this screen had one
                         `<h1>` and nothing else, so navigating it by heading
@@ -281,7 +316,7 @@ export default async function DashboardPage() {
           ) : null}
 
           {weight ? (
-            <Card>
+            <Card id="peso">
               <WeightTracker weight={weight} />
             </Card>
           ) : null}
@@ -314,7 +349,11 @@ export default async function DashboardPage() {
           <Text className={styles.status} tone="secondary">
             {away
               ? interpolate(dictionary.vacations.pausedUntil, { date: formatDate(resumesOn(away.endsOn), locale, { day: 'numeric', month: 'long' }) })
-              : `${day ? interpolate(t.dayOf, { current: day.dayIndex, total: plan.days.length }) : t.activePlan} ${interpolate(t.checkIn, { when: checkInLabel(plan.endDate, t) })}`}
+              : day
+                ? // «Miércoles 11 · día 3 de 14 de tu plan», as the sheet says it. How long is
+                  // left is on the fortnight's own card, further down.
+                  interpolate(t.dayOfPlan, { current: day.dayIndex, date: dayName(day.date, locale), total: plan.days.length })
+                : `${t.activePlan} ${interpolate(t.checkIn, { when: checkInLabel(plan.endDate, t) })}`}
           </Text>
         ) : null}
       </header>
@@ -345,6 +384,13 @@ function greetingLine(greeting: string, name: string, t: Dictionary['dashboard']
       {interpolate(after, { greeting })}
     </Fragment>
   );
+}
+
+/** «Miércoles 11»: the weekday, written large at the head of a line, and the day of the month. */
+function dayName(date: string, locale: Parameters<typeof formatDate>[1]): string {
+  const weekday = formatDate(date, locale, { weekday: 'long' });
+
+  return `${weekday.charAt(0).toLocaleUpperCase(locale)}${weekday.slice(1)} ${formatDate(date, locale, { day: 'numeric' })}`;
 }
 
 function checkInLabel(endDate: string, t: Dictionary['dashboard']): string {

@@ -12,57 +12,58 @@
 .card {
   align-content: start;
   display: grid;
-  gap: var(--space-04);
+  gap: var(--space-03);
   min-inline-size: 0;
 }
 
 .head {
-  align-items: start;
+  display: grid;
+  gap: var(--space-01);
+}
+
+/* The dates and the fortnight's state, in small capitals; the one under way in the accent. */
+.title {
+  color: var(--foreground-02);
+  font-family: var(--main-font);
+  font-size: var(--font-size-01);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--tracking-caps);
+  line-height: var(--line-height-03);
+  margin: 0;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.title[data-status='active'] {
+  color: var(--color-brand-11);
+}
+
+/* How the fortnight's meals were marked: the card's own line. */
+.meals {
+  font-size: var(--font-size-03);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-03);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The way into the plan and, at the line's end, which plan of the fortnight it was. */
+.foot {
+  align-items: center;
   display: flex;
-  gap: var(--space-03);
+  flex-wrap: wrap;
+  gap: var(--space-01) var(--space-04);
   justify-content: space-between;
 }
 
-.title {
-  font-size: var(--font-size-05);
-  font-weight: var(--font-weight-bold);
-  line-height: var(--line-height-02);
+.number {
   margin: 0;
-}
-
-.status {
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-full);
-  color: var(--foreground-02);
-  font-size: var(--font-size-01);
-  padding: var(--space-01) var(--space-03);
-  white-space: nowrap;
-}
-
-.status[data-status='active'] {
-  background-color: var(--color-brand-03);
-  border-color: transparent;
-  color: var(--color-brand-11);
 }
 
 .adherence {
   display: grid;
   gap: var(--space-02);
-}
-
-.figure {
-  align-items: baseline;
-  display: flex;
-  gap: var(--space-02);
-}
-
-.percent {
-  font-family: var(--display-font, var(--main-font));
-  font-size: var(--font-size-07);
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--font-weight-heavy);
-  letter-spacing: var(--tracking-headline);
-  line-height: var(--line-height-01);
 }
 
 .track {

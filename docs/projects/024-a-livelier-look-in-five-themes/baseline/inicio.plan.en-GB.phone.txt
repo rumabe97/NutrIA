@@ -4,15 +4,19 @@ button "Español": ES
 button "Log" [disabled]
 button "Mark as eaten"
 button "Sign out"
-heading "Good afternoon, Probe." [level=#]
+button "Theme"
+button "Unmark as eaten" [pressed]
+heading "Good evening, Probe." [level=#]
 heading "Today" [level=#]
 heading "Your daily targets · estimated" [level=#]
+link "# kg Log today’s weight"
+link "# meals See the whole day"
 link "Adjust →"
+link "AI-generated image Dinner Tacos mexicanos de frijoles refritos con queso y aguacateSkipped # kcal · # g P"
+link "AI-generated image Lunch Alubias blancas con almejas al ajilloEaten # kcal · # g P"
 link "Assistant"
-link "Breakfast Yogur con avena scaw.ij.c # kcal · # g P"
-link "Dinner Tacos mexicanos de frijoles refritos con queso y aguacate # kcal · # g P"
+link "Breakfast Yogur con avena eg#m.#Eaten # kcal · # g P"
 link "Home"
-link "Lunch Alubias blancas con almejas al ajillo # kcal · # g P"
 link "NutrIA — home"
 link "Plan"
 link "Profile"
@@ -22,5 +26,4 @@ link "See how it is going →"
 link "See the list →"
 link "Shopping"
 link "Skip to content"
-link "Up next · Dinner Tacos mexicanos de frijoles refritos con queso y aguacate # kcal · # g P"
 textbox "Today"

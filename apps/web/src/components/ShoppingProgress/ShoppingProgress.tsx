@@ -50,9 +50,16 @@ export function ShoppingProgress({ items }: Readonly<{ items: readonly ProgressI
 
   return (
     <div className={styles.root}>
-      <Text size="sm" weight="medium">
-        {interpolate(dictionary.shopping.progress, { done: formatNumber(done, locale), total: formatNumber(items.length, locale) })}
-      </Text>
+      <div className={styles.head}>
+        <Text size="sm" weight="medium">
+          {interpolate(dictionary.shopping.progress, { done: formatNumber(done, locale), total: formatNumber(items.length, locale) })}
+        </Text>
+        {/* The same share as a figure, at the line's end as the sheet draws it. The sentence
+            beside it already says it in full, so this is not read twice. */}
+        <span aria-hidden="true" className={styles.share}>
+          {new Intl.NumberFormat(locale, { maximumFractionDigits: 0, style: 'percent' }).format(share)}
+        </span>
+      </div>
       <div aria-hidden="true" className={styles.track}>
         <div className={`${styles.grow} motion-grow-x`}>
           <div className={styles.fill} style={{ transform: `scaleX(${String(share)})` }} />

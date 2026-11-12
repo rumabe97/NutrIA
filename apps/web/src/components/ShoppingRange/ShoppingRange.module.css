@@ -53,10 +53,11 @@
   cursor: pointer;
   display: inline-flex;
   flex: 1;
-  font-size: var(--font-size-03);
+  font-size: var(--font-size-02);
   font-weight: var(--font-weight-medium);
   justify-content: center;
-  padding: var(--space-02) var(--space-04);
+  min-inline-size: 0;
+  padding: var(--space-02) var(--space-01);
   /* The stretched input below is positioned against this. */
   position: relative;
   text-align: center;
@@ -182,18 +183,17 @@
  * to hit. Nothing is hidden — a choice you cannot reach is worse than a taller
  * control.
  *
- * 27rem rather than something tighter because of what four segments do to a
- * 390px phone (24.4rem): about 202px of room for the Spanish labels, so
- * "Semana 1", "Semana 2" and "Elegir días" break mid-phrase. Ragged is the
- * smaller half of it —
- * the chosen segment is semibold, and therefore wider, so *which* labels wrap
- * changes as you pick: the control's height moves under the reader's thumb and
- * shifts the list below it. Nothing scrolls sideways (a flex item's
- * `min-width: auto` is the floor), so no check catches this; only the
- * screenshot does. Two by two, each segment is about 169px at 390px and every
- * label keeps its line.
+ * The approved sheet draws the four on one row of a 390px phone, and at the
+ * smaller size and the tighter padding above they are: about 82px a segment,
+ * and the longest label («Elegir días», semibold when chosen) is about 72px.
+ * Below 23rem — a 360px phone, or a 390px one with its text a notch up — a
+ * label would break mid-phrase, and the chosen segment is semibold and
+ * therefore wider, so *which* labels wrap would change as you pick and move
+ * the list under the reader's thumb. Nothing scrolls sideways, so no check
+ * catches that; only the screenshot does. Two by two there, every label keeps
+ * its line.
  */
-@media (width < 27rem) {
+@media (width < 23rem) {
   .presets {
     flex-wrap: wrap;
   }

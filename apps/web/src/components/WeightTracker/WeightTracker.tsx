@@ -98,9 +98,10 @@ export function WeightTracker({ weight }: { weight: WeightView }) {
         /* A shape, not a chart. Two readings a fortnight apart is a direction,
            and a direction is all this space can honestly carry. */
         <svg aria-hidden="true" className={styles.spark} preserveAspectRatio="none" viewBox="0 0 100 28">
+          {/* No stroke-offset draw (`.motion-draw`): the box is stretched and the stroke is
+              not, and Chrome measures a dash on such a line in the wrong space — the line
+              stayed broken into dashes at rest (`components/WeightChart` has the same note). */}
           <polyline
-            className="motion-draw"
-            pathLength={1}
             points={points.map((point, index) => `${(index / (points.length - 1)) * 100},${28 - ((point.weightKg - low) / span) * 24 - 2}`).join(' ')}
           />
         </svg>

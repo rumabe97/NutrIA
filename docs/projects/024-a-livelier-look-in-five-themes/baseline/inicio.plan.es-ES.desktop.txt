@@ -4,17 +4,20 @@ button "Cerrar sesión"
 button "English": EN
 button "Español" [pressed]: ES
 button "Marcar como hecha"
-heading "Buenas tardes, Probe." [level=#]
+button "Quitar la marca de hecha" [pressed]
+button "Tema"
+heading "Buenas noches, Probe." [level=#]
 heading "Hoy" [level=#]
 heading "Tus objetivos diarios · estimados" [level=#]
+link "# comidas Ver el día completo"
+link "# kg Anotar peso de hoy"
 link "Ajustar →"
 link "Asistente"
-link "Cena Tacos mexicanos de frijoles refritos con queso y aguacate # kcal · # g P"
-link "Comida Alubias blancas con almejas al ajillo # kcal · # g P"
 link "Compra"
-link "Desayuno Yogur con avena scaw.ij.c # kcal · # g P"
+link "Desayuno Yogur con avena eg#m.#Hecha # kcal · # g P"
+link "Imagen generada por IA Cena Tacos mexicanos de frijoles refritos con queso y aguacateSaltada # kcal · # g P"
+link "Imagen generada por IA Comida Alubias blancas con almejas al ajilloHecha # kcal · # g P"
 link "Inicio"
-link "Lo siguiente · Cena Tacos mexicanos de frijoles refritos con queso y aguacate # kcal · # g P"
 link "NutrIA — inicio"
 link "Perfil"
 link "Plan"

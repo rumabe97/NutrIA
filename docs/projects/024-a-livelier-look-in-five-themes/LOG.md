@@ -1403,3 +1403,79 @@ phase-4 way and removed after):
 - DONE — read at 390, 320 and 1280, beside the sheet's crops.
 - NOT RUN — an iPhone; the history and next-plan screens in a browser (same component, no swap
   and no mark there; their title is the eyebrow now).
+
+**Approved and shipped**: the owner approved the captures on 2026-11-12 («Le doy el visto
+bueno»); #373 merged, both production deployments succeeded, `main`'s CI green.
+
+## After phase 6 — Inicio, Compra, Progreso and Perfil against the sheet (2026-11-12)
+
+**Executor**: the lead, in the main checkout (the owner's rule of that day: every screen is
+drawn as the approved sheet draws it, except what was changed on purpose since).
+
+**What was compared**: `reference/02-mobile-complete.jpg` and `reference/01-…`, each screen
+cropped at full size beside a 390 px capture of the build with a plan, pictures, weights and
+marks. What the PRD already records as a deliberate difference was not reopened (§ "What
+changes from the sheets": the deeper accent, the solid small text, the near-opaque strip, the
+«IA» mark, the rings counting «Hecha»; and the owner's glass bar and header theme switch).
+
+**Inicio**
+- The line under the greeting is the sheet's: «Jueves 12 · día 1 de 14 de tu plan». How long
+  is left stays on the fortnight's card.
+- The rings card is the sheet's compact one: the rings with the four figures two by two beside
+  them from a 390 px phone (one column under that, as before), each figure over its target.
+  The heading stays for the outline (`visually-hidden`); «Ajustar» is at the card's foot.
+  **Kept, smaller**: the three notes (what the rings sum, what the plan sums, that the targets
+  are an estimate) — wording of record, not dropped for the look.
+- The sheet's two tiles follow the next meal: the weight on the highlight fill and «N comidas ·
+  Ver el día completo». Each is a link down the same screen (`#peso`, `#hoy`), so the day's
+  list, the fortnight, the shopping and the weight field all stay where they were, under them.
+- Found on the way: the weight sparkline stayed broken into dashes at rest in Chrome (the
+  stroke-offset draw on a stretched box, the defect `WeightChart` already documents). It is
+  drawn whole now, without that animation.
+
+**Compra**
+- Title «Tu lista de la compra», the sentence under it, and the four ranges on one row at
+  390 px (two by two under 23rem, where a label would break). «Todos» reads «14 días» — the
+  plan's own length. The legend is drawn only when the plan switch sits above the control.
+- The share in the trolley as a figure at the card's end; «N por comprar» beside each aisle,
+  counted from the device's marks like the bar; the rows on the sunken ground.
+- **Moved**: «Compartir lo que falta» and «Supermercados cerca» go after the list, where the
+  sheet draws the second. **Kept**: the pencil on each row (the sheet draws none).
+
+**Progreso**
+- The weight card leads: its change since the first reading at the head's end, the chart, the
+  chart's sentence drawn (it was for a screen reader only), and «Anotar el peso de hoy» at the
+  foot, landing on Inicio's weight field. Then the ring with «N de M» as its figure.
+- A fortnight's card is the sheet's: dates and state in small capitals, how its meals were
+  marked as its line, its check-in as chips. **Kept**: the bar and its percentage (smaller),
+  the way into the plan, the plan's number.
+- **Moved**: the four figures close the screen instead of opening it.
+
+**Perfil**
+- Each group of answers is the sheet's: its name and «Editar» on one line, the answers as rows
+  on one sunken ground, a name at the start and the answer at the end (a long answer takes the
+  line under its name).
+- **Not done, and a question for the owner**: the sheet's profile is a short settings list —
+  security as three rows with a switch, the account as rows. Ours carries every form open
+  (password, second factor, passkeys, sessions, trips, fixed meals, health, feedback). Folding
+  each behind a row changes how those flows are reached, which is not a restyle.
+
+**Asistente**: read beside the sheet with the local switch on — same structure (the two
+controls, the warning, the composer and its line). Left as the owner confirmed it in phase 5.
+
+
+**Verification** (a fresh build against the local API; a premium probe account with a plan,
+pictures loaded the phase-4 way, six weights and three marks; all removed after):
+- DONE — overflow: `/inicio`, `/compra`, `/progreso`, `/perfil` at 320, 360, 390, 768 and 1280
+  in the five themes, in Spanish and in English — 400 loads, no hit. The only hint is the two
+  native selects of the fixed-meal form, as before.
+- DONE — `widths.mjs` on the four, clean; 200 % text at 320 and 390, Claro and Oscuro, the four
+  screens in both languages, no hit.
+- DONE — control baseline, before and after: nothing gone. Renamed: Compra's `h1`, its «Todos»
+  radio (now «14 días»), Progreso's weight heading and a fortnight's heading (it carries the
+  state). New: Inicio's two tiles. The baseline files of the four are refreshed (taken after
+  21:00, so Inicio's has no next meal — the day's last was past its hour).
+- DONE — read at 390, 360 and 320 and at 1280 beside the sheet's crops. One thing the captures
+  caught and no check did: the rings ignored the size their card gave them (the library's own
+  size is declared later and won), so «Carbohidratos» broke mid-word in the two-column legend.
+- NOT RUN — an iPhone.
