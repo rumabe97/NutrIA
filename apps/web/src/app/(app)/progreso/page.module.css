@@ -92,7 +92,7 @@
 }
 
 .overallLine {
-  flex: 1 1 10rem;
+  flex: 1 1 8rem;
   font-family: var(--display-font, var(--main-font));
   font-size: var(--font-size-05);
   font-weight: var(--font-weight-bold);
@@ -105,7 +105,7 @@
 
 .overallNone {
   color: var(--foreground-02);
-  flex: 1 1 10rem;
+  flex: 1 1 8rem;
   margin: 0;
   min-inline-size: 0;
 }
