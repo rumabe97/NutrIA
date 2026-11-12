@@ -386,6 +386,31 @@ html:has(.header) {
     visibility: hidden;
   }
 
+  /*
+   * And every destination in it, said again on each one (project 024 phase 5). On the
+   * owner's iPhone a faint pill with the home icon stayed on screen where the first
+   * destination sits while the bar was hidden: each destination is its own stacking
+   * context (`isolation`) holding a layer the marker's slide composites, and WebKit can
+   * leave such a layer painted when only its ancestor is hidden. Hidden and transparent
+   * themselves, with the bar's own 300ms return, nothing of the bar can stay behind.
+   */
+  .link {
+    transition:
+      visibility 0s linear 300ms,
+      opacity 0s linear 300ms;
+  }
+
+  body:has(
+      input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit'], [type='file']):focus,
+      select:focus,
+      textarea:focus
+    )
+    .link {
+    opacity: 0;
+    transition-delay: 0s;
+    visibility: hidden;
+  }
+
   /* Tabbing forward never leaves focus under the floating bar. */
   html:has(.nav) {
     scroll-padding-block-end: var(--app-bar-clearance);
