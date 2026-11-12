@@ -157,3 +157,11 @@
     display: none;
   }
 }
+
+/* Large text: the header wraps to two or three rows, and a sticky one would hold a quarter of the
+   screen over the page. It scrolls away with it instead, as the app's header does there. */
+@media (width < 17rem) {
+  .header {
+    position: relative;
+  }
+}

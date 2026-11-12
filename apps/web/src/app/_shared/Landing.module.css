@@ -289,19 +289,17 @@
 
 /* ── Steps ────────────────────────────────────────────────────────────── */
 
-/* Four tiles on the sunken ground, each numbered in the display face — no coloured edge. */
+/* Four steps on the page itself, each numbered large in the display face: no box and no
+   coloured edge — the cards below are the features', and two kinds of box in a row read as a grid of everything. */
 .steps {
   counter-reset: step;
   display: grid;
-  gap: var(--space-04);
+  gap: var(--space-07);
   margin-top: var(--space-08);
 }
 
 .step {
-  background-color: var(--surface-sunken);
-  border-radius: var(--radius-card);
   min-inline-size: 0;
-  padding: var(--space-05) var(--gutter-card);
 }
 
 .step::before {

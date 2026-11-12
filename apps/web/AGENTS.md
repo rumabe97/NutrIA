@@ -465,8 +465,10 @@ Perfil while its switch is on, Consulta last for a professional, and offline onl
   while a field that opens a keyboard has focus and returns 300ms after.
 - **The rail**: fixed at the side, `--app-rail-inline` wide; the shell gives the page
   `--app-rail-offset` of room. Each destination is its icon over its words.
-- **The pattern** replaces the ambient light and grain on the signed-in screens only
-  (`body:has([data-shell='app'])` in `globals.css`; the public pages and the console keep theirs).
+- **The pattern** is `components/HeaderPattern`, one component drawn behind the app's header, the
+  public pages' (`SiteHeader`) and the sign-in family's (`AuthShell`). On the signed-in screens it
+  replaces the ambient light and grain (`body:has([data-shell='app'])` in `globals.css`); the
+  public pages draw it over theirs, and the console keeps its light and grain without it.
   It drifts by `transform` (`--duration-drift`, the owner's exception, PRD 024 criterion 9) and
   trails the scroll by `translate` where scroll-driven animations exist; reduced motion stills it,
   and `--pattern-opacity` is 0 in Alto contraste and under forced colours. The header's glass fades
@@ -517,6 +519,25 @@ Perfil while its switch is on, Consulta last for a professional, and offline onl
 - **The questionnaire has no destinations**: its step page renders `data-questionnaire` (not when
   one step is opened from the profile) and the shell hides the bar and the rail and releases
   their room. Do not add a second way to hide them.
+
+### The public pages (project 024 phase 7)
+
+- **The landing's hero** is the sheet's: copy at the start, the food beside it from 64rem. The
+  food is `components/LandingPictures` over `lib/landingPictures.ts` — **empty until the owner has
+  chosen pictures** under every condition of `docs/legal/2026-11-11-redesign.md` § 2.8 (published,
+  judge-accepted, `seed`/`ai`, looked at beside their ingredients, ids in the project's LOG) — and
+  without them the illustrative plan (`landing.preview`) takes its place. At most three; each tile
+  is a `DishPicture` (`hero` variant for all, so the «IA» mark never shrinks), side by side and
+  never overlapping, the first eager, the rest lazy, the caption `landing.heroPicturesNote` beside
+  them. No dish name on a tile, no picture in `og:image`, JSON-LD, the manifest or the sitemap,
+  and never the word «foto» (`lib/landing.test.ts` checks the dictionaries).
+- **A title's accent words** are the dictionary's (`landing.titleAccent`, the title's own last
+  words, `lib/titleAccent`): the heading's text never changes, and the accent is the solid
+  `--color-brand-11`, not the sheet's gradient (PRD 024 § "What changes from the sheets", 2).
+- **The sign-in family** sits under `AuthShell`'s header (brand, language, theme, the pattern) in
+  one column. The legal sentence stays **above** the provider buttons and the passkey button
+  **after** the form's submit, where the sheet draws them otherwise: the first is a legal rule
+  (§ Auth), the second appears only after hydration and would push the whole form down at the top.
 
 ### Forms on a phone (project 024 phases 5–6)
 
