@@ -20,7 +20,7 @@ import { StartDatePicker } from 'components/StartDatePicker';
 
 import { api, ApiError, messageFor } from 'lib/api';
 import { formatDate, interpolate } from 'lib/format';
-import { GENERATION_STEPS, generationError, stepLabel, stepsBehind } from 'lib/generation';
+import { GENERATION_DONE, GENERATION_STEPS, generationError, stagesBetween, stepLabel, stepsBehind } from 'lib/generation';
 import { hasMealSizeAnswer, mealSizeAction, mealSizeBody, rememberMealSizeAnswer, subscribeMealSizeAnswers } from 'lib/mealSize';
 import { markPendingReview } from 'lib/pendingReview';
 
@@ -45,10 +45,23 @@ function pollDelay(poll: number): number {
   return POLL_DELAYS_MS[poll] ?? POLL_MAX_MS;
 }
 
+/**
+ * How long each stage is shown when one answer brings several: long enough to see a tick
+ * land, short enough that the five after the first add under two seconds to a wait of
+ * minutes. Not a script: only stages the server has already passed are ever walked.
+ */
+const STAGE_SHOWN_MS = 320;
+/** The full ring, held for a moment before the plan opens. */
+const DONE_SHOWN_MS = 500;
+
+function pause(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 type Phase =
   | { code: string | null; detail: string | null; kind: 'failed' }
   | { kind: 'ready' }
-  | { kind: 'running'; step: string | null }
+  | { kind: 'running'; said: string | null; step: string | null }
   | { kind: 'starting' };
 
 interface GenerationProgressProps {
@@ -151,6 +164,34 @@ export function GenerationProgress({ allowance, defaultStart, events, mealSize, 
       return;
     }
 
+    // The last stage drawn. An answer several stages on is walked to, one stage at a time;
+    // what is said aloud is only where the job is, once, not each stage on the way.
+    let shown: string | null = null;
+
+    async function walk(to: string) {
+      const stages = stagesBetween(shown, to);
+      const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      for (const [index, stage] of stages.entries()) {
+        const last = index === stages.length - 1;
+
+        shown = stage;
+
+        // With reduced motion nothing is played: the screen goes straight to where the job is.
+        if (still && !last) {
+          continue;
+        }
+
+        setPhase({ kind: 'running', said: to, step: stage });
+
+        if (!last) {
+          await pause(STAGE_SHOWN_MS);
+        } else if (stage === GENERATION_DONE) {
+          await pause(DONE_SHOWN_MS);
+        }
+      }
+    }
+
     for (let poll = 0; poll < MAX_POLLS; poll += 1) {
       await new Promise(resolve => setTimeout(resolve, pollDelay(poll)));
 
@@ -163,6 +204,10 @@ export function GenerationProgress({ allowance, defaultStart, events, mealSize, 
       }
 
       if (current.status === 'succeeded') {
+        // Every stage is behind a job that succeeded: the ones this screen never saw are
+        // ticked one after another, and the ring closes, before the plan opens.
+        await walk(GENERATION_DONE);
+
         // Nothing new to see at `/plan` while it waits for review — `planId`
         // is null for this reader on purpose (`presentJob`, `0060`) — so the
         // screen that has something to show is `/inicio`, with the calm
@@ -185,7 +230,9 @@ export function GenerationProgress({ allowance, defaultStart, events, mealSize, 
         return;
       }
 
-      setPhase({ kind: 'running', step: current.step });
+      if (current.step !== null) {
+        await walk(current.step);
+      }
     }
 
     setPhase({ code: 'GENERATION_ABANDONED', detail: null, kind: 'failed' });
@@ -324,6 +371,7 @@ export function GenerationProgress({ allowance, defaultStart, events, mealSize, 
   }
 
   const step = phase.kind === 'running' ? phase.step : null;
+  const said = phase.kind === 'running' ? phase.said : null;
   const behind = stepsBehind(step);
   const total = GENERATION_STEPS.length;
   const progress = interpolate(dictionary.generation.stepsDone, { done: String(behind), total: String(total) });
@@ -350,7 +398,15 @@ export function GenerationProgress({ allowance, defaultStart, events, mealSize, 
       <Text tone="secondary">{dictionary.generation.wait}</Text>
 
       <div aria-atomic="true" aria-live="polite" className={styles.step}>
-        <Text weight="medium">{step ? stepLabel(step, dictionary) : dictionary.generation.starting}</Text>
+        <Text weight="medium">
+          {said === GENERATION_DONE ? dictionary.generation.finished : said ? stepLabel(said, dictionary) : dictionary.generation.starting}
+        </Text>
+        {/* The one stage that takes minutes says so, so a ring that stands still reads as work and not as a fault. */}
+        {said === 'CHOOSING_RECIPES' ? (
+          <Text size="sm" tone="secondary">
+            {dictionary.generation.longestStep}
+          </Text>
+        ) : null}
       </div>
 
       {/* The six stages, in the pipeline's order: the ones behind the job ticked and

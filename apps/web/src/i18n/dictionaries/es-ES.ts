@@ -1874,9 +1874,11 @@ export const esES = {
     couldNotStart: 'No hemos podido empezar',
     failedBody: 'Algo ha ido mal por nuestra parte. No se ha guardado nada, así que puedes volver a intentarlo.',
     failedTitle: 'No hemos podido crear tu plan',
+    finished: 'Tu plan está listo',
     invalidPlanBody:
       'Hemos construido un plan pero le faltaban comidas o cruzaba un límite de seguridad, así que lo hemos descartado en lugar de dártelo. Vuelve a intentarlo.',
     invalidPlanTitle: 'El plan no salía bien',
+    longestStep: 'Este es el paso que más tarda; los demás son cosa de segundos.',
     onboardingIncompleteBody: 'Nos faltan datos tuyos para poder calcular tus necesidades.',
     onboardingIncompleteTitle: 'Falta terminar tu perfil',
     poolTooSmallBody:
