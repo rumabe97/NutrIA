@@ -6,6 +6,19 @@
   padding: var(--space-03);
 }
 
+/* The opener as a bin: a round target, its name on the button. */
+.bin {
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+  min-inline-size: var(--target-min);
+  padding: 0;
+}
+
+.bin svg {
+  block-size: 1.125rem;
+  inline-size: 1.125rem;
+}
+
 .text {
   color: var(--foreground-01);
   font-size: var(--font-size-02);

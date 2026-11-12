@@ -1479,3 +1479,37 @@ pictures loaded the phase-4 way, six weights and three marks; all removed after)
   caught and no check did: the rings ignored the size their card gave them (the library's own
   size is declared later and won), so «Carbohidratos» broke mid-word in the two-column legend.
 - NOT RUN — an iPhone.
+
+**Approved**: the owner approved these captures on 2026-11-12 and chose to leave the profile's
+forms open, as they are (#374).
+
+## After phase 6 — the assistant on his iPhone: one tap sends, and the bar stays (2026-11-12)
+
+**Reported by the owner**: with the keyboard open, tapping send closed the keyboard and sent
+nothing; a second tap was needed. And, as an improvement: the title, «Nueva» and the other
+conversations should stay at the top, since on a long chat a new one was a long scroll away.
+
+**Cause of the first**: the box's place depends on its focus (`:has(.field:focus)` — the bar
+steps aside and the box rides above the keyboard). The tap blurred the box before the click:
+the keyboard closed, the box dropped from under the finger and the click landed on nothing.
+The send button no longer takes the focus (`preventDefault` on its pointer and mouse down), so
+the box keeps it, nothing moves, and the keyboard stays for the next question.
+
+**The bar** (his three messages: the title too, glass, and deleting the conversation too): on a
+phone it stays under the header as a floating capsule of the bottom bar's glass, the
+conversation passing under it. On a new conversation it is the sheet's two worded controls.
+With a conversation open it is the head of a chat: the list and «Nueva conversación» as icons
+with their names, the conversation's name on one line between them (the page's heading has it
+whole, and is the one a screen reader gets), and a bin that deletes it — its question opens
+across the bar, focus on «Borrar para siempre», as before. The page's own delete button is
+drawn only on the wide layout, where there is no bar.
+
+**Verification** (local build with a placeholder assistant key; the conversation made of
+questions the code declines before any model call):
+- DONE — at 320 and 390, Claro and Oscuro: the bar's top under the header on a scrolled
+  conversation, no sideways scroll, the three controls 44 × 44 each with its name; the delete
+  question opens inside the bar and takes the focus.
+- DONE — one tap on send with the box focused makes one request and the focus stays in the box.
+- NOT RUN — an iPhone, which is where the defect was: the owner's check. A conversation with a
+  real title (the local one has none and reads «Asistente»). The title at 320 after the last
+  change (it was hidden there in the build that was captured; it is one line with an ellipsis).

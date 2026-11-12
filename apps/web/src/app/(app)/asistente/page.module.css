@@ -19,6 +19,17 @@
   justify-content: space-between;
 }
 
+/* Below the wide layout the bar above has the same control (`AssistantHistory`). */
+.headerDelete {
+  display: none;
+}
+
+@media (width >= 64rem) {
+  .headerDelete {
+    display: block;
+  }
+}
+
 .title {
   font-size: var(--font-size-06);
   font-weight: var(--font-weight-heavy);
