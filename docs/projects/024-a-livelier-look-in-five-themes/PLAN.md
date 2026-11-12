@@ -325,7 +325,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 
 ### Phase 7 — The public pages
 
-- [ ] pending
+- [ ] in progress — built 2026-11-12/13; the hero without pictures (step 1's pictures wait on the owner's choice, legal § 2.8); owner-approves pending: the captures (LOG.md)
 - **Dispatch**: opus @ medium — `/execute-project 024 phase 7`
 - **Goal**: landing, the sign-in family and the two legal pages in the new design, with SEO at
   least where it was.
