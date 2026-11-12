@@ -44,7 +44,7 @@ export function SiteFooter() {
       <div className={styles.inner}>
         <div className={styles.top}>
           <div>
-            <Text size="lg" weight="semibold">
+            <Text className={styles.brand} size="lg" weight="semibold">
               NutrIA
             </Text>
             <Text size="sm" tone="secondary">

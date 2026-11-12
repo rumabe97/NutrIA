@@ -9,18 +9,28 @@
   gap: var(--space-08);
   margin-inline: auto;
   max-width: var(--content-max);
-  padding-inline: var(--space-05);
+  padding-inline: var(--gutter-page);
 }
 
+/* One column no wider than the box: at 200% text a 9rem column is wider than a phone. */
 .top {
   display: grid;
   gap: var(--space-08);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* `p.` so the display face wins over `Text`'s own weight, as the header's brand is drawn. */
+p.brand {
+  color: var(--foreground-01);
+  font-family: var(--display-font);
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--tracking-title);
 }
 
 .columns {
   display: grid;
   gap: var(--space-07);
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
 }
 
 .columnTitle {
@@ -43,6 +53,8 @@
 
 .link:hover {
   color: var(--foreground-01);
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
 }
 
 .bottom {
@@ -60,6 +72,6 @@
 
 @media (width >= 56rem) {
   .top {
-    grid-template-columns: 1fr 2fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   }
 }
