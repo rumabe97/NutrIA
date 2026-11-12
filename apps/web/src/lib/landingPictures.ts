@@ -28,4 +28,25 @@ export interface LandingPicture {
 
 export const LANDING_PICTURES_MAX = 3;
 
-export const LANDING_PICTURES: readonly LandingPicture[] = [];
+/*
+ * Chosen on 2026-11-13 (LOG.md, project 024): each accepted by the judge with no note and no
+ * extra food, 5/5 for realism and sharpness, one dish, nothing that is not food; looked at
+ * beside its ingredient list.
+ */
+export const LANDING_PICTURES: readonly LandingPicture[] = [
+  // Salteado de gambas y edamame al jengibre con arroz basmati (seed)
+  {
+    path: 'https://whugf3droedhum8f.public.blob.vercel-storage.com/dish-pictures/e03c398a-30a2-40f1-a8a8-e7f7fef6acaa/2.0.0-228b005e-eaa8-41f3-84cb-36c82dcfdc33.jpg',
+    recipeId: 'e03c398a-30a2-40f1-a8a8-e7f7fef6acaa'
+  },
+  // Tortilla de patatas y pimientos del piquillo con ensalada verde (seed)
+  {
+    path: 'https://whugf3droedhum8f.public.blob.vercel-storage.com/dish-pictures/e16f6175-0918-48fc-8af8-841115bc5c12/2.0.1-6299b5d4-f627-4527-a2f9-f51f04414c51.jpg',
+    recipeId: 'e16f6175-0918-48fc-8af8-841115bc5c12'
+  },
+  // Copa de Yogur Proteico con Granada y Nueces (ai)
+  {
+    path: 'https://whugf3droedhum8f.public.blob.vercel-storage.com/dish-pictures/6e12e063-9bb2-4fec-be80-73b8944e7b9a/2.0.1-47eb61ad-287f-4051-8d3e-b3f2d1a629d0.jpg',
+    recipeId: '6e12e063-9bb2-4fec-be80-73b8944e7b9a'
+  }
+];
