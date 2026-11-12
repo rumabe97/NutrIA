@@ -489,6 +489,13 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
             aria-disabled={busy || spent || draft.trim() === '' || undefined}
             aria-label={busy ? t.sending : t.send}
             className={styles.send}
+            // Pressing it never takes the focus from the box. On a phone the press used to
+            // blur the box first: the keyboard closed, the box dropped to the screen's foot
+            // from under the finger, and the press landed on nothing — a second one was
+            // needed to send (the owner's iPhone, 2026-11-12). The box keeps its focus and
+            // the keyboard stays for the next question.
+            onMouseDown={event => event.preventDefault()}
+            onPointerDown={event => event.preventDefault()}
             type="submit"
           >
             <svg aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
