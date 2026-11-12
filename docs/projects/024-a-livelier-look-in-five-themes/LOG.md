@@ -1332,3 +1332,14 @@ shows.
   floated legend in a grid fieldset), «Cambiar plato» on a plan row (the panel, the count, a swap,
   and opening a second row's panel without the page jumping), the workspace and a client's page if
   he has a professional account, and «Aviso completo».
+
+**The lead's own check, on `024-phase-6-ship` after merging `main` (2026-11-12)**: `gate.sh
+--full` green. A fresh build against the local API, new accounts: `/plan`, `/plan/historial`,
+`/onboarding/1`, `/onboarding/6`, `/onboarding/9` at 320, 360, 390, 768 and 1280 in the five
+themes — 125 loads, no hit; `/consulta` and a client's page at the five widths in Claro, Oscuro
+and Pulso — 30 loads, no hit; `widths.mjs` on all six routes, clean. «Cambiar plato» from a row
+on a scrolled page at 320 and 768: the panel inside the screen, focus on its chosen option, a
+second row's panel closing the first, a swap completing with the row changed, every count one
+lower and focus back on the row's button; no page error. The 768 capture read: two columns of
+options, nothing cut. Accounts deleted, servers stopped. **Owner-approves pending** — the
+captures were sent to him the same day; nothing of phase 6 is merged before his answer.
