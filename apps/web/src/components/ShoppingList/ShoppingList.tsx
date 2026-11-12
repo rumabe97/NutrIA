@@ -88,7 +88,7 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
 
   return (
     <Fragment>
-      <h1 className={styles.title}>{t.title}</h1>
+      <h1 className={`${styles.title} motion-enter`}>{t.title}</h1>
       {switcher}
 
       {/*
@@ -129,7 +129,7 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
       )}
 
       {/* Counted on the device, so a mark still waiting for a connection counts too (`0055`). */}
-      <div className={styles.progress}>
+      <div className={`${styles.progress} motion-enter`}>
         <ShoppingProgress
           items={shown.map(item => ({ id: item.id, boughtGrams: item.boughtGrams, neededGrams: item.range.totalGrams, totalGrams: item.totalGrams }))}
         />
@@ -166,27 +166,30 @@ export function ShoppingList({ list, subtitle, switcher }: ShoppingListProps) {
         </div>
       ) : null}
 
-      {groups.map(group => (
-        <section className={`${styles.group} motion-enter`} key={group.category}>
-          <h2 className={styles.groupTitle}>{categoryLabel(group.category, dictionary)}</h2>
-          <ul className={styles.items}>
-            {group.items.map(item => (
-              <ShoppingItem
-                boughtGrams={item.boughtGrams}
-                displayQuantity={item.range.displayQuantity}
-                displayUnit={item.range.displayUnit}
-                gramsPerUnit={item.gramsPerUnit}
-                id={item.id}
-                key={item.id}
-                name={item.name}
-                neededGrams={item.range.totalGrams}
-                onNotice={setNotice}
-                totalGrams={item.totalGrams}
-              />
-            ))}
-          </ul>
-        </section>
-      ))}
+      {/* The aisles arrive one after another, each a grouped list on its own card. */}
+      <div className={`${styles.groups} motion-list`}>
+        {groups.map(group => (
+          <section className={styles.group} key={group.category}>
+            <h2 className={styles.groupTitle}>{categoryLabel(group.category, dictionary)}</h2>
+            <ul className={styles.items}>
+              {group.items.map(item => (
+                <ShoppingItem
+                  boughtGrams={item.boughtGrams}
+                  displayQuantity={item.range.displayQuantity}
+                  displayUnit={item.range.displayUnit}
+                  gramsPerUnit={item.gramsPerUnit}
+                  id={item.id}
+                  key={item.id}
+                  name={item.name}
+                  neededGrams={item.range.totalGrams}
+                  onNotice={setNotice}
+                  totalGrams={item.totalGrams}
+                />
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
     </Fragment>
   );
 }

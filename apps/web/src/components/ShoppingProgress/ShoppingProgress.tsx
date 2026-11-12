@@ -1,6 +1,8 @@
 'use client';
 import { useSyncExternalStore } from 'react';
 
+import styles from './ShoppingProgress.module.css';
+
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
@@ -28,6 +30,12 @@ function isDone(item: ProgressItem, bought: number): boolean {
  * Progress, not a promise: the count is derived from the marks, so it cannot
  * claim something the list does not show. The server's count is where it
  * starts, before anything is marked on this device.
+ *
+ * Under the words, a bar that grows to the share in the trolley when the screen
+ * arrives and moves with every mark (project 024): decoration, `aria-hidden`,
+ * because the sentence already says the same figures. It is drawn by
+ * `transform` alone — the outer layer grows in from nothing once, the inner one
+ * is scaled to the share and eases to each new one — so nothing re-lays the row.
  */
 export function ShoppingProgress({ items }: Readonly<{ items: readonly ProgressItem[] }>) {
   const dictionary = useDictionary();
@@ -38,9 +46,18 @@ export function ShoppingProgress({ items }: Readonly<{ items: readonly ProgressI
     () => items.filter(item => isDone(item, item.boughtGrams)).length
   );
 
+  const share = items.length === 0 ? 0 : done / items.length;
+
   return (
-    <Text size="sm" tone="secondary">
-      {interpolate(dictionary.shopping.progress, { done: formatNumber(done, locale), total: formatNumber(items.length, locale) })}
-    </Text>
+    <div className={styles.root}>
+      <Text size="sm" weight="medium">
+        {interpolate(dictionary.shopping.progress, { done: formatNumber(done, locale), total: formatNumber(items.length, locale) })}
+      </Text>
+      <div aria-hidden="true" className={styles.track}>
+        <div className={`${styles.grow} motion-grow-x`}>
+          <div className={styles.fill} style={{ transform: `scaleX(${String(share)})` }} />
+        </div>
+      </div>
+    </div>
   );
 }

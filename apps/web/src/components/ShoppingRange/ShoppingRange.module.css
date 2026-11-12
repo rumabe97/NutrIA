@@ -27,14 +27,19 @@
 }
 
 /*
- * A segmented control, the same material as the plan switch above it: one
- * sunken track holding the choices, the chosen one lifted onto a card surface
- * and ringed in the brand colour. The choices are radios — the filter is a
- * reading of this page, never a different address (`0053`).
+ * A segmented control (project 024), the same as `ui/components/Tabs` and the
+ * plan switch above it: one sunken track holding the choices, the chosen one
+ * filled in the text colour with the page's colour as its words — the inverse
+ * of body text, so it holds what body text holds, against the track and the
+ * card alike. The choices are radios — the filter is a reading of this page,
+ * never a different address (`0053`).
+ *
+ * Nested rounded rectangles, not pills: four segments wrap two by two on a
+ * phone (below), and a pill that wraps becomes a blob.
  */
 .presets {
   background-color: var(--surface-sunken);
-  border-radius: var(--radius-full);
+  border-radius: calc(var(--radius-control) + var(--space-01));
   display: flex;
   gap: var(--space-01);
   padding: var(--space-01);
@@ -42,9 +47,8 @@
 
 .preset {
   align-items: center;
-  /* Transparent on every segment so the chosen one's border costs no layout shift. */
   border: 1px solid transparent;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-control);
   color: var(--foreground-02);
   cursor: pointer;
   display: inline-flex;
@@ -52,10 +56,16 @@
   font-size: var(--font-size-03);
   font-weight: var(--font-weight-medium);
   justify-content: center;
-  padding: var(--space-01) var(--space-04);
+  padding: var(--space-02) var(--space-04);
   /* The stretched input below is positioned against this. */
   position: relative;
   text-align: center;
+  /* A segment presses in like a button (only the transform moves). */
+  transition: transform var(--duration-fast) var(--spring-firm);
+}
+
+.preset:active {
+  transform: scale(0.97);
 }
 
 /*
@@ -74,18 +84,13 @@
 }
 
 /*
- * The chosen segment needs a boundary somebody can see. The raised surface
- * alone is 1.06:1 against the track in light and 1.02:1 in dark — invisible —
- * and the native radio is `opacity: 0`, so unlike the day checkboxes below
- * there is no native mark carrying the state either. The brand border is
- * 4.56:1 light and 4.36:1 dark against the track, clearing 1.4.11's 3:1, and
- * the weight and text colour change with it so the state never rests on colour
- * alone (1.4.1).
+ * The chosen segment: the text colour as its ground (the pair is in the
+ * contrast script, `--background-01` on `--foreground-01`), and a heavier
+ * weight, so the state never rests on colour alone (1.4.1).
  */
 .preset:has(.radio:checked) {
-  background-color: var(--surface-card);
-  border-color: var(--color-brand-09);
-  color: var(--foreground-01);
+  background-color: var(--foreground-01);
+  color: var(--background-01);
   font-weight: var(--font-weight-semibold);
 }
 
@@ -135,6 +140,14 @@
   font-weight: var(--font-weight-medium);
 }
 
+.day:active {
+  transform: scale(0.97);
+}
+
+.day {
+  transition: transform var(--duration-fast) var(--spring-firm);
+}
+
 .day:has(.checkbox:focus-visible) {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
@@ -182,12 +195,10 @@
  */
 @media (width < 27rem) {
   .presets {
-    border-radius: var(--radius-control);
     flex-wrap: wrap;
   }
 
   .preset {
-    border-radius: var(--radius-control);
     flex-basis: calc(50% - var(--space-01));
   }
 }

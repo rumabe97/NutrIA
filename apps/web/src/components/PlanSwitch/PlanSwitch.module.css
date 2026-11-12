@@ -10,10 +10,14 @@
   padding-bottom: var(--space-02);
 }
 
+/* A segmented control, as `ShoppingRange` below it and `ui/components/Tabs`. */
 .switch {
   background-color: var(--surface-sunken);
-  border-radius: var(--radius-full);
+  border-radius: calc(var(--radius-control) + var(--space-01));
   display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-01);
+  max-inline-size: 100%;
   padding: var(--space-01);
 }
 
@@ -21,14 +25,19 @@
   align-items: center;
   /* Transparent on both, so the chosen one's border costs no layout shift. */
   border: 1px solid transparent;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-control);
   color: var(--foreground-02);
   display: inline-flex;
   font-size: var(--font-size-03);
   font-weight: var(--font-weight-medium);
   justify-content: center;
-  padding: var(--space-01) var(--space-05);
+  padding: var(--space-02) var(--space-05);
   text-decoration: none;
+  transition: transform var(--duration-fast) var(--spring-firm);
+}
+
+.link:active {
+  transform: scale(0.97);
 }
 
 @media (pointer: coarse) {
@@ -43,18 +52,14 @@
 }
 
 /*
- * The page you are on needs a boundary somebody can see. The raised surface
- * alone measures 1.06:1 against the track in light and 1.02:1 in dark —
- * decoration, not information — and everything else saying which side you are
- * on was a text colour and one weight step at 14px. The brand border is 4.56:1
- * and 4.36:1 against that track, clearing 1.4.11's 3:1, and the weight changes
- * with it so the state never rests on colour alone. The range control below
- * this one was fixed the same way; they are a pair and should read as one.
+ * The page you are on: the text colour as its ground and the page's colour as
+ * its words (`--background-01` on `--foreground-01`, in the contrast script),
+ * and a heavier weight, so the state never rests on colour alone. The range
+ * control below is drawn the same way; they are a pair and read as one.
  */
 .link[aria-current='page'] {
-  background-color: var(--surface-card);
-  border-color: var(--color-brand-09);
-  color: var(--foreground-01);
+  background-color: var(--foreground-01);
+  color: var(--background-01);
   font-weight: var(--font-weight-semibold);
 }
 
