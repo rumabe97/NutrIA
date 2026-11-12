@@ -15,6 +15,7 @@ import { AssistantWarning } from 'components/AssistantWarning';
 import { api, ApiError, messageFor } from 'lib/api';
 import { askAssistant, threadItems } from 'lib/assistant';
 import { formatDate, interpolate } from 'lib/format';
+import { warningOpenedAfter, warningState } from 'lib/assistantWarning';
 
 import type { AssistantDecline, AssistantStanding, AssistantTurn } from 'lib/assistant';
 
@@ -97,6 +98,16 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
   const [shown, setShown] = useState<readonly ShownTurn[]>(() =>
     turns.map(turn => ({ id: turn.id, content: turn.content, decline: turn.decline, key: turn.id, role: turn.role }))
   );
+  // Emptied (every message deleted), the warning is FULL again, so the next message folds it
+  // afresh rather than bringing it back expanded. Adjusted while rendering when the count
+  // changes — the pattern React documents, no effect — and stored nowhere.
+  const [counted, setCounted] = useState(shown.length);
+
+  if (counted !== shown.length) {
+    setCounted(shown.length);
+    setWarningOpen(opened => warningOpenedAfter(opened, shown.length));
+  }
+
   const [draft, setDraft] = useState('');
   const [writing, setWriting] = useState<string | null>(null);
   const [status, setStatus] = useState('');
@@ -335,8 +346,8 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
           if (item.kind === 'warning') {
             return (
               <AssistantWarning
-                expanded={warningOpen}
-                folded={shown.length > 0}
+                expanded={warningState(shown.length, warningOpen) === 'expanded'}
+                folded={warningState(shown.length, warningOpen) !== 'full'}
                 fullId={warningId}
                 key="warning"
                 onToggle={() => setWarningOpen(open => !open)}

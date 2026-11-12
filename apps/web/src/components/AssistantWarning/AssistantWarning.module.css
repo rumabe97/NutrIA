@@ -21,8 +21,9 @@
 /*
  * «Aviso completo»: a native button in the note's own text colour (the pair the contrast
  * script already holds on the warning's ground), underlined so it reads as something to
- * press, a finger tall on a touch screen. The chevron turns with it — the only thing that
- * moves.
+ * press, a finger tall at every pointer (`docs/legal/2026-11-11-redesign.md` § 6.5: the
+ * button is the way to the whole warning, so it is never a small target, mouse or not). The
+ * chevron turns with it — the only thing that moves.
  */
 .more {
   align-items: center;
@@ -37,6 +38,7 @@
   font-weight: var(--font-weight-semibold);
   gap: var(--space-01);
   margin-inline-start: calc(var(--space-02) * -1);
+  min-block-size: var(--target-min);
   padding: var(--space-01) var(--space-02);
   text-align: start;
   text-decoration: underline;
@@ -46,12 +48,6 @@
 .more:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
-}
-
-@media (pointer: coarse) {
-  .more {
-    min-block-size: var(--target-min);
-  }
 }
 
 .chevron {
