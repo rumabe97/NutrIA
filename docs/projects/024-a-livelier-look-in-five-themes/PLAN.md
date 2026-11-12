@@ -289,7 +289,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 
 ### Phase 5 — The rest of the signed-in app
 
-- [ ] pending
+- [ ] in progress — built and shipped 2026-11-12; human-verify pending: the owner's iPhone, the keyboard above all (LOG.md)
 - **Dispatch**: opus @ medium — `/execute-project 024 phase 5`
 - **Goal**: Compra, Progreso, Check-in, Asistente, Perfil and the plan being made, as approved.
 - **Scope**: `(app)/{compra,progreso,check-in,asistente,perfil}`, `plan/generando`, their
@@ -298,12 +298,12 @@ What the code looks like today, and what that decides (read on 2026-11-11):
   inventory table. The assistant's warning is a `Note` with its text untouched; its answers keep
   `data-ai-generated`; «Descargar mis conversaciones» stays where it is reached today.
 - **Items**:
-  - [ ] Compra and its next-plan list
-  - [ ] Progreso
-  - [ ] Check-in
-  - [ ] Asistente (new conversation and a thread)
-  - [ ] Perfil, with every section and the account's security cards
-  - [ ] Plan being made, and its failure states
+  - [x] Compra and its next-plan list
+  - [x] Progreso
+  - [x] Check-in
+  - [x] Asistente (new conversation and a thread)
+  - [x] Perfil, with every section and the account's security cards
+  - [x] Plan being made, and its failure states
 - **Acceptance criteria**: PRD 1, 7, 9, 11, 15, 16 for these routes.
 - **Verification**: as phase 4.
 

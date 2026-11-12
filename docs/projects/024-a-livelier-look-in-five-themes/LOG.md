@@ -761,3 +761,219 @@
 - **Not run locally**: `gate.sh --full` and a browser probe — phase 5's executor holds the
   machine and the ports. `web` tests, lint and types are green; CI runs the rest. The fix cannot
   be seen in Chrome failing the way Safari did; the owner's iPhone is the check.
+## Phase 5 — The rest of the signed-in app (2026-11-12)
+
+- **Executor**: `frontend` on opus, branch `024-phase-5` (on `024-phase-4-ship`), 14 commits. Nothing ran
+  on `fable`; the advisor was not consulted. Cut off by a usage limit after the control baseline; the
+  lead runs what is marked NOT RUN below.
+- **Result**: built, for the lead's check; human-verify on the owner's iPhone pending (the keyboard first).
+- **What changed**:
+  - **Compra** (`/compra`, `/compra/proxima`). Heading in the heavy face. The range («Todos · Semana 1 ·
+    Semana 2 · Elegir días») and the plan switch («Actual · Próximo») are segmented controls drawn as
+    `ui/Tabs` is: sunken track, the chosen segment filled `--foreground-01` under `--background-01`, heavier
+    weight; still radios / links, still two by two below 27rem. Progress «N de M ya en el carro» on a sunken
+    card with a bar under it (`--gradient-accent` on `--color-ring-track`, `aria-hidden`), which grows in
+    (`.motion-grow-x`) and eases to each new mark by `transform: scaleX`. Aisles are grouped lists: the aisle
+    name as a heading, its rows on one card with hairlines, the aisles arriving staggered (`.motion-list`). A
+    row checked off strikes through by `.motion-strike` (a line per line of a wrapped name, a gradient over
+    the words' own box; `text-decoration` under forced colours); the box and the pencil press in. The amount
+    form drops in (`.motion-drop-in`) and keeps its validation, Esc and focus return. Offline logic untouched.
+  - **Progreso**. Heading heavy; the four tiles count up (`CountUp`, signed where a change, the words «Sin
+    cambios», «—», «conseguido» simply there); the weight line is revealed by a veil in the card's colour
+    sliding off it (`transform`, inside `InView`), with an accent wash under it. The overall «X comidas hechas
+    de Y que marcaste» is now its own card with a single ring (`ui/Rings`, tone 2, decorative — the sentence
+    is the text) beside it; no ring when nothing is marked (the «Marca las comidas…» sentence alone).
+    Fortnight cards arrive staggered; their bar grows by transform; the check-in answers are tags (chips).
+    Every link and the locked/premium row as before.
+  - **Check-in**. The three questions are `OptionCards layout="segmented"` (new prop; onboarding keeps the
+    cards), same radios, names, defaults and values. The error banner is a `Note` (error, `role="alert"`).
+    Form and confirmation arrive (`.motion-enter`), the effects list staggers. No steps added.
+  - **Asistente** (new conversation and a thread). (1) The composer has a ground of its own: the page's
+    colour fading in over the top of its padding, solid behind the box and the allowance line, and the same
+    ground running on below it to the bar (`::after`), so nothing scrolls visibly behind them. (2) With the
+    box focused below 48rem, `--app-bar-clearance` is 0 and the new `--app-foot-space` is `--space-02`
+    (`:global(html):has(.field:focus)`), so the page ends one small gap under the allowance line — the band
+    the owner saw between the box and the keyboard was the layout's foot (space-09 + the bar's clearance,
+    ≈132 px at 390). (3) The bar's remnant: every destination now hides itself too (`visibility` + `opacity`,
+    same 300 ms return) under the bar's own selector — WebKit can leave a destination's composited layer
+    painted when only the bar is hidden; the bar's hiding rule itself is unchanged. (4) The warning folds
+    (`components/AssistantWarning`, the `legal` agent's design § 6.5, owner-approved): FULL while the
+    conversation has no message, FOLDED to `assistant.warningShort` + a native «Aviso completo» button
+    (`aria-expanded`, `aria-controls`, focus stays) once it has one, EXPANDED in place; React state only.
+    The hint under the box now begins with `assistant.composerNotice`. Also: the person's bubble on ink
+    (`--foreground-01`), turns added this visit drop in, the answer being written fades, the send disc on the
+    brand gradient and pressing in, the dots' pulse on tokens (no own reduced-motion guard), the box's colour
+    transitions gone, the thread page's supervision note is a `Note` (it pointed at a class that did not
+    exist), the composer's grid track bounded (it ran 458 px wide at 200 % text on 320).
+  - **Perfil**. Heading heavy; section headings in the heavy display face (no small caps); card titles bold;
+    `ProfileSection` rows as a grouped list; every section, card and control as before. `PasswordMeter`'s bar
+    scales by transform (was `inline-size`); `LocaleSwitcher`'s colour transition removed.
+  - **Plan being made**. Running: a large ring (`ui/Rings`, lg) swept to the stages behind the job out of the
+    pipeline's six (`lib/generation` `GENERATION_STEPS`, `stepsBehind`, tested), «N/6» counted in its middle,
+    its text alternative «N de 6 pasos hechos»; the step line (live region) kept; the six stages as a list,
+    finished ones ticked (`.motion-tick`) and struck, the current one `aria-current="step"` with a breathing
+    dot. The indeterminate bar is gone — the ring replaces it. Failed and could-not-start: the message is a
+    `Note` (error, `role="alert"`), detail and actions unchanged. The screen opens at its top when the job
+    starts or fails (the button sat at the foot of a long page). Ready screen unchanged but for heavier
+    heading and `ChipGroup`'s colour transition removed. `EventPlanner`'s tracks bounded (325 px on a 320 px
+    screen at 200 % text).
+  - Dictionaries: `generation.progressLabel`, `generation.stepsDone`, `assistant.warningShort`,
+    `assistant.warningMore`, `assistant.composerNotice` — in both.
+  - Tokens: `--app-foot-space` (`styles/variables.css`), read by `(app)/layout.module.css` and the assistant
+    column's height.
+  - Colour/size transitions removed in these screens: OptionCards, ChipGroup, AssistantChat (box),
+    PasswordMeter (width → transform), LocaleSwitcher. Left in other phases' files: SiteHeader, AdminNavList,
+    PeriodSelector, OnboardingFlow (`inline-size`), plan/historial (`border-color`).
+- **Evidence** (local build, local Postgres, Chrome):
+  - DONE — `pnpm turbo lint ts:check test --filter=web` green after the last code change: 14 tasks; `web`
+    382 tests (new: `lib/generation.test.ts` 3, `AssistantWarning.test.tsx` 9 — the three states in both
+    languages, the full text equal to the dictionary's, the button after which the text sits, no clamp, no
+    storage or cookie touched); `ui` 534. The very last commit (`ShoppingItem.module.css`, two declarations)
+    landed after that run: NOT re-run.
+  - NOT RUN — `pnpm deadcode`, the `--filter=ui` gate after the last commit, `format:fix` on `ui` (no `ui`
+    file changed).
+  - DONE — contrast: `scripts/check-contrast.mjs` 5 themes × 87 pairs, 435 pass; with `for-lead-5`'s patch
+    5 × 88, 440 pass (the line under the box, `--foreground-02` on `--background-01`: Claro 5.96, Oscuro
+    7.98, Huerta 6.01, Pulso 8.44, Alto contraste 12.63).
+  - DONE — control baseline (`baseline.mjs`, `plan` and `noplan`, `/compra`, `/compra/proxima`, `/progreso`,
+    `/check-in`, `/asistente`, `/perfil`, both languages, phone and desktop, 44 files, each with a phase-0
+    twin), assistant switch on: **no line gone but data** — shopping rows (another plan's ingredients) and the
+    greeting's hour where `/check-in` without a plan redirects to Inicio. Added: «Tema»/«Theme» everywhere
+    (1b), «Apariencia» and its six radios (1b), «Bebidas» (data), and on `/asistente` with a conversation the
+    history link and «Descargar mis conversaciones» (the phase-0 account had none). A thread
+    (`/asistente/<id>`, not in the phase-0 set): «Aviso completo» is present; the warning's link «política de
+    privacidad» is not in the tree while folded — the expected change of the fold. `/compra/proxima` had no
+    scheduled plan on the probe account, so it redirected to `/compra` (phase 0 had the same state).
+  - DONE — overflow, `probe.mjs` (scrolled or cut, element by element): with a plan, `/compra`, `/progreso`,
+    `/perfil`, a thread, `/plan/generando` × 320/360/390/768/1280 × five themes × both languages: 250 loads,
+    0 hits; after the warning fold, `/progreso`, `/asistente`, the thread again, same grid: 150, 0 hits;
+    `/check-in` and `/asistente` in Claro and Oscuro × five widths × both languages: 40, 0; no plan, six
+    routes × five widths × Claro/Oscuro × both languages: 120, 0. `widths.mjs` 320→1400 on the seven
+    routes, plan and no plan, both languages: 28 sweeps, clean.
+  - DONE — states (own script, element by element): a row ticked and a typed amount saved on `/compra` at
+    320 and 390 (Claro, Pulso): 0 hits at 100 %; the plan being made running (job answered by `page.route`,
+    stage SCHEDULING_MEALS → «2 de 6», current = «Repartiendo…», 2 done), failed (POOL_TOO_SMALL, detail
+    shown) and refused (429): 0 hits at 320/390, 100 % and 200 %.
+  - DONE, with two fixes — 200 % text at 320 and 390 (CDP `Page.setFontSizes`), Claro and Oscuro, seven
+    routes: found the composer at 458 px and the events form at 325 px on a 320 px screen, and a half-bought
+    row's «… por comprar» 30 px past the screen. After the first two fixes: 28/28 clean in Spanish, clean in
+    English on four routes. The third fix (`ShoppingItem`) is committed but NOT re-probed.
+  - DONE — the assistant (390×844 and 320×700, touch, Claro and Pulso; new conversation and a 12-turn thread
+    with a decline): unfocused, box bottom 686 / allowance line 712 vs the bar's top 780 (320: 542/568 vs
+    636); the last message ends above the composer (580 vs 604); focused, document end − allowance line's
+    bottom = **16 px** (was 132), the box at 802 of 844, the bar and every destination `hidden`/opacity 0;
+    150 ms after blur still hidden, 500 ms visible. The warning's text equals the dictionary's (es and en);
+    5 answers carry `data-ai-generated="true"`. Fold in the browser: new conversation FULL with no button;
+    a thread FOLDED, «Aviso completo» 44 px tall on touch, pressing → `aria-expanded="true"`, focus on the
+    button, the full text and its link shown; pressing again folds; no `localStorage`/`sessionStorage` write,
+    `document.cookie` unchanged; the field's description reads «Te responde una IA: no escribas aquí datos de
+    tu salud. Te quedan 20 de 20 … Enter envía…». History drawer opened (phone): header at 0, sheet 620–844,
+    no sideways scroll (the trigger sits at the top of the column, so the page was at its top when opened).
+  - NOT RUN — Compra and the plan being made **offline** (`apps/web/AGENTS.md` § Offline: needs `pnpm build &&
+    pnpm start` with the worker, network cut). The offline code paths were not touched.
+  - DONE — motion (PRD 15), 4× CPU, 390 px: `/compra`, `/progreso`, `/perfil` CLS 0.0000 each; long tasks
+    98–248 ms at load, the same order with reduced motion on (hydration, not animation); properties animated
+    `opacity`, `transform`, `translate`, `stroke-dashoffset`. Reduced motion: nothing running 250 ms after
+    load. With reduced motion on, Perfil showed 0.01 ms *transitions* of border colours and font weight: the
+    base rule forces a duration on every element whose `transition-property` is the initial `all` — `ui`'s
+    behaviour, not this phase's; worth a line in `ui/styles/base`.
+  - DONE (by reading screenshots, not a separate report) — `apple-web-design` REVIEW of the six screens:
+    PASS, no P0 or P1. P2: the progress bar's empty track is faint on the sunken card (decorative; the
+    sentence carries the figure). P3: tile labels wrap unevenly at 320. The owner's exceptions apply (motion,
+    gradient on bars, radii).
+- **Deviations from plan**:
+  - The weight chart stays `components/WeightChart` (time axis, non-zero baseline, the target line): `ui`'s
+    `LineChart` draws from zero and has no target, so a 72→74 kg line would be flat and row 6's target would be
+    lost. It has no «Ver datos» table, as before; adding one would be a new control. Its entrance is a veil, not
+    a stroke offset: `.motion-draw` on a line with `vector-effect: non-scaling-stroke` in a stretched box drew
+    it broken into dashes in Chrome — **the same technique is in `ui/LineChart`** (phase 2), worth checking
+    there at a wide aspect ratio.
+  - The plan-being-made ring counts stages, not a percentage, and shows «N/6» — the sheet's «62 %» would be a
+    number the pipeline does not report.
+  - No «QUINCENA 9 – 22 NOV» eyebrow on the check-in, no «2 por comprar» per aisle, no percentage beside the
+    shopping bar: each would be new copy or a new figure.
+  - `OptionCards` gains `layout`; `AppNav.module.css` (phase 3's) gains one block; `EventPlanner` (also on
+    `/plan`) gains bounded tracks; `--app-foot-space` is a new shell token.
+  - Check-in **due** and **done** states could not be reached: a probe plan starts today. Not looked at.
+- **Notes for the next phase**:
+  - The assistant's composer, the dish's actions and the layout's foot all read `--app-bar-clearance` and
+    `--app-foot-space`; a screen that must meet the keyboard overrides both while its field has focus.
+  - A destination of the bar is hidden with the bar on each element — keep it so if `AppNav` changes.
+  - The thread seeder (`AssistantController.open` + `append`, guarded to `@probe.invalid` and the local
+    database) is in the scratchpad's `seed/thread.mjs`; worth adding to `account.mjs` as `thread`.
+- **Inventory, line by line** — `inventory/app.md`, each row → where it is now:
+  - `/asistente` 1 hidden `h1` → unchanged · 2 supervision note → `Note` above the conversation · 3 side column
+    → unchanged (≥64rem) · 4 «Nueva conversación» → unchanged · 5 «Tus conversaciones» h2 → bolder · 6
+    conversation list → unchanged, staggered · 7 empty text → unchanged · 8 «Descargar mis conversaciones» →
+    unchanged, same two places · 9 download status → unchanged · 10 narrow bar button → unchanged · 11 drawer
+    → unchanged · 12 «+ Nueva» → unchanged · 13 the warning → first item, FULL with no message (every word,
+    the link); FOLDED with one (`warningShort` + «Aviso completo»), EXPANDED shows every word and the link ·
+    14 thread `ol` → unchanged · 15 hidden speaker labels → unchanged · 16 person's bubble → on ink · 17
+    withdrawn bubble → sunken, italic · 18 answer `data-ai-generated` → unchanged · 19 decline text →
+    unchanged · 20 per-message delete → unchanged · 21 delete confirmation → unchanged, drops in · 22 writing
+    dots → unchanged, pulse on tokens · 23 streaming text → fades in · 24 problem messages → unchanged, drop
+    in · 25 polite status → unchanged · 26 composer field → unchanged; its description now starts with
+    `composerNotice` · 27 send → gradient disc, presses · 28 allowance line + Enter hint → after
+    `composerNotice` · 29 address replaced after first answer → unchanged · 30 unused keys → still unused.
+  - `/asistente/[id]` 1 title `h1` → heavier · 2 «Borrar conversación» → unchanged · 3 confirmation →
+    unchanged, drops in · 4 failure alert → unchanged · 5 navigation after delete → unchanged · 6 supervision
+    note → `Note` (was an unstyled `p`) · 7 stored turns → as `/asistente` 15–21; the warning FOLDED.
+  - `/check-in` 1–3 empty states and «Volver al inicio» → unchanged (not reached: see Deviations) · 4 `h1` →
+    heavy · 5 intro → unchanged · 6 adherence line → unchanged · 7 error banner → `Note` error, `role="alert"`
+    · 8 weight field → unchanged · 9 hunger → segmented, same three values, «Bien» default · 10 difficulty →
+    segmented, «Llevadero» default · 11 satisfaction → segmented 1–5, 4 default · 12 comments → unchanged ·
+    13 submit → unchanged · 14 confirmation heading (focus) → heavy, arrives · 15–16 effects → unchanged,
+    staggered · 17–18 «Crear mi próximo plan» / «Volver al inicio» → unchanged.
+  - `/compra` 1–2 empty state + «Ver mi plan» → unchanged · 3 `h1` → heavy · 4 plan switch → segmented, the
+    chosen on ink, `aria-current` kept · 5 live region → unchanged · 6 range → segmented radios, same four,
+    same ids · 7 day checkboxes → unchanged, press · 8 subtitle → unchanged · 9 row notices → unchanged · 10
+    progress → sentence + growing bar · 11 «Compartir lo que falta» → unchanged · 12 «Supermercados cerca» →
+    unchanged, hidden offline as before · 13 share status → unchanged · 14 empty-range panel + «Ver todos los
+    días» → unchanged (rounder) · 15 aisle headings → heading face, aisles on cards, staggered · 16 item row →
+    native checkbox kept (indeterminate kept), strike drawn on check · 17 pencil → unchanged, presses · 18
+    amount form → unchanged fields, label, hint, Esc, drops in.
+  - `/compra/proxima` 1 → as `/compra` · 2 switch with «Próximo» current → segmented · 3 next-plan subtitle
+    → unchanged (redirect state only was probed).
+  - `/perfil` 1 `h1` + subtitle → heavy, arrives · 2 supervision note → unchanged `Note` · 3, 61, 66, 75, 99,
+    104, 107 section headings → display face, heavy · 4–13 targets card → unchanged · 14–15 meal-size note →
+    unchanged · 16–26 health → unchanged · 27–31 vacations → unchanged · 32–51 fixed meals → unchanged ·
+    52–60 premium → unchanged · 62–65 care link, switch, end, trail → unchanged · 67–73 data blocks → grouped
+    rows, «Editar» bolder · 74 consent card → unchanged · 76–98 security (password, meter now scaling by
+    transform, Google-only, two-factor steps, passkeys, sessions) → unchanged · 100–103 reminders, push,
+    language (no colour transition) → unchanged · 105 tour replay → unchanged · 106 feedback → unchanged ·
+    108–111 delete account (consequence, typed word, sign-in-again variant) → unchanged. «Apariencia» (1b) →
+    unchanged. Two-factor on, a passkey-less account and aged sessions were **not** probed.
+  - `/plan/generando` 1 ready heading/body → heavy · 2 events card → unchanged (tracks bounded) · 3–4 start
+    date → unchanged, chips press · 5–11 pantry picker → unchanged · 12–15 meal-size note and actions →
+    unchanged · 16 running → heading, body, step line kept; the indeterminate bar replaced by the stage ring
+    and the six-stage list; safety note kept · 17 failed → heading, `Note` alert, detail, retry / complete
+    profile, «Volver» · 18 could not start → heading, `Note` alert, retry, «Volver» · 19 success redirects →
+    unchanged.
+  - `/progreso` 1–2 unavailable / empty cards → unchanged · 3 `h1` + intro → heavy, arrives · 4 tiles → count
+    up · 5 weight card + «Anotar el peso de hoy →» → unchanged · 6 chart → veil entrance, wash, axes, target,
+    hidden summary, «Objetivo» line kept · 7 no-weight text → unchanged · 8 «Tus quincenas» + overall line +
+    «Todos tus planes →» → the overall line moved into its own card with a ring, between the weight and the
+    fortnights; heading and link where they were · 9 fortnight cards → bar grows · 10 check-in answers → tags
+    · 11 «Ver el plan →» → unchanged · 12 locked row → unchanged · 13 no-fortnights text → unchanged.
+- **Waiting on the owner (human-verify)**: see the hand-back.
+- **Lead's check on phase 5 (2026-11-12)**: the executor was cut off by a usage limit during its
+  last comparison and resumed only to write this entry; the lead took the branch, merged `main`
+  (the header's glass of #370 kept, the executor's block that hides each destination kept) and ran
+  what was missing on the built branch. Contrast: 5 themes × 88 pairs, 440 pass. Overflow, with a
+  generated plan and a six-turn thread: `/compra`, `/progreso`, `/check-in`, `/asistente`, a
+  thread, `/perfil` and `/plan/generando` at 320, 360, 390, 768 and 1280 in all five themes (175
+  loads) and `widths.mjs` from 320 to 1,400 on the seven: no hit. Looked at, at phone size: a new
+  conversation with the whole warning; a thread with it folded to one line and «Aviso completo»;
+  the composer on its own ground with the line «Te responde una IA…» under it, in Claro and
+  Pulso; Compra with a row ticked and struck; Progreso; Check-in before its day; Perfil; the plan
+  being made.
+- **The assistant's warning** follows `docs/legal/2026-11-11-redesign.md` § 6, which the owner
+  approved on 2026-11-12 with its strings: whole while a conversation is empty, folded once it
+  has a message, a fixed line under the box, nothing stored. He had asked for an X to close it;
+  `legal` ruled out any dismissal that is remembered.
+- **Still not seen by anybody**: the phone keyboard (the gap he reported is measured at 16 px
+  under the allowance line with the field focused, down from 132), offline on Compra, check-in
+  due and done, Perfil with two-factor on and aged sessions, `/compra/proxima` with a scheduled
+  plan.
+- **Waiting on the owner (human-verify)**: the seven checks at the end of the executor's report,
+  the keyboard first.
