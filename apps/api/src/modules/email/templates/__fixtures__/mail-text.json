@@ -1,0 +1,639 @@
+{
+  "accountWaiting es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "NutrIA — una cuenta está esperando",
+      "words": "NutrIA\nAlguien se ha registrado y está esperando a que le abras la cuenta. En la consola verás quién es.\nVer las cuentas esperando\nNutrIA"
+    },
+    "kind": "account-waiting",
+    "subject": "NutrIA — una cuenta está esperando",
+    "text": "Alguien se ha registrado y está esperando a que le abras la cuenta. En la consola verás quién es.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>"
+  },
+  "careInvitation es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>", "https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "Ana <b>Dietista</b> te ha invitado a NutrIA",
+      "words": "NutrIA\nAna <b>Dietista</b> te ha invitado a llevar tu plan de comidas juntos en NutrIA, como tu dietista.\nSi aceptas, verá tu plan y cómo lo llevas, y podrá ajustarlo contigo. Antes de aceptar verás la lista exacta.\nVer la invitación\nAntes de compartir nada verás exactamente qué podrá ver, y podrás decir que sí o que no. Cualquiera de los dos puede terminarlo cuando quiera. Si todavía no tienes cuenta en NutrIA, créala con esta dirección.\nLa invitación funciona durante 14 días.\nSi no sabes quién es, ignora este mensaje: no se comparte nada si no aceptas.\nTe escribimos porque Ana <b>Dietista</b> nos ha dado tu dirección para invitarte, y no la usamos para nada más. Si aceptas o rechazas, borramos la invitación en ese momento; si no respondes, caduca a los 14 días y la borramos, con tu dirección, como muy tarde al día siguiente. Quién es el responsable y tus derechos: https://nutria.example/es/privacidad\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
+    },
+    "kind": "care-invitation",
+    "subject": "Ana <b>Dietista</b> te ha invitado a NutrIA",
+    "text": "Ana <b>Dietista</b> te ha invitado a llevar tu plan de comidas juntos en NutrIA, como tu dietista.\nSi aceptas, verá tu plan y cómo lo llevas, y podrá ajustarlo contigo. Antes de aceptar verás la lista exacta.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nAntes de compartir nada verás exactamente qué podrá ver, y podrás decir que sí o que no. Cualquiera de los dos puede terminarlo cuando quiera. Si todavía no tienes cuenta en NutrIA, créala con esta dirección.\nLa invitación funciona durante 14 días.\nSi no sabes quién es, ignora este mensaje: no se comparte nada si no aceptas.\n\nTe escribimos porque Ana <b>Dietista</b> nos ha dado tu dirección para invitarte, y no la usamos para nada más. Si aceptas o rechazas, borramos la invitación en ese momento; si no respondes, caduca a los 14 días y la borramos, con tu dirección, como muy tarde al día siguiente. Quién es el responsable y tus derechos: https://nutria.example/es/privacidad"
+  },
+  "checkInReminder es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "Tu quincena ha terminado — dos minutos y la siguiente va mejor",
+      "words": "NutrIA\nTu quincena ha terminado. Cuéntanos en un minuto cómo ha ido — el peso, las cantidades y qué cambiarías — y el siguiente plan parte de ahí.\nHacer el check-in\nSin él, el siguiente plan se construye con las mismas respuestas que este.\nPuedes desactivar estos avisos desde tu perfil.\nNutrIA"
+    },
+    "kind": "check-in-reminder",
+    "subject": "Tu quincena ha terminado — dos minutos y la siguiente va mejor",
+    "text": "Tu quincena ha terminado. Cuéntanos en un minuto cómo ha ido — el peso, las cantidades y qué cambiarías — y el siguiente plan parte de ahí.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nSin él, el siguiente plan se construye con las mismas respuestas que este.\nPuedes desactivar estos avisos desde tu perfil."
+  },
+  "checkInSubmitted es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "Lucía & co ha hecho su check-in",
+      "words": "NutrIA\nLucía & co acaba de hacer su check-in en NutrIA. Abre tu consulta para verlo.\nAbrir tu consulta\nNutrIA"
+    },
+    "kind": "checkin-submitted",
+    "subject": "Lucía & co ha hecho su check-in",
+    "text": "Lucía & co acaba de hacer su check-in en NutrIA. Abre tu consulta para verlo.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>"
+  },
+  "existingAccountSignUp es-ES": {
+    "html": {
+      "lang": "es",
+      "links": [
+        "https://nutria.example/es/acceder?next=/plan&x=<1>",
+        "https://nutria.example/es/recuperar",
+        "https://nutria.example/es/acceder?next=/plan&x=<1>"
+      ],
+      "title": "Alguien ha intentado crear una cuenta con tu correo",
+      "words": "NutrIA\nAlguien ha intentado crear una cuenta de NutrIA con esta dirección, que ya tiene una. Si has sido tú, no necesitas otra: entra con la que ya tienes.\nEntrar\nSi creaste la cuenta con Google, entra con Google.\nSi no recuerdas haber creado una cuenta, puede que alguien la creara con tu dirección: pon una contraseña nueva en el enlace de abajo y entra con ella.\nSi no recuerdas la contraseña, puedes poner una nueva aquí:\nhttps://nutria.example/es/recuperar\nSi no has sido tú, no tienes que hacer nada: no se ha creado ninguna cuenta y no ha cambiado nada de la tuya.\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
+    },
+    "kind": "existing-account-sign-up",
+    "subject": "Alguien ha intentado crear una cuenta con tu correo",
+    "text": "Alguien ha intentado crear una cuenta de NutrIA con esta dirección, que ya tiene una. Si has sido tú, no necesitas otra: entra con la que ya tienes.\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nSi creaste la cuenta con Google, entra con Google.\n\nSi no recuerdas haber creado una cuenta, puede que alguien la creara con tu dirección: pon una contraseña nueva en el enlace de abajo y entra con ella.\nSi no recuerdas la contraseña, puedes poner una nueva aquí:\nhttps://nutria.example/es/recuperar\n\nSi no has sido tú, no tienes que hacer nada: no se ha creado ninguna cuenta y no ha cambiado nada de la tuya."
+  },
+  "passkeyAdded es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "Has añadido una llave de acceso",
+      "words": "NutrIA\nSe añadió una llave de acceso a la cuenta de NutrIA con esta dirección el {date0} (hora de Madrid). Quien tenga el dispositivo que la guarda puede entrar con ella, sin la contraseña.\nDesde: Safari en iPhone.\nSi no has sido tú, alguien ha entrado en tu cuenta: restablece la contraseña ahora. Al restablecerla se cierran todas las sesiones y se quitan todas las llaves de acceso de la cuenta, también esta.\nRestablecer mi contraseña\nSi has sido tú, no tienes que hacer nada más.\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "passkey-added",
+    "subject": "Has añadido una llave de acceso",
+    "text": "Se añadió una llave de acceso a la cuenta de NutrIA con esta dirección el {date0} (hora de Madrid). Quien tenga el dispositivo que la guarda puede entrar con ella, sin la contraseña.\nDesde: Safari en iPhone.\n\nSi no has sido tú, alguien ha entrado en tu cuenta: restablece la contraseña ahora. Al restablecerla se cierran todas las sesiones y se quitan todas las llaves de acceso de la cuenta, también esta.\nhttps://nutria.example/es/recuperar\n\nSi has sido tú, no tienes que hacer nada más."
+  },
+  "passkeyAdded no-device es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "Has añadido una llave de acceso",
+      "words": "NutrIA\nSe añadió una llave de acceso a la cuenta de NutrIA con esta dirección el {date0} (hora de Madrid). Quien tenga el dispositivo que la guarda puede entrar con ella, sin la contraseña.\nSi no has sido tú, alguien ha entrado en tu cuenta: restablece la contraseña ahora. Al restablecerla se cierran todas las sesiones y se quitan todas las llaves de acceso de la cuenta, también esta.\nRestablecer mi contraseña\nSi has sido tú, no tienes que hacer nada más.\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "passkey-added",
+    "subject": "Has añadido una llave de acceso",
+    "text": "Se añadió una llave de acceso a la cuenta de NutrIA con esta dirección el {date0} (hora de Madrid). Quien tenga el dispositivo que la guarda puede entrar con ella, sin la contraseña.\n\nSi no has sido tú, alguien ha entrado en tu cuenta: restablece la contraseña ahora. Al restablecerla se cierran todas las sesiones y se quitan todas las llaves de acceso de la cuenta, también esta.\nhttps://nutria.example/es/recuperar\n\nSi has sido tú, no tienes que hacer nada más."
+  },
+  "passwordChanged es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "Tu contraseña de NutrIA ha cambiado",
+      "words": "NutrIA\nLa contraseña de la cuenta de NutrIA con esta dirección ha cambiado el {date0} (hora de Madrid).\nDesde: Safari en iPhone.\nSi no has sido tú, restablece tu contraseña ahora:\nRestablecer mi contraseña\nSi has sido tú, no tienes que hacer nada más.\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "password-changed",
+    "subject": "Tu contraseña de NutrIA ha cambiado",
+    "text": "La contraseña de la cuenta de NutrIA con esta dirección ha cambiado el {date0} (hora de Madrid).\nDesde: Safari en iPhone.\n\nSi no has sido tú, restablece tu contraseña ahora:\nhttps://nutria.example/es/recuperar\n\nSi has sido tú, no tienes que hacer nada más."
+  },
+  "passwordChanged no-device es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "Tu contraseña de NutrIA ha cambiado",
+      "words": "NutrIA\nLa contraseña de la cuenta de NutrIA con esta dirección ha cambiado el {date0} (hora de Madrid).\nSi no has sido tú, restablece tu contraseña ahora:\nRestablecer mi contraseña\nSi has sido tú, no tienes que hacer nada más.\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "password-changed",
+    "subject": "Tu contraseña de NutrIA ha cambiado",
+    "text": "La contraseña de la cuenta de NutrIA con esta dirección ha cambiado el {date0} (hora de Madrid).\n\nSi no has sido tú, restablece tu contraseña ahora:\nhttps://nutria.example/es/recuperar\n\nSi has sido tú, no tienes que hacer nada más."
+  },
+  "passwordChanged one-passkey es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "Tu contraseña de NutrIA ha cambiado",
+      "words": "NutrIA\nLa contraseña de la cuenta de NutrIA con esta dirección ha cambiado el {date0} (hora de Madrid).\nDesde: Safari en iPhone.\nCon el cambio se ha quitado la llave de acceso de la cuenta. Si era tuya, entra y añádela de nuevo en Perfil › Seguridad.\nSi no has sido tú, restablece tu contraseña ahora:\nRestablecer mi contraseña\nSi has sido tú, no tienes que hacer nada más.\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "password-changed",
+    "subject": "Tu contraseña de NutrIA ha cambiado",
+    "text": "La contraseña de la cuenta de NutrIA con esta dirección ha cambiado el {date0} (hora de Madrid).\nDesde: Safari en iPhone.\n\nCon el cambio se ha quitado la llave de acceso de la cuenta. Si era tuya, entra y añádela de nuevo en Perfil › Seguridad.\n\nSi no has sido tú, restablece tu contraseña ahora:\nhttps://nutria.example/es/recuperar\n\nSi has sido tú, no tienes que hacer nada más."
+  },
+  "passwordChanged passkeys es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "Tu contraseña de NutrIA ha cambiado",
+      "words": "NutrIA\nLa contraseña de la cuenta de NutrIA con esta dirección ha cambiado el {date0} (hora de Madrid).\nDesde: Safari en iPhone.\nCon el cambio se han quitado las 3 llaves de acceso de la cuenta. Si eran tuyas, entra y añádelas de nuevo en Perfil › Seguridad.\nSi no has sido tú, restablece tu contraseña ahora:\nRestablecer mi contraseña\nSi has sido tú, no tienes que hacer nada más.\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "password-changed",
+    "subject": "Tu contraseña de NutrIA ha cambiado",
+    "text": "La contraseña de la cuenta de NutrIA con esta dirección ha cambiado el {date0} (hora de Madrid).\nDesde: Safari en iPhone.\n\nCon el cambio se han quitado las 3 llaves de acceso de la cuenta. Si eran tuyas, entra y añádelas de nuevo en Perfil › Seguridad.\n\nSi no has sido tú, restablece tu contraseña ahora:\nhttps://nutria.example/es/recuperar\n\nSi has sido tú, no tienes que hacer nada más."
+  },
+  "passwordReset es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>", "https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "Restablece tu contraseña de NutrIA",
+      "words": "NutrIA\nAlguien ha pedido restablecer la contraseña de la cuenta de NutrIA con esta dirección. Si has sido tú, elige una nueva aquí:\nElegir una nueva contraseña\nEl enlace funciona durante una hora.\nSi no has sido tú, ignora este mensaje: tu contraseña no ha cambiado.\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
+    },
+    "kind": "password-reset",
+    "subject": "Restablece tu contraseña de NutrIA",
+    "text": "Alguien ha pedido restablecer la contraseña de la cuenta de NutrIA con esta dirección. Si has sido tú, elige una nueva aquí:\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nEl enlace funciona durante una hora.\nSi no has sido tú, ignora este mensaje: tu contraseña no ha cambiado."
+  },
+  "professionalGranted es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "Tu consulta en NutrIA está lista",
+      "words": "NutrIA\nTe hemos dado acceso a la consulta de NutrIA como dietista-nutricionista, con el número de colegiado MAD00123.\nAntes de ver datos de ningún paciente te pediremos que aceptes el acuerdo del profesional: secreto, quién responde de los datos y qué no puedes hacer. Léelo con calma; es corto.\nAbrir mi consulta\nSi no has pedido esto, respóndenos y lo retiramos.\nNutrIA"
+    },
+    "kind": "professional-granted",
+    "subject": "Tu consulta en NutrIA está lista",
+    "text": "Te hemos dado acceso a la consulta de NutrIA como dietista-nutricionista, con el número de colegiado MAD00123.\n\nAntes de ver datos de ningún paciente te pediremos que aceptes el acuerdo del profesional: secreto, quién responde de los datos y qué no puedes hacer. Léelo con calma; es corto.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nSi no has pedido esto, respóndenos y lo retiramos."
+  },
+  "twoFactorChanged {\"kind\":\"enabled\",\"otherSessionsClosed\":true} es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "Has activado la verificación en dos pasos",
+      "words": "NutrIA\nLa verificación en dos pasos de la cuenta de NutrIA con esta dirección se activó el {date0} (hora de Madrid). Para entrar con la contraseña, ahora también se pide un código de la app de autenticación, y se han cerrado las demás sesiones de la cuenta. Revisa también tus llaves de acceso en tu perfil, en Seguridad, y quita las que no reconozcas.\nDesde: Safari en iPhone.\nSi no has sido tú, alguien conoce tu contraseña: restablécela ahora.\nRestablecer mi contraseña\nSi has sido tú, no tienes que hacer nada más.\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "two-factor-enabled",
+    "subject": "Has activado la verificación en dos pasos",
+    "text": "La verificación en dos pasos de la cuenta de NutrIA con esta dirección se activó el {date0} (hora de Madrid). Para entrar con la contraseña, ahora también se pide un código de la app de autenticación, y se han cerrado las demás sesiones de la cuenta. Revisa también tus llaves de acceso en tu perfil, en Seguridad, y quita las que no reconozcas.\nDesde: Safari en iPhone.\n\nSi no has sido tú, alguien conoce tu contraseña: restablécela ahora.\nhttps://nutria.example/es/recuperar\n\nSi has sido tú, no tienes que hacer nada más."
+  },
+  "twoFactorChanged {\"kind\":\"enabled\",\"otherSessionsClosed\":false} es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "Has activado la verificación en dos pasos",
+      "words": "NutrIA\nLa verificación en dos pasos de la cuenta de NutrIA con esta dirección se activó el {date0} (hora de Madrid). Para entrar con la contraseña, ahora también se pide un código de la app de autenticación. No hemos podido cerrar las demás sesiones de la cuenta: ciérralas tú en tu perfil, en Seguridad, con «Cerrar todas las demás», y revisa allí también tus llaves de acceso y quita las que no reconozcas.\nDesde: Safari en iPhone.\nSi no has sido tú, alguien conoce tu contraseña: restablécela ahora.\nRestablecer mi contraseña\nSi has sido tú, no tienes que hacer nada más.\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "two-factor-enabled",
+    "subject": "Has activado la verificación en dos pasos",
+    "text": "La verificación en dos pasos de la cuenta de NutrIA con esta dirección se activó el {date0} (hora de Madrid). Para entrar con la contraseña, ahora también se pide un código de la app de autenticación. No hemos podido cerrar las demás sesiones de la cuenta: ciérralas tú en tu perfil, en Seguridad, con «Cerrar todas las demás», y revisa allí también tus llaves de acceso y quita las que no reconozcas.\nDesde: Safari en iPhone.\n\nSi no has sido tú, alguien conoce tu contraseña: restablécela ahora.\nhttps://nutria.example/es/recuperar\n\nSi has sido tú, no tienes que hacer nada más."
+  },
+  "twoFactorChanged {\"kind\":\"disabled\"} es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "Has desactivado la verificación en dos pasos",
+      "words": "NutrIA\nLa verificación en dos pasos de la cuenta de NutrIA con esta dirección se desactivó el {date0} (hora de Madrid). Para entrar, ahora basta con la contraseña.\nDesde: Safari en iPhone.\nSi no has sido tú, alguien conoce tu contraseña: restablécela ahora.\nRestablecer mi contraseña\nSi has sido tú, no tienes que hacer nada más.\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "two-factor-disabled",
+    "subject": "Has desactivado la verificación en dos pasos",
+    "text": "La verificación en dos pasos de la cuenta de NutrIA con esta dirección se desactivó el {date0} (hora de Madrid). Para entrar, ahora basta con la contraseña.\nDesde: Safari en iPhone.\n\nSi no has sido tú, alguien conoce tu contraseña: restablécela ahora.\nhttps://nutria.example/es/recuperar\n\nSi has sido tú, no tienes que hacer nada más."
+  },
+  "twoFactorChanged {\"kind\":\"backup-code-used\",\"remaining\":1} es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "Has usado un código de respaldo (te quedan 1)",
+      "words": "NutrIA\nSe usó un código de respaldo de la cuenta de NutrIA con esta dirección el {date0} (hora de Madrid). Te queda uno; cada uno sirve una sola vez.\nDesde: Safari en iPhone.\nSi no has sido tú, alguien conoce tu contraseña: restablécela ahora.\nRestablecer mi contraseña\nSi has sido tú, no tienes que hacer nada más.\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "backup-code-used",
+    "subject": "Has usado un código de respaldo (te quedan 1)",
+    "text": "Se usó un código de respaldo de la cuenta de NutrIA con esta dirección el {date0} (hora de Madrid). Te queda uno; cada uno sirve una sola vez.\nDesde: Safari en iPhone.\n\nSi no has sido tú, alguien conoce tu contraseña: restablécela ahora.\nhttps://nutria.example/es/recuperar\n\nSi has sido tú, no tienes que hacer nada más."
+  },
+  "twoFactorChanged {\"kind\":\"backup-code-used\",\"remaining\":7} es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "Has usado un código de respaldo (te quedan 7)",
+      "words": "NutrIA\nSe usó un código de respaldo de la cuenta de NutrIA con esta dirección el {date0} (hora de Madrid). Te quedan 7; cada uno sirve una sola vez.\nDesde: Safari en iPhone.\nSi no has sido tú, alguien conoce tu contraseña: restablécela ahora.\nRestablecer mi contraseña\nSi has sido tú, no tienes que hacer nada más.\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "backup-code-used",
+    "subject": "Has usado un código de respaldo (te quedan 7)",
+    "text": "Se usó un código de respaldo de la cuenta de NutrIA con esta dirección el {date0} (hora de Madrid). Te quedan 7; cada uno sirve una sola vez.\nDesde: Safari en iPhone.\n\nSi no has sido tú, alguien conoce tu contraseña: restablécela ahora.\nhttps://nutria.example/es/recuperar\n\nSi has sido tú, no tienes que hacer nada más."
+  },
+  "twoFactorChanged {\"kind\":\"backup-codes-regenerated\"} es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "Has generado códigos de respaldo nuevos; los anteriores ya no sirven",
+      "words": "NutrIA\nSe generaron diez códigos de respaldo nuevos de la cuenta de NutrIA con esta dirección el {date0} (hora de Madrid). Los de antes ya no sirven.\nDesde: Safari en iPhone.\nSi no has sido tú, alguien conoce tu contraseña: restablécela ahora.\nRestablecer mi contraseña\nSi has sido tú, no tienes que hacer nada más.\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "backup-codes-regenerated",
+    "subject": "Has generado códigos de respaldo nuevos; los anteriores ya no sirven",
+    "text": "Se generaron diez códigos de respaldo nuevos de la cuenta de NutrIA con esta dirección el {date0} (hora de Madrid). Los de antes ya no sirven.\nDesde: Safari en iPhone.\n\nSi no has sido tú, alguien conoce tu contraseña: restablécela ahora.\nhttps://nutria.example/es/recuperar\n\nSi has sido tú, no tienes que hacer nada más."
+  },
+  "twoFactorChanged no-device es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "Has desactivado la verificación en dos pasos",
+      "words": "NutrIA\nLa verificación en dos pasos de la cuenta de NutrIA con esta dirección se desactivó el {date0} (hora de Madrid). Para entrar, ahora basta con la contraseña.\nSi no has sido tú, alguien conoce tu contraseña: restablécela ahora.\nRestablecer mi contraseña\nSi has sido tú, no tienes que hacer nada más.\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "two-factor-disabled",
+    "subject": "Has desactivado la verificación en dos pasos",
+    "text": "La verificación en dos pasos de la cuenta de NutrIA con esta dirección se desactivó el {date0} (hora de Madrid). Para entrar, ahora basta con la contraseña.\n\nSi no has sido tú, alguien conoce tu contraseña: restablécela ahora.\nhttps://nutria.example/es/recuperar\n\nSi has sido tú, no tienes que hacer nada más."
+  },
+  "twoFactorRemoval requested es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>", "https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "Petición para quitar tu verificación en dos pasos",
+      "words": "NutrIA\nHemos recibido una petición para quitar la verificación en dos pasos de la cuenta de NutrIA con esta dirección, porque se perdieron la app de autenticación y los códigos de respaldo.\nSi nadie la cancela, se quitará a partir del {date1} (hora de Madrid), como mucho un día después. Desde entonces, para entrar bastará con la contraseña.\nSi no fuiste tú, entra con un código de tu app de autenticación o un código de respaldo: así se cancela la petición. Después cambia tu contraseña, porque alguien puede conocerla.\nSi fuiste tú, no tienes que hacer nada más.\nEntrar\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
+    },
+    "kind": "two-factor-removal-requested",
+    "subject": "Petición para quitar tu verificación en dos pasos",
+    "text": "Hemos recibido una petición para quitar la verificación en dos pasos de la cuenta de NutrIA con esta dirección, porque se perdieron la app de autenticación y los códigos de respaldo.\nSi nadie la cancela, se quitará a partir del {date1} (hora de Madrid), como mucho un día después. Desde entonces, para entrar bastará con la contraseña.\nSi no fuiste tú, entra con un código de tu app de autenticación o un código de respaldo: así se cancela la petición. Después cambia tu contraseña, porque alguien puede conocerla.\nSi fuiste tú, no tienes que hacer nada más.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>"
+  },
+  "twoFactorRemoval cancelled es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>", "https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "Se ha cancelado la petición para quitar tu verificación en dos pasos",
+      "words": "NutrIA\nSe ha cancelado la petición para quitar la verificación en dos pasos de la cuenta de NutrIA con esta dirección. No ha cambiado nada: para entrar se sigue pidiendo un código.\nSi no lo esperabas, no tienes que hacer nada.\nEntrar\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
+    },
+    "kind": "two-factor-removal-cancelled",
+    "subject": "Se ha cancelado la petición para quitar tu verificación en dos pasos",
+    "text": "Se ha cancelado la petición para quitar la verificación en dos pasos de la cuenta de NutrIA con esta dirección. No ha cambiado nada: para entrar se sigue pidiendo un código.\nSi no lo esperabas, no tienes que hacer nada.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>"
+  },
+  "twoFactorRemoval removed es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>", "https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "Hemos quitado tu verificación en dos pasos",
+      "words": "NutrIA\nHemos quitado la verificación en dos pasos de la cuenta de NutrIA con esta dirección, como se pidió hace dos días. Para entrar, ahora basta con la contraseña.\nPuedes volver a activarla desde tu perfil, en Seguridad.\nSi no lo pediste, cambia tu contraseña ahora y escríbenos.\nEntrar\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
+    },
+    "kind": "two-factor-removed",
+    "subject": "Hemos quitado tu verificación en dos pasos",
+    "text": "Hemos quitado la verificación en dos pasos de la cuenta de NutrIA con esta dirección, como se pidió hace dos días. Para entrar, ahora basta con la contraseña.\nPuedes volver a activarla desde tu perfil, en Seguridad.\nSi no lo pediste, cambia tu contraseña ahora y escríbenos.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>"
+  },
+  "verifyEmail es-ES": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>", "https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "Confirma tu correo en NutrIA",
+      "words": "NutrIA\nConfirma este correo para que sepamos que es tuyo.\nConfirmar mi correo\nNutrIA se está abriendo poco a poco. En cuanto activemos tu cuenta podrás entrar y empezar; esto no volverá a pedírtelo.\nSi no te has registrado, no confirmes nada: ignora este mensaje y, a los treinta días, borramos el correo que nadie confirma junto con su registro.\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
+    },
+    "kind": "verify-email",
+    "subject": "Confirma tu correo en NutrIA",
+    "text": "Confirma este correo para que sepamos que es tuyo.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nNutrIA se está abriendo poco a poco. En cuanto activemos tu cuenta podrás entrar y empezar; esto no volverá a pedírtelo.\nSi no te has registrado, no confirmes nada: ignora este mensaje y, a los treinta días, borramos el correo que nadie confirma junto con su registro."
+  },
+  "accountWaiting en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "NutrIA — an account is waiting",
+      "words": "NutrIA\nSomeone signed up and is waiting for their account to be opened. You will see who in the console.\nSee the accounts waiting\nNutrIA"
+    },
+    "kind": "account-waiting",
+    "subject": "NutrIA — an account is waiting",
+    "text": "Someone signed up and is waiting for their account to be opened. You will see who in the console.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>"
+  },
+  "careInvitation en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>", "https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "Ana <b>Dietista</b> has invited you to NutrIA",
+      "words": "NutrIA\nAna <b>Dietista</b> has invited you to follow your meal plan together on NutrIA, as your dietitian.\nIf you accept, they will see your plan and how it is going, and can adjust it with you. Before accepting you will see the exact list.\nSee the invitation\nBefore anything is shared you will see exactly what they will be able to see, and you can say yes or no. Either of you can end it at any time. If you do not have a NutrIA account yet, create one with this address.\nThe invitation works for 14 days.\nIf you do not know who this is, ignore this message: nothing is shared unless you accept.\nWe are writing because Ana <b>Dietista</b> gave us your address to invite you, and we use it for nothing else. If you accept or decline, we delete the invitation there and then; if you do not answer, it expires after 14 days and we delete it, with your address, by the following day at the latest. Who is responsible and your rights: https://nutria.example/es/privacidad\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
+    },
+    "kind": "care-invitation",
+    "subject": "Ana <b>Dietista</b> has invited you to NutrIA",
+    "text": "Ana <b>Dietista</b> has invited you to follow your meal plan together on NutrIA, as your dietitian.\nIf you accept, they will see your plan and how it is going, and can adjust it with you. Before accepting you will see the exact list.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nBefore anything is shared you will see exactly what they will be able to see, and you can say yes or no. Either of you can end it at any time. If you do not have a NutrIA account yet, create one with this address.\nThe invitation works for 14 days.\nIf you do not know who this is, ignore this message: nothing is shared unless you accept.\n\nWe are writing because Ana <b>Dietista</b> gave us your address to invite you, and we use it for nothing else. If you accept or decline, we delete the invitation there and then; if you do not answer, it expires after 14 days and we delete it, with your address, by the following day at the latest. Who is responsible and your rights: https://nutria.example/es/privacidad"
+  },
+  "checkInReminder en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "Your fortnight is done — two minutes and the next one is better",
+      "words": "NutrIA\nYour fortnight is done. Tell us in a minute how it went — the weight, the portions and what you would change — and your next plan starts from that.\nDo the check-in\nWithout it the next plan is built from the same answers as this one.\nYou can turn these reminders off in your profile.\nNutrIA"
+    },
+    "kind": "check-in-reminder",
+    "subject": "Your fortnight is done — two minutes and the next one is better",
+    "text": "Your fortnight is done. Tell us in a minute how it went — the weight, the portions and what you would change — and your next plan starts from that.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nWithout it the next plan is built from the same answers as this one.\nYou can turn these reminders off in your profile."
+  },
+  "checkInSubmitted en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "Lucía & co has checked in",
+      "words": "NutrIA\nLucía & co has just done their check-in on NutrIA. Open your practice to see it.\nOpen your practice\nNutrIA"
+    },
+    "kind": "checkin-submitted",
+    "subject": "Lucía & co has checked in",
+    "text": "Lucía & co has just done their check-in on NutrIA. Open your practice to see it.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>"
+  },
+  "existingAccountSignUp en-GB": {
+    "html": {
+      "lang": "en",
+      "links": [
+        "https://nutria.example/es/acceder?next=/plan&x=<1>",
+        "https://nutria.example/es/recuperar",
+        "https://nutria.example/es/acceder?next=/plan&x=<1>"
+      ],
+      "title": "Somebody tried to create an account with your address",
+      "words": "NutrIA\nSomebody tried to create a NutrIA account with this address, which already has one. If it was you, you do not need another: sign in with the one you have.\nSign in\nIf you created the account with Google, sign in with Google.\nIf you do not remember creating an account, somebody may have created one with your address: set a new password with the link below and sign in with it.\nIf you have forgotten your password, you can set a new one here:\nhttps://nutria.example/es/recuperar\nIf it was not you, there is nothing to do: no account was created and nothing of yours changed.\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
+    },
+    "kind": "existing-account-sign-up",
+    "subject": "Somebody tried to create an account with your address",
+    "text": "Somebody tried to create a NutrIA account with this address, which already has one. If it was you, you do not need another: sign in with the one you have.\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nIf you created the account with Google, sign in with Google.\n\nIf you do not remember creating an account, somebody may have created one with your address: set a new password with the link below and sign in with it.\nIf you have forgotten your password, you can set a new one here:\nhttps://nutria.example/es/recuperar\n\nIf it was not you, there is nothing to do: no account was created and nothing of yours changed."
+  },
+  "passkeyAdded en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "You added a passkey",
+      "words": "NutrIA\nA passkey was added to the NutrIA account for this address on {date0} (Madrid time). Whoever holds the device that keeps it can sign in with it, without the password.\nFrom: Safari on iPhone.\nIf it was not you, somebody has been inside your account: reset your password now. A reset signs every device out and removes every passkey of the account, this one included.\nReset my password\nIf it was you, there is nothing else to do.\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "passkey-added",
+    "subject": "You added a passkey",
+    "text": "A passkey was added to the NutrIA account for this address on {date0} (Madrid time). Whoever holds the device that keeps it can sign in with it, without the password.\nFrom: Safari on iPhone.\n\nIf it was not you, somebody has been inside your account: reset your password now. A reset signs every device out and removes every passkey of the account, this one included.\nhttps://nutria.example/es/recuperar\n\nIf it was you, there is nothing else to do."
+  },
+  "passkeyAdded no-device en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "You added a passkey",
+      "words": "NutrIA\nA passkey was added to the NutrIA account for this address on {date0} (Madrid time). Whoever holds the device that keeps it can sign in with it, without the password.\nIf it was not you, somebody has been inside your account: reset your password now. A reset signs every device out and removes every passkey of the account, this one included.\nReset my password\nIf it was you, there is nothing else to do.\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "passkey-added",
+    "subject": "You added a passkey",
+    "text": "A passkey was added to the NutrIA account for this address on {date0} (Madrid time). Whoever holds the device that keeps it can sign in with it, without the password.\n\nIf it was not you, somebody has been inside your account: reset your password now. A reset signs every device out and removes every passkey of the account, this one included.\nhttps://nutria.example/es/recuperar\n\nIf it was you, there is nothing else to do."
+  },
+  "passwordChanged en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "Your NutrIA password has changed",
+      "words": "NutrIA\nThe password of the NutrIA account for this address changed on {date0} (Madrid time).\nFrom: Safari on iPhone.\nIf it was not you, reset your password now:\nReset my password\nIf it was you, there is nothing else to do.\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "password-changed",
+    "subject": "Your NutrIA password has changed",
+    "text": "The password of the NutrIA account for this address changed on {date0} (Madrid time).\nFrom: Safari on iPhone.\n\nIf it was not you, reset your password now:\nhttps://nutria.example/es/recuperar\n\nIf it was you, there is nothing else to do."
+  },
+  "passwordChanged no-device en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "Your NutrIA password has changed",
+      "words": "NutrIA\nThe password of the NutrIA account for this address changed on {date0} (Madrid time).\nIf it was not you, reset your password now:\nReset my password\nIf it was you, there is nothing else to do.\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "password-changed",
+    "subject": "Your NutrIA password has changed",
+    "text": "The password of the NutrIA account for this address changed on {date0} (Madrid time).\n\nIf it was not you, reset your password now:\nhttps://nutria.example/es/recuperar\n\nIf it was you, there is nothing else to do."
+  },
+  "passwordChanged one-passkey en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "Your NutrIA password has changed",
+      "words": "NutrIA\nThe password of the NutrIA account for this address changed on {date0} (Madrid time).\nFrom: Safari on iPhone.\nThe change also removed the passkey of the account. If it was yours, sign in and add it again under Profile › Security.\nIf it was not you, reset your password now:\nReset my password\nIf it was you, there is nothing else to do.\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "password-changed",
+    "subject": "Your NutrIA password has changed",
+    "text": "The password of the NutrIA account for this address changed on {date0} (Madrid time).\nFrom: Safari on iPhone.\n\nThe change also removed the passkey of the account. If it was yours, sign in and add it again under Profile › Security.\n\nIf it was not you, reset your password now:\nhttps://nutria.example/es/recuperar\n\nIf it was you, there is nothing else to do."
+  },
+  "passwordChanged passkeys en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "Your NutrIA password has changed",
+      "words": "NutrIA\nThe password of the NutrIA account for this address changed on {date0} (Madrid time).\nFrom: Safari on iPhone.\nThe change also removed the 3 passkeys of the account. If they were yours, sign in and add them again under Profile › Security.\nIf it was not you, reset your password now:\nReset my password\nIf it was you, there is nothing else to do.\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "password-changed",
+    "subject": "Your NutrIA password has changed",
+    "text": "The password of the NutrIA account for this address changed on {date0} (Madrid time).\nFrom: Safari on iPhone.\n\nThe change also removed the 3 passkeys of the account. If they were yours, sign in and add them again under Profile › Security.\n\nIf it was not you, reset your password now:\nhttps://nutria.example/es/recuperar\n\nIf it was you, there is nothing else to do."
+  },
+  "passwordReset en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>", "https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "Reset your NutrIA password",
+      "words": "NutrIA\nSomeone asked to reset the password of the NutrIA account for this address. If it was you, choose a new one here:\nChoose a new password\nThe link works for one hour.\nIf you did not ask for this, ignore this message: your password has not changed.\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
+    },
+    "kind": "password-reset",
+    "subject": "Reset your NutrIA password",
+    "text": "Someone asked to reset the password of the NutrIA account for this address. If it was you, choose a new one here:\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nThe link works for one hour.\nIf you did not ask for this, ignore this message: your password has not changed."
+  },
+  "professionalGranted en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "Your NutrIA practice is ready",
+      "words": "NutrIA\nWe have given you access to the NutrIA practice as a dietitian-nutritionist, with registration number MAD00123.\nBefore you see any client’s data we will ask you to accept the professional’s agreement: secrecy, who is responsible for the data and what you may not do. Take your time reading it; it is short.\nOpen my practice\nIf you did not ask for this, reply and we will revoke it.\nNutrIA"
+    },
+    "kind": "professional-granted",
+    "subject": "Your NutrIA practice is ready",
+    "text": "We have given you access to the NutrIA practice as a dietitian-nutritionist, with registration number MAD00123.\n\nBefore you see any client’s data we will ask you to accept the professional’s agreement: secrecy, who is responsible for the data and what you may not do. Take your time reading it; it is short.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nIf you did not ask for this, reply and we will revoke it."
+  },
+  "twoFactorChanged {\"kind\":\"enabled\",\"otherSessionsClosed\":true} en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "You turned on two-step verification",
+      "words": "NutrIA\nTwo-step verification was turned on for the NutrIA account for this address on {date0} (Madrid time). Signing in with the password now also asks for a code from the authenticator app, and every other session of the account was closed. Check your passkeys too, in your profile under Security, and remove any you do not recognise.\nFrom: Safari on iPhone.\nIf it was not you, somebody knows your password: reset it now.\nReset my password\nIf it was you, there is nothing else to do.\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "two-factor-enabled",
+    "subject": "You turned on two-step verification",
+    "text": "Two-step verification was turned on for the NutrIA account for this address on {date0} (Madrid time). Signing in with the password now also asks for a code from the authenticator app, and every other session of the account was closed. Check your passkeys too, in your profile under Security, and remove any you do not recognise.\nFrom: Safari on iPhone.\n\nIf it was not you, somebody knows your password: reset it now.\nhttps://nutria.example/es/recuperar\n\nIf it was you, there is nothing else to do."
+  },
+  "twoFactorChanged {\"kind\":\"enabled\",\"otherSessionsClosed\":false} en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "You turned on two-step verification",
+      "words": "NutrIA\nTwo-step verification was turned on for the NutrIA account for this address on {date0} (Madrid time). Signing in with the password now also asks for a code from the authenticator app. We could not close the account's other sessions: close them yourself in your profile, under Security, with “Sign out all the others”, and check your passkeys there too, removing any you do not recognise.\nFrom: Safari on iPhone.\nIf it was not you, somebody knows your password: reset it now.\nReset my password\nIf it was you, there is nothing else to do.\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "two-factor-enabled",
+    "subject": "You turned on two-step verification",
+    "text": "Two-step verification was turned on for the NutrIA account for this address on {date0} (Madrid time). Signing in with the password now also asks for a code from the authenticator app. We could not close the account's other sessions: close them yourself in your profile, under Security, with “Sign out all the others”, and check your passkeys there too, removing any you do not recognise.\nFrom: Safari on iPhone.\n\nIf it was not you, somebody knows your password: reset it now.\nhttps://nutria.example/es/recuperar\n\nIf it was you, there is nothing else to do."
+  },
+  "twoFactorChanged {\"kind\":\"disabled\"} en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "You turned off two-step verification",
+      "words": "NutrIA\nTwo-step verification was turned off for the NutrIA account for this address on {date0} (Madrid time). Signing in now asks for the password alone.\nFrom: Safari on iPhone.\nIf it was not you, somebody knows your password: reset it now.\nReset my password\nIf it was you, there is nothing else to do.\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "two-factor-disabled",
+    "subject": "You turned off two-step verification",
+    "text": "Two-step verification was turned off for the NutrIA account for this address on {date0} (Madrid time). Signing in now asks for the password alone.\nFrom: Safari on iPhone.\n\nIf it was not you, somebody knows your password: reset it now.\nhttps://nutria.example/es/recuperar\n\nIf it was you, there is nothing else to do."
+  },
+  "twoFactorChanged {\"kind\":\"backup-code-used\",\"remaining\":1} en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "You used a backup code (1 left)",
+      "words": "NutrIA\nA backup code was used for the NutrIA account for this address on {date0} (Madrid time). One is left; each works once.\nFrom: Safari on iPhone.\nIf it was not you, somebody knows your password: reset it now.\nReset my password\nIf it was you, there is nothing else to do.\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "backup-code-used",
+    "subject": "You used a backup code (1 left)",
+    "text": "A backup code was used for the NutrIA account for this address on {date0} (Madrid time). One is left; each works once.\nFrom: Safari on iPhone.\n\nIf it was not you, somebody knows your password: reset it now.\nhttps://nutria.example/es/recuperar\n\nIf it was you, there is nothing else to do."
+  },
+  "twoFactorChanged {\"kind\":\"backup-code-used\",\"remaining\":7} en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "You used a backup code (7 left)",
+      "words": "NutrIA\nA backup code was used for the NutrIA account for this address on {date0} (Madrid time). 7 are left; each works once.\nFrom: Safari on iPhone.\nIf it was not you, somebody knows your password: reset it now.\nReset my password\nIf it was you, there is nothing else to do.\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "backup-code-used",
+    "subject": "You used a backup code (7 left)",
+    "text": "A backup code was used for the NutrIA account for this address on {date0} (Madrid time). 7 are left; each works once.\nFrom: Safari on iPhone.\n\nIf it was not you, somebody knows your password: reset it now.\nhttps://nutria.example/es/recuperar\n\nIf it was you, there is nothing else to do."
+  },
+  "twoFactorChanged {\"kind\":\"backup-codes-regenerated\"} en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "You generated new backup codes; the old ones no longer work",
+      "words": "NutrIA\nTen new backup codes were generated for the NutrIA account for this address on {date0} (Madrid time). The ones from before no longer work.\nFrom: Safari on iPhone.\nIf it was not you, somebody knows your password: reset it now.\nReset my password\nIf it was you, there is nothing else to do.\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "backup-codes-regenerated",
+    "subject": "You generated new backup codes; the old ones no longer work",
+    "text": "Ten new backup codes were generated for the NutrIA account for this address on {date0} (Madrid time). The ones from before no longer work.\nFrom: Safari on iPhone.\n\nIf it was not you, somebody knows your password: reset it now.\nhttps://nutria.example/es/recuperar\n\nIf it was you, there is nothing else to do."
+  },
+  "twoFactorChanged no-device en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/recuperar", "https://nutria.example/es/recuperar"],
+      "title": "You turned off two-step verification",
+      "words": "NutrIA\nTwo-step verification was turned off for the NutrIA account for this address on {date0} (Madrid time). Signing in now asks for the password alone.\nIf it was not you, somebody knows your password: reset it now.\nReset my password\nIf it was you, there is nothing else to do.\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/recuperar\nNutrIA"
+    },
+    "kind": "two-factor-disabled",
+    "subject": "You turned off two-step verification",
+    "text": "Two-step verification was turned off for the NutrIA account for this address on {date0} (Madrid time). Signing in now asks for the password alone.\n\nIf it was not you, somebody knows your password: reset it now.\nhttps://nutria.example/es/recuperar\n\nIf it was you, there is nothing else to do."
+  },
+  "twoFactorRemoval requested en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>", "https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "Request to remove your two-step verification",
+      "words": "NutrIA\nWe have received a request to remove two-step verification from the NutrIA account for this address, because its authenticator app and backup codes were lost.\nIf nobody cancels it, it will be removed from {date1} (Madrid time), at the latest one day later. Signing in will then ask for the password alone.\nIf it was not you, sign in with a code from your authenticator app or a backup code: that cancels the request. Then change your password, because somebody may know it.\nIf it was you, there is nothing else to do.\nSign in\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
+    },
+    "kind": "two-factor-removal-requested",
+    "subject": "Request to remove your two-step verification",
+    "text": "We have received a request to remove two-step verification from the NutrIA account for this address, because its authenticator app and backup codes were lost.\nIf nobody cancels it, it will be removed from {date1} (Madrid time), at the latest one day later. Signing in will then ask for the password alone.\nIf it was not you, sign in with a code from your authenticator app or a backup code: that cancels the request. Then change your password, because somebody may know it.\nIf it was you, there is nothing else to do.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>"
+  },
+  "twoFactorRemoval cancelled en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>", "https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "The request to remove your two-step verification was cancelled",
+      "words": "NutrIA\nThe request to remove two-step verification from the NutrIA account for this address has been cancelled. Nothing has changed: signing in still asks for a code.\nIf you did not expect this, there is nothing to do.\nSign in\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
+    },
+    "kind": "two-factor-removal-cancelled",
+    "subject": "The request to remove your two-step verification was cancelled",
+    "text": "The request to remove two-step verification from the NutrIA account for this address has been cancelled. Nothing has changed: signing in still asks for a code.\nIf you did not expect this, there is nothing to do.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>"
+  },
+  "twoFactorRemoval removed en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>", "https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "We have removed your two-step verification",
+      "words": "NutrIA\nWe have removed two-step verification from the NutrIA account for this address, as requested two days ago. Signing in now asks for the password alone.\nYou can turn it on again from your profile, under Security.\nIf you did not ask for this, change your password now and write to us.\nSign in\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
+    },
+    "kind": "two-factor-removed",
+    "subject": "We have removed your two-step verification",
+    "text": "We have removed two-step verification from the NutrIA account for this address, as requested two days ago. Signing in now asks for the password alone.\nYou can turn it on again from your profile, under Security.\nIf you did not ask for this, change your password now and write to us.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>"
+  },
+  "verifyEmail en-GB": {
+    "html": {
+      "lang": "en",
+      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>", "https://nutria.example/es/acceder?next=/plan&x=<1>"],
+      "title": "Confirm your address for NutrIA",
+      "words": "NutrIA\nConfirm this address so we know it is yours.\nConfirm my address\nNutrIA is opening a few accounts at a time. Once yours is opened you can sign in and start; we will not ask for this again.\nIf you did not sign up, do not confirm anything: ignore this message, and we delete an address nobody confirms, with its sign-up, after thirty days.\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
+    },
+    "kind": "verify-email",
+    "subject": "Confirm your address for NutrIA",
+    "text": "Confirm this address so we know it is yours.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nNutrIA is opening a few accounts at a time. Once yours is opened you can sign in and start; we will not ask for this again.\nIf you did not sign up, do not confirm anything: ignore this message, and we delete an address nobody confirms, with its sign-up, after thirty days."
+  },
+  "ownerAlert {\"codes\":[\"GENERATION_AI_UNAVAILABLE\",\"GENERATION_TIMED_OUT\",\"OTHER\"],\"type\":\"failures\"}": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/admin/generacion?status=failed&since=24h"],
+      "title": "NutrIA — tres generaciones seguidas han fallado",
+      "words": "NutrIA\nLas tres últimas generaciones de planes terminaron en fallo, una tras otra.\nCódigos, del más reciente al más antiguo: GENERATION_AI_UNAVAILABLE, GENERATION_TIMED_OUT, OTHER.\nAbrir el registro\nSi sigue fallando, no volverás a recibir este aviso durante 6 horas.\nNutrIA"
+    },
+    "kind": "owner-alert",
+    "subject": "NutrIA — tres generaciones seguidas han fallado",
+    "text": "Las tres últimas generaciones de planes terminaron en fallo, una tras otra.\nCódigos, del más reciente al más antiguo: GENERATION_AI_UNAVAILABLE, GENERATION_TIMED_OUT, OTHER.\n\nhttps://nutria.example/admin/generacion?status=failed&since=24h\n\nSi sigue fallando, no volverás a recibir este aviso durante 6 horas."
+  },
+  "ownerAlert {\"capUsd\":25,\"share\":0.84,\"source\":\"text\",\"spentUsd\":21,\"threshold\":80,\"type\":\"spend\"}": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/admin/generacion/ia"],
+      "title": "NutrIA — el gasto de texto ha llegado al 80 %",
+      "words": "NutrIA\nEl gasto de texto de este mes ha llegado al 80 % de su tope.\nVan 21,00 USD de 25,00 USD, el 84 % del tope.\nAbrir el gasto\nUn aviso por umbral y mes: no volverá a llegar hasta el mes que viene.\nNutrIA"
+    },
+    "kind": "owner-alert",
+    "subject": "NutrIA — el gasto de texto ha llegado al 80 %",
+    "text": "El gasto de texto de este mes ha llegado al 80 % de su tope.\nVan 21,00 USD de 25,00 USD, el 84 % del tope.\n\nhttps://nutria.example/admin/generacion/ia\n\nUn aviso por umbral y mes: no volverá a llegar hasta el mes que viene."
+  },
+  "ownerAlert {\"capUsd\":10,\"share\":1.02,\"source\":\"pictures\",\"spentUsd\":10.2,\"threshold\":100,\"type\":\"spend\"}": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/admin/catalogo/imagenes"],
+      "title": "NutrIA — el gasto de imágenes ha llegado al 100 %",
+      "words": "NutrIA\nEl gasto de imágenes de este mes ha llegado al 100 % de su tope.\nVan 10,20 USD de 10,00 USD, el 102 % del tope.\nAbrir el gasto\nUn aviso por umbral y mes: no volverá a llegar hasta el mes que viene.\nNutrIA"
+    },
+    "kind": "owner-alert",
+    "subject": "NutrIA — el gasto de imágenes ha llegado al 100 %",
+    "text": "El gasto de imágenes de este mes ha llegado al 100 % de su tope.\nVan 10,20 USD de 10,00 USD, el 102 % del tope.\n\nhttps://nutria.example/admin/catalogo/imagenes\n\nUn aviso por umbral y mes: no volverá a llegar hasta el mes que viene."
+  },
+  "ownerAlert {\"type\":\"reminders-silent\"}": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/admin/ajustes/sistema"],
+      "title": "NutrIA — la tarea de recordatorios lleva más de 26 h sin correr",
+      "words": "NutrIA\nLa tarea de recordatorios lleva más de 26 h sin correr.\nLos recordatorios, el resumen de la mañana y el borrado de las invitaciones caducadas salen de esa tarea: mientras no corra, no ocurren.\nAbrir Sistema\nSi sigue sin correr, no volverás a recibir este aviso hasta mañana.\nNutrIA"
+    },
+    "kind": "owner-alert",
+    "subject": "NutrIA — la tarea de recordatorios lleva más de 26 h sin correr",
+    "text": "La tarea de recordatorios lleva más de 26 h sin correr.\nLos recordatorios, el resumen de la mañana y el borrado de las invitaciones caducadas salen de esa tarea: mientras no corra, no ocurren.\n\nhttps://nutria.example/admin/ajustes/sistema\n\nSi sigue sin correr, no volverás a recibir este aviso hasta mañana."
+  },
+  "ownerAlert {\"reasons\":[{\"n\":2,\"reason\":\"judge_allergen\"},{\"n\":1,\"reason\":\"no_provenance\"}],\"type\":\"picture-failures\"}": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/admin/catalogo?picture=failed"],
+      "title": "NutrIA — imágenes de platos fallidas: 3",
+      "words": "NutrIA\nImágenes de platos que han fallado desde el aviso anterior: 3. Cada plato espera al menos 7 días antes de volver a dibujarse solo.\nPor motivo: El revisor vio un alérgeno que el plato no tiene: 2; Sin firma C2PA: 1.\nAbrir las imágenes fallidas\nComo mucho un aviso por hora: lo que falle mientras tanto irá en el siguiente.\nNutrIA"
+    },
+    "kind": "owner-picture-alert",
+    "subject": "NutrIA — imágenes de platos fallidas: 3",
+    "text": "Imágenes de platos que han fallado desde el aviso anterior: 3. Cada plato espera al menos 7 días antes de volver a dibujarse solo.\nPor motivo: El revisor vio un alérgeno que el plato no tiene: 2; Sin firma C2PA: 1.\n\nhttps://nutria.example/admin/catalogo?picture=failed\n\nComo mucho un aviso por hora: lo que falle mientras tanto irá en el siguiente."
+  },
+  "ownerAlert {\"reasons\":[{\"n\":2,\"reason\":\"payment_refused\"},{\"n\":1,\"reason\":\"model_refused\"}],\"type\":\"picture-payment-refused\"}": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/admin/catalogo/imagenes"],
+      "title": "NutrIA — el proveedor de imágenes rechaza las peticiones",
+      "words": "NutrIA\nEl proveedor está devolviendo peticiones de los dibujos. El motivo va debajo, y no son lo mismo: \"no puede cobrar\" es que la clave no puede pagar o agotó su cuota; \"pidió bajar el ritmo\" es un límite de velocidad suyo, pasajero y ajeno a tu cuenta; \"rechazó la petición\" es su propia negativa. Mientras dure, los dibujos que devuelva se devuelven sin dibujar.\nPlatos con el dibujo devuelto desde el aviso anterior: 3. Por motivo: El proveedor no puede cobrar: 2; El modelo rechazó la petición: 1. Esos platos no cuentan como fallidos: se dibujan en la siguiente visita, cuando el proveedor vuelva a aceptar peticiones.\nAbrir las imágenes\nMientras dure, no volverás a recibir este aviso durante 6 horas.\nNutrIA"
+    },
+    "kind": "owner-picture-alert",
+    "subject": "NutrIA — el proveedor de imágenes rechaza las peticiones",
+    "text": "El proveedor está devolviendo peticiones de los dibujos. El motivo va debajo, y no son lo mismo: \"no puede cobrar\" es que la clave no puede pagar o agotó su cuota; \"pidió bajar el ritmo\" es un límite de velocidad suyo, pasajero y ajeno a tu cuenta; \"rechazó la petición\" es su propia negativa. Mientras dure, los dibujos que devuelva se devuelven sin dibujar.\nPlatos con el dibujo devuelto desde el aviso anterior: 3. Por motivo: El proveedor no puede cobrar: 2; El modelo rechazó la petición: 1. Esos platos no cuentan como fallidos: se dibujan en la siguiente visita, cuando el proveedor vuelva a aceptar peticiones.\n\nhttps://nutria.example/admin/catalogo/imagenes\n\nMientras dure, no volverás a recibir este aviso durante 6 horas."
+  },
+  "ownerDigest full": {
+    "html": {
+      "lang": "es",
+      "links": [
+        "https://nutria.example/admin/cuentas?activated=no",
+        "https://nutria.example/admin/buzon?state=waiting",
+        "https://nutria.example/admin/generacion?status=failed&since=24h",
+        "https://nutria.example/admin/generacion/ia",
+        "https://nutria.example/admin/catalogo/imagenes",
+        "https://nutria.example/admin/catalogo?check=over_bound",
+        "https://nutria.example/admin/catalogo?check=uncosted",
+        "https://nutria.example/admin/catalogo?check=unserved",
+        "https://nutria.example/admin/catalogo?check=refusal_limit",
+        "https://nutria.example/admin/catalogo/calidad",
+        "https://nutria.example/admin/ajustes/sistema",
+        "https://nutria.example/admin/ajustes/sistema"
+      ],
+      "title": "NutrIA — resumen del día",
+      "words": "NutrIA\nEsto es lo que hoy pide una mirada. Solo hay números, códigos y enlaces.\nCuentas esperando: 2\nAbrir en la consola\nMensajes nuevos en el buzón: 4\nAbrir en la consola\nGeneraciones fallidas en 24 h: 4\nGENERATION_AI_UNAVAILABLE: 3\nOTHER: 1\nAbrir en la consola\nGasto de texto este mes: 21,00 USD de 25,00 USD (84 %)\nAbrir en la consola\nGasto de imágenes este mes: 9,30 USD de 10,00 USD (93 %)\nAbrir en la consola\nRecetas por encima del límite de una ración (debería ser cero): 5\nAbrir en la consola\nRecetas cuyos macros no se pueden calcular (debería ser cero): 1\nAbrir en la consola\nPlatos sin ingredientes que sirvan a sus comidas (debería ser cero): 3\nAbrir en la consola\nRecetas que el barrido ya no reintenta (debería ser cero): 1\nAbrir en la consola\nComidas con raciones fuera de los límites (debería ser cero): 2\nAbrir en la consola\nCorreos fallidos en 24 h: 2\nverify-email: 2\nAbrir en la consola\nTareas programadas sin correr en más de 26 h\nreescritura nocturna\nrecordatorios\nAbrir en la consola\nEste correo no lleva el correo electrónico, el nombre ni el texto de ninguna persona usuaria.\nNutrIA"
+    },
+    "kind": "owner-digest",
+    "subject": "NutrIA — resumen del día",
+    "text": "Esto es lo que hoy pide una mirada. Solo hay números, códigos y enlaces.\n\nCuentas esperando: 2\n  https://nutria.example/admin/cuentas?activated=no\n\nMensajes nuevos en el buzón: 4\n  https://nutria.example/admin/buzon?state=waiting\n\nGeneraciones fallidas en 24 h: 4\n  GENERATION_AI_UNAVAILABLE: 3\n  OTHER: 1\n  https://nutria.example/admin/generacion?status=failed&since=24h\n\nGasto de texto este mes: 21,00 USD de 25,00 USD (84 %)\n  https://nutria.example/admin/generacion/ia\n\nGasto de imágenes este mes: 9,30 USD de 10,00 USD (93 %)\n  https://nutria.example/admin/catalogo/imagenes\n\nRecetas por encima del límite de una ración (debería ser cero): 5\n  https://nutria.example/admin/catalogo?check=over_bound\n\nRecetas cuyos macros no se pueden calcular (debería ser cero): 1\n  https://nutria.example/admin/catalogo?check=uncosted\n\nPlatos sin ingredientes que sirvan a sus comidas (debería ser cero): 3\n  https://nutria.example/admin/catalogo?check=unserved\n\nRecetas que el barrido ya no reintenta (debería ser cero): 1\n  https://nutria.example/admin/catalogo?check=refusal_limit\n\nComidas con raciones fuera de los límites (debería ser cero): 2\n  https://nutria.example/admin/catalogo/calidad\n\nCorreos fallidos en 24 h: 2\n  verify-email: 2\n  https://nutria.example/admin/ajustes/sistema\n\nTareas programadas sin correr en más de 26 h\n  reescritura nocturna\n  recordatorios\n  https://nutria.example/admin/ajustes/sistema\n\nEste correo no lleva el correo electrónico, el nombre ni el texto de ninguna persona usuaria."
+  },
+  "ownerDigest quiet": {
+    "html": {
+      "lang": "es",
+      "links": ["https://nutria.example/admin/cuentas?activated=no"],
+      "title": "NutrIA — resumen del día",
+      "words": "NutrIA\nEsto es lo que hoy pide una mirada. Solo hay números, códigos y enlaces.\nCuentas esperando: 1\nAbrir en la consola\nEste correo no lleva el correo electrónico, el nombre ni el texto de ninguna persona usuaria.\nNutrIA"
+    },
+    "kind": "owner-digest",
+    "subject": "NutrIA — resumen del día",
+    "text": "Esto es lo que hoy pide una mirada. Solo hay números, códigos y enlaces.\n\nCuentas esperando: 1\n  https://nutria.example/admin/cuentas?activated=no\n\nEste correo no lleva el correo electrónico, el nombre ni el texto de ninguna persona usuaria."
+  }
+}
