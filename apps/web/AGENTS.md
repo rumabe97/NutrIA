@@ -482,6 +482,24 @@ Perfil while its switch is on, Consulta last for a professional, and offline onl
   carries a negative scroll margin that cancels it (`--app-header-clearance`). Anything new that
   sits in the sticky header inherits it.
 - `(app)/not-found.tsx` is the signed-in tree's 404, inside the shell, in the dictionary's words.
+- **The dish page's actions** (`components/DishActions`, project 024 phase 4) are the one thing
+  held at the foot of a phone's screen besides the bar: a card at `bottom: var(--app-bar-clearance)`
+  that writes its own height to `--dish-actions-block`, which the page keeps free at its end so the
+  last step is never under it. Anything else pinned at the foot does the same, never a typed height.
+
+### Food first (project 024 phase 4)
+
+- **A dish is shown by `components/DishPicture`**: the original file in a plain `<img>` with its
+  «IA» mark (`0066`), or — most dishes today — the designed state: the slot's moment of the day as
+  a ring colour paled into the card (`--color-slot-*`, derived in `themes.css`) and a glyph
+  (`lib/dishLook`, `components/DishGlyph`). Never an empty frame. Pass the meal's `slot`.
+- **Inicio's rings** sum only the meals marked done (`lib/dayRings`), in those words — never
+  "eaten", "intake", "consumido" or "ingesta" — with the plan's own total said beside them. A tick
+  reports its optimistic mark to `components/DayStatusProvider`, so the rings move at once.
+- **A link to a dish is `components/DishLink`**: it grows the tapped card into the dish's page with
+  a View Transition (`lib/dishTransition`, names `dish-<mealId>` / `dish-title-<mealId>` on
+  `[data-dish-picture]` and `[data-dish-title]`), and is an ordinary link where the browser cannot
+  or motion is reduced. The page renders `components/DishArrival`.
 
 ### Rhythm
 
@@ -693,12 +711,14 @@ no error.
 
 ## Testing
 
-This app has no test suite yet. The logic worth testing lives elsewhere: domain rules in
+Most of the logic worth testing lives elsewhere: domain rules in
 `packages/core` (vitest), HTTP behaviour and user isolation in `apps/api` (jest +
 supertest), components in `packages/ui`.
 
-When something here earns a test — a client component with real state, a non-trivial
-transform in `lib/` — add a `vitest` config mirroring `packages/ui`'s, and:
+`src/lib` and a few components are tested with `vitest` (`vitest.config.ts` resolves the path
+aliases and JSX). A component whose markup is a contract — the «IA» mark, a dish's designed state —
+is rendered to a string with `react-dom/server` in Node (`DishPicture.test.tsx`); no DOM library.
+When something more earns a test:
 
 - Query by role, never by class name. No snapshots.
 - Mock `lib/api`, not `fetch`. The client's error mapping is part of the contract.

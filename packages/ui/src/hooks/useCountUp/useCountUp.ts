@@ -54,12 +54,16 @@ function ease(progress: number): number {
  * `format` writes a number the way the figure is written ("1,82 $").
  *
  * A figure the server painted is left alone when the page hydrates after the reader could have
- * read it: counting it back from zero would be a flash, not an entrance.
+ * read it: counting it back from zero would be a flash, not an entrance. A value that changes
+ * after that — a meal marked done moving Inicio's figures — counts from the one before.
  */
 export function useCountUp<T extends Element>(value: number, ref: RefObject<T | null>, format: (shown: number) => string): number {
   const hydrating = useSyncExternalStore(noSubscription, onClient, duringHydration);
   const [wasHydrated] = useState(hydrating);
   const from = useRef(0);
+  // Only the figure as it first arrives can be one the reader has already read; a value that
+  // changes afterwards (a meal marked done) is new, and counts.
+  const first = useRef(true);
   const write = useRef(format);
 
   useEffect(() => {
@@ -70,6 +74,9 @@ export function useCountUp<T extends Element>(value: number, ref: RefObject<T | 
     const element = ref.current;
     const text = element?.firstChild;
     const start = from.current;
+    const arriving = first.current;
+
+    first.current = false;
 
     if (!element || text?.nodeType !== Node.TEXT_NODE || prefersReducedMotion() || start === value) {
       from.current = value;
@@ -79,7 +86,7 @@ export function useCountUp<T extends Element>(value: number, ref: RefObject<T | 
 
     const below = isBelowFold(element);
 
-    if (wasHydrated && !below && performance.now() > HYDRATION_GRACE_MS) {
+    if (arriving && wasHydrated && !below && performance.now() > HYDRATION_GRACE_MS) {
       from.current = value;
 
       return;

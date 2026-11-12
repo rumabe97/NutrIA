@@ -1,0 +1,135 @@
+/*
+ * The card is the container the rings and their legend are laid out against, not the
+ * window: a phone's card at 320 px, a desktop rail and a phone at 200 % text are all
+ * narrow, and in each the legend goes under the rings (the owner's 320 px render had it
+ * running out of its card, PRD 024 criterion 6). Beside them only where a two-line
+ * figure still fits next to the rings.
+ */
+.root {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--gap-heading);
+}
+
+.figures {
+  align-items: center;
+  display: grid;
+  gap: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+}
+
+.rings {
+  inline-size: min(9rem, 100%);
+}
+
+.legend {
+  display: grid;
+  gap: var(--space-03) var(--space-04);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 6rem), 1fr));
+  inline-size: 100%;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.item {
+  display: grid;
+  gap: var(--space-01);
+  min-inline-size: 0;
+}
+
+.label {
+  align-items: center;
+  color: var(--foreground-02);
+  display: flex;
+  font-size: var(--font-size-01);
+  gap: var(--space-02);
+  overflow-wrap: anywhere;
+}
+
+/* The ring's own colour beside its name: the legend's key, and never the only cue — the
+   word is there too. */
+.dot {
+  block-size: 0.5rem;
+  border-radius: var(--radius-full);
+  flex: 0 0 auto;
+  inline-size: 0.5rem;
+}
+
+.tone1 {
+  background-color: var(--color-ring-1);
+}
+
+.tone2 {
+  background-color: var(--color-ring-2);
+}
+
+.tone3 {
+  background-color: var(--color-ring-3);
+}
+
+.tone4 {
+  background-color: var(--color-ring-4);
+}
+
+.line {
+  align-items: baseline;
+  column-gap: var(--space-01);
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.value {
+  font-family: var(--display-font, var(--main-font));
+  font-size: var(--font-size-06);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-02);
+}
+
+.of {
+  color: var(--foreground-02);
+  font-size: var(--font-size-01);
+  font-variant-numeric: tabular-nums;
+}
+
+.caption,
+.plan {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+/* Room for the rings and a column of figures beside them: 360 px and up on a phone. */
+@container (width >= 16.5rem) {
+  .figures {
+    grid-template-columns: auto minmax(0, 1fr);
+    justify-items: stretch;
+  }
+
+  .rings {
+    inline-size: 7rem;
+  }
+
+  .legend {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Wide enough for the figures two by two beside the rings. */
+@container (width >= 26rem) {
+  .rings {
+    inline-size: 9rem;
+  }
+
+  .legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (forced-colors: active) {
+  .dot {
+    background-color: CanvasText;
+  }
+}

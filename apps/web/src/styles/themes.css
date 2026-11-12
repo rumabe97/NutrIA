@@ -825,6 +825,19 @@
   --color-brand-fill-disabled: color-mix(in srgb, var(--color-brand-fill) 40%, var(--surface-card));
   --gradient-brand-fill: linear-gradient(135deg, var(--color-brand-fill), var(--color-brand-fill-end));
   --gradient-accent: linear-gradient(135deg, var(--color-accent-start), var(--color-accent-mid), var(--color-accent-end));
+  /* A dish with no picture (`lib/dishLook`, project 024 phase 4): the moment of the day it is
+     eaten at, as a ring colour for its glyph and that colour paled into the card for its ground.
+     Morning saffron, midday tomato, a snack olive, evening plum — the ring order, so a theme's
+     rings and its plates agree. The glyph clears 3:1 on its ground in every theme
+     (`scripts/check-contrast.mjs`). */
+  --color-slot-morning: var(--color-ring-3);
+  --color-slot-morning-ground: color-mix(in srgb, var(--color-ring-3) 14%, var(--surface-card));
+  --color-slot-midday: var(--color-ring-1);
+  --color-slot-midday-ground: color-mix(in srgb, var(--color-ring-1) 14%, var(--surface-card));
+  --color-slot-snack: var(--color-ring-2);
+  --color-slot-snack-ground: color-mix(in srgb, var(--color-ring-2) 14%, var(--surface-card));
+  --color-slot-evening: var(--color-ring-4);
+  --color-slot-evening-ground: color-mix(in srgb, var(--color-ring-4) 14%, var(--surface-card));
 }
 
 /* ── Forced colours ───────────────────────────────────────────────────────────────────────
@@ -894,6 +907,14 @@
     --color-ring-3: Highlight;
     --color-ring-4: Highlight;
     --color-ring-track: Canvas;
+    --color-slot-morning: CanvasText;
+    --color-slot-morning-ground: Canvas;
+    --color-slot-midday: CanvasText;
+    --color-slot-midday-ground: Canvas;
+    --color-slot-snack: CanvasText;
+    --color-slot-snack-ground: Canvas;
+    --color-slot-evening: CanvasText;
+    --color-slot-evening-ground: Canvas;
     --color-highlight-fill: Highlight;
     --color-on-highlight-fill: HighlightText;
     --color-chart-1: Highlight;

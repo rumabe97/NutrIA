@@ -16,9 +16,6 @@
   margin-inline-start: calc(var(--space-03) * -1);
   padding: var(--space-01) var(--space-03);
   text-decoration: none;
-  transition:
-    background-color var(--duration-fast) var(--ease-default),
-    color var(--duration-fast) var(--ease-default);
   white-space: nowrap;
 }
 
@@ -35,29 +32,75 @@
 
 .slot {
   color: var(--color-brand-11);
-  /* Its own line: the back link is inline-flex, and an inline span after it
-     would sit on the same line and touch the pill the link becomes on hover. */
   display: block;
-  font-size: var(--font-size-02);
-  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-01);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
 }
 
+/* The dish's name on its strip: the display face, heavy, wrapping wherever it must. */
 .title {
-  font-size: var(--font-size-09);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-07);
+  font-weight: var(--font-weight-heavy);
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
-  margin: var(--space-02) 0 var(--gap-heading);
+  margin: var(--space-01) 0 0;
+  overflow-wrap: anywhere;
   text-wrap: balance;
 }
 
+/*
+ * The whole page: on a phone with the actions held at the screen's foot, it keeps their
+ * height free under its last line (`components/DishActions` writes it), so the last step
+ * is never under them. A single row's height until the bar has measured itself.
+ */
+@media (width < 48rem) {
+  .page[data-actions] {
+    padding-block-end: var(--dish-actions-block, calc(var(--target-min) + 2 * var(--space-03) + 2px));
+  }
+}
+
+/*
+ * The picture and what is read with it — the actions, the facts, the dish's share of the
+ * day, the specification. One column on a phone; beside the picture on a wide screen, so
+ * the actions and the numbers sit with the dish rather than a screen below it. One source
+ * order for both, so reading and tabbing do not change; only the placement does.
+ */
+.overview {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.hero {
+  min-inline-size: 0;
+}
+
+.side {
+  align-content: start;
+  display: grid;
+  gap: var(--gap-block);
+  min-inline-size: 0;
+}
+
 .facts {
-  color: var(--foreground-02);
   display: flex;
   flex-wrap: wrap;
+  gap: var(--space-02);
+}
+
+.fact {
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-full);
+  color: var(--foreground-01);
   font-size: var(--font-size-03);
-  gap: var(--space-02) var(--space-05);
-  margin-bottom: var(--gap-block);
+  padding: var(--space-01) var(--space-03);
+}
+
+.macros {
+  display: grid;
+  gap: var(--gap-heading);
 }
 
 /* The recipe's specification. Four numbers a cook checks before starting, where
@@ -66,7 +109,7 @@
   display: grid;
   gap: var(--space-04);
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin: 0 0 var(--gap-block);
+  margin: 0;
 }
 
 .specItem {
@@ -100,7 +143,7 @@
 
 .sectionTitle {
   font-size: var(--font-size-06);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-bold);
   letter-spacing: var(--tracking-title);
   margin: 0 0 var(--gap-heading);
 }
@@ -163,18 +206,32 @@
 }
 
 .step {
+  align-items: start;
+  column-gap: var(--space-03);
   display: grid;
-  gap: var(--space-01);
-  grid-template-columns: 2rem 1fr;
+  grid-template-columns: var(--step-number) minmax(0, 1fr);
+}
+
+/* Each step's number in a round badge of the accent's text colour, the step's words
+   beside it. The badge keeps its phone size at large text, so the words keep the width. */
+.steps {
+  --step-number: min(2rem, 10vw);
 }
 
 .step::before {
+  align-items: center;
+  background-color: var(--surface-sunken);
+  block-size: var(--step-number);
+  border-radius: var(--radius-full);
   color: var(--color-brand-11);
   content: counter(step);
   counter-increment: step;
-  font-size: var(--font-size-04);
+  display: inline-flex;
+  font-size: var(--font-size-03);
   font-variant-numeric: tabular-nums;
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-bold);
+  inline-size: var(--step-number);
+  justify-content: center;
 }
 
 .servingNote {
@@ -203,76 +260,31 @@
   white-space: nowrap;
 }
 
-/* Eaten / skipped on one side, "change this dish" on the other; on a phone the
-   two stack, and the swap keeps its full width as the heavier action. */
-.toolbar {
-  align-items: start;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-04) var(--space-06);
-  justify-content: space-between;
-  margin-bottom: var(--gap-block);
-}
-
+/* Paused, or a meal of an earlier plan: one sentence where the actions would be. */
 .readOnly {
-  margin: var(--space-03) 0 var(--gap-block);
+  margin: 0;
 }
 
 /*
- * On a wide screen the picture takes the left and the dish's actions and figures
- * stand beside it, together, instead of a toolbar stretched across the page and a
- * picture with an empty half beside it. The source order stays actions, picture,
- * figures — the order a phone shows them — so reading and tabbing do not change;
- * only the placement does. With no picture there is no left column to fill, and
- * the one-column layout stays.
+ * On a wide screen the picture takes the left and the dish's actions and figures stand
+ * beside it, together, instead of a toolbar stretched across the page and a picture with
+ * an empty half beside it. Eaten, skipped and "change this dish" sit together there, not
+ * a column's width apart (`--swap-push: 0`).
  */
 @media (width >= 60rem) {
-  /* Eaten, skipped and "change this dish" together, not a page's width apart.
-     Through `.overview`, so it beats the base rule whatever order the build emits them in. */
-  .overview .toolbar {
-    --swap-push: 0;
-
-    justify-content: flex-start;
-  }
-
-  .overview[data-pictured] {
+  .overview {
     align-items: start;
     column-gap: var(--gap-region);
-    display: grid;
-    grid-template-areas:
-      'picture actions'
-      'picture spec'
-      'picture macros'
-      'picture .';
     grid-template-columns: minmax(0, 3fr) minmax(17rem, 2fr);
-    grid-template-rows: auto auto auto 1fr;
-    margin-bottom: var(--gap-block);
-    row-gap: var(--gap-block);
   }
 
-  .overview[data-pictured] .picture {
-    grid-area: picture;
-  }
-
-  .overview[data-pictured] .picture figure {
-    margin: 0;
-  }
-
-  .overview[data-pictured] .toolbar,
-  .overview[data-pictured] .readOnly {
-    grid-area: actions;
-    margin: 0;
+  .side {
+    --swap-push: 0;
   }
 
   /* Two figures a row: the column is a phone's width, whatever the window. */
-  .overview[data-pictured] .spec {
-    grid-area: spec;
+  .side .spec {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    margin: 0;
-  }
-
-  .overview[data-pictured] .macros {
-    grid-area: macros;
   }
 }
 
@@ -293,9 +305,8 @@
     margin-inline-start: 0;
   }
 
-  /* A dish name at display size broke mid-word and filled a screen and a half. */
+  /* A long dish name breaks between syllables rather than mid-letter. */
   .title {
-    font-size: var(--font-size-07);
     hyphens: auto;
   }
 }

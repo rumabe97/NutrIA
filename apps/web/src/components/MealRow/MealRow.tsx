@@ -2,12 +2,14 @@
 import { Fragment, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
 import styles from './MealRow.module.css';
 
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
+import { DishLink } from 'components/DishLink';
+import { DishPicture } from 'components/DishPicture';
+import { useDayStatus } from 'components/DayStatusProvider';
 import { useOffline } from 'components/OfflineProvider';
 
 import { accompanimentPhrase } from 'lib/accompaniments';
@@ -21,6 +23,8 @@ interface MealRowProps {
   id: string;
   /** What goes beside the plate, read after the dish's name (`0079`). */
   accompaniments?: readonly MealAccompaniment[];
+  /** The dish's picture once one is drawn (`0066`); without one the row shows the dish's designed state. */
+  illustrationPath?: string | null;
   /** Already scaled to this meal's portion by the API. */
   ingredients?: readonly { grams: number; name: string }[];
   kcal: number;
@@ -35,25 +39,24 @@ interface MealRowProps {
 }
 
 /**
- * One meal, with its ingredients a disclosure away rather than a page away.
+ * One meal in a day's list: a tick at the start to mark it eaten from here — the list is
+ * where a person is when a plate has just been cleared — then the dish, its picture
+ * first (project 024: the food is the product), and its ingredients a disclosure away.
  *
- * The plan used to be fourteen days of names, and the grams — the thing you
- * actually cook and shop from — were behind a navigation per meal. Fifty-six
- * navigations is not a plan you can use in a kitchen.
+ * The plan used to be fourteen days of names, and the grams — the thing you actually cook
+ * and shop from — were behind a navigation per meal. Closed by default, because fourteen
+ * days of open ingredient lists is not a plan you can scan either. The dish is a link to
+ * its full recipe, and grows into it where the browser can (`components/DishLink`).
  *
- * Closed by default, because fourteen days of open ingredient lists is not a
- * plan you can scan either. The title stays a link to the full recipe with its
- * method; this is the quantities only.
- */
-/**
- * One meal in a day's list, with a tick at the start to mark it eaten from
- * here — the list is where a person is when a plate has just been cleared.
- * Optimistic; a failure puts it back. "Skipped" stays on the meal's own page,
- * where it is a considered choice rather than a tap in passing.
+ * The tick is optimistic; a failure puts it back. Where the screen sums the day's marks
+ * (Inicio's rings, `components/DayStatusProvider`), the row tells it at once. "Skipped"
+ * stays on the meal's own page, where it is a considered choice rather than a tap in
+ * passing.
  */
 export function MealRow({
   id,
   accompaniments = [],
+  illustrationPath = null,
   ingredients = [],
   kcal,
   name,
@@ -66,8 +69,11 @@ export function MealRow({
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
+  const day = useDayStatus();
   const [status, setStatus] = useState(initial);
   const [pending, setPending] = useState(false);
+  // Only a mark made here ticks: a row that arrives already done is simply done.
+  const [ticked, setTicked] = useState(false);
   const done = status === 'completed';
   const recipe = `/plan/comida/${id}`;
   // Offline, the recipe opens only if this device has a copy of it (`0053`): a
@@ -75,21 +81,26 @@ export function MealRow({
   const opens = useOffline().available(recipe);
   const head = (
     <Fragment>
-      <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
-      <span className={styles.name}>
-        {name}
-        {accompaniments.map(side => (
-          <Fragment key={side.key}>
-            {' '}
-            <span className={styles.side}>+ {accompanimentPhrase(side, dictionary, locale)}</span>
-          </Fragment>
-        ))}
-        {status === 'completed' ? <span className={styles.badge}>{dictionary.meal.badgeDone}</span> : null}
-        {status === 'skipped' ? <span className={styles.badge}>{dictionary.meal.badgeSkipped}</span> : null}
+      <span className={styles.thumb}>
+        <DishPicture path={illustrationPath} slot={slot} variant="thumb" />
       </span>
-      <span className={styles.meta}>
-        {formatNumber(Math.round(kcal), locale)} {dictionary.units.kcal} · {formatNumber(Math.round(proteinG), locale)}{' '}
-        {dictionary.units.proteinShort}
+      <span className={styles.text}>
+        <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
+        <span className={styles.name}>
+          <span data-dish-title="">{name}</span>
+          {accompaniments.map(side => (
+            <Fragment key={side.key}>
+              {' '}
+              <span className={styles.side}>+ {accompanimentPhrase(side, dictionary, locale)}</span>
+            </Fragment>
+          ))}
+          {status === 'completed' ? <span className={styles.badge}>{dictionary.meal.badgeDone}</span> : null}
+          {status === 'skipped' ? <span className={styles.badge}>{dictionary.meal.badgeSkipped}</span> : null}
+        </span>
+        <span className={styles.meta}>
+          {formatNumber(Math.round(kcal), locale)} {dictionary.units.kcal} · {formatNumber(Math.round(proteinG), locale)}{' '}
+          {dictionary.units.proteinShort}
+        </span>
       </span>
     </Fragment>
   );
@@ -99,6 +110,8 @@ export function MealRow({
     const next = done ? 'planned' : 'completed';
 
     setStatus(next);
+    setTicked(next === 'completed');
+    day?.mark(id, next);
     setPending(true);
 
     try {
@@ -106,28 +119,37 @@ export function MealRow({
       router.refresh();
     } catch {
       setStatus(previous);
+      setTicked(false);
+      day?.mark(id, previous);
     } finally {
       setPending(false);
     }
   }
 
+  const mark = (
+    <svg
+      aria-hidden="true"
+      className={styles.tickMark}
+      fill="none"
+      height="12"
+      // Keyed on the mark just made, so the stroke draws itself again (`.motion-tick`).
+      key={ticked ? 'ticked' : 'still'}
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2.5"
+      viewBox="0 0 12 12"
+      width="12"
+    >
+      <path className={ticked ? 'motion-tick' : undefined} d="M2 6.5 4.8 9.2 10 3.5" pathLength={1} />
+    </svg>
+  );
+
   return (
     <div className={styles.row} data-marked={showMark} data-status={status}>
       {!showMark ? null : readOnly ? (
         <span aria-hidden="true" className={styles.tick} data-done={done} data-static="true">
-          <svg
-            className={styles.tickMark}
-            fill="none"
-            height="12"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2.5"
-            viewBox="0 0 12 12"
-            width="12"
-          >
-            <path d="M2 6.5 4.8 9.2 10 3.5" />
-          </svg>
+          {mark}
         </span>
       ) : (
         <button
@@ -139,27 +161,14 @@ export function MealRow({
           onClick={() => void toggleDone()}
           type="button"
         >
-          <svg
-            aria-hidden="true"
-            className={styles.tickMark}
-            fill="none"
-            height="12"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2.5"
-            viewBox="0 0 12 12"
-            width="12"
-          >
-            <path d="M2 6.5 4.8 9.2 10 3.5" />
-          </svg>
+          {mark}
         </button>
       )}
       <div className={styles.body}>
         {opens ? (
-          <Link className={styles.head} href={recipe}>
+          <DishLink className={styles.head} mealId={id}>
             {head}
-          </Link>
+          </DishLink>
         ) : (
           <div className={styles.head}>{head}</div>
         )}
