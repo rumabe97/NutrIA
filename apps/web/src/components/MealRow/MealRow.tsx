@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useState } from 'react';
+import { Fragment, useId, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -9,6 +9,7 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { DishLink } from 'components/DishLink';
 import { DishPicture } from 'components/DishPicture';
+import { MealSwap } from 'components/MealSwap';
 import { useDayStatus } from 'components/DayStatusProvider';
 import { useOffline } from 'components/OfflineProvider';
 
@@ -36,6 +37,18 @@ interface MealRowProps {
   showMark?: boolean;
   slot: string;
   status?: string;
+  /**
+   * «Cambiar plato» on the row (the plan's day only): the same control as the dish's page,
+   * with the fortnight's count. The caller decides whether it is offered (`lib/mealSwap`)
+   * and keeps one panel open at a time.
+   */
+  swap?: {
+    readonly limit: number;
+    readonly onOpenChange: (open: boolean) => void;
+    readonly open: boolean;
+    readonly remaining: number;
+    readonly totalMinutes: number;
+  };
 }
 
 /**
@@ -64,8 +77,10 @@ export function MealRow({
   readOnly = false,
   showMark = true,
   slot,
-  status: initial = 'planned'
+  status: initial = 'planned',
+  swap
 }: MealRowProps) {
+  const nameId = useId();
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -87,7 +102,9 @@ export function MealRow({
       <span className={styles.text}>
         <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
         <span className={styles.name}>
-          <span data-dish-title="">{name}</span>
+          <span data-dish-title="" id={nameId}>
+            {name}
+          </span>
           {accompaniments.map(side => (
             <Fragment key={side.key}>
               {' '}
@@ -187,6 +204,24 @@ export function MealRow({
           </details>
         ) : null}
       </div>
+      {/* Under the dish and across the whole row, so its panel has the row's width at 320 px;
+          outside the link, since a control inside a link is two targets in one. The button
+          names the dish it changes through `describedBy`: four «Cambiar plato» in a list are
+          otherwise one name four times. Only while the meal is still planned, which a mark
+          made here can change. */}
+      {swap && status === 'planned' ? (
+        <div className={styles.swap}>
+          <MealSwap
+            describedBy={nameId}
+            limit={swap.limit}
+            mealId={id}
+            onOpenChange={swap.onOpenChange}
+            open={swap.open}
+            remaining={swap.remaining}
+            totalMinutes={swap.totalMinutes}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

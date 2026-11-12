@@ -16,12 +16,14 @@ import { MacroSummary } from 'components/MacroSummary';
 import { MealRow } from 'components/MealRow';
 import { PlanDayNav } from 'components/PlanDayNav';
 import { TargetProgress } from 'components/TargetProgress';
+import { useOffline } from 'components/OfflineProvider';
 
 import { formatDate, interpolate } from 'lib/format';
+import { swapOffered } from 'lib/mealSwap';
 
 import type { EventStanding } from 'components/EventPlanner';
 import type { EventView } from 'core/controllers/Event';
-import type { PlanRedoStanding } from 'core/domain/Allowance';
+import type { MealSwapStanding, PlanRedoStanding } from 'core/domain/Allowance';
 import type { PlanView } from 'core/controllers/Plan';
 
 /**
@@ -29,6 +31,8 @@ import type { PlanView } from 'core/controllers/Plan';
  * days arrive in one response, so switching days is instant and needs no request.
  */
 interface PlanBrowserProps {
+  /** The plan is paused for a trip (`0032`): nothing on it is changed, so no row offers a swap. */
+  away?: boolean;
   /** The upcoming events, for the form under the day. */
   events?: readonly EventView[];
   /**
@@ -44,13 +48,31 @@ interface PlanBrowserProps {
   midPlan?: EventStanding | null;
   plan: PlanView;
   redo: PlanRedoStanding | null;
+  /**
+   * The fortnight's swaps, read as the dish's page reads them, for «Cambiar plato» on each
+   * row of the plan being lived (the owner's decision of 2026-11-12). Null — the allowance
+   * could not be read, or this is not the current plan — draws no swap anywhere.
+   */
+  swaps?: MealSwapStanding | null;
   /** A plan that has not started (project 015): its days to read and swap, with nothing to mark yet. */
   upcoming?: boolean;
 }
 
-export function PlanBrowser({ events = [], history = null, midPlan = null, plan, redo, upcoming = false }: PlanBrowserProps) {
+export function PlanBrowser({
+  away = false,
+  events = [],
+  history = null,
+  midPlan = null,
+  plan,
+  redo,
+  swaps = null,
+  upcoming = false
+}: PlanBrowserProps) {
   const dictionary = useDictionary();
   const locale = useLocale();
+  const { offline } = useOffline();
+  // One swap panel open at a time, across the day's rows: opening another puts the first away.
+  const [swapping, setSwapping] = useState<string | null>(null);
   const shortDate = (date: string) => formatDate(date, locale, { day: 'numeric', month: 'short' });
   const today = history || upcoming ? undefined : plan.days.find(day => day.date === new Date().toISOString().slice(0, 10))?.dayIndex;
   const [selected, setSelected] = useState(today ?? 1);
@@ -65,6 +87,7 @@ export function PlanBrowser({ events = [], history = null, midPlan = null, plan,
   function select(dayIndex: number) {
     if (dayIndex !== selected) {
       setTravel(dayIndex > selected ? 'forward' : 'back');
+      setSwapping(null);
     }
 
     setSelected(dayIndex);
@@ -191,6 +214,20 @@ export function PlanBrowser({ events = [], history = null, midPlan = null, plan,
                   showMark={!upcoming}
                   slot={meal.slot}
                   status={meal.status}
+                  swap={
+                    swaps &&
+                    history === null &&
+                    !upcoming &&
+                    swapOffered({ allowanceKnown: true, away, mealStatus: meal.status, offline, planStatus: plan.status })
+                      ? {
+                          limit: swaps.limit,
+                          onOpenChange: open => setSwapping(open ? meal.id : current => (current === meal.id ? null : current)),
+                          open: swapping === meal.id,
+                          remaining: swaps.remaining,
+                          totalMinutes: meal.prepMinutes + meal.cookMinutes
+                        }
+                      : undefined
+                  }
                 />
               ))}
             </div>

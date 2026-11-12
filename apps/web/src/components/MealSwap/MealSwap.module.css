@@ -30,7 +30,9 @@
   display: grid;
   flex: 1 1 100%;
   gap: var(--space-04);
-  padding: var(--space-05);
+  /* Never wider than the row that holds it, whatever its words (a row of the plan's day at 320 px). */
+  min-inline-size: 0;
+  padding: min(var(--space-05), 5vw);
 }
 
 .options {
@@ -87,10 +89,11 @@
 }
 
 /* On a phone the trigger takes what is left of its row, and the whole row once it wraps
-   under the two marks — never squeezed beside them. */
+   under the two marks — never squeezed beside them. A row of the plan's day keeps it at its
+   own width (`--swap-grow: 0`), at the row's end. */
 @media (width < 34rem) {
   .trigger {
-    flex: 1 1 auto;
+    flex: var(--swap-grow, 1) 1 auto;
   }
 }
 

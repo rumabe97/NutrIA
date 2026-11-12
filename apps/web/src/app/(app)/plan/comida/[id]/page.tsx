@@ -28,6 +28,7 @@ import { formatDate, formatNumber, formatQuantity, interpolate } from 'lib/forma
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { resumesOn } from 'lib/vacation';
 import { serverApi, serverApiResult } from 'lib/server-api';
+import { swapOffered } from 'lib/mealSwap';
 
 import { appMetadata } from '../../../../_shared/metadata';
 
@@ -135,7 +136,8 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
       ) : (
         <MealStatus mealId={meal.id} status={meal.status as Status} />
       )}
-      {allowances && meal.status === 'planned' ? (
+      {allowances &&
+      swapOffered({ allowanceKnown: true, away: Boolean(away), mealStatus: meal.status, offline: false, planStatus: meal.planStatus }) ? (
         <MealSwap limit={allowances.mealSwaps.limit} mealId={meal.id} remaining={allowances.mealSwaps.remaining} totalMinutes={totalMinutes} />
       ) : null}
     </DishActions>

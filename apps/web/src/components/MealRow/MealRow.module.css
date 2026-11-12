@@ -275,6 +275,23 @@
   }
 }
 
+/*
+ * «Cambiar plato» on the plan's day: a line of its own under the dish, the button at its end
+ * (where the sheet draws it) at its own width, and the panel it opens across the whole row —
+ * the tick's column included — so its options keep the room they have on the dish's page.
+ */
+.swap {
+  --swap-grow: 0;
+
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+  grid-column: 1 / -1;
+  margin-top: var(--space-02);
+  min-inline-size: 0;
+}
+
 /* No circle to the left: the dish takes the whole row. */
 .row[data-marked='false'] {
   grid-template-columns: minmax(0, 1fr);
