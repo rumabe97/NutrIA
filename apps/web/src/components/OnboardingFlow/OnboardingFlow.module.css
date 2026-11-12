@@ -10,30 +10,46 @@
 .progressMeta {
   align-items: baseline;
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-01) var(--space-04);
   justify-content: space-between;
   margin-bottom: var(--space-03);
 }
 
-.track {
-  background-color: var(--color-track);
+/*
+ * The progress bar, one segment per step (project 024 phase 6): steps behind are filled
+ * with the bright gradient, the step just reached grows into its segment from where the
+ * row starts reading (`.motion-grow-x`, transform only), the steps ahead are the track.
+ * Nothing on it carries words, so the bright gradient is allowed here (PRD 024 § "What
+ * changes", 1). The segments share the width at every size: nine on a 320 px screen are
+ * about 28 px each, never pushed past it.
+ */
+.segments {
+  display: grid;
+  gap: var(--space-01);
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+}
+
+.segment {
+  background-color: var(--color-ring-track);
+  block-size: 0.375rem;
   border-radius: var(--radius-full);
-  height: 4px;
   overflow: hidden;
 }
 
-.bar {
-  background-color: var(--color-brand-fill);
+.fill {
+  background-image: var(--gradient-accent);
   block-size: 100%;
-  border-radius: inherit;
-  transition: inline-size var(--duration-slow) var(--ease-spring);
+  display: block;
 }
 
 .title {
-  font-size: var(--font-size-08);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-09);
+  font-weight: var(--font-weight-heavy);
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
   margin: 0 0 var(--gap-heading);
+  overflow-wrap: break-word;
 }
 
 .subtitle {
@@ -52,8 +68,21 @@
  */
 .fields {
   display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/*
+ * The step's questions in grouped cards (`components/Card`), as the approved sheets group
+ * a screen's fields: one card per question that is a list of choices, one for the fields
+ * that belong together. Inside, the same one column with the same floor as the form; the
+ * card's own side padding is already capped by the screen (`--gutter-card`).
+ */
+.group {
+  display: grid;
   gap: var(--space-05);
   grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
 }
 
 .row {
@@ -71,59 +100,96 @@
  * cut off could not be scrolled to (project 021 phase 5c).
  */
 .fieldset {
-  border: none;
   margin: 0;
   min-inline-size: 0;
-  padding: 0;
 }
 
+/*
+ * The question as the card's title. Floated across the whole width, so the legend is laid
+ * out as the card's first row instead of being drawn on the card's top edge, where a
+ * rendered legend sits and breaks the hairline.
+ */
 .legend {
-  font-size: var(--font-size-03);
-  font-weight: var(--font-weight-medium);
-  margin-bottom: var(--space-03);
+  float: inline-start;
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  inline-size: 100%;
+  line-height: var(--line-height-03);
+  overflow-wrap: break-word;
   padding: 0;
 }
 
 .hint {
-  margin-top: var(--space-02);
+  margin-top: calc(var(--space-05) * -1 + var(--space-02));
 }
 
 .allergen {
   align-items: center;
   border-bottom: 1px solid var(--border-01);
   display: flex;
-  gap: var(--space-04);
+  flex-wrap: wrap;
+  gap: var(--space-02) var(--space-04);
   justify-content: space-between;
-  padding-block: var(--space-03);
+  padding-block: var(--space-02);
+}
+
+.allergen:last-of-type {
+  border-bottom: none;
+}
+
+/* The fieldset's own gap would space the grouped rows apart; they sit on hairlines. */
+.group:has(> .allergen) {
+  row-gap: 0;
+}
+
+.group:has(> .allergen) > .legend,
+.group:has(> .allergen) > .hint {
+  margin-block: 0 var(--space-03);
 }
 
 .allergenTrace {
+  align-items: center;
+  display: inline-flex;
   font-size: var(--font-size-02);
+  gap: var(--space-02);
+}
+
+.allergenTrace input {
+  accent-color: var(--color-brand-fill);
+}
+
+/* «trazas» is a box of its own: a finger tall on a phone, like every target. */
+@media (pointer: coarse) {
+  .allergenTrace {
+    min-block-size: var(--target-min);
+  }
 }
 
 /*
- * Wrapping, for the reason the header wraps: a button's label may not break in
- * half (`white-space: nowrap` in `packages/ui`), so at the browser's largest
- * font size "Atrás" and "Continuar" are 207px each in a 341px row and the
- * second one ran past the viewport. Two lines is the right answer there and
- * costs nothing at ordinary sizes, where they have always fitted on one.
+ * Atrás and Continuar share the row, each as wide as it can be on a phone — the two
+ * answers to the step, the primary one at the end where a thumb lands. Wrapping, for the
+ * reason the header wraps: a button's label may not break in half (`white-space: nowrap`
+ * in `packages/ui`), so at the browser's largest font size each takes its own line.
  */
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-03);
   justify-content: space-between;
-  margin-top: var(--space-08);
+  margin-top: var(--space-04);
+}
+
+.actions > * {
+  flex: 1 1 auto;
 }
 
 /* Each custom allergy's status, an inline `Note` under the field: matched (success) or
    not (warning). */
 .status {
-  margin-top: var(--space-03);
+  margin: 0;
 }
 
 .saveNote {
-  margin-top: var(--space-04);
   text-align: center;
 }
 
@@ -132,32 +198,74 @@
 .skip {
   display: flex;
   justify-content: center;
-  margin-top: var(--space-04);
-}
-
-.error {
-  background-color: var(--color-error-surface);
-  border-radius: var(--radius-control);
-  color: var(--color-error-text);
-  font-size: var(--font-size-03);
-  padding: var(--space-03) var(--space-04);
 }
 
 .summary {
   display: grid;
   gap: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
 }
 
+/*
+ * The daily targets: the one figure this step leads with, on the highlight fill (the
+ * sheets' saffron tile), its words in the colour made for that ground.
+ */
 .targetsBox {
-  background-color: var(--color-brand-02);
-  border: 1px solid var(--color-brand-06);
+  background-color: var(--color-highlight-fill);
   border-radius: var(--radius-card);
-  margin-top: var(--space-06);
-  padding: var(--space-05);
+  color: var(--color-on-highlight-fill);
+  display: grid;
+  gap: var(--space-02);
+  padding: var(--space-05) min(var(--space-05), var(--gutter-card));
+}
+
+.targetsBox.targetsBox > * {
+  color: inherit;
+}
+
+.targetsLine {
+  font-family: var(--display-font);
+  font-size: var(--font-size-05);
+  line-height: var(--line-height-03);
+  overflow-wrap: break-word;
+}
+
+.basis {
+  margin: 0;
 }
 
 @media (width >= 34rem) {
   .row {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+/*
+ * With a field that opens a keyboard focused on a phone, the bar steps aside (`AppNav`), so
+ * the room kept for it at the page's foot goes too: the form ends right above the keyboard
+ * instead of a band of empty page (the owner's iPhone, LOG phase 5). The same release as the
+ * assistant's box; both come back the moment focus leaves.
+ */
+@media (width < 48rem) {
+  :global(html):has(
+    .fields input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit'], [type='file']):focus,
+    .fields textarea:focus
+  ) {
+    --app-bar-clearance: 0rem;
+    --app-foot-space: var(--space-02);
+  }
+}
+
+@media (forced-colors: active) {
+  .segment {
+    border: 1px solid CanvasText;
+  }
+
+  .fill {
+    background: Highlight;
+  }
+
+  .targetsBox {
+    border: 1px solid CanvasText;
   }
 }
