@@ -1883,6 +1883,7 @@ export const esES = {
     profileConsentRequiredTitle: 'Falta tu consentimiento',
     profileIncompleteBody: 'Necesitamos tu fecha de nacimiento, altura, sexo, peso y nivel de actividad para calcular tus objetivos.',
     profileIncompleteTitle: 'Falta información en tu perfil',
+    progressLabel: 'Cómo va tu plan',
     quotaExceeded: 'Ya has rehecho tu plan esta quincena. Podrás crear el siguiente el {date}.',
     rateLimited: 'Has pedido varios planes seguidos. Espera un momento antes de volver a intentarlo.',
     readyBody:
@@ -1911,6 +1912,7 @@ export const esES = {
       SCHEDULING_MEALS: 'Repartiendo las comidas de los 14 días',
       VALIDATING_PLAN: 'Comprobando que todo encaja'
     },
+    stepsDone: '{done} de {total} pasos hechos',
     timedOutBody: 'El modelo no terminó a tiempo. No se ha guardado nada a medias, así que puedes volver a intentarlo.',
     timedOutTitle: 'Ha tardado demasiado',
     title: 'Estamos creando tu plan',

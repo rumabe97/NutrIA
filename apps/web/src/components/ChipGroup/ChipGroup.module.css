@@ -14,9 +14,12 @@
   font-size: var(--font-size-03);
   padding: var(--space-02) var(--space-04);
   position: relative;
-  transition:
-    background-color var(--duration-fast) var(--ease-default),
-    border-color var(--duration-fast) var(--ease-default);
+  /* A chip presses in; its colours change at once (only transform moves, project 024). */
+  transition: transform var(--duration-fast) var(--spring-firm);
+}
+
+.chip:active {
+  transform: scale(0.97);
 }
 
 /* A finger tall on a phone: these are chosen with a thumb in the onboarding. */

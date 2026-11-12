@@ -67,6 +67,31 @@ export function difficultyLabel(difficulty: string, dictionary: Dictionary): str
   return (dictionary.meal.difficulty as Record<string, string>)[difficulty] ?? difficulty;
 }
 
+/**
+ * The pipeline's stages in the order it reports them (`PlanGeneration.service` marks
+ * each one before it begins). The screen reads only which of these the job has
+ * reached — never a time or a percentage of its own.
+ */
+export const GENERATION_STEPS = [
+  'LOADING_PROFILE',
+  'CHOOSING_RECIPES',
+  'SCHEDULING_MEALS',
+  'VALIDATING_PLAN',
+  'BUILDING_LIST',
+  'SAVING_PLAN'
+] as const;
+
+/**
+ * How many stages are behind the job: every stage before the one it reports. Nothing
+ * yet (queued, or a code this screen does not know) is none, so the ring never runs
+ * ahead of the server.
+ */
+export function stepsBehind(step: string | null): number {
+  const index = step === null ? -1 : (GENERATION_STEPS as readonly string[]).indexOf(step);
+
+  return Math.max(index, 0);
+}
+
 /** A pipeline stage code, turned into a sentence. Unknown codes show as themselves. */
 export function stepLabel(step: string, dictionary: Dictionary): string {
   return (dictionary.generation.steps as Record<string, string>)[step] ?? step;

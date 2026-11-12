@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation';
 import styles from './GenerationProgress.module.css';
 
 import { Button } from 'ui/components/Button';
+import { CountUp } from 'ui/components/CountUp';
+import { Note } from 'ui/components/Note';
+import { Rings } from 'ui/components/Rings';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
@@ -17,7 +20,7 @@ import { StartDatePicker } from 'components/StartDatePicker';
 
 import { api, ApiError, messageFor } from 'lib/api';
 import { formatDate, interpolate } from 'lib/format';
-import { generationError, stepLabel } from 'lib/generation';
+import { GENERATION_STEPS, generationError, stepLabel, stepsBehind } from 'lib/generation';
 import { hasMealSizeAnswer, mealSizeAction, mealSizeBody, rememberMealSizeAnswer, subscribeMealSizeAnswers } from 'lib/mealSize';
 import { markPendingReview } from 'lib/pendingReview';
 
@@ -90,8 +93,10 @@ function notAnsweredOnServer(): boolean {
  *
  * The label shown is `job.step`, written by the pipeline **before** each stage
  * begins — so it is never a stage the server did not reach, and there is no timed
- * script of reassuring messages (PRD criterion 8). The bar is indeterminate for
- * the same reason: the pipeline reports stages, not a percentage.
+ * script of reassuring messages (PRD criterion 8). The ring (project 024) is drawn
+ * from the same thing and nothing else: the stages behind the one reported, out of
+ * the six the pipeline has, so it moves when the job moves and never on a clock.
+ * The six are listed under it, the finished ones ticked and struck through.
  */
 export function GenerationProgress({ allowance, defaultStart, events, mealSize, pantry, redoNextAt, startOptions }: GenerationProgressProps) {
   const router = useRouter();
@@ -178,11 +183,11 @@ export function GenerationProgress({ allowance, defaultStart, events, mealSize, 
 
   if (fatal) {
     return (
-      <div className={styles.shell}>
+      <div className={`${styles.shell} motion-enter`}>
         <h1 className={styles.title}>{dictionary.generation.couldNotStart}</h1>
-        <p className={styles.error} role="alert">
+        <Note as="p" className={styles.error} role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
           {fatal}
-        </p>
+        </Note>
         <div className={styles.actions}>
           <Button onClick={() => void start()} type="button">
             {dictionary.common.retry}
@@ -199,11 +204,11 @@ export function GenerationProgress({ allowance, defaultStart, events, mealSize, 
     const copy = generationError(phase.code, dictionary);
 
     return (
-      <div className={styles.shell}>
+      <div className={`${styles.shell} motion-enter`}>
         <h1 className={styles.title}>{copy.title}</h1>
-        <p className={styles.error} role="alert">
+        <Note as="p" className={styles.error} role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
           {copy.body}
-        </p>
+        </Note>
 
         {/* The provider's own words, already redacted server-side. This product is
             self-hosted — whoever sees this screen is also whoever can fix it, so
@@ -231,7 +236,7 @@ export function GenerationProgress({ allowance, defaultStart, events, mealSize, 
 
   if (phase.kind === 'ready') {
     return (
-      <div className={styles.shell}>
+      <div className={`${styles.shell} motion-enter`}>
         <h1 className={styles.title}>{dictionary.generation.readyTitle}</h1>
         <Text tone="secondary">{dictionary.generation.readyBody}</Text>
 
@@ -308,20 +313,59 @@ export function GenerationProgress({ allowance, defaultStart, events, mealSize, 
     );
   }
 
+  const step = phase.kind === 'running' ? phase.step : null;
+  const behind = stepsBehind(step);
+  const total = GENERATION_STEPS.length;
+  const progress = interpolate(dictionary.generation.stepsDone, { done: String(behind), total: String(total) });
+
   return (
-    <div className={styles.shell}>
+    <div className={`${styles.shell} ${styles.running}`}>
+      {/* The ring of the plan being made: the stages behind the job, sweeping on as each
+          one ends. Its figures are said in words to assistive technology by the ring
+          itself; the number in its middle is the same figure for the eye. */}
+      <div className={`${styles.dial} motion-scale-in`}>
+        <Rings
+          className={styles.ring}
+          items={[{ label: dictionary.generation.progressLabel, max: total, tone: 1, value: behind, valueText: progress }]}
+          label={dictionary.generation.progressLabel}
+          size="lg"
+        />
+        <span aria-hidden="true" className={styles.count}>
+          <CountUp className={styles.countFigure} locale={locale} value={behind} />
+          <span className={styles.countOf}>/{total}</span>
+        </span>
+      </div>
+
       <h1 className={styles.title}>{dictionary.generation.title}</h1>
       <Text tone="secondary">{dictionary.generation.wait}</Text>
 
       <div aria-atomic="true" aria-live="polite" className={styles.step}>
-        <Text weight="medium">{phase.kind === 'running' && phase.step ? stepLabel(phase.step, dictionary) : dictionary.generation.starting}</Text>
+        <Text weight="medium">{step ? stepLabel(step, dictionary) : dictionary.generation.starting}</Text>
       </div>
 
-      <div className={styles.track}>
-        <div className={styles.bar} />
-      </div>
+      {/* The six stages, in the pipeline's order: the ones behind the job ticked and
+          struck through, the one it reported marked as the current step, the rest
+          waiting. Read from the job, never from a timer. */}
+      <ol className={`${styles.steps} motion-list`}>
+        {GENERATION_STEPS.map((code, index) => {
+          const state = index < behind ? 'done' : step !== null && index === behind ? 'current' : 'waiting';
 
-      <Text className={styles.note} size="sm" tone="tertiary">
+          return (
+            <li aria-current={state === 'current' ? 'step' : undefined} className={styles.stepRow} data-state={state} key={code}>
+              <span aria-hidden="true" className={styles.mark}>
+                {state === 'done' ? (
+                  <svg fill="none" focusable="false" stroke="currentColor" strokeWidth="2.4" viewBox="0 0 16 16">
+                    <path className="motion-tick" d="M3.5 8.4l3 3 6-6.6" pathLength={1} strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : null}
+              </span>
+              <span className={state === 'done' ? `${styles.stepWords} motion-strike` : styles.stepWords}>{stepLabel(code, dictionary)}</span>
+            </li>
+          );
+        })}
+      </ol>
+
+      <Text className={styles.note} size="sm" tone="secondary">
         {dictionary.generation.safetyNote}
       </Text>
     </div>
