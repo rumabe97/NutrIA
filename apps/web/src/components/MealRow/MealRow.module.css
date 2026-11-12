@@ -1,11 +1,13 @@
 .row {
-  /* The tick and the gap beside it keep their phone size when the text grows,
-     so the name keeps the width (see `--gutter-page`). */
+  /* The tick, the picture and the gaps beside them keep their phone size when the
+     text grows, so the name keeps the width (see `--gutter-page`). */
   --tick: min(1.5rem, 7.5vw);
+  --thumb: min(4rem, 17.5vw);
+  --row-gap: min(var(--space-03), 3.75vw);
 
-  align-items: start;
+  align-items: center;
   border-bottom: 1px solid var(--border-01);
-  column-gap: min(var(--space-03), 3.75vw);
+  column-gap: var(--row-gap);
   display: grid;
   grid-template-columns: var(--tick) minmax(0, 1fr);
   padding-block: var(--space-03);
@@ -15,7 +17,8 @@
   min-width: 0;
 }
 
-/* A round tick, empty until pressed; filled in the brand colour once the plate is cleared. */
+/* A round tick, empty until pressed; filled in the brand colour once the plate is
+   cleared. It presses in (transform only); its colours change at once. */
 .tick {
   align-items: center;
   background: none;
@@ -26,14 +29,14 @@
   display: inline-flex;
   height: var(--tick);
   justify-content: center;
-  margin-top: 0.1rem;
   padding: 0;
   position: relative;
-  transition:
-    background-color var(--duration-fast) var(--ease-default),
-    border-color var(--duration-fast) var(--ease-default),
-    color var(--duration-fast) var(--ease-default);
+  transition: transform var(--duration-fast) var(--spring-firm);
   width: var(--tick);
+}
+
+.tick:active:not([data-static]) {
+  transform: scale(0.88);
 }
 
 /*
@@ -44,7 +47,7 @@
  */
 .tick::after {
   content: '';
-  /* 44px whatever the text size, so it never reaches across the gap into the name. */
+  /* 44px whatever the text size, so it never reaches across the gap into the picture. */
   inset: calc((var(--tick) - var(--target-min)) / 2);
   position: absolute;
 }
@@ -74,13 +77,27 @@
   padding-bottom: 0;
 }
 
+/* The dish: its picture, then its slot, name and figures beside it. */
 .head {
-  align-items: baseline;
+  align-items: center;
   color: inherit;
+  column-gap: var(--row-gap);
+  display: grid;
+  grid-template-columns: var(--thumb) minmax(0, 1fr);
+  text-decoration: none;
+}
+
+.thumb {
+  display: block;
+  inline-size: var(--thumb);
+}
+
+.text {
+  align-items: baseline;
   display: grid;
   gap: var(--space-01) var(--space-04);
-  grid-template-columns: 6.5rem 1fr auto;
-  text-decoration: none;
+  grid-template-columns: 6.5rem minmax(0, 1fr) auto;
+  min-inline-size: 0;
 }
 
 .head:hover .name {
@@ -88,14 +105,17 @@
 }
 
 .slot {
-  color: var(--foreground-02);
+  color: var(--color-brand-11);
   font-size: var(--font-size-01);
+  font-weight: var(--font-weight-semibold);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
 
 .name {
   font-size: var(--font-size-03);
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
 }
 
 /* Beside the plate, after its name and in the secondary tone: the dish stays the
@@ -104,6 +124,7 @@
 .side {
   color: var(--foreground-02);
   display: inline-block;
+  font-weight: var(--font-weight-regular);
   max-inline-size: 100%;
   overflow-wrap: anywhere;
 }
@@ -115,9 +136,9 @@
   white-space: nowrap;
 }
 
-/* Offset to line up under the name column rather than under the slot label. */
+/* Offset to line up under the dish's words rather than under its picture. */
 .details {
-  margin-inline-start: calc(6.5rem + var(--space-04));
+  margin-inline-start: calc(var(--thumb) + var(--row-gap));
   margin-top: var(--space-02);
 }
 
@@ -178,18 +199,14 @@
 }
 
 /*
- * On a phone the row is a single column: slot, name, then the figures beneath.
- * With the figures beside the name they took a third of the width — a nowrap
- * block of "583 kcal · 42 g P" — and every dish name wrapped to four lines.
+ * On a phone the dish's words are a single column beside its picture: slot, name, then
+ * the figures beneath. With the figures beside the name they took a third of the width —
+ * a nowrap block of "583 kcal · 42 g P" — and every dish name wrapped to four lines.
  */
-@media (width < 34rem) {
-  .head {
+@media (width < 40rem) {
+  .text {
     gap: var(--space-01);
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .details {
-    margin-inline-start: 0;
   }
 }
 
@@ -199,7 +216,7 @@
   color: var(--foreground-02);
 }
 
-.row[data-status='skipped'] .name {
+.row[data-status='skipped'] .name > [data-dish-title] {
   text-decoration: line-through;
 }
 
@@ -208,6 +225,7 @@
   border-radius: var(--radius-full);
   color: var(--foreground-02);
   font-size: var(--font-size-01);
+  font-weight: var(--font-weight-regular);
   margin-inline-start: var(--space-02);
   padding: 0 var(--space-02);
   text-decoration: none;
@@ -232,10 +250,21 @@
 
 /*
  * Text this large for the screen (a rem query reads the reader's text size: at
- * 320px it starts at about 118%, at 390px at about 143%): the grams go under the
- * ingredient, at its start, rather than splitting its name mid-word, and a badge may start a line.
+ * 320px it starts at about 118%, at 390px at about 143%): the picture goes above the
+ * dish's words rather than squeezing them into a sliver beside it, the grams go under
+ * the ingredient, at its start, rather than splitting its name mid-word, and a badge
+ * may start a line.
  */
 @media (width < 17rem) {
+  .head {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--space-02);
+  }
+
+  .details {
+    margin-inline-start: 0;
+  }
+
   /* An atomic box, so the line may break before it: the name runs into it with no space. */
   .badge {
     display: inline-block;
@@ -246,7 +275,7 @@
   }
 }
 
-/* No circle to the left: the text takes the whole row. */
+/* No circle to the left: the dish takes the whole row. */
 .row[data-marked='false'] {
   grid-template-columns: minmax(0, 1fr);
 }

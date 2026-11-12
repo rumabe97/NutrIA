@@ -140,7 +140,7 @@ export function MealSwap({ limit, mealId, notes, path = `/meal-plans/meals/${mea
       </Button>
 
       {open ? (
-        <div className={styles.panel} id={`${name}-panel`}>
+        <div className={`${styles.panel} motion-sheet`} id={`${name}-panel`}>
           <Text weight="semibold">{t.swapAxisLabel}</Text>
 
           <div className={styles.options}>

@@ -1,58 +1,65 @@
+.intro {
+  display: grid;
+  gap: var(--space-02);
+  margin: 0 0 var(--gap-block);
+}
+
+/* The display heading of the screen: the heavy face, tight, wrapping where it must. */
 .greeting {
   font-size: var(--font-size-09);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heavy);
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
-  margin: 0 0 var(--gap-heading);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The person's name in the one accent that holds on every paper (`--color-brand-11`): the
+   bright gradient's light end does not, at any size (LOG, phase 1b). */
+.name {
+  color: var(--color-brand-11);
+}
+
+.status {
+  margin: 0;
 }
 
 /*
- * One column on a phone, a main column and a rail above `--breakpoint-wide`.
- *
- * The dashboard was a single centred column on a canvas wide enough for two,
- * which is most of why it read as empty: not too little content, but content
- * with nowhere to sit. The targets are the natural rail — they are reference,
- * consulted rather than acted on, and they belong beside today rather than
- * below it.
+ * One column on a phone, in the source order: what needs doing, the day's rings, the
+ * day itself, then the reference. From `--breakpoint-wide` the day takes the main
+ * column and the rings and the reference stand in the rail beside it — the same order
+ * for a reader and a keyboard, only placed.
  */
-.layout {
-  display: grid;
-  gap: var(--gap-region);
-}
-
-.main {
+.board {
   display: grid;
   gap: var(--gap-block);
-  /* `minmax(0, …)` or a long dish name pushes the column wider than the grid. */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.notices {
+  display: grid;
+  gap: var(--gap-block);
   min-inline-size: 0;
 }
 
-.rail {
+/* Nothing to say: no row, and no gap where one would be. */
+.notices:empty {
+  display: none;
+}
+
+.main,
+.side {
   align-content: start;
   display: grid;
   gap: var(--gap-block);
   min-inline-size: 0;
 }
 
-/*
- * The rail's contents are reference, so they sit on one quiet card
- * (`components/Card`) rather than four competing ones. A stack of
- * separately-bordered boxes down the side of a screen is the thing that made
- * this feel assembled.
- */
-.railBlock {
+.targets {
   min-inline-size: 0;
 }
 
-/* Three reference panels on the one card, told apart by a hairline rather
-   than by three boxes: the targets, the shopping count, the weight. */
-.railBlock > section {
-  border-top: 1px solid var(--border-01);
-  margin-top: var(--gap-block);
-  padding-top: var(--gap-block);
-}
-
-.todayHeading {
+.cardHeading {
   align-items: baseline;
   display: flex;
   gap: var(--space-04);
@@ -61,60 +68,68 @@
 }
 
 /*
- * These two are `<h2>` for the outline and sized as the title of a card — one
- * step above the body, semibold — so the dashboard's cards and the profile's
- * agree on what a card's name looks like.
+ * The `<h2>` of a card — for the outline — sized as the title of a card, so the
+ * dashboard's cards and the profile's agree on what a card's name looks like.
  */
-.todayTitle,
-.targetsTitle {
+.cardTitle {
   font-size: var(--font-size-04);
   line-height: var(--line-height-04);
+  margin: 0;
 }
 
-.meals {
-  display: grid;
-  margin-top: var(--gap-block);
-}
-
-.targetsLabel {
-  align-items: baseline;
-  display: flex;
-  gap: var(--space-04);
-  justify-content: space-between;
-  margin: 0 0 var(--gap-heading);
-}
-
-.targetsNote {
+.targetsNote,
+.macroNote {
   display: block;
   margin-top: var(--gap-heading);
 }
 
-.notice {
-  background-color: var(--color-warning-surface);
-  border-radius: var(--radius-control);
-  color: var(--color-warning-text);
-  margin-top: var(--gap-heading);
-  padding: var(--space-04) var(--space-05);
+.meals {
+  display: grid;
+}
+
+.progress {
+  min-inline-size: 0;
 }
 
 @media (width >= 64rem) {
-  .layout {
+  .board[data-rail] {
+    grid-template-areas:
+      'notices notices'
+      'main targets'
+      'main side';
     grid-template-columns: minmax(0, 1fr) var(--rail-width);
-    gap: var(--gap-region);
+    grid-template-rows: auto auto 1fr;
+    column-gap: var(--gap-region);
+  }
+
+  .board[data-rail] .notices {
+    grid-area: notices;
+  }
+
+  .board[data-rail] .targets {
+    grid-area: targets;
+  }
+
+  .board[data-rail] .main {
+    grid-area: main;
+  }
+
+  .board[data-rail] .side {
+    grid-area: side;
   }
 }
 
 /*
  * Text this large for the screen (a rem query reads the reader's text size: at
  * 320px it starts at about 118%, at 390px at about 143%): a heading and its link
- * share a line only while both fit.
+ * share a line only while both fit, and the display heading steps down a size.
  */
 @media (width < 17rem) {
-  .todayHeading {
+  .cardHeading {
     flex-wrap: wrap;
   }
 
-  .targetsLabel {
-    flex-wrap: wrap;
+  .greeting {
+    font-size: var(--font-size-07);
   }
 }

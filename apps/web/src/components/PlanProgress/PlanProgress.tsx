@@ -40,7 +40,8 @@ export function PlanProgress({ days, today }: PlanProgressProps) {
         </Text>
       </div>
 
-      <Link aria-label={t.seeAllDays} className={styles.strip} href="/plan">
+      {/* The days arrive one after another, the first eight staggered (`.motion-list`). */}
+      <Link aria-label={t.seeAllDays} className={`${styles.strip} motion-list`} href="/plan">
         {days.map(day => (
           <span
             className={styles.cell}

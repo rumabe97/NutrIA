@@ -63,6 +63,20 @@ describe('useCountUp', () => {
     expect(shown.length).toBeGreaterThan(2);
   });
 
+  it('counts a new value from the one before it, not from zero', async () => {
+    const ref = figure('100');
+    const { rerender } = renderHook(({ value }) => useCountUp(value, ref, shown => String(Math.round(shown))), { initialProps: { value: 100 } });
+
+    await waitFor(() => expect(ref.current.textContent).toBe('100'), { timeout: 2000 });
+    await new Promise(resolve => setTimeout(resolve, 700));
+    const shown = watch(ref.current);
+
+    ref.current.textContent = '150';
+    rerender({ value: 150 });
+    await waitFor(() => expect(shown.at(-1)).toBe('150'), { timeout: 2000 });
+    expect(Number(shown[0])).toBeGreaterThanOrEqual(100);
+  });
+
   it('writes nothing under reduced motion: the final value is what shows', async () => {
     setReducedMotion(true);
     const ref = figure('42');

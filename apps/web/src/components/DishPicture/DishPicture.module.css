@@ -19,19 +19,58 @@
   inline-size: 100%;
 }
 
-.card .frame {
-  border-radius: var(--radius-control);
-}
-
+.card .frame,
 .hero .frame {
   border-radius: var(--radius-card);
 }
 
+.thumb .frame {
+  border-radius: var(--radius-control);
+}
+
+/*
+ * The designed state of a dish with no picture (`lib/dishLook`): its moment's ring
+ * colour paled into the card, and the moment's glyph in that colour. Two classes, so it
+ * wins over the frame's own neutral ground whatever order the stylesheets land in. A
+ * picture that loads covers it; one that fails shows it again.
+ */
+.frame.morning {
+  background-color: var(--color-slot-morning-ground);
+  color: var(--color-slot-morning);
+}
+
+.frame.midday {
+  background-color: var(--color-slot-midday-ground);
+  color: var(--color-slot-midday);
+}
+
+.frame.snack {
+  background-color: var(--color-slot-snack-ground);
+  color: var(--color-slot-snack);
+}
+
+.frame.evening {
+  background-color: var(--color-slot-evening-ground);
+  color: var(--color-slot-evening);
+}
+
 .glyph {
-  block-size: 40%;
-  inline-size: 40%;
-  max-block-size: 3rem;
-  max-inline-size: 3rem;
+  block-size: 42%;
+  inline-size: 42%;
+  max-block-size: 4.5rem;
+  max-inline-size: 4.5rem;
+}
+
+/* On a card and on the dish's page a strip covers the picture's foot: the glyph sits in
+   the part that stays in view. */
+.card .glyph,
+.hero .glyph {
+  transform: translateY(-30%);
+}
+
+.thumb .glyph {
+  block-size: 52%;
+  inline-size: 52%;
 }
 
 /*
@@ -39,7 +78,7 @@
  * the corner is what the EU code of practice names, whatever the script's
  * direction. An opaque ground of its own — the page's, with the page's text on
  * it — so the contrast is the text's on that ground, never on the photograph:
- * well over 4.5:1 in both schemes, on a white plate or a dark pan. The hairline
+ * well over 4.5:1 in every theme, on a white plate or a dark pan. The hairline
  * and the shadow give it an edge against a pale picture. Inset from the corner so
  * the frame's radius never clips it.
  */
@@ -60,7 +99,19 @@
   top: var(--space-02);
 }
 
-/* A picture that failed to load is a plate again, and a plate is not marked. */
+/*
+ * On a row's small square the mark keeps its words legible and its corner, but takes
+ * less of the plate: a tighter pill, nearer the corner, and a size that stays at the
+ * twelve-point step rather than growing with large text past a third of the square.
+ */
+.thumb .mark {
+  font-size: min(var(--font-size-01), 3.75vw);
+  padding: 0 var(--space-01);
+  right: var(--space-01);
+  top: var(--space-01);
+}
+
+/* A picture that failed to load is the designed state again, and that is not marked. */
 .picture:has([data-failed]) .mark {
   display: none;
 }

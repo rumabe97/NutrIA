@@ -6,6 +6,7 @@ import Link from 'next/link';
 import styles from './WeightTracker.module.css';
 
 import { Button } from 'ui/components/Button';
+import { CountUp } from 'ui/components/CountUp';
 import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
@@ -87,7 +88,8 @@ export function WeightTracker({ weight }: { weight: WeightView }) {
           <span className={styles.empty}>{t.weightNone}</span>
         ) : (
           <span>
-            {formatNumber(view.latestKg, locale)} <span className={styles.unit}>{dictionary.units.kilogram}</span>
+            <CountUp format={{ maximumFractionDigits: 1 }} locale={locale} text={formatNumber(view.latestKg, locale)} value={view.latestKg} />{' '}
+            <span className={styles.unit}>{dictionary.units.kilogram}</span>
           </span>
         )}
       </p>
@@ -97,6 +99,8 @@ export function WeightTracker({ weight }: { weight: WeightView }) {
            and a direction is all this space can honestly carry. */
         <svg aria-hidden="true" className={styles.spark} preserveAspectRatio="none" viewBox="0 0 100 28">
           <polyline
+            className="motion-draw"
+            pathLength={1}
             points={points.map((point, index) => `${(index / (points.length - 1)) * 100},${28 - ((point.weightKg - low) / span) * 24 - 2}`).join(' ')}
           />
         </svg>
