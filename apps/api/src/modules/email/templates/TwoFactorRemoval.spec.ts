@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { twoFactorRemovalEmail } from './TwoFactorRemoval.js';
+import { withoutStylesheet } from './Layout.js';
 
 import type { TwoFactorRemovalEvent } from './TwoFactorRemoval.js';
 
@@ -62,7 +63,7 @@ describe('twoFactorRemovalEmail', () => {
     for (const locale of ['es-ES', 'en-GB'] as const) {
       const sent = mail(event, locale);
       const words = `${sent.subject}\n${sent.text}`;
-      const all = `${words}\n${sent.html}`;
+      const all = `${words}\n${withoutStylesheet(sent.html)}`;
 
       // The words a person reads; the HTML's own `font-weight` is not one.
       for (const word of HEALTH_WORDS) {

@@ -1,4 +1,4 @@
-import { button, escapeHtml, layout, paragraph } from './Layout.js';
+import { button, fallbackLink, layout, paragraph } from './Layout.js';
 
 import type { EmailLocale, RenderedEmail } from './Layout.js';
 
@@ -100,8 +100,7 @@ export function careInvitationEmail({
       paragraph(copy.expires, 'muted'),
       paragraph(copy.ignore, 'muted'),
       paragraph(privacy, 'muted'),
-      paragraph(copy.linkFallback, 'muted'),
-      `<p style="margin:0;font-size:0.8125rem;word-break:break-all;"><a href="${escapeHtml(url)}" style="color:#5b7f3a;">${escapeHtml(url)}</a></p>`
+      fallbackLink(copy.linkFallback, url)
     ].join('\n'),
     locale,
     title: subject

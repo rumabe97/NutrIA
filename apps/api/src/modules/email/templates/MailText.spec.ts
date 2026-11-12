@@ -43,7 +43,7 @@ const PRIVACY = 'https://nutria.example/es/privacidad';
 const AT = new Date('2026-10-01T13:05:00.000Z');
 const DUE = new Date('2026-10-03T13:05:00.000Z');
 const IPHONE = { browser: 'safari', system: 'iphone' } as const;
-const NOTHING = {} as const;
+const NOTHING = { browser: null, system: null } as const;
 
 function link(path: string): string {
   return `https://nutria.example${path}`;

@@ -1,6 +1,6 @@
 import { DEVICE_BROWSER_NAMES, DEVICE_SYSTEM_NAMES } from 'core/domain/Device';
 
-import { button, escapeHtml, layout, paragraph } from './Layout.js';
+import { button, fallbackLink, layout, paragraph } from './Layout.js';
 
 import type { Device } from 'core/domain/Device';
 import type { EmailLocale, RenderedEmail } from './Layout.js';
@@ -96,8 +96,7 @@ export function passwordChangedEmail({
       paragraph(copy.notYou),
       button(recoverUrl, copy.button),
       paragraph(copy.wasYou, 'muted'),
-      paragraph(copy.linkFallback, 'muted'),
-      `<p style="margin:0;font-size:0.8125rem;word-break:break-all;"><a href="${escapeHtml(recoverUrl)}" style="color:#5b7f3a;">${escapeHtml(recoverUrl)}</a></p>`
+      fallbackLink(copy.linkFallback, recoverUrl)
     ].join('\n'),
     locale,
     title: copy.subject

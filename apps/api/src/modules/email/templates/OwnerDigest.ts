@@ -1,6 +1,6 @@
 import { safeCode, safeKind, SPEND_WARN_SHARE, ZERO_ITEMS } from 'core/controllers/Admin';
 
-import { escapeHtml, layout, paragraph } from './Layout.js';
+import { anchor, escapeHtml, layout, markup, paragraph } from './Layout.js';
 
 import type { EmailLocale, RenderedEmail } from './Layout.js';
 import type { OwnerDigest, SpendFigure } from 'core/controllers/Admin';
@@ -124,11 +124,10 @@ export function ownerDigestEmail({ digest, link }: { digest: OwnerDigest; link: 
   const html = layout({
     body: [
       paragraph(INTRO),
-      ...list.map(
-        section =>
-          `<p style="margin:0 0 1rem;font-size:1rem;line-height:1.5;"><strong>${escapeHtml(section.title)}</strong>${section.lines
-            .map(line => `<br>${escapeHtml(line)}`)
-            .join('')}<br><a href="${escapeHtml(section.url)}">${OPEN}</a></p>`
+      ...list.map(section =>
+        markup(
+          `<strong>${escapeHtml(section.title)}</strong>${section.lines.map(line => `<br>${escapeHtml(line)}`).join('')}<br>${anchor(section.url, OPEN)}`
+        )
       ),
       paragraph(FOOT, 'muted')
     ].join('\n'),

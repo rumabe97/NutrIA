@@ -1,4 +1,4 @@
-import { button, escapeHtml, layout, paragraph } from './Layout.js';
+import { button, fallbackLink, layout, linkLine, paragraph } from './Layout.js';
 
 import type { EmailLocale, RenderedEmail } from './Layout.js';
 
@@ -60,10 +60,9 @@ export function existingAccountSignUpEmail({
       paragraph(copy.google),
       paragraph(copy.squatted),
       paragraph(copy.reset),
-      `<p style="margin:0 0 1rem;font-size:0.875rem;word-break:break-all;"><a href="${escapeHtml(recoverUrl)}" style="color:#5b7f3a;">${escapeHtml(recoverUrl)}</a></p>`,
+      linkLine(recoverUrl),
       paragraph(copy.notYou, 'muted'),
-      paragraph(copy.linkFallback, 'muted'),
-      `<p style="margin:0;font-size:0.8125rem;word-break:break-all;"><a href="${escapeHtml(signInUrl)}" style="color:#5b7f3a;">${escapeHtml(signInUrl)}</a></p>`
+      fallbackLink(copy.linkFallback, signInUrl)
     ].join('\n'),
     locale,
     title: copy.subject

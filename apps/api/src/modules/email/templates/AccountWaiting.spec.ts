@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { accountWaitingEmail } from './AccountWaiting.js';
+import { withoutStylesheet } from './Layout.js';
 
 const URL = 'https://nutria.example/es/admin/cuentas?activated=no';
 
@@ -12,7 +13,8 @@ describe('accountWaitingEmail', () => {
   it.each(['es-ES', 'en-GB'] as const)('names nobody and issues no activation link in %s', locale => {
     const mail = accountWaitingEmail({ locale, url: URL });
 
-    for (const part of [mail.subject, mail.text, mail.html]) {
+    // The stylesheet's `@media` is the layout's, fixed; everything else in the HTML is read.
+    for (const part of [mail.subject, mail.text, withoutStylesheet(mail.html)]) {
       expect(part).not.toContain('@');
       expect(part).not.toMatch(/usr-/);
       expect(part).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
