@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useId, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -9,12 +9,21 @@ import { Button } from 'ui/components/Button';
 import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
+import { useOffline } from 'components/OfflineProvider';
+
 import { api, ApiError, messageFor } from 'lib/api';
 import { interpolate } from 'lib/format';
 
 import type { SwapAxis } from 'core/entities/Plan';
 
 interface MealSwapProps {
+  /**
+   * The small pill of a card in the plan's day, as the approved sheet draws it: an icon and
+   * «Cambiar». The count is not drawn on it — the panel says what is left — and stays in its name.
+   */
+  compact?: boolean;
+  /** An element that says which dish this is, where the button's own words do not (a row among the day's). */
+  describedBy?: string;
   /**
    * The swaps this plan allows and has left. Omitted where they are not known —
    * a professional's swap on the plan under review (`0060`), which the API
@@ -24,6 +33,10 @@ interface MealSwapProps {
   mealId: string;
   /** The footer's line, idle and once spent, when there is no count to say it with. */
   notes?: { readonly idle: string; readonly spent: string };
+  /** Asked to open or close the panel; with `open`, the caller holds the state. */
+  onOpenChange?: (open: boolean) => void;
+  /** Whether the panel is out, when the caller decides — a list keeps one open at a time. */
+  open?: boolean;
   /** Where the swap is asked for. The client's own route unless a professional's is given. */
   path?: string;
   remaining?: number;
@@ -45,7 +58,18 @@ type Choice = 'any' | SwapAxis;
  * result, and a refresh is the whole navigation. Errors stay on the panel's
  * own line — a spent allowance and "nothing like that fits" are answers.
  */
-export function MealSwap({ limit, mealId, notes, path = `/meal-plans/meals/${mealId}/swap`, remaining, totalMinutes }: MealSwapProps) {
+export function MealSwap({
+  compact = false,
+  describedBy,
+  limit,
+  mealId,
+  notes,
+  onOpenChange,
+  open: controlled,
+  path = `/meal-plans/meals/${mealId}/swap`,
+  remaining,
+  totalMinutes
+}: MealSwapProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const t = dictionary.meal;
@@ -53,12 +77,27 @@ export function MealSwap({ limit, mealId, notes, path = `/meal-plans/meals/${mea
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const wasOpen = useRef(false);
-  const [open, setOpen] = useState(false);
+  const panel = useRef<HTMLDivElement>(null);
+  const [own, setOwn] = useState(false);
+  const open = controlled ?? own;
+  const setOpen = (value: boolean) => (onOpenChange ? onOpenChange(value) : setOwn(value));
   const [choice, setChoice] = useState<Choice>('any');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const [left, setLeft] = useState(remaining ?? Number.POSITIVE_INFINITY);
   const spent = left <= 0;
+  const { offline } = useOffline();
+
+  /*
+   * The count is the server's: after a swap anywhere on the screen the page refreshes, and
+   * every other dish's button must say what is left now, not what was left when it mounted.
+   */
+  const [counted, setCounted] = useState(remaining);
+
+  if (counted !== remaining) {
+    setCounted(remaining);
+    setLeft(remaining ?? Number.POSITIVE_INFINITY);
+  }
 
   /*
    * Closing unmounts the panel with focus still inside it, which leaves focus on
@@ -68,7 +107,17 @@ export function MealSwap({ limit, mealId, notes, path = `/meal-plans/meals/${mea
    * `disabled` is the one on screen and not the one of a moment ago.
    */
   useEffect(() => {
-    if (wasOpen.current && !open) {
+    // Opened: into the panel, on the choice already made, so the arrows move between the
+    // options and Escape is one key away.
+    if (!wasOpen.current && open) {
+      panel.current?.querySelector<HTMLInputElement>('input:checked')?.focus();
+    }
+
+    // Only when focus was left behind: a list that closes this panel because another dish's
+    // opened must not pull focus back from the new one.
+    const stranded = document.activeElement === null || document.activeElement === document.body || root.current?.contains(document.activeElement);
+
+    if (wasOpen.current && !open && stranded) {
       if (trigger.current?.disabled === false) {
         trigger.current.focus();
       } else {
@@ -120,27 +169,63 @@ export function MealSwap({ limit, mealId, notes, path = `/meal-plans/meals/${mea
           ? interpolate(t.swapHintOne, { limit })
           : interpolate(t.swapHint, { limit, remaining: left });
 
+  // A swap is a request: offline it is not offered, as `lib/mealSwap` says.
+  if (offline) {
+    return null;
+  }
+
   return (
     <div className={styles.root} ref={root} tabIndex={-1}>
       <Button
         // Only while the panel is on the page: `aria-controls` pointing at an id
         // that does not exist is a promise the DOM cannot keep.
         aria-controls={open ? `${name}-panel` : undefined}
+        aria-describedby={describedBy}
         aria-expanded={open}
+        // The pill's words are «Cambiar»; its name stays the dish page's, count included.
+        aria-label={
+          compact && !spent ? `${t.swap}${limit === undefined ? '' : ` ${interpolate(t.swapCount, { limit, remaining: left })}`}` : undefined
+        }
         className={styles.trigger}
+        data-compact={compact || undefined}
         disabled={spent || pending}
-        onClick={() => setOpen(value => !value)}
+        onClick={() => setOpen(!open)}
         ref={trigger}
         size="sm"
         type="button"
         variant="secondary"
       >
-        {spent ? t.swapSpentShort : t.swap}
-        {spent || limit === undefined ? null : <span className={styles.count}>{interpolate(t.swapCount, { limit, remaining: left })}</span>}
+        {compact && !spent ? (
+          <Fragment>
+            <svg aria-hidden="true" className={styles.icon} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 16 16">
+              <path d="M3 5.5h9.5M10 3l2.5 2.5L10 8M13 10.5H3.5M6 8l-2.5 2.5L6 13" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {t.swapConfirm}
+          </Fragment>
+        ) : spent ? (
+          t.swapSpentShort
+        ) : (
+          t.swap
+        )}
+        {spent || compact || limit === undefined ? null : (
+          <span className={styles.count}>{interpolate(t.swapCount, { limit, remaining: left })}</span>
+        )}
       </Button>
 
       {open ? (
-        <div className={`${styles.panel} motion-sheet`} id={`${name}-panel`}>
+        <div
+          className={`${styles.panel} motion-sheet`}
+          id={`${name}-panel`}
+          onKeyDown={event => {
+            // Escape puts the panel away and focus back on its button, as a menu does.
+            if (event.key === 'Escape' && !pending) {
+              event.stopPropagation();
+              setOpen(false);
+              setError(undefined);
+            }
+          }}
+          ref={panel}
+        >
           <Text weight="semibold">{t.swapAxisLabel}</Text>
 
           <div className={styles.options}>

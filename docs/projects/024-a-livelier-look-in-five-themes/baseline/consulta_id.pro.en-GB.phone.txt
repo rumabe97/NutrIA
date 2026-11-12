@@ -1,0 +1,30 @@
+# /consulta/<id> · pro · en-GB · phone · 200
+button "Change targets"
+button "End the link"
+button "English" [pressed]: EN
+button "Español": ES
+button "Generate another"
+button "New fortnight" [disabled]
+button "Publish the plan"
+button "Sign out"
+button "Swap this dish"
+button "Theme"
+heading "Current plan" [level=#]
+heading "Daily targets" [level=#]
+heading "End the link" [level=#]
+heading "Fortnights and check-ins" [level=#]
+heading "Health" [level=#]
+heading "Plan to review" [level=#]
+heading "Probe" [level=#]
+heading "Review" [level=#]
+heading "Weight" [level=#]
+link "← Clients"
+link "Home"
+link "NutrIA — home"
+link "Plan"
+link "Practice"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"
+switch "Review each plan before they see it" [checked]

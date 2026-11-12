@@ -1,0 +1,21 @@
+# /onboarding/4 · fresh · es-ES · phone · 200
+button "Atrás"
+button "Cerrar sesión"
+button "Continuar"
+button "English": EN
+button "Español" [pressed]: ES
+button "Tema"
+heading "Cómo comes" [level=#]
+link "Compra"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"
+radio "Fuerte"
+radio "Ligera"
+radio "No la hago"
+radio "No la hago" [checked]
+radio "Normal"
+radio "Normal" [checked]

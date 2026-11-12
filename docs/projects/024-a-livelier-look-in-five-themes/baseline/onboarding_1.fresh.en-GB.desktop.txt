@@ -1,0 +1,25 @@
+# /onboarding/1 · fresh · en-GB · desktop · 200
+button "Back" [disabled]
+button "Continue"
+button "English" [pressed]: EN
+button "Español": ES
+button "Sign out"
+button "Theme"
+checkbox "I consent to NutrIA using this health data to make my plans"
+heading "About you" [level=#]
+link "Home"
+link "NutrIA — home"
+link "Plan"
+link "privacy policy"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"
+radio "Female"
+radio "Male"
+radio "Other"
+radio "Prefer not to say"
+radio "Spain"
+radio "United Kingdom"
+textbox "Date of birth"
+textbox "What should we call you?"

@@ -1,0 +1,30 @@
+# /consulta/<id> · pro · es-ES · desktop · 200
+button "Cambiar objetivos"
+button "Cambiar plato"
+button "Cerrar sesión"
+button "English": EN
+button "Español" [pressed]: ES
+button "Generar otro"
+button "Nueva quincena" [disabled]
+button "Publicar el plan"
+button "Tema"
+button "Terminar vínculo"
+heading "Objetivos diarios" [level=#]
+heading "Peso" [level=#]
+heading "Plan actual" [level=#]
+heading "Plan por revisar" [level=#]
+heading "Probe" [level=#]
+heading "Quincenas y check-ins" [level=#]
+heading "Revisión" [level=#]
+heading "Salud" [level=#]
+heading "Terminar vínculo" [level=#]
+link "← Pacientes"
+link "Compra"
+link "Consulta"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"
+switch "Revisar cada plan antes de que lo vea" [checked]

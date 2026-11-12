@@ -17,6 +17,7 @@ import { appMetadata } from '../../_shared/metadata';
 import type { AllowancesView, PlanView } from 'core/controllers/Plan';
 import type { EventView } from 'core/controllers/Event';
 import type { Metadata } from 'next';
+import type { VacationView } from 'core/controllers/Vacation';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,14 +30,16 @@ export default async function PlanPage() {
 
   // `active` returns null rather than 404 when there is no plan — having none is a
   // normal state, so the empty state is an ordinary render, not an error path.
-  const [dictionary, locale, plan, scheduled, allowances, events] = await Promise.all([
+  const [dictionary, locale, plan, scheduled, allowances, events, trips] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<PlanView | null>('/meal-plans/active'),
     // The plan waiting for its day (project 015); 404 is the usual answer.
     serverApi<PlanView>('/meal-plans/scheduled'),
     serverApi<AllowancesView>('/meal-plans/allowances'),
-    serverApi<readonly EventView[]>('/events')
+    serverApi<readonly EventView[]>('/events'),
+    // Whether the plan is paused, as the dish's page asks it: a paused plan offers no swap.
+    serverApi<readonly VacationView[]>('/vacations')
   ]);
 
   const notice = (
@@ -65,7 +68,14 @@ export default async function PlanPage() {
           </CtaLink>
         ) : null}
         <PantryResult pantry={plan.pantry} />
-        <PlanBrowser events={events ?? []} midPlan={midPlan} plan={plan} redo={allowances?.planRedo ?? null} />
+        <PlanBrowser
+          away={trips?.some(trip => trip.away) ?? false}
+          events={events ?? []}
+          midPlan={midPlan}
+          plan={plan}
+          redo={allowances?.planRedo ?? null}
+          swaps={allowances?.mealSwaps ?? null}
+        />
       </Fragment>
     );
   }

@@ -1,0 +1,26 @@
+# /plan/proximo · sched · en-GB · desktop · 200
+button "# Fri # Nov"
+button "# Mon # Nov"
+button "# Sat # Nov"
+button "# Sun # Nov"
+button "# Thu # Nov"
+button "# Tue # Nov"
+button "# Wed # Nov"
+button "English" [pressed]: EN
+button "Español": ES
+button "Sign out"
+button "Theme"
+button "Week #"
+button "Week #" [pressed]
+heading "Your next plan" [level=#]
+link "← Your current plan"
+link "Breakfast Tortitas de avena y requesón con manzana y canela # kcal · # g P"
+link "Dinner Curry rojo tailandés de pollo con arroz jazmín # kcal · # g P"
+link "Home"
+link "Lunch Bowl mexicano de quinoa, alubias negras y maíz con queso # kcal · # g P"
+link "NutrIA — home"
+link "Plan"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"

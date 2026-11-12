@@ -1,18 +1,34 @@
 .shell {
   display: grid;
   gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
   margin-inline: auto;
   max-width: 38rem;
 }
 
 .title {
-  font-size: var(--font-size-08);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-09);
+  font-weight: var(--font-weight-heavy);
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
   margin: 0;
+  overflow-wrap: break-word;
+  text-wrap: balance;
 }
 
+.form {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The one action of the screen: as wide as the column on a phone, at its own width beyond. */
 .actions {
-  padding-top: var(--space-02);
+  display: grid;
+}
+
+@media (width >= 34rem) {
+  .actions {
+    justify-items: start;
+  }
 }

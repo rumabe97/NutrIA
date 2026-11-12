@@ -47,19 +47,25 @@ export function MealStatus({ mealId, status: initial }: MealStatusProps) {
     }
   }
 
-  // Two toggles, both secondary: `aria-pressed` is what draws the one that is
-  // on. The filled look is the page's one primary action, and a state is not
-  // an action.
+  // «Hecha» is the page's one filled action while the meal is still to be marked, as the
+  // approved sheet draws it; once pressed it settles into the toggle's wash with a tick, so
+  // the fill always means "press this" and never "already done". «Saltada» stays quiet.
   return (
     <div className={styles.buttons}>
       <Button
         aria-pressed={status === 'completed'}
+        className={styles.done}
         disabled={pending}
         onClick={() => void choose('completed')}
         size="sm"
         type="button"
-        variant="secondary"
+        variant={status === 'completed' ? 'secondary' : 'primary'}
       >
+        {status === 'completed' ? (
+          <svg aria-hidden="true" className={styles.check} fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 16 16">
+            <path d="M3.5 8.4l3 3 6-6.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ) : null}
         {t.done}
       </Button>
       <Button
@@ -68,7 +74,7 @@ export function MealStatus({ mealId, status: initial }: MealStatusProps) {
         onClick={() => void choose('skipped')}
         size="sm"
         type="button"
-        variant="secondary"
+        variant={status === 'skipped' ? 'secondary' : 'tertiary'}
       >
         {t.skipped}
       </Button>

@@ -1,0 +1,16 @@
+# /onboarding/8 · fresh · en-GB · phone · 200
+button "Back"
+button "Continue"
+button "English" [pressed]: EN
+button "Español": ES
+button "Sign out"
+button "Skip this step"
+button "Theme"
+heading "Your kitchen" [level=#]
+link "Home"
+link "NutrIA — home"
+link "Plan"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"

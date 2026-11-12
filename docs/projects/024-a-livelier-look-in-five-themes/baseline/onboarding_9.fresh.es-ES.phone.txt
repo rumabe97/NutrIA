@@ -1,0 +1,15 @@
+# /onboarding/9 · fresh · es-ES · phone · 200
+button "Atrás"
+button "Cerrar sesión"
+button "English": EN
+button "Español" [pressed]: ES
+button "Tema"
+button "Terminar"
+heading "Revisión" [level=#]
+link "Compra"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"

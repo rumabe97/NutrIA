@@ -500,6 +500,31 @@ Perfil while its switch is on, Consulta last for a professional, and offline onl
   a View Transition (`lib/dishTransition`, names `dish-<mealId>` / `dish-title-<mealId>` on
   `[data-dish-picture]` and `[data-dish-title]`), and is an ordinary link where the browser cannot
   or motion is reduced. The page renders `components/DishArrival`.
+- **«Cambiar plato» is one control in two places** (the owner's decision of 2026-11-12): the dish
+  page and each row of `/plan`'s day (`MealRow`'s `swap`, never Inicio's rows, history or the
+  next plan). Whether it is offered is `lib/mealSwap.swapOffered` — plan being lived, not paused,
+  allowance read, meal still planned, online — asked by both, so they cannot disagree. A list
+  holds `MealSwap` controlled (`open`, `onOpenChange`): one panel at a time. The panel takes focus
+  on its chosen option, Escape or «Cancelar» gives it back to the row's button, and every
+  button's count follows the server's after a swap anywhere on the screen.
+- **The plan's day and the dish follow the approved sheet** (`reference/02-mobile-complete.jpg`;
+  the owner, 2026-11-12: «todo se tiene que ver igual que la maqueta, salvo las cosas que hemos
+  ido cambiando»). The day is the title; one card a meal (`MealRow variant="card"` — Inicio keeps
+  `row`); «⇄ Cambiar» is `MealSwap compact`, a pill whose name still carries «Cambiar plato N de
+  M»; the dish has four rings in a row, a grouped ingredient list and one action row. A control
+  the sheet does not draw is moved under what it draws, never removed, and never put back above
+  it. A difference from the sheet is either one of his decisions or a line in the project's LOG.
+- **The questionnaire has no destinations**: its step page renders `data-questionnaire` (not when
+  one step is opened from the profile) and the shell hides the bar and the rail and releases
+  their room. Do not add a second way to hide them.
+
+### Forms on a phone (project 024 phases 5–6)
+
+A form whose fields open a keyboard releases the bar's room while one has focus, so it ends right
+above the keyboard: under `@media (width < 48rem)`, `:global(html):has(<the form's text field>:focus)`
+sets `--app-bar-clearance: 0rem` and `--app-foot-space: var(--space-02)` — the assistant, onboarding,
+the professional's invite and targets forms do. Both come back when focus leaves; never type a
+height for it.
 
 ### Rhythm
 

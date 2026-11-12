@@ -49,7 +49,8 @@
 .day {
   background-color: var(--surface-card);
   border: 1px solid var(--border-01);
-  border-radius: var(--radius-card);
+  /* A rounded square, as the sheet's calendar chips are — not a pill. */
+  border-radius: calc(var(--radius-control) + var(--space-01));
   color: var(--foreground-02);
   cursor: pointer;
   display: grid;
@@ -88,8 +89,11 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* The weekday above the date, small capitals as on a calendar's head. */
 .dayLabel {
   font-size: var(--font-size-01);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
 }
 
 .dayDate {
@@ -148,10 +152,12 @@
   .dayIndex {
     flex: 0 0 1.5rem;
     font-size: var(--font-size-03);
+    order: -1;
   }
 
   .dayLabel {
     font-size: var(--font-size-02);
+    letter-spacing: normal;
     text-transform: capitalize;
   }
 

@@ -1,39 +1,111 @@
 .card {
   display: grid;
   gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
   margin-inline: auto;
-  max-inline-size: 32rem;
+  max-inline-size: 34rem;
 }
 
 .title {
-  font-size: var(--font-size-07);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-08);
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
   margin: 0;
+  overflow-wrap: break-word;
+  text-wrap: balance;
 }
 
+/*
+ * What is shared, what the professional may do, and the separate health question: each a
+ * group of its own set into the card (the sunken ground), its lists as grouped rows on
+ * hairlines — the approved sheets' grouped lists. Every word as before.
+ */
 .block {
-  border-top: 1px solid var(--border-01);
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-control);
   display: grid;
   gap: var(--space-03);
-  padding-top: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
+  padding: var(--space-04) min(var(--space-04), var(--gutter-card));
 }
 
 .list {
-  color: var(--foreground-02);
+  color: var(--foreground-01);
   display: grid;
   font-size: var(--font-size-03);
-  gap: var(--space-02);
+  list-style: none;
   margin: 0;
-  padding-inline-start: var(--space-05);
+  padding: 0;
+}
+
+.list > li {
+  align-items: baseline;
+  border-bottom: 1px solid var(--border-01);
+  display: flex;
+  gap: var(--space-03);
+  overflow-wrap: break-word;
+  padding-block: var(--space-02);
+}
+
+.list > li:last-child {
+  border-bottom: none;
+}
+
+/* A dot in the accent before each item: the list's own mark, said by the list to assistive technology. */
+.list > li::before {
+  background-color: var(--color-brand-11);
+  block-size: 0.375rem;
+  border-radius: var(--radius-full);
+  content: '';
+  flex: none;
+  inline-size: 0.375rem;
+  transform: translateY(-0.15em);
+}
+
+/* What ticking the health box adds, dropping in under it. */
+.extra {
+  border-top: 1px solid var(--border-01);
+  display: grid;
+  gap: var(--space-02);
+  padding-top: var(--space-03);
 }
 
 .hint {
   margin: 0;
 }
 
+/* Accept and decline, side by side and equally wide; one under the other when they do not fit. */
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-03);
+}
+
+.actions > * {
+  flex: 1 1 auto;
+}
+
+/* Text this large for the screen: «Aceptar la invitación» is wider than the card, so the
+   label wraps inside its button rather than running past the screen. */
+@media (width < 17rem) {
+  .actions > [class] {
+    block-size: auto;
+    height: auto;
+    line-height: var(--line-height-02);
+    max-width: 100%;
+    padding-block: var(--space-02);
+    text-align: center;
+    white-space: normal;
+  }
+}
+
+@media (forced-colors: active) {
+  .block {
+    border: 1px solid CanvasText;
+  }
+
+  .list > li::before {
+    background-color: CanvasText;
+  }
 }

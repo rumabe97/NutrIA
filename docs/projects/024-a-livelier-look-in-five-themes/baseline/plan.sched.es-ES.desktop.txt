@@ -1,0 +1,14 @@
+# /plan · sched · es-ES · desktop · 200
+button "Cerrar sesión"
+button "English": EN
+button "Español" [pressed]: ES
+button "Tema"
+heading "Tu plan empieza el # de noviembre" [level=#]
+link "Compra"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"
+link "Ver sus días"

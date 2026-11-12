@@ -1,0 +1,16 @@
+# /onboarding/8 · fresh · es-ES · desktop · 200
+button "Atrás"
+button "Cerrar sesión"
+button "Continuar"
+button "English": EN
+button "Español" [pressed]: ES
+button "Omitir este paso"
+button "Tema"
+heading "Tu cocina" [level=#]
+link "Compra"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"

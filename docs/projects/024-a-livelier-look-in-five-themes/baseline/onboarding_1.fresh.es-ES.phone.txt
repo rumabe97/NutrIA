@@ -1,0 +1,25 @@
+# /onboarding/1 · fresh · es-ES · phone · 200
+button "Atrás" [disabled]
+button "Cerrar sesión"
+button "Continuar"
+button "English": EN
+button "Español" [pressed]: ES
+button "Tema"
+checkbox "Consiento que NutrIA use estos datos de salud para hacer mis planes"
+heading "Sobre ti" [level=#]
+link "Compra"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "política de privacidad"
+link "Progreso"
+link "Saltar al contenido"
+radio "España"
+radio "Hombre"
+radio "Mujer"
+radio "Otro"
+radio "Prefiero no decirlo"
+radio "Reino Unido"
+textbox "¿Cómo quieres que te llamemos?"
+textbox "Fecha de nacimiento"

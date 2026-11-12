@@ -1,0 +1,15 @@
+# /consulta · proA · es-ES · phone · 200
+button "Cerrar sesión"
+button "English": EN
+button "Español" [pressed]: ES
+button "Tema"
+heading "Activa la verificación en dos pasos" [level=#]
+link "Compra"
+link "Consulta"
+link "Inicio"
+link "Ir a Seguridad"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"

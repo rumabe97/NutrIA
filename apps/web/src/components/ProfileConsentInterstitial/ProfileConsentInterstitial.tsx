@@ -9,11 +9,13 @@ import { Button } from 'ui/components/Button';
 import { Note } from 'ui/components/Note';
 import { useDictionary } from 'i18n/LocaleProvider';
 
+import { Card } from 'components/Card';
 import { ProfileConsentFields } from 'components/ProfileConsentFields';
 
 import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
 
 import { api, messageFor } from 'lib/api';
+import { interpolate } from 'lib/format';
 
 import type { FormEvent } from 'react';
 import type { ProfileConsentView } from 'core/controllers/Profile';
@@ -39,7 +41,8 @@ export function ProfileConsentInterstitial() {
     setError(undefined);
 
     if (new FormData(event.currentTarget).get('profileConsentGiven') !== 'on') {
-      setError(t.note);
+      // The note's own words, its `{privacy}` named in words: an alert carries no link.
+      setError(interpolate(t.note, { privacy: dictionary.auth.legalPrivacy }));
 
       return;
     }
@@ -57,20 +60,24 @@ export function ProfileConsentInterstitial() {
   }
 
   return (
-    <div className={styles.shell}>
+    <div className={`${styles.shell} motion-list`}>
       <h1 className={styles.title}>{t.title}</h1>
 
       {/* `noValidate`: the browser's own required-field bubble is in whatever
           language the browser is set to, not the reader's chosen locale, and
           it would also pre-empt this handler before `t.note` ever showed. */}
-      <form noValidate={true} onSubmit={onSubmit}>
+      <form className={styles.form} noValidate={true} onSubmit={onSubmit}>
         {error ? (
           <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
             {error}
           </Note>
         ) : null}
 
-        <ProfileConsentFields />
+        {/* Every paragraph of the consent, word for word, on one card: what it covers is
+            read as one thing, before the box that gives it. */}
+        <Card>
+          <ProfileConsentFields />
+        </Card>
 
         <div className={styles.actions}>
           <Button loading={pending} type="submit">

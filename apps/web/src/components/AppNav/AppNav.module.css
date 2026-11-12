@@ -536,3 +536,12 @@ html:has(.header) {
     border: 1px solid CanvasText;
   }
 }
+
+/*
+ * The questionnaire is answered with nothing else to go to (the owner's decision of
+ * 2026-11-12): while its page is on screen the destinations are put away — for the eye and
+ * for assistive technology alike — and come back when it is done. The header stays.
+ */
+body:has([data-questionnaire]) .nav {
+  display: none;
+}

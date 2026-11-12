@@ -1,0 +1,14 @@
+# /plan/historial · sched · en-GB · phone · 200
+button "English" [pressed]: EN
+button "Español": ES
+button "Sign out"
+button "Theme"
+heading "Your plans" [level=#]
+link "Home"
+link "NutrIA — home"
+link "Plan"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"
+link "Your plan"

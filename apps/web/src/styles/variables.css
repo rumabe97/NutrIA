@@ -132,3 +132,10 @@
     --app-rail-offset: var(--app-rail-inline);
   }
 }
+
+/* While the questionnaire is being answered the shell has no destinations (`AppNav`), so
+   the page keeps no room for them: neither under its foot nor beside it. */
+:root:has([data-questionnaire]) {
+  --app-bar-clearance: 0rem;
+  --app-rail-offset: 0rem;
+}

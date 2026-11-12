@@ -25,6 +25,14 @@
   grid-column: 1 / -1;
 }
 
+/* With a figure being typed on a phone, the form ends above the keyboard (LOG phase 5). */
+@media (width < 48rem) {
+  :global(html):has(.form input:focus) {
+    --app-bar-clearance: 0rem;
+    --app-foot-space: var(--space-02);
+  }
+}
+
 @media (width <= 40rem) {
   .form {
     grid-template-columns: 1fr;

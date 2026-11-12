@@ -252,12 +252,39 @@ row 10.
 
 | Risk | Likelihood before the measures | Measures | Residual |
 | --- | --- | --- | --- |
-| R-A1. Somebody types a condition or a medication and it is sent and kept | likely, sooner or later | the warning at the start of every conversation (AI Act art. 50.1 and minimisation); the lexicon stops the clearest cases before any call; a question judged clinical is stored empty (F2); deletion at will; six months; nobody else reads it | low, and **not legitimised**: no art. 9.2 exception fits volunteered text (**[lawyer]**, `assistant-warning.md` § 4, 17(a)) |
+| R-A1. Somebody types a condition or a medication and it is sent and kept | likely, sooner or later | the warning (AI Act art. 50.1 and minimisation), as shown since 2026-11-12 (#371): in full while a conversation has no message; once it has one, folded at the head of the thread to one line that says it is an AI and repeats clause 6's words ("no escribas aquí enfermedades, medicación ni otros datos de tu salud"), with the full text one tap away; and, in every state, a shorter line directly under the box ("Te responde una IA: no escribas aquí datos de tu salud"), read with the field; the lexicon stops the clearest cases before any call; a question judged clinical is stored empty (F2); deletion at will; six months; nobody else reads it | low, and **not legitimised**: no art. 9.2 exception fits volunteered text (**[lawyer]**, `assistant-warning.md` § 4, 17(a)) |
 | R-A2. Health data reach Anthropic from the profile | was present: allergy names (F1) and the goal and the way of eating (F5) | both removed on 2026-11-10; the boundary test fails on any allergy-, goal- or diet-shaped key; the health wall (`health-boundary.spec.ts`) holds | low (the targets remain, **[lawyer]** 17(g)) |
 | R-A3. Somebody else reads a conversation (the owner, a professional, a breach) | possible | owner-scoped repository, 404 to others; no console screen, export, care-link reader, log line or error report; database access only to fix a fault; Neon's encryption at rest | low; a database breach would expose conversations as it would any table (breach procedure applies) |
 | R-A4. An answer names a food a person is allergic to | possible: a model's own words | the allergen net on every sentence against the **profile's** allergies, on our server; the stored answers are screened again against today's allergies before being shown or replayed; the warning sends allergies to the profile | low; the net matches on spelling (`AllergenNet.ts`), so it stays a risk to measure (phase 6) |
 | R-A5. Anthropic keeps the content longer than we do | certain for up to 30 days; up to 2 years if flagged | the policy says so; a no-training clause; a DPA with SCCs; minimisation of what is sent | medium for a flagged conversation, which our deletion cannot reach (**[lawyer]** 17(j)) |
 | R-A6. Somebody takes an answer as medical advice | possible | the warning; the clinical refusals; the terms (T1, T4); an intended purpose outside the MDR | low |
+
+**Amended 2026-11-12: the warning folds** ([`2026-11-11-redesign.md`](./2026-11-11-redesign.md)
+§ 6; shipped in #371, `35d5da30`). What the code does at that commit:
+
+- **The measure R-A1 rests on now sits where the person types, in every conversation.** The
+  line under the box (`assistant.composerNotice`) is drawn whatever state the warning is in,
+  directly under the box in the sticky composer, and it is the field's description, so a
+  screen reader reads it whenever the box takes focus (`AssistantChat.tsx:457`, `:488-492`).
+  Before #371, a reopened thread opened scrolled to its end (`AssistantChat.tsx:130-131`,
+  unchanged), with the warning above the fold: finding F-W1. That line closes it. The folded
+  note itself is at the head of the thread, so in a long reopened thread it is reached by
+  scrolling up or by reading in order, not seen on arrival.
+- **What has been seen, and what has not.** The lead's browser check (project 024 `LOG.md`,
+  phase 5) found the line above the bar on arrival at 390 and 320 px, and, with the box focused
+  in an emulated phone, the line as the last thing on the page. **Whether it stays in view above
+  a real phone's on-screen keyboard has not been seen**: the LOG lists the keyboard as the
+  owner's first open check. Until he has looked, "in view while typing" is the design's intent,
+  not an observed fact.
+- **Nothing is stored.** Which state is drawn is worked out from the turns on screen
+  (`folded={shown.length > 0}`, `AssistantChat.tsx:339`); the open state is React state only
+  (`:95`, `:342`). A reload or a new conversation starts again in full or folded.
+- **R-A1's residual is unchanged** ("low, and not legitimised"), and slightly better in fact,
+  because a reopened thread now carries the health instruction beside the box the person
+  writes in.
+- **R-A4 and R-A6 rest on the full text** (clauses 7 and 3). It is in full at the start of every
+  new conversation, one tap away («Aviso completo») in a conversation that has messages, and
+  said in `/privacidad` and the terms. **Their residual (low) is unchanged.**
 
 **Verdict**: with these measures the residual risk is acceptable. **No prior consultation**
 (art. 36.1). The conditions are the boxes of [`go-live-checklist.md`](./go-live-checklist.md)

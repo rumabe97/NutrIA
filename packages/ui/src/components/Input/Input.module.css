@@ -89,6 +89,7 @@
   color: var(--foreground-02);
   font-size: var(--font-size-02);
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .error {
@@ -98,6 +99,10 @@
   font-size: var(--font-size-02);
   gap: var(--space-02);
   margin: 0;
+  /* The words beside the icon may break inside a word that has no other place to break — an
+     example address, «nombre@ejemplo.com» — rather than run past a 320 px screen at 200 %
+     text. `anywhere`, not `break-word`: only it lowers the words' own min-content. */
+  overflow-wrap: anywhere;
 }
 
 .errorIcon {

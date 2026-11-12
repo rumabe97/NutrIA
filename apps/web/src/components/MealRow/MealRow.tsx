@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useState } from 'react';
+import { Fragment, useId, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -9,12 +9,13 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { DishLink } from 'components/DishLink';
 import { DishPicture } from 'components/DishPicture';
+import { MealSwap } from 'components/MealSwap';
 import { useDayStatus } from 'components/DayStatusProvider';
 import { useOffline } from 'components/OfflineProvider';
 
 import { accompanimentPhrase } from 'lib/accompaniments';
 import { api } from 'lib/api';
-import { formatNumber, formatQuantity } from 'lib/format';
+import { formatNumber, formatQuantity, interpolate } from 'lib/format';
 import { slotLabel } from 'lib/generation';
 
 import type { MealAccompaniment } from 'lib/accompaniments';
@@ -36,6 +37,26 @@ interface MealRowProps {
   showMark?: boolean;
   slot: string;
   status?: string;
+  /**
+   * «Cambiar plato» on the row (the plan's day only): the same control as the dish's page,
+   * with the fortnight's count. The caller decides whether it is offered (`lib/mealSwap`)
+   * and keeps one panel open at a time.
+   */
+  swap?: {
+    readonly limit: number;
+    readonly onOpenChange: (open: boolean) => void;
+    readonly open: boolean;
+    readonly remaining: number;
+    readonly totalMinutes: number;
+  };
+  /** Prep and cooking together, said beside the energy on a card. */
+  totalMinutes?: number;
+  /**
+   * `row` is a line of a list (Inicio's day). `card` is the plan's day as the approved sheet
+   * draws it: one card a meal — the picture, the slot in small capitals, the name, then the
+   * energy and the time with «Cambiar» at the line's end.
+   */
+  variant?: 'card' | 'row';
 }
 
 /**
@@ -64,8 +85,12 @@ export function MealRow({
   readOnly = false,
   showMark = true,
   slot,
-  status: initial = 'planned'
+  status: initial = 'planned',
+  swap,
+  totalMinutes,
+  variant = 'row'
 }: MealRowProps) {
+  const nameId = useId();
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -79,6 +104,21 @@ export function MealRow({
   // Offline, the recipe opens only if this device has a copy of it (`0053`): a
   // link that leads to "not connected" is worse than a row that is not a link.
   const opens = useOffline().available(recipe);
+  const title = (
+    <span className={styles.name}>
+      <span data-dish-title="" id={nameId}>
+        {name}
+      </span>
+      {accompaniments.map(side => (
+        <Fragment key={side.key}>
+          {' '}
+          <span className={styles.side}>+ {accompanimentPhrase(side, dictionary, locale)}</span>
+        </Fragment>
+      ))}
+      {status === 'completed' ? <span className={styles.badge}>{dictionary.meal.badgeDone}</span> : null}
+      {status === 'skipped' ? <span className={styles.badge}>{dictionary.meal.badgeSkipped}</span> : null}
+    </span>
+  );
   const head = (
     <Fragment>
       <span className={styles.thumb}>
@@ -86,21 +126,13 @@ export function MealRow({
       </span>
       <span className={styles.text}>
         <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
-        <span className={styles.name}>
-          <span data-dish-title="">{name}</span>
-          {accompaniments.map(side => (
-            <Fragment key={side.key}>
-              {' '}
-              <span className={styles.side}>+ {accompanimentPhrase(side, dictionary, locale)}</span>
-            </Fragment>
-          ))}
-          {status === 'completed' ? <span className={styles.badge}>{dictionary.meal.badgeDone}</span> : null}
-          {status === 'skipped' ? <span className={styles.badge}>{dictionary.meal.badgeSkipped}</span> : null}
-        </span>
-        <span className={styles.meta}>
-          {formatNumber(Math.round(kcal), locale)} {dictionary.units.kcal} · {formatNumber(Math.round(proteinG), locale)}{' '}
-          {dictionary.units.proteinShort}
-        </span>
+        {title}
+        {variant === 'card' ? null : (
+          <span className={styles.meta}>
+            {formatNumber(Math.round(kcal), locale)} {dictionary.units.kcal} · {formatNumber(Math.round(proteinG), locale)}{' '}
+            {dictionary.units.proteinShort}
+          </span>
+        )}
       </span>
     </Fragment>
   );
@@ -145,25 +177,77 @@ export function MealRow({
     </svg>
   );
 
+  const tick = !showMark ? null : readOnly ? (
+    <span aria-hidden="true" className={styles.tick} data-done={done} data-static="true">
+      {mark}
+    </span>
+  ) : (
+    <button
+      aria-busy={pending || undefined}
+      aria-label={done ? dictionary.meal.unmarkDone : dictionary.meal.markDone}
+      aria-pressed={done}
+      className={styles.tick}
+      disabled={pending}
+      onClick={() => void toggleDone()}
+      type="button"
+    >
+      {mark}
+    </button>
+  );
+  const details =
+    ingredients.length > 0 ? (
+      <details className={styles.details}>
+        <summary className={styles.summary}>{dictionary.meal.ingredients}</summary>
+        <ul className={styles.ingredients}>
+          {ingredients.map(ingredient => (
+            <li className={styles.ingredient} key={ingredient.name}>
+              <span className={styles.ingredientName}>{ingredient.name}</span>
+              <span className={styles.grams}>{formatQuantity(ingredient.grams, 'g', locale, dictionary)}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
+    ) : null;
+
+  if (variant === 'card') {
+    return (
+      <div className={styles.card} data-marked={showMark} data-status={status}>
+        {opens ? (
+          <DishLink className={styles.cardHead} mealId={id}>
+            {head}
+          </DishLink>
+        ) : (
+          <div className={styles.cardHead}>{head}</div>
+        )}
+        {/* Over the picture's corner and outside the link: the mark is its own target. */}
+        {tick}
+        <span className={styles.cardMeta}>
+          {formatNumber(Math.round(kcal), locale)} {dictionary.units.kcal}
+          {totalMinutes === undefined ? null : ` · ${interpolate(dictionary.meal.minutes, { value: totalMinutes })}`}
+        </span>
+        {/* At the line's end, as the sheet draws it; its panel opens across the whole card.
+            The button names the dish it changes through `describedBy`. Only while the meal
+            is still planned, which a mark made here can change. */}
+        {swap && status === 'planned' ? (
+          <MealSwap
+            compact={true}
+            describedBy={nameId}
+            limit={swap.limit}
+            mealId={id}
+            onOpenChange={swap.onOpenChange}
+            open={swap.open}
+            remaining={swap.remaining}
+            totalMinutes={swap.totalMinutes}
+          />
+        ) : null}
+        {details}
+      </div>
+    );
+  }
+
   return (
     <div className={styles.row} data-marked={showMark} data-status={status}>
-      {!showMark ? null : readOnly ? (
-        <span aria-hidden="true" className={styles.tick} data-done={done} data-static="true">
-          {mark}
-        </span>
-      ) : (
-        <button
-          aria-busy={pending || undefined}
-          aria-label={done ? dictionary.meal.unmarkDone : dictionary.meal.markDone}
-          aria-pressed={done}
-          className={styles.tick}
-          disabled={pending}
-          onClick={() => void toggleDone()}
-          type="button"
-        >
-          {mark}
-        </button>
-      )}
+      {tick}
       <div className={styles.body}>
         {opens ? (
           <DishLink className={styles.head} mealId={id}>
@@ -173,20 +257,26 @@ export function MealRow({
           <div className={styles.head}>{head}</div>
         )}
 
-        {ingredients.length > 0 ? (
-          <details className={styles.details}>
-            <summary className={styles.summary}>{dictionary.meal.ingredients}</summary>
-            <ul className={styles.ingredients}>
-              {ingredients.map(ingredient => (
-                <li className={styles.ingredient} key={ingredient.name}>
-                  <span className={styles.ingredientName}>{ingredient.name}</span>
-                  <span className={styles.grams}>{formatQuantity(ingredient.grams, 'g', locale, dictionary)}</span>
-                </li>
-              ))}
-            </ul>
-          </details>
-        ) : null}
+        {details}
       </div>
+      {/* Under the dish and across the whole row, so its panel has the row's width at 320 px;
+          outside the link, since a control inside a link is two targets in one. The button
+          names the dish it changes through `describedBy`: four «Cambiar plato» in a list are
+          otherwise one name four times. Only while the meal is still planned, which a mark
+          made here can change. */}
+      {swap && status === 'planned' ? (
+        <div className={styles.swap}>
+          <MealSwap
+            describedBy={nameId}
+            limit={swap.limit}
+            mealId={id}
+            onOpenChange={swap.onOpenChange}
+            open={swap.open}
+            remaining={swap.remaining}
+            totalMinutes={swap.totalMinutes}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

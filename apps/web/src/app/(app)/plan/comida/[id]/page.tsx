@@ -28,6 +28,7 @@ import { formatDate, formatNumber, formatQuantity, interpolate } from 'lib/forma
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { resumesOn } from 'lib/vacation';
 import { serverApi, serverApiResult } from 'lib/server-api';
+import { swapOffered } from 'lib/mealSwap';
 
 import { appMetadata } from '../../../../_shared/metadata';
 
@@ -135,8 +136,15 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
       ) : (
         <MealStatus mealId={meal.id} status={meal.status as Status} />
       )}
-      {allowances && meal.status === 'planned' ? (
-        <MealSwap limit={allowances.mealSwaps.limit} mealId={meal.id} remaining={allowances.mealSwaps.remaining} totalMinutes={totalMinutes} />
+      {allowances &&
+      swapOffered({ allowanceKnown: true, away: Boolean(away), mealStatus: meal.status, offline: false, planStatus: meal.planStatus }) ? (
+        <MealSwap
+          compact={true}
+          limit={allowances.mealSwaps.limit}
+          mealId={meal.id}
+          remaining={allowances.mealSwaps.remaining}
+          totalMinutes={totalMinutes}
+        />
       ) : null}
     </DishActions>
   ) : (
@@ -185,7 +193,13 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
 
           <div className={styles.facts}>
             {totalMinutes > 0 ? (
-              <span className={styles.fact}>{interpolate(dictionary.meal.totalMinutes, { minutes: totalMinutes })}</span>
+              <span className={styles.fact}>
+                <svg aria-hidden="true" className={styles.factIcon} fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 16 16">
+                  <circle cx="8" cy="8" r="5.75" />
+                  <path d="M8 5v3.2l2 1.3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {interpolate(dictionary.meal.totalMinutes, { minutes: totalMinutes })}
+              </span>
             ) : (
               <span className={styles.fact}>{dictionary.meal.noCooking}</span>
             )}
@@ -209,44 +223,19 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
                 locale={locale}
                 targets={targets}
               />
-              <Text size="xs" tone="tertiary">
-                {dictionary.macros.note}
-              </Text>
             </div>
           ) : (
             <MacroSummary carbsG={meal.carbsG} fatG={meal.fatG} kcal={meal.kcal} note={dictionary.macros.note} proteinG={meal.proteinG} />
           )}
-
-          {/* The four numbers a cook checks before starting. */}
-          <Card as="dl" className={styles.spec}>
-            {[
-              { label: dictionary.meal.prep, value: interpolate(dictionary.meal.minutes, { value: formatNumber(meal.prepMinutes, locale) }) },
-              {
-                label: dictionary.meal.cook,
-                value:
-                  meal.cookMinutes > 0
-                    ? interpolate(dictionary.meal.minutes, { value: formatNumber(meal.cookMinutes, locale) })
-                    : dictionary.meal.none
-              },
-              { label: dictionary.meal.servingsLabel, value: formatNumber(Math.round(meal.servings * 100) / 100, locale) },
-              { label: dictionary.meal.difficultyLabel, value: difficultyLabel(meal.difficulty, dictionary) }
-            ].map(item => (
-              <div className={styles.specItem} key={item.label}>
-                <dt className={styles.specLabel}>{item.label}</dt>
-                <dd className={styles.specValue}>{item.value}</dd>
-              </div>
-            ))}
-          </Card>
         </div>
       </div>
 
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>{dictionary.meal.ingredients}</h2>
-
-        {/* The quantities below are already scaled to this meal's portion, so the
-            note explains the number rather than making the reader do the maths. */}
-        <div className={styles.servingNote}>
-          <Text size="sm">
+        {/* The quantities below are already scaled to this meal's portion; the heading's
+            line says for how many, as the sheet draws it. */}
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionTitle}>{dictionary.meal.ingredients}</h2>
+          <Text size="sm" tone="secondary">
             {interpolate(dictionary.meal.servingNote, {
               servings: formatNumber(Math.round(meal.servings * 100) / 100, locale),
               unit: meal.servings === 1 ? dictionary.meal.servingUnitOne : dictionary.meal.servingUnitOther
@@ -292,6 +281,33 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
             </li>
           ))}
         </ul>
+      </section>
+
+      {/* Between what goes in and how it is made: the four numbers a cook checks before
+          starting, and where the dish's figures come from when no target was known. */}
+      <section className={styles.section}>
+        <Card as="dl" className={styles.spec}>
+          {[
+            { label: dictionary.meal.prep, value: interpolate(dictionary.meal.minutes, { value: formatNumber(meal.prepMinutes, locale) }) },
+            {
+              label: dictionary.meal.cook,
+              value:
+                meal.cookMinutes > 0 ? interpolate(dictionary.meal.minutes, { value: formatNumber(meal.cookMinutes, locale) }) : dictionary.meal.none
+            },
+            { label: dictionary.meal.servingsLabel, value: formatNumber(Math.round(meal.servings * 100) / 100, locale) },
+            { label: dictionary.meal.difficultyLabel, value: difficultyLabel(meal.difficulty, dictionary) }
+          ].map(item => (
+            <div className={styles.specItem} key={item.label}>
+              <dt className={styles.specLabel}>{item.label}</dt>
+              <dd className={styles.specValue}>{item.value}</dd>
+            </div>
+          ))}
+        </Card>
+        {targets ? (
+          <Text className={styles.figuresNote} size="xs" tone="tertiary">
+            {dictionary.macros.note}
+          </Text>
+        ) : null}
       </section>
 
       {/* After the dish's own ingredients and before its method: what is eaten

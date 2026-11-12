@@ -13,6 +13,7 @@ import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
+import { Card } from 'components/Card';
 import { ChipGroup } from 'components/ChipGroup';
 import { KitchenPicker } from 'components/KitchenPicker';
 import { MealShapePicker } from 'components/MealShapePicker';
@@ -182,7 +183,8 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
     // consent-gated steps), but every step from `goal` on is a 409 the reader
     // would meet several screens later, for a box that scrolled out of view.
     if (current?.key === 'about-you' && form.get('profileConsentGiven') !== 'on') {
-      return { profileConsentGiven: [dictionary.profileConsent.note] };
+      // The note's own words, its `{privacy}` named in words: an alert carries no link.
+      return { profileConsentGiven: [interpolate(dictionary.profileConsent.note, { privacy: dictionary.auth.legalPrivacy })] };
     }
 
     return {};
@@ -357,392 +359,420 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
             {interpolate(t.percent, { value: Math.round((step / TOTAL_STEPS) * 100) })}
           </Text>
         </div>
+        {/* One segment per step: the ones behind filled, this one growing in as it
+            arrives, the ones ahead on the track. Still one progress bar to assistive
+            technology, with the same name and values; the segments are its picture. */}
         <div
           aria-label={t.progressLabel}
           aria-valuemax={TOTAL_STEPS}
           aria-valuemin={1}
           aria-valuenow={step}
-          className={styles.track}
+          className={styles.segments}
           role="progressbar"
         >
-          <div className={styles.bar} style={{ inlineSize: `${(step / TOTAL_STEPS) * 100}%` }} />
+          {FLOW.map((entry, index) => (
+            <span className={styles.segment} data-state={index + 1 < step ? 'done' : index + 1 === step ? 'current' : 'ahead'} key={entry.key}>
+              {index + 1 <= step ? (
+                // Keyed on the step, so the segment of the step just reached draws itself again.
+                <span className={`${styles.fill} ${index + 1 === step ? 'motion-grow-x' : ''}`} key={index + 1 === step ? step : 'done'} />
+              ) : null}
+            </span>
+          ))}
         </div>
       </div>
 
-      <h1 className={styles.title}>{copy?.title}</h1>
-      <Text className={styles.subtitle} tone="secondary">
-        {copy?.subtitle}
-      </Text>
+      {/* The whole step moves — its title with its questions — along the axis the
+          reader is travelling: forward from the end, back from the start. */}
+      <div className={goingBack ? 'motion-back' : 'motion-forward'} key={step}>
+        <h1 className={styles.title}>{copy?.title}</h1>
+        <Text className={styles.subtitle} tone="secondary">
+          {copy?.subtitle}
+        </Text>
 
-      <form className={`${styles.fields} ${goingBack ? 'motion-back' : 'motion-forward'}`} key={step} noValidate={true} onSubmit={onSubmit}>
-        {error ? (
-          <p className={styles.error} role="alert">
-            {error}
-          </p>
-        ) : null}
+        <form className={styles.fields} noValidate={true} onSubmit={onSubmit}>
+          {error ? (
+            <Note as="p" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
+              {error}
+            </Note>
+          ) : null}
 
-        {current?.key === 'about-you' ? (
-          <Fragment>
-            {/* `nickname`, not `name`: the question is what to call you, and
+          {current?.key === 'about-you' ? (
+            <Fragment>
+              <Card className={styles.group}>
+                {/* `nickname`, not `name`: the question is what to call you, and
                 the browser has a token for exactly that. Height, weight and pace
                 have none — an invented token autofills nothing and claims a
                 purpose that is not the field's. */}
-            <Input
-              autoComplete="nickname"
-              defaultValue={person?.displayName ?? ''}
-              error={fieldError('displayName')}
-              label={f.displayName}
-              name="displayName"
-            />
-            {/* Asked now that something reads it: the catalogue knows which of
+                <Input
+                  autoComplete="nickname"
+                  defaultValue={person?.displayName ?? ''}
+                  error={fieldError('displayName')}
+                  label={f.displayName}
+                  name="displayName"
+                />
+                {/* Asked now that something reads it: the catalogue knows which of
                 its foods are sold only in Spain, and a plan is built from what
                 this person can actually buy (`0034`). Two options, because two
                 is what the catalogue can serve — a longer list would be the
                 question whose answer changes nothing that `0025` warns about. */}
-            <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>{f.country}</legend>
-              <OptionCards name="country" options={options.countries} value={person?.country ?? undefined} />
-              <Text className={styles.hint} size="xs" tone="tertiary">
-                {f.countryHint}
-              </Text>
-            </fieldset>
-            <Input
-              autoComplete="bday"
-              defaultValue={person?.birthDate ?? ''}
-              error={fieldError('birthDate')}
-              label={f.birthDate}
-              name="birthDate"
-              type="date"
-            />
-            <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>{f.sex}</legend>
-              <OptionCards name="sex" options={options.sex} value={person?.sex} />
-              <Text className={styles.hint} size="xs" tone="tertiary">
-                {f.sexHint}
-              </Text>
-            </fieldset>
+                <fieldset className={styles.fieldset}>
+                  <legend className={styles.legend}>{f.country}</legend>
+                  <OptionCards name="country" options={options.countries} value={person?.country ?? undefined} />
+                  <Text className={styles.hint} size="xs" tone="tertiary">
+                    {f.countryHint}
+                  </Text>
+                </fieldset>
+                <Input
+                  autoComplete="bday"
+                  defaultValue={person?.birthDate ?? ''}
+                  error={fieldError('birthDate')}
+                  label={f.birthDate}
+                  name="birthDate"
+                  type="date"
+                />
+                <fieldset className={styles.fieldset}>
+                  <legend className={styles.legend}>{f.sex}</legend>
+                  <OptionCards name="sex" options={options.sex} value={person?.sex} />
+                  <Text className={styles.hint} size="xs" tone="tertiary">
+                    {f.sexHint}
+                  </Text>
+                </fieldset>
+              </Card>
 
-            {/* The explicit health-data consent (P0-2), before anything it
+              {/* The explicit health-data consent (P0-2), before anything it
                 covers is even asked: the goal step right after this one
                 already refuses without it (`localErrors` blocks this step
                 first, so the reader never meets that 409 several screens
                 later, for a box that scrolled out of view). */}
-            <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>{dictionary.profileConsent.title}</legend>
-              <ProfileConsentFields defaultChecked={consent?.isCurrent ?? false} />
-            </fieldset>
-          </Fragment>
-        ) : null}
+              <Card as="fieldset" className={`${styles.group} ${styles.fieldset}`}>
+                <legend className={styles.legend}>{dictionary.profileConsent.title}</legend>
+                <ProfileConsentFields defaultChecked={consent?.isCurrent ?? false} />
+              </Card>
+            </Fragment>
+          ) : null}
 
-        {current?.key === 'goal' ? (
-          <Fragment>
-            <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>{f.goalType}</legend>
-              <OptionCards name="type" options={options.goals} value={goal?.type} />
-            </fieldset>
-            <div className={styles.row}>
-              <Input
-                defaultValue={goal?.targetWeightKg ?? ''}
-                error={fieldError('targetWeightKg')}
-                label={f.targetWeightKg}
-                name="targetWeightKg"
-                step="0.1"
-                type="number"
-              />
-              <Input
-                defaultValue={goal?.paceKgPerWeek ?? ''}
-                error={fieldError('paceKgPerWeek')}
-                hint={f.paceHint}
-                label={f.pace}
-                max={PACE_KG_PER_WEEK.max}
-                min={PACE_KG_PER_WEEK.min}
-                name="paceKgPerWeek"
-                step="0.05"
-                type="number"
-              />
-            </div>
-          </Fragment>
-        ) : null}
+          {current?.key === 'goal' ? (
+            <Fragment>
+              <Card as="fieldset" className={`${styles.group} ${styles.fieldset}`}>
+                <legend className={styles.legend}>{f.goalType}</legend>
+                <OptionCards name="type" options={options.goals} value={goal?.type} />
+              </Card>
+              <Card className={`${styles.group} ${styles.row}`}>
+                <Input
+                  defaultValue={goal?.targetWeightKg ?? ''}
+                  error={fieldError('targetWeightKg')}
+                  label={f.targetWeightKg}
+                  name="targetWeightKg"
+                  step="0.1"
+                  type="number"
+                />
+                <Input
+                  defaultValue={goal?.paceKgPerWeek ?? ''}
+                  error={fieldError('paceKgPerWeek')}
+                  hint={f.paceHint}
+                  label={f.pace}
+                  max={PACE_KG_PER_WEEK.max}
+                  min={PACE_KG_PER_WEEK.min}
+                  name="paceKgPerWeek"
+                  step="0.05"
+                  type="number"
+                />
+              </Card>
+            </Fragment>
+          ) : null}
 
-        {current?.key === 'body-activity' ? (
-          <Fragment>
-            <div className={styles.row}>
-              <Input defaultValue={person?.heightCm ?? ''} error={fieldError('heightCm')} label={f.heightCm} name="heightCm" type="number" />
-              <Input
-                defaultValue={goal?.startingWeightKg ?? ''}
-                error={fieldError('currentWeightKg')}
-                label={f.weightKg}
-                name="currentWeightKg"
-                step="0.1"
-                type="number"
-              />
-            </div>
-            <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>{f.activityLevel}</legend>
-              <OptionCards name="activityLevel" options={options.activity} value={preferences?.activityLevel} />
-            </fieldset>
-          </Fragment>
-        ) : null}
+          {current?.key === 'body-activity' ? (
+            <Fragment>
+              <Card className={`${styles.group} ${styles.row}`}>
+                <Input defaultValue={person?.heightCm ?? ''} error={fieldError('heightCm')} label={f.heightCm} name="heightCm" type="number" />
+                <Input
+                  defaultValue={goal?.startingWeightKg ?? ''}
+                  error={fieldError('currentWeightKg')}
+                  label={f.weightKg}
+                  name="currentWeightKg"
+                  step="0.1"
+                  type="number"
+                />
+              </Card>
+              <Card as="fieldset" className={`${styles.group} ${styles.fieldset}`}>
+                <legend className={styles.legend}>{f.activityLevel}</legend>
+                <OptionCards name="activityLevel" options={options.activity} value={preferences?.activityLevel} />
+              </Card>
+            </Fragment>
+          ) : null}
 
-        {current?.key === 'how-you-eat' ? (
-          // Which meals, and how big — one question instead of a count and a
-          // checkbox that between them could not say "I skip breakfast" (`0036`).
-          <fieldset className={styles.fieldset}>
-            <legend className={styles.legend}>{f.mealShape}</legend>
-            <MealShapePicker labels={{ sizes: t.options.mealSizes, slots: t.options.mealSlots }} value={preferences?.mealShape ?? DEFAULT_SHAPE} />
-            <Text className={styles.hint} size="xs" tone="tertiary">
-              {f.mealShapeHint}
-            </Text>
-          </fieldset>
-        ) : null}
-
-        {current?.key === 'food-preferences' ? (
-          <Fragment>
-            <Input defaultValue={joinList(profile?.foodPreferences, 'liked')} hint={f.likedHint} label={f.liked} name="liked" />
-            <Input defaultValue={joinList(profile?.foodPreferences, 'disliked')} hint={f.dislikedHint} label={f.disliked} name="disliked" />
-            <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>{f.cuisines}</legend>
-              <ChipGroup name="cuisines" options={CUISINES} selected={profile?.cuisines ?? []} />
-            </fieldset>
-          </Fragment>
-        ) : null}
-
-        {current?.key === 'allergies' ? (
-          <Fragment>
-            <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>{f.allergies}</legend>
+          {current?.key === 'how-you-eat' ? (
+            // Which meals, and how big — one question instead of a count and a
+            // checkbox that between them could not say "I skip breakfast" (`0036`).
+            <Card as="fieldset" className={`${styles.group} ${styles.fieldset}`}>
+              <legend className={styles.legend}>{f.mealShape}</legend>
+              <MealShapePicker labels={{ sizes: t.options.mealSizes, slots: t.options.mealSlots }} value={preferences?.mealShape ?? DEFAULT_SHAPE} />
               <Text className={styles.hint} size="xs" tone="tertiary">
-                {f.traceHint}
+                {f.mealShapeHint}
               </Text>
-              {allergens.map(allergen => (
-                <div className={styles.allergen} key={allergen.id}>
-                  <Checkbox
-                    defaultChecked={profile?.allergies.some(a => a.allergenId === allergen.id)}
-                    label={allergen.labelEs}
-                    name="allergy"
-                    value={allergen.id}
-                  />
-                  {/* Fourteen boxes all called "trazas" are fourteen identical
+            </Card>
+          ) : null}
+
+          {current?.key === 'food-preferences' ? (
+            <Fragment>
+              <Card className={styles.group}>
+                <Input defaultValue={joinList(profile?.foodPreferences, 'liked')} hint={f.likedHint} label={f.liked} name="liked" />
+                <Input defaultValue={joinList(profile?.foodPreferences, 'disliked')} hint={f.dislikedHint} label={f.disliked} name="disliked" />
+              </Card>
+              <Card as="fieldset" className={`${styles.group} ${styles.fieldset}`}>
+                <legend className={styles.legend}>{f.cuisines}</legend>
+                <ChipGroup name="cuisines" options={CUISINES} selected={profile?.cuisines ?? []} />
+              </Card>
+            </Fragment>
+          ) : null}
+
+          {current?.key === 'allergies' ? (
+            <Fragment>
+              <Card as="fieldset" className={`${styles.group} ${styles.fieldset}`}>
+                <legend className={styles.legend}>{f.allergies}</legend>
+                <Text className={styles.hint} size="xs" tone="tertiary">
+                  {f.traceHint}
+                </Text>
+                {allergens.map(allergen => (
+                  <div className={styles.allergen} key={allergen.id}>
+                    <Checkbox
+                      defaultChecked={profile?.allergies.some(a => a.allergenId === allergen.id)}
+                      label={allergen.labelEs}
+                      name="allergy"
+                      value={allergen.id}
+                    />
+                    {/* Fourteen boxes all called "trazas" are fourteen identical
                       stops in a rotor list; the visible word stays short and the
                       label says which allergen this one belongs to. */}
-                  <label className={styles.allergenTrace}>
-                    <input
-                      aria-label={interpolate(f.traceLabelFor, { allergen: allergen.labelEs })}
-                      defaultChecked={profile?.allergies.some(a => a.allergenId === allergen.id && a.crossContaminationSensitive)}
-                      name="trace"
-                      type="checkbox"
-                      value={allergen.id}
-                    />{' '}
-                    {f.traceLabel}
-                  </label>
-                </div>
-              ))}
-            </fieldset>
+                    <label className={styles.allergenTrace}>
+                      <input
+                        aria-label={interpolate(f.traceLabelFor, { allergen: allergen.labelEs })}
+                        defaultChecked={profile?.allergies.some(a => a.allergenId === allergen.id && a.crossContaminationSensitive)}
+                        name="trace"
+                        type="checkbox"
+                        value={allergen.id}
+                      />{' '}
+                      {f.traceLabel}
+                    </label>
+                  </div>
+                ))}
+              </Card>
 
-            <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>{f.intolerances}</legend>
-              <ChipGroup
-                name="intolerance"
-                options={allergens.map(allergen => ({ label: allergen.labelEs, value: allergen.id }))}
-                selected={(profile?.intolerances ?? []).map(intolerance => intolerance.allergenId)}
-              />
-            </fieldset>
+              <Card as="fieldset" className={`${styles.group} ${styles.fieldset}`}>
+                <legend className={styles.legend}>{f.intolerances}</legend>
+                <ChipGroup
+                  name="intolerance"
+                  options={allergens.map(allergen => ({ label: allergen.labelEs, value: allergen.id }))}
+                  selected={(profile?.intolerances ?? []).map(intolerance => intolerance.allergenId)}
+                />
+              </Card>
 
-            <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>{f.otherAllergies}</legend>
-              <Input
-                defaultValue={(profile?.customAllergens ?? []).map(entry => entry.label).join(', ')}
-                hint={f.customAllergensHint}
-                label={f.customAllergens}
-                name="customAllergens"
-              />
+              <Card as="fieldset" className={`${styles.group} ${styles.fieldset}`}>
+                <legend className={styles.legend}>{f.otherAllergies}</legend>
+                <Input
+                  defaultValue={(profile?.customAllergens ?? []).map(entry => entry.label).join(', ')}
+                  hint={f.customAllergensHint}
+                  label={f.customAllergens}
+                  name="customAllergens"
+                />
 
-              {/* Status per entry, never a summary. "Tus alergias están cubiertas"
+                {/* Status per entry, never a summary. "Tus alergias están cubiertas"
                   would be true of the matched ones and a lie about the rest, and
                   the reader has no way to tell which half they are in. */}
-              {(profile?.customAllergens ?? []).map(entry => (
-                <Note
-                  as="p"
-                  className={styles.status}
-                  key={entry.label}
-                  layout="inline"
-                  tone={entry.ingredientName ? 'success' : 'warning'}
-                  toneLabel={entry.ingredientName ? dictionary.common.noteTone.success : dictionary.common.noteTone.warning}
-                >
-                  {/* One run of text: the note lays out its children as rows. */}
-                  <span>
-                    <strong>{entry.label}</strong>{' '}
-                    {entry.ingredientName
-                      ? interpolate(t.customAllergen.enforced, { ingredient: entry.ingredientName })
-                      : t.customAllergen.bestEffort}
-                  </span>
-                </Note>
-              ))}
-            </fieldset>
+                {(profile?.customAllergens ?? []).map(entry => (
+                  <Note
+                    as="p"
+                    className={styles.status}
+                    key={entry.label}
+                    layout="inline"
+                    tone={entry.ingredientName ? 'success' : 'warning'}
+                    toneLabel={entry.ingredientName ? dictionary.common.noteTone.success : dictionary.common.noteTone.warning}
+                  >
+                    {/* One run of text: the note lays out its children as rows. */}
+                    <span>
+                      <strong>{entry.label}</strong>{' '}
+                      {entry.ingredientName
+                        ? interpolate(t.customAllergen.enforced, { ingredient: entry.ingredientName })
+                        : t.customAllergen.bestEffort}
+                    </span>
+                  </Note>
+                ))}
+              </Card>
 
-            <fieldset aria-describedby="dietary-patterns-hint" className={styles.fieldset}>
-              <legend className={styles.legend}>{f.dietaryPatterns}</legend>
-              <ChipGroup name="dietaryPatterns" options={options.dietaryPatterns} selected={profile?.dietaryPatterns ?? []} />
-              {/* Halal and kosher are enforced in code by excluding what the
+              <Card aria-describedby="dietary-patterns-hint" as="fieldset" className={`${styles.group} ${styles.fieldset}`}>
+                <legend className={styles.legend}>{f.dietaryPatterns}</legend>
+                <ChipGroup name="dietaryPatterns" options={options.dietaryPatterns} selected={profile?.dietaryPatterns ?? []} />
+                {/* Halal and kosher are enforced in code by excluding what the
                   religion forbids — never a claim of certified slaughter,
                   which nothing here checks. */}
-              <Text className={styles.hint} id="dietary-patterns-hint" size="xs" tone="tertiary">
-                {f.dietaryPatternsHint}
-              </Text>
-            </fieldset>
-          </Fragment>
-        ) : null}
+                <Text className={styles.hint} id="dietary-patterns-hint" size="xs" tone="tertiary">
+                  {f.dietaryPatternsHint}
+                </Text>
+              </Card>
+            </Fragment>
+          ) : null}
 
-        {current?.key === 'cooking' ? (
-          <Input
-            defaultValue={preferences?.cookingTimeMinutes ?? 30}
-            hint={f.cookingTimeHint}
-            label={f.cookingTime}
-            max="240"
-            min="5"
-            name="cookingTimeMinutes"
-            type="number"
-          />
-        ) : null}
+          {current?.key === 'cooking' ? (
+            <Card className={styles.group}>
+              <Input
+                defaultValue={preferences?.cookingTimeMinutes ?? 30}
+                hint={f.cookingTimeHint}
+                label={f.cookingTime}
+                max="240"
+                min="5"
+                name="cookingTimeMinutes"
+                type="number"
+              />
+            </Card>
+          ) : null}
 
-        {current?.key === 'kitchen' ? (
-          <fieldset className={styles.fieldset}>
-            <legend className={styles.legend}>{f.kitchen}</legend>
-            {/* Null before the profile could be read: with no kitchen to show,
+          {current?.key === 'kitchen' ? (
+            <Card as="fieldset" className={`${styles.group} ${styles.fieldset}`}>
+              <legend className={styles.legend}>{f.kitchen}</legend>
+              {/* Null before the profile could be read: with no kitchen to show,
                 a picker would be ten rows claiming a default we did not fetch. */}
-            {profile ? <KitchenPicker kitchen={profile.kitchen} /> : null}
-          </fieldset>
-        ) : null}
+              {profile ? <KitchenPicker kitchen={profile.kitchen} /> : null}
+            </Card>
+          ) : null}
 
-        {isReview ? (
-          <div className={styles.summary}>
-            <SummaryRow label={t.review.name} value={person?.displayName} />
-            <SummaryRow label={t.review.birthDate} value={person?.birthDate} />
-            <SummaryRow label={t.review.height} value={person?.heightCm ? `${formatNumber(person.heightCm, locale)} cm` : undefined} />
-            <SummaryRow
-              label={t.review.weight}
-              value={goal?.startingWeightKg ? `${formatNumber(goal.startingWeightKg, locale)} ${dictionary.units.kilogram}` : undefined}
-            />
-            <SummaryRow label={t.review.objective} value={goal?.type ? dictionary.goals[goal.type] : undefined} />
-            <SummaryRow label={t.review.activity} value={preferences?.activityLevel ? dictionary.activity[preferences.activityLevel] : undefined} />
-            <SummaryRow
-              label={t.review.mealShape}
-              value={
-                preferences?.mealShape
-                  ? MEAL_SLOT_VALUES.filter(slot => preferences.mealShape[slot] !== 'off')
-                      .map(slot => t.options.mealSlots[slot])
-                      .join(', ')
-                  : undefined
-              }
-            />
-            <SummaryRow label={t.review.allergies} value={profile?.allergies.map(a => a.allergenLabel).join(', ') || dictionary.common.none} />
-            <SummaryRow label={t.review.intolerances} value={profile?.intolerances.map(i => i.allergenLabel).join(', ') || dictionary.common.none} />
-            <SummaryRow label={t.review.cuisines} value={profile?.cuisines.join(', ') || t.review.noCuisinePreference} />
-            {/* What they said about their kitchen, or what we assume because
+          {isReview ? (
+            <Fragment>
+              <Card className={styles.summary}>
+                <SummaryRow label={t.review.name} value={person?.displayName} />
+                <SummaryRow label={t.review.birthDate} value={person?.birthDate} />
+                <SummaryRow label={t.review.height} value={person?.heightCm ? `${formatNumber(person.heightCm, locale)} cm` : undefined} />
+                <SummaryRow
+                  label={t.review.weight}
+                  value={goal?.startingWeightKg ? `${formatNumber(goal.startingWeightKg, locale)} ${dictionary.units.kilogram}` : undefined}
+                />
+                <SummaryRow label={t.review.objective} value={goal?.type ? dictionary.goals[goal.type] : undefined} />
+                <SummaryRow
+                  label={t.review.activity}
+                  value={preferences?.activityLevel ? dictionary.activity[preferences.activityLevel] : undefined}
+                />
+                <SummaryRow
+                  label={t.review.mealShape}
+                  value={
+                    preferences?.mealShape
+                      ? MEAL_SLOT_VALUES.filter(slot => preferences.mealShape[slot] !== 'off')
+                          .map(slot => t.options.mealSlots[slot])
+                          .join(', ')
+                      : undefined
+                  }
+                />
+                <SummaryRow label={t.review.allergies} value={profile?.allergies.map(a => a.allergenLabel).join(', ') || dictionary.common.none} />
+                <SummaryRow
+                  label={t.review.intolerances}
+                  value={profile?.intolerances.map(i => i.allergenLabel).join(', ') || dictionary.common.none}
+                />
+                <SummaryRow label={t.review.cuisines} value={profile?.cuisines.join(', ') || t.review.noCuisinePreference} />
+                {/* What they said about their kitchen, or what we assume because
                 they said nothing — never a list of ten defaults read back as
                 answers (`0102`). */}
-            <SummaryRow
-              label={t.review.kitchen}
-              value={
-                profile?.kitchen.described
-                  ? APPLIANCES.filter(appliance => profile.kitchen.appliances[appliance] !== 'missing')
-                      .map(appliance => dictionary.kitchen.appliances[appliance])
-                      .join(', ')
-                  : dictionary.profile.kitchenNothingSaid
-              }
-            />
+                <SummaryRow
+                  label={t.review.kitchen}
+                  value={
+                    profile?.kitchen.described
+                      ? APPLIANCES.filter(appliance => profile.kitchen.appliances[appliance] !== 'missing')
+                          .map(appliance => dictionary.kitchen.appliances[appliance])
+                          .join(', ')
+                      : dictionary.profile.kitchenNothingSaid
+                  }
+                />
+              </Card>
 
-            {profile?.targets ? (
-              <div className={styles.targetsBox}>
-                <Text size="sm" weight="semibold">
-                  {t.review.targets}
-                </Text>
-                <Text size="sm" tone="secondary">
-                  {interpolate(t.review.targetsLine, {
-                    carbs: formatNumber(profile.targets.effective.carbsG, locale),
-                    fat: formatNumber(profile.targets.effective.fatG, locale),
-                    kcal: formatNumber(profile.targets.effective.kcal, locale),
-                    protein: formatNumber(profile.targets.effective.proteinG, locale)
-                  })}
-                </Text>
-                {/* The basis, on the screen where the number is first seen. This
-                    is where 4,099 kcal for a weight-loss goal sat unquestioned. */}
-                <Text size="xs" style={{ marginTop: 'var(--space-03)' }} tone="secondary">
-                  {interpolate(t.review.basis, { maintenance: formatNumber(profile.targets.derivation.maintenanceKcal, locale) })}
-                  {profile.targets.derivation.goal === 'weight_loss'
-                    ? interpolate(t.review.basisLoss, { pace: formatNumber(profile.targets.derivation.paceKgPerWeek, locale) })
-                    : null}
-                  {profile.targets.derivation.goal === 'muscle_gain'
-                    ? interpolate(t.review.basisGain, { pace: formatNumber(profile.targets.derivation.paceKgPerWeek, locale) })
-                    : null}
-                  {t.review.basisTail}
-                </Text>
-                {profile.targets.derivation.clampedBy ? (
-                  <Text size="xs" style={{ marginTop: 'var(--space-03)' }} tone="secondary">
-                    {interpolate(t.review.clamped, { requested: formatNumber(profile.targets.derivation.requestedKcal, locale) })}
+              {profile?.targets ? (
+                <div className={styles.targetsBox}>
+                  <Text size="sm" weight="semibold">
+                    {t.review.targets}
                   </Text>
-                ) : null}
-              </div>
-            ) : null}
+                  <Text className={styles.targetsLine} weight="semibold">
+                    {interpolate(t.review.targetsLine, {
+                      carbs: formatNumber(profile.targets.effective.carbsG, locale),
+                      fat: formatNumber(profile.targets.effective.fatG, locale),
+                      kcal: formatNumber(profile.targets.effective.kcal, locale),
+                      protein: formatNumber(profile.targets.effective.proteinG, locale)
+                    })}
+                  </Text>
+                  {/* The basis, on the screen where the number is first seen. This
+                    is where 4,099 kcal for a weight-loss goal sat unquestioned. */}
+                  <Text className={styles.basis} size="xs">
+                    {interpolate(t.review.basis, { maintenance: formatNumber(profile.targets.derivation.maintenanceKcal, locale) })}
+                    {profile.targets.derivation.goal === 'weight_loss'
+                      ? interpolate(t.review.basisLoss, { pace: formatNumber(profile.targets.derivation.paceKgPerWeek, locale) })
+                      : null}
+                    {profile.targets.derivation.goal === 'muscle_gain'
+                      ? interpolate(t.review.basisGain, { pace: formatNumber(profile.targets.derivation.paceKgPerWeek, locale) })
+                      : null}
+                    {t.review.basisTail}
+                  </Text>
+                  {profile.targets.derivation.clampedBy ? (
+                    <Text className={styles.basis} size="xs">
+                      {interpolate(t.review.clamped, { requested: formatNumber(profile.targets.derivation.requestedKcal, locale) })}
+                    </Text>
+                  ) : null}
+                </div>
+              ) : null}
+            </Fragment>
+          ) : null}
+
+          <div className={styles.actions}>
+            <Button
+              disabled={(step === 1 && !returnTo) || pending}
+              loading={retreating}
+              onClick={() => {
+                setHeading('back');
+                startNavigation(() => router.push(returnTo ?? `/onboarding/${step - 1}`));
+              }}
+              type="button"
+              variant="secondary"
+            >
+              {returnTo ? dictionary.common.cancel : dictionary.common.back}
+            </Button>
+            <Button disabled={pending} loading={advancing} type="submit">
+              {advancing
+                ? dictionary.common.saving
+                : returnTo
+                  ? dictionary.common.save
+                  : isReview
+                    ? dictionary.common.finish
+                    : dictionary.common.continue}
+            </Button>
           </div>
-        ) : null}
 
-        <div className={styles.actions}>
-          <Button
-            disabled={(step === 1 && !returnTo) || pending}
-            loading={retreating}
-            onClick={() => {
-              setHeading('back');
-              startNavigation(() => router.push(returnTo ?? `/onboarding/${step - 1}`));
-            }}
-            type="button"
-            variant="secondary"
-          >
-            {returnTo ? dictionary.common.cancel : dictionary.common.back}
-          </Button>
-          <Button disabled={pending} loading={advancing} type="submit">
-            {advancing
-              ? dictionary.common.saving
-              : returnTo
-                ? dictionary.common.save
-                : isReview
-                  ? dictionary.common.finish
-                  : dictionary.common.continue}
-          </Button>
-        </div>
-
-        {/* Walking past the whole question, and nothing is sent: the kitchen is
+          {/* Walking past the whole question, and nothing is sent: the kitchen is
             the one optional step (`OPTIONAL_ONBOARDING_STEPS`), so `complete`
             succeeds without it and the profile reads the default. Quiet, under
             the pair, and not offered to somebody who arrived from their profile
             — for them "Cancelar" already is the way out. */}
-        {current?.key === 'kitchen' && !returnTo ? (
-          <div className={styles.skip}>
-            <Button
-              disabled={pending}
-              loading={skipping}
-              onClick={() => {
-                setHeading('skip');
-                startNavigation(() => router.push(`/onboarding/${step + 1}`));
-              }}
-              type="button"
-              variant="tertiary"
-            >
-              {t.skip}
-            </Button>
-          </div>
-        ) : null}
+          {current?.key === 'kitchen' && !returnTo ? (
+            <div className={styles.skip}>
+              <Button
+                disabled={pending}
+                loading={skipping}
+                onClick={() => {
+                  setHeading('skip');
+                  startNavigation(() => router.push(`/onboarding/${step + 1}`));
+                }}
+                type="button"
+                variant="tertiary"
+              >
+                {t.skip}
+              </Button>
+            </div>
+          ) : null}
 
-        {/* Says exactly when the saving happens, not just that it does. "We save
+          {/* Says exactly when the saving happens, not just that it does. "We save
             as you go" would be a lie for the step someone abandons half-typed,
             and being wrong about this is how people lose an answer and stop
             trusting the rest. */}
-        {isReview ? null : (
-          <Text className={styles.saveNote} size="xs" tone="tertiary">
-            {t.saveNote}
-          </Text>
-        )}
-      </form>
+          {isReview ? null : (
+            <Text className={styles.saveNote} size="xs" tone="tertiary">
+              {t.saveNote}
+            </Text>
+          )}
+        </form>
+      </div>
     </div>
   );
 }

@@ -3,10 +3,16 @@
  * room runs out (`MealSwap` pushes itself to the row's end).
  */
 .actions {
+  /* «Cambiar» as the sheet draws it here: words and an icon, no edge, beside the two marks. */
+  --swap-edge: transparent;
+  --swap-ground: transparent;
+  --pill-height: var(--height-m);
+  --swap-align: center;
+
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-03) var(--space-04);
+  gap: var(--space-02) var(--space-03);
   justify-content: space-between;
 }
 
@@ -20,14 +26,14 @@
   .actions {
     background-color: var(--surface-card);
     border: 1px solid var(--border-01);
-    border-radius: var(--radius-card);
+    border-radius: calc(var(--radius-card) + var(--space-02));
     bottom: var(--app-bar-clearance);
     box-shadow: var(--shadow-l);
     inset-inline: var(--gutter-page);
     max-block-size: calc(100dvh - var(--app-header-block) - var(--app-bar-clearance) - var(--space-06));
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: var(--space-03);
+    padding: var(--space-02);
     position: fixed;
     z-index: var(--z-dropdown);
   }

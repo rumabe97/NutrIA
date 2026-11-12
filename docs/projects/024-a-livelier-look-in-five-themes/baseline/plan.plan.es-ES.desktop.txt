@@ -1,23 +1,24 @@
 # /plan · plan · es-ES · desktop · 200
-button "# dom # nov"
-button "# jue # nov"
-button "# lun # nov"
-button "# mar # nov"
-button "# mié # nov"
-button "# sáb # nov"
-button "# vie # nov"
+button "Cambiar plato # de #": Cambiar
 button "Cerrar sesión"
+button "domingo, # de noviembre · Día #": dom # Día #
 button "English": EN
 button "Español" [pressed]: ES
+button "jueves, # de noviembre · Día #": jue # Día #
+button "lunes, # de noviembre · Día #": lun # Día #
 button "Marcar como hecha"
+button "martes, # de noviembre · Día #": mar # Día #
+button "miércoles, # de noviembre · Día #": mié # Día #
+button "sábado, # de noviembre · Día #": sáb # Día #
 button "Semana #"
 button "Semana #" [pressed]
-heading "Tu plan" [level=#]
-link "Asistente"
-link "Cena Tacos mexicanos de frijoles refritos con queso y aguacate # kcal · # g P"
-link "Comida Alubias blancas con almejas al ajillo # kcal · # g P"
+button "Tema"
+button "viernes, # de noviembre · Día #": vie # Día #
+heading "Jueves, día #" [level=#]
+link "Cena Dal de lentejas rojas con arroz basmati"
+link "Comida Bowl mexicano de quinoa, alubias negras y maíz con queso"
 link "Compra"
-link "Desayuno Yogur con avena scaw.ij.c # kcal · # g P"
+link "Desayuno Tortitas de avena y requesón con manzana y canela"
 link "Inicio"
 link "NutrIA — inicio"
 link "Perfil"

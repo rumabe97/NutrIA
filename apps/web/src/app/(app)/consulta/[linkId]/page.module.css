@@ -13,7 +13,7 @@
 
 .title {
   font-size: var(--font-size-09);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heavy);
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
   margin: 0 0 var(--gap-heading);
@@ -29,24 +29,57 @@
 
 .chip {
   align-items: center;
-  background-color: var(--background-02);
-  border: 1px solid var(--border-01);
+  background-color: var(--surface-sunken);
   border-radius: var(--radius-full);
   color: var(--foreground-02);
   display: inline-flex;
   font-size: var(--font-size-01);
-  padding: 0 var(--space-02);
+  font-weight: var(--font-weight-medium);
+  padding: var(--space-01) var(--space-03);
 }
 
 .regions {
   display: grid;
   gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
   margin-top: var(--gap-region);
+}
+
+/* Two columns from a wide screen, in the page's order; the plan to review spans both. */
+@media (width >= 64rem) {
+  .regions {
+    align-items: start;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wide {
+    grid-column: 1 / -1;
+  }
+}
+
+/* The ring beside the adherence sentence; over it when the card is too narrow for both. */
+.overall {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-04);
+  min-inline-size: 0;
+}
+
+.ring {
+  inline-size: 4rem;
+}
+
+.overallLine {
+  flex: 1 1 8rem;
+  min-inline-size: 0;
 }
 
 .stack {
   display: grid;
   gap: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
 }
 
 /* A card's name: the same on every card of the product. */
@@ -96,23 +129,35 @@
 }
 
 .figure {
-  font-size: var(--font-size-07);
+  font-family: var(--display-font);
+  font-size: var(--font-size-08);
   font-variant-numeric: tabular-nums;
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heavy);
   line-height: var(--line-height-01);
   margin: 0;
 }
 
 .health {
   display: grid;
-  gap: var(--space-03);
   margin: 0;
 }
 
+/* Conditions, medication, supplements: a grouped list, a row each on hairlines. */
 .healthRow {
+  border-bottom: 1px solid var(--border-01);
   display: grid;
   gap: var(--space-01) var(--space-04);
-  grid-template-columns: var(--label-column) 1fr;
+  grid-template-columns: var(--label-column) minmax(0, 1fr);
+  padding-block: var(--space-03);
+}
+
+.healthRow:first-child {
+  padding-block-start: 0;
+}
+
+.healthRow:last-child {
+  border-bottom: none;
+  padding-block-end: 0;
 }
 
 .healthRow dt {
@@ -134,6 +179,6 @@
 
 @media (width <= 40rem) {
   .healthRow {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }

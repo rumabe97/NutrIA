@@ -95,8 +95,17 @@ answers. A "no" to the third test ranks the item higher.
   art. 9.2, solo con medidas de minimización? (b) ¿Debe cambiar la descripción del DPA
   («categorías especiales: ninguna»)?*
 - **Facts.**
-  - Every conversation opens with a warning not to write illnesses, medication or other
-    health details ([`assistant-warning.md`](./assistant-warning.md) § 1).
+  - *(Amended 2026-11-12, #371.)* Every new conversation opens with the full warning,
+    including the request not to write illnesses, medication or other health details
+    ([`assistant-warning.md`](./assistant-warning.md) § 1). Once a conversation has a message,
+    the warning stays first in it but folds to one line: that it is an AI, and the same
+    health request in the same words. A button opens the full text. A shorter line directly
+    under the text box says both things again in every conversation, and a screen reader reads
+    it with the box: «Te responde una IA: no escribas aquí datos de tu salud». (Whether it stays
+    visible above a phone's on-screen keyboard has not yet been checked on a real phone.)
+    Nothing about the warning
+    is stored, and it cannot be dismissed
+    ([`2026-11-11-redesign.md`](./2026-11-11-redesign.md) § 6).
   - Our own code catches some health questions before any model sees them. A question that
     our code or the model labels as being about health is **not stored**: only the mark stays
     (`es-ES.ts:3026`; F2).

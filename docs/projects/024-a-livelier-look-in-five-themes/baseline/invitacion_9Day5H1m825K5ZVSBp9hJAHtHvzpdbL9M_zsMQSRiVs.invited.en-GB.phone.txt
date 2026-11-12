@@ -1,0 +1,17 @@
+# /invitacion/9Day5H1m825K5ZVSBp9hJAHtHvzpdbL9M_zsMQSRiVs · invited · en-GB · phone · 200
+button "Accept the invitation"
+button "English" [pressed]: EN
+button "Español": ES
+button "No, thanks"
+button "Sign out"
+button "Theme"
+checkbox "Also share my health conditions, medications and supplements"
+heading "Invitation from Probe" [level=#]
+link "Home"
+link "NutrIA — home"
+link "Plan"
+link "privacy policy"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"

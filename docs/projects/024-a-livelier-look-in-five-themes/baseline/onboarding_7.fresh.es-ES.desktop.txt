@@ -1,0 +1,16 @@
+# /onboarding/7 · fresh · es-ES · desktop · 200
+button "Atrás"
+button "Cerrar sesión"
+button "Continuar"
+button "English": EN
+button "Español" [pressed]: ES
+button "Tema"
+heading "Cocina" [level=#]
+link "Compra"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"
+spinbutton "Minutos que puedes dedicar a cocinar": "#"

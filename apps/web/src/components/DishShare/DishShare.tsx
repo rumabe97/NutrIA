@@ -34,13 +34,13 @@ export function DishShare({ dictionary, dish, locale, targets }: DishShareProps)
   const rows = [
     { label: dictionary.macros.kcal, target: targets.kcal, tone: 1, unit: dictionary.units.kcal, value: dish.kcal },
     { label: dictionary.macros.protein, target: targets.proteinG, tone: 2, unit: dictionary.units.gram, value: dish.proteinG },
-    { label: dictionary.macros.carbs, target: targets.carbsG, tone: 3, unit: dictionary.units.gram, value: dish.carbsG },
+    { label: dictionary.events.carbs, target: targets.carbsG, tone: 3, unit: dictionary.units.gram, value: dish.carbsG },
     { label: dictionary.macros.fat, target: targets.fatG, tone: 4, unit: dictionary.units.gram, value: dish.fatG }
   ] as const;
 
   return (
     <section aria-labelledby={TITLE_ID} className={styles.share}>
-      <h2 className={styles.title} id={TITLE_ID}>
+      <h2 className="visually-hidden" id={TITLE_ID}>
         {dictionary.meal.shareTitle}
       </h2>
       <ul className={`${styles.list} motion-list`}>

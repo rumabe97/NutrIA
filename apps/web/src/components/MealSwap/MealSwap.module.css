@@ -30,7 +30,9 @@
   display: grid;
   flex: 1 1 100%;
   gap: var(--space-04);
-  padding: var(--space-05);
+  /* Never wider than the row that holds it, whatever its words (a row of the plan's day at 320 px). */
+  min-inline-size: 0;
+  padding: min(var(--space-05), 5vw);
 }
 
 .options {
@@ -87,10 +89,11 @@
 }
 
 /* On a phone the trigger takes what is left of its row, and the whole row once it wraps
-   under the two marks — never squeezed beside them. */
+   under the two marks — never squeezed beside them. A row of the plan's day keeps it at its
+   own width (`--swap-grow: 0`), at the row's end. */
 @media (width < 34rem) {
   .trigger {
-    flex: 1 1 auto;
+    flex: var(--swap-grow, 1) 1 auto;
   }
 }
 
@@ -107,4 +110,44 @@
     flex-wrap: wrap;
     row-gap: var(--space-01);
   }
+}
+
+/*
+ * In a card of the plan's day: the pill at the end of the figures' line, in the accent's edge,
+ * and the panel across the whole card under everything. The card says where (`--swap-row`,
+ * `--swap-column`) when its line is too narrow for both.
+ */
+.trigger[data-compact] {
+  align-self: var(--swap-align, end);
+  background-color: var(--swap-ground, var(--surface-card));
+  border-color: var(--swap-edge, var(--color-brand-fill));
+  flex: none;
+  font-size: var(--font-size-02);
+  gap: var(--space-02);
+  grid-column: var(--swap-column, 3);
+  /* The sheet's small pill; what a finger hits is still a full target (`::after`). */
+  height: var(--pill-height, 2.125rem);
+  grid-row: var(--swap-row, 2);
+  justify-self: end;
+  margin: 0;
+  min-block-size: 0;
+  padding-inline: var(--space-03);
+  position: relative;
+}
+
+.trigger[data-compact]::after {
+  content: '';
+  inset: min(0px, calc((var(--pill-height, 2.125rem) - var(--target-min)) / 2)) 0;
+  position: absolute;
+}
+
+.icon {
+  block-size: 1em;
+  flex: none;
+  inline-size: 1em;
+}
+
+.trigger[data-compact] ~ .panel {
+  grid-column: 1 / -1;
+  grid-row: 6;
 }

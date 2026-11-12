@@ -1,5 +1,5 @@
 # /plan/comida/<id> · plan · es-ES · desktop · 200
-button "Cambiar plato # de #"
+button "Cambiar plato # de #": Cambiar
 button "Cerrar sesión"
 button "English": EN
 button "Español" [pressed]: ES
@@ -7,12 +7,13 @@ button "Hecha"
 button "Me gusta"
 button "No me gusta"
 button "Saltada"
+button "Tema"
 heading "¿Qué te ha parecido?" [level=#]
+heading "Bowl mexicano de quinoa, alubias negras y maíz con queso" [level=#]
 heading "Ingredientes" [level=#]
+heading "Lo que aporta a tus objetivos del día" [level=#]
 heading "Preparación" [level=#]
-heading "Yogur con avena scaw.ij.c" [level=#]
 link "← Volver al plan"
-link "Asistente"
 link "Compra"
 link "Inicio"
 link "NutrIA — inicio"

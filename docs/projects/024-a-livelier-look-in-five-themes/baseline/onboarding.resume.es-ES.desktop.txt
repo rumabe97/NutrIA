@@ -1,0 +1,22 @@
+# /onboarding · resume · es-ES · desktop · 200 → /onboarding/2
+button "Atrás"
+button "Cerrar sesión"
+button "Continuar"
+button "English": EN
+button "Español" [pressed]: ES
+button "Tema"
+heading "Tu objetivo" [level=#]
+link "Compra"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"
+radio "Comer sano Sin objetivo de peso, solo comer bien."
+radio "Ganar músculo Ganar músculo con un superávit controlado."
+radio "Mantenerme Quedarte donde estás, comiendo mejor."
+radio "Perder peso Reducir grasa manteniendo la masa muscular."
+radio "Rendimiento Comer para entrenar y recuperar mejor."
+spinbutton "Peso objetivo (kg)"
+spinbutton "Ritmo (kg por semana)"

@@ -1,0 +1,22 @@
+# /onboarding/2 · fresh · en-GB · phone · 200
+button "Back"
+button "Continue"
+button "English" [pressed]: EN
+button "Español": ES
+button "Sign out"
+button "Theme"
+heading "Your goal" [level=#]
+link "Home"
+link "NutrIA — home"
+link "Plan"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"
+radio "Build muscle Build muscle on a controlled surplus."
+radio "Eat well No weight target, just eating well."
+radio "Lose weight Lose fat while keeping muscle."
+radio "Maintain Stay where you are, eating better."
+radio "Performance Eat to train and recover better."
+spinbutton "Pace (kg per week)"
+spinbutton "Target weight (kg)"
