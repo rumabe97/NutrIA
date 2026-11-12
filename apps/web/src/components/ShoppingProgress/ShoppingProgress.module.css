@@ -1,0 +1,42 @@
+.root {
+  display: grid;
+  gap: var(--space-03);
+}
+
+/* The bright gradient carries no words here, which is where it belongs (PRD 024,
+   § "What changes from the sheets", 1): a track on the sunken ground, filled from
+   where the row starts reading. */
+.track {
+  background-color: var(--color-ring-track);
+  block-size: 0.5rem;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.grow {
+  block-size: 100%;
+}
+
+.fill {
+  background-image: var(--gradient-accent);
+  block-size: 100%;
+  border-radius: var(--radius-full);
+  transform-origin: 0 50%;
+  transition: transform var(--motion-figure);
+}
+
+:dir(rtl) .fill {
+  transform-origin: 100% 50%;
+}
+
+/* Every background is erased: the share keeps its length in the system's own colour. */
+@media (forced-colors: active) {
+  .track {
+    outline: 1px solid CanvasText;
+  }
+
+  .fill {
+    background: Highlight;
+    forced-color-adjust: none;
+  }
+}

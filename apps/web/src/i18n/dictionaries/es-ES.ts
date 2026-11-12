@@ -1251,6 +1251,7 @@ export const esES = {
     answerLabel: 'Respuesta del asistente',
     back: 'Todas las conversaciones',
     cancel: 'Cancelar',
+    composerNotice: 'Te responde una IA: no escribas aquí datos de tu salud.',
     conversationsEmptyBody: 'Aquí aparecerán tus conversaciones con el asistente, la más reciente primero, para que puedas retomarlas.',
     conversationsEmptyTitle: 'Todavía no has preguntado nada',
     conversationsTitle: 'Tus conversaciones',
@@ -1304,7 +1305,9 @@ export const esES = {
     warning:
       'Estás hablando con un asistente de inteligencia artificial, no con una persona: puede equivocarse, y lo que dice no sustituye el consejo de un médico ni de un dietista-nutricionista colegiado. Lo que escribes se envía al modelo que responde y se guarda para que puedas retomar la conversación, así que no escribas aquí enfermedades, medicación ni otros datos de tu salud. Si tienes una alergia, añádela a tu perfil, que es donde la tenemos en cuenta. Puedes borrar un mensaje o la conversación entera cuando quieras. Más en la {privacy}.',
     warningLabel: 'Aviso',
+    warningMore: 'Aviso completo',
     warningPrivacy: 'política de privacidad',
+    warningShort: 'Hablas con una IA, no con una persona. No escribas aquí enfermedades, medicación ni otros datos de tu salud.',
     withdrawn: 'Pregunta no guardada: era sobre salud.',
     you: 'Tú'
   },
@@ -1883,6 +1886,7 @@ export const esES = {
     profileConsentRequiredTitle: 'Falta tu consentimiento',
     profileIncompleteBody: 'Necesitamos tu fecha de nacimiento, altura, sexo, peso y nivel de actividad para calcular tus objetivos.',
     profileIncompleteTitle: 'Falta información en tu perfil',
+    progressLabel: 'Cómo va tu plan',
     quotaExceeded: 'Ya has rehecho tu plan esta quincena. Podrás crear el siguiente el {date}.',
     rateLimited: 'Has pedido varios planes seguidos. Espera un momento antes de volver a intentarlo.',
     readyBody:
@@ -1911,6 +1915,7 @@ export const esES = {
       SCHEDULING_MEALS: 'Repartiendo las comidas de los 14 días',
       VALIDATING_PLAN: 'Comprobando que todo encaja'
     },
+    stepsDone: '{done} de {total} pasos hechos',
     timedOutBody: 'El modelo no terminó a tiempo. No se ha guardado nada a medias, así que puedes volver a intentarlo.',
     timedOutTitle: 'Ha tardado demasiado',
     title: 'Estamos creando tu plan',

@@ -5,6 +5,7 @@ import styles from './CheckInForm.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
@@ -83,12 +84,12 @@ export function CheckInForm({ latestKg, planEnded, planId }: CheckInFormProps) {
 
   if (result) {
     return (
-      <section className={styles.done}>
+      <section className={`${styles.done} motion-enter`}>
         <h2 className={styles.doneTitle} ref={doneTitle} tabIndex={-1}>
           {t.doneTitle}
         </h2>
         <Text tone="secondary">{t.doneBody}</Text>
-        <ul className={styles.effects}>
+        <ul className={`${styles.effects} motion-list`}>
           {result.weightLogged ? <li>{t.doneWeight}</li> : null}
           <li>
             {result.targets
@@ -123,11 +124,11 @@ export function CheckInForm({ latestKg, planEnded, planId }: CheckInFormProps) {
   const satisfaction = [1, 2, 3, 4, 5].map(value => ({ label: String(value), value: String(value) }));
 
   return (
-    <form className={styles.form} noValidate={true} onSubmit={onSubmit}>
+    <form className={`${styles.form} motion-enter`} noValidate={true} onSubmit={onSubmit}>
       {error ? (
-        <p className={styles.error} role="alert">
+        <Note as="p" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
           {error}
-        </p>
+        </Note>
       ) : null}
 
       <Input
@@ -142,17 +143,17 @@ export function CheckInForm({ latestKg, planEnded, planId }: CheckInFormProps) {
 
       <fieldset className={styles.fieldset}>
         <legend className={styles.legend}>{t.hunger}</legend>
-        <OptionCards name="hunger" options={hunger} value="right" />
+        <OptionCards layout="segmented" name="hunger" options={hunger} value="right" />
       </fieldset>
 
       <fieldset className={styles.fieldset}>
         <legend className={styles.legend}>{t.difficulty}</legend>
-        <OptionCards name="difficulty" options={difficulty} value="ok" />
+        <OptionCards layout="segmented" name="difficulty" options={difficulty} value="ok" />
       </fieldset>
 
       <fieldset className={styles.fieldset}>
         <legend className={styles.legend}>{t.satisfaction}</legend>
-        <OptionCards name="satisfaction" options={satisfaction} value="4" />
+        <OptionCards layout="segmented" name="satisfaction" options={satisfaction} value="4" />
       </fieldset>
 
       <div className={styles.field}>

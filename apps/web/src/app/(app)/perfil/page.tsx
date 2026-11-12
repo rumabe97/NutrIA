@@ -169,8 +169,10 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
 
   return (
     <Fragment>
-      <h1 className={styles.title}>{t.title}</h1>
-      <Text tone="secondary">{t.subtitle}</Text>
+      <div className={`${styles.intro} motion-enter`}>
+        <h1 className={styles.title}>{t.title}</h1>
+        <Text tone="secondary">{t.subtitle}</Text>
+      </div>
 
       {/* Persistent and not dismissable. A notice you can close is a notice that
           is absent for everyone who closed it once, and this one is the whole of

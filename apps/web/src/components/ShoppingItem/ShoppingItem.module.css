@@ -8,7 +8,7 @@
   border-bottom: 1px solid var(--border-01);
   column-gap: var(--space-02);
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   padding-block: var(--space-03);
 }
 
@@ -20,11 +20,47 @@
  * Struck through and dimmed, never removed. A list that reorders itself while
  * you are reading it loses your place, and unticking a mistake needs the row to
  * still be where it was.
+ *
+ * The line is `.motion-strike` (`ui/styles/motion`), drawn through the words from
+ * where they start the moment the row is checked — by `transform`, so nothing
+ * moves. A name long enough to wrap is struck on every line: the line is a
+ * gradient repeated once per line height over the words' own box.
  */
 .item[data-checked='true'] .name,
 .item[data-checked='true'] .quantity {
   color: var(--foreground-02);
-  text-decoration: line-through;
+}
+
+.words {
+  display: inline-block;
+  max-inline-size: 100%;
+}
+
+@supports (block-size: 1lh) {
+  .item .words::after {
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(0.5lh - 0.04em),
+      currentcolor calc(0.5lh - 0.04em),
+      currentcolor calc(0.5lh + 0.04em),
+      transparent calc(0.5lh + 0.04em),
+      transparent 1lh
+    );
+    block-size: auto;
+    inset-block: 0;
+  }
+}
+
+/* No drawn line where the browser paints every background itself: the text's own. */
+@media (forced-colors: active) {
+  .item[data-checked='true'] .words {
+    text-decoration: line-through;
+  }
+
+  .item .words::after {
+    display: none;
+  }
 }
 
 .label {
@@ -47,6 +83,12 @@
   cursor: pointer;
   flex: 0 0 auto;
   inline-size: 1.15rem;
+  /* The box answers a press like a button; only its transform moves. */
+  transition: transform var(--duration-fast) var(--spring-firm);
+}
+
+.label:active .checkbox {
+  transform: scale(0.85);
 }
 
 .name {
@@ -89,9 +131,12 @@
     flex-basis: 100%;
   }
 
-  /* Under the name, not at the far edge where it reads as the next row's. */
+  /* Under the name, not at the far edge where it reads as the next row's — and free to
+     wrap: «79,5 g por comprar» on one line at 200 % text ran 30 px past a 320 px screen. */
   .quantity {
     margin-inline-start: calc(1.15rem + var(--space-03));
+    min-inline-size: 0;
+    white-space: normal;
   }
 }
 
@@ -115,6 +160,7 @@
  */
 .edit {
   align-items: center;
+  transition: transform var(--duration-fast) var(--spring-firm);
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
@@ -129,6 +175,10 @@
 
 .edit:hover {
   color: var(--foreground-01);
+}
+
+.edit:active {
+  transform: scale(0.94);
 }
 
 .edit:focus-visible {

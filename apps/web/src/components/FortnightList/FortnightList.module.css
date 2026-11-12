@@ -24,8 +24,8 @@
 }
 
 .title {
-  font-size: var(--font-size-04);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-05);
+  font-weight: var(--font-weight-bold);
   line-height: var(--line-height-02);
   margin: 0;
 }
@@ -57,44 +57,72 @@
 }
 
 .percent {
+  font-family: var(--display-font, var(--main-font));
   font-size: var(--font-size-07);
   font-variant-numeric: tabular-nums;
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heavy);
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-01);
 }
 
 .track {
-  background-color: var(--color-hover);
-  block-size: 0.375rem;
+  background-color: var(--color-ring-track);
+  block-size: 0.5rem;
   border-radius: var(--radius-full);
   overflow: hidden;
 }
 
-.bar {
-  background-color: var(--color-brand-fill);
+.grow {
   block-size: 100%;
-  border-radius: var(--radius-full);
 }
 
+/* The bright accent, which carries no words here; the figure above says the share. */
+.bar {
+  background-image: var(--gradient-accent);
+  block-size: 100%;
+  border-radius: var(--radius-full);
+  transform-origin: 0 50%;
+}
+
+:dir(rtl) .bar {
+  transform-origin: 100% 50%;
+}
+
+@media (forced-colors: active) {
+  .track {
+    outline: 1px solid CanvasText;
+  }
+
+  .bar {
+    background: Highlight;
+    forced-color-adjust: none;
+  }
+}
+
+/* What the check-in said, as tags: one chip per answer. */
 .checkIn {
-  color: var(--foreground-02);
   display: flex;
   flex-wrap: wrap;
-  font-size: var(--font-size-02);
-  gap: var(--space-01) var(--space-04);
+  gap: var(--space-02);
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.checkIn li::before {
-  content: '·';
-  margin-inline-end: var(--space-02);
+.checkIn li {
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-control);
+  color: var(--foreground-01);
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: anywhere;
+  padding: var(--space-01) var(--space-03);
 }
 
-.checkIn li:first-child::before {
-  content: none;
+@media (forced-colors: active) {
+  .checkIn li {
+    border: 1px solid CanvasText;
+  }
 }
 
 /* A locked fortnight's mark and the way to what premium is (`0021`

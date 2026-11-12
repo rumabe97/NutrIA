@@ -15,9 +15,12 @@
   display: flex;
   gap: var(--space-03);
   padding: var(--space-04) var(--space-05);
-  transition:
-    background-color var(--duration-fast) var(--ease-default),
-    border-color var(--duration-fast) var(--ease-default);
+  /* A card presses in like a button; its colours change at once (only transform moves). */
+  transition: transform var(--duration-fast) var(--spring-firm);
+}
+
+.option:active {
+  transform: scale(0.98);
 }
 
 .option:hover {
@@ -47,5 +50,94 @@
 @media (width >= 34rem) {
   .options {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+/*
+ * The segmented layout (the check-in): one sunken track, every option a segment
+ * of it, the chosen one filled in the text colour with the page's colour as its
+ * words (`--background-01` on `--foreground-01`, in the contrast script) and a
+ * heavier weight — as `ui/components/Tabs` and the shopping list's range. The
+ * native radio stays, stretched over its segment and transparent: it takes the
+ * focus and the arrow keys and announces itself.
+ */
+.segmented {
+  background-color: var(--surface-sunken);
+  border-radius: calc(var(--radius-control) + var(--space-01));
+  display: flex;
+  gap: var(--space-01);
+  min-inline-size: 0;
+  padding: var(--space-01);
+}
+
+.segmented .option {
+  align-items: center;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--foreground-02);
+  flex: 1 1 0;
+  justify-content: center;
+  min-inline-size: 0;
+  padding: var(--space-02) var(--space-03);
+  position: relative;
+  text-align: center;
+}
+
+.segmented .option:hover {
+  border-color: transparent;
+  color: var(--foreground-01);
+}
+
+.segmented .input {
+  block-size: 100%;
+  cursor: pointer;
+  inline-size: 100%;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  position: absolute;
+}
+
+.segmented .label {
+  overflow-wrap: anywhere;
+  position: relative;
+}
+
+/* The words take the segment's colour, not the text component's own. */
+.segmented .label > * {
+  color: inherit;
+}
+
+.segmented .option:has(input:checked) {
+  background-color: var(--foreground-01);
+  border-color: transparent;
+  color: var(--background-01);
+}
+
+/* The chosen segment's words weigh more, so the choice never rests on colour alone. */
+.segmented .option:has(input:checked) .label > * {
+  font-weight: var(--font-weight-bold);
+}
+
+@media (pointer: coarse) {
+  .segmented .option {
+    min-block-size: var(--target-min);
+  }
+}
+
+/* Text this large for the screen: one option per row, each still a full target. */
+@media (width < 17rem) {
+  .segmented {
+    flex-direction: column;
+  }
+}
+
+@media (forced-colors: active) {
+  .segmented {
+    outline: 1px solid CanvasText;
+  }
+
+  .segmented .option:has(input:checked) {
+    border: 1px solid Highlight;
   }
 }

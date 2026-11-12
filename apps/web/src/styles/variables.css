@@ -112,6 +112,10 @@
      the bar: the bar, the gap below it and a breath above it. 0 from 48rem, where
      the bar is a rail, so a reader of this token needs no media query. */
   --app-bar-clearance: calc(var(--app-bar-block) + var(--app-bar-offset) + var(--space-03));
+  /* The breath at the foot of a signed-in page, under its last row and above the
+     clearance. A token so that a screen whose foot must meet the keyboard (the
+     assistant's box) can let it go while its field has focus. */
+  --app-foot-space: var(--space-09);
   /* The rail: the column the destinations stand in from 48rem. */
   --app-rail-inline: 6rem;
   --app-rail-offset: 0rem;

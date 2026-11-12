@@ -1213,6 +1213,7 @@ export const enGB: Dictionary = {
     answerLabel: 'The assistant’s answer',
     back: 'All conversations',
     cancel: 'Cancel',
+    composerNotice: 'An AI answers you: please do not write about your health here.',
     conversationsEmptyBody: 'Your conversations with the assistant will appear here, the most recent first, so you can pick them up again.',
     conversationsEmptyTitle: 'You have not asked anything yet',
     conversationsTitle: 'Your conversations',
@@ -1265,7 +1266,9 @@ export const enGB: Dictionary = {
     warning:
       'You are talking to an AI assistant, not a person: it can get things wrong, and what it says does not replace the advice of a doctor or a registered dietitian-nutritionist. What you type is sent to the model that answers and kept so you can come back to the conversation, so please do not write about conditions, medication or anything else about your health here. If you have an allergy, add it to your profile, which is where we take it into account. You can delete a message or the whole conversation whenever you like. More in the {privacy}.',
     warningLabel: 'Notice',
+    warningMore: 'Full notice',
     warningPrivacy: 'privacy policy',
+    warningShort: 'You are talking to an AI, not a person. Please do not write about conditions, medication or anything else about your health here.',
     withdrawn: 'Question not kept: it was about health.',
     you: 'You'
   },
@@ -1806,6 +1809,7 @@ export const enGB: Dictionary = {
     profileConsentRequiredTitle: 'Your consent is missing',
     profileIncompleteBody: 'We need your date of birth, height, sex, weight and activity level to work out your targets.',
     profileIncompleteTitle: 'Your profile is missing information',
+    progressLabel: 'How your plan is going',
     quotaExceeded: 'You have already redone your plan this fortnight. The next one opens on {date}.',
     rateLimited: 'You have asked for several plans in a row. Wait a moment before trying again.',
     readyBody:
@@ -1834,6 +1838,7 @@ export const enGB: Dictionary = {
       SCHEDULING_MEALS: 'Spreading the meals across the 14 days',
       VALIDATING_PLAN: 'Checking everything adds up'
     },
+    stepsDone: '{done} of {total} steps done',
     timedOutBody: 'The model did not finish in time. Nothing was saved half-finished, so you can try again.',
     timedOutTitle: 'It took too long',
     title: 'We are building your plan',

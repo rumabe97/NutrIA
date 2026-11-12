@@ -34,7 +34,7 @@ export default async function AssistantPage() {
   const t = dictionary.assistant;
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} motion-enter`}>
       <h1 className="visually-hidden">{t.title}</h1>
       {health?.supervisionRecommended ? (
         // The same notice, in the same words, as the profile's.

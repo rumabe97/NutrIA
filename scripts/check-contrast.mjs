@@ -67,7 +67,15 @@ const PAIRS = [
     ['--color-warning-surface', '--color-error-surface'].map(bg => ({ bg, fg, kind: 'text' }))
   ),
   // The chosen segment of a segmented control (ui/Tabs): the page's colour on the text colour.
+  // Also the person's words in the assistant (project 024 phase 5), and the chosen segment of
+  // the shopping list's range, the plan switch and the check-in's questions.
   { bg: '--foreground-01', fg: '--background-01', kind: 'text' },
+  // The line under the assistant's box — «Te responde una IA: no escribas aquí datos de tu
+  // salud.», the allowance and the Enter hint — on the composer's own ground, which is the
+  // page's colour (project 024 phase 5; `legal`, redesign § 6.5: 4.5:1 in every theme). Named
+  // on its own although the text rows above cover it, so that a change to either token is
+  // read against this sentence.
+  { bg: '--background-01', fg: '--foreground-02', kind: 'text' },
   // A label on a fill: the primary button at both ends of its gradient and under a pointer,
   // and the destructive one.
   { bg: '--color-brand-fill', fg: '--color-on-brand-fill', kind: 'text' },

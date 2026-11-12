@@ -5,7 +5,9 @@
   gap: var(--gap-block);
   margin-inline: auto;
   max-inline-size: 46rem;
-  min-block-size: calc(100dvh - var(--app-header-block) - var(--space-07) - var(--space-09) - var(--app-bar-clearance));
+  /* The column and the layout's foot (its space and the bar's clearance) fill the screen
+     exactly, whichever values those two tokens hold — so the box ends where the foot does. */
+  min-block-size: calc(100dvh - var(--app-header-block) - var(--space-07) - var(--app-foot-space) - var(--app-bar-clearance));
   min-inline-size: 0;
 }
 
@@ -18,8 +20,8 @@
 }
 
 .title {
-  font-size: var(--font-size-05);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-06);
+  font-weight: var(--font-weight-heavy);
   hyphens: auto;
   letter-spacing: var(--tracking-title);
   line-height: var(--line-height-03);

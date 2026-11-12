@@ -1,14 +1,22 @@
+/* The screen's display heading and its line, arriving first. */
+.intro {
+  display: grid;
+  gap: var(--space-03);
+  margin: 0 0 var(--gap-block);
+}
+
 .title {
   font-size: var(--font-size-09);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heavy);
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
-  margin: 0 0 var(--space-03);
+  margin: 0;
+  overflow-wrap: anywhere;
   text-wrap: balance;
 }
 
-.intro {
-  margin: 0 0 var(--gap-block);
+.lede {
+  margin: 0;
   max-width: 40rem;
   text-wrap: pretty;
 }
@@ -29,14 +37,16 @@
 }
 
 .tileLabel {
-  color: var(--foreground-03);
+  color: var(--foreground-02);
   font-size: var(--font-size-02);
 }
 
+/* The figure in the heading face, heavy, as the sheets draw a measured number. */
 .tileValue {
+  font-family: var(--display-font, var(--main-font));
   font-size: var(--font-size-07);
   font-variant-numeric: tabular-nums;
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heavy);
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-01);
   margin: 0;
@@ -45,32 +55,76 @@
 
 .tileNote {
   color: var(--foreground-02);
+  font-family: var(--main-font);
   font-size: var(--font-size-02);
   font-weight: var(--font-weight-regular);
   letter-spacing: normal;
 }
 
-/* The weight chart's card. */
-.card {
+/* The weight and the share of meals done: one column on a phone, the weight wide
+   and the ring beside it from a tablet up. */
+.board {
   display: grid;
-  gap: var(--space-04);
+  gap: var(--gap-block);
   grid-template-columns: minmax(0, 1fr);
   margin: 0 0 var(--gap-region);
 }
 
-.head {
-  align-items: start;
-  display: flex;
+.card {
+  display: grid;
   gap: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+/* The ring beside its sentence; under it when the card is too narrow for both. */
+.overall {
+  align-content: center;
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-04);
+  min-inline-size: 0;
+}
+
+.overall .ring {
+  inline-size: 5rem;
+}
+
+.overallLine {
+  flex: 1 1 8rem;
+  font-family: var(--display-font, var(--main-font));
+  font-size: var(--font-size-05);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-03);
+  margin: 0;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.overallNone {
+  color: var(--foreground-02);
+  flex: 1 1 8rem;
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.head {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02) var(--space-04);
   justify-content: space-between;
 }
 
 .subtitle {
-  font-size: var(--font-size-05);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--tracking-headline);
+  font-size: var(--font-size-06);
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--tracking-title);
   line-height: var(--line-height-02);
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .link {
@@ -78,6 +132,7 @@
   color: var(--color-brand-11);
   display: inline-flex;
   font-size: var(--font-size-02);
+  font-weight: var(--font-weight-medium);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -102,6 +157,10 @@
   .tiles {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
+
+  .board {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
 }
 
 /*
@@ -112,10 +171,6 @@
 @media (width < 17rem) {
   .tiles {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .head {
-    flex-wrap: wrap;
   }
 
   .link {

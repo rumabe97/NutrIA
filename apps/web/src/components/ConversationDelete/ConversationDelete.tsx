@@ -59,7 +59,7 @@ export function ConversationDelete({ conversationId }: { readonly conversationId
   }
 
   return (
-    <div aria-label={t.deleteConversation} className={styles.confirm} role="group">
+    <div aria-label={t.deleteConversation} className={`${styles.confirm} motion-drop-in`} role="group">
       <p className={styles.text}>{t.deleteConversationBody}</p>
       <div className={styles.actions}>
         <Button loading={deleting} onClick={() => void remove()} ref={confirm} size="sm" variant="destructive">

@@ -209,7 +209,11 @@ export function ShoppingItem({
           }}
           type="checkbox"
         />
-        <span className={styles.name}>{name}</span>
+        {/* Checked off, the words are struck through by a line drawn from where they
+            start reading (`.motion-strike`), and stay where they are. */}
+        <span className={styles.name}>
+          <span className={done ? `${styles.words} motion-strike` : styles.words}>{name}</span>
+        </span>
         {/*
           The quantity lives *inside* the label, which is what puts it in the
           checkbox's accessible name: a screen reader used to hear "Tomate,
@@ -218,7 +222,11 @@ export function ShoppingItem({
           so the two readings cannot drift apart — and the whole row becomes the
           target the stylesheet already claimed it was.
         */}
-        <span className={styles.quantity}>{partly ? interpolate(dictionary.shopping.leftToBuy, { left: leftQuantity }) : quantity}</span>
+        <span className={styles.quantity}>
+          <span className={done ? `${styles.words} motion-strike` : styles.words}>
+            {partly ? interpolate(dictionary.shopping.leftToBuy, { left: leftQuantity }) : quantity}
+          </span>
+        </span>
       </label>
       {/*
         Outside the label, never inside it: a label names one control, and a
@@ -240,7 +248,7 @@ export function ShoppingItem({
         </svg>
       </button>
       {editing ? (
-        <form className={styles.amount} id={amountId} onSubmit={save}>
+        <form className={`${styles.amount} motion-drop-in`} id={amountId} onSubmit={save}>
           <label className={styles.amountLabel} htmlFor={`${amountId}-field`}>
             {interpolate(dictionary.shopping.amountLabel, { unit: unitName })}
           </label>

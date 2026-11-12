@@ -1,6 +1,7 @@
 'use client';
 import styles from './WeightChart.module.css';
 
+import { InView } from 'ui/components/InView';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
@@ -25,6 +26,15 @@ interface WeightChartProps {
  * a step, and a person who weighs in daily for a week and then weekly should see
  * that. The target, when there is one, is a dashed line the reading is heading
  * for — or has crossed.
+ *
+ * It draws itself in (project 024): a veil in the card's own colour slides off the
+ * plot from where the line starts, so the line and the ground under it are drawn
+ * left to right — by `transform` alone — and if the chart is below the fold, when it
+ * is reached (`InView`). At rest, and under reduced motion, it is the finished line.
+ *
+ * Not a stroke offset (`.motion-draw`): the line is drawn in a box stretched to the
+ * plot with a stroke that does not stretch, and Chrome measures a dash on such a
+ * line in the wrong space — the line came out broken into dashes.
  */
 export function WeightChart({ entries, targetKg }: WeightChartProps) {
   const dictionary = useDictionary();
@@ -65,13 +75,21 @@ export function WeightChart({ entries, targetKg }: WeightChartProps) {
         <span>{formatNumber(low, locale, { maximumFractionDigits: 1 })}</span>
       </div>
 
-      <svg aria-hidden="true" className={styles.chart} preserveAspectRatio="none" viewBox={`0 0 ${WIDTH} ${HEIGHT}`}>
-        {targetKg === null ? null : <line className={styles.target} x1={PAD} x2={WIDTH - PAD} y1={y(targetKg)} y2={y(targetKg)} />}
-        <polyline className={styles.line} points={points.join(' ')} />
-        {entries.map(entry => (
-          <circle className={styles.dot} cx={x(entry.loggedOn)} cy={y(entry.weightKg)} key={entry.loggedOn} r="1.2" />
-        ))}
-      </svg>
+      <InView className={styles.plot}>
+        <svg aria-hidden="true" className={styles.chart} preserveAspectRatio="none" viewBox={`0 0 ${WIDTH} ${HEIGHT}`}>
+          {/* The ground under the line, to the foot of the plot: a wash of the accent. */}
+          <polygon
+            className={styles.area}
+            points={`${x(first.loggedOn).toFixed(2)},${String(HEIGHT)} ${points.join(' ')} ${x(last.loggedOn).toFixed(2)},${String(HEIGHT)}`}
+          />
+          {targetKg === null ? null : <line className={styles.target} x1={PAD} x2={WIDTH - PAD} y1={y(targetKg)} y2={y(targetKg)} />}
+          <polyline className={styles.line} points={points.join(' ')} />
+          {entries.map(entry => (
+            <circle className={styles.dot} cx={x(entry.loggedOn)} cy={y(entry.weightKg)} key={entry.loggedOn} r="1.2" />
+          ))}
+        </svg>
+        <span aria-hidden="true" className={styles.veil} />
+      </InView>
 
       <div className={styles.axisX}>
         <span>{formatDate(first.loggedOn, locale, dateOptions)}</span>

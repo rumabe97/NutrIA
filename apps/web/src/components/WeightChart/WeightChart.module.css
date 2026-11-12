@@ -15,10 +15,49 @@
   text-align: end;
 }
 
+.plot {
+  display: block;
+  min-inline-size: 0;
+  position: relative;
+}
+
+/* The veil that slides off the plot as the chart arrives (see the component). Its resting
+   state is gone (`scaleX(0)`), so a reader without script, a chart not yet reached and
+   reduced motion all see the finished line. */
+.veil {
+  animation: veil-off var(--motion-figure) both;
+  background-color: var(--surface-card);
+  inset: calc(var(--space-02) * -1);
+  pointer-events: none;
+  position: absolute;
+  transform: scaleX(0);
+  transform-origin: 100% 50%;
+}
+
+:dir(rtl) .veil {
+  transform-origin: 0 50%;
+}
+
+@keyframes veil-off {
+  from {
+    transform: none;
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}
+
 .chart {
   block-size: 9rem;
+  display: block;
   inline-size: 100%;
   overflow: visible;
+}
+
+.area {
+  fill: var(--color-accent-mid);
+  fill-opacity: 0.16;
 }
 
 .line {
@@ -26,7 +65,7 @@
   stroke: var(--color-brand-09);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 1.5;
+  stroke-width: 2.5;
   vector-effect: non-scaling-stroke;
 }
 
@@ -68,4 +107,11 @@
   justify-items: center;
   padding: var(--space-04);
   text-align: center;
+}
+
+/* The wash is decoration; in forced colours only the line and the target remain. */
+@media (forced-colors: active) {
+  .area {
+    display: none;
+  }
 }

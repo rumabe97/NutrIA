@@ -1,0 +1,72 @@
+/* The warning's words: NutrIA's notice, not one of the model's answers. They wrap at any
+   width and size; nothing here may clamp or cut them (`legal`, redesign § 6.9). */
+.text {
+  color: var(--foreground-01);
+  font-size: var(--font-size-02);
+  line-height: var(--line-height-04);
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+.text[hidden] {
+  display: none;
+}
+
+.folded {
+  display: grid;
+  gap: var(--space-02);
+  justify-items: start;
+}
+
+/*
+ * «Aviso completo»: a native button in the note's own text colour (the pair the contrast
+ * script already holds on the warning's ground), underlined so it reads as something to
+ * press, a finger tall on a touch screen. The chevron turns with it — the only thing that
+ * moves.
+ */
+.more {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--foreground-01);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-semibold);
+  gap: var(--space-01);
+  margin-inline-start: calc(var(--space-02) * -1);
+  padding: var(--space-01) var(--space-02);
+  text-align: start;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.more:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (pointer: coarse) {
+  .more {
+    min-block-size: var(--target-min);
+  }
+}
+
+.chevron {
+  block-size: 1em;
+  flex: none;
+  inline-size: 1em;
+  transition: transform var(--duration-fast) var(--spring-firm);
+}
+
+.more[aria-expanded='true'] .chevron {
+  transform: rotate(180deg);
+}
+
+@media (forced-colors: active) {
+  .more {
+    color: ButtonText;
+  }
+}

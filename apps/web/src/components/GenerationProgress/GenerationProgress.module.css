@@ -7,7 +7,8 @@
 
 .title {
   font-size: var(--font-size-08);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heavy);
+  overflow-wrap: anywhere;
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
   margin: 0 0 var(--space-03);
@@ -18,39 +19,166 @@
   margin-top: var(--space-06);
 }
 
-.track {
-  background-color: var(--color-track);
-  border-radius: var(--radius-full);
-  height: 4px;
-  margin-top: var(--gap-block);
-  overflow: hidden;
+/* The plan being made: the ring first, then what it is. */
+.running {
+  display: grid;
+  justify-items: center;
 }
 
-/* Indeterminate on purpose: the pipeline reports which stage it reached, not a
-   percentage, and inventing one would be the fake progress bar this product
-   explicitly refuses. */
-.bar {
-  animation: slide 1.6s var(--ease-spring) infinite;
+.running > * {
+  max-inline-size: 100%;
+}
+
+.dial {
+  display: grid;
+  margin-block-end: var(--space-06);
+  place-items: center;
+}
+
+.dial > * {
+  grid-area: 1 / 1;
+}
+
+.dial .ring {
+  inline-size: min(12rem, 60vw);
+}
+
+/* The figure in the middle of the ring: the heading face, heavy, as the sheet draws it. */
+.count {
+  align-items: baseline;
+  display: inline-flex;
+  font-family: var(--display-font, var(--main-font));
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-01);
+}
+
+.countFigure {
+  font-size: var(--font-size-09);
+}
+
+.countOf {
+  color: var(--foreground-02);
+  font-size: var(--font-size-05);
+}
+
+/* The six stages as a grouped list on the sunken ground, read from the start. */
+.steps {
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-card);
+  display: grid;
+  inline-size: 100%;
+  list-style: none;
+  margin: var(--gap-block) 0 0;
+  padding: var(--space-02) var(--gutter-card);
+  text-align: start;
+}
+
+.stepRow {
+  align-items: center;
+  border-bottom: 1px solid var(--border-01);
+  color: var(--foreground-02);
+  display: flex;
+  gap: var(--space-03);
+  padding-block: var(--space-03);
+}
+
+.stepRow:last-child {
+  border-bottom: none;
+}
+
+.stepRow[data-state='current'] {
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* The box of each stage: empty while it waits, filled and ticked once behind the job,
+   and for the stage under way a dot that breathes — the page alive while it waits. */
+.mark {
+  align-items: center;
+  block-size: 1.25rem;
+  border: var(--border-width-interactive) solid var(--border-interactive);
+  border-radius: calc(var(--radius-control) / 2);
+  color: var(--color-on-brand-fill);
+  display: inline-flex;
+  flex: none;
+  inline-size: 1.25rem;
+  justify-content: center;
+}
+
+.mark svg {
+  block-size: 0.875rem;
+  inline-size: 0.875rem;
+}
+
+.stepRow[data-state='done'] .mark {
   background-color: var(--color-brand-fill);
-  block-size: 100%;
-  inline-size: 40%;
+  border-color: var(--color-brand-fill);
 }
 
-@keyframes slide {
-  0% {
-    transform: translateX(-100%);
+.stepRow[data-state='current'] .mark::before {
+  animation: breathe calc(var(--duration-enter-long) * 2) var(--ease-default) infinite alternate;
+  background-color: var(--color-brand-fill);
+  block-size: 0.5rem;
+  border-radius: var(--radius-full);
+  content: '';
+  inline-size: 0.5rem;
+}
+
+@keyframes breathe {
+  from {
+    opacity: 0.35;
+    transform: scale(0.7);
   }
 
-  100% {
-    transform: translateX(250%);
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .bar {
-    animation: none;
-    inline-size: 100%;
-    opacity: 0.4;
+.stepWords {
+  display: inline-block;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A stage's name may wrap: the strike is drawn on each of its lines. */
+@supports (block-size: 1lh) {
+  .stepRow .stepWords::after {
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(0.5lh - 0.04em),
+      currentcolor calc(0.5lh - 0.04em),
+      currentcolor calc(0.5lh + 0.04em),
+      transparent calc(0.5lh + 0.04em),
+      transparent 1lh
+    );
+    block-size: auto;
+    inset-block: 0;
+  }
+}
+
+@media (forced-colors: active) {
+  .steps {
+    outline: 1px solid CanvasText;
+  }
+
+  .stepRow[data-state='done'] .mark {
+    background-color: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .stepRow[data-state='done'] .stepWords {
+    text-decoration: line-through;
+  }
+
+  .stepRow .stepWords::after {
+    display: none;
   }
 }
 
@@ -74,10 +202,6 @@
 }
 
 .error {
-  background-color: var(--color-error-surface);
-  border-radius: var(--radius-control);
-  color: var(--color-error-text);
-  padding: var(--space-04) var(--space-05);
   text-align: start;
 }
 
