@@ -1513,3 +1513,9 @@ questions the code declines before any model call):
 - NOT RUN — an iPhone, which is where the defect was: the owner's check. A conversation with a
   real title (the local one has none and reads «Asistente»). The title at 320 after the last
   change (it was hidden there in the build that was captured; it is one line with an ellipsis).
+
+**After his check of #375 (2026-11-12)**: «Está bien, pero al pulsar enviar tiene que cerrar el
+teclado». On a touch screen (`pointer: coarse`) sending now gives up the box's focus once the
+question is on its way — after the press has landed, so nothing moves under the finger — and a
+first answer no longer puts the focus back in the box there. With a keyboard and a pointer the
+focus stays in the box, as before.

@@ -61,6 +61,11 @@ function toEnd(): void {
   window.scrollTo({ behavior: reduce ? 'auto' : 'smooth', top: document.documentElement.scrollHeight });
 }
 
+/** A screen where focus in a text box means an on-screen keyboard. */
+function onTouchScreen(): boolean {
+  return window.matchMedia('(pointer: coarse)').matches;
+}
+
 /**
  * The conversation with the assistant (project 023), in the shape of a chat
  * app: the conversation fills the column, the box to write in stays at its
@@ -144,7 +149,11 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
     try {
       if (window.sessionStorage.getItem(FOCUS_AFTER_REPLACE)) {
         window.sessionStorage.removeItem(FOCUS_AFTER_REPLACE);
-        field.current?.focus();
+
+        // Not on a phone: focus there is the keyboard, and sending put it away.
+        if (!onTouchScreen()) {
+          field.current?.focus();
+        }
       }
     } catch {
       // Storage refused (a private window): the focus is a convenience, nothing depends on it.
@@ -241,6 +250,13 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
     let answer = '';
     let started = false;
     let landedIn: string | null = conversation;
+
+    // On a phone, sending puts the keyboard away so the answer has the screen (the owner,
+    // 2026-11-12). The press itself never moved the focus — it would have moved the box
+    // from under the finger — so it is given up here, once the question is on its way.
+    if (onTouchScreen()) {
+      field.current?.blur();
+    }
 
     abort.current = controller;
     following.current = true;
