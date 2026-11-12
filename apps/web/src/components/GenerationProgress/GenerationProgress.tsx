@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useState, useSyncExternalStore } from 'react';
+import { Fragment, useEffect, useState, useSyncExternalStore } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -112,6 +112,16 @@ export function GenerationProgress({ allowance, defaultStart, events, mealSize, 
   );
   const asksAboutSize = mealSize !== null && !kept;
   const addLabel = mealSize ? mealSizeAction(dictionary, locale, mealSize.suggestion) : null;
+  const screen = fatal ? 'fatal' : phase.kind === 'starting' ? 'running' : phase.kind;
+
+  // The button that starts the job sits at the foot of a long page, and the screen that
+  // follows is short and leads with the ring: it opens at its top, not scrolled past it.
+  // Once per change of screen, never on each poll.
+  useEffect(() => {
+    if (screen !== 'ready') {
+      window.scrollTo({ top: 0 });
+    }
+  }, [screen]);
 
   async function start() {
     setFatal(undefined);
