@@ -37,7 +37,7 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
   const dateOptions = { day: 'numeric', month: 'short' } as const;
 
   return (
-    <ol className={styles.list}>
+    <ol className={`${styles.list} motion-list`}>
       {fortnights.map(fortnight => {
         const unmarked = fortnight.meals.soFar - fortnight.meals.eaten - fortnight.meals.skipped;
 
@@ -70,8 +70,11 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
                   {fortnight.adherence === null ? t.adherenceNone : t.adherenceLabel}
                 </Text>
               </div>
-              <div className={styles.track}>
-                <div className={styles.bar} style={{ inlineSize: `${Math.min(fortnight.adherence ?? 0, FULL)}%` }} />
+              {/* Grows to its share when the card arrives — by `transform`, never by its width. */}
+              <div aria-hidden="true" className={styles.track}>
+                <div className={`${styles.grow} motion-grow-x`}>
+                  <div className={styles.bar} style={{ transform: `scaleX(${String(Math.min(fortnight.adherence ?? 0, FULL) / FULL)})` }} />
+                </div>
               </div>
               <Text size="xs" tone="tertiary">
                 {interpolate(t.mealsLine, { eaten: fortnight.meals.eaten, skipped: fortnight.meals.skipped, soFar: fortnight.meals.soFar, unmarked })}

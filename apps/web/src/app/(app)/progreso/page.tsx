@@ -5,6 +5,8 @@ import Link from 'next/link';
 import styles from './page.module.css';
 
 import { activeLocale, getDictionary } from 'i18n/server';
+import { CountUp } from 'ui/components/CountUp';
+import { Rings } from 'ui/components/Rings';
 import { Text } from 'ui/components/Text';
 
 import { Card } from 'components/Card';
@@ -73,71 +75,110 @@ export default async function ProgressPage() {
   }
 
   // A change of exactly nothing is "no change", not "0 kg": the second reads as
-  // a measurement that came out at zero.
-  const change = (value: number | null) =>
-    value === null ? { note: null, value: t.noData } : value === 0 ? { note: null, value: t.noChange } : { note: unit, value: signed(value, locale) };
-  const toTarget =
+  // a measurement that came out at zero. A figure that is a number counts up to
+  // it when the screen arrives (`CountUp`); a word ("Sin cambios") is just there.
+  type Tile = { amount?: number; label: string; note: string | null; signed?: boolean; value: string };
+  const change = (label: string, value: number | null): Tile =>
+    value === null
+      ? { label, note: null, value: t.noData }
+      : value === 0
+        ? { label, note: null, value: t.noChange }
+        : { amount: value, label, note: unit, signed: true, value: signed(value, locale) };
+  const toTarget: Tile =
     weight.toTargetKg === null
-      ? { note: null, value: t.noData }
+      ? { label: t.toTarget, note: null, value: t.noData }
       : Math.abs(weight.toTargetKg) < 0.05
-        ? { note: null, value: t.reached }
-        : { note: `${unit} ${weight.toTargetKg < 0 ? t.toLose : t.toGain}`, value: kg(Math.abs(weight.toTargetKg), locale) };
-  const tiles = [
-    { label: t.weightLatest, note: weight.latestKg === null ? null : unit, value: weight.latestKg === null ? t.noData : kg(weight.latestKg, locale) },
-    { label: t.sinceStart, ...change(weight.changeKg) },
-    { label: t.lastFortnight, ...change(weight.fortnightChangeKg) },
-    { label: t.toTarget, ...toTarget }
+        ? { label: t.toTarget, note: null, value: t.reached }
+        : {
+            amount: Math.abs(weight.toTargetKg),
+            label: t.toTarget,
+            note: `${unit} ${weight.toTargetKg < 0 ? t.toLose : t.toGain}`,
+            value: kg(Math.abs(weight.toTargetKg), locale)
+          };
+  const tiles: readonly Tile[] = [
+    weight.latestKg === null
+      ? { label: t.weightLatest, note: null, value: t.noData }
+      : { amount: weight.latestKg, label: t.weightLatest, note: unit, value: kg(weight.latestKg, locale) },
+    change(t.sinceStart, weight.changeKg),
+    change(t.lastFortnight, weight.fortnightChangeKg),
+    toTarget
   ];
 
   return (
     <Fragment>
-      <h1 className={styles.title}>{t.title}</h1>
-      <Text className={styles.intro} tone="secondary">
-        {t.intro}
-      </Text>
+      <div className={`${styles.intro} motion-enter`}>
+        <h1 className={styles.title}>{t.title}</h1>
+        <Text className={styles.lede} tone="secondary">
+          {t.intro}
+        </Text>
+      </div>
 
-      <dl className={styles.tiles}>
+      <dl className={`${styles.tiles} motion-list`}>
         {tiles.map(tile => (
           <Card className={styles.tile} key={tile.label} padding="sm">
             <dt className={styles.tileLabel}>{tile.label}</dt>
             <dd className={styles.tileValue}>
-              {tile.value}
+              {tile.amount === undefined ? (
+                tile.value
+              ) : (
+                <CountUp
+                  format={{ maximumFractionDigits: 1, ...(tile.signed ? { signDisplay: 'exceptZero' } : {}) }}
+                  locale={locale}
+                  text={tile.value}
+                  value={tile.amount}
+                />
+              )}
               {tile.note ? <span className={styles.tileNote}> {tile.note}</span> : null}
             </dd>
           </Card>
         ))}
       </dl>
 
-      <Card as="section" className={styles.card}>
-        <div className={styles.head}>
-          <div>
-            <h2 className={styles.subtitle}>{t.weightTitle}</h2>
-            {weight.startingWeightKg === null ? null : (
-              <Text size="xs" tone="tertiary">
-                {interpolate(t.weightStart, { value: kg(weight.startingWeightKg, locale) })}
-              </Text>
-            )}
+      <div className={`${styles.board} motion-list`}>
+        <Card as="section" className={styles.card}>
+          <div className={styles.head}>
+            <div>
+              <h2 className={styles.subtitle}>{t.weightTitle}</h2>
+              {weight.startingWeightKg === null ? null : (
+                <Text size="xs" tone="tertiary">
+                  {interpolate(t.weightStart, { value: kg(weight.startingWeightKg, locale) })}
+                </Text>
+              )}
+            </div>
+            <Link className={styles.link} href="/inicio">
+              {t.logLink}
+            </Link>
           </div>
-          <Link className={styles.link} href="/inicio">
-            {t.logLink}
-          </Link>
-        </div>
 
-        {weight.latestKg === null ? (
-          <Text tone="secondary">{t.weightNone}</Text>
-        ) : (
-          <WeightChart entries={weight.entries} targetKg={weight.targetWeightKg} />
-        )}
-      </Card>
+          {weight.latestKg === null ? (
+            <Text tone="secondary">{t.weightNone}</Text>
+          ) : (
+            <WeightChart entries={weight.entries} targetKg={weight.targetWeightKg} />
+          )}
+        </Card>
 
-      <section className={styles.fortnights}>
+        {/* The share of marked meals that were done, as a ring beside the sentence that
+            says it (the sentence is the text; the ring only its picture). Nothing marked
+            yet: the sentence that says how to start, and no empty ring to puzzle over. */}
+        <Card className={styles.overall} padding="sm">
+          {overall.adherence === null ? null : (
+            <Rings
+              className={styles.ring}
+              decorative={true}
+              items={[{ label: t.fortnightsTitle, max: overall.marked, tone: 2, value: overall.eaten }]}
+              label={t.fortnightsTitle}
+              size="sm"
+            />
+          )}
+          <p className={overall.adherence === null ? styles.overallNone : styles.overallLine}>
+            {overall.adherence === null ? t.overallNone : interpolate(t.overallLine, { eaten: overall.eaten, marked: overall.marked })}
+          </p>
+        </Card>
+      </div>
+
+      <section className={`${styles.fortnights} motion-enter`}>
         <div className={styles.head}>
-          <div>
-            <h2 className={styles.subtitle}>{t.fortnightsTitle}</h2>
-            <Text size="xs" tone="tertiary">
-              {overall.adherence === null ? t.overallNone : interpolate(t.overallLine, { eaten: overall.eaten, marked: overall.marked })}
-            </Text>
-          </div>
+          <h2 className={styles.subtitle}>{t.fortnightsTitle}</h2>
           <Link className={styles.link} href="/plan/historial">
             {t.allPlans}
           </Link>

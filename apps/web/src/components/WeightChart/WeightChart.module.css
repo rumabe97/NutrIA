@@ -15,10 +15,21 @@
   text-align: end;
 }
 
+.plot {
+  display: block;
+  min-inline-size: 0;
+}
+
 .chart {
   block-size: 9rem;
+  display: block;
   inline-size: 100%;
   overflow: visible;
+}
+
+.area {
+  fill: var(--color-accent-mid);
+  fill-opacity: 0.16;
 }
 
 .line {
@@ -26,7 +37,7 @@
   stroke: var(--color-brand-09);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 1.5;
+  stroke-width: 2.5;
   vector-effect: non-scaling-stroke;
 }
 
@@ -68,4 +79,11 @@
   justify-items: center;
   padding: var(--space-04);
   text-align: center;
+}
+
+/* The wash is decoration; in forced colours only the line and the target remain. */
+@media (forced-colors: active) {
+  .area {
+    display: none;
+  }
 }
