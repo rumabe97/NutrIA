@@ -1673,6 +1673,25 @@ its end.
   thinking about it.»), its last words in the accent. This is the page's `h1` and the share
   card's line; the title and description in the head are unchanged. The four baseline files
   that name the heading are updated.
+- **The hero's pictures (2026-11-13)**: the owner asked for them and delegated the choice
+  («las que mejor estén. Elígelas tú»). Chosen from production, read-only, among the pictures
+  the judge accepted with no note and no extra food (5/5 realism and sharpness, one dish,
+  nothing that is not food), never one accepted by hand, of `seed` or `ai` dishes; each then
+  looked at by the lead beside its ingredient list — no food the list lacks, no person, hand,
+  brand or text — and sent to the owner to look at himself (legal § 2.8 P3):
+  - `e03c398a-30a2-40f1-a8a8-e7f7fef6acaa` — Salteado de gambas y edamame al jengibre con arroz
+    basmati (seed), the large one;
+  - `e16f6175-0918-48fc-8af8-841115bc5c12` — Tortilla de patatas y pimientos del piquillo con
+    ensalada verde (seed);
+  - `6e12e063-9bb2-4fec-be80-73b8944e7b9a` — Copa de Yogur Proteico con Granada y Nueces (ai).
+  With pictures on it the landing page says `noimageindex` (legal O2, `seo`'s recommendation):
+  `index, follow, noimageindex` on `/` and `/en`, read in the built page. Seen on a local build
+  at 390, 1280, 320 (Oscuro) and 768 (`/en`, Huerta): no sideways scroll; the first picture
+  eager and the other two lazy, each the original 1200 × 896 file with no `srcset`, each with
+  its «IA» mark, the caption under them. NOT RUN: Lighthouse (no binary here) — the files are
+  180–226 KB each and the plan asks for Performance within three points of phase 0, or one
+  picture or none; the comparison of each file's SHA-256 with a stored one (B3: none is stored
+  that this check could read).
 
 ## After phase 6 — buttons side by side, and a destructive button in the theme (2026-11-13)
 
