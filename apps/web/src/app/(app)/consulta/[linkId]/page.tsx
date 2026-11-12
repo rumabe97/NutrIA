@@ -6,6 +6,8 @@ import Link from 'next/link';
 import styles from './page.module.css';
 
 import { activeLocale, getDictionary } from 'i18n/server';
+import { CountUp } from 'ui/components/CountUp';
+import { Rings } from 'ui/components/Rings';
 import { Text } from 'ui/components/Text';
 
 import { Card } from 'components/Card';
@@ -78,18 +80,24 @@ export default async function ClientPage({ params }: Readonly<{ params: Promise<
         {t.back}
       </Link>
 
-      <h1 className={styles.title}>{client.name}</h1>
-      <div className={styles.meta}>
-        <Text as="span" size="sm" tone="secondary">
-          {interpolate(t.clientSince, { date: formatInstant(Date.parse(client.since), locale, { day: 'numeric', month: 'long', year: 'numeric' }) })}
-        </Text>
-        {client.sharesHealth ? <span className={styles.chip}>{t.sharesHealth}</span> : null}
+      <div className="motion-enter">
+        <h1 className={styles.title}>{client.name}</h1>
+        <div className={styles.meta}>
+          <Text as="span" size="sm" tone="secondary">
+            {interpolate(t.clientSince, {
+              date: formatInstant(Date.parse(client.since), locale, { day: 'numeric', month: 'long', year: 'numeric' })
+            })}
+          </Text>
+          {client.sharesHealth ? <span className={styles.chip}>{t.sharesHealth}</span> : null}
+        </div>
       </div>
 
-      <div className={styles.regions}>
+      {/* One column on a phone; two from a wide screen, in the same order, the plan to review
+          across both. The cards arrive one after another. */}
+      <div className={`${styles.regions} motion-list`}>
         {/* What is waiting on the professional comes first. */}
         {pending ? (
-          <Card aria-labelledby="pending-title" as="section" className={styles.stack}>
+          <Card aria-labelledby="pending-title" as="section" className={`${styles.stack} ${styles.wide}`}>
             <div>
               <h2 className={styles.cardTitle} id="pending-title" tabIndex={-1}>
                 {t.pendingTitle}
@@ -173,14 +181,28 @@ export default async function ClientPage({ params }: Readonly<{ params: Promise<
           <h2 className={styles.cardTitle} id="progress-title">
             {t.fortnightsTitle}
           </h2>
-          <Text size="sm" tone="secondary">
-            {progress.overall.adherence === null
-              ? t.overallNone
-              : `${formatNumber(progress.overall.adherence, locale)} % · ${interpolate(t.overallLine, {
-                  eaten: formatNumber(progress.overall.eaten, locale),
-                  marked: formatNumber(progress.overall.marked, locale)
-                })}`}
-          </Text>
+          {/* The share of marked meals that were done, as a ring beside the sentence that says
+              it (the sentence is the text; the ring only its picture), as on the client's own
+              Progreso. Nothing marked: the sentence alone, and no empty ring. */}
+          <div className={styles.overall}>
+            {progress.overall.adherence === null ? null : (
+              <Rings
+                className={styles.ring}
+                decorative={true}
+                items={[{ label: t.fortnightsTitle, max: progress.overall.marked, tone: 2, value: progress.overall.eaten }]}
+                label={t.fortnightsTitle}
+                size="sm"
+              />
+            )}
+            <Text className={styles.overallLine} size="sm" tone="secondary">
+              {progress.overall.adherence === null
+                ? t.overallNone
+                : `${formatNumber(progress.overall.adherence, locale)} % · ${interpolate(t.overallLine, {
+                    eaten: formatNumber(progress.overall.eaten, locale),
+                    marked: formatNumber(progress.overall.marked, locale)
+                  })}`}
+            </Text>
+          </div>
           {progress.fortnights.length > 0 ? (
             <CareFortnightList fortnights={progress.fortnights} />
           ) : (
@@ -201,7 +223,8 @@ export default async function ClientPage({ params }: Readonly<{ params: Promise<
           ) : (
             <Fragment>
               <p className={styles.figure}>
-                {kg(progress.weight.latestKg)} {dictionary.units.kilogram}
+                <CountUp format={{ maximumFractionDigits: 1 }} locale={locale} text={kg(progress.weight.latestKg)} value={progress.weight.latestKg} />{' '}
+                {dictionary.units.kilogram}
               </p>
               <WeightChart entries={progress.weight.entries} targetKg={progress.weight.targetWeightKg} />
             </Fragment>

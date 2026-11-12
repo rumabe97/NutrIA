@@ -1,9 +1,10 @@
 .title {
   font-size: var(--font-size-09);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heavy);
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
   margin: 0 0 var(--gap-heading);
+  overflow-wrap: break-word;
 }
 
 .intro {
@@ -14,7 +15,36 @@
 .regions {
   display: grid;
   gap: var(--gap-region);
+  grid-template-columns: minmax(0, 1fr);
   margin-top: var(--gap-region);
+}
+
+.side,
+.main {
+  min-inline-size: 0;
+}
+
+/*
+ * From a wide screen: the patients and the invitations on the left, the plan and the
+ * invite form on the right, each column filling from the top. The order in the page —
+ * which is the order read and tabbed — does not change.
+ */
+@media (width >= 64rem) {
+  .regions {
+    align-items: start;
+    column-gap: var(--gap-region);
+    grid-auto-flow: row dense;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    row-gap: var(--gap-block);
+  }
+
+  .main {
+    grid-column: 1;
+  }
+
+  .side {
+    grid-column: 2;
+  }
 }
 
 .agreement {
@@ -28,35 +58,54 @@
 
 .regionTitle {
   font-size: var(--font-size-06);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heavy);
   letter-spacing: var(--tracking-title);
   line-height: var(--line-height-02);
   margin: 0 0 calc(var(--gap-heading) - var(--gap-block));
 }
 
+/* A card per patient, two to a row once there is room for two names. */
 .clients {
   display: grid;
   gap: var(--space-03);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-/* The whole card is the way into the client's page: name first, where they are under it. */
+.clients > li {
+  display: grid;
+  min-inline-size: 0;
+}
+
+/* The whole card is the way into the client's page: name first, where they are under it.
+   It presses in like a button (transform only); its edge changes at once. */
 .client {
+  align-content: start;
   color: inherit;
   display: grid;
   gap: var(--space-02);
   text-decoration: none;
 }
 
+a.client {
+  transition: transform var(--duration-fast) var(--spring-firm);
+}
+
 a.client:hover {
-  border-color: var(--border-interactive);
+  border-color: var(--color-brand-fill);
+}
+
+a.client:active {
+  transform: scale(0.98);
 }
 
 .clientName {
-  font-size: var(--font-size-04);
-  font-weight: var(--font-weight-semibold);
+  font-family: var(--display-font);
+  font-size: var(--font-size-05);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-03);
   overflow-wrap: anywhere;
 }
 
@@ -66,37 +115,37 @@ a.client:hover {
   gap: var(--space-02);
 }
 
-/* Each stage is its words; the chip's edge only helps the eye find the ones that are waiting on the professional. */
+/* Each stage is its words, as a tag. The two that wait on the professional are on ink, so
+   they are found first; a paused link says so on the warning's own ground. */
 .stage,
 .chip {
   align-items: center;
-  background-color: var(--background-02);
-  border: 1px solid var(--border-01);
+  background-color: var(--surface-sunken);
   border-radius: var(--radius-full);
   color: var(--foreground-02);
   display: inline-flex;
   font-size: var(--font-size-01);
-  padding: 0 var(--space-02);
+  font-weight: var(--font-weight-medium);
+  padding: var(--space-01) var(--space-03);
 }
 
 .stage[data-stage='plan_awaiting_review'],
 .stage[data-stage='check_in_due'] {
-  border-color: var(--color-brand-fill);
-  color: var(--foreground-01);
-  font-weight: var(--font-weight-semibold);
+  background-color: var(--foreground-01);
+  color: var(--background-01);
+  font-weight: var(--font-weight-bold);
 }
 
 .stage[data-stage='paused'] {
-  border-color: var(--color-warning);
+  background-color: var(--color-warning-surface);
   color: var(--color-warning-text);
 }
 
+/* The invitations not yet answered: one card, a row each on hairlines. */
 .invitations {
   display: grid;
-  gap: var(--space-02);
   list-style: none;
   margin: 0;
-  padding: 0;
 }
 
 .invitation {
@@ -105,10 +154,32 @@ a.client:hover {
   flex-wrap: wrap;
   gap: var(--space-01) var(--space-04);
   justify-content: space-between;
-  padding-bottom: var(--space-02);
+  padding-block: var(--space-03);
+}
+
+.invitation:first-child {
+  padding-block-start: 0;
+}
+
+.invitation:last-child {
+  border-bottom: none;
+  padding-block-end: 0;
 }
 
 .email {
   font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
   overflow-wrap: anywhere;
+}
+
+@media (forced-colors: active) {
+  .stage,
+  .chip {
+    border: 1px solid CanvasText;
+  }
+
+  .stage[data-stage='plan_awaiting_review'],
+  .stage[data-stage='check_in_due'] {
+    border-color: Highlight;
+  }
 }

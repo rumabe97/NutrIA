@@ -6,6 +6,7 @@ import styles from './PracticePlanCard.module.css';
 import { Button } from 'ui/components/Button';
 import { Link } from 'ui/components/Link';
 import { Note } from 'ui/components/Note';
+import { Rings } from 'ui/components/Rings';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { withLocale } from 'i18n/routes';
@@ -99,6 +100,15 @@ export function PracticePlanCard({ justPaid, practice, trialDaysLeft }: Practice
 
       {practice.open ? (
         <div className={styles.seats}>
+          {/* The seats taken as a ring beside the sentence that says them: the sentence is the
+              text, the ring only its picture (as Progreso's meals done). */}
+          <Rings
+            className={styles.ring}
+            decorative={true}
+            items={[{ label: t.planTitle, max: Math.max(practice.includedClients, 1), tone: 1, value: practice.activeClients }]}
+            label={t.planTitle}
+            size="sm"
+          />
           <Text className={styles.count} weight="semibold">
             {interpolate(t.planSeats, {
               active: formatNumber(practice.activeClients, locale),

@@ -101,16 +101,16 @@ export function CareInviteForm() {
 
       {/* Inserted rather than edited in place, so the region is announced when it appears. */}
       {outcome?.kind === 'sent' ? (
-        <p className={styles.sent} role="status">
+        <Note as="p" className="motion-drop-in" role="status" tone="success" toneLabel={dictionary.common.noteTone.success}>
           {interpolate(t.inviteSent, {
             date: formatInstant(Date.parse(outcome.expiresAt), locale, { day: 'numeric', month: 'long' }),
             email: outcome.email
           })}
-        </p>
+        </Note>
       ) : null}
 
       {outcome?.kind === 'full' ? (
-        <Note className={styles.full} role="alert" tone="warning" toneLabel={dictionary.common.noteTone.warning}>
+        <Note className={`${styles.full} motion-drop-in`} role="alert" tone="warning" toneLabel={dictionary.common.noteTone.warning}>
           <Text size="sm" weight="medium">
             {interpolate(t.inviteFull, { count: formatNumber(outcome.included, locale) })}
           </Text>

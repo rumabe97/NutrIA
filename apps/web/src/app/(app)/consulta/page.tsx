@@ -92,17 +92,24 @@ export default async function PracticePage({ searchParams }: Readonly<{ searchPa
 
   return (
     <Fragment>
-      <h1 className={styles.title}>{t.title}</h1>
-      <Text className={styles.intro} tone="secondary">
-        {t.intro}
-      </Text>
+      <div className="motion-enter">
+        <h1 className={styles.title}>{t.title}</h1>
+        <Text className={styles.intro} tone="secondary">
+          {t.intro}
+        </Text>
+      </div>
 
-      <div className={styles.regions}>
+      {/* One column on a phone, in this order. From a wide screen the patients and the
+          invitations are the main column and the plan and the invite form the side: the same
+          order read down the page, the regions arriving one after another. */}
+      <div className={`${styles.regions} motion-list`}>
         {/* `?practica=gracias` is where Stripe's checkout sends a professional back to. */}
-        <PracticePlanCard justPaid={query.practica === 'gracias'} practice={practice} trialDaysLeft={trialDaysLeft} />
+        <div className={styles.side}>
+          <PracticePlanCard justPaid={query.practica === 'gracias'} practice={practice} trialDaysLeft={trialDaysLeft} />
+        </div>
 
         {roster ? (
-          <section aria-labelledby="clients-title" className={styles.region}>
+          <section aria-labelledby="clients-title" className={`${styles.region} ${styles.main}`}>
             <h2 className={styles.regionTitle} id="clients-title">
               {t.clientsTitle}
             </h2>
@@ -152,14 +159,18 @@ export default async function PracticePage({ searchParams }: Readonly<{ searchPa
           </section>
         ) : null}
 
-        {roster ? <CareInviteForm /> : null}
+        {roster ? (
+          <div className={styles.side}>
+            <CareInviteForm />
+          </div>
+        ) : null}
 
         {roster && roster.invitations.length > 0 ? (
-          <section aria-labelledby="invitations-title" className={styles.region}>
+          <section aria-labelledby="invitations-title" className={`${styles.region} ${styles.main}`}>
             <h2 className={styles.regionTitle} id="invitations-title">
               {t.invitationsTitle}
             </h2>
-            <ul className={styles.invitations}>
+            <Card as="ul" className={styles.invitations}>
               {roster.invitations.map(invitation => (
                 <li className={styles.invitation} key={`${invitation.email}·${invitation.expiresAt}`}>
                   <span className={styles.email}>{invitation.email}</span>
@@ -168,7 +179,7 @@ export default async function PracticePage({ searchParams }: Readonly<{ searchPa
                   </Text>
                 </li>
               ))}
-            </ul>
+            </Card>
           </section>
         ) : null}
       </div>

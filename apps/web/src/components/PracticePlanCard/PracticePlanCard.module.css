@@ -12,14 +12,45 @@
 }
 
 .seats {
+  align-items: center;
+  column-gap: var(--space-04);
   display: grid;
-  gap: var(--space-01);
+  grid-template-columns: auto minmax(0, 1fr);
+  row-gap: var(--space-01);
+}
+
+/* The ring to the start of the seats' sentence, over its lines. */
+.ring {
+  grid-row: 1 / span 2;
+  inline-size: 4rem;
+}
+
+.seats > :not(.ring) {
+  grid-column: 2;
 }
 
 /* "12 de 30": the figure a professional compares against their plan. */
 .count {
+  font-family: var(--display-font);
   font-size: var(--font-size-06);
   font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-heavy);
+  overflow-wrap: break-word;
+}
+
+/* Text this large for the screen: the ring over the sentence, not beside it. */
+@media (width < 17rem) {
+  .seats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ring {
+    grid-row: auto;
+  }
+
+  .seats > :not(.ring) {
+    grid-column: 1;
+  }
 }
 
 .actions {

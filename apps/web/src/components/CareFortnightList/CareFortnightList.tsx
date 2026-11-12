@@ -25,7 +25,7 @@ export async function CareFortnightList({ fortnights }: Readonly<{ fortnights: r
   const dateOptions = { day: 'numeric', month: 'short' } as const;
 
   return (
-    <ol className={styles.list}>
+    <ol className={`${styles.list} motion-list`}>
       {fortnights.map(fortnight => (
         <li className={styles.item} key={fortnight.planId}>
           <div className={styles.head}>
@@ -39,7 +39,10 @@ export async function CareFortnightList({ fortnights }: Readonly<{ fortnights: r
           </div>
 
           <div aria-hidden="true" className={styles.track}>
-            <div className={styles.bar} style={{ inlineSize: `${Math.min(fortnight.adherence ?? 0, FULL)}%` }} />
+            {/* Grows in from its start, then holds its share by `transform` — never a width. */}
+            <div className={`${styles.grow} motion-grow-x`}>
+              <div className={styles.bar} style={{ transform: `scaleX(${String(Math.min(fortnight.adherence ?? 0, FULL) / FULL)})` }} />
+            </div>
           </div>
           <Text size="xs" tone="tertiary">
             {fortnight.adherence === null ? t.adherenceNone : t.adherenceLabel}

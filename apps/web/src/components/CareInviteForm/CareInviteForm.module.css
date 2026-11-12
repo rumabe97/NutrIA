@@ -13,22 +13,25 @@
 .form {
   display: grid;
   gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
   max-inline-size: 28rem;
+}
+
+/*
+ * With the address field focused on a phone the bar steps aside, and the room kept for it
+ * at the page's foot goes too, as on the assistant and the onboarding (LOG phase 5).
+ */
+@media (width < 48rem) {
+  :global(html):has(.form input:focus) {
+    --app-bar-clearance: 0rem;
+    --app-foot-space: var(--space-02);
+  }
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-03);
-}
-
-.sent {
-  background-color: var(--color-brand-03);
-  border-radius: var(--radius-control);
-  color: var(--color-brand-12);
-  font-size: var(--font-size-02);
-  margin: 0;
-  padding: var(--space-03) var(--space-04);
 }
 
 /* A state with its ways out, not a failure: a warning `Note`, not the red line. */
