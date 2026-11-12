@@ -1,0 +1,21 @@
+# /consulta · pro · es-ES · desktop · 200
+button "Cerrar sesión"
+button "English": EN
+button "Enviar la invitación"
+button "Español" [pressed]: ES
+button "Tema"
+heading "Consulta" [level=#]
+heading "Invitaciones sin responder" [level=#]
+heading "Invitar a un paciente" [level=#]
+heading "Pacientes" [level=#]
+heading "Tu plan" [level=#]
+link "Compra"
+link "Consulta"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Probe Plan por revisar Comparte su salud Paciente desde el # de noviembre de #"
+link "Progreso"
+link "Saltar al contenido"
+textbox "Correo de tu paciente"

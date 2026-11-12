@@ -1,0 +1,27 @@
+# /onboarding/5 · fresh · es-ES · phone · 200
+button "Atrás"
+button "Cerrar sesión"
+button "Continuar"
+button "English": EN
+button "Español" [pressed]: ES
+button "Tema"
+checkbox "Árabe"
+checkbox "Española"
+checkbox "Griega"
+checkbox "India"
+checkbox "Italiana"
+checkbox "Japonesa"
+checkbox "Mediterránea"
+checkbox "Mexicana"
+checkbox "Peruana"
+checkbox "Tailandesa"
+heading "Preferencias" [level=#]
+link "Compra"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"
+textbox "Alimentos que no quieres ver"
+textbox "Alimentos que te gustan"

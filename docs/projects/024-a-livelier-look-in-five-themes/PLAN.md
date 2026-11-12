@@ -264,7 +264,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 
 ### Phase 4 — Inicio and the dish, where the food is
 
-- [x] done — 2026-11-12 (LOG.md)
+- [x] done — shipped 2026-11-12 (#369); confirmed by human on 2026-11-12 (LOG.md)
 - **Dispatch**: opus @ medium — `/execute-project 024 phase 4`
 - **Goal**: Inicio, the plan's day and the dish page as approved, with pictures and rings.
 - **Scope**: `(app)/inicio`, `(app)/plan` and `plan/comida/[id]`, and their components
@@ -289,7 +289,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 
 ### Phase 5 — The rest of the signed-in app
 
-- [ ] in progress — built and shipped 2026-11-12; human-verify pending: the owner's iPhone, the keyboard above all (LOG.md)
+- [x] done — shipped 2026-11-12 (#371); confirmed by human on 2026-11-12, one defect fixed after (#372) (LOG.md)
 - **Dispatch**: opus @ medium — `/execute-project 024 phase 5`
 - **Goal**: Compra, Progreso, Check-in, Asistente, Perfil and the plan being made, as approved.
 - **Scope**: `(app)/{compra,progreso,check-in,asistente,perfil}`, `plan/generando`, their
@@ -309,7 +309,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 
 ### Phase 6 — Onboarding and the screens that had no sheet
 
-- [ ] pending
+- [ ] in progress — built 2026-11-12 with «Cambiar» on the plan's rows; owner-approves pending: the captures of these screens (LOG.md)
 - **Dispatch**: opus @ medium — `/execute-project 024 phase 6` — owner-approves: a sheet for
   onboarding and one for plan history, next plan, consent and invitation, before either is built.
 - **Goal**: the ten onboarding steps and the remaining signed-in screens in the new design.

@@ -157,6 +157,10 @@ Measured on 2026-11-11, before any code:
   which is the cheapest proof that nothing was lost.
 - New features. The one new behaviour is the theme switch; the rings on Inicio read data the
   screen already loads.
+  **One addition, decided by the owner on 2026-11-12** (*«me parece bien el cambiar en las filas
+  del plan»*): the approved sheet draws «Cambiar» on each row of the plan's day, and the swap
+  existed only on the dish page. Each row of the plan being lived now carries that same swap —
+  one rule (`lib/mealSwap`), the same request, allowance, count and messages. No route changes.
 - The words of the legal pages and of the assistant's warning. Their look changes, not a
   sentence.
 - The logo's shape. The leaf stays and takes each theme's colours; the sheets' square mark was a

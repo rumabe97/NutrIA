@@ -1,0 +1,22 @@
+# /onboarding/3 · fresh · es-ES · phone · 200
+button "Atrás"
+button "Cerrar sesión"
+button "Continuar"
+button "English": EN
+button "Español" [pressed]: ES
+button "Tema"
+heading "Cuerpo y actividad" [level=#]
+link "Compra"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"
+radio "Alto Entreno #–# veces o trabajo físico."
+radio "Deportista Doble sesión o competición."
+radio "Ligero Camino a diario o entreno #–# veces."
+radio "Moderado Entreno #–# veces por semana."
+radio "Sedentario Trabajo sentado, poco ejercicio."
+spinbutton "Altura (cm)"
+spinbutton "Peso actual (kg)"

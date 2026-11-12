@@ -1006,3 +1006,329 @@ from the button: at 390 px the six stages ticked 320 ms apart, six of six, then 
 either. **Not seen**: the line under the long stage — a local generation is over before the
 first answer, so the screen never rests on that stage here. The owner's phone is where it
 shows.
+
+## Phase 6 — Onboarding and the screens that had no sheet, and «Cambiar» on the plan's rows (2026-11-12)
+
+- **Executor**: `frontend` on opus, branch `024-phase-6` (on `024-phase-5-ship`, 2860eee9), 13
+  commits. Nothing ran on `fable`; the advisor was consulted once, before hand-back, and its
+  list was worked through (round 2 below).
+- **Result**: built, for the lead's check and the owner's approval from real captures (PRD 12).
+- **What changed**:
+  - **Piece A — «Cambiar plato» on the plan's rows** (the owner's decision of 2026-11-12). Each row
+    of `/plan`'s day carries the dish page's own `MealSwap`, under the dish and across the row (its
+    panel has the row's width at 320 px). Whether it is offered is `lib/mealSwap.swapOffered`, which
+    the dish page now asks too: the plan being lived, not paused (`/plan` now reads `/vacations` as
+    the dish page does), the allowance read, the meal still `planned`, online. The same POST, count
+    («5 de 5»), hints, no-fit and quota answers. `MealSwap` gained: controlled `open` /
+    `onOpenChange` (one panel open at a time across the day), `describedBy` (the row's button names
+    its dish), focus into the panel on its chosen option, Escape closing it, focus back to the
+    button (but not stolen from a second panel that opened), the count following the server's
+    after any swap, and hiding itself offline. Not on Inicio, history or the next plan.
+  - **Onboarding**: one segment per step under «Paso N de 9» and «N %» (the same `progressbar`,
+    name and values; the reached segment grows in by transform; the `inline-size` transition is
+    gone); the heavy title, subtitle and form move together on the shared axis by direction of
+    travel; each step's questions in grouped cards (a list of choices per card, fields that belong
+    together on one); the form's error is a `Note` (error, `role="alert"`); Atrás and Continuar
+    share the row, equal width; the review's daily targets on the highlight fill. With a text field
+    focused on a phone the bar's clearance and the page's foot are released (the assistant's rule).
+  - **Plan history**: fortnights as cards (dates in the display face, «Plan N» in the small accent
+    capitals, the chip on ink for the current plan, a locked one on the sunken ground), staggered,
+    two columns from a tablet, a card presses in; the `border-color` transition is gone. A past
+    plan's day and the next plan are phase 4's `PlanBrowser`.
+  - **Consent interstitial and invitation**: heavy titles; the consent on one card, full-width
+    button on a phone; the invitation's blocks as sunken groups with grouped rows, the health list
+    dropping in, accept and decline equal width. No word of `profileConsent.*` or `care.*` changed.
+  - **The professional's screens**: heavy titles, regions arriving in turn; from 64rem the
+    workspace pairs patients and invitations with the plan and the invite form, and the client's
+    page runs two columns (the plan to review across both). Patients as cards with their stage as a
+    tag (waiting on the professional: on ink; paused: warning ground); invitations a grouped list;
+    the seats and the client's meals done as decorative rings beside their sentences; the weight
+    counts up; fortnight bars grow by transform on the bright gradient (was a width); check-in
+    answers as tags; health as a grouped list; «Invitación enviada…» a success `Note`
+    (`role="status"`); the invite and targets forms release the bar's room while typing. The
+    agreement's and the access log's chevrons turn on the motion tokens.
+  - `packages/ui` `Input`: a hint or an error line breaks inside a word with nowhere else to break
+    («nombre@ejemplo.com» ran 45 px past a 320 px screen at 200 % text).
+  - No dictionary key added or changed; no token added; no file outside `apps/web` and
+    `packages/ui`.
+- **Evidence** (local build, local Postgres, Chrome):
+  - DONE — `pnpm turbo lint ts:check test --filter=web --filter=ui`: 14 tasks green; `web` 47
+    files / 402 tests (new: `lib/mealSwap.test.ts` 10, `AssistantChat.test.tsx` 10 — piece C),
+    `ui` 65 / 534. `pnpm deadcode`: clean. `format:fix`: no change left. Contrast: 5 themes × 88
+    pairs, 440 pass — no new pair (every ground and text these screens use is already declared).
+  - DONE — control baseline, 88 files: **captured on the base commit before any change** (same
+    build, same accounts — nothing checked out twice) and after. States: `plan` (/plan, history,
+    a past plan, the next plan → redirect), `sched` (a scheduled plan: /plan, /plan/proximo,
+    history), `fresh` (onboarding 1–9), `resume` (/onboarding resuming at step 2, /consentimiento
+    → onboarding), `pro` (/consulta, a client's page with a plan to review), `proA` (second factor
+    required), `invited` (/invitacion/<token>); both languages, phone and desktop. **No line gone
+    but data**: four `/plan` files and four `/plan/proximo` (redirected to /plan) lose one dish name
+    that a swap replaced and gain «Cambiar plato # de #» / «Swap this dish # of #» — the only new
+    control. Every other file identical. (`for-lead-6/baseline-diff.txt`; the 88 new files are in
+    `for-lead-6/baseline-new/`, to add to `baseline/` with the onboarding and professional states
+    phase 0 could not capture.)
+  - DONE — overflow (`probe.mjs`, element by element), Spanish and English — this first sweep ran
+    **before** the 200 % fixes, the `ui` Input fix and the closed-practice grid; the 200 % run, the
+    paced `/consulta` sweep and `widths.mjs` below ran after them: `/plan`,
+    `/onboarding/1`, `/onboarding/6`, `/consulta`, a client's page × 320/360/390/768/1280 × five
+    themes; history, a past plan, the next plan, `/plan` with a scheduled plan, onboarding 2–5 and
+    7–9, the second-factor gate and the invitation × five widths × Claro and Oscuro: **510 loads,
+    0 hits**. `/consulta`'s roster is limited to 10 reads a minute, so part of those loads showed
+    the workspace without its patients; it was swept again paced under the limit, five themes ×
+    five widths × both languages: **50 loads, 0 hits**, patients and invitations on screen.
+    `widths.mjs` (320→1400 every 16 px) on all 17 route/state pairs in both languages: **34
+    sweeps, clean**.
+  - DONE, with three fixes — 200 % text (CDP `Page.setFontSizes`) at 320 and 390, Claro and
+    Oscuro, both languages, on every route above plus the swap panel open, onboarding's consent and
+    pace errors, the targets form, the end-link confirmation and the invitation's health box: first
+    run 184 checks, **6 hits** — the second-factor card 45 px past at 320 (its grid track sized by
+    the heading's longest word; the agreement card has the same recipe and got the same fix) and
+    «Aceptar la invitación» 5 px past (the label now wraps under the large-text query). After the
+    fixes: **184 checks, 0 hits**. The invite form's states (invalid address, practice full —
+    the API's answer stubbed in the browser, no row written —, invitation sent) at 320 and 390,
+    100 % and 200 %: found the error line's example address 45 px past (the `ui` Input fix), then
+    **clean**.
+  - Screenshots read (320 and 360 first): onboarding 1 at 320 in Oscuro — the segments, the
+    heavy title, the about-you card and the consent card, the disabled Atrás beside Continuar,
+    nothing cut; onboarding 4 at 360 — six slots of four sizes in one card, «No la hago» wrapping
+    inside its pill; onboarding 6 — the allergens on hairlines with «trazas», chips, the custom
+    field, the dietary chips and hint; history at 320 in Oscuro — two cards, «PLAN 2» / «Actual»
+    on ink, «PLAN 1» / «Sustituido»; the invitation at 360 — sunken groups, dots, both buttons
+    full width; the workspace at 320 — the seats ring, «Pacientes» with the stage tag on ink, the
+    invite form, the invitations card; the client's page at 320 — the plan to review with its days
+    and «Cambiar plato» per meal, publish / regenerate, current plan, fortnights, weight, targets,
+    review switch, health and end link; the workspace at 1280 in Pulso — two columns.
+  - DONE — piece A in the browser at 320, 390 and 1280 (`swap.mjs`): three planned rows each with
+    «Cambiar plato 5 de 5» named by its dish; the panel opens with focus on «Lo que encaje»,
+    inside the screen (45→275 of 320, 45→345 of 390, 445→1187 of 1280), «Te quedan 5 de 5
+    cambios…» in its foot, nothing past the screen; Escape closes it and focus is on the row's
+    button; opening a second row's closes the first and focus is in the second; a swap completes
+    at each width — the row shows the new dish, every row's count goes down by one together
+    (5→4→3→2), focus back on the button. A meal marked done loses its button and gets it back when
+    unmarked; history and the next plan have none.
+  - DONE — onboarding walked end to end in the browser with a new account (`walk.mjs`): sent to
+    step 1; step 1 with nothing ticked and an under-18 date held with the alert, then the age
+    error on the field; step 2 pace 3 → «El ritmo tiene que estar entre 0 y 1…»; back to step 1
+    with its saved answers, forward again; step 3 height 20 held by the API («Revisa los datos
+    marcados»); **reload through `/onboarding` resumed at step 4**; step 6 an allergy and «kiwi»,
+    whose status is shown going back to it; step 7 one minute held; step 8 skipped with «Omitir
+    este paso»; the review with its summary and the targets on the highlight fill; «Terminar» →
+    `/inicio`; `/plan/generando` opens. **PARTLY**: the plan was generated for the account by the
+    same POST its button makes, run from a script (succeeded), not by pressing the button. Every
+    step measured: nothing past the screen. Round 2, a new account: with every field valid and the
+    box unticked the alert reads the consent sentence — and showed a raw «{privacy}», older than
+    this phase; fixed (below).
+  - DONE — motion (PRD 15) at 4× CPU, 390 px: onboarding step 4 → 3 (Atrás) CLS 0.0000, long
+    tasks 176/50/212 ms at load and **none during the step change**; the workspace CLS 0.0000,
+    long tasks 172/78 ms at load; animated: `transform`, `translate`, `opacity`,
+    `stroke-dashoffset` (the rings), and opacity transitions only. Reduced motion: the same long
+    tasks at load (hydration, not animation), **0 animations running 250 ms after** the change or
+    the load.
+  - DONE (from the screenshots and the code, not a separate tool) — `apple-web-design` REVIEW of
+    onboarding, plan history and the workspace: **PASS, no P0 or P1** (verdict below).
+- **Round 2 (after the advisor's read)**:
+  - DONE — the keyboard release, measured at 390 on touch: onboarding step 1 with the name
+    focused, `/consulta` with the invite address focused, a client's targets form with a figure
+    focused — each `--app-bar-clearance` 0rem, `--app-foot-space` .5rem, the bar hidden, the
+    document ending 8–9 px under the last element (unfocused: the bar's clearance and 3rem, 125 px).
+    Back the moment focus leaves.
+  - DONE — focus after a step change: «Continuar» → step 2 and «Atrás» → step 1 both land on the
+    new step's `h1` («Tu objetivo», «Sobre ti»), as the route announcer did before the title moved
+    into the keyed wrapper.
+  - FIXED — the consent alert (onboarding step 1 and the interstitial) printed
+    `profileConsent.note` with its «{privacy}» placeholder raw, an older defect: the placeholder is
+    filled with the link's own words (`auth.legalPrivacy`); no dictionary word changed. Measured
+    after: «… Más en la política de privacidad.»
+  - FIXED — a closed practice on a wide screen drew its plan card alone in the right column; the
+    two columns now apply only when the patients' region exists (`:has(.main)`). The closed state
+    itself could not be built (`link` opens the practice), so this is checked in code only.
+  - DONE — the client's page with data, built through the app's own routes (the professional's
+    generation, then publish; the client marking two meals and logging two weights): the
+    meals-done ring beside its sentence (it wrapped under it at 320 — the sentence's basis is now
+    8rem, as on Progreso), the fortnight's bar grown on the gradient, the weight counting up. At
+    320, 390 and 1280, 100 % and 200 %: 0 hits. Shots 17 and 18 retaken with that data.
+  - DONE — D2 in a real chat (assistant switched on locally, off again after): a one-pair thread
+    opened folded (`aria-expanded="false"`), pressed → `true`, both messages deleted → the warning
+    whole with no button, a new question sent (the answer stream played in the browser, the stub
+    answers nobody) → folded, `aria-expanded="false"`.
+  - Judged — the probe's hint lines, unfiltered, on `/plan`, onboarding 1 and 6, `/consulta` and a
+    client's page at 320, 390 and 1280: one hint, on `/plan` at touch widths — four `select`s of
+    the events form at 1 px, Radix's hidden native selects behind their visible triggers (the
+    triggers are the targets). Not a defect. No console error on any of them.
+  - DONE — `ui` Input's `overflow-wrap: anywhere` on its hint and error lines, checked on the
+    other screens that use it most: `/acceder`, `/registro`, `/en/registro` at 320 and 390, light
+    and dark: 0 hits.
+  - NOT REACHED — history's locked states (a locked card, the locked intro, «Ver premium», the
+    PREMIUM_ONLY page of a past plan): they need a finished fortnight on a free account, which no
+    route makes before its days pass. Restyled in code only.
+- **`apple-web-design` REVIEW** (onboarding, plan history, the workspace and a client's page; from
+  the code and the captures):
+  - Overall: **PASS** — one dominant title and one primary action per view, the gradient pill only
+    on the action, every control native and labelled, contrast held by the gate's pairs.
+  - P0: none. P1: none.
+  - P2 — card in card, considered and kept: onboarding's option cards sit inside a question card,
+    and the swap panel sits inside the plan's day card. Evidence: `OnboardingFlow` `Card as
+    fieldset` around `OptionCards`; `MealRow .swap` inside `PlanBrowser`'s card. The cards are the
+    approved sheets' grouped lists (the check-in sheet draws its segmented questions inside one
+    card); the option cards are controls with an edge, not surfaces (the 3:1 edge rule), and the
+    swap panel is the sunken ground, not a raised card. Recommendation taken where cheap: the
+    about-you questions share one card; the sole field of «Cocinar» has a card of its own so every
+    step reads alike — a candidate to flatten if the owner finds onboarding boxy.
+  - P2 — onboarding step 6 is long (16 allergens with «trazas», then three more groups):
+    unchanged content; grouping it into four cards is the most this phase could do.
+  - P3 — the disabled «Atrás» on step 1 keeps its full half-width; «Y 1 invitaciones…» is a
+    dictionary plural older than this phase; the seats ring at 1 of 30 is nearly empty by nature.
+  - What works: the segmented progress (the step reached grows in), the step moving with its title,
+    the review's targets on the highlight tile, the patients as tagged cards with the waiting ones
+    on ink, the two-column workspace on desktop.
+  - The owner's exceptions named here: generous motion (the step's axis, the bars and rings), the
+    wide gradient (progress segments, primary pills, fortnight bars), the large radii (cards, pills).
+- **Deviations from the brief / plan**:
+  - **The row's «Cambiar plato» sits on a line of its own under the dish**, at the row's end,
+    rather than inline beside the kcal as the sheet draws it: the dish is a link (picture, name,
+    figures) and a button cannot sit inside it, and the panel needs the row's whole width at 320.
+  - **No sheet was drawn** (PLAN's phase 6 step 1): as the lead's brief said, the approved
+    language was carried over and the owner approves from the captures in `for-lead-6/shots/`.
+  - **The dish page changed in three small ways**, because the rows use its control: focus moves
+    into the panel on open, Escape closes it, and the swap is not offered offline (it was drawn
+    and failed with the network message). The brief named "offline" among the dish page's checks;
+    the code did not have it, so both places now do.
+  - **Two states could not be reached**: `/consentimiento`'s interstitial needs an account that
+    finished onboarding before the consent existed (withdrawing consent from Perfil reopens
+    onboarding instead, and every onboarding step now refuses without it), so no capture of it
+    exists; and the agreement gate (state B of `/consulta`) needs a professional granted but not
+    accepted, which `account.mjs link` does in one go — not built by hand. Both were restyled in
+    code only (the interstitial's card and button; the agreement's chevron token and its column).
+  - **The invitation token** came from `account.mjs link`'s own invite step stopped before the
+    accept (`CareController.invite`, probe accounts, local database), because mail is off and the
+    token is in no log. The practice-full alert was shown by stubbing the API's 409 in the browser.
+  - The motion of the onboarding progress shows only the reached segment growing; the ones behind
+    are simply filled (no replay of the whole bar on every step).
+- **Notes for the next phase**:
+  - `/consulta` reads the roster under a 10-a-minute limit; a probe sweep faster than that shows a
+    workspace with no patients and reports it clean. Pace it, as above.
+  - The 200 % sweep's full-page shots show content mid-entrance where the page was scrolled just
+    before the capture (the `InView` entrances); not a defect, but wait ~600 ms after scrolling
+    before a capture meant for a person.
+  - `account.mjs` would earn `--no-onboarding` (a fresh account) and an `invite` action printing
+    the token; this run used scratch copies of those two steps.
+- **Inventory, line by line** — `inventory/app.md`, each row → where it is now:
+  - `/onboarding` 1 redirect to the resume step → unchanged (a reload through `/onboarding` on the
+    browser walk landed on the step left, step 4; a withdrawn-consent account lands on step 2).
+  - `/onboarding/[paso]` 1 «Paso N de 9» and «N %» → unchanged, over the bar · 2 progress bar
+    (`role="progressbar"`, 1–9, now = step, labelled) → same element, name and values, drawn as nine
+    segments (behind filled, current growing in by transform, ahead on the track) · 3 step `h1` and
+    subtitle → heavy display face, moving with the step · 4 form error banner (`role="alert"`) →
+    `Note` error, `role="alert"`, same four sources of words · 5 «Atrás» (disabled on step 1 unless
+    editing; «Cancelar» when editing) → unchanged, equal-width pill beside the primary · 6 primary
+    «Continuar» / «Terminar» / «Guardar» / «Guardando…» → unchanged, gradient pill · 7 «Omitir este
+    paso» (step 8, not editing) → unchanged, under the pair · 8 save note → unchanged, under the
+    actions · 9 step transition → the title, subtitle and form move together, `.motion-forward` /
+    `.motion-back` by direction of travel.
+  - Step 1: 10 display name → in the step's card · 11 country cards + hint → same card · 12 birth
+    date + under-18 error → same card · 13 sex cards + hint → same card · 14 consent fieldset (title,
+    body, AI paragraph, checkbox pre-ticked when current, note with the privacy link, the blocking
+    message) → its own card, every word of `profileConsent.*` untouched.
+  - Step 2: 15 goal cards → card · 16 target weight, 17 pace + hint + local range error → one card,
+    two columns from 34rem.
+  - Step 3: 18 height, 19 weight → one card · 20 activity cards → card.
+  - Step 4: 21 legend + hint, 22 six slots × four sizes → one card.
+  - Step 5: 23 liked, 24 disliked → one card · 25 cuisine chips (data labels) → card.
+  - Step 6: 26 allergies with «trazas» and its per-allergen name → card, rows on hairlines, «trazas»
+    44 px tall on touch · 27 intolerance chips → card · 28 other allergies field + hint → card · 29
+    enforced / best-effort status per custom allergen (inline `Note`) → unchanged, in that card · 30
+    dietary pattern chips + halal/kosher hint → card.
+  - Step 7: 31 cooking minutes + hint → card.
+  - Step 8: 32 legend → card title · 33 intro and preference hints · 34 live count · 35 ten
+    appliance rows with Tengo / No tengo / Prefiero, `aria-disabled` rules · 36 hob note →
+    unchanged inside the card.
+  - Step 9: 37 summary rows → one card · 38 targets box («Tus objetivos diarios (estimados)» and the
+    line) → the highlight fill (`--color-highlight-fill` / `--color-on-highlight-fill`), the line in
+    the display face · 39 basis text → same box · 40 clamp notice → same box · 41 «Terminar» →
+    `POST /onboarding/complete`, then `/inicio` (walked).
+  - `/plan/historial` 1 empty card «Tus planes» + «Tu plan» → unchanged (`EmptyState`) · 2 heading
+    and intro (normal / locked variant) → heavy title, arrives · 3 plan cards (link to `/plan` or
+    `/plan/historial/<id>`, range, «Plan N», chip Actual / Sustituido / Terminado) → same links and
+    accessible names; dates in the display face, «Plan N» in small accent capitals, the chip on ink
+    for the plan being lived, the list staggered, two columns from a tablet, a card presses in · 4
+    locked card (not a link), range, «Plan N», «Premium» chip → sunken ground · 5 «Ver premium» →
+    unchanged (4, 5 and the locked intro **not reached**: no route ends a fortnight early).
+  - `/plan/historial/[id]` 1 locked card · 2 «Ver premium» / «Tu plan» → unchanged
+    (`EmptyState`; **not reached**) · 3 PlanBrowser in history mode → phase 4's rows (pictures or the designed
+    state), static ticks, no redo, no events, **no «Cambiar plato»**.
+  - `/plan/proximo` 1 PlanBrowser upcoming → unchanged, no ticks, **no «Cambiar plato»**.
+  - `/consentimiento` 1 heading → heavy display · 2 error (`role="alert"`, the note's words or the
+    API's) → unchanged · 3 body, 4 AI paragraph, 5 required checkbox, 6 note with the privacy link →
+    one card, words untouched · 7 «Continuar» / «Guardando…» → unchanged, full width on a phone.
+  - `/invitacion/[token]` 1 title → heavy display · 2 intro (name, collegiate number) → unchanged ·
+    3 «Si aceptas, X verá:» + list, 4 «Y podrá:» + list, 5 not-shared and trail sentences → one
+    sunken group, lists as rows on hairlines · 6 health checkbox + optional note → its own sunken
+    group · 7 the health list when ticked → drops in under it · 8 privacy sentence + link → unchanged ·
+    9 error alert → unchanged · 10 «Aceptar la invitación» · 11 «No, gracias» → same buttons,
+    equal width, stacking when they do not fit · 12 link-exists card (focusable `h1`, body, «Ver mi
+    perfil») → unchanged, heavy title (not reached: needs an account already linked that opens a
+    second invitation).
+  - `/consulta` 1 state A (second factor) → unchanged card (reached: `proA`) · 2–9 state B, the
+    agreement (heading, intro with the controller's identity, sections, collapsible terms, checkbox,
+    version, error, «Aceptar y abrir mi consulta») → unchanged; the chevron turns on motion tokens
+    (**not reached**, see below) · 10 «Consulta» → heavy, arrives · 11 intro → unchanged · 12–22 plan
+    card → unchanged words; the seats sentence has a decorative ring beside it (tone 1, active of
+    included), the figure in the heavy display face · 23 «Pacientes» → heavy region title · 24 empty
+    roster text → unchanged · 25 patient card (name, stage tag, «Comparte su salud», «Paciente desde»)
+    → cards, two to a row once there is room, stage on ink for the two that wait on the professional,
+    paused on the warning ground · 26 active = link, paused = not a link + hint → unchanged, the link
+    card presses in · 27–29 invite form → unchanged; with the address focused on a phone the bar's
+    room is released · 30 sent confirmation (`role="status"`) → success `Note`, same words, drops in ·
+    31 practice-full alert with «Pasar a un plan mayor» → unchanged words, drops in (shown with the
+    API's answer stubbed in the browser: see Evidence) · 32 generic failure → unchanged · 33 pending
+    invitations → one card, rows on hairlines · 34 agreement footnote → unchanged.
+  - `/consulta/[linkId]` 1 «← Pacientes» → unchanged · 2 client name `h1` → heavy · 3 since, 4
+    health chip → unchanged, chip on sunken · 5–10 the plan to review (heading focus target, range,
+    intro, collapsible days with «Cambiar plato» per meal, publish, regenerate) → unchanged, spans both
+    columns from 64rem (reached: the client's review switch is on by default, so the
+    professional's generation waited for review) · 11–16
+    current plan card, «Nueva quincena» with its reason, progress and done/failure lines → unchanged ·
+    17 plans history rows → unchanged · 18 «Quincenas y check-ins» · 19 overall line → the sentence
+    with a decorative ring beside it (as Progreso) · 20 fortnight items → range in the display face,
+    percent heavy, the bar grows in by transform on the bright gradient (was `inline-size`) · 21
+    check-in answers → tags · 22 suggested-kcal `Note` → unchanged · 23 none → unchanged · 24 «Peso» ·
+    25 latest figure → counts up (`CountUp`) · 26 chart → unchanged · 27 no weight → unchanged · 28–33
+    targets card, figures, «Cambiar objetivos», edit form with bounds, save / cancel / reset, errors →
+    unchanged; typing a figure on a phone releases the bar's room · 34 review switch → unchanged · 35
+    health card → definition list as a grouped list on hairlines · 36–38 end-link card, inline
+    confirmation, error → unchanged.
+  - **New (piece A, the owner's decision of 2026-11-12), `/plan` browser row 18 gains:** «Cambiar
+    plato» with its count («5 de 5»), `aria-describedby` naming the dish, on each row of the plan
+    being lived whose meal is still planned, the plan not paused, the allowance read and the device
+    online (`lib/mealSwap.swapOffered`, the same function the dish page now asks); its panel (the
+    dish page's: «¿Qué buscas en el nuevo plato?», the five choices with their hints, «Cambiar» /
+    «Buscando otro plato…», «Cancelar», the count line, the no-fit and quota answers), one open at a
+    time, focus into it, Escape and Cancel back to the row's button. Not on Inicio's rows, not in
+    history, not on the next plan.
+- **Piece C — the assistant's warning (from `legal`'s read of phase 5 against
+  `docs/legal/2026-11-11-redesign.md` § 6.5)**:
+  - D1: «Aviso completo» is `--target-min` tall at every pointer, not only on touch. Measured with
+    the assistant switched on locally (and back off after): 125×44 at 320, 390 and 1280 with a
+    mouse and on touch; at 200 % text 189×94 (320), 234×94 (390), 250×55 (1280); nothing past the
+    screen in any of the ten.
+  - D2: `lib/assistantWarning` holds the three states and the rule that an emptied conversation
+    forgets the warning was opened; `AssistantChat` applies it while rendering when the number of
+    messages changes (the "adjust state when a value changes" pattern, no effect). Nothing stored.
+  - D3: `components/AssistantChat/AssistantChat.test.tsx`, es-ES and en-GB, 10 tests: the line
+    under the box begins with `composerNotice` with no message and with one; with one the warning
+    is folded behind `aria-expanded="false"` and the full text `hidden`; pressed, it is drawn with
+    `aria-expanded="true"` and every word; no `localStorage`/`sessionStorage` write or read while
+    the chat is drawn in both states and the button is pressed twice; deleted to none and sent
+    again, it is FULL then FOLDED, never EXPANDED. `vitest run src/components/AssistantChat
+    src/components/AssistantWarning src/lib/mealSwap.test.ts`: 3 files, 29 tests passed.
+  - **PARTLY**: `apps/web` has no DOM library (its rule: render to a string in Node), so the
+    press is tested through the page's own state rule and the warning's markup for that state,
+    not by clicking the rendered chat; and the reset is tested on `warningOpenedAfter`, not by
+    deleting messages in a rendered chat. A real click test needs `jsdom` (or happy-dom) in
+    `apps/web`'s devDependencies — a lockfile change for the lead.
+- **Waiting on the owner**: approval of the captures (PRD 12), then on his iPhone: onboarding
+  with the keyboard open (the form should end right above it, Atrás / Continuar reachable), a
+  step change moving the right way, each question's title sitting inside its card (Safari, a
+  floated legend in a grid fieldset), «Cambiar plato» on a plan row (the panel, the count, a swap,
+  and opening a second row's panel without the page jumping), the workspace and a client's page if
+  he has a professional account, and «Aviso completo».

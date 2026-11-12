@@ -1,0 +1,22 @@
+# /onboarding/3 · fresh · en-GB · phone · 200
+button "Back"
+button "Continue"
+button "English" [pressed]: EN
+button "Español": ES
+button "Sign out"
+button "Theme"
+heading "Body and activity" [level=#]
+link "Home"
+link "NutrIA — home"
+link "Plan"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"
+radio "Athlete Two sessions a day, or competing."
+radio "High I train #–# times, or my work is physical."
+radio "Light I walk daily or train once or twice."
+radio "Moderate I train #–# times a week."
+radio "Sedentary Desk job, little exercise."
+spinbutton "Current weight (kg)"
+spinbutton "Height (cm)"

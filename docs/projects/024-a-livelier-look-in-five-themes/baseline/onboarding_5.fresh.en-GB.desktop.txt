@@ -1,0 +1,27 @@
+# /onboarding/5 · fresh · en-GB · desktop · 200
+button "Back"
+button "Continue"
+button "English" [pressed]: EN
+button "Español": ES
+button "Sign out"
+button "Theme"
+checkbox "Árabe"
+checkbox "Española"
+checkbox "Griega"
+checkbox "India"
+checkbox "Italiana"
+checkbox "Japonesa"
+checkbox "Mediterránea"
+checkbox "Mexicana"
+checkbox "Peruana"
+checkbox "Tailandesa"
+heading "Preferences" [level=#]
+link "Home"
+link "NutrIA — home"
+link "Plan"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"
+textbox "Foods you don’t want to see"
+textbox "Foods you like"

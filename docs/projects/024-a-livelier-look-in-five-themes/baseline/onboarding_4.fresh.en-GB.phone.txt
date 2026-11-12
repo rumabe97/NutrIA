@@ -1,0 +1,21 @@
+# /onboarding/4 · fresh · en-GB · phone · 200
+button "Back"
+button "Continue"
+button "English" [pressed]: EN
+button "Español": ES
+button "Sign out"
+button "Theme"
+heading "How you eat" [level=#]
+link "Home"
+link "NutrIA — home"
+link "Plan"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"
+radio "I skip it"
+radio "I skip it" [checked]
+radio "Large"
+radio "Light"
+radio "Normal"
+radio "Normal" [checked]

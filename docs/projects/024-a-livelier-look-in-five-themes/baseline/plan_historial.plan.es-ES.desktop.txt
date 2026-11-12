@@ -2,9 +2,10 @@
 button "Cerrar sesión"
 button "English": EN
 button "Español" [pressed]: ES
+button "Tema"
 heading "Tus planes" [level=#]
 link "# días · del # nov al # nov Plan # Actual"
-link "Asistente"
+link "# días · del # nov al # nov Plan # Sustituido"
 link "Compra"
 link "Inicio"
 link "NutrIA — inicio"

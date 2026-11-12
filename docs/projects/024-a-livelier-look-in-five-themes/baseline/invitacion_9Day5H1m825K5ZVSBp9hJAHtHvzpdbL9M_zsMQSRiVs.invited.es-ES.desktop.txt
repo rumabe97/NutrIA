@@ -1,0 +1,17 @@
+# /invitacion/9Day5H1m825K5ZVSBp9hJAHtHvzpdbL9M_zsMQSRiVs · invited · es-ES · desktop · 200
+button "Aceptar la invitación"
+button "Cerrar sesión"
+button "English": EN
+button "Español" [pressed]: ES
+button "No, gracias"
+button "Tema"
+checkbox "Compartir también mis condiciones de salud, mi medicación y mis suplementos"
+heading "Invitación de Probe" [level=#]
+link "Compra"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "política de privacidad"
+link "Progreso"
+link "Saltar al contenido"

@@ -1,0 +1,21 @@
+# /consulta · pro · en-GB · desktop · 200
+button "English" [pressed]: EN
+button "Español": ES
+button "Send the invitation"
+button "Sign out"
+button "Theme"
+heading "Clients" [level=#]
+heading "Invite a client" [level=#]
+heading "Practice" [level=#]
+heading "Unanswered invitations" [level=#]
+heading "Your plan" [level=#]
+link "Home"
+link "NutrIA — home"
+link "Plan"
+link "Practice"
+link "Probe Plan to review Shares their health Client since # November #"
+link "Profile"
+link "Progress"
+link "Shopping"
+link "Skip to content"
+textbox "Your client’s email"

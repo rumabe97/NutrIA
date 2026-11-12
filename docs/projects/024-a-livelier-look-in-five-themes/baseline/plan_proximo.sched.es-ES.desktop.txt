@@ -1,0 +1,26 @@
+# /plan/proximo · sched · es-ES · desktop · 200
+button "# dom # nov"
+button "# jue # nov"
+button "# lun # nov"
+button "# mar # nov"
+button "# mié # nov"
+button "# sáb # nov"
+button "# vie # nov"
+button "Cerrar sesión"
+button "English": EN
+button "Español" [pressed]: ES
+button "Semana #"
+button "Semana #" [pressed]
+button "Tema"
+heading "Tu próximo plan" [level=#]
+link "← Tu plan actual"
+link "Cena Curry rojo tailandés de pollo con arroz jazmín # kcal · # g P"
+link "Comida Bowl mexicano de quinoa, alubias negras y maíz con queso # kcal · # g P"
+link "Compra"
+link "Desayuno Tortitas de avena y requesón con manzana y canela # kcal · # g P"
+link "Inicio"
+link "NutrIA — inicio"
+link "Perfil"
+link "Plan"
+link "Progreso"
+link "Saltar al contenido"
