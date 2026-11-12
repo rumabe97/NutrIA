@@ -1,0 +1,39 @@
+.figure {
+  display: grid;
+  gap: var(--space-03);
+  margin: 0;
+  min-inline-size: 0;
+}
+
+/*
+ * The sheet's composition without its overlap: the first tile large, the others beside it.
+ * Tiles never cover each other, so every «IA» mark stays whole at every width
+ * (`docs/legal/2026-11-11-redesign.md` § 2.8 N2).
+ */
+.tiles {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.figure[data-count='2'] .tiles,
+.figure[data-count='3'] .tiles {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Three: the first spans the row, the two others share the one under it. */
+.figure[data-count='3'] .tile:first-child {
+  grid-column: 1 / -1;
+}
+
+.tile {
+  min-inline-size: 0;
+}
+
+/* The page's small text, at full contrast (§ 2.4: ≥ 4.5:1, not smaller than the small text). */
+.caption {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  line-height: var(--line-height-04);
+  text-wrap: pretty;
+}

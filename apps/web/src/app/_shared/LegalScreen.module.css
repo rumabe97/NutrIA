@@ -1,8 +1,13 @@
+/*
+ * A document set for reading (project 024 phase 7): one column at a reading measure, the
+ * headings in the display face, the text a step larger than a screen's and loosely set. Not a
+ * word of it changes here — only how it sits.
+ */
 .main {
   margin-inline: auto;
   max-width: var(--content-max);
-  padding-block: var(--section-gap);
-  padding-inline: var(--space-05);
+  padding-block: clamp(2.5rem, 1rem + 5vw, 5rem) var(--section-gap);
+  padding-inline: var(--gutter-page);
 }
 
 .article {
@@ -10,25 +15,71 @@
   max-width: var(--prose-max);
 }
 
-.updated {
-  margin-top: var(--space-02);
+/* `h1.` and `h2.` so the page's weight wins over `Heading`'s own, whatever order the sheets land in. */
+h1.title {
+  font-size: var(--font-size-display);
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--tracking-display);
+  line-height: 1.05;
+  overflow-wrap: break-word;
+  text-wrap: balance;
 }
 
-.paragraph {
+h2.heading {
+  font-size: var(--font-size-07);
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  overflow-wrap: break-word;
+}
+
+.updated {
+  margin-top: var(--space-03);
+}
+
+/* `p.` so the reading size wins over `Text`'s own. */
+p.paragraph {
+  font-size: var(--font-size-04);
+  line-height: var(--line-height-05);
   margin-top: var(--space-04);
+  overflow-wrap: break-word;
+  text-wrap: pretty;
 }
 
 .section {
-  margin-top: var(--space-08);
+  border-top: 1px solid var(--border-01);
+  margin-top: var(--space-09);
+  padding-top: var(--space-07);
+  /* An anchor (`#ia`, `#datos`…) lands with its heading clear of the sticky header. */
+  scroll-margin-block-start: var(--space-11);
 }
 
 .list {
   display: grid;
   gap: var(--space-03);
+  /* Not the implicit `auto` track, which a long address would size past the screen. */
+  grid-template-columns: minmax(0, 1fr);
   margin: var(--space-04) 0 0;
   padding-inline-start: var(--space-05);
 }
 
 .list li {
+  overflow-wrap: break-word;
   padding-inline-start: var(--space-02);
+}
+
+.list li > span {
+  font-size: var(--font-size-04);
+  line-height: var(--line-height-05);
+}
+
+.list li::marker {
+  color: var(--color-brand-11);
+}
+
+/* Large text for this screen: the title a step down, so «privacidad» stays whole at 320px. */
+@media (width < 17rem) {
+  h1.title {
+    font-size: var(--font-size-08);
+  }
 }

@@ -6,74 +6,7 @@
  * `--app-rail-*`), never a number here that another stylesheet repeats.
  */
 
-/* ── The hatched pattern ─────────────────────────────────────────────── */
-
-/*
- * Short slanted dashes in the bright accent, behind the header region, fading
- * out downwards. The box is still — it scrolls away with the page and holds the
- * fade — while the dashes inside it drift slowly by themselves and, where the
- * browser can tie an animation to the scroll, trail the page at a slower pace.
- * Only `transform` and `translate` move, on a layer of its own: no layout, no
- * paint of anything else. The drift is the owner's exception to the design skill
- * (PRD 024 criterion 9); reduced motion stills it (`ui/styles/base`), and
- * `--pattern-opacity` is 0 in Alto contraste and under forced colours.
- */
-.pattern {
-  block-size: 14rem;
-  inset-block-start: 0;
-  inset-inline: 0;
-  /* A mask reads only alpha: any opaque token draws it. */
-  mask-image: linear-gradient(to bottom, var(--foreground-01), transparent 85%);
-  opacity: var(--pattern-opacity);
-  overflow: hidden;
-  pointer-events: none;
-  position: absolute;
-  z-index: -1;
-}
-
-/*
- * One tile, one dash. The layer runs past its box upwards only — by the drift's
- * travel and the scroll's — so it never runs past the screen's sides, and both
- * movements are downwards, along the dashes' own column: the drift moves by whole
- * tiles, so its loop has no seam.
- */
-.hatch {
-  --hatch-tile-inline: 22px;
-  --hatch-tile-block: 16px;
-  --hatch-follow: 6rem;
-
-  animation: hatch-drift var(--duration-drift) var(--ease-drift) infinite;
-  background-image: linear-gradient(120deg, transparent 45%, var(--color-accent-mid) 45% 55%, transparent 55%);
-  background-size: var(--hatch-tile-inline) var(--hatch-tile-block);
-  inset: calc(-4 * var(--hatch-tile-block) - var(--hatch-follow)) 0 0;
-  position: absolute;
-  will-change: transform;
-}
-
-@keyframes hatch-drift {
-  to {
-    transform: translateY(calc(4 * var(--hatch-tile-block)));
-  }
-}
-
-/* Trails the scroll: `translate` beside the drift's `transform`, so the two compose. */
-@supports (animation-timeline: scroll()) {
-  .hatch {
-    animation:
-      hatch-drift var(--duration-drift) var(--ease-drift) infinite,
-      hatch-follow auto linear both;
-    animation-range:
-      normal,
-      0 14rem;
-    animation-timeline: auto, scroll(root);
-  }
-}
-
-@keyframes hatch-follow {
-  to {
-    translate: 0 var(--hatch-follow);
-  }
-}
+/* The hatched pattern behind the header is `components/HeaderPattern`, shared with the public pages. */
 
 /* ── The header ──────────────────────────────────────────────────────── */
 

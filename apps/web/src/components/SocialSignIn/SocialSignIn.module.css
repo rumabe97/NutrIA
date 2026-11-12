@@ -20,7 +20,7 @@
 
 .error {
   background-color: var(--color-error-surface);
-  border-radius: var(--radius-control);
+  border-radius: 0;
   color: var(--color-error-text);
   font-size: var(--font-size-03);
   margin: 0;

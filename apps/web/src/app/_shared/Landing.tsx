@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, useId } from 'react';
 
 import styles from './Landing.module.css';
 
@@ -10,9 +10,14 @@ import { withLocale } from 'i18n/routes';
 
 import { Card } from 'components/Card';
 import { CtaLink } from 'components/CtaLink';
+import { DishPicture } from 'components/DishPicture';
+import { LandingPictures } from 'components/LandingPictures';
 import { Reveal } from 'components/Reveal';
 import { SiteFooter } from 'components/SiteFooter';
 import { SiteHeader } from 'components/SiteHeader';
+
+import { LANDING_PICTURES } from 'lib/landingPictures';
+import { titleAccent } from 'lib/titleAccent';
 
 import { JsonLd } from './JsonLd';
 import { MAIN_ID } from './mainId';
@@ -20,7 +25,21 @@ import { MAIN_ID } from './mainId';
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { Locale } from 'i18n/config';
 
-/** The marketing page. Its language comes from the route it is mounted under, so it can be built once and served from the edge. */
+/**
+ * The slots of the preview's four meals, in order: data, not copy. They choose the designed
+ * state each row is drawn with (`lib/dishLook`) — the preview's dishes are examples and have
+ * no picture, so they are drawn the way most dishes in a real plan are.
+ */
+const PREVIEW_SLOTS = ['breakfast', 'lunch', 'afternoon_snack', 'dinner'] as const;
+
+/**
+ * The marketing page (project 024 phase 7, `reference/03-admin-and-landing.jpg`). Its language
+ * comes from the route it is mounted under, so it is built once and served from the edge.
+ *
+ * The hero is the sheet's: the copy at the start, the food beside it. The food is the dish
+ * pictures the owner chose (`lib/landingPictures`), or — until he has, and whenever none is
+ * listed — the illustrative plan, drawn the way the plan screen draws a day.
+ */
 export function Landing({ locale }: Readonly<{ locale: Locale }>) {
   const dictionary = dictionaryFor(locale);
   const t = dictionary.landing;
@@ -28,6 +47,51 @@ export function Landing({ locale }: Readonly<{ locale: Locale }>) {
   // unprefixed; these two are the page's main call to action, and a reader in
   // English should not be handed a Spanish form to fill in.
   const signUp = withLocale('/registro', locale);
+  const title = titleAccent(t.title, t.titleAccent);
+  const hasPictures = LANDING_PICTURES.length > 0;
+  const heroTitleId = useId();
+
+  // A static illustration of the product, deliberately: the plan screen's real structure and
+  // copy, not a stock dashboard. Visibly its own card, apart from any picture (§ 2.8 W3).
+  const preview = (
+    <div className={styles.preview}>
+      <div className={styles.previewHead}>
+        {/* Not a heading: an example day is no part of the page's outline. */}
+        <p className={styles.previewTitle}>{t.preview.dayOf}</p>
+        <Text size="sm" tone="secondary">
+          {t.preview.totals}
+        </Text>
+      </div>
+
+      <ul className={`${styles.previewMeals} motion-list`}>
+        {t.preview.meals.map((meal, index) => (
+          <li className={styles.mealRow} key={meal.slot}>
+            <span className={styles.mealLook}>
+              <DishPicture slot={PREVIEW_SLOTS[index]} variant="thumb" />
+            </span>
+            <span className={styles.mealWords}>
+              <span className={styles.mealSlot}>{meal.slot}</span>
+              <span className={styles.mealName}>{meal.name}</span>
+              <span className={styles.mealKcal}>{meal.kcal}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <dl className={styles.previewStats}>
+        {[
+          { label: t.preview.adherence, value: t.preview.adherenceValue },
+          { label: t.preview.nextReview, value: t.preview.nextReviewValue },
+          { label: t.preview.shopping, value: t.preview.shoppingValue }
+        ].map(stat => (
+          <div className={styles.previewStat} key={stat.label}>
+            <dt className={styles.previewStatLabel}>{stat.label}</dt>
+            <dd className={styles.previewStatValue}>{stat.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
 
   return (
     <Fragment>
@@ -35,10 +99,13 @@ export function Landing({ locale }: Readonly<{ locale: Locale }>) {
 
       <main className={styles.main} id={MAIN_ID}>
         {/* ── Hero ─────────────────────────────────────────────────────── */}
-        <section className={styles.hero}>
-          <Reveal>
-            <span className={styles.eyebrow}>{t.eyebrow}</span>
-            <h1 className={styles.display}>{t.title}</h1>
+        <section aria-labelledby={heroTitleId} className={styles.hero}>
+          <Reveal className={styles.heroCopy}>
+            <p className={styles.eyebrow}>{t.eyebrow}</p>
+            <h1 className={styles.display} id={heroTitleId}>
+              {title.lead}
+              {title.accent ? <span className={styles.accent}>{title.accent}</span> : null}
+            </h1>
             <Text className={styles.lede} tone="secondary">
               {t.lede}
             </Text>
@@ -52,55 +119,32 @@ export function Landing({ locale }: Readonly<{ locale: Locale }>) {
               </CtaLink>
             </div>
 
-            <Text className={styles.heroNote} size="sm" tone="tertiary">
+            <Text className={styles.heroNote} size="sm" tone="secondary">
               {t.heroNote}
             </Text>
           </Reveal>
 
-          {/* A static illustration of the product, deliberately: it is the plan
-              screen's real structure and copy, not a stock dashboard. */}
-          <Reveal className={styles.preview} delay={120}>
-            <div className={styles.previewBar}>
-              <Text size="sm" weight="medium">
-                {t.preview.dayOf}
-              </Text>
-              <Text size="sm" tone="tertiary">
-                {t.preview.totals}
-              </Text>
-            </div>
-
-            <div className={styles.previewBody}>
-              {t.preview.meals.map(meal => (
-                <div className={styles.mealRow} key={meal.slot}>
-                  <Text size="sm" tone="tertiary">
-                    {meal.slot}
-                  </Text>
-                  <Text size="sm">{meal.name}</Text>
-                  <Text size="sm" tone="tertiary">
-                    {meal.kcal}
-                  </Text>
-                </div>
-              ))}
-            </div>
-
-            <div className={styles.previewStats}>
-              {[
-                { label: t.preview.adherence, value: t.preview.adherenceValue },
-                { label: t.preview.nextReview, value: t.preview.nextReviewValue },
-                { label: t.preview.shopping, value: t.preview.shoppingValue }
-              ].map(stat => (
-                <div key={stat.label}>
-                  <Text size="lg" weight="semibold">
-                    {stat.value}
-                  </Text>
-                  <Text size="xs" tone="tertiary">
-                    {stat.label}
-                  </Text>
-                </div>
-              ))}
-            </div>
+          <Reveal className={styles.heroVisual} delay={120}>
+            {hasPictures ? <LandingPictures caption={t.heroPicturesNote} pictures={LANDING_PICTURES} /> : preview}
           </Reveal>
         </section>
+
+        {/* ── What a plan is, in three tiles ───────────────────────────── */}
+        <ul className={`${styles.highlights} motion-list`}>
+          {t.highlights.map(item => (
+            <li className={styles.highlight} key={item.title}>
+              <span className={styles.highlightTitle}>{item.title}</span>
+              <span className={styles.highlightBody}>{item.body}</span>
+            </li>
+          ))}
+        </ul>
+
+        {/* With pictures in the hero, the illustrative plan follows it on its own. */}
+        {hasPictures ? (
+          <div className={styles.previewAlone}>
+            <Reveal>{preview}</Reveal>
+          </div>
+        ) : null}
 
         {/* ── How it works ─────────────────────────────────────────────── */}
         <section className={styles.section} id="como-funciona">
@@ -200,14 +244,12 @@ export function Landing({ locale }: Readonly<{ locale: Locale }>) {
 
         {/* ── Final CTA ────────────────────────────────────────────────── */}
         <section className={styles.finalCta}>
-          <Reveal>
-            <h2 className={styles.headline} style={{ marginInline: 'auto' }}>
-              {t.finalCtaTitle}
-            </h2>
-            <Text className={styles.lede} tone="secondary">
+          <Reveal className={styles.finalCard}>
+            <h2 className={`${styles.headline} ${styles.finalTitle}`}>{t.finalCtaTitle}</h2>
+            <Text className={styles.finalLede} tone="secondary">
               {t.finalLede}
             </Text>
-            <div className={styles.heroActions}>
+            <div className={styles.finalActions}>
               <CtaLink href={signUp} size="lg">
                 {t.ctaPrimary}
               </CtaLink>
