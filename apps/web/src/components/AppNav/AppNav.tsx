@@ -64,6 +64,19 @@ export function AppNav({ assistant = false, professional = false }: AppNavProps)
 
   useMarkerSlide(navRef, current);
 
+  // Whether the page is at its top. The header's glass is there by default — before this runs,
+  // and with no script at all — and is lifted only once the page is known to be at its top.
+  const [atTop, setAtTop] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const onScroll = () => setAtTop(window.scrollY <= 4);
+
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   // A press that went nowhere (the same screen, a refused navigation) is forgotten after a while.
   useEffect(() => {
     if (!pressed) {
@@ -93,7 +106,7 @@ export function AppNav({ assistant = false, professional = false }: AppNavProps)
         <div className={styles.hatch} />
       </div>
 
-      <header className={styles.header}>
+      <header className={styles.header} data-at-top={atTop === null ? undefined : atTop}>
         <div className={styles.inner}>
           <Link aria-label={dictionary.appNav.brandHome} className={styles.brand} href="/inicio">
             <span aria-hidden="true" className={styles.mark} />

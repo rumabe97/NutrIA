@@ -84,11 +84,15 @@
 }
 
 /*
- * The header's glass, a layer of its own. At the top of the page there is none:
- * the pattern shows through, as the sheets draw it. Where the browser can tie an
- * animation to the scroll, the glass and its hairline fade in over the header's
- * own height, so content passing under it is never read through the words.
- * Anywhere else it is simply there.
+ * The header's glass, a layer of its own. At the top of the page there is none: the pattern
+ * shows through, as the sheets draw it. Anywhere else it is there, so content passing under
+ * the header is never read through its words.
+ *
+ * **The glass is the default and the top of the page is the exception**, told by script
+ * (`data-at-top`, `AppNav.tsx`). It was once the other way round, faded in by an animation
+ * tied to the scroll, and on the owner's iPhone that animation never ran: the header stayed
+ * clear and «Tus conversaciones» was read through «NutrIA» (project 024, after phase 3).
+ * A header that fails must fail readable.
  */
 .header::before {
   backdrop-filter: saturate(180%) blur(16px);
@@ -98,28 +102,12 @@
   inset: 0;
   pointer-events: none;
   position: absolute;
+  transition: opacity var(--duration-fast) var(--ease-default);
   z-index: -1;
 }
 
-/* A page too short to scroll has an inactive timeline, which applies no keyframe: the
-   resting value is the top of the page's, no glass, since nothing can pass under it. */
-@supports (animation-timeline: scroll()) {
-  .header::before {
-    opacity: 0;
-    animation: header-glass auto linear both;
-    animation-range: 0 var(--app-header-block);
-    animation-timeline: scroll(root);
-  }
-}
-
-@keyframes header-glass {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
+.header[data-at-top='true']::before {
+  opacity: 0;
 }
 
 /*
