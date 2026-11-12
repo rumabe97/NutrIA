@@ -1,10 +1,125 @@
+/*
+ * The signed-in app's shell (project 024 phase 3): a header, a floating bar
+ * below 48rem that becomes a rail at the side from there, and the hatched
+ * pattern behind the header. Every size the rest of the app keeps clear of is a
+ * token in `styles/variables.css` (`--app-header-block`, `--app-bar-*`,
+ * `--app-rail-*`), never a number here that another stylesheet repeats.
+ */
+
+/* ── The hatched pattern ─────────────────────────────────────────────── */
+
+/*
+ * Short slanted dashes in the bright accent, behind the header region, fading
+ * out downwards. The box is still — it scrolls away with the page and holds the
+ * fade — while the dashes inside it drift slowly by themselves and, where the
+ * browser can tie an animation to the scroll, trail the page at a slower pace.
+ * Only `transform` and `translate` move, on a layer of its own: no layout, no
+ * paint of anything else. The drift is the owner's exception to the design skill
+ * (PRD 024 criterion 9); reduced motion stills it (`ui/styles/base`), and
+ * `--pattern-opacity` is 0 in Alto contraste and under forced colours.
+ */
+.pattern {
+  block-size: 14rem;
+  inset-block-start: 0;
+  inset-inline: 0;
+  /* A mask reads only alpha: any opaque token draws it. */
+  mask-image: linear-gradient(to bottom, var(--foreground-01), transparent 85%);
+  opacity: var(--pattern-opacity);
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
+}
+
+/*
+ * One tile, one dash. The layer runs past its box upwards only — by the drift's
+ * travel and the scroll's — so it never runs past the screen's sides, and both
+ * movements are downwards, along the dashes' own column: the drift moves by whole
+ * tiles, so its loop has no seam.
+ */
+.hatch {
+  --hatch-tile-inline: 22px;
+  --hatch-tile-block: 16px;
+  --hatch-follow: 6rem;
+
+  animation: hatch-drift var(--duration-drift) var(--ease-drift) infinite;
+  background-image: linear-gradient(120deg, transparent 45%, var(--color-accent-mid) 45% 55%, transparent 55%);
+  background-size: var(--hatch-tile-inline) var(--hatch-tile-block);
+  inset: calc(-4 * var(--hatch-tile-block) - var(--hatch-follow)) 0 0;
+  position: absolute;
+  will-change: transform;
+}
+
+@keyframes hatch-drift {
+  to {
+    transform: translateY(calc(4 * var(--hatch-tile-block)));
+  }
+}
+
+/* Trails the scroll: `translate` beside the drift's `transform`, so the two compose. */
+@supports (animation-timeline: scroll()) {
+  .hatch {
+    animation:
+      hatch-drift var(--duration-drift) var(--ease-drift) infinite,
+      hatch-follow auto linear both;
+    animation-range:
+      normal,
+      0 14rem;
+    animation-timeline: auto, scroll(root);
+  }
+}
+
+@keyframes hatch-follow {
+  to {
+    translate: 0 var(--hatch-follow);
+  }
+}
+
+/* ── The header ──────────────────────────────────────────────────────── */
+
 .header {
-  border-bottom: 1px solid var(--border-01);
   position: sticky;
   top: 0;
   z-index: var(--z-dropdown);
+}
+
+/*
+ * The header's glass, a layer of its own. At the top of the page there is none:
+ * the pattern shows through, as the sheets draw it. Where the browser can tie an
+ * animation to the scroll, the glass and its hairline fade in over the header's
+ * own height, so content passing under it is never read through the words.
+ * Anywhere else it is simply there.
+ */
+.header::before {
   backdrop-filter: saturate(180%) blur(16px);
   background-color: var(--color-glass);
+  border-block-end: 1px solid var(--border-01);
+  content: '';
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
+}
+
+/* A page too short to scroll has an inactive timeline, which applies no keyframe: the
+   resting value is the top of the page's, no glass, since nothing can pass under it. */
+@supports (animation-timeline: scroll()) {
+  .header::before {
+    opacity: 0;
+    animation: header-glass auto linear both;
+    animation-range: 0 var(--app-header-block);
+    animation-timeline: scroll(root);
+  }
+}
+
+@keyframes header-glass {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 /*
@@ -22,10 +137,10 @@
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-06);
+  gap: var(--space-03);
   justify-content: space-between;
   row-gap: var(--space-02);
-  min-block-size: 3.5rem;
+  min-block-size: var(--app-header-block);
   margin-inline: auto;
   max-width: var(--content-max);
   padding-inline: var(--gutter-page);
@@ -35,49 +150,30 @@
   align-items: center;
   color: var(--foreground-01);
   display: inline-flex;
+  font-family: var(--display-font);
   gap: var(--space-02);
   font-size: var(--font-size-04);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heavy);
   letter-spacing: var(--tracking-title);
   text-decoration: none;
 }
 
 .mark {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
+  background-image: var(--gradient-brand-fill);
   background-color: var(--color-brand-fill);
   border-radius: var(--radius-01) var(--radius-full) var(--radius-full) var(--radius-full);
-}
-
-/* Desktop navigation. On small screens the same destinations live in the
-   bottom bar, where thumbs actually reach. */
-.desktopNav {
-  display: none;
-  gap: var(--space-05);
-}
-
-.navLink {
-  color: var(--foreground-02);
-  font-size: var(--font-size-03);
-  padding-block: var(--space-02);
-  text-decoration: none;
-  transition: color var(--duration-fast) var(--ease-default);
-}
-
-.navLink[aria-current='page'] {
-  color: var(--foreground-01);
-  font-weight: var(--font-weight-medium);
-}
-
-.navLink:hover {
-  color: var(--foreground-01);
 }
 
 /* The header's controls, kept together at the row's end: language, theme, sign-out. */
 .actions {
   align-items: center;
   display: flex;
+  /* At 200% text on a 320px phone the three no longer fit beside each other either. */
+  flex-wrap: wrap;
   gap: var(--space-03);
+  justify-content: flex-end;
 }
 
 /* A bare text button computes to the height of its own line — 21px — in a
@@ -103,6 +199,10 @@
   white-space: nowrap;
 }
 
+.signOut:hover {
+  color: var(--foreground-01);
+}
+
 /* The icon is for the narrow screen below; with room, the words say it. */
 .signOutIcon {
   block-size: 20px;
@@ -118,18 +218,15 @@
 }
 
 /*
- * Below 360px the row cannot hold the wordmark, the language switch, the theme
+ * Below 376px the row cannot hold the wordmark, the language switch, the theme
  * menu and "Cerrar sesión" at once (PRD 024 § "What changes from the sheets",
- * 5). The mark alone carries the brand there — the bottom bar names every
- * destination, so nothing needed for orientation is lost, and the link keeps
- * its aria-label — and sign-out becomes an icon whose name is still its words,
- * kept for screen readers and hidden from the eye.
+ * 5; measured at 368px on a phone, where the 44px floors apply, with the heading
+ * face's wordmark). The mark alone carries the brand there — the bar names the
+ * current destination and every link keeps its name, so nothing needed for
+ * orientation is lost, and the link keeps its aria-label — and sign-out becomes
+ * an icon whose name is still its words, kept for screen readers and hidden from the eye.
  */
-@media (width < 22.5rem) {
-  .inner {
-    gap: var(--space-04);
-  }
-
+@media (width < 23.5rem) {
   .actions {
     gap: var(--space-02);
   }
@@ -152,124 +249,117 @@
   }
 }
 
-.signOut:hover {
-  color: var(--foreground-01);
+/* Tabbing back never leaves focus under the sticky header: scrolling a control into
+   view stops the header's height (its row and hairline) and a gap short of the top.
+   Reset under the large-text query, where the header is not sticky. */
+html:has(.header) {
+  --app-header-clearance: calc(var(--app-header-block) + 1px + var(--space-03));
+
+  scroll-padding-block-start: var(--app-header-clearance);
 }
 
-/* ── Mobile bottom bar ────────────────────────────────────────────────── */
-.bottomBar {
-  background-color: var(--color-glass);
-  backdrop-filter: saturate(180%) blur(16px);
-  border-top: 1px solid var(--border-01);
-  bottom: 0;
-  display: grid;
-  grid-auto-flow: column;
-  inset-inline: 0;
-  padding-bottom: env(safe-area-inset-bottom);
-  position: fixed;
-  /* The delay is for coming back — see the `:has()` rule below. */
-  transition: visibility 0s linear 300ms;
-  z-index: var(--z-dropdown);
+/* …except for what is in the header itself, which is always on screen: Chrome counts a
+   control in a sticky header as hidden by that padding and scrolled a scrolled page up by
+   it — 368px at 390px wide — whenever language, theme or sign-out took focus, which is
+   also what opening and closing «Tema» did (its button takes focus back). The menu's own
+   rows, fixed to the screen, never moved the page: measured, arrows included. */
+.header * {
+  scroll-margin-block-start: calc(-1 * var(--app-header-clearance, 0px));
 }
 
-/*
- * iOS pins a fixed bar to the bottom of the *visual* viewport, so when the
- * keyboard opens the bar rides up with it and lands on whatever the person was
- * typing towards — on the onboarding it sat on top of "Atrás / Continuar".
- * While a field that opens a keyboard has focus, the bar steps aside. It
- * returns a beat after focus leaves, so a tap that blurred the field lands
- * where it was aimed and not on a bar that appeared under the finger.
- */
-body:has(
-    input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit'], [type='file']):focus,
-    select:focus,
-    textarea:focus
-  )
-  .bottomBar {
-  transition-delay: 0s;
-  visibility: hidden;
-}
+/* ── The destinations ────────────────────────────────────────────────── */
 
-.bottomLink {
+.link {
   align-items: center;
-  color: var(--foreground-03);
+  color: var(--foreground-02);
   display: flex;
-  flex-direction: column;
-  font-size: var(--font-size-01);
-  gap: var(--space-01);
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-medium);
+  isolation: isolate;
   justify-content: center;
-  /* 56px keeps every target above the 44px minimum for touch. */
-  min-height: 56px;
+  position: relative;
   text-decoration: none;
 }
 
+.link:hover {
+  color: var(--foreground-01);
+}
+
 /*
- * Where you are, said twice: the tint, and a heavier word and stroke. The tint
- * alone measured 1.5:1 against the resting grey — the same lightness in a
- * different hue — which is invisible in greyscale and to most colour blindness.
+ * Where you are, said three ways: the filled marker, the words beside the icon
+ * (the bar shows only the current one's), and a heavier stroke and weight.
  */
-.bottomLink[aria-current='page'] {
-  color: var(--color-brand-11);
+.link[aria-current='page'] {
+  color: var(--color-on-brand-fill);
   font-weight: var(--font-weight-semibold);
 }
 
-.bottomIcon {
+.icon {
   block-size: 20px;
+  flex: none;
   inline-size: 20px;
 }
 
-.bottomLink[aria-current='page'] .bottomIcon {
+.link[aria-current='page'] .icon {
   stroke-width: 2.2;
 }
 
-/* Tabbing back never leaves focus under the sticky header: scrolling a control into
-   view stops the header's height (its 3.5rem row and hairline) and a gap short of
-   the top. Reset under the large-text query, where the header is not sticky. */
-html:has(.header) {
-  scroll-padding-block-start: calc(3.5rem + 1px + var(--space-03));
+.label {
+  white-space: nowrap;
 }
 
-/*
- * Text this large for the screen (a rem query reads the reader's text size: at
- * 320px it starts at about 118%, at 390px at about 143%): the sign-out moves to a
- * line of its own rather than off the edge, and the header, now two lines tall,
- * scrolls away instead of sitting over whatever has focus. Each of the five tabs
- * is narrower than its own word, so the bar goes to icons, the way a tab bar does
- * at the largest text sizes: larger ones, the current one on a ringed disc, since
- * the heavier word is gone. The words stay as the links' names.
- */
-@media (width < 17rem) {
-  .header {
-    position: static;
-  }
+/* The filled marker behind the current destination. It slides from the last one by
+   `transform` (`useMarkerSlide`), from its top-left corner. */
+.marker {
+  background-color: var(--color-brand-fill);
+  background-image: var(--gradient-brand-fill);
+  border-radius: inherit;
+  inset: 0;
+  position: absolute;
+  transform-origin: 0 0;
+  z-index: -1;
+}
 
-  html:has(.header) {
-    scroll-padding-block-start: 0;
-  }
+/* ── Below 48rem: the floating bar ───────────────────────────────────── */
 
-  .inner {
-    flex-wrap: wrap;
-  }
-
-  .bottomIcon {
-    block-size: 28px;
-    inline-size: 28px;
-  }
-
-  .bottomLink[aria-current='page'] .bottomIcon {
-    background-color: var(--color-brand-03);
+@media (width < 48rem) {
+  /*
+   * A pill floating over the foot of the screen, as wide as its destinations
+   * and centred. Every one is a 44px target; the current one also shows its
+   * words. Glass, the one material the design skill allows on navigation.
+   */
+  .nav {
+    backdrop-filter: saturate(180%) blur(16px);
+    background-color: var(--color-glass);
+    border: 1px solid var(--border-01);
     border-radius: var(--radius-full);
-    /* The chosen week pill's recipe, tint and edge, so it reads in dark too. */
-    box-shadow:
-      0 0 0 6px var(--color-brand-03),
-      0 0 0 7px var(--color-brand-fill);
+    box-shadow: var(--shadow-m);
+    display: flex;
+    inline-size: max-content;
+    inset-block-end: var(--app-bar-offset);
+    inset-inline: 0;
+    margin-inline: auto;
+    max-inline-size: 100%;
+    padding: calc(var(--app-bar-padding) - 1px);
+    position: fixed;
+    /* The delay is for coming back — see the `:has()` rule below. */
+    transition: visibility 0s linear 300ms;
+    z-index: var(--z-dropdown);
   }
 
-  .bottomBar {
-    grid-auto-columns: minmax(0, 1fr);
+  .link {
+    border-radius: var(--radius-full);
+    gap: var(--space-02);
+    min-block-size: var(--target-min);
+    min-inline-size: var(--target-min);
   }
 
-  .bottomLabel {
+  .link[aria-current='page'] {
+    padding-inline: var(--space-04);
+  }
+
+  /* On the bar the others are icons; their words stay their names. */
+  .link:not([aria-current='page']) .label {
     block-size: 1px;
     clip-path: inset(50%);
     inline-size: 1px;
@@ -277,22 +367,159 @@ html:has(.header) {
     position: absolute;
     white-space: nowrap;
   }
-}
 
-/* Tabbing forward never leaves focus under the fixed bar: scrolling a control into
-   view stops the bar's height (56px links) and a gap short of the bottom. */
-@media (width < 48rem) {
-  html:has(.bottomBar) {
-    scroll-padding-block-end: calc(56px + env(safe-area-inset-bottom) + var(--space-03));
+  /*
+   * iOS pins a fixed bar to the bottom of the *visual* viewport, so when the
+   * keyboard opens the bar rides up with it and lands on whatever the person was
+   * typing towards — on the onboarding it sat on top of "Atrás / Continuar".
+   * While a field that opens a keyboard has focus, the bar steps aside. It
+   * returns a beat after focus leaves, so a tap that blurred the field lands
+   * where it was aimed and not on a bar that appeared under the finger.
+   */
+  body:has(
+      input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit'], [type='file']):focus,
+      select:focus,
+      textarea:focus
+    )
+    .nav {
+    transition-delay: 0s;
+    visibility: hidden;
+  }
+
+  /* Tabbing forward never leaves focus under the floating bar. */
+  html:has(.nav) {
+    scroll-padding-block-end: var(--app-bar-clearance);
   }
 }
+
+/*
+ * Too narrow for the current destination's words beside six others' icons
+ * (PRD 024 § "What changes from the sheets", 5): below 360px with six, below
+ * 400px with seven, the current one is its icon on the marker — the name stays.
+ * A rem query, so large text drops the words sooner, which is when they no longer fit.
+ */
+@media (width < 22.5rem) {
+  .link[aria-current='page'] .label {
+    block-size: 1px;
+    clip-path: inset(50%);
+    inline-size: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+  }
+
+  .link[aria-current='page'] {
+    padding-inline: 0;
+  }
+}
+
+@media (width < 25rem) {
+  .nav[data-count='7'] .link[aria-current='page'] .label {
+    block-size: 1px;
+    clip-path: inset(50%);
+    inline-size: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+  }
+
+  .nav[data-count='7'] .link[aria-current='page'] {
+    padding-inline: 0;
+  }
+
+  /* Seven 44px targets are 308px: on a 320px screen the pill keeps only a hair of its padding. */
+  .nav[data-count='7'] {
+    padding-inline: 1px;
+  }
+}
+
+/* ── From 48rem: the rail ────────────────────────────────────────────── */
 
 @media (width >= 48rem) {
-  .desktopNav {
+  /*
+   * The destinations at the side, each its icon over its words, as tall as the
+   * screen and fixed: the layout gives the page `--app-rail-offset` of room.
+   */
+  .nav {
+    align-items: stretch;
+    border-inline-end: 1px solid var(--border-01);
     display: flex;
+    flex-direction: column;
+    gap: var(--space-02);
+    inline-size: var(--app-rail-inline);
+    inset-block: 0;
+    inset-inline-start: 0;
+    /* Tall enough for seven on any screen; a short one scrolls the rail, never sideways. */
+    overflow: hidden auto;
+    padding: calc(var(--app-header-block) + var(--space-04)) var(--space-02) var(--space-04);
+    position: fixed;
+    z-index: var(--z-dropdown);
   }
 
-  .bottomBar {
-    display: none;
+  .link {
+    border-radius: var(--radius-control);
+    flex-direction: column;
+    gap: var(--space-01);
+    min-block-size: 3.75rem;
+    padding: var(--space-02) var(--space-01);
+    text-align: center;
+  }
+
+  .label {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+}
+
+/*
+ * Text this large for the screen (a rem query reads the reader's text size: at
+ * 320px it starts at about 118%, at 390px at about 143%): the sign-out moves to a
+ * line of its own rather than off the edge, and the header, now two lines tall,
+ * scrolls away instead of sitting over whatever has focus. The bar is icons only,
+ * larger ones, the current one on its marker. The words stay as the links' names.
+ */
+@media (width < 17rem) {
+  .header {
+    position: static;
+  }
+
+  html:has(.header) {
+    --app-header-clearance: 0px;
+
+    scroll-padding-block-start: 0;
+  }
+
+  .icon {
+    block-size: 24px;
+    inline-size: 24px;
+  }
+
+  .link[aria-current='page'] .label {
+    block-size: 1px;
+    clip-path: inset(50%);
+    inline-size: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+  }
+
+  .link[aria-current='page'] {
+    padding-inline: 0;
+  }
+}
+
+/* Forced colours erase the marker's fill: the current destination keeps a system highlight. */
+@media (forced-colors: active) {
+  .marker {
+    background: Highlight;
+  }
+
+  .link[aria-current='page'] {
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .nav {
+    border: 1px solid CanvasText;
   }
 }

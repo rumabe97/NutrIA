@@ -176,12 +176,12 @@
 
 /*
  * The box to write in: stuck to the foot of the screen, above the bottom bar on
- * a phone — and right above the keyboard once the field has focus, when the
+ * a phone (`--app-bar-clearance`) — and right above the keyboard once the field has focus, when the
  * bar steps aside (`AppNav.module.css`). No band of its own behind it: the page's
  * background is a gradient, and a flat strip read as a box drawn on top of it.
  */
 .composer {
-  bottom: calc(56px + env(safe-area-inset-bottom) + var(--space-02));
+  bottom: var(--app-bar-clearance);
   display: grid;
   gap: var(--space-02);
   margin-block-start: auto;

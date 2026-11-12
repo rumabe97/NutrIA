@@ -54,7 +54,7 @@ chrome for free:
 - `src/app/(es)/…` — the Spanish public tree: the landing, and the signed-out screens in a
   centred card with a brand mark and no nav.
 - `src/app/en/…` — the same pages in English, at `/en/…`.
-- `src/app/(app)/…` — signed-in screens. `AppNav` (desktop header + mobile bottom bar) and
+- `src/app/(app)/…` — signed-in screens. `AppNav` (header, floating bar below 48rem, rail from there) and
   the content shell.
 - `src/app/_shared/…` — the page bodies both public trees render, plus `metadata.ts` and
   `manifest.ts`. The leading underscore is what keeps the folder out of the router.
@@ -439,6 +439,49 @@ a test holds to `themes.css`.
 a heading on an element that is not one reads `var(--display-font)` itself.
 
 `src/styles/globals.css` is for app-specific styles only — the shared reset already lives in `ui/styles/base`.
+
+### The shell (project 024 phase 3)
+
+`components/AppNav` is the signed-in app's shell: a header (brand, language, theme, sign-out —
+nothing else), **one** `<nav>` ("Navegación principal") drawn as a floating pill below 48rem and as
+a rail at the side from 48rem, and the hatched pattern behind the header. The destinations, their
+order and their conditions are `AppNav/destinations.ts` (tested): five always, the assistant before
+Perfil while its switch is on, Consulta last for a professional, and offline only what
+`useOffline().available` opens.
+
+- **Never type the bar's or the header's size.** `styles/variables.css` holds `--app-header-block`,
+  `--app-bar-block`, `--app-bar-offset` (the gap above the screen's edge plus the safe-area inset)
+  and `--app-bar-clearance` — what the content keeps free at the foot so nothing is under the bar,
+  and **0 from 48rem**, so a reader needs no media query. The layout's bottom padding, the
+  assistant's box, its column's height and the scroll padding all read them. A new thing fixed or
+  sticky at the foot of a signed-in screen sits at `bottom: var(--app-bar-clearance)`.
+- **The bar**: every destination a 44×44 target; the current one carries `aria-current="page"`, a
+  filled marker and its words; the others are icons whose words stay their names (visually
+  hidden). The current one's words go below 22.5rem with six, below 25rem with seven, and under the
+  large-text query — seven targets are 308px, so at 320px the pill keeps a hair of padding. The
+  marker slides from the last destination by `transform` (`AppNav/useMarkerSlide`, FLIP on
+  `--duration-enter` / `--spring-gentle`, none under reduced motion), and a pressed destination is
+  marked at once, before its screen arrives. The keyboard rule is unchanged: the bar steps aside
+  while a field that opens a keyboard has focus and returns 300ms after.
+- **The rail**: fixed at the side, `--app-rail-inline` wide; the shell gives the page
+  `--app-rail-offset` of room. Each destination is its icon over its words.
+- **The pattern** replaces the ambient light and grain on the signed-in screens only
+  (`body:has([data-shell='app'])` in `globals.css`; the public pages and the console keep theirs).
+  It drifts by `transform` (`--duration-drift`, the owner's exception, PRD 024 criterion 9) and
+  trails the scroll by `translate` where scroll-driven animations exist; reduced motion stills it,
+  and `--pattern-opacity` is 0 in Alto contraste and under forced colours. The header's glass fades
+  in over the first `--app-header-block` of scroll, so the pattern shows through at the top.
+- **Scroll locks keep the header in place.** A Select, a Dialog or a Drawer locks the page with
+  `overflow: hidden` on `<body>` (`data-scroll-locked`). With `ui/styles/base`'s `overflow-x: clip`
+  on `<html>` that made `<body>` a scroll container and un-stuck the sticky header; `globals.css`
+  lifts the clip from `<html>` for as long as the lock lasts, so body's `hidden` goes to the
+  viewport and the header stays on screen.
+- **Focus in the header never scrolls the page.** The header's `scroll-padding-block-start`
+  keeps a focused field from hiding under it, and Chrome applied it to the header's own controls
+  too, moving a scrolled page up by the header's height whenever one took focus. `.header *`
+  carries a negative scroll margin that cancels it (`--app-header-clearance`). Anything new that
+  sits in the sticky header inherits it.
+- `(app)/not-found.tsx` is the signed-in tree's 404, inside the shell, in the dictionary's words.
 
 ### Rhythm
 

@@ -1,5 +1,5 @@
 'use client';
-import { Fragment } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -16,61 +16,64 @@ import { forgetOfflineCopies } from 'lib/offline';
 import { forgetPushOnThisDevice } from 'lib/push';
 import { signOut } from 'lib/auth-client';
 
-/**
- * Destinations, in the order the product loop uses them — plan, shop, eat, see
- * how it went. The same list drives the desktop header and the mobile bottom
- * bar, so the two can never disagree.
- */
-const DESTINATIONS = [
-  { href: '/inicio', icon: 'M3 10.5 12 3l9 7.5M5.5 9.5V20h13V9.5', label: 'home' },
-  { href: '/plan', icon: 'M7 4h10a1 1 0 0 1 1 1v15l-6-3-6 3V5a1 1 0 0 1 1-1Z', label: 'plan' },
-  { href: '/compra', icon: 'M4 6h2l2.2 9.4a1 1 0 0 0 1 .8h7.7a1 1 0 0 0 1-.8L20 9H7M9 20h.01M17 20h.01', label: 'shopping' },
-  { href: '/progreso', icon: 'M3 17l6-6 4 4 8-8M15 7h6v6', label: 'progress' },
-  { href: '/perfil', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4.5 20a7.5 7.5 0 0 1 15 0', label: 'profile' }
-] as const;
+import { currentHref, destinationsFor } from './destinations';
+import { useMarkerSlide } from './useMarkerSlide';
 
-/**
- * A professional's own workspace — appended after the client destinations,
- * never in `DESTINATIONS` itself, because it is the one entry the API's
- * `professional` flag decides on (`0059`, `0061`). Display only: `/consulta`
- * 404s server-side for anyone else, so a stale or spoofed flag draws a link
- * that leads nowhere rather than a hole.
- */
-const PRACTICE_DESTINATION = {
-  href: '/consulta',
-  icon: 'M4 8h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1ZM9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18',
-  label: 'consulta'
-} as const;
-
-/**
- * The assistant (project 023) — before the profile, only while its switch is
- * on. Display only, like the practice: `/asistente` 404s server-side while the
- * switch is off, so a stale flag draws a link that leads nowhere, never a hole.
- */
-const ASSISTANT_DESTINATION = {
-  href: '/asistente',
-  icon: 'M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-9l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1ZM8 10h8M8 13h5',
-  label: 'assistant'
-} as const;
+import type { MouseEvent } from 'react';
 
 interface AppNavProps {
-  /** The `assistant` switch (`GET /settings`), display only — see `ASSISTANT_DESTINATION`. */
+  /** The `assistant` switch (`GET /settings`), display only — see `destinations.ts`. */
   assistant?: boolean;
-  /** `UserView.professional` (`GET /users/me`), display only — see `PRACTICE_DESTINATION`. */
+  /** `UserView.professional` (`GET /users/me`), display only — see `destinations.ts`. */
   professional?: boolean;
 }
 
+/** A click that opens the link somewhere else and leaves this screen where it is. */
+function opensElsewhere(event: MouseEvent<HTMLAnchorElement>) {
+  return event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+}
+
+/**
+ * The signed-in app's shell: the header (brand, language, theme, sign-out), the
+ * navigation — a floating bar below 48rem, a rail from there — and the hatched
+ * pattern behind the header. The layout (`(app)/layout.module.css`) leaves the
+ * room the rail and the bar take, through the tokens in `styles/variables.css`.
+ */
 export function AppNav({ assistant = false, professional = false }: AppNavProps) {
   const dictionary = useDictionary();
   const pathname = usePathname();
   const router = useRouter();
-  const isCurrent = (href: string) => (pathname.startsWith(href) ? 'page' : undefined);
   const { available, offline } = useOffline();
+  const navRef = useRef<HTMLElement>(null);
+  // The destination just pressed, marked at once rather than when its screen arrives: the
+  // marker moves under the finger, and the bar's items settle in the moment of the tap
+  // instead of a second later, while somebody is already reading.
+  const [pressed, setPressed] = useState<{ from: string; href: string } | null>(null);
   // Offline, only what opens: the screens with a copy on this device, and nothing
   // that needs the server — switching language and signing out both do (`0053`).
-  const clientDestinations = assistant ? [...DESTINATIONS.slice(0, -1), ASSISTANT_DESTINATION, ...DESTINATIONS.slice(-1)] : DESTINATIONS;
-  const allDestinations = professional ? [...clientDestinations, PRACTICE_DESTINATION] : clientDestinations;
-  const destinations = allDestinations.filter(destination => available(destination.href));
+  const destinations = destinationsFor({ assistant, available, professional });
+
+  // The screen arrived — or any other did: from here the address says where we are. Forgotten
+  // during the render that sees the new address (React's "adjust state when a value changes"),
+  // so a press never comes back on a return to the screen it was made on.
+  if (pressed && pressed.from !== pathname) {
+    setPressed(null);
+  }
+
+  const current = pressed?.from === pathname ? pressed.href : currentHref(pathname, destinations);
+
+  useMarkerSlide(navRef, current);
+
+  // A press that went nowhere (the same screen, a refused navigation) is forgotten after a while.
+  useEffect(() => {
+    if (!pressed) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setPressed(null), 10_000);
+
+    return () => window.clearTimeout(timer);
+  }, [pressed]);
 
   async function handleSignOut() {
     // This browser stops being told about this account, while the session can still say so (`0054`).
@@ -84,20 +87,18 @@ export function AppNav({ assistant = false, professional = false }: AppNavProps)
 
   return (
     <Fragment>
+      {/* The hatched pattern behind the header — the owner's exception, PRD 024 criterion 9:
+          it drifts by itself. Still under reduced motion, absent in Alto contraste and forced colours. */}
+      <div aria-hidden="true" className={styles.pattern}>
+        <div className={styles.hatch} />
+      </div>
+
       <header className={styles.header}>
         <div className={styles.inner}>
           <Link aria-label={dictionary.appNav.brandHome} className={styles.brand} href="/inicio">
             <span aria-hidden="true" className={styles.mark} />
             <span className={styles.wordmark}>NutrIA</span>
           </Link>
-
-          <nav aria-label={dictionary.appNav.sectionsLabel} className={styles.desktopNav}>
-            {destinations.map(destination => (
-              <Link aria-current={isCurrent(destination.href)} className={styles.navLink} href={destination.href} key={destination.href}>
-                {dictionary.appNav[destination.label]}
-              </Link>
-            ))}
-          </nav>
 
           <div className={styles.actions}>
             {/* The theme only paints this device, so it works offline too. */}
@@ -117,15 +118,31 @@ export function AppNav({ assistant = false, professional = false }: AppNavProps)
         </div>
       </header>
 
-      <nav aria-label={dictionary.appNav.mainLabel} className={styles.bottomBar}>
-        {destinations.map(destination => (
-          <Link aria-current={isCurrent(destination.href)} className={styles.bottomLink} href={destination.href} key={destination.href}>
-            <svg aria-hidden="true" className={styles.bottomIcon} fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
-              <path d={destination.icon} strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span className={styles.bottomLabel}>{dictionary.appNav[destination.label]}</span>
-          </Link>
-        ))}
+      <nav aria-label={dictionary.appNav.mainLabel} className={styles.nav} data-count={destinations.length} ref={navRef}>
+        {destinations.map(destination => {
+          const isCurrent = destination.href === current;
+
+          return (
+            <Link
+              aria-current={isCurrent ? 'page' : undefined}
+              className={styles.link}
+              href={destination.href}
+              key={destination.href}
+              onClick={event => {
+                if (!opensElsewhere(event)) {
+                  setPressed({ from: pathname, href: destination.href });
+                }
+              }}
+            >
+              {isCurrent ? <span aria-hidden="true" className={styles.marker} data-nav-marker="" /> : null}
+              <svg aria-hidden="true" className={styles.icon} fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
+                <path d={destination.icon} strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {/* The words are the link's name at every width; on the bar only the current one shows them. */}
+              <span className={isCurrent ? `${styles.label} motion-fade` : styles.label}>{dictionary.appNav[destination.label]}</span>
+            </Link>
+          );
+        })}
       </nav>
     </Fragment>
   );

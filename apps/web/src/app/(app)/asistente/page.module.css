@@ -5,7 +5,7 @@
   gap: var(--gap-block);
   margin-inline: auto;
   max-inline-size: 46rem;
-  min-block-size: calc(100dvh - 3.5rem - var(--space-07) - var(--space-10));
+  min-block-size: calc(100dvh - var(--app-header-block) - var(--space-07) - var(--space-09) - var(--app-bar-clearance));
   min-inline-size: 0;
 }
 

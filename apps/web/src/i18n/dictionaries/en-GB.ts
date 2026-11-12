@@ -1205,7 +1205,6 @@ export const enGB: Dictionary = {
     plan: 'Plan',
     profile: 'Profile',
     progress: 'Progress',
-    sectionsLabel: 'Sections',
     shopping: 'Shopping',
     signOut: 'Sign out'
   },

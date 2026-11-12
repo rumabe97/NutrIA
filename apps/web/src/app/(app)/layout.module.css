@@ -1,7 +1,16 @@
+/*
+ * The signed-in shell: the header and the navigation (`components/AppNav`), then
+ * the page. Positioned and isolated so the header's pattern, drawn at the top of
+ * this box behind everything, never paints over a page or under the canvas.
+ * From 48rem the rail stands at the side and the page moves over by its width.
+ */
 .shell {
   display: flex;
   flex-direction: column;
+  isolation: isolate;
   min-height: 100dvh;
+  padding-inline-start: var(--app-rail-offset);
+  position: relative;
 }
 
 .content {
@@ -9,13 +18,8 @@
   margin-inline: auto;
   max-width: var(--content-max);
   padding: var(--space-07) var(--gutter-page);
-  /* Clears the fixed bottom bar on mobile; the bar is hidden above 48rem. */
-  padding-bottom: calc(var(--space-10) + env(safe-area-inset-bottom));
+  /* The last row stays above the floating bar on a phone (`--app-bar-clearance` is 0
+     from 48rem, where the bar is a rail). */
+  padding-bottom: calc(var(--space-09) + var(--app-bar-clearance));
   width: 100%;
-}
-
-@media (width >= 48rem) {
-  .content {
-    padding-bottom: var(--space-09);
-  }
 }

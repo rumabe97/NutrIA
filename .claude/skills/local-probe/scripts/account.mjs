@@ -293,6 +293,14 @@ if (action === 'link') {
   // owner session, so the professional is named as its own granter.
   await ProfessionalController.grant(pro.id, { collegiateNumber: 'PROBE-001' }, pro.id, UNAUDITED);
 
+  // The professional accepts the agreement at the current version, through the route a
+  // professional uses. Without it the practice reads as closed and every invitation is a
+  // 404 (`CareRepository.invite`: an agreement that is not `PROFESSIONAL_AGREEMENT_VERSION`
+  // closes the practice) — which is how `link` failed from project 024 phase 0 to phase 3.
+  const { PROFESSIONAL_AGREEMENT_VERSION } = await load('core/entities/Professional');
+
+  await call('POST', '/care/practice/agreement', { version: PROFESSIONAL_AGREEMENT_VERSION }, readFileSync(cookieFile, 'utf8'));
+
   const opened = await database().$client`
     update professionals set practice_open = true, included_clients = 30 where user_id = ${pro.id} returning user_id`;
 

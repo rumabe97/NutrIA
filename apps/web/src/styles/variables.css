@@ -91,5 +91,40 @@
   --radius-button: var(--radius-full);
 
   /* The card's shadow and the grain's strength are colours of a theme, so they live
-     in styles/themes.css (`--card-shadow`, `--grain-opacity`). */
+     in styles/themes.css (`--card-shadow`, `--grain-opacity`, and the header's hatched
+     pattern, `--pattern-opacity`: none in Alto contraste or under forced colours). */
+
+  /* ── The shell (project 024 phase 3) ────────────────────────────────────
+     The signed-in app's header, its floating bar below 48rem and its rail from
+     48rem (`components/AppNav`). Everything that has to keep clear of them reads
+     these — the page's last row, the assistant's box, scroll padding — and never
+     a number of its own: the bar's height used to be typed in three files.
+
+     The header's row: a minimum, the row wraps at large text. */
+  --app-header-block: 3.5rem;
+  /* The floating bar: a 44px target, the pill's padding round it, and the gap it
+     floats above the screen's bottom edge — plus the home indicator's inset where the
+     browser reports one. */
+  --app-bar-padding: var(--space-01);
+  --app-bar-block: calc(var(--target-min) + 2 * var(--app-bar-padding));
+  --app-bar-offset: calc(var(--space-03) + env(safe-area-inset-bottom));
+  /* What the content keeps free at the foot of the screen so nothing is ever under
+     the bar: the bar, the gap below it and a breath above it. 0 from 48rem, where
+     the bar is a rail, so a reader of this token needs no media query. */
+  --app-bar-clearance: calc(var(--app-bar-block) + var(--app-bar-offset) + var(--space-03));
+  /* The rail: the column the destinations stand in from 48rem. */
+  --app-rail-inline: 6rem;
+  --app-rail-offset: 0rem;
+  /* The pattern's slow drift, once round its loop (the owner's exception, PRD 024
+     criterion 9): ambient, so far slower than any entrance. */
+  --duration-drift: 48s;
+  /* A drift has no spring: the same pace all the way round, so the loop has no seam. */
+  --ease-drift: linear;
+}
+
+@media (width >= 48rem) {
+  :root {
+    --app-bar-clearance: 0rem;
+    --app-rail-offset: var(--app-rail-inline);
+  }
 }

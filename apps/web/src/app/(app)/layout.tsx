@@ -52,7 +52,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       <ArrivalSync />
       {/* Stamped with the moment this screen was made, so a stored copy can say how old it is (`0053`). */}
       <OfflineProvider renderedAt={renderedAt}>
-        <div className={styles.shell}>
+        <div className={styles.shell} data-shell="app">
           <AppNav assistant={settings?.flags.assistant ?? false} professional={user?.professional ?? false} />
           <main className={styles.content} id={MAIN_ID}>
             <OfflineCopy />

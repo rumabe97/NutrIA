@@ -1243,7 +1243,6 @@ export const esES = {
     plan: 'Plan',
     profile: 'Perfil',
     progress: 'Progreso',
-    sectionsLabel: 'Secciones',
     shopping: 'Compra',
     signOut: 'Cerrar sesión'
   },

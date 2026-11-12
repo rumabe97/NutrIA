@@ -18,10 +18,10 @@
     align-self: start;
     display: grid;
     gap: var(--space-03);
-    max-block-size: calc(100dvh - 3.5rem - var(--space-07) * 2);
+    max-block-size: calc(100dvh - var(--app-header-block) - var(--space-07) * 2);
     overflow-y: auto;
     position: sticky;
-    top: calc(3.5rem + var(--space-07));
+    top: calc(var(--app-header-block) + var(--space-07));
   }
 
   .bar {
