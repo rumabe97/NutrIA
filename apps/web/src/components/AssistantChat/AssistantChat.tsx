@@ -123,7 +123,9 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
   const abort = useRef<AbortController | null>(null);
   const field = useRef<HTMLTextAreaElement>(null);
   const confirmFirst = useRef<HTMLButtonElement>(null);
-  const following = useRef(true);
+  // A conversation with something in it is followed to its end from the start; a new one is
+  // not — there is no end to follow yet, and it opens at its top. Sending turns it on.
+  const following = useRef(turns.length > 0);
 
   /** A status said again is announced again: emptied first, then set. */
   const announce = (message: string) => {
@@ -143,8 +145,15 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
 
   // Opened on the end of the conversation, the way a chat opens; and with focus in the box when the
   // page was just replaced by the thread's own after a first answer (the person was typing there).
+  // How many turns the page arrived with: what decides where it opens, once.
+  const openedWith = useRef(turns.length);
+
   useEffect(() => {
-    window.scrollTo({ top: document.documentElement.scrollHeight });
+    // Only a conversation that has something in it: a new one opens at its top, with the
+    // warning whole under the bar (it opened a few pixels down, under it, on the owner's iPhone).
+    if (openedWith.current > 0) {
+      window.scrollTo({ top: document.documentElement.scrollHeight });
+    }
 
     try {
       if (window.sessionStorage.getItem(FOCUS_AFTER_REPLACE)) {

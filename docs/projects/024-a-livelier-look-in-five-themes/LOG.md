@@ -1519,3 +1519,13 @@ teclado». On a touch screen (`pointer: coarse`) sending now gives up the box's 
 question is on its way — after the press has landed, so nothing moves under the finger — and a
 first answer no longer puts the focus back in the box there. With a keyboard and a pointer the
 focus stays in the box, as before.
+
+**After his check of #375, again (2026-11-13)**: a new conversation opened a few pixels down,
+its warning under the bar (his capture). Two causes: the conversation's column was sized for
+the screen without counting the bar above it, so an empty conversation was a little taller
+than the screen; and the chat went to its end on arrival, and followed it, even with nothing
+in it. The column now leaves the bar's room (`--assistant-bar-space`) and a conversation with
+no turns opens at its top and is not followed until something is sent. Measured on a local
+build at 320, 360, 390 and 1280: a new conversation opens at scroll 0 with the warning 24 px
+under the bar, and at 390 nothing is left to scroll; a conversation with turns still opens at
+its end.
