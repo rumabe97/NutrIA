@@ -71,3 +71,11 @@
   justify-self: end;
   margin-top: calc(var(--space-04) * -1);
 }
+
+/* Large text for this screen (`apps/web/AGENTS.md` § Large text): a step down, so a long word
+   such as «Bienvenido» stays whole on a 320px phone instead of breaking inside itself. */
+@media (width < 17rem) {
+  .title {
+    font-size: var(--font-size-07);
+  }
+}

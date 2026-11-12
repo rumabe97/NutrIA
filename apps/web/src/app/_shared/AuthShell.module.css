@@ -21,7 +21,8 @@
   margin-inline: auto;
   max-width: var(--content-max);
   min-block-size: 3.75rem;
-  padding-inline: var(--space-05);
+  padding-block: var(--space-02);
+  padding-inline: var(--gutter-page);
 }
 
 .brand {
@@ -64,7 +65,7 @@
   margin-inline: auto;
   max-width: 25rem;
   min-inline-size: 0;
-  padding: var(--space-07) var(--space-05) var(--space-10);
+  padding: var(--space-07) var(--gutter-page) var(--space-10);
 }
 
 @media (width >= 48rem) {

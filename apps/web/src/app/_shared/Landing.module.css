@@ -6,7 +6,7 @@
   margin-inline: auto;
   max-width: var(--content-max);
   padding-block: var(--section-gap);
-  padding-inline: var(--space-05);
+  padding-inline: var(--gutter-page);
 }
 
 /* ── Hero ─────────────────────────────────────────────────────────────── */
@@ -24,7 +24,7 @@
   margin-inline: auto;
   max-width: var(--content-max);
   padding-block: clamp(2.5rem, 1rem + 6vw, 6rem) var(--space-09);
-  padding-inline: var(--space-05);
+  padding-inline: var(--gutter-page);
 }
 
 .heroCopy {
@@ -121,6 +121,7 @@
 }
 
 .previewTitle {
+  color: var(--foreground-01);
   font-family: var(--display-font);
   font-size: var(--font-size-07);
   font-weight: var(--font-weight-heavy);
@@ -215,7 +216,7 @@
   margin-inline: auto;
   max-width: 40rem;
   padding-block: var(--space-09) 0;
-  padding-inline: var(--space-05);
+  padding-inline: var(--gutter-page);
 }
 
 /* ── Highlights ───────────────────────────────────────────────────────── */
@@ -229,7 +230,7 @@
   list-style: none;
   margin: 0 auto;
   max-width: var(--content-max);
-  padding: 0 var(--space-05);
+  padding: 0 var(--gutter-page);
 }
 
 .highlight {
@@ -374,7 +375,7 @@
   margin-inline: auto;
   max-width: var(--content-max);
   padding-block: 0 var(--section-gap);
-  padding-inline: var(--space-05);
+  padding-inline: var(--gutter-page);
 }
 
 /* One raised card that closes the page, the copy at its start like the hero's. */
@@ -445,8 +446,13 @@
   }
 }
 
-/* Large text for this screen (`apps/web/AGENTS.md` § Large text): one tile a row. */
+/* Large text for this screen (`apps/web/AGENTS.md` § Large text): one tile a row, and the title a
+   step down so «Nutrición» stays whole on a 320px phone instead of breaking inside itself. */
 @media (width < 17rem) {
+  .display {
+    font-size: var(--font-size-08);
+  }
+
   .highlights {
     grid-template-columns: minmax(0, 1fr);
   }
