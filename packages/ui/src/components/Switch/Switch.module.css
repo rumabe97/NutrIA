@@ -2,6 +2,18 @@
   background-color: var(--color-switch);
   border-radius: var(--radius-full);
   border: var(--border-width-interactive) solid var(--border-interactive);
+  /* The knob's room is what the edge leaves, whatever the edge's width: both of its
+     resting places are measured from that, so it never sits on the edge (it did when
+     on, once a theme's interactive edge grew past a pixel). */
+  --switch-gap: 2px;
+  --switch-inner: calc(48px - 2 * var(--border-width-interactive));
+  --switch-knob: calc(28px - 2 * var(--border-width-interactive) - 2 * var(--switch-gap));
+  align-items: center;
+  box-sizing: border-box;
+  display: inline-flex;
+  /* Never squeezed by the words beside it: in a row with a two-line label the track
+     shrank to 45px on the owner's iPhone, and the knob, placed for 48, sat on the edge. */
+  flex: 0 0 auto;
   height: 28px;
   margin: 0;
   padding: 0;
@@ -27,15 +39,16 @@
   border-radius: var(--radius-full);
   display: block;
   box-shadow: var(--shadow-s);
-  height: 22px;
-  transform: translateX(2px);
+  flex: 0 0 auto;
+  height: var(--switch-knob);
+  transform: translateX(var(--switch-gap));
   /* The knob springs across (`--spring-lively`): it overshoots a hair and settles,
      the answer the sheets ask a switch to give. Only the transform moves. */
   transition: transform var(--duration-enter-short) var(--spring-lively);
-  width: 22px;
+  width: var(--switch-knob);
   will-change: transform;
 }
 
 .thumb[data-state='checked'] {
-  transform: translateX(22px);
+  transform: translateX(calc(var(--switch-inner) - var(--switch-knob) - var(--switch-gap)));
 }
