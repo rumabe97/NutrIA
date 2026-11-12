@@ -97,7 +97,7 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
 
   if (existing) {
     return (
-      <Card as="section" className={styles.card} padding="lg">
+      <Card as="section" className={`${styles.card} motion-list`} padding="lg">
         <h1 className={styles.title} ref={existingHeadingRef} tabIndex={-1}>
           {t.invitationLinkExistsTitle}
         </h1>
@@ -117,7 +117,7 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
   }
 
   return (
-    <Card as="section" className={styles.card} padding="lg">
+    <Card as="section" className={`${styles.card} motion-list`} padding="lg">
       <h1 className={styles.title}>{interpolate(t.invitationTitle, { professional: invitation.professionalName })}</h1>
       <Text tone="secondary">
         {interpolate(t.invitationIntro, { collegiateNumber: invitation.collegiateNumber, professional: invitation.professionalName })}
@@ -156,7 +156,7 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
         </Text>
 
         {sharesHealth ? (
-          <div className={styles.block}>
+          <div className={`${styles.extra} motion-drop-in`}>
             <Text size="sm" tone="secondary">
               {t.healthShareIntro}
             </Text>
