@@ -2,35 +2,55 @@
   position: sticky;
   top: 0;
   z-index: var(--z-dropdown);
+}
+
+/*
+ * The header's glass, a layer of its own, as `AppNav` draws it: there by default, lifted only
+ * while the page is known to be at its top, where the pattern shows through as the sheets draw
+ * it. A material on navigation, never on content (`apple-web-design`).
+ */
+.header::before {
   backdrop-filter: saturate(180%) blur(16px);
   background-color: var(--color-glass);
-  border-bottom: 1px solid transparent;
-  transition: border-color var(--duration-normal) var(--ease-default);
+  border-block-end: 1px solid var(--border-01);
+  content: '';
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  transition: opacity var(--duration-fast) var(--ease-default);
+  z-index: -1;
 }
 
-.header[data-scrolled='true'] {
-  border-bottom-color: var(--border-01);
+.header[data-at-top='true']::before {
+  opacity: 0;
 }
 
-/* A minimum, not a height: at 200% zoom the row grows instead of clipping. */
+/*
+ * A minimum, not a height: at 200% text the row grows instead of clipping. And it wraps — a
+ * brand, a language switch, a theme menu and «Acceder» that may not break in half, so at the
+ * largest text size the row becomes two rather than running off the screen.
+ */
 .inner {
-  display: flex;
   align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03) var(--space-06);
   justify-content: space-between;
-  gap: var(--space-06);
-  min-block-size: 3.75rem;
   margin-inline: auto;
   max-width: var(--content-max);
-  padding-inline: var(--space-05);
+  min-block-size: 3.75rem;
+  padding-block: var(--space-02);
+  padding-inline: var(--gutter-page);
 }
 
 .brand {
-  display: inline-flex;
   align-items: center;
-  gap: var(--space-02);
   color: var(--foreground-01);
+  display: inline-flex;
+  font-family: var(--display-font);
   font-size: var(--font-size-05);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heavy);
+  gap: var(--space-02);
   letter-spacing: var(--tracking-title);
   text-decoration: none;
 }
@@ -39,6 +59,7 @@
   width: 18px;
   height: 18px;
   background-color: var(--color-brand-fill);
+  background-image: var(--gradient-brand-fill);
   border-radius: var(--radius-01) var(--radius-full) var(--radius-full) var(--radius-full);
 }
 
@@ -48,47 +69,71 @@
 }
 
 .navLink {
-  color: var(--foreground-02);
+  color: var(--foreground-01);
   font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
   text-decoration: none;
-  transition: color var(--duration-fast) var(--ease-default);
 }
 
 .navLink:hover {
-  color: var(--foreground-01);
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
 }
 
 .actions {
-  display: flex;
   align-items: center;
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-03);
+  justify-content: flex-end;
 }
 
 .signIn {
   align-items: center;
-  color: var(--foreground-02);
+  color: var(--foreground-01);
   display: inline-flex;
   font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
   text-decoration: none;
   white-space: nowrap;
 }
 
 .signIn:hover {
-  color: var(--foreground-01);
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
 }
 
 @media (pointer: coarse) {
+  .brand,
   .signIn {
+    min-block-size: var(--target-min);
+  }
+
+  /* A tablet on its side has these links and a finger: the same target as the rest. */
+  .navLink {
+    align-items: center;
+    display: inline-flex;
     min-block-size: var(--target-min);
   }
 }
 
+/* Tabbing never leaves focus under the sticky header: scrolling a control into view stops
+   the header's height and a gap short of the top (WCAG 2.4.11), as the app's header does.
+   Reset under the large-text query below, where the header is not sticky. */
+html:has(.header) {
+  scroll-padding-block-start: calc(3.75rem + var(--space-03));
+}
+
+/* …except for what is in the header itself, which is always on screen. */
+.header :where(a, button, input) {
+  scroll-margin-block-start: calc(-1 * (3.75rem + var(--space-03)));
+}
+
 /*
- * Below 40rem the header's own CTA is hidden. Brand, language, sign-in and a
- * button do not fit in 360px — the button was the element running off the
- * right edge on every phone — and the hero directly beneath carries the same
- * call to action, so nothing is lost on the one screen where the header is
- * the first thing seen.
+ * Below 40rem the header's own CTA is hidden. Brand, language, theme, sign-in and a button do
+ * not fit in 360px — the button was the element running off the right edge on every phone —
+ * and the hero directly beneath carries the same call to action, which is also how the
+ * approved sheet draws the phone (brand, language, «Acceder»).
  */
 .cta {
   display: none;
@@ -101,10 +146,10 @@
 }
 
 /*
- * The section links join the row only where it can hold them beside the language
- * switch, the theme menu, «Acceder» and the call to action: at 48rem, with the
- * theme menu added, the row ran 76px past the screen (project 024, phase 1b).
- * Below this the footer carries the same links.
+ * The section links join the row only where it can hold them beside the language switch, the
+ * theme menu, «Acceder» and the call to action: at 48rem, with the theme menu added, the row
+ * ran 76px past the screen (project 024, phase 1b). Below this the footer carries the same
+ * links.
  */
 @media (width >= 64rem) {
   .nav {
@@ -113,10 +158,9 @@
 }
 
 /*
- * Below 360px the row cannot hold the wordmark, the language switch, the theme
- * menu and «Acceder» at once (PRD 024 § "What changes from the sheets", 5). The
- * mark alone carries the brand there — the link keeps its aria-label — and the
- * gaps close up, so nothing wraps and nothing runs off the edge.
+ * Below 360px the row cannot hold the wordmark, the language switch, the theme menu and
+ * «Acceder» at once (PRD 024 § "What changes from the sheets", 5). The mark alone carries the
+ * brand there — the link keeps its aria-label — and the gaps close up.
  */
 @media (width < 22.5rem) {
   .inner {
@@ -130,5 +174,21 @@
 
   .wordmark {
     display: none;
+  }
+}
+
+/* Large text: the header wraps to two or three rows, and a sticky one would hold a quarter of the
+   screen over the page. It scrolls away with it instead, as the app's header does there. */
+@media (width < 17rem) {
+  .header {
+    position: relative;
+  }
+
+  html:has(.header) {
+    scroll-padding-block-start: 0;
+  }
+
+  .header :where(a, button, input) {
+    scroll-margin-block-start: 0;
   }
 }

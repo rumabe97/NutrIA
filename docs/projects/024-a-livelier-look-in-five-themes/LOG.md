@@ -1519,3 +1519,147 @@ teclado». On a touch screen (`pointer: coarse`) sending now gives up the box's 
 question is on its way — after the press has landed, so nothing moves under the finger — and a
 first answer no longer puts the focus back in the box there. With a keyboard and a pointer the
 focus stays in the box, as before.
+
+## Phase 7 — The public pages (2026-11-12)
+
+- **Executor**: `frontend` on opus, branch `024-phase-7` (from `origin/main` at a9fd2ae5, #374).
+  Nothing ran on `fable`; the advisor was not consulted.
+- **Result**: built; the hero ships without dish pictures (nothing recorded as chosen — see
+  "Waiting on the owner").
+- **What changed**:
+  - **Landing** (`_shared/Landing`): the sheet's hero — eyebrow in the small accent capitals, the
+    title in the heavy face with its last words in the accent (`landing.titleAccent`, the title's
+    own last words, `lib/titleAccent`; the `h1`'s text is unchanged), lede, the two calls to action
+    side by side (stacked below 23.5rem and under large text), the note. From 64rem the food sits
+    beside the copy; under it on a phone. The food is `components/LandingPictures` over
+    `lib/landingPictures.ts` (empty) or — now — the illustrative plan, redrawn as the plan's day
+    draws it: «Día 6 de 14» in the display face, one row a meal on the sunken ground with the
+    slot's designed state (`DishPicture` without a picture), the slot in small capitals, the
+    totals and the three figures. Then the sheet's three tiles (`landing.highlights`, new, both
+    languages; the first on the highlight fill). Then every section the page had: the four steps
+    (numbered large, no box), the six feature cards, the safety band with its three notes, the
+    FAQ (accordion and its JSON-LD unchanged), the closing call to action on a card, the footer.
+  - **Pictures, ready and switched off**: up to three tiles, each a `DishPicture` (`hero` variant
+    for all — a `thumb`'s mark shrinks, § 2.8 N4), side by side, never overlapping or rotated
+    (N2), the first eager with its dimensions and the rest lazy, the original file (B1–B2), the
+    caption `landing.heroPicturesNote` (legal's exact words, both languages) in the same figure
+    (N5), `data-ai-generated` on the figure (W4), no names (W3, P4). With pictures, the plan moves
+    under the tiles. `LandingPictures.test.tsx` renders it to a string and checks the marks, the
+    hidden names, `alt=""`, the caption, no `srcset`, eager/lazy and the cap of three;
+    `lib/landing.test.ts` checks the accent split and that no landing string says «foto» /
+    «photo».
+  - **Header** (`SiteHeader`): the brand in the heavy face with the gradient mark, the hatched
+    pattern behind it, glass by default and lifted at the top of the page (`data-at-top`, the
+    app's rule); every control kept (four section links from 64rem, language, theme, «Acceder»,
+    «Crear mi plan» from 40rem). Wraps instead of clipping; not sticky under large text.
+  - **The pattern** is now one component, `components/HeaderPattern`, used by `AppNav` (same CSS,
+    moved), `SiteHeader` and `AuthShell`.
+  - **Sign-in family** (`AuthShell`, `AuthForm.module.css`): the app's header (brand, language,
+    theme, the pattern) over one 25rem column that arrives (`motion-enter`); titles in the heavy
+    display face, a step down under large text; the alerts flat and square. Every provider, the
+    passkey path, every error and the legal notice unchanged in place.
+  - **Legal pages** (`LegalScreen`): the same text, set for reading — heavy display title, the
+    sections divided by hairlines with heavy `h2`s, the text at 16px on a relaxed line, accent
+    list markers, the article arriving. Not a word of `privacy` or `terms` changed.
+  - **Footer**: the brand in the display face; the columns no wider than their box at 200% text.
+- **Evidence** (local production build against the local API, local Postgres):
+  - DONE — `pnpm --filter web test`: 49 files, 416 tests (incl. `legal.test.ts`; new
+    `lib/landing.test.ts` 6, `LandingPictures.test.tsx` 3). `pnpm turbo lint ts:check test
+    --filter=web --filter=ui` green; `format:fix` no change left.
+  - PARTLY — `gate.sh --full`, twice: **red on `api#test:coverage` only** — 18 then 24 timeouts in
+    five auth suites (`ResetInBackground`, `EmailVerification`, `PasswordPolicy`,
+    `AccountSecurity`, `TwoFactor`) while other agents' jobs held the machine's load at 5–7. This
+    branch touches no file under `apps/api`, `packages/core` or `packages/database`; `pnpm --filter
+    api test:coverage` run on its own: **127 suites, 1792 tests, all green**. Every other step run
+    after it, one by one: migrations, web build, static pages, contrast (5 themes), format,
+    deadcode, leaks — **all green**. The lead's gate on a quiet machine is the one to trust.
+  - DONE — overflow (`probe.mjs`, viewport shots), the 22 public paths (`/`, `/acceder`,
+    `/registro`, `/recuperar`, `/restablecer`, `/pendiente`, `/verificar-email`, `/acceder/codigo`,
+    `/cambiar-contrasena`, `/privacidad`, `/condiciones` and their `/en/` twins) × 320/360/390/768/
+    1280 × Claro, Oscuro, Huerta, Pulso, Alto contraste: **550 loads, 0 hits**. `/en` at 768 and
+    1280 never reaches network idle (the `/en/registro?_rsc` prefetch stays open — the same
+    finding as phase 2, LOG line ~320, older than this phase; clicking the link lands in 150 ms):
+    those ten were probed with a scratch copy of the probe that waits for `load`.
+  - DONE — `widths.mjs` 320→1400 on all 22 paths: clean.
+  - DONE, with fixes — 200% text (CDP `Page.setFontSizes`) at 320 and 390, element by element,
+    Claro (13 paths) and Oscuro (6): first run 3 pages hit — the footer's columns
+    (`minmax(9rem, 1fr)` is 288 px at 32 px), the legal lists (an implicit `auto` grid track) and
+    long words breaking inside themselves in the display titles. After capped gutters
+    (`--gutter-page`), `minmax(min(100%, 9rem), 1fr)`, `minmax(0, 1fr)` and a title step down
+    under the large-text query: **0 hits**; screenshots read («Nutrición», «Bienvenido» whole).
+  - DONE — control baseline, 44 files (`*.public.*`, both languages, phone and desktop),
+    **captured on the base commit before any change** and after: **identical** — no control
+    gone, none renamed (`for-lead-7/baseline-diff.txt` is empty).
+  - DONE — motion at 4× CPU, 390 px, `/`, `/en`, `/acceder`, `/privacidad`: CLS 0 at load and
+    while scrolling the whole page on `/`, `/en`, `/privacidad`; animated properties only
+    `transform`, `translate`, `opacity`; reduced motion: 0 animations running. `/acceder` measured
+    0.0433 once and 0 on four later runs: the passkey button arriving after hydration below the
+    submit (older than this phase).
+  - NOT RUN — **Lighthouse**: no binary on the machine, and fetching one was refused. The local
+    LCP read by `PerformanceObserver` (no network throttle, so not comparable with phase 0's
+    1,513 ms) is 210–225 ms on `/` and `/en`; the hero has no picture, so the LCP element is the
+    `h1`, painted by the server as before. Phase 0's `label-content-name-mismatch` could not be
+    re-checked without Lighthouse; a script comparing every `aria-label` with its visible text on
+    `/`, `/en`, `/acceder`, `/en/registro`, `/privacidad`, `/recuperar` found no mismatch.
+  - NOT RUN — the `seo` and `accessibility` agents (none was running in this session); an iPhone.
+  - Screenshots read beside the sheet's crops: `/` at 390 and 1280 in Claro, 320 in Oscuro, 768
+    in Alto contraste and Pulso; `/acceder` at 390 Claro, 320 Oscuro; `/en/registro` at 320
+    Huerta; `/privacidad` at 320.
+- **Compared with the sheet** (`03-admin-and-landing.jpg` «Portada pública», `02-mobile-complete.jpg`
+  «Portada pública» and «Acceder») — what remains different, and why:
+  - **No dish pictures in the hero**: none chosen by the owner yet (legal § 2.8 P3); the plan
+    stands in their place. When they come: a grid, not the sheet's rotated overlap (N2), and the
+    «IA» mark and the caption the sheet does not draw (PRD § "What changes", 7).
+  - **The title's accent is solid deep tomato, not the gradient** (PRD § "What changes", 2; the
+    gradient's light end is under 3:1 on the paper, phase 1b), as Inicio's greeting.
+  - **The words** are the product's («Nutrición que se adapta a ti.», «Bienvenido de nuevo»): the
+    sheets' words are examples (PLAN Hand-off). The three tiles take the sheet's first two lines and
+    a third about the fortnight, because the sheet's «Un asistente» is behind a switch and the page
+    may not promise it when it is off.
+  - **Theme switch in the header**, and «Crear mi plan» hidden in the header below 40rem (the hero
+    carries it) — the owner's and phase 1b's.
+  - **Kept, not drawn by the sheet**: «Personalización» and «Seguridad» in the header's links (the
+    sheet draws three: «Cómo funciona», «Preguntas», «Privacidad»; ours has four and «Privacidad» is in
+    the footer), the hero's note, the illustrative plan, every section below the tiles, the footer.
+  - **Acceder**: the legal sentence stays **above** the provider buttons (the sheet draws it at the
+    foot: `apps/web/AGENTS.md` § Auth, visible before any control that creates an account), and the
+    passkey button stays **after** the submit (the sheet draws it third among the providers: it only
+    exists after hydration, and at the top it would push the whole form down). «¿Has olvidado tu
+    contraseña?» stays by the password and «Crea la tuya» in the foot, where they were.
+  - The public pages keep their ambient light and grain under the pattern.
+- **`apple-web-design` REVIEW** (landing, sign-in family, legal pages; from the code and the captures):
+  - Overall: **PASS** — one dominant title per view, the primary action findable at once, every
+    control native and labelled, contrast held by the gate's pairs (no new token, no new pair).
+  - P0: none. P1: none.
+  - P2 — two filled «Crear mi plan» in the first screen from 40rem (header and hero): considered and
+    kept — one action, one destination, and the sheet draws both.
+  - P2 — boxes: feature cards, the safety band, the closing card. Reduced in this phase: the steps
+    lost their tiles and stand on the page.
+  - P3 — the large-text header wraps to three rows on a 320 px phone (it scrolls away there).
+  - What works: the hero's hierarchy (eyebrow → title → lede → one primary), the plan drawn as the
+    product draws a day, the sign-in column under the app's header, the legal text at a reading measure.
+  - The owner's exceptions named here: the drifting pattern (now on the public pages and sign-in),
+    generous motion (arrivals, the list stagger), the wide gradient (the filled pills, the brand mark),
+    the large radii (the plan card, tiles, the closing card).
+- **Inventory** (`inventory/public.md`, `inventory/auth.md`): every line present — the baseline is
+  identical, and the landing's 29 rows, the header's B1–B10 and the footer's C1–C14 were checked
+  against the new page; A1–A6 (skip link, JSON-LD, `main#contenido`, share card, titles, manifests)
+  untouched. New: the three tiles; the hero section is a named region.
+- **Waiting on the owner**: the pictures (`for-lead-7/owner-pictures.md`), and the captures.
+- **For the lead**: `seo` (metadata unchanged, nothing to change in sitemap/JSON-LD; O2 `noimageindex`
+  becomes a question only with pictures) and `accessibility` reviews; Lighthouse ×5 on `/` where a
+  binary exists.
+- **The lead's check and the two reviews (2026-11-13)**: `gate.sh --full` green on a quiet
+  machine (the executor's red runs were load). Read at 390 beside the sheet's crops: the
+  landing (top, further down, 1280, Oscuro, 320), `/acceder`, `/registro`, `/privacidad` — no
+  sideways scroll on any. `seo` (code only): nothing above P2; the `h1`'s text, the metadata,
+  the sitemap and the FAQ's JSON-LD unchanged; recommends `noimageindex` on `/` and `/en` when
+  the first picture is added (legal O2). `accessibility` (code only): nothing above P2; two P2
+  fixed here — the header's section links get the 44 px target on a coarse pointer, and the
+  public pages reserve the sticky header's height when a focused control is scrolled into view
+  (2.4.11), reset where the header is not sticky.
+- **Approved by the owner (2026-11-13)**: the captures, as they are — the hero without pictures.
+  And his decision on the headline: the sheet's, «Come bien sin pensarlo.» («Eat well without
+  thinking about it.»), its last words in the accent. This is the page's `h1` and the share
+  card's line; the title and description in the head are unchanged. The four baseline files
+  that name the heading are updated.

@@ -2077,6 +2077,13 @@ export const esES = {
     finalCtaTitle: 'Deja de decidir qué cenar.',
     finalLede: 'Cuéntanos cómo vives y tendrás catorce días resueltos, con la lista de la compra hecha.',
     heroNote: 'Sin tarjeta. Tu plan estará listo en cuanto termines el cuestionario.',
+    /* Under the hero's dish pictures, whenever there is one (docs/legal/2026-11-11-redesign.md § 2.4). Never «fotos». */
+    heroPicturesNote: 'Imágenes generadas por IA a partir de la receta de cada plato. Son orientativas, y no todos los platos tienen la suya.',
+    highlights: [
+      { body: 'completos, cada vez', title: '14 días' },
+      { body: 'fuera del catálogo, por completo', title: 'Tus alergias' },
+      { body: 'un plan nuevo, mejor ajustado', title: 'Cada dos semanas' }
+    ],
     lede: 'Planes de alimentación personalizados, construidos alrededor de tus objetivos, tus preferencias y tu vida. Y ajustados cada dos semanas según lo que de verdad te funciona.',
     personalisationLede:
       'Objetivo, edad, actividad, cocina que te gusta, alimentos que no piensas volver a ver. Todo entra en el cálculo, y todo se puede cambiar después.',
@@ -2121,7 +2128,9 @@ export const esES = {
     ],
     stepsLede: 'El trabajo de planificar lo hacemos nosotros. Tú decides qué comer entre lo que ya encaja.',
     stepsTitle: 'Cuatro pasos. Después, se repite solo.',
-    title: 'Nutrición que se adapta a ti.'
+    title: 'Come bien sin pensarlo.',
+    /* The end of `title` drawn in the accent; it must be the title's own last words. */
+    titleAccent: 'sin pensarlo.'
   },
 
   macros: {
