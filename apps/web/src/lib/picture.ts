@@ -15,7 +15,8 @@ export const PICTURE_POLL_LIMIT_MS = 60_000;
  * that re-encodes it on the way — `next/image`'s optimiser, a resizing CDN — strips
  * the signature that says it was made by AI. So an absolute address (the Blob
  * store's, or the `data:` picture a stub API serves) is used untouched, and only a
- * path on the API is prefixed. The crops are CSS, never a second file.
+ * path on the API is prefixed. The crops are CSS, never a second file — but for the landing's
+ * three pictures, whose lighter copies for a phone are listed in `lib/landingPictures`.
  */
 export function pictureSource(path: string): string {
   return /^(https?:|data:)/.test(path) ? path : `${API_URL}${path}`;

@@ -7,7 +7,11 @@ import { LandingPictures } from './LandingPictures';
 const CAPTION = 'Imágenes generadas por IA a partir de la receta de cada plato.';
 
 function picture(n: number) {
-  return { path: `https://blob.example/dish-${n}.jpg`, recipeId: `recipe-${n}` };
+  return {
+    light: { originalSha256: 'a', path: `/landing/recipe-${n}.jpg`, sha256: 'b' },
+    path: `https://blob.example/dish-${n}.jpg`,
+    recipeId: `recipe-${n}`
+  };
 }
 
 /** `docs/legal/2026-11-11-redesign.md` § 2.8, the conditions a prerendered hero must meet. */
@@ -28,12 +32,16 @@ describe('LandingPictures', () => {
     expect(markup).toContain('data-ai-generated="true"');
   });
 
-  it('serves each file untouched, the first at once and the others when near, never more than three (B1, B2)', () => {
+  it('serves each original untouched and only its own lighter copy beside it, the first at once and the others when near, never more than three (B1, B2)', () => {
     const markup = renderToStaticMarkup(<LandingPictures caption={CAPTION} pictures={[picture(1), picture(2), picture(3), picture(4)]} />);
 
     expect(markup.match(/<img /g)).toHaveLength(3);
     expect(markup).not.toContain('dish-4.jpg');
-    expect(markup).not.toContain('srcset');
+    // The one other file a tile may draw: its own lighter copy, on a phone, from this site
+    // (`docs/legal/2026-11-13-lighter-landing-pictures.md` M1, M6).
+    expect(markup.match(/<source /g)).toHaveLength(3);
+    expect(markup).toMatch(/<source media="\(max-width: 40rem\)" srcSet="\/landing\/recipe-1\.jpg"\/>/i);
+    expect(markup.match(/srcset=/gi)).toHaveLength(3);
     expect(markup).not.toContain('_next/image');
     expect(markup.match(/loading="eager"/g)).toHaveLength(1);
     expect(markup.match(/loading="lazy"/g)).toHaveLength(2);

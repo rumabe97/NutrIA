@@ -17,7 +17,8 @@ import type { LandingPicture } from 'lib/landingPictures';
  * - the tiles sit side by side in a grid, never overlapping or rotated, so nothing covers a
  *   mark at any width — N2; nothing here animates the picture apart from its mark (the frame's
  *   own fade moves both together), and the large one, the likely LCP, is never held back — N3;
- * - the file is the original, in a plain `<img>` with its dimensions: the first requested at
+ * - the file is the original, or on a phone its lighter copy (`lib/landingPictures`, the legal
+ *   opinion of 2026-11-13), in a plain `<img>` with its dimensions: the first requested at
  *   once, the others when near and never before the page has loaded (`AfterLoad`), so they do
  *   not take a slow phone's line from the first — B1, B2;
  * - the caption `landing.heroPicturesNote` is beside them, in the same figure — N5;
@@ -38,11 +39,11 @@ export function LandingPictures({ caption, pictures }: Readonly<{ caption: strin
         {shown.map((picture, index) =>
           index === 0 ? (
             <div className={styles.tile} key={picture.recipeId}>
-              <DishPicture path={picture.path} priority={true} variant="hero" />
+              <DishPicture lightPath={picture.light.path} path={picture.path} priority={true} variant="hero" />
             </div>
           ) : (
             <AfterLoad className={`${styles.tile} ${styles.later}`} key={picture.recipeId}>
-              <DishPicture path={picture.path} variant="hero" />
+              <DishPicture lightPath={picture.light.path} path={picture.path} variant="hero" />
             </AfterLoad>
           )
         )}

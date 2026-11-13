@@ -88,8 +88,10 @@ export function pageMetadata(locale: Locale, path: PagePath): Metadata {
     // there too.
     //
     // The landing page with generated dish pictures on it keeps them out of image search
-    // (`docs/legal/2026-11-11-redesign.md` § 2.8 O2): the files are served from another
-    // origin, so a header of ours cannot reach them and this directive is the only lever.
+    // (`docs/legal/2026-11-11-redesign.md` § 2.8 O2): the originals are served from another
+    // origin, so a header of ours cannot reach them and this directive is the lever for them.
+    // Their lighter copies for a phone are ours (`/landing/…`) and carry `X-Robots-Tag` too
+    // (`next.config.js`).
     // The page itself is indexed as before.
     robots: UNINDEXED_PATHS.includes(path)
       ? { follow: true, index: false }

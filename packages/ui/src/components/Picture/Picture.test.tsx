@@ -18,6 +18,22 @@ describe('Picture', () => {
     expect(image).toHaveAttribute('height', '720');
   });
 
+  it('offers a lighter file to a narrow screen, and the image stays the one that is named and laid out', () => {
+    const { container } = render(<Picture alt="Lentejas" narrow={{ media: '(max-width: 40rem)', src: '/a-small.jpg' }} src="/a.jpg" />);
+    const source = container.querySelector('picture > source');
+
+    expect(source).toHaveAttribute('media', '(max-width: 40rem)');
+    expect(source).toHaveAttribute('srcset', '/a-small.jpg');
+    expect(screen.getByRole('img', { name: 'Lentejas' })).toHaveAttribute('src', '/a.jpg');
+    expect(container.querySelector('picture > img')).not.toBeNull();
+  });
+
+  it('draws no picture element without a lighter file', () => {
+    const { container } = render(<Picture alt="Lentejas" src="/a.jpg" />);
+
+    expect(container.querySelector('picture')).toBeNull();
+  });
+
   it('lets the caller load one eagerly', () => {
     render(<Picture alt="Lentejas" fetchPriority="high" loading="eager" src="/a.webp" />);
     const image = screen.getByRole('img', { name: 'Lentejas' });

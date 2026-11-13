@@ -53,6 +53,13 @@ scoring blind on an iPhone) settled the model and the prompt. The `legal` review
   JPEG of about 170 KB carrying Google's signed C2PA manifest and IPTC
   `trainedAlgorithmicMedia`.
   - It is never re-encoded: any re-encode breaks the C2PA hash binding.
+    - **Exception, 2026-11-13** (owner's decision; `legal`,
+      [`2026-11-13-lighter-landing-pictures.md`](../legal/2026-11-13-lighter-landing-pictures.md)):
+      the landing's three hand-picked pictures also exist as a lighter copy for a phone
+      (`apps/web/public/landing/`, listed in `apps/web/src/lib/landingPictures.ts`). The copy
+      carries the IPTC field and SynthID, not the C2PA manifest; the original in Blob is
+      untouched and is what every other screen and every other picture draws. No other
+      re-encode exists, and none is added without the same opinion.
   - Crops are done in CSS.
   - Postgres keeps only the URL and the provenance.
 - **Label.** A visible "IA" mark on every picture (dashboard card and meal page) with an
