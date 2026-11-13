@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { checkInSubmittedEmail, checkInSubmittedPush, checkInSubmittedRecord } from './CheckInSubmitted.js';
+import { withoutStylesheet } from './Layout.js';
 
 import type { EmailLocale } from './Layout.js';
 
@@ -43,7 +44,7 @@ describe('checkInSubmittedEmail', () => {
   it.each(LOCALES)('carries none of the check-in’s own fields (%s)', locale => {
     const mail = checkInSubmittedEmail({ clientName: 'Lucía', locale, url: URL });
     // What a reader sees of the HTML: its text, not its inline styles.
-    const visible = mail.html.replace(/<[^>]*>/g, ' ');
+    const visible = withoutStylesheet(mail.html).replace(/<[^>]*>/g, ' ');
 
     for (const word of CHECK_IN_WORDS) {
       expect(`${mail.subject}\n${mail.text}\n${visible}`).not.toMatch(word);

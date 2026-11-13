@@ -11,6 +11,7 @@ import { AI_REWRITE_CLIENT } from '../src/modules/ai/ai.config.js';
 import { ENV, validateEnv } from '../src/config/index.js';
 import { OwnerAlertsService } from '../src/modules/owner-alerts/index.js';
 import { EmailService } from '../src/modules/email/services/Email.service.js';
+import { withoutStylesheet } from '../src/modules/email/templates/Layout.js';
 import {
   completeOnboarding,
   createApp,
@@ -517,7 +518,9 @@ describe('the owner is told by mail (0071, phase 6)', () => {
       expect(ownerMails().length).toBeGreaterThan(0);
 
       for (const mail of ownerMails()) {
-        for (const part of [mail.subject, mail.text, mail.html]) {
+        // The stylesheet is one fixed string with no word in it (its `@media` is the mail's dark
+        // look, 024 phase 7b): what the owner reads is everything else.
+        for (const part of [mail.subject, mail.text, withoutStylesheet(mail.html)]) {
           expect(part).not.toContain('@');
           expect(part).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
           expect(part).not.toContain('usr-');

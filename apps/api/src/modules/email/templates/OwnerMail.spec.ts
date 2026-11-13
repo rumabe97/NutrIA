@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import { ownerAlertEmail } from './OwnerAlert.js';
 import { ownerDigestEmail } from './OwnerDigest.js';
+import { withoutStylesheet } from './Layout.js';
 
 import type { OwnerAlert } from './OwnerAlert.js';
 import type { OwnerDigest } from 'core/controllers/Admin';
@@ -62,7 +63,8 @@ const ALERTS: readonly OwnerAlert[] = [
 ];
 
 function everything(mail: { html: string; subject: string; text: string }): string {
-  return [mail.subject, mail.text, mail.html].join('\n');
+  // The stylesheet's `@media` is the layout's, fixed; everything else in the HTML is read.
+  return [mail.subject, mail.text, withoutStylesheet(mail.html)].join('\n');
 }
 
 function expectNothingPersonal(output: string): void {

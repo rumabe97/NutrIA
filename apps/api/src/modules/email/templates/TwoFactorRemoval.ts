@@ -1,4 +1,4 @@
-import { button, escapeHtml, layout, paragraph } from './Layout.js';
+import { button, fallbackLink, layout, paragraph } from './Layout.js';
 
 import type { EmailKind, EmailLocale, RenderedEmail } from './Layout.js';
 
@@ -121,12 +121,7 @@ export function twoFactorRemovalEmail({
   const subject = copy.subject(event);
 
   const html = layout({
-    body: [
-      ...lines.map(line => paragraph(line)),
-      button(signInUrl, copy.button),
-      paragraph(copy.linkFallback, 'muted'),
-      `<p style="margin:0;font-size:0.8125rem;word-break:break-all;"><a href="${escapeHtml(signInUrl)}" style="color:#5b7f3a;">${escapeHtml(signInUrl)}</a></p>`
-    ].join('\n'),
+    body: [...lines.map(line => paragraph(line)), button(signInUrl, copy.button), fallbackLink(copy.linkFallback, signInUrl)].join('\n'),
     locale,
     title: subject
   });

@@ -1,5 +1,5 @@
 import { deviceLabel } from './PasswordChanged.js';
-import { button, escapeHtml, layout, paragraph } from './Layout.js';
+import { button, fallbackLink, layout, paragraph } from './Layout.js';
 
 import type { Device } from 'core/domain/Device';
 import type { EmailKind, EmailLocale, RenderedEmail } from './Layout.js';
@@ -146,8 +146,7 @@ export function twoFactorChangedEmail({
       paragraph(copy.notYou),
       button(recoverUrl, copy.button),
       paragraph(copy.wasYou, 'muted'),
-      paragraph(copy.linkFallback, 'muted'),
-      `<p style="margin:0;font-size:0.8125rem;word-break:break-all;"><a href="${escapeHtml(recoverUrl)}" style="color:#5b7f3a;">${escapeHtml(recoverUrl)}</a></p>`
+      fallbackLink(copy.linkFallback, recoverUrl)
     ].join('\n'),
     locale,
     title: subject

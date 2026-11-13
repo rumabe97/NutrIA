@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { careInvitationEmail } from './CareInvitation.js';
+import { withoutStylesheet } from './Layout.js';
 
 import type { EmailLocale } from './Layout.js';
 
@@ -45,7 +46,7 @@ describe('careInvitationEmail', () => {
   it.each(LOCALES)('carries no health word (%s)', locale => {
     const mail = careInvitationEmail({ inviterName: 'Ana Dietista', locale, privacyUrl: PRIVACY, url: URL });
     // What a reader sees of the HTML: its text, not its inline styles (`font-weight`).
-    const visible = mail.html.replace(/<[^>]*>/g, ' ');
+    const visible = withoutStylesheet(mail.html).replace(/<[^>]*>/g, ' ');
 
     for (const word of HEALTH_WORDS) {
       expect(`${mail.subject}\n${mail.text}\n${visible}`).not.toMatch(word);

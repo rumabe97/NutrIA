@@ -1717,3 +1717,113 @@ theme. He asked for every card where it happens, and for every button's colour t
   (at 320 the longer label wraps inside its button), no other group of two buttons stands on
   two lines, no sideways scroll. NOT RUN: the confirmation states of each card in a browser
   (they use the same rule), Huerta, Pulso and Alto contraste by eye, an iPhone.
+
+## Phase 7b — The mails (2026-11-13)
+
+Branch `024-phase-7b`. Scope held: only `apps/api/src/modules/email/templates/**` and their specs.
+
+**What a mail looks like now** (`Layout.ts`, once for all fourteen):
+
+- Cream paper (`--background-01`) on the body *and* on a full-width wrapper, because Gmail drops
+  the body's style. A centred column of 32rem with a 1.25rem gutter, as before.
+- The brand line: the leaf — an empty `<span>` drawn as the web's mark (one square corner, three
+  round), the accent gradient over its solid start, `aria-hidden` — then «NutrIA» at the display
+  weight (800, `--font-weight-heavy`) in ink. The footer «NutrIA» sits under a hairline
+  (`--border-01`).
+- The filled button: `--color-brand-fill` → `--color-brand-fill-end` at 135°, written as a
+  `background-image` over a `background-color` of the solid deep fill, so a client without
+  gradients (Outlook desktop, some webmails) paints the solid fill. Radius `--radius-control`
+  (10px). `max-width:100%`, `box-sizing:border-box`, `overflow-wrap:anywhere`: a long label wraps
+  inside its column.
+- Links (the fallback address, the reset link in «Alguien ha intentado crear una cuenta», the
+  digest's «Abrir en la consola») are `--color-brand-11`, the one solid deep tomato small text
+  may wear (PRD § What changes, 2). The digest's links had no colour of their own before.
+- The flat note: «Si el botón no funciona, copia esta dirección…» and the address now sit
+  together in one square-cornered block on `--surface-card`, no coloured edge. Seven templates
+  had that pair written by hand with the old green inline; they now call `fallbackLink()`.
+- Type: the system stack as before. No web font, no picture, no remote resource — checked: the
+  screenshot run blocked and logged every non-`file://` request, and there were none.
+
+**Dark**: `<meta name="color-scheme" content="light dark">`, `supported-color-schemes`, and a
+`<style>` in the head whose only content is `:root{color-scheme:light dark}` and a
+`@media (prefers-color-scheme: dark)` block repainting each class (`nutria-paper`, `-ink`,
+`-muted`, `-link`, `-note`, `-edge`, `-leaf`, `-fill`) with Oscuro's values, `!important` over the
+inline Claro. A client that ignores the block (Gmail on the web) shows Claro, complete.
+
+**The token spec** (`LayoutTokens.spec.ts`): it reads `Layout.ts` as text and, inside
+`const CLARO = { … }` and `const OSCURO = { … }`, takes every line written
+`key: '#rrggbb', // --token`. It reads `apps/web/src/styles/themes.css` as text (path relative to
+the spec, five levels up), takes the block from `[data-theme='claro'] {` (or `'oscuro'`) to its
+closing brace, and finds `--token: #rrggbb;` there. It fails when a literal differs from its
+token, when a line in either table has no token comment, when the two tables name different keys
+or tokens, and when any template file writes a colour outside those two tables. Checked by
+mutation: `paper: '#fbf5eb'` fails it.
+
+**The text spec** (`MailText.spec.ts`, `__fixtures__/mail-text.json`): 56 cases — every template
+in both languages (the owner's two in Spanish only, as they are sent), every variant whose words
+differ (each two-factor event and removal step, each owner alert, a full and a quiet digest, with
+and without a device, one and several passkeys). For each: `kind`, subject, plain text, and of the
+HTML the `<html lang>`, the `<title>`, every link's target, and the body's words — styles and
+scripts removed, block tags as line breaks, inline tags dropped, entities decoded, whitespace
+collapsed. Dates are replaced by a placeholder computed with the same `Intl` call, so a Node
+release with other ICU data does not fail it. **Before/after**: commit `c88c8686` added the spec
+and the fixture, written from the templates as `origin/main` had them, and touched no template;
+the next commit changed the look and the fixture is byte-for-byte unchanged
+(`git diff c88c8686 HEAD -- '*mail-text.json'` is empty). The one later edit to the spec is a
+type fix of its own input (`{}` → `{ browser: null, system: null }`, the same "no device"), and
+it stayed green against the unchanged fixture.
+
+**Specs that read a mail's HTML**: six existing specs looked for `@`, an id or a health word in
+the whole HTML; the stylesheet's `@media` would have tripped the `@` ones. They now read
+`withoutStylesheet(html)`, which removes the exact fixed `STYLESHEET` string and nothing else, so
+an address in an attribute is still caught.
+
+**Contrast** (WCAG, measured on the literals):
+
+| Pair | Claro | Oscuro |
+| --- | --- | --- |
+| body text on paper | 14.87:1 | 14.46:1 |
+| muted text on paper | 5.96:1 | 7.98:1 |
+| link on paper | 5.61:1 | 7.97:1 |
+| muted text on the note | 5.38:1 | 6.73:1 |
+| link on the note | 5.07:1 | 6.72:1 |
+| button label on the fill's start | 5.71:1 (white on #b93a12) | 5.90:1 (#2a1b26 on #ff6e45) |
+| button label on the fill's end | 4.66:1 (white on #c4501a) | 6.98:1 (#2a1b26 on #ff8a3d) |
+
+Before, the button was white on #5b7f3a, 4.62:1.
+
+**Screenshots**: every template rendered with long real-shaped inputs (a 200-character token
+link, a long double-barrelled name), headless Chrome, 360 and 600 px, light and dark: 104
+captures. The script measured `scrollWidth` against the viewport and every element's box: no
+sideways scroll and no element past the edge in any of them. The long token link breaks inside
+the note. Nothing was mailed; no mail catcher was started.
+
+**Verification**:
+- DONE — `pnpm --filter api test`: 1889/1889 green with `NUTRIA_LOCAL_PG` unset.
+- PRE-EXISTING — with `NUTRIA_LOCAL_PG=1` in the environment, 23 tests in five auth specs
+  (`EmailVerification`, `ResetInBackground`, `PasswordPolicy`, `AccountSecurity`, `TwoFactor`)
+  fail every time; the same 23 fail with `origin/main`'s templates put back, and each passes run on
+  its own. Not this phase's; for whoever owns those specs.
+- DONE — `gate.sh --full` green (run with `NUTRIA_LOCAL_PG` unset, for the reason above).
+- NOT TOUCHED — the API end-to-end suites (`apps/api/test/`), not run here; CI runs them.
+- NOT RUN — the owner's look on his iPhone and in Gmail on the web, light and dark: the
+  phase's human-verify.
+
+**The lead (2026-11-13)**: the branch taken over and `main` merged in. `turbo.json` gives the
+`test` and `test:coverage` tasks the web's `themes.css` as an input, so a cached green run is
+not replayed after a Claro or Oscuro value changes (the token spec reads that file from the
+`api` package, which does not depend on `web`). Two of the 104 captures read by the lead
+(VerifyEmail es 360 light, CheckInReminder es 360 dark) and sent to the owner.
+
+
+**The owner on the wordmark (2026-11-13)**: «NutrIA» stays in ink at the display weight, the
+leaf carrying the colour, as built.
+
+**CI's first run on the phase (#383) — red, and a deviation from the plan**: two end-to-end
+suites (`picture-alerts`, `owner-alerts`; six tests) hold that an owner's mail carries no
+address by asserting that no part of it contains `@`. The dark look's stylesheet is an
+`@media` block, so the HTML part failed. The executor had met the same check in six unit specs
+and read the mail through `withoutStylesheet`; the end-to-end suites were outside its scope.
+The plan says "the API e2e suites untouched": they are touched in one line each — the HTML part
+is read without its stylesheet, a fixed string with no word in it — and the invariant they hold
+is unchanged. The other 55 suites were green.

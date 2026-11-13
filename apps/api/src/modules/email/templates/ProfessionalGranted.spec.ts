@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { professionalGrantedEmail } from './ProfessionalGranted.js';
+import { withoutStylesheet } from './Layout.js';
 
 import type { EmailLocale } from './Layout.js';
 
@@ -33,7 +34,7 @@ describe('professionalGrantedEmail', () => {
 
   it.each(LOCALES)('carries no health word (%s)', locale => {
     const mail = professionalGrantedEmail({ collegiateNumber: 'MAD00123', locale, url: URL });
-    const visible = mail.html.replace(/<[^>]*>/g, ' ');
+    const visible = withoutStylesheet(mail.html).replace(/<[^>]*>/g, ' ');
 
     for (const word of HEALTH_WORDS) {
       expect(`${mail.subject}\n${mail.text}\n${visible}`).not.toMatch(word);
