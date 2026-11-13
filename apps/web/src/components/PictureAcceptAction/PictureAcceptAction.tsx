@@ -247,7 +247,7 @@ export function PictureAcceptAction({ allergens, dish, expiresAt, ingredients, r
           </Text>
           {stale === undefined ? (
             // Cancel first: each step is entered away from the button that goes on, so two presses of Enter never publish.
-            <div className={styles.buttons}>
+            <div className={`${styles.buttons} button-row`}>
               <Button disabled={pending} onClick={close} type="button" variant="secondary">
                 {dictionary.common.cancel}
               </Button>
@@ -272,7 +272,7 @@ export function PictureAcceptAction({ allergens, dish, expiresAt, ingredients, r
               )}
             </div>
           ) : (
-            <div className={styles.buttons}>
+            <div className={`${styles.buttons} button-row`}>
               <Button onClick={close} ref={reload} type="button" variant="secondary">
                 {t.reload}
               </Button>
