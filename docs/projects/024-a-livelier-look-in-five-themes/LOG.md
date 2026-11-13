@@ -1818,3 +1818,12 @@ not replayed after a Claro or Oscuro value changes (the token spec reads that fi
 
 **The owner on the wordmark (2026-11-13)**: «NutrIA» stays in ink at the display weight, the
 leaf carrying the colour, as built.
+
+**CI's first run on the phase (#383) — red, and a deviation from the plan**: two end-to-end
+suites (`picture-alerts`, `owner-alerts`; six tests) hold that an owner's mail carries no
+address by asserting that no part of it contains `@`. The dark look's stylesheet is an
+`@media` block, so the HTML part failed. The executor had met the same check in six unit specs
+and read the mail through `withoutStylesheet`; the end-to-end suites were outside its scope.
+The plan says "the API e2e suites untouched": they are touched in one line each — the HTML part
+is read without its stylesheet, a fixed string with no word in it — and the invariant they hold
+is unchanged. The other 55 suites were green.

@@ -11,6 +11,7 @@ import { UserController } from 'core/controllers/User';
 
 import { ENV, validateEnv } from '../src/config/index.js';
 import { EmailService } from '../src/modules/email/services/Email.service.js';
+import { withoutStylesheet } from '../src/modules/email/templates/Layout.js';
 import { OwnerAlertsService } from '../src/modules/owner-alerts/index.js';
 import { PictureCallError } from '../src/modules/ai/clients/pictureTransport.js';
 import { PictureImageClient } from '../src/modules/ai/clients/PictureImageClient.js';
@@ -258,7 +259,9 @@ describe('the owner is told that dish pictures failed (0072, phase 1)', () => {
 
   /** Nothing an owner must not read: no address, no uuid, and none of the dishes' names. */
   function expectClean(mail: Sent): void {
-    for (const part of [mail.subject, mail.text, mail.html]) {
+    // The stylesheet is one fixed string with no word in it (its `@media` is the mail's dark
+    // look, 024 phase 7b): what the owner reads is everything else.
+    for (const part of [mail.subject, mail.text, withoutStylesheet(mail.html)]) {
       expect(part).not.toContain('@');
       expect(part).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
 

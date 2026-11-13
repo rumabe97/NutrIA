@@ -91,7 +91,8 @@ export const STYLESHEET = `<style>
 /**
  * A mail's HTML without its stylesheet: what a spec looking for a word, an `@` or an address reads.
  *
- * @knipignore Exported for the templates' specs, its only callers.
+ * @knipignore Exported for the templates' specs and the end-to-end suites that read an owner's
+ * mail, its only callers.
  */
 export function withoutStylesheet(html: string): string {
   return html.replace(STYLESHEET, '');
