@@ -127,13 +127,22 @@
   background-color: var(--color-hover);
 }
 
+/*
+ * What cannot be undone, said in the error's own ink on its own pale ground, with an edge
+ * of that ink: the shape of a secondary button, and red only in its words. A filled red
+ * stood beside the brand's filled tomato as a second, clashing accent on the warm themes
+ * (the owner, 2026-11-13). The pair is the one a note of the error tone already holds
+ * (`--color-error-text` on `--color-error-surface`, in the contrast script).
+ */
 .button.destructive {
-  background-color: var(--color-error-fill);
-  color: var(--color-on-error-fill);
+  background-color: var(--color-error-surface);
+  background-image: none;
+  border-color: currentColor;
+  color: var(--color-error-text);
 }
 
 .button.destructive:hover:not(:disabled) {
-  opacity: 0.85;
+  background-color: var(--color-error-border);
 }
 
 /*

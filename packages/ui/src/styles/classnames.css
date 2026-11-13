@@ -21,3 +21,42 @@
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+/* A group of buttons that belong together stays on one line.
+
+   Two actions of one card, one over the other, read as two separate things and
+   leave a ragged edge (the owner, 2026-11-13). In a row they take the smaller
+   button's measure and only the room their words need; where the row is too
+   narrow for every label on one line — a 320px phone, large text — a label
+   wraps inside its own button, which grows, and the buttons still stand side
+   by side. Nothing is clipped and no button is narrower than its target.
+
+   The element in the selector is for weight: a component's own stylesheet is
+   loaded after this one, and its `flex-wrap` or the button's size class would
+   otherwise win. */
+:is(div, p, span, footer, li).button-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--space-02);
+  min-inline-size: 0;
+}
+
+.button-row > :is(a, button) {
+  block-size: auto;
+  flex: 0 1 auto;
+  font-size: var(--font-size-02);
+  height: auto;
+  line-height: var(--line-height-02);
+  min-block-size: var(--height-m);
+  min-inline-size: 0;
+  padding: var(--space-01) var(--space-04);
+  text-align: center;
+  white-space: normal;
+}
+
+@media (pointer: coarse) {
+  .button-row > :is(a, button) {
+    min-block-size: var(--target-min);
+  }
+}

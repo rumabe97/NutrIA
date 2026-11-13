@@ -134,7 +134,7 @@ export function TwoFactorSetup({ onCancel, onConfirmed, totpUri }: TwoFactorSetu
                     </Fragment>
                   ))}
                 </code>
-                <div className={styles.actions}>
+                <div className={`${styles.actions} button-row`}>
                   <Button onClick={() => void copySecret()} type="button" variant="secondary">
                     {t.copySecret}
                   </Button>
@@ -148,7 +148,7 @@ export function TwoFactorSetup({ onCancel, onConfirmed, totpUri }: TwoFactorSetu
           </div>
         </div>
 
-        <div className={styles.actions}>
+        <div className={`${styles.actions} button-row`}>
           <Button onClick={() => setStep('confirm')} type="button">
             {dictionary.common.continue}
           </Button>
@@ -187,7 +187,7 @@ export function TwoFactorSetup({ onCancel, onConfirmed, totpUri }: TwoFactorSetu
         type="text"
       />
 
-      <div className={styles.actions}>
+      <div className={`${styles.actions} button-row`}>
         <Button loading={pending} type="submit">
           {t.confirm}
         </Button>

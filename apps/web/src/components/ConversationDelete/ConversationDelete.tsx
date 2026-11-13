@@ -81,7 +81,7 @@ export function ConversationDelete({
   return (
     <div aria-label={t.deleteConversation} className={`${styles.confirm} motion-drop-in`} role="group">
       <p className={styles.text}>{t.deleteConversationBody}</p>
-      <div className={styles.actions}>
+      <div className={`${styles.actions} button-row`}>
         <Button loading={deleting} onClick={() => void remove()} ref={confirm} size="sm" variant="destructive">
           {t.deleteConversationConfirm}
         </Button>

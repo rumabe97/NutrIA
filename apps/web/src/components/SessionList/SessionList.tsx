@@ -250,7 +250,7 @@ export function SessionList() {
       {state.kind === 'notFresh' ? (
         <Note className={styles.notFresh} tone="warning" toneLabel={dictionary.common.noteTone.warning}>
           <Text size="sm">{t.sessionsNotFresh}</Text>
-          <div className={styles.actions}>
+          <div className={`${styles.actions} button-row`}>
             <SignInAgainButton />
           </div>
         </Note>
@@ -312,7 +312,7 @@ export function SessionList() {
           <Text id={consequenceId} size="sm" tone="secondary">
             {t.closeOthersBody}
           </Text>
-          <div className={styles.actions}>
+          <div className={`${styles.actions} button-row`}>
             {/* Nothing is deleted, so not red; the one filled button while the question is open. */}
             <Button
               aria-describedby={`${questionId} ${consequenceId}`}
@@ -331,7 +331,7 @@ export function SessionList() {
       ) : null}
 
       {canCloseOthers && !confirming ? (
-        <div className={styles.actions}>
+        <div className={`${styles.actions} button-row`}>
           <Button disabled={closing !== undefined} onClick={() => setConfirming(true)} ref={triggerRef} type="button" variant="secondary">
             {t.closeOthers}
           </Button>

@@ -7,7 +7,9 @@
   max-inline-size: 46rem;
   /* The column and the layout's foot (its space and the bar's clearance) fill the screen
      exactly, whichever values those two tokens hold — so the box ends where the foot does. */
-  min-block-size: calc(100dvh - var(--app-header-block) - var(--space-07) - var(--app-foot-space) - var(--app-bar-clearance));
+  min-block-size: calc(
+    100dvh - var(--app-header-block) - var(--space-07) - var(--assistant-bar-space, 0px) - var(--app-foot-space) - var(--app-bar-clearance)
+  );
   min-inline-size: 0;
 }
 

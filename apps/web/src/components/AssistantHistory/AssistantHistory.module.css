@@ -20,6 +20,8 @@
   display: flex;
   gap: var(--space-02);
   justify-content: space-between;
+  /* The height the layout counts on (`--assistant-bar-space`), whatever the pointer. */
+  min-block-size: calc(var(--target-min) + 2 * var(--space-01));
   padding: calc(var(--space-01) - 1px);
   position: sticky;
   top: calc(var(--app-header-block) + var(--space-02));

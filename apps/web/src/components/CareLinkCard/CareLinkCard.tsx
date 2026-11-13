@@ -106,7 +106,7 @@ export function CareLinkCard({ link }: CareLinkCardProps) {
           <Text size="sm" tone="tertiary">
             {t.endConfirmBody}
           </Text>
-          <div className={styles.actions}>
+          <div className={`${styles.actions} button-row`}>
             <Button loading={pending} onClick={() => void end()} type="button" variant="destructive">
               {t.endConfirmCta}
             </Button>
@@ -116,7 +116,7 @@ export function CareLinkCard({ link }: CareLinkCardProps) {
           </div>
         </div>
       ) : (
-        <div className={styles.actions}>
+        <div className={`${styles.actions} button-row`}>
           <Button onClick={() => setConfirming(true)} ref={triggerRef} type="button" variant="secondary">
             {t.end}
           </Button>
