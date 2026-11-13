@@ -46,7 +46,7 @@ export default async function EarlierPlanPage({ params }: { params: Promise<{ id
     const t = dictionary.plan;
 
     return (
-      <EmptyState body={t.lockedBody} title={t.lockedTitle}>
+      <EmptyState body={t.lockedBody} level={1} title={t.lockedTitle}>
         <CtaLink href="/perfil" size="lg">
           {t.historyLockedCta}
         </CtaLink>

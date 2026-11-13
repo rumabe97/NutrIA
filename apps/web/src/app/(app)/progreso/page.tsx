@@ -54,7 +54,7 @@ export default async function ProgressPage() {
 
   if (!summary) {
     return (
-      <EmptyState body={t.unavailable} title={t.title}>
+      <EmptyState body={t.unavailable} level={1} title={t.title}>
         <CtaLink href="/inicio" size="lg">
           {t.emptyCta}
         </CtaLink>
@@ -66,7 +66,7 @@ export default async function ProgressPage() {
 
   if (fortnights.length === 0 && weight.entries.length === 0) {
     return (
-      <EmptyState body={t.emptyBody} title={t.emptyTitle}>
+      <EmptyState body={t.emptyBody} level={1} title={t.emptyTitle}>
         <CtaLink href="/inicio" size="lg">
           {t.emptyCta}
         </CtaLink>

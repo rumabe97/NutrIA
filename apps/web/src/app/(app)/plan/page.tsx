@@ -84,13 +84,13 @@ export default async function PlanPage() {
     <Fragment>
       {notice}
       {scheduled ? (
-        <EmptyState body={dictionary.plan.scheduledBody} title={interpolate(dictionary.plan.scheduledTitle, { date: next })}>
+        <EmptyState body={dictionary.plan.scheduledBody} level={1} title={interpolate(dictionary.plan.scheduledTitle, { date: next })}>
           <CtaLink href="/plan/proximo" size="lg">
             {dictionary.plan.scheduledCta}
           </CtaLink>
         </EmptyState>
       ) : (
-        <EmptyState body={dictionary.plan.emptyBody} title={dictionary.plan.emptyTitle}>
+        <EmptyState body={dictionary.plan.emptyBody} level={1} title={dictionary.plan.emptyTitle}>
           <CtaLink href="/plan/generando" size="lg">
             {dictionary.plan.createCta}
           </CtaLink>

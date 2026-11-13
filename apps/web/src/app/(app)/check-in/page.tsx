@@ -43,7 +43,7 @@ export default async function CheckInPage() {
 
   if (status.done) {
     return (
-      <EmptyState body={t.alreadyBody} title={t.alreadyTitle}>
+      <EmptyState body={t.alreadyBody} level={1} title={t.alreadyTitle}>
         <CtaLink href="/inicio" size="lg">
           {t.backHome}
         </CtaLink>
@@ -53,7 +53,7 @@ export default async function CheckInPage() {
 
   if (!status.due) {
     return (
-      <EmptyState body={t.notYetBody} title={t.notYetTitle}>
+      <EmptyState body={t.notYetBody} level={1} title={t.notYetTitle}>
         <CtaLink href="/inicio" size="lg">
           {t.backHome}
         </CtaLink>

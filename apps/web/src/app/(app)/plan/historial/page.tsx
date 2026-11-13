@@ -51,7 +51,7 @@ export default async function PlanHistoryPage() {
 
   if (lived.length === 0) {
     return (
-      <EmptyState body={t.historyEmpty} title={t.historyTitle}>
+      <EmptyState body={t.historyEmpty} level={1} title={t.historyTitle}>
         <CtaLink href="/plan" size="lg">
           {t.title}
         </CtaLink>

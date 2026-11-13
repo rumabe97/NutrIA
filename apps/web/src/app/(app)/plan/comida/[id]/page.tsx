@@ -89,7 +89,7 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
   // rather than showing a 404 for something that is theirs and still there.
   if (answer.code === 'PREMIUM_ONLY') {
     return (
-      <EmptyState body={dictionary.plan.lockedBody} title={dictionary.plan.lockedTitle}>
+      <EmptyState body={dictionary.plan.lockedBody} level={1} title={dictionary.plan.lockedTitle}>
         <CtaLink href="/perfil" size="lg">
           {dictionary.plan.historyLockedCta}
         </CtaLink>
