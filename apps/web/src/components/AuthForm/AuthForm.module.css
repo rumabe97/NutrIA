@@ -72,6 +72,44 @@
   margin-top: calc(var(--space-04) * -1);
 }
 
+/*
+ * The two links that stand alone where growing their box would move the form: on a touch
+ * screen their target grows instead (`::after`, as the meal tick's does), into space that is
+ * already empty, and nothing on the screen moves.
+ *
+ * «¿Has olvidado tu contraseña?» has 4px above it (the form's gap less the margin that pulls it
+ * up) and the form's gap below, before the button: its target takes those 4px and as much below
+ * as makes 44px, and stops short of the button.
+ *
+ * A link alone in a card's footer (`.footerLink`, «Volver a acceder») has the footer's padding
+ * above it and the card's below: its target grows evenly into both.
+ */
+@media (pointer: coarse) {
+  .forgot,
+  .footerLink {
+    position: relative;
+  }
+
+  .footerLink {
+    display: inline-block;
+  }
+
+  .forgot::after,
+  .footerLink::after {
+    content: '';
+    inset-inline: 0;
+    position: absolute;
+  }
+
+  .forgot::after {
+    inset-block: calc(var(--space-04) - var(--space-05)) calc(100% + var(--space-05) - var(--space-04) - var(--target-min));
+  }
+
+  .footerLink::after {
+    inset-block: calc((var(--target-min) - 100%) / -2);
+  }
+}
+
 /* Large text for this screen (`apps/web/AGENTS.md` § Large text): a step down, so a long word
    such as «Bienvenido» stays whole on a 320px phone instead of breaking inside itself. */
 @media (width < 17rem) {

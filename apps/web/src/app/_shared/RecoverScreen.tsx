@@ -48,7 +48,7 @@ export function RecoverScreen() {
         <h1 className={styles.title}>{dictionary.auth.checkEmail}</h1>
         <p className={styles.success}>{dictionary.auth.recoverSent}</p>
         <div className={styles.footer}>
-          <Link className={styles.link} href={withLocale('/acceder', locale)}>
+          <Link className={`${styles.link} ${styles.footerLink}`} href={withLocale('/acceder', locale)}>
             {dictionary.auth.backToSignIn}
           </Link>
         </div>
@@ -71,7 +71,7 @@ export function RecoverScreen() {
         </Button>
 
         <div className={styles.footer}>
-          <Link className={styles.link} href={withLocale('/acceder', locale)}>
+          <Link className={`${styles.link} ${styles.footerLink}`} href={withLocale('/acceder', locale)}>
             {dictionary.auth.backToSignIn}
           </Link>
         </div>
