@@ -18,6 +18,7 @@
 
 .control {
   display: flex;
+  flex: none;
 }
 
 .name {
@@ -40,6 +41,9 @@
 
 .root[data-placement='end'] .name {
   font-weight: var(--font-weight-semibold);
+  /* A long word at 200 % text on a phone breaks (hyphenated where the language allows) beside the switch, which keeps its size. */
+  hyphens: auto;
+  overflow-wrap: anywhere;
 }
 
 .root[data-placement='end'] .hint {

@@ -38,6 +38,7 @@
    one card, a hairline between them. */
 .group {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--gap-heading);
 }
 
@@ -51,6 +52,7 @@
 /* `ul.rows` so the list reset wins over the card whatever order the sheets land in. */
 ul.rows {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   list-style: none;
   margin: 0;
 }
@@ -85,6 +87,7 @@ ul.rows {
    wide enough to hold them. */
 .tiers {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-04);
   margin-block-start: var(--space-02);
 }

@@ -1,6 +1,7 @@
 .root {
   display: grid;
   gap: var(--space-02);
+  min-inline-size: 0;
 }
 
 .label {
@@ -11,6 +12,8 @@
 .line {
   align-items: center;
   display: flex;
+  /* At 200 % text the box and its button no longer share a line on a phone: the button wraps under. */
+  flex-wrap: wrap;
   gap: var(--space-02);
 }
 

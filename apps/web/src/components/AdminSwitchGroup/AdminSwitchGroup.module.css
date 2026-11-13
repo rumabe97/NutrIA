@@ -18,6 +18,8 @@
 /* `ul.rows` so the list reset wins over the card whatever order the sheets land in. */
 ul.rows {
   display: grid;
+  /* The column may shrink below its widest child: at 200 % text a row wraps instead of pushing past the card. */
+  grid-template-columns: minmax(0, 1fr);
   list-style: none;
   margin: 0;
   padding: 0;
