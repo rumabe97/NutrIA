@@ -7,7 +7,6 @@ import { getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
 import { AdminPageHeader } from 'components/AdminPageHeader';
-
 import { AdminSwitchGroup } from 'components/AdminSwitchGroup';
 import { AllowanceField } from 'components/AllowanceField';
 import { Card } from 'components/Card';
