@@ -99,11 +99,43 @@
   text-transform: uppercase;
 }
 
+/*
+ * «Publicar el plan» and «Generar otro» side by side at every width — never one over the other
+ * (the owner's rule, `button-row`). Each control's own wrapper steps aside (`display: contents`),
+ * so the two buttons share the first line and what each says under itself (a failure, the
+ * regenerate hint, its progress) takes the whole width below them. A label too long for its half
+ * wraps inside its own button, which grows, as `button-row` does.
+ */
 .actions {
-  align-items: flex-start;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-03) var(--space-05);
+  align-items: start;
+  display: grid;
+  gap: var(--space-02);
+  grid-auto-flow: row dense;
+  grid-template-columns: repeat(2, minmax(0, max-content));
+}
+
+.actions > * {
+  display: contents;
+}
+
+.actions > * > :not(button) {
+  grid-column: 1 / -1;
+}
+
+.actions > * > button {
+  block-size: auto;
+  height: auto;
+  min-block-size: var(--height-l);
+  min-inline-size: 0;
+  padding-block: var(--space-01);
+  text-align: center;
+  white-space: normal;
+}
+
+@media (pointer: coarse) {
+  .actions > * > button {
+    min-block-size: var(--target-min);
+  }
 }
 
 .rows {
