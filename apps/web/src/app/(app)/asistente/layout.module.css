@@ -1,4 +1,8 @@
 .shell {
+  /* What the bar above the conversation takes on a narrow screen — its own height and the
+     gap under it — so the conversation's column can leave exactly that room and an empty
+     conversation fits the screen with nothing to scroll. */
+  --assistant-bar-space: calc(var(--target-min) + 2 * var(--space-01) + var(--gap-block));
   display: grid;
   gap: var(--gap-block);
   /* One track no wider than the screen: an implicit `auto` track is sized by its widest child. */
@@ -12,6 +16,7 @@
 
 @media (width >= 64rem) {
   .shell {
+    --assistant-bar-space: 0px;
     gap: var(--space-08);
     grid-template-columns: 15rem minmax(0, 1fr);
   }

@@ -151,7 +151,7 @@ export function TwoFactorCard({ email, enabled: enabledAtLoad }: TwoFactorCardPr
       </p>
 
       {step.kind === 'idle' && !enabled ? (
-        <div className={styles.actions}>
+        <div className={`${styles.actions} button-row`}>
           <Button onClick={() => open('enable')} ref={enableRef} type="button" variant="secondary">
             {t.activate}
           </Button>
@@ -159,7 +159,7 @@ export function TwoFactorCard({ email, enabled: enabledAtLoad }: TwoFactorCardPr
       ) : null}
 
       {step.kind === 'idle' && enabled ? (
-        <div className={styles.actions}>
+        <div className={`${styles.actions} button-row`}>
           <Button onClick={() => open('regenerate')} ref={regenerateRef} type="button" variant="secondary">
             {t.regenerate}
           </Button>

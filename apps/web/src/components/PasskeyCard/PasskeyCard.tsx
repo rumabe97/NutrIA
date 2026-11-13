@@ -330,7 +330,7 @@ export function PasskeyCard({ email, hasPassword }: PasskeyCardProps) {
       {state.kind === 'notFresh' || stale ? (
         <Note className={styles.notFresh} tone="warning" toneLabel={dictionary.common.noteTone.warning}>
           <Text size="sm">{state.kind === 'notFresh' ? t.listNotFresh : t.stale}</Text>
-          <div className={styles.actions}>
+          <div className={`${styles.actions} button-row`}>
             <SignInAgainButton />
           </div>
         </Note>
@@ -389,7 +389,7 @@ export function PasskeyCard({ email, hasPassword }: PasskeyCardProps) {
           <Text id={consequenceId} size="sm" tone="secondary">
             {t.removeBody}
           </Text>
-          <div className={styles.actions}>
+          <div className={`${styles.actions} button-row`}>
             <Button
               aria-describedby={`${questionId} ${consequenceId}`}
               loading={removing}
@@ -420,7 +420,7 @@ export function PasskeyCard({ email, hasPassword }: PasskeyCardProps) {
 
       {/* Offered while the list is readable, or failed to load (adding needs no list), and never once only a fresh sign-in lets it through. */}
       {step.kind === 'password' || stale || state.kind === 'notFresh' || state.kind === 'loading' ? null : (
-        <div className={styles.actions}>
+        <div className={`${styles.actions} button-row`}>
           <Button
             disabled={removing || step.kind !== 'idle'}
             loading={adding}

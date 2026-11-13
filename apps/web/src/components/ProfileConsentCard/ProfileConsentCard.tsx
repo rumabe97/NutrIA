@@ -89,7 +89,7 @@ export function ProfileConsentCard() {
           <Text size="sm" tone="tertiary">
             {t.profileConsentWithdrawBody}
           </Text>
-          <div className={styles.actions}>
+          <div className={`${styles.actions} button-row`}>
             <Button loading={pending} onClick={() => void withdraw()} type="button" variant="destructive">
               {t.profileConsentWithdrawConfirm}
             </Button>
@@ -99,7 +99,7 @@ export function ProfileConsentCard() {
           </div>
         </div>
       ) : (
-        <div className={styles.actions}>
+        <div className={`${styles.actions} button-row`}>
           <Button onClick={() => setConfirming(true)} ref={triggerRef} type="button" variant="secondary">
             {t.profileConsentWithdraw}
           </Button>

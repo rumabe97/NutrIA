@@ -1520,6 +1520,16 @@ question is on its way — after the press has landed, so nothing moves under th
 first answer no longer puts the focus back in the box there. With a keyboard and a pointer the
 focus stays in the box, as before.
 
+**After his check of #375, again (2026-11-13)**: a new conversation opened a few pixels down,
+its warning under the bar (his capture). Two causes: the conversation's column was sized for
+the screen without counting the bar above it, so an empty conversation was a little taller
+than the screen; and the chat went to its end on arrival, and followed it, even with nothing
+in it. The column now leaves the bar's room (`--assistant-bar-space`) and a conversation with
+no turns opens at its top and is not followed until something is sent. Measured on a local
+build at 320, 360, 390 and 1280: a new conversation opens at scroll 0 with the warning 24 px
+under the bar, and at 390 nothing is left to scroll; a conversation with turns still opens at
+its end.
+
 ## Phase 7 — The public pages (2026-11-12)
 
 - **Executor**: `frontend` on opus, branch `024-phase-7` (from `origin/main` at a9fd2ae5, #374).
@@ -1663,6 +1673,50 @@ focus stays in the box, as before.
   thinking about it.»), its last words in the accent. This is the page's `h1` and the share
   card's line; the title and description in the head are unchanged. The four baseline files
   that name the heading are updated.
+- **The hero's pictures (2026-11-13)**: the owner asked for them and delegated the choice
+  («las que mejor estén. Elígelas tú»). Chosen from production, read-only, among the pictures
+  the judge accepted with no note and no extra food (5/5 realism and sharpness, one dish,
+  nothing that is not food), never one accepted by hand, of `seed` or `ai` dishes; each then
+  looked at by the lead beside its ingredient list — no food the list lacks, no person, hand,
+  brand or text — and sent to the owner to look at himself (legal § 2.8 P3):
+  - `e03c398a-30a2-40f1-a8a8-e7f7fef6acaa` — Salteado de gambas y edamame al jengibre con arroz
+    basmati (seed), the large one;
+  - `e16f6175-0918-48fc-8af8-841115bc5c12` — Tortilla de patatas y pimientos del piquillo con
+    ensalada verde (seed);
+  - `6e12e063-9bb2-4fec-be80-73b8944e7b9a` — Copa de Yogur Proteico con Granada y Nueces (ai).
+  With pictures on it the landing page says `noimageindex` (legal O2, `seo`'s recommendation):
+  `index, follow, noimageindex` on `/` and `/en`, read in the built page. Seen on a local build
+  at 390, 1280, 320 (Oscuro) and 768 (`/en`, Huerta): no sideways scroll; the first picture
+  eager and the other two lazy, each the original 1200 × 896 file with no `srcset`, each with
+  its «IA» mark, the caption under them. NOT RUN: Lighthouse (no binary here) — the files are
+  180–226 KB each and the plan asks for Performance within three points of phase 0, or one
+  picture or none; the comparison of each file's SHA-256 with a stored one (B3: none is stored
+  that this check could read).
+
+## After phase 6 — buttons side by side, and a destructive button in the theme (2026-11-13)
+
+**Reported by the owner** with a capture of Perfil → «Verificación en dos pasos»: two buttons
+of one card stood one over the other, and the filled red of «Desactivar» did not belong to the
+theme. He asked for every card where it happens, and for every button's colour to be looked at.
+
+- **One rule, `button-row`** (`packages/ui/src/styles/classnames.css`): a group of buttons
+  that belong together stays on one line at the smaller button's measure; where the row is too
+  narrow for every label on one line, a label wraps inside its own button, which grows.
+  Applied to the action groups of the profile's cards: the second factor (its card, its setup,
+  its password step, its backup codes), the passkeys, the sessions, the targets, the health
+  panel, the consent card, the care link, deleting the account — and deleting a conversation.
+  The two groups that hold a sentence and a button keep wrapping as they did.
+- **The destructive button** is the error's own ink on its own pale ground with an edge of
+  that ink — the shape of a secondary button, red only in its words — instead of a filled red
+  beside the brand's filled tomato. The pair (`--color-error-text` on `--color-error-surface`)
+  is one the contrast script already holds in every theme. The other three variants were read
+  again in Claro and Oscuro and left as they are: the filled one in the brand's deep gradient,
+  the outlined one, the text one in the solid accent.
+- **Verification** (local build, a probe account with a second factor): on `/perfil` at 390 and
+  320 in Claro and at 390 in Oscuro, «Generar códigos nuevos» and «Desactivar» share one line
+  (at 320 the longer label wraps inside its button), no other group of two buttons stands on
+  two lines, no sideways scroll. NOT RUN: the confirmation states of each card in a browser
+  (they use the same rule), Huerta, Pulso and Alto contraste by eye, an iPhone.
 
 ## Phase 7b — The mails (2026-11-13)
 
@@ -1761,3 +1815,6 @@ not replayed after a Claro or Oscuro value changes (the token spec reads that fi
 `api` package, which does not depend on `web`). Two of the 104 captures read by the lead
 (VerifyEmail es 360 light, CheckInReminder es 360 dark) and sent to the owner.
 
+
+**The owner on the wordmark (2026-11-13)**: «NutrIA» stays in ink at the display weight, the
+leaf carrying the colour, as built.

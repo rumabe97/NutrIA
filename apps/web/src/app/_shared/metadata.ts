@@ -3,6 +3,7 @@ import { LOCALES } from 'i18n/config';
 import { withLocale } from 'i18n/routes';
 
 import { AUTO_PAGE_COLOURS } from 'lib/brandColours';
+import { LANDING_PICTURES } from 'lib/landingPictures';
 
 import { HOME, languageUrls, SITE_URL, UNINDEXED_PATHS } from './pages';
 
@@ -85,7 +86,16 @@ export function pageMetadata(locale: Locale, path: PagePath): Metadata {
     // `follow` on purpose: these pages are worthless in a result list but they
     // still link onward, and a crawler told to stop reading here would stop
     // there too.
-    robots: UNINDEXED_PATHS.includes(path) ? { follow: true, index: false } : undefined,
+    //
+    // The landing page with generated dish pictures on it keeps them out of image search
+    // (`docs/legal/2026-11-11-redesign.md` § 2.8 O2): the files are served from another
+    // origin, so a header of ours cannot reach them and this directive is the only lever.
+    // The page itself is indexed as before.
+    robots: UNINDEXED_PATHS.includes(path)
+      ? { follow: true, index: false }
+      : path === HOME && LANDING_PICTURES.length > 0
+        ? { follow: true, index: true, noimageindex: true }
+        : undefined,
     // The landing page is the one title that leads with the brand, so it opts
     // out of the layout's "%s · NutrIA" template rather than being run through it.
     title: path === HOME ? { absolute: page.title } : page.title
