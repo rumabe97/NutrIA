@@ -158,7 +158,7 @@ export function TwoFactorRemoval({ account }: TwoFactorRemovalProps) {
               {dialogError ?? ''}
             </Text>
             {/* Cancel first: the dialog opens on it, so two presses of Enter never ask for a removal. */}
-            <div className={styles.buttons}>
+            <div className="button-row">
               <Button disabled={pending === 'request'} onClick={() => setConfirming(false)} type="button" variant="secondary">
                 {dictionary.common.cancel}
               </Button>

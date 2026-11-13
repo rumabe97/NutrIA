@@ -102,6 +102,31 @@ describe('Button', () => {
       expect(screen.getByRole('button')).toBeDisabled();
     });
 
+    it('ignores a press and keeps its focus while aria-disabled, loading included', async () => {
+      const onClick = vi.fn();
+      const onSubmit = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
+      const user = userEvent.setup();
+      render(
+        <form onSubmit={onSubmit}>
+          <Button aria-disabled={true} loading={true} onClick={onClick} type="submit">
+            Save
+          </Button>
+        </form>
+      );
+      const btn = screen.getByRole('button');
+
+      btn.focus();
+      await user.keyboard('{Enter}');
+      await user.click(btn);
+
+      expect(btn).toBeEnabled();
+      expect(btn).toHaveFocus();
+      expect(btn).toHaveAttribute('aria-disabled', 'true');
+      expect(btn).toHaveAttribute('aria-busy', 'true');
+      expect(onClick).not.toHaveBeenCalled();
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
     it('forwards standard button attributes (type, form, aria-*)', () => {
       render(
         <Button aria-pressed="true" form="signup" type="submit">

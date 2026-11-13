@@ -51,11 +51,12 @@ export function RecipeVerdict({ recipeId, verdict: initial }: RecipeVerdictProps
   return (
     <div className={styles.root}>
       {/* Both secondary: `aria-pressed` draws the one that is on, and the filled
-          look stays the page's one primary action. */}
+          look stays the page's one primary action. While the request is out they ignore a
+          press (`aria-disabled`) but keep the focus `disabled` would drop. */}
       <div className={styles.buttons}>
         <Button
+          aria-disabled={pending || undefined}
           aria-pressed={verdict === 'liked'}
-          disabled={pending}
           onClick={() => void choose('liked')}
           size="sm"
           type="button"
@@ -64,8 +65,8 @@ export function RecipeVerdict({ recipeId, verdict: initial }: RecipeVerdictProps
           {t.like}
         </Button>
         <Button
+          aria-disabled={pending || undefined}
           aria-pressed={verdict === 'disliked'}
-          disabled={pending}
           onClick={() => void choose('disliked')}
           size="sm"
           type="button"

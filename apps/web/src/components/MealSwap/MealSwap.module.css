@@ -137,7 +137,8 @@
 
 .trigger[data-compact]::after {
   content: '';
-  inset: min(0px, calc((var(--pill-height, 2.125rem) - var(--target-min)) / 2)) 0;
+  /* From the padding box, inside the button's edge: the edge is taken off, or the target is 42px. */
+  inset: min(0px, calc((var(--pill-height, 2.125rem) - var(--target-min)) / 2 - var(--border-width-interactive))) 0;
   position: absolute;
 }
 

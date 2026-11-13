@@ -39,7 +39,7 @@ export default async function ShoppingPage() {
 
   if (!list) {
     return (
-      <EmptyState body={dictionary.shopping.emptyBody} title={dictionary.shopping.emptyTitle}>
+      <EmptyState body={dictionary.shopping.emptyBody} level={1} title={dictionary.shopping.emptyTitle}>
         <CtaLink href="/plan" size="lg">
           {dictionary.shopping.emptyCta}
         </CtaLink>

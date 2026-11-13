@@ -147,7 +147,7 @@ export function PictureRemoveAction({ dish, recipeId }: PictureRemoveActionProps
         </Text>
         {ended === undefined ? (
           // Cancel first: the dialog opens on it, so two presses of Enter never remove.
-          <div className={styles.buttons}>
+          <div className={`${styles.buttons} button-row`}>
             <Button disabled={pending} onClick={close} type="button" variant="secondary">
               {dictionary.common.cancel}
             </Button>
@@ -164,7 +164,7 @@ export function PictureRemoveAction({ dish, recipeId }: PictureRemoveActionProps
             </Button>
           </div>
         ) : (
-          <div className={styles.buttons}>
+          <div className={`${styles.buttons} button-row`}>
             <Button onClick={close} ref={reload} type="button" variant="secondary">
               {t.reload}
             </Button>

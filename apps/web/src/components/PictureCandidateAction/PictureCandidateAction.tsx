@@ -121,7 +121,7 @@ export function PictureCandidateAction({ kind, recipeId }: PictureCandidateActio
           {error ?? ''}
         </Text>
         {/* Cancel first: the dialog opens on it, so two presses of Enter never delete. */}
-        <div className={styles.buttons}>
+        <div className={`${styles.buttons} button-row`}>
           <Button
             disabled={pending}
             onClick={() => {

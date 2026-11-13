@@ -163,12 +163,6 @@
   margin: 0;
 }
 
-.confirmActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-02);
-}
-
 /*
  * The box to write in: stuck to the foot of the screen, above the bottom bar on
  * a phone (`--app-bar-clearance`) — and right above the keyboard once the field has
@@ -271,6 +265,12 @@ body:has(.field:focus) .composer::after {
   outline: none;
   padding: var(--space-02) 0;
   resize: none;
+}
+
+/* The browser's own placeholder grey is no token and measured under 4.5:1; this is the pair the
+   contrast script holds in every theme (`--foreground-03` on `--surface-card`). */
+.field::placeholder {
+  color: var(--foreground-03);
 }
 
 /* The field itself is the target on a touch screen, not only the box around it. */

@@ -53,9 +53,3 @@
 .dialogError:not(:empty) {
   margin-block-end: var(--space-03);
 }
-
-.buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-02);
-}

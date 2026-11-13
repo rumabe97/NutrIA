@@ -39,8 +39,10 @@ export function DeleteAccount() {
   const [signingOut, setSigningOut] = useState(false);
   const signInAgainRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const fieldRef = useRef<HTMLInputElement>(null);
   const cancelled = useRef(false);
   const reasonId = useId();
+  const promptId = useId();
 
   const word = dictionary.profile.deleteWord;
 
@@ -52,9 +54,13 @@ export function DeleteAccount() {
     }
   }, [signInAgain]);
 
-  // Cancel removes the button that had focus; hand it back to the one that opened this.
+  // Cancel removes the button that had focus; hand it back to the one that opened this. And
+  // opening removes the trigger: focus goes to the field the word is typed in, which carries
+  // the prompt as its description.
   useEffect(() => {
-    if (!confirming && cancelled.current) {
+    if (confirming) {
+      fieldRef.current?.focus();
+    } else if (cancelled.current) {
       cancelled.current = false;
       triggerRef.current?.focus();
     }
@@ -147,20 +153,30 @@ export function DeleteAccount() {
         </p>
       ) : null}
 
-      <Text size="sm" tone="secondary">
+      <Text id={promptId} size="sm" tone="secondary">
         {interpolate(dictionary.profile.deletePrompt, { word })}
       </Text>
 
       <Input
         autoComplete="off"
+        describedBy={promptId}
         label={interpolate(dictionary.profile.deleteTypeLabel, { word })}
         onChange={event => setValue(event.target.value)}
+        ref={fieldRef}
         value={value}
       />
 
       <div className={`${styles.actions} button-row`}>
         {/* Red, because this one cannot be undone: the colour is the last warning before the word typed above takes effect. */}
-        <Button disabled={value !== word} loading={pending} onClick={remove} type="button" variant="destructive">
+        {/* Busy, it keeps its focus (`aria-disabled`, not `disabled`): a refusal lands where the person is. */}
+        <Button
+          aria-disabled={pending || undefined}
+          disabled={value !== word}
+          loading={pending}
+          onClick={() => void remove()}
+          type="button"
+          variant="destructive"
+        >
           {pending ? dictionary.profile.deletePending : dictionary.profile.deleteConfirm}
         </Button>
         <Button onClick={cancel} type="button" variant="secondary">

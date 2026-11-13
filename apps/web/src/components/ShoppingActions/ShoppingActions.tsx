@@ -112,23 +112,26 @@ export function ShoppingActions({ groups }: Readonly<{ groups: readonly Group[] 
 
   return (
     <div className={styles.root}>
-      <Button onClick={() => void share()} size="sm" type="button" variant="secondary">
-        {t.share}
-      </Button>
-      {/* Offline, a map is a page that will not open, so it is not offered (`0053`).
-          A link that leaves the site, dressed as the share button's equal, and it
-          says where it goes — a new tab is a surprise only when nobody was told. */}
-      {offline || !agent ? null : (
-        <a
-          className={buttonClassName({ size: 'sm', variant: 'secondary' })}
-          href={nearbyShopsUrl(t.nearbyQuery, agent)}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          {t.nearby}
-          <span className="visually-hidden">{t.nearbyOpens}</span>
-        </a>
-      )}
+      {/* Side by side at every width (`button-row`): at 320px the two used to wrap one over the other. */}
+      <div className="button-row">
+        <Button onClick={() => void share()} size="sm" type="button" variant="secondary">
+          {t.share}
+        </Button>
+        {/* Offline, a map is a page that will not open, so it is not offered (`0053`).
+            A link that leaves the site, dressed as the share button's equal, and it
+            says where it goes — a new tab is a surprise only when nobody was told. */}
+        {offline || !agent ? null : (
+          <a
+            className={buttonClassName({ size: 'sm', variant: 'secondary' })}
+            href={nearbyShopsUrl(t.nearbyQuery, agent)}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {t.nearby}
+            <span className="visually-hidden">{t.nearbyOpens}</span>
+          </a>
+        )}
+      </div>
       {note ? (
         <p className={styles.note} role="status">
           {note}

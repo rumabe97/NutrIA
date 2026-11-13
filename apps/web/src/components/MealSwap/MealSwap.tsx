@@ -253,21 +253,24 @@ export function MealSwap({
           </div>
 
           <div className={styles.footer}>
-            <Button loading={pending} onClick={() => void swap()} size="sm" type="button">
-              {pending ? t.swapping : t.swapConfirm}
-            </Button>
-            <Button
-              disabled={pending}
-              onClick={() => {
-                setOpen(false);
-                setError(undefined);
-              }}
-              size="sm"
-              type="button"
-              variant="secondary"
-            >
-              {dictionary.common.cancel}
-            </Button>
+            {/* The two side by side at every width (`button-row`); the line after them still wraps. */}
+            <div className="button-row">
+              <Button loading={pending} onClick={() => void swap()} size="sm" type="button">
+                {pending ? t.swapping : t.swapConfirm}
+              </Button>
+              <Button
+                disabled={pending}
+                onClick={() => {
+                  setOpen(false);
+                  setError(undefined);
+                }}
+                size="sm"
+                type="button"
+                variant="secondary"
+              >
+                {dictionary.common.cancel}
+              </Button>
+            </div>
             {/* An alert only when something failed: the idle line is a count of
                 what is left, and a live region around it would read the footer
                 out every time the panel opens. Separate keys so the alert is

@@ -160,7 +160,7 @@ export function CareTargetsForm({ linkId, targets }: CareTargetsFormProps) {
             value={draft.fatG}
           />
 
-          <div className={styles.actions}>
+          <div className={`${styles.actions} button-row`}>
             <Button loading={pending} type="submit">
               {pending ? dictionary.common.saving : t.targetsSave}
             </Button>

@@ -71,13 +71,15 @@
 /*
  * Both calls to action share one width — the wider label's — instead of each hugging its own
  * text: hugging made «Crear mi plan» visibly smaller than «Cómo funciona», which read as the
- * secondary action mattering more. Side by side, as the sheet draws them, while they fit; one
- * over the other on a 320px phone and under large text.
+ * secondary action mattering more. Side by side, as the sheet draws them, at every width — never
+ * one over the other (the owner's rule for buttons that belong together, `button-row`). Where the
+ * two do not fit on one line — a 320px phone, large text — they share it in two equal halves with
+ * less padding, and a label wraps inside its own button, which grows.
  */
 .heroActions {
   display: inline-grid;
   gap: var(--space-03);
-  grid-auto-columns: 1fr;
+  grid-auto-columns: minmax(0, 1fr);
   grid-auto-flow: column;
   margin-top: var(--space-07);
   max-inline-size: 100%;
@@ -86,7 +88,16 @@
 @media (width < 23.5rem) {
   .heroActions {
     display: grid;
-    grid-auto-flow: row;
+    gap: var(--space-02);
+  }
+
+  .heroActions > a {
+    block-size: auto;
+    height: auto;
+    min-block-size: var(--height-xl);
+    padding: var(--space-02) var(--space-04);
+    text-align: center;
+    white-space: normal;
   }
 }
 

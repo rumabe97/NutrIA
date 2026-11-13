@@ -1,6 +1,8 @@
 /*
- * In the page: done and skipped on one side, another dish on the other, wrapping as the
- * room runs out (`MealSwap` pushes itself to the row's end).
+ * In the page: done and skipped on one side, another dish on the other (`MealSwap` pushes
+ * itself to the row's end) — one row, as the sheet draws it, down to a 320px phone, never
+ * «Cambiar» under «Hecha» (`MealStatus` asks for no more than its two words). The row wraps
+ * for the swap's panel, which takes a line of its own, and under text too large for the screen.
  */
 .actions {
   /* «Cambiar» as the sheet draws it here: words and an icon, no edge, beside the two marks. */

@@ -67,6 +67,7 @@ const isActive = pathname === href;
   { prop: "children", type: "ReactNode", default: "—", description: "Link label or content" },
   { prop: "inline", type: "boolean", default: "false", description: "Opt in to the visible link affordance (underline + brand colour). Use when the link sits inline in prose." },
   { prop: "aria-current", type: "'page' | 'step' | 'location' | 'date' | 'time' | boolean", default: "—", description: "Marks the link as referring to the current item. Pass `\"page\"` for the active link in a nav list." },
+  { prop: "aria-label", type: "string", default: "—", description: "A name that says more than the visible words, which it must start with (WCAG 2.5.3) — a sort link's `Email, sort ascending`." },
   { prop: "className", type: "string", default: "—", description: "Additional CSS classes" },
   { prop: "target", type: "'_blank' | '_self' | '_parent' | '_top'", default: "—", description: "Browsing context for the link" },
   { prop: "rel", type: "string", default: "—", description: "Link relationship. Defaults to `noopener noreferrer` when `target=\"_blank\"` and no `rel` is provided." },

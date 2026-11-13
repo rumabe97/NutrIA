@@ -17,7 +17,7 @@
 
 /* Pressed in: a button gives under the finger and springs back. A busy or
    disabled button does not, since nothing it shows is happening. */
-.button:active:not(:disabled, [aria-busy='true']) {
+.button:active:not(:disabled, [aria-busy='true'], [aria-disabled='true']) {
   transform: scale(0.97);
 }
 
@@ -29,7 +29,9 @@
   }
 }
 
-.button:disabled {
+/* `aria-disabled` is the same state for a button that keeps its focus (`Button.tsx`). */
+.button:disabled,
+.button[aria-disabled='true'] {
   cursor: not-allowed;
   opacity: 0.5;
   pointer-events: none;
@@ -95,7 +97,7 @@
   color: var(--color-on-brand-fill);
 }
 
-.button.primary:hover:not(:disabled) {
+.button.primary:hover:not(:disabled, [aria-disabled='true']) {
   background-color: var(--color-brand-fill-hover);
   background-image: none;
 }
@@ -106,7 +108,7 @@
   color: var(--foreground-01);
 }
 
-.button.secondary:hover:not(:disabled) {
+.button.secondary:hover:not(:disabled, [aria-disabled='true']) {
   background-color: var(--color-hover);
 }
 
@@ -123,7 +125,7 @@
   color: var(--color-brand-11);
 }
 
-.button.tertiary:hover:not(:disabled) {
+.button.tertiary:hover:not(:disabled, [aria-disabled='true']) {
   background-color: var(--color-hover);
 }
 
@@ -141,7 +143,7 @@
   color: var(--color-error-text);
 }
 
-.button.destructive:hover:not(:disabled) {
+.button.destructive:hover:not(:disabled, [aria-disabled='true']) {
   background-color: var(--color-error-border);
 }
 

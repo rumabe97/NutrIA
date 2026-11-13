@@ -137,11 +137,15 @@ export function AccountActions({ account, premium }: AccountActionsProps) {
 
   return (
     <div className={styles.root} ref={row}>
+      {/* The button just pressed is `aria-disabled` while its request is out, never `disabled`:
+          it keeps the focus it holds and ignores a second press. The others in the row cannot be
+          focused at that moment, so they are merely `disabled`. */}
       <div className={`${styles.buttons} button-row`}>
         {activated ? null : (
           <Button
+            aria-disabled={pending === 'activate' || undefined}
             aria-label={interpolate(t.activateFor, { email: account.email })}
-            disabled={pending !== undefined}
+            disabled={pending === undefined ? false : pending !== 'activate'}
             loading={pending === 'activate'}
             onClick={event => {
               keepFocus(event.currentTarget);
@@ -156,8 +160,9 @@ export function AccountActions({ account, premium }: AccountActionsProps) {
 
         {premium ? (
           <Button
+            aria-disabled={pending === 'tier' || undefined}
             aria-label={interpolate(tier === 'premium' ? t.makeFreeFor : t.makePremiumFor, { email: account.email })}
-            disabled={pending !== undefined}
+            disabled={pending === undefined ? false : pending !== 'tier'}
             loading={pending === 'tier'}
             onClick={event => {
               keepFocus(event.currentTarget);
@@ -233,7 +238,7 @@ export function AccountActions({ account, premium }: AccountActionsProps) {
                 {numberError ?? grantError ?? ''}
               </p>
               <div className={`${styles.buttons} button-row`}>
-                <Button loading={pending === 'grant'} type="submit">
+                <Button aria-disabled={pending === 'grant' || undefined} loading={pending === 'grant'} type="submit">
                   {t.professionalGrant}
                 </Button>
                 <Button disabled={pending === 'grant'} onClick={() => setGranting(false)} type="button" variant="secondary">

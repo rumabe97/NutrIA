@@ -57,6 +57,20 @@ p.brand {
   text-underline-offset: 0.25em;
 }
 
+/* A finger's height on a touch screen, each link its own line of the list: the links are the
+   list's rhythm there, so the gap goes and no two targets overlap (`0057`). */
+@media (pointer: coarse) {
+  .list {
+    gap: 0;
+  }
+
+  .link {
+    align-items: center;
+    display: inline-flex;
+    min-block-size: var(--target-min);
+  }
+}
+
 .bottom {
   border-top: 1px solid var(--border-01);
   display: flex;

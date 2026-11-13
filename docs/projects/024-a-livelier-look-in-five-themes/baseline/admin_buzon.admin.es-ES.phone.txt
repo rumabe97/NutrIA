@@ -8,7 +8,7 @@ heading "Buzón" [level=#]
 heading "Mensajes" [level=#]
 heading "Todos los mensajes" [level=#]
 link "# días"
-link "Fecha , orden descendente; ordenar de forma ascendente"
+link "Fecha, orden descendente; ordenar de forma ascendente"
 link "Saltar al contenido"
 option "#"
 option "#" [selected]

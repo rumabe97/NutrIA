@@ -43,11 +43,32 @@ export function buttonClassName({
   return [styles.button, styles[variant], styles[size], className].filter(Boolean).join(' ');
 }
 
-export function Button({ children, className, disabled, loading = false, size = 'md', variant = 'primary', ...rest }: ButtonProps) {
+/**
+ * A button can say it cannot be pressed without leaving the keyboard: `aria-disabled`
+ * draws it as `disabled` does and ignores the press — a submit included, since a
+ * cancelled click submits nothing — but it keeps its place in the tab order. Use it on
+ * the control that was just pressed and is waiting on its request: a `disabled` button
+ * drops the focus it holds to the page, and a keyboard user starts again from the top.
+ */
+export function Button({ children, className, disabled, loading = false, onClick, size = 'md', variant = 'primary', ...rest }: ButtonProps) {
+  const inert = rest['aria-disabled'] === true || rest['aria-disabled'] === 'true';
+
   return (
     // `aria-busy` rather than only the visual spinner: a screen reader user gets
     // the same "something is happening" the sighted one does.
-    <button aria-busy={loading || undefined} className={buttonClassName({ className, size, variant })} disabled={disabled ?? loading} {...rest}>
+    <button
+      aria-busy={loading || undefined}
+      className={buttonClassName({ className, size, variant })}
+      disabled={disabled ?? (loading && !inert)}
+      onClick={
+        inert
+          ? event => {
+              event.preventDefault();
+            }
+          : onClick
+      }
+      {...rest}
+    >
       {/* A ring rather than `ui/components/Spinner`, which is an eight-leaf mark
           designed for 20px and up. Scaled to fit a 24px button its leaves are
           1.5px wide at 65% opacity — present in the DOM and invisible on screen,

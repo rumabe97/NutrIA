@@ -62,6 +62,7 @@ const [open, setOpen] = useState(false);
   { prop: "open", type: "boolean", default: "—", description: "Controlled open state" },
   { prop: "onOpenChange", type: "(open: boolean) => void", default: "—", description: "Called when the open state changes" },
   { prop: "onCloseAutoFocus", type: "(event: Event) => void", default: "—", description: "Called before focus returns to the trigger on close; `event.preventDefault()` keeps focus where it is" },
+  { prop: "onOpenAutoFocus", type: "(event: Event) => void", default: "—", description: "Called before focus moves into the opened sidebar, which by default skips links and lands on the first other control; `event.preventDefault()` and focus the current page's link instead (`event.target` is the sidebar)" },
   { prop: "description", type: "string", default: "—", description: "Explanatory text announced after the title" },
 ]} />
 

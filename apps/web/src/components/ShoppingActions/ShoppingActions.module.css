@@ -1,12 +1,10 @@
 .root {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
   margin: 0 0 var(--gap-block);
 }
 
 .note {
-  flex-basis: 100%;
   margin: 0;
 }

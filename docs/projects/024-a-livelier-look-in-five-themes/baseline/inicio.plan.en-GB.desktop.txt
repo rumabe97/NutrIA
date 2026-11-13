@@ -5,7 +5,7 @@ button "Log" [disabled]
 button "Mark as eaten"
 button "Sign out"
 button "Theme"
-button "Unmark as eaten" [pressed]
+button "Mark as eaten" [pressed]
 heading "Good evening, Probe." [level=#]
 heading "Today" [level=#]
 heading "Your daily targets · estimated" [level=#]

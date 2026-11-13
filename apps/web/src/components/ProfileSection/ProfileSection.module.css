@@ -88,9 +88,13 @@
   text-decoration: underline;
 }
 
+/* A finger's target both ways: «Editar» is narrower than 44px, so it grows towards the title,
+   its word kept at the line's end. */
 @media (pointer: coarse) {
   .editLink {
+    justify-content: flex-end;
     min-block-size: var(--target-min);
+    min-inline-size: var(--target-min);
   }
 }
 

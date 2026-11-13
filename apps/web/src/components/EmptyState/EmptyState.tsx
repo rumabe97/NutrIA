@@ -20,6 +20,12 @@ interface EmptyStateProps {
    * *is* the screen, which is what it is dressed for.
    */
   inline?: boolean;
+  /**
+   * `1` when the empty state is the page — its title is then the page's one `h1`, the
+   * heading a screen reader lands on and lists first. `2` (the default) where the page
+   * already has its title above it: a card among others, a section of a console page.
+   */
+  level?: 1 | 2;
   title: string;
   /** Marks a state that is a problem rather than simply "nothing here yet". */
   tone?: 'neutral' | 'warning';
@@ -30,12 +36,13 @@ interface EmptyStateProps {
  * only says "no hay nada" leaves the user to guess whether they are early, lost,
  * or looking at a bug.
  */
-export function EmptyState({ body, children, inline = false, title, tone = 'neutral' }: EmptyStateProps) {
+export function EmptyState({ body, children, inline = false, level = 2, title, tone = 'neutral' }: EmptyStateProps) {
+  const Heading = level === 1 ? 'h1' : 'h2';
   const className = [styles.empty, inline ? styles.inline : undefined, tone === 'warning' ? styles.warning : undefined].filter(Boolean).join(' ');
 
   return (
     <Card as="section" className={className} padding={inline ? 'default' : 'lg'}>
-      <h2 className={styles.title}>{title}</h2>
+      <Heading className={styles.title}>{title}</Heading>
       <Text className={styles.body} tone="secondary">
         {body}
       </Text>

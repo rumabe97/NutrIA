@@ -4,13 +4,17 @@ import Link from 'next/link';
 import styles from './SiteFooter.module.css';
 
 import { Text } from 'ui/components/Text';
-import { useDictionary } from 'i18n/LocaleProvider';
+import { useDictionary, useLocale } from 'i18n/LocaleProvider';
+import { withLocale } from 'i18n/routes';
 
 export function SiteFooter() {
   const dictionary = useDictionary();
   const { footer, siteNav } = dictionary;
 
-  // The hrefs are fixed; only the words move.
+  const locale = useLocale();
+
+  // Each page links to its own language's pages: a crawler carries no cookie to be redirected
+  // by, and the English pages would otherwise hand their links to the Spanish ones.
   const columns = [
     {
       links: [
@@ -22,8 +26,8 @@ export function SiteFooter() {
     },
     {
       links: [
-        { href: '/registro', label: footer.createAccount },
-        { href: '/acceder', label: footer.signIn }
+        { href: withLocale('/registro', locale), label: footer.createAccount },
+        { href: withLocale('/acceder', locale), label: footer.signIn }
       ],
       title: footer.account
     },
@@ -32,8 +36,8 @@ export function SiteFooter() {
       // addresses that did not exist, and every visitor's browser prefetched
       // both and logged two 404s a page.
       links: [
-        { href: '/privacidad', label: footer.privacyPolicy },
-        { href: '/condiciones', label: footer.terms }
+        { href: withLocale('/privacidad', locale), label: footer.privacyPolicy },
+        { href: withLocale('/condiciones', locale), label: footer.terms }
       ],
       title: footer.legal
     }

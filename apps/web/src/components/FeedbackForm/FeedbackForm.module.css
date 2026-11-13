@@ -80,6 +80,11 @@
   resize: vertical;
 }
 
+/* A gated pair, not the browser's grey: `--foreground-03` on `--background-01` (the contrast script). */
+.message::placeholder {
+  color: var(--foreground-03);
+}
+
 .error {
   color: var(--color-error-text);
 }

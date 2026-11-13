@@ -52,6 +52,18 @@ export function AdminNav() {
                 event.preventDefault();
               }
             }}
+            onOpenAutoFocus={event => {
+              // Into the list, on the page that is open: left to itself the drawer skips its links
+              // and lands on «Cerrar», the last thing in it and below the fold on a phone. `focus()`
+              // scrolls the link into view.
+              const sheet = event.target instanceof HTMLElement ? event.target : null;
+              const here = sheet?.querySelector<HTMLElement>('a[aria-current="page"]') ?? sheet?.querySelector<HTMLElement>('a[href]');
+
+              if (here) {
+                event.preventDefault();
+                here.focus();
+              }
+            }}
             onOpenChange={setOpen}
             open={open}
             title={t.title}

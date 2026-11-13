@@ -50,12 +50,15 @@ export function MealStatus({ mealId, status: initial }: MealStatusProps) {
   // «Hecha» is the page's one filled action while the meal is still to be marked, as the
   // approved sheet draws it; once pressed it settles into the toggle's wash with a tick, so
   // the fill always means "press this" and never "already done". «Saltada» stays quiet.
+  // While the request is out both ignore a press (`aria-disabled`), but neither is `disabled`:
+  // that would drop the focus of the one just pressed to the page, and its new pressed state
+  // would go unheard.
   return (
     <div className={styles.buttons}>
       <Button
+        aria-disabled={pending || undefined}
         aria-pressed={status === 'completed'}
         className={styles.done}
-        disabled={pending}
         onClick={() => void choose('completed')}
         size="sm"
         type="button"
@@ -69,8 +72,8 @@ export function MealStatus({ mealId, status: initial }: MealStatusProps) {
         {t.done}
       </Button>
       <Button
+        aria-disabled={pending || undefined}
         aria-pressed={status === 'skipped'}
-        disabled={pending}
         onClick={() => void choose('skipped')}
         size="sm"
         type="button"
