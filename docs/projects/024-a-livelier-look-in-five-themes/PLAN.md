@@ -355,7 +355,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 
 ### Phase 7b — The mails
 
-- [ ] in progress — built 2026-11-13; human-verify pending: the owner reads each mail on his iPhone and in Gmail on the web, light and dark
+- [x] done — built 2026-11-13; human-verify: confirmed by human on 2026-11-13 (the owner read the mails on his iPhone and in Gmail)
   - [x] `Layout.ts` — the look, Claro inline, Oscuro under `prefers-color-scheme: dark`, `color-scheme` meta
   - [x] AccountWaiting
   - [x] CareInvitation
@@ -434,20 +434,22 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 
 ### Phase 9 — The whole thing, checked
 
-- [ ] pending
+- [ ] in progress — built 2026-11-13 (LOG.md); human-verify pending: the owner uses the app for a day on his iPhone
 - **Dispatch**: opus @ high — `/execute-project 024 phase 9` — human-verify: the owner uses the
   app for a day on his iPhone in the theme of his choice.
 - **Goal**: every acceptance criterion shown to hold across the finished product.
 - **Scope**: fixes only, wherever the checks find them; `LOG.md`; the documents.
 - **Steps**:
-  1. `inventory/` walked line by line against production; each line ticked or fixed.
+  1. `inventory/` walked line by line — the public pages against production, the signed-in
+     app, onboarding, the professional's screens and the console on a local build with probe
+     accounts; each line ticked or fixed.
   2. The `accessibility` agent audits every family in every theme; the `seo` agent the public
      tree; `apple-web-design` AUDIT on the whole.
   3. Reduced motion, `forced-colors`, `prefers-contrast`, 200 % text and 320 px, on every family.
   4. `git diff --stat <phase 0 base>..HEAD -- apps/api/src packages/core/src packages/database`
      lists only `apps/api/src/modules/email/templates`.
-  5. The baseline script against production: every line of phase 0's files is present or its
-     absence is explained in LOG.md.
+  5. The baseline script — production for the public pages, the local build for the rest:
+     every line of phase 0's files is present or its absence is explained in LOG.md.
 - **Acceptance criteria**: PRD 1–16.
 - **Verification**: the above, each with its output in LOG.md.
 

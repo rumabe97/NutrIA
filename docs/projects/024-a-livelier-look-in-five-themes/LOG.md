@@ -1866,3 +1866,419 @@ One sheet for the page types that had none: (a) a table page (Cuentas), (b) a re
 - Overflow probe after those changes, 320/390/1280 × light and dark, on Resumen, Cuentas, Profesionales, Buzón, Recetas, Interruptores, IA y modelos: 0 hits, no target hint.
 - Baseline: the refreshed console files are committed, less the two switch states that were the local database's and not the page's. They add `button "Tema"` to every console page and the three headings in IA y modelos; nothing is gone. Two new files: the picture review and an unknown address.
 - Not seen: the dialogs opened from a row (make professional, remove the second factor, revoke) after the change; Huerta, Pulso and Alto contraste on the changed rows.
+
+## Phase 9 — The whole thing, checked (2026-11-13)
+
+- **Executor**: `frontend` on opus, branch `024-phase-9` from `origin/main` at 6792bb06 (#384),
+  in its own worktree. Nothing ran on `fable`; the advisor was not consulted. The lead's branch
+  `dish-picture-window` (a66a9441, 92d5af47) merged in at its request and checked in the app (§
+  "The picture's clear window" below).
+- **Result**: built — every step run; ten defects found and fixed (all of the owner's two
+  standing rules: stacked buttons, and one overflow at 200 % text); waiting on the lead's
+  `accessibility` and `seo` audits and on the human-verify.
+- **Where each thing was checked.** Never signed in to production and never touched its
+  database. **Production** (read-only GETs, `https://…vercel.app`): the public pages only — the
+  control baseline and the overflow/stacked sweep. **A local production build** against the
+  local API on the local Postgres (`NUTRIA_LOCAL_PG=1`, `RATE_LIMIT_MAX=100000`) with probe
+  accounts made by `account.mjs`: a plain account (`noplan`), one with two generated plans
+  (`plan`: a current plan and a replaced one in history), an admin with a second factor, a
+  professional without a second factor (the gate) and one with it (`pro2`) linked to a client
+  for whom the professional generated a plan to review (the product's own route,
+  `POST /care/clients/:id/plan/generate`), and that client. The `assistant` switch was turned
+  on through the console's own `PATCH /admin/settings` for the run and off after; the
+  `professional` switch was turned on by `account.mjs link` and back off by its `delete`. For
+  the picture check, the lead's `pictures-local.mjs` gave the probe plan's dishes picture rows
+  (local only), removed after with its `clean` mode.
+
+### Step 1 — the inventory, line by line
+
+The inventory has 1,111 numbered rows in its five files. Each row was checked two ways:
+
+- **Mechanically, against the code** (`inventory-ticks.md` in the hand-off, one line per
+  section): every dictionary key a row names is still in `es-ES.ts` (hence `en-GB.ts`, by type)
+  and still read by some file of `apps/web` or `packages/ui`, and every component file it names
+  still exists. **1,098 rows pass outright.** The other 13 rows name 16 things, all explained:
+  - `progress.overallLine` — split into `overallFigure` + `overallWords` (phase 5: «N de M» in
+    the ring and its words under it). The words are on screen.
+  - `dashboard.dayOf` («Día {current} de {total}») — replaced by the sheet's line «Viernes 13 ·
+    día 1 de 14 de tu plan» (after phase 6, #374). Seen.
+  - `appNav.sectionsLabel` — removed in phase 3 with the header's second nav (LOG phase 3).
+  - `assistant.fieldHint`, `assistant.conversationsEmptyTitle` — rendered by nothing already at
+    phase 0 (LOG phase 0, notes). Not this project's.
+  - `practice.stages.awaiting_plan` — read by a computed key, present.
+  - `health.supervisionRecommended` — an API field the row names, not a key.
+  - `picture.removed`, `picture.accepted`, `auth.sessions_revoked`, `auth.password_changed`,
+    `auth.backup_code_used`, `auth.2fa_removal_cancelled` — audit event names (data) in the
+    console's register, not keys.
+  - Dictionary, phase 0 (c1c2a6fc) → now: 2,607 → 2,644 keys; 3 removed (the three above), 5
+    values changed, all recorded: `landing.title` (the owner's headline), `privacy.updated`
+    (11 Nov), `progress.weightTitle` «Tu peso» → «Peso», `shopping.rangeWhole` «Todos» → «{count}
+    días», `shopping.title` «Lista de la compra» → «Tu lista de la compra».
+- **In a browser**, every route the inventory names except three (below): the control baseline
+  (step 5) for every control and heading; the overflow and stacked-button sweeps (step 3 and
+  below) on every route; and the states that exist only after a tap, opened one by one and never
+  confirmed (`openers.mjs`): the second factor on, off and new codes (password step), change of
+  password, delete the account, withdraw the health consent, adjust targets, add a trip, end the
+  care link (client side and professional side), the professional's targets form and swap,
+  «Cambiar» on a plan row and on the dish, a shopping row's amount, the tour (from Perfil), the
+  theme menu, the console's menu, and the console's row dialogs — **make professional, remove the
+  second factor, revoke a professional** (LOG phase 8: "not seen after the change") — and the
+  picture review's «Retirar» dialog on a **published** picture (phase 8's shapes A–C were not
+  reachable; a picture row now makes the published shape reachable locally).
+- **Not looked at in a browser, and why**: `/asistente/[id]` and the message delete
+  confirmation (the assistant answers «unavailable» with the stub provider, so no turn is
+  stored; checked in code — the pair is a `button-row` now); `/invitacion/[token]` (only
+  `account.mjs link` makes an invitation and it accepts it at once); `/plan/generando` (the
+  stub finishes before a probe can look); onboarding as a **fresh** account mid-way and
+  `/consentimiento`'s interstitial (`account.mjs` always completes onboarding; both rest on
+  phase 6's baseline); a plan **scheduled** to start later (`sched`); the picture review's
+  rejected-candidate shape (no trail row may be written by hand); offline; the premium checkout
+  and the practice's plans (payments deferred, no billing locally).
+
+### Step 2 — `apple-web-design` AUDIT on the whole
+
+(The `accessibility` and `seo` agents' audits are the lead's, after this.)
+
+```md
+## Design Review — NutrIA, the whole product after project 024
+
+### Overall
+WARN — no P0 or P1 is left after this phase's fixes; five P2 remain, each a recorded decision or
+a large-text compromise, which the protocol counts to WARN rather than PASS.
+
+### P0 Critical
+None.
+
+### P1 Major
+None left. Fixed in this phase (each was two buttons one over the other — the owner's rule —
+on a phone; listed under "Defects" below): Compra's share/shops pair, the professional's
+publish/regenerate pair and targets form, the console's remove-second-factor dialog, the
+landing's two calls to action, the dish's «Cambiar» under «Hecha»; and one element past the
+screen at 200 % text (Cuentas' row button).
+
+### P2 Moderate
+- Sign-in keeps «Entrar con llave de acceso» under «Acceder», full width
+  - Evidence: `SignInForm` (`form.…_form`), every width, production and local
+  - Impact: two filled-width buttons stacked in the form's column
+  - Recommendation: none now — the sheet draws the sign-in's buttons as a full-width column,
+    and phase 7 kept the passkey after the submit on purpose (it appears only after hydration).
+    Named so the owner can overrule.
+- Under text too large for the screen, some pairs still stack
+  - Evidence: at 200 % on 320 px — «Atrás»/«Continuar» (onboarding), «Hecha»/«Saltada», «Me
+    gusta»/«No me gusta», «Semana 1»/«Semana 2», «Español»/«English» (Perfil's language), the
+    assistant's «Tus conversaciones»/«Nueva», Cuentas' row buttons
+  - Impact: a reader with very large text sees one over the other
+  - Recommendation: none — each pair's two words need more than the line (measured: e.g.
+    383 px for «Atrás | Continuar» in 280 px); side by side they would run past the screen,
+    which the owner's first condition forbids. At 390 px the pairs that fit now share the line.
+- Two filled «Crear mi plan» in the landing's first screen from 40rem (header and hero)
+  - Evidence: `SiteHeader`, `Landing.tsx` hero
+  - Impact: two primaries in one view
+  - Recommendation: kept by phase 7 (one action, one destination; the sheet draws both).
+- Perfil carries every form open, card after card
+  - Evidence: `/perfil` (password, second factor, passkeys, sessions, trips, fixed meals,
+    health, feedback)
+  - Impact: card-everything; a long screen
+  - Recommendation: the owner chose to keep it (after phase 6, #374).
+- The console table's edge shadow is a non-text cue measured only by eye
+  - Evidence: `DataTable` scroll-shadow (`--foreground-01` at 22 %)
+  - Impact: may be faint in Huerta
+  - Recommendation: add the pair to the contrast script if it is to carry meaning.
+
+### P3 Minor
+- The app header wraps to three rows at 200 % text on 320 px (it scrolls away there) — phase 7.
+- `AllowanceField` is not `Input` + `Button` (phase 8).
+- Picture-window: the 2rem arrow on Inicio's card is drawn on the strip; it is decoration (the
+  whole card is the link) — fine, recorded because the owner asked.
+
+### What is working
+- One shell, one destination model, the current one named — floating bar and rail.
+- The food first: the picture's clear window above its strip is 140–197 px on a phone now, the
+  designed no-picture state is never an empty frame.
+- Contrast is a gate (five themes × every declared pair), the theme never flashes, Automático
+  under `prefers-contrast: more` is Alto contraste (measured), forced colours draw every control.
+- Nothing overflows: 0 sideways scroll and 0 element past or cut in every sweep below.
+
+### Top 3 actions
+1. The owner looks at the sign-in's passkey button under «Acceder» and says whether it may stay.
+2. Safari: confirm on the iPhone that Inicio's picture reaches the card's foot (§ picture window).
+3. Put the table edge shadow in the contrast script or drop it as a cue.
+
+### Final verdict
+WARN — PASS once the owner confirms the two recorded P2 decisions he has not seen in this form
+(the passkey's place, the large-text stacking) or one of them changes.
+```
+
+Exceptions named (PRD 9): the drifting pattern, generous motion, the wide gradient (the filled
+buttons, the brand mark) and the large radii are present as built in phases 1b–8; nothing new.
+
+### Step 3 — reduced motion, forced colours, more contrast, 200 % text, 320 px
+
+All by `sweep.mjs` (element by element: sideways scroll; an element past the screen; an element
+that cuts its own content; two buttons one over the other with nothing between them), a local
+build after the fixes, every family: the signed-in app (Inicio, the plan, a dish, history, Compra,
+Progreso, Check-in, Perfil, Asistente, the 404), onboarding (nine steps), the professional
+(`/consulta`, a client), the console (nine page types incl. Cuentas, Profesionales, Recetas,
+Imágenes, IA, Sistema, the 404), the public pages and the sign-in family (`/`, `/acceder`,
+`/registro`, `/recuperar`, `/acceder/codigo`, `/privacidad`, `/condiciones`, `/en`, `/en/registro`).
+
+- **Reduced motion** (Automático, 320 and 1280, every family; and the five themes at 390 on
+  Inicio, the plan, Progreso, the console's summary and IA, `/`, `/acceder`): **no animation
+  running** 1.5 s after load on any of 104 loads; 0 overflow.
+- **`forced-colors: active`** (same set, 69 loads; plus `/` and `/acceder` with a dark device):
+  0 overflow; screenshots read — every button, field, chip and the bar keep a system edge, the
+  rings keep their strokes, the «IA» mark keeps its ground. (Google's mark keeps its colours, as
+  `0058` says.)
+- **`prefers-contrast: more`** with Automático (same set, 69 loads): every page resolves to Alto
+  contraste (`--background-01` is `#ffffff`, checked on each load); 0 overflow.
+- **200 % text** (CDP `Page.setFontSizes`), 320 and 390, Claro and Oscuro, Spanish and English,
+  every family (284 loads): **first run, one element past the screen** — Cuentas' «Quitar el
+  segundo factor» ran 16 px past a 320 px screen (fixed, below); after: 0 overflow. The stacked
+  pairs are the P2 above.
+- **320 px**: in every sweep below (5 widths).
+
+### Overflow and stacked buttons, every route
+
+- **Before the fixes**, the whole product: 22 signed-in routes with a plan (onboarding's nine
+  steps and the 404 included), 7 without, the professional (gate, `/consulta`, a client), 21
+  console routes and its 404, 22 public paths — 320/360/390/768/1280 × Claro, Oscuro × es, en,
+  then Huerta, Pulso, Alto contraste at 320 and 390: **2,048 loads, 0 sideways scroll, 0 element
+  past or cut.** What it flagged was stacking (the defects below, and the judged cases: the
+  sign-in's passkey; the plan's days and a desktop's day list, which are a vertical list; two
+  buttons in different cards; the 404s of the made-up addresses, which are the point).
+- **Production**, the 22 public paths × 5 widths × 5 themes: **550 loads, 0 overflow**; stacking
+  only on the sign-in's passkey (judged) and the landing's two calls to action at 320 and 360
+  (fixed here; production still has it until this ships).
+- **After the fixes**, every route again in Claro, es and en, 5 widths, with the detector widened
+  to every `<button>` (a pill like «⇄ Cambiar» is not a `ui` Button — that is how the dish's
+  «Cambiar» under «Hecha» was found): **650 loads**; one overflow found and fixed (the swap's
+  panel on the dish at 1280, introduced by this phase's first take on the actions row, below);
+  then **0**. The opened states again in es and en at 320/390/1280: no pair stacked.
+
+### Defects found and fixed (file — before → after; captures in `shots/`)
+
+1. `components/ShoppingActions` — at 320/360 «Supermercados cerca» under «Compartir lo que
+   falta» → a `button-row`, the copied line under it. `before/after-compra-actions-320.png`.
+2. `app/(app)/consulta/[linkId]/page.module.css` — at 320 and 390 «Generar otro» under «Publicar
+   el plan» → the two share the first line, their hint/failure line under both at the card's
+   measure. `before/after-client-plan-actions-*.png`.
+3. `components/CareTargetsForm` — at 320 «Cancelar» under «Guardar objetivos» → `button-row`.
+4. `components/TwoFactorRemoval` (console, Cuentas' dialog) — at 320 «Programar la retirada» under
+   «Cancelar» → `button-row`. `before/after-cuentas-2fa-dialog-320.png`.
+5. The same wrapping pair, by code (not reachable or not seen stacking): the picture review's
+   three dialogs (`PictureAcceptAction`, `PictureRemoveAction` — seen, fine —
+   `PictureCandidateAction`), the care link's end confirmation (`CareEndLink`), the assistant's
+   message delete (`AssistantChat`), the swap panel's «Cambiar»/«Cancelar» (`MealSwap`) →
+   `button-row`.
+6. `app/_shared/Landing.module.css` — below 23.5rem (320/360) «Cómo funciona» under «Crear mi
+   plan», **in production too** → two equal halves of the line, less padding, a label wrapping
+   inside its button. The sheet draws them side by side. `after-landing-actions-320*.png`.
+7. `components/DishActions` + `components/MealStatus` — at 320 «⇄ Cambiar» on a second line
+   under «Hecha» → one row from 320 (the marks ask only for their words and keep a tighter side
+   padding); the row still wraps for the swap's panel. `after-dish-actions-320.png`.
+8. `components/AccountActions` — at 200 % text on 320 «Quitar el segundo factor» ran 16 px past
+   the screen → under text too large for the screen each row button takes the whole line (the
+   owner's first condition before the button rule).
+9. `MealStatus`, `RecipeVerdict`, `PlanDayNav` — under large text a pair that fits now stays
+   side by side (each asks only for its longest word) — at 390/200 % «Hecha»/«Saltada», «Me
+   gusta»/«No me gusta», «Semana 1»/«Semana 2».
+10. `components/DishPicture` + `NextMeal` + `MealPicture` — the designed no-picture glyph under
+   the strip after the picture-window change (§ below).
+
+### Step 4 — the server diff
+
+    git diff --stat c1c2a6fc..HEAD -- apps/api/src packages/core/src packages/database
+
+19 files, all under `apps/api/src/modules/email/templates` (+1,144 −57), one commit: 52a1e8cb
+(phase 7b, #383). Nothing else; this phase touches none of them. (Outside these paths, 7b also
+changed one line in each of two API e2e suites, `picture-alerts` and `owner-alerts` — recorded
+in its LOG entry.)
+
+### Step 5 — the baseline against phase 0's files
+
+`baseline.mjs` on the states phase 0 captured (public, noplan, plan, admin — 208 files, read
+from c1c2a6fc), both languages, phone and desktop; the public pages **in production** and
+locally, the rest locally; run before the fixes and again after them.
+
+- **No control and no heading of phase 0 is gone.** Every line that differs is data or a
+  recorded rename:
+  - Data: dish names, shopping items, the greeting's time of day, a meal marked, a weight, the
+    console's «Consulta para dietistas» switch state (the probe's link turned it on).
+  - Renames already in the LOG: the landing's `h1` (the owner's headline, phase 7); «Tu plan» →
+    the day as the title, «Viernes, día 1» (after phase 6), with the seven day buttons now named
+    by their whole date «viernes, 13 de noviembre · Día 1» (were «13 vie»); «Cambiar plato N de
+    M» keeps its name and shows «Cambiar»; Compra's `h1` and «Todos» → «14 días»; Progreso's
+    «Tu peso» → «Peso» and a fortnight's heading carrying its state; the signed-in 404's words
+    (phase 3).
+  - Added everywhere: `button "Tema"` (phase 1b). Added: «Lo que aporta a tus objetivos del
+    día» on the dish; Inicio's two tiles.
+- **Later states** compared with the files later phases committed: the professional with a
+  second factor (`consulta.pro`, `consulta_id.pro` with a plan to review) — identical but data
+  (an unanswered-invitations heading that shows only with one; the assistant's link, on for the
+  run); the gate (`proA`) — identical; a past plan (`plan_historial_id`) — the day as title, its
+  «Plan anterior» now the eyebrow above it (recorded after phase 6), the day buttons renamed as
+  above.
+- **After the fixes** the run was repeated (228 files): 192 identical to the run before the fixes; the rest differ by data only — «Rehacer el plan» is gone from `/plan` and `/plan/proximo` because the probe account had used its one redo of the fortnight (the page says «Ya has rehecho tu plan esta quincena…»), and `consulta.pro` was taken the second time with the professional who has a second factor. No control changed name or went: the fixes moved wrappers, not controls.
+- **The committed baseline files are partly stale** (taken before later renames: e.g.
+  `compra_proxima.*`, `consulta.noplan.*`, `plan_historial_id.*`). The fresh set is in the
+  hand-off (`baseline-new/`), to replace them if the lead wants the folder current — except
+  `plan.plan.*` and `plan_proximo.plan.*`, whose missing «Rehacer el plan» is the probe's spent redo.
+- Not run: the `fresh`, `resume`, `invited` and `sched` states (see step 1).
+
+### The picture's clear window (`dish-picture-window`, a66a9441 + 92d5af47), checked in the app
+
+Merged into `024-phase-9` (both commits) and looked at on a local production build with 32 of
+the probe plan's 40 dishes given a picture by the lead's `pictures-local.mjs` (local database
+only; rows removed after with its `clean` mode). The store refuses a headless browser, so the
+bytes were fetched outside it and handed to the page by `page.route`, **1.2 s late**, so a
+layout shift on arrival would be counted (`window.mjs`, element by element).
+
+- **Clear picture above the strip** (strip's top − picture's top), Inicio's «Lo siguiente» /
+  the dish's page: 320 px **140 / 158** (before: Inicio 64 at 390, the dish 135 at 390);
+  360 px 160 / 180; 390 px **175 / 197**; 768 px 256 / 381; 1280 px 271 / 357. Identical in
+  Claro and Oscuro, Spanish and English (the window does not depend on the name's length; the
+  strip grows the box downwards). At 200 % text, 320 and 390: 140 / 158 and 171 / 192.
+- **No gap under the picture**: the frame's bottom is the box's bottom in all 56 loads (0 px).
+- **No layout shift when the picture arrives**: CLS 0.0000 in all 56 loads — the box has its
+  final height before the image loads (the `::before` spacer holds it).
+- **No overflow** (scrolled or cut, element by element) in any of them.
+- **The «IA» mark** is never under the strip (its bottom above the strip's top in every load).
+- **The strip's text and its rounded corners**: every line box's corners lie inside the
+  strip's rounded shape with **8.8–10.2 px** to spare at 320 and 390, and **8 px** at 200 %
+  text (where the corner's radius, `calc(var(--radius-card) - var(--space-02))`, is 8 px since
+  the space token grows with the text).
+- **The card still reads as the link**: the whole card is one link (unchanged), the 2rem arrow
+  is decoration (`aria-hidden`) at the strip's end; seen at 390 and 320.
+- **Found and fixed — the designed no-picture state** (the picture's request aborted, so the
+  glyph shows): with the taller box the glyph was centred on the whole frame, and at 320 px the
+  strip cut it (Inicio) or touched it (the dish). `DishPicture` now centres the glyph in the
+  window the layout keeps clear (`--dish-window`, set by `NextMeal` to `min(50%, 16rem)` and
+  by `MealPicture` to `min(56.25%, 20rem)`; alone, the frame's own shape). After: the glyph is
+  wholly above the strip at 320, 390 and 1280 and at 200 % text (commit f7b949ef). Captures:
+  `shots/picture-window/no-picture-{inicio,dish}-320-{before,after}-fix.png`.
+- **A picture that stands alone is unchanged**: the landing's three (`/` and `/en`, 320, 390,
+  1280) and the console's review of a published picture (`/admin/catalogo/<id>/imagen` — now
+  reachable locally because of the picture rows) all measure **4:3 exactly** (1.333), box =
+  frame.
+- **Safari**: not seen. The fill rests on `align-self: stretch` on a grid item that also has
+  `aspect-ratio`. In the CSS specification a stretched item's block size is definite and wins
+  over its `aspect-ratio` (which only applies when the size is `auto`), and Chrome does that
+  here. I have no WebKit to run, so I cannot say WebKit does the same; if it did not, the frame
+  would keep its own 16:9 / 4:3 height inside the taller box and leave a band of the card's
+  ground under the picture. The owner's iPhone is the test: on Inicio, the next meal's picture
+  must reach the card's bottom edge behind the strip.
+- Captures, 390 px Claro, before and after: `shots/picture-window/before-inicio-390-claro.png`,
+  `after-inicio-390-claro.png`, `before-dish-390-claro.png`, `after-dish-390-claro.png`.
+
+### Verification
+
+- DONE — `pnpm turbo lint ts:check test --filter=web --filter=ui`: 14 of 14 tasks green.
+  `pnpm --filter web --filter ui format:fix`: nothing left to change.
+- DONE — `gate.sh --full` with `NUTRIA_LOCAL_PG` unset, servers stopped, nothing else running:
+  migrations, checks, web build, static pages, contrast (five themes), format, dead code, leaks —
+  **green**.
+- DONE — clean-up: the seven probe accounts deleted through `DELETE /users/me` (a read of the
+  local database after: no `@probe.invalid` account left), the probe's picture rows removed
+  (`pictures-local.mjs … clean`: 0 left), the `assistant` switch back off, the `professional`
+  switch back off (`account.mjs`), the servers stopped.
+- NOT RUN — the API end-to-end suites (CI's); Lighthouse; WebKit; an iPhone.
+
+### Not verified, and why
+
+- Safari / an iPhone: nothing in this phase ran on WebKit. The picture window rests on
+  `align-self: stretch` on a grid item with `aspect-ratio`; the stacked-button fixes on flex.
+- Lighthouse (no binary on the machine).
+- The `accessibility` and `seo` audits (the lead's).
+- The screens listed in step 1's "not looked at".
+- Huerta, Pulso and Alto contraste were swept for overflow and stacking at 320 and 390 only
+  (Claro and Oscuro at all five widths); by eye in them: the forced-colour and Alto contraste
+  captures listed above, and phase 8's console pages through the sweeps' screenshots of hits.
+
+### Appendix — the inventory, section by section
+
+| File | Section | Rows | Words and files in the code | Explained | Looked at in phase 9 |
+| --- | --- | --- | --- | --- | --- |
+| admin.md | /admin  (apps/web/src/app/(admin)/admin/page.tsx) | 28 | 28 | — | browser, local |
+| admin.md | /admin/cuentas  (apps/web/src/app/(admin)/admin/cuentas/page.tsx) | 43 | 43 | — | browser, local |
+| admin.md | /admin/profesionales  (apps/web/src/app/(admin)/admin/profesionales/pa | 12 | 12 | — | browser, local |
+| admin.md | /admin/consentimientos  (apps/web/src/app/(admin)/admin/consentimiento | 8 | 8 | — | browser, local |
+| admin.md | /admin/personas/retencion  (apps/web/src/app/(admin)/admin/personas/re | 11 | 11 | — | browser, local |
+| admin.md | /admin/buzon  (apps/web/src/app/(admin)/admin/buzon/page.tsx) | 18 | 18 | — | browser, local |
+| admin.md | /admin/producto  (apps/web/src/app/(admin)/admin/producto/page.tsx) | 11 | 11 | — | browser, local |
+| admin.md | /admin/producto/planes  (apps/web/src/app/(admin)/admin/producto/plane | 9 | 9 | — | browser, local |
+| admin.md | /admin/producto/planes/calidad  (apps/web/src/app/(admin)/admin/produc | 15 | 15 | — | browser, local |
+| admin.md | /admin/notificaciones  (apps/web/src/app/(admin)/admin/notificaciones/ | 8 | 8 | — | browser, local |
+| admin.md | /admin/generacion  (apps/web/src/app/(admin)/admin/generacion/page.tsx | 44 | 44 | — | browser, local |
+| admin.md | /admin/generacion/ia  (apps/web/src/app/(admin)/admin/generacion/ia/pa | 46 | 46 | — | browser, local |
+| admin.md | /admin/catalogo  (apps/web/src/app/(admin)/admin/catalogo/page.tsx) | 28 | 28 | — | browser, local |
+| admin.md | /admin/catalogo/[id]/imagen  (apps/web/src/app/(admin)/admin/catalogo/ | 38 | 38 | — | browser, local |
+| admin.md | /admin/catalogo/calidad  (apps/web/src/app/(admin)/admin/catalogo/cali | 18 | 18 | — | browser, local |
+| admin.md | /admin/catalogo/ingredientes  (apps/web/src/app/(admin)/admin/catalogo | 13 | 13 | — | browser, local |
+| admin.md | /admin/catalogo/despensa  (apps/web/src/app/(admin)/admin/catalogo/des | 13 | 13 | — | browser, local |
+| admin.md | /admin/catalogo/imagenes  (apps/web/src/app/(admin)/admin/catalogo/ima | 23 | 23 | — | browser, local |
+| admin.md | /admin/ajustes  (apps/web/src/app/(admin)/admin/ajustes/page.tsx) | 20 | 20 | — | browser, local |
+| admin.md | /admin/ajustes/registro  (apps/web/src/app/(admin)/admin/ajustes/regis | 22 | 16 | `auth.password_changed`: an audit event name (data), not a dictionary key; `auth.backup_code_used`: an audit event name (data), not a dictionary key; `auth.2fa_removal_cancelled`: an audit event name (data), not a dictionary key; `auth.sessions_revoked`: an audit event name (data), not a dictionary key; `picture.removed`: an audit event name (data), not a dictionary key; `picture.accepted`: an audit event name (data), not a dictionary key | browser, local |
+| admin.md | /admin/ajustes/sistema  (apps/web/src/app/(admin)/admin/ajustes/sistem | 18 | 18 | — | browser, local |
+| app.md | (app) group-wide states  (`apps/web/src/app/(app)/layout.tsx`, `error. | 8 | 8 | — | shared — through the routes above |
+| app.md | /asistente  (`apps/web/src/app/(app)/asistente/page.tsx`, frame in `as | 30 | 28 | `health.supervisionRecommended`: an API field named in the row, not a dictionary key; `assistant.fieldHint`: rendered by nothing already at phase 0 (LOG phase 0, notes); `assistant.conversationsEmptyTitle`: rendered by nothing already at phase 0 (LOG phase 0, notes); `assistant.fieldHint`: rendered by nothing already at phase 0 (LOG phase 0, notes); `assistant.conversationsEmptyTitle`: rendered by nothing already at phase 0 (LOG phase 0, notes) | browser, local |
+| app.md | /asistente/[id]  (`apps/web/src/app/(app)/asistente/[id]/page.tsx`) | 7 | 6 | `health.supervisionRecommended`: an API field named in the row, not a dictionary key | no — no conversation can be made locally: the assistant answers «unavailable» with the stub provider, so no turn is stored |
+| app.md | /check-in  (`apps/web/src/app/(app)/check-in/page.tsx`) | 18 | 18 | — | browser, local |
+| app.md | /compra  (`apps/web/src/app/(app)/compra/page.tsx`) | 18 | 18 | — | browser, local |
+| app.md | /compra/proxima  (`apps/web/src/app/(app)/compra/proxima/page.tsx`) | 3 | 3 | — | browser, local |
+| app.md | /consentimiento  (`apps/web/src/app/(app)/consentimiento/page.tsx`) | 7 | 7 | — | browser, local |
+| app.md | /consulta  (`apps/web/src/app/(app)/consulta/page.tsx`) | 34 | 33 | `practice.stages.awaiting_plan`: read by a computed key (`stages[stage]`), present in both dictionaries | browser, local |
+| app.md | /consulta/[linkId]  (`apps/web/src/app/(app)/consulta/[linkId]/page.ts | 38 | 38 | — | browser, local |
+| app.md | /invitacion/[token]  (`apps/web/src/app/(app)/invitacion/[token]/page. | 12 | 12 | — | no — needs an unaccepted invitation token; only `account.mjs link` makes one and it accepts it at once |
+| app.md | /inicio  (`apps/web/src/app/(app)/inicio/page.tsx`) | 31 | 30 | `dashboard.dayOf`: replaced by the sheet's line «Jueves 12 · día 1 de 14 de tu plan» (after phase 6, #374) | browser, local |
+| app.md | /onboarding  (`apps/web/src/app/(app)/onboarding/page.tsx`) | 1 | 1 | — | browser, local |
+| app.md | /onboarding/[paso]  (`apps/web/src/app/(app)/onboarding/[paso]/page.ts | 9 | 9 | — | browser, local |
+| app.md | Step 1 about-you | 5 | 5 | — | shared — through the routes above |
+| app.md | Step 2 goal | 3 | 3 | — | shared — through the routes above |
+| app.md | Step 3 body-activity | 3 | 3 | — | shared — through the routes above |
+| app.md | Step 4 how-you-eat | 2 | 2 | — | shared — through the routes above |
+| app.md | Step 5 food-preferences | 3 | 3 | — | shared — through the routes above |
+| app.md | Step 6 allergies | 5 | 5 | — | shared — through the routes above |
+| app.md | Step 7 cooking | 1 | 1 | — | shared — through the routes above |
+| app.md | Step 8 kitchen | 5 | 5 | — | shared — through the routes above |
+| app.md | Step 9 review | 5 | 5 | — | shared — through the routes above |
+| app.md | Header | 2 | 1 | `health.supervisionRecommended`: an API field named in the row, not a dictionary key | shared — through the routes above |
+| app.md | Section "Tu plan" | 58 | 58 | — | shared — through the routes above |
+| app.md | Section "Tu dietista" (only when linked or when the trail is not empty | 5 | 5 | — | shared — through the routes above |
+| app.md | Section "Tus datos" | 9 | 9 | — | shared — through the routes above |
+| app.md | Section "Seguridad" (`#seguridad`; only when the account could be read | 24 | 24 | — | shared — through the routes above |
+| app.md | Section "Avisos e idioma" | 5 | 5 | — | shared — through the routes above |
+| app.md | Section "Ayuda" | 3 | 3 | — | shared — through the routes above |
+| app.md | Section "Zona peligrosa" | 5 | 5 | — | shared — through the routes above |
+| app.md | /plan  (`apps/web/src/app/(app)/plan/page.tsx`) | 6 | 6 | — | browser, local |
+| app.md | Plan browser (used by /plan, /plan/proximo and /plan/historial/[id]) | 18 | 18 | — | shared — through the routes above |
+| app.md | /plan/proximo  (`apps/web/src/app/(app)/plan/proximo/page.tsx`) | 1 | 1 | — | browser, local |
+| app.md | /plan/historial  (`apps/web/src/app/(app)/plan/historial/page.tsx`) | 5 | 5 | — | browser, local |
+| app.md | /plan/historial/[id]  (`apps/web/src/app/(app)/plan/historial/[id]/pag | 3 | 3 | — | browser, local |
+| app.md | /plan/generando  (`apps/web/src/app/(app)/plan/generando/page.tsx`) | 19 | 19 | — | no — opened only while a generation runs; the stub finishes before a probe can look |
+| app.md | /plan/comida/[id]  (`apps/web/src/app/(app)/plan/comida/[id]/page.tsx` | 18 | 18 | — | browser, local |
+| app.md | /progreso  (`apps/web/src/app/(app)/progreso/page.tsx`) | 13 | 12 | `progress.overallLine`: split into `overallFigure` + `overallWords` (phase 5, «N de M» in the ring) | browser, local |
+| auth.md | /acceder and /en/acceder  — Sign in (apps/web/src/app/_shared/SignInSc | 20 | 20 | — | browser, local + production |
+| auth.md | /acceder/codigo and /en/acceder/codigo  — Two-factor code (apps/web/sr | 18 | 18 | — | browser, local + production |
+| auth.md | /registro and /en/registro  — Create account (apps/web/src/app/_shared | 22 | 22 | — | browser, local + production |
+| auth.md | /recuperar and /en/recuperar  — Recover password (apps/web/src/app/_sh | 10 | 10 | — | browser, local + production |
+| auth.md | /restablecer and /en/restablecer  — Choose a new password (apps/web/sr | 15 | 15 | — | browser, local + production |
+| auth.md | /cambiar-contrasena and /en/cambiar-contrasena  — Forced password chan | 18 | 18 | — | browser, local + production |
+| auth.md | /pendiente and /en/pendiente  — Account pending (apps/web/src/app/_sha | 8 | 8 | — | browser, local + production |
+| auth.md | /verificar-email and /en/verificar-email  — Email confirmed (apps/web/ | 7 | 7 | — | browser, local + production |
+| public.md | Shared A. Root layout of the public trees (apps/web/src/app/(es)/layou | 6 | 6 | — | shared — through the routes above |
+| public.md | Shared B. SiteHeader (apps/web/src/components/SiteHeader/SiteHeader.ts | 10 | 10 | — | shared — through the routes above |
+| public.md | Shared C. SiteFooter (apps/web/src/components/SiteFooter/SiteFooter.ts | 14 | 14 | — | shared — through the routes above |
+| public.md | / and /en  — Landing page (apps/web/src/app/_shared/Landing.tsx, mount | 29 | 29 | — | browser, local + production |
+| public.md | /privacidad and /en/privacidad  — Privacy policy (apps/web/src/app/_sh | 20 | 20 | — | browser, local + production |
+| public.md | /condiciones and /en/condiciones  — Terms of use (apps/web/src/app/_sh | 19 | 19 | — | browser, local + production |
+| shell.md | 3. AppNav (apps/web/src/components/AppNav/AppNav.tsx, AppNav.module.cs | 7 | 7 | — | shared — through the routes above |
+
+1111 rows; 1098 with every word and file still in the code; 16 names explained.
+
+### The lead's part
+
+- **The owner's confirmations, 2026-11-13.** He wrote «Funciona bien» and, asked with options what he had tried, marked all three: the console on his iPhone (phase 8); **the new mails, read on his iPhone and in Gmail** — phase 7b's human-verify, **confirmed by human on 2026-11-13**; and the landing with its pictures, the assistant opening at its top and closing the keyboard on send, and the profile's buttons side by side (#375–#383).
+- **The picture's clear window is his decision.** He sent Inicio's card from his phone: the strip left almost no picture, there and on the dish's page. Of three options (a taller picture and the same look; the strip half off the picture; the picture above and the words under it) he chose the first, then asked for a slightly smaller title card, saw both on a static page built from the real sheets, and approved («apruebo ese cambio»). That page is not the app: the executor's check above is.
+- **After the executor's check, one change of the lead's** (f8b11938): the executor could not speak for WebKit, and the owner's phone is an iPhone. Under a strip the frame's `aspect-ratio` is now `auto` (`--dish-frame-ratio`) and the image is laid over the frame (`--dish-image-position: absolute`), so the height is the layout's alone and no browser has to rank a stretch against a ratio. The first take of it let the image's own 4:3 set the height from 768 px up (Inicio's window 416 px with a picture and 256 without); laying the image over the frame removed that. Measured again with `window.mjs`, pictures routed in 1.2 s late, 320/360/390/768/1280, Claro and Oscuro: clear window 140/160/175/256/256 on Inicio and 158/180/197/320/320 on the dish's page — the same as above on a phone, and on a wide screen now the window's own cap rather than the frame's old shape (was 271 and 357–381); gap under the picture 0, shift 0, «IA» never covered; with the picture's request aborted the same heights and the glyph in the window; the landing's three and the console's review 4:3 exactly. Still not run on WebKit.
+- **The baseline folder is left as it is.** The executor's fresh set was read against phase 0's and against the committed files (step 5) and is not committed: the folder stays the record phases 0–8 made — production for phase 0, each phase's own refresh after — and a local run's data would replace it.
+- **The plan's wording** for steps 1 and 5 is amended to say where each was run (production for the public pages, a local build for the rest): nobody signs in to production to run a check.
