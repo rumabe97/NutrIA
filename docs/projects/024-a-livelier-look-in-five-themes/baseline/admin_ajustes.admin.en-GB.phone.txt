@@ -2,6 +2,7 @@
 button "Menu"
 button "Save" [disabled]
 button "Send me a test notification"
+button "Theme"
 heading "Access" [level=#]
 heading "Notifications" [level=#]
 heading "Product" [level=#]

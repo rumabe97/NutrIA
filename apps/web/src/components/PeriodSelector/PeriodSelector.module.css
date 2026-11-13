@@ -1,8 +1,8 @@
-/* A segmented control, the way a system one looks: one track, three equal
-   segments, the chosen one raised on it. */
+/* A segmented control, as the sheets draw it: one track, three equal segments, the chosen one
+   a dark pill. `PlanSwitch` and `ShoppingRange` are drawn the same way. */
 .segments {
-  background-color: var(--color-hover);
-  border-radius: var(--radius-control);
+  background-color: var(--surface-sunken);
+  border-radius: calc(var(--radius-control) + var(--space-01));
   display: inline-grid;
   gap: var(--space-01);
   grid-auto-columns: minmax(0, 1fr);
@@ -19,7 +19,7 @@
 
   align-items: center;
   border: 1px solid transparent;
-  border-radius: calc(var(--radius-control) - var(--space-01));
+  border-radius: var(--radius-control);
   /* Full-strength text on the track (4.5:1 in both schemes); the chosen segment is told
      apart by its raised fill, border and weight, not by colour. */
   color: var(--foreground-01);
@@ -61,11 +61,22 @@
   color: var(--foreground-01);
 }
 
-/* The chosen period: a raised segment with an edge, and heavier type — a second
-   cue besides the fill. */
+/* The chosen period: the text colour as its ground and the page's colour as its words
+   (`--background-01` on `--foreground-01`, in the contrast script), and heavier type, so the
+   state never rests on colour alone. */
 .segment[aria-current='true'] {
-  background-color: var(--surface-card);
-  border-color: var(--border-interactive);
-  color: var(--foreground-01);
+  background-color: var(--foreground-01);
+  color: var(--background-01);
   font-weight: var(--font-weight-semibold);
+}
+
+/* Forced colours erase the ground, and with it the chosen pill: its edge is the cue left. */
+@media (forced-colors: active) {
+  .segments {
+    outline: 1px solid;
+  }
+
+  .segment[aria-current='true'] {
+    border-color: Highlight;
+  }
 }

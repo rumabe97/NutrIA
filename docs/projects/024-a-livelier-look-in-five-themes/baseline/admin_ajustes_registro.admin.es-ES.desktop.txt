@@ -1,5 +1,6 @@
 # /admin/ajustes/registro · admin · es-ES · desktop · 200
 button "Aplicar"
+button "Tema"
 combobox "Acción"
 combobox "Por página"
 heading "Registro de acciones" [level=#]

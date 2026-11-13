@@ -137,7 +137,7 @@ export function AccountActions({ account, premium }: AccountActionsProps) {
 
   return (
     <div className={styles.root} ref={row}>
-      <div className={styles.buttons}>
+      <div className={`${styles.buttons} button-row`}>
         {activated ? null : (
           <Button
             aria-label={interpolate(t.activateFor, { email: account.email })}
@@ -232,7 +232,7 @@ export function AccountActions({ account, premium }: AccountActionsProps) {
               <p className="visually-hidden" role="alert">
                 {numberError ?? grantError ?? ''}
               </p>
-              <div className={styles.buttons}>
+              <div className={`${styles.buttons} button-row`}>
                 <Button loading={pending === 'grant'} type="submit">
                   {t.professionalGrant}
                 </Button>
@@ -243,6 +243,9 @@ export function AccountActions({ account, premium }: AccountActionsProps) {
             </form>
           </Dialog>
         )}
+
+        {/* In the row with the others: its own wrapper holds its button and its failure line. */}
+        <TwoFactorRemoval account={account} />
       </div>
 
       {error ? (
@@ -250,8 +253,6 @@ export function AccountActions({ account, premium }: AccountActionsProps) {
           {error}
         </Text>
       ) : null}
-
-      <TwoFactorRemoval account={account} />
     </div>
   );
 }

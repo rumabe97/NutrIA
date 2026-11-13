@@ -55,35 +55,6 @@
   }
 }
 
-/* The per-model table, as every console table: on a card, so the pinned column paints
-   the card's colour; a model name, a figure or an amount per cell, each on one line. */
-.table {
-  --table-surface: var(--surface-card);
-
-  container-type: inline-size;
-}
-
-.table :is(th, td) {
-  white-space: nowrap;
-}
-
-/* A model's name is long; pinned on a narrow table it would cover the figures, so there
-   it scrolls with them. `table` in the selector outweighs `DataTable`'s own sticky rule. */
-@container (inline-size < 36rem) {
-  .table table :is(th, td):first-child {
-    position: static;
-  }
-}
-
-/* Three short columns: on a narrow card the feature's name wraps so the calls and the
-   cost stay in view, instead of scrolling off the card's edge. */
-@container (inline-size < 36rem) {
-  .featureTable table tbody :is(th, td):first-child {
-    min-inline-size: 6rem;
-    white-space: normal;
-  }
-}
-
 /* What this month's spend says, in words: a warning or an error `Note` for the eye,
    and a lead word ("Aviso:" / "Warning:", or the note's own tone word) so the
    state never rests on the colour. */
@@ -103,4 +74,23 @@
   max-inline-size: var(--prose-max);
   /* A variable's name (`AI_ASSISTANT_MONTHLY_CAP_USD`) has no space to break at: at 320 px it pushed its card past the screen's edge. */
   overflow-wrap: anywhere;
+}
+
+/* A model's name as the sheet sets it: a monospaced word, no box. */
+.model {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.9em;
+}
+
+/* Why a call failed: the error's ink on its pale ground, a pill that says it in words — the
+   words are the cue, the colour only agrees. */
+.chip {
+  background-color: var(--color-error-surface);
+  border-radius: var(--radius-full);
+  color: var(--color-error-text);
+  display: inline-block;
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-semibold);
+  padding: var(--space-01) var(--space-03);
+  white-space: normal;
 }

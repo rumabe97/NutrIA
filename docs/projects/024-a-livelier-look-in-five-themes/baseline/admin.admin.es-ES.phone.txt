@@ -1,5 +1,6 @@
 # /admin · admin · es-ES · phone · 200
 button "Menú"
+button "Tema"
 heading "Necesita tu atención" [level=#]
 heading "Resumen" [level=#]
 heading "Tendencias" [level=#]

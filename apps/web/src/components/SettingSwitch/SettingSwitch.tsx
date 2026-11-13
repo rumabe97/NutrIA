@@ -11,6 +11,8 @@ interface SettingSwitchProps {
   hint: string;
   label: string;
   onCheckedChange: (next: boolean) => void;
+  /** Where the switch sits: before its words (the default), or at the row's end with the words on its left (the console's). */
+  placement?: 'end' | 'start';
 }
 
 /**
@@ -20,14 +22,18 @@ interface SettingSwitchProps {
  * The whole line is the label, so the words are as tappable as the control,
  * and on a phone the line is a finger tall.
  */
-export function SettingSwitch({ checked, error, hint, label, onCheckedChange }: SettingSwitchProps) {
+export function SettingSwitch({ checked, error, hint, label, onCheckedChange, placement = 'start' }: SettingSwitchProps) {
   return (
-    <div className={styles.root}>
+    <div className={styles.root} data-placement={placement}>
       <label className={styles.line}>
-        <Switch checked={checked} onCheckedChange={onCheckedChange} />
-        <Text size="sm">{label}</Text>
+        <span className={styles.control}>
+          <Switch checked={checked} onCheckedChange={onCheckedChange} />
+        </span>
+        <Text className={styles.name} size="sm">
+          {label}
+        </Text>
       </label>
-      <Text size="xs" tone="tertiary">
+      <Text className={styles.hint} size="xs" tone="tertiary">
         {hint}
       </Text>
       {error ? (

@@ -1,5 +1,6 @@
 # /admin/personas/retencion · admin · es-ES · phone · 200
 button "Menú"
+button "Tema"
 heading "Hizo algo (aproximada)" [level=#]
 heading "Retención" [level=#]
 heading "Usó la app" [level=#]

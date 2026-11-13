@@ -1,4 +1,5 @@
 # /admin/catalogo/calidad · admin · en-GB · desktop · 200
+button "Theme"
 heading "Days the rewrite was active" [level=#]
 heading "Quality" [level=#]
 heading "Rewrite history" [level=#]

@@ -1,5 +1,6 @@
 # /admin/producto · admin · es-ES · phone · 200
 button "Menú"
+button "Tema"
 heading "Actividad" [level=#]
 heading "Embudo y actividad" [level=#]
 heading "Embudo" [level=#]

@@ -88,7 +88,7 @@ export function ProfessionalRevoke({ email, userId }: ProfessionalRevokeProps) {
           {error ?? ''}
         </Text>
         {/* Cancel first: the dialog opens on it, so two presses of Enter never revoke. */}
-        <div className={styles.buttons}>
+        <div className={`${styles.buttons} button-row`}>
           <Button disabled={pending} onClick={() => setConfirming(false)} type="button" variant="secondary">
             {dictionary.common.cancel}
           </Button>

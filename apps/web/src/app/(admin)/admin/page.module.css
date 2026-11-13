@@ -31,12 +31,50 @@
   }
 }
 
-/* `ul.needs` so the list reset wins over the card whatever order the sheets land in. */
+/* What wants a hand and the trends. On a phone one under the other, the list first (the
+   owner, 2026-11-13: before the charts). With the room, side by side as the sheet draws them:
+   the charts wide on the left, the list narrow on the right. The list stays first in the
+   source, so on a wide page the tab order visits the right column before the left one — two
+   independent columns, each read whole, and the sheet's picture kept. */
+.band {
+  display: grid;
+  gap: var(--gap-region);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+@container (inline-size >= 56rem) {
+  .band {
+    align-items: start;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+
+  .aside {
+    order: 2;
+  }
+}
+
+.aside {
+  min-inline-size: 0;
+}
+
+/* The card's own title, in the display face, as the sheet draws it. */
+.needsTitle {
+  font-size: var(--font-size-05);
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-02);
+  margin: 0 0 var(--space-02);
+  hyphens: auto;
+  overflow-wrap: anywhere;
+}
+
+/* `ul.needs` so the list reset wins whatever order the sheets land in. */
 ul.needs {
   display: grid;
   list-style: none;
   margin: 0;
-  padding-block: var(--space-02);
+  padding: 0;
 }
 
 .needs li + li {
@@ -97,13 +135,8 @@ ul.needs {
 }
 
 .charts {
+  /* The charts stack in the band's wide column; the band itself is what sits beside the list. */
   display: grid;
   gap: var(--space-04);
   grid-template-columns: minmax(0, 1fr);
-}
-
-@container (inline-size >= 56rem) {
-  .charts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }

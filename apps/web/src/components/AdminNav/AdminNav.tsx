@@ -37,7 +37,10 @@ export function AdminNav() {
   return (
     <div className={styles.root}>
       <header className={styles.bar}>
-        <p className={styles.title}>{t.title}</p>
+        <p className={styles.title}>
+          <span aria-hidden="true" className={styles.mark} />
+          {t.title}
+        </p>
         {/* The console has no header of its own: its theme menu sits in this bar, and at the
             foot of the sidebar on a wide screen. */}
         <div className={styles.barActions}>
@@ -76,7 +79,10 @@ export function AdminNav() {
       </header>
 
       <div className={styles.sidebar}>
-        <p className={styles.title}>{t.title}</p>
+        <p className={styles.title}>
+          <span aria-hidden="true" className={styles.mark} />
+          {t.title}
+        </p>
         <AdminNavList pathname={pathname} />
         <div className={styles.sidebarFoot}>
           <ThemeSwitcher />

@@ -1,4 +1,5 @@
 # /admin/catalogo/imagenes · admin · es-ES · desktop · 200
+button "Tema"
 heading "Devueltas, no fallidas" [level=#]
 heading "En el periodo" [level=#]
 heading "Estado actual" [level=#]

@@ -1,4 +1,5 @@
 # /admin · admin · es-ES · desktop · 200
+button "Tema"
 heading "Necesita tu atención" [level=#]
 heading "Resumen" [level=#]
 heading "Tendencias" [level=#]

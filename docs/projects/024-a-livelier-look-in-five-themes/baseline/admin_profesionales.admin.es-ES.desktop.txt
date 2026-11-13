@@ -1,5 +1,6 @@
 # /admin/profesionales · admin · es-ES · desktop · 200
 button "Aplicar"
+button "Tema"
 heading "Profesionales" [level=#]
 link "Buzón"
 link "Calidad de los planes"

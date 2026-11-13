@@ -1,5 +1,6 @@
 # /admin/catalogo/despensa · admin · en-GB · desktop · 200
 button "Apply"
+button "Theme"
 combobox "Per page"
 heading "Cupboard" [level=#]
 heading "Ingredients with no dish" [level=#]

@@ -5,7 +5,6 @@ import styles from './page.module.css';
 import { activeLocale, getDictionary } from 'i18n/server';
 import { BarChart } from 'ui/components/BarChart';
 import { ColumnChart } from 'ui/components/ColumnChart';
-import { DataTable } from 'ui/components/DataTable';
 import { Gauge } from 'ui/components/Gauge';
 import { LineChart } from 'ui/components/LineChart';
 import { Note } from 'ui/components/Note';
@@ -13,6 +12,7 @@ import { parsePeriod } from 'core/domain/Period';
 import { StatTile } from 'ui/components/StatTile';
 
 import { AdminPageHeader } from 'components/AdminPageHeader';
+import { AdminReflowTable } from 'components/AdminReflowTable';
 import { AdminSection } from 'components/AdminSection';
 import { Card } from 'components/Card';
 import { HowCounted } from 'components/HowCounted';
@@ -108,8 +108,8 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
     id: `${String(row.at)}\u0000${row.kind ?? ''}`,
     cells: {
       at: formatInstant(new Date(row.at).getTime(), locale, { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Madrid' }),
-      model: row.model ?? '—',
-      reason: reasonOf(row),
+      model: <span className={styles.model}>{row.model ?? '—'}</span>,
+      reason: <span className={styles.chip}>{reasonOf(row)}</span>,
       step: row.kind === 'answer' ? failures.steps.answer : failures.steps.label
     }
   }));
@@ -122,7 +122,7 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
       cost: dollars(model.costUsd),
       failed: number(model.failed),
       input: number(model.inputTokens),
-      model: modelName(model),
+      model: <span className={styles.model}>{modelName(model)}</span>,
       output: number(model.outputTokens),
       reasoning: number(model.reasoningTokens)
     }
@@ -133,6 +133,68 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
       <AdminPageHeader intro={t.intro} title={t.title}>
         <PeriodSelector current={period} label={common.period} optionLabel={common.periodOption} pathname={PATHNAME} query={query} />
       </AdminPageHeader>
+
+      <ul aria-label={t.tilesLabel} className={styles.tiles}>
+        <Card as="li" padding="sm">
+          <StatTile
+            change={totals.calls}
+            changeLabel={common.changeLabel}
+            label={t.calls}
+            locale={locale}
+            sparkline={ai.callsPerDay.values}
+            value={number(totals.calls.current)}
+          />
+        </Card>
+        <Card as="li" padding="sm">
+          <StatTile
+            change={totals.failed}
+            changeLabel={common.changeLabel}
+            goodDirection="down"
+            label={t.failed}
+            locale={locale}
+            value={number(totals.failed.current)}
+          />
+        </Card>
+        {/* Spend is neither good nor bad news on its own, so its change stays grey. */}
+        <Card as="li" padding="sm">
+          <StatTile
+            change={totals.costUsd}
+            changeLabel={common.changeLabel}
+            label={t.spend}
+            locale={locale}
+            sparkline={ai.spendPerDay.values}
+            value={dollars(totals.costUsd.current)}
+          />
+        </Card>
+        {/* A mean moves by its own amount, not by a share of itself: the tile states the
+            previous one. No timed call is "—", never 0 s. */}
+        <Card as="li" padding="sm">
+          <StatTile
+            label={t.averageMs}
+            locale={locale}
+            note={totals.averageMs.previous === null ? undefined : interpolate(t.averageNote, { seconds: seconds(totals.averageMs.previous) })}
+            value={totals.averageMs.current === null ? '—' : seconds(totals.averageMs.current)}
+          />
+        </Card>
+        <Card as="li" padding="sm">
+          <StatTile
+            change={totals.inputTokens}
+            changeLabel={common.changeLabel}
+            label={t.inputTokens}
+            locale={locale}
+            value={number(totals.inputTokens.current)}
+          />
+        </Card>
+        <Card as="li" padding="sm">
+          <StatTile
+            change={totals.outputTokens}
+            changeLabel={common.changeLabel}
+            label={t.outputTokens}
+            locale={locale}
+            value={number(totals.outputTokens.current)}
+          />
+        </Card>
+      </ul>
 
       <AdminSection note={interpolate(t.monthNote, { date: monthSince })} title={t.monthTitle}>
         <div className={styles.month}>
@@ -208,19 +270,18 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
       </AdminSection>
 
       <AdminSection note={interpolate(failures.note, { count: number(ASSISTANT_FAILURES) })} title={failures.title}>
-        <Card className={styles.table}>
-          <DataTable
-            caption={failures.caption}
-            columns={[
-              { header: failures.columns.at, key: 'at' },
-              { header: failures.columns.step, key: 'step' },
-              { header: failures.columns.model, key: 'model' },
-              { header: failures.columns.reason, key: 'reason' }
-            ]}
-            empty={failures.empty}
-            rows={failureRows}
-          />
-        </Card>
+        <AdminReflowTable
+          caption={failures.caption}
+          columns={[
+            { header: failures.columns.at, key: 'at' },
+            { header: failures.columns.step, key: 'step' },
+            { header: failures.columns.model, key: 'model' },
+            { header: failures.columns.reason, key: 'reason' }
+          ]}
+          empty={failures.empty}
+          rows={failureRows}
+          showCaption={true}
+        />
       </AdminSection>
 
       <AdminSection note={t.featureNote} title={t.featureTitle}>
@@ -238,82 +299,19 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
               title={t.featureChart}
             />
           </Card>
-          <Card className={`${styles.table} ${styles.featureTable}`}>
-            <DataTable
-              caption={t.featureTable}
-              columns={[
-                { header: t.featureColumn, key: 'feature' },
-                { align: 'end', header: t.columns.calls, key: 'calls' },
-                { align: 'end', header: t.columns.cost, key: 'cost' }
-              ]}
-              empty={t.featureEmpty}
-              rows={featureRows}
-            />
-          </Card>
+          <AdminReflowTable
+            caption={t.featureTable}
+            columns={[
+              { header: t.featureColumn, key: 'feature' },
+              { align: 'end', header: t.columns.calls, key: 'calls' },
+              { align: 'end', header: t.columns.cost, key: 'cost' }
+            ]}
+            empty={t.featureEmpty}
+            rows={featureRows}
+            showCaption={true}
+          />
         </div>
       </AdminSection>
-
-      <ul aria-label={t.tilesLabel} className={styles.tiles}>
-        <Card as="li" padding="sm">
-          <StatTile
-            change={totals.calls}
-            changeLabel={common.changeLabel}
-            label={t.calls}
-            locale={locale}
-            sparkline={ai.callsPerDay.values}
-            value={number(totals.calls.current)}
-          />
-        </Card>
-        <Card as="li" padding="sm">
-          <StatTile
-            change={totals.failed}
-            changeLabel={common.changeLabel}
-            goodDirection="down"
-            label={t.failed}
-            locale={locale}
-            value={number(totals.failed.current)}
-          />
-        </Card>
-        {/* Spend is neither good nor bad news on its own, so its change stays grey. */}
-        <Card as="li" padding="sm">
-          <StatTile
-            change={totals.costUsd}
-            changeLabel={common.changeLabel}
-            label={t.spend}
-            locale={locale}
-            sparkline={ai.spendPerDay.values}
-            value={dollars(totals.costUsd.current)}
-          />
-        </Card>
-        {/* A mean moves by its own amount, not by a share of itself: the tile states the
-            previous one. No timed call is "—", never 0 s. */}
-        <Card as="li" padding="sm">
-          <StatTile
-            label={t.averageMs}
-            locale={locale}
-            note={totals.averageMs.previous === null ? undefined : interpolate(t.averageNote, { seconds: seconds(totals.averageMs.previous) })}
-            value={totals.averageMs.current === null ? '—' : seconds(totals.averageMs.current)}
-          />
-        </Card>
-        <Card as="li" padding="sm">
-          <StatTile
-            change={totals.inputTokens}
-            changeLabel={common.changeLabel}
-            label={t.inputTokens}
-            locale={locale}
-            value={number(totals.inputTokens.current)}
-          />
-        </Card>
-        <Card as="li" padding="sm">
-          <StatTile
-            change={totals.outputTokens}
-            changeLabel={common.changeLabel}
-            label={t.outputTokens}
-            locale={locale}
-            value={number(totals.outputTokens.current)}
-          />
-        </Card>
-      </ul>
 
       <AdminSection title={t.trendsTitle}>
         <div className={styles.charts}>
@@ -376,23 +374,22 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
               title={t.modelsChart}
             />
           </Card>
-          <Card className={styles.table}>
-            <DataTable
-              caption={t.caption}
-              columns={[
-                { header: t.columns.model, key: 'model' },
-                { align: 'end', header: t.columns.calls, key: 'calls' },
-                { align: 'end', header: t.columns.failed, key: 'failed' },
-                { align: 'end', header: t.columns.averageMs, key: 'averageMs' },
-                { align: 'end', header: t.columns.input, key: 'input' },
-                { align: 'end', header: t.columns.output, key: 'output' },
-                { align: 'end', header: t.columns.reasoning, key: 'reasoning' },
-                { align: 'end', header: t.columns.cost, key: 'cost' }
-              ]}
-              empty={t.modelsEmpty}
-              rows={rows}
-            />
-          </Card>
+          <AdminReflowTable
+            caption={t.caption}
+            columns={[
+              { header: t.columns.model, key: 'model' },
+              { align: 'end', header: t.columns.calls, key: 'calls' },
+              { align: 'end', header: t.columns.failed, key: 'failed' },
+              { align: 'end', header: t.columns.averageMs, key: 'averageMs' },
+              { align: 'end', header: t.columns.input, key: 'input' },
+              { align: 'end', header: t.columns.output, key: 'output' },
+              { align: 'end', header: t.columns.reasoning, key: 'reasoning' },
+              { align: 'end', header: t.columns.cost, key: 'cost' }
+            ]}
+            empty={t.modelsEmpty}
+            rows={rows}
+            showCaption={true}
+          />
         </div>
       </AdminSection>
 

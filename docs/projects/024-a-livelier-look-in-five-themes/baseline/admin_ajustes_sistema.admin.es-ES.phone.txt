@@ -1,5 +1,6 @@
 # /admin/ajustes/sistema · admin · es-ES · phone · 200
 button "Menú"
+button "Tema"
 heading "Correo" [level=#]
 heading "Integraciones" [level=#]
 heading "Límites" [level=#]

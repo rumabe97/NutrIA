@@ -1,5 +1,6 @@
 # /admin · admin · en-GB · phone · 200
 button "Menu"
+button "Theme"
 heading "Needs you" [level=#]
 heading "Overview" [level=#]
 heading "Trends" [level=#]

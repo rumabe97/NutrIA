@@ -175,20 +175,22 @@ export default async function AdminPictureReviewPage({ params }: { params: Promi
               })}
               title={t.decideTitle}
             >
-              <Text className={styles.help}>{t.decideHelp}</Text>
-              {/* Three buttons of one weight: none of them does anything before its own dialog. The accept is sent
+              <Card>
+                <Text className={styles.help}>{t.decideHelp}</Text>
+                {/* Three buttons of one weight: none of them does anything before its own dialog. The accept is sent
                   back exactly the allergen keys this page was rendered with. */}
-              <div className={styles.actions}>
-                <PictureAcceptAction
-                  allergens={candidate.allergens.map(key => ({ key, label: allergenName.get(key) ?? key }))}
-                  dish={recipe.name}
-                  expiresAt={candidate.expiresAt}
-                  ingredients={candidate.ingredients.map(ingredient => ingredient.name)}
-                  recipeId={recipe.id}
-                />
-                <PictureCandidateAction kind="discard" recipeId={recipe.id} />
-                <PictureCandidateAction kind="retry" recipeId={recipe.id} />
-              </div>
+                <div className="button-row">
+                  <PictureAcceptAction
+                    allergens={candidate.allergens.map(key => ({ key, label: allergenName.get(key) ?? key }))}
+                    dish={recipe.name}
+                    expiresAt={candidate.expiresAt}
+                    ingredients={candidate.ingredients.map(ingredient => ingredient.name)}
+                    recipeId={recipe.id}
+                  />
+                  <PictureCandidateAction kind="discard" recipeId={recipe.id} />
+                  <PictureCandidateAction kind="retry" recipeId={recipe.id} />
+                </div>
+              </Card>
             </AdminSection>
           </div>
         </div>
@@ -213,19 +215,21 @@ export default async function AdminPictureReviewPage({ params }: { params: Promi
 
           <div className={styles.decide}>
             <AdminSection title={byHand ? t.acceptedTitle : t.judgeAcceptedTitle}>
-              <Text className={styles.help}>{byHand ? t.acceptedHelp : t.judgeAcceptedHelp}</Text>
-              <div className={styles.actions}>
-                <PictureRemoveAction dish={recipe.name} recipeId={recipe.id} />
-              </div>
-              {/* Only an acceptance by hand has a row of its own in the trail; the judge's is the drawing itself. */}
-              {byHand ? (
-                <p className={styles.trail}>
-                  <span>{t.acceptedTrail}</span>{' '}
-                  <Link className={styles.link} href={ACCEPTANCES}>
-                    {t.acceptedTrailLink}
-                  </Link>
-                </p>
-              ) : null}
+              <Card>
+                <Text className={styles.help}>{byHand ? t.acceptedHelp : t.judgeAcceptedHelp}</Text>
+                <div className="button-row">
+                  <PictureRemoveAction dish={recipe.name} recipeId={recipe.id} />
+                </div>
+                {/* Only an acceptance by hand has a row of its own in the trail; the judge's is the drawing itself. */}
+                {byHand ? (
+                  <p className={styles.trail}>
+                    <span>{t.acceptedTrail}</span>{' '}
+                    <Link className={styles.link} href={ACCEPTANCES}>
+                      {t.acceptedTrailLink}
+                    </Link>
+                  </p>
+                ) : null}
+              </Card>
             </AdminSection>
           </div>
         </div>

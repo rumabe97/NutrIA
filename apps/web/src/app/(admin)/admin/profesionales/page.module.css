@@ -11,5 +11,6 @@
    cut. On a narrow table the column is not pinned (`AdminTable`), so a long one scrolls
    with the rest instead of covering it. */
 .email {
-  white-space: nowrap;
+  /* On a phone the address is the card's title and wraps inside it; in the table its cell keeps it on one line. */
+  overflow-wrap: anywhere;
 }

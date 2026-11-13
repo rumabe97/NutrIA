@@ -27,11 +27,25 @@
 }
 
 .title {
+  align-items: center;
   color: var(--foreground-01);
-  font-size: var(--font-size-04);
-  font-weight: var(--font-weight-semibold);
+  display: flex;
+  font-family: var(--display-font);
+  font-size: var(--font-size-05);
+  font-weight: var(--font-weight-heavy);
+  gap: var(--space-02);
   letter-spacing: var(--tracking-title);
   margin: 0;
+}
+
+/* The brand's leaf, as the app's header draws it. */
+.mark {
+  background-color: var(--color-brand-fill);
+  background-image: var(--gradient-brand-fill);
+  block-size: 18px;
+  border-radius: var(--radius-01) var(--radius-full) var(--radius-full) var(--radius-full);
+  flex: none;
+  inline-size: 18px;
 }
 
 .menu {

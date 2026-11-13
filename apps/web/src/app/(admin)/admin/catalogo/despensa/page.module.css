@@ -22,8 +22,3 @@
 .emptyBody {
   margin: 0;
 }
-
-/* The table's pinned first column paints the card's colour, which is what is under it. */
-.card {
-  --table-surface: var(--surface-card);
-}

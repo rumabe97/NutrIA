@@ -1,5 +1,6 @@
 # /admin/producto · admin · en-GB · phone · 200
 button "Menu"
+button "Theme"
 heading "Activity" [level=#]
 heading "Funnel and activity" [level=#]
 heading "Funnel" [level=#]

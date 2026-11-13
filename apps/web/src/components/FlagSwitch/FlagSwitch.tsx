@@ -49,5 +49,14 @@ export function FlagSwitch({ enabled, flag, label, offHint, onHint }: FlagSwitch
     }
   }
 
-  return <SettingSwitch checked={on} error={error} hint={on ? onHint : offHint} label={label} onCheckedChange={next => void change(next)} />;
+  return (
+    <SettingSwitch
+      checked={on}
+      error={error}
+      hint={on ? onHint : offHint}
+      label={label}
+      onCheckedChange={next => void change(next)}
+      placement="end"
+    />
+  );
 }

@@ -1,11 +1,15 @@
 # /admin/generacion/ia · admin · es-ES · desktop · 200
+button "Tema"
 heading "Asistente" [level=#]
 heading "Este mes" [level=#]
 heading "IA y modelos" [level=#]
+heading "Llamadas y gasto del mes por función" [level=#]
 heading "Por día" [level=#]
 heading "Por función" [level=#]
 heading "Por modelo" [level=#]
+heading "Últimos fallos del asistente" [level=#]
 heading "Últimos fallos" [level=#]
+heading "Uso por modelo" [level=#]
 link "# días"
 link "Buzón"
 link "Calidad de los planes"

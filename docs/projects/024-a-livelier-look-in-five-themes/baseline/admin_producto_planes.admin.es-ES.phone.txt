@@ -1,5 +1,6 @@
 # /admin/producto/planes · admin · es-ES · phone · 200
 button "Menú"
+button "Tema"
 heading "En el periodo" [level=#]
 heading "Estado actual" [level=#]
 heading "Planes" [level=#]

@@ -1,5 +1,6 @@
 # /admin/buzon · admin · es-ES · desktop · 200
 button "Aplicar"
+button "Tema"
 combobox "Estado"
 combobox "Por página"
 heading "Buzón" [level=#]

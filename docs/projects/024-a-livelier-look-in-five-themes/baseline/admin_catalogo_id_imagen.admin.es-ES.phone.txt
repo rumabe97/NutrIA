@@ -1,0 +1,7 @@
+# /admin/catalogo/<id>/imagen · admin · es-ES · phone · 200
+button "Menú"
+button "Tema"
+heading "No hay ninguna imagen que revisar" [level=#]
+heading "Revisar la imagen de Abadejo al Vapor con Quinoa y Vegetales" [level=#]
+link "Saltar al contenido"
+link "Volver a Recetas"

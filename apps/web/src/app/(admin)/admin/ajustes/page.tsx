@@ -6,6 +6,8 @@ import styles from './page.module.css';
 import { getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
+import { AdminPageHeader } from 'components/AdminPageHeader';
+import { AdminSwitchGroup } from 'components/AdminSwitchGroup';
 import { AllowanceField } from 'components/AllowanceField';
 import { Card } from 'components/Card';
 import { FlagSwitch } from 'components/FlagSwitch';
@@ -69,89 +71,95 @@ export default async function AdminSettingsPage() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>{words.title}</h1>
-        <Text className={styles.intro} tone="secondary">
-          {words.intro}
-        </Text>
-      </header>
+      <AdminPageHeader intro={words.intro} title={words.title} />
 
-      {/* Who gets in: an account on its own, and a dietitian into their practice (`0030`, `0059`). */}
-      <section aria-labelledby="ajustes-acceso" className={styles.group}>
-        <h2 className={styles.subtitle} id="ajustes-acceso">
-          {words.access}
-        </h2>
-        <Card as="ul" className={styles.rows}>
-          <li className={styles.row}>
-            <FlagSwitch
-              enabled={flags.automaticActivation ?? true}
-              flag="automaticActivation"
-              label={t.automaticActivation}
-              offHint={t.manualHint}
-              onHint={t.automaticHint}
-            />
-          </li>
-          <li className={styles.row}>
-            <FlagSwitch
-              enabled={flags.professional ?? false}
-              flag="professional"
-              label={t.professionalLabel}
-              offHint={t.professionalOffHint}
-              onHint={t.professionalHint}
-            />
-          </li>
-        </Card>
-      </section>
+      <div className={styles.columns}>
+        <div className={styles.column}>
+          {/* What the product offers: the paid tier at all, and dish pictures drawn on first view (`0066`). */}
+          <AdminSwitchGroup title={words.product}>
+            <li>
+              <FlagSwitch enabled={flags.premium ?? false} flag="premium" label={t.premiumLabel} offHint={t.premiumOffHint} onHint={t.premiumHint} />
+            </li>
+            <li id="imagenes">
+              <FlagSwitch
+                enabled={flags.dishPictures ?? false}
+                flag="dishPictures"
+                label={t.picturesLabel}
+                offHint={t.picturesOffHint}
+                onHint={t.picturesHint}
+              />
+            </li>
+            <li id="acompanamientos">
+              <FlagSwitch
+                enabled={flags.accompaniments ?? false}
+                flag="accompaniments"
+                label={t.accompanimentsLabel}
+                offHint={t.accompanimentsOffHint}
+                onHint={t.accompanimentsHint}
+              />
+            </li>
+            <li id="despensa">
+              <FlagSwitch
+                enabled={flags.pantryRank ?? false}
+                flag="pantryRank"
+                label={t.pantryRankLabel}
+                offHint={t.pantryRankOffHint}
+                onHint={t.pantryRankHint}
+              />
+            </li>
+            {/* The assistant (project 023): thrown only once /privacidad describes it and the notice mail has gone out
+                  (docs/legal/go-live-checklist.md § 0 undecies). Off, asking it is a 404 for everybody. */}
+            <li id="asistente">
+              <FlagSwitch
+                enabled={flags.assistant ?? false}
+                flag="assistant"
+                label={t.assistantLabel}
+                offHint={t.assistantOffHint}
+                onHint={t.assistantHint}
+              />
+            </li>
+          </AdminSwitchGroup>
+        </div>
+        <div className={styles.column}>
+          {/* Who gets in: an account on its own, and a dietitian into their practice (`0030`, `0059`). */}
+          <AdminSwitchGroup title={words.access}>
+            <li>
+              <FlagSwitch
+                enabled={flags.automaticActivation ?? true}
+                flag="automaticActivation"
+                label={t.automaticActivation}
+                offHint={t.manualHint}
+                onHint={t.automaticHint}
+              />
+            </li>
+            <li>
+              <FlagSwitch
+                enabled={flags.professional ?? false}
+                flag="professional"
+                label={t.professionalLabel}
+                offHint={t.professionalOffHint}
+                onHint={t.professionalHint}
+              />
+            </li>
+          </AdminSwitchGroup>
 
-      {/* What the product offers: the paid tier at all, and dish pictures drawn on first view (`0066`). */}
-      <section aria-labelledby="ajustes-producto" className={styles.group}>
-        <h2 className={styles.subtitle} id="ajustes-producto">
-          {words.product}
-        </h2>
-        <Card as="ul" className={styles.rows}>
-          <li className={styles.row}>
-            <FlagSwitch enabled={flags.premium ?? false} flag="premium" label={t.premiumLabel} offHint={t.premiumOffHint} onHint={t.premiumHint} />
-          </li>
-          <li className={styles.row} id="imagenes">
-            <FlagSwitch
-              enabled={flags.dishPictures ?? false}
-              flag="dishPictures"
-              label={t.picturesLabel}
-              offHint={t.picturesOffHint}
-              onHint={t.picturesHint}
-            />
-          </li>
-          <li className={styles.row} id="acompanamientos">
-            <FlagSwitch
-              enabled={flags.accompaniments ?? false}
-              flag="accompaniments"
-              label={t.accompanimentsLabel}
-              offHint={t.accompanimentsOffHint}
-              onHint={t.accompanimentsHint}
-            />
-          </li>
-          <li className={styles.row} id="despensa">
-            <FlagSwitch
-              enabled={flags.pantryRank ?? false}
-              flag="pantryRank"
-              label={t.pantryRankLabel}
-              offHint={t.pantryRankOffHint}
-              onHint={t.pantryRankHint}
-            />
-          </li>
-          {/* The assistant (project 023): thrown only once /privacidad describes it and the notice mail has gone out
-              (docs/legal/go-live-checklist.md § 0 undecies). Off, asking it is a 404 for everybody. */}
-          <li className={styles.row} id="asistente">
-            <FlagSwitch
-              enabled={flags.assistant ?? false}
-              flag="assistant"
-              label={t.assistantLabel}
-              offHint={t.assistantOffHint}
-              onHint={t.assistantHint}
-            />
-          </li>
-        </Card>
-      </section>
+          {/* What it sends: the check-in reminder (`0054`), and a test to the owner's own devices. */}
+          <AdminSwitchGroup title={words.notifications}>
+            <li>
+              <FlagSwitch
+                enabled={flags.checkInReminders ?? false}
+                flag="checkInReminders"
+                label={t.remindersTitle}
+                offHint={t.remindersOffHint}
+                onHint={t.remindersHint}
+              />
+            </li>
+            <li>
+              <PushTestButton />
+            </li>
+          </AdminSwitchGroup>
+        </div>
+      </div>
 
       {/*
         What each subscription allows (`0097`). The numbers live in the code as
@@ -204,27 +212,6 @@ export default async function AdminSettingsPage() {
               </div>
             </li>
           ))}
-        </Card>
-      </section>
-
-      {/* What it sends: the check-in reminder (`0054`), and a test to the owner's own devices. */}
-      <section aria-labelledby="ajustes-avisos" className={styles.group}>
-        <h2 className={styles.subtitle} id="ajustes-avisos">
-          {words.notifications}
-        </h2>
-        <Card as="ul" className={styles.rows}>
-          <li className={styles.row}>
-            <FlagSwitch
-              enabled={flags.checkInReminders ?? false}
-              flag="checkInReminders"
-              label={t.remindersTitle}
-              offHint={t.remindersOffHint}
-              onHint={t.remindersHint}
-            />
-          </li>
-          <li className={styles.row}>
-            <PushTestButton />
-          </li>
         </Card>
       </section>
     </div>

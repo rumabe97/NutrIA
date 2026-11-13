@@ -3,10 +3,10 @@ import { notFound } from 'next/navigation';
 import styles from './page.module.css';
 
 import { activeLocale, getDictionary } from 'i18n/server';
-import { DataTable } from 'ui/components/DataTable';
 import { StatTile } from 'ui/components/StatTile';
 
 import { AdminPageHeader } from 'components/AdminPageHeader';
+import { AdminReflowTable } from 'components/AdminReflowTable';
 import { AdminSection } from 'components/AdminSection';
 import { Card } from 'components/Card';
 import { HowCounted } from 'components/HowCounted';
@@ -88,21 +88,18 @@ export default async function AdminConsentsPage() {
       </ul>
 
       <AdminSection title={t.caption}>
-        <Card className={styles.table}>
-          <DataTable
-            caption={t.caption}
-            columns={[
-              { header: t.columns.consent, key: 'consent' },
-              { header: t.columns.version, key: 'version' },
-              { align: 'end', header: t.columns.current, key: 'current' },
-              { align: 'end', header: t.columns.older, key: 'older' },
-              { header: t.columns.versions, key: 'versions' }
-            ]}
-            empty={t.empty}
-            hideCaption={true}
-            rows={rows}
-          />
-        </Card>
+        <AdminReflowTable
+          caption={t.caption}
+          columns={[
+            { header: t.columns.consent, key: 'consent' },
+            { header: t.columns.version, key: 'version' },
+            { align: 'end', header: t.columns.current, key: 'current' },
+            { align: 'end', header: t.columns.older, key: 'older' },
+            { header: t.columns.versions, key: 'versions' }
+          ]}
+          empty={t.empty}
+          rows={rows}
+        />
       </AdminSection>
 
       <HowCounted notes={t.howCounted} summary={common.howCounted} />

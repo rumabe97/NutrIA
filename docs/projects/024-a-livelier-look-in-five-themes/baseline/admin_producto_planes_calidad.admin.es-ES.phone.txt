@@ -1,5 +1,6 @@
 # /admin/producto/planes/calidad · admin · es-ES · phone · 200
 button "Menú"
+button "Tema"
 heading "Calidad de los planes" [level=#]
 heading "Planes del periodo" [level=#]
 link "# días"

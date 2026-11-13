@@ -1,5 +1,6 @@
 # /admin/generacion · admin · en-GB · desktop · 200
 button "Apply"
+button "Theme"
 combobox "Per page"
 heading "All generations" [level=#]
 heading "Failures by reason" [level=#]

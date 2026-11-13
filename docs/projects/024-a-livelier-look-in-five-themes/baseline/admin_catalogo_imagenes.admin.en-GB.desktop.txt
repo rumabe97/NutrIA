@@ -1,4 +1,5 @@
 # /admin/catalogo/imagenes · admin · en-GB · desktop · 200
+button "Theme"
 heading "Current state" [level=#]
 heading "Given back, not failed" [level=#]
 heading "In the period" [level=#]

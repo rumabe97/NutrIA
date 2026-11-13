@@ -1,19 +1,31 @@
 .page {
+  container-type: inline-size;
   display: grid;
   gap: var(--gap-region);
+  grid-template-columns: minmax(0, 1fr);
 }
 
-.header {
+/* The groups of switches in two columns when the page has the room — the sheet's arrangement:
+   what the product offers on one side, who gets in and what is sent on the other — and one
+   after another on a phone. */
+.columns {
+  align-items: start;
   display: grid;
-  gap: var(--gap-heading);
+  gap: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
 }
 
-.title {
-  font-size: var(--font-size-09);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--tracking-headline);
-  line-height: var(--line-height-02);
-  margin: 0;
+.column {
+  display: grid;
+  gap: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+@container (inline-size >= 48rem) {
+  .columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .intro {
@@ -26,6 +38,7 @@
    one card, a hairline between them. */
 .group {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--gap-heading);
 }
 
@@ -39,6 +52,7 @@
 /* `ul.rows` so the list reset wins over the card whatever order the sheets land in. */
 ul.rows {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   list-style: none;
   margin: 0;
 }
@@ -73,6 +87,7 @@ ul.rows {
    wide enough to hold them. */
 .tiers {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-04);
   margin-block-start: var(--space-02);
 }

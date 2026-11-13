@@ -1,4 +1,5 @@
 # /admin/producto/planes · admin · en-GB · desktop · 200
+button "Theme"
 heading "In the period" [level=#]
 heading "Plans" [level=#]
 heading "State now" [level=#]

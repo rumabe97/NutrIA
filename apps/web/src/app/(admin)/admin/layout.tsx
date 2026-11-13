@@ -5,6 +5,7 @@ import styles from './layout.module.css';
 import { secondFactorMissing } from 'core/domain/SecondFactor';
 
 import { AdminNav } from 'components/AdminNav';
+import { HeaderPattern } from 'components/HeaderPattern';
 import { SecondFactorRequired } from 'components/SecondFactorRequired';
 
 import { MAIN_ID } from '../../_shared/mainId';
@@ -53,9 +54,12 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
   return (
     <div className={styles.shell}>
       <AdminNav />
-      <main className={styles.content} id={MAIN_ID}>
-        {children}
-      </main>
+      <div className={styles.stage}>
+        <HeaderPattern />
+        <main className={styles.content} id={MAIN_ID}>
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

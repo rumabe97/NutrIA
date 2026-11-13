@@ -1,4 +1,5 @@
 # /admin/producto · admin · en-GB · desktop · 200
+button "Theme"
 heading "Activity" [level=#]
 heading "Funnel and activity" [level=#]
 heading "Funnel" [level=#]

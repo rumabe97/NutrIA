@@ -1,4 +1,5 @@
 # /admin/consentimientos · admin · es-ES · desktop · 200
+button "Tema"
 heading "Consentimientos por versión" [level=#]
 heading "Consentimientos" [level=#]
 link "Buzón"

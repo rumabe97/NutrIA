@@ -2,6 +2,7 @@
 button "Enviarme un aviso de prueba"
 button "Guardar" [disabled]
 button "Menú"
+button "Tema"
 heading "Acceso" [level=#]
 heading "Interruptores" [level=#]
 heading "Notificaciones" [level=#]

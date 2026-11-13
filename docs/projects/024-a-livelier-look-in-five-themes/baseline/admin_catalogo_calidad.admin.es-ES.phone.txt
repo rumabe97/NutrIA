@@ -1,5 +1,6 @@
 # /admin/catalogo/calidad · admin · es-ES · phone · 200
 button "Menú"
+button "Tema"
 heading "Calidad" [level=#]
 heading "Debería ser cero" [level=#]
 heading "Días con actividad de la reescritura" [level=#]

@@ -1,0 +1,4 @@
+# /admin/zzz-no-such-page · admin · es-ES · desktop · 404
+heading "No hemos encontrado lo que buscabas." [level=#]
+link "Ir al inicio"
+link "Saltar al contenido"

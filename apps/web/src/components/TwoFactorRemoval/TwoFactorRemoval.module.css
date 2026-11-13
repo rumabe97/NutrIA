@@ -1,6 +1,23 @@
 .root {
   display: grid;
   justify-items: start;
+  min-inline-size: 0;
+}
+
+/* Beside the row's other buttons: in a phone's card its column is half the card, and a long
+   name wraps inside the button instead of running past it. */
+.root > button {
+  block-size: auto;
+  max-inline-size: 100%;
+  min-block-size: var(--height-m);
+  padding-block: var(--space-01);
+  white-space: var(--row-actions-space, normal);
+}
+
+@media (pointer: coarse) {
+  .root > button {
+    min-block-size: var(--target-min);
+  }
 }
 
 /* The date and "Cancelar" side by side, the button wrapping under the date before the cell does. */

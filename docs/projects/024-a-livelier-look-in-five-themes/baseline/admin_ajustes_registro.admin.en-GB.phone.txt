@@ -1,6 +1,7 @@
 # /admin/ajustes/registro · admin · en-GB · phone · 200
 button "Apply"
 button "Menu"
+button "Theme"
 combobox "Action"
 combobox "Per page"
 heading "Audit log" [level=#]

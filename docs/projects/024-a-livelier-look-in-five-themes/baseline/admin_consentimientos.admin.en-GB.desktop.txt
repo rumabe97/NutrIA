@@ -1,4 +1,5 @@
 # /admin/consentimientos · admin · en-GB · desktop · 200
+button "Theme"
 heading "Consents by version" [level=#]
 heading "Consents" [level=#]
 link "Accounts"

@@ -27,29 +27,6 @@
   --chart-surface: var(--surface-card);
 }
 
-.table {
-  --table-surface: var(--surface-card);
-
-  container-type: inline-size;
-}
-
-.table :is(th, td) {
-  white-space: nowrap;
-}
-
-/* A long first column pinned on a narrow table would cover the figures: there it scrolls with them. */
-@container (inline-size < 36rem) {
-  .table table :is(th, td):first-child {
-    position: static;
-  }
-
-  /* What a row is may wrap there, so what it says (a value, a state) stays in view. */
-  .table table tbody :is(th, td):first-child {
-    min-inline-size: 7rem;
-    white-space: normal;
-  }
-}
-
 /* A stale job is a warning in words and in colour. */
 .state[data-stale='true'] {
   color: var(--color-error-text);

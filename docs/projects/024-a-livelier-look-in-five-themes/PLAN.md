@@ -396,7 +396,7 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 
 ### Phase 8 — The console
 
-- [ ] pending
+- [x] done
 - **Dispatch**: sonnet @ medium — `/execute-project 024 phase 8` — owner-approves: one sheet for
   the console's remaining page types (a table page, a detail page, the picture review), before
   they are built.
@@ -406,6 +406,28 @@ What the code looks like today, and what that decides (read on 2026-11-11):
 - **Steps**: the three approved pages first (Resumen, Interruptores, IA y modelos), then the
   sheet, then the rest as one batch. No figure, filter or action is added or removed.
 - **Items**: one checkbox per console route.
+  - [x] /admin (Resumen)
+  - [x] /admin/cuentas
+  - [x] /admin/profesionales
+  - [x] /admin/consentimientos
+  - [x] /admin/personas/retencion
+  - [x] /admin/buzon
+  - [x] /admin/producto
+  - [x] /admin/producto/planes
+  - [x] /admin/producto/planes/calidad
+  - [x] /admin/notificaciones
+  - [x] /admin/generacion
+  - [x] /admin/generacion/ia (IA y modelos)
+  - [x] /admin/catalogo
+  - [x] /admin/catalogo/[id]/imagen — shape D (nothing to review) looked at; shapes A–C not reachable on the local database (see LOG)
+  - [x] /admin/catalogo/calidad
+  - [x] /admin/catalogo/ingredientes
+  - [x] /admin/catalogo/despensa
+  - [x] /admin/catalogo/imagenes
+  - [x] /admin/ajustes (Interruptores)
+  - [x] /admin/ajustes/registro
+  - [x] /admin/ajustes/sistema
+  - [x] /admin/[...rest] and the 404: behaviour unchanged; the console is still a 404 for a non-admin on every route above (88/88 loads)
 - **Acceptance criteria**: PRD 1, 7, 9, 11 for these routes; PRD 16 (the 404 for a non-admin).
 - **Verification**: gate `--full`; `admin.e2e-spec.ts` untouched and green in CI; `/local-probe`
   with a two-factor admin account at 390 and 1280, Claro and Oscuro.

@@ -1,4 +1,5 @@
 # /admin/notificaciones · admin · en-GB · desktop · 200
+button "Theme"
 heading "Notifications" [level=#]
 heading "Reminders" [level=#]
 link "# days"

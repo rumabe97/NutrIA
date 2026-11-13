@@ -1,4 +1,5 @@
 # /admin/ajustes/sistema · admin · en-GB · desktop · 200
+button "Theme"
 heading "Integrations" [level=#]
 heading "Limits" [level=#]
 heading "Mail" [level=#]

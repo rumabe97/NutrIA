@@ -4,11 +4,11 @@ import styles from './page.module.css';
 
 import { activeLocale, getDictionary } from 'i18n/server';
 import { ColumnChart } from 'ui/components/ColumnChart';
-import { DataTable } from 'ui/components/DataTable';
 import { parsePeriod } from 'core/domain/Period';
 import { StatTile } from 'ui/components/StatTile';
 
 import { AdminPageHeader } from 'components/AdminPageHeader';
+import { AdminReflowTable } from 'components/AdminReflowTable';
 import { AdminSection } from 'components/AdminSection';
 import { Card } from 'components/Card';
 import { HowCounted } from 'components/HowCounted';
@@ -124,31 +124,24 @@ export default async function AdminSystemPage({ searchParams }: { searchParams: 
       </AdminPageHeader>
 
       <AdminSection title={t.versionsTitle}>
-        <Card className={styles.table}>
-          <DataTable caption={t.versionsTitle} columns={itemColumns} empty="—" hideCaption={true} rows={asRows(versionRows)} />
-        </Card>
+        <AdminReflowTable caption={t.versionsTitle} columns={itemColumns} empty="—" rows={asRows(versionRows)} />
       </AdminSection>
 
       <AdminSection title={t.integrationsTitle}>
-        <Card className={styles.table}>
-          <DataTable caption={t.integrationsTitle} columns={itemColumns} empty="—" hideCaption={true} rows={asRows(integrationRows)} />
-        </Card>
+        <AdminReflowTable caption={t.integrationsTitle} columns={itemColumns} empty="—" rows={asRows(integrationRows)} />
       </AdminSection>
 
       <AdminSection note={interpolate(t.cronNote, { hours: STALE_HOURS })} title={t.cronTitle}>
-        <Card className={styles.table}>
-          <DataTable
-            caption={t.cronCaption}
-            columns={[
-              { header: t.columns.job, key: 'job' },
-              { header: t.columns.lastRun, key: 'lastRun' },
-              { header: t.columns.state, key: 'state' }
-            ]}
-            empty={t.cronEmpty}
-            hideCaption={true}
-            rows={cronRows}
-          />
-        </Card>
+        <AdminReflowTable
+          caption={t.cronCaption}
+          columns={[
+            { header: t.columns.job, key: 'job' },
+            { header: t.columns.lastRun, key: 'lastRun' },
+            { header: t.columns.state, key: 'state' }
+          ]}
+          empty={t.cronEmpty}
+          rows={cronRows}
+        />
       </AdminSection>
 
       <AdminSection title={t.mailTitle}>
@@ -177,26 +170,21 @@ export default async function AdminSystemPage({ searchParams }: { searchParams: 
               title={t.mailChart}
             />
           </Card>
-          <Card className={styles.table}>
-            <DataTable
-              caption={t.mailCaption}
-              columns={[
-                { header: t.columns.template, key: 'kind' },
-                { align: 'end', header: t.mailSeries.sent, key: 'sent' },
-                { align: 'end', header: t.mailSeries.failed, key: 'failed' }
-              ]}
-              empty={t.mailEmpty}
-              hideCaption={true}
-              rows={mailRows}
-            />
-          </Card>
+          <AdminReflowTable
+            caption={t.mailCaption}
+            columns={[
+              { header: t.columns.template, key: 'kind' },
+              { align: 'end', header: t.mailSeries.sent, key: 'sent' },
+              { align: 'end', header: t.mailSeries.failed, key: 'failed' }
+            ]}
+            empty={t.mailEmpty}
+            rows={mailRows}
+          />
         </div>
       </AdminSection>
 
       <AdminSection title={t.capsTitle}>
-        <Card className={styles.table}>
-          <DataTable caption={t.capsTitle} columns={itemColumns} empty="—" hideCaption={true} rows={asRows(capRows)} />
-        </Card>
+        <AdminReflowTable caption={t.capsTitle} columns={itemColumns} empty="—" rows={asRows(capRows)} />
       </AdminSection>
 
       <HowCounted notes={t.howCounted.map(note => interpolate(note, { date: since }))} summary={common.howCounted} />

@@ -24,7 +24,8 @@
 
 /* Who wrote: the whole address on one line, never broken or cut. */
 .sender {
-  white-space: nowrap;
+  /* On a phone the address is the card's title and wraps inside it; in the table its cell keeps it on one line. */
+  overflow-wrap: anywhere;
 }
 
 /* Still waiting: the word says it, the weight makes it easy to find down the column. */

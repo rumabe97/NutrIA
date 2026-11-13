@@ -1,5 +1,6 @@
 # /admin/catalogo/despensa · admin · es-ES · desktop · 200
 button "Aplicar"
+button "Tema"
 combobox "Por página"
 heading "Despensa" [level=#]
 heading "Ingredientes sin ningún plato" [level=#]

@@ -1,4 +1,5 @@
 # /admin/personas/retencion · admin · es-ES · desktop · 200
+button "Tema"
 heading "Hizo algo (aproximada)" [level=#]
 heading "Retención" [level=#]
 heading "Usó la app" [level=#]

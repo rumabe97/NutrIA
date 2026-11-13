@@ -1,5 +1,6 @@
 # /admin/notificaciones · admin · en-GB · phone · 200
 button "Menu"
+button "Theme"
 heading "Notifications" [level=#]
 heading "Reminders" [level=#]
 link "# days"

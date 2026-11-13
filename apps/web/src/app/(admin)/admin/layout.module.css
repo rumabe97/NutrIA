@@ -7,6 +7,15 @@
   min-block-size: 100dvh;
 }
 
+/* The column the page sits in: the hatched pattern is drawn against it, so it hangs from the
+   top of the page and not behind the sidebar, and `isolation` keeps it behind the page's own
+   content and above the body's ground. */
+.stage {
+  isolation: isolate;
+  min-inline-size: 0;
+  position: relative;
+}
+
 .content {
   margin-inline: auto;
   max-inline-size: var(--content-max);
