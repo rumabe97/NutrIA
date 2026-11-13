@@ -409,7 +409,7 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
                 confirming === turn.key ? (
                   <div aria-label={t.deleteMessageLabel} className={`${styles.confirm} motion-drop-in`} role="group">
                     <p className={styles.confirmText}>{t.deleteMessageBody}</p>
-                    <div className={styles.confirmActions}>
+                    <div className="button-row">
                       <Button onClick={() => void remove(turn)} ref={confirmFirst} size="sm" variant="destructive">
                         {t.deleteMessage}
                       </Button>

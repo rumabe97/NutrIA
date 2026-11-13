@@ -84,7 +84,7 @@ export function CareEndLink({ linkId, name }: CareEndLinkProps) {
           <Text size="sm" tone="secondary">
             {t.endConfirmBody}
           </Text>
-          <div className={styles.actions}>
+          <div className={`${styles.actions} button-row`}>
             <Button loading={pending} onClick={() => void end()} type="button" variant="destructive">
               {t.endConfirmCta}
             </Button>

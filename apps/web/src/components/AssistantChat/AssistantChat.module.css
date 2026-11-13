@@ -163,12 +163,6 @@
   margin: 0;
 }
 
-.confirmActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-02);
-}
-
 /*
  * The box to write in: stuck to the foot of the screen, above the bottom bar on
  * a phone (`--app-bar-clearance`) — and right above the keyboard once the field has
