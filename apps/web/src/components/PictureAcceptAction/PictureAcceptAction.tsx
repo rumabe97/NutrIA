@@ -258,6 +258,8 @@ export function PictureAcceptAction({ allergens, dish, expiresAt, ingredients, r
                 </Button>
               ) : (
                 <Button
+                  // Busy, it keeps its focus: `aria-disabled` ignores a second press without `disabled` dropping focus.
+                  aria-disabled={pending || undefined}
                   key="publish"
                   loading={pending}
                   onClick={event => {

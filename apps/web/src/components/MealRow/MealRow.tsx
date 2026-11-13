@@ -182,13 +182,22 @@ export function MealRow({
       {mark}
     </span>
   ) : (
+    // One name, its state in `aria-pressed`: a name that flipped as well read «Quitar la marca de
+    // hecha, pulsado». The dish is its description, since a day has several of these. While the
+    // request is out the press is ignored but the button stays as it is — `disabled` would drop
+    // a keyboard user's focus to the page, and the new state would go unheard.
     <button
       aria-busy={pending || undefined}
-      aria-label={done ? dictionary.meal.unmarkDone : dictionary.meal.markDone}
+      aria-describedby={nameId}
+      aria-disabled={pending || undefined}
+      aria-label={dictionary.meal.markDone}
       aria-pressed={done}
       className={styles.tick}
-      disabled={pending}
-      onClick={() => void toggleDone()}
+      onClick={() => {
+        if (!pending) {
+          void toggleDone();
+        }
+      }}
       type="button"
     >
       {mark}

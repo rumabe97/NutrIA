@@ -91,11 +91,11 @@ export function EventPlanner({ allowance, events, variant }: EventPlannerProps) 
       : { added: t.addedNow, full: t.full, intro: t.nowIntro, left: t.left, leftOne: t.leftOne, title: t.nowTitle };
   const capped = allowance ? allowance.remaining <= 0 : false;
 
-  // The button that was pressed disables itself while the request is out, and
-  // a disabled element cannot hold focus — so without this, focus falls to the
-  // page body and the next Tab starts from the top. The heading is where the
-  // list and the form both hang from, and it is not an input, so landing on it
-  // opens no keyboard on a phone.
+  // The button that was pressed says it cannot be pressed while the request is out
+  // (`aria-disabled`, so it keeps its focus; the others are merely disabled), and
+  // on success it goes or the form empties — so focus moves to the heading. The
+  // heading is where the list and the form both hang from, and it is not an input,
+  // so landing on it opens no keyboard on a phone.
   function settle(what: 'added' | 'removed') {
     setOutcome(what);
     titleRef.current?.focus();
@@ -185,8 +185,9 @@ export function EventPlanner({ allowance, events, variant }: EventPlannerProps) 
                   event it belongs to — name *and* date, because two "partido"s
                   a week apart are two different rows. */}
               <Button
+                aria-disabled={removing === event.id || undefined}
                 aria-label={interpolate(t.cancelFor, { date: day(event.on), name: event.name })}
-                disabled={pending}
+                disabled={pending ? removing !== event.id : false}
                 loading={removing === event.id}
                 onClick={() => void remove(event.id)}
                 size="sm"
@@ -292,8 +293,9 @@ export function EventPlanner({ allowance, events, variant }: EventPlannerProps) 
               generation screen the primary action is starting the plan, and
               two filled buttons in one view is two things claiming to be it. */}
           <Button
+            aria-disabled={adding || undefined}
             className={styles.submit}
-            disabled={pending || !name || !on || nothingMoves}
+            disabled={(pending && !adding) || !name || !on || nothingMoves}
             loading={adding}
             type="submit"
             variant={variant === 'generation' ? 'secondary' : 'primary'}

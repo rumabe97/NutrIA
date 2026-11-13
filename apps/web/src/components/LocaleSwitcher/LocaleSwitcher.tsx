@@ -112,14 +112,19 @@ export function LocaleSwitcher({ compact = false }: { compact?: boolean }) {
 
   const options = (
     <div aria-label={dictionary.profile.locale} className={compact ? styles.compactOptions : styles.options} role="group">
+      {/* Each word in its own language (`lang`), so a screen reader says «English» on a Spanish
+          page as English. While one is being applied both say they cannot be pressed and
+          `choose` ignores the press, but neither is `disabled`: that would drop the focus of the
+          one just pressed to the page. */}
       {LOCALES.map(locale => (
         <button
           aria-busy={pending === locale || undefined}
+          aria-disabled={pending !== null || undefined}
           aria-label={compact ? LOCALE_NAMES[locale] : undefined}
           aria-pressed={locale === active}
           className={compact ? styles.compactOption : styles.option}
-          disabled={pending !== null}
           key={locale}
+          lang={locale}
           onClick={() => void choose(locale)}
           type="button"
         >
