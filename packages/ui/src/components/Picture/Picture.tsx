@@ -12,6 +12,11 @@ export type PictureRatio = '1/1' | '16/9' | '4/3';
 export interface PictureProps extends Omit<ComponentPropsWithRef<'img'>, 'children' | 'src'> {
   /** Drawn in the middle of the frame when there is no `src` or it fails to load. Decorative: it is hidden from assistive tech. */
   fallback?: ReactNode;
+  /**
+   * Another file of the same picture for a narrow screen — a lighter one — and the media query
+   * that selects it. Drawn as `<picture><source>`; every other screen gets `src`.
+   */
+  narrow?: { media: string; src: string };
   /** The frame's shape. The image is cropped to it (`object-fit: cover`), centred. Defaults to `4/3`. */
   ratio?: PictureRatio;
   /** Image URL. Missing or failing, the frame stays — same box, `fallback` inside — so nothing around it moves. */
@@ -41,6 +46,7 @@ export function Picture({
   decoding = 'async',
   fallback,
   loading = 'lazy',
+  narrow,
   onError,
   ratio = '4/3',
   ref,
@@ -67,22 +73,34 @@ export function Picture({
 
   const classes = className ? `${styles.frame} ${className}` : styles.frame;
 
+  const image = (
+    <img
+      alt={alt}
+      className={styles.image}
+      decoding={decoding}
+      loading={loading}
+      onError={event => {
+        setFailedSrc(src ?? null);
+        onError?.(event);
+      }}
+      ref={composed}
+      src={src ?? undefined}
+      {...rest}
+    />
+  );
+
   return (
     <span aria-hidden={shown ? undefined : true} className={classes} data-failed={failed || undefined} data-ratio={ratio} style={style}>
       {shown ? (
-        <img
-          alt={alt}
-          className={styles.image}
-          decoding={decoding}
-          loading={loading}
-          onError={event => {
-            setFailedSrc(src ?? null);
-            onError?.(event);
-          }}
-          ref={composed}
-          src={src ?? undefined}
-          {...rest}
-        />
+        narrow ? (
+          // `display: contents`: the element only chooses the file; the image is laid out as before.
+          <picture className={styles.picture}>
+            <source media={narrow.media} srcSet={narrow.src} />
+            {image}
+          </picture>
+        ) : (
+          image
+        )
       ) : (
         <span aria-hidden="true" className={styles.fallback}>
           {fallback}

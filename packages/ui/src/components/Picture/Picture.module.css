@@ -33,6 +33,11 @@
   position: absolute;
 }
 
+/* Only chooses which file is drawn: it has no box of its own. */
+.picture {
+  display: contents;
+}
+
 .image {
   display: block;
   height: 100%;

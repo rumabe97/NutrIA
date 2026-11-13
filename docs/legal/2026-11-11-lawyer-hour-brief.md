@@ -681,6 +681,12 @@ password personal data? Yes/no.
   are accepted as a recipient's.
 - 2 min.
 
+**Added 2026-11-13, by reference.** Item (d) of
+[`2026-11-13-lighter-landing-pictures.md`](./2026-11-13-lighter-landing-pictures.md) § 7 asks
+whether art. 50(2) is met by a downscaled copy of a generated picture. The copy carries SynthID,
+an unsigned IPTC field and the «IA» mark, but not the signed C2PA, and the original stays public.
+Send it with the redesign's § 5 (b), M18's family. It takes 2 minutes.
+
 **Also, one line each, no answer needed to act:**
 - An express licence over what a person types to the assistant: not needed
   ([`textos/03`](./textos/03-condiciones-uso.md) § J, last paragraph).

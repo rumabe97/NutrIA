@@ -25,11 +25,19 @@ import type { PictureRatio } from 'ui/components/Picture';
  */
 export type DishPictureVariant = 'card' | 'hero' | 'thumb';
 
+/** Where a lighter copy is drawn instead of the original: a phone's width, where the copy's 720 px are enough. */
+const LIGHT_MEDIA = '(max-width: 40rem)';
+
 const RATIO: Record<DishPictureVariant, PictureRatio> = { card: '16/9', hero: '4/3', thumb: '1/1' };
 
 interface DishPictureProps {
   /** The dish's name when the picture is the content (the meal's page); empty where the name sits beside it. */
   alt?: string;
+  /**
+   * A lighter copy of the same picture for a phone, as a path on this site — only the landing's
+   * three have one (`lib/landingPictures`, `docs/legal/2026-11-13-lighter-landing-pictures.md`).
+   */
+  lightPath?: string;
   /** The recipe's picture, when one has been drawn: an absolute address, or a path on the API. */
   path?: string | null;
   /** Above the fold: requested at once instead of when scrolled near. */
@@ -49,8 +57,9 @@ interface DishPictureProps {
  * picture, the dish's designed state: its moment of the day's colour and glyph.
  *
  * A plain `<img>` of the file exactly as it is served — never `next/image`, never
- * a resize: the file carries Google's C2PA signature, and a re-encode strips it
- * (`0066`). The crops are the frame's `object-fit`. The frame
+ * a resize on the way: the file carries Google's C2PA signature, and a re-encode strips it
+ * (`0066`). The one exception is `lightPath`: a copy made once, by hand, for the landing's
+ * three pictures, which a phone is given instead (the legal opinion of 2026-11-13). The crops are the frame's `object-fit`. The frame
  * (`ui/components/Picture`) reserves the space before a byte arrives — `width` and
  * `height` go on the `<img>` too — so nothing moves when it lands, and it turns a
  * missing or failed picture — offline, the worker keeps no images — into the
@@ -62,7 +71,7 @@ interface DishPictureProps {
  * picture itself is decorative, as on a card or a row; a named picture's alt already
  * says it (§ 3.1). The designed state has no mark — nothing synthetic is on screen.
  */
-export function DishPicture({ alt = '', path = null, priority = false, slot = null, transitionName, variant }: DishPictureProps) {
+export function DishPicture({ alt = '', lightPath, path = null, priority = false, slot = null, transitionName, variant }: DishPictureProps) {
   const dictionary = useDictionary();
   const moment = dishMoment(slot);
   // The name the page's hero shares with the card that was tapped; a card's own is set
@@ -78,6 +87,7 @@ export function DishPicture({ alt = '', path = null, priority = false, slot = nu
         fetchPriority={priority ? 'high' : undefined}
         height={720}
         loading={priority ? 'eager' : 'lazy'}
+        narrow={path && lightPath ? { media: LIGHT_MEDIA, src: lightPath } : undefined}
         ratio={RATIO[variant]}
         src={path ? pictureSource(path) : null}
         width={960}

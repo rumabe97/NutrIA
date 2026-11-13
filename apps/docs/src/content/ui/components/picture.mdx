@@ -28,6 +28,7 @@ The frame stays, with its neutral ground and whatever `fallback` you pass:
 <PropsTable data={[
   { prop: 'src', type: 'string | null', default: '—', description: 'Image URL. Missing or failing, the frame stays and shows `fallback`.' },
   { prop: 'ratio', type: "'1/1' | '4/3' | '16/9'", default: "'4/3'", description: 'The frame’s shape. The image is cropped to it.' },
+  { prop: 'narrow', type: '{ media: string; src: string }', default: '—', description: 'Another file of the same picture — a lighter one — and the media query that selects it. Drawn as `<picture><source>`; every other screen gets `src`.' },
   { prop: 'fallback', type: 'ReactNode', default: '—', description: 'Drawn centred when there is no picture. Decorative: hidden from assistive tech.' },
   { prop: 'alt', type: 'string', default: "''", description: 'Empty for a decorative picture. Applies to the image only: a failed or missing picture is not announced.' },
   { prop: 'loading', type: "'lazy' | 'eager'", default: "'lazy'", description: 'Pass `eager` (and `fetchPriority="high"`) for the one picture above the fold.' },
