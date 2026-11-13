@@ -12,7 +12,6 @@ import { AdminFilters } from './components/AdminFilters';
 import { AdminPager } from './components/AdminPager';
 import { AdminTableForm } from './components/AdminTableForm';
 import { AdminTableStatus } from './components/AdminTableStatus';
-
 import { AdminReflowTable } from 'components/AdminReflowTable';
 
 import { PAGE_SIZES } from 'core/entities/AdminQuery';
