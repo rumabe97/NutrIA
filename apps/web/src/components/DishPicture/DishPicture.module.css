@@ -19,6 +19,25 @@
   inline-size: 100%;
 }
 
+/*
+ * On a card and on the dish's page a strip lies over the picture's foot, and the layout
+ * around it keeps a window of picture clear above that strip (the owner, 2026-11-13: on a
+ * phone the strip left almost none). When that makes the box taller than the frame's own
+ * shape, the frame fills the box and the image crops — `object-fit` — instead of leaving a
+ * gap. Alone, the box is the frame's height and nothing changes. Three classes, so this wins
+ * over the frame's ratio whatever order the sheets load in.
+ */
+.card,
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.picture.card .frame,
+.picture.hero .frame {
+  align-self: stretch;
+}
+
 .card .frame,
 .hero .frame {
   border-radius: var(--radius-card);
