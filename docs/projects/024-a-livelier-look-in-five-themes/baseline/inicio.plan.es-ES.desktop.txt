@@ -4,7 +4,7 @@ button "Cerrar sesión"
 button "English": EN
 button "Español" [pressed]: ES
 button "Marcar como hecha"
-button "Quitar la marca de hecha" [pressed]
+button "Marcar como hecha" [pressed]
 button "Tema"
 heading "Buenas noches, Probe." [level=#]
 heading "Hoy" [level=#]

@@ -6,9 +6,9 @@ combobox "Por página"
 heading "Por comida" [level=#]
 heading "Recetas" [level=#]
 heading "Todas las recetas" [level=#]
-link "kcal , ordenar de forma descendente"
-link "Nombre , orden ascendente; ordenar de forma descendente"
-link "Proteína (g) , ordenar de forma descendente"
+link "kcal, ordenar de forma descendente"
+link "Nombre, orden ascendente; ordenar de forma descendente"
+link "Proteína (g), ordenar de forma descendente"
 link "Saltar al contenido"
 link "Siguiente"
 option "#"

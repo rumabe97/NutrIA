@@ -6,10 +6,10 @@ combobox "Per page"
 heading "All recipes" [level=#]
 heading "By meal" [level=#]
 heading "Recipes" [level=#]
-link "kcal , sort descending"
-link "Name , sorted ascending; sort descending"
+link "kcal, sort descending"
+link "Name, sorted ascending; sort descending"
 link "Next"
-link "Protein (g) , sort descending"
+link "Protein (g), sort descending"
 link "Skip to content"
 option "#"
 option "#" [selected]

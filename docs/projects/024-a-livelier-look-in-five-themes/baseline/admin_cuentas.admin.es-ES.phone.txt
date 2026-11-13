@@ -7,11 +7,11 @@ heading "Altas" [level=#]
 heading "Cuentas" [level=#]
 heading "Todas las cuentas" [level=#]
 link "# días"
-link "Alta , orden descendente; ordenar de forma ascendente"
-link "Correo , ordenar de forma ascendente"
-link "Planes , ordenar de forma descendente"
+link "Alta, orden descendente; ordenar de forma ascendente"
+link "Correo, ordenar de forma ascendente"
+link "Planes, ordenar de forma descendente"
 link "Saltar al contenido"
-link "Última actividad , ordenar de forma descendente"
+link "Última actividad, ordenar de forma descendente"
 option "#"
 option "#" [selected]
 searchbox "Buscar por correo"

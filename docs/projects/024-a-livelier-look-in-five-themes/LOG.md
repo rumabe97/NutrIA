@@ -2282,3 +2282,259 @@ layout shift on arrival would be counted (`window.mjs`, element by element).
 - **After the executor's check, one change of the lead's** (f8b11938): the executor could not speak for WebKit, and the owner's phone is an iPhone. Under a strip the frame's `aspect-ratio` is now `auto` (`--dish-frame-ratio`) and the image is laid over the frame (`--dish-image-position: absolute`), so the height is the layout's alone and no browser has to rank a stretch against a ratio. The first take of it let the image's own 4:3 set the height from 768 px up (Inicio's window 416 px with a picture and 256 without); laying the image over the frame removed that. Measured again with `window.mjs`, pictures routed in 1.2 s late, 320/360/390/768/1280, Claro and Oscuro: clear window 140/160/175/256/256 on Inicio and 158/180/197/320/320 on the dish's page — the same as above on a phone, and on a wide screen now the window's own cap rather than the frame's old shape (was 271 and 357–381); gap under the picture 0, shift 0, «IA» never covered; with the picture's request aborted the same heights and the glyph in the window; the landing's three and the console's review 4:3 exactly. Still not run on WebKit.
 - **The baseline folder is left as it is.** The executor's fresh set was read against phase 0's and against the committed files (step 5) and is not committed: the folder stays the record phases 0–8 made — production for phase 0, each phase's own refresh after — and a local run's data would replace it.
 - **The plan's wording** for steps 1 and 5 is amended to say where each was run (production for the public pages, a local build for the rest): nobody signs in to production to run a check.
+
+### The two audits (step 2), and what they changed
+
+**`seo`, the public tree — the redesign cost nothing in search.** Titles, descriptions, canonicals, hreflang, the sitemap, robots (`noimageindex` on the landing only), structured data and static rendering (`x-nextjs-prerender: 1` on every public route) hold in production and on this branch. One P1, older than the project: the shared header and footer linked an English page's brand, sign-in, sign-up, privacy and terms to the Spanish addresses, so the English tree was reached by the sitemap and hreflang alone — fixed by the lead (`withLocale` in `SiteHeader` and `SiteFooter`, 51dbf3c7). P2, not changed: the first landing picture is preloaded at high priority (183 KB) although on a phone it sits under the copy; a `media` on the preload would be the fix, and nothing here could measure what it buys (no Lighthouse). No smaller rendition can exist: the files are served as signed.
+
+**`accessibility`, every family — one P1, nine P2, about ten P3**, so criterion 7 ("no finding above P2") failed until they were fixed. All ten fixed, and four of the P3, by a `frontend` agent on `024-phase-9-a11y` (nine commits, 83e3674d…0f178095); its record follows. The audit's answer to the lead's question on Resumen: at 56rem and wider the focus order — period, «Necesita tu atención» (right), Tendencias (left) — is acceptable under WCAG 2.4.3, two independent sections each with its heading. Two things a reader will see: the site footer's links stand further apart on a touch screen, and a table that scrolls sideways has a 1 px line at its edge. A new file and a flag: `app/global-not-found.tsx` with `experimental.globalNotFound` (Next 16's documented way with several root layouts) — the 404 for an address no route matches now has a language, the theme and a way home; the public pages stay prerendered (the gate's static check). Baseline: Inicio's pressed tick is named «Marcar como hecha» in both states, and the console's sort links lose a stray space; `inventory/app.md` rows 14 and 18 say so.
+
+Left, on purpose: the console's phone card titles stay `<p>`; submit buttons that use `loading` still drop focus when their request fails; `RegisterScreen`'s «Volver a acceder» on the sent screen. Not run: a screen reader; 200 % text after these fixes; `AccountActions`, `EventPlanner` and `PictureAcceptAction` in a browser (read in code, and `Button`'s unit test).
+
+Branch `024-phase-9-a11y`, from `024-phase-9-ship` (9f9e62e3). Nine commits, not pushed. Measured on a local
+production build against the local API (`NUTRIA_LOCAL_PG=1`), with three throwaway accounts (one with a
+generated plan, one with nothing, and an admin with 2FA). All three were deleted afterwards and the servers
+stopped. The scripts are in `scratchpad/a11y9/` (`focus.mjs`, `measure.mjs`, `targets6.mjs`, `sortnames.mjs`),
+and their raw output is in `focus.out`, `measure.out`, `targets6.out` and `overflow.out` next to them.
+
+#### P1
+
+##### 1. Marking a meal dropped focus to `<body>`: fixed
+- `ui` Button now supports `aria-disabled`. It is drawn the way `:disabled` is drawn (opacity 0.5, no
+  hover, no press). It ignores the press with `preventDefault`, which also cancels a submit and an implicit
+  Enter-submit. Combined with `loading`, the button is no longer disabled, so it keeps focus and still
+  shows the spinner and `aria-busy`. There is a test for this, and `button.mdx` documents it.
+- These now use `aria-disabled`, never `disabled`, on the control that was just pressed:
+  - MealRow tick (custom button: the handler ignores the press, and the CSS moved to `[aria-disabled]`)
+  - MealStatus «Hecha»/«Saltada»
+  - RecipeVerdict
+  - LocaleSwitcher (both forms; `choose` already ignored a press while one was pending)
+  - TargetsPanel: Guardar, Cancelar, Restablecer
+  - AccountActions: Activar, Hacer premium/gratis, and the grant dialog's submit
+  - EventPlanner: the row's «Cancelar» and «Añadir»
+  - PictureAcceptAction: «Publicar»
+  - DeleteAccount: «Borrar definitivamente»
+- Kept `disabled` where the control cannot hold focus at that moment:
+  - AccountActions: the sibling buttons and the «Hacer profesional» trigger (`AccountActions.tsx` ~202)
+  - PictureAcceptAction's checkbox (~226). The audit pointed at it, but it is not the control that was
+    pressed: «Publicar» is, and that one is fixed.
+  - EventPlanner: the other rows' buttons
+- Measured with Enter on the focused control, sampling `document.activeElement`:
+  - Before (audit): BODY from 30 ms to 1500 ms, and it never came back.
+  - After: these 6 cases stayed on the same BUTTON at +30, 300, 800, 1500 and 2500 ms, with `aria-pressed`
+    flipping at once:
+    - /inicio tick, mark and unmark
+    - the dish page's «Hecha», «Saltada» and «Me gusta», each pressed twice
+    - /perfil «English» and «Español»
+  - With the request held 1.5 s:
+    - +30 ms and +700 ms: `BUTTON pressed=true aria-disabled=true`
+    - +2200 ms: `BUTTON pressed=true`
+    - Two more presses while pending: the second was ignored.
+- How it is announced: focus stays on the button whose `aria-pressed` changed. No live region was added.
+
+#### P2
+
+##### 2. Tour: fixed
+`leave()` sets `tabIndex=-1` only when the element has no `tabindex` attribute and is not focusable by
+itself (`tabIndex < 0`), which means only the heading fallback. After closing the tour, focus is on «Ver el
+tutorial»: there is no `tabindex` attribute and `tabIndex` is 0. Shift+Tab then Tab lands on it again.
+
+##### 3. Perfil: fixed
+- «Ajustar mis objetivos»:
+  - Opening: focus goes to the INPUT «Calorías (kcal)» at +30 ms.
+  - Cancelar: focus goes back to «Ajustar mis objetivos».
+  - Guardar: the save lands, and focus goes back to «Ajustar mis objetivos».
+  - This uses the `ProfileConsentCard` pattern: an effect on `editing` that skips the first render.
+- «Borrar mi cuenta»:
+  - Opening: focus goes to the INPUT «Escribe BORRAR». The prompt paragraph is now its description
+    (`describedBy`), so the consequences are read out when the field is focused.
+  - Cancelar: focus goes back to the trigger.
+
+##### 4. Console phone «Menú»: fixed
+- The cause: Radix's FocusScope skips links when it moves focus in (`removeLinks`), so focus landed on
+  «Cerrar».
+- `ui` Sidebar now takes `onOpenAutoFocus` (documented in `sidebar.mdx`). AdminNav focuses
+  `a[aria-current="page"]`, or the first link if none is current; `focus()` scrolls it into view.
+- Measured at 390×844:
+  - /admin: «Resumen» current=page, top 50 / bottom 94.
+  - /admin/catalogo/ingredientes: «Ingredientes» current=page, top 400 / bottom 444.
+  - Escape returns focus to «Menú».
+
+##### 5. Tick and «Cambiar» pill targets: fixed
+The `::after` inset now subtracts the edge: `--tick-edge` (1.5px) for the tick, and
+`--border-width-interactive` for the pill. Coarse pointer at 390px; "hit" is walked out from the centre
+with `elementFromPoint`.
+
+| Control | Before (audit) | After |
+| --- | --- | --- |
+| /plan card tick | 41–42 | box 28, `::after` 45×45, hit 46×46 |
+| /inicio row tick | 41–42 | box 24, `::after` 45×45, hit 46×46 |
+| «Cambiar» pill | 41–42 | box 34 tall, `::after` 44 tall, hit 98×44 |
+
+##### 6. Standalone links: fixed, with nothing overflowing
+- «¿Has olvidado tu contraseña?» (es and en):
+  - Before: 21 px tall.
+  - After: the target is 45 px tall.
+  - How: an asymmetric `::after` that takes the 4 px above the link and as much below as makes 44.
+  - The link box and the layout do not move. The pixel above the target belongs to the password INPUT and
+    the pixel below to the submit BUTTON, so there is no overlap.
+- «Volver a acceder» on /recuperar (both states):
+  - Before: 17 px.
+  - After: the target is 44 px.
+  - How: a `.footerLink` `::after` that grows evenly into the footer's padding and the card's padding.
+    Nothing moves.
+- Footer links:
+  - Before: 17 px.
+  - After: 44 px, each its own line of the list. On a coarse pointer the list's `gap` goes to 0.
+  - The links sit 8 px apart, so a 44 px `::after` would overlap its neighbours. Growing the boxes is the
+    only overlap-free fix.
+  - This is the one visible layout change: on a touch screen the footer is taller, with links on a 44 px
+    pitch. The screenshot is `scratchpad/a11y9/footer-320.png`.
+- Perfil «Editar» ×7:
+  - Before: 38 px wide.
+  - After: 44×44.
+  - How: `min-inline-size` plus `justify-content: flex-end`, so the word stays at the line's end.
+- Left: RegisterScreen's sent-state «Volver a acceder» (`RegisterScreen.tsx` ~141). It was not in the
+  audit, and that state cannot be reached without creating a non-probe account. It sits beside a button
+  in the same footer, so a symmetric `::after` could overlap the button when they wrap.
+
+##### 7. One h1: fixed
+- `EmptyState` takes `level?: 1 | 2` (default 2). These pages pass `level={1}`: /check-in (both states),
+  /compra, /progreso (both), /plan (scheduled and empty), /plan/historial, the locked plan
+  (`historial/[id]`) and the locked dish.
+- The console's picture review keeps h2 under its own h1. `plan/page.tsx` had no h1 above
+  (`PlanPendingNotice heading={false}`).
+- Measured h1 count is 1 on each of these:
+  - /plan «Todavía no tienes plan»
+  - /compra «Todavía no hay lista»
+  - /progreso «Todavía no hay nada que medir»
+  - /plan/historial «Tus planes»
+  - /check-in «Todavía no toca»
+  - The same pages in English
+  - The 404 pages
+- Not reached at runtime, but the same prop is in place: the locked plan and dish (they need an old
+  premium plan), /check-in «already done», and /progreso «unavailable».
+
+##### 8. 404 for an unmatched URL: fixed
+- `app/global-not-found.tsx`, behind `experimental.globalNotFound: true`. I read Next 16.4.5's
+  `node_modules/next/dist/docs/.../not-found.md` first; this is the convention for several root layouts.
+- What the page draws: `RootShell` (lang, theme script, faces, skip link) and the Spanish text, then the
+  same in English under a hairline, marked `lang="en"`. Each has a link to its home page (`/` and `/en`).
+  It uses one new key, `errors.notFoundHome`, in both dictionaries.
+- The page cannot know the address's language: it gets no props and is static. That is why it carries
+  both languages.
+- Measured:
+  - /no-existe, /en/no-existe and, signed in, /plan/no-existe all return 404 with
+    `<html lang="es-ES">`, title «Página no encontrada», `robots noindex` and h1 ×1.
+  - Signed out, /plan/no-existe → 307 to sign-in (the proxy), as before.
+- Build: `/_not-found` is ○. Every public page is still prerendered: the gate's static check passed,
+  10 public pages.
+- `notFound()` inside a tree still draws that tree's own page.
+
+##### 9. `lang` on the language buttons: fixed
+Each button carries `lang={locale}`: ES `es-ES`, EN `en-GB`, Español `es-ES`, English `en-GB`.
+
+##### 10. Contrast: fixed
+
+(a) DataTable's "more columns" cue: the scroll edge now carries a `--border-interactive` line
+(`var(--border-width-interactive)` wide, `scroll` attachment), under the existing soft shadow. The `local`
+covers hide it at the scroll's end. `--border-interactive` on every solid surface is already a gated pair
+(`edge`, 3:1). Measured:
+
+| Theme | Old shadow peak, card / page | New line, card / page |
+| --- | --- | --- |
+| claro | 1.55 / 1.56 | 3.75 / 4.15 |
+| oscuro | 1.93 / 1.95 | 3.80 / 4.51 |
+| huerta | 1.55 / 1.56 | 3.64 / 3.97 |
+| pulso | 1.93 / 1.88 | 4.57 / 5.06 |
+| contraste | 1.69 / 1.69 | 21.00 / 21.00 |
+
+(b) Placeholders: `.field::placeholder` (assistant, on `--surface-card`) and `.message::placeholder`
+(feedback, on `--background-01`) are now `--foreground-03`. Both are gated `text` pairs at 4.5:1. Measured:
+
+| Theme | On card | On page |
+| --- | --- | --- |
+| claro | 5.38 | 5.96 |
+| oscuro | 6.73 | 7.98 |
+| huerta | 5.51 | 6.01 |
+| pulso | 7.62 | 8.44 |
+| contraste | 12.63 | 12.63 |
+
+The feedback placeholder was drawn as rgb(111, 90, 77), which equals `--foreground-03` in claro. The
+composer was not drawn: /asistente's switch is off locally. Its rule is the same.
+
+#### P3
+
+- Done: PlanProgress's strip has `aria-hidden` and `tabIndex={-1}`. A tap still opens /plan; the keyboard
+  and screen reader get only «Ver los 14 días».
+- Done: the tick has one stable name, «Marcar como hecha», with `aria-pressed`. `meal.unmarkDone` was
+  deleted from both dictionaries.
+- Done: the tick is described by its dish (`aria-describedby` → the name). Measured: «Ensalada de frutas
+  tropicales con yogur natural y miel».
+- Done: sort link names, on the phone (AdminReflowTable) and wide (DataTable). They are now
+  «Correo, ordenar de forma ascendente», with no space before the comma, at both 1280 and 390 px.
+  - The hint moved into `aria-label`, because the hidden span is a block to the name's computation.
+  - `ui` Link now forwards `aria-label`, with a test and a row in `link.mdx`.
+- Left: the console's phone card titles are still `<p>`. A heading would take the display face and
+  `line-height` from `base.css`, so the look changes unless overridden. The right level also differs
+  across the 14 callers (h3 or h4, depending on `showCaption` and the section). It needs a level prop and a
+  per-page outline check.
+- Left, as asked: headings inside meal cards, the theme menu's initial item, `/admin/x` theme and the card
+  link's name.
+- Seen, not fixed (not in the audit's list): FeedbackForm's «Enviar» uses `disabled`/`loading` while
+  sending (focus is lost if the send fails), and the same goes for the many other `loading` buttons on
+  submits that navigate away on success.
+
+#### Baseline lines that change
+(`docs/projects/024-a-livelier-look-in-five-themes/baseline/`, which the lead owns)
+
+- The tick's name:
+  - `inicio.plan.es-ES.phone.txt:7` and `inicio.plan.es-ES.desktop.txt:7`:
+    `button "Quitar la marca de hecha" [pressed]` → `button "Marcar como hecha" [pressed]`
+  - `inicio.plan.en-GB.phone.txt:8` and `inicio.plan.en-GB.desktop.txt:8`:
+    `button "Unmark as eaten" [pressed]` → `button "Mark as eaten" [pressed]`
+  - In these four files that line becomes a duplicate of the unpressed tick's line, apart from the
+    `[pressed]` flag.
+- Every sort link line loses the space before its comma: `link "X , …"` → `link "X, …"`. These are in the
+  admin baselines, es and en, phone and desktop: `admin_catalogo*`, `admin_cuentas*`, `admin_buzon*`,
+  `admin_profesionales*` and `admin_catalogo_ingredientes*`. Grep `' , '`.
+- Heading levels are masked (`[level=#]`), so EmptyState's h1 changes no baseline line.
+- The inventory (`inventory/app.md` rows 14 and 18) names `meal.unmarkDone`. That key is gone, the name is
+  now stable, and the control is unchanged.
+
+#### Standing rules
+- Overflow probe, 5 widths (320/360/390/768/1280), on every touched route: overflow 0px, runs 0 and cut 0
+  everywhere.
+  - Public pages, es and en, light and dark: /, /acceder, /recuperar, /no-existe, /en, /en/acceder,
+    /en/recuperar, /en/no-existe.
+  - Signed in, es and en, light: /inicio, /plan, a dish, /perfil, /check-in, /plan/no-existe.
+  - The empty account, es and en: /plan, /compra, /progreso, /plan/historial.
+  - The console: /admin, /admin/cuentas (es and en), /admin/catalogo/ingredientes.
+  - Dark at 320: /inicio, /plan, /perfil.
+  - The probe's "FAIL" on the 404 routes is the expected 404 status.
+  - The only hints were Perfil's 1 px native `select`s (Radix's hidden ones), which were already there.
+- No two buttons were stacked by this change. The look is unchanged in screenshots except for the footer's
+  link pitch on touch screens (finding 6) and the 1 px edge line on a scrollable table.
+- Gate: `gate.sh --full`, with `NUTRIA_LOCAL_PG` unset. Every step passed: migrations, checks (lint,
+  ts:check, test:coverage), web-build, static, contrast, format, deadcode, leaks. It ended green.
+
+#### Not verified at runtime
+- AccountActions, EventPlanner and PictureAcceptAction: these states were not reachable with probe
+  accounts without hand-made data (premium switch, events, a rejected picture). They are covered by
+  reading the code and by Button's unit test.
+- The 200 % text size was not re-run.
+- VoiceOver and NVDA were not run. That the screen reader announces the change is inferred from the
+  `aria-pressed` change on the focused element.
+- The assistant composer was not checked in a browser.
+
+### The lead's last check before shipping phase 9
+
+On a local production build of the whole branch (the executor's fixes, the picture window, the audits' fixes), with a probe account holding a generated plan and an admin with a second factor, both deleted after.
+
+- **Each tree keeps its own 404 with `experimental.globalNotFound` on** (PRD 16). A plain account on `/admin` and `/admin/cuentas`: 404, the tree's page («No hemos encontrado lo que buscabas.», no console shell); the admin on `/admin/zzz-no-such-page`: 404, the console's own page, the heading its baseline file holds; a dish that does not exist: the app's own not-found. Only an address no route matches (`/no-existe`, `/en/no-existe`, `/plan/no-existe`) gets the new page — 404, seen at 320, 390 and 1280, Claro and Oscuro, and at 200 % text.
+- **The picture on a wide screen is as tall as it is in production.** The lead's WebKit change (f8b11938) had left the window's cap to set the height from 768 px up — 348 px on Inicio and 391 on the dish's page at 1280, where production draws 382 and 450. A second spacer across both rows, at the frame's old shape (16:9 on Inicio, 4:3 on the dish's page), restores that floor without giving the frame a ratio again. `window.mjs`, 320/360/390/768/1280: picture 252/272/287/356/383 on Inicio and 251/273/267/474/450 on the dish's page; clear window 140/160/175/264/291 and 158/180/197/404/380; gap 0, shift 0. A phone is unchanged from what the owner approved.
+- **The P1 on this build**, with the auditor's `focus.mjs`: after Enter on Inicio's tick and on the dish's «Hecha» and «Saltada», the active element is the same button at +30, 300, 800, 1500 and 2500 ms, `aria-pressed` flipped; again on the second press.
+- **200 % text after the accessibility fixes** (`sweep.mjs --font 2`, 320 and 390): `/`, `/acceder`, `/recuperar`, both 404 addresses in Claro and Oscuro, Spanish and English; Perfil, Inicio, the plan, a dish, Compra, Progreso; the console's Resumen, Cuentas and Recetas — 0 overflow, 0 cut. What stacks is what step 2 lists as P2 (pairs whose words do not fit the line), the FAQ's accordion and the plan's day list.
+- **Baseline**: the renamed lines were edited in the files, then `/inicio` and `/admin/cuentas` were regenerated and compared — the console's files are identical; Inicio's differ by data only (the hour's greeting, no meal marked, targets the audit's probe had adjusted).
+- `/en` links to `/en`, `/en/acceder`, `/en/registro`, `/en/privacidad`, `/en/condiciones` and to no Spanish address.
+- Not done: WebKit, a screen reader, Lighthouse. Two agent worktrees are left in place (one still locked by its agent).

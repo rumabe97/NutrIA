@@ -8,7 +8,7 @@ heading "Every message" [level=#]
 heading "Inbox" [level=#]
 heading "Messages" [level=#]
 link "# days"
-link "Date , sorted descending; sort ascending"
+link "Date, sorted descending; sort ascending"
 link "Skip to content"
 option "#"
 option "#" [selected]
