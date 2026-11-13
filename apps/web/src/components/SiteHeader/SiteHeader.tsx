@@ -5,7 +5,8 @@ import Link from 'next/link';
 
 import styles from './SiteHeader.module.css';
 
-import { useDictionary } from 'i18n/LocaleProvider';
+import { useDictionary, useLocale } from 'i18n/LocaleProvider';
+import { withLocale } from 'i18n/routes';
 
 import { CtaLink } from 'components/CtaLink';
 import { HeaderPattern } from 'components/HeaderPattern';
@@ -22,6 +23,8 @@ import { ThemeSwitcher } from 'components/ThemeSwitcher';
  */
 export function SiteHeader() {
   const dictionary = useDictionary();
+  // Each page links to its own language's pages: a crawler carries no cookie to be redirected by.
+  const locale = useLocale();
   const [atTop, setAtTop] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -39,7 +42,7 @@ export function SiteHeader() {
 
       <header className={styles.header} data-at-top={atTop === null ? undefined : atTop}>
         <div className={styles.inner}>
-          <Link aria-label={dictionary.siteNav.brandHome} className={styles.brand} href="/">
+          <Link aria-label={dictionary.siteNav.brandHome} className={styles.brand} href={withLocale('/', locale)}>
             <span aria-hidden="true" className={styles.mark} />
             <span className={styles.wordmark}>NutrIA</span>
           </Link>
@@ -66,10 +69,10 @@ export function SiteHeader() {
                 whether to sign up at all cannot read a label to open one. */}
             <LocaleSwitcher compact={true} />
             <ThemeSwitcher />
-            <Link className={styles.signIn} href="/acceder">
+            <Link className={styles.signIn} href={withLocale('/acceder', locale)}>
               {dictionary.siteNav.signIn}
             </Link>
-            <CtaLink className={styles.cta} href="/registro" size="sm">
+            <CtaLink className={styles.cta} href={withLocale('/registro', locale)} size="sm">
               {dictionary.siteNav.signUp}
             </CtaLink>
           </div>
