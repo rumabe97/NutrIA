@@ -61,10 +61,17 @@ export function AdminReflowTable({ caption, columns, empty, rows, showCaption = 
             <ul className={styles.sortList}>
               {sortable.map(column => (
                 <li key={column.key}>
-                  <Link aria-current={column.sorted ? 'true' : undefined} className={styles.sortLink} href={column.sortHref ?? ''}>
+                  {/* The hint in the name itself, not in a hidden span: an absolutely positioned
+                      span is a block to the name's computation, which put a space before its
+                      comma («Correo , ordenar…»). The name starts with the visible words. */}
+                  <Link
+                    aria-current={column.sorted ? 'true' : undefined}
+                    aria-label={column.sortHint ? `${column.header}, ${column.sortHint}` : undefined}
+                    className={styles.sortLink}
+                    href={column.sortHref ?? ''}
+                  >
                     {column.header}
                     {column.sorted ? <span aria-hidden="true">{column.sorted === 'asc' ? ' ↑' : ' ↓'}</span> : null}
-                    {column.sortHint ? <span className="visually-hidden">{`, ${column.sortHint}`}</span> : null}
                   </Link>
                 </li>
               ))}
