@@ -267,6 +267,12 @@ body:has(.field:focus) .composer::after {
   resize: none;
 }
 
+/* The browser's own placeholder grey is no token and measured under 4.5:1; this is the pair the
+   contrast script holds in every theme (`--foreground-03` on `--surface-card`). */
+.field::placeholder {
+  color: var(--foreground-03);
+}
+
 /* The field itself is the target on a touch screen, not only the box around it. */
 @media (pointer: coarse) {
   .field {

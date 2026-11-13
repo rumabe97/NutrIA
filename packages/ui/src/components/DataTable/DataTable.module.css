@@ -16,10 +16,17 @@
    * pair — `local` covers the shadow with the table's own colour at the end of the scroll,
    * `scroll` keeps it on the edge — so no script and no animation is needed. The left one
    * sits behind the pinned first column.
+   *
+   * The shadow alone peaked at 1.55–1.93:1 against the card, too faint to carry what it
+   * says (WCAG 1.4.11): at its edge there is a line in `--border-interactive`, a control's
+   * edge, which the contrast script holds at 3:1 on every surface in every theme. The
+   * covers paint over it with the rest when the scroll reaches that side.
    */
   background:
     linear-gradient(to right, var(--table-surface, var(--background-01)) 30%, transparent) left center / 2rem 100% no-repeat local,
     linear-gradient(to left, var(--table-surface, var(--background-01)) 30%, transparent) right center / 2rem 100% no-repeat local,
+    linear-gradient(var(--border-interactive), var(--border-interactive)) left center / var(--border-width-interactive) 100% no-repeat scroll,
+    linear-gradient(var(--border-interactive), var(--border-interactive)) right center / var(--border-width-interactive) 100% no-repeat scroll,
     linear-gradient(to right, color-mix(in srgb, var(--foreground-01) 22%, transparent), transparent) left center / 0.75rem 100% no-repeat scroll,
     linear-gradient(to left, color-mix(in srgb, var(--foreground-01) 22%, transparent), transparent) right center / 0.75rem 100% no-repeat scroll;
 }
