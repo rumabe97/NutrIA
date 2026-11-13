@@ -20,9 +20,11 @@
 /* A round tick, empty until pressed; filled in the brand colour once the plate is
    cleared. It presses in (transform only); its colours change at once. */
 .tick {
+  --tick-edge: 1.5px;
+
   align-items: center;
   background: none;
-  border: 1.5px solid var(--border-interactive);
+  border: var(--tick-edge) solid var(--border-interactive);
   border-radius: var(--radius-full);
   color: transparent;
   cursor: pointer;
@@ -47,8 +49,10 @@
  */
 .tick::after {
   content: '';
-  /* 44px whatever the text size, so it never reaches across the gap into the picture. */
-  inset: calc((var(--tick) - var(--target-min)) / 2);
+  /* 44px whatever the text size, so it never reaches across the gap into the picture. The
+     inset is measured from the padding box, inside the edge: without the edge taken off,
+     the target came out 41px. */
+  inset: calc((var(--tick) - var(--target-min)) / 2 - var(--tick-edge));
   position: absolute;
 }
 
@@ -64,7 +68,8 @@
   color: var(--color-on-brand-fill);
 }
 
-.tick[disabled] {
+/* Waiting on its request, it keeps its focus: `aria-disabled`, never `disabled`. */
+.tick[aria-disabled='true'] {
   cursor: progress;
 }
 
