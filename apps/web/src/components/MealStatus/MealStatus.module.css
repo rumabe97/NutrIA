@@ -1,15 +1,29 @@
-/* One line: «Hecha» takes the room, «Saltada» its own width beside it. */
+/*
+ * One line: «Hecha» takes the room, «Saltada» its own width beside it — and both give way to
+ * «Cambiar» on a 320px phone rather than send it under them: a mark keeps a tighter side
+ * padding and may shrink to its word. Only text too large for the screen lets the pair wrap.
+ */
 .buttons {
   align-items: center;
   display: flex;
   flex: 1 1 12rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--space-02);
   min-inline-size: 0;
 }
 
+.buttons > button {
+  padding-inline: var(--space-03);
+}
+
 .done {
   flex: 1 1 6rem;
+}
+
+@media (width < 17rem) {
+  .buttons {
+    flex-wrap: wrap;
+  }
 }
 
 .check {
