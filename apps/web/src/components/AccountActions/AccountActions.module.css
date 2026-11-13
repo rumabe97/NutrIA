@@ -24,6 +24,16 @@
   white-space: var(--row-actions-space, normal);
 }
 
+/* Text too large for the screen: half a phone's card is narrower than one word of a name
+   («segundo» ran 16px past a 320px screen at 200 %), so each button takes the whole line. Never
+   cut and never past the edge comes first (the owner's first condition); side by side holds at
+   every other size. */
+@media (width < 17rem) {
+  .root .buttons {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* The collegiate number, in its dialog: the field, what went wrong, then the two buttons. */
 .grant {
   display: grid;

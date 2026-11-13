@@ -110,8 +110,16 @@
  * fit a row, so the week takes two — still the whole week, never a scroller.
  */
 @media (width < 17rem) {
+  /* The two weeks stay side by side while their words fit (each asks for no width beyond its
+     longest word), and only then wrap — never one over the other when they could share the line. */
   .weeks {
     flex-wrap: wrap;
+  }
+
+  .week {
+    flex: 1 1 0;
+    justify-content: center;
+    text-align: center;
   }
 
   .days {

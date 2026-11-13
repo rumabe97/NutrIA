@@ -27,6 +27,16 @@
     flex-wrap: wrap;
     min-inline-size: 0;
   }
+
+  /* Side by side while their two words fit, each asking for no more than its word; one over
+     the other only when they cannot share the line at all. */
+  .buttons > button {
+    block-size: auto;
+    flex: 1 1 0;
+    height: auto;
+    padding-block: var(--space-01);
+    white-space: normal;
+  }
 }
 
 .check {

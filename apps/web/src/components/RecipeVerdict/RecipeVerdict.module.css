@@ -9,6 +9,19 @@
   gap: var(--space-03);
 }
 
+/* Text too large for the screen: the two answers stay side by side while their words fit —
+   each asks for no more than its longest word, its label wrapping inside it — and go one over
+   the other only when they cannot share the line at all. */
+@media (width < 17rem) {
+  .buttons > button {
+    block-size: auto;
+    flex: 1 1 0;
+    height: auto;
+    padding-block: var(--space-01);
+    white-space: normal;
+  }
+}
+
 .hint {
   margin: 0;
   text-wrap: pretty;
