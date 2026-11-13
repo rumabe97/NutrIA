@@ -27,6 +27,9 @@
 
 /* A grid, so the picture inside is as tall as both rows. */
 .picture {
+  /* The window above, for the no-picture glyph to sit in (`DishPicture`). */
+  --dish-window: min(56.25%, 20rem);
+
   display: grid;
   grid-column: 1;
   grid-row: 1 / 3;

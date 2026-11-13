@@ -80,11 +80,27 @@
   max-inline-size: 4.5rem;
 }
 
-/* On a card and on the dish's page a strip covers the picture's foot: the glyph sits in
-   the part that stays in view. */
+/*
+ * On a card and on the dish's page a strip covers the picture's foot, and the layout keeps a
+ * window of picture clear above it: the glyph sits in the middle of that window, never under
+ * the strip however long the name. `--dish-window` is the window's height as a share of the
+ * picture's width (a margin's percentage is measured against the width too); the layout that
+ * holds a window names it, and alone the window is the frame itself (16/9, 4/3). The glyph is
+ * 42% of the window's height, as it is of a frame's, up to 4.5rem.
+ */
 .card .glyph,
 .hero .glyph {
-  transform: translateY(-30%);
+  --window: var(--dish-window, 56.25%);
+
+  align-self: flex-start;
+  block-size: auto;
+  inline-size: min(calc(var(--window) * 0.42), 4.5rem);
+  margin-block-start: calc(var(--window) / 2 - min(calc(var(--window) * 0.21), 2.25rem));
+  max-block-size: none;
+}
+
+.hero .glyph {
+  --window: var(--dish-window, 75%);
 }
 
 .thumb .glyph {
