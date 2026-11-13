@@ -77,4 +77,13 @@ describe('Link', () => {
     );
     expect(screen.getByRole('link', { name: 'Now' })).toHaveAttribute('aria-current', 'page');
   });
+
+  it('forwards aria-label, the name that says more than the words', () => {
+    render(
+      <Link aria-label="Email, sort ascending" href="?sort=email">
+        Email
+      </Link>
+    );
+    expect(screen.getByRole('link', { name: 'Email, sort ascending' })).toHaveAttribute('href', '?sort=email');
+  });
 });

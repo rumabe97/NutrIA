@@ -78,9 +78,15 @@ export function DataTable({ caption, className, columns, empty, hideCaption, row
                 scope="col"
               >
                 {column.sortHref ? (
-                  <Link className={styles.sort} href={column.sortHref}>
+                  // The hint is in the name, not in a hidden span: the span is absolutely positioned,
+                  // a block to the name's computation, which put a space before its comma
+                  // («Correo , ordenar…»).
+                  <Link
+                    aria-label={column.sortHint ? `${column.header}, ${column.sortHint}` : undefined}
+                    className={styles.sort}
+                    href={column.sortHref}
+                  >
                     {column.header}
-                    {column.sortHint ? <span className="visually-hidden">{`, ${column.sortHint}`}</span> : null}
                     <SortIcon sorted={column.sorted} />
                   </Link>
                 ) : (
