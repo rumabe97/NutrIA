@@ -38,6 +38,25 @@
   align-self: stretch;
 }
 
+/* Under a strip the layout says so (`--dish-frame-ratio: auto`) and the frame gives up its
+   shape outright, so no browser has to choose between the shape and the stretch; alone, the
+   frame keeps the shape of its kind. */
+.picture.card .frame {
+  aspect-ratio: var(--dish-frame-ratio, 16 / 9);
+}
+
+.picture.hero .frame {
+  aspect-ratio: var(--dish-frame-ratio, 4 / 3);
+}
+
+/* With no shape of its own the frame must not take the image's either: there the image is
+   laid over the frame (`--dish-image-position: absolute`) and the layout alone sets the height. */
+.picture.card .frame img,
+.picture.hero .frame img {
+  inset: 0;
+  position: var(--dish-image-position, static);
+}
+
 .card .frame,
 .hero .frame {
   border-radius: var(--radius-card);

@@ -29,6 +29,9 @@
 .picture {
   /* The window above, for the no-picture glyph to sit in (`DishPicture`). */
   --dish-window: min(56.25%, 20rem);
+  /* The picture fills both rows: its frame has no shape of its own here. */
+  --dish-frame-ratio: auto;
+  --dish-image-position: absolute;
 
   display: grid;
   grid-column: 1;
