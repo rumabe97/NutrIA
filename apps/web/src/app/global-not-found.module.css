@@ -1,0 +1,45 @@
+/* The console's and the app's 404 (`(admin)/not-found.module.css`), with the English under it. */
+.shell {
+  margin-inline: auto;
+  max-inline-size: var(--prose-max);
+  padding: var(--space-09) var(--gutter-page);
+  text-align: center;
+}
+
+.title {
+  font-size: var(--font-size-08);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  margin: 0;
+  overflow-wrap: break-word;
+  text-wrap: balance;
+}
+
+.body {
+  color: var(--foreground-02);
+  margin: var(--gap-heading) 0 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+  justify-content: center;
+  margin-block-start: var(--gap-block);
+}
+
+/* The same said in English: a quieter second block, under a hairline. */
+.other {
+  border-top: 1px solid var(--border-01);
+  margin-block-start: var(--gap-region);
+  padding-block-start: var(--gap-region);
+}
+
+.otherTitle {
+  font-family: var(--display-font);
+  font-size: var(--font-size-05);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-title);
+  margin: 0;
+}

@@ -46,6 +46,11 @@ const SECURITY_HEADERS = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // `src/app/global-not-found.tsx`: the 404 for an address no route matches. Four root
+  // layouts leave no single one a 404 could be drawn in, which is the case this exists for
+  // (Next 16's `not-found.md`); without it Next drew its own page, with no `lang`.
+  experimental: { globalNotFound: true },
+
   async headers() {
     return [{ headers: SECURITY_HEADERS, source: pagesSource(upstreamBase) }];
   },

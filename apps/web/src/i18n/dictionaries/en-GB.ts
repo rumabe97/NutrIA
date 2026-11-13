@@ -1590,6 +1590,7 @@ export const enGB: Dictionary = {
     mealInFuture: 'You cannot mark this meal yet: its day has not come.',
     network: 'We could not connect. Check your connection.',
     notFound: 'We could not find what you were looking for.',
+    notFoundHome: 'Go to the home page',
     notFoundTitle: 'Page not found',
     onboardingIncomplete: 'Part of your profile is missing. Finish it and try again.',
     passwordChangeRequired: 'You need to change your password before you carry on.',
@@ -2199,7 +2200,6 @@ export const enGB: Dictionary = {
     swapSpent: 'You have used all {limit} swaps on this plan.',
     swapSpentShort: 'No changes left',
     totalMinutes: '{minutes} min in total',
-    unmarkDone: 'Unmark as eaten',
     verdictHint: 'It shapes your next plans.',
     verdictTitle: 'What did you think?'
   },

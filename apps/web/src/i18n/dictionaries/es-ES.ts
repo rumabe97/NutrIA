@@ -1634,6 +1634,8 @@ export const esES = {
     mealInFuture: 'Todavía no puedes marcar esta comida: aún no ha llegado el día.',
     network: 'No hemos podido conectar. Comprueba tu conexión.',
     notFound: 'No hemos encontrado lo que buscabas.',
+    /** The way out of an address that matches no page at all (`app/global-not-found.tsx`): the home page, signed in or not. */
+    notFoundHome: 'Ir a la página principal',
     /** The tab's title on a 404 — the same for a wrong address and for a console page shown to somebody else (`0028`). */
     notFoundTitle: 'Página no encontrada',
     onboardingIncomplete: 'Nos falta parte de tu perfil. Termínalo y vuelve a intentarlo.',
@@ -2297,7 +2299,6 @@ export const esES = {
     swapSpent: 'Has usado los {limit} cambios de este plan.',
     swapSpentShort: 'Cambios agotados',
     totalMinutes: '{minutes} min en total',
-    unmarkDone: 'Quitar la marca de hecha',
     verdictHint: 'Lo tendremos en cuenta en tus próximos planes.',
     verdictTitle: '¿Qué te ha parecido?'
   },
