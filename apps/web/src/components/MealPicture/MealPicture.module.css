@@ -39,13 +39,16 @@
 .strip {
   background-color: var(--surface-card);
   border: 1px solid var(--border-01);
-  border-radius: var(--radius-card);
+  /* Concentric with the card's corner, the margin in from it. */
+  border-radius: calc(var(--radius-card) - var(--space-02));
   box-shadow: var(--shadow-m);
   grid-column: 1;
   grid-row: 2;
-  margin: 0 var(--space-03) var(--space-03);
+  /* A small strip, close to the card's edge: the picture is what the card shows (the owner,
+     2026-11-13). */
+  margin: 0 var(--space-02) var(--space-02);
   min-inline-size: 0;
-  padding: var(--space-03) var(--space-04);
+  padding: var(--space-02) var(--space-03);
   /* Over the picture, which its fade-in lifts into a layer of its own. */
   position: relative;
   z-index: 1;
