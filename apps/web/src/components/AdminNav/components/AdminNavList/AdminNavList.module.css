@@ -59,11 +59,20 @@
   color: var(--foreground-01);
 }
 
-/* Where you are, said twice: the fill, and a heavier word. */
+/* Where you are, said twice: the text colour as the ground and the page's colour as the
+   words (the pair `PlanSwitch` and `PeriodSelector` draw, in the contrast script), and a
+   heavier word. */
 .link[aria-current='page'] {
-  background-color: var(--color-selected);
-  color: var(--foreground-01);
+  background-color: var(--foreground-01);
+  color: var(--background-01);
   font-weight: var(--font-weight-semibold);
+}
+
+/* Forced colours erase the ground: the current page keeps a system-coloured edge. */
+@media (forced-colors: active) {
+  .link[aria-current='page'] {
+    border: 1px solid Highlight;
+  }
 }
 
 /* The way out, apart from the pages: a hairline above it, so it does not read

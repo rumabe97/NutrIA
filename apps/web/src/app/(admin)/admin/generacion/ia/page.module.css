@@ -67,6 +67,13 @@
   white-space: nowrap;
 }
 
+/* A column's name may wrap over two lines, so eight columns fit the page's width on a desktop
+   instead of scrolling the last one out of sight. `table thead th` outweighs `DataTable`'s own
+   nowrap on its headers. */
+.table table thead th {
+  white-space: normal;
+}
+
 /* A model's name is long; pinned on a narrow table it would cover the figures, so there
    it scrolls with them. `table` in the selector outweighs `DataTable`'s own sticky rule. */
 @container (inline-size < 36rem) {
@@ -103,4 +110,23 @@
   max-inline-size: var(--prose-max);
   /* A variable's name (`AI_ASSISTANT_MONTHLY_CAP_USD`) has no space to break at: at 320 px it pushed its card past the screen's edge. */
   overflow-wrap: anywhere;
+}
+
+/* A model's name as the sheet sets it: a monospaced word, no box. */
+.model {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.9em;
+}
+
+/* Why a call failed: the error's ink on its pale ground, a pill that says it in words — the
+   words are the cue, the colour only agrees. */
+.chip {
+  background-color: var(--color-error-surface);
+  border-radius: var(--radius-full);
+  color: var(--color-error-text);
+  display: inline-block;
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-semibold);
+  padding: var(--space-01) var(--space-03);
+  white-space: normal;
 }

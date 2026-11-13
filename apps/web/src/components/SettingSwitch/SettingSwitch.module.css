@@ -16,6 +16,32 @@
   }
 }
 
+.control {
+  display: flex;
+}
+
+.name {
+  min-inline-size: 0;
+}
+
 .error {
   color: var(--color-error-text);
+}
+
+/*
+ * At the row's end, as the console's sheet draws it: the words on the left, the switch on the
+ * right of the same line, and the hint under the words. The label stays one box — a finger
+ * tall on a phone, its whole width tappable, as before — and the hint is not part of it.
+ */
+.root[data-placement='end'] .line {
+  flex-direction: row-reverse;
+  justify-content: space-between;
+}
+
+.root[data-placement='end'] .name {
+  font-weight: var(--font-weight-semibold);
+}
+
+.root[data-placement='end'] .hint {
+  max-inline-size: var(--prose-max);
 }
