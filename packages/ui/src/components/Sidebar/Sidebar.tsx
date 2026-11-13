@@ -28,6 +28,13 @@ export interface SidebarProps {
    * a link inside it was followed, and the new page moves focus itself.
    */
   onCloseAutoFocus?: (event: Event) => void;
+  /**
+   * Called when the opened sidebar is about to move focus into itself. By default focus goes
+   * to the first control that is not a link — Radix skips links on purpose — which in a
+   * sidebar of links is whatever sits after them. Call `event.preventDefault()` and focus
+   * the element that should have it (the current page's link); `event.target` is the sidebar.
+   */
+  onOpenAutoFocus?: (event: Event) => void;
   /** Controlled open handler. Omit for uncontrolled. */
   onOpenChange?: (open: boolean) => void;
   /** Controlled open state. Pair with `onOpenChange`; omit both for uncontrolled mode. */
@@ -38,7 +45,17 @@ export interface SidebarProps {
   trigger: ReactElement;
 }
 
-export function Sidebar({ children, description, direction = 'left', onCloseAutoFocus, onOpenChange, open, title, trigger }: SidebarProps) {
+export function Sidebar({
+  children,
+  description,
+  direction = 'left',
+  onCloseAutoFocus,
+  onOpenAutoFocus,
+  onOpenChange,
+  open,
+  title,
+  trigger
+}: SidebarProps) {
   return (
     // `autoFocus`: vaul's default (false) cancels Radix's move into the dialog on open, so
     // focus stayed on the trigger — hidden from a screen reader behind the overlay — and
@@ -47,7 +64,7 @@ export function Sidebar({ children, description, direction = 'left', onCloseAuto
       <Drawer.Trigger asChild={true}>{trigger}</Drawer.Trigger>
       <Drawer.Portal>
         <Drawer.Overlay className={styles.overlay} />
-        <Drawer.Content asChild={true} onCloseAutoFocus={onCloseAutoFocus}>
+        <Drawer.Content asChild={true} onCloseAutoFocus={onCloseAutoFocus} onOpenAutoFocus={onOpenAutoFocus}>
           <aside
             className={`${styles.sidebar} ${styles[direction]}`}
             style={sidebarStyle}

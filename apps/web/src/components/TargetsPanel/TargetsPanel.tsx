@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -49,6 +49,27 @@ export function TargetsPanel({ targets }: { targets: ResolvedTargets }) {
   const [pending, setPending] = useState(false);
   const [errors, setErrors] = useState<readonly string[]>([]);
   const [draft, setDraft] = useState<Draft>(() => toDraft(targets));
+  const firstField = useRef<HTMLInputElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const mounted = useRef(false);
+
+  // Opening the form and closing it each replace the control that was pressed, so focus is
+  // placed rather than dropped to the page: on the first field when the form opens, and back
+  // on «Ajustar» when it closes (cancelled, saved or reset) — as `ProfileConsentCard` does.
+  // Skipped on mount.
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+
+      return;
+    }
+
+    if (editing) {
+      firstField.current?.focus();
+    } else {
+      trigger.current?.focus();
+    }
+  }, [editing]);
 
   const { bounds, derivation, effective, overrideStatus, setBy } = targets;
   const setByProfessional = overrideStatus === 'applied' && setBy?.kind === 'professional';
@@ -174,6 +195,7 @@ export function TargetsPanel({ targets }: { targets: ResolvedTargets }) {
             inputMode="numeric"
             label={t.labelKcal}
             onChange={event => setDraft({ ...draft, kcal: event.target.value })}
+            ref={firstField}
             value={draft.kcal}
           />
           <Input
@@ -192,11 +214,13 @@ export function TargetsPanel({ targets }: { targets: ResolvedTargets }) {
           <Input inputMode="numeric" label={t.labelFat} onChange={event => setDraft({ ...draft, fatG: event.target.value })} value={draft.fatG} />
 
           <div className={`${styles.actions} button-row`}>
-            <Button loading={pending} type="submit">
+            {/* While a save is out every button here says it cannot be pressed and ignores the press,
+                but none is `disabled`, which would drop the focus of the one just pressed. */}
+            <Button aria-disabled={pending || undefined} loading={pending} type="submit">
               {pending ? dictionary.common.saving : t.saveTargets}
             </Button>
             <Button
-              disabled={pending}
+              aria-disabled={pending || undefined}
               onClick={() => {
                 setDraft(toDraft(targets));
                 setErrors([]);
@@ -209,7 +233,7 @@ export function TargetsPanel({ targets }: { targets: ResolvedTargets }) {
             </Button>
             {overrideStatus === 'none' ? null : (
               <Button
-                disabled={pending}
+                aria-disabled={pending || undefined}
                 onClick={() => void save({ carbsG: null, fatG: null, kcal: null, proteinG: null })}
                 type="button"
                 variant="secondary"
@@ -221,7 +245,7 @@ export function TargetsPanel({ targets }: { targets: ResolvedTargets }) {
         </form>
       ) : (
         <div className={`${styles.actions} button-row`}>
-          <Button onClick={() => setEditing(true)} type="button" variant="secondary">
+          <Button onClick={() => setEditing(true)} ref={trigger} type="button" variant="secondary">
             {t.edit}
           </Button>
         </div>

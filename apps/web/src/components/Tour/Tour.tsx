@@ -111,8 +111,9 @@ export function Tour({ replay = false, seen = true }: TourProps) {
 
     // A heading is not focusable by itself, and a page-level heading with a
     // permanent `tabindex` is a stop in everyone's tab order for the sake of
-    // this one moment.
-    if (!target.hasAttribute('tabindex')) {
+    // this one moment. Only the heading: the replay button is focusable as it is,
+    // and a `-1` on it took it out of the tab order until the page was reloaded.
+    if (!target.hasAttribute('tabindex') && target.tabIndex < 0) {
       target.tabIndex = -1;
     }
 
