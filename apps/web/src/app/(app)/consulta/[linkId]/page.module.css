@@ -111,7 +111,8 @@
   display: grid;
   gap: var(--space-02);
   grid-auto-flow: row dense;
-  grid-template-columns: repeat(2, minmax(0, max-content));
+  /* The two buttons at their own width, and the rest of the line, so a line under them reads at the card's measure. */
+  grid-template-columns: minmax(0, max-content) minmax(0, max-content) 1fr;
 }
 
 .actions > * {
