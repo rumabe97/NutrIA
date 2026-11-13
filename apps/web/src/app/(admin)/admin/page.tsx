@@ -187,6 +187,29 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
       </ul>
 
       <div className={styles.band}>
+        <section aria-labelledby="needs-you" className={styles.aside}>
+          <Card className={styles.needsCard}>
+            <h2 className={styles.needsTitle} id="needs-you">
+              {t.needsYou.title}
+            </h2>
+            <ul className={styles.needs}>
+              {needs.map(row => (
+                <li key={row.href}>
+                  <Link className={styles.need} href={row.href}>
+                    <span className={styles.needLabel}>{row.label}</span>
+                    <span className={styles.needCount} data-zero={row.count === 0 ? 'true' : undefined}>
+                      {number(row.count)}
+                    </span>
+                    <svg aria-hidden="true" className={styles.needChevron} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                      <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </section>
+
         <AdminSection title={t.trendsTitle}>
           <div className={styles.charts}>
             <Card>
@@ -221,29 +244,6 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
             </Card>
           </div>
         </AdminSection>
-
-        <section aria-labelledby="needs-you" className={styles.aside}>
-          <Card className={styles.needsCard}>
-            <h2 className={styles.needsTitle} id="needs-you">
-              {t.needsYou.title}
-            </h2>
-            <ul className={styles.needs}>
-              {needs.map(row => (
-                <li key={row.href}>
-                  <Link className={styles.need} href={row.href}>
-                    <span className={styles.needLabel}>{row.label}</span>
-                    <span className={styles.needCount} data-zero={row.count === 0 ? 'true' : undefined}>
-                      {number(row.count)}
-                    </span>
-                    <svg aria-hidden="true" className={styles.needChevron} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                      <path d="M9 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        </section>
       </div>
 
       <HowCounted notes={t.howCounted.map(note => interpolate(note, { date: since }))} summary={common.howCounted} />

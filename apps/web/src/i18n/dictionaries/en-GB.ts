@@ -376,6 +376,8 @@ export const enGB: Dictionary = {
       previous: 'Previous',
       range: '{from}–{to} of {total}',
       sortAsc: 'sort ascending',
+      /** The label of the list of sort links that takes the table's header row on a phone. */
+      sortBy: 'Sort by',
       sortDesc: 'sort descending',
       sortedAsc: 'sorted ascending; sort descending',
       sortedDesc: 'sorted descending; sort ascending',

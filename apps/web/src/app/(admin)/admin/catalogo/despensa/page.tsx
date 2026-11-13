@@ -5,10 +5,10 @@ import { notFound } from 'next/navigation';
 import styles from './page.module.css';
 
 import { activeLocale, getDictionary } from 'i18n/server';
-import { DataTable } from 'ui/components/DataTable';
 import { Text } from 'ui/components/Text';
 
 import { AdminPageHeader } from 'components/AdminPageHeader';
+import { AdminReflowTable } from 'components/AdminReflowTable';
 import { AdminSection } from 'components/AdminSection';
 import { AdminTable, apiSearch, readTableQuery } from 'components/AdminTable';
 import { Card } from 'components/Card';
@@ -97,15 +97,12 @@ export default async function AdminCupboardPage({ searchParams }: { searchParams
                 ? interpolate(t.unresolved.firstOnly, { shown: number(unresolved.rows.length), total: number(unresolved.total) })
                 : interpolate(common.table.count, { count: number(unresolved.total) })}
             </Text>
-            <Card className={styles.card}>
-              <DataTable
-                caption={t.unresolved.caption}
-                columns={wordColumns}
-                empty={t.unresolved.emptyTitle}
-                hideCaption={true}
-                rows={unresolved.rows.map(row => ({ id: row.word, cells: { accounts: number(row.accounts), word: row.word } }))}
-              />
-            </Card>
+            <AdminReflowTable
+              caption={t.unresolved.caption}
+              columns={wordColumns}
+              empty={t.unresolved.emptyTitle}
+              rows={unresolved.rows.map(row => ({ id: row.word, cells: { accounts: number(row.accounts), word: row.word } }))}
+            />
           </Fragment>
         )}
       </AdminSection>

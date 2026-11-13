@@ -31,9 +31,11 @@
   }
 }
 
-/* Trends and what wants a hand, side by side when the page has the room (the sheet's row:
-   the chart wide, the list narrow) and one under the other on a phone. The chart comes first
-   in the reading order, as it does on the screen. */
+/* What wants a hand and the trends, side by side when the page has the room — the list narrow,
+   the charts wide — and one under the other on a phone, the list first. The source order, the
+   tab order and the order on the screen are the same at every width: the list is first in all
+   three, so on a wide page it is the left column (the sheet drew it on the right; a reading
+   order that disagrees with the picture was the price, and the owner chose the list first). */
 .band {
   display: grid;
   gap: var(--gap-region);
@@ -44,7 +46,7 @@
 @container (inline-size >= 56rem) {
   .band {
     align-items: start;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   }
 }
 

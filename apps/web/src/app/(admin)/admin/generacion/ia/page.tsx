@@ -5,7 +5,6 @@ import styles from './page.module.css';
 import { activeLocale, getDictionary } from 'i18n/server';
 import { BarChart } from 'ui/components/BarChart';
 import { ColumnChart } from 'ui/components/ColumnChart';
-import { DataTable } from 'ui/components/DataTable';
 import { Gauge } from 'ui/components/Gauge';
 import { LineChart } from 'ui/components/LineChart';
 import { Note } from 'ui/components/Note';
@@ -13,6 +12,7 @@ import { parsePeriod } from 'core/domain/Period';
 import { StatTile } from 'ui/components/StatTile';
 
 import { AdminPageHeader } from 'components/AdminPageHeader';
+import { AdminReflowTable } from 'components/AdminReflowTable';
 import { AdminSection } from 'components/AdminSection';
 import { Card } from 'components/Card';
 import { HowCounted } from 'components/HowCounted';
@@ -270,19 +270,18 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
       </AdminSection>
 
       <AdminSection note={interpolate(failures.note, { count: number(ASSISTANT_FAILURES) })} title={failures.title}>
-        <Card className={styles.table}>
-          <DataTable
-            caption={failures.caption}
-            columns={[
-              { header: failures.columns.at, key: 'at' },
-              { header: failures.columns.step, key: 'step' },
-              { header: failures.columns.model, key: 'model' },
-              { header: failures.columns.reason, key: 'reason' }
-            ]}
-            empty={failures.empty}
-            rows={failureRows}
-          />
-        </Card>
+        <AdminReflowTable
+          caption={failures.caption}
+          columns={[
+            { header: failures.columns.at, key: 'at' },
+            { header: failures.columns.step, key: 'step' },
+            { header: failures.columns.model, key: 'model' },
+            { header: failures.columns.reason, key: 'reason' }
+          ]}
+          empty={failures.empty}
+          rows={failureRows}
+          showCaption={true}
+        />
       </AdminSection>
 
       <AdminSection note={t.featureNote} title={t.featureTitle}>
@@ -300,18 +299,17 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
               title={t.featureChart}
             />
           </Card>
-          <Card className={`${styles.table} ${styles.featureTable}`}>
-            <DataTable
-              caption={t.featureTable}
-              columns={[
-                { header: t.featureColumn, key: 'feature' },
-                { align: 'end', header: t.columns.calls, key: 'calls' },
-                { align: 'end', header: t.columns.cost, key: 'cost' }
-              ]}
-              empty={t.featureEmpty}
-              rows={featureRows}
-            />
-          </Card>
+          <AdminReflowTable
+            caption={t.featureTable}
+            columns={[
+              { header: t.featureColumn, key: 'feature' },
+              { align: 'end', header: t.columns.calls, key: 'calls' },
+              { align: 'end', header: t.columns.cost, key: 'cost' }
+            ]}
+            empty={t.featureEmpty}
+            rows={featureRows}
+            showCaption={true}
+          />
         </div>
       </AdminSection>
 
@@ -376,23 +374,22 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
               title={t.modelsChart}
             />
           </Card>
-          <Card className={styles.table}>
-            <DataTable
-              caption={t.caption}
-              columns={[
-                { header: t.columns.model, key: 'model' },
-                { align: 'end', header: t.columns.calls, key: 'calls' },
-                { align: 'end', header: t.columns.failed, key: 'failed' },
-                { align: 'end', header: t.columns.averageMs, key: 'averageMs' },
-                { align: 'end', header: t.columns.input, key: 'input' },
-                { align: 'end', header: t.columns.output, key: 'output' },
-                { align: 'end', header: t.columns.reasoning, key: 'reasoning' },
-                { align: 'end', header: t.columns.cost, key: 'cost' }
-              ]}
-              empty={t.modelsEmpty}
-              rows={rows}
-            />
-          </Card>
+          <AdminReflowTable
+            caption={t.caption}
+            columns={[
+              { header: t.columns.model, key: 'model' },
+              { align: 'end', header: t.columns.calls, key: 'calls' },
+              { align: 'end', header: t.columns.failed, key: 'failed' },
+              { align: 'end', header: t.columns.averageMs, key: 'averageMs' },
+              { align: 'end', header: t.columns.input, key: 'input' },
+              { align: 'end', header: t.columns.output, key: 'output' },
+              { align: 'end', header: t.columns.reasoning, key: 'reasoning' },
+              { align: 'end', header: t.columns.cost, key: 'cost' }
+            ]}
+            empty={t.modelsEmpty}
+            rows={rows}
+            showCaption={true}
+          />
         </div>
       </AdminSection>
 

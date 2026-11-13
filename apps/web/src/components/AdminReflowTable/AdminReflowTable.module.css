@@ -10,6 +10,11 @@
   white-space: nowrap;
 }
 
+/* The empty state is a sentence across every column: it wraps inside what is visible. */
+.wide td[colspan] {
+  white-space: normal;
+}
+
 .narrow {
   display: none;
 }
@@ -41,42 +46,152 @@
 
 .item {
   display: grid;
-  gap: var(--space-02);
-  padding-block: var(--space-03);
+  gap: var(--space-03);
+  padding-block: var(--space-04);
+}
+
+.narrow {
+  min-inline-size: 0;
 }
 
 .title {
   color: var(--foreground-01);
+  font-size: var(--font-size-04);
   font-weight: var(--font-weight-semibold);
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .values {
   display: grid;
-  gap: var(--space-01);
+  gap: var(--space-03) var(--space-04);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
   margin: 0;
 }
 
-/* Name left, figure right; a long pair wraps instead of pushing past the card. */
+/* The column's name over its figure, as the sheet draws a row on a phone; a long pair wraps
+   instead of pushing past the card. */
 .value {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   font-size: var(--font-size-03);
-  gap: var(--space-01) var(--space-03);
-  justify-content: space-between;
+  gap: var(--space-01);
+  min-inline-size: 0;
 }
 
 .value dt {
   color: var(--foreground-02);
+  font-size: var(--font-size-01);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
 }
 
 .value dd {
   font-variant-numeric: tabular-nums;
   margin: 0;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A table of a name and one figure — a version, a switch, a limit — is a line each: the name, and
+   the figure at the far edge. The column's name stays for a screen reader. */
+.item[data-compact='true'] {
+  align-items: baseline;
+  gap: var(--space-01) var(--space-04);
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding-block: var(--space-03);
+}
+
+/* Text this large for the screen: the figure goes under its name. */
+@media (width < 17rem) {
+  .item[data-compact='true'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .item[data-compact='true'] .value {
+    text-align: start;
+  }
+}
+
+.item[data-compact='true'] .title {
+  font-size: var(--font-size-03);
+}
+
+.item[data-compact='true'] .value {
   text-align: end;
 }
 
+.item[data-compact='true'] .value dt {
+  block-size: 1px;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+}
+
+/* The row's actions end its block, buttons side by side where they fit. */
+.actions {
+  display: grid;
+  gap: var(--space-02);
+  min-inline-size: 0;
+}
+
+/* The sort links a table keeps where its header row is not drawn. */
+.sort {
+  align-items: center;
+  border-block-end: 1px solid var(--border-01);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02) var(--space-03);
+  padding-block-end: var(--space-03);
+}
+
+.sortLabel {
+  color: var(--foreground-02);
+  font-size: var(--font-size-01);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.sortList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sortLink {
+  --sort-floor: var(--height-m);
+
+  align-items: center;
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-full);
+  color: var(--foreground-01);
+  display: inline-flex;
+  font-size: var(--font-size-02);
+  min-block-size: var(--sort-floor);
+  padding-inline: var(--space-03);
+  text-decoration: none;
+}
+
+@media (pointer: coarse) {
+  .sortLink {
+    --sort-floor: var(--target-min);
+  }
+}
+
+/* The order being shown: the text colour as the ground, and a heavier word. */
+.sortLink[aria-current='true'] {
+  background-color: var(--foreground-01);
+  color: var(--background-01);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* The card's own width, not the screen's: a console table in a wide column keeps its columns. */
 @container (inline-size < 36rem) {
   .wide {
     display: none;

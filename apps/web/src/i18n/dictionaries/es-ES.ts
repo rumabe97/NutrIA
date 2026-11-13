@@ -398,6 +398,8 @@ export const esES = {
       range: '{from}–{to} de {total}',
       /** Read after a sortable header, never shown: what following its link does. */
       sortAsc: 'ordenar de forma ascendente',
+      /** The label of the list of sort links that takes the table's header row on a phone. */
+      sortBy: 'Ordenar por',
       sortDesc: 'ordenar de forma descendente',
       sortedAsc: 'orden ascendente; ordenar de forma descendente',
       sortedDesc: 'orden descendente; ordenar de forma ascendente',

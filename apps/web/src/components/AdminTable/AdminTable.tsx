@@ -5,7 +5,6 @@ import Link from 'next/link';
 import styles from './AdminTable.module.css';
 
 import { Button } from 'ui/components/Button';
-import { DataTable } from 'ui/components/DataTable';
 import { Input } from 'ui/components/Input';
 
 import { AdminFilter } from './components/AdminFilter';
@@ -13,7 +12,8 @@ import { AdminFilters } from './components/AdminFilters';
 import { AdminPager } from './components/AdminPager';
 import { AdminTableForm } from './components/AdminTableForm';
 import { AdminTableStatus } from './components/AdminTableStatus';
-import { Card } from 'components/Card';
+
+import { AdminReflowTable } from 'components/AdminReflowTable';
 
 import { PAGE_SIZES } from 'core/entities/AdminQuery';
 
@@ -252,27 +252,25 @@ export function AdminTable({
         {status}
       </AdminTableStatus>
 
-      {/* On a card, as the charts are: the pinned column paints the card's colour, which is what is under it. */}
-      <Card className={styles.card}>
-        <DataTable
-          caption={caption}
-          columns={tableColumns}
-          empty={
-            filtered ? (
-              <Fragment>
-                {noMatch}{' '}
-                <Link className={styles.clear} href={clearHref}>
-                  {search ? words.clear : words.clearFilters}
-                </Link>
-              </Fragment>
-            ) : (
-              empty
-            )
-          }
-          hideCaption={true}
-          rows={rows}
-        />
-      </Card>
+      {/* On a card, as the charts are; on a phone every row is a block of its own, with the sort links above them. */}
+      <AdminReflowTable
+        caption={caption}
+        columns={tableColumns}
+        empty={
+          filtered ? (
+            <Fragment>
+              {noMatch}{' '}
+              <Link className={styles.clear} href={clearHref}>
+                {search ? words.clear : words.clearFilters}
+              </Link>
+            </Fragment>
+          ) : (
+            empty
+          )
+        }
+        rows={rows}
+        sortLabel={words.sortBy}
+      />
 
       <AdminPager
         label={words.pager}
