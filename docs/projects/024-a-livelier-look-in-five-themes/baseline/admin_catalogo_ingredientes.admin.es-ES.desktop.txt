@@ -1,5 +1,6 @@
 # /admin/catalogo/ingredientes · admin · es-ES · desktop · 200
 button "Aplicar"
+button "Tema"
 combobox "Por página"
 heading "Ingredientes" [level=#]
 heading "Todos los ingredientes" [level=#]

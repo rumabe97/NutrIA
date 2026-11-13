@@ -1,6 +1,7 @@
 # /admin/catalogo · admin · en-GB · phone · 200
 button "Apply"
 button "Menu"
+button "Theme"
 combobox "Per page"
 heading "All recipes" [level=#]
 heading "By meal" [level=#]

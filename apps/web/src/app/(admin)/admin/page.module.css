@@ -31,11 +31,11 @@
   }
 }
 
-/* What wants a hand and the trends, side by side when the page has the room — the list narrow,
-   the charts wide — and one under the other on a phone, the list first. The source order, the
-   tab order and the order on the screen are the same at every width: the list is first in all
-   three, so on a wide page it is the left column (the sheet drew it on the right; a reading
-   order that disagrees with the picture was the price, and the owner chose the list first). */
+/* What wants a hand and the trends. On a phone one under the other, the list first (the
+   owner, 2026-11-13: before the charts). With the room, side by side as the sheet draws them:
+   the charts wide on the left, the list narrow on the right. The list stays first in the
+   source, so on a wide page the tab order visits the right column before the left one — two
+   independent columns, each read whole, and the sheet's picture kept. */
 .band {
   display: grid;
   gap: var(--gap-region);
@@ -46,7 +46,11 @@
 @container (inline-size >= 56rem) {
   .band {
     align-items: start;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+
+  .aside {
+    order: 2;
   }
 }
 

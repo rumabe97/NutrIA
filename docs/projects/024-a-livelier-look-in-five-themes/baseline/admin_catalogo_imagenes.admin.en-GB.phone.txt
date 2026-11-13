@@ -1,5 +1,6 @@
 # /admin/catalogo/imagenes · admin · en-GB · phone · 200
 button "Menu"
+button "Theme"
 heading "Current state" [level=#]
 heading "Given back, not failed" [level=#]
 heading "In the period" [level=#]

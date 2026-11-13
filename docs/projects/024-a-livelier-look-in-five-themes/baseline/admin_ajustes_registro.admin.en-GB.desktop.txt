@@ -1,5 +1,6 @@
 # /admin/ajustes/registro · admin · en-GB · desktop · 200
 button "Apply"
+button "Theme"
 combobox "Action"
 combobox "Per page"
 heading "Audit log" [level=#]

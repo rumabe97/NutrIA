@@ -1,0 +1,4 @@
+# /admin/zzz-no-such-page · admin · en-GB · desktop · 404
+heading "We could not find what you were looking for." [level=#]
+link "Go to the dashboard"
+link "Skip to content"

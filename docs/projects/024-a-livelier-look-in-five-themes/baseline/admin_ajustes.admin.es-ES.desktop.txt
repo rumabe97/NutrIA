@@ -1,6 +1,7 @@
 # /admin/ajustes · admin · es-ES · desktop · 200
 button "Enviarme un aviso de prueba"
 button "Guardar" [disabled]
+button "Tema"
 heading "Acceso" [level=#]
 heading "Interruptores" [level=#]
 heading "Notificaciones" [level=#]

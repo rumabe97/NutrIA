@@ -1,4 +1,5 @@
 # /admin/ajustes/sistema · admin · es-ES · desktop · 200
+button "Tema"
 heading "Correo" [level=#]
 heading "Integraciones" [level=#]
 heading "Límites" [level=#]

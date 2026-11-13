@@ -1,6 +1,7 @@
 # /admin/buzon · admin · es-ES · phone · 200
 button "Aplicar"
 button "Menú"
+button "Tema"
 combobox "Estado"
 combobox "Por página"
 heading "Buzón" [level=#]

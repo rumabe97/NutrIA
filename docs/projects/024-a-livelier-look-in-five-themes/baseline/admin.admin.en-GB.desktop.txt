@@ -1,4 +1,5 @@
 # /admin · admin · en-GB · desktop · 200
+button "Theme"
 heading "Needs you" [level=#]
 heading "Overview" [level=#]
 heading "Trends" [level=#]

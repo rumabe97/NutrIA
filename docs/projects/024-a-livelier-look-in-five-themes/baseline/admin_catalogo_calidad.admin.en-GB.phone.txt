@@ -1,5 +1,6 @@
 # /admin/catalogo/calidad · admin · en-GB · phone · 200
 button "Menu"
+button "Theme"
 heading "Days the rewrite was active" [level=#]
 heading "Quality" [level=#]
 heading "Rewrite history" [level=#]

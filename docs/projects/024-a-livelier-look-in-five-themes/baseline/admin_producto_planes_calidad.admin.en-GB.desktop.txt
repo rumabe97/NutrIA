@@ -1,4 +1,5 @@
 # /admin/producto/planes/calidad · admin · en-GB · desktop · 200
+button "Theme"
 heading "Plan quality" [level=#]
 heading "Plans in the period" [level=#]
 link "# days"

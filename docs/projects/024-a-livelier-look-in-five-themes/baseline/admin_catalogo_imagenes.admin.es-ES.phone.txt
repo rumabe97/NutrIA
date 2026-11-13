@@ -1,5 +1,6 @@
 # /admin/catalogo/imagenes · admin · es-ES · phone · 200
 button "Menú"
+button "Tema"
 heading "Devueltas, no fallidas" [level=#]
 heading "En el periodo" [level=#]
 heading "Estado actual" [level=#]

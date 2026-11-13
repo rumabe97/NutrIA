@@ -1,5 +1,6 @@
 # /admin/generacion · admin · es-ES · desktop · 200
 button "Aplicar"
+button "Tema"
 combobox "Por página"
 heading "En el periodo" [level=#]
 heading "Fallos por motivo" [level=#]

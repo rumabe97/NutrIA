@@ -1,11 +1,15 @@
 # /admin/generacion/ia · admin · en-GB · phone · 200
 button "Menu"
+button "Theme"
 heading "AI and models" [level=#]
 heading "Assistant" [level=#]
 heading "By feature" [level=#]
 heading "By model" [level=#]
 heading "Latest failures" [level=#]
 heading "Per day" [level=#]
+heading "The assistant’s latest failures" [level=#]
+heading "This month’s calls and spend by feature" [level=#]
 heading "This month" [level=#]
+heading "Usage by model" [level=#]
 link "# days"
 link "Skip to content"

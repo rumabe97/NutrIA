@@ -1,6 +1,7 @@
 # /admin/profesionales · admin · en-GB · phone · 200
 button "Apply"
 button "Menu"
+button "Theme"
 heading "Professionals" [level=#]
 link "Email , sort ascending"
 link "Links , sort descending"

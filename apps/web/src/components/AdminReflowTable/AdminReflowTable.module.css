@@ -10,6 +10,12 @@
   white-space: nowrap;
 }
 
+/* A row's buttons, in a cell: each on one line, side by side (read by `AccountActions`). */
+.wide {
+  --row-actions-shrink: 0;
+  --row-actions-space: nowrap;
+}
+
 /* The empty state is a sentence across every column: it wraps inside what is visible. */
 .wide td[colspan] {
   white-space: normal;
@@ -132,6 +138,8 @@
 
 /* The row's actions end its block, buttons side by side where they fit. */
 .actions {
+  --row-actions-display: grid;
+
   display: grid;
   gap: var(--space-02);
   min-inline-size: 0;

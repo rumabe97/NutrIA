@@ -4,11 +4,24 @@
   justify-items: start;
 }
 
-/* Side by side on a wide table cell, wrapping before the cell does. */
-.buttons {
-  display: flex;
-  flex-wrap: wrap;
+/* Side by side, never one over the other (the owner, 2026-11-12): in a table cell on one
+   line, `button-row`'s own layout; in a phone's card — where the console table sets
+   `--row-actions-display` — two to a line at equal widths, a long name wrapping inside its
+   button. Two classes, so this wins over `button-row` whatever order the sheets load in. */
+.root .buttons {
+  display: var(--row-actions-display, flex);
   gap: var(--space-02);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* A table cell is as wide as it likes (the table scrolls), so there a name stays on one line
+   and the button keeps its width; the console table says which it is. */
+.root .buttons > :is(button, div) {
+  flex-shrink: var(--row-actions-shrink, 1);
+}
+
+.root .buttons > button {
+  white-space: var(--row-actions-space, normal);
 }
 
 /* The collegiate number, in its dialog: the field, what went wrong, then the two buttons. */

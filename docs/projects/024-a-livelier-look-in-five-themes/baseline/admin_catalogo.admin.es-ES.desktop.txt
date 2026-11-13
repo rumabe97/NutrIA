@@ -1,5 +1,6 @@
 # /admin/catalogo · admin · es-ES · desktop · 200
 button "Aplicar"
+button "Tema"
 combobox "Por página"
 heading "Por comida" [level=#]
 heading "Recetas" [level=#]
