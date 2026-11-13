@@ -30,6 +30,14 @@
   min-inline-size: 0;
 }
 
+/* A tile whose picture waits for the page to load keeps the picture's room and its ground,
+   so nothing moves when the picture arrives. */
+.later {
+  aspect-ratio: 4 / 3;
+  background-color: var(--color-highlighted);
+  border-radius: var(--radius-card);
+}
+
 /* The page's small text, at full contrast (§ 2.4: ≥ 4.5:1, not smaller than the small text). */
 .caption {
   color: var(--foreground-02);

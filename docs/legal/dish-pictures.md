@@ -82,6 +82,15 @@
 > does not**. The 1,158 tests of `packages/core/src/domain/DishPicture` pass in that tree
 > (run by `legal`).
 >
+> **Revision 2026-11-13 (project 024, the landing)**: § 2.3.4's case arose for the landing's
+> three pictures. [`2026-11-13-lighter-landing-pictures.md`](./2026-11-13-lighter-landing-pictures.md)
+> accepts a lighter copy that carries SynthID and an unsigned IPTC field, and not the signed
+> C2PA. The gap this opens against § 1.5's table is recorded **in that document** (§§ 2.3
+> and 6), not in the rows below. For those three files only, S1 1.1.1 (signed metadata) is not
+> met. The signed originals remain public. It is P2, and signing the copy would close it.
+> Read § 1.5's rows S1 1.1 and 1.2, and IMG-8, with that exception. Every other picture is
+> still served untouched.
+>
 > **§§ 0 to 4.2 were written before the feature existed.** What they say about the product
 > comes from the PRD, the report and the pilot, and checking it against the built code is
 > still pending in § 6's list, except where that list names its source.
