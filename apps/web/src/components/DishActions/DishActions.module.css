@@ -1,8 +1,8 @@
 /*
  * In the page: done and skipped on one side, another dish on the other (`MealSwap` pushes
  * itself to the row's end) — one row, as the sheet draws it, down to a 320px phone, never
- * «Cambiar» under «Hecha». Only text too large for the screen (`width < 17rem`) lets the row
- * wrap, where three single words cannot share a line.
+ * «Cambiar» under «Hecha» (`MealStatus` asks for no more than its two words). The row wraps
+ * for the swap's panel, which takes a line of its own, and under text too large for the screen.
  */
 .actions {
   /* «Cambiar» as the sheet draws it here: words and an icon, no edge, beside the two marks. */
@@ -13,15 +13,9 @@
 
   align-items: center;
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: var(--space-02) var(--space-03);
   justify-content: space-between;
-}
-
-@media (width < 17rem) {
-  .actions {
-    flex-wrap: wrap;
-  }
 }
 
 /*

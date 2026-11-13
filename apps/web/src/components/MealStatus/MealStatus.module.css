@@ -1,15 +1,16 @@
 /*
  * One line: «Hecha» takes the room, «Saltada» its own width beside it — and both give way to
- * «Cambiar» on a 320px phone rather than send it under them: a mark keeps a tighter side
- * padding and may shrink to its word. Only text too large for the screen lets the pair wrap.
+ * «Cambiar» on a 320px phone rather than send it under them: the pair asks for no width of its
+ * own (a basis of 0) beyond its two words, and a mark keeps a tighter side padding. The row they
+ * sit in still wraps, for the swap's panel and for a pair that truly does not fit. Only text too
+ * large for the screen lets the pair itself wrap, as it always did.
  */
 .buttons {
   align-items: center;
   display: flex;
-  flex: 1 1 12rem;
+  flex: 1 1 0;
   flex-wrap: nowrap;
   gap: var(--space-02);
-  min-inline-size: 0;
 }
 
 .buttons > button {
@@ -22,7 +23,9 @@
 
 @media (width < 17rem) {
   .buttons {
+    flex: 1 1 12rem;
     flex-wrap: wrap;
+    min-inline-size: 0;
   }
 }
 
