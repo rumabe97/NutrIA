@@ -34,7 +34,7 @@ export const viewport: Viewport = siteViewport;
  */
 export default function GlobalNotFound() {
   return (
-    <RootShell locale="es-ES">
+    <RootShell locale="es-ES" strings="public">
       <main className={styles.shell} id={MAIN_ID}>
         <h1 className={styles.title}>{spanish.errors.notFoundTitle}</h1>
         <p className={styles.body}>{spanish.errors.notFound}</p>

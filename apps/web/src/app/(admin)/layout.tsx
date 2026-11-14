@@ -27,5 +27,9 @@ export async function generateMetadata(): Promise<Metadata> {
  * keeps its Spanish addresses in both languages.
  */
 export default async function AdminRootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  return <RootShell locale={await activeLocale()}>{children}</RootShell>;
+  return (
+    <RootShell locale={await activeLocale()} strings="all">
+      {children}
+    </RootShell>
+  );
 }

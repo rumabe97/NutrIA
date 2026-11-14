@@ -9,7 +9,7 @@ import 'styles/globals.css';
 import 'styles/variables.css';
 import 'styles/themes.css';
 
-import { dictionaryFor } from 'i18n/server';
+import { dictionaryFor, publicDictionaryFor } from 'i18n/server';
 import { displayFont, font } from 'ui/fonts';
 import { LocaleProvider } from 'i18n/LocaleProvider';
 import { THEME_SCRIPT } from 'ui/utils/themeScript';
@@ -33,6 +33,11 @@ import type { ReactNode } from 'react';
  *
  * The dictionary is put on a context here, once, so a client island anywhere
  * below can read it without every parent passing it down.
+ * How much of it is the root's to say (`strings`): a public tree's client components read a
+ * dozen of its sections and are sent those (`i18n/publicSections`), because what the provider
+ * is handed travels inside the HTML of every page; the signed-in app and the console read
+ * nearly all of it and are sent all. Leaving one root for another is a full page load, so a
+ * part never follows anybody into a tree that needs the whole.
  *
  * The skip link is the document's first focusable node, which is the only
  * position it can occupy and still be a skip link, and the announcer is the one
@@ -52,7 +57,7 @@ import type { ReactNode } from 'react';
  * own attributes only, not for anything below it. `styles/themes.css` comes after the
  * app's other token files: it holds every colour value.
  */
-export function RootShell({ children, locale }: Readonly<{ children: ReactNode; locale: Locale }>) {
+export function RootShell({ children, locale, strings }: Readonly<{ children: ReactNode; locale: Locale; strings: 'all' | 'public' }>) {
   return (
     <html lang={locale} suppressHydrationWarning={true}>
       <head>
@@ -61,7 +66,7 @@ export function RootShell({ children, locale }: Readonly<{ children: ReactNode; 
       </head>
       <body className={`${font.variable} ${displayFont.variable}`}>
         <SkipLink locale={locale} />
-        <LocaleProvider dictionary={dictionaryFor(locale)} locale={locale}>
+        <LocaleProvider dictionary={strings === 'public' ? publicDictionaryFor(locale) : dictionaryFor(locale)} locale={locale}>
           <RouteAnnouncer />
           <ServiceWorker />
           {children}

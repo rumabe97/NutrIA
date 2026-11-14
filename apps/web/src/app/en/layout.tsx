@@ -18,7 +18,7 @@ export const viewport: Viewport = siteViewport;
  */
 export default function EnglishRootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <RootShell locale="en-GB">
+    <RootShell locale="en-GB" strings="public">
       <SiteJsonLd locale="en-GB" />
       {children}
     </RootShell>
