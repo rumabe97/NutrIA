@@ -47,7 +47,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const renderedAt = new Date().getTime();
 
   return (
-    <RootShell locale={locale}>
+    <RootShell locale={locale} strings="all">
       {/* Somebody back from Google or Apple has the after-sign-in step still to run (`0058`). */}
       <ArrivalSync />
       {/* Stamped with the moment this screen was made, so a stored copy can say how old it is (`0053`). */}

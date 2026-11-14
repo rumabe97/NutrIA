@@ -1,8 +1,21 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { describe, expect, it } from 'vitest';
+import { esES } from 'i18n/dictionaries/es-ES';
+import { LocaleProvider } from 'i18n/LocaleProvider';
 
 import { LandingPictures } from './LandingPictures';
+
+import type { ReactNode } from 'react';
+
+/** As a page draws it: inside the root's provider, which is where the «IA» mark's words come from. */
+function render(node: ReactNode): string {
+  return renderToStaticMarkup(
+    <LocaleProvider dictionary={esES} locale="es-ES">
+      {node}
+    </LocaleProvider>
+  );
+}
 
 const CAPTION = 'Imágenes generadas por IA a partir de la receta de cada plato.';
 
@@ -17,11 +30,11 @@ function picture(n: number) {
 /** `docs/legal/2026-11-11-redesign.md` § 2.8, the conditions a prerendered hero must meet. */
 describe('LandingPictures', () => {
   it('draws nothing at all without a picture, caption included', () => {
-    expect(renderToStaticMarkup(<LandingPictures caption={CAPTION} pictures={[]} />)).toBe('');
+    expect(render(<LandingPictures caption={CAPTION} pictures={[]} />)).toBe('');
   });
 
   it('marks every tile in the markup itself, names it for a screen reader and says the caption beside them (N1, N5, N6, W1)', () => {
-    const markup = renderToStaticMarkup(<LandingPictures caption={CAPTION} pictures={[picture(1), picture(2), picture(3)]} />);
+    const markup = render(<LandingPictures caption={CAPTION} pictures={[picture(1), picture(2), picture(3)]} />);
 
     expect(markup.match(/<img /g)).toHaveLength(3);
     expect(markup.match(/>IA</g)).toHaveLength(3);
@@ -33,7 +46,7 @@ describe('LandingPictures', () => {
   });
 
   it('serves each original untouched and only its own lighter copy beside it, the first at once and the others when near, never more than three (B1, B2)', () => {
-    const markup = renderToStaticMarkup(<LandingPictures caption={CAPTION} pictures={[picture(1), picture(2), picture(3), picture(4)]} />);
+    const markup = render(<LandingPictures caption={CAPTION} pictures={[picture(1), picture(2), picture(3), picture(4)]} />);
 
     expect(markup.match(/<img /g)).toHaveLength(3);
     expect(markup).not.toContain('dish-4.jpg');

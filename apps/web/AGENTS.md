@@ -357,6 +357,19 @@ compile error. Spanish stays the first language: write it there first, then tran
 
 - Server components read the dictionary with `await getDictionary()`; client components use
   `useDictionary()` from the provider mounted in the root layout.
+- **A public page's client components are sent a part of the dictionary**, not all of it: the
+  sections in `i18n/publicSections.ts`. What the root's provider is handed travels inside the
+  HTML of every page, and the whole is a quarter of a megabyte. `(es)`, `en` and
+  `global-not-found` mount `RootShell` with `strings="public"`; the signed-in app and the
+  console with `strings="all"`. `i18n/publicSections.test.ts` reads every client file a public
+  page can reach and fails when one reads a section that is not listed, when a listed one is
+  read by none, or when the dictionary is used in a way it cannot read off the source — so in a
+  client file read sections by name (`dictionary.auth`, `const { theme } = useDictionary()`),
+  never by a computed key, a spread or `Object.keys`. When it fails, add the section it names;
+  do not hand a server component's `dictionary` to a client component whole.
+- `LocaleProvider` has **no default dictionary** — importing one put all of Spanish in a script
+  every visitor downloaded. A test that renders a component reading the dictionary wraps it in
+  `<LocaleProvider dictionary={esES} locale="es-ES">`.
 - Placeholders are `{name}`, filled by `interpolate`. **Never** build a key from user data:
   `t['goal.' + type]` puts a translation lookup at the mercy of what someone typed.
 - Numbers, dates and quantities go through `lib/format`, never `toLocaleString` with a
