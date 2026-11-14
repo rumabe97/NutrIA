@@ -1,8 +1,21 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { describe, expect, it } from 'vitest';
+import { esES } from 'i18n/dictionaries/es-ES';
+import { LocaleProvider } from 'i18n/LocaleProvider';
 
 import { DishPicture } from './DishPicture';
+
+import type { ReactNode } from 'react';
+
+/** As a page draws it: inside the root's provider, which is where the «IA» mark's words come from. */
+function render(node: ReactNode): string {
+  return renderToStaticMarkup(
+    <LocaleProvider dictionary={esES} locale="es-ES">
+      {node}
+    </LocaleProvider>
+  );
+}
 
 const PICTURE = 'https://blob.example/dish.jpg';
 
@@ -13,7 +26,7 @@ function glyph(markup: string): string | undefined {
 
 describe('DishPicture without a picture: the designed state', () => {
   it('draws a glyph, hidden from assistive technology, and no «IA» mark', () => {
-    const markup = renderToStaticMarkup(<DishPicture slot="dinner" variant="thumb" />);
+    const markup = render(<DishPicture slot="dinner" variant="thumb" />);
 
     expect(glyph(markup)).toContain('aria-hidden="true"');
     expect(markup).not.toContain('<img');
@@ -23,7 +36,7 @@ describe('DishPicture without a picture: the designed state', () => {
 
   it('is never an empty frame: every slot draws a glyph, and the moments of the day differ', () => {
     const drawings = ['breakfast', 'morning_snack', 'lunch', 'afternoon_snack', 'dinner', 'supper', 'unknown'].map(slot =>
-      glyph(renderToStaticMarkup(<DishPicture slot={slot} variant="card" />))
+      glyph(render(<DishPicture slot={slot} variant="card" />))
     );
 
     expect(drawings.every(Boolean)).toBe(true);
@@ -38,7 +51,7 @@ describe('DishPicture without a picture: the designed state', () => {
 
 describe('DishPicture with a picture', () => {
   it('is the original file in a plain <img>, sized so nothing shifts, lazy in a list', () => {
-    const markup = renderToStaticMarkup(<DishPicture path={PICTURE} slot="lunch" variant="thumb" />);
+    const markup = render(<DishPicture path={PICTURE} slot="lunch" variant="thumb" />);
 
     expect(markup).toContain(`src="${PICTURE}"`);
     expect(markup).toContain('width="960"');
@@ -49,14 +62,14 @@ describe('DishPicture with a picture', () => {
   });
 
   it('carries the «IA» mark, named in full where the picture itself is decorative', () => {
-    const markup = renderToStaticMarkup(<DishPicture path={PICTURE} variant="thumb" />);
+    const markup = render(<DishPicture path={PICTURE} variant="thumb" />);
 
     expect(markup).toContain('<span aria-hidden="true">IA</span>');
     expect(markup).toContain('<span class="visually-hidden">Imagen generada por IA</span>');
   });
 
   it('leaves the name to the alt where the picture is named, and is eager above the fold', () => {
-    const markup = renderToStaticMarkup(<DishPicture alt="Imagen de Bowl generada por IA" path={PICTURE} priority={true} variant="hero" />);
+    const markup = render(<DishPicture alt="Imagen de Bowl generada por IA" path={PICTURE} priority={true} variant="hero" />);
 
     expect(markup).toContain('alt="Imagen de Bowl generada por IA"');
     expect(markup).toContain('loading="eager"');
@@ -64,7 +77,7 @@ describe('DishPicture with a picture', () => {
   });
 
   it('carries its View Transition name only where it is given one', () => {
-    expect(renderToStaticMarkup(<DishPicture path={PICTURE} transitionName="dish-42" variant="hero" />)).toContain('view-transition-name:dish-42');
-    expect(renderToStaticMarkup(<DishPicture path={PICTURE} variant="thumb" />)).not.toContain('view-transition-name');
+    expect(render(<DishPicture path={PICTURE} transitionName="dish-42" variant="hero" />)).toContain('view-transition-name:dish-42');
+    expect(render(<DishPicture path={PICTURE} variant="thumb" />)).not.toContain('view-transition-name');
   });
 });

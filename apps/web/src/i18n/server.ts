@@ -3,6 +3,7 @@ import { cookies, headers } from 'next/headers';
 import { DEFAULT_LOCALE, LOCALE_COOKIE, negotiateLocale, parseLocale } from './config';
 import { enGB } from './dictionaries/en-GB';
 import { esES } from './dictionaries/es-ES';
+import { PUBLIC_SECTIONS } from './publicSections';
 
 import type { Dictionary } from './dictionaries/es-ES';
 import type { Locale } from './config';
@@ -11,6 +12,20 @@ const DICTIONARIES: Record<Locale, Dictionary> = { 'en-GB': enGB, 'es-ES': esES 
 
 export function dictionaryFor(locale: Locale): Dictionary {
   return DICTIONARIES[locale];
+}
+
+/**
+ * The dictionary a public page hands its client components: the sections they read
+ * (`publicSections.ts`), and no others.
+ *
+ * Typed as the whole dictionary because the components that read it are shared with the
+ * signed-in app; `publicSections.test.ts` is what holds that no public page reads a section
+ * left out. A server component is not concerned: it reads `dictionaryFor` directly.
+ */
+export function publicDictionaryFor(locale: Locale): Dictionary {
+  const whole = DICTIONARIES[locale];
+
+  return Object.fromEntries(PUBLIC_SECTIONS.map(section => [section, whole[section]])) as Partial<Dictionary> as Dictionary;
 }
 
 /**
