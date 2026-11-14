@@ -129,6 +129,12 @@ Measured on 2026-11-11, before any code:
    survives.
 8. **The rings on Inicio show what was eaten** (owner): the day's meals marked «Hecha», summed,
    against the day's targets. The sheets' numbers are examples.
+9. **On a phone the landing's food comes after its three tiles** (owner, 2026-11-14, with both
+   captures in front of him). The sheet draws the pictures right under the hero's copy; under
+   40rem the tiles stand between them, one to a row, so the first screen is words. With a picture
+   as the first screen's largest element Lighthouse charges every script to the largest paint
+   (86 on mobile; 98 with the tiles first — LOG.md, 2026-11-14). Tablet and laptop follow the
+   sheet.
 
 ## Scope
 
