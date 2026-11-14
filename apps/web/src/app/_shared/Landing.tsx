@@ -127,17 +127,18 @@ export function Landing({ locale }: Readonly<{ locale: Locale }>) {
           <Reveal className={styles.heroVisual} delay={120}>
             {hasPictures ? <LandingPictures caption={t.heroPicturesNote} pictures={LANDING_PICTURES} /> : preview}
           </Reveal>
-        </section>
 
-        {/* ── What a plan is, in three tiles ───────────────────────────── */}
-        <ul className={`${styles.highlights} motion-list`}>
-          {t.highlights.map(item => (
-            <li className={styles.highlight} key={item.title}>
-              <span className={styles.highlightTitle}>{item.title}</span>
-              <span className={styles.highlightBody}>{item.body}</span>
-            </li>
-          ))}
-        </ul>
+          {/* What a plan is, in three tiles: under the hero from a tablet, between the copy and the
+              food on a phone (`.hero`). After the food in the document either way. */}
+          <ul className={`${styles.highlights} motion-list`}>
+            {t.highlights.map(item => (
+              <li className={styles.highlight} key={item.title}>
+                <span className={styles.highlightTitle}>{item.title}</span>
+                <span className={styles.highlightBody}>{item.body}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         {/* With pictures in the hero, the illustrative plan follows it on its own. */}
         {hasPictures ? (

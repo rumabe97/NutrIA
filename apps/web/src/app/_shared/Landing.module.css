@@ -13,21 +13,30 @@
 
 /*
  * The sheet's hero (`reference/03-admin-and-landing.jpg`, «Portada pública»): the copy at the
- * start, the food beside it from a laptop, under it on a phone. Every block of copy reads
+ * start, the food beside it from a laptop, under it on a tablet. Every block of copy reads
  * from the start, as the sheet sets it — a centred block of four lines read as a poster.
+ *
+ * On a phone the three tiles come between the copy and the food, so the first screen is words
+ * and the picture arrives with the first scroll. The tiles are the hero's last child in the
+ * document at every width; only where they are drawn changes.
  */
 .hero {
   align-items: center;
   display: grid;
   gap: var(--space-09);
+  grid-template-areas:
+    'copy'
+    'highlights'
+    'visual';
   grid-template-columns: minmax(0, 1fr);
   margin-inline: auto;
   max-width: var(--content-max);
-  padding-block: clamp(2.5rem, 1rem + 6vw, 6rem) var(--space-09);
+  padding-block: clamp(2.5rem, 1rem + 6vw, 6rem) 0;
   padding-inline: var(--gutter-page);
 }
 
 .heroCopy {
+  grid-area: copy;
   min-inline-size: 0;
 }
 
@@ -106,6 +115,7 @@
 }
 
 .heroVisual {
+  grid-area: visual;
   min-inline-size: 0;
 }
 
@@ -232,16 +242,17 @@
 
 /* ── Highlights ───────────────────────────────────────────────────────── */
 
-/* The sheet's three tiles under the hero: a heavy word over a short line, the first on the
-   highlight fill the screens keep for the one figure they lead with. */
+/* The sheet's three tiles: a heavy word over a short line, the first on the highlight fill the
+   screens keep for the one figure they lead with. One to a row on a phone, where they stand
+   between the copy and the food; three across under the hero from a tablet. */
 .highlights {
   display: grid;
   gap: var(--space-03);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-area: highlights;
+  grid-template-columns: minmax(0, 1fr);
   list-style: none;
-  margin: 0 auto;
-  max-width: var(--content-max);
-  padding: 0 var(--gutter-page);
+  margin: 0;
+  padding: 0;
 }
 
 .highlight {
@@ -256,11 +267,6 @@
 .highlight:first-child {
   background-color: var(--color-highlight-fill);
   color: var(--color-on-highlight-fill);
-}
-
-/* Three in two columns on a phone: the last takes the whole row rather than half of it. */
-.highlight:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
 }
 
 .highlightTitle {
@@ -410,12 +416,16 @@
 }
 
 @media (width >= 40rem) {
-  .highlights {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* From a tablet the food follows the copy, as the sheet draws it, and the tiles close the hero. */
+  .hero {
+    grid-template-areas:
+      'copy'
+      'visual'
+      'highlights';
   }
 
-  .highlight:last-child:nth-child(odd) {
-    grid-column: auto;
+  .highlights {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .steps {
@@ -438,8 +448,10 @@
 @media (width >= 64rem) {
   .hero {
     gap: var(--space-10);
+    grid-template-areas:
+      'copy visual'
+      'highlights highlights';
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-    padding-block-end: var(--space-10);
   }
 
   .steps {
@@ -460,14 +472,6 @@
 @media (width < 17rem) {
   .display {
     font-size: var(--font-size-08);
-  }
-
-  .highlights {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .highlight:last-child:nth-child(odd) {
-    grid-column: auto;
   }
 
   .mealRow {
