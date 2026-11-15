@@ -2586,3 +2586,11 @@ On a local production build of the whole branch (the executor's fixes, the pictu
 - **Lighthouse mobile, five runs, with the phone order of the entry above**: **99, 99, 99, 99, 98** — FCP 1.2 s, LCP 1.2 s, TBT 130–150 ms, CLS 0; `/en` 98, 98. Phase 0's median was 99.
 - **Production, with the phone order alone** (#387, before this change): Lighthouse 13 mobile from this machine, three runs — **95, 95, 96**, FCP 1.4 s, LCP 1.4 s, TBT 240 ms; it was 87 (LCP 3.0 s, TBT 320 ms). The largest element is the lede.
 - Not done: the signed-in app and the console still carry the whole dictionary; Lighthouse in the owner's Chrome.
+- **Production, with both** (#387 and #388): five runs — **95, 97, 94, 96, 97**, FCP 1.1–1.2 s, LCP 1.1–1.2 s, TBT 190–280 ms. HTML, compressed, as served: `/` 22 KB, `/acceder` 14.5 KB, `/registro` 15.4 KB, `/privacidad` 35.8 KB.
+
+### 2026-11-15 — `/favicon.ico` is the mark, not the template's triangle
+
+- **Reported by the owner**: Safari's tab overview on the iPhone shows its own blank-page icon beside "NutrIA — Planes de alime…", in a private tab too, so not a stale cache.
+- **Found**: every page declared one icon, `/icon` (512 px, PNG, served and correct), and `public/favicon.ico` was still the file the repository started with — a white triangle on a black disc — declared by no page and answered to whoever asks for that address unprompted.
+- **Changed**: `favicon.ico` now lives beside `icon.tsx` in `src/app`, holds the mark at 16, 32 and 48 px (the `/icon` picture scaled down), and Next declares it in the head of every page ahead of the large one. Checked on a local production build: `/`, `/en`, `/acceder` and an address that matches nothing all declare it, the file served is the file committed, and Chrome draws it at each size on a light and a dark ground.
+- **Not known**: whether this is why Safari drew its placeholder — nothing here runs Safari. The owner looks again on the iPhone after the deployment.
