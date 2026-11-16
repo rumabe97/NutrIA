@@ -18,9 +18,9 @@
   "dependencies": {
     "@mdx-js/loader": "^3.1.1",
     "@mdx-js/react": "^3.1.1",
-    "@next/mdx": "^16.4.5",
-    "next": "^16.4.5",
-    "prettier": "^3.9.10",
+    "@next/mdx": "^16.4.6",
+    "next": "^16.4.6",
+    "prettier": "^3.10.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-markdown": "^10.1.0",
@@ -35,7 +35,7 @@
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.2",
     "eslint-configuration": "workspace:*",
-    "prettier": "^3.9.10",
+    "prettier": "^3.10.1",
     "typescript-configuration": "workspace:*"
   }
 }

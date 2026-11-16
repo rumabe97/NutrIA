@@ -19,10 +19,10 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@better-auth/passkey": "^1.7.18",
-    "better-auth": "^1.7.18",
+    "@better-auth/passkey": "^1.7.22",
+    "better-auth": "^1.7.22",
     "core": "workspace:*",
-    "next": "^16.4.5",
+    "next": "^16.4.6",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "ui": "workspace:*",
@@ -35,7 +35,7 @@
     "@vitest/coverage-istanbul": "^5.1.0",
     "eslint": "^9.39.2",
     "eslint-configuration": "workspace:*",
-    "prettier": "^3.9.10",
+    "prettier": "^3.10.1",
     "typescript-configuration": "workspace:*",
     "vitest": "^5.1.0"
   }
