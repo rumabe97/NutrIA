@@ -14,12 +14,16 @@ import { z } from 'zod';
  *   withheld.
  * - `acting` — the answer claimed to have changed something, or wrote a plan;
  *   withheld, because it changes nothing and somebody would believe it did.
+ * - `supplement_amount` — the answer stated an amount of a supplement that is
+ *   not the assistant's to give: any of a vitamin or a mineral, more than the
+ *   ceiling of the four it may speak of, or one per kilo; withheld, because that
+ *   amount is the label's or a professional's (`0108`).
  *
  * Here, at the bottom of the package, because both the domain's checks and the
  * stored turn name it; `ai_messages`' check in the database holds the same list,
  * and a test keeps the two equal.
  */
-export const ASSISTANT_DECLINES = ['acting', 'allergen', 'clinical', 'invented_figure', 'off_topic'] as const;
+export const ASSISTANT_DECLINES = ['acting', 'allergen', 'clinical', 'invented_figure', 'off_topic', 'supplement_amount'] as const;
 
 export type AssistantDecline = (typeof ASSISTANT_DECLINES)[number];
 

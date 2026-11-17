@@ -154,3 +154,32 @@ describe.each([
     expect(page.state).toBe('folded');
   });
 });
+
+describe.each([
+  ['es-ES', esES, 'es-ES' as Locale],
+  ['en-GB', enGB, 'en-GB' as Locale]
+])('the notice under an answer about a supplement (%s)', (_, dictionary, locale) => {
+  const t = dictionary.assistant;
+  const answer = (notice: AssistantTurn['notice'], decline: AssistantTurn['decline'] = null): AssistantTurn => ({
+    id: 't2',
+    content: 'La creatina es el suplemento con más respaldo.',
+    createdAt: '2026-11-16T10:00:01.000Z',
+    decline,
+    notice,
+    role: 'assistant'
+  });
+
+  it('is drawn from the dictionary when the service says so, and only then', () => {
+    expect(text(chat(dictionary, locale, [TURN, answer('supplement')]))).toContain(t.notices.supplement);
+    expect(text(chat(dictionary, locale, [TURN, answer(null)]))).not.toContain(t.notices.supplement);
+    // A thread read from a service older than this screen carries no such field.
+    expect(text(chat(dictionary, locale, [TURN, { ...answer(null), notice: undefined }]))).not.toContain(t.notices.supplement);
+  });
+
+  it('follows the words of a withheld amount, which has words of its own', () => {
+    const shown = text(chat(dictionary, locale, [TURN, answer('supplement', 'supplement_amount')]));
+
+    expect(shown).toContain(t.declines.supplement_amount);
+    expect(shown.indexOf(t.notices.supplement)).toBeGreaterThan(shown.indexOf(t.declines.supplement_amount));
+  });
+});

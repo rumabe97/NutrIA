@@ -20,8 +20,10 @@ import {
   forbiddenFoods,
   historyWindow,
   LABEL_SYSTEM_PROMPT,
+  noticeFor,
   questionLabelSchema,
-  releaseSentences
+  releaseSentences,
+  withheldSupplementAmount
 } from 'core/domain/Assistant';
 import { normaliseForMatching } from 'core/domain/Safety';
 
@@ -111,6 +113,34 @@ function screened<T extends Pick<AssistantTurn, 'content' | 'decline' | 'role'>>
 }
 
 /**
+ * What a question is about, for the supplement rules: itself and the question before it, so «¿y cuánto se toma?» is read
+ * with what it follows. One question back and no further — a thread that moved on to dinner is not about creatine still.
+ */
+function topicOf(previous: string, question: string): string {
+  return `${previous} ${question}`.trim();
+}
+
+/**
+ * Each answer with the notice it is shown under (`noticeFor`): worked out from the words every time a thread is read,
+ * never stored — so the rule that attaches it can change and an old answer about creatine gains it.
+ */
+function noticed(turns: readonly AssistantTurn[]): AssistantThreadDto['turns'] {
+  let before = '';
+  let question = '';
+
+  return turns.map(turn => {
+    if (turn.role === 'user') {
+      before = question;
+      question = turn.content;
+
+      return { ...turn, notice: null };
+    }
+
+    return { ...turn, notice: noticeFor(topicOf(before, question), turn.content) };
+  });
+}
+
+/**
  * The nutrition assistant (project 023): one question in, an answer out as it
  * is written — and every screen between the two (`0104`, `0105`).
  *
@@ -177,7 +207,7 @@ export class AssistantService {
   async thread(userId: string, conversationId: string): Promise<AssistantThreadDto> {
     const [{ conversation, turns }, forbidden] = await Promise.all([AssistantController.thread(userId, conversationId), this.forbidden(userId)]);
 
-    return { conversation, turns: screened(turns, forbidden) };
+    return { conversation, turns: noticed(screened(turns, forbidden)) };
   }
 
   /**
@@ -264,7 +294,7 @@ export class AssistantService {
 
       return (async function* events(): AsyncGenerator<AssistantEventDto> {
         yield { id: conversationId, type: 'conversation' };
-        yield { decline, type: 'end' };
+        yield { decline, notice: null, type: 'end' };
       })();
     }
 
@@ -277,7 +307,9 @@ export class AssistantService {
       system: assistantSystemPrompt(context)
     });
 
-    return this.answer(userId, conversationId, stream, figureSet(context, question), forbidden, question);
+    const previous = earlier.filter(turn => turn.role === 'user').at(-1)?.content ?? '';
+
+    return this.answer(userId, conversationId, stream, figureSet(context, question), forbidden, question, topicOf(previous, question));
   }
 
   /**
@@ -395,13 +427,24 @@ export class AssistantService {
   }
 
   /** Which screen an answer so far fails, if any — the allergen net first, because it is the one with nothing behind it. */
-  private static verdict(written: string, set: FigureSet, forbidden: readonly ForbiddenFood[], question: string): AssistantDecline | null {
+  private static verdict(
+    written: string,
+    set: FigureSet,
+    forbidden: readonly ForbiddenFood[],
+    question: string,
+    topic: string
+  ): AssistantDecline | null {
     if (answerNamesAnAllergen(written, forbidden, question)) {
       return 'allergen';
     }
 
     if (!figuresAreAllSupplied(written, set).ok) {
       return 'invented_figure';
+    }
+
+    // An amount of a supplement that is not the assistant's to state (`0108`): the label's, or a professional's.
+    if (withheldSupplementAmount(topic, written) !== null) {
+      return 'supplement_amount';
     }
 
     return claimsToAct(written) ? 'acting' : null;
@@ -423,7 +466,8 @@ export class AssistantService {
     stream: AiStream,
     set: FigureSet,
     forbidden: readonly ForbiddenFood[],
-    question: string
+    question: string,
+    topic: string
   ): AsyncIterable<AssistantEventDto> {
     const logger = this.logger;
 
@@ -444,7 +488,7 @@ export class AssistantService {
             continue;
           }
 
-          decline = AssistantService.verdict(shown + released, set, forbidden, question);
+          decline = AssistantService.verdict(shown + released, set, forbidden, question, topic);
 
           if (decline !== null) {
             break;
@@ -459,7 +503,7 @@ export class AssistantService {
         if (decline === null && buffer !== '') {
           const { released } = flushSentences(buffer);
 
-          decline = AssistantService.verdict(shown + released, set, forbidden, question);
+          decline = AssistantService.verdict(shown + released, set, forbidden, question, topic);
 
           if (decline === null) {
             shown += released;
@@ -468,11 +512,12 @@ export class AssistantService {
           }
         }
 
-        yield { decline, type: 'end' };
+        yield { decline, notice: noticeFor(topic, shown), type: 'end' };
       } catch {
         logger.warn('The assistant’s answer failed part-way; what was shown is kept.');
 
-        yield { type: 'error' };
+        // What was shown stays shown, and keeps its notice.
+        yield { notice: noticeFor(topic, shown), type: 'error' };
       } finally {
         if (shown !== '' || decline !== null) {
           await AssistantController.append(userId, conversationId, { content: shown, decline, role: 'assistant' });

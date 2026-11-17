@@ -1266,7 +1266,9 @@ export const esES = {
       invented_figure:
         'He parado aquí porque iba a darte una cifra que no sale de tu plan. Las cifras de tus comidas y tus objetivos las tienes en Plan.',
       off_topic:
-        'No he visto en tu pregunta nada de nutrición, así que no la puedo contestar: solo hablo de tu plan, recetas, ingredientes y macros. Si se te ha colado una errata, vuelve a escribirla y lo intento de nuevo.'
+        'No he visto en tu pregunta nada de nutrición, así que no la puedo contestar: solo hablo de tu plan, recetas, ingredientes, macros y suplementos. Si se te ha colado una errata, vuelve a escribirla y lo intento de nuevo.',
+      supplement_amount:
+        'He parado aquí porque iba a darte una cantidad de un suplemento que no me corresponde dar. La que vale es la de la etiqueta del producto, o la que te dé tu médico o un dietista-nutricionista.'
     },
     deleteAnswerLabel: 'Borrar esta respuesta',
     deleteConversation: 'Borrar conversación',
@@ -1284,11 +1286,15 @@ export const esES = {
     field: 'Tu pregunta',
     fieldHint: 'Sobre tu plan, una receta, un ingrediente o tus macros. Hasta {max} caracteres.',
     gone: 'Esta conversación ya no existe.',
-    intro: 'Pregunta sobre tu plan, recetas, ingredientes y macros. Contesta con lo que sabe de tu plan y nunca lo cambia.',
+    intro: 'Pregunta sobre tu plan, recetas, ingredientes, macros y suplementos. Contesta con lo que sabe de tu plan y nunca lo cambia.',
     left: 'Te quedan {remaining} de {limit} mensajes esta quincena.',
     leftRolling: 'Te quedan {remaining} de {limit} mensajes en los últimos 14 días.',
     newConversation: 'Nueva conversación',
     newShort: 'Nueva',
+    notices: {
+      supplement:
+        'Información general de una IA, no un consejo para ti. Sigue la etiqueta y no superes la dosis diaria recomendada. Con medicación, una enfermedad, embarazo o lactancia, pregunta antes a tu médico o dietista-nutricionista.'
+    },
     overAllowance: 'Has usado tus {limit} mensajes de esta quincena. Vuelven el {date}.',
     overAllowanceRolling: 'Has usado tus {limit} mensajes de los últimos 14 días. Vuelven a medida que pasen los días.',
     placeholder: 'Escribe tu pregunta',
@@ -3052,15 +3058,15 @@ export const esES = {
         id: 'asistente',
         heading: 'El asistente',
         paragraphs: [
-          'Si usas el asistente, lo que escribes se envía a un modelo de inteligencia artificial para que te responda, y se guarda en tu cuenta para que puedas retomar la conversación. El asistente solo habla de nutrición —tu plan, recetas, ingredientes y macros—, no es un médico ni un dietista-nutricionista y nunca cambia tu plan.',
-          'Lo que recibe el modelo con cada pregunta: tu pregunta; las preguntas y respuestas anteriores de esa misma conversación, hasta un límite; y, para que pueda hablar de tu plan, los días de tu plan activo con sus platos, sus acompañamientos y sus cifras, tus objetivos diarios y los de cada día, cuánto pesa cada comida en tu día, cuánto tiempo quieres dedicar a cocinar, los aparatos de tu cocina, las cocinas y los alimentos que te gustan, los nombres de los platos que te encantan y de los que no te gustan, y el idioma en que tiene que contestarte. Lo que viene de tu perfil y de tu plan va siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu sexo, tu peso, tu altura ni tu objetivo, tus alergias ni intolerancias, tu forma de comer (ni siquiera si eres vegetariano o vegano), ni tus enfermedades, tu medicación o tus suplementos.',
+          'Si usas el asistente, lo que escribes se envía a un modelo de inteligencia artificial para que te responda, y se guarda en tu cuenta para que puedas retomar la conversación. El asistente solo habla de nutrición —tu plan, recetas, ingredientes, macros y, en general, suplementos alimenticios—, no es un médico ni un dietista-nutricionista y nunca cambia tu plan.',
+          'Lo que recibe el modelo con cada pregunta: tu pregunta; las preguntas y respuestas anteriores de esa misma conversación, hasta un límite; y, para que pueda hablar de tu plan, los días de tu plan activo con sus platos, sus acompañamientos y sus cifras, tus objetivos diarios y los de cada día, cuánto pesa cada comida en tu día, cuánto tiempo quieres dedicar a cocinar, los aparatos de tu cocina, las cocinas y los alimentos que te gustan, los nombres de los platos que te encantan y de los que no te gustan, y el idioma en que tiene que contestarte. Lo que viene de tu perfil y de tu plan va siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu sexo, tu peso, tu altura ni tu objetivo, tus alergias ni intolerancias, tu forma de comer (ni siquiera si eres vegetariano o vegano), ni las enfermedades, la medicación o los suplementos que anotas en tu perfil; lo que escribas tú en una pregunta lo recibe con ella, salvo en las preguntas que nuestro código para antes.',
           'Antes de contestar, el mismo modelo lee tu pregunta para decidir si es de nutrición, si le corresponde a un profesional sanitario o si no tiene que ver con lo que hace. Algunas preguntas de salud —sobre enfermedades, dosis, medicación, embarazo o lactancia, trastornos de la conducta alimentaria o la alimentación de un niño— las detecta antes nuestro propio código, y esas no llegan a ningún modelo. Una pregunta que nuestro código o el modelo consideran de salud no se guarda: en la conversación queda solo la marca de que la hubo.',
-          'Nuestro código revisa cada frase de la respuesta antes de enseñártela, y la para ahí si iba a nombrar algo que no puedes tomar según las alergias e intolerancias de tu perfil, a darte una cifra que no sale de tu plan o a decir que ha cambiado tu plan. Esa revisión la hacemos nosotros: al modelo no le decimos tus alergias. Por eso, si tienes una alergia, añádela a tu perfil: si solo la escribes en la conversación, ninguna de nuestras comprobaciones la tiene en cuenta.',
+          'Nuestro código revisa cada frase de la respuesta antes de enseñártela, y la para ahí si iba a nombrar algo que no puedes tomar según las alergias e intolerancias de tu perfil, a darte una cifra de calorías, proteína, hidratos, grasa, fibra o azúcar que no sale de tu plan, a darte una cantidad de un suplemento que no nos corresponde dar, o a decir que ha cambiado tu plan. Esa revisión la hacemos nosotros: al modelo no le decimos tus alergias. Por eso, si tienes una alergia, añádela a tu perfil: si solo la escribes en la conversación, ninguna de nuestras comprobaciones la tiene en cuenta.',
           'A quién va: a Anthropic, que la trata por encargo nuestro. Contratamos con Anthropic Ireland, Limited, en Irlanda. El modelo es Claude Haiku 5.5. Anthropic guarda lo que recibe en Estados Unidos y puede calcular la respuesta en servidores de otros países. Sus condiciones le prohíben entrenar sus modelos con ello y, según dice en sus páginas, borra la pregunta y la respuesta de sus sistemas como mucho a los 30 días; si sus sistemas automáticos marcan una conversación como contraria a sus normas de uso, puede guardarla hasta 2 años, y la puntuación de esa revisión hasta 7. Borrar aquí una conversación no borra esa copia.',
           'Tus conversaciones se guardan en tu cuenta, cada una con un título hecho con las primeras palabras de tu primera pregunta. Nadie más las lee en NutrIA: no aparecen en nuestra consola de administración, no las ve tu dietista si tienes uno y no van a ningún registro. Puedes borrar un mensaje o una conversación entera cuando quieras, y se borra al momento. Si no, una conversación se borra sola seis meses después de su último mensaje, y todas se borran al borrar tu cuenta.',
           'Para aplicar el límite de mensajes de cada quincena guardamos, por cada mensaje que envías, cuándo lo enviaste y si era sobre otra cosa que la nutrición, sin su texto. Ese recuento no se borra al borrar un mensaje —por eso un mensaje borrado sigue contando— y se borra solo a los 60 días, o al borrar tu cuenta.',
           'Tratamos tus preguntas y sus respuestas para darte el servicio que pides (contrato). Las alergias e intolerancias de tu perfil, con las que revisamos las respuestas, siguen bajo el consentimiento que nos diste para ellas.',
-          'Te lo recordamos al empezar cada conversación: no escribas en el asistente enfermedades, medicación ni otros datos de tu salud. Si aun así lo haces, se envía y se guarda como el resto de la conversación, hasta que lo borres o se borre solo.'
+          'Te lo recordamos al empezar cada conversación: no escribas en el asistente enfermedades, medicación ni otros datos de tu salud. Si aun así lo haces, se envía y se guarda como el resto de la conversación, hasta que lo borres o se borre solo. Para preguntar por un suplemento no hace falta que digas si lo tomas ni por qué.'
         ]
       },
       {
@@ -3144,7 +3150,7 @@ export const esES = {
       }
     ],
     title: 'Política de privacidad',
-    updated: 'Última actualización: 11 de noviembre de 2026'
+    updated: 'Última actualización: 17 de noviembre de 2026'
   },
   profile: {
     account: 'Cuenta',
@@ -3506,7 +3512,7 @@ export const esES = {
           'Las recetas y los planes se generan con ayuda de inteligencia artificial y se validan con nuestro propio código antes de mostrártelos. Aun así pueden contener errores: un tiempo de cocción, una cantidad, un paso poco claro. Usa tu criterio en la cocina, sobre todo con la seguridad alimentaria: cocina bien la carne, el pescado y los huevos, y respeta la cadena de frío.',
           'Las imágenes de los platos también las genera una inteligencia artificial, a partir de la receta, y las marcamos como tales. Son orientativas: no son una foto del plato que vas a cocinar y pueden no mostrar todos sus ingredientes ni su cantidad real. Lo que lleva cada plato lo dice su lista de ingredientes, y es la que tiene en cuenta tus alergias.',
           'Si nos pides un plato escribiendo su nombre, ese texto se envía a la inteligencia artificial. Escribe solo el nombre de un plato: no es un sitio para contar nada sobre ti ni sobre nadie. Podemos no atender una petición, y puede que el plato que salga no encaje en tu plan y no llegues a verlo. El que sí salga se guarda en nuestra biblioteca de platos —la misma para todo el mundo— con el nombre que escriba el modelo, y no dice quién lo pidió.',
-          'El asistente contesta con inteligencia artificial a preguntas sobre tu plan, recetas, ingredientes y macros. Puede equivocarse, y lo que dice no es el consejo de un médico ni de un dietista-nutricionista. Nunca cambia tu plan: los cambios se hacen desde Plan. Puede no contestar una pregunta —si es de salud, si no es de nutrición, o si la respuesta iba a nombrar algo que nos has dicho que no puedes tomar o a darte una cifra que no sale de tu plan— y, si para una respuesta a medias, lo que ya has leído estaba revisado. No escribas en él enfermedades, medicación ni otros datos de tu salud: lo que escribes se envía al modelo que responde y se guarda en tu cuenta, como explica la política de privacidad.'
+          'El asistente contesta con inteligencia artificial a preguntas sobre tu plan, recetas, ingredientes, macros y, en general, suplementos alimenticios. Puede equivocarse, y lo que dice no es el consejo de un médico ni de un dietista-nutricionista. De un suplemento da información general, no un consejo para ti, y lo que diga su etiqueta va por delante de lo que diga el asistente. Nunca cambia tu plan: los cambios se hacen desde Plan. Puede no contestar una pregunta —si es de salud, si no es de nutrición, o si la respuesta iba a nombrar algo que nos has dicho que no puedes tomar, a darte una cifra de calorías, proteína, hidratos, grasa, fibra o azúcar que no sale de tu plan o a darte una cantidad de un suplemento que no nos corresponde dar— y, si para una respuesta a medias, lo que ya has leído estaba revisado. No escribas en él enfermedades, medicación ni otros datos de tu salud: lo que escribes se envía al modelo que responde y se guarda en tu cuenta, como explica la política de privacidad.'
         ]
       },
       {
@@ -3576,7 +3582,7 @@ export const esES = {
       }
     ],
     title: 'Condiciones de uso',
-    updated: 'Última actualización: 10 de noviembre de 2026'
+    updated: 'Última actualización: 17 de noviembre de 2026'
   },
 
   theme: {

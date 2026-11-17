@@ -66,6 +66,18 @@
   white-space: pre-wrap;
 }
 
+/* The service's fixed notice under an answer: smaller and quieter than the answer, and set off by a rule so it is not read as part of it. */
+.notice {
+  border-inline-start: var(--border-width-interactive) solid var(--border-interactive);
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  line-height: var(--line-height-03);
+  margin: 0;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+  padding-inline-start: var(--space-03);
+}
+
 /* Three dots while the first words are on their way. */
 .thinking {
   margin: 0;

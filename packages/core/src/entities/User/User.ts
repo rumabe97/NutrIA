@@ -12,7 +12,10 @@ import { z } from 'zod';
  * `docs/legal/textos/03-condiciones-uso.md` § D bis); `2.2.0` is the text of
  * 10 November 2026, which added the assistant — its messages' limit, its
  * acceptable use and its answers in the liability clause (project 023 phase 7,
- * `docs/legal/assistant-privacy.md` § 2). No account is
+ * `docs/legal/assistant-privacy.md` § 2); `2.3.0` is the text of 17 November 2026,
+ * which says the assistant answers about food supplements in general and names
+ * exactly which figures and amounts stop an answer (`0108`,
+ * `docs/legal/assistant-supplements.md` § 6.2). No account is
  * backfilled: the eight created under `2.0.0` saw `2.0.0`, and with no email
  * sent this column is the only trace of which text each account was shown.
  *
@@ -24,7 +27,7 @@ import { z } from 'zod';
  * Only `/condiciones` is recorded: the privacy policy is informed, never
  * accepted, and has no version here.
  */
-export const TERMS_VERSION = '2.2.0';
+export const TERMS_VERSION = '2.3.0';
 
 /**
  * The authenticated account. Better Auth owns this row, so the shape mirrors

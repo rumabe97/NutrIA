@@ -7,3 +7,4 @@ export * from './FigureSet';
 export * from './HistoryWindow';
 export * from './QuestionLabel';
 export * from './SentenceRelease';
+export * from './Supplement';
