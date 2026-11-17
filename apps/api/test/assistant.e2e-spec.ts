@@ -580,7 +580,8 @@ describe('the assistant (023 phase 4)', () => {
     const [after] = await sql()<{ plans: number }>`select count(*)::int as plans from meal_plans where user_id = ${person.id}`;
 
     expect(endOf(events)).toEqual({ decline: 'acting', notice: null, type: 'end' });
-    expect(textOf(events)).not.toContain('Viernes');
+    // Two days laid out are a menu (`0109`): the second is never shown.
+    expect(textOf(events)).not.toContain('Martes');
     expect(after?.plans).toBe(before?.plans);
   });
 

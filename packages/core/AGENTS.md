@@ -26,7 +26,7 @@ domain       →  [entities]          ← nothing else, ever
 
 `domain/` is where the deterministic safety code lives — the allergy validator and the
 nutrition maths, and since project 023 the assistant's screens (`domain/Assistant`: the
-nutritional-figure check, the allergen net on its answers, the clinical lexicon, `claimsToAct`;
+nutritional-figure check, the allergen net on its answers, the clinical lexicon, `claimsToAct` — which takes the plan's own dish names, because reading the plan back is not writing a menu, `0109`;
 [`0104`](../../docs/decisions/0104-the-assistant-answers-and-the-service-is-the-only-source-of-a-number.md),
 [`0105`](../../docs/decisions/0105-only-a-nutritional-figure-has-to-be-the-services.md)). Two rules
 there that look like simplifications and are not: the figure set is **keyed by nutrient** — a flat

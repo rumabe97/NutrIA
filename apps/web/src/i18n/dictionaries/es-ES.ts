@@ -1259,7 +1259,8 @@ export const esES = {
     conversationsTitle: 'Tus conversaciones',
     cutOff: 'Se cortó la conexión mientras escribía. Lo que ves ya estaba revisado; vuelve a preguntar para seguir.',
     declines: {
-      acting: 'No puedo cambiar tu plan ni escribirte uno entero. Sí puedo darte ideas; los cambios se hacen desde Plan.',
+      acting:
+        'No puedo cambiar tu plan ni escribirte un menú, ni siquiera de un día. Sí puedo explicarte tu plan y darte ideas para una comida; el plan se genera y se cambia desde Plan.',
       allergen: 'He parado aquí porque la respuesta iba a nombrar algo que nos has dicho que no puedes tomar. Prueba a preguntarlo de otra forma.',
       clinical:
         'Esto le corresponde a un profesional sanitario: dosis, medicación, embarazo, trastornos de la conducta alimentaria o la alimentación de un niño. Consúltalo con tu médico o con un dietista-nutricionista.',

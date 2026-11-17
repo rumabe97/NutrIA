@@ -51,7 +51,9 @@ describe('assistantSystemPrompt', () => {
     const prompt = assistantSystemPrompt(CONTEXT);
 
     expect(prompt).toContain('never say you did');
-    expect(prompt).toContain('never write a plan of several days');
+    expect(prompt).toContain('never write a menu of your own');
+    // Somebody with no plan is sent to make one, not handed one (`0109`).
+    expect(prompt).toContain('Do not make one up for them');
     expect(prompt).toContain('only a figure from DATA');
     // Told that answers are checked for allergies, and never which ones (legal F1).
     expect(prompt).toContain('allergies or intolerances you are not told about');
