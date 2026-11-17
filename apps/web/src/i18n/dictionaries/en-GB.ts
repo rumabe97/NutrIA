@@ -1221,7 +1221,8 @@ export const enGB: Dictionary = {
     conversationsTitle: 'Your conversations',
     cutOff: 'The connection dropped while it was writing. What you see had already been checked; ask again to carry on.',
     declines: {
-      acting: 'I cannot change your plan or write you a whole one. I can give you ideas; changes are made from Plan.',
+      acting:
+        'I cannot change your plan or write you a menu, not even for one day. I can explain your plan and give you ideas for one meal; the plan is generated and changed from Plan.',
       allergen: 'I stopped here because the answer was about to name something you told us you cannot have. Try asking it another way.',
       clinical:
         'This is one for a health professional: doses, medication, pregnancy, eating disorders or feeding a child. Ask your doctor or a registered dietitian.',

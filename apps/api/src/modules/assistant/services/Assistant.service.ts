@@ -309,7 +309,17 @@ export class AssistantService {
 
     const previous = earlier.filter(turn => turn.role === 'user').at(-1)?.content ?? '';
 
-    return this.answer(userId, conversationId, stream, figureSet(context, question), forbidden, question, topicOf(previous, question));
+    return this.answer(
+      userId,
+      conversationId,
+      stream,
+      figureSet(context, question),
+      forbidden,
+      question,
+      topicOf(previous, question),
+      // The plan's own dishes: an answer that reads them back is explaining the plan, not writing a menu (`0109`).
+      context.days.flatMap(day => day.meals.map(meal => meal.dish))
+    );
   }
 
   /**
@@ -432,7 +442,8 @@ export class AssistantService {
     set: FigureSet,
     forbidden: readonly ForbiddenFood[],
     question: string,
-    topic: string
+    topic: string,
+    dishes: readonly string[]
   ): AssistantDecline | null {
     if (answerNamesAnAllergen(written, forbidden, question)) {
       return 'allergen';
@@ -447,13 +458,13 @@ export class AssistantService {
       return 'supplement_amount';
     }
 
-    return claimsToAct(written) ? 'acting' : null;
+    return claimsToAct(written, dishes) ? 'acting' : null;
   }
 
   /**
    * The answer, a sentence at a time: each released only after every check has
    * passed on **everything written so far**, never on the sentence alone —
-   * `claimsToAct`'s plan-shaped rule counts days across the whole answer.
+   * `claimsToAct` counts the days and the meals laid out across the whole answer.
    *
    * On a hit the stream stops, what was not released is thrown away, and the
    * decline follows the sentences already shown, which were checked and safe.
@@ -467,7 +478,8 @@ export class AssistantService {
     set: FigureSet,
     forbidden: readonly ForbiddenFood[],
     question: string,
-    topic: string
+    topic: string,
+    dishes: readonly string[]
   ): AsyncIterable<AssistantEventDto> {
     const logger = this.logger;
 
@@ -488,7 +500,7 @@ export class AssistantService {
             continue;
           }
 
-          decline = AssistantService.verdict(shown + released, set, forbidden, question, topic);
+          decline = AssistantService.verdict(shown + released, set, forbidden, question, topic, dishes);
 
           if (decline !== null) {
             break;
@@ -503,7 +515,7 @@ export class AssistantService {
         if (decline === null && buffer !== '') {
           const { released } = flushSentences(buffer);
 
-          decline = AssistantService.verdict(shown + released, set, forbidden, question, topic);
+          decline = AssistantService.verdict(shown + released, set, forbidden, question, topic, dishes);
 
           if (decline === null) {
             shown += released;
