@@ -243,7 +243,7 @@ describe('the assistant (023 phase 4)', () => {
     expect(events[0]?.type).toBe('conversation');
     expect(events.filter(event => event.type === 'text').length).toBeGreaterThanOrEqual(2);
     expect(textOf(events)).toBe('Las legumbres aportan fibra. Puedes tomarlas varias veces por semana.');
-    expect(endOf(events)).toEqual({ decline: null, type: 'end' });
+    expect(endOf(events)).toEqual({ decline: null, notice: null, type: 'end' });
 
     // The model was told the plan generator's context and the question, and a history of none.
     const told = streamer.requests.at(-1);
@@ -338,7 +338,7 @@ describe('the assistant (023 phase 4)', () => {
     const events = ndjson(await ask(person, { message: '¿Cuántas unidades de insulina me pongo?' }).expect(200));
 
     expect(textOf(events)).toBe('');
-    expect(endOf(events)).toEqual({ decline: 'clinical', type: 'end' });
+    expect(endOf(events)).toEqual({ decline: 'clinical', notice: null, type: 'end' });
     expect({ labels: labeller.calls, streams: streamer.calls }).toEqual(before);
 
     // Judged clinical by the code itself, so not kept: neither the words nor a title made of them (legal F2).
@@ -360,7 +360,7 @@ describe('the assistant (023 phase 4)', () => {
     const first = ndjson(await ask(person, { message: '¿Quién ganó la liga?' }).expect(200));
 
     expect(textOf(first)).toBe('');
-    expect(endOf(first)).toEqual({ decline: 'off_topic', type: 'end' });
+    expect(endOf(first)).toEqual({ decline: 'off_topic', notice: null, type: 'end' });
     expect(streamer.calls).toBe(streams);
     expect((await standing(person)).labelling).toBe(false);
 
@@ -368,10 +368,58 @@ describe('the assistant (023 phase 4)', () => {
     const labels = labeller.calls;
     const second = ndjson(await ask(person, { message: '¿Qué tiempo hace en Madrid?' }).expect(200));
 
-    expect(endOf(second)).toEqual({ decline: 'off_topic', type: 'end' });
+    expect(endOf(second)).toEqual({ decline: 'off_topic', notice: null, type: 'end' });
     expect(labeller.calls).toBe(labels);
     expect(streamer.calls).toBe(streams);
     streamer.answers.length = 0;
+  });
+
+  it('answers about a supplement under the notice, and withholds the amount of a vitamin (0108)', async () => {
+    const person = await make('supplement');
+
+    // A sports supplement's usual amount is the assistant's to say, and the notice comes from code, not from the answer.
+    streamer.answers.push(['La creatina monohidrato es la que más respaldo tiene. ', 'Lo habitual en un adulto sano son 3 g al día.']);
+
+    const creatine = ndjson(await ask(person, { message: '¿Qué dosis de creatina tomo?' }).expect(200));
+
+    expect(textOf(creatine)).toContain('3 g al día');
+    expect(endOf(creatine)).toEqual({ decline: null, notice: 'supplement', type: 'end' });
+
+    // The thread, read back, carries the notice on that answer and on nothing else.
+    const conversationId = creatine.find(event => event.type === 'conversation')?.id as string;
+    const thread = await request(server()).get(`/${PREFIX}/assistant/conversations/${conversationId}`).set('Cookie', person.cookie).expect(200);
+
+    expect((thread.body as { turns: { notice: string | null; role: string }[] }).turns.map(turn => [turn.role, turn.notice])).toEqual([
+      ['user', null],
+      ['assistant', 'supplement']
+    ]);
+
+    // A vitamin's amount is not: the sentence carrying it is withheld, the one before it stays, under the notice.
+    streamer.answers.push(['La vitamina D ayuda a fijar el calcio. ', 'Lo habitual son 1000 UI al día.']);
+
+    const vitamin = ndjson(await ask(person, { message: '¿Me tomo un suplemento de vitamina D?' }).expect(200));
+
+    expect(textOf(vitamin)).toBe('La vitamina D ayuda a fijar el calcio. ');
+    expect(endOf(vitamin)).toEqual({ decline: 'supplement_amount', notice: 'supplement', type: 'end' });
+
+    // More than the ceiling of one of the four is not either — the loading phase is the commonest way to say it.
+    streamer.answers.push(['Puedes empezar con una fase de carga. ', 'Son unos 20 g de creatina al día durante una semana.']);
+
+    const loading = ndjson(await ask(person, { conversationId, message: '¿Y si quiero notarlo antes?' }).expect(200));
+
+    // «creatina» is not in this question: the one before it is what makes the exchange about a supplement.
+    expect(textOf(loading)).toBe('Puedes empezar con una fase de carga. ');
+    expect(endOf(loading)).toEqual({ decline: 'supplement_amount', notice: 'supplement', type: 'end' });
+
+    // A dose asked beside a medicine never reaches a model at all.
+    const before = streamer.calls + labeller.calls;
+
+    expect(endOf(ndjson(await ask(person, { message: '¿Qué dosis de creatina tomo con la metformina?' }).expect(200)))).toEqual({
+      decline: 'clinical',
+      notice: null,
+      type: 'end'
+    });
+    expect(streamer.calls + labeller.calls).toBe(before);
   });
 
   it('never shows an invented figure: the sentence carrying it is withheld, the ones before it stay', async () => {
@@ -383,7 +431,7 @@ describe('the assistant (023 phase 4)', () => {
 
     expect(textOf(events)).toBe('La avena es un buen desayuno. ');
     expect(textOf(events)).not.toContain('4321');
-    expect(endOf(events)).toEqual({ decline: 'invented_figure', type: 'end' });
+    expect(endOf(events)).toEqual({ decline: 'invented_figure', notice: null, type: 'end' });
 
     // What was shown is what is stored: the withheld sentence is nowhere.
     const [stored] = await sql()<{ text: string }>`
@@ -401,7 +449,7 @@ describe('the assistant (023 phase 4)', () => {
     const events = ndjson(await ask(person, { message: '¿Qué ceno si tengo hambre tarde?' }).expect(200));
 
     expect(textOf(events).toLowerCase()).not.toContain('leche');
-    expect(endOf(events)).toEqual({ decline: 'allergen', type: 'end' });
+    expect(endOf(events)).toEqual({ decline: 'allergen', notice: null, type: 'end' });
     // The net works on our side: the model was never told what this person cannot eat (legal F1).
     expect(streamer.requests.at(-1)?.system.toLowerCase()).not.toMatch(/leche|milk/);
 
@@ -409,6 +457,7 @@ describe('the assistant (023 phase 4)', () => {
     streamer.answers.push(['Un vaso de leche templada.']);
     expect(endOf(ndjson(await ask(person, { message: '¿Algo caliente antes de dormir?' }).expect(200)))).toEqual({
       decline: 'allergen',
+      notice: null,
       type: 'end'
     });
   });
@@ -422,7 +471,7 @@ describe('the assistant (023 phase 4)', () => {
 
     const shown = ndjson(await ask(person, { message: question }).expect(200));
 
-    expect(endOf(shown)).toEqual({ decline: null, type: 'end' });
+    expect(endOf(shown)).toEqual({ decline: null, notice: null, type: 'end' });
     expect(textOf(shown)).toContain('bebida de avena');
 
     // One mention that puts it back in, and the rest of the answer is withheld as before.
@@ -431,11 +480,15 @@ describe('the assistant (023 phase 4)', () => {
     const withheld = ndjson(await ask(person, { message: question }).expect(200));
 
     expect(textOf(withheld)).toBe('Sin leche queda bien. ');
-    expect(endOf(withheld)).toEqual({ decline: 'allergen', type: 'end' });
+    expect(endOf(withheld)).toEqual({ decline: 'allergen', notice: null, type: 'end' });
 
     // A question that never named it: «sin leche» is withheld, exactly as strict as before.
     streamer.answers.push(['Un café sin leche.']);
-    expect(endOf(ndjson(await ask(person, { message: '¿Qué tomo para desayunar?' }).expect(200)))).toEqual({ decline: 'allergen', type: 'end' });
+    expect(endOf(ndjson(await ask(person, { message: '¿Qué tomo para desayunar?' }).expect(200)))).toEqual({
+      decline: 'allergen',
+      notice: null,
+      type: 'end'
+    });
 
     // Read back, each answer is judged with its own question: the first stays shown.
     const copy = (await request(server()).get(`/${PREFIX}/assistant/conversations/export`).set('Cookie', person.cookie).expect(200)).body as {
@@ -459,7 +512,7 @@ describe('the assistant (023 phase 4)', () => {
     const events = ndjson(await ask(allergic, { message: '¿Qué meriendo?' }).expect(200));
 
     expect(textOf(events).toLowerCase()).not.toContain(name);
-    expect(endOf(events)).toEqual({ decline: 'allergen', type: 'end' });
+    expect(endOf(events)).toEqual({ decline: 'allergen', notice: null, type: 'end' });
 
     // Said before the allergy, screened after it: the stored answer reads as withheld, and is not replayed.
     const later = await make('later');
@@ -512,7 +565,7 @@ describe('the assistant (023 phase 4)', () => {
 
     const events = ndjson(await ask(person, { message: '¿Un batido para después de entrenar?' }).expect(200));
 
-    expect(endOf(events)).toEqual({ decline: 'allergen', type: 'end' });
+    expect(endOf(events)).toEqual({ decline: 'allergen', notice: null, type: 'end' });
     expect(textOf(events)).not.toContain('zarzaparrilla');
     expect(streamer.requests.at(-1)?.system.toLowerCase()).not.toContain('zarzaparrilla');
   });
@@ -526,7 +579,7 @@ describe('the assistant (023 phase 4)', () => {
     const events = ndjson(await ask(person, { message: 'Hazme el plan de las dos semanas' }).expect(200));
     const [after] = await sql()<{ plans: number }>`select count(*)::int as plans from meal_plans where user_id = ${person.id}`;
 
-    expect(endOf(events)).toEqual({ decline: 'acting', type: 'end' });
+    expect(endOf(events)).toEqual({ decline: 'acting', notice: null, type: 'end' });
     expect(textOf(events)).not.toContain('Viernes');
     expect(after?.plans).toBe(before?.plans);
   });

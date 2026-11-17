@@ -1228,7 +1228,9 @@ export const enGB: Dictionary = {
       invented_figure:
         'I stopped here because I was about to give you a figure that does not come from your plan. Your meals’ figures and your targets are in Plan.',
       off_topic:
-        'I could not see anything about nutrition in your question, so I cannot answer it: I only talk about your plan, recipes, ingredients and macros. If a typo slipped in, write it again and I will try once more.'
+        'I could not see anything about nutrition in your question, so I cannot answer it: I only talk about your plan, recipes, ingredients, macros and supplements. If a typo slipped in, write it again and I will try once more.',
+      supplement_amount:
+        'I stopped here because I was about to give you an amount of a supplement that is not mine to give. The one that counts is on the product’s label, or the one your doctor or a dietitian gives you.'
     },
     deleteAnswerLabel: 'Delete this answer',
     deleteConversation: 'Delete conversation',
@@ -1246,11 +1248,15 @@ export const enGB: Dictionary = {
     field: 'Your question',
     fieldHint: 'About your plan, a recipe, an ingredient or your macros. Up to {max} characters.',
     gone: 'This conversation no longer exists.',
-    intro: 'Ask about your plan, recipes, ingredients and macros. It answers from what it knows of your plan and never changes it.',
+    intro: 'Ask about your plan, recipes, ingredients, macros and supplements. It answers from what it knows of your plan and never changes it.',
     left: '{remaining} of {limit} messages left this fortnight.',
     leftRolling: '{remaining} of {limit} messages left over the last 14 days.',
     newConversation: 'New conversation',
     newShort: 'New',
+    notices: {
+      supplement:
+        'General information from an AI, not advice for you. Follow the label and do not exceed the recommended daily dose. With medication, a condition, pregnancy or breastfeeding, ask your doctor or a dietitian first.'
+    },
     overAllowance: 'You have used your {limit} messages for this fortnight. They come back on {date}.',
     overAllowanceRolling: 'You have used your {limit} messages for the last 14 days. They come back as the days go by.',
     placeholder: 'Type your question',
@@ -2906,15 +2912,15 @@ export const enGB: Dictionary = {
         id: 'asistente',
         heading: 'The assistant',
         paragraphs: [
-          'If you use the assistant, what you type is sent to an artificial-intelligence model so that it can answer you, and kept in your account so that you can come back to the conversation. The assistant only talks about nutrition — your plan, recipes, ingredients and macros —, is not a doctor or a dietitian-nutritionist, and never changes your plan.',
-          'What the model receives with each question: your question; the earlier questions and answers of that same conversation, up to a limit; and, so that it can talk about your plan, the days of your active plan with their dishes, side dishes and figures, your daily targets and each day’s own, how much each meal weighs in your day, how much time you want to spend cooking, the appliances in your kitchen, the cuisines and foods you like, the names of the dishes you love and of those you dislike, and the language it should answer in. What comes from your profile and your plan always goes by the names on our lists. It never receives your name, email, age, sex, weight, height or goal, your allergies or intolerances, your way of eating (not even whether you are vegetarian or vegan), or your conditions, medications or supplements.',
+          'If you use the assistant, what you type is sent to an artificial-intelligence model so that it can answer you, and kept in your account so that you can come back to the conversation. The assistant only talks about nutrition — your plan, recipes, ingredients, macros and, in general terms, food supplements —, is not a doctor or a dietitian-nutritionist, and never changes your plan.',
+          'What the model receives with each question: your question; the earlier questions and answers of that same conversation, up to a limit; and, so that it can talk about your plan, the days of your active plan with their dishes, side dishes and figures, your daily targets and each day’s own, how much each meal weighs in your day, how much time you want to spend cooking, the appliances in your kitchen, the cuisines and foods you like, the names of the dishes you love and of those you dislike, and the language it should answer in. What comes from your profile and your plan always goes by the names on our lists. It never receives your name, email, age, sex, weight, height or goal, your allergies or intolerances, your way of eating (not even whether you are vegetarian or vegan), or the conditions, medications or supplements you record on your profile; what you write in a question it receives with it, except in the questions our code stops first.',
           'Before answering, the same model reads your question to decide whether it is about nutrition, whether it is one for a health professional, or whether it has nothing to do with what it does. Some health questions — about conditions, doses, medication, pregnancy or breastfeeding, eating disorders or feeding a child — our own code catches first, and those reach no model at all. A question our code or the model judges to be about health is not kept: all that stays in the conversation is a mark that there was one.',
-          'Our code checks every sentence of the answer before showing it to you, and stops the answer there if it was about to name something you cannot have according to the allergies and intolerances on your profile, to give you a figure that does not come from your plan, or to say it has changed your plan. We do that check ourselves: the model is not told your allergies. So if you have an allergy, add it to your profile: if you only write it in the conversation, none of our checks takes it into account.',
+          'Our code checks every sentence of the answer before showing it to you, and stops the answer there if it was about to name something you cannot have according to the allergies and intolerances on your profile, to give you a figure for calories, protein, carbohydrate, fat, fibre or sugar that does not come from your plan, to give you an amount of a supplement that is not ours to give, or to say it has changed your plan. We do that check ourselves: the model is not told your allergies. So if you have an allergy, add it to your profile: if you only write it in the conversation, none of our checks takes it into account.',
           'Where it goes: to Anthropic, which processes it on our behalf. Our contract is with Anthropic Ireland, Limited, in Ireland. The model is Claude Haiku 5.5. Anthropic stores what it receives in the United States and may work out the answer on servers in other countries. Its terms forbid it to train its models on it and, according to its own pages, it deletes the question and the answer from its systems within 30 days at most; if its automated systems flag a conversation as breaking its usage rules, it may keep it for up to 2 years, and the score from that review for up to 7. Deleting a conversation here does not delete that copy.',
           'Your conversations are kept in your account, each with a title made from the first words of your first question. Nobody else reads them on NutrIA: they do not appear in our admin console, your dietitian does not see them if you have one, and they go into no record. You can delete a message or a whole conversation whenever you like, and it is deleted at once. Otherwise a conversation deletes itself six months after its last message, and all of them are deleted when you delete your account.',
           'To apply each fortnight’s message limit we keep, for every message you send, when you sent it and whether it was about something other than nutrition, without its text. That count is not deleted when you delete a message — which is why a deleted message still counts — and it deletes itself after 60 days, or when you delete your account.',
           'We process your questions and their answers to provide the service you ask for (contract). The allergies and intolerances on your profile, which we check the answers against, remain under the consent you gave us for them.',
-          'We remind you at the start of every conversation: please do not write about conditions, medication or anything else about your health in the assistant. If you do anyway, it is sent and kept like the rest of the conversation, until you delete it or it deletes itself.'
+          'We remind you at the start of every conversation: please do not write about conditions, medication or anything else about your health in the assistant. If you do anyway, it is sent and kept like the rest of the conversation, until you delete it or it deletes itself. To ask about a supplement you do not need to say whether you take it or why.'
         ]
       },
       {
@@ -2990,7 +2996,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Privacy policy',
-    updated: 'Last updated: 11 November 2026'
+    updated: 'Last updated: 17 November 2026'
   },
 
   profile: {
@@ -3358,7 +3364,7 @@ export const enGB: Dictionary = {
           'Recipes and plans are generated with the help of artificial intelligence and validated by our own code before you see them. They can still contain mistakes: a cooking time, a quantity, an unclear step. Use your judgement in the kitchen, above all with food safety: cook meat, fish and eggs through, and keep the cold chain.',
           'The pictures of the dishes are also generated by artificial intelligence, from the recipe, and we mark them as such. They are for illustration only: they are not a photo of the dish you will cook and may not show all of its ingredients or its real quantities. What each dish contains is what its ingredient list says, and that list is the one that takes your allergies into account.',
           'If you ask us for a dish by typing its name, that text is sent to the artificial intelligence. Write only a dish’s name: it is not a place to tell us anything about you or about anybody else. We may not act on a request, and the dish that comes out may not fit your plan, in which case you never see it. The one that does is kept in our library of dishes — the same one for everybody — under the name the model writes, and it does not say who asked for it.',
-          'The assistant answers questions about your plan, recipes, ingredients and macros with artificial intelligence. It can get things wrong, and what it says is not the advice of a doctor or a dietitian-nutritionist. It never changes your plan: changes are made from Plan. It may not answer a question — if it is about health, if it is not about nutrition, or if the answer was about to name something you have told us you cannot have or to give you a figure that does not come from your plan — and, if it stops an answer part-way, what you have already read had been checked. Please do not write about conditions, medication or anything else about your health in it: what you type is sent to the model that answers and kept in your account, as the privacy policy explains.'
+          'The assistant answers questions about your plan, recipes, ingredients, macros and, in general terms, food supplements with artificial intelligence. It can get things wrong, and what it says is not the advice of a doctor or a dietitian-nutritionist. About a supplement it gives general information, not advice for you, and what its label says comes before anything the assistant says. It never changes your plan: changes are made from Plan. It may not answer a question — if it is about health, if it is not about nutrition, or if the answer was about to name something you have told us you cannot have, to give you a figure for calories, protein, carbohydrate, fat, fibre or sugar that does not come from your plan, or to give you an amount of a supplement that is not ours to give — and, if it stops an answer part-way, what you have already read had been checked. Please do not write about conditions, medication or anything else about your health in it: what you type is sent to the model that answers and kept in your account, as the privacy policy explains.'
         ]
       },
       {
@@ -3428,7 +3434,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Terms of use',
-    updated: 'Last updated: 10 November 2026'
+    updated: 'Last updated: 17 November 2026'
   },
 
   theme: {

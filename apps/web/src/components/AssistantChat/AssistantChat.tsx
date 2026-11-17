@@ -17,7 +17,7 @@ import { askAssistant, threadItems } from 'lib/assistant';
 import { formatDate, interpolate } from 'lib/format';
 import { warningOpenedAfter, warningState } from 'lib/assistantWarning';
 
-import type { AssistantDecline, AssistantStanding, AssistantTurn } from 'lib/assistant';
+import type { AssistantDecline, AssistantNotice, AssistantStanding, AssistantTurn } from 'lib/assistant';
 
 /** The longest question the API takes (`ASSISTANT_MESSAGE_MAX_LENGTH`). */
 const MAX_LENGTH = 1000;
@@ -39,6 +39,7 @@ type ShownTurn = {
   readonly content: string;
   readonly decline: AssistantDecline | null;
   readonly key: string;
+  readonly notice: AssistantNotice | null;
   readonly role: 'assistant' | 'user';
 };
 
@@ -101,7 +102,7 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
   const [warningOpen, setWarningOpen] = useState(false);
   const [conversation, setConversation] = useState(conversationId);
   const [shown, setShown] = useState<readonly ShownTurn[]>(() =>
-    turns.map(turn => ({ id: turn.id, content: turn.content, decline: turn.decline, key: turn.id, role: turn.role }))
+    turns.map(turn => ({ id: turn.id, content: turn.content, decline: turn.decline, key: turn.id, notice: turn.notice ?? null, role: turn.role }))
   );
   // Emptied (every message deleted), the warning is FULL again, so the next message folds it
   // afresh rather than bringing it back expanded. Adjusted while rendering when the count
@@ -273,7 +274,7 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
     setDraft('');
     setProblem(null);
     announce(t.sending);
-    setShown(previous => [...previous, { id: null, content: question, decline: null, key: key(), role: 'user' }]);
+    setShown(previous => [...previous, { id: null, content: question, decline: null, key: key(), notice: null, role: 'user' }]);
     setWriting('');
 
     try {
@@ -289,10 +290,16 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
             answer += streamed.text;
             setWriting(answer);
           } else if (streamed.type === 'end') {
-            setShown(previous => [...previous, { id: null, content: answer, decline: streamed.decline, key: key(), role: 'assistant' }]);
+            setShown(previous => [
+              ...previous,
+              { id: null, content: answer, decline: streamed.decline, key: key(), notice: streamed.notice ?? null, role: 'assistant' }
+            ]);
             announce(streamed.decline ? t.declines[streamed.decline] : t.done);
           } else {
-            setShown(previous => [...previous, { id: null, content: answer, decline: null, key: key(), role: 'assistant' }]);
+            setShown(previous => [
+              ...previous,
+              { id: null, content: answer, decline: null, key: key(), notice: streamed.notice ?? null, role: 'assistant' }
+            ]);
             setProblem(t.cutOff);
             announce(t.cutOff);
           }
@@ -306,7 +313,7 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
 
       if (started) {
         // Cut off mid-answer: what was shown stays, and says so.
-        setShown(previous => [...previous, { id: null, content: answer, decline: null, key: key(), role: 'assistant' }]);
+        setShown(previous => [...previous, { id: null, content: answer, decline: null, key: key(), notice: null, role: 'assistant' }]);
         setProblem(t.cutOff);
         announce(t.cutOff);
       } else {
@@ -404,6 +411,12 @@ export function AssistantChat({ conversationId, standing, turns }: AssistantChat
               ) : null}
               {/* A decline is the assistant saying what it is for, in its own words — an answer like any other. */}
               {!mine && turn.decline ? <p className={styles.answer}>{t.declines[turn.decline]}</p> : null}
+              {/* The service's own words under an answer about a supplement (`0108`): fixed, and never the model's. */}
+              {!mine && turn.notice ? (
+                <p className={styles.notice} role="note">
+                  {t.notices[turn.notice]}
+                </p>
+              ) : null}
 
               {turn.id ? (
                 confirming === turn.key ? (

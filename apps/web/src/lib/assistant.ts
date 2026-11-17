@@ -4,20 +4,24 @@ import { ApiError } from './api';
 import type { ApiErrorCode } from './api';
 
 /** Why an answer was not given, or stopped — each is the assistant saying what it is for, not a failure. */
-export type AssistantDecline = 'acting' | 'allergen' | 'clinical' | 'invented_figure' | 'off_topic';
+export type AssistantDecline = 'acting' | 'allergen' | 'clinical' | 'invented_figure' | 'off_topic' | 'supplement_amount';
+
+/** A fixed notice the service attaches to an answer — never the model's words. Absent from a service older than this screen. */
+export type AssistantNotice = 'supplement';
 
 /** One line of the answer's stream (`AssistantEventDto`). */
 export type AssistantEvent =
-  | { readonly decline: AssistantDecline | null; readonly type: 'end' }
+  | { readonly decline: AssistantDecline | null; readonly notice?: AssistantNotice | null; readonly type: 'end' }
   | { readonly id: string; readonly type: 'conversation' }
-  | { readonly text: string; readonly type: 'text' }
-  | { readonly type: 'error' };
+  | { readonly notice?: AssistantNotice | null; readonly type: 'error' }
+  | { readonly text: string; readonly type: 'text' };
 
 export type AssistantTurn = {
   readonly id: string;
   readonly content: string;
   readonly createdAt: string;
   readonly decline: AssistantDecline | null;
+  readonly notice?: AssistantNotice | null;
   readonly role: 'assistant' | 'user';
 };
 

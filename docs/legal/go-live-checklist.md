@@ -169,6 +169,51 @@ holds the texts, the reasons and the sources (§ 10 there). The switch is a row 
 - [ ] The lawyer's hour: [`assistant-warning.md`](./assistant-warning.md) § 4 item 17 (a)–(g) and
       [`assistant-privacy.md`](./assistant-privacy.md) § 9 (h)–(n).
 
+## 0 duodecies. Before the assistant answers about supplements reaches production (`0108`)
+
+*Written 2026-11-16. Every box comes from [`assistant-supplements.md`](./assistant-supplements.md),
+which holds the texts, the reasons and the sources. The assistant is already live, so this
+ships with a deploy, not a switch: every box must be true in the same deploy.*
+
+*Re-read 2026-11-17 against the working tree (uncommitted; tests read, not run by me). A ticked
+box is true of that tree; it stays true only if the tree is merged as read.*
+
+- [x] (frontend) **S1**: `/privacidad` § «El asistente» ¶ 4 and `/condiciones` T1, in both
+      languages, as in § 6. They name calorie and nutrient figures, and "una cantidad de un
+      suplemento que no nos corresponde dar". `TERMS_VERSION` `2.3.0` and `terms.updated` go in the
+      same commit, with `privacy.updated`. **Done 2026-11-17**: identical to § 6 character by
+      character; `TERMS_VERSION` `2.3.0`; both `updated` strings 17 November 2026. The lead keeps
+      them in one commit.
+- [x] (frontend) A3: ¶ 1, ¶ 2 and ¶ 9 in both languages, as in § 6.1. **Done 2026-11-17**, verbatim.
+- [x] (frontend) `assistant.notices.supplement`: the 220/210-character text in § 3.1, verbatim. It
+      is drawn under the answer and outside the `data-ai-generated` element. **Done 2026-11-17**:
+      verbatim; a `<p role="note">` after `AssistantMarkdown`, not inside it.
+- [x] (backend) **S2**: amounts only for creatine, caffeine, omega-3 and protein powder. A creatine
+      amount over 3 g a day, caffeine over 400 mg, EPA+DHA over 3 g, a per-kilo amount of those
+      three, any amount in IU and any amount of anything else are withheld by code
+      (`supplement_amount`). The prompt states the ceilings, caffeine at no more than 200 mg at a
+      time, and no per-kilo amount of anything. **Done 2026-11-17** (`AMOUNT_FAMILIES`,
+      `SUPPLEMENT_CEILINGS_MG`, `withheldSupplementAmount`, prompt `1.4.0`). A per-kilo amount of
+      protein powder is held by the prompt only (P3).
+- [x] (backend) **S3**: a test that «¿Para qué sirve el magnesio?» with an answer stating a daily
+      amount is withheld and carries the notice. **Done 2026-11-17** (`Supplement.test.ts`).
+- [x] (backend) **S3, the rest**: a vitamin or mineral asked about with any form of «tomar» /
+      "take" turns the check and the notice on whatever food word is in the question (`INTAKE`).
+      **Done 2026-11-17**, with tests for «tiene que tomar», «con alimentos» and a follow-up after a
+      food question (`assistant-supplements.md` § 5.1 S3).
+- [x] (backend) **S4**: a `banned` lexicon category with the § 4.2 terms, refused before any call.
+      The `dosis` let-through is never applied when one is named. There are tests for «dosis de
+      creatina y clembuterol» and «ciclo de ostarina». **Done 2026-11-17.**
+- [x] (backend) **S4 names**: the § 4.2 names and their English forms are in `BANNED_SUBSTANCES`.
+      **Done 2026-11-17**, except diuretics and laxatives, left to the label by the lead's
+      decision (a food question would be refused).
+- [x] (backend) The prompt carries § 4.1 lines 2–11, line 7 above all (never ask what the person
+      takes). **Done 2026-11-17**: every line, 5, 8 and 9 completed on the second re-read.
+- [ ] (owner) Decided: whether to send a short mail about the T1 correction (§ 6.3). My reading is
+      that none is owed.
+- [ ] The lawyer's hour: [`assistant-supplements.md`](./assistant-supplements.md) § 9, item 18
+      (a)–(e).
+
 ## 0 bis. Before setting `AI_PROVIDER=openrouter` in production (`0064`)
 
 > Production has been running with `AI_PROVIDER=stub` since 2026-09-26: nothing goes out to

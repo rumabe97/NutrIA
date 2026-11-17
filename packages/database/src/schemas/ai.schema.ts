@@ -23,7 +23,7 @@ export const aiConversations = userOwned('ai_conversations', { title: text() });
  * in the next. A check on text, not a `pgEnum`, for the reason `AGENTS.md` gives
  * about rebuilding an enum (migration review, 2026-11-09).
  */
-export const AI_MESSAGE_DECLINES = ['acting', 'allergen', 'clinical', 'invented_figure', 'off_topic'] as const;
+export const AI_MESSAGE_DECLINES = ['acting', 'allergen', 'clinical', 'invented_figure', 'off_topic', 'supplement_amount'] as const;
 
 /**
  * Stored for the user's own history. It is deliberately *not* the context sent

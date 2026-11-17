@@ -5,6 +5,21 @@ import { clinicalRefusal } from 'core/domain/Assistant';
 describe('clinicalRefusal', () => {
   it.each([
     ['¿Qué dosis de vitamina D tomo?', 'dose'],
+    ['¿Qué dosis tomo?', 'dose'],
+    ['¿Qué dosis de creatina y de magnesio tomo?', 'dose'],
+    ['¿Qué dosis de creatina tomo con la metformina?', 'medication'],
+    ['Estoy embarazada, ¿qué dosis de creatina tomo?', 'pregnancy'],
+    ['¿Qué dosis de creatina le doy a mi hijo?', 'dose'],
+    ['Tengo hipertensión, ¿qué dosis de cafeína tomo?', 'condition'],
+    ['¿Qué dosis de cafeína tomo con el ibuprofeno?', 'medication'],
+    ['Epa, ¿qué dosis de paracetamol tomo?', 'dose'],
+    ['¿Qué dosis de beta alanina tomo?', 'dose'],
+    // What is sold as a supplement and is not one, with or without the word «dosis».
+    ['¿Qué dosis de creatina y clembuterol?', 'banned'],
+    ['¿Me recomiendas un ciclo de ostarina?', 'banned'],
+    ['¿Qué quemagrasas con efedrina funciona mejor?', 'banned'],
+    ['Are SARMs safe?', 'banned'],
+    ['What dose of creatine and oxandrolone?', 'banned'],
     ['¿Cuántas unidades de insulina me pongo?', 'medication'],
     ['Tomo metformina, ¿afecta al plan?', 'medication'],
     ['Estoy embarazada, ¿puedo seguir el plan?', 'pregnancy'],
@@ -29,7 +44,11 @@ describe('clinicalRefusal', () => {
     'Pon 200 ml de leche',
     'Soy celíaco, ¿qué pan puedo tomar?',
     '¿El azúcar causa cáncer?',
-    'Una gota de aceite'
+    'Una gota de aceite',
+    // A sports supplement and its usual amount are the assistant's to answer (`0108`).
+    '¿Qué dosis de creatina tomo?',
+    '¿Cuál es la dosis de cafeína antes de entrenar?',
+    'What dose of whey should I take?'
   ])('lets «%s» through to the label', question => {
     expect(clinicalRefusal(question)).toBeNull();
   });
