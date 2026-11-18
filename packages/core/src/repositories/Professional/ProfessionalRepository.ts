@@ -3,10 +3,11 @@ import { ZodError } from 'zod';
 
 import { database } from 'database';
 import { careInvitations, careLinks } from 'database/schema/care';
-import { professionals } from 'database/schema/professional';
+import { professionalBadgeChecks, professionals } from 'database/schema/professional';
 import { user } from 'database/schema/auth';
 
 import { contains, ordered } from '#repositories/Search';
+import { dueDate } from './ProfessionalBadgeRepository';
 import { DatabaseOperationError } from 'core/entities/Error';
 import { professionalSchema } from 'core/entities/Professional';
 
@@ -119,6 +120,12 @@ export const ProfessionalRepository = {
    * act, and correcting a mistyped number should not need a revocation first.
    * `practiceOpen` and `includedClients` are deliberately not touched — they
    * are billing's to write (`0061`), and a re-grant must not close a practice.
+   *
+   * **Transitional, until project 025 phase 6 retires this route** (PLAN phase
+   * 3, step 7): the grant is the owner's own look at the register, so it also
+   * writes a `pass` check in the same transaction — due twelve months on, with
+   * the number granted and no channel — and the care suites' professionals stay
+   * badged through phases 4–5. A re-grant writes another; the latest decides.
    */
   async grant(userId: string, collegiateNumber: string, grantedBy: string, record?: RecordAudit): Promise<Professional> {
     try {
@@ -129,6 +136,18 @@ export const ProfessionalRepository = {
           .values({ collegiateNumber, grantedAt, grantedBy, userId })
           .onConflictDoUpdate({ set: { collegiateNumber, grantedAt, grantedBy, updatedAt: grantedAt }, target: professionals.userId })
           .returning();
+
+        await tx
+          .insert(professionalBadgeChecks)
+          .values({
+            checkedAt: grantedAt,
+            checkedBy: grantedBy,
+            dueAt: dueDate(grantedAt),
+            kind: 'pass',
+            number: collegiateNumber,
+            reason: 'project 004 grant',
+            userId
+          });
 
         if (record) {
           await record(tx);

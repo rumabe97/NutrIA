@@ -42,6 +42,10 @@ describe('the assistant module’s wall', () => {
     'core/controllers/Professional',
     'core/entities/Professional',
     '#repositories/Professional',
+    // Project 025 (PRD criterion 16): the badge record, its codes and its mails, the profile's words, their tables.
+    'ProfessionalBadge',
+    'database/schema/professional',
+    'core/domain/ProtectedWords',
     'core/controllers/Pantry',
     'core/entities/Pantry',
     '#repositories/Pantry',

@@ -1,5 +1,5 @@
 import { AuditRepository } from '#repositories/Audit';
-import { ProfessionalRepository } from '#repositories/Professional';
+import { ProfessionalBadgeRepository, ProfessionalRepository } from '#repositories/Professional';
 import { SettingsRepository } from '#repositories/Settings';
 import { UNAUDITED } from 'core/entities/Audit';
 import { UserRepository } from '#repositories/User';
@@ -7,7 +7,7 @@ import { FLAGS } from 'core/domain/Flag';
 import { NotFoundError } from 'core/entities/Error';
 import { professionalQuerySchema } from 'core/entities/AdminQuery';
 
-import type { ProfessionalListRow } from '#repositories/Professional';
+import type { Badge, ProfessionalListRow } from '#repositories/Professional';
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 
 import type { AcceptAgreement, GrantProfessional, Professional } from 'core/entities/Professional';
@@ -16,14 +16,19 @@ import type { ProfessionalQuery } from 'core/entities/AdminQuery';
 // --- Presenters ---------------------------------------------------------------
 
 /**
- * The professional's own grant, as they may read it: the number, the date, and
- * what their practice includes. Never another account's data — `grantedBy` is
- * the owner's id and stays in the row.
+ * The professional's own practice, as they may read it: the number, the date,
+ * and what it includes. Never another account's data — `grantedBy` is the
+ * owner's id and stays in the row.
  */
 export interface ProfessionalView {
   /** True until the current `PROFESSIONAL_AGREEMENT_VERSION` is accepted: no client route opens before it. */
   agreementRequired: boolean;
-  collegiateNumber: string;
+  /**
+   * The standing badge's number, from its `pass` check; null without a badge.
+   * Never the `professionals` row's: a number is shown only once checked (PRD
+   * 025 criterion 5, PLAN phase 3 step 6).
+   */
+  collegiateNumber: string | null;
   grantedAt: string;
   includedClients: number;
   practiceOpen: boolean;
@@ -41,7 +46,8 @@ export interface LinkCounts {
 
 /** One professional on the owner's list: the account, its grant, and its links counted. */
 export interface ProfessionalAccountView {
-  collegiateNumber: string;
+  /** The number of the badge that stands, from its `pass` check; null without one (PRD 025 criterion 5). */
+  collegiateNumber: string | null;
   email: string;
   grantedAt: string;
   links: LinkCounts;
@@ -53,11 +59,10 @@ function agreementRequired(row: Pick<Professional, 'agreementVersion'>): boolean
   return row.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION;
 }
 
-function present(row: Professional): ProfessionalView {
+function present(row: Professional, badge: Badge | null): ProfessionalView {
   return {
     agreementRequired: agreementRequired(row),
-    // `?? ''` is a type fix only (project 025 phase 2): every row today was granted with a number; the number moves to the badge in phase 3.
-    collegiateNumber: row.collegiateNumber ?? '',
+    collegiateNumber: badge?.number ?? null,
     grantedAt: row.grantedAt.toISOString(),
     includedClients: row.includedClients,
     practiceOpen: row.practiceOpen
@@ -66,12 +71,12 @@ function present(row: Professional): ProfessionalView {
 
 /**
  * Copied field by field, so a column added to the count query cannot reach the
- * owner's screen without somebody deciding it should.
+ * owner's screen without somebody deciding it should. The number is the
+ * standing badge's, never the `professionals` row's (PRD 025 criterion 5).
  */
-function presentAccount(row: ProfessionalListRow): ProfessionalAccountView {
+function presentAccount(row: ProfessionalListRow, badge: Badge | undefined): ProfessionalAccountView {
   return {
-    // `?? ''` is a type fix only (project 025 phase 2): every row today was granted with a number; the number moves to the badge in phase 3.
-    collegiateNumber: row.collegiateNumber ?? '',
+    collegiateNumber: badge?.number ?? null,
     email: row.email,
     grantedAt: row.grantedAt.toISOString(),
     links: { active: row.links.active, ended: row.links.ended, paused: row.links.paused },
@@ -102,7 +107,7 @@ export const ProfessionalController = {
       throw new NotFoundError('Not found');
     }
 
-    return present(row);
+    return present(row, await ProfessionalBadgeRepository.badgeOf(userId, now));
   },
 
   /**
@@ -114,7 +119,8 @@ export const ProfessionalController = {
   async find(userId: string): Promise<ProfessionalView | null> {
     const row = await ProfessionalRepository.find(userId);
 
-    return row ? present(row) : null;
+    // The badge only for a practitioner: an ordinary account's question costs one read, not two.
+    return row ? present(row, await ProfessionalBadgeRepository.badgeOf(userId, new Date())) : null;
   },
 
   /**
@@ -159,9 +165,9 @@ export const ProfessionalController = {
           }
     );
     // A grant made again — a corrected number — may be on an account with links already.
-    const links = await ProfessionalRepository.linkCounts(userId);
+    const [links, badge] = await Promise.all([ProfessionalRepository.linkCounts(userId), ProfessionalBadgeRepository.badgeOf(userId, new Date())]);
 
-    return presentAccount({ ...row, email: account.email, links });
+    return presentAccount({ ...row, email: account.email, links }, badge ?? undefined);
   },
 
   /**
@@ -197,8 +203,12 @@ export const ProfessionalController = {
    */
   async list(query: ProfessionalQuery = professionalQuerySchema.parse({})): Promise<readonly ProfessionalAccountView[]> {
     const rows = await ProfessionalRepository.list(query);
+    const badges = await ProfessionalBadgeRepository.badgesOf(
+      rows.map(row => row.userId),
+      new Date()
+    );
 
-    return rows.map(presentAccount);
+    return rows.map(row => presentAccount(row, badges.get(row.userId)));
   },
 
   /**

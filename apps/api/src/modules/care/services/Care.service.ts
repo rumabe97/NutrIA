@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { CareController } from 'core/controllers/Care';
-import { ProfessionalController } from 'core/controllers/Professional';
+import { ProfessionalBadgeController, ProfessionalController } from 'core/controllers/Professional';
 import { UserController } from 'core/controllers/User';
 import { webUrl } from 'core/domain/WebUrl';
 
@@ -15,6 +15,8 @@ import { MealSwapService, PlanJobRunner } from '../../meal-plans/index.js';
 import type {
   AcceptAgreementDto,
   AcceptInvitationDto,
+  ApplyForBadgeDto,
+  EnterBadgeCodeDto,
   InviteClientDto,
   SetClientReviewDto,
   SetClientTargetsDto,
@@ -23,6 +25,7 @@ import type {
 } from '../dto/in/index.js';
 import type {
   CareAccessPageDto,
+  CareBadgeDto,
   CareClientJobDto,
   CareClientLinkDto,
   CareClientMealDto,
@@ -61,6 +64,18 @@ export class CareService {
 
   async accept(user: SessionUser, token: string, body: AcceptInvitationDto): Promise<CareLinkDto> {
     return CareController.accept(user, token, body);
+  }
+
+  async applyForBadge(professional: SessionUser, body: ApplyForBadgeDto): Promise<CareBadgeDto> {
+    return ProfessionalBadgeController.apply(professional.id, body);
+  }
+
+  async badge(professional: SessionUser): Promise<CareBadgeDto> {
+    return ProfessionalBadgeController.state(professional.id);
+  }
+
+  async enterBadgeCode(professional: SessionUser, body: EnterBadgeCodeDto): Promise<void> {
+    await ProfessionalBadgeController.enterCode(professional.id, body);
   }
 
   async accessLog(user: SessionUser, before: string | null): Promise<CareAccessPageDto> {

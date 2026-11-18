@@ -11,7 +11,7 @@ import { DuePlansService } from '../../meal-plans/services/DuePlans.service.js';
 import { ExpiredInvitationsService } from '../../care/services/ExpiredInvitations.service.js';
 import { ExpiredVerificationsService } from '../../auth/services/ExpiredVerifications.service.js';
 import { ENV } from '../../../config/index.js';
-import { OwnerAlertsService } from '../../owner-alerts/index.js';
+import { BadgeSweepService, OwnerAlertsService } from '../../owner-alerts/index.js';
 import { PictureCandidatesService, RecipeRewriter } from '../../ai/index.js';
 import { TwoFactorRemovalsService } from '../../auth/services/TwoFactorRemovals.service.js';
 
@@ -41,6 +41,7 @@ describe('the cron routes', () => {
   const watchReminders = jest.fn(async () => Promise.resolve());
   const pictureFailures = jest.fn(async () => Promise.resolve());
   const clean = jest.fn(async (_budgetMs: number) => Promise.resolve({ deleted: 0, left: 0 }));
+  const badgeSweep = jest.fn(async () => Promise.resolve());
   const bearer = (secret: string) => ['Bearer', secret].join(' ');
 
   afterEach(async () => {
@@ -63,7 +64,8 @@ describe('the cron routes', () => {
         { provide: CronRunService, useValue: { record } },
         { provide: DuePlansService, useValue: { activate } },
         { provide: PictureCandidatesService, useValue: { clean } },
-        { provide: OwnerAlertsService, useValue: { checkSpend, digest, pictureFailures, watchReminders } }
+        { provide: OwnerAlertsService, useValue: { checkSpend, digest, pictureFailures, watchReminders } },
+        { provide: BadgeSweepService, useValue: { run: badgeSweep } }
       ]
     }).compile();
 
@@ -84,6 +86,29 @@ describe('the cron routes', () => {
   });
 
   /* 0071: the digest is not the reminders: it goes first, whatever their switch says, and a switched-off sweep does not stop it. */
+  it('runs the badge’s daily pass on the reminders route, before the reminders, and only there (project 025)', async () => {
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/reminders').set('Authorization', bearer(SECRET)).expect(200);
+
+    expect(badgeSweep).toHaveBeenCalledTimes(1);
+    expect(badgeSweep.mock.invocationCallOrder[0]).toBeLessThan(sweep.mock.invocationCallOrder[0] ?? 0);
+
+    await request(server).get('/cron/activate-plans').set('Authorization', bearer(SECRET)).expect(200);
+    await request(server).get('/cron/reminders').set('Authorization', bearer('wrong')).expect(404);
+
+    expect(badgeSweep).toHaveBeenCalledTimes(1);
+  });
+
+  it('still sends the reminders when the badge’s pass fails', async () => {
+    badgeSweep.mockRejectedValueOnce(new Error('boom'));
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/reminders').set('Authorization', bearer(SECRET)).expect(200);
+
+    expect(sweep).toHaveBeenCalledTimes(1);
+  });
+
   it('sends the owner digest before the reminders, and even when the sweep will do nothing', async () => {
     const order: string[] = [];
 

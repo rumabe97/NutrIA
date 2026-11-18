@@ -9,7 +9,7 @@ import { CronSecretGuard } from '../../../shared/guards/index.js';
 import { DuePlansService } from '../../meal-plans/services/DuePlans.service.js';
 import { ExpiredInvitationsService } from '../../care/services/ExpiredInvitations.service.js';
 import { ExpiredVerificationsService } from '../../auth/services/ExpiredVerifications.service.js';
-import { OwnerAlertsService } from '../../owner-alerts/index.js';
+import { BadgeSweepService, OwnerAlertsService } from '../../owner-alerts/index.js';
 import { PictureCandidatesService, RecipeRewriter } from '../../ai/index.js';
 import { Public, SkipRateLimit } from '../../../shared/index.js';
 import { TwoFactorRemovalsService } from '../../auth/services/TwoFactorRemovals.service.js';
@@ -29,6 +29,13 @@ const WATCH_BUDGET_MS = 10_000;
  * and the two together still leave the sweep its 240 of the function's 300.
  */
 const CLEANUP_BUDGET_MS = 8_000;
+
+/**
+ * The most the badge's sweep may take before the reminders start (project 025): its lapses and their
+ * statements, the practitioners' reminders and the owner's count, each mail bounded by the mailer's own
+ * timeouts. A sweep cut short goes on behind the reminders; tomorrow's finds what it did not reach.
+ */
+const BADGE_BUDGET_MS = 20_000;
 
 /**
  * What one sweep fetches: as many as three lanes can finish inside its time
@@ -57,6 +64,7 @@ export class CronController {
   constructor(
     private readonly alerts: OwnerAlertsService,
     private readonly assistantRetention: AssistantRetentionService,
+    private readonly badges: BadgeSweepService,
     private readonly authRetention: AuthRetentionService,
     private readonly candidates: PictureCandidatesService,
     private readonly duePlans: DuePlansService,
@@ -85,6 +93,8 @@ export class CronController {
       this.alerts.pictureFailures().catch(() => undefined),
       new Promise<void>(resolve => setTimeout(resolve, WATCH_BUDGET_MS).unref())
     ]);
+    // The badge's daily pass (project 025): only while the `professional` switch is on, and it never throws.
+    await Promise.race([this.badges.run().catch(() => undefined), new Promise<void>(resolve => setTimeout(resolve, BADGE_BUDGET_MS).unref())]);
 
     const run = await this.reminders.sweep();
 

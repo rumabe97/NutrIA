@@ -179,6 +179,28 @@ export class OwnerAlertsService {
     }
   }
 
+  /**
+   * The badges due for their yearly re-check (project 025, `docs/legal/textos/06`
+   * § U.1): one mail a day at most while any is due, with two counts and the
+   * console's link — never an address or a name (choice C8). Called by the daily
+   * badge sweep, which runs only while the `professional` switch is on.
+   */
+  async badgesDue(counts: { readonly due: number; readonly soon: number }, now = new Date()): Promise<void> {
+    if (this.owner === undefined || counts.due === 0) {
+      return;
+    }
+
+    try {
+      await this.deliver(
+        'badges-due',
+        new Date(now.getTime() - 20 * HOUR_MS),
+        this.alert({ due: counts.due, soon: counts.soon, type: 'badges-due' })
+      );
+    } catch (error: unknown) {
+      this.logger.error(`The badges-due alert failed: ${error instanceof Error ? error.constructor.name : 'unknown'}`);
+    }
+  }
+
   private async failureStreak(now: Date): Promise<void> {
     try {
       const codes = await AdminAlertController.failureStreak();
