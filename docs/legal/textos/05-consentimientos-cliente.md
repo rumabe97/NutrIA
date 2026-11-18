@@ -186,6 +186,19 @@ y aun así incumple el art. 7.3 en espíritu.
 
 <!-- Fuente: 0008 (celiaquía → gluten), 0052 (proteína en polvo solo con suplemento proteico); RGPD art. 5.1.a (transparencia) y 13.1.e. -->
 
+### C bis. La regla de la enfermedad (proyecto 025, borrador del 2026-11-18)
+
+**Clave**: `health.consentNote`. **Versión**: `HEALTH_CONSENT_VERSION` de `1.1.0` a **`1.2.0`**.
+**El plan del proyecto 025 no lo prevé**: lo he enviado al lead (hallazgo F1 de
+[`../2026-11-18-anyone-can-open-a-practice.md`](../2026-11-18-anyone-can-open-a-practice.md)). Se
+publica en el mismo cambio que trae la regla (fase 5), o antes. Nunca después.
+
+| Hoy (1.1.0) | es-ES nuevo | en-GB nuevo |
+| --- | --- | --- |
+| `… Si trabajas con un dietista, solo los ve si se lo permites aparte. Puedes borrarlos por separado con el botón de abajo.` | `Se guardan en tu cuenta, no aparecen en los registros del servidor y se borran con tu cuenta. Nunca se envían a ningún modelo de IA: solo llega su efecto, como los ingredientes que quitamos por una celiaquía. Un profesional solo los ve si tiene la insignia de dietista-nutricionista verificado por NutrIA y tú se lo permites aparte. Mientras tengas anotada alguna condición o medicación, solo podrás vincularte con un profesional con esa insignia; si estás vinculado con uno sin ella, el enlace terminará al guardarla. Puedes borrarlos por separado con el botón de abajo.` | `They are kept in your account, never appear in server logs and are deleted with your account. They are never sent to any AI model: only their effect is, such as the ingredients we remove for coeliac disease. A professional only sees them if they hold NutrIA's verified dietitian-nutritionist badge and you allow it separately. While you have any condition or medication on record, you can only link with a professional who holds that badge; if you are linked with one who does not, the link will end when you save it. You can delete them separately with the button below.` |
+
+<!-- Fuente: RGPD art. 9.2.a («para uno o más de los fines especificados») y 7.2: la regla usa lo declarado para algo nuevo — negar o terminar un enlace (0111 § 8) —, que el texto 1.1.0 no dice; 13.3 (informar antes del uso nuevo); 22.1-22.4 por si la regla fuera una decisión del art. 22 (M14) — por eso la política añade la revisión por una persona (../2026-11-18-anyone-can-open-a-practice.md § 4, P-3 ¶ 6). «Alguna condición»: HEALTH_CONDITIONS incluye embarazo y lactancia (packages/core/src/entities/Health/Health.ts:27-28), y la regla los alcanza; los suplementos no (PRD 025 scope 10). El mecanismo health.consentStale vuelve a pedirlo. -->
+
 ---
 
 ## D. Terminar el enlace
@@ -208,3 +221,139 @@ y aun así incumple el art. 7.3 en espíritu.
 | Clave nueva | es-ES | en-GB |
 | --- | --- | --- |
 | `profile.supervisionLinked` | `Tu dietista, {name}, puede revisar tu plan. Si tienes una condición de salud o tomas medicación, háblalo con tu dietista o con tu médico: NutrIA no adapta el plan a enfermedades.` | `Your dietitian, {name}, can review your plan. If you have a health condition or take medication, talk it through with them or your doctor: NutrIA does not adapt the plan to illnesses.` |
+
+**Proyecto 025**: si esta clave se construye, dice `{name} puede revisar tu plan…` y «háblalo
+con {name} o con tu médico», sin «tu dietista» (decisión C3 de
+[`../2026-11-18-anyone-can-open-a-practice.md`](../2026-11-18-anyone-can-open-a-practice.md)).
+
+---
+
+## F. La invitación por nivel — `CARE_CONSENT_VERSION` 3.0.0 (proyecto 025, borrador del 2026-11-18)
+
+**Dónde**: `/invitacion/[token]`, componente `apps/web/src/components/CareInvitation`,
+namespace `care`. `presentInvitationDetail` y `presentLink` eligen la lista según la insignia del
+profesional **en ese momento** (PLAN 025 fase 5, paso 1). Aceptar guarda `consent_scope`, `full`
+o `plan`, y la versión `3.0.0` (paso 2).
+
+**Versión**: `CARE_CONSENT_VERSION` de `2.0.0` a **`3.0.0`**, en la fase 8, con estas palabras.
+Qué hacer con los enlaces aceptados con la `2.0.0`: ver el § 1 del documento del proyecto.
+
+**Lo que no cambia de B**: el orden de lectura; `care.shares.*`, `care.canDo.*`,
+`care.healthQuestion`, `care.healthShareNote`, `care.healthShareIntro`,
+`care.invitationTrail` y `care.invitationNotShared` para la lista con insignia.
+
+### F.1 La cabecera, por nivel
+
+| Clave | es-ES | en-GB |
+| --- | --- | --- |
+| `care.invitationIntro` (con insignia; sustituye a la de B1) | `{professional} te invita a llevar tu plan con su ayuda en NutrIA.` | `{professional} invites you to follow your plan with their help on NutrIA.` |
+| `care.invitationBadge` (con insignia, bajo el nombre) | `Dietista-nutricionista colegiada/o, con el número {collegiateNumber} · Comprobado por NutrIA el {checkedOn}` | `Registered dietitian-nutritionist, number {collegiateNumber} · Checked by NutrIA on {checkedOn}` |
+| `care.invitationIntroPlan` (sin insignia) | `{professional} te invita a que te haga el plan de comidas en NutrIA.` | `{professional} invites you to let them make your meal plan on NutrIA.` |
+| `care.invitationNotice` (sin insignia, bajo el nombre, fijo) | `No es un profesional sanitario verificado por NutrIA` | `Not a health professional verified by NutrIA` |
+
+<!-- Fuente: PRD 025 scope 10 (la página muestra la lista del nivel, el aviso fijo para quien no tiene insignia y ningún número sin comprobar) y criterio 5; legal § 3.a (la regla del número; el aviso fijo); 0111 § 2. El número y la fecha salen de la comprobación «pass», nunca del texto (PLAN fase 3, paso 6). -->
+
+### F.2 Con insignia: lo que se añade a la lista de B
+
+Dos frases nuevas, después de `care.invitationNotShared`:
+
+| Clave nueva | es-ES | en-GB |
+| --- | --- | --- |
+| `care.inferenceAllergy` | `NutrIA no le enseña tus alergias ni tus intolerancias. Si un plato no se te puede ofrecer, le dice solo que no encaja contigo, pero de eso puede deducir alguna.` | `NutrIA does not show them your allergies or intolerances. If a dish cannot be offered to you, it only tells them it does not suit you, but from that they may work one out.` |
+| `care.inferenceBadgeLoss` | `Si tienes anotada una condición de salud o una medicación y pierde la verificación de NutrIA, el enlace terminará. Solo le diremos que ha terminado, pero puede deducir el motivo.` | `If you have a health condition or a medication on record and they lose NutrIA's verification, the link will end. We will only tell them it has ended, but they may work out why.` |
+
+`care.invitationPrivacy` (con insignia; sustituye a la de B3):
+
+| es-ES | en-GB |
+| --- | --- |
+| `NutrIA te comunica estos datos a {professional} porque tú lo pides. Es dietista-nutricionista: los usa para atenderte, bajo su secreto profesional, y responde de lo que haga con ellos. Puedes terminar el enlace cuando quieras. Más en la {privacy}.` | `NutrIA discloses this data to {professional} because you ask it to. They are a dietitian-nutritionist: they use it to care for you, under professional secrecy, and are responsible for what they do with it. You can end the link at any time. More in the {privacy}.` |
+
+`care.invitationAccept` sigue siendo `Aceptar la invitación` / `Accept the invitation`.
+
+<!-- Fuente: legal § 3.g (la inferencia del alérgeno se dice en el consentimiento: art. 5.1.a y 13); F4 del documento del proyecto (el barrido de 0111 § 8 deja deducir quién tiene algo anotado); Ley 44/2003 art. 5.1.c; RGPD arts. 9.2.a, 9.2.h, 13.1.e, 26.2. «en su consulta» sale de la frase: es una palabra clínica de la tabla (§ 6 del documento del proyecto) y aquí no hace falta. `{privacy}` → /privacidad#tu-profesional. -->
+
+### F.3 Sin insignia: la lista entera
+
+| Clave nueva | es-ES | en-GB |
+| --- | --- | --- |
+| `care.invitationShareIntroPlan` | `Si aceptas, {professional} verá solo:` | `If you accept, {professional} will see only:` |
+| `care.sharesPlan.profile` | `tu nombre` | `your name` |
+| `care.sharesPlan.plans` | `los planes que te haga a través de este enlace —los que genere, revise o publique—, con sus platos, cantidades y totales de cada día` | `the plans they make for you through this link — the ones they generate, review or publish — with their dishes, amounts and each day's totals` |
+| `care.sharesPlan.status` | `en qué punto estáis: desde cuándo estáis vinculados, si has terminado tu perfil, si tienes un plan en marcha o por revisar, y si te quedan generaciones de plan en la quincena` | `where things stand: since when you have been linked, whether you have finished your profile, whether you have a plan under way or waiting for review, and whether you have plan generations left this fortnight` |
+| `care.invitationCanDoIntro` | `Y podrá:` (sin cambios) | `And they will be able to:` |
+| (`care.canDo.plans`, `care.canDo.review`; **no** `care.canDo.targets`) | sin cambios | unchanged |
+| `care.invitationNotSharedPlan` | `No verá tu peso, tus objetivos, cuánto sigues el plan, tus check-ins, tus condiciones de salud, tu medicación, tus suplementos, tus alergias, tus intolerancias, tu correo ni tus planes de antes del enlace.` | `They will not see your weight, your targets, how much of the plan you follow, your check-ins, your health conditions, medication or supplements, your allergies or intolerances, your email address or your plans from before the link.` |
+| `care.inferencePlan` | `Lo que puede deducir: de los totales de cada día, más o menos cuánta energía necesitas; y, si un plato no se te puede ofrecer, NutrIA le dice solo que no encaja contigo, pero de eso puede deducir alguna alergia o intolerancia.` | `What they may work out: from each day's totals, roughly how much energy you need; and, if a dish cannot be offered to you, NutrIA only tells them it does not suit you, but from that they may work out an allergy or an intolerance.` |
+| `care.illnessRulePlan` | `Si tienes anotada una condición de salud o una medicación, no puedes aceptar esta invitación, y si la anotas después, el enlace terminará. A {professional} solo le constará que el enlace ha terminado.` | `If you have a health condition or a medication on record, you cannot accept this invitation, and if you record one later, the link will end. {professional} will only see that the link has ended.` |
+| `care.invitationTrail` | sin cambios | unchanged |
+| `care.invitationPrivacyPlan` | `{professional} no está obligado por ley al secreto profesional: se compromete con NutrIA, por contrato, a guardar la confidencialidad. Al aceptar consientes dos cosas: que NutrIA le comunique estos datos y que {professional} los use para hacerte el plan. NutrIA responde de tus datos en NutrIA; {professional}, de lo que haga con lo que vea. Retiras el consentimiento terminando el enlace, cuando quieras. Más en la {privacy}.` | `{professional} is not bound by professional secrecy by law: they promise NutrIA, by contract, to keep it confidential. By accepting you consent to two things: that NutrIA discloses this data to them, and that {professional} uses it to make your plan. NutrIA is responsible for your data on NutrIA; {professional}, for what they do with what they see. You withdraw your consent by ending the link, whenever you like. More in the {privacy}.` |
+| `care.invitationAcceptPlan` | `Acepto y consiento` | `I accept and consent` |
+
+No hay línea de salud: `setSharesHealth(true)` se rechaza fuera de `full` (PLAN fase 5, paso 3), y
+la pantalla no la ofrece.
+
+<!-- Fuente:
+- 0110 decisión 3; 0111 §§ 4-5; PRD 025 scope 7 y 9, criterios 9-11 (solo los planes hechos a través del enlace; nada de antes; sin línea de salud).
+- `care.sharesPlan.status` describe lo que la lista de clientes y los avisos de generación siguen mostrando en el alcance `plan`: `CareClientLinkView.since` y los estados de `stageOf` salvo `check_in_due`, que la fase 4 pliega (`onboarding`, `awaiting_plan`, `plan_awaiting_review`, `plan_under_way`: `packages/core/src/controllers/Care/CareController.ts:154-160` y `:306-319`), y `practice.generateIncomplete` / `practice.generateQuota`. No son datos de salud, pero los ve, así que la lista los nombra: «verá solo» tiene que ser verdad.
+- La inferencia de energía es nueva (PRD 025 scope 9: «the second inference is new, for legal to word»); la del alérgeno, legal § 3.g.
+- La regla de la enfermedad: 0111 § 8; PRD scope 10 («to them it reads as an unanswered invitation or an ended link»).
+- Dos responsables nombrados, a falta de M12 (legal § 3.e): RGPD arts. 9.2.a («consentimiento explícito… para uno o más de los fines especificados»), 7.2 (lenguaje claro y distinguible), 7.3 (retirada tan fácil como darlo: terminar el enlace es un botón), 13.1.a, c y e.
+- «No está obligado por ley»: Ley 44/2003 art. 5.1.c obliga a los profesionales sanitarios; RGPD art. 9.3.
+- El chat no se nombra: no existe en el proyecto 025 (C1). Cuando llegue, `care.sharesPlan` gana `lo que le escribas en el chat` y la versión vuelve a subir.
+- `Acepto y consiento`: C4 — el botón es la declaración explícita (CEPD Directrices 05/2020, § 4, «consentimiento explícito»: una declaración expresa del interesado; los apartados no se han vuelto a leer para esta nota). -->
+
+### F.4 La insignia llega con el enlace ya abierto: volver a consentir
+
+**Dónde**: la tarjeta del enlace en el perfil del cliente (`CareLinkCard`), solo mientras el
+enlace es `plan` y la insignia del profesional sigue en pie. Una ruta del cliente pasa el enlace a
+`full` con la versión vigente (PLAN fase 5, paso 2).
+
+| Clave nueva | es-ES | en-GB |
+| --- | --- | --- |
+| `care.reconsentTitle` | `{professional} ahora tiene la verificación de NutrIA` | `{professional} is now verified by NutrIA` |
+| `care.reconsentBody` | `Hemos comprobado que es dietista-nutricionista colegiada/o. Mientras no digas que sí, sigue viendo solo los planes que te hace. Si aceptas, verá también:` | `We have checked that they are a registered dietitian-nutritionist. Until you say yes, they keep seeing only the plans they make for you. If you accept, they will also see:` |
+| (la lista) | `care.shares.targets`, `care.shares.mealPlans`, `care.shares.progress`, `care.shares.checkIns`, y `care.canDo.targets`, como en B1; la línea de salud aparte, sin marcar, como en B2; `care.inferenceAllergy` y `care.inferenceBadgeLoss`; `care.invitationPrivacy` con insignia | the same keys |
+| `care.reconsentAccept` | `Sí, compartir esto también` | `Yes, share this too` |
+| `care.reconsentLater` | `Ahora no` | `Not now` |
+| `care.reconsentLaterHint` | `Puedes decidirlo más adelante aquí mismo. El enlace sigue como está.` | `You can decide later, right here. The link stays as it is.` |
+
+<!-- Fuente: 0111 § 4 («a badge gained mid-link widens nothing until the client consents again»); PRD 025 scope 9 y criterio 12; RGPD arts. 7.1-7.2 y 9.2.a (una ampliación es un consentimiento nuevo, no se presume). La tarjeta desaparece si la insignia se pierde antes de aceptar (la ruta solo funciona «while the badge stands»). -->
+
+---
+
+## G. La regla de la enfermedad: lo que ve el cliente (proyecto 025, borrador del 2026-11-18)
+
+**Lo que ve el profesional sin insignia**: nada distinto. Una aceptación rechazada no le llega:
+para él la invitación sigue sin responder hasta que caduca. Un enlace terminado por la regla se le
+muestra **igual** que uno que termina el cliente. No hay correo al profesional (hoy no existe
+ningún correo de «enlace terminado», y uno que solo saliera por esta regla sería la revelación).
+Ver [`06`](./06-correos.md) § Y.
+
+### G.1 Antes de guardar (elección C7, recomendada)
+
+**Dónde**: `/perfil`, sección de salud, al añadir la primera condición o medicación, **solo si**
+la persona está vinculada con un profesional sin insignia. Un aviso encima del botón de guardar,
+antes de que el servidor termine el enlace (PLAN fase 5, paso 4: `HealthController.replace`).
+
+| Clave nueva | es-ES | en-GB |
+| --- | --- | --- |
+| `health.illnessLinkWarning` | `Si guardas una condición de salud o una medicación, terminará tu enlace con {professional}: en NutrIA, solo un dietista-nutricionista verificado puede acompañar a quien tiene alguna anotada. Tu plan, tus objetivos y tu historial se quedan contigo. A {professional} solo le constará que el enlace ha terminado.` | `If you save a health condition or a medication, your link with {professional} will end: on NutrIA, only a verified dietitian-nutritionist can work with someone who has one on record. Your plan, your targets and your history stay with you. {professional} will only see that the link has ended.` |
+
+<!-- Fuente: RGPD art. 13.3 y 5.1.a (decirlo antes de usar el dato para eso); F1 y C7 del documento del proyecto. No disuade de anotar nada: no dice que borrar la condición devuelva el enlace. -->
+
+### G.2 No se puede aceptar (en la página de la invitación)
+
+| Clave nueva | es-ES | en-GB |
+| --- | --- | --- |
+| `care.illnessRefusedTitle` | `No puedes aceptar esta invitación` | `You cannot accept this invitation` |
+| `care.illnessRefusedBody` | `Tienes anotada en tu perfil una condición de salud o una medicación, y en NutrIA solo un dietista-nutricionista verificado puede acompañar a quien tiene alguna. {professional} no lo es. No sabrá el motivo: para su lado, la invitación sigue sin respuesta hasta que caduque. Si crees que es un error, escríbenos a {email} y lo revisa una persona.` | `You have a health condition or a medication on record in your profile, and on NutrIA only a verified dietitian-nutritionist can work with someone who has one. {professional} is not one. They will not know why: on their side, the invitation stays unanswered until it expires. If you think this is a mistake, write to us at {email} and a person will look at it.` |
+
+### G.3 El enlace ha terminado (en pantalla, en la tarjeta del enlace o al guardar)
+
+| Clave nueva | es-ES | en-GB |
+| --- | --- | --- |
+| `care.illnessEndedTitle` | `Tu enlace con {professional} ha terminado` | `Your link with {professional} has ended` |
+| `care.illnessEndedBody` (al anotar una condición o medicación) | `Has anotado una condición de salud o una medicación, y en NutrIA solo un dietista-nutricionista verificado puede acompañar a quien tiene alguna. Tu plan, tus objetivos y tu historial se quedan contigo, y el registro de sus accesos sigue en tu perfil. A {professional} solo le consta que el enlace ha terminado. Si crees que es un error, escríbenos a {email}.` | `You have recorded a health condition or a medication, and on NutrIA only a verified dietitian-nutritionist can work with someone who has one. Your plan, your targets and your history stay with you, and the record of their access stays on your profile. {professional} only sees that the link has ended. If you think this is a mistake, write to us at {email}.` |
+| `care.illnessEndedBadgeBody` (cuando el profesional pierde la insignia) | `{professional} ya no tiene la verificación de NutrIA, y tú tienes anotada una condición de salud o una medicación: en NutrIA, solo un dietista-nutricionista verificado puede acompañar a quien tiene alguna. Tu plan, tus objetivos y tu historial se quedan contigo. A {professional} solo le consta que el enlace ha terminado. Si crees que es un error, escríbenos a {email}.` | `{professional} is no longer verified by NutrIA, and you have a health condition or a medication on record: on NutrIA, only a verified dietitian-nutritionist can work with someone who has one. Your plan, your targets and your history stay with you. {professional} only sees that the link has ended. If you think this is a mistake, write to us at {email}.` |
+
+<!-- Fuente: 0111 § 8 (tres puntos: CareRepository.accept, HealthController.replace, el barrido diario); PRD 025 scope 10 y criterio 22 («the client is told plainly»); RGPD arts. 13.2.f y 22.3 (por si aplica el art. 22: intervención humana, expresar su punto de vista, impugnar — M14); «el registro de sus accesos sigue»: care_access_log es del cliente (0059). Estas frases nombran la categoría de salud **en la pantalla de la propia persona**; el correo de 06 § Y no, porque un buzón se escanea. -->

@@ -44,11 +44,21 @@ and his answers of 2026-11-18 folded into the PRD.
   code phases wire approved words; a version constant moves only in the phase that ships its
   words (phase 8 for the agreement and the consent, phase 10 for the terms and the policy).
 
+**Amended after phase 1 (2026-11-18)**, from the `legal` agent's
+`docs/legal/2026-11-18-anyone-can-open-a-practice.md` §§ 2, 3 and 9 and the owner's tapped
+answers: F1 (the health consent names the illness rule, phase 5), F4 (no notice is distinct
+under the illness rule, phase 5), C5 (the practitioner's re-check reminder, phase 3), C8 (the
+owner's alert carries counts and a link, phase 3), F6 (refuse and hide are one act, phases 6
+and 9), C12 (the college-issued e-mail channel is dropped: three channels, phases 2, 3 and 9),
+C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6 and 9;
+[`decisions/LOG.md`](../../decisions/LOG.md) 2026-11-18), and the English grep (phase 10).
+
 ## Phases
 
 ### Phase 1 — The texts and the documents, drafted before any code
 
-- [ ] pending
+- [x] done — approved by the owner 2026-11-18 (tapped options); see LOG.md and
+  `docs/legal/2026-11-18-anyone-can-open-a-practice.md`
 - **Dispatch**: opus @ high, the `legal` agent (the only writer under `docs/legal/`) —
   `/execute-project 025 phase 1` — owner-approves: every text below and the `PRODUCT.md`
   amendment.
@@ -86,7 +96,9 @@ and his answers of 2026-11-18 folded into the PRD.
   7. **The neutral strings**: «clientes», «tu profesional», and a sentence for a first look
      that does not read as endorsement.
   8. **`PRODUCT.md` § Scope**: a professionals' area where anybody may offer their services
-     moves into scope; the rest of "coach marketplaces" follows with its project.
+     moves into scope; the rest of "coach marketplaces" follows with its project. *As built:
+     the legal file's § 8.1 and § 8.2 (§ Users too) were applied to `docs/PRODUCT.md` by the
+     planner once the owner approved them, not in phase 10.*
 - **Acceptance criteria**: PRD 21 (documents), and the approved words for PRD 6, 18, 19, 20, 22, 23 and
   the PRD's scope item 13.
 - **Verification**: `pnpm check:leaks`; `pnpm format`; the owner's approval of each text,
@@ -107,7 +119,8 @@ and his answers of 2026-11-18 folded into the PRD.
   2. `professional_badge_checks` (append-only, cascades with the practitioner): `kind`
      (`applied`, `pass`, `fail`, `withdrawn`, `lapsed`; an `applied` row holds the register
      and number the practitioner declared, and is what a code points at), `checked_at`, `checked_by` (set null), `register`,
-     `number`, `channel` (`register_email`, `post`, `college_email`, `phone`), `reason` (text,
+     `number`, `channel` (`register_email`, `post`, `phone` — all three read from the public register;
+     the college-issued e-mail channel was dropped by the owner on 2026-11-18, C12), `reason` (text,
      for `fail`/`withdrawn`/`lapsed`), `due_at`. No identity document, no contact column beyond
      the channel.
   3. `professional_badge_codes`: `code_hash`, `check_id`, `channel`, `expires_at` (30 days),
@@ -128,10 +141,14 @@ and his answers of 2026-11-18 folded into the PRD.
      `checked_by = granted_by`, `number = collegiate_number`, `channel` null with
      `reason = 'project 004 grant'`, `due_at = now() + interval '30 days'`, so the re-check is
      due within 30 days of the release (PRD 4) and lapses 30 days after that if not done.
-  8. Zod entities in `core` for each new row; `Professional` loses `collegiateNumber`'s
+  8. `practice_restrictions` (append-only, cascading with the **account**, not with the
+     `professionals` row, so it outlives a closed practice): `kind` (`suspended`, `closing`,
+     `lifted`), `reason`, `acted_by` (set null), `acted_at`, `effective_at` (a `closing` row's
+     date, 30 days on). What stands is the latest row; nothing else stores it.
+  9. Zod entities in `core` for each new row; `Professional` loses `collegiateNumber`'s
      `min(1)` requirement.
 - **Acceptance criteria**: the storage of PRD 3, 4, 9 (`care_link_id`), 12 (`consent_scope`),
-  18 (queue columns); the migration is clean.
+  18 (queue columns), 24 (`practice_restrictions`); the migration is clean.
 - **Verification**:
   - `pnpm db:local status` (else `pnpm db:local reset`), then `pnpm --filter database migrate`
     against the local Postgres (`NUTRIA_LOCAL_PG=1`)
@@ -161,15 +178,19 @@ and his answers of 2026-11-18 folded into the PRD.
      (register and number, with the art. 13 sentence of phase 1), `POST …/code` (enter it).
      The body carries no contact field; a wrong, used or expired code is the same 404 as an
      unknown one, and attempts are capped per practitioner in Postgres.
-  3. Owner routes under `/admin/professionals/:userId/badge`: record channel + contact and
-     issue a code (an e-mail channel sends it; `post` and `phone` return it once to the console
+  3. Owner routes under `/admin/professionals/:userId/badge`: record channel + contact, read
+     from the public register only, and issue a code (`register_email` sends it with the
+     art. 14 information and the "if this was not you" path of `06` § R, F2; `post` and `phone` return it once to the console
      and never again); confirm (writes `pass`, `due_at` = twelve months); fail or withdraw with
-     a reason (writes the row, mails the statement of reasons); the due list.
+     a reason (writes the row, mails the statement of reasons; "it was not me" from the
+     register's contact is a `fail` with that reason); the due list.
   4. The daily sweep (`/cron/reminders`), **only while the `professional` switch is on**, so
      nothing is mailed before phase 10 (the badge itself still lapses by date, being derived):
-     the owner's reminder of what is due (one alert,
-     counts and addresses of practitioners only); for each badge 30 days past due, a `lapsed`
-     row and its statement of reasons, once.
+     the owner's reminder of what is due — one alert carrying **counts and a link to the
+     console, no address** (C8; the owner's alerts carry none since 2026-09-29); **the
+     practitioner's own reminder when their re-check falls due** (`docs/legal/textos/06`
+     § U.2, C5), once; for each badge 30 days past due, a `lapsed` row and its statement of
+     reasons (`06` § V), once.
   5. `ProtectedWords`: normalisation (case, accents, punctuation, spacing, common
      substitutions) and the three lists of phase 1, with a test per listed word.
   6. A badge's number is presented only from a `pass` check (PRD 5).
@@ -233,7 +254,9 @@ and his answers of 2026-11-18 folded into the PRD.
   fresh consent, and a declared illness or medication never sits behind an un-badged link.
 - **Scope**: `packages/core/src/{entities,controllers,repositories}/{Care,Health}/**`,
   `apps/api/src/modules/{care,health-data}/**`, the daily sweep's call in
-  `Cron.controller.ts`, the tests beside each.
+  `Cron.controller.ts`, and — by the `frontend` agent — the health screen and the
+  `health.consentNote` / `health.illnessLinkWarning` keys of both dictionaries, the tests
+  beside each.
 - **Steps**:
   1. `CARE_SHARED_PLAN` (the plan list) beside `CARE_SHARED`; `presentInvitationDetail` and
      `presentLink` pick by the practitioner's badge: no health line and no number for an
@@ -246,13 +269,29 @@ and his answers of 2026-11-18 folded into the PRD.
      un-badged — a client-facing error with no condition in it, and the invitation stays open
      to expire like any unanswered one; `HealthController.replace` ends such a link in its own
      transaction when a declaration arrives; the daily sweep ends the links of practitioners
-     who lost the badge while a client has one. Each queues the two notices of phase 1.
-- **Acceptance criteria**: PRD 10 (invitation and link views), 11, 12, 22.
+     who lost the badge while a client has one. "On record" is any row of `HEALTH_CONDITIONS`
+     (pregnancy and breastfeeding included) or any medication; supplements are not in the rule
+     (F1).
+  5. **Notices under the rule (F4).** The client gets the plain notice of `textos/05` § G. The
+     practitioner gets **nothing distinct**: a refused acceptance sends them nothing (the
+     invitation simply goes unanswered); an ended link reads exactly as one the client ended.
+     If a value is added to `care_link_ended_by`, every practitioner-facing view and mail
+     presents it exactly as `client`. No template fires only under this rule.
+  6. **The health consent names the rule (F1).** `health.consentNote` takes the sentence of
+     `textos/05` § C bis and `HEALTH_CONSENT_VERSION` moves `1.1.0` → `1.2.0` **in this
+     phase**, so the purpose is named no later than the rule runs; `health.consentStale` asks
+     again. **The warning before saving (C7)**: on the health screen, a person linked to an
+     un-badged practitioner reads `health.illnessLinkWarning` before a declaration is saved.
+- **Acceptance criteria**: PRD 10 (invitation and link views), 11, 12, 22, 25.
 - **Verification**:
   - `pnpm --filter core build && pnpm --filter core test:coverage`
   - `pnpm --filter api test`
   - `pnpm ts:check && pnpm lint`
   - the `tests` agent runs `care.e2e-spec.ts` and `health-data.e2e-spec.ts`, one at a time
+  - a test that every practitioner-facing presenter maps each `care_link_ended_by` value
+    other than `professional` to `client`, and that nothing is queued to the practitioner by
+    a refused acceptance or an illness-rule ending
+  - `pnpm --filter web test` and `/local-probe` on the health screen
   - `invariant-reviewer`'s report in LOG.md
 
 ### Phase 6 — Anyone can open a practice
@@ -274,7 +313,9 @@ and his answers of 2026-11-18 folded into the PRD.
 - **Steps**:
   1. `POST /care/practice`: the session's account, switch on, confirmed address, a birth date
      on record or given in the body, checked by `assertOldEnough` **and** non-null; writes the
-     `professionals` row with nothing from the body but the birth date. Every refusal is 404.
+     `professionals` row with nothing from the body but the birth date. Every refusal is 404 —
+     including an account under a standing `suspended` or `closing` restriction, or one whose
+     practice was closed (step 7).
   2. `practiceOpen` leaves the guard, `practises`, `activeProfessional` and the `practising`
      join. Seats read `practiceOpen ? includedClients : practiceClients`, the new structural
      allowance (10 on both tiers), resolved per `0097` inside the invitation's transaction.
@@ -283,14 +324,28 @@ and his answers of 2026-11-18 folded into the PRD.
   4. Profile routes (`GET`/`PUT /care/practice/profile`): schema with `ProtectedWords` and the
      badge as context; a create or a change to a free-text field sets `queued_at`; a badge lost
      re-queues a profile carrying badge-only words (`0111` § 7).
-  5. Owner's queue: `GET /admin/professionals/queue`, mark seen, refuse or hide with a reason
-     (mails the statement of reasons). Practitioner data only; no client.
-  6. Retire `POST /admin/accounts/:id/professional` and `GrantProfessional.dto.ts`; the
-     revoke stays. The 004 criterion-1 spec in `AdminProfessionals.controller.spec.ts` is
+  5. Owner's queue: `GET /admin/professionals/queue`, mark seen, or **hide** with a reason —
+     refusing and hiding are **one act** in the data (`hidden_at`, `hidden_reason`) and one
+     statement of reasons (`textos/06` § X), whose wording differs only by whether the profile
+     had been marked seen (F6). Hiding is immediate. Practitioner data only; no client.
+  6. Retire `POST /admin/accounts/:id/professional` and `GrantProfessional.dto.ts`. The 004 criterion-1 spec in `AdminProfessionals.controller.spec.ts` is
      replaced by its inversion — no body can set the badge, `practiceOpen` or `includedClients`
      — and LOG.md names the replaced test.
+  7. **Suspension and close** (owner, 2026-11-18). `PracticeRestrictionRepository.standing`
+     is the one reader. Owner routes under `/admin/professionals/:userId`: **suspend** (a
+     `suspended` row with a reason; immediate: the guard, `practises` and the `practising`
+     join refuse the account, every client route is 404, the statement of reasons is mailed);
+     **close** (a `closing` row with a reason and `effective_at` 30 days on, mailed at once as
+     notice; the practice works until then; at `effective_at` the daily sweep deletes the
+     `professionals` row as today's revoke does, and the restriction stays, so the account
+     cannot reopen); **lift** (a `lifted` row). Today's immediate revoke route becomes the
+     close act. Hiding a profile and withdrawing a badge stay immediate.
+  - **Precondition** — owner-approves: the suspension, lifting and close statements of reasons
+    (`docs/legal/textos/06` § W bis) and the agreement 2.0.0's §§ 11 and 13 were drafted by the
+    `legal` agent on 2026-11-18, after the owner decided the suspension; he approved the
+    decision, not yet these words. He approves them before this phase starts.
 - **Acceptance criteria**: PRD 1, 2, 6 (server side), 7, 8, 14, 15, 16 (the profile inside
-  both boundary specs), 18 (API).
+  both boundary specs), 18 (API), 24.
 - **Verification**:
   - `pnpm --filter core build && pnpm --filter core test:coverage`
   - `pnpm --filter api test`, `pnpm --filter web test`
@@ -315,7 +370,8 @@ and his answers of 2026-11-18 folded into the PRD.
   2. `care-badge.e2e-spec.ts`: apply, code, confirm; wrong/used/expired code; lapse by clock;
      withdrawal; narrowing on the next request; widening only after re-consent.
   3. `care-open-practice.e2e-spec.ts`: self-service opening and its refusals; ten seats;
-     the client's tier unchanged; no body sets the badge; the illness rule's three points.
+     the client's tier unchanged; no body sets the badge; the illness rule's three points,
+     with nothing sent to the practitioner; a suspended or closed account cannot reopen.
   4. The four existing suites (`care`, `care-practice`, `care-review`, `plan-scheduled-care`)
      pass, each change named in LOG.md.
   5. **One suite at a time**, by `--runTestsByPath`, with the command of
@@ -336,11 +392,13 @@ and his answers of 2026-11-18 folded into the PRD.
 - **Steps**:
   1. `/consulta`: open a practice (birth date if missing, agreement 2.0.0); the profile form
      with the server's word refusals shown inline; the badge application and code entry; seats
-     «x de 10»; the plan-only client page for an un-badged practitioner; «clientes» unless
-     badged.
-  2. The client: the invitation page per tier with the fixed notice and its list; «tu
-     profesional» unless badged; the re-consent card; the illness refusal and the ended-link
-     notice, both plain.
+     «x de 10»; the plan-only client page for an un-badged practitioner; «clientes» for
+     **every** tier, the badge line carrying the title (C3); NutrIA's own labels avoid
+     «consulta» where a client or a profile reads them — «por sesión» (C2).
+  2. The client: the invitation page per tier with the fixed notice and its list — the
+     un-badged one says «the plans they make for you and where things stand», no chat, until
+     project 3 (C1); «tu profesional» for **every** tier (C3); «Acepto y consiento» on the
+     un-badged accept button (C4); the re-consent card; the illness refusal, plain.
   3. `PROFESSIONAL_AGREEMENT_VERSION` → 2.0.0 and `CARE_CONSENT_VERSION` → 3.0.0 in this phase,
      with their words.
 - **Acceptance criteria**: PRD 12 (screen), 19, 20 (the agreement and consent), 22 (screen).
@@ -357,12 +415,16 @@ and his answers of 2026-11-18 folded into the PRD.
 - **Scope**: `apps/web/src/app/(admin)/admin/profesionales/**`, `apps/web/src/components/**`,
   both dictionaries.
 - **Steps**:
-  1. The badge page: declared name and number, the register's link, channel + contact entry,
-     the code shown once for post and phone, confirm, fail or withdraw with a reason.
-  2. The re-check list, the first-look queue (seen, refuse, hide with a reason), and the
+  1. The badge page: declared name and number, the register's link, channel (three: an
+     e-mail the register lists, a letter, a call) + contact entry, the code shown once for
+     post and phone, confirm, fail or withdraw with a reason.
+  2. The re-check list, the first-look queue (seen, or hide with a reason — one act), and the
      professionals table without an unchecked number.
-  3. The switch's strings stop saying «Consulta para dietistas».
-- **Acceptance criteria**: PRD 3, 4, 5 (console), 18 (screen), 19 (console words).
+  3. Suspend, close (its 30 days shown) and lift, each asking for a reason; the standing
+     restriction shown on the row.
+  4. The switch's strings stop saying «Consulta para dietistas».
+- **Acceptance criteria**: PRD 3, 4, 5 (console), 18 (screen), 19 (console words), 24
+  (console).
 - **Verification**: `pnpm --filter web test`, `pnpm ts:check && pnpm lint`, `/local-probe` on
   `/admin/profesionales` at the three widths, both themes.
 
@@ -376,18 +438,22 @@ and his answers of 2026-11-18 folded into the PRD.
 - **Goal**: nothing published says what the product no longer does, everybody was told, and
   then it is on.
 - **Scope**: `apps/web/src/i18n/dictionaries/{es-ES,en-GB}.ts`, the legal pages,
-  `packages/core/src/entities/User` (`TERMS_VERSION`), `docs/PRODUCT.md`,
+  `packages/core/src/entities/User` (`TERMS_VERSION`, by `backend`),
   `docs/projects/004-dietitian-workspace/PRD.md` (a pointer line only), `docs/ROADMAP.md`,
   `docs/decisions/LOG.md`.
 - **Steps**:
-  1. Wire phase 1's `/privacidad` and `/condiciones` texts; `TERMS_VERSION` to its next minor;
-     the policy's `updated`.
-  2. Run `grep -nE 'dietista|nutricionista|colegiad|secreto profesional|paciente'` over both
-     dictionaries; every hit is either true for a badged professional only and rendered only
-     then, or rewritten. The list goes in LOG.md.
-  3. `PRODUCT.md` § Scope as approved in phase 1; PRD 004 gains a pointer to `0110`; ROADMAP
-     gains this project's line.
-  4. The owner sends the change notice (`docs/legal/textos/06`) to every account and LOG.md
+  1. Wire phase 1's `/privacidad` and `/condiciones` texts (legal file §§ 4–5);
+     `TERMS_VERSION` `2.3.0` → `2.4.0`; the policy's `updated`.
+  2. Run `grep -nE 'dietista|nutricionista|colegiad|secreto profesional|paciente'` over
+     `es-ES.ts` **and** `grep -niE 'dietitian|dietician|nutritionist|registered|registration
+     number|professional secrecy|patient'` over `en-GB.ts`; every hit is disposed of as the
+     legal file's § 7 table says. The list goes in LOG.md.
+  3. PRD 004 gains a pointer to `0110`; ROADMAP gains this project's line. (`PRODUCT.md` was
+     applied after phase 1.)
+  4. Before the switch, `docs/legal/go-live-checklist.md` § 1 bis: the links accepted at
+     consent `2.0.0` are counted read-only, and the owner's test links are ended so that no
+     real link rests on the shorter text (legal file § 1).
+  5. The owner sends the change notice (`docs/legal/textos/06`) to every account and LOG.md
      records the date; then, once the DPIA addendum is merged, he throws the switch;
      `docs/decisions/LOG.md` gains the dated line.
 - **Acceptance criteria**: the PRD's scope item 13; PRD 20, 21, 23.
@@ -414,6 +480,11 @@ Standing constraints for every executor of this project:
 - **Tests, probes and migrations run on the local Postgres** (`pnpm db:local`,
   `NUTRIA_LOCAL_PG=1`), never Neon. End-to-end suites only by the `tests` agent.
 - **One heavy job at a time.** Never the gate, an end-to-end suite and a build together.
+- **The screens follow the design the owner approved on 2026-11-18** («Aprobado»): sixteen
+  phone screens on a private design canvas, <https://claude.ai/artifact/B8hhdEcvn6hte9aKMeFzE6>
+  (the owner's account). Screens 8–10 and 13–16 are this project's; 1–7, 11 and 12 belong to
+  the later projects. A screen is compared with its sheet before its phase is called done; the
+  words on a sheet are illustrative and phase 1's approved texts win.
 - **No model reads anything this project adds.** Profiles, badge records and codes join the
   walls of `health-boundary.spec.ts` and `assistant-boundary.spec.ts`; nothing of them is
   logged.
@@ -437,4 +508,5 @@ when the owner asks.
 | 5 | 3, 9 | 13 | 4, 7 | 21 | 1, 10 |
 | 6 | 1, 3, 6 | 14 | 3, 4, 6 | 22 | 1, 5, 7, 8 |
 | 7 | 6, 7 | 15 | 3, 4, 6 | 23 | 1, 10 |
-| 8 | 6, 7 | 16 | 3, 6 | | |
+| 8 | 6, 7 | 16 | 3, 6 | 24 | 2, 6, 7, 9 |
+| | | | | 25 | 5 |

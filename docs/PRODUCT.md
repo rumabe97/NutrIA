@@ -41,20 +41,22 @@ What they need, in order:
 new job hours, an injury, a holiday — and who needs the plan to move with them rather than
 be abandoned.
 
-**A second kind of user, since project 004: a professional.** A dietitian-nutritionist
-holds their own account, granted by the owner from `/admin` after seeing a collegiate
-number — never a sign-up checkbox, because the title is regulated. A professional invites
+**A second kind of user, since project 004 and open to anyone since project 025: a
+professional.** Any adult account may open a practice. Only the badge — NutrIA's own check of
+a college's public register and of the account's owner, renewed yearly — lets the product call
+them a dietitian-nutritionist, never a sign-up field or a typed number. A professional invites
 a client by email; the client reads exactly what will be shared before accepting, and
-either side can end the link at any moment. Linked, a professional **may**: set that
-client's daily targets inside the same bounds the calculator obeys; generate and review a
-meal plan before the client sees it, then publish it; and see adherence, the weight line
-and every check-in, from stored state. A professional **may not**: reach a client who has
-not accepted an invitation, or infer that one exists; see conditions, medications or
-supplements unless the client ticks that separate line, never routed to a model either
-way; treat, diagnose or prescribe — the product still derives no dietary rule from a
+either side can end the link at any moment. Linked, a professional **may**: generate and
+review a meal plan before the client sees it, then publish it, and see the plans they made
+through the link; and, only with the badge and the client's consent to the badged list, set
+that client's daily targets inside the same bounds the calculator obeys and see adherence,
+the weight line and every check-in, from stored state (`0111` § 4). A professional **may
+not**: reach a client who has not accepted an invitation, or infer that one exists; see
+conditions, medications or supplements unless they hold the badge and the client ticks that
+separate line, never routed to a model either way; treat, diagnose or prescribe — the product still derives no dietary rule from a
 condition beyond `0008`; or hold more than one client through a shared or borrowed
-account. The professional pays a subscription that includes a number of clients; a linked
-client pays nothing and keeps the paid allowances for as long as the link lasts. This is
+account. A practice is free for ten active clients, and a linked client keeps their own
+account's allowances. This is
 the one named exception to the product's ownership rule — a professional never reaches a
 client's data except through a consented, audited link
 ([`0059`](./decisions/0059-a-professional-reaches-a-client-only-through-a-link.md)) —
@@ -102,11 +104,20 @@ message.
 - A **biweekly check-in** that feeds the next plan.
 - Plan history, kept forever and never overwritten.
 - A nutrition-only AI assistant with access to the user's own plan.
+- A **professionals' area**: any adult may open a practice, describe their services (studies
+  as they declare them, price, hours), invite up to ten clients by email and make their plan
+  through a consented, audited link. Only a professional NutrIA has itself checked against
+  their college's register — the badge — receives health data beyond the plan they make, and
+  only with the client's consent (`0110`, `0111`). A person with a declared condition or
+  medication links only with a badged professional.
 - Spanish first, architected so English can follow.
 
 **Deliberately excluded from v1:** barcode scanning, photo food logging, restaurant
-databases, macro-by-macro manual logging, social features, coach marketplaces, wearable
-integrations, payments.
+databases, macro-by-macro manual logging, social features, wearable integrations, payments.
+The rest of the professionals' marketplace — a directory and search, requests, a chat,
+ratings and public profile pages — waits for its own project
+([`0013`](./reference/architecture/0013-a-marketplace-of-professionals-2026-11-18.md) § 9),
+and money between a professional and a client never passes through NutrIA.
 
 ## Experience principles
 
