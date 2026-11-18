@@ -210,6 +210,18 @@ write leaves no row, and a write that returns without having recorded fails. So:
   no client data beyond a stage. Every read of a client's data leaves its row (PRD 004,
   criterion 6) — there is no unaudited door. A new method that returns a client's id or data
   to a professional without writing that client's row is a second way in, and a P0.
+- a link has a **scope**
+  ([`0111`](../../docs/decisions/0111-a-badge-is-a-dated-check-and-the-link-decides-how-much-is-seen.md)),
+  decided in one place (`repositories/Care/CareScope.ts`, `linkScope`) and never cached:
+  `full` only while the practitioner's badge stands **and** the link's `consent_scope` is
+  `full`; otherwise `plan`. Under `plan` the practitioner reaches the plans made through that
+  link (`meal_plans.care_link_id`) and nothing else: every other kind answers the same
+  `NotFoundError`, the answers come from the plan-only presenters (`PlanOnlyView` — no
+  `strategy`, `version`, day `targets`, `loadedFor`, meal `status` or `verdict`),
+  `sharesHealth` reads false, the roster's stage is read from that link's plans alone, and no
+  check-in notice is sent. A new field on a plan, a job or the client page is added to the
+  full view only, unless it is the plan's own content; a new care route decides its `plan`
+  outcome and has a case in `apps/api/test/care-scope.e2e-spec.ts`.
 
 Five related rules:
 
