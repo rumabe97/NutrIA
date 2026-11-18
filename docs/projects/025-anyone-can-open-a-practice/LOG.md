@@ -110,3 +110,47 @@
 - **Notes for the next phase**: see phase 3's step 0. `badgeOf` reads by `user_id`; a `lapsed`
   row needs a reason; the code cap is `attempts`.
 
+## Phase 3 — The badge (2026-11-18)
+
+- **Executor**: the `backend-high` agent on opus @ high, in its own worktree; reviewed by
+  `invariant-reviewer` (opus); the end-to-end suite by the `tests` agent (opus).
+- **Result**: done. The feature is dark: every new route sits behind the `professional` switch
+  or the admin role, and the sweep does nothing while the switch is off.
+- **Evidence**:
+  - Core coverage 4865 passed; api 1938 passed (both boundary specs included); database 69;
+    `pnpm ts:check` 9/9; `pnpm lint` 7/7; api format clean; `check-migrations --drift`:
+    "schema and migrations agree"; 73 migrations applied locally.
+  - End-to-end on local Postgres, one at a time: `care-badge` (new) 19, `professionals` 26,
+    `admin` 86, `care-practice` 36 — all passed.
+  - `invariant-reviewer`: no P0; two P1 and five P2 fixed before this entry (below).
+- **Deviations from plan**:
+  - Files outside the phase's scope, each forced by a step: migration
+    `0072_every_practitioner_has_a_check.sql` (data only, `NOT EXISTS`), the body schemas in
+    `packages/core/src/entities/Professional`, and the new module names in the two boundary
+    specs.
+  - **No audit actions.** `AUDIT_ACTIONS` keys the web dictionary type, so a new action breaks
+    the web's type-check; confirm, fail and withdraw record `checked_by`, and issuing a code
+    leaves no actor row (only the owner can). Phase 9 may add the actions with their words.
+  - A standing badge may be renewed without a new code: identity was bound at the first check
+    and the yearly re-check is the register lookup. Accepted by the lead.
+  - `BadgeSweepService` lives in the owner-alerts module.
+  - `ProfessionalView.collegiateNumber` is `string | null`, read from the standing badge.
+  - Fixed on review: `ProtectedWords` folds NFKC, strips invisible characters and reads
+    Cyrillic and Greek look-alikes as Latin; `BadgeView` carries the latest decision and its
+    reason, with states `refused` and `withdrawn`; a lapse is dated when the badge lapsed, so
+    an application made before the sweep survives it; a malformed code answers the same 404 as
+    a wrong one; the code mail carries the register name the **owner** types and no applicant
+    text; the reminder uses a watermark; superseded codes are expired, not deleted.
+  - PRD criterion 5 ("no unchecked number shown") is read as what clients and the public see.
+    The code mail to the register's own contact names the declared number on purpose, so the
+    person it belongs to can say it is not them (`textos/06` § R, approved 2026-11-18).
+  - `textos/06` § R: the mail reads «del registro» where the approved text had «de el
+    registro»; and § U.2's heading still says the reminder is not in phase 3. For the `legal`
+    agent to align.
+- **Decisions**: none new.
+- **Notes for the next phase**: phase 4 calls `ProfessionalBadgeRepository.badgeOf(userId,
+  now)`. The suite runs the sweep directly; only `Cron.controller.spec.ts` checks the cron calls
+  it. An un-badged practitioner is still made by inserting a `professionals` row (self-service
+  is phase 6). The frontend owes `BadgeView.decision` and the two new states (phase 8).
+  `CareRepository.openInvitation` still prints «colegiado {number}»: phase 5.
+

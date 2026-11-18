@@ -159,7 +159,7 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
 
 ### Phase 3 — The badge, as the owner's check
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 025 phase 3` — `quality-max`: it decides who
   may later receive health data. Reviewed by `invariant-reviewer`.
 - **Goal**: a practitioner can apply, the owner can check, a code proves the contact, and the
