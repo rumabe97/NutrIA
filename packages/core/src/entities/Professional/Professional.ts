@@ -109,6 +109,108 @@ export const professionalBadgeCodeSchema = z.object({
 
 export type ProfessionalBadgeCode = z.infer<typeof professionalBadgeCodeSchema>;
 
+/** A badge's re-check falls due this many months after the owner's `pass` (`0111` § 2). */
+export const BADGE_VALID_MONTHS = 12;
+
+/** A badge still stands this many days after its re-check fell due; then it has lapsed (PRD 025 scope 6). */
+export const BADGE_GRACE_DAYS = 30;
+
+/** A code lives this long: a letter is slow (`0111` § 3). */
+export const BADGE_CODE_TTL_DAYS = 30;
+
+/** Wrong entries a code survives; the next is refused like an unknown code, until the owner issues another (PRD 025 criterion 3). */
+export const BADGE_CODE_MAX_ATTEMPTS = 5;
+
+/**
+ * The practitioner's application (PRD 025 scope 6): the college whose register
+ * the owner will read, and the number they hold there. Nothing else — no
+ * contact, because a code never goes to a contact the applicant supplies.
+ */
+export const applyForBadgeSchema = z.object({
+  number: z.string().trim().regex(COLLEGIATE_NUMBER_PATTERN),
+  register: z.string().trim().min(2).max(160)
+});
+
+export type ApplyForBadge = z.infer<typeof applyForBadgeSchema>;
+
+/**
+ * A code as the practitioner types it. Never refused by its shape: an empty
+ * code, a missing one, one too long, or one that is not a string — or a body
+ * that is not an object — all read as the empty code, which matches nothing, so
+ * each is the same 404 as a wrong, used, expired or unknown code (PRD 025
+ * criterion 3; invariant review of phase 3, P2-5). Never a 422.
+ */
+export const enterBadgeCodeSchema = z.object({ code: z.string().max(64).catch('') }).catch({ code: '' });
+
+export type EnterBadgeCode = z.infer<typeof enterBadgeCodeSchema>;
+
+/**
+ * A name typed by the owner for a mail to a third party: one plain line, no link
+ * and no address in it, so nothing but a name reaches a stranger's inbox from the
+ * owner's address.
+ */
+const plainName = z
+  .string()
+  .trim()
+  .min(1)
+  .max(200)
+  .refine(name => !/https?:|www\.|\/\/|@|[<>\n\r]/i.test(name), { message: 'A name, not a link or an address' });
+
+/**
+ * The owner's act of sending a code (PRD 025 scope 6), through the channel the
+ * public register allows. By e-mail, the address, the person's name and the
+ * college's name **as the register shows them**, typed by the owner, used once
+ * for the mail and never stored — the mail never carries the college as the
+ * applicant typed it. By post or phone, nothing: the owner writes the letter or
+ * makes the call, and the code comes back to the console once.
+ */
+export const issueBadgeCodeSchema = z.discriminatedUnion('channel', [
+  z.object({ channel: z.literal('register_email'), email: z.email().max(254), register: plainName, registerName: plainName }),
+  z.object({ channel: z.literal('post') }),
+  z.object({ channel: z.literal('phone') })
+]);
+
+export type IssueBadgeCode = z.infer<typeof issueBadgeCodeSchema>;
+
+/**
+ * Why the owner does not give, or takes back, a badge (`docs/legal/textos/06`
+ * § W): not on the register, the register's person says it was not them, the
+ * code expired unentered, or other facts written out.
+ */
+export const BADGE_REMOVAL_REASONS = ['not_on_register', 'not_me', 'code_expired', 'other'] as const;
+
+export type BadgeRemovalReason = (typeof BADGE_REMOVAL_REASONS)[number];
+
+/** Whether the owner acted on their own check or on a notice they received (DSA art. 17.3.b). */
+export const BADGE_REMOVAL_SOURCES = ['own_check', 'notice'] as const;
+
+export type BadgeRemovalSource = (typeof BADGE_REMOVAL_SOURCES)[number];
+
+/**
+ * The owner's `fail` (an application not granted) or `withdrawn` (a standing
+ * badge taken back), with its statement of reasons. `facts` is required for
+ * `other` and may add to any reason.
+ */
+export const removeBadgeSchema = z
+  .object({
+    facts: z.string().trim().min(1).max(1000).optional(),
+    kind: z.enum(['fail', 'withdrawn']),
+    reason: z.enum(BADGE_REMOVAL_REASONS),
+    source: z.enum(BADGE_REMOVAL_SOURCES)
+  })
+  .refine(body => body.reason !== 'other' || body.facts !== undefined, { message: 'Other reasons are written out', path: ['facts'] });
+
+export type RemoveBadge = z.infer<typeof removeBadgeSchema>;
+
+/**
+ * Why the daily sweep lapsed a badge (`docs/legal/textos/06` § V): a code went
+ * out for the re-check and was never entered, or nobody completed it in time —
+ * the owner's delay, said as such.
+ */
+export const BADGE_LAPSE_DETAILS = ['code_not_entered', 'our_delay'] as const;
+
+export type BadgeLapseDetail = (typeof BADGE_LAPSE_DETAILS)[number];
+
 /** What a practice's price is for (PRD 025 scope 4). Repeated as `price_unit` in the database. */
 export const PRICE_UNITS = ['consultation', 'month', 'plan'] as const;
 

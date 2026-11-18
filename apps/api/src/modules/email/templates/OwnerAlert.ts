@@ -32,6 +32,7 @@ export type OwnerAlert =
       readonly type: 'spend';
     }
   | { readonly codes: readonly string[]; readonly type: 'failures' }
+  | { readonly due: number; readonly soon: number; readonly type: 'badges-due' }
   | { readonly reasons: readonly { readonly n: number; readonly reason: PictureReason }[]; readonly type: 'picture-failures' }
   | { readonly reasons: readonly { readonly n: number; readonly reason: PictureReason }[]; readonly type: 'picture-payment-refused' }
   | { readonly type: 'reminders-silent' };
@@ -83,6 +84,16 @@ function usd(value: number): string {
 
 function copyOf(alert: OwnerAlert, link: (path: string) => string): Copy {
   switch (alert.type) {
+    // `docs/legal/textos/06` § U.1 (project 025, choice C8): counts and the console's link, never an address.
+    case 'badges-due':
+      return {
+        again: '',
+        button: 'Abrir Profesionales',
+        detail: 'Están en la consola, en Profesionales.',
+        intro: `Hoy vencen o están vencidas ${whole(alert.due)} insignias: ${whole(alert.soon)} caducan en los próximos 7 días si no las compruebas.`,
+        subject: `NutrIA: ${whole(alert.due)} insignias por volver a comprobar`,
+        url: link('/admin/profesionales')
+      };
     case 'reminders-silent':
       return {
         again: 'Si sigue sin correr, no volverás a recibir este aviso hasta mañana.',
@@ -148,10 +159,18 @@ export function ownerAlertEmail({ alert, link }: { alert: OwnerAlert; link: (pat
   const kind: EmailKind = alert.type === 'picture-failures' || alert.type === 'picture-payment-refused' ? 'owner-picture-alert' : 'owner-alert';
 
   const html = layout({
-    body: [paragraph(copy.intro), paragraph(copy.detail), button(copy.url, copy.button), paragraph(copy.again, 'muted')].join('\n'),
+    // An empty `again` is a mail with nothing to say about its repeats: no empty paragraph for it.
+    body: [
+      paragraph(copy.intro),
+      paragraph(copy.detail),
+      button(copy.url, copy.button),
+      ...(copy.again === '' ? [] : [paragraph(copy.again, 'muted')])
+    ].join('\n'),
     locale: LOCALE,
     title: copy.subject
   });
 
-  return { html, kind, subject: copy.subject, text: [copy.intro, copy.detail, '', copy.url, '', copy.again].join('\n') };
+  const text = [copy.intro, copy.detail, '', copy.url, ...(copy.again === '' ? [] : ['', copy.again])].join('\n');
+
+  return { html, kind, subject: copy.subject, text };
 }

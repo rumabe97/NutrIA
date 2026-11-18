@@ -8,7 +8,7 @@ import { CARE_CONSENT_VERSION, CARE_HEALTH_SHARED, CARE_SHARED } from 'core/enti
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { CareController } from 'core/controllers/Care';
 import { CareLinkExistsError, InputParseError, NotFoundError, PracticeFullError } from 'core/entities/Error';
-import { ProfessionalController } from 'core/controllers/Professional';
+import { ProfessionalBadgeController, ProfessionalController } from 'core/controllers/Professional';
 import { ProfileController } from 'core/controllers/Profile';
 import { UserController } from 'core/controllers/User';
 
@@ -958,6 +958,137 @@ describe('care routes', () => {
       await request(server()).post(`/${PREFIX}/care/practice/agreement`).send({}).expect(404);
 
       expect(accept).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * The badge (project 025 phase 3): the practitioner's own routes, in the
+   * before-practice lane, by the session's account alone. No body or path names
+   * a user, no body carries a contact, and every refusal of a code is the same
+   * 404 as a route the account cannot see.
+   */
+  describe('the badge', () => {
+    const BADGE = {
+      checkedAt: null,
+      codeEntered: false,
+      codeExpiresAt: null,
+      decision: null,
+      dueAt: null,
+      lapsesAt: null,
+      number: null,
+      register: 'Colegio de Madrid',
+      state: 'applied' as const
+    };
+
+    /** A practitioner whose practice is not paid for and whose agreement is not accepted: the badge must still be reachable. */
+    function beforeAnything(): void {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      jest
+        .spyOn(ProfessionalController, 'find')
+        .mockResolvedValue({
+          agreementRequired: true,
+          collegiateNumber: null,
+          grantedAt: '2026-09-01T00:00:00.000Z',
+          includedClients: 0,
+          practiceOpen: false
+        });
+    }
+
+    it('is a 404 on every badge route for an account that is not a practitioner, and nothing is read or written', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
+      const calls = [
+        jest.spyOn(ProfessionalBadgeController, 'state'),
+        jest.spyOn(ProfessionalBadgeController, 'apply'),
+        jest.spyOn(ProfessionalBadgeController, 'enterCode')
+      ];
+
+      await request(server()).get(`/${PREFIX}/care/practice/badge`).expect(404);
+      await request(server()).post(`/${PREFIX}/care/practice/badge`).send({ number: 'MAD00123', register: 'Colegio de Madrid' }).expect(404);
+      await request(server()).post(`/${PREFIX}/care/practice/badge/code`).send({ code: 'ABCDE-FGHJK' }).expect(404);
+
+      for (const call of calls) {
+        expect(call).not.toHaveBeenCalled();
+      }
+    });
+
+    it('answers the session’s own badge, before the practice is paid for or the agreement accepted', async () => {
+      beforeAnything();
+      const state = jest.spyOn(ProfessionalBadgeController, 'state').mockResolvedValue(BADGE);
+
+      const response = await request(server()).get(`/${PREFIX}/care/practice/badge`).expect(200);
+
+      expect(state).toHaveBeenCalledWith(SESSION.id);
+      expect(response.body).toEqual(BADGE);
+    });
+
+    it('applies with the register and number alone, for the session’s account — a user id or a contact in the body is dropped', async () => {
+      beforeAnything();
+      const apply = jest.spyOn(ProfessionalBadgeController, 'apply').mockResolvedValue(BADGE);
+
+      await request(server())
+        .post(`/${PREFIX}/care/practice/badge`)
+        .send({ email: 'otra@example.invalid', number: ' MAD00123 ', phone: '600000000', register: ' Colegio de Madrid ', userId: 'usr-other' })
+        .expect(201);
+
+      expect(apply).toHaveBeenCalledWith(SESSION.id, { number: 'MAD00123', register: 'Colegio de Madrid' });
+    });
+
+    it('refuses a malformed number or a missing register as 422, and writes nothing', async () => {
+      beforeAnything();
+      const apply = jest.spyOn(ProfessionalBadgeController, 'apply');
+
+      await request(server()).post(`/${PREFIX}/care/practice/badge`).send({ number: 'no spaces allowed', register: 'Colegio' }).expect(422);
+      await request(server()).post(`/${PREFIX}/care/practice/badge`).send({ number: 'MAD00123' }).expect(422);
+
+      expect(apply).not.toHaveBeenCalled();
+    });
+
+    it('answers a refused application — a badge already standing — with the same 404', async () => {
+      beforeAnything();
+      jest.spyOn(ProfessionalBadgeController, 'apply').mockRejectedValue(new NotFoundError('Not Found'));
+
+      await request(server()).post(`/${PREFIX}/care/practice/badge`).send({ number: 'MAD00123', register: 'Colegio de Madrid' }).expect(404);
+    });
+
+    it('takes a right code for the session’s account with no content', async () => {
+      beforeAnything();
+      const enter = jest.spyOn(ProfessionalBadgeController, 'enterCode').mockResolvedValue();
+
+      await request(server()).post(`/${PREFIX}/care/practice/badge/code`).send({ code: 'ABCDE-FGHJK', userId: 'usr-other' }).expect(204);
+
+      expect(enter).toHaveBeenCalledWith(SESSION.id, { code: 'ABCDE-FGHJK' });
+    });
+
+    it('answers a wrong, used, expired or malformed code exactly as a route the account cannot see', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
+      const unseen = await request(server()).post(`/${PREFIX}/care/practice/badge/code`).send({ code: 'ABCDE-FGHJK' }).expect(404);
+
+      beforeAnything();
+      // The message core throws with (`ProfessionalBadgeController`'s spec pins it): the guard's own.
+      jest.spyOn(ProfessionalBadgeController, 'enterCode').mockRejectedValue(new NotFoundError('Not Found'));
+      const wrong = await request(server()).post(`/${PREFIX}/care/practice/badge/code`).send({ code: 'ZZZZZ-ZZZZZ' }).expect(404);
+      const odd = await request(server()).post(`/${PREFIX}/care/practice/badge/code`).send({ code: '!' }).expect(404);
+
+      expect(wrong.body).toEqual(unseen.body);
+      expect(odd.body).toEqual(unseen.body);
+    });
+
+    it.each([
+      ['an empty code', { code: '' }],
+      ['no code at all', {}],
+      ['a code too long', { code: 'A'.repeat(65) }],
+      ['a code that is not a string', { code: 12_345 }],
+      ['a body that is not an object', ['ABCDE-FGHJK']]
+    ])('reads %s as the empty code, never a 422: the same 404 as a wrong one', async (_what, body) => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
+      const unseen = await request(server()).post(`/${PREFIX}/care/practice/badge/code`).send({ code: 'ABCDE-FGHJK' }).expect(404);
+
+      beforeAnything();
+      const enter = jest.spyOn(ProfessionalBadgeController, 'enterCode').mockRejectedValue(new NotFoundError('Not Found'));
+      const response = await request(server()).post(`/${PREFIX}/care/practice/badge/code`).send(body).expect(404);
+
+      expect(enter).toHaveBeenCalledWith(SESSION.id, { code: '' });
+      expect(response.body).toEqual(unseen.body);
     });
   });
 });

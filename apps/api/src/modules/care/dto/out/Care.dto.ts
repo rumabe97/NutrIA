@@ -1,3 +1,4 @@
+import type { BadgeView } from 'core/controllers/Professional';
 import type { JobView, MealDetailView, SharedPlanView } from 'core/controllers/Plan';
 import type {
   CareAccessPageView,
@@ -60,3 +61,6 @@ export type CareClientMealDto = MealDetailView;
 
 /** The workspace's own page (`0061`): whether the practice is paid for, its seats, and the way to pay. */
 export type CarePracticeDto = CarePracticeView;
+
+/** The practitioner's own badge (project 025): its state and dates, the register; the number only once checked, never the code. */
+export type CareBadgeDto = BadgeView;

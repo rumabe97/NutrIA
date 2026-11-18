@@ -7,7 +7,7 @@ import { UNAUDITED } from 'core/entities/Audit';
 
 import { ProfessionalController } from './ProfessionalController';
 
-import type { ProfessionalListRow } from '#repositories/Professional';
+import type { Badge, ProfessionalListRow } from '#repositories/Professional';
 import type { Professional } from 'core/entities/Professional';
 import type { ProfessionalQuery } from 'core/entities/AdminQuery';
 import type { User } from 'core/entities/User';
@@ -22,8 +22,27 @@ const revoke = vi.fn<(userId: string, record?: (tx: unknown) => Promise<void>) =
 const findById = vi.fn<(id: string) => Promise<User | undefined>>();
 const isEnabled = vi.fn<(key: string, fallback: boolean) => Promise<boolean>>();
 const record = vi.fn<(entry: unknown, tx?: unknown) => Promise<void>>();
+const badgeOf = vi.fn<(userId: string, now: Date) => Promise<Badge | null>>();
+const badgesOf = vi.fn<(userIds: readonly string[], now: Date) => Promise<ReadonlyMap<string, Badge>>>();
+
+/** A standing badge on `number`, checked by the owner — the only source a number is shown from (PRD 025 criterion 5). */
+function badge(number: string | null): Badge {
+  return {
+    channel: 'register_email',
+    checkedAt: new Date('2026-09-23T10:00:00.000Z'),
+    checkId: '4a3b2c1d-0e9f-4a8b-9c7d-6e5f4a3b2c1d',
+    dueAt: new Date('2027-09-23T10:00:00.000Z'),
+    lapsesAt: new Date('2027-10-23T10:00:00.000Z'),
+    number,
+    register: 'Colegio de Madrid'
+  };
+}
 
 vi.mock('#repositories/Professional', () => ({
+  ProfessionalBadgeRepository: {
+    badgeOf: (userId: string, now: Date) => badgeOf(userId, now),
+    badgesOf: (userIds: readonly string[], now: Date) => badgesOf(userIds, now)
+  },
   ProfessionalRepository: {
     acceptAgreement: (userId: string, version: string, now: Date) => acceptAgreement(userId, version, now),
     find: (userId: string) => find(userId),
@@ -48,12 +67,18 @@ beforeEach(() => {
   revoke.mockReset();
   findById.mockReset();
   isEnabled.mockReset();
+  badgeOf.mockReset();
+  badgeOf.mockResolvedValue(null);
+  badgesOf.mockReset();
+  badgesOf.mockResolvedValue(new Map());
 });
 
 describe('ProfessionalController.grant', () => {
   it('records the owner’s act on an existing account and answers the account, never the granter', async () => {
     findById.mockResolvedValue(makeUser({ id: 'usr-dietitian', email: 'dietista@example.com' }));
     grant.mockResolvedValue(makeProfessional({ grantedBy: 'usr-owner', userId: 'usr-dietitian' }));
+    // The grant writes its own `pass` (PLAN phase 3, step 7): the number shown is that check's.
+    badgeOf.mockResolvedValue(badge('MAD00123'));
 
     const view = await ProfessionalController.grant('usr-dietitian', { collegiateNumber: 'MAD00123' }, 'usr-owner');
 
@@ -108,8 +133,9 @@ describe('ProfessionalController.revoke', () => {
 });
 
 describe('ProfessionalController.find', () => {
-  it('presents the professional’s own grant without the granter’s id', async () => {
+  it('presents the professional’s own grant without the granter’s id, the number from the badge', async () => {
     find.mockResolvedValue(makeProfessional({ grantedBy: 'usr-owner', includedClients: 30, practiceOpen: true }));
+    badgeOf.mockResolvedValue(badge('MAD00123'));
 
     const view = await ProfessionalController.find('usr-dietitian');
 
@@ -128,6 +154,12 @@ describe('ProfessionalController.find', () => {
 
     await expect(ProfessionalController.find('usr-dietitian')).resolves.toMatchObject({ agreementRequired: true });
     await expect(ProfessionalController.find('usr-dietitian')).resolves.toMatchObject({ agreementRequired: false });
+  });
+
+  it('shows no number without a badge, whatever the practice row holds (PRD 025 criterion 5)', async () => {
+    find.mockResolvedValue(makeProfessional({ collegiateNumber: 'UNCHECKED-1' }));
+
+    await expect(ProfessionalController.find('usr-dietitian')).resolves.toMatchObject({ collegiateNumber: null });
   });
 
   it('answers null for an ordinary account', async () => {
@@ -185,6 +217,8 @@ describe('ProfessionalController.isOpen', () => {
 
 describe('ProfessionalController.list', () => {
   it('names each professional’s account and counts their links, and nothing about a client', async () => {
+    // Only `usr-a` holds a badge: `usr-b`'s typed number is never shown (PRD 025 criterion 5).
+    badgesOf.mockResolvedValue(new Map([['usr-a', badge('MAD00123')]]));
     list.mockResolvedValue([
       {
         collegiateNumber: 'CV-0456',
@@ -208,9 +242,10 @@ describe('ProfessionalController.list', () => {
 
     const rows = await ProfessionalController.list();
 
+    expect(badgesOf).toHaveBeenCalledWith(['usr-b', 'usr-a'], expect.any(Date));
     expect(rows).toEqual([
       {
-        collegiateNumber: 'CV-0456',
+        collegiateNumber: null,
         email: 'b@example.com',
         grantedAt: '2026-09-23T11:00:00.000Z',
         links: { active: 0, ended: 0, paused: 0 },

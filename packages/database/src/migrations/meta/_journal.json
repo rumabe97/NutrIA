@@ -505,6 +505,13 @@
       "when": 1795026204928,
       "tag": "0071_anyone_can_open_a_practice",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1795031081311,
+      "tag": "0072_every_practitioner_has_a_check",
+      "breakpoints": true
     }
   ]
 }

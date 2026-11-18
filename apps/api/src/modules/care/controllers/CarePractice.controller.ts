@@ -1,12 +1,12 @@
 import { Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
-import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import { AcceptAgreementDto } from '../dto/in/index.js';
+import { AcceptAgreementDto, ApplyForBadgeDto, EnterBadgeCodeDto } from '../dto/in/index.js';
 import { BeforePractice, CurrentUser, ZodBody } from '../../../shared/index.js';
 import { CareService } from '../services/index.js';
 import { ProfessionalGuard } from '../../../shared/guards/Professional.guard.js';
 
-import type { CarePracticeDto } from '../dto/out/index.js';
+import type { CareBadgeDto, CarePracticeDto } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 
 /**
@@ -21,6 +21,13 @@ import type { SessionUser } from '../../../shared/index.js';
  * and the route that accepts it. Counts and prices only;
  * nothing here names a client, so it writes no row in anybody's trail. Never
  * `@RequiresOnboarding()`, as the rest of the workspace.
+ *
+ * **The badge** (project 025 phase 3): the practitioner's own badge, their
+ * application and the code they were sent, in the same before-practice lane —
+ * the badge is how a practice comes to see more, so it cannot wait behind the
+ * doors it opens. Every one of them is by the session's account alone: no body
+ * or path names a user, and no body carries a contact. A wrong, used, expired
+ * or unknown code is the same 404 as anything else refused.
  */
 @ApiTags('care')
 @Controller('care')
@@ -45,5 +52,32 @@ export class CarePracticeController {
   @Post('practice/agreement')
   async acceptAgreement(@CurrentUser() professional: SessionUser, @ZodBody(AcceptAgreementDto) body: AcceptAgreementDto): Promise<void> {
     await this.care.acceptAgreement(professional, body);
+  }
+
+  @ApiOkResponse({ description: 'The practitioner’s own badge: none, applied, code sent, badged, due or lapsed, with its dates. Never the code.' })
+  @ApiOperation({ summary: 'Where the practitioner’s badge stands' })
+  @BeforePractice()
+  @Get('practice/badge')
+  async badge(@CurrentUser() professional: SessionUser): Promise<CareBadgeDto> {
+    return this.care.badge(professional);
+  }
+
+  @ApiCreatedResponse({ description: 'Applied: the badge as it now stands. 404 while a badge stands; 422 for a malformed register or number.' })
+  @ApiOperation({ summary: 'Apply for the badge with a register and a number' })
+  @BeforePractice()
+  @Post('practice/badge')
+  async applyForBadge(@CurrentUser() professional: SessionUser, @ZodBody(ApplyForBadgeDto) body: ApplyForBadgeDto): Promise<CareBadgeDto> {
+    return this.care.applyForBadge(professional, body);
+  }
+
+  @ApiNoContentResponse({
+    description: 'The code was right and is spent; the owner confirms next. Any refusal — wrong, used, expired, too many tries, none — is 404.'
+  })
+  @ApiOperation({ summary: 'Enter the badge’s code' })
+  @BeforePractice()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Post('practice/badge/code')
+  async enterBadgeCode(@CurrentUser() professional: SessionUser, @ZodBody(EnterBadgeCodeDto) body: EnterBadgeCodeDto): Promise<void> {
+    await this.care.enterBadgeCode(professional, body);
   }
 }
