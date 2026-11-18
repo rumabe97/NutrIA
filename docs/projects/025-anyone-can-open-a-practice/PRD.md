@@ -68,8 +68,8 @@ When this project ships:
   professional's agreement, fill in a profile (studies as declared, price, opening hours), and
   invite up to ten clients by the invitations that exist today, at no cost.
 - A **badge** exists, and only the owner's act gives it: a look at the college's register
-  through a link the console shows, a code sent to a professional contact the register (or a
-  college) vouches for — never one only the applicant supplies — a dated record, a yearly
+  through a link the console shows, a code sent to a professional contact the public register
+  lists — never one only the applicant supplies — a dated record, a yearly
   re-check that lapses the badge when overdue. The protected and clinical words appear only
   with it.
 - A practitioner **without** the badge sees, of a client, only the plan they write — no
@@ -79,6 +79,8 @@ When this project ships:
 - The owner gives every new profile a first look in the console. Nothing is listed anywhere
   public or searchable yet.
 - Being linked to a practice does not make a client premium.
+- The owner can suspend a practitioner at once, or close a practice with reasons and 30 days'
+  notice; a suspended or closed account cannot open a practice again.
 - Every text that this makes false is rewritten in the same release, `PRODUCT.md` § Scope is
   amended, and the DPIA and record of processing carry their addendum before the switch opens
   any of it in production.
@@ -129,9 +131,13 @@ When this project ships:
    records a contact and its channel, and the app issues a single-use code for it; the
    practitioner enters it in their practice; the owner confirms. **The channel, in this order
    (decided 2026-11-18, by tapped option, on the `legal` agent's fallbacks):** an e-mail the
-   register lists; else a code by post to the register's professional address; else a code to
-   a college-issued address on the college's own domain; else the owner's call to a phone the
-   register lists. **Never a contact only the applicant supplies.** The
+   register lists; else a code by post to the register's professional address; else the
+   owner's call to a phone the register lists — all three read from the public register. *The
+   college-issued e-mail channel was dropped by the owner on 2026-11-18, by tapped option
+   (legal C12: nothing said where the owner would learn that address but the applicant).*
+   **Never a contact only the applicant supplies.** Every channel carries the art. 14
+   information and an "if this was not you" path that records a failed check (legal F2). The
+   practitioner is reminded when their re-check falls due (legal C5). The
    record holds who checked, when, which register, the result («habilitado»), the number and
    the channel — never a copy of an identity document. A re-check falls due twelve months later
    and on any report; the console lists what is due, and the daily cron reminds the owner.
@@ -161,7 +167,8 @@ When this project ships:
    refuses `true` on an un-badged link.
 9. **Consent per tier.** The client's consent becomes two lists (legal § 3.e): the badged
    list (today's `CARE_SHARED` plus the separate health line) and the un-badged list (the plan
-   only; that the person is not a verified health professional and owes no statutory secrecy;
+   only — worded «the plans they make for you and where things stand» until the chat project,
+   legal C1; that the person is not a verified health professional and owes no statutory secrecy;
    that they may deduce allergies from dishes the gate refuses, and roughly the client's daily
    energy from the plan's totals — the second inference is new, for `legal` to word; both
    controllers named until
@@ -175,37 +182,54 @@ When this project ships:
     tapped option, extending `0110` decision 4 to invitations): a client who has declared an
     illness or a medication cannot accept an un-badged practitioner's invitation; a link to an
     un-badged practitioner **ends** when the client declares one later, or when the
-    practitioner loses the badge while the client has one. Both are told plainly, and the
-    practitioner's notice names no condition — to them it reads as an unanswered invitation or
-    an ended link.
+    practitioner loses the badge while the client has one. The client is told plainly. **The
+    practitioner is sent nothing distinct** (legal F4, approved 2026-11-18): a refused
+    acceptance sends them nothing, an ended link reads exactly as one the client ended — any
+    new `care_link_ended_by` value is presented to them as `client` — and no notice fires only
+    under this rule. «On record» is any declared condition (pregnancy and breastfeeding
+    included) or medication; not a supplement.
+    **The health consent names this use** (legal F1, approved 2026-11-18): `health.consentNote`
+    gains the sentence of `docs/legal/textos/05` § C bis and `HEALTH_CONSENT_VERSION` moves
+    1.1.0 → 1.2.0 no later than the rule ships; a person linked to an un-badged practitioner is
+    warned on the health screen before saving a declaration (legal C7).
 11. **The owner's first look** (decided 2026-11-18, by tapped option). A console queue lists
     each new profile for a look at spam and the words (`0110` decision 5) — not a check of
     studies. **It gates nothing in this project**: it will decide only appearance in the
     directory, later. Any edit to a free-text field returns the profile to the queue. The owner
-    marks it seen, or hides it; **a refusal or a hiding carries a statement of reasons** to the
-    practitioner (`legal`), and nothing on any screen presents a profile the owner has seen as
+    marks it seen, or hides it — refusing and hiding are **one act** with one statement of
+    reasons (legal F6); **it carries a statement of reasons** to the practitioner (`legal`), and nothing on any screen presents a profile the owner has seen as
     approved, recommended or endorsed by NutrIA. The console still reads no client (`0028`,
     `0068`).
-12. **Neutral words for the un-badged.** `/consulta` and its strings say «clientes», not
-    «pacientes», and the client's screens say «tu profesional», not «tu dietista», unless the
-    professional is badged (legal § 3.a, *smallest change* 3; `0013` § 14).
+12. **Neutral words, for every tier.** `/consulta` and its strings say «clientes», not
+    «pacientes», and the client's screens say «tu profesional», not «tu dietista», **whatever
+    the tier**; the badge line carries the title (legal C3, approved 2026-11-18; legal § 3.a,
+    *smallest change* 3).
 13. **Texts (B3).** Rewritten through the `legal` agent in the same release: every hit of
-    `dietista|nutricionista|colegiad|secreto profesional|paciente` over `es-ES.ts` and
-    `en-GB.ts` that this project makes false — at least the `/privacidad` «Tu dietista en
+    `dietista|nutricionista|colegiad|secreto profesional|paciente` over `es-ES.ts`, and of
+    `dietitian|dietician|nutritionist|registered|registration number|professional
+    secrecy|patient` over `en-GB.ts`, that this project makes false — at least the `/privacidad` «Tu dietista en
     NutrIA» section, the invitation strings, `/condiciones` «Si trabajas con un dietista» and
     its liability paragraph, the client's «tu dietista» strings, the practice's plan-and-
     payment strings («Elige un plan para invitar…»), the agreement's «Verás… sus objetivos»
     list, and the console switch's «Consulta para dietistas». Versions move:
     `PROFESSIONAL_AGREEMENT_VERSION` → 2.0.0 (two tiers; every existing professional asked
-    again), `CARE_CONSENT_VERSION` → 3.0.0, `TERMS_VERSION` to its next minor, `/privacidad`'s
+    again), `CARE_CONSENT_VERSION` → 3.0.0, `HEALTH_CONSENT_VERSION` → 1.2.0 (item 10),
+    `TERMS_VERSION` → 2.4.0, `/privacidad`'s
     `updated`. PRD 004 gets a pointer to `0110`. **The `/privacidad` and `/condiciones`
     change is mailed to every account before the switch opens in production** (decided
     2026-11-18, by tapped option; the policy's own important-change clause).
 14. **`docs/PRODUCT.md` § Scope** amended: a professionals' area where anybody may offer their
     services comes into scope; the rest of "coach marketplaces" follows with its project.
+    *Applied after phase 1 (§ Scope and § Users), with the owner's approval of 2026-11-18.*
 15. **The DPIA and record-of-processing addendum** (B9), written by the `legal` agent:
     professionals who sign themselves up, the badge records, health data reaching un-verified
     recipients under consent. This PRD requires it; it does not write it.
+16. **Suspension and close** (the owner, 2026-11-18, on legal's § 9 gap: a revoked account
+    could reopen at once). The owner can **suspend** an account as a practitioner — immediate,
+    with a statement of reasons — and **close** a practice definitively, with reasons and 30
+    days' notice. A suspended or closed account cannot open a practice again; the self-service
+    route answers it with the usual 404. Hiding a profile and withdrawing a badge stay
+    immediate.
 
 **Out** (each is a later project of `0013` § 9, or cut there)
 
@@ -221,7 +245,7 @@ When this project ships:
 - An automated register lookup (`0110` decision 2: manual first; legal M13).
 - A «Técnico Superior en Dietética» mark (`0110`, Consequences: not decided).
 - Profile photos; a practitioner closing their own practice (account deletion and the owner's
-  revoke remain the ways out).
+  close remain the ways out).
 
 ## Acceptance criteria
 
@@ -237,12 +261,13 @@ traces to.
    replaced, not deleted silently.
 3. **The badge's record** (D2, B2). A badge exists only after the practitioner's own
    application and the owner's confirmation of a code the practitioner entered, sent through
-   one of the four channels of scope item 6 to a contact the owner recorded from the register
-   or the college; no route accepts a contact from the applicant. The stored record is
+   one of the three channels of scope item 6 to a contact the owner recorded from the public
+   register; no route accepts a contact from the applicant. The stored record is
    checker, date, register, result, number and channel, and nothing else. A wrong, used or
    expired code answers exactly as an unknown one.
 4. **The yearly re-check** (D2, B2). A badge whose re-check is due appears in the console's
-   list and in the owner's daily reminder; a re-check overdue by 30 days lapses the badge;
+   list and in the owner's daily reminder (counts and a console link, no address — legal C8),
+   and the practitioner is reminded when it falls due; a re-check overdue by 30 days lapses the badge;
    a lapse or a removal mails the practitioner a statement of reasons and closes every badged
    read on the next request. The grants of project 004 are badged and due within 30 days of
    the release.
@@ -291,13 +316,14 @@ traces to.
     pass, changed only where this PRD changes behaviour, each change named.
 18. **The first look** (D5, `legal`). Each new profile, and each edit to a free-text field,
     puts it in the console's queue; the look gates no practitioner action; the owner can mark
-    it seen, or refuse or hide it with a statement of reasons the practitioner receives; no
+    it seen, or hide it (refusing is the same act) with one statement of reasons the
+    practitioner receives; no
     string presents a seen profile as NutrIA's approval; the page names no client.
-19. **Words per tier on screen** (D2, B3). An un-badged practitioner's workspace and their
-    clients' screens use «clientes» and «tu profesional» and show the fixed notice; «tu
-    dietista» and «pacientes» appear only for a badged professional.
+19. **Words on screen** (D2, B3, legal C3). Every practitioner's workspace and every client's
+    screens use «clientes» and «tu profesional»; the title appears only on the badge line; an
+    un-badged practitioner's screens show the fixed notice.
 20. **The texts** (B3). The dictionary search of item 13 of the scope returns no sentence the
-    product no longer makes true; the three version constants and the policy's `updated` date
+    product no longer makes true; the four version constants and the policy's `updated` date
     have moved.
 21. **The documents** (B9, `0110` Consequences). `PRODUCT.md` § Scope is amended and the DPIA
     and record-of-processing addendum is committed. `owner-gated:` the `professional` switch
@@ -306,11 +332,20 @@ traces to.
     Accepting an un-badged practitioner's invitation with an illness or medication on record is
     refused; declaring one while linked to an un-badged practitioner ends the link in the same
     transaction; a badge lost while a client has one ends that link at the next daily sweep.
-    The client is told plainly; the practitioner's notice and every response to them name no
-    condition.
+    The client is told plainly; the practitioner receives nothing distinct — no mail on a
+    refused acceptance, an ended link presented exactly as one the client ended — and no
+    response to them names a condition.
 23. **The change notice** (B3). `owner-gated:` the `/privacidad` and `/condiciones` change is
     mailed to every account before the switch opens in production, and LOG.md records the
     date.
+24. **Suspension and close** (the owner, 2026-11-18). A suspended account reaches no client
+    route and no practice route from the next request; a closing practice works for 30 days
+    after its notice and is then closed by the daily sweep; both carry a statement of reasons;
+    a suspended, closing or closed account's request to open a practice is a 404 and writes
+    nothing.
+25. **The health consent names the illness rule** (legal F1, C7). `HEALTH_CONSENT_VERSION` is
+    1.2.0 with its sentence no later than the rule ships, a stale consent is asked again, and
+    the warning shows on the health screen before a linked client saves a declaration.
 
 ## Decided by the owner
 
@@ -325,7 +360,12 @@ address, a college-issued address on the college's domain, the owner's call to a
 register lists — never a contact only the applicant supplies (scope 6); (6) the grants of
 project 004 keep the badge and are due for re-check within 30 days (scope 6); (7) the
 `/privacidad` and `/condiciones` change is mailed to every account before the switch opens
-(scope 13). The `legal` agent added: a refusal or hiding of a profile carries a statement of
+(scope 13).
+
+After phase 1 (2026-11-18, tapped options): the college-issued e-mail channel is **dropped**,
+three channels remain (scope 6); a real **suspension** and a definitive **close** exist (scope
+16); and the `legal` agent's F1, F4, F6, C1–C5, C7 and C8 are approved and folded in (scopes
+6, 9, 10, 11, 12). The `legal` agent added: a refusal or hiding of a profile carries a statement of
 reasons, and approval never reads as NutrIA's endorsement (scope 11).
 
 ## Open questions

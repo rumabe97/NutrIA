@@ -13,8 +13,8 @@
 | Field | Value |
 | --- | --- |
 | Controller (*responsable*) | {name} (see `legalIdentity.ts`) |
-| Processing | (1) meal planning with health and belief data, with generative AI; (2) communicating data to dietitian-nutritionists (project 004) |
-| Version / date | 0.7 draft, 2026-11-05 — **project 011 phase 10, in the working tree and unmerged (true once merged)**: the web app's Content-Security-Policy moves from `Content-Security-Policy-Report-Only` to `Content-Security-Policy`. The header's **name** is the only thing that changes; the policy's value is the one production already sends. This version **discharges what 0.4 left open** ("R8, R10 and M13, not scored again — 011's phase 10 does that"): **R8 is scored again and stays at 3**, **R10 is confirmed at 1**, M13 now describes what is in production instead of what was pending (phase 8 is in `main` since 2026-10-08, #217, with no flag of its own), **phase 7b** (#242, `0089`) and **the 30-day sweep of an account nobody confirmed** (#250, `0092`) are recorded here for the first time, and the web's security headers get a measure of their own, **M20**. **No new recipient, transfer, category, period or art. 9 datum, and no new criterion from the AEPD's art. 35.4 list**: a response header is not a processing operation, it carries nobody's data and it changes nothing anybody is told, so §§ 1 and 2 move only where `0092`'s period was missing. What it does change is **what the owner can find out afterwards**, and M20 says so where it matters: `report-uri` is **not a detection measure** (art. 33.1 awareness). Previously: 0.6.2 draft, 2026-11-04 — **project 022 phase 4, unmerged (true once merged) and shipping with its flag off; nothing re-scored**: § 1.2's art. 9 cell for the cupboard and § 1.3's *Use* step both described a product in which the cupboard is read after every pick, which is true only while `pantryRank` is off — and that flag is a row in `app_settings` the owner toggles from `/admin/ajustes` with no deploy in between. Both now read both states. The art. 9 position of [`pantry.md`](./pantry.md) § 5.3 **stands and loses one of its two legs**: what carries it is that no restriction is inferred or presented, not where the read sits. **No new recipient, transfer, category, period or art. 9 datum, and no new criterion from the AEPD's art. 35.4 list** — no cupboard datum reaches the model in either state, and what travels is the list of dishes already chosen. Two published sentences must be replaced before that flag is turned on ([`pantry.md`](./pantry.md) § 9, **P1-11**). Previously: 0.6.1 draft, 2026-11-04 — **one line, nothing re-scored**: § 1.3's *Use* step enumerated who reads the cupboard and the owner was not among them. Project 022 phase 5 gives him two `/admin` aggregates over it (accounts per uncooked catalogue ingredient; a word the catalogue could not answer, from two accounts up). It is a **further purpose** of the same rows, compatible under art. 6.4 and so on no separate basis (recital 50), and art. 13.3 puts the `/privacidad` sentence *before* the first read, not with it. **No new recipient, transfer, category, period or art. 9 datum**, and no new criterion from the AEPD's art. 35.4 list — so R1-R14 and § 5's residual risk stand as 0.6 left them. The one measure worth the line is the floor of two accounts (art. 25.1 with art. 5.1.c), which since 2026-11-04 applies to **both** reads — the words by the query's `HAVING`, the per-ingredient count in the `SELECT` and the `ORDER BY` alike ([`pantry.md`](./pantry.md) § 6, **P2-6** and **P2-10**). Previously: 0.6 draft, 2026-11-03. 0.6 records the cupboard (project 022, phases 1 and 2 in `main`, the screen in phase 3b: §§ 1.2 and 1.3) — an optional list of catalogue foods a person says they already have, spent by the generation that reads it, which reaches no model, changes no pick and adds no recipient, transfer or period of its own, so **nothing is scored again**; it is not an art. 9 datum on the conditional position in [`pantry.md`](./pantry.md) § 5.3, and that condition (no inference, and a screen that invites none) is what § 6 of that document asks the owner to approve. Previously: 0.5 draft, 2026-10-16, which records the kitchen (`0102`, project 021: §§ 1.2 and 1.3) — a closed enum per appliance, optional, no free text, no new recipient, period or art. 9 datum, and no new criterion from the AEPD's list, so nothing is scored again. Previously: 0.4 draft, 2026-10-03 (0.3: 2026-09-28; 0.2: 2026-09-26; 0.1: 2026-09-25). 0.4 records project 011's account measures (phases 1 to 7, in `main`; phase 8, the sign-up that reveals nothing, **unmerged**: PR #217 — true once merged; [`analysis.md` § 4.1 ter](./analysis.md)): R8, R10 and M13, not scored again (011's phase 10 does that); no new health datum, no new criterion from the AEPD's list. 0.3 reviewed the onboarding trim (`0067`, **unmerged**: branch `feat/onboarding-cleanup` — true once merged): §§ 1.2, 1.3, 2, R2, § 6. 0.2 reviewed only the AI processing (`0064`: OpenRouter): §§ 1.3, 1.4, 2, R2, R14, M3, M4, § 5 and § 6 |
+| Processing | (1) meal planning with health and belief data, with generative AI; (2) communicating data to dietitian-nutritionists (project 004) — **and, from project 025, to any adult who opens a practice, in two tiers decided by a badge NutrIA checks itself (§ 9)** |
+| Version / date | **0.8 draft, 2026-11-18 — project 025's addendum, § 9 (art. 35.11 review; nothing of it is built: true once phases 2–10 are merged, and nothing of it processes until the owner turns the `professional` switch on in phase 10).** Previously: 0.7 draft, 2026-11-05 — **project 011 phase 10, in the working tree and unmerged (true once merged)**: the web app's Content-Security-Policy moves from `Content-Security-Policy-Report-Only` to `Content-Security-Policy`. The header's **name** is the only thing that changes; the policy's value is the one production already sends. This version **discharges what 0.4 left open** ("R8, R10 and M13, not scored again — 011's phase 10 does that"): **R8 is scored again and stays at 3**, **R10 is confirmed at 1**, M13 now describes what is in production instead of what was pending (phase 8 is in `main` since 2026-10-08, #217, with no flag of its own), **phase 7b** (#242, `0089`) and **the 30-day sweep of an account nobody confirmed** (#250, `0092`) are recorded here for the first time, and the web's security headers get a measure of their own, **M20**. **No new recipient, transfer, category, period or art. 9 datum, and no new criterion from the AEPD's art. 35.4 list**: a response header is not a processing operation, it carries nobody's data and it changes nothing anybody is told, so §§ 1 and 2 move only where `0092`'s period was missing. What it does change is **what the owner can find out afterwards**, and M20 says so where it matters: `report-uri` is **not a detection measure** (art. 33.1 awareness). Previously: 0.6.2 draft, 2026-11-04 — **project 022 phase 4, unmerged (true once merged) and shipping with its flag off; nothing re-scored**: § 1.2's art. 9 cell for the cupboard and § 1.3's *Use* step both described a product in which the cupboard is read after every pick, which is true only while `pantryRank` is off — and that flag is a row in `app_settings` the owner toggles from `/admin/ajustes` with no deploy in between. Both now read both states. The art. 9 position of [`pantry.md`](./pantry.md) § 5.3 **stands and loses one of its two legs**: what carries it is that no restriction is inferred or presented, not where the read sits. **No new recipient, transfer, category, period or art. 9 datum, and no new criterion from the AEPD's art. 35.4 list** — no cupboard datum reaches the model in either state, and what travels is the list of dishes already chosen. Two published sentences must be replaced before that flag is turned on ([`pantry.md`](./pantry.md) § 9, **P1-11**). Previously: 0.6.1 draft, 2026-11-04 — **one line, nothing re-scored**: § 1.3's *Use* step enumerated who reads the cupboard and the owner was not among them. Project 022 phase 5 gives him two `/admin` aggregates over it (accounts per uncooked catalogue ingredient; a word the catalogue could not answer, from two accounts up). It is a **further purpose** of the same rows, compatible under art. 6.4 and so on no separate basis (recital 50), and art. 13.3 puts the `/privacidad` sentence *before* the first read, not with it. **No new recipient, transfer, category, period or art. 9 datum**, and no new criterion from the AEPD's art. 35.4 list — so R1-R14 and § 5's residual risk stand as 0.6 left them. The one measure worth the line is the floor of two accounts (art. 25.1 with art. 5.1.c), which since 2026-11-04 applies to **both** reads — the words by the query's `HAVING`, the per-ingredient count in the `SELECT` and the `ORDER BY` alike ([`pantry.md`](./pantry.md) § 6, **P2-6** and **P2-10**). Previously: 0.6 draft, 2026-11-03. 0.6 records the cupboard (project 022, phases 1 and 2 in `main`, the screen in phase 3b: §§ 1.2 and 1.3) — an optional list of catalogue foods a person says they already have, spent by the generation that reads it, which reaches no model, changes no pick and adds no recipient, transfer or period of its own, so **nothing is scored again**; it is not an art. 9 datum on the conditional position in [`pantry.md`](./pantry.md) § 5.3, and that condition (no inference, and a screen that invites none) is what § 6 of that document asks the owner to approve. Previously: 0.5 draft, 2026-10-16, which records the kitchen (`0102`, project 021: §§ 1.2 and 1.3) — a closed enum per appliance, optional, no free text, no new recipient, period or art. 9 datum, and no new criterion from the AEPD's list, so nothing is scored again. Previously: 0.4 draft, 2026-10-03 (0.3: 2026-09-28; 0.2: 2026-09-26; 0.1: 2026-09-25). 0.4 records project 011's account measures (phases 1 to 7, in `main`; phase 8, the sign-up that reveals nothing, **unmerged**: PR #217 — true once merged; [`analysis.md` § 4.1 ter](./analysis.md)): R8, R10 and M13, not scored again (011's phase 10 does that); no new health datum, no new criterion from the AEPD's list. 0.3 reviewed the onboarding trim (`0067`, **unmerged**: branch `feat/onboarding-cleanup` — true once merged): §§ 1.2, 1.3, 2, R2, § 6. 0.2 reviewed only the AI processing (`0064`: OpenRouter): §§ 1.3, 1.4, 2, R2, R14, M3, M4, § 5 and § 6 |
 | Approval | pending — the controller's signature and date |
 | DPO (*DPD*) | not appointed (not mandatory: [`analysis.md` § 5.2](./analysis.md#52-dpo--not-mandatory-today)) |
 | Why it is mandatory | The AEPD's list (art. 35.4), criteria 1, 4, 8 and 10; art. 28.2.c LOPDGDD — [`analysis.md` § 5.1](./analysis.md#51-dpia--mandatory) |
@@ -290,3 +290,105 @@ row 10.
 **Verdict**: with these measures the residual risk is acceptable. **No prior consultation**
 (art. 36.1). The conditions are the boxes of [`go-live-checklist.md`](./go-live-checklist.md)
 § 0 undecies. The controller signs this addendum with § 7.
+
+## 9. Addendum 2026-11-18: anyone can open a practice (project 025; art. 35.11 review)
+
+> Legal finding **B9** of [`2026-11-18-professionals-marketplace.md`](./2026-11-18-professionals-marketplace.md)
+> requires this addendum **before** the switch opens any of it (art. 35.1: "con carácter
+> previo"). It describes the product as [project 025's plan](../projects/025-anyone-can-open-a-practice/PLAN.md)
+> builds it. Every statement is **true once phases 2–10 are merged**, and nothing processes until
+> the owner turns the `professional` switch on in phase 10. The texts it relies on, and the
+> findings F1–F8, are in [`2026-11-18-anyone-can-open-a-practice.md`](./2026-11-18-anyone-can-open-a-practice.md).
+
+**What changes in the risk**: six things.
+
+1. **Who may receive data.** Since 004, a professional was someone the owner granted after
+   reading a collegiate number. From 025, it is **any adult account** with a confirmed address
+   and a birth date on record. That person can be invited by, and linked to, a client. New data
+   subjects: self-registered practitioners.
+2. **Health-adjacent data reaching people nobody has verified, on consent alone.** An un-badged
+   practitioner sees the client's name and the plans made through the link, with dishes, amounts
+   and each day's totals, and where things stand (when the link began, whether the profile is
+   finished, whether a plan is under way or waiting for review, whether generations are left this
+   fortnight). From the totals they can **deduce** roughly the client's daily energy. From
+   a dish refused for that client, without a reason, they can deduce an allergy or intolerance.
+   Their basis is the client's explicit consent naming them (art. 9.2.a). They owe contractual,
+   not statutory, secrecy.
+3. **The badge: an evaluation of a named person against a third party's register.** The
+   practitioner applies with a college and a number. The owner reads the college's public
+   register. A code goes to the contact **the register** publishes, which may belong to a real
+   dietitian who never applied (F2). A dated, append-only record is kept: checker, date,
+   register, result, number, channel and reason. Codes are hashed, single-use and last 30 days.
+   The contact is not stored in the database. It survives elsewhere (F3): the sent copy in the
+   SMTP mailbox, an envelope, a phone's call log.
+4. **An automated rule over declared health** (`0111` § 8, F1). A declared condition or
+   medication refuses an acceptance, and ends a link, with an un-badged practitioner. It acts at
+   three points: acceptance, declaration, and the daily sweep after a badge is lost.
+5. **The profile and the first look.** Display name, studies (free text), price, hours. Stored,
+   unlisted, read by its author and the owner. The owner's queue holds seen and hidden states
+   and a reason. A word filter refuses protected words, server-side.
+6. **No premium by link, ten free seats**: no data protection effect. It is recorded so that
+   purpose F4 of § 1.1 (charging for Premium and practice plans) is read as unchanged, and its
+   practice half as still deferred.
+
+**AEPD art. 35.4 list.** The criteria already counted (1, 4, 8, 10; [`analysis.md` § 5.1](./analysis.md#51-dpia--mandatory))
+each grow:
+
+- **1**, "perfilado o valoración de sujetos": the badge evaluates a named professional.
+- **2**, decisions "que impida[n] a un interesado… el acceso a un bien o un servicio": the
+  illness rule, and the word filter on a profile.
+- **4**, art. 9 data "o… deducir información… relacionada con categorías especiales": the
+  inferences of item 2.
+- **8**, "combinación o enlace de registros… por responsables distintos": the college's register
+  with NutrIA's account.
+
+Criterion 11 (art. 14.5 exceptions) is **not** met. The person looked up is told, at the first
+communication, through every channel (`textos/06` §§ R–T).
+
+### 9.1 Risks to a real person, and what stands against each
+
+Likelihood and impact on § 3's scale (1–4). The measures are those of the plan's phases. None
+is in place today.
+
+| # | Threat | Harm to the person | P | I | Inherent | Measures | Residual |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| R-P1 | An un-badged practitioner obtains a client's weight, targets, adherence, check-ins, conditions or medication by some route | Health data disclosed to someone with no art. 9 basis for it and no statutory secrecy | 3 | 4 | **12** | The cut in core, beside the health branch of `withClient`, read on every request with no cache (`0111` § 4; PLAN phase 4). A plan-scope presenter drops `strategy`, day `targets` and meal `status`. Targets, progress and health answer 404. The roster folds `check_in_due` away and the check-in notice stops (phase 4, step 5). An end-to-end walk of **every** care route as an un-badged practitioner, enumerated from the controllers so that a new route without a case fails (phase 7). Key-absence assertions. `invariant-reviewer` on phases 3–6 | **2** — what remains is a future route that bypasses `withClient`, which phase 7's enumeration is built to catch |
+| R-P2 | An un-badged practitioner **deduces** something about health: energy from day totals, an allergy from a refused dish, a declared condition from links ended by the badge-loss sweep (F4) | An inference about health reaches someone unverified | 4 (by design) | 2 | 8 | Each inference **said in the consent** before acceptance (`textos/05` § F.2, F.3). No refusal or error names an allergen, intolerance or condition (PLAN phase 4, step 6; `0013` § 5.3). A refused dish reads «Este plato no encaja con este cliente». No notice fires only under the illness rule; a rule-ended link is presented as a client-ended one (`textos/06` § Y) | **4** — accepted. The day totals are the plan's content (PRD scope 7) and cannot be hidden from its author. The person consents knowing it (art. 9.2.a with 5.1.a) |
+| R-P3 | Somebody obtains the badge with a real dietitian's name and number (borrowed identity, legal R3) | Clients believe they are seeing a registered health professional and share health data on that belief; the real dietitian's name is misused | 3 | 4 | **12** | The code goes only to a contact the register publishes, never one the applicant supplies, and no route accepts a contact (PRD criterion 3). The mail, letter and call tell the real person and give them a "not me" path that fails the check (`textos/06` §§ R–T). The record is dated. A yearly re-check, and a lapse 30 days after it falls due. Removal on any report, with reasons. The number is displayed only from a `pass` (PRD criterion 5) | **2** — the post channel is the weakest: a shared practice mailbox is read by colleagues. The phone channel depends on the owner following `textos/06` § T to the letter |
+| R-P4 | The contact the code went to lingers outside the database (F3) | A professional's contact kept with no purpose | 3 | 1 | 3 | The owner deletes the sent copy of the code mail and the call-log entry once the code expires (30 days), and keeps no copy of a letter's address. A box in [`go-live-checklist.md`](./go-live-checklist.md) § 1 bis | **2** — a manual measure. It holds only if the owner does it |
+| R-P5 | A person with a condition, medication or pregnancy follows a plan from an unverified adviser who cannot know it (legal R1) | A plan unsafe for their condition | 3 | 4 | **12** | The illness rule's three points (`0111` § 8). Pregnancy and breastfeeding are condition keys (`Health.ts:27-28`) and fall under it. Every plan, whoever makes it, passes the same allergen gate, bounds and energy floor (`0110` decision 11). The un-badged practitioner never sets targets | **3** — what the rule cannot see is what the person never declared. The agreement forbids an un-badged practitioner to take on someone who told them of a condition (`textos/01` 2.0.0 § 9) |
+| R-P6 | The illness rule or the word filter wrongly refuses something (an automated decision over health data) | A person cannot work with whom they chose; a practitioner cannot describe themselves truthfully | 2 | 2 | 4 | The logic is stated in `/privacidad` (art. 13.2.f). Review by a person at `{email}` on every refusal screen (art. 22.3, in case art. 22 applies: M14). The health consent names the rule, at version 1.2.0 (F1) | **2** |
+| R-P7 | A practitioner without statutory secrecy shares or reuses what they see | Disclosure of the plan, and of what it implies | 2 | 3 | 6 | The narrow view (R-P1). Contractual confidentiality, and deletion when the link ends (`textos/01` 2.0.0 §§ 6, 7). The trail the client sees (M7). Withdrawal at any moment by ending the link. **The owner's suspension** (decided 2026-11-18): immediate, from the console, with reasons; while it lasts the account reads no client and cannot open or reopen a practice. A definitive close follows with reasons and 30 days' notice (`textos/01` 2.0.0 § 13; `textos/06` § W bis) | **4** — a contract binds; it does not prevent. Accepted: the data at stake are the plan and its inferences, not the clinical record |
+| R-P8 | A minor opens a practice, or is reached by an adult stranger through one | A child's data handled by a stranger | 1 | 4 | 4 | An age of 18 or more **on record and non-null** to open a practice (PRD scope 1; `assertOldEnough`). Clients are 18 or over as today (M10). The agreement forbids inviting a minor | **1** |
+| R-P9 | A badge lapses because the owner did not re-check in time (F5) | A badged client's care narrows without warning; a practitioner loses a status they still hold | 2 | 2 | 4 | The owner's daily alert. The practitioner's reminder (`textos/06` § U.2, choice C5, **not in the plan**). The lapse statement says when the delay was ours | **2** — not a data protection risk in itself. It is recorded because it moves health data out of a client's reach without their act |
+
+**Measures that change the existing table (§ 4).**
+
+- **M5** (access only through `withClient`) gains the scope cut.
+- **M7** (the trail) is unchanged and now carries both tiers.
+- **M8** (the agreement) moves to version 2.0.0, accepted again by every professional, with
+  contractual confidentiality for the un-badged. "The grant withdrawn on breach" becomes four
+  acts: hiding a profile and withdrawing a badge (immediate), suspending the account as a
+  practitioner (immediate; no practice can be opened or reopened until it is lifted), and a
+  definitive close (reasons and 30 days' notice).
+- **M9** (a separate health line) exists only on a badged, `full` link.
+- **M16** (bounds on any target) now covers every practitioner's plan, and an un-badged one
+  sets no targets.
+
+**Approval in this file's § 7** covers § 9. The `professional` switch stays off until it is
+signed (PRD criterion 21).
+
+### 9.2 Verdict
+
+With the plan's measures in place, no residual risk is left at a high level (≥ 9). R-P2 and
+R-P7 stay at 4, accepted and said to the person before they consent. R-P5 stays at 3, bounded by
+what a person declares. **No prior consultation** (art. 36.1).
+
+The conditions are the boxes of [`go-live-checklist.md`](./go-live-checklist.md) § 1 bis. Three
+of them would take a row back above 9 if they lapse:
+
+- the core cut and phase 7's enumeration (R-P1 → 12);
+- the "never a contact the applicant supplies" rule (R-P3 → 12);
+- the illness rule at all three points (R-P5 → 12).
+
+The controller signs this addendum with § 7.

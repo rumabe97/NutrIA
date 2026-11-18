@@ -199,6 +199,17 @@
 >   de consentimiento (F5 se arregló quitando el objetivo y la forma de comer de lo que recibe el
 >   modelo); `TERMS_VERSION` sí sube a `2.2.0` por [`03`](./03-condiciones-uso.md) § J.
 >
+> - **La consulta abierta a cualquiera (2026-11-18, proyecto 025, sin marca ⟦⟧)**: «Tu dietista en
+>   NutrIA» pasa a ser «Tu profesional en NutrIA» (`id: 'tu-profesional'`), con dos niveles, la regla
+>   de la enfermedad y un párrafo para el dietista al que se consulta en el registro. Cambian además
+>   dos viñetas de «Qué datos recogemos», dos frases de «Por qué podemos», una de «El asistente», una
+>   viñeta nueva en «Con quién compartimos» y un párrafo en «Cuánto tiempo». **El texto exacto, en
+>   los dos idiomas, y su fuente frase a frase están en
+>   [`../2026-11-18-anyone-can-open-a-practice.md`](../2026-11-18-anyone-can-open-a-practice.md)
+>   § 4**, que es su fuente hasta que se pasen a este fichero; las secciones de abajo todavía no los
+>   llevan. Se publica en la fase 10, antes del interruptor `professional`, con `privacy.updated` y
+>   el correo de [`06`](./06-correos.md) § Z: es un cambio «importante».
+>
 > **D5 (2026-09-29)**: cuando la fase 7 del proyecto 008 guarde la versión de las
 > condiciones, la línea «Cuenta» de «Qué datos recogemos» la nombra
 > ([`../2026-09-29-accepting-the-legal-texts.md`](../2026-09-29-accepting-the-legal-texts.md) § 6.B);

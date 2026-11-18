@@ -26,6 +26,16 @@
 > **Stripe *Managed Payments***: si sigue activo, Link es el vendedor de la suscripción y
 > sus términos rigen el cobro, el reembolso y parte del desistimiento. La sección C tiene
 > dos variantes. **[abogado]**: [`analysis.md` § 10, punto 4](../analysis.md#10-to-confirm-with-a-lawyer).
+>
+> **2026-11-18 — proyecto 025, la consulta abierta a cualquiera.** «Si trabajas con un dietista»
+> pasa a ser «Si trabajas con un profesional» (`id: 'profesional'`), y el segundo párrafo de
+> «Responsabilidad» cambia. El texto exacto en los dos idiomas, con su fuente, está en
+> [`../2026-11-18-anyone-can-open-a-practice.md`](../2026-11-18-anyone-can-open-a-practice.md)
+> § 5. `TERMS_VERSION` de `2.3.0` a `2.4.0`. **Esta vez sí hay correo**: el propietario lo decidió
+> el 2026-11-18 (PRD 025, scope 13, por opción marcada), y esa decisión, posterior, prevalece
+> sobre la del 2026-10-20 para este cambio. Es el correo de [`06`](./06-correos.md) § Z, y va
+> antes del interruptor. Las secciones F y G de abajo describen el texto de 004 y quedan como
+> constancia.
 
 ---
 

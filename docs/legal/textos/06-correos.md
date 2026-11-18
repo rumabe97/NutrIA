@@ -52,6 +52,11 @@ campos no cambian, salvo `meaning`, que se alinea con la página (§ B1 de `05`)
 
 ## B. Alta como profesional (nuevo)
 
+> **Proyecto 025: este correo se retira con la ruta que lo envía** (`0111` § 9: `POST
+> /admin/accounts/:id/professional` desaparece; la plantilla `ProfessionalGranted.ts` con ella). Nadie
+> recibe ya una consulta de manos del titular, y su frase «con el número de colegiado
+> {collegiateNumber}» imprimiría un número que nadie ha comprobado. Lo sustituyen §§ R–X.
+
 **Cuándo**: cuando el propietario concede el rol en `/admin` (`POST /admin/accounts/:id/professional`).
 Hoy el profesional no recibe nada (LEGAL-REVIEW § B1). **Plantilla nueva**:
 `ProfessionalGranted.ts`, `EmailKind` `professional-granted`.
@@ -472,3 +477,286 @@ encender el interruptor sin él están en [`../assistant-privacy.md`](../assista
 | `choose` | `Los detalles están en {privacyUrl}, en «El asistente», y en {termsUrl}. Si tienes cualquier duda, escríbenos a {email}. Si no estás de acuerdo, puedes no usar el asistente o borrar tu cuenta desde tu perfil.` | `The details are at {privacyUrl}, under "The assistant", and at {termsUrl}. If you have any question, write to us at {email}. If you do not agree, you can simply not use the assistant, or delete your account from your profile.` |
 
 <!-- Fuente: política vigente, «Cambios en esta política»; condiciones vigentes, «Cambios en estas condiciones»; RGPD arts. 12.1, 13.1.e-f y 13.3; TRLGDCU art. 60.1. Lo que dice de Anthropic, tal como lo dicen sus páginas el 2026-11-10 (../assistant-privacy.md § 8). «Nunca tu peso, tus alergias ni tu salud»: AssistantContext tras F1 y F5 (sin alergias, objetivo ni forma de comer). «Si no lo usas, no se envía ni se guarda nada nuevo»: no se escribe ninguna fila ni se hace ninguna llamada hasta que alguien envía un mensaje. Correo de servicio, no comercial: LSSI art. 21 no aplica. Sin plantilla hoy: si se envía a mano, en copia oculta. {privacyUrl} = /privacidad#asistente (o /en/privacidad#asistente); {termsUrl} = /condiciones (o /en/condiciones). -->
+
+---
+
+# Proyecto 025 — la consulta abierta a cualquiera (borradores del 2026-11-18)
+
+> **Nada de esto está construido.** Cada texto se publica en la fase del plan que trae su
+> plantilla, no antes. Qué es cada uno, por qué y qué elecciones hace (C1–C12):
+> [`../2026-11-18-anyone-can-open-a-practice.md`](../2026-11-18-anyone-can-open-a-practice.md).
+> Rigen las mismas reglas de este fichero: ningún correo lleva una palabra de salud, y el
+> titular de NutrIA se identifica enlazando la política (`{privacyUrl}`). Los marcadores nuevos
+> están en cada sección. Ninguno lleva el nombre, la dirección ni el teléfono de nadie escritos
+> aquí: los rellena el código o el propietario al enviarlos.
+
+---
+
+## R. El código de la insignia, por correo (fase 3)
+
+**Cuándo**: el propietario registra en la consola el canal `register_email` y la dirección que
+publica el registro, y la app envía el código. (El canal `college_email` lo descartó el
+propietario el 2026-11-18, C12: el código va solo a un contacto que muestra el registro.) **Plantilla
+nueva**: `ProfessionalBadgeCode.ts`, `EmailKind` `professional-badge-code`. **El destinatario
+puede no ser quien pidió la insignia** (hallazgo F2): por eso lleva la información del art. 14 y
+una salida para «no he sido yo».
+
+**Marcadores**: `{registerName}` (el nombre como lo muestra el registro), `{number}`,
+`{register}` (el colegio), `{code}`, `{expires}` (fecha), `{privacyUrl}` =
+`/privacidad#tu-profesional`.
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `Tu código para comprobar tu colegiación en NutrIA` | `Your code to check your registration on NutrIA` |
+| `intro` | `Te escribimos desde NutrIA, una aplicación de planes de comidas. Una cuenta de NutrIA ha pedido nuestra insignia de dietista-nutricionista colegiada/o con este nombre y este número: {registerName}, número {number}, de {register}.` | `We are writing from NutrIA, a meal-planning app. A NutrIA account has applied for our registered dietitian-nutritionist badge with this name and number: {registerName}, number {number}, of {register}.` |
+| `ifYou` | `Si has sido tú, entra en NutrIA, ve a tu consulta e introduce este código: {code}. Caduca el {expires}.` | `If it was you, sign in to NutrIA, go to your practice and enter this code: {code}. It expires on {expires}.` |
+| `ifNot` | `Si no has sido tú, no hagas nada con el código y respóndenos a este correo: alguien ha usado tu nombre y tu número. No daremos la insignia y no volveremos a escribirte por esto.` | `If it was not you, do nothing with the code and reply to this email: somebody has used your name and number. We will not give the badge, and we will not write to you about this again.` |
+| `why` | `Hemos sacado esta dirección de {source}. La usamos solo para enviarte este código, para comprobar que quien pide la insignia eres tú, por nuestro interés legítimo y el de quienes usan NutrIA: que nadie se haga pasar por dietista-nutricionista. En NutrIA no la guardamos; la copia de este correo en nuestro buzón la borramos cuando caduca el código. Guardamos el registro consultado, la fecha, el número, el resultado y que el código fue por correo. Quién es el responsable, tus derechos y cómo reclamar ante la Agencia Española de Protección de Datos: {privacyUrl}` | `We took this address from {source}. We use it only to send you this code, to check that the person applying for the badge is you, in our legitimate interest and that of the people who use NutrIA: that nobody passes themselves off as a dietitian-nutritionist. We do not keep it on NutrIA; we delete the copy of this email in our mailbox when the code expires. We keep the register we looked at, the date, the number, the result and that the code went by email. Who is responsible, your rights and how to complain to the Spanish Data Protection Agency: {privacyUrl}` |
+
+`{source}`: `el registro público de colegiados de {register}, que la publica para que cualquiera pueda comprobar una colegiación` / `{register}'s public register of members, which publishes it so that anyone can check a registration`.
+
+<!-- Fuente: RGPD art. 14.1.a (responsable: en {privacyUrl}, por capas, como el resto de este fichero), 14.1.c (fin y base: 6.1.f), 14.1.d (categorías: nombre, número, dirección), 14.2.a (plazo), 14.2.b (el interés legítimo), 14.2.c y e (derechos y reclamación, en {privacyUrl}), 14.2.f (fuente pública) y 14.3.b («a más tardar en el momento de la primera comunicación»). Leído en el BOE (DOUE-L-2016-80807) el 2026-11-18. 0111 § 3 (el código: un solo uso, 30 días, ligado a un canal; el contacto no se guarda). «La copia de este correo… la borramos»: F3 y C6 del documento del proyecto — Gmail guarda en «Enviados» lo que sale por su SMTP (a comprobar por el propietario); si el propietario no va a borrarla, esta frase cambia a lo que sí haga. «No volveremos a escribirte»: el propietario registra un `fail` con el motivo y no envía otro código a esa dirección por esa solicitud. Nada identifica la cuenta que pidió la insignia: solo lo que el registro ya publica. Correo de servicio, no comercial: LSSI art. 21 no aplica. -->
+
+---
+
+## S. El código de la insignia, por carta (fase 3; la escribe y la envía el propietario)
+
+**Cuándo**: el registro no publica correo. El propietario registra el canal `post`, la consola le
+muestra el código **una sola vez** (PLAN fase 3, paso 3), y él imprime y envía esta carta a la
+dirección profesional del registro. **El remite del sobre lo decide el propietario fuera del
+repositorio**; aquí no se escribe ninguna dirección.
+
+**Membrete**: `NutrIA — {name} — {email}` (de `legalIdentity.ts`, rellenado a mano al imprimir).
+
+> **Para {registerName}**
+>
+> Te escribimos desde NutrIA, una aplicación de planes de comidas. Una cuenta de NutrIA ha
+> pedido nuestra insignia de dietista-nutricionista colegiada/o con tu nombre y tu número de
+> colegiado, {number}, de {register}.
+>
+> **Si has sido tú**, entra en NutrIA, ve a tu consulta e introduce este código antes del
+> {expires}:
+>
+> **{code}**
+>
+> **Si no has sido tú**, no hagas nada con el código y escríbenos a {email}: alguien ha usado tu
+> nombre y tu número. No daremos la insignia.
+>
+> Hemos sacado esta dirección del registro público de colegiados de {register}, que la publica
+> para que cualquiera pueda comprobar una colegiación. La usamos solo para enviarte este código,
+> para comprobar que quien pide la insignia eres tú, por nuestro interés legítimo y el de quienes
+> usan NutrIA: que nadie se haga pasar por dietista-nutricionista. No la guardamos en NutrIA; lo
+> que guardamos es el registro consultado, la fecha, el número, el resultado y que el código fue
+> por carta. Quién es el responsable, tus derechos y cómo reclamar ante la Agencia Española de
+> Protección de Datos: {privacyUrl}.
+>
+> {name}, NutrIA
+
+<!-- Fuente: las mismas que § R. 30 días de validez porque el correo postal es lento (0111 § 3). El propietario no se queda copia de la carta con la dirección; si apunta la dirección para escribir el sobre, la nota se destruye al enviarla (F3). {privacyUrl} va escrita entera (la carta no tiene enlaces). -->
+
+---
+
+## T. El código de la insignia, por teléfono: el guion del propietario (fase 3)
+
+**Cuándo**: no hay correo en el registro, y el correo postal no llega o el registro solo publica
+un teléfono. Es el último canal (PRD 025, scope 6). **Lo lee el
+propietario; no es una plantilla.**
+
+1. Llama **solo** al teléfono que publica el registro de {register}. Nunca a uno que te haya dado
+   quien pidió la insignia.
+2. «Hola, llamo de NutrIA, una aplicación de planes de comidas. ¿Hablo con {registerName}?» Si
+   no es esa persona, pregunta cuándo puedes encontrarla, **sin decir el motivo** a nadie más, y
+   cuelga. No dejes el código en un contestador ni a otra persona.
+3. A {registerName}: «Una cuenta de NutrIA ha pedido nuestra insignia de dietista-nutricionista
+   colegiada/o con tu nombre y tu número. ¿La has pedido tú?»
+   - **Sí**: «Te leo un código para que lo introduzcas en tu consulta de NutrIA antes del
+     {expires}.» Léelo dos veces. No preguntes nada más.
+   - **No**: «Entonces alguien ha usado tu nombre y tu número. No daremos la insignia.» No leas el
+     código. Al colgar, registra un `fail` con el motivo «la persona del registro dice que no la
+     ha pedido».
+4. En los dos casos: «Tu teléfono lo hemos sacado del registro público de tu colegio y no lo
+   guardamos. Guardamos solo el registro consultado, la fecha, el resultado y que la
+   comprobación fue por teléfono. Todo lo demás, y tus derechos, en nuestra política de
+   privacidad: nutria, barra, privacidad.» (Di la dirección real de la web).
+5. Después: **borra la llamada del registro de llamadas del teléfono** con el que llamaste, y no
+   apuntes el número en ningún sitio.
+
+<!-- Fuente: RGPD art. 14 (como § R; de palabra, por capas, remitiendo a la política) y 5.1.c y e; F2 y F3 del documento del proyecto; legal § 6.0.1, opción 3 («a phone number the register lists — not one the applicant gives»). El código no se deja a terceros: si lo recibe otra persona, ya no prueba que la cuenta sea de {registerName}. -->
+
+---
+
+## U. La comprobación anual
+
+### U.1 Al propietario: lo que vence (fase 3, el barrido diario, solo con el interruptor encendido)
+
+**Plantilla**: `OwnerAlert.ts`, tipo nuevo `badges-due`. Solo en español, como el resto de
+avisos al propietario. **Elección C8**: lleva números y un enlace, ninguna dirección.
+
+| Campo | es-ES |
+| --- | --- |
+| `subject` | `NutrIA: {count} insignias por volver a comprobar` |
+| `body` | `Hoy vencen o están vencidas {count} insignias: {soon} caducan en los próximos 7 días si no las compruebas. Están en la consola, en Profesionales.` |
+| `link` | `{adminUrl}/profesionales` |
+
+<!-- Fuente: PRD 025 scope 6 y criterio 4 («the daily cron reminds the owner»); 0071 y la nota del 2026-09-29 (los avisos al propietario no llevan direcciones: ../2026-09-29-mail-to-the-owner.md); RGPD art. 5.1.c. El PLAN (fase 3, paso 4) dice «counts and addresses of practitioners only»: propongo quitar también las direcciones (C8), porque la consola ya las tiene. -->
+
+### U.2 Al profesional: su insignia vence (elección C5 — **no está en la fase 3**)
+
+**Cuándo**: el día en que vence (`due_at`), una vez. **Plantilla nueva**:
+`ProfessionalBadgeDue.ts`.
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `Toca comprobar tu insignia de NutrIA` | `Your NutrIA badge is due for its check` |
+| `intro` | `Hace un año que comprobamos tu colegiación. Vamos a volver a mirar el registro de {register}.` | `It is a year since we checked your registration. We are going to look at {register}'s register again.` |
+| `what` | `No tienes que hacer nada, salvo si te llega un código nuevo: entonces introdúcelo en tu consulta. Si el {lapseDate} no lo hemos completado, tu insignia caducará, aunque el retraso sea nuestro, y desde ese día verás de cada cliente solo los planes que le haces. Podrás volver a pedirla.` | `You need do nothing unless a new code reaches you: then enter it in your practice. If we have not completed it by {lapseDate}, your badge will lapse, even if the delay is ours, and from that day you will see of each client only the plans you make for them. You will be able to apply again.` |
+
+<!-- Fuente: 0111 § 2 (vence a los doce meses, caduca 30 días después); F5 del documento del proyecto; P2B art. 4.1 (avisar de una restricción antes de que surta efecto, cuando se puede). -->
+
+---
+
+## V. La insignia ha caducado: declaración de motivos (fase 3, el barrido diario)
+
+**Cuándo**: una vez, cuando el barrido escribe la fila `lapsed`. **Plantilla nueva**:
+`ProfessionalBadgeLapsed.ts`.
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `Tu insignia de NutrIA ha caducado` | `Your NutrIA badge has lapsed` |
+| `what` | `Desde hoy no tienes la insignia «Dietista-nutricionista colegiada/o». Tu consulta sigue abierta, y desde tu siguiente petición ves de cada cliente lo que el § 3 del acuerdo del profesional describe «sin la insignia». Lo demás que cambia está en su § 4. Las palabras de tu perfil que solo permite la insignia ya no se muestran, y tu perfil vuelve a revisión.` | `From today you no longer hold the "Registered dietitian-nutritionist" badge. Your practice stays open, and from your next request you see of each client what section 3 of the professional's agreement describes "without the badge". The rest of what changes is in its section 4. The words in your profile that only the badge allows are no longer shown, and your profile goes back for review.` |
+| `why` | `Por qué: la comprobación anual vencía el {dueDate} y, 30 días después, no la habíamos completado. {detail} Es lo que dice el § 4 del acuerdo del profesional que aceptaste. Lo hemos decidido nosotros, sin ninguna notificación de terceros.` | `Why: the yearly check was due on {dueDate} and, 30 days later, we had not completed it. {detail} That is what section 4 of the professional's agreement you accepted says. We decided it ourselves, with no third-party notice.` |
+| `detail` (una de tres) | `No conseguimos confirmar tu colegiación en el registro.` · `Te enviamos un código y no llegó a introducirse.` · `El retraso ha sido nuestro: no llegamos a hacerla a tiempo.` | `We could not confirm your registration on the register.` · `We sent you a code and it was not entered.` · `The delay was ours: we did not get to it in time.` |
+| `redress` | `Puedes volver a pedir la insignia desde tu consulta cuando quieras. Si crees que es un error, responde a este correo: lo revisa una persona y te contesta, y si lo deshacemos recuperas la insignia como estaba. También puedes acudir a los tribunales.` | `You can apply for the badge again from your practice whenever you like. If you think this is a mistake, reply to this email: a person reviews it and answers you, and if we reverse it you get the badge back as it was. You can also go to the courts.` |
+
+<!-- Fuente: DSA art. 17.3: a) qué decisión y su alcance; b) hechos, y si fue por notificación o por propia iniciativa; c) medios automatizados — la caducidad la aplica el barrido por fecha, pero la decisión de no haber comprobado es humana, y «sin ninguna notificación» lo dice; e) fundamento contractual (§ 4 del acuerdo); f) vías de recurso: reclamación interna (por correo; NutrIA es micro y el art. 20 no le obliga, art. 19.1) y judicial. P2B art. 4.1, 4.3 y 4.5 (motivación en soporte duradero; aclarar los hechos; reincorporar). El correo no dice que haya terminado ningún enlace, ni cuántos: lo diría aunque el profesional no tuviera ningún cliente con algo anotado, y daría el motivo que al cliente se le promete que no se da (05 § F.2, § G.3; F4). La regla general está en el § 4 del acuerdo, que el profesional ya aceptó. -->
+
+---
+
+## W. La insignia no se da o se retira: declaración de motivos (fase 3)
+
+**Cuándo**: el propietario escribe una fila `fail` o `withdrawn` con su motivo en la consola.
+**Plantilla nueva**: `ProfessionalBadgeRemoved.ts`. Si la persona nunca tuvo la insignia
+(`fail` tras `applied`), el correo dice «no te damos»; si la tenía (`withdrawn`), «te retiramos».
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `Sobre tu insignia de NutrIA` | `About your NutrIA badge` |
+| `what` (`fail`) | `No te damos la insignia «Dietista-nutricionista colegiada/o». Tu consulta sigue abierta como hasta ahora.` | `We are not giving you the "Registered dietitian-nutritionist" badge. Your practice stays open as before.` |
+| `what` (`withdrawn`) | `Te retiramos la insignia «Dietista-nutricionista colegiada/o» desde hoy. Tu consulta sigue abierta, y desde tu siguiente petición ves de cada cliente lo que el § 3 del acuerdo del profesional describe «sin la insignia». Lo demás que cambia está en su § 4. Las palabras de tu perfil que solo permite la insignia ya no se muestran.` | `We are removing the "Registered dietitian-nutritionist" badge from today. Your practice stays open, and from your next request you see of each client what section 3 of the professional's agreement describes "without the badge". The rest of what changes is in its section 4. The words in your profile that only the badge allows are no longer shown.` |
+| `why` | `Por qué: {reason} Es lo que dice el § 4 del acuerdo del profesional que aceptaste. {source}` | `Why: {reason} That is what section 4 of the professional's agreement you accepted says. {source}` |
+| `reason` (las que el propietario elige; puede añadir los hechos) | `El registro de {register} no te muestra como colegiada/o habilitada/o con el número {number}, consultado el {checkedOn}.` · `La persona que figura en el registro con ese número nos ha dicho que no ha pedido la insignia.` · `El código caducó sin introducirse.` · `{facts}` | `{register}'s register does not show you as registered and entitled to practise under number {number}, as checked on {checkedOn}.` · `The person listed on the register under that number has told us they did not apply for the badge.` · `The code expired without being entered.` · `{facts}` |
+| `source` (una de dos) | `Lo hemos decidido nosotros, por nuestra comprobación.` · `Lo hemos revisado tras un aviso que nos llegó.` | `We decided it ourselves, from our own check.` · `We looked into it after a notice we received.` |
+| `redress` | igual que § V, con «pedir la insignia de nuevo» | the same as § V |
+
+<!-- Fuente: DSA art. 17.3 a), b) (notificación o iniciativa propia; la identidad de quien notifica solo si es estrictamente necesario: aquí nunca — si la persona del registro dijo que no, el correo lo dice sin nombrarla, y el solicitante ya sabe a quién usó), e) y f); P2B art. 4.1 y 4.5; 0111 § 2. -->
+
+---
+
+## W bis. Suspender la cuenta como profesional, levantar la suspensión y cerrar la consulta (fase 6; decidido por el propietario el 2026-11-18)
+
+**El propietario tiene tres actos sobre una cuenta que practica**, además de ocultar un perfil (§ X)
+y retirar una insignia (§ W), que son inmediatos:
+- **suspender**, inmediato: mientras dure, la cuenta no ve los datos de ningún cliente, no invita a
+  nadie y no puede abrir ni reabrir una consulta;
+- **levantar** la suspensión;
+- **cerrar definitivamente**, con **30 días de aviso**, salvo obligación legal o incumplimiento
+  reiterado.
+
+**Plantillas nuevas**: `ProfessionalSuspended.ts`, `ProfessionalSuspensionLifted.ts`,
+`ProfessionalClosing.ts`. Sin palabra de salud y sin nombre de ningún cliente.
+
+### W bis.1 Suspensión
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `Hemos suspendido tu cuenta como profesional en NutrIA` | `We have suspended your account as a professional on NutrIA` |
+| `what` | `Desde hoy tu cuenta está suspendida como profesional: no ves los datos de ningún cliente, no puedes invitar a nadie y no puedes abrir una consulta hasta que levantemos la suspensión. Tu cuenta personal de NutrIA sigue como estaba.` | `From today your account is suspended as a professional: you see no client's data, you cannot invite anyone and you cannot open a practice until we lift the suspension. Your personal NutrIA account carries on as it was.` |
+| `why` | `Por qué: {reason} Es lo que dice el § 13 del acuerdo del profesional que aceptaste{clause}. {source}` | `Why: {reason} That is what section 13 of the professional's agreement you accepted says{clause}. {source}` |
+| `reason` | `{facts}` (el propietario escribe los hechos: qué, cuándo, dónde) | `{facts}` |
+| `clause` | `` · `, en relación con su § {n}` | `` · `, read with its section {n}` |
+| `source` | `Lo hemos decidido nosotros, por nuestra propia revisión.` · `Lo hemos revisado tras un aviso que nos llegó.` · `Nos lo exige {authority}.` | `We decided it ourselves, from our own review.` · `We looked into it after a notice we received.` · `{authority} requires it of us.` |
+| `redress` | `Para aclarar los hechos o pedir que lo revisemos, responde a este correo: lo revisa una persona y te contesta. Si levantamos la suspensión, te lo diremos y podrás volver a abrir tu consulta. También puedes acudir a los tribunales.` | `To clarify the facts or ask us to look again, reply to this email: a person reviews it and answers you. If we lift the suspension, we will tell you and you will be able to open your practice again. You can also go to the courts.` |
+
+### W bis.2 Suspensión levantada
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `Hemos levantado la suspensión de tu cuenta como profesional` | `We have lifted the suspension of your account as a professional` |
+| `body` | `Desde hoy puedes volver a abrir tu consulta en NutrIA. {why}` | `From today you can open your practice on NutrIA again. {why}` |
+| `why` | `` · `Lo hemos revisado y {facts}.` | `` · `We have looked into it and {facts}.` |
+
+### W bis.3 Cierre definitivo, con 30 días de aviso
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `Vamos a cerrar tu consulta en NutrIA el {closeDate}` | `We are going to close your NutrIA practice on {closeDate}` |
+| `what` | `El {closeDate} cerraremos definitivamente tu consulta: perderás el acceso a tus clientes y tus invitaciones pendientes se anularán. Hasta esa fecha sigue como está{suspendedSuffix}. Tu cuenta personal de NutrIA no cambia.` | `On {closeDate} we will close your practice for good: you will lose access to your clients and your pending invitations will be cancelled. Until then it stays as it is{suspendedSuffix}. Your personal NutrIA account does not change.` |
+| `suspendedSuffix` | `` · `, es decir, suspendida` | `` · `, that is, suspended` |
+| `why` | igual que W bis.1 | the same as W bis.1 |
+| `redress` | `Hasta el {closeDate} puedes aclarar los hechos o pedirnos que lo revisemos respondiendo a este correo: lo revisa una persona y te contesta. También puedes acudir a los tribunales.` | `Until {closeDate} you can clarify the facts or ask us to look again by replying to this email: a person reviews it and answers you. You can also go to the courts.` |
+| `immediate` (sustituye a `subject` y a la primera frase de `what` cuando no hay plazo) | `Hemos cerrado tu consulta en NutrIA` · `Desde hoy hemos cerrado definitivamente tu consulta, sin el plazo de 30 días, porque {exception}: …` con `{exception}` = `la ley nos obliga a hacerlo ({law})` o `has incumplido el acuerdo de forma repetida: {facts}` | `We have closed your NutrIA practice` · `From today we have closed your practice for good, without the 30-day period, because {exception}: …` |
+
+<!-- Fuente: decisión del propietario del 2026-11-18 (suspensión real desde la consola; cierre definitivo con motivos y 30 días; ocultar y retirar, inmediatos); acuerdo 2.0.0 §§ 11 y 13; Reglamento (UE) 2019/1150 art. 4.1 (motivación de una suspensión antes o al surtir efecto, en soporte duradero), 4.2 (terminación: 30 días antes, con declaración de motivos), 4.3 (aclarar los hechos; reincorporar sin demora si se revoca), 4.4 (excepciones al plazo, con motivos sin demora) y 4.5 (hechos concretos, notificaciones de terceros, motivo del art. 3.1.c) — DOUE L 186, pp. 70-71; DSA art. 17.1.c-d y 17.3 a)-f). «Tu cuenta personal sigue como estaba»: la suspensión alcanza la consulta, no el uso de NutrIA como cliente de sí mismo. El aviso de 30 días lo da el propietario; el código no lo impone (go-live-checklist § 1 bis). -->
+
+---
+
+## X. Ocultar un perfil tras la primera revisión: declaración de motivos (fase 6)
+
+**Cuándo**: el propietario oculta un perfil desde la cola, con un motivo (`hidden_reason`). El
+esquema tiene un solo acto, ocultar, y ninguno distinto de «rechazar» (hallazgo F6).
+**Plantilla nueva**: `ProfessionalProfileHidden.ts`.
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `Hemos ocultado tu perfil de NutrIA` | `We have hidden your NutrIA profile` |
+| `what` | `Hemos ocultado tu perfil. Hoy ningún perfil se muestra a nadie fuera de tu consulta, así que en la práctica no cambia nada; pero mientras siga oculto no aparecerá en ningún sitio donde NutrIA muestre perfiles. Tu consulta y tus clientes siguen como estaban.` | `We have hidden your profile. Today no profile is shown to anyone outside your practice, so in practice nothing changes; but while it stays hidden it will not appear anywhere NutrIA shows profiles. Your practice and your clients carry on as they were.` |
+| `why` | `Por qué: {reason} Es lo que dicen los §§ 2 y 5 del acuerdo del profesional que aceptaste. Lo ha visto una persona, no un programa, en la revisión que hacemos de cada perfil{noticeSuffix}.` | `Why: {reason} That is what sections 2 and 5 of the professional's agreement you accepted say. A person saw it, not a program, in the review we make of every profile{noticeSuffix}.` |
+| `reason` (una o varias; el propietario añade los hechos) | `Usa una palabra que el acuerdo no permite sin la insignia: «{word}».` · `Ofrece un servicio para una enfermedad.` · `Promete resultados.` · `Se presenta con un título que NutrIA no comprueba: «{word}».` · `Es publicidad que no tiene que ver con tus servicios.` · `{facts}` | `It uses a word the agreement does not allow without the badge: "{word}".` · `It offers a service for a disease.` · `It promises results.` · `It presents a title NutrIA does not check: "{word}".` · `It is advertising unrelated to your services.` · `{facts}` |
+| `noticeSuffix` | `` (vacío) · `, después de un aviso que nos llegó` | `` (empty) · `, after a notice we received` |
+| `redress` | `Edita tu perfil y volverá a la revisión: si ya no tiene lo que te decimos, dejará de estar oculto. Si crees que es un error, responde a este correo: lo revisa una persona y te contesta. También puedes acudir a los tribunales.` | `Edit your profile and it goes back for review: if it no longer has what we mention, it will stop being hidden. If you think this is a mistake, reply to this email: a person reviews it and answers you. You can also go to the courts.` |
+
+<!-- Fuente: DSA art. 17.1.a (restricción de la visibilidad) y 17.3 a)-f) — c): «lo ha visto una persona» porque las palabras que el código rechaza nunca llegan a guardarse, así que lo oculto en la revisión lo decidió el propietario; e): §§ 2 y 5 del acuerdo; f): reclamación interna por correo (art. 19.1: el art. 20 no obliga a una micro) y tribunales. P2B art. 4.1. PRD 025 scope 11 y criterio 18 (no condiciona nada; un cambio vuelve a la cola). «No aparecerá en ningún sitio donde NutrIA muestre perfiles»: describe lo que guarda `hidden_at` y lo que leerá el directorio (0111, Consecuencias: «Project 4 reads professional_profiles' first-look state to decide appearance»); hoy no existe ese sitio, y el texto lo dice. -->
+
+---
+
+## Y. La regla de la enfermedad: los avisos (fase 5)
+
+**Al profesional: ninguno.** Ni correo, ni empuje, ni una etiqueta distinta (hallazgo F4):
+- Una aceptación rechazada no le llega: para él, la invitación sigue sin responder hasta que caduca.
+- Un enlace terminado por la regla se le muestra **igual** que uno que termina el cliente. Si
+  `care_link_ended_by` gana un valor nuevo (hoy `professional`, `client`, `lapse`, `account`:
+  `packages/database/src/schemas/_enums.ts:97`), las vistas del profesional lo presentan como `client`.
+- Hoy no hay correo de «enlace terminado» a nadie (no existe esa plantilla). Si un día se crea,
+  sale en **todo** fin de enlace y con el mismo texto, nunca solo en este.
+
+**Al cliente**: en pantalla, lo de [`05`](./05-consentimientos-cliente.md) § G. Por correo, solo
+cuando el enlace lo termina el barrido diario (la persona no está mirando), y **sin ninguna
+palabra de salud**. **Plantilla nueva**: `CareLinkEndedByRule.ts`.
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `Tu enlace con {professional} en NutrIA ha terminado` | `Your link with {professional} on NutrIA has ended` |
+| `body` | `Tu enlace con {professional} ha terminado hoy. Tu plan, tus objetivos y tu historial se quedan contigo. Entra en NutrIA para ver por qué: te lo explicamos en tu perfil.` | `Your link with {professional} ended today. Your plan, your targets and your history stay with you. Sign in to NutrIA to see why: we explain it on your profile.` |
+| `button` | `Abrir mi perfil` | `Open my profile` |
+
+<!-- Fuente: 0111 § 8; PRD 025 scope 10 y criterio 22; RGPD arts. 5.1.f y 32 (un buzón y una pantalla de bloqueo no llevan salud: criterio de este fichero desde CareInvitation.ts, 0059); art. 13.2.f y 22.3 (el porqué y la revisión humana están en la pantalla, 05 § G.3). -->
+
+---
+
+## Z. El aviso del cambio, a cada cuenta (fase 10, antes del interruptor)
+
+**Cuándo**: a cada cuenta, una vez, **después** de publicar los textos de §§ 4 y 5 del documento
+del proyecto y **antes** de encender el interruptor `professional`, como pronto al día siguiente
+(PRD 025, scope 13 y criterio 23). A los profesionales que ya existen, además, el acuerdo 2.0.0
+con **15 días** de antelación (P2B art. 3.2): hoy solo existe la cuenta del propietario, así que
+en la práctica no hay que esperar. `{date}` = el día en que el propietario piensa encender el
+interruptor: si se retrasa, no se reenvía, pero nunca se adelanta.
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `Cambian la política de privacidad y las condiciones de NutrIA` | `NutrIA's privacy policy and terms are changing` |
+| `intro` | `A partir del {date}, cualquier persona mayor de edad podrá abrir una consulta en NutrIA y hacer el plan de comidas de quien la invite a ello. Si no trabajas con ningún profesional, para ti no cambia nada.` | `From {date}, any adult will be able to open a practice on NutrIA and make the meal plan of whoever invites them to. If you do not work with a professional, nothing changes for you.` |
+| `what` | `Solo quien lleve nuestra insignia «Dietista-nutricionista colegiada/o» es alguien a quien hemos comprobado en el registro de su colegio. Un profesional sin ella verá de ti los planes que te haga y en qué punto están, nunca tu peso, tus objetivos, tu salud ni tus alergias, y antes de aceptar su invitación verás exactamente qué verá. Si tienes anotada una condición de salud o una medicación, solo podrás vincularte con un profesional con la insignia. Y estar vinculado a un profesional no da Premium.` | `Only someone with our "Registered dietitian-nutritionist" badge is a person we have checked on their college's register. A professional without it will see of you the plans they make for you and where they stand, never your weight, your targets, your health or your allergies, and before you accept their invitation you will see exactly what they will see. If you have a health condition or a medication on record, you will only be able to link with a professional who holds the badge. And being linked to a professional does not give you Premium.` |
+| `choose` | `Los detalles están en {privacyUrl}, en «Tu profesional en NutrIA», y en {termsUrl}. Si tienes cualquier duda, escríbenos a {email}. Si no estás de acuerdo, puedes borrar tu cuenta desde tu perfil.` | `The details are at {privacyUrl}, under "Your professional on NutrIA", and at {termsUrl}. If you have any question, write to us at {email}. If you do not agree, you can delete your account from your profile.` |
+
+<!-- Fuente: política vigente, «Cambios en esta política» («te avisaremos por correo antes de que se aplique»); condiciones vigentes, «Cambios en estas condiciones»; RGPD arts. 12.1, 13.1.e y 13.3; TRLGDCU art. 85.3; P2B art. 3.2 para los profesionales. Es «importante»: un destinatario nuevo (un profesional que NutrIA no ha comprobado) y un uso nuevo de los datos de salud (la regla). «Tu salud» es una palabra de salud genérica, sin nada de nadie: el criterio de este fichero es no revelar nada de la persona, y aquí no se revela nada (lo mismo hizo § Q). Correo de servicio, no comercial: LSSI art. 21 no aplica. Sin plantilla hoy: si se envía a mano, en copia oculta. {privacyUrl} = /privacidad#tu-profesional. -->

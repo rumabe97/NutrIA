@@ -325,6 +325,69 @@ box is true of that tree; it stays true only if the tree is merged as read.*
 4. [ ] **Switch the `professional` flag on** in `/admin`. With no grants, nobody sees anything new.
 5. [ ] **Grant** to each professional, one by one, after checking their registration number (the "Organisation" box). The grant sends the welcome mail, and its link to `/consulta` leads to the agreement before anything else.
 
+## 1 bis. Before switching `professional` on with project 025 (anyone can open a practice)
+
+Project 025 replaces the grant of § 1 with self-service practices and a badge. § 1's
+*Organisation* box and its order of switching on ("grant to each professional") **no longer
+apply** once 025's phase 6 retires the grant route. Everything below is from
+[`2026-11-18-anyone-can-open-a-practice.md`](./2026-11-18-anyone-can-open-a-practice.md) and the
+DPIA addendum ([`dpia.md`](./dpia.md) § 9).
+
+**Documents**
+- [ ] The owner has approved every text of phase 1, each with its date in the project's LOG.
+- [ ] The DPIA addendum (§ 9) is merged and **signed** with § 7 (PRD criterion 21).
+- [ ] The record of processing rows 1, 3, 5, 11 and 12 are merged.
+- [ ] `PRODUCT.md` § Scope (and § Users) amended as approved.
+
+**Code** (each true in production, not on a branch)
+- [ ] The cut in core: an un-badged link reaches only plans carrying its `care_link_id`; targets,
+      progress and health answer 404; phase 7's walk passes, with every care route enumerated
+      (R-P1).
+- [ ] No route accepts a contact for the badge; a wrong, used or expired code answers as an
+      unknown one (R-P3).
+- [ ] The illness rule at its three points; a rule-ended link is presented to the practitioner
+      exactly as a client-ended one; no mail or push fires only under the rule (R-P5, F4).
+- [ ] `HEALTH_CONSENT_VERSION` = `1.2.0` with `health.consentNote` of [`textos/05`](./textos/05-consentimientos-cliente.md)
+      § C bis, live **no later than** the illness rule (F1).
+- [ ] `PROFESSIONAL_AGREEMENT_VERSION` = `2.0.0` and `CARE_CONSENT_VERSION` = `3.0.0` with
+      their words (phase 8); `TERMS_VERSION` = `2.4.0`, `privacy.updated` and `terms.updated`
+      (phase 10).
+- [ ] Both dictionaries searched with the Spanish pattern of PLAN phase 10 **and** the English
+      one: `grep -niE 'dietitian|dietician|nutritionist|registered|registration number|professional secrecy|patient'`.
+      Every hit is disposed of as § 7 of the project document says.
+
+**Links on old consents**
+- [ ] A read-only count of `care_links` by `consentVersion` (`1.0.0`, `2.0.0`) and status. The
+      owner ends his own test links and invites again on `3.0.0` (§ 1 of the project document).
+
+**The owner's own duties** (no code does them)
+- [ ] He has checked whether his SMTP account keeps a copy of what it sends (Gmail: the *Sent*
+      folder) and decided: either he deletes each badge-code mail, and each call-log entry, once
+      the code expires (30 days), or `textos/06` § R and `/privacidad` P-3 ¶ 11 are changed to
+      what he will actually do (F3, choice C6).
+- [ ] He has read the call script (`textos/06` § T) and the letter (§ S), and knows the order of
+      the three channels and that a contact the applicant gives is never one of them.
+- [ ] The re-check: he knows the console's due list, and that a badge lapses 30 days after it
+      falls due even when the delay is his (F5).
+- [ ] Closing a practice for good: he gives the practitioner **30 days' notice by email, with
+      the reasons** (`textos/06` § W bis.3), except where the law obliges him or after repeated
+      breach (agreement 2.0.0 § 13; P2B art. 4.2 and 4.4). The code does not enforce the wait.
+- [ ] **The suspension exists in production** (decided by the owner on 2026-11-18): from the
+      console, immediate, with the statement of `textos/06` § W bis.1; while it lasts the account
+      sees no client's data, invites nobody and **cannot open or reopen a practice** by
+      self-service. An end-to-end test that a suspended account's `POST /care/practice` is a 404.
+
+**The order of switching on**
+1. [ ] The texts of §§ 4 and 5 of the project document are published (phase 10), with the
+       version constants above.
+2. [ ] The mail of [`textos/06`](./textos/06-correos.md) § Z has gone to every account, and the
+       LOG records the date. The agreement 2.0.0 has been notified 15 days ahead to any
+       professional who already exists (today, only the owner's account).
+3. [ ] No earlier than the day after: the owner switches `professional` on in `/admin`, and
+       `docs/decisions/LOG.md` gains the dated line.
+
+**For the lawyer**: M14–M17 of the project document, after M1–M13.
+
 ## 2. Before Stripe's *live* keys (Premium and the practice)
 
 **Identity and registration**
