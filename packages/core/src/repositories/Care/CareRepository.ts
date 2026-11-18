@@ -11,14 +11,18 @@ import { professionals } from 'database/schema/professional';
 import { user } from 'database/schema/auth';
 
 import { DatabaseOperationError } from 'core/entities/Error';
+import { ProfessionalBadgeRepository } from '#repositories/Professional';
 import { CARE_ACCESS_ACTIONS, CARE_ACCESS_KINDS, careAccessEntrySchema, careInvitationSchema, careLinkSchema } from 'core/entities/Care';
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
+
+import { linkScope } from './CareScope';
 
 import type {
   AcceptInvitation,
   CareAccessAction,
   CareAccessEntry,
   CareAccessKind,
+  CareConsentScope,
   CareInvitation,
   CareLink,
   CareLinkEndedBy,
@@ -51,9 +55,14 @@ const client = alias(user, 'client');
 /**
  * An active link a professional reached through `CareController.withClient`,
  * with both names: the client's, for the page, and the professional's, for the
- * snapshot the client's trail keeps.
+ * snapshot the client's trail keeps — and the `scope` it opens now (`linkScope`).
  */
-export type ActiveLink = { readonly clientName: string; readonly link: CareLink; readonly professionalName: string };
+export type ActiveLink = {
+  readonly clientName: string;
+  readonly link: CareLink;
+  readonly professionalName: string;
+  readonly scope: CareConsentScope;
+};
 
 /** One row of a professional's list, as stored: the link, the client's name, and where they are. */
 export type RosterLink = {
@@ -69,6 +78,12 @@ export type RosterLink = {
   readonly planActive: boolean;
   /** Whether a plan is waiting for this professional's review (`0060`). */
   readonly planPendingReview: boolean;
+  /**
+   * What the link opens now (`linkScope`). Under `plan`, `latestPlan` is null
+   * whatever the client has: whether a check-in was answered never leaves this
+   * repository for a `plan` scope, so no stage can be derived from it.
+   */
+  readonly scope: CareConsentScope;
 };
 
 /** Everything on a professional's list: the live invitations, and the open links. */
@@ -258,8 +273,13 @@ export const CareRepository = {
    * **The only query that turns a professional's session into another
    * account's id**: the client's id leaves this method inside the link, and
    * only `withClient` calls it.
+   *
+   * It answers the link's `scope` too (`0111` § 4, `linkScope`): the badge is
+   * read here, for `professionalId` (the session's), on every call — never
+   * cached, never taken from the caller — so a badge that lapsed or was
+   * withdrawn narrows this very request.
    */
-  async activeLink(professionalId: string, linkId: string): Promise<ActiveLink | null> {
+  async activeLink(professionalId: string, linkId: string, now: Date = new Date()): Promise<ActiveLink | null> {
     try {
       const [row] = await database()
         .select({ clientName: client.name, link: careLinks, professionalName: user.name })
@@ -270,7 +290,14 @@ export const CareRepository = {
         .where(and(eq(careLinks.id, linkId), eq(careLinks.professionalId, professionalId), eq(careLinks.status, 'active')))
         .limit(1);
 
-      return row ? { clientName: row.clientName, link: careLinkSchema.parse(row.link), professionalName: row.professionalName } : null;
+      if (!row) {
+        return null;
+      }
+
+      const link = careLinkSchema.parse(row.link);
+      const badge = await ProfessionalBadgeRepository.badgeOf(professionalId, now);
+
+      return { clientName: row.clientName, link, professionalName: row.professionalName, scope: linkScope(link.consentScope, badge !== null) };
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -593,6 +620,10 @@ export const CareRepository = {
    */
   async roster(professionalId: string, now: Date): Promise<Roster> {
     try {
+      // The badge as it stands now, read once for the whole list: with each link's
+      // own consent it is that row's scope (`linkScope`, `0111` § 4).
+      const badged = (await ProfessionalBadgeRepository.badgeOf(professionalId, now)) !== null;
+
       // One snapshot for the rows written and the facts read: every client whose stage is
       // worked out below has had their `list` row written first, and no other client has.
       return await database().transaction(
@@ -619,7 +650,7 @@ export const CareRepository = {
               .where(and(eq(careLinks.professionalId, professionalId), eq(careLinks.status, 'active')))
           );
 
-          return await rosterOf(db, professionalId, now);
+          return await rosterOf(db, professionalId, now, badged);
         },
         { isolationLevel: 'repeatable read' }
       );
@@ -715,8 +746,11 @@ export const CareRepository = {
 /**
  * What `roster` reads, inside its transaction. Only links whose grant stands:
  * the join on `professionals` is the same second line `activeLink` keeps.
+ * `badged` is the professional's badge now, read by the caller: with each
+ * link's own consent it decides the row's `scope` (`linkScope`).
  */
-async function rosterOf(db: Transaction, professionalId: string, now: Date): Promise<Roster> {
+async function rosterOf(db: Transaction, professionalId: string, now: Date, badged: boolean): Promise<Roster> {
+  const seen = rosterPlansSeen(badged);
   const [invitations, links, latest] = await Promise.all([
     db
       .select({ email: careInvitations.email, expiresAt: careInvitations.expiresAt })
@@ -728,18 +762,19 @@ async function rosterOf(db: Transaction, professionalId: string, now: Date): Pro
         id: careLinks.id,
         clientName: client.name,
         consentedAt: careLinks.consentedAt,
+        consentScope: careLinks.consentScope,
         onboarded: sql<boolean>`${onboardingState.completedAt} is not null`,
         planActive: sql<boolean>`${careLinks.status} = 'active' and ${exists(
           db
             .select({ id: mealPlans.id })
             .from(mealPlans)
-            .where(and(eq(mealPlans.userId, careLinks.clientId), eq(mealPlans.status, 'active')))
+            .where(and(eq(mealPlans.userId, careLinks.clientId), eq(mealPlans.status, 'active'), seen))
         )}`,
         planPendingReview: sql<boolean>`${careLinks.status} = 'active' and ${exists(
           db
             .select({ id: mealPlans.id })
             .from(mealPlans)
-            .where(and(eq(mealPlans.userId, careLinks.clientId), eq(mealPlans.status, 'pending_review')))
+            .where(and(eq(mealPlans.userId, careLinks.clientId), eq(mealPlans.status, 'pending_review'), seen))
         )}`,
         reviewBeforePublish: careLinks.reviewBeforePublish,
         sharesHealth: careLinks.sharesHealth,
@@ -779,21 +814,38 @@ async function rosterOf(db: Transaction, professionalId: string, now: Date): Pro
 
   return {
     invitations,
-    links: links.map(row => ({
-      clientName: row.clientName,
-      latestPlan: latestOf(latest, row.id),
-      link: {
-        id: row.id,
-        consentedAt: row.consentedAt,
-        reviewBeforePublish: row.reviewBeforePublish,
-        sharesHealth: row.sharesHealth,
-        status: row.status
-      },
-      onboarded: row.onboarded,
-      planActive: row.planActive,
-      planPendingReview: row.planPendingReview
-    }))
+    links: links.map(row => {
+      const scope = linkScope(row.consentScope, badged);
+
+      return {
+        clientName: row.clientName,
+        // Never carried for a `plan` scope: a check-in is not theirs to know about.
+        latestPlan: scope === 'full' ? latestOf(latest, row.id) : null,
+        link: {
+          id: row.id,
+          consentedAt: row.consentedAt,
+          reviewBeforePublish: row.reviewBeforePublish,
+          sharesHealth: row.sharesHealth,
+          status: row.status
+        },
+        onboarded: row.onboarded,
+        planActive: row.planActive,
+        planPendingReview: row.planPendingReview,
+        scope
+      };
+    })
   };
+}
+
+/**
+ * Which of the client's plans a roster row's stage may look at (`0111` § 5),
+ * as a condition on `meal_plans` beside `care_links`: every plan under a `full`
+ * scope (the badge stands and the link's consent is `full`), only the plans
+ * made through the link under `plan` — so the list never says a plan is under
+ * way, or waiting, that the client's page would not show.
+ */
+export function rosterPlansSeen(badged: boolean): SQL | undefined {
+  return badged ? or(eq(careLinks.consentScope, 'full'), eq(mealPlans.careLinkId, careLinks.id)) : eq(mealPlans.careLinkId, careLinks.id);
 }
 
 /** The latest plan behind one link, from the per-client rows `roster` read. */

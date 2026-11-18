@@ -26,7 +26,10 @@ export class CheckInsService {
    * their professional in the background, so a slow mail or push never delays
    * the answer (PRD 004, criterion 10). `activeProfessional` is asked *after*
    * `submit` succeeds: a duplicate submission throws before either runs, which
-   * is what keeps the notice to at most one per check-in.
+   * is what keeps the notice to at most one per check-in. It is null unless the
+   * link opens `full` (project 025, `0111` § 4): a practitioner without the
+   * badge, or whose client consented to the plan list only, is never told a
+   * check-in happened — by mail or by push.
    */
   async submit(user: SessionUser, body: SubmitCheckInDto): Promise<CheckInResultDto> {
     const result = await CheckInController.submit(user.id, body);

@@ -58,7 +58,7 @@ import type { Appliance } from 'core/entities/Kitchen';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PlanWindow } from 'core/domain/Event';
 import type { RecordAccess } from '#repositories/Care';
-import type { MealAccompanimentRead } from '#repositories/Plan';
+import type { MealAccompanimentRead, PublishThrough } from '#repositories/Plan';
 import type { PictureClaim } from 'core/controllers/Recipe';
 import type { MealSizeView } from 'core/controllers/Profile';
 
@@ -352,9 +352,17 @@ export interface JobView {
 
 type JobRow = NonNullable<Awaited<ReturnType<typeof PlanJobRepository.findById>>>;
 
+/**
+ * Whether a job is within a link (`0111` § 5): its plan was made through it,
+ * or it has no plan and began while the link stood.
+ */
+function jobWithin(job: Pick<JobRow, 'createdAt' | 'planCareLinkId' | 'planId'>, link: { readonly id: string; readonly since: Date }): boolean {
+  return job.planId !== null ? job.planCareLinkId === link.id : job.createdAt.getTime() >= link.since.getTime();
+}
+
 /** A job as its reader may see it: a client is never handed the id of a plan under review (`0060`). */
 function presentJob(
-  job: Omit<JobRow, 'planStatus'> & { readonly planStatus?: string | null },
+  job: Omit<JobRow, 'planCareLinkId' | 'planStatus'> & { readonly planStatus?: string | null },
   reader: 'client' | 'professional' = 'client'
 ): JobView {
   const pendingReview = job.planStatus === 'pending_review';
@@ -659,13 +667,19 @@ export const PlanController = {
     return PlanRepository.findGenerationHistory(userId);
   },
 
-  /** The active plan with its days and meals, or null — having no plan is a normal state. */
-  async getActivePlan(userId: string, locale: string | null = null): Promise<PlanView | null> {
+  /**
+   * The active plan with its days and meals, or null — having no plan is a normal state.
+   *
+   * `throughLink` is a `plan` scope's read (`0111` § 5, `CareController`): the
+   * active plan only if it was made through that link, null otherwise — the
+   * same answer as no plan at all.
+   */
+  async getActivePlan(userId: string, locale: string | null = null, throughLink?: string): Promise<PlanView | null> {
     await PlanController.activateDue(userId, await personToday(userId));
 
     const plan = await PlanRepository.findActive(userId);
 
-    if (!plan) {
+    if (!plan || (throughLink !== undefined && plan.careLinkId !== throughLink)) {
       return null;
     }
 
@@ -689,11 +703,21 @@ export const PlanController = {
    * One generation of theirs. `reader` is who asks: the client by default,
    * who is not handed a plan under review; `professional` only from
    * `CareController`, through `withClient`.
+   *
+   * `throughLink` is a `plan` scope's read (`0111` § 5): a job whose plan was
+   * made through another link, or through none, is not found; one with no plan
+   * — still running, failed, or its plan replaced — only if it began while the
+   * link stood (`since`, the link's own `createdAt`), never one from before it.
    */
-  async getJob(userId: string, jobId: string, reader: PlanReader = 'client'): Promise<JobView> {
+  async getJob(
+    userId: string,
+    jobId: string,
+    reader: PlanReader = 'client',
+    throughLink?: { readonly id: string; readonly since: Date }
+  ): Promise<JobView> {
     const job = await PlanJobRepository.findById(userId, jobId);
 
-    if (!job) {
+    if (!job || (throughLink !== undefined && !jobWithin(job, throughLink))) {
       throw new NotFoundError('Job not found');
     }
 
@@ -719,11 +743,13 @@ export const PlanController = {
   /**
    * The plan waiting for review (`0060`), or null. Only a professional's read
    * through `CareController.withClient` asks for it; `locale` is the reader's.
+   * `throughLink`, a `plan` scope's read (`0111` § 5): only a plan made through
+   * that link, null for any other.
    */
-  async getPendingPlan(userId: string, locale: string | null = null): Promise<PlanView | null> {
+  async getPendingPlan(userId: string, locale: string | null = null, throughLink?: string): Promise<PlanView | null> {
     const plan = await PlanRepository.findPending(userId);
 
-    if (!plan) {
+    if (!plan || (throughLink !== undefined && plan.careLinkId !== throughLink)) {
       return null;
     }
 
@@ -852,9 +878,12 @@ export const PlanController = {
    * client by default, and `professional` from `CareController`, whose read of
    * a client's history is not gated by that client's own tier — the same
    * distinction `getJob` makes. The tier is read once here rather than per row.
+   *
+   * `throughLink` is a `plan` scope's read (`0111` § 5): only the plans made
+   * through that link, a plan from before it never among them.
    */
-  async listPlans(userId: string, limit = 20, offset = 0, reader: PlanReader = 'client'): Promise<readonly PlanSummaryView[]> {
-    const rows = await PlanRepository.findHistory(userId, limit, offset);
+  async listPlans(userId: string, limit = 20, offset = 0, reader: PlanReader = 'client', throughLink?: string): Promise<readonly PlanSummaryView[]> {
+    const rows = await PlanRepository.findHistory(userId, limit, offset, throughLink);
     const lived = rows.filter(row => LIVED_PLAN_STATUSES.has(row.status));
     // Asked only when there is a past to lock, which is also the honest reading
     // of the cost: a person on their first fortnight pays no tier lookup for a
@@ -1007,6 +1036,17 @@ export const PlanController = {
   },
 
   /**
+   * Whether the plan waiting for review was made through this link (`0111` § 5)
+   * — what a `plan` scope asks before it swaps one of its meals. False when
+   * nothing is pending.
+   */
+  async pendingThrough(userId: string, linkId: string): Promise<boolean> {
+    const pending = await PlanRepository.findPending(userId);
+
+    return pending !== undefined && pending.careLinkId === linkId;
+  },
+
+  /**
    * Whether a professional may generate for this client (`0060`): a plan waits
    * for review, the client has no active plan, or the active plan's fortnight
    * has ended (owner's decision, 2026-09-24). "Ended" is `planRedoStanding`'s
@@ -1028,10 +1068,14 @@ export const PlanController = {
    * this one active, the professional's trail row with them — one
    * transaction, `PlanRepository.publish`. Nothing pending is a
    * `NotFoundError`. Answers the plan as the client will now see it.
+   *
+   * `link` is the link it goes through (`0111` § 5): the plan carries it from
+   * here on; with `only` (a `plan` scope) a pending plan made through any other
+   * link, or none, is nothing pending.
    */
-  async publish(userId: string, record: RecordAccess, locale: string | null = null): Promise<PlanView> {
+  async publish(userId: string, record: RecordAccess, link: PublishThrough, locale: string | null = null): Promise<PlanView> {
     // The plan it replaces is completed on the client's day, not the professional's.
-    const planId = await PlanRepository.publish(userId, record, await personToday(userId));
+    const planId = await PlanRepository.publish(userId, record, await personToday(userId), link);
 
     if (!planId) {
       throw new NotFoundError('Plan not found');
@@ -1251,6 +1295,192 @@ export function withoutPantry(plan: PlanView | null): SharedPlanView | null {
   const { pantry: _pantry, ...shared } = plan;
 
   return shared;
+}
+
+/**
+ * A meal as a `plan` scope reads it (`0111` § 4, PRD 025 scope 7): the dish,
+ * its portion and its figures — never `status`, whether the client ate it,
+ * which is adherence. Named key by key, so a field added to `MealView` later
+ * crosses only when somebody adds it here.
+ */
+export type PlanOnlyMealView = Pick<
+  MealView,
+  | 'accompaniments'
+  | 'carbsG'
+  | 'cookMinutes'
+  | 'difficulty'
+  | 'fatG'
+  | 'fiberG'
+  | 'id'
+  | 'illustrationPath'
+  | 'ingredients'
+  | 'kcal'
+  | 'name'
+  | 'prepMinutes'
+  | 'proteinG'
+  | 'recipeId'
+  | 'servings'
+  | 'slot'
+>;
+
+/**
+ * A day as a `plan` scope reads it: its meals and their totals — never
+ * `targets`, the client's numbers, nor `loadedFor`, the name the client gave
+ * an event, which is their own free text and may name anything.
+ */
+export interface PlanOnlyDayView extends Pick<PlanDayView, 'date' | 'dayIndex' | 'totals'> {
+  meals: readonly PlanOnlyMealView[];
+}
+
+/**
+ * A plan as a practitioner reads it through a `plan` scope (`0111` § 4): what
+ * they made, dish by dish, with each day's totals — the plan's own content —
+ * and nothing of the client: no `strategy`, no day `targets`, no meal
+ * `status`, no cupboard. Built key by key, never by removing keys from a wider
+ * view, so nothing reaches it by being forgotten.
+ */
+export interface PlanOnlyView extends Pick<PlanView, 'endDate' | 'id' | 'startDate' | 'status'> {
+  days: readonly PlanOnlyDayView[];
+}
+
+/**
+ * A meal's own page as a `plan` scope reads it (a swap's answer), named key by
+ * key: never `status` (whether the client ate it) nor `verdict` (whether they
+ * like the dish) — the client's, not the plan's.
+ */
+export type PlanOnlyMealDetailView = Pick<
+  MealDetailView,
+  | 'accompaniments'
+  | 'carbsG'
+  | 'cookMinutes'
+  | 'cuisine'
+  | 'date'
+  | 'dayIndex'
+  | 'difficulty'
+  | 'equipment'
+  | 'fatG'
+  | 'fiberG'
+  | 'id'
+  | 'illustrationPath'
+  | 'ingredients'
+  | 'kcal'
+  | 'name'
+  | 'pictureStatus'
+  | 'planEndDate'
+  | 'planId'
+  | 'planStatus'
+  | 'prepMinutes'
+  | 'proteinG'
+  | 'recipeId'
+  | 'servings'
+  | 'slot'
+  | 'steps'
+>;
+
+/**
+ * One line of the history as a `plan` scope reads it: never `version`, the
+ * client's own count of plans, which would say how many came before the link.
+ */
+export type PlanOnlySummaryView = Pick<PlanSummaryView, 'endDate' | 'id' | 'locked' | 'replaced' | 'startDate' | 'status'>;
+
+/** The `plan` scope's history line presenter, key by key. */
+export function planOnlySummary(summary: PlanSummaryView): PlanOnlySummaryView {
+  return {
+    id: summary.id,
+    endDate: summary.endDate,
+    locked: summary.locked,
+    replaced: summary.replaced,
+    startDate: summary.startDate,
+    status: summary.status
+  };
+}
+
+function planOnlyMeal(meal: MealView): PlanOnlyMealView {
+  return {
+    id: meal.id,
+    accompaniments: meal.accompaniments,
+    carbsG: meal.carbsG,
+    cookMinutes: meal.cookMinutes,
+    difficulty: meal.difficulty,
+    fatG: meal.fatG,
+    fiberG: meal.fiberG,
+    illustrationPath: meal.illustrationPath,
+    ingredients: meal.ingredients,
+    kcal: meal.kcal,
+    name: meal.name,
+    prepMinutes: meal.prepMinutes,
+    proteinG: meal.proteinG,
+    recipeId: meal.recipeId,
+    servings: meal.servings,
+    slot: meal.slot
+  };
+}
+
+/** The `plan` scope's plan presenter (`0111` § 4). */
+export function planOnly(plan: SharedPlanView): PlanOnlyView;
+export function planOnly(plan: SharedPlanView | null): PlanOnlyView | null;
+
+export function planOnly(plan: SharedPlanView | null): PlanOnlyView | null {
+  if (plan === null) {
+    return null;
+  }
+
+  return {
+    id: plan.id,
+    days: plan.days.map(day => ({ date: day.date, dayIndex: day.dayIndex, meals: day.meals.map(planOnlyMeal), totals: day.totals })),
+    endDate: plan.endDate,
+    startDate: plan.startDate,
+    status: plan.status
+  };
+}
+
+/** A swapped meal as a `plan` scope reads it: the meal's own page, key by key, without `status` or `verdict`. */
+export function planOnlyMealDetail(meal: MealDetailView): PlanOnlyMealDetailView {
+  return {
+    id: meal.id,
+    accompaniments: meal.accompaniments,
+    carbsG: meal.carbsG,
+    cookMinutes: meal.cookMinutes,
+    cuisine: meal.cuisine,
+    date: meal.date,
+    dayIndex: meal.dayIndex,
+    difficulty: meal.difficulty,
+    equipment: meal.equipment,
+    fatG: meal.fatG,
+    fiberG: meal.fiberG,
+    illustrationPath: meal.illustrationPath,
+    ingredients: meal.ingredients,
+    kcal: meal.kcal,
+    name: meal.name,
+    pictureStatus: meal.pictureStatus,
+    planEndDate: meal.planEndDate,
+    planId: meal.planId,
+    planStatus: meal.planStatus,
+    prepMinutes: meal.prepMinutes,
+    proteinG: meal.proteinG,
+    recipeId: meal.recipeId,
+    servings: meal.servings,
+    slot: meal.slot,
+    steps: meal.steps
+  };
+}
+
+/**
+ * A generation as a `plan` scope follows it: `errorDetail` never — a rejected
+ * plan's detail quotes the day targets it missed (`2300 frente a 2000`), and a
+ * provider's message is an operator's, not a practitioner's. The stable code
+ * stays: it names no food, allergen or condition.
+ */
+export function planOnlyJob(job: JobView): JobView {
+  return {
+    id: job.id,
+    error: job.error,
+    errorDetail: null,
+    pendingReview: job.pendingReview,
+    planId: job.planId,
+    status: job.status,
+    step: job.step
+  };
 }
 
 /**

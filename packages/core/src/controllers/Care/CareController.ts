@@ -1,10 +1,10 @@
 import { createHash, randomBytes } from 'node:crypto';
 
-import { CareRepository } from '#repositories/Care';
+import { CareRepository, linkScope } from '#repositories/Care';
 import { HealthController } from 'core/controllers/Health';
 import { isCheckInDue, nudgedKcal } from 'core/controllers/CheckIn';
-import { PlanController, withoutPantry } from 'core/controllers/Plan';
-import { ProfessionalRepository } from '#repositories/Professional';
+import { PlanController, planOnly, planOnlyJob, planOnlyMealDetail, planOnlySummary, withoutPantry } from 'core/controllers/Plan';
+import { ProfessionalBadgeRepository, ProfessionalRepository } from '#repositories/Professional';
 import { ProfileController } from 'core/controllers/Profile';
 import { ProgressController } from 'core/controllers/Progress';
 import { SettingsRepository } from '#repositories/Settings';
@@ -28,6 +28,7 @@ import type {
   CareAccessAction,
   CareAccessEntry,
   CareAccessKind,
+  CareConsentScope,
   CareHealthShared,
   CareLink,
   CareLinkStatus,
@@ -37,7 +38,15 @@ import type {
   SetClientReview,
   SetLinkHealth
 } from 'core/entities/Care';
-import type { JobView, MealDetailView, PlanSummaryView, SharedPlanView } from 'core/controllers/Plan';
+import type {
+  JobView,
+  MealDetailView,
+  PlanOnlyMealDetailView,
+  PlanOnlySummaryView,
+  PlanOnlyView,
+  PlanSummaryView,
+  SharedPlanView
+} from 'core/controllers/Plan';
 import type { PracticeOfferView } from 'core/controllers/Billing';
 import type { FortnightView, ProgressSummaryView } from 'core/controllers/Progress';
 import type { ResolvedTargets } from 'core/domain/Nutrition';
@@ -51,13 +60,24 @@ const ACCESS_LOG_LIMIT = 100;
 
 /**
  * What `withClient` hands its callback beside the client's id: the link
- * without either account's id, and both names.
+ * without either account's id, both names, and the `scope` the link opens on
+ * this request (`0111` § 4) — the callback builds its answer for that scope.
  */
 export interface ClientAccess {
   readonly clientName: string;
   readonly link: Omit<CareLink, 'clientId' | 'professionalId'>;
   readonly professionalName: string;
+  readonly scope: CareConsentScope;
 }
+
+/**
+ * The kinds a `plan` scope may reach (`0111` § 4, PRD 025 scope 7): the plans
+ * the practitioner made through the link (`plan`, `review`) and the page that
+ * shows them (`overview`, built plan-only). Every other kind — `progress`,
+ * `targets`, `health`, and any kind added later — is refused, so a new kind is
+ * closed to a `plan` scope until somebody opens it here on purpose.
+ */
+const PLAN_SCOPE_KINDS: ReadonlySet<CareAccessKind> = new Set<CareAccessKind>(['overview', 'plan', 'review']);
 
 /**
  * What only `apps/api` can do for a client — start a generation, swap a meal —
@@ -212,6 +232,31 @@ export interface CareClientOverviewView {
 }
 
 /**
+ * One client's page through a `plan` scope (`0111` § 4, PRD 025 criterion 9):
+ * the plan under way and the history, **each only if made through this link**,
+ * presented plan-only (`PlanOnlyView`). `progress`, `targets` and `health` are
+ * **absent from the object** — not empty, not null — as `health` is on the
+ * full page without the health line.
+ */
+export interface CareClientPlanOverviewView {
+  client: CareClientLinkView;
+  plan: PlanOnlyView | null;
+  plans: readonly PlanOnlySummaryView[];
+}
+
+/**
+ * What `GET /care/clients/:linkId` answers: the full page or the plan-only one,
+ * by the link's scope on that request. Told apart by `'progress' in page`.
+ */
+export type CareClientPageView = CareClientOverviewView | CareClientPlanOverviewView;
+
+/** A client's plan as their practitioner reads it: the shared plan under a `full` scope, plan-only under `plan`. */
+export type CareClientPlanView = PlanOnlyView | SharedPlanView;
+
+/** A swapped meal as the practitioner reads it: without `status` under a `plan` scope. */
+export type CareClientMealView = MealDetailView | PlanOnlyMealDetailView;
+
+/**
  * Where the professional's practice stands (`0061`): whether it is paid for,
  * how many active clients the plan includes, and how many seats are taken —
  * active links, and invitations still live, which count too. Counts only:
@@ -284,15 +329,22 @@ function presentAccess(row: CareAccessEntry): CareAccessEntryView {
   };
 }
 
+/**
+ * A link as its professional sees it. `sharesHealth` is shown only under a
+ * `full` scope (`0111` § 4): under `plan` the health line opens nothing, and a
+ * `true` left from a badged time would still tell an un-badged practitioner
+ * that the client shares conditions — so it reads `false`.
+ */
 function presentClientLink(
   link: Pick<RosterLink['link'], 'consentedAt' | 'id' | 'reviewBeforePublish' | 'sharesHealth'> & { readonly status: CareLinkStatus },
-  name: string
+  name: string,
+  scope: CareConsentScope
 ): CareClientLinkView {
   return {
     linkId: link.id,
     name,
     reviewBeforePublish: link.reviewBeforePublish,
-    sharesHealth: link.sharesHealth,
+    sharesHealth: scope === 'full' && link.sharesHealth,
     since: link.consentedAt.toISOString(),
     // Only open links reach a professional's view: `roster` and `activeLink` both filter on it.
     status: link.status === 'paused' ? 'paused' : 'active'
@@ -302,6 +354,9 @@ function presentClientLink(
 /**
  * Where a client with an active link is, first match wins — see `CareClientStage`.
  * A check-in is due on the client's own day, in the zone their profile keeps.
+ * Never `check_in_due` under a `plan` scope (`0111` § 4): a check-in is not the
+ * practitioner's to know about, so that stage folds into `plan_under_way` — and
+ * the repository has not carried `latestPlan` for such a row anyway.
  */
 function stageOf(row: RosterLink, now: Date): CareClientStage {
   if (!row.onboarded) {
@@ -312,7 +367,7 @@ function stageOf(row: RosterLink, now: Date): CareClientStage {
     return 'plan_awaiting_review';
   }
 
-  if (row.latestPlan && isCheckInDue(row.latestPlan, row.latestPlan.answered, personDayKey(now, row.latestPlan.timeZone))) {
+  if (row.scope === 'full' && row.latestPlan && isCheckInDue(row.latestPlan, row.latestPlan.answered, personDayKey(now, row.latestPlan.timeZone))) {
     return 'check_in_due';
   }
 
@@ -320,7 +375,7 @@ function stageOf(row: RosterLink, now: Date): CareClientStage {
 }
 
 function presentClient(row: RosterLink, now: Date): CareClientView {
-  return { ...presentClientLink(row.link, row.clientName), stage: row.link.status === 'active' ? stageOf(row, now) : null };
+  return { ...presentClientLink(row.link, row.clientName, row.scope), stage: row.link.status === 'active' ? stageOf(row, now) : null };
 }
 
 function presentInvitation(row: { readonly email: string; readonly expiresAt: Date }): CareInvitationView {
@@ -515,8 +570,13 @@ export const CareController = {
    * reach — nor is one whose practice has lapsed or who has not accepted the
    * current agreement, whom `withClient` refuses too. Not behind the switch, like `myLink`: the link itself is what
    * decides whether telling the professional still makes sense.
+   *
+   * **Only under a `full` scope** (`0111` § 4, PRD 025 criterion 10): that a
+   * check-in happened is the client's check-ins, which a `plan` scope never
+   * reaches — so a practitioner without the badge, or whose client has not
+   * consented to the badged list, is told nothing. The badge is read now.
    */
-  async activeProfessional(clientId: string): Promise<{ readonly id: string; readonly email: string } | null> {
+  async activeProfessional(clientId: string, now: Date = new Date()): Promise<{ readonly id: string; readonly email: string } | null> {
     const link = await CareRepository.clientLink(clientId);
 
     if (!link || link.link.status !== 'active') {
@@ -524,9 +584,16 @@ export const CareController = {
     }
 
     // Practising, as `withClient` asks it: a lapsed practice or an agreement not accepted is not told either.
-    const grant = await ProfessionalRepository.find(link.link.professionalId);
+    const [grant, badge] = await Promise.all([
+      ProfessionalRepository.find(link.link.professionalId),
+      ProfessionalBadgeRepository.badgeOf(link.link.professionalId, now)
+    ]);
 
     if (!grant?.practiceOpen || grant.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION) {
+      return null;
+    }
+
+    if (linkScope(link.link.consentScope, badge !== null) !== 'full') {
       return null;
     }
 
@@ -645,12 +712,15 @@ export const CareController = {
    * the same 404, and writes nothing. `start` asks again under its claim.
    */
   async generatePlan(professional: Pick<CareSession, 'id'>, linkId: string, start: ForClient<JobView>): Promise<JobView> {
-    return CareController.withClient(professional.id, linkId, 'review', 'write', async (clientId, _access, record) => {
+    return CareController.withClient(professional.id, linkId, 'review', 'write', async (clientId, access, record) => {
       if (!(await PlanController.professionalMayGenerate(clientId))) {
         throw new NotFoundError('Client not found');
       }
 
-      return start(clientId, record);
+      // The plan it makes carries this link (`PlanRepository.createPlanAtomically`, `0111` § 5).
+      const job = await start(clientId, record);
+
+      return access.scope === 'full' ? job : planOnlyJob(job);
     });
   },
 
@@ -743,9 +813,29 @@ export const CareController = {
    * criterion 10): the kcal the portion nudge would set from today's targets,
    * whether or not it was ever applied — behind this audited read alone, never
    * in the mail or push that told the professional the check-in happened.
+   *
+   * Under a `plan` scope (`0111` § 4) the page is `CareClientPlanOverviewView`:
+   * the plan under way and the history made through this link, plan-only, one
+   * `overview` row, and no `progress`, `targets` or `health` key — none of the
+   * three is even read.
    */
-  async overview(professional: Pick<CareSession, 'id'>, linkId: string, locale: string | null = null): Promise<CareClientOverviewView> {
-    return CareController.withClient(professional.id, linkId, 'overview', 'read', async (clientId, access) => {
+  async overview(professional: Pick<CareSession, 'id'>, linkId: string, locale: string | null = null): Promise<CareClientPageView> {
+    return CareController.withClient(professional.id, linkId, 'overview', 'read', async (clientId, access): Promise<CareClientPageView> => {
+      // A `plan` scope (`0111` § 4): only the plans made through this link, plan-only,
+      // and nothing else read at all — progress, targets and health are never loaded.
+      if (access.scope !== 'full') {
+        const [active, history] = await Promise.all([
+          PlanController.getActivePlan(clientId, locale, linkId),
+          PlanController.listPlans(clientId, undefined, undefined, 'professional', linkId)
+        ]);
+
+        return {
+          client: presentClientLink(access.link, access.clientName, access.scope),
+          plan: planOnly(withoutPantry(active)),
+          plans: history.map(planOnlySummary)
+        };
+      }
+
       const [plan, plans, progress, targets] = await Promise.all([
         // Stripped of what the client's cupboard did: four counts no care screen
         // reads, kept off this boundary by decision (`legal` P2-9, 2026-11-03).
@@ -757,7 +847,7 @@ export const CareController = {
         ProfileController.targets(clientId)
       ]);
       const page: CareClientOverviewView = {
-        client: presentClientLink(access.link, access.clientName),
+        client: presentClientLink(access.link, access.clientName, access.scope),
         plan,
         plans,
         progress: presentProgress(progress, targets),
@@ -784,9 +874,12 @@ export const CareController = {
    * The plan waiting for the professional's review (`0060`), or null —
    * through `withClient` (`review`, `read`), in the reader's language.
    */
-  async pendingPlan(professional: Pick<CareSession, 'id'>, linkId: string, locale: string | null = null): Promise<SharedPlanView | null> {
-    return CareController.withClient(professional.id, linkId, 'review', 'read', async clientId =>
-      withoutPantry(await PlanController.getPendingPlan(clientId, locale))
+  async pendingPlan(professional: Pick<CareSession, 'id'>, linkId: string, locale: string | null = null): Promise<CareClientPlanView | null> {
+    return CareController.withClient(professional.id, linkId, 'review', 'read', async (clientId, access) =>
+      access.scope === 'full'
+        ? withoutPantry(await PlanController.getPendingPlan(clientId, locale))
+        : // Only a plan made through this link (`0111` § 5), plan-only.
+          planOnly(withoutPantry(await PlanController.getPendingPlan(clientId, locale, linkId)))
     );
   },
 
@@ -800,7 +893,12 @@ export const CareController = {
       throw new NotFoundError('Job not found');
     }
 
-    return CareController.withClient(professional.id, linkId, 'review', 'read', clientId => PlanController.getJob(clientId, jobId, 'professional'));
+    return CareController.withClient(professional.id, linkId, 'review', 'read', async (clientId, access) =>
+      access.scope === 'full'
+        ? PlanController.getJob(clientId, jobId, 'professional')
+        : // A job whose plan was made through another link, or none, is not found (`0111` § 5).
+          planOnlyJob(await PlanController.getJob(clientId, jobId, 'professional', { id: linkId, since: access.link.createdAt }))
+    );
   },
 
   /**
@@ -833,10 +931,13 @@ export const CareController = {
    * completed and this one becomes it, with the trail row, in one transaction
    * (`review`, `write`). Nothing pending is the same 404, and writes nothing.
    */
-  async publishPlan(professional: Pick<CareSession, 'id'>, linkId: string, locale: string | null = null): Promise<SharedPlanView> {
-    return CareController.withClient(professional.id, linkId, 'review', 'write', async (clientId, _access, record) =>
-      withoutPantry(await PlanController.publish(clientId, record, locale))
-    );
+  async publishPlan(professional: Pick<CareSession, 'id'>, linkId: string, locale: string | null = null): Promise<CareClientPlanView> {
+    return CareController.withClient(professional.id, linkId, 'review', 'write', async (clientId, access, record) => {
+      // The plan carries this link from here on (`0111` § 5); a `plan` scope publishes only a plan made through it.
+      const published = withoutPantry(await PlanController.publish(clientId, record, { id: linkId, only: access.scope !== 'full' }, locale));
+
+      return access.scope === 'full' ? published : planOnly(published);
+    });
   },
 
   /**
@@ -852,7 +953,7 @@ export const CareController = {
         throw new NotFoundError('Client not found');
       }
 
-      return presentClientLink(link, access.clientName);
+      return presentClientLink(link, access.clientName, access.scope);
     });
   },
 
@@ -909,12 +1010,25 @@ export const CareController = {
     linkId: string,
     mealId: string,
     swap: ForClient<MealDetailView>
-  ): Promise<MealDetailView> {
+  ): Promise<CareClientMealView> {
     if (!careLinkIdSchema.safeParse(mealId).success) {
       throw new NotFoundError('Meal not found');
     }
 
-    return CareController.withClient(professional.id, linkId, 'review', 'write', (clientId, _access, record) => swap(clientId, record));
+    return CareController.withClient(professional.id, linkId, 'review', 'write', async (clientId, access, record) => {
+      if (access.scope === 'full') {
+        return swap(clientId, record);
+      }
+
+      // A `plan` scope swaps only in a plan made through this link (`0111` § 5): any
+      // other pending plan is the same 404 as a meal that is not in one. A plan that
+      // replaces it in between is stamped with the client's one open link — this one.
+      if (!(await PlanController.pendingThrough(clientId, linkId))) {
+        throw new NotFoundError('Meal not found');
+      }
+
+      return planOnlyMealDetail(await swap(clientId, record));
+    });
   },
 
   /**
@@ -945,9 +1059,16 @@ export const CareController = {
    *    a view built from it cannot carry one.
    *
    * A `health` read is refused like any other denial unless the link shares
-   * health.
+   * health **and** opens `full`.
    *
-   * Nothing is cached: ending the link closes access on the very next call.
+   * **The scope** (`0111` § 4): `activeLink` answers what the link opens on
+   * this request — `full` only while the badge stands and the client consented
+   * to the badged list, `plan` otherwise. Under `plan`, every kind outside
+   * `PLAN_SCOPE_KINDS` is the same `NotFoundError`, with nothing written; `fn`
+   * gets the scope and builds its answer for it.
+   *
+   * Nothing is cached: ending the link closes access on the very next call,
+   * and so does losing the badge.
    */
   async withClient<T>(
     professionalId: string,
@@ -963,15 +1084,20 @@ export const CareController = {
 
     const access = await CareRepository.activeLink(professionalId, linkId);
 
-    // The health line is the link's own consent (PRD 004, criterion 12): asked
-    // here, not left to the caller, so no caller can read health without it.
-    if (!access || (kind === 'health' && !access.link.sharesHealth)) {
+    // The scope is the link's own consent and the badge, read now (`0111` § 4); the
+    // health line is the link's own consent too (PRD 004, criterion 12). Both asked
+    // here, not left to the caller, so no caller can read past either.
+    if (
+      !access ||
+      (access.scope !== 'full' && !PLAN_SCOPE_KINDS.has(kind)) ||
+      (kind === 'health' && (access.scope !== 'full' || !access.link.sharesHealth))
+    ) {
       throw new NotFoundError('Client not found');
     }
 
     const { clientId, professionalId: _professional, ...link } = access.link;
     const entry = { action, kind, linkId, professionalId, professionalName: access.professionalName };
-    const view = { clientName: access.clientName, link, professionalName: access.professionalName };
+    const view: ClientAccess = { clientName: access.clientName, link, professionalName: access.professionalName, scope: access.scope };
 
     if (action === 'read') {
       await CareRepository.logAccess(clientId, entry);

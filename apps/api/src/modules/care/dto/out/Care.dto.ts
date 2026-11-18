@@ -1,9 +1,11 @@
 import type { BadgeView } from 'core/controllers/Professional';
-import type { JobView, MealDetailView, SharedPlanView } from 'core/controllers/Plan';
+import type { JobView } from 'core/controllers/Plan';
 import type {
   CareAccessPageView,
   CareClientLinkView,
-  CareClientOverviewView,
+  CareClientMealView,
+  CareClientPageView,
+  CareClientPlanView,
   CareClientsView,
   CareInvitationDetailView,
   CareInvitationView,
@@ -27,8 +29,13 @@ export type CareLinkDto = CareLinkView;
 /** The professional's list: open links with where each client is, and the invitations unanswered. */
 export type CareClientsDto = CareClientsView;
 
-/** One client's page, read through their link; `health` only under the health line. */
-export type CareClientOverviewDto = CareClientOverviewView;
+/**
+ * One client's page, read through their link (`0111` § 4): under a `full`
+ * scope the plan, history, progress and targets, `health` only under the
+ * health line; under a `plan` scope the plans made through the link and
+ * nothing else — no `progress`, `targets` or `health` key at all.
+ */
+export type CareClientOverviewDto = CareClientPageView;
 
 /** One page of the client's own trail. */
 export type CareAccessPageDto = CareAccessPageView;
@@ -49,15 +56,19 @@ export type CareClientLinkDto = CareClientLinkView;
  * `SharedPlanView` and not `PlanView`, which is a decision and no longer an
  * alias (`legal` P2-9, 2026-11-03): the four pantry counts are harmless and no
  * care screen reads them, so they do not cross a boundary `/privacidad`
- * enumerates.
+ * enumerates. Under a `plan` scope (`0111` § 4) it is `PlanOnlyView`: no
+ * `strategy`, no day `targets`, no meal `status`.
  */
-export type CareClientPlanDto = SharedPlanView;
+export type CareClientPlanDto = CareClientPlanView;
 
-/** One of the client's generations; `planId` is carried while the plan waits for review. */
+/**
+ * One of the client's generations; `planId` is carried while the plan waits for
+ * review. Under a `plan` scope `errorDetail` is always null.
+ */
 export type CareClientJobDto = JobView;
 
-/** A meal of the plan under review after the professional swapped it. */
-export type CareClientMealDto = MealDetailView;
+/** A meal of the plan under review after the professional swapped it; without `status` under a `plan` scope. */
+export type CareClientMealDto = CareClientMealView;
 
 /** The workspace's own page (`0061`): whether the practice is paid for, its seats, and the way to pay. */
 export type CarePracticeDto = CarePracticeView;

@@ -49,7 +49,7 @@ export class CareClientsController {
 
   @ApiOkResponse({
     description:
-      'The client’s plan and plan history, progress and targets; `health` only under the link’s health line, absent otherwise. One `overview` row in the client’s trail, and one `health` row when health is included. 404 for any link that is not the caller’s and active.'
+      'Under a `full` scope (the badge stands and the client consented to the badged list): the client’s plan and plan history, progress and targets; `health` only under the link’s health line, absent otherwise. Under a `plan` scope: only the plans made through this link, without `strategy`, day `targets` or meal `status`, and no `progress`, `targets` or `health` key. One `overview` row in the client’s trail, and one `health` row when health is included. 404 for any link that is not the caller’s and active.'
   })
   @ApiOperation({ summary: 'One client’s page, through their link' })
   @Get('clients/:linkId')
@@ -70,7 +70,7 @@ export class CareClientsController {
    */
   @ApiOkResponse({
     description:
-      'The client’s resolved targets, `setBy` naming the professional. 422 `INVALID_INPUT` with the same field errors as the client’s own route when a value is out of bounds. One `targets` write row in the client’s trail. 404 for any link that is not the caller’s and active.'
+      'The client’s resolved targets, `setBy` naming the professional. 422 `INVALID_INPUT` with the same field errors as the client’s own route when a value is out of bounds. One `targets` write row in the client’s trail. 404 for any link that is not the caller’s and active, and for any link under a `plan` scope, with nothing written.'
   })
   @ApiOperation({ summary: 'Set a client’s daily targets, through their link' })
   @Patch('clients/:linkId/targets')
@@ -98,7 +98,7 @@ export class CareClientsController {
 
   @ApiOkResponse({
     description:
-      'The plan waiting for review, in the shape `GET /meal-plans/:id` answers, or null. One `review` read row in the client’s trail. 404 for any link that is not the caller’s and active.'
+      'The plan waiting for review, in the shape `GET /meal-plans/:id` answers, or null. Under a `plan` scope only a plan made through this link, without `strategy`, day `targets` or meal `status`. One `review` read row in the client’s trail. 404 for any link that is not the caller’s and active.'
   })
   @ApiOperation({ summary: 'The client’s plan waiting for review (`0060`)' })
   @Get('clients/:linkId/plan/pending')
@@ -123,7 +123,8 @@ export class CareClientsController {
   }
 
   @ApiOkResponse({
-    description: 'The job, with the plan it made even while that plan waits for review. One `review` read row. 404 for a job of anybody else.'
+    description:
+      'The job, with the plan it made even while that plan waits for review. Under a `plan` scope `errorDetail` is null, and a job whose plan was not made through this link is 404. One `review` read row. 404 for a job of anybody else.'
   })
   @ApiOperation({ summary: 'Progress of a generation for the client' })
   @Get('clients/:linkId/plan/jobs/:jobId')
@@ -133,7 +134,7 @@ export class CareClientsController {
 
   @ApiCreatedResponse({
     description:
-      'The meal that replaced it. Only a meal of the plan under review — any other is 404. Counted against that plan’s swaps: 429 `QUOTA_EXCEEDED` when spent. One `review` write row, with the change.'
+      'The meal that replaced it. Only a meal of the plan under review — any other is 404; under a `plan` scope only of a plan made through this link, and the meal has no `status`. Counted against that plan’s swaps: 429 `QUOTA_EXCEEDED` when spent. One `review` write row, with the change.'
   })
   @ApiOperation({ summary: 'Swap one meal of the plan under review' })
   @Post('clients/:linkId/plan/meals/:mealId/swap')
@@ -151,7 +152,7 @@ export class CareClientsController {
 
   @ApiOkResponse({
     description:
-      'The plan now active for the client. The previous active plan is completed in the same transaction. One `review` write row, with the change. 404 when nothing is pending.'
+      'The plan now active for the client, carrying this link from now on. The previous active plan is completed in the same transaction. One `review` write row, with the change. 404 when nothing is pending — under a `plan` scope, when nothing made through this link is pending; the plan is answered without `strategy`, day `targets` or meal `status`.'
   })
   @ApiOperation({ summary: 'Publish the plan under review to the client' })
   @HttpCode(200)

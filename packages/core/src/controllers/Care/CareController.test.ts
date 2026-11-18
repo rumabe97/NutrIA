@@ -9,7 +9,7 @@ import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 
 import { CareController } from './CareController';
 
-import type { AcceptOutcome, InviteOutcome, LinkWithProfessional, OpenInvitation, PracticeUse } from '#repositories/Care';
+import type { AcceptOutcome, InviteOutcome, linkScope as linkScopeFn, LinkWithProfessional, OpenInvitation, PracticeUse } from '#repositories/Care';
 import type { AcceptInvitation, CareLink } from 'core/entities/Care';
 import type { Professional } from 'core/entities/Professional';
 import type { User } from 'core/entities/User';
@@ -27,9 +27,10 @@ const openInvitation = vi.fn<(clientId: string, email: string, tokenHash: string
 const find = vi.fn<(userId: string) => Promise<Professional | null>>();
 const isEnabled = vi.fn<(key: string, fallback: boolean) => Promise<boolean>>();
 const findUserById = vi.fn<(id: string) => Promise<User | undefined>>();
+const badgeOf = vi.fn<(userId: string, now: Date) => Promise<object | null>>();
 
 vi.mock('#repositories/User', () => ({ UserRepository: { findById: (id: string) => findUserById(id) } }));
-vi.mock('#repositories/Care', () => ({
+vi.mock('#repositories/Care', async () => ({
   CareRepository: {
     accept: (...args: Parameters<typeof accept>) => accept(...args),
     clientLink: (clientId: string) => clientLink(clientId),
@@ -41,9 +42,14 @@ vi.mock('#repositories/Care', () => ({
     openInvitation: (...args: Parameters<typeof openInvitation>) => openInvitation(...args),
     practiceUse: (...args: Parameters<typeof practiceUse>) => practiceUse(...args),
     setSharesHealth: (...args: Parameters<typeof setSharesHealth>) => setSharesHealth(...args)
-  }
+  },
+  // The real rule, not a stub: which scope a link opens is what these cases are about.
+  linkScope: (await vi.importActual<{ linkScope: typeof linkScopeFn }>('../../repositories/Care/CareScope')).linkScope
 }));
-vi.mock('#repositories/Professional', () => ({ ProfessionalRepository: { find: (userId: string) => find(userId) } }));
+vi.mock('#repositories/Professional', () => ({
+  ProfessionalBadgeRepository: { badgeOf: (userId: string, now: Date) => badgeOf(userId, now) },
+  ProfessionalRepository: { find: (userId: string) => find(userId) }
+}));
 vi.mock('#repositories/Settings', () => ({ SettingsRepository: { isEnabled: (key: string, fallback: boolean) => isEnabled(key, fallback) } }));
 
 const NOW = new Date('2026-09-23T10:00:00.000Z');
@@ -84,12 +90,15 @@ beforeEach(() => {
     setSharesHealth,
     find,
     isEnabled,
-    findUserById
+    findUserById,
+    badgeOf
   ]) {
     mock.mockReset();
   }
 
   isEnabled.mockResolvedValue(true);
+  // Badged unless a case says otherwise: every existing practitioner stands as one (project 025, phase 2's backfill).
+  badgeOf.mockResolvedValue({ number: '28-1234' });
 });
 
 describe('CareController.invite', () => {
@@ -466,6 +475,38 @@ describe('CareController.activeProfessional', () => {
 
     await expect(CareController.activeProfessional(CLIENT.id)).resolves.toEqual({ id: PRO.id, email: 'dietista@example.com' });
     expect(isEnabled).not.toHaveBeenCalled();
+  });
+
+  /*
+   * Project 025 phase 4 (`0111` § 4, PRD 025 criterion 10): that a check-in
+   * happened is the client's check-ins, which only a `full` scope reaches — so
+   * the notice goes nowhere else, by mail or by push.
+   */
+  it('reads the practitioner’s badge now, for the practitioner on the link — never anybody the caller names', async () => {
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
+    find.mockResolvedValue(PRACTISING);
+    findUserById.mockResolvedValue(makeUser({ id: PRO.id, email: 'dietista@example.com' }));
+
+    await CareController.activeProfessional(CLIENT.id, NOW);
+
+    expect(badgeOf).toHaveBeenCalledExactlyOnceWith(PRO.id, NOW);
+  });
+
+  it('is null when the practitioner holds no badge — never told of a check-in they may not read', async () => {
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
+    find.mockResolvedValue(PRACTISING);
+    badgeOf.mockResolvedValue(null);
+
+    await expect(CareController.activeProfessional(CLIENT.id)).resolves.toBeNull();
+    expect(findUserById).not.toHaveBeenCalled();
+  });
+
+  it('is null on a link consented to the plan list, even with the badge — a badge gained mid-link widens nothing', async () => {
+    clientLink.mockResolvedValue({ link: makeLink({ consentScope: 'plan' }), professionalName: 'Ana Dietista' });
+    find.mockResolvedValue(PRACTISING);
+
+    await expect(CareController.activeProfessional(CLIENT.id)).resolves.toBeNull();
+    expect(findUserById).not.toHaveBeenCalled();
   });
 });
 

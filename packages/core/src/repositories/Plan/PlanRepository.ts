@@ -34,6 +34,13 @@ import type { RecordAccess } from '#repositories/Care';
 const PENDING = 'pending_review';
 
 /**
+ * The link a publish goes through (`0111` § 5), as `CareController.withClient`
+ * resolved it: `id` is stamped on the plan; `only` is a `plan` scope, which may
+ * publish only a plan made through that link.
+ */
+export type PublishThrough = { readonly id: string; readonly only: boolean };
+
+/**
  * A plan waiting for its first day (project 015). Visible to its owner — its
  * days, its list and its swaps are theirs to prepare — and lived from the day
  * `activateDue` makes it `active`. At most one, by
@@ -221,7 +228,16 @@ export const PlanRepository = {
           .from(mealPlans)
           .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, 'active')))
           .limit(1);
-        const link = reviewable ? await publishingLink(tx, userId) : undefined;
+        const standing = reviewable ? await publishingLink(tx, userId) : undefined;
+        // A professional's generation belongs to the link it was asked through
+        // (`0111` § 5). If that link ended and another stands now, the asking one
+        // is gone: the save goes on as with no link at all — no stamp, no review
+        // for a practitioner who never asked, and the refusal below if it would
+        // replace a fortnight under way.
+        const link =
+          byProfessional && standing !== undefined && !isAskingLink(standing, await jobStartedAt(tx, userId, draft.generationMetadata))
+            ? undefined
+            : standing;
         // A professional's regeneration of a pending plan lands pending again even
         // with review turned off since: it replaces what they were reviewing, and a
         // professional never replaces the fortnight under way.
@@ -299,6 +315,7 @@ export const PlanRepository = {
           .insert(mealPlans)
           .values({
             activatedAt: shape.status === 'active' ? new Date() : null,
+            careLinkId: madeThrough({ byProfessional, link, status: shape.status }),
             endDate: draft.endDate,
             generationMetadata: { ...draft.generationMetadata, redo, ...(opens ? { opens } : {}), ...(replacedRedos > 0 ? { replacedRedos } : {}) },
             // Never the plan this one just replaced: it is gone.
@@ -595,13 +612,17 @@ export const PlanRepository = {
     }
   },
 
-  /** Newest first, without a plan under review (`0060`). */
-  async findHistory(userId: string, limit: number, offset: number) {
+  /**
+   * Newest first, without a plan under review (`0060`). With `careLinkId`, only
+   * the plans made through that link (`0111` § 5) — in the `WHERE`, so the page
+   * is a page of those plans and not a filtered page of all of them.
+   */
+  async findHistory(userId: string, limit: number, offset: number, careLinkId?: string) {
     try {
       return await database()
         .select()
         .from(mealPlans)
-        .where(and(eq(mealPlans.userId, userId), visible()))
+        .where(and(eq(mealPlans.userId, userId), visible(), careLinkId === undefined ? undefined : eq(mealPlans.careLinkId, careLinkId)))
         .orderBy(desc(mealPlans.version))
         .limit(limit)
         .offset(offset);
@@ -843,18 +864,23 @@ export const PlanRepository = {
    * `meal_plans_one_active_per_user` requires, as in `createPlanAtomically`.
    * A pending plan older than the active one is refused (see below). A plan the
    * client scheduled for its day is deleted with it (project 015).
+   *
+   * `link` is the link it is published through, from `CareController.withClient`
+   * (`0111` § 5): the plan is stamped with it as it goes active. With `only`, a
+   * `plan` scope's publish, a pending plan not made through that link is
+   * nothing pending — refused, and left exactly as it was.
    */
-  async publish(userId: string, record: RecordAccess, today: string): Promise<string | undefined> {
+  async publish(userId: string, record: RecordAccess, today: string, link: PublishThrough): Promise<string | undefined> {
     try {
       return await database().transaction(async tx => {
         const [pending] = await tx
-          .select({ id: mealPlans.id, version: mealPlans.version })
+          .select({ id: mealPlans.id, careLinkId: mealPlans.careLinkId, version: mealPlans.version })
           .from(mealPlans)
           .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, PENDING)))
           .limit(1)
           .for('update');
 
-        if (!pending) {
+        if (!pending || (link.only && pending.careLinkId !== link.id)) {
           return undefined;
         }
 
@@ -895,7 +921,10 @@ export const PlanRepository = {
           .update(mealPlans)
           .set({ completedAt: today, status: 'completed', updatedAt: new Date() })
           .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, 'active')));
-        await tx.update(mealPlans).set({ activatedAt: new Date(), status: 'active', updatedAt: new Date() }).where(eq(mealPlans.id, pending.id));
+        await tx
+          .update(mealPlans)
+          .set({ activatedAt: new Date(), careLinkId: link.id, status: 'active', updatedAt: new Date() })
+          .where(eq(mealPlans.id, pending.id));
         await record(tx);
 
         return pending.id;
@@ -1501,9 +1530,9 @@ async function replaceGeneratedItems(tx: Transaction, planId: string, shoppingIt
 async function publishingLink(
   db: ReturnType<typeof database> | Transaction,
   userId: string
-): Promise<{ readonly reviewBeforePublish: boolean } | undefined> {
+): Promise<{ readonly id: string; readonly createdAt: Date; readonly reviewBeforePublish: boolean } | undefined> {
   const [row] = await db
-    .select({ reviewBeforePublish: careLinks.reviewBeforePublish })
+    .select({ id: careLinks.id, createdAt: careLinks.createdAt, reviewBeforePublish: careLinks.reviewBeforePublish })
     .from(careLinks)
     .where(
       and(
@@ -1515,6 +1544,57 @@ async function publishingLink(
     .limit(1);
 
   return row;
+}
+
+/**
+ * Whether the link standing when a professional's generation is saved is the
+ * one it was asked through (`0111` § 5). A client has at most one open link,
+ * and the asking link was active when `withClient` let the job be claimed, so
+ * it was made before the job; any later link was made after the asking one
+ * ended, which is after the job began. Both times are the database's
+ * (`created_at` defaults), so one clock compares them. No job to read is never
+ * the asking link: the plan then carries none.
+ */
+export function isAskingLink(link: { readonly createdAt: Date }, jobStartedAt: Date | undefined): boolean {
+  return jobStartedAt !== undefined && link.createdAt.getTime() <= jobStartedAt.getTime();
+}
+
+/**
+ * When the generation being saved was claimed: its job, named by the
+ * `jobId` every generation writes into the plan's metadata, read for this
+ * client only. Undefined when there is none to read — which `isAskingLink`
+ * answers as "not the asking link".
+ */
+async function jobStartedAt(tx: Transaction, userId: string, metadata: Record<string, unknown> | null | undefined): Promise<Date | undefined> {
+  const jobId = metadata?.jobId;
+
+  if (typeof jobId !== 'string') {
+    return undefined;
+  }
+
+  const [job] = await tx
+    .select({ createdAt: planGenerationJobs.createdAt })
+    .from(planGenerationJobs)
+    .where(and(eq(planGenerationJobs.id, jobId), eq(planGenerationJobs.userId, userId)))
+    .limit(1);
+
+  return job?.createdAt;
+}
+
+/**
+ * The link a newly saved plan was made through (`0111` § 5), or null: the
+ * client's publishing link when the plan is a professional's generation —
+ * `byProfessional` is only ever a generation started through
+ * `CareController.withClient`, and the link has been checked as the asking one
+ * (`isAskingLink`) — or when it lands under review, which makes it that link's
+ * to review. Never set for a plan the client made for themselves and lives at once.
+ */
+export function madeThrough(save: {
+  readonly byProfessional: boolean;
+  readonly link: { readonly id: string } | undefined;
+  readonly status: 'active' | 'pending_review' | 'scheduled';
+}): string | null {
+  return save.link !== undefined && (save.byProfessional || save.status === PENDING) ? save.link.id : null;
 }
 
 /**
