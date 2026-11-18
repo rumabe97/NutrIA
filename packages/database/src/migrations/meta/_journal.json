@@ -498,6 +498,13 @@
       "when": 1794846345278,
       "tag": "0070_a_vitamin_s_amount_is_withheld",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1795026204928,
+      "tag": "0071_anyone_can_open_a_practice",
+      "breakpoints": true
     }
   ]
 }

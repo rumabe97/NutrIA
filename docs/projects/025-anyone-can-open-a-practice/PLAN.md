@@ -106,7 +106,7 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
 
 ### Phase 2 — The stores and the migration
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 025 phase 2` — deviation from `tiered`'s
   implementation row: it carries a migration that runs against production during the API's
   build, reviewed by `migration-reviewer` (never below opus @ high).
@@ -169,6 +169,13 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
   `apps/api/src/modules/recipes/controllers/Cron.controller.ts` (the daily sweep's call only),
   `apps/api/src/modules/owner-alerts/**`, `apps/api/src/modules/email/**`, the tests beside each.
 - **Steps**:
+  0. **From phase 2's review** (amended 2026-11-18): (a) a data-only catch-up migration writes a
+     `pass` (due 30 days on) for every `professionals` row with no check yet —
+     `INSERT … SELECT … WHERE NOT EXISTS` — so a grant made through the old route between
+     `0071` and this phase is not left without one; (b) the sweep writes a **reason** on every
+     `lapsed` row (`professional_badge_checks_removal_has_reason` refuses one without);
+     (c) the code cap uses `professional_badge_codes.attempts`; (d) `badgeOf` reads by
+     `user_id`: the three stores hang off the account, not the `professionals` row.
   1. `ProfessionalBadgeRepository.badgeOf(userId, now)`: among the decisive rows (`pass`,
      `fail`, `withdrawn`, `lapsed`; `applied` is not one) the latest is `pass`, and
      `now < due_at + 30 days`. The **only** definition of the badge;
@@ -258,6 +265,9 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
   `health.consentNote` / `health.illnessLinkWarning` keys of both dictionaries, the tests
   beside each.
 - **Steps**:
+  0. **From phase 2's review** (amended 2026-11-18): every insert into `care_links` names its
+     `consent_scope`; the release after this phase drops the column's `full` default, so an
+     insert that forgets the scope fails instead of recording a consent nobody gave.
   1. `CARE_SHARED_PLAN` (the plan list) beside `CARE_SHARED`; `presentInvitationDetail` and
      `presentLink` pick by the practitioner's badge: no health line and no number for an
      un-badged practitioner. `CARE_CONSENT_VERSION` stays until phase 8 ships its words.
@@ -311,6 +321,9 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
   set-up (granting gives way to self-service plus a badge, by the `tests` agent), the tests
   beside each.
 - **Steps**:
+  0. **From phase 2's review** (amended 2026-11-18): the owner's revoke of "may practise" also
+     writes a `withdrawn` check with its reason — the badge stores hang off the account, so
+     without it an old `pass` would survive a reopened practice.
   1. `POST /care/practice`: the session's account, switch on, confirmed address, a birth date
      on record or given in the body, checked by `assertOldEnough` **and** non-null; writes the
      `professionals` row with nothing from the body but the birth date. Every refusal is 404 —

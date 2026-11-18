@@ -1,7 +1,7 @@
 import { boolean, check, index, pgTable, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
-import { careAccessAction, careAccessKind, careLinkEndedBy, careLinkStatus } from './_enums';
+import { careAccessAction, careAccessKind, careConsentScope, careLinkEndedBy, careLinkStatus } from './_enums';
 import { timestamps } from './_columns';
 import { user } from './auth.schema';
 import { userOwned } from './_utils';
@@ -77,6 +77,13 @@ export const careLinks = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
     consentedAt: timestamp({ withTimezone: true }).notNull(),
+    /**
+     * Which list the client consented to (`0111` § 4): `full`, the badged
+     * list, or `plan`, the plan only. Every link made before project 025
+     * consented to 004's list, which is the badged one, hence the default. It
+     * is half of the link's scope; the practitioner's badge is the other half.
+     */
+    consentScope: careConsentScope().notNull().default('full'),
     consentVersion: text().notNull(),
     endedAt: timestamp({ withTimezone: true }),
     endedBy: careLinkEndedBy(),

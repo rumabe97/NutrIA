@@ -56,7 +56,8 @@ function agreementRequired(row: Pick<Professional, 'agreementVersion'>): boolean
 function present(row: Professional): ProfessionalView {
   return {
     agreementRequired: agreementRequired(row),
-    collegiateNumber: row.collegiateNumber,
+    // `?? ''` is a type fix only (project 025 phase 2): every row today was granted with a number; the number moves to the badge in phase 3.
+    collegiateNumber: row.collegiateNumber ?? '',
     grantedAt: row.grantedAt.toISOString(),
     includedClients: row.includedClients,
     practiceOpen: row.practiceOpen
@@ -69,7 +70,8 @@ function present(row: Professional): ProfessionalView {
  */
 function presentAccount(row: ProfessionalListRow): ProfessionalAccountView {
   return {
-    collegiateNumber: row.collegiateNumber,
+    // `?? ''` is a type fix only (project 025 phase 2): every row today was granted with a number; the number moves to the badge in phase 3.
+    collegiateNumber: row.collegiateNumber ?? '',
     email: row.email,
     grantedAt: row.grantedAt.toISOString(),
     links: { active: row.links.active, ended: row.links.ended, paused: row.links.paused },

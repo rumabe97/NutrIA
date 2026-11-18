@@ -76,7 +76,7 @@ export type Roster = { readonly invitations: readonly { readonly email: string; 
 
 /** An invitation the session's account may read, with who sent it. */
 export type OpenInvitation = {
-  readonly collegiateNumber: string;
+  readonly collegiateNumber: string | null;
   readonly expiresAt: Date;
   readonly professionalId: string;
   readonly professionalName: string;

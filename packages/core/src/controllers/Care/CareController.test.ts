@@ -57,6 +57,7 @@ function makeLink(overrides?: Partial<CareLink>): CareLink {
     id: '0b8e7f4a-3c2d-4e1f-9a8b-7c6d5e4f3a2b',
     clientId: CLIENT.id,
     consentedAt: NOW,
+    consentScope: 'full',
     consentVersion: CARE_CONSENT_VERSION,
     createdAt: NOW,
     endedAt: null,

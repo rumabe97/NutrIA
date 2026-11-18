@@ -23,6 +23,7 @@ const SINGLETON_TABLES = [
   'target_overrides',
   'health_data_consents',
   'professionals',
+  'professional_profiles',
   'profile_data_consents',
   'two_factor_removal'
 ];
@@ -235,5 +236,60 @@ describe('the sign-in brake (PLAN 011 phase 7)', () => {
     expect(table.columns.map(column => column.name).sort()).toEqual(['count', 'key', 'nextAllowedAt', 'windowStartedAt']);
     expect(table.columns.find(column => column.name === 'key')?.primary).toBe(true);
     expect(table.foreignKeys).toEqual([]);
+  });
+});
+
+describe('the practice stores of project 025 (0111)', () => {
+  const owner = (name: string, column: string) =>
+    config(name).foreignKeys.find(key => key.reference().columns.some(candidate => candidate.name === column));
+
+  it.each(['professional_badge_checks', 'professional_badge_codes', 'professional_profiles', 'practice_restrictions'])(
+    "%s goes with the account, not with the professionals row the owner's revoke deletes",
+    name => {
+      const key = owner(name, 'userId') ?? owner(name, 'user_id');
+
+      expect(getTableConfig(key!.reference().foreignTable).name).toBe('user');
+      expect(key!.onDelete).toBe('cascade');
+    }
+  );
+
+  it.each([
+    ['professional_badge_checks', 'checkedBy'],
+    ['professional_profiles', 'seenBy'],
+    ['practice_restrictions', 'actedBy']
+  ])('%s keeps its row when the owner who acted goes (%s set null)', (name, column) => {
+    expect(owner(name, column)?.onDelete).toBe('set null');
+  });
+
+  it('stores no contact and no identity document on the badge record or its code (PRD 025 criterion 3)', () => {
+    const names = ['professional_badge_checks', 'professional_badge_codes'].flatMap(name => config(name).columns.map(column => column.name));
+
+    expect(names.filter(name => /email|phone|address|contact|document|^code$/i.test(name))).toEqual([]);
+  });
+
+  it('offers three channels, all read from the public register (C12)', () => {
+    expect(schema.badgeChannel.enumValues).toEqual(['register_email', 'post', 'phone']);
+  });
+
+  it('defaults a link to the list every link before project 025 consented to', () => {
+    const column = config('care_links').columns.find(candidate => candidate.name === 'consentScope' || candidate.name === 'consent_scope');
+
+    expect(column?.notNull).toBe(true);
+    expect(column?.default).toBe('full');
+  });
+
+  it('lets a plan outlive the link it was made through', () => {
+    const key = getTableConfig(schema.mealPlans).foreignKeys.find(candidate =>
+      candidate.reference().columns.some(column => column.name === 'careLinkId' || column.name === 'care_link_id')
+    );
+
+    expect(getTableConfig(key!.reference().foreignTable).name).toBe('care_links');
+    expect(key!.onDelete).toBe('set null');
+  });
+
+  it('leaves the collegiate number optional: a self-service practice has none', () => {
+    expect(config('professionals').columns.find(column => column.name === 'collegiateNumber' || column.name === 'collegiate_number')?.notNull).toBe(
+      false
+    );
   });
 });

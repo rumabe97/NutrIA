@@ -117,6 +117,42 @@ export const careAccessKind = pgEnum('care_access_kind', ['list', 'overview', 'p
 export const careAccessAction = pgEnum('care_access_action', ['read', 'write', 'granted', 'withdrawn']);
 
 /**
+ * What a link's client consented to share (`0111` § 4): `full` is the badged
+ * list (project 004's, every link made before project 025), `plan` the plan
+ * only. The link's scope is `full` only while the practitioner's badge also
+ * stands — this column is the consent half of that, never the whole of it.
+ * Repeated as `CARE_CONSENT_SCOPES` in core; `Care.test.ts` keeps them equal.
+ */
+export const careConsentScope = pgEnum('care_consent_scope', ['full', 'plan']);
+
+/**
+ * One step on a practitioner's badge record (`0111` § 2). `applied` is the
+ * practitioner's own declaration and decides nothing; the other four are the
+ * decisive rows, and the latest of them is what the badge is derived from.
+ * Repeated as `BADGE_CHECK_KINDS` in core; `Professional.test.ts` keeps them equal.
+ */
+export const badgeCheckKind = pgEnum('badge_check_kind', ['applied', 'pass', 'fail', 'withdrawn', 'lapsed']);
+
+/**
+ * How a badge code reached the practitioner, each a contact the owner read on
+ * the public register (PRD 025 scope 6): an e-mail it lists, a letter to its
+ * professional address, or the owner's call to a phone it lists. The
+ * college-issued e-mail was dropped by the owner on 2026-11-18 (legal C12).
+ * Repeated as `BADGE_CHANNELS` in core.
+ */
+export const badgeChannel = pgEnum('badge_channel', ['register_email', 'post', 'phone']);
+
+/** What a practice's price is for (PRD 025 scope 4). Repeated as `PRICE_UNITS` in core. */
+export const priceUnit = pgEnum('price_unit', ['consultation', 'month', 'plan']);
+
+/**
+ * The owner's acts on an account as a practitioner (PRD 025 scope 16):
+ * suspended at once, closing with 30 days' notice, or lifted. What stands is
+ * the latest row. Repeated as `PRACTICE_RESTRICTION_KINDS` in core.
+ */
+export const practiceRestrictionKind = pgEnum('practice_restriction_kind', ['suspended', 'closing', 'lifted']);
+
+/**
  * The appliances a person may speak about (`0102`). The authority on the
  * catalogue is `APPLIANCES` in `packages/core/src/entities/Kitchen`; the ten
  * strings are repeated here because this package sits *below* core and cannot

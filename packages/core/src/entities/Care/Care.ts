@@ -101,11 +101,22 @@ export const CARE_LINK_ENDED_BY = ['professional', 'client', 'lapse', 'account']
 
 export type CareLinkEndedBy = (typeof CARE_LINK_ENDED_BY)[number];
 
+/**
+ * Which list a link's client consented to (`0111` § 4): `full`, the badged list,
+ * or `plan`, the plan only. A link's scope is `full` only while this says so
+ * **and** the practitioner's badge stands. Repeated as `care_consent_scope` in
+ * the database, which sits below core.
+ */
+export const CARE_CONSENT_SCOPES = ['full', 'plan'] as const;
+
+export type CareConsentScope = (typeof CARE_CONSENT_SCOPES)[number];
+
 /** A link as `care_links` holds it. */
 export const careLinkSchema = z.object({
   id: z.uuid(),
   clientId: z.string().min(1),
   consentedAt: z.date(),
+  consentScope: z.enum(CARE_CONSENT_SCOPES),
   consentVersion: z.string().min(1),
   createdAt: z.date(),
   endedAt: z.date().nullable(),
