@@ -2,6 +2,7 @@ import { check, date, index, integer, jsonb, numeric, pgTable, smallint, text, t
 import { sql } from 'drizzle-orm';
 
 import { jobStatus, macroDirection, mealSlot, mealStatus, planStatus } from './_enums';
+import { careLinks } from './care.schema';
 import { ingredients } from './food.schema';
 import { recipes } from './recipe.schema';
 import { user } from './auth.schema';
@@ -29,6 +30,13 @@ export const mealPlans = pgTable(
   {
     id: uuid().primaryKey().defaultRandom(),
     activatedAt: timestamp({ withTimezone: true }),
+    /**
+     * The link a professional made or reviewed this plan through (`0111` § 5),
+     * so a plan-only link lists and opens only its own plans. Null on a plan
+     * the person made themselves, and set null when the link row goes with
+     * either account. Indexed below for that `set null`, not for a reader.
+     */
+    careLinkId: uuid().references(() => careLinks.id, { onDelete: 'set null' }),
     completedAt: date(),
     endDate: date().notNull(),
     /** Model, prompt version, token counts, retries — for the admin failure view. */
@@ -59,6 +67,11 @@ export const mealPlans = pgTable(
   },
   table => [
     index('meal_plans_user_id_idx').on(table.userId),
+    // For the `set null` when a link row goes (an account's deletion): without it,
+    // every deleted link scans meal_plans. Built now while the table is small —
+    // later it would need CONCURRENTLY, which drizzle's one-transaction migrate
+    // cannot run (migration-reviewer, project 025 phase 2).
+    index('meal_plans_care_link_id_idx').on(table.careLinkId),
     unique('meal_plans_user_version_key').on(table.userId, table.version),
     // The real invariant: at most one active plan per user. A partial unique
     // index enforces it in the database, so a double-submit cannot produce two.

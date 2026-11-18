@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import { careConsentScope } from 'database/schema';
 
-import { acceptInvitationSchema, CARE_CONSENT_VERSION, CARE_HEALTH_SHARED, CARE_SHARED, inviteClientSchema, setLinkHealthSchema } from './Care';
+import {
+  acceptInvitationSchema,
+  CARE_CONSENT_SCOPES,
+  CARE_CONSENT_VERSION,
+  CARE_HEALTH_SHARED,
+  CARE_SHARED,
+  inviteClientSchema,
+  setLinkHealthSchema
+} from './Care';
 
 describe('what a link shares', () => {
   /*
@@ -59,5 +68,12 @@ describe('setLinkHealthSchema', () => {
   it('refuses a missing answer or one that is not a boolean', () => {
     expect(setLinkHealthSchema.safeParse({}).success).toBe(false);
     expect(setLinkHealthSchema.safeParse({ sharesHealth: 'false' }).success).toBe(false);
+  });
+});
+
+describe('what a link consented to (project 025)', () => {
+  it('is the badged list or the plan only, as the database names them', () => {
+    expect(CARE_CONSENT_SCOPES).toEqual(['full', 'plan']);
+    expect(careConsentScope.enumValues).toEqual([...CARE_CONSENT_SCOPES]);
   });
 });

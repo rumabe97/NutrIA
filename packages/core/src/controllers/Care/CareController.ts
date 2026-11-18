@@ -348,7 +348,8 @@ function presentProgress(progress: ProgressSummaryView, targets: ResolvedTargets
 
 function presentInvitationDetail(row: OpenInvitation): CareInvitationDetailView {
   return {
-    collegiateNumber: row.collegiateNumber,
+    // `?? ''` is a type fix only (project 025 phase 2): every row today was granted with a number; the number moves to the badge in phase 3.
+    collegiateNumber: row.collegiateNumber ?? '',
     consentVersion: CARE_CONSENT_VERSION,
     expiresAt: row.expiresAt.toISOString(),
     healthShares: CARE_HEALTH_SHARED,

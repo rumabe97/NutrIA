@@ -21,7 +21,7 @@ import type { SQL } from 'drizzle-orm';
  * grants by account and must be able to tell which one they granted.
  */
 export type ProfessionalListRow = {
-  readonly collegiateNumber: string;
+  readonly collegiateNumber: string | null;
   readonly email: string;
   readonly grantedAt: Date;
   readonly includedClients: number;

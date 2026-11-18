@@ -164,6 +164,7 @@ describe('CareRepository.setSharesHealth', () => {
       id: LINK,
       clientId: 'usr-client',
       consentedAt: NOW,
+      consentScope: 'full',
       consentVersion: '2.0.0',
       createdAt: NOW,
       endedAt: null,
