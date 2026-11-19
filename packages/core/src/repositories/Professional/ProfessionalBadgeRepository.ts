@@ -18,6 +18,7 @@ import {
 } from 'core/entities/Professional';
 
 import type { ApplyForBadge, BadgeChannel, BadgeLapseDetail, ProfessionalBadgeCheck, ProfessionalBadgeCode } from 'core/entities/Professional';
+import type { SQL } from 'drizzle-orm';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -174,6 +175,20 @@ function backoff(attempt: number): number {
 type Tx = Parameters<Parameters<ReturnType<typeof database>['transaction']>[0]>[0];
 
 /**
+ * **The practitioner's badge lock — its one definition** (project 025 phase 5):
+ * a transaction-scoped advisory lock keyed on the account. Every write that
+ * changes the badge record (`apply`, `confirm`, `issueCode`,
+ * `remove`, `ProfessionalRepository.grant`) holds it, and so does every write
+ * that stores a consent only a standing badge allows (`CareRepository.accept`,
+ * `reconsent`, `setSharesHealth(true)`), so the two never decide on a badge the
+ * other is about to change. Always the first lock its transaction takes on that
+ * practitioner, before any row of `professionals` or `care_links`.
+ */
+function badgeLockKey(userId: string): SQL {
+  return sql`hashtext('professional_badge'), hashtext(${userId})`;
+}
+
+/**
  * Runs `fn` in a transaction holding the practitioner's badge lock, so the
  * practitioner and the owner acting at once each decide on what the other
  * wrote. A try-lock with a short, jittered retry (`EventRepository`'s shape): a
@@ -186,9 +201,7 @@ async function underLock<T>(userId: string, fn: (tx: Tx) => Promise<T>): Promise
     }
 
     const result = await database().transaction(async tx => {
-      const [lock] = await tx.execute<{ held: boolean }>(
-        sql`select pg_try_advisory_xact_lock(hashtext('professional_badge'), hashtext(${userId})) as held`
-      );
+      const [lock] = await tx.execute<{ held: boolean }>(sql`select pg_try_advisory_xact_lock(${badgeLockKey(userId)}) as held`);
 
       return lock?.held ? { value: await fn(tx) } : undefined;
     });
@@ -573,6 +586,20 @@ export const ProfessionalBadgeRepository = {
 
         return lapsed;
       });
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Takes the practitioner's badge lock (`badgeLockKey`) inside `tx`, waiting
+   * for it — for the short consent writes of `CareRepository` and the owner's
+   * 004 grant, which already hold a transaction and cannot retry one. Released
+   * at commit or rollback. The first lock the caller takes on that practitioner.
+   */
+  async lock(tx: Tx, userId: string): Promise<void> {
+    try {
+      await tx.execute(sql`select pg_advisory_xact_lock(${badgeLockKey(userId)})`);
     } catch (error: unknown) {
       throw wrap(error);
     }

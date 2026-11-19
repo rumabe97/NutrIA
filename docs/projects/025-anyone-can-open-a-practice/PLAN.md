@@ -292,6 +292,25 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
      phase**, so the purpose is named no later than the rule runs; `health.consentStale` asks
      again. **The warning before saving (C7)**: on the health screen, a person linked to an
      un-badged practitioner reads `health.illnessLinkWarning` before a declaration is saved.
+  7. **Amended 2026-11-19, during the phase** (the invariant review and the approved texts;
+     decided by the lead inside the owner's "widening needs the client's fresh consent"):
+     - the accept body **names the list the client read** (`consentScope`, required), so a
+       badge that lands between reading and accepting cannot store a wider consent;
+     - a rule ending is recorded for what it is — `care_link_ended_by` gains `badge_lost`
+       (migration 0073) and `declared` (0074) — and the client reads the reason at
+       `GET /care/links/me/ended`; a practitioner reads both as `client`;
+     - **a badge that stops standing narrows the stored consent**: open links become `plan`,
+       health line off, `narrowed_at` dated — in the owner's removal, in the sweep, and before
+       any pass recorded while no badge stood; a regained badge widens nothing;
+     - re-consent leaves its own evidence (`scope_consented_at`, `scope_consent_version`,
+       0074) and never rewrites the acceptance's date and version;
+     - the sweep's ending mails the **client** (`textos/06` § Y,
+       `CareLinkEndedByRule`); step 5's "no template fires only under this rule" is about the
+       practitioner;
+     - scope grows by: migrations 0073 and 0074 (`migration-reviewer`),
+       `apps/api/src/modules/email`, the error class and its filter mapping, the invitation
+       page and the link card (the minimum so a `plan` invitation or link renders nothing
+       empty; the full screens stay phase 8), and the local probe's account script.
 - **Acceptance criteria**: PRD 10 (invitation and link views), 11, 12, 22, 25.
 - **Verification**:
   - `pnpm --filter core build && pnpm --filter core test:coverage`

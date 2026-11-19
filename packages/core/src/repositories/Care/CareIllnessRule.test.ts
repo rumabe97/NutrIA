@@ -27,7 +27,7 @@ const dialect = new PgDialect({ casing: 'snake_case' });
 
 type Call = {
   lock?: string;
-  readonly op: 'delete' | 'insert' | 'select' | 'update';
+  readonly op: 'badge lock' | 'delete' | 'insert' | 'select' | 'update';
   set?: Record<string, unknown>;
   table?: unknown;
   values?: Record<string, unknown>;
@@ -109,7 +109,11 @@ const hasRecord = vi.fn<(userId: string, db: unknown) => Promise<boolean>>();
 vi.mock('#repositories/Professional', () => ({
   ProfessionalBadgeRepository: {
     badgeOf: (userId: string, now: Date, db?: unknown) => badgeOf(userId, now, db),
-    badgesOf: (userIds: readonly string[], now: Date, db?: unknown) => badgesOf(userIds, now, db)
+    badgesOf: (userIds: readonly string[], now: Date, db?: unknown) => badgesOf(userIds, now, db),
+    // The badge lock is a statement of its own, in the order it is taken.
+    lock: async (_tx: unknown, userId: string) => {
+      calls.push({ op: 'badge lock', table: userId });
+    }
   }
 }));
 vi.mock('#repositories/Health', async () => ({
@@ -182,15 +186,25 @@ describe('CareRepository.accept — the scope recorded, and the illness rule', (
 
     await expect(CareRepository.accept('usr-client', 'c@example.com', 'h'.repeat(64), answer(), NOW)).resolves.toEqual({ kind: 'refused' });
 
-    // The client's row is held before the record is read, in the acceptance's own transaction.
-    const lock = calls[3];
+    // The practitioner's badge lock first, before the practice's row; the client's row before the record is read.
+    expect(calls.map(call => call.lock ?? call.op)).toEqual(['select', 'badge lock', 'share', 'update', 'no key update']);
+    expect(calls[1]).toMatchObject({ op: 'badge lock', table: 'usr-pro' });
+
+    const lock = calls[4];
 
     expect(lock).toMatchObject({ lock: 'no key update', op: 'select', table: user });
     expect(where(lock)).toMatchObject({ params: ['usr-client'], sql: '"user"."id" = $1' });
     expect(hasRecord).toHaveBeenCalledExactlyOnceWith('usr-client', db);
     // On the acceptance's own connection: no second one is taken while its locks are held.
     expect(badgeOf).toHaveBeenCalledExactlyOnceWith('usr-pro', NOW, db);
-    expect(calls.filter(call => call.op !== 'select')).toEqual([]);
+    expect(calls.filter(call => call.op !== 'select' && call.op !== 'badge lock')).toEqual([]);
+  });
+
+  it('is gone, and writes nothing, when the invitation it locked for names another sender', async () => {
+    script = [[{ professionalId: 'usr-pro' }], [{ open: true }], [{ id: 'inv-1', professionalId: 'usr-other', professionalName: 'Otra' }]];
+
+    await expect(CareRepository.accept('usr-client', 'c@example.com', 'h'.repeat(64), answer(), NOW)).resolves.toEqual({ kind: 'gone' });
+    expect(calls.filter(call => call.op === 'insert' || call.op === 'delete')).toEqual([]);
   });
 
   it.each([
@@ -396,7 +410,11 @@ describe('CareRepository.lastEndedByRule — the client’s own notice', () => {
 
 describe('CareRepository.reconsent — widening needs the badge now', () => {
   it('widens the session’s `plan` link to `full`, records when and under which version, and moves nothing else', async () => {
-    script = [[{ link: storedLink({ consentScope: 'plan', consentVersion: '1.9.0' }), professionalName: 'Ana' }], []];
+    script = [
+      [{ professionalId: 'usr-pro' }],
+      [{ link: storedLink({ consentScope: 'plan', consentVersion: '1.9.0' }), professionalName: 'Ana' }],
+      []
+    ];
     badgeOf.mockResolvedValue(BADGE);
 
     await expect(CareRepository.reconsent('usr-client', CARE_CONSENT_VERSION, NOW)).resolves.toMatchObject({
@@ -410,12 +428,16 @@ describe('CareRepository.reconsent — widening needs the badge now', () => {
       }
     });
 
-    const [read, write] = calls;
+    const [practitioner, badgeLock, read, write] = calls;
 
+    // The practitioner found without a lock on the link, then their badge lock, then the link `FOR UPDATE`:
+    // the order a withdrawal takes them in, so neither waits for the other's.
+    expect(practitioner?.lock).toBeUndefined();
+    expect(badgeLock).toMatchObject({ op: 'badge lock', table: 'usr-pro' });
     expect(read?.lock).toBe('update');
     expect(where(read)).toMatchObject({
-      params: ['usr-client', 'active', 'paused', 'plan'],
-      sql: '(("care_links"."client_id" = $1 and "care_links"."status" in ($2, $3)) and "care_links"."consent_scope" = $4)'
+      params: ['usr-client', 'active', 'paused', 'usr-pro', 'plan'],
+      sql: '(("care_links"."client_id" = $1 and "care_links"."status" in ($2, $3)) and "care_links"."professional_id" = $4 and "care_links"."consent_scope" = $5)'
     });
     // The acceptance's `consentedAt` and `consentVersion` stay (what was accepted, and when); the widening has its own two.
     expect(write?.set).toEqual({ consentScope: 'full', scopeConsentedAt: NOW, scopeConsentVersion: CARE_CONSENT_VERSION, updatedAt: NOW });
@@ -423,7 +445,7 @@ describe('CareRepository.reconsent — widening needs the badge now', () => {
   });
 
   it('is null, and writes nothing, without the badge now', async () => {
-    script = [[{ link: storedLink({ consentScope: 'plan' }), professionalName: 'Ana' }]];
+    script = [[{ professionalId: 'usr-pro' }], [{ link: storedLink({ consentScope: 'plan' }), professionalName: 'Ana' }]];
     badgeOf.mockResolvedValue(null);
 
     await expect(CareRepository.reconsent('usr-client', CARE_CONSENT_VERSION, NOW)).resolves.toBeNull();
@@ -431,9 +453,16 @@ describe('CareRepository.reconsent — widening needs the badge now', () => {
   });
 
   it('is null, and reads no badge, with no `plan` link to widen', async () => {
-    script = [[]];
+    script = [[{ professionalId: 'usr-pro' }], []];
 
     await expect(CareRepository.reconsent('usr-client', CARE_CONSENT_VERSION, NOW)).resolves.toBeNull();
     expect(badgeOf).not.toHaveBeenCalled();
+  });
+
+  it('is null, and takes no lock at all, with no open link', async () => {
+    script = [[]];
+
+    await expect(CareRepository.reconsent('usr-client', CARE_CONSENT_VERSION, NOW)).resolves.toBeNull();
+    expect(calls.map(call => call.op)).toEqual(['select']);
   });
 });

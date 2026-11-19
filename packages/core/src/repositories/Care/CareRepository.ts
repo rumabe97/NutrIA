@@ -219,6 +219,11 @@ export const CareRepository = {
           return { kind: 'gone' };
         }
 
+        // The practitioner's badge lock, first of all (`ProfessionalBadgeRepository.lock`): a withdrawal
+        // or a regain queues behind this acceptance, or this behind it — never a `full` link stored on a
+        // badge that is going. Before the practice's row, as `grant` takes it before the same row.
+        await ProfessionalBadgeRepository.lock(tx, addressed.professionalId);
+
         const [practice] = await tx
           .select({ open: professionals.practiceOpen })
           .from(professionals)
@@ -234,7 +239,8 @@ export const CareRepository = {
           .limit(1)
           .for('update', { of: careInvitations });
 
-        if (!invitation || !practice) {
+        // The same invitation the lock was taken for: its token names one row and one sender.
+        if (!invitation || !practice || invitation.professionalId !== addressed.professionalId) {
           return { kind: 'gone' };
         }
 
@@ -743,12 +749,20 @@ export const CareRepository = {
   async reconsent(clientId: string, consentVersion: string, now: Date): Promise<LinkWithProfessional | null> {
     try {
       return await database().transaction(async tx => {
+        // The practitioner's badge lock before the link's row (`lockLinkPractitioner`): a withdrawal holds
+        // the lock and then narrows the rows, so nobody may wait for the lock while holding one of them.
+        const professionalId = await lockLinkPractitioner(tx, clientId);
+
+        if (!professionalId) {
+          return null;
+        }
+
         const open = and(eq(careLinks.clientId, clientId), inArray(careLinks.status, [...OPEN_STATUSES]));
         const [row] = await tx
           .select({ link: careLinks, professionalName: user.name })
           .from(careLinks)
           .innerJoin(user, eq(user.id, careLinks.professionalId))
-          .where(and(open, eq(careLinks.consentScope, 'plan')))
+          .where(and(open, eq(careLinks.professionalId, professionalId), eq(careLinks.consentScope, 'plan')))
           .limit(1)
           .for('update', { of: careLinks });
 
@@ -884,7 +898,19 @@ export const CareRepository = {
   async setSharesHealth(clientId: string, sharesHealth: boolean, now: Date): Promise<LinkWithProfessional | null> {
     try {
       return await database().transaction(async tx => {
-        const open = and(eq(careLinks.clientId, clientId), inArray(careLinks.status, [...OPEN_STATUSES]));
+        // Turning the line on needs the badge, so it takes the practitioner's badge lock before the link's row
+        // (`lockLinkPractitioner`). Turning it off needs no badge and takes no lock: it only narrows.
+        const professionalId = sharesHealth ? await lockLinkPractitioner(tx, clientId) : undefined;
+
+        if (sharesHealth && !professionalId) {
+          return null;
+        }
+
+        const open = and(
+          eq(careLinks.clientId, clientId),
+          inArray(careLinks.status, [...OPEN_STATUSES]),
+          professionalId ? eq(careLinks.professionalId, professionalId) : undefined
+        );
         const [row] = await tx
           .select({ link: careLinks, professionalName: user.name })
           .from(careLinks)
@@ -1113,6 +1139,30 @@ function latestOf(
 }
 
 type Transaction = Parameters<Parameters<ReturnType<typeof database>['transaction']>[0]>[0];
+
+/**
+ * The practitioner on the client's open link, read **without** locking the
+ * link, then that practitioner's badge lock taken (`ProfessionalBadgeRepository.lock`)
+ * — the order a withdrawal, a regain and `narrowLinks` take them in: the badge
+ * lock first, the `care_links` rows after. The caller then holds the link
+ * `FOR UPDATE` filtered on this practitioner and checks everything again.
+ * Undefined when the client has no open link. `clientId` is the session's.
+ */
+async function lockLinkPractitioner(tx: Transaction, clientId: string): Promise<string | undefined> {
+  const [open] = await tx
+    .select({ professionalId: careLinks.professionalId })
+    .from(careLinks)
+    .where(and(eq(careLinks.clientId, clientId), inArray(careLinks.status, [...OPEN_STATUSES])))
+    .limit(1);
+
+  if (!open) {
+    return undefined;
+  }
+
+  await ProfessionalBadgeRepository.lock(tx, open.professionalId);
+
+  return open.professionalId;
+}
 
 /**
  * Holds the client's account row for the rest of `tx` — `FOR NO KEY UPDATE`, so

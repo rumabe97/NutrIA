@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PgDialect } from 'drizzle-orm/pg-core';
 
 import { professionalBadgeChecks, professionals } from 'database/schema/professional';
 
@@ -6,6 +7,7 @@ import { dueDate, ProfessionalBadgeRepository } from './ProfessionalBadgeReposit
 import { ProfessionalRepository } from './ProfessionalRepository';
 
 import type { ProfessionalBadgeCheck } from 'core/entities/Professional';
+import type { SQL } from 'drizzle-orm';
 
 /*
  * Project 025 phase 5, review round two (P2-A): a badge that comes back must not
@@ -56,9 +58,14 @@ function chain(name: string): Chain {
   return link;
 }
 
+/** Each lock statement, as Postgres would read it. */
+const locks: { readonly params: unknown[]; readonly sql: string }[] = [];
+const dialect = new PgDialect({ casing: 'snake_case' });
+
 const tx = {
-  execute: async () => {
+  execute: async (statement: SQL) => {
     events.push('lock');
+    locks.push(dialect.sqlToQuery(statement));
 
     return [{ held: true }];
   },
@@ -104,6 +111,7 @@ const narrow = vi.fn(async (_tx: unknown) => {
 
 beforeEach(() => {
   events.length = 0;
+  locks.length = 0;
   script = [];
   narrow.mockClear();
 });
@@ -162,21 +170,22 @@ describe('ProfessionalBadgeRepository.confirm — a badge that comes back narrow
   });
 });
 
-describe('ProfessionalRepository.grant — the 004 grant route writes a pass too', () => {
-  const PROFESSIONAL = {
-    id: '00000000-0000-4000-8000-0000000000aa',
-    agreementAcceptedAt: null,
-    agreementVersion: null,
-    collegiateNumber: 'MAD00123',
-    createdAt: NOW,
-    grantedAt: NOW,
-    grantedBy: 'usr-owner',
-    includedClients: 30,
-    practiceOpen: false,
-    updatedAt: NOW,
-    userId: 'usr-pro'
-  };
+/** The `professionals` row the grant's upsert answers. */
+const PROFESSIONAL = {
+  id: '00000000-0000-4000-8000-0000000000aa',
+  agreementAcceptedAt: null,
+  agreementVersion: null,
+  collegiateNumber: 'MAD00123',
+  createdAt: NOW,
+  grantedAt: NOW,
+  grantedBy: 'usr-owner',
+  includedClients: 30,
+  practiceOpen: false,
+  updatedAt: NOW,
+  userId: 'usr-pro'
+};
 
+describe('ProfessionalRepository.grant — the 004 grant route writes a pass too', () => {
   it('after a lapse by the clock, not yet swept: narrows in the grant’s transaction, before the pass', async () => {
     // The upsert, then the badge read on the grant's own connection: the latest decisive check, a pass long past.
     script = [[PROFESSIONAL], [check('pass', 430)], [], []];
@@ -194,5 +203,35 @@ describe('ProfessionalRepository.grant — the 004 grant route writes a pass too
 
     expect(narrow).not.toHaveBeenCalled();
     expect(events).toContain('insert pass');
+  });
+});
+
+/*
+ * Review of the end-to-end run (commit 02919584): the consent writes and the
+ * badge writes queue on one lock. Its one definition is `badgeLockKey`; what is
+ * pinned here is that the grant takes it first — before the `professionals` row
+ * — and that it is the very key `confirm`/`remove` try under `underLock`.
+ */
+describe('the practitioner’s badge lock — one key for every writer', () => {
+  const KEY = { params: ['usr-pro'], sql: "hashtext('professional_badge'), hashtext($1)" };
+
+  it('the grant takes it, waiting, before anything else it writes', async () => {
+    script = [[PROFESSIONAL], [check('pass', 30)], [], []];
+
+    await ProfessionalRepository.grant('usr-pro', 'MAD00123', 'usr-owner');
+
+    expect(events[0]).toBe('lock');
+    expect(events.indexOf('lock')).toBeLessThan(events.indexOf('upsert professional'));
+    expect(locks[0]).toMatchObject({ params: KEY.params, sql: `select pg_advisory_xact_lock(${KEY.sql})` });
+  });
+
+  it('`lock` takes it, waiting; `confirm` tries the same key', async () => {
+    await ProfessionalBadgeRepository.lock(tx as never, 'usr-pro');
+
+    script = [[check('pass', 350)], [], [], [written()]];
+    await ProfessionalBadgeRepository.confirm('usr-pro', 'usr-owner', NOW);
+
+    expect(locks.map(lock => lock.sql)).toEqual([`select pg_advisory_xact_lock(${KEY.sql})`, `select pg_try_advisory_xact_lock(${KEY.sql}) as held`]);
+    expect(locks.map(lock => lock.params)).toEqual([KEY.params, KEY.params]);
   });
 });

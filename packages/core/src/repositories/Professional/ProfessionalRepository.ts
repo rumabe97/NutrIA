@@ -142,6 +142,10 @@ export const ProfessionalRepository = {
   ): Promise<Professional> {
     try {
       return await database().transaction(async tx => {
+        // The badge lock first, before the `professionals` row: the grant writes a pass and may narrow
+        // `care_links`, so it queues with `confirm`/`remove` and with every consent write (`ProfessionalBadgeRepository.lock`).
+        await ProfessionalBadgeRepository.lock(tx, userId);
+
         const grantedAt = new Date();
         const [row] = await tx
           .insert(professionals)

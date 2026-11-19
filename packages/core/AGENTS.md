@@ -236,7 +236,13 @@ write leaves no row, and a write that returns without having recorded fails. So:
   reads the badge on every request and never trusts the stored value alone. The health line
   cannot be turned on outside `full`. Every insert into `care_links` names its `consent_scope`.
   A badge read inside a transaction passes that transaction to `badgeOf`/`badgesOf`: never a
-  second pool connection while locks are held.
+  second pool connection while locks are held. **Every write that can store `full` or turn the
+  health line on (`accept`, `reconsent`, `setSharesHealth(true)`) takes the practitioner's badge
+  lock (`ProfessionalBadgeRepository.lock`, one key: `badgeLockKey`) before it reads the badge**,
+  the same lock `apply`/`confirm`/`issueCode`/`remove` (`underLock`) and the 004 `grant` hold —
+  and always before any `professionals` or `care_links` row of that practitioner, because the
+  removal holds the lock and then narrows those rows. `reconsent` and `setSharesHealth` find the
+  practitioner without locking the link, take the badge lock, then hold the link `FOR UPDATE`.
 - **The illness rule** (`0111` § 8, PRD 025 criterion 22) has three enforcement points and no
   fourth: `CareRepository.accept` (refused in its transaction, the invitation kept),
   `CareRepository.endOnDeclaration` (run by `HealthController.replace` inside the health

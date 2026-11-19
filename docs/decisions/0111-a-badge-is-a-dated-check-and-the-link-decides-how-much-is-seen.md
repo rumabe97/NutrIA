@@ -45,7 +45,12 @@ builds on. Choosing them during execution would let a phase choose them by accid
    list), else `plan`. `withClient` refuses every kind outside the scope with the same 404 as
    any denial, beside its health branch; the health branch needs `full` too. A badge gained
    mid-link widens nothing until the client consents again; a badge lost narrows on the next
-   request.
+   request. *Amended 2026-11-19 (project 025 phase 5, the invariant review):* a badge lost also
+   narrows the **stored** consent — the practitioner's open links become `plan` with the health
+   line off and `narrowed_at` dated, in the owner's removal, in the daily sweep, and before any
+   pass recorded while no badge stood — so a badge that comes back finds nothing wider than
+   `plan`. Only the client's re-consent widens, and it leaves its own date and version
+   (`scope_consented_at`, `scope_consent_version`) without rewriting the acceptance's.
 5. **A plan made through a link carries the link.** `meal_plans.care_link_id`, nullable, set
    null if the link row goes, written when the professional generates through `withClient`,
    when a plan lands `pending_review` for that link (reviewing it is how it becomes theirs),
@@ -62,7 +67,13 @@ builds on. Choosing them during execution would let a phase choose them by accid
 8. **The illness rule has three enforcement points and no fourth**: the acceptance transaction
    (`CareRepository.accept`), the declaration transaction (`HealthController.replace`), and the
    daily `/cron/reminders` sweep for a badge lost under a client who has one. Each ends or
-   refuses the link and queues a notice that names no condition to the practitioner.
+   refuses the link. *Amended 2026-11-19 (phase 5; legal F4, `textos/06` § Y):* **nothing
+   distinct reaches the practitioner** — a refused acceptance is an invitation left unanswered,
+   and a rule ending reads to them exactly as a link the client ended (`ended_by` `declared` and
+   `badge_lost` are the client's to read, and map to `client` in anything a practitioner sees).
+   The client is told: on the screen at acceptance and at the save, and by one mail when the
+   sweep ends the link. The sentence this replaces said a notice was queued to the
+   practitioner; the approved texts and PRD 22 decided otherwise before any code was written.
 9. **The owner's grant route is retired.** `POST /admin/accounts/:id/professional` goes; its
    successor is the badge check. The owner's revoke of "may practise" stays.
 
