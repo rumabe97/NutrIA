@@ -416,7 +416,7 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
 
 ### Phase 7 — The walk: every route, as every kind of account
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high, the `tests` agent only — `/execute-project 025 phase 7` —
   deviation from `tiered`'s implementation row: this suite is the proof of PRD 10, the
   invariant the whole project exists to keep.

@@ -378,3 +378,57 @@
   state; the audit labels exist. The local probe builds a practitioner by the real steps
   (`account.mjs link`, the practitioner created `--two-factor`).
 
+## Phase 7 — The walk: every route, as every kind of account (2026-11-19)
+
+- **Executor**: the `tests` agent (opus), in its own worktree; `apps/api/test/**` only.
+- **Result**: done. Most of the phase was already written by phases 3–6, each beside the code
+  it proves; this phase adds the walk and its guard, and maps the plan onto what exists.
+- **The plan's file names, and the suites that stand for them**: `care-unbadged` is
+  `care-walk` (new) with `care-scope`; `care-open-practice` is `care-practice-open` with
+  `care-restriction` and `care-illness-rule`; `care-badge` is itself.
+- **What `care-walk.e2e-spec.ts` adds**:
+  - **The routes are read from the booted application**, not typed: the Express router's own
+    stack after Nest has mounted every controller. Every first path segment must be in one of
+    two lists in the suite — walked (sixteen: `assistant`, `care`, `check-ins`, `events`,
+    `fixed-meals`, `health-data`, `meal-plans`, `notifications`, `onboarding`, `pantry`,
+    `profile`, `progress`, `recipes`, `safety`, `shopping-lists`, `vacations`) or not walked,
+    each with its reason (nine: `admin`, `auth`, `billing`, `cron`, `csp-report`, `feedback`,
+    `health`, `settings`, `users`) — and every walked route must have a row. A new module, a
+    new route, or a row left behind fails the suite by name.
+  - **Eight kinds of account** walk every row: an un-badged practitioner on a `plan` link, a
+    badged one on `plan`, a badged one on `full`, a suspended one, one whose close has come,
+    an ordinary account and another practitioner both holding a client's ids, and that
+    client. Every id is the client's own and predates the link.
+  - Every answer has the table's status and carries nothing of the client (id, address, name,
+    declared words, any of their plan, job, meal, item, event, pantry or conversation ids);
+    every `/care/clients` answer to the two narrow practitioners carries none of the forbidden
+    keys; a plan, job or meal from before the link is a 404 by id to everybody but the client.
+    The badged `full` view reads the client's own pre-link job: PRD 9 narrows the plan-only
+    view alone.
+  - **No model reads what this project adds** (criterion 16/17's end-to-end half): a
+    generation runs while profiles, badges, restrictions and practitioners' names stand, and
+    none appears in any prompt the scripted model received.
+- **Coverage**, criterion by criterion: 1 `care-practice-open`; 2 `professionals`,
+  `care-practice-open`, `care-badge`; 3–5 `care-badge`, `care-illness-rule`; 6
+  `care-practice-open`; 7–8 `care-practice-open`, `care-practice`; 9 `care-scope`,
+  `care-walk`; 10 `care-walk`, `care-scope`, `care-illness-rule`, `care-practice-open`; 11–12
+  `care-illness-rule`, `care-scope`; 13 `care-scope`; 14–15 `care-walk`, `care-restriction`,
+  `care-badge`; 16 `care-walk` and the two boundary specs; 18 `care-practice-open`; 22
+  `care-illness-rule`; 24 `care-restriction`. **Not provable end to end**: criterion 4's
+  back-fill of the 004 grants is migration 0071's, and the route that made such rows is gone.
+- **Evidence**: `care-walk` 11 passed; `care` 72, `care-practice` 38, `care-review` 34,
+  `plan-scheduled-care` 1 — unchanged by this phase; `pnpm --filter api test` 2015 passed;
+  `pnpm ts:check` 9/9.
+- **Found on the way, not this project's**: `GET /fixed-meals/fixable` with no query or a
+  malformed one answers 500 instead of 422 (the controller parses the query with a schema
+  directly). The walk sends a valid query and names the defect beside its row; the fix is its
+  own small change.
+- **Also in this change**: the owner's approval of the two no-name variants (2026-11-19)
+  recorded in `docs/legal/` and in the template's comment.
+- **Deviations from plan**: no new `care-unbadged` or `care-open-practice` file (above); the
+  walk covers six modules the plan did not name (`assistant`, `pantry`, `safety`,
+  `onboarding`, `notifications`, `recipes`), because each holds a person's own data. A
+  conversation and its turn are written on the table: no route makes one without a model.
+- **Notes for the next phase**: phase 8's new routes, if any, need a row in `care-walk`'s
+  table or the suite fails — that is its purpose.
+

@@ -41,8 +41,8 @@ const COPY: Record<EmailLocale, { body: string; button: string; linkFallback: st
 
 /**
  * The no-name variant, for a name that may not be shown: `subjectNoName` and
- * `bodyNoName` of `docs/legal/textos/06` § Y, as drafted on 2026-11-19 (the
- * owner's approval pending), byte for byte — the approved neutral words («tu
+ * `bodyNoName` of `docs/legal/textos/06` § Y, approved by the owner on
+ * 2026-11-19, byte for byte — the approved neutral words («tu
  * profesional» / "your professional") in the name's place.
  */
 const NO_NAME: Record<EmailLocale, { body: string; subject: string }> = {

@@ -667,8 +667,13 @@ nothing leaves the toggle unexplained.
 - **Amended the same day, as a fact rather than a choice:** W bis.4 picks its variant by whether
   the close **was carried out**, not by whether `{closeDate}` has come. Until the sweep runs, the
   links are intact.
-- **Still unapproved** (the lead asks the owner): the no-name variants in `textos/06` § Y and
-  `textos/05` § F.3 bis, and the two trail strings of § 12 (F10).
+- **Later still, the same day** (tapped option «Aprobadas»): the no-name variants. These are
+  `textos/06` § Y `subjectNoName` and `bodyNoName`, and `textos/05` § F.3 bis
+  `care.invitationLinkExistsBodyNoName`.
+- **Confirmed by the owner the same day** («Sí, así»):
+  - a close that is carried out ends the practitioner's links;
+  - a badge regained widens nothing without the client's fresh consent.
+- **Still unapproved**: the two trail strings of § 12 (F10).
 
 ### 12.2 For phase 8 (recorded, no text yet)
 
