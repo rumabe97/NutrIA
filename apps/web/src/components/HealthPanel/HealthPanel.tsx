@@ -16,6 +16,7 @@ import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { Card } from 'components/Card';
+import { MailtoText } from 'components/MailtoText';
 
 import { HEALTH_CONSENT_VERSION } from 'core/entities/Health';
 
@@ -196,7 +197,7 @@ export function HealthPanel({ health, unverifiedProfessional }: HealthPanelProps
           tone="info"
           toneLabel={dictionary.common.noteTone.info}
         >
-          {interpolate(dictionary.care.illnessEndedBody, { email: LEGAL_IDENTITY.email, professional: linkEnded })}
+          <MailtoText email={LEGAL_IDENTITY.email} text={interpolate(dictionary.care.illnessEndedBody, { professional: linkEnded })} />
         </Note>
       ) : null}
 

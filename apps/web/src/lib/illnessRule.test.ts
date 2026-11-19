@@ -8,8 +8,8 @@ describe('illnessEndedBody', () => {
     expect(illnessEndedBody({ reason: 'badge_lost' })).toBe('illnessEndedBadgeBody');
   });
 
-  it('reads an answer without a reason as the sweep, the only ending it once reported', () => {
-    expect(illnessEndedBody({})).toBe('illnessEndedBadgeBody');
+  it('gives each ending its own sentence, never the same one for both', () => {
+    expect(illnessEndedBody({ reason: 'declared' })).not.toBe(illnessEndedBody({ reason: 'badge_lost' }));
   });
 });
 

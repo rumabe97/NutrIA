@@ -75,28 +75,42 @@
   margin: 0;
 }
 
-/* Accept and decline, side by side and equally wide; one under the other when they do not fit. */
+/* Accept and decline: a decision of two, side by side in two equal columns at every width,
+   never one over the other (the owner's rule: no two buttons stacked in a card). At 320 px a
+   column is about 108 px, so a label wraps inside its own button, which grows; the type and
+   the side padding are the ones `button-row` gives a pair, so «invitación» fits whole. */
 .actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-03);
+  display: grid;
+  gap: var(--space-02);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.actions > * {
-  flex: 1 1 auto;
+/* One action alone («Ver mi perfil» when a link already exists) keeps the whole row. */
+.actions > :only-child {
+  grid-column: 1 / -1;
 }
 
-/* Text this large for the screen: «Aceptar la invitación» is wider than the card, so the
-   label wraps inside its button rather than running past the screen. */
+/* Two classes deep, so this wins over the button's own size class whatever order the sheets
+   load in. The minimum is `--height-xl` (48 px), above the touch floor the button states under
+   `(pointer: coarse)`: one rule raises it, nothing lowers it. */
+.actions > :is(a, button) {
+  block-size: auto;
+  font-size: var(--font-size-03);
+  height: auto;
+  line-height: var(--line-height-02);
+  min-block-size: var(--height-xl);
+  min-inline-size: 0;
+  padding: var(--space-02) var(--space-03);
+  text-align: center;
+  white-space: normal;
+}
+
+/* Text too large for the screen: half the card is narrower than one word («invitación» at
+   200 %), so each button takes the whole line — never cut and never past the edge comes first
+   (the owner's first condition), as `AccountActions` does; side by side holds at every other size. */
 @media (width < 17rem) {
-  .actions > [class] {
-    block-size: auto;
-    height: auto;
-    line-height: var(--line-height-02);
-    max-width: 100%;
-    padding-block: var(--space-02);
-    text-align: center;
-    white-space: normal;
+  .actions {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

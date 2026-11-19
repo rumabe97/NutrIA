@@ -16,6 +16,7 @@ import { withLocale } from 'i18n/routes';
 
 import { Card } from 'components/Card';
 import { CtaLink } from 'components/CtaLink';
+import { MailtoText } from 'components/MailtoText';
 
 import { api, ApiError, messageFor } from 'lib/api';
 import { formatInstant, interpolate } from 'lib/format';
@@ -118,7 +119,9 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
         <h1 className={styles.title} ref={existingHeadingRef} tabIndex={-1}>
           {t.illnessRefusedTitle}
         </h1>
-        <Text tone="secondary">{interpolate(t.illnessRefusedBody, { email: LEGAL_IDENTITY.email, professional: invitation.professionalName })}</Text>
+        <Text tone="secondary">
+          <MailtoText email={LEGAL_IDENTITY.email} text={interpolate(t.illnessRefusedBody, { professional: invitation.professionalName })} />
+        </Text>
       </Card>
     );
   }

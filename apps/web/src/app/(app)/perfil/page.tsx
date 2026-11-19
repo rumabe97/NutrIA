@@ -17,6 +17,7 @@ import { FeedbackForm } from 'components/FeedbackForm';
 import { FixedMealPlanner } from 'components/FixedMealPlanner';
 import { HealthPanel } from 'components/HealthPanel';
 import { LocaleSwitcher } from 'components/LocaleSwitcher';
+import { MailtoText } from 'components/MailtoText';
 import { PremiumCard } from 'components/PremiumCard';
 import { ProfileConsentCard } from 'components/ProfileConsentCard';
 import { ProfileMealSizeNote } from 'components/ProfileMealSizeNote';
@@ -41,12 +42,11 @@ import { serverApi } from 'lib/server-api';
 import { appMetadata } from '../../_shared/metadata';
 
 import type { BillingStatusView } from 'core/controllers/Billing';
-import type { CareAccessPageView, CareLinkView } from 'core/controllers/Care';
+import type { CareAccessPageView, CareEndedLinkView, CareLinkView } from 'core/controllers/Care';
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { EquipmentStance } from 'core/entities/Kitchen';
 import type { FixedMealsView } from 'core/controllers/FixedMeal';
 import type { HealthView } from 'core/controllers/Health';
-import type { IllnessEnding } from 'lib/illnessRule';
 import type { KitchenView } from 'core/controllers/Kitchen';
 import type { Metadata } from 'next';
 import type { NotificationSettingsView } from 'core/controllers/Notification';
@@ -161,7 +161,7 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
       // The latest link, when the illness rule ended it (`0111` § 8) — a declaration saved, or the
       // practitioner's badge lost — null otherwise, and null when the read fails. The mail of
       // `textos/06` § Y says the profile explains it, so the care section does (`textos/05` § G.3).
-      serverApi<IllnessEnding | null>('/care/links/me/ended'),
+      serverApi<CareEndedLinkView | null>('/care/links/me/ended'),
       // The client's own trail (`0059`): what was read about them stays theirs to
       // see whatever the switch says, so this is fetched whether or not a link exists.
       serverApi<CareAccessPageView>('/care/access-log'),
@@ -274,7 +274,10 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
                 tone="info"
                 toneLabel={dictionary.common.noteTone.info}
               >
-                {interpolate(dictionary.care[illnessEndedBody(endedLink)], { email: LEGAL_IDENTITY.email, professional: endedLink.professionalName })}
+                <MailtoText
+                  email={LEGAL_IDENTITY.email}
+                  text={interpolate(dictionary.care[illnessEndedBody(endedLink)], { professional: endedLink.professionalName })}
+                />
               </Note>
             ) : null}
 

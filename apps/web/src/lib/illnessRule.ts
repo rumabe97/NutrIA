@@ -15,17 +15,10 @@ export function unverifiedProfessional(link: Pick<CareLinkView, 'professionalNam
 }
 
 /**
- * Why the illness rule ended the person's latest link: a declaration they saved, or the
- * practitioner's badge lost by the daily sweep. **Local until core ships it**: the invariant
- * review moves `reason` onto `CareEndedLinkView` (`GET /care/links/me/ended`); once it is there,
- * this type is that view and the optional mark goes.
+ * Which § G.3 sentence explains why the illness rule ended the person's latest link
+ * (`GET /care/links/me/ended`): a declaration they saved, or the practitioner's badge lost
+ * to the daily sweep.
  */
-export type IllnessEnding = CareEndedLinkView & { reason?: 'badge_lost' | 'declared' };
-
-/**
- * Which § G.3 sentence explains the ending: the declaration's, or the badge's. An answer with
- * no `reason` comes from the API before that review, which only ever reported the sweep.
- */
-export function illnessEndedBody(ending: Pick<IllnessEnding, 'reason'>): 'illnessEndedBadgeBody' | 'illnessEndedBody' {
-  return ending.reason === 'declared' ? 'illnessEndedBody' : 'illnessEndedBadgeBody';
+export function illnessEndedBody({ reason }: Pick<CareEndedLinkView, 'reason'>): 'illnessEndedBadgeBody' | 'illnessEndedBody' {
+  return reason === 'declared' ? 'illnessEndedBody' : 'illnessEndedBadgeBody';
 }
