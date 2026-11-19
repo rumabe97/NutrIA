@@ -215,3 +215,9 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* The fixed sentence for a practitioner without the badge, on a plan-only page (`textos/01` § P4). */
+.notice {
+  margin-block-start: var(--gap-block);
+  max-inline-size: 40rem;
+}

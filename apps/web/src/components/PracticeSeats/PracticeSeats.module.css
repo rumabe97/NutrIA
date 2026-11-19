@@ -1,0 +1,60 @@
+.card {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The title and the count on one line while they fit, the count under it when they do not. */
+.head {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-01) var(--space-03);
+  justify-content: space-between;
+}
+
+.title {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-04);
+  margin: 0;
+}
+
+.count {
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.track {
+  background-color: var(--color-ring-track);
+  block-size: 0.5rem;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.grow {
+  block-size: 100%;
+}
+
+/* The bright accent carries no words: the sentence above says the count. */
+.bar {
+  background-image: var(--gradient-accent);
+  block-size: 100%;
+  border-radius: var(--radius-full);
+  transform-origin: 0 50%;
+}
+
+:dir(rtl) .bar {
+  transform-origin: 100% 50%;
+}
+
+@media (forced-colors: active) {
+  .track {
+    outline: 1px solid CanvasText;
+  }
+
+  .bar {
+    background: Highlight;
+  }
+}

@@ -25,12 +25,12 @@
 }
 
 /*
- * From a wide screen: the patients and the invitations on the left, the plan and the
+ * From a wide screen: the clients and the invitations on the left, the places and the
  * invite form on the right, each column filling from the top. The order in the page —
  * which is the order read and tabbed — does not change.
  */
 @media (width >= 64rem) {
-  /* Only with patients to show: a closed practice has the plan card alone, which stays in the
+  /* Only with clients to show: a suspended practice has its side cards alone, which stays in the
      single column rather than standing in the right half of an empty page. */
   .regions:has(.main) {
     align-items: start;
@@ -42,6 +42,12 @@
 
   .regions:has(.main) > .main {
     grid-column: 1;
+  }
+
+  /* The clients stand beside the whole side column, so its cards follow one another without
+     the gap a taller list would leave under the first of them. */
+  .regions:has(.main) > .main:not(.main ~ .main) {
+    grid-row: span 3;
   }
 
   .regions:has(.main) > .side {
@@ -66,41 +72,69 @@
   margin: 0 0 calc(var(--gap-heading) - var(--gap-block));
 }
 
-/* A card per patient, two to a row once there is room for two names. */
-.clients {
-  display: grid;
-  gap: var(--space-03);
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.notice {
+  margin-block-start: var(--gap-block);
+  max-inline-size: 40rem;
 }
 
-.clients > li {
+/* Rows on one card, divided by hairlines (sheet «Clientes»): the clients, and the way to the
+   profile and the badge. Each row is the whole target: its words, then a chevron. */
+.rows {
   display: grid;
+  list-style: none;
+  margin: 0;
+  padding-block: var(--space-01);
+}
+
+.rowItem {
+  border-top: 1px solid var(--border-01);
   min-inline-size: 0;
 }
 
-/* The whole card is the way into the client's page: name first, where they are under it.
-   It presses in like a button (transform only); its edge changes at once. */
-.client {
-  align-content: start;
+.rowItem:first-child {
+  border-top: none;
+}
+
+.row {
+  align-items: center;
   color: inherit;
-  display: grid;
-  gap: var(--space-02);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02) var(--space-03);
+  min-block-size: var(--target-min);
+  padding-block: var(--space-03);
   text-decoration: none;
 }
 
-a.client {
+a.row {
   transition: transform var(--duration-fast) var(--spring-firm);
 }
 
-a.client:hover {
-  border-color: var(--color-brand-fill);
+a.row:active {
+  transform: scale(0.99);
 }
 
-a.client:active {
-  transform: scale(0.98);
+a.row:hover .rowTitle,
+a.row:hover .clientName {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.rowText {
+  display: grid;
+  flex: 1 1 12rem;
+  gap: var(--space-01);
+  justify-items: start;
+  min-inline-size: 0;
+}
+
+.rowTitle {
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.rowAside {
+  flex-basis: 100%;
 }
 
 .clientName {
@@ -111,16 +145,25 @@ a.client:active {
   overflow-wrap: anywhere;
 }
 
-.clientMeta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-02);
+/* A chevron that says "this row opens a page": drawn, so it follows the text colour. */
+.chevron {
+  border-right: 1.5px solid currentColor;
+  border-top: 1.5px solid currentColor;
+  block-size: 0.5rem;
+  flex-shrink: 0;
+  inline-size: 0.5rem;
+  margin-inline-end: var(--space-01);
+  transform: rotate(45deg);
 }
 
-/* Each stage is its words, as a tag. The two that wait on the professional are on ink, so
-   they are found first; a paused link says so on the warning's own ground. */
-.stage,
-.chip {
+:dir(rtl) .chevron {
+  transform: rotate(-135deg);
+}
+
+/* What the row adds in a word: whether a client shares their health, where the profile's
+   review stands. Words, on the sunken ground, never colour alone. */
+.chip,
+.tag {
   align-items: center;
   background-color: var(--surface-sunken);
   border-radius: var(--radius-full);
@@ -129,18 +172,6 @@ a.client:active {
   font-size: var(--font-size-01);
   font-weight: var(--font-weight-medium);
   padding: var(--space-01) var(--space-03);
-}
-
-.stage[data-stage='plan_awaiting_review'],
-.stage[data-stage='check_in_due'] {
-  background-color: var(--foreground-01);
-  color: var(--background-01);
-  font-weight: var(--font-weight-bold);
-}
-
-.stage[data-stage='paused'] {
-  background-color: var(--color-warning-surface);
-  color: var(--color-warning-text);
 }
 
 /* The invitations not yet answered: one card, a row each on hairlines. */
@@ -175,13 +206,8 @@ a.client:active {
 }
 
 @media (forced-colors: active) {
-  .stage,
-  .chip {
+  .chip,
+  .tag {
     border: 1px solid CanvasText;
-  }
-
-  .stage[data-stage='plan_awaiting_review'],
-  .stage[data-stage='check_in_due'] {
-    border-color: Highlight;
   }
 }

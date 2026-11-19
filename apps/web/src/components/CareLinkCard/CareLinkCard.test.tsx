@@ -50,4 +50,56 @@ describe('CareLinkCard under a plan scope', () => {
   it('keeps the switch while the line is on, so it can always be turned off', () => {
     expect(card({ ...PLAN, sharesHealth: true })).toContain(esES.care.healthShareToggle);
   });
+
+  it('says nobody sees a line left on under a plan-only link', () => {
+    const markup = card({ ...PLAN, sharesHealth: true });
+
+    expect(markup).not.toContain(esES.care.healthShareOnHint.replace('{professional}', 'Ana Pérez'));
+  });
+});
+
+describe('CareLinkCard in the words of consent 3.0.0 (textos/05 §§ F.1, F.4)', () => {
+  it('is «Tu profesional» whatever the tier, never «dietista»', () => {
+    const markup = card({ ...PLAN, reconsentOffered: false });
+
+    expect(markup).toContain(esES.care.linkTitle);
+    expect(markup.toLowerCase()).not.toContain('dietista');
+  });
+
+  it('offers the badged list while a badge stands on a plan-only link', () => {
+    const markup = card(PLAN);
+
+    expect(markup).toContain(esES.care.reconsentTitle.replace('{professional}', 'Ana Pérez'));
+    expect(markup).toContain(esES.care.reconsentAccept);
+    expect(markup).toContain(esES.care.reconsentLater);
+    expect(markup).toContain(esES.care.shares.targets);
+    expect(markup).toContain(esES.care.healthQuestion);
+  });
+
+  it('draws no offer once it is not on offer', () => {
+    expect(card({ ...PLAN, reconsentOffered: false })).not.toContain(esES.care.reconsentAccept);
+  });
+
+  it('shows the fixed notice under the name of a practitioner without the badge', () => {
+    expect(card({ ...PLAN, professionalVerified: false, reconsentOffered: false })).toContain(esES.care.invitationNotice);
+    expect(card(PLAN)).not.toContain(esES.care.invitationNotice);
+  });
+
+  it('says «tu profesional» when the name may not be shown', () => {
+    expect(card({ ...PLAN, professionalName: null })).toContain('Tu profesional ahora tiene la verificación de NutrIA');
+  });
+
+  it('names the practitioner in the health hints of a full link', () => {
+    const markup = card({
+      ...PLAN,
+      consentScope: 'full',
+      reconsentOffered: false,
+      scope: 'full',
+      shares: ['profile'],
+      sharesHealth: true,
+      sharesPlan: []
+    });
+
+    expect(markup).toContain(esES.care.healthShareOnHint.replace('{professional}', 'Ana Pérez'));
+  });
 });

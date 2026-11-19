@@ -7,6 +7,7 @@ import styles from './CareInviteForm.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
+import { Link } from 'ui/components/Link';
 import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
@@ -15,15 +16,22 @@ import { Card } from 'components/Card';
 
 import { api, ApiError, messageFor } from 'lib/api';
 import { formatInstant, formatNumber, interpolate } from 'lib/format';
+import { wordRefusal } from 'lib/protectedWord';
 
 import type { CareInvitationView } from 'core/controllers/Care';
 
 interface CareInviteFormProps {
   /** Whether a practice plan is paid for (`CarePracticeView.open`): only then is there a portal to choose a larger one on. */
   paid: boolean;
+  /** The practice's limit (`CarePracticeView.seats`): the number a full practice is said to hold. */
+  seats: number;
 }
 
-type Outcome = { email: string; expiresAt: string; kind: 'sent' } | { included: number; kind: 'full' } | { kind: 'failed'; message: string };
+type Outcome =
+  | { email: string; expiresAt: string; kind: 'sent' }
+  | { kind: 'failed'; message: string }
+  | { kind: 'full' }
+  | { kind: 'name'; sentence: string | null };
 
 /**
  * An address, and nothing else: who the professional invites (`0059`). The
@@ -31,12 +39,15 @@ type Outcome = { email: string; expiresAt: string; kind: 'sent' } | { included: 
  * says the same thing either way.
  *
  * A full practice (`PRACTICE_FULL`, PRD 004 criterion 17) is not an error to
- * apologise for but a state with two ways out, and both are named: the larger
- * plan, chosen on Stripe's portal, or ending a link with somebody no longer seen.
- * A practice nobody pays for has no subscription for the portal to open, so it is
- * not offered the larger plan (PRD 025); ending a link is still said.
+ * apologise for but a state with its ways out, in the approved sentence (legal
+ * § 7): end a link, or wait for an invitation to expire. A paid practice may also
+ * move to a larger plan on Stripe's portal; a free one has nothing to buy.
+ *
+ * An account name carrying a word a practice may not show (PRD 025, a 422 on
+ * `name`) is the practitioner's to change, not the address's: the word in its
+ * approved sentence, and a link to where the name is changed.
  */
-export function CareInviteForm({ paid }: CareInviteFormProps) {
+export function CareInviteForm({ paid, seats }: CareInviteFormProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -59,11 +70,12 @@ export function CareInviteForm({ paid }: CareInviteFormProps) {
       router.refresh();
     } catch (caught) {
       if (caught instanceof ApiError && caught.code === 'PRACTICE_FULL') {
-        setOutcome({ included: caught.practice?.includedClients ?? 0, kind: 'full' });
-      } else if (caught instanceof ApiError && caught.code === 'INVALID_INPUT' && !caught.fieldErrors.name) {
-        // Only the address is ever wrong here — unless `fieldErrors.name` says the practitioner's
-        // own account name carries a word a practice may not use (PRD 025). Then the address is
-        // not blamed: the generic refusal below, until phase 8 has approved words for it.
+        setOutcome({ kind: 'full' });
+      } else if (caught instanceof ApiError && caught.code === 'INVALID_INPUT' && caught.fieldErrors.name) {
+        // The practitioner's own account name carries a word a practice may not show (PRD 025):
+        // the address is not blamed. The word in its approved sentence, and the way to change it.
+        setOutcome({ kind: 'name', sentence: wordRefusal(caught.fieldErrors.name[0], t) });
+      } else if (caught instanceof ApiError && caught.code === 'INVALID_INPUT') {
         setFieldError(t.inviteInvalid);
       } else {
         setOutcome({ kind: 'failed', message: messageFor(caught, dictionary) });
@@ -122,10 +134,7 @@ export function CareInviteForm({ paid }: CareInviteFormProps) {
       {outcome?.kind === 'full' ? (
         <Note className={`${styles.full} motion-drop-in`} role="alert" tone="warning" toneLabel={dictionary.common.noteTone.warning}>
           <Text size="sm" weight="medium">
-            {interpolate(t.inviteFull, { count: formatNumber(outcome.included, locale) })}
-          </Text>
-          <Text size="sm" tone="secondary">
-            {t.inviteFullEnd}
+            {interpolate(t.inviteFull, { count: formatNumber(seats, locale) })}
           </Text>
           {paid ? (
             <div className={styles.actions}>
@@ -134,6 +143,22 @@ export function CareInviteForm({ paid }: CareInviteFormProps) {
               </Button>
             </div>
           ) : null}
+        </Note>
+      ) : null}
+
+      {outcome?.kind === 'name' ? (
+        <Note className="motion-drop-in" role="alert" tone="warning" toneLabel={dictionary.common.noteTone.warning}>
+          {outcome.sentence ? (
+            <Text size="sm" weight="medium">
+              {outcome.sentence}
+            </Text>
+          ) : null}
+          <Text size="sm">
+            {t.inviteNameRefused}{' '}
+            <Link href="/consulta/perfil#nombre" inline={true}>
+              {t.nameCta}
+            </Link>
+          </Text>
         </Note>
       ) : null}
 

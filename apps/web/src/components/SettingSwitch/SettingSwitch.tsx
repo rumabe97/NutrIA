@@ -7,8 +7,8 @@ interface SettingSwitchProps {
   checked: boolean;
   /** What went wrong the last time it was flipped, if anything. */
   error?: string;
-  /** What is true *now*, under the switch. */
-  hint: string;
+  /** What is true *now*, under the switch; left out when no true sentence applies. */
+  hint?: string;
   label: string;
   onCheckedChange: (next: boolean) => void;
   /** Where the switch sits: before its words (the default), or at the row's end with the words on its left (the console's). */
@@ -33,9 +33,11 @@ export function SettingSwitch({ checked, error, hint, label, onCheckedChange, pl
           {label}
         </Text>
       </label>
-      <Text className={styles.hint} size="xs" tone="tertiary">
-        {hint}
-      </Text>
+      {hint ? (
+        <Text className={styles.hint} size="xs" tone="tertiary">
+          {hint}
+        </Text>
+      ) : null}
       {error ? (
         <Text className={styles.error} size="xs">
           {error}

@@ -8,11 +8,12 @@ import { MealSwap } from 'components/MealSwap';
 import { formatDate, formatNumber, interpolate } from 'lib/format';
 import { slotLabel } from 'lib/generation';
 
-import type { PlanView } from 'core/controllers/Plan';
+import type { CareClientPlanView } from 'core/controllers/Care';
 
 interface CarePlanDaysProps {
   linkId: string;
-  plan: PlanView;
+  /** The plan under review: the shared plan under a `full` scope, plan-only under `plan` — the same days, meals and totals either way. */
+  plan: CareClientPlanView;
 }
 
 /**

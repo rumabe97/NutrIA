@@ -6,21 +6,29 @@ import Link from 'next/link';
 import styles from './page.module.css';
 
 import { activeLocale, getDictionary } from 'i18n/server';
+import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 
 import { Card } from 'components/Card';
 import { CareInviteForm } from 'components/CareInviteForm';
 import { PracticeAgreement } from 'components/PracticeAgreement';
+import { PracticeOpen } from 'components/PracticeOpen';
 import { PracticePlanCard } from 'components/PracticePlanCard';
+import { PracticeRestriction } from 'components/PracticeRestriction';
+import { PracticeSeats } from 'components/PracticeSeats';
 import { SecondFactorRequired } from 'components/SecondFactorRequired';
 
+import { badgeSentence, badgeStands } from 'lib/badgeState';
 import { formatInstant, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import { appMetadata } from '../../_shared/metadata';
 
+import type { BadgeView, ProfessionalProfileView } from 'core/controllers/Professional';
 import type { CareClientsView, CarePracticeView } from 'core/controllers/Care';
+import type { FullProfileView } from 'core/controllers/Profile';
 import type { Metadata } from 'next';
+import type { UserView } from 'core/controllers/User';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,24 +44,22 @@ function daysUntil(iso: string): number {
 }
 
 /**
- * The professional's workspace (PRD 004, criterion 9; `0059`, `0061`).
+ * The practitioner's workspace (PRD 004 criterion 9; PRD 025; sheet «Clientes»).
  *
- * Shown only to a professional: `GET /care/practice` answers everybody else
- * 404, and so does this page, as `/admin` does — the route does not confirm
- * itself to anyone who guesses it. A practice works whether or not anybody pays
- * (PRD 025: a free one has its free seats), so the list and the invite form are
- * drawn whenever the API answers `/care/clients`; under a suspension it answers
- * 404, and the page then shows the plan card alone.
+ * **No practice yet**: `GET /care/practice` answers 404. The opening form
+ * (`PracticeOpen`, sheet «AbrirConsulta») is drawn only while
+ * `UserView.canOpenPractice` says the door exists; otherwise this page is the
+ * same 404 it has always been — the route does not confirm itself to anyone
+ * who guesses it, and no form stands behind a switch that is off.
  *
- * Before either of those, `practice.agreementRequired` shows `PracticeAgreement`
- * in place of the whole workspace — the professional's agreement and the
- * practice plan's conditions, one checkbox for both
- * (`docs/legal/textos/01-acuerdo-profesional.md`). Nothing past that gate is
- * reachable until it posts back.
- *
- * Before both, `practice.secondFactorRequired` shows `SecondFactorRequired`:
- * a professional who signs in with a password must turn on the second factor
- * before any client route opens (PLAN 011 phase 6).
+ * Then, in order: the second factor (PLAN 011 phase 6), the professional's
+ * agreement at its current version (`docs/legal/textos/01`, 2.0.0), and the
+ * workspace — what the owner has standing against it, the fixed sentence for a
+ * practitioner without the badge, the places (a free practice) or the paid
+ * plan's card (a paid one: payments are deferred, not removed), the clients,
+ * the invitation form, the unanswered invitations, and the way to the profile
+ * and the badge. Under a suspension `/care/clients` answers 404: the clients,
+ * the form and the invitations are simply not drawn.
  *
  * Every link here carries a link id and never a client's account id; the list
  * is read once per visit because each read leaves a row in every active
@@ -68,7 +74,16 @@ export default async function PracticePage({ searchParams }: Readonly<{ searchPa
   ]);
 
   if (!practice) {
-    notFound();
+    const user = await serverApi<UserView>('/users/me');
+
+    if (!user?.canOpenPractice) {
+      notFound();
+    }
+
+    // The birth date is asked only when none is on record (PRD 025 criterion 1).
+    const profile = await serverApi<FullProfileView>('/profile');
+
+    return <PracticeOpen askBirthDate={!profile?.profile?.birthDate} />;
   }
 
   // A password account with no second factor reaches no client (PLAN 011 phase 6): the API
@@ -78,18 +93,33 @@ export default async function PracticePage({ searchParams }: Readonly<{ searchPa
     return <SecondFactorRequired where="practice" />;
   }
 
-  // The agreement gates the whole workspace (`docs/legal/textos/01-acuerdo-profesional.md`):
-  // nothing below this — the roster, the invite form, subscribing — is reachable until it is
-  // accepted. The API enforces the same rule on every client route; this is the screen for it.
+  // The agreement gates the whole workspace: nothing below is reachable until it is accepted.
+  // A restriction is said above it too, so it is never behind a step the practitioner must take.
   if (practice.agreementRequired) {
-    return <PracticeAgreement version={practice.agreementVersion} />;
+    return (
+      <Fragment>
+        {practice.restriction ? <PracticeRestriction restriction={practice.restriction} /> : null}
+        <PracticeAgreement version={practice.agreementVersion} />
+      </Fragment>
+    );
   }
 
   const t = dictionary.practice;
-  const roster = await serverApi<CareClientsView>('/care/clients');
+  const [roster, badge, profile] = await Promise.all([
+    serverApi<CareClientsView>('/care/clients'),
+    serverApi<BadgeView>('/care/practice/badge'),
+    serverApi<ProfessionalProfileView | null>('/care/practice/profile')
+  ]);
   const subscription = practice.billing.available ? practice.billing.subscription : null;
   const trialDaysLeft = subscription?.status === 'trialing' && subscription.currentPeriodEnd ? daysUntil(subscription.currentPeriodEnd) : null;
   const shortDate = (iso: string) => formatInstant(Date.parse(iso), locale, { day: 'numeric', month: 'long', year: 'numeric' });
+  const review = profile ? (profile.hidden ? t.profileReviewState.hidden : t.profileReviewState[profile.review]) : null;
+  // A refusal or a withdrawal is a practice without the badge: the long statement is the badge page's.
+  const badgeLine = badge
+    ? badge.state === 'refused' || badge.state === 'withdrawn'
+      ? t.badgeState.none
+      : badgeSentence(badge, t, shortDate)
+    : null;
 
   return (
     <Fragment>
@@ -100,13 +130,26 @@ export default async function PracticePage({ searchParams }: Readonly<{ searchPa
         </Text>
       </div>
 
-      {/* One column on a phone, in this order. From a wide screen the patients and the
-          invitations are the main column and the plan and the invite form the side: the same
-          order read down the page, the regions arriving one after another. */}
+      {practice.restriction ? <PracticeRestriction restriction={practice.restriction} /> : null}
+
+      {/* The fixed sentence of `textos/01` § P4, for as long as no badge stands. */}
+      {badge && !badgeStands(badge) ? (
+        <Note as="p" className={styles.notice} tone="info" toneLabel={dictionary.common.noteTone.info}>
+          {t.unverifiedSelf}
+        </Note>
+      ) : null}
+
+      {/* One column on a phone, in this order. From a wide screen the clients and the
+          invitations are the main column and the places, the invite form and the way to the
+          profile and the badge the side: the same order read down the page. */}
       <div className={`${styles.regions} motion-list`}>
-        {/* `?practica=gracias` is where Stripe's checkout sends a professional back to. */}
         <div className={styles.side}>
-          <PracticePlanCard justPaid={query.practica === 'gracias'} practice={practice} trialDaysLeft={trialDaysLeft} />
+          {practice.open ? (
+            // A paid practice keeps its plan's card as it was; a free one has nothing to buy.
+            <PracticePlanCard justPaid={query.practica === 'gracias'} practice={practice} trialDaysLeft={trialDaysLeft} />
+          ) : (
+            <PracticeSeats activeClients={practice.activeClients} pendingInvitations={practice.pendingInvitations} seats={practice.seats} />
+          )}
         </div>
 
         {roster ? (
@@ -120,49 +163,48 @@ export default async function PracticePage({ searchParams }: Readonly<{ searchPa
                 {t.clientsEmpty}
               </Text>
             ) : (
-              <ul className={styles.clients}>
+              <Card as="ul" className={styles.rows}>
                 {roster.clients.map(client => {
                   const body = (
-                    <Fragment>
+                    <span className={styles.rowText}>
                       <span className={styles.clientName}>{client.name}</span>
-                      <span className={styles.clientMeta}>
-                        <span className={styles.stage} data-stage={client.stage ?? 'paused'}>
-                          {client.stage ? t.stages[client.stage] : t.paused}
-                        </span>
-                        {client.sharesHealth ? <span className={styles.chip}>{t.sharesHealth}</span> : null}
-                      </span>
+                      <Text as="span" size="sm" tone="secondary">
+                        {client.stage ? t.stages[client.stage] : t.paused}
+                      </Text>
                       <Text as="span" size="xs" tone="tertiary">
                         {interpolate(t.clientSince, { date: shortDate(client.since) })}
                       </Text>
-                    </Fragment>
+                      {client.sharesHealth ? <span className={styles.chip}>{t.sharesHealth}</span> : null}
+                    </span>
                   );
 
                   return (
-                    <li key={client.linkId}>
-                      {/* A paused link opens nothing — its page is closed until the practice is paid for again. */}
+                    <li className={styles.rowItem} key={client.linkId}>
+                      {/* A paused link opens nothing: its page is closed while it is paused. */}
                       {client.status === 'active' ? (
-                        <Card as={Link} className={styles.client} href={`/consulta/${encodeURIComponent(client.linkId)}`} padding="sm">
+                        <Link className={styles.row} href={`/consulta/${encodeURIComponent(client.linkId)}`}>
                           {body}
-                        </Card>
+                          <span aria-hidden="true" className={styles.chevron} />
+                        </Link>
                       ) : (
-                        <Card className={styles.client} padding="sm">
+                        <div className={styles.row}>
                           {body}
-                          <Text as="span" size="xs" tone="secondary">
+                          <Text as="span" className={styles.rowAside} size="xs" tone="secondary">
                             {t.pausedHint}
                           </Text>
-                        </Card>
+                        </div>
                       )}
                     </li>
                   );
                 })}
-              </ul>
+              </Card>
             )}
           </section>
         ) : null}
 
         {roster ? (
           <div className={styles.side}>
-            <CareInviteForm paid={practice.open} />
+            <CareInviteForm paid={practice.open} seats={practice.seats} />
           </div>
         ) : null}
 
@@ -183,6 +225,34 @@ export default async function PracticePage({ searchParams }: Readonly<{ searchPa
             </Card>
           </section>
         ) : null}
+
+        {/* The practitioner's own pages: the profile and the badge (sheet «Clientes», last card). */}
+        <div className={styles.side}>
+          <Card as="ul" className={styles.rows}>
+            <li className={styles.rowItem}>
+              <Link className={styles.row} href="/consulta/perfil">
+                <span className={styles.rowText}>
+                  <span className={styles.rowTitle}>{t.profileTitle}</span>
+                  {review ? <span className={styles.tag}>{review}</span> : null}
+                </span>
+                <span aria-hidden="true" className={styles.chevron} />
+              </Link>
+            </li>
+            <li className={styles.rowItem}>
+              <Link className={styles.row} href="/consulta/insignia">
+                <span className={styles.rowText}>
+                  <span className={styles.rowTitle}>{t.badgeTitle}</span>
+                  {badgeLine ? (
+                    <Text as="span" size="sm" tone="secondary">
+                      {badgeLine}
+                    </Text>
+                  ) : null}
+                </span>
+                <span aria-hidden="true" className={styles.chevron} />
+              </Link>
+            </li>
+          </Card>
+        </div>
       </div>
 
       {practice.agreementAcceptedAt ? (

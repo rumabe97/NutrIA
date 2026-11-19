@@ -80,3 +80,38 @@ describe('CareInvitation with the badge', () => {
     expect(markup).not.toContain(esES.care.sharesPlan.status);
   });
 });
+
+describe('CareInvitation in the words of consent 3.0.0 (textos/05 § F)', () => {
+  it.each([
+    ['es-ES', esES],
+    ['en-GB', enGB]
+  ] as const)('without the badge: the fixed notice, the whole plan-only list and «Acepto y consiento» (%s)', (locale, dictionary) => {
+    const markup = page(PLAN, dictionary, locale);
+    const t = dictionary.care;
+
+    expect(markup).toContain(t.invitationNotice);
+    expect(markup).toContain(t.invitationNotSharedPlan);
+    expect(markup).toContain(t.inferencePlan);
+    expect(markup).toContain(t.illnessRulePlan.replace('{professional}', 'Ana Pérez'));
+    expect(markup).toContain(t.invitationPrivacyPlan.replaceAll('{professional}', 'Ana Pérez').split('{privacy}')[0]);
+    expect(markup).toContain(`>${t.invitationAcceptPlan}<`);
+    expect(markup).not.toContain(t.inferenceBadgeLoss);
+  });
+
+  it('with the badge: the checked line, what may be worked out, and the badged privacy sentence', () => {
+    const markup = page(FULL);
+    const t = esES.care;
+
+    expect(markup).toContain(t.invitationBadge.replace('{collegiateNumber}', 'AND-123').split('{checkedOn}')[0]);
+    expect(markup).toContain(t.inferenceAllergy);
+    expect(markup).toContain(t.inferenceBadgeLoss);
+    expect(markup).toContain(t.invitationPrivacy.replace('{professional}', 'Ana Pérez').split('{privacy}')[0]);
+    expect(markup).toContain(`>${t.invitationAccept}<`);
+    expect(markup).not.toContain(t.invitationNotice);
+  });
+
+  it('calls nobody «tu dietista»', () => {
+    expect(page(PLAN)).not.toMatch(/[Tt]u dietista/);
+    expect(page(FULL)).not.toMatch(/[Tt]u dietista/);
+  });
+});

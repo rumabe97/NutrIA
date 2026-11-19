@@ -8,6 +8,7 @@ import { useDictionary } from 'i18n/LocaleProvider';
 import { SettingSwitch } from 'components/SettingSwitch';
 
 import { api, messageFor } from 'lib/api';
+import { withProfessional } from 'lib/professionalName';
 
 import type { CareLinkView } from 'core/controllers/Care';
 
@@ -19,7 +20,18 @@ import type { CareLinkView } from 'core/controllers/Care';
  * fails. `router.refresh()` re-reads the link so `CareLinkCard`'s own "what is
  * shared" line catches up with the new list.
  */
-export function CareHealthSwitch({ sharesHealth }: Readonly<{ sharesHealth: boolean }>) {
+interface CareHealthSwitchProps {
+  /** The practitioner's name as it may be shown, or null for «tu profesional». */
+  professionalName: string | null;
+  sharesHealth: boolean;
+  /**
+   * Whether the practitioner can see the health line now (a `full` scope). A line left on
+   * under a plan-only link stays so it can be taken back, with no hint saying anybody sees it.
+   */
+  visible: boolean;
+}
+
+export function CareHealthSwitch({ professionalName, sharesHealth, visible }: CareHealthSwitchProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const t = dictionary.care;
@@ -45,7 +57,7 @@ export function CareHealthSwitch({ sharesHealth }: Readonly<{ sharesHealth: bool
     <SettingSwitch
       checked={checked}
       error={error}
-      hint={checked ? t.healthShareOnHint : t.healthShareOffHint}
+      hint={visible ? withProfessional(checked ? t.healthShareOnHint : t.healthShareOffHint, professionalName, t.professionalUnnamed) : undefined}
       label={t.healthShareToggle}
       onCheckedChange={next => void flip(next)}
     />

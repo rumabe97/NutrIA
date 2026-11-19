@@ -28,3 +28,22 @@
   gap: var(--space-03);
   padding-top: var(--space-02);
 }
+
+/* The fixed notice for a practitioner without the badge (`textos/05` § F.1): words on the
+   warning's ground, never colour alone. */
+.notice {
+  background-color: var(--color-warning-surface);
+  border-radius: var(--radius-control);
+  color: var(--color-warning-text);
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-semibold);
+  justify-self: start;
+  overflow-wrap: break-word;
+  padding: var(--space-01) var(--space-03);
+}
+
+@media (forced-colors: active) {
+  .notice {
+    border: 1px solid CanvasText;
+  }
+}

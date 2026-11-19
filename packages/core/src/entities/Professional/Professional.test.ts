@@ -158,8 +158,8 @@ describe('restrictPracticeSchema (textos/06 § W bis.1)', () => {
 
 /* The agreement is accepted at the version the professional read (`docs/legal/textos/01`), never another. */
 describe('acceptAgreementSchema', () => {
-  it('is at 1.1.0 (PLAN 011 phase 6): a new version is a deliberate change, and asks every professional again', () => {
-    expect(PROFESSIONAL_AGREEMENT_VERSION).toBe('1.1.0');
+  it('is at 2.0.0 (PRD 025, phase 8): a new version is a deliberate change, and asks every professional again', () => {
+    expect(PROFESSIONAL_AGREEMENT_VERSION).toBe('2.0.0');
   });
 
   it('accepts the current version', () => {
@@ -167,8 +167,8 @@ describe('acceptAgreementSchema', () => {
   });
 
   it.each([
-    ['an older version', '0.9.0'],
-    ['a later one', '2.0.0'],
+    ['an older version', '1.1.0'],
+    ['a later one', '3.0.0'],
     ['nothing', undefined],
     ['a boolean', true]
   ])('refuses %s', (_label, version) => {

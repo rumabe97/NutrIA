@@ -1,0 +1,108 @@
+.root {
+  display: grid;
+  gap: var(--gap-region);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.card {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.cardTitle,
+.status {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-04);
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+/* The status is a sentence, so it reads as one: the body's own weight, a little larger. */
+.status {
+  font-family: var(--main-font);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Three steps in a row (sheet «Distintivo»): done, now, next — each with its number, the
+   current one also carrying `aria-current="step"` and a bolder label. */
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02) var(--space-04);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.step {
+  align-items: center;
+  color: var(--foreground-02);
+  display: inline-flex;
+  font-size: var(--font-size-03);
+  gap: var(--space-02);
+}
+
+.marker {
+  align-items: center;
+  block-size: 1.75rem;
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: var(--font-size-02);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
+  inline-size: 1.75rem;
+  justify-content: center;
+}
+
+.step[data-state='done'] .marker {
+  background-image: var(--gradient-brand-fill);
+  border-color: transparent;
+  color: var(--color-on-brand-fill);
+}
+
+.step[data-state='now'] {
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-semibold);
+}
+
+.step[data-state='now'] .marker {
+  background-color: var(--foreground-01);
+  border-color: var(--foreground-01);
+  color: var(--background-01);
+}
+
+.form {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.code input {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2em;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+}
+
+@media (width < 48rem) {
+  :global(html):has(.form input:focus) {
+    --app-bar-clearance: 0rem;
+    --app-foot-space: var(--space-02);
+  }
+}
+
+@media (forced-colors: active) {
+  .step[data-state='done'] .marker,
+  .step[data-state='now'] .marker {
+    border: 2px solid Highlight;
+  }
+}

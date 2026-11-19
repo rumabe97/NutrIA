@@ -81,3 +81,26 @@
 .danger {
   border-color: var(--color-error-border);
 }
+
+/* The way to open one's own practice: the whole card is the link (PRD 025 scope 1). */
+a.practiceDoor {
+  color: inherit;
+  display: grid;
+  gap: var(--space-01);
+  text-decoration: none;
+  transition: transform var(--duration-fast) var(--spring-firm);
+}
+
+a.practiceDoor:hover {
+  border-color: var(--color-brand-fill);
+}
+
+a.practiceDoor:active {
+  transform: scale(0.98);
+}
+
+.practiceDoorTitle {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: break-word;
+}

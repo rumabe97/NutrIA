@@ -1,5 +1,7 @@
 import { Fragment } from 'react';
 
+import Link from 'next/link';
+
 import styles from './page.module.css';
 
 import { activeLocale, getDictionary } from 'i18n/server';
@@ -287,6 +289,20 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
             ) : null}
 
             {accessLog ? <CareAccessLog initial={accessLog} /> : null}
+          </section>
+        ) : null}
+
+        {/* The way to open one's own practice (PRD 025 scope 1), drawn only while the API says
+            the door exists — the switch on and no practice yet: never a control behind a switch
+            that is off. The form itself, and every refusal, are `/consulta`'s. */}
+        {user?.canOpenPractice ? (
+          <section className={styles.section}>
+            <Card as={Link} className={styles.practiceDoor} href="/consulta">
+              <span className={styles.practiceDoorTitle}>{dictionary.practice.openTitle}</span>
+              <Text as="span" size="sm" tone="secondary">
+                {dictionary.practice.openIntro}
+              </Text>
+            </Card>
           </section>
         ) : null}
 

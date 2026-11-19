@@ -12,6 +12,7 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { Card } from 'components/Card';
 import { CareHealthSwitch } from 'components/CareHealthSwitch';
+import { CareReconsent } from 'components/CareReconsent';
 
 import { api, messageFor } from 'lib/api';
 import { formatInstant, interpolate } from 'lib/format';
@@ -27,6 +28,11 @@ interface CareLinkCardProps {
  * The client's own link (PRD 004, criterion 4): who, what is shared, since
  * when, and the one way to end it — from this side, whatever the `professional`
  * switch says, because consent is revocable.
+ *
+ * «Tu profesional» whatever the tier (PRD 025 criterion 19, legal C3), with the
+ * fixed notice under the name while the practitioner holds no badge
+ * (`textos/05` § F.1), and the offer to widen the link while a badge stands on a
+ * plan-only link (`reconsentOffered`, § F.4).
  */
 export function CareLinkCard({ link }: CareLinkCardProps) {
   const router = useRouter();
@@ -87,6 +93,7 @@ export function CareLinkCard({ link }: CareLinkCardProps) {
       <h3 className={styles.title}>{t.linkTitle}</h3>
 
       <Text weight="medium">{professionalLabel(link.professionalName, t.professionalUnnamed)}</Text>
+      {link.professionalVerified ? null : <span className={styles.notice}>{t.invitationNotice}</span>}
       <Text size="sm" tone="secondary">
         {interpolate(t.linkSince, { date: formatInstant(Date.parse(link.since), locale, { day: 'numeric', month: 'long', year: 'numeric' }) })}
       </Text>
@@ -96,9 +103,11 @@ export function CareLinkCard({ link }: CareLinkCardProps) {
 
       {offersHealth ? (
         <div className={styles.healthShare}>
-          <CareHealthSwitch sharesHealth={link.sharesHealth} />
+          <CareHealthSwitch professionalName={link.professionalName} sharesHealth={link.sharesHealth} visible={link.scope === 'full'} />
         </div>
       ) : null}
+
+      {link.reconsentOffered ? <CareReconsent professionalName={link.professionalName} /> : null}
 
       {error ? (
         <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
@@ -112,7 +121,7 @@ export function CareLinkCard({ link }: CareLinkCardProps) {
             {withProfessional(t.endConfirmTitle, link.professionalName, t.professionalUnnamed)}
           </Text>
           <Text size="sm" tone="tertiary">
-            {t.endConfirmBody}
+            {withProfessional(t.endConfirmBody, link.professionalName, t.professionalUnnamed)}
           </Text>
           <div className={`${styles.actions} button-row`}>
             <Button loading={pending} onClick={() => void end()} type="button" variant="destructive">

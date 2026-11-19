@@ -8,6 +8,7 @@ import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
 import { isPendingReview } from 'lib/pendingReview';
+import { withProfessional } from 'lib/professionalName';
 
 interface PlanPendingNoticeProps {
   body: string;
@@ -50,17 +51,21 @@ export function PlanPendingNotice({ body, currentPlanId, heading = true, title }
     return null;
   }
 
+  // «tu profesional», whatever the tier (PRD 025 criterion 19): this notice is drawn from a
+  // mark on this device, before anything says whose plan it is, so it names nobody.
+  const named = (text: string) => withProfessional(text, null, dictionary.care.professionalUnnamed);
+
   return (
     <Note as="section" role="status" toneLabel={dictionary.common.noteTone.info}>
       {heading ? (
-        <h2 className={styles.title}>{title}</h2>
+        <h2 className={styles.title}>{named(title)}</h2>
       ) : (
         <Text as="strong" className={styles.title} weight="bold">
-          {title}
+          {named(title)}
         </Text>
       )}
       <Text size="sm" tone="secondary">
-        {body}
+        {named(body)}
       </Text>
     </Note>
   );

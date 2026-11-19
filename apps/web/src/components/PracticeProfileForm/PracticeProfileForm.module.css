@@ -1,0 +1,148 @@
+.form {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.card {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+.cardTitle {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-04);
+  margin: 0;
+}
+
+.field {
+  display: grid;
+  gap: var(--space-01);
+  min-inline-size: 0;
+}
+
+.label {
+  color: var(--foreground-01);
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+}
+
+.textarea {
+  background: var(--background-01);
+  border: var(--border-width-interactive) solid var(--border-interactive);
+  border-radius: var(--radius-control);
+  color: inherit;
+  font: inherit;
+  inline-size: 100%;
+  padding: var(--space-03);
+  resize: vertical;
+}
+
+.invalid {
+  border-color: var(--color-error);
+}
+
+.error {
+  color: var(--color-error-text);
+}
+
+/* The amount and its unit side by side while both fit, one under the other when they do not. */
+.price {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+}
+
+.days {
+  display: grid;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* A day: its name, then its ranges and the way to add one. */
+.day {
+  border-top: 1px solid var(--border-01);
+  display: grid;
+  gap: var(--space-02);
+  grid-template-columns: minmax(0, 1fr);
+  padding-block: var(--space-02);
+}
+
+.day:first-child {
+  border-top: none;
+  padding-block-start: 0;
+}
+
+/* The day's name, «Cerrado» when it has no range, and the way to add one: one line while they fit. */
+.dayHead {
+  align-items: center;
+  column-gap: var(--space-03);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.dayName {
+  font-weight: var(--font-weight-semibold);
+  grid-column: 1;
+  overflow-wrap: anywhere;
+}
+
+/* «Cerrado» under the day's name, so the name, the word and the button never wrap apart. */
+.closed {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.add {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+/* From and to side by side, the quiet "remove" after them; it wraps under on a narrow screen. */
+.range {
+  align-items: end;
+  border: 0;
+  display: grid;
+  gap: var(--space-02);
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  inline-size: 100%;
+  margin: 0;
+  min-inline-size: 0;
+  padding: 0;
+}
+
+@media (width < 22rem) {
+  .range {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .remove {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
+
+/* Large text for the screen (§ Large text): a time field's own width no longer fits two to a row. */
+@media (width < 17rem) {
+  .range {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+}
+
+@media (width < 48rem) {
+  :global(html):has(.form input:focus, .form textarea:focus) {
+    --app-bar-clearance: 0rem;
+    --app-foot-space: var(--space-02);
+  }
+}

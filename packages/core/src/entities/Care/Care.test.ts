@@ -23,7 +23,7 @@ describe('what a link shares', () => {
    * nobody read. Changing either is a new version and new copy (Phase 8).
    */
   it('is this list at this version', () => {
-    expect(CARE_CONSENT_VERSION).toBe('2.0.0');
+    expect(CARE_CONSENT_VERSION).toBe('3.0.0');
     expect(CARE_SHARED).toEqual(['profile', 'targets', 'mealPlans', 'progress', 'checkIns']);
     expect(CARE_HEALTH_SHARED).toEqual(['conditions', 'medications', 'supplements']);
   });
