@@ -316,7 +316,7 @@ sustitución ya aprobada tampoco: «Ya estás vinculado con un profesional.».
 | Clave | es-ES | en-GB | Estado |
 | --- | --- | --- | --- |
 | `care.invitationLinkExistsBody` | `Ya estás vinculado con {professional}, desde el {since}.` | `You are already linked with {professional}, since {since}.` | aprobado el 2026-11-18 (§ 7) |
-| `care.invitationLinkExistsBodyNoName` (nueva) | `Ya estás vinculado con tu profesional desde el {since}.` | `You are already linked with your professional since {since}.` | **nueva, sin aprobar** |
+| `care.invitationLinkExistsBodyNoName` (nueva) | `Ya estás vinculado con tu profesional desde el {since}.` | `You are already linked with your professional since {since}.` | **aprobado por el propietario el 2026-11-19** («Aprobadas») |
 
 Se usa la variante sin nombre cuando el nombre de la cuenta del profesional de **ese enlace ya
 existente** no se puede mostrar (`nameShown`, `CareController.ts:631`, con la insignia de ese

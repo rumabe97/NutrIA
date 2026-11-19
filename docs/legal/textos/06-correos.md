@@ -808,7 +808,7 @@ palabra de salud**. **Plantilla nueva**: `CareLinkEndedByRule.ts`.
 
 <!-- Fuente: 0111 § 8; PRD 025 scope 10 y criterio 22; RGPD arts. 5.1.f y 32 (un buzón y una pantalla de bloqueo no llevan salud: criterio de este fichero desde CareInvitation.ts, 0059); art. 13.2.f y 22.3 (el porqué y la revisión humana están en la pantalla, 05 § G.3). -->
 
-**Sin el nombre** (2026-11-19, **palabras nuevas, sin aprobar**): cuando el nombre de la cuenta del
+**Sin el nombre** (2026-11-19, **aprobado por el propietario el 2026-11-19**, por opción marcada «Aprobadas»): cuando el nombre de la cuenta del
 profesional no se puede mostrar a un cliente, porque lleva un título que la insignia ya no respalda
 o uno que nunca se permite (`nameShown`, `packages/core/src/controllers/Care/CareController.ts:631`),
 la plantilla `CareLinkEndedByRule.ts` usa estas variantes, sin `{professional}`:
