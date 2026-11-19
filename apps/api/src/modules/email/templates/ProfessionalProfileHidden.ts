@@ -1,6 +1,6 @@
 import { layout, paragraph } from './Layout.js';
 import { fill, oneLine } from './ProfessionalBadgeCode.js';
-import { asSentence, plainFacts } from './ProfessionalSuspended.js';
+import { asSentence, plainFacts } from 'core/domain/OwnerText';
 
 import type { ProfileHideReason } from 'core/entities/Professional';
 import type { EmailLocale, RenderedEmail } from './Layout.js';

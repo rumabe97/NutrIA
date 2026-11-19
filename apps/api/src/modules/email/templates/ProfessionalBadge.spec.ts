@@ -155,6 +155,43 @@ describe('the badge’s mails (project 025, `docs/legal/textos/06` §§ R–W)',
   });
 });
 
+/*
+ * Phase 9: the owner's facts typed without a closing stop ran into the next
+ * sentence («…hace meses Es lo que dice el § 4…»). They close as §§ W bis and X
+ * close them (`asSentence`): one stop, whatever was typed, in both languages.
+ */
+describe('§ W: the owner’s facts are a sentence of their own', () => {
+  const NEXT: Record<EmailLocale, string> = { 'en-GB': 'That is what section 4', 'es-ES': 'Es lo que dice el § 4' };
+
+  function why(locale: EmailLocale, facts: string, reason: 'not_me' | 'other' = 'other'): string {
+    const mail = professionalBadgeRemovedEmail({
+      checkedOn: AT,
+      facts,
+      kind: 'fail',
+      locale,
+      number: 'MAD00123',
+      reason,
+      register: 'Colegio de Madrid',
+      source: 'own_check'
+    });
+
+    return mail.text.split('\n').find(line => line.includes(NEXT[locale])) ?? '';
+  }
+
+  it.each(LOCALES)('closes facts typed with no stop, and with trailing spaces, before the next sentence (%s)', locale => {
+    expect(why(locale, 'Lo dijo hace meses')).toContain(`Lo dijo hace meses. ${NEXT[locale]}`);
+    expect(why(locale, '  Lo dijo hace meses   ')).toContain(`Lo dijo hace meses. ${NEXT[locale]}`);
+    // After a closed reason, too: the reason's own stop, then the facts', then the next sentence.
+    expect(why(locale, 'Lo dijo hace meses', 'not_me')).toContain(`. Lo dijo hace meses. ${NEXT[locale]}`);
+  });
+
+  it.each(LOCALES)('adds nothing to facts already closed — a stop, an ellipsis, a question, an exclamation (%s)', locale => {
+    for (const closed of ['Lo dijo hace meses.', 'Lo dijo hace meses…', '¿Lo dijo hace meses?', '¡Lo dijo hace meses!']) {
+      expect(why(locale, `${closed}  `)).toContain(`${closed} ${NEXT[locale]}`);
+    }
+  });
+});
+
 describe('the owner’s badge alert (§ U.1, choice C8)', () => {
   it('carries the counts and the console’s link, and no address', () => {
     const mail = ownerAlertEmail({ alert: { due: 3, soon: 1, type: 'badges-due' }, link: path => `https://nutria.example${path}` });

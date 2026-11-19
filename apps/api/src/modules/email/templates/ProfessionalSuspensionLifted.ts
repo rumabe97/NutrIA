@@ -1,6 +1,6 @@
 import { layout, paragraph } from './Layout.js';
 import { fill } from './ProfessionalBadgeCode.js';
-import { asClause } from './ProfessionalSuspended.js';
+import { asClause } from 'core/domain/OwnerText';
 
 import type { EmailLocale, RenderedEmail } from './Layout.js';
 
