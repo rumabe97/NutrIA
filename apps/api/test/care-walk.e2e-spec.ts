@@ -246,6 +246,8 @@ const TABLE: Readonly<Record<string, Row>> = {
   'GET /care/links/me/ended': { expect: own(200) },
   'GET /care/practice': { expect: practising(200, { closingDue: 200, otherPractitioner: 200, suspended: 200 }) },
   'GET /care/practice/badge': { expect: practising(200, { closingDue: 200, otherPractitioner: 200, suspended: 200 }) },
+  // The opening form's number: only to an account that may open a practice — not one that has one, nor one barred.
+  'GET /care/practice/opening': { expect: { ...all(404), client: 200, ordinary: 200 } },
   'GET /care/practice/profile': { expect: practising(200, { closingDue: 200, otherPractitioner: 200, suspended: 200 }) },
   'GET /check-ins/status': { expect: own(200) },
   'GET /events': { expect: own(200) },

@@ -17,6 +17,7 @@ import {
   acceptAgreement,
   ADULT_BIRTH_DATE,
   auditRowsAboutSubject,
+  closePracticeNow,
   createApp,
   deleteAccountByEmail,
   deleteAccounts,
@@ -503,6 +504,98 @@ describe('anyone can open a practice (project 025 phase 6)', () => {
     });
   });
 
+  // --- Whether the account may open one, and the number it would hold (phase 8) -----------
+
+  describe('whether an account may open a practice, and the seats it would hold', () => {
+    const me = async (who: Account): Promise<Json> =>
+      (await request(server()).get(`/${PREFIX}/users/me`).set('Cookie', who.cookie).expect(200)).body as Json;
+    const opening = (who: Account, query = '') => request(server()).get(`/${PREFIX}/care/practice/opening${query}`).set('Cookie', who.cookie);
+    /** The account's own resolved number: a free account's, from what is in force now. */
+    const freeSeats = async (): Promise<number> => (await SettingsController.allowances()).effective.free.practiceClients;
+
+    async function expectNoOpening(who: Account): Promise<void> {
+      const refused = await opening(who);
+
+      expect({ status: refused.status, text: refused.text }).toEqual({ status: 404, text: NOT_FOUND_TEXT });
+    }
+
+    it('says yes to an ordinary account with the switch on, and no with it off — the number following the same rule', async () => {
+      const who = await account('can-ordinary');
+
+      expect(await me(who)).toMatchObject({ canOpenPractice: true, professional: false });
+      expect((await opening(who).expect(200)).body).toEqual({ seats: await freeSeats() });
+
+      await SettingsController.setFlag('professional', false, UNAUDITED);
+
+      try {
+        expect(await me(who)).toMatchObject({ canOpenPractice: false, professional: false });
+        await expectNoOpening(who);
+      } finally {
+        await SettingsController.setFlag('professional', true, UNAUDITED);
+      }
+    });
+
+    it('says no to a practitioner, a suspended one and a closed one; yes again once the close is lifted', async () => {
+      const who = await practitioner('can-practitioner');
+
+      expect(await me(who)).toMatchObject({ canOpenPractice: false, professional: true });
+      await expectNoOpening(who);
+
+      await admin('post', `/professionals/${who.id}/suspension`, { facts: 'Hechos de la prueba.', source: 'own_review' });
+      expect(await me(who)).toMatchObject({ canOpenPractice: false, professional: true });
+      await expectNoOpening(who);
+      expect((await admin('post', `/professionals/${who.id}/lift`, {})).status).toBe(200);
+
+      // Closed by the owner and the sweep: no practice, the restriction standing.
+      await closePracticeNow(app, owner, who.id);
+      expect(await me(who)).toMatchObject({ canOpenPractice: false, professional: false });
+      await expectNoOpening(who);
+
+      expect((await admin('post', `/professionals/${who.id}/lift`, {})).status).toBe(200);
+      expect(await me(who)).toMatchObject({ canOpenPractice: true, professional: false });
+      expect((await opening(who).expect(200)).body).toEqual({ seats: await freeSeats() });
+    });
+
+    it('says yes to an unconfirmed account — the form names the same number — while opening itself stays the 404', async () => {
+      const confirmed = await account('can-confirmed');
+      const unconfirmed = await account('can-unconfirmed');
+
+      await unconfirmAddress(unconfirmed.email);
+      expect(await me(unconfirmed)).toMatchObject({ canOpenPractice: true });
+
+      const [a, b] = [await opening(unconfirmed), await opening(confirmed)];
+
+      expect({ status: a.status, text: a.text }).toEqual({ status: b.status, text: b.text });
+      expect(a.status).toBe(200);
+      await expectRefused(unconfirmed, { birthDate: ADULT_BIRTH_DATE });
+    });
+
+    it('follows the number the owner sets, and no query names another account', async () => {
+      const who = await account('can-number');
+      const other = await practitioner('can-number-other');
+      const before = await freeSeats();
+
+      await SettingsController.setAllowance({ name: 'practiceClients', tier: 'free', value: 7 }, UNAUDITED);
+
+      try {
+        expect((await opening(who).expect(200)).body).toEqual({ seats: 7 });
+
+        for (const query of [`?userId=${other.id}`, `?id=${other.id}`, `?user=${owner.id}`]) {
+          expect({ body: (await opening(who, query)).body as unknown, query }).toEqual({ body: { seats: 7 }, query });
+        }
+
+        // The practitioner's own answer is the 404 whatever the query names.
+        const refused = await opening(other, `?userId=${who.id}`);
+
+        expect({ status: refused.status, text: refused.text }).toEqual({ status: 404, text: NOT_FOUND_TEXT });
+      } finally {
+        await SettingsController.setAllowance({ name: 'practiceClients', tier: 'free', value: before }, UNAUDITED);
+      }
+
+      expect((await opening(who).expect(200)).body).toEqual({ seats: before });
+    });
+  });
+
   // --- The free seats ---------------------------------------------------------------
 
   describe('the free practice’s seats', () => {
@@ -756,6 +849,26 @@ describe('anyone can open a practice (project 025 phase 6)', () => {
 
     it.each(['displayName', 'studies'] as const)('with the badge allows the badge-only words in %s, and still refuses the others', async field => {
       expect(await judged(badged, field)).toEqual([]);
+    });
+
+    it('names every refused field at once, on whichever list each falls, and writes nothing', async () => {
+      const before = await profileRow(plain.id);
+      const both = await saveProfile(plain, profileBody({ displayName: 'Ana Dietista', studies: 'Consulta clínica para pacientes' }));
+
+      expect(both.status).toBe(422);
+      expect(Object.keys((both.body as { fieldErrors: Json }).fieldErrors).sort()).toEqual(['displayName', 'studies']);
+      expect(both.body).toMatchObject({
+        fieldErrors: { displayName: ['badge_only:dietista'], studies: [expect.stringMatching(/^badge_only:/) as unknown as string] }
+      });
+      expect(await profileRow(plain.id)).toEqual(before);
+
+      // Badged: each field refused on a different list, both named.
+      const badgedBefore = await profileRow(badged.id);
+      const lists = await saveProfile(badged, profileBody({ displayName: 'Dra. Ana Gil', studies: 'Resultados garantizados en un mes.' }));
+
+      expect(lists.status).toBe(422);
+      expect((lists.body as { fieldErrors: Json }).fieldErrors).toEqual({ displayName: ['never:dra'], studies: ['result:garantizados'] });
+      expect(await profileRow(badged.id)).toEqual(badgedBefore);
     });
 
     it('catches a title glued or cut, and lets honest words through', async () => {
