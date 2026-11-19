@@ -49,20 +49,24 @@ import type { Response } from 'supertest';
  * care module that takes a link id, plus the roster:
  *
  * - **U**, un-badged from the start (a `professionals` row written on the
- *   table, as `care-badge.e2e-spec.ts` makes one), on a link whose consent is
- *   the default `full` — the harder case: the consent would allow everything,
- *   the missing badge alone narrows it;
- * - **B**, badged, on a link whose consent is `plan` (set on the table: the
- *   consent per tier that writes it is phase 5's);
+ *   table, as `care-badge.e2e-spec.ts` makes one), whose client asked for
+ *   `full` and the health line when accepting — stored `plan`, the line off,
+ *   because no badge stood (phase 5); since phase 5 a client with a condition
+ *   or a medication cannot link to U at all (the illness rule,
+ *   `care-illness-rule.e2e-spec.ts`), so U's client declares a supplement only;
+ * - **B**, badged, on a link whose client consented to `plan` through the
+ *   acceptance itself (phase 5's consent per tier);
  * - **F**, badged and `full`, read first in full — the reference, what every
  *   route carried before this phase — and then withdrawn by the owner: the very
- *   next request narrows.
+ *   next request narrows, and so does the stored row, in the owner's own
+ *   transaction (phase 5).
  *
  * Each client is built so that a leak would show: a plan from before the link,
- * a plan left waiting by an earlier practitioner's link, a condition and a
- * medication under the health line, a gluten allergy, an event with a name,
- * and (F's) targets a practitioner set. Every answer a narrowed practitioner
- * receives is kept and searched for each of them.
+ * a plan left waiting by an earlier practitioner's link, a supplement — and,
+ * for B's and F's, a condition and a medication — under the health line, a
+ * gluten allergy, an event with a name, and (F's) targets a practitioner set.
+ * Every answer a narrowed practitioner receives is kept and searched for each
+ * of them.
  *
  * Every denial is compared byte for byte with the same route's answer for a
  * link — or a job, or a meal — that does not exist. A check-in's notice to the
@@ -91,6 +95,8 @@ const NOBODYS_ID = '00000000-0000-4000-8000-0000000000aa';
 const MEDICATION = 'Levotiroxina de alcance';
 const CONDITION_LABEL = 'Hipotiroidismo';
 const EVENT_NAME = 'Boda de Ximénez';
+/** Not a catalogue ingredient, so a hit can only be the declaration itself. */
+const SUPPLEMENT = 'Colágeno de alcance';
 
 /* The exact keys of every answer a `plan` scope receives (PRD 025 criterion 9). */
 const PAGE_KEYS = ['client', 'plan', 'plans'];
@@ -249,6 +255,8 @@ type Walk = {
   readonly answers: string[];
   before: Before;
   client: Account;
+  /** The client's own declared words, each searched for in every answer. */
+  declared: readonly string[];
   readonly label: string;
   linkId: string;
   /** A link of another practitioner's, with a client of their own. */
@@ -356,7 +364,8 @@ describe('care scope: the narrower view (project 025 phase 4)', () => {
     throw new Error('No invitation mail arrived');
   }
 
-  async function link(professional: Account, client: Account, sharesHealth = true): Promise<string> {
+  /** `consentScope` is the list the client says they read; what is stored also depends on the badge now (phase 5). */
+  async function link(professional: Account, client: Account, sharesHealth = true, consentScope: 'full' | 'plan' = 'full'): Promise<string> {
     const before = sent.length;
 
     await request(server()).post(`/${PREFIX}/care/invitations`).set('Cookie', professional.cookie).send({ email: client.email }).expect(201);
@@ -365,7 +374,7 @@ describe('care scope: the narrower view (project 025 phase 4)', () => {
     const accepted: Response = await request(server())
       .post(`/${PREFIX}/care/invitations/${token}/accept`)
       .set('Cookie', client.cookie)
-      .send({ consentVersion: CARE_CONSENT_VERSION, sharesHealth });
+      .send({ consentScope, consentVersion: CARE_CONSENT_VERSION, sharesHealth });
 
     expect(accepted.status).toBe(200);
 
@@ -375,7 +384,14 @@ describe('care scope: the narrower view (project 025 phase 4)', () => {
   const endLink = (client: Account, linkId: string) =>
     request(server()).delete(`/${PREFIX}/care/links/${linkId}`).set('Cookie', client.cookie).expect(204);
 
-  const setScope = (linkId: string, scope: 'full' | 'plan') => sql()`update care_links set consent_scope = ${scope} where id = ${linkId}`;
+  async function storedLink(linkId: string): Promise<Json | undefined> {
+    const [row] = await sql()<Json>`
+      select consent_scope::text as "consentScope", shares_health as "sharesHealth", narrowed_at is not null as narrowed,
+             scope_consented_at is not null as "scopeConsented"
+      from care_links where id = ${linkId}`;
+
+    return row;
+  }
 
   // --- The practitioner's routes, each one call, each answer kept -------------
 
@@ -473,24 +489,28 @@ describe('care scope: the narrower view (project 025 phase 4)', () => {
 
   /**
    * A client with something to leak: onboarded with a gluten allergy, a
-   * condition and a medication under the health consent, an event with a name,
-   * their own plan before any link, then a plan left waiting by `earlier`'s
-   * link, which they then end.
+   * supplement — and, `withRecord`, a condition and a medication — under the
+   * health consent, an event with a name, their own plan before any link, then
+   * a plan left waiting by `earlier`'s link, which they then end.
    */
-  async function clientWithAPast(label: string, withEarlierPending = true): Promise<{ before: Before; client: Account }> {
+  async function clientWithAPast(label: string, withEarlierPending = true, withRecord = true): Promise<{ before: Before; client: Account }> {
     const client = await account(label);
 
     await completeOnboarding(app, client, [glutenId], [], true);
-    await request(server())
+
+    const saved: Response = await request(server())
       .put(`/${PREFIX}/health-data`)
       .set('Cookie', client.cookie)
       .send({
-        conditions: [{ conditionKey: 'hypothyroidism', label: CONDITION_LABEL }],
+        conditions: withRecord ? [{ conditionKey: 'hypothyroidism', label: CONDITION_LABEL }] : [],
         consentVersion: HEALTH_CONSENT_VERSION,
-        medications: [{ name: MEDICATION }],
-        supplements: []
+        medications: withRecord ? [{ name: MEDICATION }] : [],
+        supplements: [{ kind: 'other', name: SUPPLEMENT }]
       })
       .expect(200);
+
+    // No link yet: nothing for the illness rule to end.
+    expect((saved.body as { linkEnded: unknown }).linkEnded).toBeNull();
     await request(server())
       .post(`/${PREFIX}/events`)
       .set('Cookie', client.cookie)
@@ -874,7 +894,7 @@ describe('care scope: the narrower view (project 025 phase 4)', () => {
        * with «Pasta sin gluten» in it and a step to cook it, which is the plan
        * the practitioner is entitled to read — not the client's declaration.
        */
-      const own = [EVENT_NAME, 'Ximénez', MEDICATION, CONDITION_LABEL, 'hypothyroidism'];
+      const own = [EVENT_NAME, 'Ximénez', SUPPLEMENT, ...ctx().declared];
       const declared = ['gluten', ...glutenNames];
       const unnamed = answers.map(text => text.replace(/"(cue|name|text)":"(?:[^"\\]|\\.)*"/g, '"$1":""'));
 
@@ -920,16 +940,18 @@ describe('care scope: the narrower view (project 025 phase 4)', () => {
 
   // --- (1) Un-badged from the start ------------------------------------------
 
-  describe('U: a practitioner without a badge, on a link whose consent is `full`', () => {
-    const walk = { answers: [] as string[], label: 'unbadged' } as Walk;
+  describe('U: a practitioner without a badge, whose client asked for `full` and the health line', () => {
+    const walk = { answers: [] as string[], declared: [], label: 'unbadged' } as unknown as Walk;
 
     beforeAll(async () => {
-      const { before, client } = await clientWithAPast('client-u');
+      // A supplement only: with a condition or a medication on record, accepting U is refused (the illness rule).
+      const { before, client } = await clientWithAPast('client-u', true, false);
 
       walk.pro = unbadged;
       walk.client = client;
       walk.before = before;
-      walk.linkId = await link(unbadged, client);
+      // Asked for `full` and the health line: no badge stands, so `plan` is stored, the line off, and no error (phase 5).
+      walk.linkId = await link(unbadged, client, true, 'full');
       walk.runningPlanId = before.ownPlanId;
       // Under full it would read `plan_awaiting_review`: a plan waits — but not one made through this link.
       walk.stageBefore = 'awaiting_plan';
@@ -941,9 +963,7 @@ describe('care scope: the narrower view (project 025 phase 4)', () => {
       await completeOnboarding(app, theirs);
       walk.otherLinkId = await link(earlier, theirs, false);
 
-      expect(
-        (await sql()<{ consentScope: string }>`select consent_scope::text as "consentScope" from care_links where id = ${walk.linkId}`)[0]
-      ).toEqual({ consentScope: 'full' });
+      expect(await storedLink(walk.linkId)).toEqual({ consentScope: 'plan', narrowed: false, scopeConsented: false, sharesHealth: false });
     }, 300_000);
 
     it('sends the practitioner no notice of a check-in, by mail or push, and the client’s own nudge runs', async () => {
@@ -956,9 +976,11 @@ describe('care scope: the narrower view (project 025 phase 4)', () => {
 
     narrowWalk(() => walk);
 
-    it('a badge gained on a link whose consent is `plan` widens nothing; consent to the badged list is what widens it', async () => {
-      await setScope(walk.linkId, 'plan');
+    it('a badge gained widens nothing; the client’s own consent to the badged list is what widens it', async () => {
       await grantBadge(unbadged);
+
+      // The grant found the link already `plan` with the line off: nothing to narrow, so no mark either.
+      expect(await storedLink(walk.linkId)).toEqual({ consentScope: 'plan', narrowed: false, scopeConsented: false, sharesHealth: false });
 
       const narrow = await call(unbadged, 'get', `/care/clients/${walk.linkId}`, undefined, walk.answers);
 
@@ -967,20 +989,41 @@ describe('care scope: the narrower view (project 025 phase 4)', () => {
       expect(forbiddenKeys(narrow.body)).toEqual([]);
       await expect(call(unbadged, 'patch', `/care/clients/${walk.linkId}/targets`, { kcal: 1700 })).resolves.toMatchObject({ status: 404 });
 
-      // The control: the same badge, the client's consent `full` — the page widens, so the narrow read above was the consent's doing.
-      await setScope(walk.linkId, 'full');
+      const mine = await request(server()).get(`/${PREFIX}/care/links/me`).set('Cookie', walk.client.cookie).expect(200);
+
+      expect(mine.body).toMatchObject({ consentScope: 'plan', professionalVerified: true, reconsentOffered: true, scope: 'plan' });
+
+      // The control: the same badge, and the client's own consent through the route — the page widens, so the narrow read above was the consent's doing.
+      const widened = await request(server())
+        .post(`/${PREFIX}/care/links/me/consent`)
+        .set('Cookie', walk.client.cookie)
+        .send({ consentVersion: CARE_CONSENT_VERSION });
+
+      expect(widened.status).toBe(200);
+      expect(widened.body).toMatchObject({ consentScope: 'full', reconsentOffered: false, scope: 'full', sharesHealth: false, sharesPlan: [] });
+      expect(await storedLink(walk.linkId)).toEqual({ consentScope: 'full', narrowed: false, scopeConsented: true, sharesHealth: false });
 
       const wide = await call(unbadged, 'get', `/care/clients/${walk.linkId}`);
 
-      expect(sorted(wide.body)).toEqual(['client', 'health', 'plan', 'plans', 'progress', 'targets']);
-      await setScope(walk.linkId, 'plan');
+      // The health line is its own yes: off until the client turns it on.
+      expect(sorted(wide.body)).toEqual(['client', 'plan', 'plans', 'progress', 'targets']);
+
+      await request(server()).patch(`/${PREFIX}/care/links/me`).set('Cookie', walk.client.cookie).send({ sharesHealth: true }).expect(200);
+      expect(sorted((await call(unbadged, 'get', `/care/clients/${walk.linkId}`)).body)).toEqual([
+        'client',
+        'health',
+        'plan',
+        'plans',
+        'progress',
+        'targets'
+      ]);
     });
   });
 
   // --- (2) Badged, on a `plan` link ------------------------------------------
 
   describe('B: a badged practitioner on a link whose consent is `plan`', () => {
-    const walk = { answers: [] as string[], label: 'badged-plan' } as Walk;
+    const walk = { answers: [] as string[], declared: [MEDICATION, CONDITION_LABEL, 'hypothyroidism'], label: 'badged-plan' } as unknown as Walk;
 
     beforeAll(async () => {
       const { before, client } = await clientWithAPast('client-b');
@@ -988,8 +1031,9 @@ describe('care scope: the narrower view (project 025 phase 4)', () => {
       walk.pro = badgedPlan;
       walk.client = client;
       walk.before = before;
-      walk.linkId = await link(badgedPlan, client);
-      await setScope(walk.linkId, 'plan');
+      // The plan-only list, read and accepted: the health line asked for in the same body is not stored (phase 5).
+      walk.linkId = await link(badgedPlan, client, true, 'plan');
+      expect(await storedLink(walk.linkId)).toEqual({ consentScope: 'plan', narrowed: false, scopeConsented: false, sharesHealth: false });
       walk.runningPlanId = before.ownPlanId;
       walk.stageBefore = 'awaiting_plan';
       walk.throughLink = [];
@@ -1013,7 +1057,7 @@ describe('care scope: the narrower view (project 025 phase 4)', () => {
   // --- (3) Badged and full, then withdrawn -----------------------------------
 
   describe('F: a badged practitioner on a `full` link, whose badge the owner withdraws', () => {
-    const walk = { answers: [] as string[], label: 'withdrawn' } as Walk;
+    const walk = { answers: [] as string[], declared: [MEDICATION, CONDITION_LABEL, 'hypothyroidism'], label: 'withdrawn' } as unknown as Walk;
     let fullPlanId = '';
 
     beforeAll(async () => {
@@ -1103,6 +1147,8 @@ describe('care scope: the narrower view (project 025 phase 4)', () => {
         .send({ facts: 'La consulta del registro no lo encuentra.', kind: 'withdrawn', reason: 'other', source: 'own_check' });
 
       expect(removal.status).toBe(200);
+      // The stored consent narrowed too, in the owner's own transaction: a badge granted again would widen nothing (phase 5).
+      expect(await storedLink(walk.linkId)).toEqual({ consentScope: 'plan', narrowed: true, scopeConsented: false, sharesHealth: false });
 
       const page = await call(withdrawn, 'get', `/care/clients/${walk.linkId}`, undefined, walk.answers);
 
@@ -1162,10 +1208,8 @@ describe('care scope: the narrower view (project 025 phase 4)', () => {
         // Held at the save: the client ends that link and takes U's.
         await endLink(client, first);
 
-        const second = await link(unbadged, client, false);
-
-        // U holds a badge since the case above; the client consented to the plan list alone, so U reads `plan`.
-        await setScope(second, 'plan');
+        // U holds a badge since the case above; the client consents to the plan-only list, so U reads `plan`.
+        const second = await link(unbadged, client, false, 'plan');
 
         open();
 

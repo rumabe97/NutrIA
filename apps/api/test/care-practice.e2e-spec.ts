@@ -341,7 +341,7 @@ describe('care-practice', () => {
     const accepted: Response = await request(server())
       .post(`/${PREFIX}/care/invitations/${token}/accept`)
       .set('Cookie', client.cookie)
-      .send({ consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
+      .send({ consentScope: 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
       .expect(200);
 
     return (accepted.body as CareLinkView).id;
@@ -414,7 +414,7 @@ describe('care-practice', () => {
     return request(server())
       .post(`/${PREFIX}/care/invitations/${token}/accept`)
       .set('Cookie', client.cookie)
-      .send({ consentVersion: CARE_CONSENT_VERSION, sharesHealth: false });
+      .send({ consentScope: 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false });
   }
 
   /** Invites `client` through the route and returns the mailed token, unanswered. */

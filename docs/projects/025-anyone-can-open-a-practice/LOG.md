@@ -208,3 +208,82 @@
   `consent_scope` on the table; phase 5 replaces that with the real consent. Phase 6: the
   owner's revoke must write a `withdrawn` check. Phase 8: the web's client page must narrow
   `CareClientPageView`.
+
+## Phase 5 — Consent per tier, and the illness rule (2026-11-19)
+
+- **Executor**: `backend-high` (opus @ high) and `frontend` (opus), each in its own worktree;
+  `invariant-reviewer` (opus), three rounds; `migration-reviewer` (opus) on 0073 and 0074; the
+  end-to-end suites by the `tests` agent (opus).
+- **Result**: done. Dark: every route sits behind the `professional` switch, except the daily
+  sweep, which runs whatever the switch says (it only ever narrows or ends) and finds no link
+  in production.
+- **Evidence**:
+  - Core 4990 passed; api 1968; database 69; web 441; `pnpm ts:check` 9/9; `pnpm lint` 7/7;
+    `check-migrations --drift` agrees (75 migrations); the two boundary specs untouched.
+  - End-to-end on local Postgres, one at a time: `care-illness-rule` (new) 30, `care-scope`
+    44, `care` 72, `care-review` 34, `care-practice` 36, `care-badge` 19,
+    `plan-scheduled-care` 1, `health-data` 3, `owner-alerts` 9, `accompaniments` 14 — all
+    passed.
+  - `care-illness-rule` on real Postgres: the acceptance matrix; a refused acceptance (one 409
+    naming nothing, the invitation kept, the practitioner's roster byte-identical, nobody
+    told; pregnancy, breastfeeding, a free-text condition and a medication count, a supplement
+    does not); a declaration ending (`declared`, a paused link too, the practitioner's roster
+    identical to a client's own ending); the sweep (`badge_lost`, the client alone mailed, no
+    health or badge word in the mail, a second run does nothing); narrowing and regaining
+    through the owner's withdrawal, `confirm`, the 004 grant and a `fail` on renewal; and the
+    races, fifteen rounds each.
+  - **A defect only the real database showed**: an owner's withdrawal racing an acceptance or
+    a re-consent left the link stored `full` under a withdrawn badge (6–10 of 15 rounds, and
+    3–5 of 15). Fixed: every writer that can widen a link takes the practitioner's badge lock
+    before reading the badge (`ProfessionalBadgeRepository.lock`, one key for all). After it:
+    15 of 15 stored `plan` in both races, and no deadlock in the four-way round.
+  - `invariant-reviewer`: round one, no P0, three P1 (an omitted `consentScope` read as
+    `full`; re-consent overwrote the acceptance's evidence; the consent version moved without
+    its words) and four P2, all fixed; round two, the narrowing's own gaps (evidence, and a
+    badge regained before the sweep), fixed; round three, nothing open.
+  - `migration-reviewer`: 0073 and 0074 safe with conditions — nothing else merges a migration
+    first; a later migration may write the new enum values only after this deploy is ready;
+    CI's migration job is the first run inside drizzle's single transaction.
+  - Web: the health screen, the invitation page (both tiers), the refusal and both ending
+    notices seen at 320, 390 and 1280, light and dark, es and en, nothing overflowing;
+    `apple-web-design` review PASS, no P0 or P1. The approved texts are copied verbatim
+    (`textos/05` §§ C bis, F.1, F.3, G).
+- **Deviations from plan** (the plan's step 7 records the amendments):
+  - Two migrations where none was expected: `0073` (`badge_lost`), `0074` (`declared`,
+    `narrowed_at`, `scope_consented_at`, `scope_consent_version`).
+  - `consentScope` is required on accept; a rule ending has its own `ended_by`; a badge that
+    stops standing narrows the stored consent, and a regained badge widens nothing.
+  - The sweep's ending mails the client (`CareLinkEndedByRule`, `textos/06` § Y).
+  - New client routes `POST /care/links/me/consent` and `GET /care/links/me/ended`.
+  - The invitation page and the link card got the minimum for a `plan` tier (no number, the
+    plan-only list, no health question), with the § F.1 and § F.3 keys ahead of phase 8; the
+    invitation's two buttons now sit side by side at every width (one column only at 200 %
+    text on a phone, as `AccountActions` does).
+  - The local probe's account script builds the new states (`--unbadged`, `--invite-only`,
+    `lose-badge`); `lose-badge` runs the real sweep and refuses anything but the local
+    Postgres.
+  - ADR `0111` §§ 4 and 8 amended: § 8 said a notice was queued to the practitioner.
+  - `CARE_CONSENT_VERSION` does not move (phase 8 ships its words); the column's `full`
+    default is not dropped (the release after this one).
+- **Accepted, and open**:
+  - A withdrawal racing a **declaration** can leave a `plan` link open over a record until the
+    next daily sweep ends it (`badge_lost`); nothing is stored `full`. Once in 15 rounds.
+  - The owner's removal and the sweep may deadlock on overlapping rows; Postgres aborts one,
+    the sweep runs again the next day and the removal can be retried. Not seen in 30 rounds.
+  - A second narrowing or a second re-consent overwrites the first one's date.
+  - **For the `legal` agent**: when the app turns the health line off by narrowing, the
+    client's trail still ends on their own `granted`; no row is fabricated for an act the
+    client did not make, and `narrowed_at` is the evidence. Whether the trail should show it,
+    and with which words, is theirs to say before the switch (phase 10). Also: `ended_by`
+    `declared` / `badge_lost` in `care_links` implies a health record exists — for the DPIA.
+  - Words still untrue under a `plan` link, left for phase 8: `care.invitationPrivacy`,
+    `care.invitationNotShared`, «Tu dietista» as a title, `care.endConfirmBody`, the two
+    health-share hints.
+- **Decisions**: `0111` amended in place (2026-11-19).
+- **Notes for the next phase**: phase 6 retires the 004 grant route — the narrow-before-pass
+  guard lives in both pass writers until then; the owner's revoke of "may practise" must write
+  a `withdrawn` check, which now narrows links in its transaction. The probe script's
+  `--unbadged` inserts the `professionals` row by hand until phase 6 gives the route — replace
+  it then. Phase 8 builds the re-consent button (`reconsentOffered`) and the § F.4 words. The
+  release after this one drops `care_links.consent_scope`'s default.
+

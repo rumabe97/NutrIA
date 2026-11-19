@@ -254,7 +254,7 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
 
 ### Phase 5 — Consent per tier, and the illness rule
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 025 phase 5` — `quality-max`: consent to
   health data and a write path inside the health module. Reviewed by `invariant-reviewer`.
 - **Goal**: the client consents to the list of the tier they link to, widening needs their

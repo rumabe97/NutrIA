@@ -202,7 +202,7 @@ describe('care review', () => {
     const accepted: Response = await request(server())
       .post(`/${PREFIX}/care/invitations/${token}/accept`)
       .set('Cookie', client.cookie)
-      .send({ consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
+      .send({ consentScope: 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
       .expect(200);
 
     return (accepted.body as CareLinkView).id;
