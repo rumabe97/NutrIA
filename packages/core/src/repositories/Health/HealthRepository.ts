@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
@@ -7,6 +7,24 @@ import { healthConditions, healthDataConsents, medications, supplements } from '
 import { DatabaseOperationError } from 'core/entities/Error';
 import { healthConditionSchema, medicationSchema, supplementSchema } from 'core/entities/Health';
 import type { HealthCondition, Medication, SetHealthData, Supplement } from 'core/entities/Health';
+import type { SQL, SQLWrapper } from 'drizzle-orm';
+
+/** A transaction as `database().transaction` hands it to its callback. */
+export type HealthTransaction = Parameters<Parameters<ReturnType<typeof database>['transaction']>[0]>[0];
+
+/**
+ * **"On record", for the illness rule** (`0111` § 8, PRD 025 criterion 22, legal
+ * F1) — its one definition, as a condition on whichever account `userId` names (a
+ * column such as `care_links.client_id`, or a value): any row of
+ * `health_conditions` — a listed condition, pregnancy and breastfeeding included,
+ * or one typed as free text — or any medication. Supplements are not in it.
+ *
+ * Used by `hasRecord` and by `CareRepository`'s three enforcement points, so the
+ * acceptance, the declaration and the sweep can never disagree on who has one.
+ */
+export function onRecord(userId: SQLWrapper | string): SQL {
+  return sql`(exists (select 1 from ${healthConditions} where ${healthConditions.userId} = ${userId}) or exists (select 1 from ${medications} where ${medications.userId} = ${userId}))`;
+}
 
 export type StoredHealthData = {
   readonly conditions: readonly HealthCondition[];
@@ -80,16 +98,38 @@ export const HealthRepository = {
   },
 
   /**
+   * Whether this account has a condition or a medication on record (`onRecord`)
+   * — read on `db`, the caller's transaction when there is one, so the answer is
+   * the one that transaction will act on. `userId` is the session's, or the
+   * client's id from a link row; never a request's.
+   */
+  async hasRecord(userId: string, db: HealthTransaction | ReturnType<typeof database> = database()): Promise<boolean> {
+    try {
+      const [row] = await db.execute<{ onRecord: boolean }>(sql`select ${onRecord(userId)} as "onRecord"`);
+
+      return row?.onRecord === true;
+    } catch (error: unknown) {
+      throw wrap(error, 'health data');
+    }
+  },
+
+  /**
    * Replace-all, in one transaction, consent included.
    *
    * Transactional for the reason `SafetyRepository.replaceAll` is: the
    * intermediate state is a user with no recorded conditions, and nothing may
    * observe it. Consent is written in the same transaction because holding the
    * data and holding the agreement to hold it are one act.
+   *
+   * `within`, when given, runs **inside** that transaction after the section is
+   * written, and its answer is this method's: the illness rule's ending of a link
+   * (`HealthController.replace`, `0111` § 8) — so the declaration and the ending
+   * commit together or not at all. The repository does not know what it does: the
+   * controller builds it and hands it down, as a trail's `record` is.
    */
-  async replaceAll(userId: string, input: SetHealthData): Promise<void> {
+  async replaceAll<T = undefined>(userId: string, input: SetHealthData, within?: (tx: HealthTransaction) => Promise<T>): Promise<T | undefined> {
     try {
-      await database().transaction(async tx => {
+      return await database().transaction(async tx => {
         await tx.delete(healthConditions).where(eq(healthConditions.userId, userId));
         await tx.delete(medications).where(eq(medications.userId, userId));
         await tx.delete(supplements).where(eq(supplements.userId, userId));
@@ -123,6 +163,8 @@ export const HealthRepository = {
           .insert(healthDataConsents)
           .values({ ...consent, userId })
           .onConflictDoUpdate({ set: consent, target: healthDataConsents.userId });
+
+        return within ? await within(tx) : undefined;
       });
     } catch (error: unknown) {
       throw wrap(error, 'health data');

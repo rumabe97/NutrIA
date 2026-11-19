@@ -8,6 +8,7 @@ import { CARE_CONSENT_VERSION, CARE_HEALTH_SHARED, CARE_SHARED } from 'core/enti
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { CareController } from 'core/controllers/Care';
 import {
+  CareIllnessRuleError,
   CareLinkExistsError,
   ConflictError,
   InputParseError,
@@ -58,10 +59,15 @@ const SESSION = {
 const LINK: CareLinkView = {
   id: LINK_ID,
   consentIsCurrent: true,
+  consentScope: 'full',
   consentVersion: CARE_CONSENT_VERSION,
   professionalName: 'Ana Dietista',
+  professionalVerified: true,
+  reconsentOffered: false,
+  scope: 'full',
   shares: CARE_SHARED,
   sharesHealth: false,
+  sharesPlan: [],
   since: '2026-09-23T10:00:00.000Z',
   status: 'active'
 };
@@ -687,12 +693,15 @@ describe('care routes', () => {
       const invitation = jest
         .spyOn(CareController, 'invitation')
         .mockResolvedValue({
+          badge: { checkedAt: '2026-09-01T09:00:00.000Z', collegiateNumber: '28/12345' },
           collegiateNumber: '28/12345',
           consentVersion: CARE_CONSENT_VERSION,
           expiresAt: '2026-10-07T10:00:00.000Z',
           healthShares: CARE_HEALTH_SHARED,
           professionalName: 'Ana Dietista',
-          shares: CARE_SHARED
+          scope: 'full',
+          shares: CARE_SHARED,
+          sharesPlan: []
         });
 
       const response = await request(server()).get(`/${PREFIX}/care/invitations/${TOKEN}`).expect(200);
@@ -709,7 +718,7 @@ describe('care routes', () => {
       const read = await request(server()).get(`/${PREFIX}/care/invitations/${TOKEN}`).expect(404);
       const accepted = await request(server())
         .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
-        .send({ consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
+        .send({ consentScope: 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
         .expect(404);
       const declined = await request(server()).post(`/${PREFIX}/care/invitations/${TOKEN}/decline`).expect(404);
 
@@ -721,16 +730,23 @@ describe('care routes', () => {
     it('accept only the current consent version, with an explicit health answer', async () => {
       const accept = jest.spyOn(CareController, 'accept').mockResolvedValue(LINK);
 
-      await request(server()).post(`/${PREFIX}/care/invitations/${TOKEN}/accept`).send({ consentVersion: '0.0.1', sharesHealth: false }).expect(422);
-      await request(server()).post(`/${PREFIX}/care/invitations/${TOKEN}/accept`).send({ consentVersion: CARE_CONSENT_VERSION }).expect(422);
+      await request(server())
+        .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
+        .send({ consentScope: 'full', consentVersion: '0.0.1', sharesHealth: false })
+        .expect(422);
+      await request(server())
+        .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
+        .send({ consentScope: 'full', consentVersion: CARE_CONSENT_VERSION })
+        .expect(422);
       expect(accept).not.toHaveBeenCalled();
 
       const response = await request(server())
         .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
-        .send({ clientId: 'usr-other', consentVersion: CARE_CONSENT_VERSION, sharesHealth: true })
+        .send({ clientId: 'usr-other', consentScope: 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: true })
         .expect(200);
 
       expect(accept).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), TOKEN, {
+        consentScope: 'full',
         consentVersion: CARE_CONSENT_VERSION,
         sharesHealth: true
       });
@@ -744,13 +760,52 @@ describe('care routes', () => {
 
       const response = await request(server())
         .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
-        .send({ consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
+        .send({ consentScope: 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
         .expect(409);
 
       expect(response.body).toMatchObject({
         code: 'CARE_LINK_EXISTS',
         link: { professionalName: 'Otra Dietista', since: '2026-09-01T10:00:00.000Z', status: 'active' }
       });
+    });
+
+    it('pass the list the client read to the controller, and refuse a body without one, or a list that is neither', async () => {
+      const accept = jest.spyOn(CareController, 'accept').mockResolvedValue(LINK);
+
+      // Required: nothing is presumed from its absence (review round one, P1-1).
+      await request(server())
+        .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
+        .send({ consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
+        .expect(422);
+      await request(server())
+        .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
+        .send({ consentScope: 'everything', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
+        .expect(422);
+      expect(accept).not.toHaveBeenCalled();
+
+      await request(server())
+        .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
+        .send({ consentScope: 'plan', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
+        .expect(200);
+      expect(accept).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), TOKEN, {
+        consentScope: 'plan',
+        consentVersion: CARE_CONSENT_VERSION,
+        sharesHealth: false
+      });
+    });
+
+    /* Project 025 phase 5 (`0111` § 8): a state the client's screen explains, naming nothing — and nothing reaches the practitioner. */
+    it('answer the illness rule as a 409 naming no condition, and send no mail', async () => {
+      jest.spyOn(CareController, 'accept').mockRejectedValue(new CareIllnessRuleError());
+
+      const response = await request(server())
+        .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
+        .send({ consentScope: 'plan', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
+        .expect(409);
+
+      expect(response.body).toEqual({ code: 'CARE_ILLNESS_RULE', message: 'No puedes aceptar esta invitación.', statusCode: 409 });
+      await settle();
+      expect(send).not.toHaveBeenCalled();
     });
 
     it('decline with no content', async () => {
@@ -955,6 +1010,68 @@ describe('care routes', () => {
 
       jest.spyOn(CareController, 'setSharesHealth').mockResolvedValue(LINK);
       await request(server()).patch(`/${PREFIX}/care/links/me`).send({ sharesHealth: false }).expect(200);
+
+      expect(hasAccess).not.toHaveBeenCalled();
+      expect(isOpen).not.toHaveBeenCalled();
+    });
+  });
+
+  /* Project 025 phase 5 (`docs/legal/textos/05` § F.4): the client widens their own link to the badged list. */
+  describe('POST /care/links/me/consent', () => {
+    it('takes the version alone, for the session’s own link — never a link id or another account from the body', async () => {
+      const widened = { ...LINK, consentScope: 'full' as const, scope: 'full' as const };
+      const reconsent = jest.spyOn(CareController, 'reconsent').mockResolvedValue(widened);
+
+      const response = await request(server())
+        .post(`/${PREFIX}/care/links/me/consent`)
+        .send({ clientId: 'usr-other', consentVersion: CARE_CONSENT_VERSION, linkId: LINK_ID })
+        .expect(200);
+
+      expect(reconsent).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), { consentVersion: CARE_CONSENT_VERSION });
+      expect(response.body).toEqual(widened);
+    });
+
+    it('refuses an older version as 422, and changes nothing', async () => {
+      const reconsent = jest.spyOn(CareController, 'reconsent');
+
+      await request(server()).post(`/${PREFIX}/care/links/me/consent`).send({ consentVersion: '1.0.0' }).expect(422);
+      await request(server()).post(`/${PREFIX}/care/links/me/consent`).send({}).expect(422);
+
+      expect(reconsent).not.toHaveBeenCalled();
+    });
+
+    it('is the same 404 as any link that is not there, when there is nothing to widen', async () => {
+      jest.spyOn(CareController, 'reconsent').mockRejectedValue(new NotFoundError('Link not found'));
+
+      const response = await request(server()).post(`/${PREFIX}/care/links/me/consent`).send({ consentVersion: CARE_CONSENT_VERSION }).expect(404);
+
+      expect(response.body).toEqual({ code: 'NOT_FOUND', message: 'Link not found', statusCode: 404 });
+    });
+  });
+
+  /* Project 025 phase 5 (`docs/legal/textos/05` § G.3): why the client's last link ended, when the illness rule ended it. */
+  describe('GET /care/links/me/ended', () => {
+    it('answers the session’s own, or null', async () => {
+      const endedLink = jest
+        .spyOn(CareController, 'endedLink')
+        .mockResolvedValueOnce({ endedAt: '2026-11-19T06:00:00.000Z', professionalName: 'Ana Dietista', reason: 'declared' })
+        .mockResolvedValueOnce(null);
+
+      expect((await request(server()).get(`/${PREFIX}/care/links/me/ended`).expect(200)).body).toEqual({
+        endedAt: '2026-11-19T06:00:00.000Z',
+        professionalName: 'Ana Dietista',
+        reason: 'declared'
+      });
+      await request(server()).get(`/${PREFIX}/care/links/me/ended`).expect(200);
+      expect(endedLink).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }));
+    });
+
+    it('asks neither the switch nor whether the account is a professional', async () => {
+      const hasAccess = jest.spyOn(ProfessionalController, 'hasAccess');
+      const isOpen = jest.spyOn(ProfessionalController, 'isOpen');
+
+      jest.spyOn(CareController, 'endedLink').mockResolvedValue(null);
+      await request(server()).get(`/${PREFIX}/care/links/me/ended`).expect(200);
 
       expect(hasAccess).not.toHaveBeenCalled();
       expect(isOpen).not.toHaveBeenCalled();

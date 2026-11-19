@@ -17,6 +17,7 @@ import { FeedbackForm } from 'components/FeedbackForm';
 import { FixedMealPlanner } from 'components/FixedMealPlanner';
 import { HealthPanel } from 'components/HealthPanel';
 import { LocaleSwitcher } from 'components/LocaleSwitcher';
+import { MailtoText } from 'components/MailtoText';
 import { PremiumCard } from 'components/PremiumCard';
 import { ProfileConsentCard } from 'components/ProfileConsentCard';
 import { ProfileMealSizeNote } from 'components/ProfileMealSizeNote';
@@ -32,6 +33,7 @@ import { APPLIANCES } from 'core/entities/Kitchen';
 import { MEAL_SLOTS } from 'core/entities/Plan';
 
 import { formatNumber, interpolate } from 'lib/format';
+import { illnessEndedBody, unverifiedProfessional } from 'lib/illnessRule';
 import { mealCount, mealSizeKey } from 'lib/mealSize';
 import { premiumPitch } from 'lib/premiumPitch';
 import { redirectIfOnboardingIncomplete, redirectIfProfileConsentMissing } from 'lib/onboarding';
@@ -40,7 +42,7 @@ import { serverApi } from 'lib/server-api';
 import { appMetadata } from '../../_shared/metadata';
 
 import type { BillingStatusView } from 'core/controllers/Billing';
-import type { CareAccessPageView, CareLinkView } from 'core/controllers/Care';
+import type { CareAccessPageView, CareEndedLinkView, CareLinkView } from 'core/controllers/Care';
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { EquipmentStance } from 'core/entities/Kitchen';
 import type { FixedMealsView } from 'core/controllers/FixedMeal';
@@ -135,31 +137,36 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
   // Health data is fetched here and only here. It is not folded into
   // `/profile`, which the dashboard also loads — a medication has no business
   // travelling to a screen that does not show it.
-  const [dictionary, locale, user, profile, health, notifications, push, billing, trips, fixedMeals, careLink, accessLog, query] = await Promise.all([
-    getDictionary(),
-    activeLocale(),
-    serverApi<UserView>('/users/me'),
-    serverApi<ProfileWithKitchen>('/profile'),
-    serverApi<HealthView>('/health-data'),
-    serverApi<NotificationSettingsView>('/notifications/settings'),
-    // Null when push is not set up on the API (`0054`), and then no switch is offered for it.
-    serverApi<{ readonly publicKey: string | null }>('/notifications/push'),
-    // Unavailable unless payments are set up and open to this person (`0056`); then no card is drawn.
-    serverApi<BillingStatusView>('/billing'),
-    serverApi<readonly VacationView[]>('/vacations'),
-    // The standing fixed meals, what is left of the allowance (`0098`, `0099`)
-    // and what is left of this month's dish requests (report `0011` § 4 a). Null
-    // before onboarding is finished, which is also when the dishes that could
-    // be fixed have no answer — so no card is drawn.
-    serverApi<FixedMealsView>('/fixed-meals'),
-    // Null with no active or paused link — not behind the `professional` switch,
-    // because consent is revocable whatever it says.
-    serverApi<CareLinkView | null>('/care/links/me'),
-    // The client's own trail (`0059`): what was read about them stays theirs to
-    // see whatever the switch says, so this is fetched whether or not a link exists.
-    serverApi<CareAccessPageView>('/care/access-log'),
-    searchParams
-  ]);
+  const [dictionary, locale, user, profile, health, notifications, push, billing, trips, fixedMeals, careLink, endedLink, accessLog, query] =
+    await Promise.all([
+      getDictionary(),
+      activeLocale(),
+      serverApi<UserView>('/users/me'),
+      serverApi<ProfileWithKitchen>('/profile'),
+      serverApi<HealthView>('/health-data'),
+      serverApi<NotificationSettingsView>('/notifications/settings'),
+      // Null when push is not set up on the API (`0054`), and then no switch is offered for it.
+      serverApi<{ readonly publicKey: string | null }>('/notifications/push'),
+      // Unavailable unless payments are set up and open to this person (`0056`); then no card is drawn.
+      serverApi<BillingStatusView>('/billing'),
+      serverApi<readonly VacationView[]>('/vacations'),
+      // The standing fixed meals, what is left of the allowance (`0098`, `0099`)
+      // and what is left of this month's dish requests (report `0011` § 4 a). Null
+      // before onboarding is finished, which is also when the dishes that could
+      // be fixed have no answer — so no card is drawn.
+      serverApi<FixedMealsView>('/fixed-meals'),
+      // Null with no active or paused link — not behind the `professional` switch,
+      // because consent is revocable whatever it says.
+      serverApi<CareLinkView | null>('/care/links/me'),
+      // The latest link, when the illness rule ended it (`0111` § 8) — a declaration saved, or the
+      // practitioner's badge lost — null otherwise, and null when the read fails. The mail of
+      // `textos/06` § Y says the profile explains it, so the care section does (`textos/05` § G.3).
+      serverApi<CareEndedLinkView | null>('/care/links/me/ended'),
+      // The client's own trail (`0059`): what was read about them stays theirs to
+      // see whatever the switch says, so this is fetched whether or not a link exists.
+      serverApi<CareAccessPageView>('/care/access-log'),
+      searchParams
+    ]);
   const t = dictionary.profile;
   const kg = (value: number) => `${formatNumber(value, locale)} ${dictionary.units.kilogram}`;
   const person = profile?.profile;
@@ -202,7 +209,7 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
             />
           ) : null}
 
-          {health ? <HealthPanel health={health} /> : null}
+          {health ? <HealthPanel health={health} unverifiedProfessional={unverifiedProfessional(careLink)} /> : null}
 
           <VacationPlanner trips={trips ?? []} />
 
@@ -252,11 +259,27 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
         {/* The link to a professional, if any (PRD 004, criterion 4), and the
             trail of who read what — shown whether or not a link exists, because
             what was once read about somebody stays theirs to see. */}
-        {careLink || (accessLog && accessLog.entries.length > 0) ? (
+        {careLink || endedLink || (accessLog && accessLog.entries.length > 0) ? (
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>{t.sectionCare}</h2>
 
             {careLink ? <CareLinkCard link={careLink} /> : null}
+
+            {/* Where the link card stood: why it is gone, in the person's own screen (§ G.3). */}
+            {endedLink ? (
+              <Note
+                as="section"
+                title={interpolate(dictionary.care.illnessEndedTitle, { professional: endedLink.professionalName })}
+                titleAs="h3"
+                tone="info"
+                toneLabel={dictionary.common.noteTone.info}
+              >
+                <MailtoText
+                  email={LEGAL_IDENTITY.email}
+                  text={interpolate(dictionary.care[illnessEndedBody(endedLink)], { professional: endedLink.professionalName })}
+                />
+              </Note>
+            ) : null}
 
             {accessLog ? <CareAccessLog initial={accessLog} /> : null}
           </section>

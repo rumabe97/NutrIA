@@ -1,0 +1,1 @@
+export { MailtoText } from './MailtoText';

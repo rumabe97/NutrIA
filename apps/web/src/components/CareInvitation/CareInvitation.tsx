@@ -7,6 +7,7 @@ import styles from './CareInvitation.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Checkbox } from 'ui/components/Checkbox';
+import { LEGAL_IDENTITY } from 'i18n/legalIdentity';
 import { Link } from 'ui/components/Link';
 import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
@@ -15,6 +16,7 @@ import { withLocale } from 'i18n/routes';
 
 import { Card } from 'components/Card';
 import { CtaLink } from 'components/CtaLink';
+import { MailtoText } from 'components/MailtoText';
 
 import { api, ApiError, messageFor } from 'lib/api';
 import { formatInstant, interpolate } from 'lib/format';
@@ -26,8 +28,11 @@ interface CareInvitationProps {
   token: string;
 }
 
-/** What every professional can do under a link, whatever it shares (textos/05 § B1) — fixed, not part of the invitation's own answer. */
+/** What a badged professional can do under a link (textos/05 § B1) — fixed, not part of the invitation's own answer. */
 const CAN_DO = ['targets', 'plans', 'review'] as const;
+
+/** Without the badge, no targets (textos/05 § F.3: `care.canDo.plans`, `care.canDo.review`, not `targets`). */
+const CAN_DO_PLAN = ['plans', 'review'] as const;
 
 /** The one placeholder `care.invitationPrivacy` carries besides `{professional}`, and the page it opens. */
 const PRIVACY_PLACEHOLDER = '{privacy}';
@@ -47,17 +52,24 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
   const [pending, setPending] = useState<'accept' | 'decline' | null>(null);
   const [error, setError] = useState<string>();
   const [existing, setExisting] = useState<ApiError['link']>(null);
+  // Refused under the illness rule (`0111` § 8): the invitation stays open, and § G.2 says why.
+  const [refused, setRefused] = useState(false);
   const healthNoteId = useId();
   const existingHeadingRef = useRef<HTMLHeadingElement>(null);
+  // Without the badge the invitation carries the plan-only list, no number and no health line
+  // (`0111` § 4). The tiered page with its own words is phase 8; until then nothing is drawn
+  // empty: no number, the plan-only list, and no health question with nothing under it.
+  const planOnly = invitation.scope === 'plan';
+  const offersHealth = invitation.healthShares.length > 0;
 
   // The `existing` branch below swaps the whole card in place with no route
   // change, so `RouteAnnouncer` never fires — move focus to its new `<h1>`
   // ourselves, or nothing tells a keyboard/screen-reader user the page changed.
   useEffect(() => {
-    if (existing) {
+    if (existing || refused) {
       existingHeadingRef.current?.focus();
     }
-  }, [existing]);
+  }, [existing, refused]);
 
   async function accept() {
     setError(undefined);
@@ -65,7 +77,9 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
 
     try {
       await api<CareLinkView>(`/care/invitations/${token}/accept`, {
-        body: { consentVersion: invitation.consentVersion, sharesHealth },
+        // `consentScope` names the list this page showed, so a badge that changes in between can
+        // only narrow what is recorded (`acceptInvitationSchema`).
+        body: { consentScope: invitation.scope, consentVersion: invitation.consentVersion, sharesHealth: offersHealth && sharesHealth },
         method: 'POST'
       });
       router.push('/perfil');
@@ -73,6 +87,8 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
     } catch (caught) {
       if (caught instanceof ApiError && caught.code === 'CARE_LINK_EXISTS' && caught.link) {
         setExisting(caught.link);
+      } else if (caught instanceof ApiError && caught.code === 'CARE_ILLNESS_RULE') {
+        setRefused(true);
       } else {
         setError(messageFor(caught, dictionary));
       }
@@ -93,6 +109,21 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
       setError(messageFor(caught, dictionary));
       setPending(null);
     }
+  }
+
+  // No way forward but the app's own navigation: § G.1's note — nothing here may suggest that
+  // removing what is on record would let the invitation through.
+  if (refused) {
+    return (
+      <Card as="section" className={`${styles.card} motion-list`} padding="lg">
+        <h1 className={styles.title} ref={existingHeadingRef} tabIndex={-1}>
+          {t.illnessRefusedTitle}
+        </h1>
+        <Text tone="secondary">
+          <MailtoText email={LEGAL_IDENTITY.email} text={interpolate(t.illnessRefusedBody, { professional: invitation.professionalName })} />
+        </Text>
+      </Card>
+    );
   }
 
   if (existing) {
@@ -120,19 +151,23 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
     <Card as="section" className={`${styles.card} motion-list`} padding="lg">
       <h1 className={styles.title}>{interpolate(t.invitationTitle, { professional: invitation.professionalName })}</h1>
       <Text tone="secondary">
-        {interpolate(t.invitationIntro, { collegiateNumber: invitation.collegiateNumber, professional: invitation.professionalName })}
+        {planOnly
+          ? interpolate(t.invitationIntroPlan, { professional: invitation.professionalName })
+          : interpolate(t.invitationIntro, { collegiateNumber: invitation.collegiateNumber, professional: invitation.professionalName })}
       </Text>
 
       <div className={styles.block}>
-        <Text weight="medium">{interpolate(t.invitationShareIntro, { professional: invitation.professionalName })}</Text>
+        <Text weight="medium">
+          {interpolate(planOnly ? t.invitationShareIntroPlan : t.invitationShareIntro, { professional: invitation.professionalName })}
+        </Text>
         <ul className={styles.list}>
-          {invitation.shares.map(share => (
-            <li key={share}>{t.shares[share]}</li>
-          ))}
+          {planOnly
+            ? invitation.sharesPlan.map(share => <li key={share}>{t.sharesPlan[share]}</li>)
+            : invitation.shares.map(share => <li key={share}>{t.shares[share]}</li>)}
         </ul>
         <Text weight="medium">{t.invitationCanDoIntro}</Text>
         <ul className={styles.list}>
-          {CAN_DO.map(item => (
+          {(planOnly ? CAN_DO_PLAN : CAN_DO).map(item => (
             <li key={item}>{t.canDo[item]}</li>
           ))}
         </ul>
@@ -144,30 +179,32 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
         </Text>
       </div>
 
-      <div className={styles.block}>
-        <Checkbox
-          aria-describedby={healthNoteId}
-          checked={sharesHealth}
-          label={t.healthQuestion}
-          onCheckedChange={value => setSharesHealth(value === true)}
-        />
-        <Text className={styles.hint} id={healthNoteId} size="sm" tone="tertiary">
-          {t.healthShareNote}
-        </Text>
+      {offersHealth ? (
+        <div className={styles.block}>
+          <Checkbox
+            aria-describedby={healthNoteId}
+            checked={sharesHealth}
+            label={t.healthQuestion}
+            onCheckedChange={value => setSharesHealth(value === true)}
+          />
+          <Text className={styles.hint} id={healthNoteId} size="sm" tone="tertiary">
+            {t.healthShareNote}
+          </Text>
 
-        {sharesHealth ? (
-          <div className={`${styles.extra} motion-drop-in`}>
-            <Text size="sm" tone="secondary">
-              {t.healthShareIntro}
-            </Text>
-            <ul className={styles.list}>
-              {invitation.healthShares.map(share => (
-                <li key={share}>{t.healthShares[share]}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-      </div>
+          {sharesHealth ? (
+            <div className={`${styles.extra} motion-drop-in`}>
+              <Text size="sm" tone="secondary">
+                {t.healthShareIntro}
+              </Text>
+              <ul className={styles.list}>
+                {invitation.healthShares.map(share => (
+                  <li key={share}>{t.healthShares[share]}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <Text size="xs" tone="tertiary">
         {interpolate(t.invitationPrivacy, { professional: invitation.professionalName })

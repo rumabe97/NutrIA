@@ -11,6 +11,7 @@ import type { Dictionary } from '../i18n/dictionaries/es-ES';
 export type ApiErrorCode =
   | 'ACCOUNT_NOT_ACTIVATED'
   | 'ASSISTANT_UNAVAILABLE'
+  | 'CARE_ILLNESS_RULE'
   | 'CARE_LINK_EXISTS'
   | 'CONFLICT'
   | 'EMAIL_NOT_VERIFIED'
@@ -68,6 +69,9 @@ export class ApiError extends Error {
 const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
   ACCOUNT_NOT_ACTIVATED: 'accountNotActivated',
   ASSISTANT_UNAVAILABLE: 'assistantUnavailable',
+  // The invitation page catches this code first and draws `textos/05` § G.2 in full;
+  // anywhere else it is only "that did not work".
+  CARE_ILLNESS_RULE: 'request',
   CARE_LINK_EXISTS: 'careLinkExists',
   CONFLICT: 'conflict',
   EMAIL_NOT_VERIFIED: 'emailNotVerified',

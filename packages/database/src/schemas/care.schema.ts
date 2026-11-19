@@ -87,10 +87,26 @@ export const careLinks = pgTable(
     consentVersion: text().notNull(),
     endedAt: timestamp({ withTimezone: true }),
     endedBy: careLinkEndedBy(),
+    /**
+     * When a badge gone narrowed this link (project 025 phase 5): it had held the
+     * badged list or the health line, and both went to the plan-only list. Set
+     * only on a link that actually narrowed, never cleared — a later re-consent
+     * writes `scopeConsentedAt` beside it, so the row reads "accepted, narrowed,
+     * widened again". Null when it never narrowed. Never shown to a practitioner.
+     */
+    narrowedAt: timestamp({ withTimezone: true }),
     professionalId: text()
       .notNull()
       .references(() => user.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
     reviewBeforePublish: boolean().notNull().default(true),
+    /**
+     * When, and under which version, the client widened this link to the badged
+     * list after accepting it (`docs/legal/textos/05` § F.4, project 025 phase 5):
+     * written by the client's re-consent alone. Null means never widened. The
+     * acceptance's own `consentedAt` and `consentVersion` are never rewritten.
+     */
+    scopeConsentedAt: timestamp({ withTimezone: true }),
+    scopeConsentVersion: text(),
     sharesHealth: boolean().notNull().default(false),
     status: careLinkStatus().notNull().default('active'),
     ...timestamps

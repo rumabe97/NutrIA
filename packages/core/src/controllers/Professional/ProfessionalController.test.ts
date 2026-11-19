@@ -15,7 +15,16 @@ import type { User } from 'core/entities/User';
 const acceptAgreement = vi.fn<(userId: string, version: string, now: Date) => Promise<Professional | null>>();
 const find = vi.fn<(userId: string) => Promise<Professional | null>>();
 const grant =
-  vi.fn<(userId: string, collegiateNumber: string, grantedBy: string, record?: (tx: unknown) => Promise<void>) => Promise<Professional>>();
+  vi.fn<
+    (
+      userId: string,
+      collegiateNumber: string,
+      grantedBy: string,
+      record?: (tx: unknown) => Promise<void>,
+      beforeRegained?: (tx: unknown) => Promise<unknown>
+    ) => Promise<Professional>
+  >();
+const narrowLinksOf = vi.fn<(professionalId: string, now: Date, tx: unknown) => Promise<number>>();
 const list = vi.fn<(query: ProfessionalQuery) => Promise<readonly ProfessionalListRow[]>>();
 const linkCounts = vi.fn<(professionalId: string) => Promise<ProfessionalListRow['links']>>();
 const revoke = vi.fn<(userId: string, record?: (tx: unknown) => Promise<void>) => Promise<boolean>>();
@@ -46,12 +55,20 @@ vi.mock('#repositories/Professional', () => ({
   ProfessionalRepository: {
     acceptAgreement: (userId: string, version: string, now: Date) => acceptAgreement(userId, version, now),
     find: (userId: string) => find(userId),
-    grant: (userId: string, collegiateNumber: string, grantedBy: string, r?: (tx: unknown) => Promise<void>) =>
-      grant(userId, collegiateNumber, grantedBy, r),
+    grant: (
+      userId: string,
+      collegiateNumber: string,
+      grantedBy: string,
+      r?: (tx: unknown) => Promise<void>,
+      beforeRegained?: (tx: unknown) => Promise<unknown>
+    ) => grant(userId, collegiateNumber, grantedBy, r, beforeRegained),
     linkCounts: (professionalId: string) => linkCounts(professionalId),
     list: (query: ProfessionalQuery) => list(query),
     revoke: (userId: string, r?: (tx: unknown) => Promise<void>) => revoke(userId, r)
   }
+}));
+vi.mock('#repositories/Care', () => ({
+  CareRepository: { narrowLinksOf: (professionalId: string, now: Date, tx: unknown) => narrowLinksOf(professionalId, now, tx) }
 }));
 vi.mock('#repositories/User', () => ({ UserRepository: { findById: (id: string) => findById(id) } }));
 vi.mock('#repositories/Settings', () => ({ SettingsRepository: { isEnabled: (key: string, fallback: boolean) => isEnabled(key, fallback) } }));
@@ -82,7 +99,7 @@ describe('ProfessionalController.grant', () => {
 
     const view = await ProfessionalController.grant('usr-dietitian', { collegiateNumber: 'MAD00123' }, 'usr-owner');
 
-    expect(grant).toHaveBeenCalledWith('usr-dietitian', 'MAD00123', 'usr-owner', expect.any(Function));
+    expect(grant).toHaveBeenCalledWith('usr-dietitian', 'MAD00123', 'usr-owner', expect.any(Function), expect.any(Function));
     expect(view).toEqual({
       collegiateNumber: 'MAD00123',
       email: 'dietista@example.com',
@@ -91,6 +108,23 @@ describe('ProfessionalController.grant', () => {
       userId: 'usr-dietitian'
     });
     expect(view).not.toHaveProperty('grantedBy');
+  });
+
+  /* Project 025 phase 5, review round two (P2-A): a grant that brings a badge back narrows that practitioner's links first. */
+  it('hands the grant a narrowing of that practitioner’s links, for its own transaction', async () => {
+    const TX = { name: 'the grant’s transaction' };
+
+    findById.mockResolvedValue(makeUser({ id: 'usr-dietitian', email: 'dietista@example.com' }));
+    grant.mockImplementation(async (_userId, _number, _by, _record, beforeRegained) => {
+      await beforeRegained?.(TX);
+
+      return makeProfessional({ grantedBy: 'usr-owner', userId: 'usr-dietitian' });
+    });
+    narrowLinksOf.mockResolvedValue(1);
+
+    await ProfessionalController.grant('usr-dietitian', { collegiateNumber: 'MAD00123' }, 'usr-owner');
+
+    expect(narrowLinksOf).toHaveBeenCalledExactlyOnceWith('usr-dietitian', expect.any(Date), TX);
   });
 
   it('is a 404 for an account that does not exist, and writes nothing', async () => {
@@ -113,7 +147,7 @@ describe('ProfessionalController.grant', () => {
 
     await ProfessionalController.grant('usr-dietitian', { collegiateNumber: 'PROBE-001' }, 'usr-dietitian', UNAUDITED);
 
-    expect(grant).toHaveBeenCalledWith('usr-dietitian', 'PROBE-001', 'usr-dietitian', undefined);
+    expect(grant).toHaveBeenCalledWith('usr-dietitian', 'PROBE-001', 'usr-dietitian', undefined, expect.any(Function));
   });
 });
 

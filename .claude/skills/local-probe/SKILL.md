@@ -116,6 +116,21 @@ through a real invitation accepted with consent. It uses the same core functions
 routes call, and it refuses any account that is not a probe's own (`@probe.invalid`). If
 the `professional` switch was off, it comes back off when the professional is deleted.
 
+Project 025's states, each built by the functions the routes call:
+
+```bash
+node $S/account.mjs link "$PROBE_DIR/pro.txt" "$PROBE_DIR/client.txt" --unbadged       # no badge: a `plan` link, health line off
+node $S/account.mjs link "$PROBE_DIR/pro.txt" "$PROBE_DIR/client.txt" --invite-only    # an open invitation; prints /invitacion/<token>
+node $S/account.mjs lose-badge "$PROBE_DIR/pro.txt"                                   # withdraws the badge, runs the illness sweep once
+```
+
+`--unbadged` and `--invite-only` combine. A client with a condition or a medication on
+record cannot be linked to an un-badged practitioner (`0111` § 8): `link` reports the
+refusal rather than forcing it — declare it through the health screen **after** linking to
+see the link end, or leave the invitation open to see the refusal. `lose-badge` runs the
+real sweep, which ends or narrows every link on the database that the rule touches — so it
+refuses to run anywhere but the local Postgres.
+
 **Never write a link, a grant, an invitation or a trail row by hand** — no SQL, no
 `psql`, no repository call around the rules. If `link` cannot build the state you need,
 stop and tell the lead, and the lead extends this script (owner, 2026-09-25).

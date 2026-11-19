@@ -70,16 +70,20 @@ const PASSWORD = 'correct-horse-battery-staple-9';
 const args = process.argv.slice(2);
 const admin = args.includes('--admin');
 const twoFactor = args.includes('--two-factor');
-const [action, cookieFile, clientCookieFile] = args.filter(arg => arg !== '--admin' && arg !== '--two-factor');
+const unbadged = args.includes('--unbadged');
+const inviteOnly = args.includes('--invite-only');
+const FLAGS = ['--admin', '--two-factor', '--unbadged', '--invite-only'];
+const [action, cookieFile, clientCookieFile] = args.filter(arg => !FLAGS.includes(arg));
 
 if (
-  !['create', 'delete', 'forget', 'link', 'compromise', 'age', 'premium'].includes(action) ||
+  !['create', 'delete', 'forget', 'link', 'lose-badge', 'compromise', 'age', 'premium'].includes(action) ||
   !cookieFile ||
   (action === 'link' && !clientCookieFile) ||
-  ((admin || twoFactor) && action !== 'create')
+  ((admin || twoFactor) && action !== 'create') ||
+  ((unbadged || inviteOnly) && action !== 'link')
 ) {
   console.error(
-    'usage: node account.mjs create <cookie-file> [--admin] [--two-factor] | delete <cookie-file> | forget <address> | link <professional-cookie-file> <client-cookie-file> | compromise <cookie-file> | age <cookie-file> | premium <cookie-file>'
+    'usage: node account.mjs create <cookie-file> [--admin] [--two-factor] | delete <cookie-file> | forget <address> | link <professional-cookie-file> <client-cookie-file> [--unbadged] [--invite-only] | lose-badge <professional-cookie-file> | compromise <cookie-file> | age <cookie-file> | premium <cookie-file>'
   );
   process.exit(2);
 }
@@ -138,7 +142,7 @@ async function call(method, path, body, cookie) {
   return response;
 }
 
-assertNotProduction({ strict: ['link', 'compromise', 'age', 'premium'].includes(action) || admin || twoFactor });
+assertNotProduction({ strict: ['link', 'lose-badge', 'compromise', 'age', 'premium'].includes(action) || admin || twoFactor });
 
 // `core` reads the database from the environment, the same one the local API was given —
 // and only that one: the guard above checked apps/api/.env, so a DATABASE_URL already
@@ -289,9 +293,16 @@ if (action === 'link') {
     console.log('[probe] the professional switch was off: on until this professional is deleted');
   }
 
-  // The owner's grant, as POST /admin/accounts/:id/professional makes it. The probe has no
-  // owner session, so the professional is named as its own granter.
-  await ProfessionalController.grant(pro.id, { collegiateNumber: 'PROBE-001' }, pro.id, UNAUDITED);
+  if (unbadged) {
+    // A practitioner with no badge check at all (project 025). Until phase 6 gives anyone a
+    // route to open a practice, the row is written the way `care-badge.e2e-spec.ts` and
+    // `care-scope.e2e-spec.ts` write it; when that route exists, call it here instead.
+    await database().$client`insert into professionals (user_id) values (${pro.id}) on conflict (user_id) do nothing`;
+  } else {
+    // The owner's grant, as POST /admin/accounts/:id/professional makes it. The probe has no
+    // owner session, so the professional is named as its own granter.
+    await ProfessionalController.grant(pro.id, { collegiateNumber: 'PROBE-001' }, pro.id, UNAUDITED);
+  }
 
   // The professional accepts the agreement at the current version, through the route a
   // professional uses. Without it the practice reads as closed and every invitation is a
@@ -310,12 +321,67 @@ if (action === 'link') {
 
   const { token } = await CareController.invite({ email: pro.email, id: pro.id }, { email: client.email });
 
-  await CareController.accept(
-    { email: client.email, emailVerified: true, id: client.id },
-    token,
-    { consentVersion: CARE_CONSENT_VERSION, sharesHealth: true }
+  if (inviteOnly) {
+    // The invitation is left open for the browser to answer: /invitacion/<token>, signed in
+    // as the client. The token is the probe's own and dies with either account.
+    console.log(`[probe] invited: ${client.email} by ${pro.email}${unbadged ? ' (no badge)' : ''}`);
+    console.log(`[probe] invitation path: /invitacion/${token}`);
+    process.exit(0);
+  }
+
+  // Through the same function the route calls, so the rules decide: an un-badged practitioner
+  // gets a `plan` link with the health line off, and a client with a condition or a
+  // medication on record is refused (`0111` § 8) — which this reports instead of forcing.
+  try {
+    await CareController.accept(
+      { email: client.email, emailVerified: true, id: client.id },
+      token,
+      { consentScope: unbadged ? 'plan' : 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: !unbadged }
+    );
+  } catch (error) {
+    if (error?.name !== 'CareIllnessRuleError' && error?.constructor?.name !== 'CareIllnessRuleError') {
+      throw error;
+    }
+
+    console.error(`[probe] refused by the illness rule: ${client.email} has a condition or a medication on record and ${pro.email} has no badge`);
+    console.error(`[probe] the invitation stays open: /invitacion/${token}`);
+    process.exit(1);
+  }
+  console.log(
+    `[probe] linked: ${client.email} is ${pro.email}'s client (practice open, 30 included, ${unbadged ? 'no badge: plan only' : 'health shared'})`
   );
-  console.log(`[probe] linked: ${client.email} is ${pro.email}'s client (practice open, 30 included, health shared)`);
+  process.exit(0);
+}
+
+if (action === 'lose-badge') {
+  // The owner withdraws the probe practitioner's badge, then the illness rule's daily sweep
+  // runs once (`0111` § 8) — the two core functions the admin route and the cron call. A
+  // linked client with a condition or a medication on record loses the link (`badge_lost`);
+  // any other link narrows to `plan`. The sweep is the real one: it ends every link on this
+  // local database that the rule ends, not the probe's alone. No mail is sent from here.
+  if (!isLocalPg()) {
+    // The sweep is global: on any shared database it would end or narrow other people's links.
+    throw new Error('lose-badge runs the whole badge-loss sweep: local Postgres only (NUTRIA_LOCAL_PG=1)');
+  }
+
+  const { ProfessionalBadgeController } = await load('core/controllers/Professional');
+  const { CareController } = await load('core/controllers/Care');
+  const pro = await (await call('GET', '/users/me', undefined, readFileSync(cookieFile, 'utf8'))).json();
+
+  if (!pro.email?.endsWith('@probe.invalid')) {
+    throw new Error('lose-badge only touches an account this script made (@probe.invalid)');
+  }
+
+  await ProfessionalBadgeController.remove(pro.id, pro.id, {
+    facts: 'Retirado por el probe local.',
+    kind: 'withdrawn',
+    reason: 'other',
+    source: 'own_check'
+  });
+
+  const swept = await CareController.sweepBadgeLoss();
+
+  console.log(`[probe] ${pro.email} has no badge now; the sweep ended ${swept.ended.length} link(s) and narrowed ${swept.narrowed}`);
   process.exit(0);
 }
 

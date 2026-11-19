@@ -93,8 +93,14 @@ export const careLinkStatus = pgEnum('care_link_status', ['active', 'paused', 'e
 /**
  * Who ended a link: one of its two sides, a practice that lapsed, or an account going away.
  * `account` is reserved and has no writer: while deleting an account cascades its link rows away, nothing is left to mark.
+ * `badge_lost` (`0111` § 8, project 025 phase 5): the daily sweep ended it because the
+ * practitioner no longer holds the badge while the client has a condition or a medication on
+ * record. `declared` (same phase, review round one): the client saved a condition or a
+ * medication while linked to a practitioner without the badge, and that ended it. The client's
+ * own screen explains either; to the practitioner both read as `client` (legal F4). Appended,
+ * never reordered.
  */
-export const careLinkEndedBy = pgEnum('care_link_ended_by', ['professional', 'client', 'lapse', 'account']);
+export const careLinkEndedBy = pgEnum('care_link_ended_by', ['professional', 'client', 'lapse', 'account', 'badge_lost', 'declared']);
 
 /**
  * What kind of a client's data a professional reached (`0059`): their entry in

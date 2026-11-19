@@ -142,7 +142,7 @@ describe('a professional publishes over a scheduled plan', () => {
     const accepted: Response = await request(server())
       .post(`/${PREFIX}/care/invitations/${await tokenMailedTo(client.email)}/accept`)
       .set('Cookie', client.cookie)
-      .send({ consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
+      .send({ consentScope: 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
       .expect(200);
 
     expect(sent.length).toBeGreaterThan(before);

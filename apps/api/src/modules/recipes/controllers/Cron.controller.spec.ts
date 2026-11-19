@@ -9,6 +9,7 @@ import { CronController } from './Cron.controller.js';
 import { CronRunService } from '../services/index.js';
 import { DuePlansService } from '../../meal-plans/services/DuePlans.service.js';
 import { ExpiredInvitationsService } from '../../care/services/ExpiredInvitations.service.js';
+import { IllnessRuleSweepService } from '../../care/services/IllnessRuleSweep.service.js';
 import { ExpiredVerificationsService } from '../../auth/services/ExpiredVerifications.service.js';
 import { ENV } from '../../../config/index.js';
 import { BadgeSweepService, OwnerAlertsService } from '../../owner-alerts/index.js';
@@ -42,6 +43,7 @@ describe('the cron routes', () => {
   const pictureFailures = jest.fn(async () => Promise.resolve());
   const clean = jest.fn(async (_budgetMs: number) => Promise.resolve({ deleted: 0, left: 0 }));
   const badgeSweep = jest.fn(async () => Promise.resolve());
+  const illnessRule = jest.fn(async () => Promise.resolve());
   const bearer = (secret: string) => ['Bearer', secret].join(' ');
 
   afterEach(async () => {
@@ -65,7 +67,8 @@ describe('the cron routes', () => {
         { provide: DuePlansService, useValue: { activate } },
         { provide: PictureCandidatesService, useValue: { clean } },
         { provide: OwnerAlertsService, useValue: { checkSpend, digest, pictureFailures, watchReminders } },
-        { provide: BadgeSweepService, useValue: { run: badgeSweep } }
+        { provide: BadgeSweepService, useValue: { run: badgeSweep } },
+        { provide: IllnessRuleSweepService, useValue: { run: illnessRule } }
       ]
     }).compile();
 
@@ -98,6 +101,31 @@ describe('the cron routes', () => {
     await request(server).get('/cron/reminders').set('Authorization', bearer('wrong')).expect(404);
 
     expect(badgeSweep).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs the illness rule’s sweep on the reminders route, after the badge’s pass and before the reminders, and only there (project 025 phase 5)', async () => {
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/reminders').set('Authorization', bearer(SECRET)).expect(200);
+
+    expect(illnessRule).toHaveBeenCalledTimes(1);
+    // After the badge's pass: a badge it just lapsed is already gone when the links are read.
+    expect(badgeSweep.mock.invocationCallOrder[0]).toBeLessThan(illnessRule.mock.invocationCallOrder[0] ?? 0);
+    expect(illnessRule.mock.invocationCallOrder[0]).toBeLessThan(sweep.mock.invocationCallOrder[0] ?? 0);
+
+    await request(server).get('/cron/activate-plans').set('Authorization', bearer(SECRET)).expect(200);
+    await request(server).get('/cron/reminders').set('Authorization', bearer('wrong')).expect(404);
+
+    expect(illnessRule).toHaveBeenCalledTimes(1);
+  });
+
+  it('still sends the reminders when the illness rule’s sweep fails', async () => {
+    illnessRule.mockRejectedValueOnce(new Error('boom'));
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/reminders').set('Authorization', bearer(SECRET)).expect(200);
+
+    expect(sweep).toHaveBeenCalledTimes(1);
   });
 
   it('still sends the reminders when the badge’s pass fails', async () => {

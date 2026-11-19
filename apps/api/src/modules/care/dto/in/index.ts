@@ -3,6 +3,7 @@ export * from './AcceptInvitation.dto.js';
 export * from './ApplyForBadge.dto.js';
 export * from './EnterBadgeCode.dto.js';
 export * from './InviteClient.dto.js';
+export * from './ReconsentLink.dto.js';
 export * from './SetClientTargets.dto.js';
 export * from './SetClientReview.dto.js';
 export * from './SetLinkHealth.dto.js';

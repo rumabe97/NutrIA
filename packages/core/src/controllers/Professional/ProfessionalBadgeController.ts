@@ -3,6 +3,7 @@ import { createHash, randomInt } from 'node:crypto';
 import { badgeFrom, codeIsLive, lapseDate, newestFirst, pendingApplication, ProfessionalBadgeRepository } from '#repositories/Professional';
 import { BADGE_LAPSE_DETAILS, BADGE_REMOVAL_REASONS } from 'core/entities/Professional';
 import { AnalyticsRepository } from '#repositories/Analytics';
+import { CareRepository } from '#repositories/Care';
 import { SettingsRepository } from '#repositories/Settings';
 import { FLAGS } from 'core/domain/Flag';
 import { NotFoundError } from 'core/entities/Error';
@@ -378,11 +379,20 @@ export const ProfessionalBadgeController = {
     return ProfessionalBadgeController.state(userId, now);
   },
 
-  /** The owner confirms: a `pass` due twelve months on. A 404 unless there is a code entered for an application, or a badge to renew. */
+  /**
+   * The owner confirms: a `pass` due twelve months on. A 404 unless there is a
+   * code entered for an application, or a badge to renew.
+   *
+   * When no badge stood just before (lapsed by the clock, or lost to a `fail`,
+   * and not yet swept), the practitioner's open links narrow first, in the same
+   * transaction (`CareRepository.narrowLinksOf`, project 025 phase 5): a badge
+   * that comes back widens nothing until each client consents afresh. A renewal
+   * under a standing badge narrows nothing.
+   */
   async confirm(userId: string, ownerId: string, now: Date = new Date()): Promise<BadgeRecordView> {
     const account = await accountOf(userId);
 
-    if (!(await ProfessionalBadgeRepository.confirm(userId, ownerId, now))) {
+    if (!(await ProfessionalBadgeRepository.confirm(userId, ownerId, now, tx => CareRepository.narrowLinksOf(userId, now, tx)))) {
       throw new NotFoundError(NOT_FOUND);
     }
 
@@ -446,10 +456,18 @@ export const ProfessionalBadgeController = {
    * (`withdrawn`), with the reason the statement carries. A 404 when there is
    * no application, or no badge, to decide. The badge closes on the
    * practitioner's next request: `badgeOf` reads this row.
+   *
+   * A badge withdrawn narrows every open link of that practitioner in the same
+   * transaction (`CareRepository.narrowLinksOf`, project 025 phase 5): the
+   * client's consent to the badged list does not outlive the badge, so a badge
+   * granted again widens nothing until the client consents afresh. Nothing is
+   * sent to any client.
    */
   async remove(userId: string, ownerId: string, input: RemoveBadge, now: Date = new Date()): Promise<BadgeRemoval> {
     const account = await accountOf(userId);
-    const removed = await ProfessionalBadgeRepository.remove(userId, ownerId, input.kind, storedReason(input), now);
+    const removed = await ProfessionalBadgeRepository.remove(userId, ownerId, input.kind, storedReason(input), now, tx =>
+      CareRepository.narrowLinksOf(userId, now, tx)
+    );
 
     if (!removed) {
       throw new NotFoundError(NOT_FOUND);

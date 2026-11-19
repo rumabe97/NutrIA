@@ -18,6 +18,7 @@ import {
 } from 'core/entities/Professional';
 
 import type { ApplyForBadge, BadgeChannel, BadgeLapseDetail, ProfessionalBadgeCheck, ProfessionalBadgeCode } from 'core/entities/Professional';
+import type { SQL } from 'drizzle-orm';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -29,6 +30,9 @@ const DECISIVE: readonly ProfessionalBadgeCheck['kind'][] = ['pass', 'fail', 'wi
  * when, with nobody re-checking, it lapses. `checkedBy` is not here — it is the
  * owner's account and no reader of a badge needs it.
  */
+/** Where a badge is read from: the pool, or a transaction the caller holds. */
+export type BadgeReader = ReturnType<typeof database> | Tx;
+
 export interface Badge {
   readonly channel: BadgeChannel | null;
   readonly checkedAt: Date;
@@ -171,6 +175,20 @@ function backoff(attempt: number): number {
 type Tx = Parameters<Parameters<ReturnType<typeof database>['transaction']>[0]>[0];
 
 /**
+ * **The practitioner's badge lock — its one definition** (project 025 phase 5):
+ * a transaction-scoped advisory lock keyed on the account. Every write that
+ * changes the badge record (`apply`, `confirm`, `issueCode`,
+ * `remove`, `ProfessionalRepository.grant`) holds it, and so does every write
+ * that stores a consent only a standing badge allows (`CareRepository.accept`,
+ * `reconsent`, `setSharesHealth(true)`), so the two never decide on a badge the
+ * other is about to change. Always the first lock its transaction takes on that
+ * practitioner, before any row of `professionals` or `care_links`.
+ */
+function badgeLockKey(userId: string): SQL {
+  return sql`hashtext('professional_badge'), hashtext(${userId})`;
+}
+
+/**
  * Runs `fn` in a transaction holding the practitioner's badge lock, so the
  * practitioner and the owner acting at once each decide on what the other
  * wrote. A try-lock with a short, jittered retry (`EventRepository`'s shape): a
@@ -183,9 +201,7 @@ async function underLock<T>(userId: string, fn: (tx: Tx) => Promise<T>): Promise
     }
 
     const result = await database().transaction(async tx => {
-      const [lock] = await tx.execute<{ held: boolean }>(
-        sql`select pg_try_advisory_xact_lock(hashtext('professional_badge'), hashtext(${userId})) as held`
-      );
+      const [lock] = await tx.execute<{ held: boolean }>(sql`select pg_try_advisory_xact_lock(${badgeLockKey(userId)}) as held`);
 
       return lock?.held ? { value: await fn(tx) } : undefined;
     });
@@ -269,10 +285,15 @@ export const ProfessionalBadgeRepository = {
   /**
    * The practitioner's badge now, or null. The only per-account reader of the
    * badge: one indexed read of the latest decisive check, judged by `badgeFrom`.
+   *
+   * `db` is the caller's transaction when it holds one (project 025 phase 5,
+   * `CareRepository`'s illness rule and consent writes): the read then runs on the
+   * connection the transaction already holds, never queuing for a second one
+   * while its locks are held.
    */
-  async badgeOf(userId: string, now: Date): Promise<Badge | null> {
+  async badgeOf(userId: string, now: Date, db: BadgeReader = database()): Promise<Badge | null> {
     try {
-      const [row] = await database()
+      const [row] = await db
         .select()
         .from(professionalBadgeChecks)
         .where(and(eq(professionalBadgeChecks.userId, userId), inArray(professionalBadgeChecks.kind, [...DECISIVE])))
@@ -285,14 +306,17 @@ export const ProfessionalBadgeRepository = {
     }
   },
 
-  /** The badge of each account named, by `badgeFrom`; an account without one is absent from the map. */
-  async badgesOf(userIds: readonly string[], now: Date): Promise<ReadonlyMap<string, Badge>> {
+  /**
+   * The badge of each account named, by `badgeFrom`; an account without one is
+   * absent from the map. `db` as for `badgeOf`.
+   */
+  async badgesOf(userIds: readonly string[], now: Date, db: BadgeReader = database()): Promise<ReadonlyMap<string, Badge>> {
     if (userIds.length === 0) {
       return new Map();
     }
 
     try {
-      const rows = await database()
+      const rows = await db
         .select()
         .from(professionalBadgeChecks)
         .where(and(inArray(professionalBadgeChecks.userId, [...userIds]), inArray(professionalBadgeChecks.kind, [...DECISIVE])));
@@ -326,8 +350,16 @@ export const ProfessionalBadgeRepository = {
    *   it, if the owner sent one.
    *
    * Null otherwise. Codes not entered expire.
+   *
+   * `beforeRegained`, when given, runs inside this transaction **before** the
+   * pass is written, and only when no badge stood just before it (project 025
+   * phase 5): a badge lapsed by the clock or lost to a `fail`, not yet swept.
+   * The controller hands down the narrowing of the practitioner's links
+   * (`CareRepository.narrowLinksOf`), so a badge that comes back never finds a
+   * `full` link the client has not consented to afresh. A renewal under a
+   * standing badge never calls it.
    */
-  async confirm(userId: string, checkedBy: string, now: Date): Promise<Badge | null> {
+  async confirm(userId: string, checkedBy: string, now: Date, beforeRegained?: (tx: Tx) => Promise<unknown>): Promise<Badge | null> {
     try {
       return await underLock(userId, async tx => {
         const checks = await checksOf(tx, userId);
@@ -357,6 +389,12 @@ export const ProfessionalBadgeRepository = {
         }
 
         await expireUnusedCodes(tx, userId, now);
+
+        // Judged on every check, not on `standing` (which a pending application nulls): did a badge stand just before?
+        if (beforeRegained && badgeFrom(checks, now) === null) {
+          await beforeRegained(tx);
+        }
+
         const [row] = await tx
           .insert(professionalBadgeChecks)
           .values({
@@ -554,6 +592,20 @@ export const ProfessionalBadgeRepository = {
   },
 
   /**
+   * Takes the practitioner's badge lock (`badgeLockKey`) inside `tx`, waiting
+   * for it — for the short consent writes of `CareRepository` and the owner's
+   * 004 grant, which already hold a transaction and cannot retry one. Released
+   * at commit or rollback. The first lock the caller takes on that practitioner.
+   */
+  async lock(tx: Tx, userId: string): Promise<void> {
+    try {
+      await tx.execute(sql`select pg_advisory_xact_lock(${badgeLockKey(userId)})`);
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
    * Every account with a badge record, for the owner's list: the account's
    * address and name, its checks and its newest code. Never a client, and
    * unpaged: there are few.
@@ -625,7 +677,17 @@ export const ProfessionalBadgeRepository = {
    * standing badge taken back), with `reason` as the statement of reasons. Null
    * when there is nothing of that kind to decide. Codes not entered expire.
    */
-  async remove(userId: string, checkedBy: string, kind: 'fail' | 'withdrawn', reason: string, now: Date): Promise<RemovedCheck | null> {
+  async remove(
+    userId: string,
+    checkedBy: string,
+    kind: 'fail' | 'withdrawn',
+    reason: string,
+    now: Date,
+    // Run inside this transaction after a badge is withdrawn (project 025 phase 5): the
+    // practitioner's links narrow at the same moment (`CareRepository.narrowLinksOf`). The
+    // controller builds it; this repository does not know what it does.
+    whenWithdrawn?: (tx: Tx) => Promise<unknown>
+  ): Promise<RemovedCheck | null> {
     try {
       return await underLock(userId, async tx => {
         const checks = await checksOf(tx, userId);
@@ -640,6 +702,10 @@ export const ProfessionalBadgeRepository = {
         await tx
           .insert(professionalBadgeChecks)
           .values({ checkedAt: now, checkedBy, kind, number: target.number, reason, register: target.register, userId });
+
+        if (kind === 'withdrawn' && whenWithdrawn) {
+          await whenWithdrawn(tx);
+        }
 
         return { checkedAt: now, kind, number: target.number, register: target.register };
       });

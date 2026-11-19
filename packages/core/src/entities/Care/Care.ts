@@ -34,6 +34,23 @@ export const CARE_SHARED = ['profile', 'targets', 'mealPlans', 'progress', 'chec
 export type CareShared = (typeof CARE_SHARED)[number];
 
 /**
+ * What a link lets an un-badged practitioner see (`0110` decision 3, `0111` §§ 4-5,
+ * `docs/legal/textos/05` § F.3), in the order the client reads it — the list of a
+ * `plan` scope:
+ *
+ * - `profile` — the client's name;
+ * - `plans` — the plans the practitioner makes through this link (generated,
+ *   reviewed or published by them), with their dishes, amounts and each day's totals;
+ * - `status` — where things stand: since when, whether the profile is finished,
+ *   whether a plan is under way or waiting for review, generations left.
+ *
+ * No health line exists beside it: `setSharesHealth(true)` is refused outside `full`.
+ */
+export const CARE_SHARED_PLAN = ['profile', 'plans', 'status'] as const;
+
+export type CareSharedPlan = (typeof CARE_SHARED_PLAN)[number];
+
+/**
  * The separate line (PRD 004, criterion 12): shared only when the client ticks
  * it, and otherwise absent from everything the professional is shown.
  */
@@ -63,8 +80,19 @@ export type InviteClient = z.infer<typeof inviteClientSchema>;
  * The client's answer. The version must be the current one — an older string
  * is agreement to a list that is not the one being shared — and the health
  * line is its own yes or no, never implied by the rest.
+ *
+ * `consentScope` names the list the client read (`0111` § 4, PLAN 025 phase 5
+ * step 2), and is required: nothing is presumed from its absence. The link is
+ * stored `full` only when this says `full` **and** the badge stands at the moment
+ * of accepting; `plan` here always records `plan`, and `full` with no badge
+ * records `plan` too, with no error — so a badge that lands between reading the
+ * plan-only list and accepting it never widens what the client agreed to.
  */
-export const acceptInvitationSchema = z.object({ consentVersion: z.literal(CARE_CONSENT_VERSION), sharesHealth: z.boolean() });
+export const acceptInvitationSchema = z.object({
+  consentScope: z.enum(['full', 'plan']),
+  consentVersion: z.literal(CARE_CONSENT_VERSION),
+  sharesHealth: z.boolean()
+});
 
 export type AcceptInvitation = z.infer<typeof acceptInvitationSchema>;
 
@@ -87,6 +115,16 @@ export const setLinkHealthSchema = z.object({ sharesHealth: z.boolean() });
 export type SetLinkHealth = z.infer<typeof setLinkHealthSchema>;
 
 /**
+ * The client widens their own open link to the badged list (`0111` § 4,
+ * `docs/legal/textos/05` § F.4), at the current version: a badge gained mid-link
+ * widens nothing until this is sent. The health line is not in it — it stays its
+ * own yes or no (`setLinkHealthSchema`).
+ */
+export const reconsentLinkSchema = z.object({ consentVersion: z.literal(CARE_CONSENT_VERSION) });
+
+export type ReconsentLink = z.infer<typeof reconsentLinkSchema>;
+
+/**
  * A link's id as a path carries it. Anything else names no link and is
  * answered as every unknown link is — a 404, never a 400 that would tell a
  * caller the route is there.
@@ -97,9 +135,33 @@ export const CARE_LINK_STATUSES = ['active', 'paused', 'ended'] as const;
 
 export type CareLinkStatus = (typeof CARE_LINK_STATUSES)[number];
 
-export const CARE_LINK_ENDED_BY = ['professional', 'client', 'lapse', 'account'] as const;
+/**
+ * Who or what ended a link, as `care_link_ended_by` holds it. The illness rule
+ * (`0111` § 8) has two of its own: `badge_lost`, the daily sweep — the
+ * practitioner lost the badge while the client had a condition or a medication
+ * on record — and `declared`, the client saved one while linked to a
+ * practitioner without it. **A practitioner never reads any value but
+ * `professional` and `client`** (`endedByForPractitioner`, legal F4): a distinct
+ * label would be the disclosure.
+ */
+export const CARE_LINK_ENDED_BY = ['professional', 'client', 'lapse', 'account', 'badge_lost', 'declared'] as const;
 
 export type CareLinkEndedBy = (typeof CARE_LINK_ENDED_BY)[number];
+
+/** The illness rule's two endings, as the client's own screen tells them apart (`docs/legal/textos/05` § G.3). */
+export const CARE_RULE_ENDINGS = ['badge_lost', 'declared'] as const satisfies readonly CareLinkEndedBy[];
+
+export type CareRuleEnding = (typeof CARE_RULE_ENDINGS)[number];
+
+/**
+ * How a practitioner may ever be told a link ended (legal F4, PRD 025 criterion
+ * 22): by themselves, or — for every other cause, the illness rule's included —
+ * exactly as if the client had ended it. No view a practitioner reads carries
+ * `endedBy` today; one that ever does goes through this.
+ */
+export function endedByForPractitioner(endedBy: CareLinkEndedBy): Extract<CareLinkEndedBy, 'client' | 'professional'> {
+  return endedBy === 'professional' ? 'professional' : 'client';
+}
 
 /**
  * Which list a link's client consented to (`0111` § 4): `full`, the badged list,
@@ -121,8 +183,13 @@ export const careLinkSchema = z.object({
   createdAt: z.date(),
   endedAt: z.date().nullable(),
   endedBy: z.enum(CARE_LINK_ENDED_BY).nullable(),
+  /** When a badge gone narrowed this link to the plan-only list; null when it never did. Never cleared. */
+  narrowedAt: z.date().nullable(),
   professionalId: z.string().min(1),
   reviewBeforePublish: z.boolean(),
+  /** When and under which version the client widened the link to the badged list; null when never. */
+  scopeConsentedAt: z.date().nullable(),
+  scopeConsentVersion: z.string().min(1).nullable(),
   sharesHealth: z.boolean(),
   status: z.enum(CARE_LINK_STATUSES),
   updatedAt: z.date()

@@ -43,7 +43,12 @@ function select() {
   const chain = {
     from: () => chain,
     innerJoin: () => chain,
-    limit: () => Promise.resolve(openLink ? [openLink] : []),
+    // Awaited as it is, or held `FOR UPDATE` first: the same rows either way.
+    limit: () => {
+      const rows = openLink ? [openLink] : [];
+
+      return Object.assign(Promise.resolve(rows), { for: () => Promise.resolve(rows) });
+    },
     where: (where: SQL) => {
       selectWhere = where;
 
@@ -102,7 +107,15 @@ function deleteRows(table: unknown) {
 /** The badge, as `ProfessionalBadgeRepository.badgeOf` answers it — its own suite proves what it reads. */
 const badgeOf = vi.fn<(userId: string, now: Date) => Promise<object | null>>();
 
-vi.mock('#repositories/Professional', () => ({ ProfessionalBadgeRepository: { badgeOf: (userId: string, now: Date) => badgeOf(userId, now) } }));
+/** The practitioner's badge lock, as `ProfessionalBadgeRepository.lock` takes it: whose. */
+const badgeLock = vi.fn<(userId: string) => Promise<void>>();
+
+vi.mock('#repositories/Professional', () => ({
+  ProfessionalBadgeRepository: {
+    badgeOf: (userId: string, now: Date) => badgeOf(userId, now),
+    lock: (_tx: unknown, userId: string) => badgeLock(userId)
+  }
+}));
 
 vi.mock('database', () => ({
   database: () => ({
@@ -176,18 +189,64 @@ describe('CareRepository.setSharesHealth', () => {
       createdAt: NOW,
       endedAt: null,
       endedBy: null,
+      narrowedAt: null,
       professionalId: PRO_ID,
       reviewBeforePublish: true,
+      scopeConsentedAt: null,
+      scopeConsentVersion: null,
       sharesHealth,
       status: 'active',
       updatedAt: NOW
     },
+    // What the first read — the practitioner, without a lock on the link — answers from the same fake.
+    professionalId: PRO_ID,
     professionalName: 'Dra. Pérez'
   });
 
   beforeEach(() => {
     statements.length = 0;
     inserted.length = 0;
+    badgeOf.mockReset();
+    badgeOf.mockResolvedValue({ number: '28-1234' });
+    badgeLock.mockReset();
+    badgeLock.mockResolvedValue();
+  });
+
+  it('turning it on takes the practitioner’s badge lock before the link’s row; turning it off takes none', async () => {
+    ended = { clientId: 'usr-client', professionalId: PRO_ID };
+    openLink = stored(false);
+
+    await CareRepository.setSharesHealth('usr-client', true, NOW);
+    expect(badgeLock).toHaveBeenCalledExactlyOnceWith(PRO_ID);
+
+    badgeLock.mockClear();
+    openLink = stored(true);
+
+    await CareRepository.setSharesHealth('usr-client', false, NOW);
+    expect(badgeLock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['without the badge', 'full', false],
+    ['on a link consented to the plan-only list', 'plan', true]
+  ] as const)('refuses to turn it on %s — null, as no link is, and nothing written (PRD 025 criterion 11)', async (_case, consentScope, badged) => {
+    ended = { clientId: 'usr-client', professionalId: PRO_ID };
+    openLink = { ...stored(false), link: { ...stored(false).link, consentScope } };
+    badgeOf.mockResolvedValue(badged ? { number: '28-1234' } : null);
+
+    await expect(CareRepository.setSharesHealth('usr-client', true, NOW)).resolves.toBeNull();
+    expect(statements).toEqual([]);
+    expect(inserted).toEqual([]);
+  });
+
+  it('turns it off whatever the scope — a consent is as easy to take back as to give', async () => {
+    ended = { clientId: 'usr-client', professionalId: PRO_ID };
+    openLink = { ...stored(true), link: { ...stored(true).link, consentScope: 'plan' } };
+    badgeOf.mockResolvedValue(null);
+
+    await expect(CareRepository.setSharesHealth('usr-client', false, NOW)).resolves.toMatchObject({ link: { sharesHealth: false } });
+    expect(badgeOf).not.toHaveBeenCalled();
+    expect(inserted).toHaveLength(1);
   });
 
   it.each([
@@ -206,14 +265,20 @@ describe('CareRepository.setSharesHealth', () => {
 
     expect(change?.table).toBe(careLinks);
     expect(change?.set).toEqual({ sharesHealth, updatedAt: NOW });
-    // The session's id is the owner, only an open link, and only when it would change.
-    expect(change?.sql).toBe('(("care_links"."client_id" = $1 and "care_links"."status" in ($2, $3)) and "care_links"."shares_health" <> $4)');
-    expect(change?.params).toEqual(['usr-client', 'active', 'paused', sharesHealth]);
+    // The session's id is the owner, only an open link — on is also only the practitioner whose badge lock
+    // is held — and only when it would change.
+    const owner = sharesHealth
+      ? '("care_links"."client_id" = $1 and "care_links"."status" in ($2, $3) and "care_links"."professional_id" = $4)'
+      : '("care_links"."client_id" = $1 and "care_links"."status" in ($2, $3))';
+    const ownerParams = sharesHealth ? ['usr-client', 'active', 'paused', PRO_ID] : ['usr-client', 'active', 'paused'];
+
+    expect(change?.sql).toBe(`(${owner} and "care_links"."shares_health" <> $${ownerParams.length + 1})`);
+    expect(change?.params).toEqual([...ownerParams, sharesHealth]);
     // The link it answers and logs is read the same way: the session's client, open, and never by a link id.
     const read = dialect.sqlToQuery(selectWhere as SQL);
 
-    expect(read.sql).toBe('("care_links"."client_id" = $1 and "care_links"."status" in ($2, $3))');
-    expect(read.params).toEqual(['usr-client', 'active', 'paused']);
+    expect(read.sql).toBe(owner);
+    expect(read.params).toEqual(ownerParams);
     expect(`${change?.sql} ${read.sql}`).not.toContain('"care_links"."id"');
     expect(inserted).toEqual([
       {
@@ -284,8 +349,11 @@ describe('CareRepository.activeLink — the scope the link opens now', () => {
       createdAt: NOW,
       endedAt: null,
       endedBy: null,
+      narrowedAt: null,
       professionalId: 'usr-pro',
       reviewBeforePublish: false,
+      scopeConsentedAt: null,
+      scopeConsentVersion: null,
       sharesHealth: true,
       status: 'active',
       updatedAt: NOW

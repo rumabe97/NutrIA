@@ -74,7 +74,7 @@ import type { Response } from 'supertest';
  */
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PASSWORD = 'correct-horse-battery-staple-9';
-const ACCEPT: AcceptInvitation = { consentVersion: CARE_CONSENT_VERSION, sharesHealth: false };
+const ACCEPT: AcceptInvitation = { consentScope: 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false };
 const NOBODYS_LINK = '00000000-0000-4000-8000-000000000000';
 
 /** A `care_links` row, as the suite reads it to prove what is — and is not — stored. */
@@ -534,10 +534,15 @@ describe('care', () => {
     it('refuses an old consent version — the previous real one included — and a missing health answer, and makes nothing', async () => {
       const { token } = await invite(pro, client.email);
 
-      expect((await accept(client, token, { consentVersion: '0.0.1', sharesHealth: false })).status).toBe(422);
+      expect((await accept(client, token, { consentScope: 'full', consentVersion: '0.0.1', sharesHealth: false })).status).toBe(422);
       // The version this door took before `CARE_CONSENT_VERSION` became `2.0.0` (P1-3) is stale too, not merely a made-up one.
-      expect((await accept(client, token, { consentVersion: '1.0.0', sharesHealth: false })).status).toBe(422);
-      expect((await accept(client, token, { consentVersion: CARE_CONSENT_VERSION })).status).toBe(422);
+      expect((await accept(client, token, { consentScope: 'full', consentVersion: '1.0.0', sharesHealth: false })).status).toBe(422);
+      expect((await accept(client, token, { consentScope: 'full', consentVersion: CARE_CONSENT_VERSION })).status).toBe(422);
+      // Which list was read is required too (PLAN 025 phase 5 step 2): nothing is presumed from its absence.
+      expect((await accept(client, token, { consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })).status).toBe(422);
+      expect((await accept(client, token, { consentScope: 'everything', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })).status).toBe(
+        422
+      );
       expect(await linkRows(client.id)).toEqual([]);
       // Refused at the door, not spent.
       await request(server()).get(`/${PREFIX}/care/invitations/${token}`).set('Cookie', client.cookie).expect(200);
@@ -561,17 +566,23 @@ describe('care', () => {
     it('accepting stores the version and the health line, and works once', async () => {
       const { token } = await invite(pro, client.email);
 
-      const accepted: Response = await accept(client, token, { consentVersion: CARE_CONSENT_VERSION, sharesHealth: true });
+      const accepted: Response = await accept(client, token, { consentScope: 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: true });
 
       expect(accepted.status).toBe(200);
       const link = accepted.body as CareLinkView;
 
       expect(link).toMatchObject({
         consentIsCurrent: true,
+        // A badged inviter and the badged list read: `full`, and nothing on offer to widen (PLAN 025 phase 5).
+        consentScope: 'full',
         consentVersion: CARE_CONSENT_VERSION,
         professionalName: nameOf(pro),
+        professionalVerified: true,
+        reconsentOffered: false,
+        scope: 'full',
         shares: [...CARE_SHARED, ...CARE_HEALTH_SHARED],
         sharesHealth: true,
+        sharesPlan: [],
         status: 'active'
       });
       expect(JSON.stringify(link)).not.toContain(pro.id);
@@ -605,7 +616,7 @@ describe('care', () => {
 
       dedicated = await grant(dedicated);
       const { token } = await invite(dedicated, dated.email);
-      const accepted = await accept(dated, token, { consentVersion: CARE_CONSENT_VERSION, sharesHealth: false });
+      const accepted = await accept(dated, token, { consentScope: 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false });
       const linkId = (accepted.body as CareLinkView).id;
 
       await tables()`update care_links set consent_version = '1.0.0' where id = ${linkId}`;
@@ -1021,7 +1032,7 @@ describe('care', () => {
     /** Links `client` to `professional` through the routes, as the two people do. */
     async function link(professional: Account, client: Account, sharesHealth = false): Promise<string> {
       const { token } = await invite(professional, client.email);
-      const accepted = await accept(client, token, { consentVersion: CARE_CONSENT_VERSION, sharesHealth });
+      const accepted = await accept(client, token, { consentScope: 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth });
 
       expect(accepted.status).toBe(200);
 

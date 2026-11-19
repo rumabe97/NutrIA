@@ -1202,6 +1202,7 @@ export const esES = {
       'backup-code-used': 'Código de respaldo usado',
       'backup-codes-regenerated': 'Códigos de respaldo nuevos',
       'care-invitation': 'Invitación de vínculo',
+      'care-link-ended-by-rule': 'Vínculo terminado por la regla de salud',
       'check-in-reminder': 'Aviso de check-in',
       'checkin-submitted': 'Check-in enviado',
       'existing-account-sign-up': 'Alta con un correo que ya tiene cuenta',
@@ -1445,10 +1446,19 @@ export const esES = {
     healthShareOnHint: 'Tu dietista puede verlas.',
     healthShares: { conditions: 'tus condiciones de salud', medications: 'tus medicamentos', supplements: 'tus suplementos' },
     healthShareToggle: 'Compartir mis condiciones de salud, mi medicación y mis suplementos',
+    illnessEndedBadgeBody:
+      '{professional} ya no tiene la verificación de NutrIA, y tú tienes anotada una condición de salud o una medicación: en NutrIA, solo un dietista-nutricionista verificado puede acompañar a quien tiene alguna. Tu plan, tus objetivos y tu historial se quedan contigo. A {professional} solo le consta que el enlace ha terminado. Si crees que es un error, escríbenos a {email}.',
+    illnessEndedBody:
+      'Has anotado una condición de salud o una medicación, y en NutrIA solo un dietista-nutricionista verificado puede acompañar a quien tiene alguna. Tu plan, tus objetivos y tu historial se quedan contigo, y el registro de sus accesos sigue en tu perfil. A {professional} solo le consta que el enlace ha terminado. Si crees que es un error, escríbenos a {email}.',
+    illnessEndedTitle: 'Tu enlace con {professional} ha terminado',
+    illnessRefusedBody:
+      'Tienes anotada en tu perfil una condición de salud o una medicación, y en NutrIA solo un dietista-nutricionista verificado puede acompañar a quien tiene alguna. {professional} no lo es. No sabrá el motivo: para su lado, la invitación sigue sin respuesta hasta que caduque. Si crees que es un error, escríbenos a {email} y lo revisa una persona.',
+    illnessRefusedTitle: 'No puedes aceptar esta invitación',
     invitationAccept: 'Aceptar la invitación',
     invitationCanDoIntro: 'Y podrá:',
     invitationIntro:
       '{professional}, dietista-nutricionista con número de colegiado {collegiateNumber}, te invita a llevar tu plan con su ayuda en NutrIA.',
+    invitationIntroPlan: '{professional} te invita a que te haga el plan de comidas en NutrIA.',
     invitationLinkExistsBody: 'Ya tienes un dietista vinculado: {professional}, desde el {since}.',
     invitationLinkExistsCta: 'Ver mi perfil',
     invitationLinkExistsTitle: 'Ya tienes un enlace activo',
@@ -1456,6 +1466,7 @@ export const esES = {
     invitationPrivacy:
       'NutrIA te comunica estos datos a {professional} porque tú lo pides. Tu dietista los usa para atenderte, bajo su secreto profesional, y responde de lo que haga con ellos en su consulta. Puedes terminar el enlace cuando quieras. Más en la {privacy}.',
     invitationShareIntro: 'Si aceptas, {professional} verá:',
+    invitationShareIntroPlan: 'Si aceptas, {professional} verá solo:',
     invitationTitle: 'Invitación de {professional}',
     invitationTrail: 'Cada vez que mire o cambie algo, lo verás en tu perfil.',
     linkSince: 'Desde el {date}',
@@ -1466,6 +1477,12 @@ export const esES = {
       profile: 'tu nombre',
       progress: 'cuánto sigues cada quincena y tu peso a lo largo del tiempo',
       targets: 'tus objetivos diarios y cómo se calcularon'
+    },
+    sharesPlan: {
+      plans: 'los planes que te haga a través de este enlace —los que genere, revise o publique—, con sus platos, cantidades y totales de cada día',
+      profile: 'tu nombre',
+      status:
+        'en qué punto estáis: desde cuándo estáis vinculados, si has terminado tu perfil, si tienes un plan en marcha o por revisar, y si te quedan generaciones de plan en la quincena'
     },
     whatIsShared: 'Comparte: {list}'
   },
@@ -1958,8 +1975,10 @@ export const esES = {
     conditionsOtherHint: 'Separa con comas. No interpretamos lo que escribas aquí.',
     consentLabel: 'Guardad estos datos de salud para personalizar mis planes',
     consentNote:
-      'Se guardan en tu cuenta, no aparecen en los registros del servidor y se borran con tu cuenta. Nunca se envían a ningún modelo de IA: solo llega su efecto, como los ingredientes que quitamos por una celiaquía. Si trabajas con un dietista, solo los ve si se lo permites aparte. Puedes borrarlos por separado con el botón de abajo.',
+      'Se guardan en tu cuenta, no aparecen en los registros del servidor y se borran con tu cuenta. Nunca se envían a ningún modelo de IA: solo llega su efecto, como los ingredientes que quitamos por una celiaquía. Un profesional solo los ve si tiene la insignia de dietista-nutricionista verificado por NutrIA y tú se lo permites aparte. Mientras tengas anotada alguna condición o medicación, solo podrás vincularte con un profesional con esa insignia; si estás vinculado con uno sin ella, el enlace terminará al guardarla. Puedes borrarlos por separado con el botón de abajo.',
     consentStale: 'Hemos actualizado cómo explicamos el uso de estos datos. Revisa y vuelve a guardar para seguir manteniéndolos.',
+    illnessLinkWarning:
+      'Si guardas una condición de salud o una medicación, terminará tu enlace con {professional}: en NutrIA, solo un dietista-nutricionista verificado puede acompañar a quien tiene alguna anotada. Tu plan, tus objetivos y tu historial se quedan contigo. A {professional} solo le constará que el enlace ha terminado.',
     intro: 'Opcional. Nada de esto es obligatorio para usar NutrIA, y puedes borrarlo entero cuando quieras.',
     medications: 'Medicación',
     medicationsHint: 'Solo el nombre. No pedimos dosis porque no hacemos nada con ella.',

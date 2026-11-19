@@ -16,10 +16,18 @@ import {
   CARE_HEALTH_SHARED,
   CARE_INVITATION_TTL_DAYS,
   CARE_SHARED,
+  CARE_SHARED_PLAN,
   CARE_TOKEN_PATTERN,
   careLinkIdSchema
 } from 'core/entities/Care';
-import { CareLinkExistsError, DatabaseOperationError, InputParseError, NotFoundError, PracticeFullError } from 'core/entities/Error';
+import {
+  CareIllnessRuleError,
+  CareLinkExistsError,
+  DatabaseOperationError,
+  InputParseError,
+  NotFoundError,
+  PracticeFullError
+} from 'core/entities/Error';
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 
 import type { LinkWithProfessional, OpenInvitation, RecordAccess, RosterLink } from '#repositories/Care';
@@ -33,8 +41,11 @@ import type {
   CareLink,
   CareLinkStatus,
   CareProfessionalAction,
+  CareRuleEnding,
   CareShared,
+  CareSharedPlan,
   InviteClient,
+  ReconsentLink,
   SetClientReview,
   SetLinkHealth
 } from 'core/entities/Care';
@@ -113,25 +124,58 @@ export interface CareInvitationView {
 }
 
 /**
+ * A practitioner's badge as a client may read it (`0111` § 2, `docs/legal/textos/05`
+ * § F.1): the number and the day of the owner's `pass` check, never a number the
+ * practitioner typed (PLAN 025 phase 3, step 6).
+ */
+export interface CareBadgeLineView {
+  /** When NutrIA checked the register, as an instant: the screen formats the day. */
+  checkedAt: string;
+  /** The collegiate number the check confirmed; null on a check that recorded none. */
+  collegiateNumber: string | null;
+}
+
+/**
  * What the invited client reads before answering (`0059`): who invites, the
  * consent version they would be agreeing to, what is shared, and the separate
  * health line they may add. Keys, not sentences — the screen owns the words.
+ *
+ * **The list is the tier's** (`0111` § 4, PLAN 025 phase 5 step 1), picked by
+ * the inviter's badge as it stands now: `scope: 'full'` — the badge — is
+ * `shares` with `healthShares` beside it and `badge` set; `scope: 'plan'` — no
+ * badge — is `sharesPlan`, with `shares` and `healthShares` empty, `badge` null
+ * and `collegiateNumber` empty: no health line, and no number nobody checked.
  */
 export interface CareInvitationDetailView {
-  /** The inviter's collegiate number, as the owner granted it: who invites, checkable in the register (`docs/legal/textos/05` § B1). */
+  /** The badge line, under the badge only; null without it. */
+  badge: CareBadgeLineView | null;
+  /**
+   * The badge's collegiate number, or `''` without the badge. Kept for today's
+   * screen; `badge` is what the tiered screen reads.
+   */
   collegiateNumber: string;
   consentVersion: string;
   expiresAt: string;
-  /** Offered as its own yes or no; shared only if the client says yes to it. */
+  /** Offered as its own yes or no; shared only if the client says yes to it. Empty without the badge. */
   healthShares: readonly CareHealthShared[];
   professionalName: string;
+  /** Which list this is, so accepting can say which one the client read (`acceptInvitationSchema.consentScope`). */
+  scope: CareConsentScope;
+  /** The badged list; empty without the badge. */
   shares: readonly CareShared[];
+  /** The plan-only list (`CARE_SHARED_PLAN`); empty with the badge. */
+  sharesPlan: readonly CareSharedPlan[];
 }
 
 /**
  * The client's own link: whose it is, where it stands, what it shares and
  * since when. `shares` lists everything the professional may see under it,
  * the health items included only when the client said yes to that line.
+ *
+ * **What it shares is what it opens now** (`0111` § 4, PLAN 025 phase 5 step
+ * 1): under a `full` scope, `shares`; under `plan` — no badge now, or consent to
+ * the plan-only list — `sharesPlan`, and `shares` is empty. `sharesHealth` is the
+ * client's own choice as stored, theirs to see and take back whatever the scope.
  */
 export interface CareLinkView {
   id: string;
@@ -141,12 +185,47 @@ export interface CareLinkView {
    * the list has changed.
    */
   consentIsCurrent: boolean;
+  /** Which list the client consented to: `full`, the badged one, or `plan`. */
+  consentScope: CareConsentScope;
   consentVersion: string;
   professionalName: string;
+  /**
+   * Whether the practitioner holds NutrIA's badge now. False is when the health
+   * screen warns before a condition or a medication is saved
+   * (`health.illnessLinkWarning`, `docs/legal/textos/05` § G.1): saving one ends
+   * this link (`0111` § 8).
+   */
+  professionalVerified: boolean;
+  /**
+   * Whether the badged list is on offer (`docs/legal/textos/05` § F.4): the link
+   * is consented to `plan` and the badge stands now. `POST /care/links/me/consent`
+   * widens it; the offer goes the moment the badge does.
+   */
+  reconsentOffered: boolean;
+  /** What the link opens now: `full` only with the badge and the badged consent both. */
+  scope: CareConsentScope;
+  /** The badged list, under a `full` scope; empty under `plan`. */
   shares: readonly (CareHealthShared | CareShared)[];
   sharesHealth: boolean;
+  /** The plan-only list, under a `plan` scope; empty under `full`. */
+  sharesPlan: readonly CareSharedPlan[];
   since: string;
   status: CareLinkStatus;
+}
+
+/**
+ * The client's latest link, when the illness rule ended it (`0111` § 8). What
+ * the client's own screen needs to say so plainly (`docs/legal/textos/05` §
+ * G.3), and nothing about the record itself: `reason` picks the approved
+ * sentence — `badge_lost`, the practitioner lost NutrIA's badge while the client
+ * had a condition or a medication on record (`care.illnessEndedBadgeBody`);
+ * `declared`, the client saved one while linked to a practitioner without it
+ * (`care.illnessEndedBody`).
+ */
+export interface CareEndedLinkView {
+  endedAt: string;
+  professionalName: string;
+  reason: CareRuleEnding;
 }
 
 /**
@@ -401,29 +480,56 @@ function presentProgress(progress: ProgressSummaryView, targets: ResolvedTargets
   };
 }
 
+/**
+ * The invitation as the client reads it, by the inviter's badge now (`0111` §
+ * 4): the badged list, the health line and the checked number with the badge;
+ * the plan-only list, no health line and no number without it.
+ */
 function presentInvitationDetail(row: OpenInvitation): CareInvitationDetailView {
+  const common = { consentVersion: CARE_CONSENT_VERSION, expiresAt: row.expiresAt.toISOString(), professionalName: row.professionalName };
+
+  if (!row.badge) {
+    return { ...common, badge: null, collegiateNumber: '', healthShares: [], scope: 'plan', shares: [], sharesPlan: CARE_SHARED_PLAN };
+  }
+
   return {
-    // `?? ''` is a type fix only (project 025 phase 2): every row today was granted with a number; the number moves to the badge in phase 3.
-    collegiateNumber: row.collegiateNumber ?? '',
-    consentVersion: CARE_CONSENT_VERSION,
-    expiresAt: row.expiresAt.toISOString(),
+    ...common,
+    badge: { checkedAt: row.badge.checkedAt.toISOString(), collegiateNumber: row.badge.number },
+    collegiateNumber: row.badge.number ?? '',
     healthShares: CARE_HEALTH_SHARED,
-    professionalName: row.professionalName,
-    shares: CARE_SHARED
+    scope: 'full',
+    shares: CARE_SHARED,
+    sharesPlan: []
   };
 }
 
-function presentLink({ link, professionalName }: LinkWithProfessional): CareLinkView {
+/**
+ * The client's own link, with what it opens now: `badged` is the practitioner's
+ * badge read for this answer (`0111` § 4), never cached.
+ */
+function presentLink({ link, professionalName }: LinkWithProfessional, badged: boolean): CareLinkView {
+  const scope = linkScope(link.consentScope, badged);
+
   return {
     id: link.id,
     consentIsCurrent: link.consentVersion === CARE_CONSENT_VERSION,
+    consentScope: link.consentScope,
     consentVersion: link.consentVersion,
     professionalName,
-    shares: link.sharesHealth ? [...CARE_SHARED, ...CARE_HEALTH_SHARED] : CARE_SHARED,
+    professionalVerified: badged,
+    reconsentOffered: link.consentScope === 'plan' && badged && link.status !== 'ended',
+    scope,
+    shares: scope !== 'full' ? [] : link.sharesHealth ? [...CARE_SHARED, ...CARE_HEALTH_SHARED] : CARE_SHARED,
     sharesHealth: link.sharesHealth,
+    sharesPlan: scope === 'full' ? [] : CARE_SHARED_PLAN,
     since: link.consentedAt.toISOString(),
     status: link.status
   };
+}
+
+/** `presentLink`, with the practitioner's badge read now. */
+async function linkView(row: LinkWithProfessional, now: Date): Promise<CareLinkView> {
+  return presentLink(row, (await ProfessionalBadgeRepository.badgeOf(row.link.professionalId, now)) !== null);
 }
 
 // --- Helpers ------------------------------------------------------------------
@@ -516,6 +622,14 @@ export const CareController = {
    * A client with a link already gets a `CareLinkExistsError` naming it —
    * 409, and the invitation stays open, so ending that link and coming back
    * works. Every other reason there is nothing to accept is the same 404.
+   *
+   * The link records the list the client consented to — `full` only with the
+   * badge standing now and no word from the client that they read the plan-only
+   * one (`CareRepository.accept`). A client with a condition or a medication on
+   * record, invited by a practitioner without the badge, gets a
+   * `CareIllnessRuleError` — 409 `CARE_ILLNESS_RULE`, naming nothing — and the
+   * invitation stays open, unanswered (`0111` § 8). Nothing reaches the
+   * practitioner either way (legal F4): this method queues nothing.
    */
   async accept(session: CareSession, token: string, answer: AcceptInvitation, now: Date = new Date()): Promise<CareLinkView> {
     await assertOpen();
@@ -526,6 +640,10 @@ export const CareController = {
       throw new NotFoundError('Invitation not found');
     }
 
+    if (outcome.kind === 'refused') {
+      throw new CareIllnessRuleError();
+    }
+
     if (outcome.kind === 'exists') {
       throw new CareLinkExistsError({
         professionalName: outcome.professionalName,
@@ -534,7 +652,7 @@ export const CareController = {
       });
     }
 
-    return presentLink(outcome);
+    return linkView(outcome, now);
   },
 
   /**
@@ -675,6 +793,20 @@ export const CareController = {
   },
 
   /**
+   * The client's latest link, when the illness rule ended it (`0111` § 8) — the
+   * sweep (`badge_lost`) or their own declaration (`declared`) — with which, or
+   * null: what their profile explains (`docs/legal/textos/05` § G.3), as the mail
+   * of `textos/06` § Y promises, and even when the answer to a save was lost. The
+   * session's own links and nobody else's. Not behind the switch, like `myLink`:
+   * what happened to a link is the client's to read whatever it says.
+   */
+  async endedLink(session: Pick<CareSession, 'id'>): Promise<CareEndedLinkView | null> {
+    const row = await CareRepository.lastEndedByRule(session.id);
+
+    return row ? { endedAt: row.endedAt.toISOString(), professionalName: row.professionalName, reason: row.reason } : null;
+  },
+
+  /**
    * An account is being deleted: every invitation addressed to it goes too
    * (PRD 004, criterion 14). Called from Better Auth's `beforeDelete` with the
    * deleted account's own address, and not behind the switch — deletion must
@@ -790,10 +922,10 @@ export const CareController = {
    * The client's own link, if any — `active` or `paused` — or null. Not behind
    * the switch: a client sees what they consented to whatever it says.
    */
-  async myLink(session: Pick<CareSession, 'id'>): Promise<CareLinkView | null> {
+  async myLink(session: Pick<CareSession, 'id'>, now: Date = new Date()): Promise<CareLinkView | null> {
     const row = await CareRepository.clientLink(session.id);
 
-    return row ? presentLink(row) : null;
+    return row ? linkView(row, now) : null;
   },
 
   /**
@@ -941,6 +1073,28 @@ export const CareController = {
   },
 
   /**
+   * The client widens their own open link to the badged list (`0111` § 4,
+   * `docs/legal/textos/05` § F.4), at the current version — only a link consented
+   * to `plan`, and only while the practitioner's badge stands. Every other case —
+   * no open link, one already `full`, no badge now — is the same 404, and writes
+   * nothing. Behind the switch, like accepting: it is a consent given, not one
+   * taken back. The health line stays off until the client turns it on
+   * (`setSharesHealth`). No trail row: the trail records what a professional
+   * reached and the health line's yes and no, and no action of it fits a list
+   * widened.
+   */
+  async reconsent(session: Pick<CareSession, 'id'>, input: ReconsentLink, now: Date = new Date()): Promise<CareLinkView> {
+    // The switch off is one more "nothing to widen": the same 404, byte for byte, as every other refusal here.
+    const row = (await switchedOn()) ? await CareRepository.reconsent(session.id, input.consentVersion, now) : null;
+
+    if (!row) {
+      throw new NotFoundError('Link not found');
+    }
+
+    return linkView(row, now);
+  },
+
+  /**
    * Turns review before publishing on or off (`review`, `write`). Turning it
    * off publishes nothing: a plan already pending stays pending until the
    * professional publishes it or a newer plan replaces it.
@@ -968,6 +1122,11 @@ export const CareController = {
    * asking for what already holds changes nothing and leaves none. Off closes
    * the professional's health read on the very next request, because
    * `withClient` reads the link afresh every time.
+   *
+   * **On is refused outside `full`** (`0111` § 4, PRD 025 criterion 11): with
+   * the practitioner's badge not standing now, or the link consented to the
+   * plan-only list, turning the line on is the same 404 as no link, and nothing
+   * is written. Off always works.
    */
   async setSharesHealth(session: Pick<CareSession, 'id'>, input: SetLinkHealth, now: Date = new Date()): Promise<CareLinkView> {
     const row = await CareRepository.setSharesHealth(session.id, input.sharesHealth, now);
@@ -976,7 +1135,7 @@ export const CareController = {
       throw new NotFoundError('Link not found');
     }
 
-    return presentLink(row);
+    return linkView(row, now);
   },
 
   /**
@@ -1029,6 +1188,36 @@ export const CareController = {
 
       return planOnlyMealDetail(await swap(clientId, record));
     });
+  },
+
+  /**
+   * The daily part of a badge gone (`0111` §§ 4 and 8, `/cron/reminders`): every
+   * open link whose practitioner's badge does not stand now ends when the client
+   * has a condition or a medication on record, and narrows to the plan-only list
+   * otherwise (`CareRepository.sweepBadgeLoss`). Answers, for each ending, the
+   * **client's** account and address and the practitioner's name — for the
+   * client's mail (`docs/legal/textos/06` § Y) and nothing else — and how many
+   * narrowed. Nothing goes to the practitioner (legal F4): to them it is a link
+   * the client ended; and nothing to anybody for a narrowing.
+   */
+  async sweepBadgeLoss(
+    now: Date = new Date()
+  ): Promise<{
+    readonly ended: readonly { readonly clientId: string; readonly professionalName: string; readonly to: string | null }[];
+    readonly narrowed: number;
+  }> {
+    const { ended, narrowed } = await CareRepository.sweepBadgeLoss(now);
+
+    return {
+      ended: await Promise.all(
+        ended.map(async row => ({
+          clientId: row.clientId,
+          professionalName: row.professionalName,
+          to: (await UserRepository.findById(row.clientId))?.email ?? null
+        }))
+      ),
+      narrowed
+    };
   },
 
   /**

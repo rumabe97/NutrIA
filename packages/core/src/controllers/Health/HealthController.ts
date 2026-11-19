@@ -1,4 +1,5 @@
 import { CONDITION_EXCLUSIONS, CONDITION_SUGGESTIONS, conditionImplications, supervisionRecommended, supplementProteinG } from 'core/domain/Health';
+import { CareRepository } from '#repositories/Care';
 import { HEALTH_CONSENT_VERSION } from 'core/entities/Health';
 import { HealthRepository } from '#repositories/Health';
 import { SafetyRepository } from '#repositories/Safety';
@@ -41,6 +42,15 @@ export interface HealthView {
    */
   supplementProteinG: number;
   supplements: readonly Supplement[];
+}
+
+/**
+ * What saving the section answers: the section as it now stands, and
+ * `linkEnded` — the practitioner whose link this save ended under the illness
+ * rule (`0111` § 8), or null. The name only: the person knows what they saved.
+ */
+export interface HealthSavedView extends HealthView {
+  linkEnded: { professionalName: string } | null;
 }
 
 /**
@@ -91,11 +101,19 @@ export const HealthController = {
   /**
    * Replaces the whole section. The schema requires the current consent version,
    * so a client cannot submit health data while agreeing to nothing.
+   *
+   * **The illness rule** (`0111` § 8, PRD 025 criterion 22): in the same
+   * transaction as the section, once it is written, a condition or a medication
+   * on record ends the person's open link to a practitioner without NutrIA's
+   * badge (`CareRepository.endOnDeclaration`) — both commit, or neither. The
+   * answer says so in `linkEnded`, with the practitioner's name and nothing
+   * else, so the screen tells the person at once (`docs/legal/textos/05` § G.3);
+   * the practitioner is sent nothing (legal F4). Supplements alone never end one.
    */
-  async replace(userId: string, input: SetHealthData): Promise<HealthView> {
-    await HealthRepository.replaceAll(userId, input);
+  async replace(userId: string, input: SetHealthData, now: Date = new Date()): Promise<HealthSavedView> {
+    const ended = await HealthRepository.replaceAll(userId, input, tx => CareRepository.endOnDeclaration(userId, now, tx));
 
-    return HealthController.get(userId);
+    return { ...(await HealthController.get(userId)), linkEnded: ended ? { professionalName: ended.professionalName } : null };
   },
 
   /**

@@ -11,8 +11,16 @@ import { professionals } from 'database/schema/professional';
 import { user } from 'database/schema/auth';
 
 import { DatabaseOperationError } from 'core/entities/Error';
+import { HealthRepository, onRecord } from '#repositories/Health';
 import { ProfessionalBadgeRepository } from '#repositories/Professional';
-import { CARE_ACCESS_ACTIONS, CARE_ACCESS_KINDS, careAccessEntrySchema, careInvitationSchema, careLinkSchema } from 'core/entities/Care';
+import {
+  CARE_ACCESS_ACTIONS,
+  CARE_ACCESS_KINDS,
+  CARE_RULE_ENDINGS,
+  careAccessEntrySchema,
+  careInvitationSchema,
+  careLinkSchema
+} from 'core/entities/Care';
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 
 import { linkScope } from './CareScope';
@@ -26,12 +34,17 @@ import type {
   CareInvitation,
   CareLink,
   CareLinkEndedBy,
-  CareProfessionalAction
+  CareProfessionalAction,
+  CareRuleEnding
 } from 'core/entities/Care';
+import type { Badge } from '#repositories/Professional';
 import type { SQL } from 'drizzle-orm';
 
 /** The statuses a link is still a link in. `ended` is history. */
 const OPEN_STATUSES = ['active', 'paused'] as const;
+
+/** Whether a link's client agreed to more than the plan-only list: what a badge gone narrows (`narrowLinks`). */
+const widerThanPlan = or(eq(careLinks.consentScope, 'full'), eq(careLinks.sharesHealth, true));
 
 /**
  * A professional who may work with clients today (`0061`, `docs/legal/textos/01`):
@@ -89,9 +102,14 @@ export type RosterLink = {
 /** Everything on a professional's list: the live invitations, and the open links. */
 export type Roster = { readonly invitations: readonly { readonly email: string; readonly expiresAt: Date }[]; readonly links: readonly RosterLink[] };
 
-/** An invitation the session's account may read, with who sent it. */
+/**
+ * An invitation the session's account may read, with who sent it and the
+ * sender's badge as it stands now (`0111` § 2) — which list the client reads is
+ * decided by it, and the number shown is the badge's, never the one typed into
+ * `professionals` (PLAN 025 phase 3, step 6).
+ */
 export type OpenInvitation = {
-  readonly collegiateNumber: string | null;
+  readonly badge: Badge | null;
   readonly expiresAt: Date;
   readonly professionalId: string;
   readonly professionalName: string;
@@ -108,7 +126,16 @@ export type LinkWithProfessional = { readonly link: CareLink; readonly professio
  * answers all of them with the same 404.
  */
 export type AcceptOutcome =
-  ({ readonly kind: 'created' } & LinkWithProfessional) | ({ readonly kind: 'exists' } & LinkWithProfessional) | { readonly kind: 'gone' };
+  | ({ readonly kind: 'created' } & LinkWithProfessional)
+  | ({ readonly kind: 'exists' } & LinkWithProfessional)
+  | { readonly kind: 'gone' }
+  | { readonly kind: 'refused' };
+
+/** A link the illness rule ended (`0111` § 8): whose, and the practitioner's name the client's notice carries. */
+export type RuleEnding = { readonly clientId: string; readonly linkId: string; readonly professionalName: string };
+
+/** The client's latest link, when the illness rule ended it: the name, when, and which of its two endings (`CARE_RULE_ENDINGS`). */
+export type EndedByRule = { readonly endedAt: Date; readonly professionalName: string; readonly reason: CareRuleEnding };
 
 /**
  * What inviting came to (`0061`): the invitation, or the practice's reason
@@ -163,6 +190,21 @@ export const CareRepository = {
    * rows in one order means the two never deadlock. A practice not paid for
    * gets the link `paused`, as a lapse leaves the others, and paying again
    * reactivates it with them.
+   *
+   * **The consent's scope is recorded here** (`0111` § 4, PLAN 025 phase 5 step
+   * 2), from the practitioner's badge read at this moment: `full` only when the
+   * badge stands **and** the client did not say they read the plan-only list;
+   * `plan` otherwise, with the health line off whatever the body says — it opens
+   * nothing outside `full`. A badge gained later widens nothing until the client
+   * re-consents (`reconsent`).
+   *
+   * **The illness rule** (`0111` § 8, PRD 025 criterion 22): with the
+   * practitioner un-badged and a condition or a medication on the client's
+   * record (`onRecord`), nothing is written — the invitation stays, unanswered,
+   * to expire like any other — and the answer is `refused`. The client's row is
+   * held (`lockClient`) before the record is read, as `endOnDeclaration` holds it
+   * before it reads the link, so an acceptance and a declaration sent together
+   * queue, and the second sees what the first committed.
    */
   async accept(clientId: string, email: string, tokenHash: string, answer: AcceptInvitation, now: Date): Promise<AcceptOutcome> {
     try {
@@ -176,6 +218,11 @@ export const CareRepository = {
         if (!addressed) {
           return { kind: 'gone' };
         }
+
+        // The practitioner's badge lock, first of all (`ProfessionalBadgeRepository.lock`): a withdrawal
+        // or a regain queues behind this acceptance, or this behind it — never a `full` link stored on a
+        // badge that is going. Before the practice's row, as `grant` takes it before the same row.
+        await ProfessionalBadgeRepository.lock(tx, addressed.professionalId);
 
         const [practice] = await tx
           .select({ open: professionals.practiceOpen })
@@ -192,18 +239,32 @@ export const CareRepository = {
           .limit(1)
           .for('update', { of: careInvitations });
 
-        if (!invitation || !practice) {
+        // The same invitation the lock was taken for: its token names one row and one sender.
+        if (!invitation || !practice || invitation.professionalId !== addressed.professionalId) {
           return { kind: 'gone' };
         }
+
+        await lockClient(tx, clientId);
+
+        // The badge as it stands now, on this transaction's own connection: one definition, never cached (`0111` § 2).
+        const badged = (await ProfessionalBadgeRepository.badgeOf(invitation.professionalId, now, tx)) !== null;
+
+        if (!badged && (await HealthRepository.hasRecord(clientId, tx))) {
+          return { kind: 'refused' };
+        }
+
+        const consentScope: CareConsentScope = badged && answer.consentScope === 'full' ? 'full' : 'plan';
 
         const [created] = await tx
           .insert(careLinks)
           .values({
             clientId,
             consentedAt: now,
+            // Named on every insert (PLAN 025 phase 5 step 0): the column's default is to go.
+            consentScope,
             consentVersion: answer.consentVersion,
             professionalId: invitation.professionalId,
-            sharesHealth: answer.sharesHealth,
+            sharesHealth: consentScope === 'full' && answer.sharesHealth,
             status: practice.open ? 'active' : 'paused'
           })
           .onConflictDoNothing()
@@ -388,24 +449,52 @@ export const CareRepository = {
     try {
       const owner = side === 'client' ? careLinks.clientId : careLinks.professionalId;
 
-      return await database().transaction(async tx => {
-        const [ended] = await tx
-          .update(careLinks)
-          .set({ endedAt: now, endedBy: side, status: 'ended', updatedAt: now })
-          .where(and(eq(careLinks.id, linkId), eq(owner, userId), inArray(careLinks.status, [...OPEN_STATUSES])))
-          .returning({ clientId: careLinks.clientId, professionalId: careLinks.professionalId });
+      return await database().transaction(async tx => (await endLinks(tx, and(eq(careLinks.id, linkId), eq(owner, userId)), side, now)).length > 0);
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
 
-        if (!ended) {
-          return false;
-        }
+  /**
+   * **The illness rule, on a declaration** (`0111` § 8, PRD 025 criterion 22):
+   * run by `HealthController.replace` inside the transaction that writes the
+   * health section (`tx`), after it is written. With a condition or a medication
+   * now on the client's record (`onRecord`) and their open link — `active` or
+   * `paused` — to a practitioner whose badge does not stand now, that link ends
+   * in the same transaction, exactly as `end` ends it, the targets' mark
+   * included.
+   *
+   * Recorded `ended_by = 'declared'`, so the client's own screen can say why
+   * even if the answer to their save never arrived (`lastEndedByRule`); to the
+   * practitioner it is, as legal F4 requires, an ending by the client and nothing
+   * else (`endedByForPractitioner`). Nothing is queued to anybody here.
+   *
+   * The client's row is held first (`lockClient`), as `accept` holds it before
+   * it reads the record, so a declaration and an acceptance sent together queue
+   * and the second sees what the first committed. `clientId` is the session's.
+   */
+  async endOnDeclaration(clientId: string, now: Date, tx: Transaction): Promise<RuleEnding | null> {
+    try {
+      await lockClient(tx, clientId);
 
-        await tx
-          .update(targetOverrides)
-          .set({ setByProfessionalId: null, updatedAt: now })
-          .where(and(eq(targetOverrides.userId, ended.clientId), eq(targetOverrides.setByProfessionalId, ended.professionalId)));
+      if (!(await HealthRepository.hasRecord(clientId, tx))) {
+        return null;
+      }
 
-        return true;
-      });
+      const [open] = await tx
+        .select({ id: careLinks.id, professionalId: careLinks.professionalId, professionalName: user.name })
+        .from(careLinks)
+        .innerJoin(user, eq(user.id, careLinks.professionalId))
+        .where(and(eq(careLinks.clientId, clientId), inArray(careLinks.status, [...OPEN_STATUSES])))
+        .limit(1);
+
+      if (!open || (await ProfessionalBadgeRepository.badgeOf(open.professionalId, now, tx)) !== null) {
+        return null;
+      }
+
+      const ended = await endLinks(tx, and(eq(careLinks.id, open.id), eq(careLinks.clientId, clientId)), 'declared', now);
+
+      return ended.length > 0 ? { clientId, linkId: open.id, professionalName: open.professionalName } : null;
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -524,6 +613,33 @@ export const CareRepository = {
   },
 
   /**
+   * The client's latest link, when the illness rule ended it — the sweep
+   * (`badge_lost`) or their own declaration (`declared`) — with which, or null:
+   * so the client's own screen can say plainly what happened
+   * (`docs/legal/textos/05` § G.3), as the mail of `textos/06` § Y promises, and
+   * even when the answer to a save was lost. A newer link, open or ended any
+   * other way, is the latest and answers null. `clientId` is the session's, and
+   * the only filter.
+   */
+  async lastEndedByRule(clientId: string): Promise<EndedByRule | null> {
+    try {
+      const [row] = await database()
+        .select({ endedAt: careLinks.endedAt, endedBy: careLinks.endedBy, professionalName: user.name })
+        .from(careLinks)
+        .innerJoin(user, eq(user.id, careLinks.professionalId))
+        .where(eq(careLinks.clientId, clientId))
+        .orderBy(desc(careLinks.createdAt), desc(careLinks.id))
+        .limit(1);
+
+      const reason = CARE_RULE_ENDINGS.find(ending => ending === row?.endedBy);
+
+      return reason && row?.endedAt ? { endedAt: row.endedAt, professionalName: row.professionalName, reason } : null;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
    * One row of the client's trail. `clientId` came from an active link that
    * `withClient` has just resolved against the professional's session — never
    * from a request.
@@ -553,25 +669,42 @@ export const CareRepository = {
   },
 
   /**
+   * **A badge taken back by the owner** (`0111` § 4, PRD 025 criterion 12): run
+   * inside the owner's removal transaction (`ProfessionalBadgeRepository.remove`,
+   * handed down by `ProfessionalBadgeController.remove`), so every open link of
+   * that practitioner narrows for good at the same moment — `consent_scope =
+   * 'plan'`, the health line off — and a badge granted again later widens nothing
+   * until each client's own `reconsent`. Ending a link under the illness rule
+   * stays the sweep's (`sweepBadgeLoss`): `0111` § 8 has three points and no
+   * fourth. Answers how many narrowed; nothing is sent to anybody.
+   */
+  async narrowLinksOf(professionalId: string, now: Date, tx: Transaction): Promise<number> {
+    try {
+      return await narrowLinks(tx, eq(careLinks.professionalId, professionalId), now);
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
    * The invitation behind a token, for the account it was sent to — or null
    * for every other case, alike. The inviter must still be a professional.
    */
   async openInvitation(clientId: string, email: string, tokenHash: string, now: Date): Promise<OpenInvitation | null> {
     try {
       const [row] = await database()
-        .select({
-          collegiateNumber: professionals.collegiateNumber,
-          expiresAt: careInvitations.expiresAt,
-          professionalId: careInvitations.professionalId,
-          professionalName: user.name
-        })
+        .select({ expiresAt: careInvitations.expiresAt, professionalId: careInvitations.professionalId, professionalName: user.name })
         .from(careInvitations)
         .innerJoin(professionals, eq(professionals.userId, careInvitations.professionalId))
         .innerJoin(user, eq(user.id, careInvitations.professionalId))
         .where(answerable(tokenHash, email, clientId, now))
         .limit(1);
 
-      return row ?? null;
+      if (!row) {
+        return null;
+      }
+
+      return { ...row, badge: await ProfessionalBadgeRepository.badgeOf(row.professionalId, now) };
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -597,6 +730,61 @@ export const CareRepository = {
       ]);
 
       return { activeClients: links[0]?.total ?? 0, pendingInvitations: invitations[0]?.total ?? 0 };
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * The client widens their own open link to the badged list (`0111` § 4,
+   * `docs/legal/textos/05` § F.4, PLAN 025 phase 5 step 2): only a link consented
+   * to `plan`, only while the practitioner's badge stands — read now — and
+   * the widening leaves its own evidence: `scope_consented_at` and
+   * `scope_consent_version`, written here and nowhere else. Nothing else moves —
+   * not `consentedAt` and `consentVersion` (what was accepted, and when: the
+   * link's "since"), not the health line, which stays its own yes or no.
+   * Null for every other case — no open link, already `full`, no badge — and
+   * nothing is written. `clientId` is the session's, and the only filter.
+   */
+  async reconsent(clientId: string, consentVersion: string, now: Date): Promise<LinkWithProfessional | null> {
+    try {
+      return await database().transaction(async tx => {
+        // The practitioner's badge lock before the link's row (`lockLinkPractitioner`): a withdrawal holds
+        // the lock and then narrows the rows, so nobody may wait for the lock while holding one of them.
+        const professionalId = await lockLinkPractitioner(tx, clientId);
+
+        if (!professionalId) {
+          return null;
+        }
+
+        const open = and(eq(careLinks.clientId, clientId), inArray(careLinks.status, [...OPEN_STATUSES]));
+        const [row] = await tx
+          .select({ link: careLinks, professionalName: user.name })
+          .from(careLinks)
+          .innerJoin(user, eq(user.id, careLinks.professionalId))
+          .where(and(open, eq(careLinks.professionalId, professionalId), eq(careLinks.consentScope, 'plan')))
+          .limit(1)
+          .for('update', { of: careLinks });
+
+        if (!row) {
+          return null;
+        }
+
+        const link = careLinkSchema.parse(row.link);
+
+        if ((await ProfessionalBadgeRepository.badgeOf(link.professionalId, now, tx)) === null) {
+          return null;
+        }
+
+        const widened = { consentScope: 'full', scopeConsentedAt: now, scopeConsentVersion: consentVersion, updatedAt: now } as const;
+
+        await tx
+          .update(careLinks)
+          .set(widened)
+          .where(and(eq(careLinks.id, link.id), open));
+
+        return { link: { ...link, ...widened }, professionalName: row.professionalName };
+      });
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -692,7 +880,13 @@ export const CareRepository = {
    * The client starts or stops sharing the health line on their own open link
    * (`docs/legal/analysis.md` P0-1), without ending it. `clientId` is the
    * session's and the ownership boundary; the link is whichever is `active` or
-   * `paused` — there is at most one.
+   * `paused` — there is at most one, held `FOR UPDATE` while it changes.
+   *
+   * **Starting is refused outside `full`** (`0111` § 4, PRD 025 criterion 11,
+   * PLAN phase 5 step 3): with the practitioner's badge not standing now, or the
+   * link consented to the plan-only list, the answer is null — the same as no
+   * link — and nothing is written. Stopping always works: a consent is as easy
+   * to take back as it was to give (RGPD art. 7.3).
    *
    * A change and its row in the client's trail — `health`, `granted` or
    * `withdrawn`, under that link, naming the professional — are one
@@ -704,39 +898,125 @@ export const CareRepository = {
   async setSharesHealth(clientId: string, sharesHealth: boolean, now: Date): Promise<LinkWithProfessional | null> {
     try {
       return await database().transaction(async tx => {
-        const open = and(eq(careLinks.clientId, clientId), inArray(careLinks.status, [...OPEN_STATUSES]));
+        // Turning the line on needs the badge, so it takes the practitioner's badge lock before the link's row
+        // (`lockLinkPractitioner`). Turning it off needs no badge and takes no lock: it only narrows.
+        const professionalId = sharesHealth ? await lockLinkPractitioner(tx, clientId) : undefined;
+
+        if (sharesHealth && !professionalId) {
+          return null;
+        }
+
+        const open = and(
+          eq(careLinks.clientId, clientId),
+          inArray(careLinks.status, [...OPEN_STATUSES]),
+          professionalId ? eq(careLinks.professionalId, professionalId) : undefined
+        );
+        const [row] = await tx
+          .select({ link: careLinks, professionalName: user.name })
+          .from(careLinks)
+          .innerJoin(user, eq(user.id, careLinks.professionalId))
+          .where(open)
+          .limit(1)
+          .for('update', { of: careLinks });
+
+        if (!row) {
+          return null;
+        }
+
+        const link = careLinkSchema.parse(row.link);
+
+        if (sharesHealth && !(await opensFull(link, now, tx))) {
+          return null;
+        }
+
         const [changed] = await tx
           .update(careLinks)
           .set({ sharesHealth, updatedAt: now })
           .where(and(open, ne(careLinks.sharesHealth, sharesHealth)))
           .returning({ id: careLinks.id });
 
-        const [row] = await tx
-          .select({ link: careLinks, professionalName: user.name })
-          .from(careLinks)
-          .innerJoin(user, eq(user.id, careLinks.professionalId))
-          .where(open)
-          .limit(1);
-
-        if (!row) {
-          return null;
+        if (!changed) {
+          return { link, professionalName: row.professionalName };
         }
 
-        if (changed) {
-          await tx
-            .insert(careAccessLog)
-            .values({
-              action: sharesHealth ? 'granted' : 'withdrawn',
-              kind: 'health',
-              linkId: row.link.id,
-              professionalId: row.link.professionalId,
-              professionalName: row.professionalName,
-              userId: clientId
-            });
-        }
+        await tx
+          .insert(careAccessLog)
+          .values({
+            action: sharesHealth ? 'granted' : 'withdrawn',
+            kind: 'health',
+            linkId: link.id,
+            professionalId: link.professionalId,
+            professionalName: row.professionalName,
+            userId: clientId
+          });
 
-        return { link: careLinkSchema.parse(row.link), professionalName: row.professionalName };
+        return { link: { ...link, sharesHealth, updatedAt: now }, professionalName: row.professionalName };
       });
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * **A badge gone, in the daily sweep** (`0111` §§ 4 and 8, PRD 025 criteria 12
+   * and 22). For every open link — `active` or `paused` — whose practitioner's
+   * badge does not stand now:
+   *
+   * - **the illness rule**: when the client has a condition or a medication on
+   *   record (`onRecord`), the link ends, exactly as `end` ends one, the targets'
+   *   mark included, recorded `ended_by = 'badge_lost'` — so the client's own
+   *   screen can say why (`lastEndedByRule`), while a practitioner never reads it
+   *   as anything but `client` (`endedByForPractitioner`, legal F4);
+   * - **the others narrow for good** (`narrowLinks`): `consent_scope = 'plan'`,
+   *   the health line off — a badge that comes back widens nothing by itself, only
+   *   the client's own `reconsent` does.
+   *
+   * State-based, not "the badges that lapsed this run": a badge past its date
+   * with no `lapsed` row yet is just as gone (`badgesOf`, the one definition).
+   * Inside the write the badges are read again, on the write's own connection,
+   * so a pass the owner recorded since the first read keeps its links; the
+   * `UPDATE` asks again that the link is open (and, to end it, that the record is
+   * still there). Answers the endings, for the client's mail (`textos/06` § Y),
+   * and how many links narrowed; narrowing mails nobody.
+   */
+  async sweepBadgeLoss(now: Date): Promise<{ readonly ended: readonly RuleEnding[]; readonly narrowed: number }> {
+    try {
+      const candidates = await database()
+        .select({ id: careLinks.id, professionalId: careLinks.professionalId, professionalName: user.name })
+        .from(careLinks)
+        .innerJoin(user, eq(user.id, careLinks.professionalId))
+        .where(and(inArray(careLinks.status, [...OPEN_STATUSES]), or(widerThanPlan, onRecord(careLinks.clientId))));
+
+      if (candidates.length === 0) {
+        return { ended: [], narrowed: 0 };
+      }
+
+      const badges = await ProfessionalBadgeRepository.badgesOf([...new Set(candidates.map(row => row.professionalId))], now);
+      const unbadged = candidates.filter(row => !badges.has(row.professionalId));
+
+      if (unbadged.length === 0) {
+        return { ended: [], narrowed: 0 };
+      }
+
+      const names = new Map(unbadged.map(row => [row.id, row.professionalName]));
+      const outcome = await database().transaction(async tx => {
+        const still = await ProfessionalBadgeRepository.badgesOf([...new Set(unbadged.map(row => row.professionalId))], now, tx);
+        const ids = unbadged.filter(row => !still.has(row.professionalId)).map(row => row.id);
+
+        if (ids.length === 0) {
+          return { ended: [], narrowed: 0 };
+        }
+
+        // Ended first: a link that ends is not narrowed as well, and `narrowLinks` touches open links only.
+        const ended = await endLinks(tx, and(inArray(careLinks.id, ids), onRecord(careLinks.clientId)), 'badge_lost', now);
+
+        return { ended, narrowed: await narrowLinks(tx, inArray(careLinks.id, ids), now) };
+      });
+
+      return {
+        ended: outcome.ended.map(link => ({ clientId: link.clientId, linkId: link.id, professionalName: names.get(link.id) ?? '' })),
+        narrowed: outcome.narrowed
+      };
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -859,6 +1139,98 @@ function latestOf(
 }
 
 type Transaction = Parameters<Parameters<ReturnType<typeof database>['transaction']>[0]>[0];
+
+/**
+ * The practitioner on the client's open link, read **without** locking the
+ * link, then that practitioner's badge lock taken (`ProfessionalBadgeRepository.lock`)
+ * — the order a withdrawal, a regain and `narrowLinks` take them in: the badge
+ * lock first, the `care_links` rows after. The caller then holds the link
+ * `FOR UPDATE` filtered on this practitioner and checks everything again.
+ * Undefined when the client has no open link. `clientId` is the session's.
+ */
+async function lockLinkPractitioner(tx: Transaction, clientId: string): Promise<string | undefined> {
+  const [open] = await tx
+    .select({ professionalId: careLinks.professionalId })
+    .from(careLinks)
+    .where(and(eq(careLinks.clientId, clientId), inArray(careLinks.status, [...OPEN_STATUSES])))
+    .limit(1);
+
+  if (!open) {
+    return undefined;
+  }
+
+  await ProfessionalBadgeRepository.lock(tx, open.professionalId);
+
+  return open.professionalId;
+}
+
+/**
+ * Holds the client's account row for the rest of `tx` — `FOR NO KEY UPDATE`, so
+ * a row elsewhere that only references the account (`FOR KEY SHARE`) is never
+ * kept waiting. The illness rule's two transactional points take it before they
+ * read: `accept` before the health record, `endOnDeclaration` before the link,
+ * so the two queue on the client and neither misses the other's commit under
+ * READ COMMITTED.
+ */
+async function lockClient(tx: Transaction, clientId: string): Promise<void> {
+  await tx.select({ id: user.id }).from(user).where(eq(user.id, clientId)).for('no key update');
+}
+
+/**
+ * Ends every open link `where` names, as `by`, inside `tx` — the one way a link
+ * ends, whoever or whatever ends it — and, for each, takes the professional's
+ * mark off the client's targets: they stay, and become the client's own (owner's
+ * decision, 2026-09-24). Both ids come from the ended row, never from a caller.
+ */
+async function endLinks(
+  tx: Transaction,
+  where: SQL | undefined,
+  by: CareLinkEndedBy,
+  now: Date
+): Promise<readonly { readonly id: string; readonly clientId: string; readonly professionalId: string }[]> {
+  const ended = await tx
+    .update(careLinks)
+    .set({ endedAt: now, endedBy: by, status: 'ended', updatedAt: now })
+    .where(and(where, inArray(careLinks.status, [...OPEN_STATUSES])))
+    .returning({ id: careLinks.id, clientId: careLinks.clientId, professionalId: careLinks.professionalId });
+
+  for (const link of ended) {
+    await tx
+      .update(targetOverrides)
+      .set({ setByProfessionalId: null, updatedAt: now })
+      .where(and(eq(targetOverrides.userId, link.clientId), eq(targetOverrides.setByProfessionalId, link.professionalId)));
+  }
+
+  return ended;
+}
+
+/**
+ * Narrows every open link `where` names, inside `tx`, that still holds more than
+ * the plan-only list — `consent_scope = 'plan'` and the health line off — and
+ * answers how many. A badge gone is what calls it (`sweepBadgeLoss`,
+ * `narrowLinksOf`): what the client consented to under that badge does not
+ * outlive it, so a badge that comes back widens nothing until the client's own
+ * `reconsent`. It leaves its own mark, `narrowed_at` — only on a row it
+ * actually changes (a link already `plan` with the line off is not touched and
+ * gets no date) — and never clears one; the acceptance's
+ * `consentedAt`/`consentVersion` and the re-consent's columns stay, so the row
+ * reads "accepted then, narrowed then, widened again then". No trail row is
+ * written for the health line going off: the client did not do it.
+ */
+async function narrowLinks(tx: Transaction, where: SQL | undefined, now: Date): Promise<number> {
+  const narrowed = await tx
+    .update(careLinks)
+    .set({ consentScope: 'plan', narrowedAt: now, sharesHealth: false, updatedAt: now })
+    .where(and(where, inArray(careLinks.status, [...OPEN_STATUSES]), widerThanPlan))
+    .returning({ id: careLinks.id });
+
+  return narrowed.length;
+}
+
+/** Whether a link opens `full` now: its own consent, and the practitioner's badge read at `now`, inside `tx` (`linkScope`). */
+async function opensFull(link: CareLink, now: Date, tx: Transaction): Promise<boolean> {
+  return linkScope(link.consentScope, (await ProfessionalBadgeRepository.badgeOf(link.professionalId, now, tx)) !== null) === 'full';
+}
 
 /**
  * Writes a professional's `write` row into the transaction that makes the

@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { CronController, RecipesController } from './controllers/index.js';
 import { envProvider } from '../../config/index.js';
 import { ExpiredInvitationsService } from '../care/services/ExpiredInvitations.service.js';
+import { IllnessRuleSweepService } from '../care/services/IllnessRuleSweep.service.js';
 import { DuePlansService } from '../meal-plans/services/DuePlans.service.js';
 import { EmailModule } from '../email/email.module.js';
 import { AssistantRetentionService } from '../assistant/services/AssistantRetention.service.js';
@@ -32,6 +33,7 @@ import { TwoFactorRemovalsService } from '../auth/services/TwoFactorRemovals.ser
     envProvider,
     ExpiredInvitationsService,
     ExpiredVerificationsService,
+    IllnessRuleSweepService,
     RecipesService,
     TwoFactorRemovalsService
   ]

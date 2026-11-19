@@ -42,7 +42,12 @@ export function CareLinkCard({ link }: CareLinkCardProps) {
   // `shares` is `CareShared | CareHealthShared`, two disjoint key sets that
   // together name every label the professional may see under this link.
   const labels: Record<string, string> = { ...t.shares, ...t.healthShares };
-  const shared = link.shares.map(share => labels[share]);
+  // Under a `plan` scope — no badge now, or consent to the plan-only list (`0111` § 4) — `shares`
+  // is empty and what the link opens is `sharesPlan`: name that, never an empty "Comparte:".
+  const shared = link.scope === 'plan' ? link.sharesPlan.map(share => t.sharesPlan[share]) : link.shares.map(share => labels[share]);
+  // The health line opens only under `full`; turning it on elsewhere is refused. A line already
+  // on stays here so the person can always take it back.
+  const offersHealth = link.scope === 'full' || link.sharesHealth;
 
   // Neither transition between the trigger and the confirm block moves the
   // DOM's focused node on its own — a keyboard or screen-reader user would
@@ -88,9 +93,11 @@ export function CareLinkCard({ link }: CareLinkCardProps) {
         {interpolate(t.whatIsShared, { list: shared.join(', ') })}
       </Text>
 
-      <div className={styles.healthShare}>
-        <CareHealthSwitch sharesHealth={link.sharesHealth} />
-      </div>
+      {offersHealth ? (
+        <div className={styles.healthShare}>
+          <CareHealthSwitch sharesHealth={link.sharesHealth} />
+        </div>
+      ) : null}
 
       {error ? (
         <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>

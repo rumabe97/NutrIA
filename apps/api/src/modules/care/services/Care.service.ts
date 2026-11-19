@@ -18,6 +18,7 @@ import type {
   ApplyForBadgeDto,
   EnterBadgeCodeDto,
   InviteClientDto,
+  ReconsentLinkDto,
   SetClientReviewDto,
   SetClientTargetsDto,
   SetLinkHealthDto,
@@ -33,6 +34,7 @@ import type {
   CareClientPlanDto,
   CareClientsDto,
   CareClientTargetsDto,
+  CareEndedLinkDto,
   CareInvitationDetailDto,
   CareInvitationDto,
   CareLinkDto,
@@ -121,6 +123,16 @@ export class CareService {
 
   async myLink(user: SessionUser): Promise<CareLinkDto | null> {
     return CareController.myLink(user);
+  }
+
+  /** The client's own last link, when the illness rule's sweep ended it (`0111` § 8); nothing is sent to anybody. */
+  async endedLink(user: SessionUser): Promise<CareEndedLinkDto | null> {
+    return CareController.endedLink(user);
+  }
+
+  /** The client widens their own link to the badged list (`docs/legal/textos/05` § F.4); nothing is sent to anybody. */
+  async reconsent(user: SessionUser, body: ReconsentLinkDto): Promise<CareLinkDto> {
+    return CareController.reconsent(user, body);
   }
 
   /** Through `CareController.withClient`, inside the core call: the client's id never reaches this app. */

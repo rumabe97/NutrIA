@@ -110,6 +110,7 @@ export type EmailKind =
   | 'backup-code-used'
   | 'backup-codes-regenerated'
   | 'care-invitation'
+  | 'care-link-ended-by-rule'
   | 'check-in-reminder'
   | 'checkin-submitted'
   | 'existing-account-sign-up'

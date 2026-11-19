@@ -43,8 +43,17 @@ export const CONDITION_KEYS = HEALTH_CONDITIONS.map(condition => condition.key) 
  * `1.1.0` (`docs/legal/textos/05` § C): the note says only the effect of this
  * data reaches a model, and that a dietitian sees it only if allowed apart.
  * Data stored under `1.0.0` stays, answered with `consentIsCurrent: false`.
+ *
+ * `1.2.0` (`docs/legal/textos/05` § C bis, legal F1, PLAN 025 phase 5 step 6):
+ * the note names the illness rule — a professional sees this data only with
+ * NutrIA's badge and the person's separate yes, and while any condition or
+ * medication is on record the person can link only with a badged professional;
+ * a link to one without it ends when it is saved. It moves in the same change as
+ * the rule, never after it. Data stored under `1.1.0` stays, answered with
+ * `consentIsCurrent: false`, so `health.consentStale` asks again; the rule runs
+ * meanwhile, because it is part of the service's safety (legal F1).
  */
-export const HEALTH_CONSENT_VERSION = '1.1.0';
+export const HEALTH_CONSENT_VERSION = '1.2.0';
 
 export const healthConditionSchema = z.object({
   id: z.uuid(),

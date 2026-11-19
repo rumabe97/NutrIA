@@ -1,11 +1,11 @@
-import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Query } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { CareService } from '../services/index.js';
 import { CurrentUser, ZodBody } from '../../../shared/index.js';
-import { SetLinkHealthDto } from '../dto/in/index.js';
+import { ReconsentLinkDto, SetLinkHealthDto } from '../dto/in/index.js';
 
-import type { CareAccessPageDto, CareLinkDto } from '../dto/out/index.js';
+import type { CareAccessPageDto, CareEndedLinkDto, CareLinkDto } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 
 /**
@@ -39,11 +39,40 @@ export class CareLinksController {
     return this.care.myLink(user);
   }
 
-  @ApiOkResponse({ description: 'The link, with the health line as it now stands. 404 when the account has no active or paused link.' })
+  @ApiOkResponse({
+    description:
+      'The link, with the health line as it now stands. 404 when the account has no active or paused link — and when turning the line on while the link does not open `full` (no badge now, or consent to the plan-only list).'
+  })
   @ApiOperation({ summary: 'Start or stop sharing the health line on the signed-in client’s link, without ending it' })
   @Patch('links/me')
   async setSharesHealth(@CurrentUser() user: SessionUser, @ZodBody(SetLinkHealthDto) body: SetLinkHealthDto): Promise<CareLinkDto> {
     return this.care.setSharesHealth(user, body);
+  }
+
+  /*
+   * Behind the switch inside `CareController.reconsent`, not on this class: a
+   * consent given, like accepting, while everything else here stays the client's
+   * whatever the switch says. A 404 for every refusal, like every other here.
+   */
+  @ApiOkResponse({
+    description:
+      'The link, widened to the badged list. 404 when the account has no open link consented to the plan-only list, when the practitioner holds no badge now, or while the switch is off.'
+  })
+  @ApiOperation({ summary: 'Widen the signed-in client’s link to the badged list, at the current consent version' })
+  @HttpCode(HttpStatus.OK)
+  @Post('links/me/consent')
+  async reconsent(@CurrentUser() user: SessionUser, @ZodBody(ReconsentLinkDto) body: ReconsentLinkDto): Promise<CareLinkDto> {
+    return this.care.reconsent(user, body);
+  }
+
+  @ApiOkResponse({
+    description:
+      'The account’s latest link, when the daily sweep ended it because the practitioner lost NutrIA’s badge while a condition or a medication was on record — the name and when, nothing else — or null.'
+  })
+  @ApiOperation({ summary: 'Why the signed-in client’s last link ended, when the illness rule ended it' })
+  @Get('links/me/ended')
+  async endedLink(@CurrentUser() user: SessionUser): Promise<CareEndedLinkDto | null> {
+    return this.care.endedLink(user);
   }
 
   @ApiOkResponse({
