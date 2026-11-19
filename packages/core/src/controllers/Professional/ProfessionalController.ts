@@ -1,3 +1,4 @@
+import { PlanController } from 'core/controllers/Plan';
 import { assertOldEnough } from 'core/controllers/Profile';
 import { CareRepository } from '#repositories/Care';
 import {
@@ -112,6 +113,14 @@ export interface LinkCounts {
 export interface PracticeOpening {
   canOpenPractice: boolean;
   professional: boolean;
+}
+
+/**
+ * What the opening form names (`GET /care/practice/opening`): how many clients
+ * the free practice would hold once opened, as the owner has it today.
+ */
+export interface PracticeOpeningView {
+  seats: number;
 }
 
 /** One professional on the owner's list: the account, its practice, and its links counted. */
@@ -614,6 +623,30 @@ export const ProfessionalController = {
     }
 
     return { canOpenPractice: !barsOpening(await PracticeRestrictionRepository.standing(userId)), professional: false };
+  },
+
+  /**
+   * **What the opening form names** (`GET /care/practice/opening`, PRD 025
+   * phase 8): how many clients the practice would hold free once opened — the
+   * account's `practiceClients` allowance from `PlanController.limitsOf`, the
+   * number `CareController` counts an invitation against — so the sentence says
+   * the number in force, never a literal.
+   *
+   * Asked only where `openingFor` offers the form: anything else — the switch
+   * off, a practice already, a suspension or a close standing — is the same 404
+   * as `open`'s refusals, and the allowances are not read. Like `openingFor`,
+   * it does not ask the address, the activation or the age.
+   *
+   * Cost: `openingFor`'s reads, then `limitsOf` (the flags and the allowances
+   * table in parallel, the open-practice cover, the tier column when premium is
+   * on).
+   */
+  async openingSeats(userId: string): Promise<PracticeOpeningView> {
+    if (!(await ProfessionalController.openingFor(userId)).canOpenPractice) {
+      throw new NotFoundError(NOT_FOUND);
+    }
+
+    return { seats: (await PlanController.limitsOf(userId)).practiceClients };
   },
 
   /**

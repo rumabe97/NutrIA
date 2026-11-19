@@ -841,7 +841,10 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   but a birth date. `GET /users/me` carries `canOpenPractice` (phase 8), display only, so the web
   knows whether to offer that form: switch on, no row, nothing `barsOpening` —
   `ProfessionalController.openingFor`, which also answers `professional`; it never asks the address,
-  activation or age, which stay the POST's 404. The owner's grant (`POST /admin/accounts/:id/professional`) and revoke
+  activation or age, which stay the POST's 404. The number the form names is its own read, kept off
+  `/users/me` for its cost: `GET /care/practice/opening` → `{ seats }` (same controller and guards
+  as the POST, `@AllowUnverified()`), the `practiceClients` allowance from `PlanController.limitsOf`
+  where `openingFor` offers the form, the POST's 404 everywhere else. The owner's grant (`POST /admin/accounts/:id/professional`) and revoke
   (`DELETE`) are **retired**: no route, the owner's included, makes a practitioner, and what the
   owner gives is the badge. `GET /admin/professionals` lists them with link *counts* and what
   stands against each, never a client. `user.role` is untouched. `ProfessionalGuard`

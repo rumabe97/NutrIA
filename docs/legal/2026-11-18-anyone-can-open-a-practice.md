@@ -404,8 +404,10 @@ mark, not mine.
 degree's full name in § 6.1. «Curso de nutrición deportiva» passes. «Grado en Nutrición Humana y
 Dietética» does not, without the badge.
 
-**The fixed notice**, rendered by the product beside the name of every un-badged practitioner, on
-every screen a client or the owner sees that name: **«No es un profesional sanitario verificado
+**The fixed notice**, rendered by the product beside the name of every un-badged practitioner,
+on every screen where a client **decides** about that person (the invitation, the link card, the
+re-consent card) and in the owner's console (amended 2026-11-19, § 12.3: a bare name that passed
+`nameShown` elsewhere claims no title): **«No es un profesional sanitario verificado
 por NutrIA»** / **"Not a health professional verified by NutrIA"**.
 
 **The badge**, rendered from `badgeOf` and never from text: **«Dietista-nutricionista
@@ -684,6 +686,76 @@ nothing leaves the toggle unexplained.
   practitioner, who wrote it.
 - **The name is judged for titles only** (§ 6, «Names versus profile text»): `badge_only` and
   `never`, not the results list.
+
+
+### 12.3 Phase 8's screens, read against the approved texts (2026-11-19)
+
+Read on branch `project-025-phase-8-screens` at `aacfda1f`. The check was mechanical: every
+approved string of `textos/01` (2.0.0 and § Pantallas P1–P4) and of `textos/05` (§§ C bis, F,
+F.3 bis, G), Spanish and English, searched verbatim in both dictionaries.
+
+**The copy.**
+- **0 differences.** All 14 sections of the agreement 2.0.0 are there, with title, intro,
+  checkbox and button. The consent 3.0.0 is there per tier. The health note 1.2.0 is there.
+- **Nothing of the old versions is left**: no «concesión», no practice-plan terms, no «número
+  de colegiado {collegiateNumber}, te invita», no «Tu dietista» on a client screen.
+- **The version constants match the words**: `PROFESSIONAL_AGREEMENT_VERSION` = `2.0.0`,
+  `CARE_CONSENT_VERSION` = `3.0.0`, `HEALTH_CONSENT_VERSION` = `1.2.0`. `TERMS_VERSION` stays
+  `2.3.0` until phase 10.
+- **§ 7's replacements are in**, with two notes:
+  - `pendingReviewTitle` and `pendingReviewBody` use `{professional}` where § 7 wrote `{name}`.
+    Same words, and through `withProfessional` they fall back to «tu profesional».
+  - The console strings of § 7 (`admin.professional*`, `adminProfessionals.intro`, and
+    `adminConsents.howCounted`'s «concesión») are unchanged. They are phase 9's.
+
+**Pure labels, no wording needed:**
+- `practice.intro`, `badgeTitle`, `badgeSteps`, `nameTitle`, `nameCta`, `nameSaved`,
+  `profileTitle`, `seatsTitle`;
+- `profileHours{Add,Closed,From,To,Remove}`, `profilePriceUnitLabel`, `profileSaved`;
+- the page titles `/consulta/insignia` and `/consulta/perfil`, and «← Clientes»;
+- the «paciente» → «cliente» rewrites, which follow § 7's rule;
+- `openTitle` and `openIntro`, which come from `textos/01` P1, approved 2026-11-18. The card is
+  on every adult's profile. That is fine: it describes an offer, not a person.
+
+**Approved by the owner on 2026-11-19** (tapped options): every sentence of `textos/01` P5 —
+`restrictionSuspendedScreen` and `restrictionRedress` («Aprobado»); `restrictionClosed` and
+`badgeState.withdrawnScreen` («Aprobados»); `inviteNameRefused` in its three forms («Aprobado»);
+`openRefused` and `endConfirmBody` («Aprobados»).
+
+**Statements that needed wording** are in `textos/01` P5: the three screen variants, the redress
+line, `endConfirmBody`, `inviteNameRefused` in three forms, and `openRefused` (a choice). Also
+noted there: the typed «10».
+
+**What the screens do against the law (item 4 of the lead's request):**
+- ✔ **Art. 13 at the badge application.** `badgeApplyPrivacy` is drawn inside the form, above
+  its button (`PracticeBadge.tsx:203-228`).
+- ✔ **The fixed notice.** It is on the invitation (`CareInvitation.tsx`, plan tier) and on the
+  client's link card (`CareLinkCard`). The practitioner sees `unverifiedSelf` on `/consulta` and
+  on the client page.
+- ✔ **«Acepto y consiento»** on the un-badged button only (C4). The badged button stays
+  «Aceptar la invitación».
+- ✔ **The tiers.** No health line on the plan tier. The badge line comes only from a check with a
+  number. An invitation whose name may not be shown is a 404 (`CareController.ts:941`), so the
+  consent always names the person (art. 9.2.a, legal § 3.e).
+- ✔ **The re-consent card** (§ F.4). It has the wider list and `canDo.targets`, the health line
+  apart and unticked, both inferences and the badged privacy line.
+- **P3 — this document over-promised, now amended.** § 6.3 said the fixed notice goes "beside the
+  name of every un-badged practitioner, on every screen a client sees that name".
+  - The dashboard and the plan page show the name in «Tu plan nuevo está con {professional}»
+    without it.
+  - A bare name that has passed `nameShown` claims no title, so nothing in LCD art. 5.1.g
+    requires the notice there.
+  - It is required where the client **decides** about that person: the invitation, the link
+    card and the re-consent card. § 6.3 now says so.
+- **P3 — the approved `practice.dishRefused` is drawn nowhere.** In 025 a practitioner never
+  picks one dish for a client: a swap offers only what fits and says «no tenemos otro plato que
+  encaje aquí», naming no reason. The agreement's § 3 sentence is still true in substance, since
+  they never learn the reason. The string waits for project 2's "put this dish here".
+- **For phase 10.**
+  - `apps/web/src/lib/practicePrivacy.ts:13` links `/privacidad#tu-dietista`. When § 4's section
+    is published with `id: 'tu-profesional'`, that anchor changes in the same commit.
+  - Until then, the section the link opens still describes 004, so the `professional` switch
+    stays off (go-live § 1 bis).
 
 ---
 

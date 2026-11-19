@@ -21,6 +21,7 @@ import { ProfessionalBadgeController, ProfessionalController, ProfessionalProfil
 import { ProfileController } from 'core/controllers/Profile';
 import { UserController } from 'core/controllers/User';
 
+import { ALLOW_UNVERIFIED_KEY } from '../../../shared/decorators/AllowUnverified.decorator.js';
 import { AllExceptionsFilter } from '../../../shared/filters/index.js';
 import { BackgroundTaskService } from '../../../shared/services/index.js';
 import { CareAnswersController } from './CareAnswers.controller.js';
@@ -1434,6 +1435,52 @@ describe('care routes', () => {
 
       await request(server()).post(`/${PREFIX}/care/practice`).send({ birthDate: 'yesterday' }).expect(422);
       expect(open).not.toHaveBeenCalled();
+    });
+  });
+
+  /** What the opening form names (PRD 025 phase 8): the seats in force, for the session's account alone. */
+  describe('GET /care/practice/opening', () => {
+    beforeEach(() => {
+      jest.spyOn(ProfessionalController, 'isOpen').mockResolvedValue(true);
+    });
+
+    it('answers the seats for the session’s own account — nobody else’s id is read', async () => {
+      const seats = jest.spyOn(ProfessionalController, 'openingSeats').mockResolvedValue({ seats: 7 });
+
+      const response = await request(server()).get(`/${PREFIX}/care/practice/opening?userId=usr-other`).expect(200);
+
+      expect(response.body).toEqual({ seats: 7 });
+      expect(seats).toHaveBeenCalledWith(SESSION.id);
+    });
+
+    it('lets an unconfirmed or unopened account through, as the POST does — `canOpenPractice` does not ask either lock', () => {
+      expect(Reflect.getMetadata(ALLOW_UNVERIFIED_KEY, CareOpenPracticeController.prototype.opening)).toBe(true);
+      expect(Reflect.getMetadata(ALLOW_UNVERIFIED_KEY, CareOpenPracticeController.prototype.open)).toBe(true);
+    });
+
+    it('needs no practice to reach it — the account has none yet', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
+      jest.spyOn(ProfessionalController, 'openingSeats').mockResolvedValue({ seats: 10 });
+
+      await request(server()).get(`/${PREFIX}/care/practice/opening`).expect(200);
+    });
+
+    it('is the guard’s 404 while the switch is off, before the core is asked', async () => {
+      jest.spyOn(ProfessionalController, 'isOpen').mockResolvedValue(false);
+      const seats = jest.spyOn(ProfessionalController, 'openingSeats');
+
+      const response = await request(server()).get(`/${PREFIX}/care/practice/opening`).expect(404);
+
+      expect(response.body).toEqual({ code: 'NOT_FOUND', message: 'Not Found', statusCode: 404 });
+      expect(seats).not.toHaveBeenCalled();
+    });
+
+    it('answers the core’s refusal — a practice already, a suspension, a close — with the POST’s 404 body', async () => {
+      jest.spyOn(ProfessionalController, 'openingSeats').mockRejectedValue(new NotFoundError('Not Found'));
+
+      const response = await request(server()).get(`/${PREFIX}/care/practice/opening`).expect(404);
+
+      expect(response.body).toEqual({ code: 'NOT_FOUND', message: 'Not Found', statusCode: 404 });
     });
   });
 

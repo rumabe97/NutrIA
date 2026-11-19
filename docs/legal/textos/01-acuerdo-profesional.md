@@ -441,6 +441,51 @@ antes del primer `POST` de solicitud** (PLAN fase 3, paso 2).
 
 <!-- `practice.profilePromiseRefused` (2026-11-19, para la fase 6): la tercera categoría que el código rechaza, para todos, con o sin insignia — la pasada sobre el texto en bruto de ../2026-11-18-anyone-can-open-a-practice.md § 6.4 («garantizado/a/os», «asegurado», «100 %», un número seguido de «kg» o «kilos»). `{word}` es el fragmento tal como lo escribió (por ejemplo «10 kg» o «garantizado»), igual que en las otras dos. Fuente: este acuerdo § 2 («ni prometer resultados»), aprobado el 2026-11-18; Ley 44/2003 art. 44.1 (publicidad «objetiva, prudente y veraz, de modo que no levante falsas esperanzas», para quien tiene la insignia); LCD arts. 5.1 y 7 (engaño, para todos); RD 1907/1996 art. 4.2 y 4.4, leído en el BOE (BOE-A-1996-18085, sin modificaciones) el 2026-11-19 — prohíbe la publicidad de «métodos con pretendida finalidad sanitaria» que «sugieran propiedades específicas adelgazantes» o «proporcionen seguridades de alivio o curación cierta»; que un servicio de planes de comida sea uno de esos «métodos» es mi lectura **[abogado]**. La frase no dice «la ley lo prohíbe» porque eso último es una lectura; dice el porqué que es verdad en cualquier caso. -->
 
+### P5. Variantes de pantalla y frases nuevas de la fase 8 (2026-11-19 — **aprobadas por el propietario el 2026-11-19**, por opción marcada: `restrictionSuspendedScreen` y `restrictionRedress` «Aprobado»; `restrictionClosed` y `badgeState.withdrawnScreen` «Aprobados»; `inviteNameRefused`, sus tres formas, «Aprobado»; `openRefused` y `endConfirmBody` «Aprobados»)
+
+**Por qué hay variantes de pantalla.** Un correo se lee el día que llega; una pantalla, cualquier
+día después. Las frases de `06` §§ W bis.1, W que dicen «desde hoy» son verdad en el correo y
+falsas en `/consulta` una semana después. **El correo conserva sus palabras aprobadas**; la
+pantalla usa la variante. Las demás frases de `06` reutilizadas en pantalla (§ W bis.3 «El
+{closeDate} cerraremos…», `badgeState.refused`, `badgeState.lapsed`, las de § X) se leen bien
+cualquier día y no cambian.
+
+| Clave | Sustituye en pantalla a | es-ES | en-GB |
+| --- | --- | --- | --- |
+| `practice.restrictionSuspendedScreen` | `practice.restrictionSuspended` (`06` § W bis.1 `what`) | `Tu cuenta está suspendida como profesional desde el {date}: no ves los datos de ningún cliente, no puedes invitar a nadie y no puedes abrir una consulta hasta que levantemos la suspensión. Tu cuenta personal de NutrIA sigue como estaba.` | `Your account has been suspended as a professional since {date}: you see no client's data, you cannot invite anyone and you cannot open a practice until we lift the suspension. Your personal NutrIA account carries on as it was.` |
+| `practice.badgeState.withdrawnScreen` | `practice.badgeState.withdrawn` (`06` § W `what`) | `Te retiramos la insignia «Dietista-nutricionista colegiada/o» el {date}. Tu consulta sigue abierta, y de cada cliente ves lo que el § 3 del acuerdo del profesional describe «sin la insignia». Lo demás que cambia está en su § 4. Las palabras de tu perfil que solo permite la insignia no se muestran.` | `We removed the "Registered dietitian-nutritionist" badge on {date}. Your practice stays open, and of each client you see what section 3 of the professional's agreement describes "without the badge". The rest of what changes is in its section 4. The words in your profile that only the badge allows are not shown.` |
+| `practice.restrictionClosed` | la frase escrita en la fase 8, «Tu consulta se cerró el {date}.» | `Tu consulta se cerró definitivamente el {date}. Te escribimos con los motivos. Mientras no revoquemos el cierre, no puedes abrir otra; para pedir que lo revisemos, escríbenos a {email}.` | `Your practice was closed for good on {date}. We wrote to you with the reasons. Until we reverse the close, you cannot open another; to ask us to look again, write to us at {email}.` |
+| `practice.restrictionRedress` (nueva, debajo de cada «Por qué» de una suspensión o un cierre) | — | `Para aclarar los hechos o pedir que lo revisemos, escríbenos a {email}: lo revisa una persona y te contesta.` | `To clarify the facts or ask us to look again, write to us at {email}: a person reviews it and answers you.` |
+
+`{date}`:
+- en `restrictionSuspendedScreen`, `suspended.since`;
+- en `withdrawnScreen`, `decision.at` (`apps/web/src/lib/badgeState.ts`, `badgeReason`);
+- en `restrictionClosed`, `closing.closesAt`. La pantalla lo muestra cuando `closed` es verdad, que
+  es cuando la fecha ha llegado (`ProfessionalController.ts:226`). Desde ese instante la consulta
+  ya no abre (`blocksPractice`), aunque el barrido no la haya ejecutado, así que «se cerró» es
+  verdad.
+
+<!-- Fuente: acuerdo 2.0.0 §§ 4, 11 y 13 (aprobados); 06 §§ W, W bis.1, W bis.3 (aprobados el 2026-11-19); Reglamento (UE) 2019/1150 art. 4.3 (aclarar los hechos y reclamar: por eso `restrictionRedress` acompaña a los motivos también en pantalla, como en el correo) y art. 4.5; DSA art. 17.3.f (vías de recurso «claras y de fácil utilización»); `barsOpening` en PracticeRestrictionRepository (un cierre impide abrir otra consulta hasta que se levanta). -->
+
+**Frases que no salen de un texto aprobado y dicen algo** (las etiquetas puras se quedan como
+están: lista en `../2026-11-18-anyone-can-open-a-practice.md` § 12.3):
+
+| Clave | Hoy (fase 8) | es-ES propuesto | en-GB propuesto |
+| --- | --- | --- | --- |
+| `practice.endConfirmBody` | `Dejarás de ver sus datos desde ahora y se libera una plaza. Sus objetivos se quedan como están y pasan a ser suyos.` — **inexacta sin la insignia**: un profesional sin ella no fija objetivos, así que «pasan a ser suyos» da a entender algo que no hizo | `Dejarás de ver sus datos desde ahora y se libera una plaza. Los objetivos que le fijaste se quedan en su cuenta y pasan a ser suyos.` | `You will stop seeing their data from now on, and a place frees up. Any targets you set for them stay in their account and become their own.` |
+| `practice.inviteNameRefused.badgeOnly` | `Cambia el nombre de tu cuenta para poder invitar.` — no dice por qué | `El nombre de tu cuenta lleva «{word}», y sin la insignia no puedes usarlo: tus clientes lo leerían como un título que NutrIA no ha comprobado. Cámbialo en «El nombre de tu cuenta» para poder invitar.` | `Your account name contains "{word}", and without the badge you cannot use it: your clients would read it as a title NutrIA has not checked. Change it under "Your account name" to be able to invite.` |
+| `practice.inviteNameRefused.never` | (la misma) | `El nombre de tu cuenta lleva «{word}», un título que nadie puede usar en NutrIA porque no lo comprobamos. Cámbialo en «El nombre de tu cuenta» para poder invitar.` | `Your account name contains "{word}", a title nobody can use on NutrIA because we do not check it. Change it under "Your account name" to be able to invite.` |
+| `practice.inviteNameRefused.plain` (si la API no devuelve la palabra) | (la misma) | `El nombre de tu cuenta lleva una palabra que el § 2 del acuerdo del profesional no te permite usar. Cámbialo en «El nombre de tu cuenta» para poder invitar.` | `Your account name contains a word that section 2 of the professional's agreement does not allow you to use. Change it under "Your account name" to be able to invite.` |
+| `practice.openRefused` (era una elección; aprobada el 2026-11-19) | `No hemos podido abrir tu consulta.` | `No se ha podido abrir tu consulta. Para abrirla hace falta tener el correo confirmado y ser mayor de edad. Si lo cumples y sigue sin abrirse, escríbenos a {email}.` | `Your practice could not be opened. To open one you need a confirmed email address and to be an adult. If you meet both and it still does not open, write to us at {email}.` |
+
+<!-- Fuente: `endConfirmBody` — acuerdo 2.0.0 § 11 (aprobado: «Los objetivos que fijaste se quedan en su cuenta y pasan a ser suyos»), RGPD art. 5.1.a. `inviteNameRefused` — acuerdo § 2 (aprobado); DSA art. 17.1 y 17.3 (una restricción por un contenido incompatible con las condiciones —aquí, el nombre— lleva sus motivos, «tan precisa y específica como sea razonablemente posible», 17.4); la palabra se puede citar porque solo la lee quien la escribió (§ 12.2 del documento del proyecto); «El nombre de tu cuenta» es `practice.nameTitle`, donde se cambia. `openRefused` — PRD 025 scope 1 (correo confirmado, mayor de edad con la fecha anotada); no nombra una suspensión ni un cierre, que ya se dicen en su propio párrafo; todas las negaciones siguen siendo el mismo 404 en la API (criterio 15), y la pantalla no distingue cuál fue. -->
+
+**Una cifra escrita**: `practice.openIntro` («Es gratis, con hasta 10 clientes…», aprobado en P1)
+y el acuerdo § 10 («hasta 10 clientes activos») escriben el 10, y la plaza es un límite que el
+propietario mueve desde la consola (`0097`, `practiceClients`). La pantalla debería pintar
+`{limit}` con el valor resuelto: las mismas palabras, sin aprobación nueva. Si el propietario
+cambia algún día el límite, el acuerdo 2.0.0 deja de ser verdad y hay que subir su versión.
+
 ---
 
 ## Versión 1.1.0 — en vigor
