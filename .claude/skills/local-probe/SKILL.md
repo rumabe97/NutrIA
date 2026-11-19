@@ -111,8 +111,9 @@ node $S/account.mjs link "$PROBE_DIR/pro.txt" "$PROBE_DIR/client.txt"
 node $S/probe.mjs --paths /consulta --cookie-file "$PROBE_DIR/pro.txt" --dismiss
 ```
 
-`link` grants the first account, opens its practice (30 clients) and links the second
-through a real invitation accepted with consent. It uses the same core functions the
+`link` has the first account open its own practice (free, ten seats), accept the agreement
+and earn the badge by the four steps the routes take, then links the second through a real
+invitation accepted with consent. It uses the same core functions the
 routes call, and it refuses any account that is not a probe's own (`@probe.invalid`). If
 the `professional` switch was off, it comes back off when the professional is deleted.
 
