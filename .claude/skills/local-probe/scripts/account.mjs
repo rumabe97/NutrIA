@@ -74,16 +74,30 @@ const unbadged = args.includes('--unbadged');
 const inviteOnly = args.includes('--invite-only');
 const FLAGS = ['--admin', '--two-factor', '--unbadged', '--invite-only'];
 const [action, cookieFile, clientCookieFile] = args.filter(arg => !FLAGS.includes(arg));
+/** What `owner-act` can do to a probe practitioner: the owner's acts of project 025, and the badge's steps. */
+const OWNER_ACTS = [
+  'suspend',
+  'close',
+  'close-due',
+  'lift',
+  'hide-profile',
+  'see-profile',
+  'badge-apply',
+  'badge-code',
+  'badge-earn',
+  'badge-refuse'
+];
 
 if (
-  !['create', 'delete', 'forget', 'link', 'lose-badge', 'compromise', 'age', 'premium'].includes(action) ||
+  !['create', 'delete', 'forget', 'link', 'lose-badge', 'owner-act', 'compromise', 'age', 'premium'].includes(action) ||
   !cookieFile ||
   (action === 'link' && !clientCookieFile) ||
+  (action === 'owner-act' && !OWNER_ACTS.includes(clientCookieFile)) ||
   ((admin || twoFactor) && action !== 'create') ||
   ((unbadged || inviteOnly) && action !== 'link')
 ) {
   console.error(
-    'usage: node account.mjs create <cookie-file> [--admin] [--two-factor] | delete <cookie-file> | forget <address> | link <professional-cookie-file> <client-cookie-file> [--unbadged] [--invite-only] | lose-badge <professional-cookie-file> | compromise <cookie-file> | age <cookie-file> | premium <cookie-file>'
+    'usage: node account.mjs create <cookie-file> [--admin] [--two-factor] | delete <cookie-file> | forget <address> | link <professional-cookie-file> <client-cookie-file> [--unbadged] [--invite-only] | lose-badge <professional-cookie-file> | owner-act <professional-cookie-file> <' + OWNER_ACTS.join('|') + '> | compromise <cookie-file> | age <cookie-file> | premium <cookie-file>'
   );
   process.exit(2);
 }
@@ -142,7 +156,7 @@ async function call(method, path, body, cookie) {
   return response;
 }
 
-assertNotProduction({ strict: ['link', 'lose-badge', 'compromise', 'age', 'premium'].includes(action) || admin || twoFactor });
+assertNotProduction({ strict: ['link', 'lose-badge', 'owner-act', 'compromise', 'age', 'premium'].includes(action) || admin || twoFactor });
 
 // `core` reads the database from the environment, the same one the local API was given —
 // and only that one: the guard above checked apps/api/.env, so a DATABASE_URL already
@@ -348,6 +362,73 @@ if (action === 'link') {
   console.log(
     `[probe] linked: ${client.email} is ${pro.email}'s client (a free practice, ten seats, ${unbadged ? 'no badge: plan only' : 'badged, health shared'})`
   );
+  process.exit(0);
+}
+
+if (action === 'owner-act') {
+  // The owner's acts on a probe practitioner, and the badge's steps one at a time — each by the
+  // core function its route calls, the practitioner named as their own owner (the probe has
+  // no owner session). For the states a screen must draw and `link` alone cannot build: a
+  // suspension, an announced close, a close whose day has come, a hidden profile, a code
+  // waiting to be typed, a badge refused, a badge earned after an un-badged link (the
+  // re-consent card). Mails are queued by the API's services, not by core: none is sent here.
+  if (!isLocalPg()) {
+    throw new Error('owner-act writes an owner’s act: local Postgres only (NUTRIA_LOCAL_PG=1)');
+  }
+
+  const { ProfessionalBadgeController, ProfessionalController, ProfessionalProfileController } = await load('core/controllers/Professional');
+  const pro = await (await call('GET', '/users/me', undefined, readFileSync(cookieFile, 'utf8'))).json();
+
+  if (!pro.email?.endsWith('@probe.invalid')) {
+    throw new Error('owner-act only touches an account this script made (@probe.invalid)');
+  }
+
+  const act = clientCookieFile;
+  const statement = { clause: 9, facts: 'El perfil anunciaba algo que el acuerdo no permite.', source: 'own_review' };
+  const application = { number: 'PROBE-001', register: 'Registro del probe' };
+
+  if (act === 'suspend') {
+    await ProfessionalController.suspend(pro.id, pro.id, statement);
+  } else if (act === 'close' || act === 'close-due') {
+    await ProfessionalController.close(pro.id, pro.id, statement);
+
+    if (act === 'close-due') {
+      // No route takes a clock: the close's day moved into the past, as the e2e harness does
+      // (`moveCloseDue`). The practice is then shut before the daily sweep has carried it out.
+      const { database } = await load('database');
+
+      await database().$client`
+        update practice_restrictions set effective_at = now() - interval '1 second' where user_id = ${pro.id} and kind = 'closing'`;
+    }
+  } else if (act === 'lift') {
+    await ProfessionalController.lift(pro.id, pro.id, {});
+  } else if (act === 'hide-profile') {
+    await ProfessionalProfileController.hide(pro.id, pro.id, {
+      afterNotice: false,
+      facts: 'Anunciaba resultados que nadie puede prometer.',
+      reasons: ['promises']
+    });
+  } else if (act === 'see-profile') {
+    await ProfessionalProfileController.markSeen(pro.id, pro.id);
+  } else if (act === 'badge-apply') {
+    await ProfessionalBadgeController.apply(pro.id, application);
+  } else if (act === 'badge-code') {
+    // The code is printed for the practitioner's screen to type: it exists nowhere else.
+    const { code } = await ProfessionalBadgeController.issueCode(pro.id, pro.id, { channel: 'phone' });
+
+    console.log(`[probe] badge code: ${code}`);
+  } else if (act === 'badge-earn') {
+    await ProfessionalBadgeController.apply(pro.id, application);
+
+    const { code } = await ProfessionalBadgeController.issueCode(pro.id, pro.id, { channel: 'phone' });
+
+    await ProfessionalBadgeController.enterCode(pro.id, { code });
+    await ProfessionalBadgeController.confirm(pro.id, pro.id);
+  } else if (act === 'badge-refuse') {
+    await ProfessionalBadgeController.remove(pro.id, pro.id, { kind: 'fail', reason: 'not_on_register', source: 'own_check' });
+  }
+
+  console.log(`[probe] ${act}: done for ${pro.email}`);
   process.exit(0);
 }
 
