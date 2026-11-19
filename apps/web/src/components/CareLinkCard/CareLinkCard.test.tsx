@@ -77,6 +77,19 @@ describe('CareLinkCard in the words of consent 3.0.0 (textos/05 §§ F.1, F.4)',
     expect(markup).toContain(esES.care.healthQuestion);
   });
 
+  it('says what they will see apart from what they will be able to do (textos/05 § F.4)', () => {
+    const markup = card(PLAN);
+    const seeList = markup.slice(markup.indexOf(esES.care.reconsentBody), markup.indexOf(esES.care.invitationCanDoIntro));
+    const doList = markup.slice(markup.indexOf(esES.care.invitationCanDoIntro), markup.indexOf(esES.care.healthQuestion));
+
+    for (const share of ['targets', 'mealPlans', 'progress', 'checkIns'] as const) {
+      expect(seeList).toContain(esES.care.shares[share]);
+    }
+
+    expect(seeList).not.toContain(esES.care.canDo.targets);
+    expect(doList).toContain(`<li>${esES.care.canDo.targets}</li>`);
+  });
+
   it('draws no offer once it is not on offer', () => {
     expect(card({ ...PLAN, reconsentOffered: false })).not.toContain(esES.care.reconsentAccept);
   });

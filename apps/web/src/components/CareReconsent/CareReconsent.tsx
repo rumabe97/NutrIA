@@ -102,6 +102,10 @@ export function CareReconsent({ professionalName }: CareReconsentProps) {
         {WIDER.map(share => (
           <li key={share}>{t.shares[share]}</li>
         ))}
+      </ul>
+      {/* Setting targets is an act, not data seen: its own list, as the invitation has it (`textos/05` § F.4). */}
+      <Text size="sm">{t.invitationCanDoIntro}</Text>
+      <ul className={styles.list}>
         <li>{t.canDo.targets}</li>
       </ul>
 
