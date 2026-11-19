@@ -872,7 +872,9 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   on the class, so the switch is asked before any pipe); `GET /care/links/me` and
   `DELETE /care/links/:linkId` are `CareLinksController`, with no guard — a client sees and
   ends their own link whatever the switch says (a link stays revocable), and ending is also
-  the professional's, which needs the switch and the grant, checked in `CareController.end`.
+  the professional's, which needs the switch and a practice that practises now — the current
+  agreement, no suspension, no close whose day has come — decided inside the ending's own
+  transaction (`CareRepository.end`); a restricted practitioner gets the same 404.
   Every other care route 404s while the `professional` switch is off. An invitation stores only the SHA-256 of its token; the token travels in one
   mail, queued with `BackgroundTaskService` so the answer is the same whether or not the
   address has an account, and nothing reads `user` by that address. It is read and answered

@@ -1009,7 +1009,7 @@ describe('care routes', () => {
 
       expect(response.body).toEqual({
         code: 'PRACTICE_FULL',
-        message: 'Tu consulta ya tiene todos los pacientes que incluye tu plan.',
+        message: 'Tu consulta ya tiene todas sus plazas ocupadas.',
         practice: { includedClients: 30, waysUp: ['larger_plan', 'end_link'] },
         statusCode: 409
       });

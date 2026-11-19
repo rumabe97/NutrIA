@@ -579,23 +579,22 @@ describe('CareController.end', () => {
     expect(end).toHaveBeenCalledWith(CLIENT.id, 'client', LINK, NOW);
   });
 
-  it('ends a professional’s link, as the professional, only while they are one', async () => {
+  it('ends a professional’s link, as the professional — whether they practise is the repository’s, in the ending’s transaction', async () => {
     end.mockImplementation(async (_userId, side) => side === 'professional');
-    find.mockResolvedValue(makeProfessional({ userId: PRO.id }));
 
     await CareController.end({ ...PRO, emailVerified: true }, LINK, NOW);
 
-    expect(find).toHaveBeenCalledWith(PRO.id);
     expect(end).toHaveBeenLastCalledWith(PRO.id, 'professional', LINK, NOW);
   });
 
-  it('is a 404 for an account that is on neither side, and never tries the professional’s side for a non-professional', async () => {
+  /* Project 025 phase 6, from the end-to-end run: a restricted practitioner's ending is refused in the repository — the same 404. */
+  it('is the same 404 when neither side ended anything — a stranger, or a practitioner who does not practise now', async () => {
     end.mockResolvedValue(false);
-    find.mockResolvedValue(null);
 
-    await expect(CareController.end(CLIENT, LINK, NOW)).rejects.toThrow(NotFoundError);
-    expect(end).toHaveBeenCalledTimes(1);
-    expect(end).toHaveBeenCalledWith(CLIENT.id, 'client', LINK, NOW);
+    await expect(CareController.end(CLIENT, LINK, NOW)).rejects.toThrow(new NotFoundError('Link not found'));
+    expect(end).toHaveBeenCalledTimes(2);
+    expect(end).toHaveBeenNthCalledWith(1, CLIENT.id, 'client', LINK, NOW);
+    expect(end).toHaveBeenNthCalledWith(2, CLIENT.id, 'professional', LINK, NOW);
   });
 
   it('lets the client end their link while the switch is off — consent stays revocable (PRD 004, criterion 4)', async () => {

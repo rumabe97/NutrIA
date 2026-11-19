@@ -55,8 +55,21 @@ describe('AllExceptionsFilter', () => {
     const link = { professionalName: 'Ana Dietista', since: '2026-09-23T10:00:00.000Z', status: 'active' as const };
     const { body } = capture(new CareLinkExistsError(link));
 
-    expect(body).toMatchObject({ code: 'CARE_LINK_EXISTS', link, statusCode: HttpStatus.CONFLICT });
+    // The approved sentence (web `errors.careLinkExists`, 2026-11-18): no title for a practitioner nobody checked.
+    expect(body).toMatchObject({
+      code: 'CARE_LINK_EXISTS',
+      link,
+      message: 'Ya estás vinculado con un profesional.',
+      statusCode: HttpStatus.CONFLICT
+    });
     expect(Object.keys((body as unknown as { link: object }).link).sort()).toEqual(['professionalName', 'since', 'status']);
+  });
+
+  /* Invariant review of phase 6, round two: a name that may not be shown travels as null, and the sentence names nobody. */
+  it('maps a link in the way whose name may not be shown with a null name', () => {
+    const { body } = capture(new CareLinkExistsError({ professionalName: null, since: '2026-09-23T10:00:00.000Z', status: 'paused' }));
+
+    expect(body).toMatchObject({ code: 'CARE_LINK_EXISTS', link: { professionalName: null, status: 'paused' } });
   });
 
   it('maps an unactivated account to 409 with the code the screen routes on', () => {

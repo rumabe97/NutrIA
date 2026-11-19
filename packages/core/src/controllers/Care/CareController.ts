@@ -600,18 +600,8 @@ function answerer(session: CareSession, token: string): { readonly email: string
 }
 
 /**
- * Whether this account may act as a professional today — the switch is on and
- * the grant stands: the question `ProfessionalGuard` asks through
- * `ProfessionalController.hasAccess`, asked here for the one route both sides
- * share.
- */
-async function isProfessional(userId: string): Promise<boolean> {
-  return (await switchedOn()) && (await ProfessionalRepository.find(userId)) !== null;
-}
-
-/**
- * Whether this account may work with clients today: a professional, as
- * `isProfessional`, who has accepted the current agreement
+ * Whether this account may work with clients today: the switch on, a
+ * professional who has accepted the current agreement
  * (`docs/legal/textos/01`) and is neither suspended nor closed (PRD 025
  * criterion 24, `PracticeRestrictionRepository.standing`) — the question
  * `ProfessionalGuard` asks for every client route, asked again here as the
@@ -833,14 +823,17 @@ export const CareController = {
    * The client first, whatever the switch says — consent is revocable, and a
    * client must be able to take theirs back even while the workspace is off: a
    * link whose `clientId` is the session's. Otherwise the professional, and
-   * only while this account is one (the switch is on and the grant stands): a
+   * only while this account practises — the switch on, the current agreement
+   * accepted, no suspension nor a close whose day has come (project 025 phase
+   * 6), decided inside the ending's transaction (`CareRepository.end`): a
    * link whose `professionalId` is the session's. Anything else — a
    * stranger's link, an ended one, an id that is nobody's, something that is
    * not an id at all — is the same 404. What ending does to access is Phase
    * 3's: every professional read resolves the link as `active`, so it closes
-   * on the next request. A professional whose practice has lapsed may still
-   * end a link: ending one is a way up from a full practice, and a lapse must
-   * not trap a link either side wants gone.
+   * on the next request. A professional whose practice has lapsed — unpaid —
+   * may still end a link: ending one is a way up from a full practice, and the
+   * client can always end it from their side. A restricted one may not: what
+   * the owner stopped is stopped, and a carried-out close ends the links itself.
    *
    * The targets the professional set stay, and become the client's own, in
    * the same transaction (owner's decision, 2026-09-24; `CareRepository.end`).
@@ -854,7 +847,8 @@ export const CareController = {
       return;
     }
 
-    if ((await isProfessional(session.id)) && (await CareRepository.end(session.id, 'professional', linkId, now))) {
+    // The practitioner's side: only while they practise, decided in the ending's own transaction (`CareRepository.end`).
+    if ((await switchedOn()) && (await CareRepository.end(session.id, 'professional', linkId, now))) {
       return;
     }
 

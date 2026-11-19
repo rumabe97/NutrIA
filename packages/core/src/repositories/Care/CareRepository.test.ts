@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PgDialect } from 'drizzle-orm/pg-core';
 
 import { careAccessLog, careInvitations, careLinks } from 'database/schema/care';
+import { professionals } from 'database/schema/professional';
+import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { targetOverrides } from 'database/schema/profile';
 
 import { CareRepository, rosterPlansSeen } from './CareRepository';
@@ -40,13 +42,21 @@ const inserted: { readonly table: unknown; readonly values: Record<string, unkno
 /** The `WHERE` the last `SELECT` inside the transaction was given. */
 let selectWhere: SQL | undefined;
 
+/** What a read of the `professionals` row inside the transaction answers: the practitioner's agreement, or no row. */
+let practiceRow: { agreementVersion: string | null } | undefined;
+
 function select() {
+  let table: unknown;
   const chain = {
-    from: () => chain,
+    from: (from: unknown) => {
+      table = from;
+
+      return chain;
+    },
     innerJoin: () => chain,
     // Awaited as it is, or held `FOR UPDATE` first: the same rows either way.
     limit: () => {
-      const rows = openLink ? [openLink] : [];
+      const rows = table === professionals ? (practiceRow ? [practiceRow] : []) : openLink ? [openLink] : [];
 
       return Object.assign(Promise.resolve(rows), { for: () => Promise.resolve(rows) });
     },
@@ -147,6 +157,10 @@ describe('CareRepository.end — the targets become the client’s own', () => {
   beforeEach(() => {
     statements.length = 0;
     ended = { clientId: 'usr-client', professionalId: 'usr-pro' };
+    practiceRow = { agreementVersion: PROFESSIONAL_AGREEMENT_VERSION };
+    standing.mockReset();
+    standing.mockResolvedValue({ closing: null, suspended: null });
+    badgeLock.mockReset();
   });
 
   it.each(['client', 'professional'] as const)('clears the mark in the same transaction when the %s ends it, and writes no number', async side => {
@@ -177,6 +191,71 @@ describe('CareRepository.end — the targets become the client’s own', () => {
 
     await expect(CareRepository.end('usr-stranger', 'professional', LINK, NOW)).resolves.toBe(false);
     expect(statements.map(statement => statement.table)).toEqual([careLinks]);
+  });
+});
+
+/*
+ * Project 025 phase 6, from the end-to-end run: a practitioner who does not practise now — no current
+ * agreement, a suspension standing, a close whose day has come — ends nothing through `DELETE /care/links/:id`.
+ * Decided inside the ending's transaction, under the badge lock the owner's acts take too.
+ */
+describe('CareRepository.end — the practitioner’s side only while they practise', () => {
+  beforeEach(() => {
+    statements.length = 0;
+    ended = { clientId: 'usr-client', professionalId: 'usr-pro' };
+    practiceRow = { agreementVersion: PROFESSIONAL_AGREEMENT_VERSION };
+    standing.mockReset();
+    standing.mockResolvedValue({ closing: null, suspended: null });
+    badgeLock.mockReset();
+  });
+
+  it('takes the practitioner’s badge lock, then reads what stands on the ending’s own transaction', async () => {
+    await expect(CareRepository.end('usr-pro', 'professional', LINK, NOW)).resolves.toBe(true);
+    expect(badgeLock).toHaveBeenCalledExactlyOnceWith('usr-pro');
+    // Read on the ending's transaction (the mock's `tx` writes with `update`), never a connection of its own.
+    expect(standing).toHaveBeenCalledOnce();
+    expect(standing.mock.calls[0]?.[0]).toBe('usr-pro');
+    expect(standing.mock.calls[0]?.[1]).toHaveProperty('update');
+    expect(badgeLock.mock.invocationCallOrder[0]).toBeLessThan(standing.mock.invocationCallOrder[0] ?? 0);
+  });
+
+  it.each([
+    ['suspended', { closing: null, suspended: { actedAt: NOW, reason: null } }],
+    ['on a close’s day, before the sweep', { closing: { id: 'c', actedAt: NOW, actedBy: null, effectiveAt: NOW, reason: null }, suspended: null }]
+  ])('is false and writes nothing for a practitioner %s', async (_case, stands) => {
+    standing.mockResolvedValue(stands);
+
+    await expect(CareRepository.end('usr-pro', 'professional', LINK, NOW)).resolves.toBe(false);
+    expect(statements).toEqual([]);
+  });
+
+  it.each([
+    ['an agreement at an older version', { agreementVersion: '0.9.0' }],
+    ['no agreement accepted', { agreementVersion: null }],
+    ['no practice at all', undefined]
+  ])('is false and writes nothing with %s', async (_case, row) => {
+    practiceRow = row;
+
+    await expect(CareRepository.end('usr-pro', 'professional', LINK, NOW)).resolves.toBe(false);
+    expect(statements).toEqual([]);
+  });
+
+  it('still ends before a close’s day: the practice works until then', async () => {
+    standing.mockResolvedValue({
+      closing: { id: 'c', actedAt: NOW, actedBy: null, effectiveAt: new Date(NOW.getTime() + 60_000), reason: null },
+      suspended: null
+    });
+
+    await expect(CareRepository.end('usr-pro', 'professional', LINK, NOW)).resolves.toBe(true);
+  });
+
+  it('asks the client none of it: their own ending takes no lock and reads no restriction, whatever stands', async () => {
+    standing.mockResolvedValue({ closing: null, suspended: { actedAt: NOW, reason: null } });
+    practiceRow = undefined;
+
+    await expect(CareRepository.end('usr-client', 'client', LINK, NOW)).resolves.toBe(true);
+    expect(badgeLock).not.toHaveBeenCalled();
+    expect(standing).not.toHaveBeenCalled();
   });
 });
 

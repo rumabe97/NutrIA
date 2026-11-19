@@ -503,12 +503,39 @@ export const CareRepository = {
    * reads an earlier one's name, and the client's screens show the targets as
    * theirs. A pause is not an end and keeps the mark: it is written elsewhere
    * (`BillingRepository`), and never here.
+   *
+   * **The practitioner's side ends only while they practise** (project 025
+   * phase 6, the end-to-end run): the current agreement accepted, and no
+   * suspension nor a close whose day has come standing (`blocksPractice`) —
+   * otherwise false, the same 404 as a link that is not theirs, and nothing is
+   * written. Decided inside the ending's transaction, under the practitioner's
+   * badge lock (`ProfessionalBadgeRepository.lock`, the first lock on that
+   * account), which the owner's suspension and the close take too: one landing
+   * at the same moment either commits first and is read here, or waits for this
+   * ending. Whether anybody pays is not asked: a lapsed practice may still end
+   * a link. The client's side asks none of it and always ends their own link.
    */
   async end(userId: string, side: Extract<CareLinkEndedBy, 'client' | 'professional'>, linkId: string, now: Date): Promise<boolean> {
     try {
       const owner = side === 'client' ? careLinks.clientId : careLinks.professionalId;
 
-      return await database().transaction(async tx => (await endLinks(tx, and(eq(careLinks.id, linkId), eq(owner, userId)), side, now)).length > 0);
+      return await database().transaction(async tx => {
+        if (side === 'professional') {
+          await ProfessionalBadgeRepository.lock(tx, userId);
+
+          const [practice] = await tx
+            .select({ agreementVersion: professionals.agreementVersion })
+            .from(professionals)
+            .where(eq(professionals.userId, userId))
+            .limit(1);
+
+          if (practice?.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION || (await restricted(userId, now, tx))) {
+            return false;
+          }
+        }
+
+        return (await endLinks(tx, and(eq(careLinks.id, linkId), eq(owner, userId)), side, now)).length > 0;
+      });
     } catch (error: unknown) {
       throw wrap(error);
     }

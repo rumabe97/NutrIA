@@ -185,7 +185,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return {
         code: 'CARE_LINK_EXISTS',
         link: { professionalName: exception.link.professionalName, since: exception.link.since, status: exception.link.status },
-        message: 'Ya tienes un dietista vinculado.',
+        message: 'Ya estás vinculado con un profesional.',
         statusCode: HttpStatus.CONFLICT
       };
     }
@@ -202,7 +202,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // screen offers both — a larger plan through Stripe's portal, or ending a link.
       return {
         code: 'PRACTICE_FULL',
-        message: 'Tu consulta ya tiene todos los pacientes que incluye tu plan.',
+        message: 'Tu consulta ya tiene todas sus plazas ocupadas.',
         practice: { includedClients: exception.includedClients, waysUp: ['larger_plan', 'end_link'] },
         statusCode: HttpStatus.CONFLICT
       };
