@@ -1,4 +1,4 @@
-import { asc, eq, inArray } from 'drizzle-orm';
+import { asc, eq, inArray, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
@@ -106,6 +106,8 @@ export function barsOpening(standing: RestrictionStanding): boolean {
 export interface RestrictionAct {
   readonly after: RestrictionStanding;
   readonly before: RestrictionStanding;
+  /** Whether the account had a practice when the act was decided: a close already carried out has none. */
+  readonly practising: boolean;
 }
 
 /**
@@ -124,12 +126,19 @@ export const PracticeRestrictionRepository = {
    * together decide one after the other and the second sees the first. `decide`
    * also learns whether the account has a practice now. Null when refused:
    * nothing is written.
+   *
+   * **`acted_at` is the database's clock, read once the lock is held**
+   * (`clock_timestamp()`, invariant review of phase 6, P3): `restrictionFrom`
+   * orders the rows by it, so two acts are folded in the order the lock let them
+   * write — never by an app clock captured before one of them waited.
+   *
+   * `record` writes the act's audit row in this transaction (ADR `0071`).
    */
   async act(
     userId: string,
     row: { readonly actedBy: string; readonly effectiveAt: Date | null; readonly kind: PracticeRestrictionKind; readonly reason: string | null },
-    now: Date,
-    decide: (standing: RestrictionStanding, practising: boolean) => boolean
+    decide: (standing: RestrictionStanding, practising: boolean) => boolean,
+    record?: (tx: Tx, act: RestrictionAct) => Promise<unknown>
   ): Promise<RestrictionAct | null> {
     try {
       return await database().transaction(async tx => {
@@ -144,9 +153,15 @@ export const PracticeRestrictionRepository = {
           return null;
         }
 
-        await tx.insert(practiceRestrictions).values({ ...row, actedAt: now, userId });
+        await tx.insert(practiceRestrictions).values({ ...row, actedAt: sql`clock_timestamp()`, userId });
 
-        return { after: await standingIn(tx, userId), before };
+        const act = { after: await standingIn(tx, userId), before, practising: practice !== undefined };
+
+        if (record) {
+          await record(tx, act);
+        }
+
+        return act;
       });
     } catch (error: unknown) {
       throw wrap(error);

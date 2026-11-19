@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from 'core/entities/AdminQuery';
 import type { PictureAcceptedBy } from 'core/entities/DishPicture';
+import type { BadgeChannel, BadgeRemovalReason, BadgeRemovalSource, ProfileHideReason, RestrictionSource } from 'core/entities/Professional';
 import type { TwoFactorRemovalCancelledBy } from 'core/entities/TwoFactor';
 
 /**
@@ -12,7 +13,12 @@ import type { TwoFactorRemovalCancelledBy } from 'core/entities/TwoFactor';
  * on or off, spending a backup code and generating new ones; the owner's
  * removal of a lost second factor (phase 4); adding or removing a passkey (phase 5); and the
  * daily sweep of an account whose address nobody ever confirmed (the "30-day sweep"
- * follow-up). Nothing else writes here, and nothing here is a free-form string a caller
+ * follow-up); and the owner's acts on a practitioner (project 025 phase 6, ADR
+ * `0071`): suspend, close and lift, the close carried out by the daily sweep, a
+ * profile's first look (seen, hidden), and the badge's code, confirmation and
+ * removal. `professional.granted` and `.revoked` are no longer written — the
+ * 004 grant is retired — and stay so the rows written before still render.
+ * Nothing else writes here, and nothing here is a free-form string a caller
  * invents — a new admin mutation is a new name added to this list, reviewed,
  * not a string typed at the call site.
  */
@@ -21,6 +27,15 @@ export const AUDIT_ACTIONS = [
   'account.tier_changed',
   'professional.granted',
   'professional.revoked',
+  'professional.suspended',
+  'professional.closing',
+  'professional.closed',
+  'professional.restriction_lifted',
+  'professional.profile_seen',
+  'professional.profile_hidden',
+  'professional.badge_code_issued',
+  'professional.badge_confirmed',
+  'professional.badge_removed',
   'feedback.handled',
   'feedback.reopened',
   'setting.allowance_changed',
@@ -168,8 +183,26 @@ export interface AuditMetadataByAction {
    */
   'picture.removed': { readonly acceptedBy: PictureAcceptedBy };
   'picture.retried': Record<string, never>;
+  /** The owner sent a badge code (PRD 025 scope 6): through which channel. Never the code, the contact, the register or the number. */
+  'professional.badge_code_issued': { readonly channel: BadgeChannel };
+  /** The owner confirmed a badge — a first one or the yearly re-check. Nothing else. */
+  'professional.badge_confirmed': Record<string, never>;
+  /** The owner refused an application (`fail`) or withdrew a badge (`withdrawn`): the closed reason and source, never the owner's facts. */
+  'professional.badge_removed': { readonly kind: 'fail' | 'withdrawn'; readonly reason: BadgeRemovalReason; readonly source: BadgeRemovalSource };
+  /** The daily sweep carried out a close whose day had come (PRD 025 scope 16). No actor — the cron, not a person. Nothing else. */
+  'professional.closed': Record<string, never>;
+  /** The owner closed a practice with 30 days' notice: where the decision came from, in a closed word. Never the facts. */
+  'professional.closing': { readonly source: RestrictionSource };
   'professional.granted': Record<string, never>;
+  /** The owner hid a profile — refusing is the same act: the closed reasons and whether a notice set it off. Never the word or the facts. */
+  'professional.profile_hidden': { readonly afterNotice: boolean; readonly reasons: readonly ProfileHideReason[] };
+  /** The owner looked at a queued profile and found nothing to hide. Nothing else. */
+  'professional.profile_seen': Record<string, never>;
+  /** The owner lifted what stood: which of the two it lifted. Never the facts. */
+  'professional.restriction_lifted': { readonly close: boolean; readonly suspension: boolean };
   'professional.revoked': Record<string, never>;
+  /** The owner suspended an account as a practitioner: where the decision came from, in a closed word. Never the facts. */
+  'professional.suspended': { readonly source: RestrictionSource };
   'push.test_sent': Record<string, never>;
   /**
    * A tier's limit moved from the console (`0097`): which, for which tier, from what to what

@@ -508,6 +508,32 @@ describe('BillingService — a practice', () => {
     await expect(service.portal(PERSON)).resolves.toEqual({ url: 'https://billing.stripe.com/p/session' });
   });
 
+  /* Invariant review of phase 6, P2-4: nobody pays for a practice the owner has suspended, or is closing. */
+  it.each([
+    ['suspended', { closing: null, suspended: { since: '2026-11-19T09:00:00.000Z', statement: null } }],
+    [
+      'closing',
+      { closing: { closed: false, closesAt: '2026-12-19T09:00:00.000Z', decidedAt: '2026-11-19T09:00:00.000Z', statement: null }, suspended: null }
+    ]
+  ])('is a 404 for a practice %s, and opens no checkout', async (_case, restriction) => {
+    const { gateway, service } = harness({ customer: 'cus_1', professional: true });
+
+    jest
+      .spyOn(ProfessionalController, 'find')
+      .mockResolvedValue({
+        agreementRequired: false,
+        collegiateNumber: null,
+        grantedAt: '2026-09-01T00:00:00.000Z',
+        includedClients: 0,
+        practiceOpen: false,
+        restricted: restriction.suspended !== null,
+        restriction
+      });
+
+    await expect(service.checkout(PERSON, 'practice', 'price_practice_30')).rejects.toBeInstanceOf(NotFoundError);
+    expect(gateway.checkoutUrl).not.toHaveBeenCalled();
+  });
+
   it('asks nothing about the agreement for personal premium', async () => {
     const { service } = harness({ agreed: false, professional: true });
 

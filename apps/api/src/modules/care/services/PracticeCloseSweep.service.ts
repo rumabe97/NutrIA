@@ -19,8 +19,8 @@ import { ProfessionalController } from 'core/controllers/Professional';
  * practitioner ends a link themselves.
  *
  * **Never throws**: a broken sweep is logged and must not cost the reminders
- * beside it their run; tomorrow's finds what today's did not reach. Logs a
- * count only — never an account.
+ * beside it their run; tomorrow's finds what today's did not reach. Logs the
+ * counts, and a practice whose close failed by its account id alone.
  */
 @Injectable()
 export class PracticeCloseSweepService {
@@ -28,10 +28,15 @@ export class PracticeCloseSweepService {
 
   async run(now = new Date()): Promise<void> {
     try {
-      const closed = await ProfessionalController.closeDue(now);
+      const { closed, failed } = await ProfessionalController.closeDue(now);
 
-      if (closed.length > 0) {
-        this.logger.log(`practice close sweep: closed ${closed.length}`);
+      // By the account's id alone, as `two_factor_removal_failed`: never an address or the close's reasons.
+      for (const userId of failed) {
+        this.logger.error(`practice_close_failed ${JSON.stringify({ userId })}`);
+      }
+
+      if (closed.length + failed.length > 0) {
+        this.logger.log(`practice close sweep: closed ${closed.length}, failed ${failed.length}`);
       }
     } catch (error: unknown) {
       this.logger.error(`The practice close sweep failed: ${error instanceof Error ? error.constructor.name : 'unknown'}`);

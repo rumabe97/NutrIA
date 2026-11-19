@@ -13,7 +13,11 @@ import type { Profile } from 'core/entities/Profile';
 import type { ProfessionalQuery } from 'core/entities/AdminQuery';
 import type { User } from 'core/entities/User';
 
-type CloseHooks = { readonly endLinks: (tx: unknown) => Promise<unknown>; readonly whenWithdrawn?: (tx: unknown) => Promise<unknown> };
+type CloseHooks = {
+  readonly endLinks: (tx: unknown) => Promise<unknown>;
+  readonly record?: (tx: never) => Promise<void>;
+  readonly whenWithdrawn?: (tx: unknown) => Promise<unknown>;
+};
 type Decide = (standing: RestrictionStanding, practising: boolean) => boolean;
 type Row = { actedBy: string; effectiveAt: Date | null; kind: PracticeRestrictionKind; reason: string | null };
 
@@ -29,9 +33,16 @@ const open =
       barred: (tx: unknown) => Promise<boolean>
     ) => Promise<'barred' | 'exists' | 'opened'>
   >();
-const close = vi.fn<(userId: string, now: Date, withdrawal: { checkedBy: string | null; reason: string }, hooks: CloseHooks) => Promise<boolean>>();
+const close =
+  vi.fn<
+    (userId: string, closingId: string, now: Date, withdrawal: { checkedBy: string | null; reason: string }, hooks: CloseHooks) => Promise<boolean>
+  >();
 const endLinksOf = vi.fn<(professionalId: string, now: Date, tx: unknown) => Promise<number>>();
-const act = vi.fn<(userId: string, row: Row, now: Date, decide: Decide) => Promise<RestrictionAct | null>>();
+type Record = (tx: unknown, act: RestrictionAct) => Promise<unknown>;
+
+const act = vi.fn<(userId: string, row: Row, decide: Decide, record?: Record) => Promise<RestrictionAct | null>>();
+const auditRecord = vi.fn<(entry: unknown, tx?: unknown) => Promise<void>>();
+const listWithoutPractice = vi.fn<(query: ProfessionalQuery) => Promise<readonly ProfessionalListRow[]>>();
 const standing = vi.fn<(userId: string, db?: unknown) => Promise<RestrictionStanding>>();
 const standings = vi.fn<(userIds: readonly string[]) => Promise<ReadonlyMap<string, RestrictionStanding>>>();
 const dueClosings = vi.fn<(now: Date) => Promise<readonly { closing: StandingClose; userId: string }[]>>();
@@ -77,7 +88,7 @@ vi.mock('#repositories/Professional', async () => {
     barsOpening: actual.barsOpening,
     blocksPractice: actual.blocksPractice,
     PracticeRestrictionRepository: {
-      act: (userId: string, row: Row, now: Date, decide: Decide) => act(userId, row, now, decide),
+      act: (userId: string, row: Row, decide: Decide, record?: Record) => act(userId, row, decide, record),
       dueClosings: (now: Date) => dueClosings(now),
       standing: (userId: string, db?: unknown) => standing(userId, db),
       standings: (userIds: readonly string[]) => standings(userIds)
@@ -91,10 +102,11 @@ vi.mock('#repositories/Professional', async () => {
     },
     ProfessionalRepository: {
       acceptAgreement: (userId: string, version: string, now: Date) => acceptAgreement(userId, version, now),
-      close: (userId: string, now: Date, withdrawal: { checkedBy: string | null; reason: string }, hooks: CloseHooks) =>
-        close(userId, now, withdrawal, hooks),
+      close: (userId: string, closingId: string, now: Date, withdrawal: { checkedBy: string | null; reason: string }, hooks: CloseHooks) =>
+        close(userId, closingId, now, withdrawal, hooks),
       find: (userId: string) => find(userId),
       list: (query: ProfessionalQuery) => list(query),
+      listWithoutPractice: (query: ProfessionalQuery) => listWithoutPractice(query),
       open: (userId: string, birth: { birthDate: string | null; locale: string | null }, now: Date, barred: (tx: unknown) => Promise<boolean>) =>
         open(userId, birth, now, barred)
     }
@@ -106,6 +118,7 @@ vi.mock('#repositories/Care', () => ({
     narrowLinksOf: (professionalId: string, now: Date, tx: unknown) => narrowLinksOf(professionalId, now, tx)
   }
 }));
+vi.mock('#repositories/Audit', () => ({ AuditRepository: { record: (entry: unknown, tx?: unknown) => auditRecord(entry, tx) } }));
 vi.mock('#repositories/Profile', () => ({ ProfileRepository: { findByUserId: (id: string) => findByUserId(id) } }));
 vi.mock('#repositories/User', () => ({ UserRepository: { findById: (id: string) => findById(id) } }));
 vi.mock('#repositories/Settings', () => ({ SettingsRepository: { isEnabled: (key: string, fallback: boolean) => isEnabled(key, fallback) } }));
@@ -122,6 +135,9 @@ beforeEach(() => {
   standing.mockResolvedValue(NOTHING);
   standings.mockReset();
   standings.mockResolvedValue(new Map());
+  listWithoutPractice.mockReset();
+  listWithoutPractice.mockResolvedValue([]);
+  auditRecord.mockReset();
   dueClosings.mockReset();
   requeueIf.mockReset();
   findById.mockReset();
@@ -370,6 +386,7 @@ describe('ProfessionalController.list', () => {
         email: 'b@example.com',
         grantedAt: '2026-09-23T11:00:00.000Z',
         links: { active: 0, ended: 0, paused: 0 },
+        practising: true,
         restriction: {
           closing: null,
           suspended: { since: NOW.toISOString(), statement: { authority: null, clause: 2, facts: 'Se presenta como médico.', source: 'own_review' } }
@@ -381,13 +398,46 @@ describe('ProfessionalController.list', () => {
         email: 'a@example.com',
         grantedAt: '2026-09-23T10:00:00.000Z',
         links: { active: 12, ended: 3, paused: 1 },
+        practising: true,
         restriction: null,
         userId: 'usr-a'
       }
     ]);
     // The keys are the whole contract of `0028` here: no client id, name or address may ever join them.
-    expect(Object.keys(rows[0] ?? {}).sort()).toEqual(['collegiateNumber', 'email', 'grantedAt', 'links', 'restriction', 'userId']);
+    expect(Object.keys(rows[0] ?? {}).sort()).toEqual(['collegiateNumber', 'email', 'grantedAt', 'links', 'practising', 'restriction', 'userId']);
     expect(Object.keys(rows[1]?.links ?? {}).sort()).toEqual(['active', 'ended', 'paused']);
+  });
+
+  /* Invariant review of phase 6, P2-5: a closed practice loses its row, and the owner must still find it to lift the close. */
+  it('lists, after the practices, every account a restriction stands against with no practice — and none whose close was lifted', async () => {
+    const closedPractice = (userId: string, email: string): ProfessionalListRow => ({
+      collegiateNumber: null,
+      email,
+      grantedAt: null,
+      includedClients: 0,
+      links: { active: 0, ended: 4, paused: 0 },
+      practiceOpen: false,
+      userId
+    });
+
+    list.mockResolvedValue([]);
+    listWithoutPractice.mockResolvedValue([closedPractice('usr-closed', 'closed@example.com'), closedPractice('usr-lifted', 'lifted@example.com')]);
+    standings.mockResolvedValue(new Map([['usr-closed', closing(new Date(NOW.getTime() - DAY))]]));
+
+    const rows = await ProfessionalController.list({ dir: 'desc', q: 'example', sort: 'grantedAt' }, NOW);
+
+    expect(listWithoutPractice).toHaveBeenCalledWith({ dir: 'desc', q: 'example', sort: 'grantedAt' });
+    expect(rows).toEqual([
+      {
+        collegiateNumber: null,
+        email: 'closed@example.com',
+        grantedAt: null,
+        links: { active: 0, ended: 4, paused: 0 },
+        practising: false,
+        restriction: expect.objectContaining({ closing: expect.objectContaining({ closed: true }) as unknown }) as unknown,
+        userId: 'usr-closed'
+      }
+    ]);
   });
 
   it('carries only the three counts, whatever else a row brings', async () => {
@@ -463,12 +513,24 @@ describe('ProfessionalController.suspend, close and lift', () => {
     findById.mockResolvedValue(makeUser({ id: 'usr-pro', email: 'pro@example.com' }));
   });
 
-  /** Runs the act's decision on `before`, and answers as the repository would. */
+  const TX = { name: 'the act’s transaction' };
+
+  /** Runs the act's decision on `before`, writes its audit row, and answers as the repository would. */
   function deciding(before: RestrictionStanding, practising: boolean, after: RestrictionStanding): void {
-    act.mockImplementation(async (_userId, _row, _now, decide) => (decide(before, practising) ? { after, before } : null));
+    act.mockImplementation(async (_userId, _row, decide, record) => {
+      if (!decide(before, practising)) {
+        return null;
+      }
+
+      const done = { after, before, practising };
+
+      await record?.(TX, done);
+
+      return done;
+    });
   }
 
-  it('suspends a practice at once, with the statement stored as it will be read back', async () => {
+  it('suspends a practice at once, with the statement stored as it will be read back, and its audit row', async () => {
     deciding(NOTHING, true, suspended());
 
     const done = await ProfessionalController.suspend('usr-pro', 'usr-owner', STATEMENT_INPUT, NOW);
@@ -476,11 +538,22 @@ describe('ProfessionalController.suspend, close and lift', () => {
     expect(act).toHaveBeenCalledWith(
       'usr-pro',
       { actedBy: 'usr-owner', effectiveAt: null, kind: 'suspended', reason: STATEMENT },
-      NOW,
+      expect.any(Function),
       expect.any(Function)
     );
     expect(done).toMatchObject({ closesAt: null, kind: 'suspended', suspended: true, to: 'pro@example.com', userId: 'usr-pro', wasSuspended: false });
     expect(done.answer.restriction?.suspended?.since).toBe(NOW.toISOString());
+    // ADR `0071`: the owner's act, in its own transaction — the source, never the facts.
+    expect(auditRecord).toHaveBeenCalledExactlyOnceWith(
+      {
+        action: 'professional.suspended',
+        actorId: 'usr-owner',
+        entity: 'professional',
+        metadata: { source: 'own_review' },
+        subjectUserId: 'usr-pro'
+      },
+      TX
+    );
   });
 
   it.each([
@@ -490,6 +563,7 @@ describe('ProfessionalController.suspend, close and lift', () => {
     deciding(before, practising, before);
 
     await expect(ProfessionalController.suspend('usr-pro', 'usr-owner', STATEMENT_INPUT, NOW)).rejects.toThrow('Not Found');
+    expect(auditRecord).not.toHaveBeenCalled();
   });
 
   it('closes thirty days on — never sooner — and a suspended practice stays suspended', async () => {
@@ -502,10 +576,11 @@ describe('ProfessionalController.suspend, close and lift', () => {
     expect(act).toHaveBeenCalledWith(
       'usr-pro',
       { actedBy: 'usr-owner', effectiveAt: closesAt, kind: 'closing', reason: STATEMENT },
-      NOW,
+      expect.any(Function),
       expect.any(Function)
     );
-    expect(done).toMatchObject({ closesAt, kind: 'closing', suspended: true });
+    expect(done).toMatchObject({ closesAt, kind: 'closing', suspended: true, withdrawnClose: null });
+    expect(auditRecord).toHaveBeenCalledWith(expect.objectContaining({ action: 'professional.closing', metadata: { source: 'own_review' } }), TX);
   });
 
   it.each([
@@ -525,16 +600,30 @@ describe('ProfessionalController.suspend, close and lift', () => {
     expect(act).toHaveBeenCalledWith(
       'usr-pro',
       { actedBy: 'usr-owner', effectiveAt: null, kind: 'lifted', reason: 'los hechos no se confirmaron' },
-      NOW,
+      expect.any(Function),
       expect.any(Function)
     );
-    expect(done).toMatchObject({ answer: { restriction: null, userId: 'usr-pro' }, kind: 'lifted', wasSuspended: true });
+    expect(done).toMatchObject({ answer: { restriction: null, userId: 'usr-pro' }, kind: 'lifted', wasSuspended: true, withdrawnClose: null });
+    expect(auditRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'professional.restriction_lifted', metadata: { close: false, suspension: true } }),
+      TX
+    );
   });
 
-  it('lifts a close too — a closed account may open a practice again — without calling it a suspension', async () => {
-    deciding(closing(new Date(NOW.getTime() - DAY)), false, NOTHING);
+  /* `textos/06` § W bis.4: which close mail goes — before the close was carried out, or after (the practice gone). */
+  it.each([
+    ['not yet carried out: the practice still there', true, false],
+    ['already carried out: no practice left', false, true]
+  ])('lifts a close %s, and says so', async (_label, practising, carriedOut) => {
+    const closesAt = new Date(NOW.getTime() - DAY);
 
-    await expect(ProfessionalController.lift('usr-pro', 'usr-owner', {}, NOW)).resolves.toMatchObject({ wasSuspended: false });
+    deciding(closing(closesAt), practising, NOTHING);
+
+    await expect(ProfessionalController.lift('usr-pro', 'usr-owner', {}, NOW)).resolves.toMatchObject({
+      wasSuspended: false,
+      withdrawnClose: { carriedOut, closesAt }
+    });
+    expect(auditRecord).toHaveBeenCalledWith(expect.objectContaining({ metadata: { close: true, suspension: false } }), TX);
   });
 
   it('refuses to lift what does not stand', async () => {
@@ -562,10 +651,17 @@ describe('ProfessionalController.closeDue', () => {
     dueClosings.mockResolvedValue([due('usr-a'), due('usr-b', null)]);
     close.mockResolvedValue(true);
 
-    await expect(ProfessionalController.closeDue(NOW)).resolves.toEqual([{ userId: 'usr-a' }, { userId: 'usr-b' }]);
+    await expect(ProfessionalController.closeDue(NOW)).resolves.toEqual({ closed: ['usr-a', 'usr-b'], failed: [] });
 
-    expect(close).toHaveBeenCalledWith('usr-a', NOW, { checkedBy: 'usr-owner', reason: 'other: Se presenta como médico.' }, expect.any(Object));
-    expect(close).toHaveBeenCalledWith('usr-b', NOW, { checkedBy: 'usr-owner', reason: 'other' }, expect.any(Object));
+    // The close the list found — read again by the repository under the lock (invariant review of phase 6, P1-3).
+    expect(close).toHaveBeenCalledWith(
+      'usr-a',
+      'close-usr-a',
+      NOW,
+      { checkedBy: 'usr-owner', reason: 'other: Se presenta como médico.' },
+      expect.any(Object)
+    );
+    expect(close).toHaveBeenCalledWith('usr-b', 'close-usr-b', NOW, { checkedBy: 'usr-owner', reason: 'other' }, expect.any(Object));
   });
 
   /*
@@ -577,9 +673,10 @@ describe('ProfessionalController.closeDue', () => {
     const TX = { name: 'the close’s transaction' };
 
     dueClosings.mockResolvedValue([due('usr-a')]);
-    close.mockImplementation(async (_userId, _now, _withdrawal, hooks) => {
+    close.mockImplementation(async (_userId, _closingId, _now, _withdrawal, hooks) => {
       await hooks.endLinks(TX);
       await hooks.whenWithdrawn?.(TX);
+      await hooks.record?.(TX as never);
 
       return true;
     });
@@ -589,12 +686,24 @@ describe('ProfessionalController.closeDue', () => {
     expect(endLinksOf).toHaveBeenCalledExactlyOnceWith('usr-a', NOW, TX);
     expect(requeueIf).toHaveBeenCalledExactlyOnceWith(TX, 'usr-a', NOW, expect.any(Function));
     expect(narrowLinksOf).not.toHaveBeenCalled();
+    // No actor: the cron, not a person (as `auth.unconfirmed_account_swept`).
+    expect(auditRecord).toHaveBeenCalledExactlyOnceWith(
+      { action: 'professional.closed', actorId: null, entity: 'professional', metadata: {}, subjectUserId: 'usr-a' },
+      TX
+    );
   });
 
-  it('goes on past a practice that fails, and does not count it', async () => {
+  it('a close lifted since the list is not carried out, and is neither closed nor failed', async () => {
+    dueClosings.mockResolvedValue([due('usr-a')]);
+    close.mockResolvedValue(false);
+
+    await expect(ProfessionalController.closeDue(NOW)).resolves.toEqual({ closed: [], failed: [] });
+  });
+
+  it('goes on past a practice that fails, and names it for the log', async () => {
     dueClosings.mockResolvedValue([due('usr-a'), due('usr-b')]);
     close.mockRejectedValueOnce(new Error('deadlock')).mockResolvedValueOnce(true);
 
-    await expect(ProfessionalController.closeDue(NOW)).resolves.toEqual([{ userId: 'usr-b' }]);
+    await expect(ProfessionalController.closeDue(NOW)).resolves.toEqual({ closed: ['usr-b'], failed: ['usr-a'] });
   });
 });

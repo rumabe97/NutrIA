@@ -6,7 +6,6 @@ import { activeLocale, getDictionary } from 'i18n/server';
 
 import { AdminPageHeader } from 'components/AdminPageHeader';
 import { AdminTable, apiSearch, readTableQuery } from 'components/AdminTable';
-import { ProfessionalRevoke } from 'components/ProfessionalRevoke';
 
 import { professionalQuerySchema } from 'core/entities/AdminQuery';
 
@@ -29,10 +28,12 @@ export async function generateMetadata(): Promise<Metadata> {
 const PATHNAME = '/admin/profesionales';
 
 /**
- * Profesionales (`0059`, `0068`): every account granted the practice, with its
- * collegiate number, since when, and its links counted by status — counts, never a
- * client named (`0028`). Searches by address and sorts; unpaged, because there are few.
- * The grant is made on Cuentas; taking it back is here.
+ * Profesionales (`0059`, `0068`): every account with a practice, with the number its
+ * standing badge checked (a dash without one), since when, and its links counted by
+ * status — counts, never a client named (`0028`). Searches by address and sorts;
+ * unpaged, because there are few. Since PRD 025 an account opens its own practice, so
+ * nothing is granted here, and the owner's acts on one (suspend, close, lift) arrive
+ * with phase 9.
  */
 export default async function AdminProfessionalsPage({ searchParams }: { searchParams: Promise<PageQuery> }) {
   const query = await searchParams;
@@ -55,15 +56,13 @@ export default async function AdminProfessionalsPage({ searchParams }: { searchP
     { header: t.columns.email, key: 'email', sort: { first: 'asc', phrase: t.sortBy.email, value: 'email' } },
     { header: t.columns.collegiate, key: 'collegiate' },
     { header: t.columns.granted, key: 'granted', sort: { first: 'desc', phrase: t.sortBy.grantedAt, value: 'grantedAt' } },
-    { header: t.columns.links, key: 'links', sort: { first: 'desc', phrase: t.sortBy.links, value: 'links' } },
-    { header: t.columns.actions, key: 'actions' }
+    { header: t.columns.links, key: 'links', sort: { first: 'desc', phrase: t.sortBy.links, value: 'links' } }
   ];
 
   const rows = professionals.map(professional => ({
     id: professional.userId,
     cells: {
-      actions: <ProfessionalRevoke email={professional.email} userId={professional.userId} />,
-      collegiate: professional.collegiateNumber,
+      collegiate: professional.collegiateNumber ?? '—',
       email: <span className={styles.email}>{professional.email}</span>,
       granted: formatDate(professional.grantedAt.slice(0, 10), locale, { day: 'numeric', month: 'short', year: 'numeric' }),
       links: interpolate(t.links, {

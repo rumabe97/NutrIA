@@ -48,6 +48,50 @@ campos no cambian, salvo `meaning`, que se alinea con la página (§ B1 de `05`)
 
 <!-- Fuente: RGPD art. 14.1.a-e (identidad, fines, base, destinatarios), 14.2.a (plazo), 14.2.f (fuente: el profesional), 14.3.b (al primer contacto); care.schema.ts:9-54 (aceptar o rechazar borra la fila; las caducadas las borra el barrido diario de las 08:00, backend cf87d75, así que una invitación puede vivir casi un día más que sus 14: por eso «como muy tarde al día siguiente» y no «14 días como máximo»). Recomendación AEPD, Guía para el cumplimiento del deber de informar: primera capa básica + enlace. -->
 
+### A bis. La invitación cuando cualquiera puede abrir una consulta (proyecto 025, fase 6 — **palabras nuevas, sin aprobar**)
+
+**Plantilla**: `apps/api/src/modules/email/templates/CareInvitation.ts`, objeto `COPY`. **Cuándo
+se publica**: en el mismo cambio que deja abrir una consulta sin insignia (fase 6), no después.
+Desde ese día, el correo puede salir de alguien a quien nadie ha comprobado.
+
+**Lo que dice hoy la plantilla, campo por campo** (leída el 2026-11-19, rama
+`project-025-phase-6-anyone-opens-a-practice`):
+
+| Campo | Hoy | ¿Falso o protegido desde la fase 6? |
+| --- | --- | --- |
+| `intro` | `{name} te ha invitado a llevar tu plan de comidas juntos en NutrIA, como tu dietista.` / `… as your dietitian.` | **Sí.** «como tu dietista» es NutrIA atribuyendo el título protegido a quien quizá no lo tiene. |
+| `meaning` | `Si aceptas, verá tu plan y cómo lo llevas, y podrá ajustarlo contigo. …` | **Sí, sin insignia.** «cómo lo llevas» es la adherencia, y un profesional sin insignia no la ve (PRD 025 criterio 9). |
+| `subject`, `button`, `choose`, `expires`, `ignore`, `privacy`, `linkFallback` | — | No. Ninguno dice «dietista», «paciente» ni lo que verá. `choose` («verás exactamente qué podrá ver») es verdad en los dos niveles. |
+| comentario de la plantilla (líneas 12-14) | «the dietitian sees the plan and how it goes» | No se publica, pero describe lo que ya no es verdad: lo corrige `backend` con la misma frase de abajo. |
+
+**Decisión: una sola frase neutra para los dos niveles. El correo no nombra el título, ni con
+insignia.**
+
+- **El correo no puede pintar el título desde la insignia sin arriesgarse a decir algo falso.**
+  Se envía una vez y vale 14 días. Una insignia puede caducar o retirarse dentro de ese plazo
+  (`0111` § 2: se lee en cada petición), y el correo ya enviado no se puede corregir. Una
+  afirmación de NutrIA sobre una cualificación tiene que ser verdad cuando se lee: LCD arts. 5.1.g
+  y 21.1.c; CP art. 403.2.a, porque es NutrIA quien lo atribuye y no el profesional (legal
+  § 3.a).
+- **La página de la invitación sí lo dice, pintado de la insignia en ese momento**
+  ([`05`](./05-consentimientos-cliente.md) § F.1). Esa página es lo que la persona lee antes de
+  aceptar, y es donde se pide el consentimiento. El correo es la primera capa e informa de
+  quién escribe y para qué (RGPD arts. 12.1, 14.1, 14.3.b).
+- **La plantilla solo recibe el nombre** (`careInvitationEmail({ inviterName, … })`). Una frase
+  por nivel exigiría pasarle la insignia y la fecha, y sería otro lugar donde puede divergir del
+  único `badgeOf`.
+- **Es lo que el propietario ya aprobó como principio** (C3, 2026-11-18: «tu profesional» y
+  ningún título fuera de la insignia). Las frases exactas son nuevas.
+
+| Campo | es-ES nuevo | en-GB nuevo |
+| --- | --- | --- |
+| `intro` | `{name} te ha invitado a que te haga el plan de comidas en NutrIA.` | `{name} has invited you to let them make your meal plan on NutrIA.` |
+| `meaning` | `Si aceptas, podrá hacerte el plan y ajustarlo contigo. Qué más podrá ver depende de lo que aceptes, y antes de aceptar verás la lista exacta.` | `If you accept, they can make your plan and adjust it with you. What else they can see depends on what you accept, and before accepting you will see the exact list.` |
+| `subject` | sin cambios: `{name} te ha invitado a NutrIA` | unchanged: `{name} has invited you to NutrIA` |
+| los demás | sin cambios | unchanged |
+
+<!-- Fuente: PRD 025 scope 5 («The title "dietista-nutricionista" on any screen is rendered from the badge, never from typed text») y scope 12 / criterio 19 («tu profesional» salvo con insignia); C3 aprobada el 2026-11-18; legal 2026-11-18 § 3.a (las palabras propias de NutrIA quedan fuera de la exención de alojamiento: LSSI art. 16, DSA art. 6.1) y § 1.3; LCD arts. 5.1.g y 21.1.c; CP art. 403.2.a; RGPD arts. 5.1.a, 12.1, 14.1.c y 14.3.b (el correo informa del fin; la lista se lee detrás del acceso). Sin palabra de salud, como el resto de este fichero. «Qué más podrá ver depende de lo que aceptes» es verdad en los dos niveles: sin insignia, la lista de 05 § F.3; con insignia, la de B1 y la línea de salud aparte. No sube ninguna versión: un correo no es un texto de consentimiento. -->
+
 ---
 
 ## B. Alta como profesional (nuevo)
@@ -695,6 +739,25 @@ y retirar una insignia (§ W), que son inmediatos:
 | `why` | igual que W bis.1 | the same as W bis.1 |
 | `redress` | `Hasta el {closeDate} puedes aclarar los hechos o pedirnos que lo revisemos respondiendo a este correo: lo revisa una persona y te contesta. También puedes acudir a los tribunales.` | `Until {closeDate} you can clarify the facts or ask us to look again by replying to this email: a person reviews it and answers you. You can also go to the courts.` |
 | `immediate` (sustituye a `subject` y a la primera frase de `what` cuando no hay plazo) | `Hemos cerrado tu consulta en NutrIA` · `Desde hoy hemos cerrado definitivamente tu consulta, sin el plazo de 30 días, porque {exception}: …` con `{exception}` = `la ley nos obliga a hacerlo ({law})` o `has incumplido el acuerdo de forma repetida: {facts}` | `We have closed your NutrIA practice` · `From today we have closed your practice for good, without the 30-day period, because {exception}: …` |
+
+### W bis.4 El cierre se anula, antes o después de su fecha (**palabras nuevas, sin aprobar**, 2026-11-19)
+
+**Cuándo**: el propietario levanta en la consola un cierre que había anunciado. El mismo acto,
+`lifted`, quita también una suspensión si la había
+(`packages/core/src/repositories/Professional/PracticeRestrictionRepository.ts`:
+`restrictionFrom`). **Plantilla nueva**: `ProfessionalCloseWithdrawn.ts`. Dos variantes, según
+haya llegado o no `{closeDate}`. Sin palabra de salud y sin el nombre de ningún cliente.
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` (antes de la fecha) | `No vamos a cerrar tu consulta en NutrIA` | `We are not going to close your NutrIA practice` |
+| `body` (antes de la fecha) | `Hemos anulado el cierre de tu consulta que te anunciamos para el {closeDate}: no se va a producir. Tu consulta sigue abierta{liftedSuffix}. {why}` | `We have cancelled the close of your practice we announced for {closeDate}: it will not happen. Your practice stays open{liftedSuffix}. {why}` |
+| `subject` (después de la fecha) | `Puedes volver a abrir tu consulta en NutrIA` | `You can open your NutrIA practice again` |
+| `body` (después de la fecha) | `Hemos revocado el cierre de tu consulta del {closeDate}. Desde hoy puedes volver a abrirla en NutrIA; al hacerlo te pediremos aceptar de nuevo el acuerdo del profesional. Tu perfil sigue ahí. Si tenías la insignia, se retiró con el cierre: puedes volver a pedirla desde tu consulta y, mientras tanto, las palabras de tu perfil que solo permite la insignia no se muestran y, si las lleva, tu perfil ha vuelto a revisión. Los enlaces con tus clientes terminaron con el cierre y no vuelven solos: para retomarlos, invita de nuevo a cada persona, que verá otra vez la lista y decidirá. {why}` | `We have reversed the close of your practice of {closeDate}. From today you can open it again on NutrIA; when you do, we will ask you to accept the professional's agreement again. Your profile is still there. If you held the badge, it was withdrawn with the close: you can apply for it again from your practice and, until then, the words in your profile that only the badge allows are not shown and, if it carries any, your profile has gone back for review. The links with your clients ended with the close and do not come back by themselves: to pick them up again, invite each person again, and they will see the list again and decide. {why}` |
+| `liftedSuffix` | `` · `, y también hemos levantado la suspensión` | `` · `, and we have also lifted the suspension` |
+| `why` | `` · `Lo hemos revisado y {facts}.` | `` · `We have looked into it and {facts}.` |
+
+<!-- Fuente: Reglamento (UE) 2019/1150 art. 4.3 («cuando la restricción, suspensión o terminación sea revocada… reincorporará sin demora indebida al usuario profesional, incluso en lo que respecta al acceso a los datos… generados por su uso… antes») — leído en el DOUE L 186, p. 71; y **art. 1.5** («se entenderá sin perjuicio del Derecho de la Unión, en particular… la protección de datos»), leído el 2026-11-19. Por eso los enlaces no vuelven: cada uno descansaba en el consentimiento de un cliente a ese enlace (RGPD art. 9.2.a), y el cierre lo terminó. Reabrir el flujo de datos sin que el cliente vuelva a decidir no sería «reincorporar» al profesional sino comunicar los datos de un tercero sin base. Lo que sí vuelve sin demora es lo que es del propio profesional: el perfil y las comprobaciones de la insignia, que son de la **cuenta** y no de la fila `professionals` que borra el cierre (`packages/database/src/schemas/professional.schema.ts`, «Owned by the practitioner's account»), y la posibilidad de abrir la consulta (`barsOpening` deja de impedirlo). «Te pediremos aceptar de nuevo el acuerdo»: la versión aceptada vive en la fila `professionals`, que el cierre borra, así que la consulta reabierta la pide otra vez. **[abogado]**: que P2B art. 4.3 cede aquí ante el RGPD es mi lectura (M18). La insignia no vuelve: un cierre ejecutado escribe siempre una comprobación `withdrawn` en la misma transacción si había insignia (`ProfessionalRepository.close`, `packages/core/src/repositories/Professional/ProfessionalRepository.ts:133-151`: bloqueo de la insignia → fin de los enlaces → `withdrawHeld` → `requeueIf` del perfil si lleva palabras de la insignia, `ProfessionalController.ts:371` → borrado de la fila), y deshacer el cierre no la restaura; se pide de nuevo (acuerdo 2.0.0 § 4). El perfil, de la cuenta, se queda, con lo que la insignia perdida retiene (0111 § 7). Acuerdo 2.0.0 § 13 («si deshacemos…»). -->
 
 <!-- Fuente: decisión del propietario del 2026-11-18 (suspensión real desde la consola; cierre definitivo con motivos y 30 días; ocultar y retirar, inmediatos); acuerdo 2.0.0 §§ 11 y 13; Reglamento (UE) 2019/1150 art. 4.1 (motivación de una suspensión antes o al surtir efecto, en soporte duradero), 4.2 (terminación: 30 días antes, con declaración de motivos), 4.3 (aclarar los hechos; reincorporar sin demora si se revoca), 4.4 (excepciones al plazo, con motivos sin demora) y 4.5 (hechos concretos, notificaciones de terceros, motivo del art. 3.1.c) — DOUE L 186, pp. 70-71; DSA art. 17.1.c-d y 17.3 a)-f). «Tu cuenta personal sigue como estaba»: la suspensión alcanza la consulta, no el uso de NutrIA como cliente de sí mismo. El aviso de 30 días lo da el propietario; el código no lo impone (go-live-checklist § 1 bis). -->
 

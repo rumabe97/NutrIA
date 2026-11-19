@@ -15,8 +15,11 @@ const NOW = new Date('2026-11-19T09:00:00.000Z');
 const save =
   vi.fn<(userId: string, input: SaveProfessionalProfile, now: Date, judge: (badged: boolean) => ProfileWordRefusal | null) => Promise<ProfileSave>>();
 const find = vi.fn<(userId: string) => Promise<ProfessionalProfile | null>>();
-const hide = vi.fn<(userId: string, reason: string, now: Date) => Promise<HiddenProfile | null>>();
-const markSeen = vi.fn<(userId: string, ownerId: string, now: Date) => Promise<ProfessionalProfile | null>>();
+type Hook = (tx: unknown) => Promise<unknown>;
+
+const hide = vi.fn<(userId: string, reason: string, now: Date, record?: Hook) => Promise<HiddenProfile | null>>();
+const markSeen = vi.fn<(userId: string, ownerId: string, now: Date, record?: Hook) => Promise<ProfessionalProfile | null>>();
+const auditRecord = vi.fn<(entry: unknown, tx?: unknown) => Promise<void>>();
 const queue = vi.fn<() => Promise<readonly QueuedProfile[]>>();
 const badgeOf = vi.fn<(userId: string, now: Date) => Promise<Badge | null>>();
 const badgesOf = vi.fn<(userIds: readonly string[], now: Date) => Promise<ReadonlyMap<string, Badge>>>();
@@ -29,14 +32,15 @@ vi.mock('#repositories/Professional', () => ({
   },
   ProfessionalProfileRepository: {
     find: (userId: string) => find(userId),
-    hide: (userId: string, reason: string, now: Date) => hide(userId, reason, now),
-    markSeen: (userId: string, ownerId: string, now: Date) => markSeen(userId, ownerId, now),
+    hide: (userId: string, reason: string, now: Date, record?: Hook) => hide(userId, reason, now, record),
+    markSeen: (userId: string, ownerId: string, now: Date, record?: Hook) => markSeen(userId, ownerId, now, record),
     queue: () => queue(),
     save: (userId: string, input: SaveProfessionalProfile, now: Date, judge: (badged: boolean) => ProfileWordRefusal | null) =>
       save(userId, input, now, judge)
   }
 }));
 vi.mock('#repositories/User', () => ({ UserRepository: { findById: (id: string) => findById(id) } }));
+vi.mock('#repositories/Audit', () => ({ AuditRepository: { record: (entry: unknown, tx?: unknown) => auditRecord(entry, tx) } }));
 
 const BADGE: Badge = {
   channel: 'register_email',
@@ -228,7 +232,7 @@ describe('the owner’s queue', () => {
 
     await expect(ProfessionalProfileController.markSeen('usr-pro', 'usr-owner', NOW)).resolves.toMatchObject({ review: 'seen', userId: 'usr-pro' });
     await expect(ProfessionalProfileController.markSeen('usr-pro', 'usr-owner', NOW)).rejects.toThrow(NotFoundError);
-    expect(markSeen).toHaveBeenCalledWith('usr-pro', 'usr-owner', NOW);
+    expect(markSeen).toHaveBeenCalledWith('usr-pro', 'usr-owner', NOW, expect.any(Function));
   });
 
   it('hides with one statement — refusing is the same act — and says whether it had been seen', async () => {
@@ -237,7 +241,12 @@ describe('the owner’s queue', () => {
       profile: profile({ hiddenAt: now, hiddenReason: reason, queuedAt: null, seenAt: NOW })
     }));
 
-    const hiding = await ProfessionalProfileController.hide('usr-pro', { afterNotice: false, reasons: ['badge_word'], word: 'nutricionista' }, NOW);
+    const hiding = await ProfessionalProfileController.hide(
+      'usr-pro',
+      'usr-owner',
+      { afterNotice: false, reasons: ['badge_word'], word: 'nutricionista' },
+      NOW
+    );
 
     expect(JSON.parse(hide.mock.calls[0]?.[1] ?? '')).toEqual({ afterNotice: false, facts: null, reasons: ['badge_word'], word: 'nutricionista' });
     expect(hiding).toMatchObject({
@@ -251,6 +260,46 @@ describe('the owner’s queue', () => {
   it('is a 404 to hide an account with no profile', async () => {
     hide.mockResolvedValue(null);
 
-    await expect(ProfessionalProfileController.hide('usr-pro', { afterNotice: false, reasons: ['promises'] }, NOW)).rejects.toThrow(NotFoundError);
+    await expect(ProfessionalProfileController.hide('usr-pro', 'usr-owner', { afterNotice: false, reasons: ['promises'] }, NOW)).rejects.toThrow(
+      NotFoundError
+    );
+  });
+
+  /* Invariant review of phase 6, P2-1 (ADR `0071`): who looked, and who hid, in the act's own transaction — never the word or the facts. */
+  it('records the owner’s look and the owner’s hiding in their own transactions', async () => {
+    const TX = { name: 'the act’s transaction' };
+
+    markSeen.mockImplementation(async (_userId, _ownerId, _now, record) => {
+      await record?.(TX);
+
+      return profile({ queuedAt: null, seenAt: NOW });
+    });
+    hide.mockImplementation(async (_userId, reason, now, record) => {
+      await record?.(TX);
+
+      return { hadBeenSeen: true, profile: profile({ hiddenAt: now, hiddenReason: reason }) };
+    });
+    find.mockResolvedValue(profile());
+
+    await ProfessionalProfileController.markSeen('usr-pro', 'usr-owner', NOW);
+    await ProfessionalProfileController.hide('usr-pro', 'usr-owner', { afterNotice: true, facts: 'Una tienda.', reasons: ['advertising'] }, NOW);
+
+    expect(auditRecord).toHaveBeenNthCalledWith(
+      1,
+      { action: 'professional.profile_seen', actorId: 'usr-owner', entity: 'professional', metadata: {}, subjectUserId: 'usr-pro' },
+      TX
+    );
+    expect(auditRecord).toHaveBeenNthCalledWith(
+      2,
+      {
+        action: 'professional.profile_hidden',
+        actorId: 'usr-owner',
+        entity: 'professional',
+        metadata: { afterNotice: true, reasons: ['advertising'] },
+        subjectUserId: 'usr-pro'
+      },
+      TX
+    );
+    expect(JSON.stringify(auditRecord.mock.calls)).not.toContain('Una tienda');
   });
 });

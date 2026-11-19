@@ -11,6 +11,7 @@ import { SettingsRepository } from '#repositories/Settings';
 import { UserRepository } from '#repositories/User';
 import { FLAGS } from 'core/domain/Flag';
 import { personDayKey } from 'core/domain/Period';
+import { protectedWordIn } from 'core/domain/ProtectedWords';
 import {
   CARE_CONSENT_VERSION,
   CARE_HEALTH_SHARED,
@@ -621,6 +622,17 @@ async function practises(userId: string, now: Date = new Date()): Promise<boolea
 }
 
 /**
+ * Whether a practitioner's account name may be shown to a client now
+ * (invariant review of phase 6, P1-2): the words a profile may not carry are
+ * the words an invitation may not carry — `protectedWordIn`, with the badge as
+ * it stands. The one judge of the name the mail, the invitation page and the
+ * acceptance read.
+ */
+function nameShown(name: string, badged: boolean): boolean {
+  return protectedWordIn(name, badged) === null;
+}
+
+/**
  * The free practice's seats for this practitioner (`0111` § 6): the
  * `practiceClients` allowance of their own account's tier, resolved from what
  * the console stored (`0097`). Handed to `CareRepository.invite`, which asks it
@@ -665,7 +677,7 @@ export const CareController = {
   async accept(session: CareSession, token: string, answer: AcceptInvitation, now: Date = new Date()): Promise<CareLinkView> {
     await assertOpen();
     const { email, tokenHash } = answerer(session, token);
-    const outcome = await CareRepository.accept(session.id, email, tokenHash, answer, now);
+    const outcome = await CareRepository.accept(session.id, email, tokenHash, answer, now, nameShown);
 
     if (outcome.kind === 'gone') {
       throw new NotFoundError('Invitation not found');
@@ -786,7 +798,21 @@ export const CareController = {
     await assertOpen();
     const { email, tokenHash } = answerer(session, token);
 
-    if (!(await CareRepository.decline(session.id, email, tokenHash, now))) {
+    const declined = await CareRepository.decline(session.id, email, tokenHash, now);
+
+    if (!declined) {
+      throw new NotFoundError('Invitation not found');
+    }
+
+    // Invariant review of phase 6, P3: the client may decline an invitation from an inviter suspended, closed or
+    // under a name that may not be shown — the invitation and its address are deleted all the same — but the answer
+    // is the 404 the page and the acceptance give for that same invitation, so declining teaches nothing they did not.
+    const [reachable, badge] = await Promise.all([
+      CareRepository.reachable(declined.professionalId, now),
+      ProfessionalBadgeRepository.badgeOf(declined.professionalId, now)
+    ]);
+
+    if (!reachable || !nameShown(declined.professionalName, badge !== null)) {
       throw new NotFoundError('Invitation not found');
     }
   },
@@ -900,7 +926,8 @@ export const CareController = {
     const { email, tokenHash } = answerer(session, token);
     const row = await CareRepository.openInvitation(session.id, email, tokenHash, now);
 
-    if (!row) {
+    // A name that may not be shown now reads as no invitation at all (invariant review of phase 6, P1-2), as `accept` answers it.
+    if (!row || !nameShown(row.professionalName, row.badge !== null)) {
       throw new NotFoundError('Invitation not found');
     }
 
@@ -931,7 +958,7 @@ export const CareController = {
     professional: Pick<CareSession, 'email' | 'id'>,
     input: InviteClient,
     now: Date = new Date()
-  ): Promise<{ readonly invitation: CareInvitationView; readonly token: string }> {
+  ): Promise<{ readonly invitation: CareInvitationView; readonly inviterName: string; readonly token: string }> {
     const email = normalised(input.email);
 
     if (email === normalised(professional.email)) {
@@ -940,17 +967,30 @@ export const CareController = {
 
     const token = randomBytes(TOKEN_BYTES).toString('base64url');
     const expiresAt = new Date(now.getTime() + CARE_INVITATION_TTL_DAYS * DAY_MS);
-    const outcome = await CareRepository.invite(professional.id, email, hashOf(token), expiresAt, now, () => freeSeats(professional.id));
+    const outcome = await CareRepository.invite(
+      professional.id,
+      email,
+      hashOf(token),
+      expiresAt,
+      now,
+      () => freeSeats(professional.id),
+      (name, badged) => protectedWordIn(name, badged)
+    );
 
     if (outcome.kind === 'closed') {
       throw new NotFoundError('Not found');
+    }
+
+    // The account's name, which the mail, the client's page, link and trail all show: judged as the profile's words are.
+    if (outcome.kind === 'name_refused') {
+      throw new InputParseError('A word the name may not carry', { name: [`${outcome.refusal.list}:${outcome.refusal.word}`] });
     }
 
     if (outcome.kind === 'full') {
       throw new PracticeFullError(outcome.includedClients);
     }
 
-    return { invitation: presentInvitation(outcome.invitation), token };
+    return { invitation: presentInvitation(outcome.invitation), inviterName: outcome.inviterName, token };
   },
 
   /**

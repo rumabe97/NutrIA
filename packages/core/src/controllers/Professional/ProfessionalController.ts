@@ -11,6 +11,7 @@ import {
 import { ProfileRepository } from '#repositories/Profile';
 import { SettingsRepository } from '#repositories/Settings';
 import { UserRepository } from '#repositories/User';
+import { AuditRepository } from '#repositories/Audit';
 import { FLAGS } from 'core/domain/Flag';
 import { NotFoundError, UnderMinimumAgeError } from 'core/entities/Error';
 import { professionalQuerySchema } from 'core/entities/AdminQuery';
@@ -29,6 +30,8 @@ import type {
   RestrictPractice
 } from 'core/entities/Professional';
 import type { ProfessionalQuery } from 'core/entities/AdminQuery';
+import type { AuditAction, AuditMetadataByAction } from 'core/entities/Audit';
+import type { RecordAudit } from '#repositories/Audit';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -106,9 +109,15 @@ export interface ProfessionalAccountView {
   /** The number of the badge that stands, from its `pass` check; null without one (PRD 025 criterion 5). */
   collegiateNumber: string | null;
   email: string;
-  /** When the practice was opened — by its own account since project 025, by the owner's grant before. */
-  grantedAt: string;
+  /**
+   * When the practice was opened — by its own account since project 025, by the
+   * owner's grant before. Null for an account listed for what stands against it
+   * alone: its practice was closed (`practising: false`).
+   */
+  grantedAt: string | null;
   links: LinkCounts;
+  /** Whether the account has a practice now; false for a closed one still under a restriction (invariant review of phase 6, P2-5). */
+  practising: boolean;
   /** What the owner has standing against it, shown on the row (PLAN 025 phase 9 step 3). */
   restriction: PracticeRestrictionView | null;
   userId: string;
@@ -143,11 +152,29 @@ export interface PracticeRestrictionAct {
   readonly userId: string;
   /** Whether a suspension stood before the act: a lift tells the practitioner only when it lifted one (§ W bis.2 says so). */
   readonly wasSuspended: boolean;
+  /**
+   * For a lift that ended a close (`textos/06` § W bis.4): the close's day, and
+   * whether it had been carried out — the practice already gone. Null otherwise.
+   */
+  readonly withdrawnClose: { readonly carriedOut: boolean; readonly closesAt: Date } | null;
 }
 
-/** A close whose day came and that the sweep carried out: whose, nothing else (nobody is mailed on the day). */
-export interface ClosedPractice {
-  readonly userId: string;
+/** What the daily sweep's closes came to: the accounts closed, and those whose close failed (to be logged by id alone). */
+export interface CloseRun {
+  readonly closed: readonly string[];
+  readonly failed: readonly string[];
+}
+
+/** An owner's act's audit row, in the act's own transaction (ADR `0071`). Shared with the badge's acts. */
+export function audited<A extends AuditAction>(
+  action: A,
+  actorId: string | null,
+  userId: string,
+  metadata: AuditMetadataByAction[A]
+): (tx: Parameters<RecordAudit>[0]) => Promise<void> {
+  return async tx => {
+    await AuditRepository.record({ action, actorId, entity: 'professional', metadata, subjectUserId: userId }, tx);
+  };
 }
 
 /** The statement as `practice_restrictions.reason` keeps it: JSON, so the console and the practitioner can read it back. */
@@ -227,8 +254,9 @@ function presentAccount(
   return {
     collegiateNumber: badge?.number ?? null,
     email: row.email,
-    grantedAt: row.grantedAt.toISOString(),
+    grantedAt: row.grantedAt?.toISOString() ?? null,
     links: { active: row.links.active, ended: row.links.ended, paused: row.links.paused },
+    practising: row.grantedAt !== null,
     restriction: standing ? presentRestriction(standing, now) : null,
     userId: row.userId
   };
@@ -325,8 +353,8 @@ export const ProfessionalController = {
     const act = await PracticeRestrictionRepository.act(
       userId,
       { actedBy: ownerId, effectiveAt: closesAt, kind: 'closing', reason: storedStatement(input) },
-      now,
-      (standing, practising) => practising && standing.closing === null
+      (standing, practising) => practising && standing.closing === null,
+      audited('professional.closing', ownerId, userId, { source: input.source })
     );
 
     if (!act) {
@@ -351,10 +379,15 @@ export const ProfessionalController = {
    * its date, and nobody practises while the switch is off anyway. Nobody is
    * mailed on the day — the statement went with the notice, and a link the
    * practitioner ends is mailed to nobody. One practice failing does not stop the
-   * others; tomorrow's sweep finds it again.
+   * others; tomorrow's sweep finds it again, and the caller logs it by id.
+   *
+   * Each close carried out leaves its `professional.closed` audit row in its own
+   * transaction, with no actor: the cron, not a person (as
+   * `auth.unconfirmed_account_swept` and `auth.2fa_removed_by_owner`).
    */
-  async closeDue(now: Date = new Date()): Promise<readonly ClosedPractice[]> {
-    const closed: ClosedPractice[] = [];
+  async closeDue(now: Date = new Date()): Promise<CloseRun> {
+    const closed: string[] = [];
+    const failed: string[] = [];
 
     for (const { closing, userId } of await PracticeRestrictionRepository.dueClosings(now)) {
       const facts = readStatement(closing.reason)?.facts;
@@ -362,25 +395,28 @@ export const ProfessionalController = {
       try {
         const done = await ProfessionalRepository.close(
           userId,
+          closing.id,
           now,
           // `other: facts`, as the badge's own statements are stored, so the practitioner's badge page reads it back.
           { checkedBy: closing.actedBy, reason: facts === undefined ? 'other' : `other: ${facts}` },
           {
             endLinks: tx => CareRepository.endLinksOf(userId, now, tx),
+            record: audited('professional.closed', null, userId, {}),
             // No link is left to narrow: the profile's requeue is all a badge gone still asks here.
             whenWithdrawn: tx => ProfessionalProfileRepository.requeueIf(tx, userId, now, carriesBadgeWord)
           }
         );
 
         if (done) {
-          closed.push({ userId });
+          closed.push(userId);
         }
       } catch {
-        // The next practice is not held back by this one; the sweep's caller logs counts only.
+        // The next practice is not held back by this one; the sweep's caller logs it by id alone.
+        failed.push(userId);
       }
     }
 
-    return closed;
+    return { closed, failed };
   },
 
   /**
@@ -431,23 +467,32 @@ export const ProfessionalController = {
   },
 
   /**
-   * **The owner lifts what stands** (`textos/06` § W bis.2): a `lifted` row,
-   * which ends the suspension and a close alike — a close not yet come stops,
-   * and a practice already closed may be opened again (P2B art. 4.3). A 404
-   * when nothing stands; nothing is written.
+   * **The owner lifts what stands** (`textos/06` §§ W bis.2 and W bis.4): a
+   * `lifted` row, which ends the suspension and a close alike — a close not yet
+   * carried out will not happen, and a practice already closed may be opened
+   * again (P2B art. 4.3), empty: its links ended with the close and its badge was
+   * withdrawn. A 404 when nothing stands; nothing is written. `withdrawnClose`
+   * says which close mail goes, and whether it had been carried out — the
+   * practice row already gone when the lift was decided.
    */
   async lift(userId: string, ownerId: string, input: LiftRestriction, now: Date = new Date()): Promise<PracticeRestrictionAct> {
     const account = await accountOf(userId);
     const act = await PracticeRestrictionRepository.act(
       userId,
       { actedBy: ownerId, effectiveAt: null, kind: 'lifted', reason: input.facts ?? null },
-      now,
-      standing => barsOpening(standing)
+      standing => barsOpening(standing),
+      (tx, lifted) =>
+        audited('professional.restriction_lifted', ownerId, userId, {
+          close: lifted.before.closing !== null,
+          suspension: lifted.before.suspended !== null
+        })(tx)
     );
 
     if (!act) {
       throw new NotFoundError(NOT_FOUND);
     }
+
+    const closing = act.before.closing;
 
     return {
       answer: { restriction: presentRestriction(act.after, now), userId },
@@ -457,7 +502,8 @@ export const ProfessionalController = {
       suspended: false,
       to: account.email,
       userId,
-      wasSuspended: act.before.suspended !== null
+      wasSuspended: act.before.suspended !== null,
+      withdrawnClose: closing ? { carriedOut: !act.practising, closesAt: closing.effectiveAt } : null
     };
   },
 
@@ -465,13 +511,28 @@ export const ProfessionalController = {
    * Every practitioner for the owner's screen — accounts, counts and what stands
    * against each, never a client — searched and sorted as the query asks; most
    * recently opened first when it asks nothing.
+   *
+   * **And every account a restriction still stands against that has no
+   * practice** (invariant review of phase 6, P2-5): a practice closed on its day
+   * loses its row, and the owner must still find the account to lift the close.
+   * Those come after the practices, matched by the same address search, with
+   * `practising: false` and no opening date; their links are counted as for
+   * anybody — counts, never a client.
    */
   async list(query: ProfessionalQuery = professionalQuerySchema.parse({}), now: Date = new Date()): Promise<readonly ProfessionalAccountView[]> {
-    const rows = await ProfessionalRepository.list(query);
-    const ids = rows.map(row => row.userId);
+    const [rows, closed] = await Promise.all([ProfessionalRepository.list(query), ProfessionalRepository.listWithoutPractice(query)]);
+    const ids = [...rows, ...closed].map(row => row.userId);
     const [badges, standings] = await Promise.all([ProfessionalBadgeRepository.badgesOf(ids, now), PracticeRestrictionRepository.standings(ids)]);
 
-    return rows.map(row => presentAccount(row, badges.get(row.userId), standings.get(row.userId), now));
+    return [
+      ...rows.map(row => presentAccount(row, badges.get(row.userId), standings.get(row.userId), now)),
+      // `standings` holds only accounts something stands against: a lifted one is not listed.
+      ...closed.flatMap(row => {
+        const standing = standings.get(row.userId);
+
+        return standing ? [presentAccount(row, badges.get(row.userId), standing, now)] : [];
+      })
+    ];
   },
 
   /**
@@ -533,8 +594,8 @@ export const ProfessionalController = {
     const act = await PracticeRestrictionRepository.act(
       userId,
       { actedBy: ownerId, effectiveAt: null, kind: 'suspended', reason: storedStatement(input) },
-      now,
-      (standing, practising) => practising && standing.suspended === null
+      (standing, practising) => practising && standing.suspended === null,
+      audited('professional.suspended', ownerId, userId, { source: input.source })
     );
 
     if (!act) {
@@ -562,6 +623,7 @@ function restrictionAct(
     suspended: act.after.suspended !== null,
     to,
     userId,
-    wasSuspended: act.before.suspended !== null
+    wasSuspended: act.before.suspended !== null,
+    withdrawnClose: null
   };
 }

@@ -428,6 +428,7 @@ antes del primer `POST` de solicitud** (PLAN fase 3, paso 2).
 | `practice.profileHoursNote` | `Solo informativo: en NutrIA no se reserva nada.` | `For information only: nothing is booked on NutrIA.` |
 | `practice.profileWordRefused` | `Sin la insignia no puedes usar «{word}» en tu perfil.` | `Without the badge you cannot use "{word}" in your profile.` |
 | `practice.profileWordNever` | `En NutrIA nadie puede presentarse como «{word}»: no comprobamos ese título.` | `Nobody can present themselves on NutrIA as "{word}": we do not check that title.` |
+| `practice.profilePromiseRefused` (**nueva, 2026-11-19, sin aprobar**) | `En NutrIA nadie puede prometer resultados, como «{word}»: lo que consiga cada persona no se puede garantizar.` | `Nobody can promise results on NutrIA, such as "{word}": what each person achieves cannot be guaranteed.` |
 | `practice.profileReviewNote` | `Revisamos cada perfil nuevo y cada cambio, solo para ver que no hay publicidad engañosa, spam ni palabras que no puedes usar. No comprobamos tus estudios, y que lo hayamos revisado no significa que NutrIA te recomiende.` | `We review every new profile and every change, only to see that there is no misleading advertising, spam or words you may not use. We do not check your studies, and our having reviewed it does not mean that NutrIA recommends you.` |
 | `practice.profileReviewState.queued` | `Pendiente de revisión` | `Waiting for review` |
 | `practice.profileReviewState.seen` | `Revisado` | `Reviewed` |
@@ -437,6 +438,8 @@ antes del primer `POST` de solicitud** (PLAN fase 3, paso 2).
 | `practice.dishRefused` | `Este plato no encaja con este cliente` | `This dish does not suit this client` |
 
 <!-- Fuente: PRD 025 scope 4-5, 11 y 12; legal § 3.a (aviso fijo; palabras) y § 3.g (el plato rechazado no nombra el motivo: 0013 § 5.3); 0110 decisiones 5, 6 y 9; TRLGDCU art. 20.1.c; LCD art. 21.1.c («Revisado», nunca «Aprobado»). `practice.unverifiedSelf`: el diseño aprobado el 2026-11-18 dice «el plan que hace y el chat»; el chat no existe en el proyecto 025, así que se dice solo el plan (C1). `{limit}` es la plaza resuelta (0097), nunca un 10 escrito en el texto. -->
+
+<!-- `practice.profilePromiseRefused` (2026-11-19, para la fase 6): la tercera categoría que el código rechaza, para todos, con o sin insignia — la pasada sobre el texto en bruto de ../2026-11-18-anyone-can-open-a-practice.md § 6.4 («garantizado/a/os», «asegurado», «100 %», un número seguido de «kg» o «kilos»). `{word}` es el fragmento tal como lo escribió (por ejemplo «10 kg» o «garantizado»), igual que en las otras dos. Fuente: este acuerdo § 2 («ni prometer resultados»), aprobado el 2026-11-18; Ley 44/2003 art. 44.1 (publicidad «objetiva, prudente y veraz, de modo que no levante falsas esperanzas», para quien tiene la insignia); LCD arts. 5.1 y 7 (engaño, para todos); RD 1907/1996 art. 4.2 y 4.4, leído en el BOE (BOE-A-1996-18085, sin modificaciones) el 2026-11-19 — prohíbe la publicidad de «métodos con pretendida finalidad sanitaria» que «sugieran propiedades específicas adelgazantes» o «proporcionen seguridades de alivio o curación cierta»; que un servicio de planes de comida sea uno de esos «métodos» es mi lectura **[abogado]**. La frase no dice «la ley lo prohíbe» porque eso último es una lectura; dice el porqué que es verdad en cualquier caso. -->
 
 ---
 

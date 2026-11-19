@@ -223,6 +223,9 @@ export type PriceUnit = (typeof PRICE_UNITS)[number];
 /** The longest `studies` a profile stores (PRD 025 scope 4); the database refuses longer. */
 export const PROFILE_STUDIES_MAX = 2000;
 
+/** The most opening ranges one day of a profile's hours holds. */
+export const PROFILE_HOURS_RANGES_MAX = 6;
+
 /** A time of day as a profile's hours write it, `HH:MM` on a 24-hour clock. */
 const HOUR_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 
@@ -232,11 +235,14 @@ const HOUR_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
  */
 export const professionalHoursSchema = z
   .array(
-    z.array(
-      z
-        .object({ from: z.string().regex(HOUR_PATTERN), to: z.string().regex(HOUR_PATTERN) })
-        .refine(range => range.from < range.to, { message: 'A range ends after it starts' })
-    )
+    z
+      .array(
+        z
+          .object({ from: z.string().regex(HOUR_PATTERN), to: z.string().regex(HOUR_PATTERN) })
+          .refine(range => range.from < range.to, { message: 'A range ends after it starts' })
+      )
+      // Bounded (invariant review of phase 6, P3): a day is a few opening ranges, never a payload.
+      .max(PROFILE_HOURS_RANGES_MAX)
   )
   .length(7);
 
@@ -305,6 +311,9 @@ export const saveProfessionalProfileSchema = z
       .string()
       .trim()
       .max(PROFILE_STUDIES_MAX)
+      // Plain text, as the name is (invariant review of phase 6, P3) — line breaks and tabs kept: it is a paragraph.
+      // eslint-disable-next-line no-control-regex -- control characters are exactly what is refused
+      .refine(text => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f<>]/.test(text), { message: 'Plain text' })
       .nullable()
       .default(null)
       .transform(text => (text === null || text.length === 0 ? null : text))

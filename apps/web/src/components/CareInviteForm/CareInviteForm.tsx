@@ -18,6 +18,11 @@ import { formatInstant, formatNumber, interpolate } from 'lib/format';
 
 import type { CareInvitationView } from 'core/controllers/Care';
 
+interface CareInviteFormProps {
+  /** Whether a practice plan is paid for (`CarePracticeView.open`): only then is there a portal to choose a larger one on. */
+  paid: boolean;
+}
+
 type Outcome = { email: string; expiresAt: string; kind: 'sent' } | { included: number; kind: 'full' } | { kind: 'failed'; message: string };
 
 /**
@@ -28,8 +33,10 @@ type Outcome = { email: string; expiresAt: string; kind: 'sent' } | { included: 
  * A full practice (`PRACTICE_FULL`, PRD 004 criterion 17) is not an error to
  * apologise for but a state with two ways out, and both are named: the larger
  * plan, chosen on Stripe's portal, or ending a link with somebody no longer seen.
+ * A practice nobody pays for has no subscription for the portal to open, so it is
+ * not offered the larger plan (PRD 025); ending a link is still said.
  */
-export function CareInviteForm() {
+export function CareInviteForm({ paid }: CareInviteFormProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -117,11 +124,13 @@ export function CareInviteForm() {
           <Text size="sm" tone="secondary">
             {t.inviteFullEnd}
           </Text>
-          <div className={styles.actions}>
-            <Button disabled={pending === 'invite'} loading={pending === 'portal'} onClick={() => void portal()} type="button" variant="secondary">
-              {t.inviteFullUp}
-            </Button>
-          </div>
+          {paid ? (
+            <div className={styles.actions}>
+              <Button disabled={pending === 'invite'} loading={pending === 'portal'} onClick={() => void portal()} type="button" variant="secondary">
+                {t.inviteFullUp}
+              </Button>
+            </div>
+          ) : null}
         </Note>
       ) : null}
 

@@ -9,6 +9,7 @@ import { ENV } from '../../../config/index.js';
 import { professionalBadgeCodeEmail } from '../../email/templates/ProfessionalBadgeCode.js';
 import { professionalBadgeRemovedEmail } from '../../email/templates/ProfessionalBadgeRemoved.js';
 import { professionalClosingEmail } from '../../email/templates/ProfessionalClosing.js';
+import { professionalCloseWithdrawnEmail } from '../../email/templates/ProfessionalCloseWithdrawn.js';
 import { professionalProfileHiddenEmail } from '../../email/templates/ProfessionalProfileHidden.js';
 import { professionalSuspendedEmail } from '../../email/templates/ProfessionalSuspended.js';
 import { professionalSuspensionLiftedEmail } from '../../email/templates/ProfessionalSuspensionLifted.js';
@@ -79,8 +80,8 @@ export class AdminProfessionalsService {
   }
 
   /** The owner hides a profile — refusing is the same act — and the statement of reasons is mailed (`textos/06` § X). */
-  async hideProfile(userId: string, body: HideProfessionalProfileDto): Promise<QueuedProfileDto> {
-    const hiding = await ProfessionalProfileController.hide(userId, body);
+  async hideProfile(userId: string, body: HideProfessionalProfileDto, ownerId: string): Promise<QueuedProfileDto> {
+    const hiding = await ProfessionalProfileController.hide(userId, ownerId, body);
 
     this.background.run('profile-hidden-mail', async () => this.hidingMail(hiding));
 
@@ -99,8 +100,8 @@ export class AdminProfessionalsService {
    * not be the account that applied (finding F2), so the account's language
    * says nothing about theirs.
    */
-  async issueBadgeCode(userId: string, body: IssueBadgeCodeDto): Promise<BadgeCodeIssuedDto> {
-    const issued = await ProfessionalBadgeController.issueCode(userId, body);
+  async issueBadgeCode(userId: string, body: IssueBadgeCodeDto, ownerId: string): Promise<BadgeCodeIssuedDto> {
+    const issued = await ProfessionalBadgeController.issueCode(userId, ownerId, body);
     const expiresAt = issued.expiresAt.toISOString();
 
     if (body.channel !== 'register_email') {
@@ -128,15 +129,14 @@ export class AdminProfessionalsService {
   }
 
   /**
-   * The owner lifts what stands (`textos/06` § W bis.2). The lifting is mailed
-   * only when it lifted a suspension: the approved words say «Hemos levantado la
-   * suspensión», and there are none yet for a close withdrawn on its own — the
-   * practitioner's page says it either way.
+   * The owner lifts what stands. One mail, by what it lifted: a close —
+   * carried out or not, with a suspension lifted beside it or not — is § W
+   * bis.4 (`ProfessionalCloseWithdrawn`); a suspension alone is § W bis.2.
    */
   async lift(userId: string, body: LiftRestrictionDto, ownerId: string): Promise<PracticeRestrictionAnswerDto> {
     const act = await ProfessionalController.lift(userId, ownerId, body);
 
-    if (act.wasSuspended) {
+    if (act.withdrawnClose || act.wasSuspended) {
       this.background.run('practice-lifted-mail', async () => this.restrictionMail(act));
     }
 
@@ -208,7 +208,18 @@ export class AdminProfessionalsService {
 
         return;
       case 'lifted':
-        await this.deliver(professionalSuspensionLiftedEmail({ facts, locale }), act.to);
+        await this.deliver(
+          act.withdrawnClose
+            ? professionalCloseWithdrawnEmail({
+                carriedOut: act.withdrawnClose.carriedOut,
+                closesAt: act.withdrawnClose.closesAt,
+                facts,
+                liftedSuspension: act.wasSuspended,
+                locale
+              })
+            : professionalSuspensionLiftedEmail({ facts, locale }),
+          act.to
+        );
 
         return;
     }

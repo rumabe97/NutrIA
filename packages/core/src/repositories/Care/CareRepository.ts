@@ -153,8 +153,12 @@ export type EndedByRule = { readonly endedAt: Date; readonly professionalName: s
  */
 export type InviteOutcome =
   | { readonly includedClients: number; readonly kind: 'full' }
-  | { readonly invitation: CareInvitation; readonly kind: 'invited' }
-  | { readonly kind: 'closed' };
+  | { readonly invitation: CareInvitation; readonly inviterName: string; readonly kind: 'invited' }
+  | { readonly kind: 'closed' }
+  | { readonly kind: 'name_refused'; readonly refusal: NameRefusal };
+
+/** The word the inviter's account name may not carry, and why (`protectedWordIn`'s answer). */
+export type NameRefusal = { readonly list: 'badge_only' | 'never' | 'result'; readonly word: string };
 
 /** How much of a practice is in use: active links, and invitations still live. */
 export type PracticeUse = { readonly activeClients: number; readonly pendingInvitations: number };
@@ -216,8 +220,22 @@ export const CareRepository = {
    * held (`lockClient`) before the record is read, as `endOnDeclaration` holds it
    * before it reads the link, so an acceptance and a declaration sent together
    * queue, and the second sees what the first committed.
+   *
+   * **The name the client consents to** (invariant review of phase 6, P1-2):
+   * `shown` judges the inviter's account name with their badge read here
+   * (`protectedWordIn`, handed down by the controller), as `invite` judged it
+   * when it was sent. A name that may not be shown now — changed since, or a
+   * badge-only word after the badge went — is `gone`: nobody accepts a link
+   * under it, and the invitation answers again once the name is fixed.
    */
-  async accept(clientId: string, email: string, tokenHash: string, answer: AcceptInvitation, now: Date): Promise<AcceptOutcome> {
+  async accept(
+    clientId: string,
+    email: string,
+    tokenHash: string,
+    answer: AcceptInvitation,
+    now: Date,
+    shown: (name: string, badged: boolean) => boolean
+  ): Promise<AcceptOutcome> {
     try {
       return await database().transaction(async (tx): Promise<AcceptOutcome> => {
         const [addressed] = await tx
@@ -264,6 +282,10 @@ export const CareRepository = {
 
         // The badge as it stands now, on this transaction's own connection: one definition, never cached (`0111` § 2).
         const badged = (await ProfessionalBadgeRepository.badgeOf(invitation.professionalId, now, tx)) !== null;
+
+        if (!shown(invitation.professionalName, badged)) {
+          return { kind: 'gone' };
+        }
 
         if (!badged && (await HealthRepository.hasRecord(clientId, tx))) {
           return { kind: 'refused' };
@@ -426,9 +448,16 @@ export const CareRepository = {
   /**
    * The client says no: the invitation is deleted and nothing else is written.
    * The same conditions as reading it, in one guarded `DELETE`, so a declined,
-   * accepted or foreign token changes nothing and says so the same way.
+   * accepted or foreign token changes nothing and says so the same way. Answers
+   * who sent the invitation it deleted, or null: whether that inviter can be
+   * reached now is the controller's question (`CareController.decline`).
    */
-  async decline(clientId: string, email: string, tokenHash: string, now: Date): Promise<boolean> {
+  async decline(
+    clientId: string,
+    email: string,
+    tokenHash: string,
+    now: Date
+  ): Promise<{ readonly professionalId: string; readonly professionalName: string } | null> {
     try {
       const db = database();
       const rows = await db
@@ -439,9 +468,16 @@ export const CareRepository = {
             exists(db.select({ userId: professionals.userId }).from(professionals).where(eq(professionals.userId, careInvitations.professionalId)))
           )
         )
-        .returning({ id: careInvitations.id });
+        .returning({ professionalId: careInvitations.professionalId });
+      const [deleted] = rows;
 
-      return rows.length > 0;
+      if (!deleted) {
+        return null;
+      }
+
+      const [inviter] = await db.select({ name: user.name }).from(user).where(eq(user.id, deleted.professionalId)).limit(1);
+
+      return { professionalId: deleted.professionalId, professionalName: inviter?.name ?? '' };
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -607,7 +643,8 @@ export const CareRepository = {
     tokenHash: string,
     expiresAt: Date,
     now: Date,
-    freeSeats: () => Promise<number>
+    freeSeats: () => Promise<number>,
+    judgeName: (name: string, badged: boolean) => NameRefusal | null
   ): Promise<InviteOutcome> {
     try {
       return await database().transaction(async (tx): Promise<InviteOutcome> => {
@@ -625,13 +662,29 @@ export const CareRepository = {
           return { kind: 'closed' };
         }
 
+        // The name the invitation will carry — the account's, the one the client's page, link and trail show —
+        // judged with the badge as it stands now (invariant review of phase 6, P1-2). Refused: nothing is written.
+        const [inviter] = await tx.select({ name: user.name }).from(user).where(eq(user.id, professionalId)).limit(1);
+        const badged = (await ProfessionalBadgeRepository.badgeOf(professionalId, now, tx)) !== null;
+        const refusal = inviter ? judgeName(inviter.name, badged) : null;
+
+        if (!inviter) {
+          return { kind: 'closed' };
+        }
+
+        if (refusal) {
+          return { kind: 'name_refused', refusal };
+        }
+
         const seats = practice.open ? practice.includedClients : await freeSeats();
 
+        // Every open link takes a seat, a `paused` one too (invariant review of phase 6, P1-1): a practice
+        // that lapsed above its free number keeps those clients, and cannot stack new ones on top of them.
         const [links, invitations] = await Promise.all([
           tx
             .select({ total: count() })
             .from(careLinks)
-            .where(and(eq(careLinks.professionalId, professionalId), eq(careLinks.status, 'active'))),
+            .where(and(eq(careLinks.professionalId, professionalId), inArray(careLinks.status, [...OPEN_STATUSES]))),
           tx
             .select({ total: count() })
             .from(careInvitations)
@@ -655,7 +708,7 @@ export const CareRepository = {
           })
           .returning();
 
-        return { invitation: careInvitationSchema.parse(row), kind: 'invited' };
+        return { invitation: careInvitationSchema.parse(row), inviterName: inviter.name, kind: 'invited' };
       });
     } catch (error: unknown) {
       throw wrap(error);
@@ -773,7 +826,8 @@ export const CareRepository = {
         db
           .select({ total: count() })
           .from(careLinks)
-          .where(and(eq(careLinks.professionalId, professionalId), eq(careLinks.status, 'active'))),
+          // Every open link, as `invite` counts it: the seats shown are the seats enforced.
+          .where(and(eq(careLinks.professionalId, professionalId), inArray(careLinks.status, [...OPEN_STATUSES]))),
         db
           .select({ total: count() })
           .from(careInvitations)
@@ -781,6 +835,19 @@ export const CareRepository = {
       ]);
 
       return { activeClients: links[0]?.total ?? 0, pendingInvitations: invitations[0]?.total ?? 0 };
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Whether this practitioner can be reached by a client now — no suspension, no
+   * close come (`blocksPractice`) — for a client's answer to an invitation
+   * (`CareController.decline`), read like every other restriction.
+   */
+  async reachable(professionalId: string, now: Date): Promise<boolean> {
+    try {
+      return !(await restricted(professionalId, now));
     } catch (error: unknown) {
       throw wrap(error);
     }

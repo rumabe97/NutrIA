@@ -124,6 +124,7 @@ export type EmailKind =
   | 'professional-badge-due'
   | 'professional-badge-lapsed'
   | 'professional-badge-removed'
+  | 'professional-close-withdrawn'
   | 'professional-closing'
   | 'professional-profile-hidden'
   | 'professional-suspended'

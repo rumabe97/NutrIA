@@ -90,8 +90,12 @@ export class AdminProfessionalsController {
   })
   @ApiOperation({ summary: 'Send a badge code through a channel the public register lists' })
   @Post('professionals/:userId/badge/code')
-  async issueBadgeCode(@Param('userId') userId: string, @ZodBody(IssueBadgeCodeDto) body: IssueBadgeCodeDto): Promise<BadgeCodeIssuedDto> {
-    return this.professionals.issueBadgeCode(userId, body);
+  async issueBadgeCode(
+    @Param('userId') userId: string,
+    @ZodBody(IssueBadgeCodeDto) body: IssueBadgeCodeDto,
+    @CurrentUser() owner: SessionUser
+  ): Promise<BadgeCodeIssuedDto> {
+    return this.professionals.issueBadgeCode(userId, body, owner.id);
   }
 
   @ApiOkResponse({ description: 'A pass, due in twelve months. 404 unless a code was entered for the application, or a badge stands to renew.' })
@@ -143,9 +147,10 @@ export class AdminProfessionalsController {
   @Post('professionals/:userId/profile/hide')
   async hideProfile(
     @Param('userId') userId: string,
-    @ZodBody(HideProfessionalProfileDto) body: HideProfessionalProfileDto
+    @ZodBody(HideProfessionalProfileDto) body: HideProfessionalProfileDto,
+    @CurrentUser() owner: SessionUser
   ): Promise<QueuedProfileDto> {
-    return this.professionals.hideProfile(userId, body);
+    return this.professionals.hideProfile(userId, body, owner.id);
   }
 
   @ApiOkResponse({

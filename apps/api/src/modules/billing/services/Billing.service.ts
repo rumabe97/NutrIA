@@ -103,9 +103,15 @@ export class BillingService {
    * the practice plan's terms (`docs/legal/textos/01`, `04`): they are accepted
    * on the same screen before paying, so checkout for a practice is a 404 until
    * they are. The portal and the offer stay open — the page shows both.
+   *
+   * **Nor while anything stands against the practice** (invariant review of
+   * phase 6, P2-4): a suspension, or a close announced — paying for a practice
+   * the owner has suspended or is closing is a 404 like any price not on offer.
    */
   private async agreed(user: SessionUser): Promise<boolean> {
-    return (await ProfessionalController.find(user.id))?.agreementRequired === false;
+    const practice = await ProfessionalController.find(user.id);
+
+    return practice?.agreementRequired === false && practice.restriction === null;
   }
 
   /**

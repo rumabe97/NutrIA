@@ -1,13 +1,14 @@
-import { and, asc, count, eq, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNull, ne, notInArray, or, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
 import { careInvitations, careLinks } from 'database/schema/care';
-import { professionals } from 'database/schema/professional';
+import { practiceRestrictions, professionals } from 'database/schema/professional';
 import { profiles } from 'database/schema/profile';
 import { user } from 'database/schema/auth';
 
 import { contains, ordered } from '#repositories/Search';
+import { PracticeRestrictionRepository } from './PracticeRestrictionRepository';
 import { ProfessionalBadgeRepository } from './ProfessionalBadgeRepository';
 import { DatabaseOperationError } from 'core/entities/Error';
 import { professionalSchema } from 'core/entities/Professional';
@@ -25,7 +26,8 @@ import type { SQL } from 'drizzle-orm';
 export type ProfessionalListRow = {
   readonly collegiateNumber: string | null;
   readonly email: string;
-  readonly grantedAt: Date;
+  /** Null for an account with no practice, listed for a restriction that still stands against it. */
+  readonly grantedAt: Date | null;
   readonly includedClients: number;
   readonly links: LinkCountRow;
   readonly practiceOpen: boolean;
@@ -117,15 +119,22 @@ export const ProfessionalRepository = {
    *
    * Under the practitioner's badge lock, the first lock taken on the account, as
    * every writer of the badge and of the practitioner's rows takes it, then the
-   * `professionals` row. False when there was no row to delete: nothing is
-   * written.
+   * `professionals` row. **The close is read again under that lock**
+   * (invariant review of phase 6, P1-3): `closingId` must still be the close
+   * that stands (`PracticeRestrictionRepository.standing`, on this transaction)
+   * and its day must have come — the owner's lift takes the same lock, so a
+   * close lifted after the sweep listed it is never carried out. False when
+   * there is nothing to carry out: nothing is written.
    */
   async close(
     userId: string,
+    closingId: string,
     now: Date,
     withdrawal: { readonly checkedBy: string | null; readonly reason: string },
     hooks: {
       readonly endLinks: (tx: Parameters<RecordAudit>[0]) => Promise<unknown>;
+      /** The close's audit row (`professional.closed`), in this transaction, once it is carried out. */
+      readonly record?: RecordAudit;
       readonly whenWithdrawn?: (tx: Parameters<RecordAudit>[0]) => Promise<unknown>;
     }
   ): Promise<boolean> {
@@ -135,7 +144,9 @@ export const ProfessionalRepository = {
 
         const [practice] = await tx.select({ id: professionals.id }).from(professionals).where(eq(professionals.userId, userId)).for('update');
 
-        if (!practice) {
+        const { closing } = await PracticeRestrictionRepository.standing(userId, tx);
+
+        if (!practice || closing?.id !== closingId || closing.effectiveAt.getTime() > now.getTime()) {
           return false;
         }
 
@@ -147,6 +158,10 @@ export const ProfessionalRepository = {
 
         await tx.delete(professionals).where(eq(professionals.userId, userId));
         await tx.delete(careInvitations).where(eq(careInvitations.professionalId, userId));
+
+        if (hooks.record) {
+          await hooks.record(tx);
+        }
 
         return true;
       });
@@ -219,6 +234,41 @@ export const ProfessionalRepository = {
         .orderBy(...professionalOrder(query));
 
       return rows.map(({ active, ended, paused, ...row }) => ({ ...row, links: { active, ended, paused } }));
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Every account with a `practice_restrictions` row and **no** practice — a
+   * practice closed on its day, kept on the owner's list so the close can be
+   * lifted (invariant review of phase 6, P2-5) — matched by the same address
+   * search, with its links counted per status. Whether something still stands
+   * is the controller's to ask, by the one definition. The account and counts
+   * only, never a client. Ordered by address.
+   */
+  async listWithoutPractice(query: Pick<ProfessionalQuery, 'q'>): Promise<readonly ProfessionalListRow[]> {
+    try {
+      const db = database();
+      const restricted = db.select({ userId: practiceRestrictions.userId }).from(practiceRestrictions);
+      const practising = db.select({ userId: professionals.userId }).from(professionals);
+      const rows = await db
+        .select({ active: linksIn('active'), email: user.email, ended: linksIn('ended'), paused: linksIn('paused'), userId: user.id })
+        .from(user)
+        .leftJoin(careLinks, eq(careLinks.professionalId, user.id))
+        .where(and(inArray(user.id, restricted), notInArray(user.id, practising), professionalFilters(query)))
+        .groupBy(user.id)
+        .orderBy(asc(user.email));
+
+      return rows.map(({ active, email, ended, paused, userId }) => ({
+        collegiateNumber: null,
+        email,
+        grantedAt: null,
+        includedClients: 0,
+        links: { active, ended, paused },
+        practiceOpen: false,
+        userId
+      }));
     } catch (error: unknown) {
       throw wrap(error);
     }

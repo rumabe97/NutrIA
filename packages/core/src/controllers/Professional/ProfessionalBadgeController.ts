@@ -9,7 +9,7 @@ import {
   ProfessionalBadgeRepository,
   ProfessionalProfileRepository
 } from '#repositories/Professional';
-import { badgeGone } from './ProfessionalController';
+import { audited, badgeGone } from './ProfessionalController';
 import { carriesBadgeWord } from './ProfessionalProfileController';
 import { BADGE_LAPSE_DETAILS, BADGE_REMOVAL_REASONS } from 'core/entities/Professional';
 import { AnalyticsRepository } from '#repositories/Analytics';
@@ -402,7 +402,15 @@ export const ProfessionalBadgeController = {
   async confirm(userId: string, ownerId: string, now: Date = new Date()): Promise<BadgeRecordView> {
     const account = await accountOf(userId);
 
-    if (!(await ProfessionalBadgeRepository.confirm(userId, ownerId, now, tx => CareRepository.narrowLinksOf(userId, now, tx)))) {
+    const confirmed = await ProfessionalBadgeRepository.confirm(
+      userId,
+      ownerId,
+      now,
+      tx => CareRepository.narrowLinksOf(userId, now, tx),
+      audited('professional.badge_confirmed', ownerId, userId, {})
+    );
+
+    if (!confirmed) {
       throw new NotFoundError(NOT_FOUND);
     }
 
@@ -426,10 +434,16 @@ export const ProfessionalBadgeController = {
    * the store keeps its hash. A 404 when the account does not exist, or has
    * nothing to prove.
    */
-  async issueCode(userId: string, input: IssueBadgeCode, now: Date = new Date()): Promise<IssuedBadgeCode> {
+  async issueCode(userId: string, ownerId: string, input: IssueBadgeCode, now: Date = new Date()): Promise<IssuedBadgeCode> {
     await accountOf(userId);
     const code = newBadgeCode();
-    const issued = await ProfessionalBadgeRepository.issueCode(userId, input.channel, badgeCodeHash(code), now);
+    const issued = await ProfessionalBadgeRepository.issueCode(
+      userId,
+      input.channel,
+      badgeCodeHash(code),
+      now,
+      audited('professional.badge_code_issued', ownerId, userId, { channel: input.channel })
+    );
 
     if (!issued) {
       throw new NotFoundError(NOT_FOUND);
@@ -476,7 +490,15 @@ export const ProfessionalBadgeController = {
   async remove(userId: string, ownerId: string, input: RemoveBadge, now: Date = new Date()): Promise<BadgeRemoval> {
     const account = await accountOf(userId);
     // The links narrow and the profile returns to the queue in the withdrawal's own transaction (`badgeGone`).
-    const removed = await ProfessionalBadgeRepository.remove(userId, ownerId, input.kind, storedReason(input), now, badgeGone(userId, now));
+    const removed = await ProfessionalBadgeRepository.remove(
+      userId,
+      ownerId,
+      input.kind,
+      storedReason(input),
+      now,
+      badgeGone(userId, now),
+      audited('professional.badge_removed', ownerId, userId, { kind: input.kind, reason: input.reason, source: input.source })
+    );
 
     if (!removed) {
       throw new NotFoundError(NOT_FOUND);

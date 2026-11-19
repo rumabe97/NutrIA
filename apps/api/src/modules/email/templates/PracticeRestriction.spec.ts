@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { professionalClosingEmail } from './ProfessionalClosing.js';
+import { professionalCloseWithdrawnEmail } from './ProfessionalCloseWithdrawn.js';
 import { professionalProfileHiddenEmail } from './ProfessionalProfileHidden.js';
 import { professionalSuspendedEmail } from './ProfessionalSuspended.js';
 import { professionalSuspensionLiftedEmail } from './ProfessionalSuspensionLifted.js';
@@ -25,7 +26,10 @@ const EVERY: readonly ((locale: EmailLocale) => RenderedEmail)[] = [
   locale => professionalSuspendedEmail({ locale, statement: STATEMENT }),
   locale => professionalSuspensionLiftedEmail({ facts: 'los hechos no se confirmaron', locale }),
   locale => professionalClosingEmail({ closesAt: CLOSES, locale, statement: STATEMENT, suspended: true }),
-  locale => professionalProfileHiddenEmail({ afterNotice: false, facts: null, locale, reasons: ['badge_word', 'promises'], word: 'nutricionista' })
+  locale => professionalProfileHiddenEmail({ afterNotice: false, facts: null, locale, reasons: ['badge_word', 'promises'], word: 'nutricionista' }),
+  locale => professionalCloseWithdrawnEmail({ carriedOut: false, closesAt: CLOSES, facts: null, liftedSuspension: true, locale }),
+  locale =>
+    professionalCloseWithdrawnEmail({ carriedOut: true, closesAt: CLOSES, facts: 'los hechos no se confirmaron', liftedSuspension: false, locale })
 ];
 
 describe('the restriction and first-look mails (project 025 phase 6, `docs/legal/textos/06` §§ W bis and X)', () => {
@@ -121,5 +125,35 @@ describe('the restriction and first-look mails (project 025 phase 6, `docs/legal
 
     expect(mail.html).not.toContain('<b>');
     expect(mail.text).toContain('Por qué: Uno b dos /b tres. Es lo que dice');
+  });
+
+  /* § W bis.4, as drafted on 2026-11-19 and not yet approved: the close withdrawn, before or after its day. */
+  it('§ W bis.4 before the day: it will not happen, the suspension lifted with it when it was', () => {
+    const mail = professionalCloseWithdrawnEmail({ carriedOut: false, closesAt: CLOSES, facts: null, liftedSuspension: true, locale: 'es-ES' });
+
+    expect(mail.kind).toBe('professional-close-withdrawn');
+    expect(mail.subject).toBe('No vamos a cerrar tu consulta en NutrIA');
+    expect(mail.text).toBe(
+      'Hemos anulado el cierre de tu consulta que te anunciamos para el 19 de diciembre de 2026: no se va a producir. Tu consulta sigue abierta, y también hemos levantado la suspensión.'
+    );
+  });
+
+  it('§ W bis.4 after the day: an empty practice to open again, with what the owner found', () => {
+    const es = professionalCloseWithdrawnEmail({
+      carriedOut: true,
+      closesAt: CLOSES,
+      facts: 'los hechos no se confirmaron.',
+      liftedSuspension: false,
+      locale: 'es-ES'
+    });
+    const en = professionalCloseWithdrawnEmail({ carriedOut: true, closesAt: CLOSES, facts: null, liftedSuspension: false, locale: 'en-GB' });
+
+    expect(es.subject).toBe('Puedes volver a abrir tu consulta en NutrIA');
+    expect(es.text).toContain('Hemos revocado el cierre de tu consulta del 19 de diciembre de 2026.');
+    expect(es.text).toContain('Los enlaces con tus clientes terminaron con el cierre y no vuelven solos');
+    expect(es.text.endsWith('Lo hemos revisado y los hechos no se confirmaron.')).toBe(true);
+    expect(en.subject).toBe('You can open your NutrIA practice again');
+    expect(en.text).toContain("we will ask you to accept the professional's agreement again");
+    expect(en.text.endsWith('invite each person again, and they will see the list again and decide.')).toBe(true);
   });
 });

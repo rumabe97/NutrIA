@@ -28,6 +28,7 @@ const PRACTITIONER: ProfessionalAccountView = {
   email: 'dietista@example.invalid',
   grantedAt: '2026-09-23T10:00:00.000Z',
   links: { active: 0, ended: 0, paused: 0 },
+  practising: true,
   restriction: null,
   userId: 'usr-dietitian'
 };
@@ -62,6 +63,7 @@ function act(kind: PracticeRestrictionAct['kind'], overrides: Partial<PracticeRe
     to: 'dietista@example.invalid',
     userId: 'usr-dietitian',
     wasSuspended: false,
+    withdrawnClose: null,
     ...overrides
   };
 }
@@ -300,7 +302,8 @@ describe('AdminProfessionalsController', () => {
           .expect(200);
         await settle();
 
-        expect(hide).toHaveBeenCalledWith('usr-dietitian', { afterNotice: true, reasons: ['badge_word'], word: 'nutricionista' });
+        // The session's owner hid it, and the audit row names them (ADR `0071`); the body names nobody.
+        expect(hide).toHaveBeenCalledWith('usr-dietitian', 'usr-owner', { afterNotice: true, reasons: ['badge_word'], word: 'nutricionista' });
         expect(send).toHaveBeenCalledTimes(1);
         expect(send.mock.calls[0]?.[0]).toMatchObject({
           kind: 'professional-profile-hidden',
@@ -391,6 +394,42 @@ describe('AdminProfessionalsController', () => {
         await settle();
 
         expect(send).not.toHaveBeenCalled();
+      });
+
+      /* `textos/06` § W bis.4 (drafted, not yet approved): a lift that ended a close says which close, before or after its day. */
+      it.each([
+        [
+          'not yet carried out',
+          false,
+          'No vamos a cerrar tu consulta en NutrIA',
+          'Tu consulta sigue abierta, y también hemos levantado la suspensión.'
+        ],
+        [
+          'already carried out',
+          true,
+          'Puedes volver a abrir tu consulta en NutrIA',
+          'Los enlaces con tus clientes terminaron con el cierre y no vuelven solos'
+        ]
+      ])('lifts a close %s, and mails § W bis.4 rather than § W bis.2', async (_case, carriedOut, subject, sentence) => {
+        jest
+          .spyOn(ProfessionalController, 'lift')
+          .mockResolvedValue(
+            act('lifted', {
+              statement: { authority: null, clause: null, facts: null, source: null },
+              wasSuspended: true,
+              withdrawnClose: { carriedOut, closesAt: new Date('2026-12-19T09:00:00.000Z') }
+            })
+          );
+
+        await request(app.getHttpServer() as Server)
+          .post(`/${PREFIX}/admin/professionals/usr-dietitian/lift`)
+          .send({})
+          .expect(200);
+        await settle();
+
+        expect(send).toHaveBeenCalledTimes(1);
+        expect(send.mock.calls[0]?.[0]).toMatchObject({ kind: 'professional-close-withdrawn', subject });
+        expect(send.mock.calls[0]?.[0].text).toContain(sentence);
       });
 
       it('answers the core’s refusal with the 404, and mails nobody', async () => {

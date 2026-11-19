@@ -108,6 +108,7 @@ describe('the health-data boundary around the AI module', () => {
     'practiceRestrictions',
     'ProfessionalSuspen',
     'ProfessionalClosing',
+    'ProfessionalCloseWithdrawn',
     'core/controllers/Pantry',
     'core/entities/Pantry',
     '#repositories/Pantry',

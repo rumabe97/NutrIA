@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PgDialect } from 'drizzle-orm/pg-core';
+
+import type { SQL } from 'drizzle-orm';
 
 import { barsOpening, blocksPractice, PracticeRestrictionRepository, restrictionFrom, UNRESTRICTED } from './PracticeRestrictionRepository';
 
@@ -132,19 +135,29 @@ describe('PracticeRestrictionRepository.act — one decision on what stands, und
     script = [[], [{ id: 'pro-row' }], [], [row('suspended', 0)]];
     const decide = vi.fn(() => true);
 
-    const act = await PracticeRestrictionRepository.act('usr-pro', SUSPEND, NOW, decide);
+    const record = vi.fn(async (_tx: unknown, _act: unknown) => {
+      events.push('record');
+    });
+
+    const act = await PracticeRestrictionRepository.act('usr-pro', SUSPEND, decide, record);
 
     expect(events[0]).toBe('lock');
     expect(decide).toHaveBeenCalledWith(UNRESTRICTED, true);
-    expect(inserted).toEqual([{ ...SUSPEND, actedAt: NOW, userId: 'usr-pro' }]);
-    expect(act?.before).toEqual(UNRESTRICTED);
+    expect(inserted).toHaveLength(1);
+    expect(inserted[0]).toMatchObject({ ...SUSPEND, userId: 'usr-pro' });
+    // The database's clock, read once the lock is held (invariant review of phase 6, P3): never an app clock from before the wait.
+    expect(new PgDialect({ casing: 'snake_case' }).sqlToQuery(inserted[0]?.actedAt as SQL).sql).toBe('clock_timestamp()');
+    expect(act).toMatchObject({ before: UNRESTRICTED, practising: true });
     expect(act?.after.suspended).not.toBeNull();
+    // The audit row in the same transaction, after the write.
+    expect(record).toHaveBeenCalledExactlyOnceWith(tx, act);
+    expect(events.at(-1)).toBe('record');
   });
 
   it('writes nothing when the decision refuses', async () => {
     script = [[], []];
 
-    await expect(PracticeRestrictionRepository.act('usr-pro', SUSPEND, NOW, (_standing, practising) => practising)).resolves.toBeNull();
+    await expect(PracticeRestrictionRepository.act('usr-pro', SUSPEND, (_standing, practising) => practising)).resolves.toBeNull();
     expect(inserted).toEqual([]);
   });
 });

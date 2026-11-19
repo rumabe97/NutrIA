@@ -337,7 +337,55 @@ export function protectedWordIn(text: string, badged: boolean): ProtectedWordHit
     return { list: 'never', word: never };
   }
 
-  const badgeOnly = badged ? undefined : firstOf(tokens, BADGE_ONLY_WORDS);
+  const badgeOnly = badged ? undefined : (firstOf(tokens, BADGE_ONLY_WORDS) ?? titleStemIn(tokens));
 
   return badgeOnly === undefined ? null : { list: 'badge_only', word: badgeOnly };
+}
+
+/**
+ * The protected **titles**, as a stem and the endings it takes, and the listed
+ * word each stands for (invariant review of phase 6, P2-3). The token rule alone
+ * let a title through when it was glued to another word or cut in pieces:
+ * «dietistanutricionista», «dietistaNutricionista», a soft hyphen between the
+ * two, «dieti sta», «diet ista», «die-tista», «nutricio nista».
+ *
+ * Two readings, both over every reading of the text:
+ *
+ * - **inside one token**, anywhere: no honest Spanish or English word holds one
+ *   of these titles («dietética», «dieta», «nutrición», «nutricional» hold
+ *   none), so a title glued to anything is the title;
+ * - **across two to six adjacent tokens joined**, but only when the title **ends
+ *   the run**: so «nu tri cio nis ta» is caught, and «Nutrición; istmo» —
+ *   «nutricionistmo» — is not.
+ *
+ * § 6.3 of the words table passes untouched. Badge-only, like the titles.
+ */
+const TITLES: readonly { readonly pattern: RegExp; readonly tail: RegExp; readonly word: string }[] = [
+  { endings: 'as|a', stem: 'dietist', word: 'dietista' },
+  { endings: 'as|a', stem: 'nutricionist', word: 'nutricionista' },
+  { endings: 's|', stem: 'dietitian', word: 'dietitian' },
+  { endings: 's|', stem: 'dietician', word: 'dietician' },
+  { endings: 's|', stem: 'nutritionist', word: 'nutritionist' },
+  { endings: 'os|as|o|a', stem: 'nutriolog', word: 'nutriologo' }
+].map(({ endings, stem, word }) => ({ pattern: new RegExp(`${stem}(?:${endings})`), tail: new RegExp(`${stem}(?:${endings})$`), word }));
+
+/** The most adjacent tokens a title cut in pieces is looked for across. */
+const TITLE_WINDOW = 6;
+
+/** The listed title one token holds, or a run of adjacent tokens ends with — in any reading — or undefined. */
+function titleStemIn(readings: readonly (readonly string[])[]): string | undefined {
+  for (const tokens of readings) {
+    for (let start = 0; start < tokens.length; start += 1) {
+      for (let size = 1; size <= TITLE_WINDOW && start + size <= tokens.length; size += 1) {
+        const joined = tokens.slice(start, start + size).join('');
+        const hit = TITLES.find(title => (size === 1 ? title.pattern : title.tail).test(joined));
+
+        if (hit) {
+          return hit.word;
+        }
+      }
+    }
+  }
+
+  return undefined;
 }

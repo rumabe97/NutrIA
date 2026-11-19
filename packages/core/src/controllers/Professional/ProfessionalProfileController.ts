@@ -1,3 +1,4 @@
+import { AuditRepository } from '#repositories/Audit';
 import { ProfessionalBadgeRepository, ProfessionalProfileRepository } from '#repositories/Professional';
 import { protectedWordIn } from 'core/domain/ProtectedWords';
 import { InputParseError, NotFoundError } from 'core/entities/Error';
@@ -202,11 +203,26 @@ export const ProfessionalProfileController = {
    * The owner hides a profile, with its statement of reasons (`textos/06` § X):
    * refusing and hiding are **one act** (legal F6), immediate, and it takes the
    * profile off the queue. Whether the profile had been marked seen is answered
-   * beside it. A 404 for an account with no profile.
+   * beside it. A 404 for an account with no profile. Who hid it is the audit
+   * row's (`professional.profile_hidden`, in the same transaction): the table
+   * keeps no column for it.
    */
-  async hide(userId: string, input: HideProfessionalProfile, now: Date = new Date()): Promise<ProfileHiding> {
+  async hide(userId: string, ownerId: string, input: HideProfessionalProfile, now: Date = new Date()): Promise<ProfileHiding> {
     const account = await UserRepository.findById(userId);
-    const hidden = account ? await ProfessionalProfileRepository.hide(userId, storedHiding(input), now) : null;
+    const hidden = account
+      ? await ProfessionalProfileRepository.hide(userId, storedHiding(input), now, async tx => {
+          await AuditRepository.record(
+            {
+              action: 'professional.profile_hidden',
+              actorId: ownerId,
+              entity: 'professional',
+              metadata: { afterNotice: input.afterNotice, reasons: input.reasons },
+              subjectUserId: userId
+            },
+            tx
+          );
+        })
+      : null;
 
     if (!account || !hidden) {
       throw new NotFoundError(NOT_FOUND);
@@ -236,7 +252,14 @@ export const ProfessionalProfileController = {
    * profile not on the queue; nothing is written.
    */
   async markSeen(userId: string, ownerId: string, now: Date = new Date()): Promise<QueuedProfileView> {
-    if (!(await ProfessionalProfileRepository.markSeen(userId, ownerId, now))) {
+    const seen = await ProfessionalProfileRepository.markSeen(userId, ownerId, now, async tx => {
+      await AuditRepository.record(
+        { action: 'professional.profile_seen', actorId: ownerId, entity: 'professional', metadata: {}, subjectUserId: userId },
+        tx
+      );
+    });
+
+    if (!seen) {
       throw new NotFoundError(NOT_FOUND);
     }
 

@@ -192,6 +192,19 @@ describe('the 004 grant is gone — `confirm` is the one writer of a pass', () =
  * runs the controller's hook (the links' narrowing, the profile's requeue) right
  * after the `withdrawn`, in the same transaction.
  */
+/** The close that stands, as `practice_restrictions` holds it: its day come. */
+const CLOSING = {
+  id: '00000000-0000-4000-8000-0000000c1053',
+  actedAt: new Date(NOW.getTime() - 31 * DAY),
+  actedBy: 'usr-owner',
+  createdAt: new Date(NOW.getTime() - 31 * DAY),
+  effectiveAt: new Date(NOW.getTime() - DAY),
+  kind: 'closing' as const,
+  reason: 'facts',
+  updatedAt: new Date(NOW.getTime() - 31 * DAY),
+  userId: 'usr-pro'
+};
+
 describe('ProfessionalRepository.close — the links ended, the badge withdrawn, in the close’s transaction', () => {
   const ended = vi.fn(async (_tx: unknown) => {
     events.push('end links');
@@ -203,10 +216,16 @@ describe('ProfessionalRepository.close — the links ended, the badge withdrawn,
 
   it('takes the lock, ends the links, withdraws a standing badge, runs its hook, then deletes the practice and its invitations', async () => {
     // The practice row, the checks (a badge standing), the codes expired, the `withdrawn`, then the two deletes.
-    script = [[{ id: 'pro-row' }], [check('pass', 30)], [], [], [], []];
+    script = [[{ id: 'pro-row' }], [CLOSING], [check('pass', 30)], [], [], [], []];
 
     await expect(
-      ProfessionalRepository.close('usr-pro', NOW, { checkedBy: 'usr-owner', reason: 'other: facts' }, { endLinks: ended, whenWithdrawn: narrow })
+      ProfessionalRepository.close(
+        'usr-pro',
+        CLOSING.id,
+        NOW,
+        { checkedBy: 'usr-owner', reason: 'other: facts' },
+        { endLinks: ended, whenWithdrawn: narrow }
+      )
     ).resolves.toBe(true);
 
     expect(events[0]).toBe('lock');
@@ -220,10 +239,10 @@ describe('ProfessionalRepository.close — the links ended, the badge withdrawn,
   });
 
   it('with no badge standing, still ends the links and closes, and withdraws nothing', async () => {
-    script = [[{ id: 'pro-row' }], [check('withdrawn', 3), check('pass', 30)], [], []];
+    script = [[{ id: 'pro-row' }], [CLOSING], [check('withdrawn', 3), check('pass', 30)], [], []];
 
     await expect(
-      ProfessionalRepository.close('usr-pro', NOW, { checkedBy: null, reason: 'other' }, { endLinks: ended, whenWithdrawn: narrow })
+      ProfessionalRepository.close('usr-pro', CLOSING.id, NOW, { checkedBy: null, reason: 'other' }, { endLinks: ended, whenWithdrawn: narrow })
     ).resolves.toBe(true);
 
     expect(ended).toHaveBeenCalledOnce();
@@ -233,15 +252,55 @@ describe('ProfessionalRepository.close — the links ended, the badge withdrawn,
   });
 
   it('with no practice left, writes nothing and ends nothing', async () => {
-    script = [[]];
+    script = [[], [CLOSING]];
 
     await expect(
-      ProfessionalRepository.close('usr-pro', NOW, { checkedBy: null, reason: 'other' }, { endLinks: ended, whenWithdrawn: narrow })
+      ProfessionalRepository.close('usr-pro', CLOSING.id, NOW, { checkedBy: null, reason: 'other' }, { endLinks: ended, whenWithdrawn: narrow })
     ).resolves.toBe(false);
 
     expect(ended).not.toHaveBeenCalled();
     expect(events).not.toContain('insert check');
     expect(events).not.toContain('delete professional');
+  });
+
+  /*
+   * Invariant review of phase 6, P1-3: the sweep lists its closes outside any lock, so the
+   * close is read again under it — a close the owner lifted in between, or replaced, or
+   * whose day has not come, is not carried out, and nothing is written.
+   */
+  it.each([
+    [
+      'lifted since the list',
+      [
+        CLOSING,
+        { ...CLOSING, id: '00000000-0000-4000-8000-00000000a1f7', actedAt: NOW, createdAt: NOW, effectiveAt: null, kind: 'lifted', reason: null }
+      ]
+    ],
+    ['replaced by another close', [{ ...CLOSING, id: '00000000-0000-4000-8000-000000000002' }]],
+    ['whose day has not come', [{ ...CLOSING, effectiveAt: new Date(NOW.getTime() + DAY) }]]
+  ])('carries out nothing for a close %s', async (_case, restrictions) => {
+    script = [[{ id: 'pro-row' }], restrictions];
+
+    await expect(
+      ProfessionalRepository.close('usr-pro', CLOSING.id, NOW, { checkedBy: null, reason: 'other' }, { endLinks: ended, whenWithdrawn: narrow })
+    ).resolves.toBe(false);
+
+    expect(ended).not.toHaveBeenCalled();
+    expect(events).not.toContain('insert check');
+    expect(events).not.toContain('delete professional');
+  });
+
+  it('records the close carried out last, in its transaction', async () => {
+    const record = vi.fn(async (_tx: unknown) => {
+      events.push('record');
+    });
+
+    script = [[{ id: 'pro-row' }], [CLOSING], [], [], []];
+
+    await ProfessionalRepository.close('usr-pro', CLOSING.id, NOW, { checkedBy: null, reason: 'other' }, { endLinks: ended, record });
+
+    expect(record).toHaveBeenCalledExactlyOnceWith(tx);
+    expect(events.at(-1)).toBe('record');
   });
 });
 

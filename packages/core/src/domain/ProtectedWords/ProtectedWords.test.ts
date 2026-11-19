@@ -198,6 +198,43 @@ describe('protectedWordIn — what looks like a word is read as the word', () =>
   });
 });
 
+/*
+ * Invariant review of phase 6, P2-3: a title glued to another word, or cut in
+ * pieces, is the title. Each bypass the reviewer found, refused without the badge
+ * and allowed with it; and the honest words of § 6.3 still pass.
+ */
+describe('protectedWordIn — a title glued or cut in pieces', () => {
+  it.each([
+    ['dietistanutricionista', 'dietista'],
+    ['dietistaNutricionista', 'dietista'],
+    ['dietista­nutricionista', 'dietista'],
+    ['Ana, dieti sta', 'dietista'],
+    ['diet ista', 'dietista'],
+    ['die-tista', 'dietista'],
+    ['nutricio nista deportiva', 'nutricionista'],
+    ['nu tri cio nis ta', 'nutricionista'],
+    ['Registered dieti-tian', 'dietitian'],
+    ['sports nutrition ist', 'nutritionist'],
+    ['nutrió loga', 'nutriologo']
+  ])('refuses «%s» without the badge, as «%s»', (text, word) => {
+    expect(protectedWordIn(text, false)).toEqual({ list: 'badge_only', word });
+    expect(protectedWordIn(text, true)).toBeNull();
+  });
+
+  it.each([
+    'Curso de nutrición deportiva',
+    'Asesora nutricional',
+    'Dietética y alimentación',
+    'Estudios de dietética',
+    'Planes de dieta mediterránea',
+    'Dieta, istmo y otras palabras raras',
+    'Nutrición; istmo',
+    'Coach nutricional'
+  ])('lets «%s» through: no title stem, alone or joined', text => {
+    expect(protectedWordIn(text, false)).toBeNull();
+  });
+});
+
 describe('normalisedTokens', () => {
   it('lowers, strips accents, undoes look-alikes only inside lettered tokens and splits on every non-letter', () => {
     expect(normalisedTokens('  Ñandú-D.N. 1487/2009 n0ta @lgo ')).toEqual(['nandu', 'd', 'n', 'nota', 'algo']);

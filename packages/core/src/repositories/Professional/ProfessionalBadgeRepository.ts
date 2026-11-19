@@ -364,7 +364,14 @@ export const ProfessionalBadgeRepository = {
    * `full` link the client has not consented to afresh. A renewal under a
    * standing badge never calls it.
    */
-  async confirm(userId: string, checkedBy: string, now: Date, beforeRegained?: (tx: Tx) => Promise<unknown>): Promise<Badge | null> {
+  async confirm(
+    userId: string,
+    checkedBy: string,
+    now: Date,
+    beforeRegained?: (tx: Tx) => Promise<unknown>,
+    // The owner's audit row (ADR `0071`), in this transaction, once the pass is written.
+    record?: (tx: Tx) => Promise<unknown>
+  ): Promise<Badge | null> {
     try {
       return await underLock(userId, async tx => {
         const checks = await checksOf(tx, userId);
@@ -413,6 +420,10 @@ export const ProfessionalBadgeRepository = {
             userId
           })
           .returning();
+
+        if (record) {
+          await record(tx);
+        }
 
         return badgeFrom([professionalBadgeCheckSchema.parse(row)], now);
       });
@@ -518,7 +529,14 @@ export const ProfessionalBadgeRepository = {
    * transaction, so there is one live code at a time and its cap is the
    * practitioner's.
    */
-  async issueCode(userId: string, channel: BadgeChannel, codeHash: string, now: Date): Promise<IssuedCheck | null> {
+  async issueCode(
+    userId: string,
+    channel: BadgeChannel,
+    codeHash: string,
+    now: Date,
+    // The owner's audit row (ADR `0071`), in this transaction, once the code is stored.
+    record?: (tx: Tx) => Promise<unknown>
+  ): Promise<IssuedCheck | null> {
     try {
       return await underLock(userId, async tx => {
         const checks = await checksOf(tx, userId);
@@ -533,6 +551,10 @@ export const ProfessionalBadgeRepository = {
 
         await expireUnusedCodes(tx, userId, now);
         await tx.insert(professionalBadgeCodes).values({ channel, checkId: target.id, codeHash, expiresAt, userId });
+
+        if (record) {
+          await record(tx);
+        }
 
         return { expiresAt, number: target.number, register: target.register };
       });
@@ -700,7 +722,9 @@ export const ProfessionalBadgeRepository = {
     // practitioner's links narrow at the same moment (`CareRepository.narrowLinksOf`), and
     // since phase 6 a profile carrying a badge-only word returns to the owner's queue. The
     // controller builds it; this repository does not know what it does.
-    whenWithdrawn?: (tx: Tx) => Promise<unknown>
+    whenWithdrawn?: (tx: Tx) => Promise<unknown>,
+    // The owner's audit row (ADR `0071`), in this transaction, once the check is written.
+    record?: (tx: Tx) => Promise<unknown>
   ): Promise<RemovedCheck | null> {
     try {
       return await underLock(userId, async tx => {
@@ -708,6 +732,10 @@ export const ProfessionalBadgeRepository = {
 
         if (removed && kind === 'withdrawn' && whenWithdrawn) {
           await whenWithdrawn(tx);
+        }
+
+        if (removed && record) {
+          await record(tx);
         }
 
         return removed;

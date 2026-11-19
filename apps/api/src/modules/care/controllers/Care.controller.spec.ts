@@ -229,7 +229,11 @@ describe('care routes', () => {
       jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
       const invite = jest
         .spyOn(CareController, 'invite')
-        .mockResolvedValue({ invitation: { email: 'cliente@example.invalid', expiresAt: '2026-10-07T10:00:00.000Z' }, token: TOKEN });
+        .mockResolvedValue({
+          invitation: { email: 'cliente@example.invalid', expiresAt: '2026-10-07T10:00:00.000Z' },
+          inviterName: 'Ana Pérez',
+          token: TOKEN
+        });
 
       const response = await request(server())
         .post(`/${PREFIX}/care/invitations`)
@@ -248,9 +252,9 @@ describe('care routes', () => {
 
       expect(mail?.to).toBe('cliente@example.invalid');
       expect(mail?.text).toContain(`https://nutria.example/en/invitacion/${TOKEN}`);
-      expect(mail?.subject).toBe('Ana Dietista has invited you to NutrIA');
+      expect(mail?.subject).toBe('Ana Pérez has invited you to NutrIA');
       // RGPD art. 14 (`docs/legal/textos/06` § A): who gave the address, and where the rights are, in the inviter's language.
-      expect(mail?.text).toContain('We are writing because Ana Dietista gave us your address');
+      expect(mail?.text).toContain('We are writing because Ana Pérez gave us your address');
       expect(mail?.text).toContain('https://nutria.example/en/privacidad');
     });
 
@@ -954,7 +958,11 @@ describe('care routes', () => {
       const clients = jest.spyOn(CareController, 'clients').mockResolvedValue({ clients: [], invitations: [] });
       const invite = jest
         .spyOn(CareController, 'invite')
-        .mockResolvedValue({ invitation: { email: 'cliente@example.invalid', expiresAt: '2026-10-07T10:00:00.000Z' }, token: TOKEN });
+        .mockResolvedValue({
+          invitation: { email: 'cliente@example.invalid', expiresAt: '2026-10-07T10:00:00.000Z' },
+          inviterName: 'Ana Pérez',
+          token: TOKEN
+        });
 
       await request(server()).get(`/${PREFIX}/care/clients`).expect(200);
       await request(server()).post(`/${PREFIX}/care/invitations`).send({ email: 'cliente@example.invalid' }).expect(201);
@@ -1012,7 +1020,11 @@ describe('care routes', () => {
       jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
       const invite = jest
         .spyOn(CareController, 'invite')
-        .mockResolvedValue({ invitation: { email: 'cliente@example.invalid', expiresAt: '2026-10-07T10:00:00.000Z' }, token: TOKEN });
+        .mockResolvedValue({
+          invitation: { email: 'cliente@example.invalid', expiresAt: '2026-10-07T10:00:00.000Z' },
+          inviterName: 'Ana Pérez',
+          token: TOKEN
+        });
 
       await request(server())
         .post(`/${PREFIX}/care/invitations`)

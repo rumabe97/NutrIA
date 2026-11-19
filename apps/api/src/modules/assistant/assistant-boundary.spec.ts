@@ -53,6 +53,7 @@ describe('the assistant module’s wall', () => {
     'practiceRestrictions',
     'ProfessionalSuspen',
     'ProfessionalClosing',
+    'ProfessionalCloseWithdrawn',
     'core/controllers/Pantry',
     'core/entities/Pantry',
     '#repositories/Pantry',

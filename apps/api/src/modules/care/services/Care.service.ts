@@ -136,9 +136,10 @@ export class CareService {
    * the invited address. The token leaves this method only inside that mail.
    */
   async invite(professional: SessionUser, body: InviteClientDto): Promise<CareInvitationDto> {
-    const { invitation, token } = await CareController.invite(professional, body);
+    const { invitation, inviterName, token } = await CareController.invite(professional, body);
 
-    this.background.run('care-invitation-mail', async () => this.mail(professional, invitation.email, token));
+    // The name the core judged in the invitation's transaction — never the session's copy of it.
+    this.background.run('care-invitation-mail', async () => this.mail(professional, inviterName, invitation.email, token));
 
     return invitation;
   }
@@ -221,11 +222,11 @@ export class CareService {
    * unknown. Never logs the address or the token — a failure says only that
    * an invitation mail did not go.
    */
-  private async mail(professional: SessionUser, to: string, token: string): Promise<void> {
+  private async mail(professional: SessionUser, inviterName: string, to: string, token: string): Promise<void> {
     const locale = await recipientLocale(professional.id);
     const url = webUrl(this.env.APP_URL, `/invitacion/${token}`, locale);
     const privacyUrl = webUrl(this.env.APP_URL, '/privacidad', locale);
-    const sent = await this.email.send({ ...careInvitationEmail({ inviterName: professional.name, locale, privacyUrl, url }), to });
+    const sent = await this.email.send({ ...careInvitationEmail({ inviterName, locale, privacyUrl, url }), to });
 
     if (!sent) {
       this.logger.warn('care invitation mail not sent');

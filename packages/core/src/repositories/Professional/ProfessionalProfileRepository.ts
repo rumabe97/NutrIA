@@ -68,9 +68,10 @@ export const ProfessionalProfileRepository = {
    * The owner hides a profile, with the statement it carries (`hidden_reason`,
    * required by the table). **Refusing and hiding are this one act** (legal F6):
    * it also takes the profile off the queue, because the owner has looked.
-   * Immediate. Null when the account has no profile.
+   * Immediate. Null when the account has no profile. `record` writes the
+   * owner's audit row in this transaction (ADR `0071`).
    */
-  async hide(userId: string, reason: string, now: Date): Promise<HiddenProfile | null> {
+  async hide(userId: string, reason: string, now: Date, record?: (tx: Tx) => Promise<unknown>): Promise<HiddenProfile | null> {
     try {
       return await database().transaction(async tx => {
         const [before] = await tx
@@ -89,6 +90,10 @@ export const ProfessionalProfileRepository = {
           .where(eq(professionalProfiles.userId, userId))
           .returning();
 
+        if (record) {
+          await record(tx);
+        }
+
         return { hadBeenSeen: before.seenAt !== null, profile: professionalProfileSchema.parse(row) };
       });
     } catch (error: unknown) {
@@ -100,17 +105,28 @@ export const ProfessionalProfileRepository = {
    * The owner has looked and found nothing to hide: seen, off the queue — and,
    * for a hidden profile its author edited since, no longer hidden (`textos/06`
    * § X: «si ya no tiene lo que te decimos, dejará de estar oculto»). Only a
-   * profile on the queue: null otherwise, and nothing is written.
+   * profile on the queue: null otherwise, and nothing is written. `record`
+   * writes the owner's audit row in the same transaction (ADR `0071`).
    */
-  async markSeen(userId: string, ownerId: string, now: Date): Promise<ProfessionalProfile | null> {
+  async markSeen(userId: string, ownerId: string, now: Date, record?: (tx: Tx) => Promise<unknown>): Promise<ProfessionalProfile | null> {
     try {
-      const [row] = await database()
-        .update(professionalProfiles)
-        .set({ hiddenAt: null, hiddenReason: null, queuedAt: null, seenAt: now, seenBy: ownerId, updatedAt: now })
-        .where(and(eq(professionalProfiles.userId, userId), isNotNull(professionalProfiles.queuedAt)))
-        .returning();
+      return await database().transaction(async tx => {
+        const [row] = await tx
+          .update(professionalProfiles)
+          .set({ hiddenAt: null, hiddenReason: null, queuedAt: null, seenAt: now, seenBy: ownerId, updatedAt: now })
+          .where(and(eq(professionalProfiles.userId, userId), isNotNull(professionalProfiles.queuedAt)))
+          .returning();
 
-      return row ? professionalProfileSchema.parse(row) : null;
+        if (!row) {
+          return null;
+        }
+
+        if (record) {
+          await record(tx);
+        }
+
+        return professionalProfileSchema.parse(row);
+      });
     } catch (error: unknown) {
       throw wrap(error);
     }
