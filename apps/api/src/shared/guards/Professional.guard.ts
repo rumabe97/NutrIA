@@ -10,8 +10,9 @@ import type { AuthenticatedRequest } from '../decorators/CurrentUser.decorator.j
 import type { ExecutionContext } from '@nestjs/common';
 
 /**
- * The door to the dietitian's workspace (`0059`): the `professional` switch is
- * on **and** the owner granted this account. Anything else is a 404, like every
+ * The door to the practitioner's workspace (`0059`): the `professional` switch
+ * is on **and** this account has a practice — opened by the account itself
+ * since project 025 (`POST /care/practice`). Anything else is a 404, like every
  * other denial — a 403 would tell an ordinary account that the workspace is
  * real, and the switch exists precisely so that nobody learns that before the
  * owner says so.
@@ -28,11 +29,16 @@ import type { ExecutionContext } from '@nestjs/common';
  * Runs after the global `SessionGuard`, so `request.user` is the session's
  * user — the only id it ever asks about.
  *
- * **A practice paid for, too** (`0061`): every route behind this guard is a
- * client route and also needs `practiceOpen`, which only the signed webhook
- * writes — unless it is marked `@BeforePractice()`, as the workspace's own
- * page is, because that is where the way to pay is shown. Deny by default:
- * a route that forgets the mark is closed while the practice is, not open.
+ * **Not a practice paid for** (PRD 025 scope 2): `practiceOpen` is no longer
+ * asked — a free practice reaches its clients, within its free seats.
+ *
+ * **Nor a suspended or closed one** (PRD 025 criterion 24): every route behind
+ * this guard is a client route and is refused while a suspension stands, or
+ * from the day a close comes (`ProfessionalView.restricted`, read from
+ * `PracticeRestrictionRepository.standing` on every request) — unless it is
+ * marked `@BeforePractice()`: the practice's own page, the agreement, the badge
+ * and the profile name no client, and the page is where the practitioner reads
+ * what stands. Deny by default: a route that forgets the mark is closed, not open.
  *
  * **And the agreement accepted** (`docs/legal/textos/01`): no client route
  * opens until the professional has accepted the current
@@ -50,8 +56,8 @@ import type { ExecutionContext } from '@nestjs/common';
  * is where the professional is told to turn it on.
  *
  * Everything is read on every request and never cached, for the reason
- * `SessionGuard` re-reads the session: revoking the grant, throwing the
- * switch off, or a practice lapsing closes access on the very next request.
+ * `SessionGuard` re-reads the session: a suspension, a close carried out or the
+ * switch thrown off closes access on the very next request.
  */
 @Injectable()
 export class ProfessionalGuard implements CanActivate {
@@ -80,7 +86,7 @@ export class ProfessionalGuard implements CanActivate {
 
     const practice = await ProfessionalController.find(user.id);
 
-    if (!practice?.practiceOpen || practice.agreementRequired) {
+    if (!practice || practice.agreementRequired || practice.restricted) {
       throw new NotFoundException();
     }
 

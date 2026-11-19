@@ -2,11 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PgDialect } from 'drizzle-orm/pg-core';
 
 import { careAccessLog, careInvitations, careLinks } from 'database/schema/care';
+import { professionals } from 'database/schema/professional';
+import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { targetOverrides } from 'database/schema/profile';
 
 import { CareRepository, rosterPlansSeen } from './CareRepository';
 import { linkScope } from './CareScope';
 
+import type { blocksPractice as blocksPracticeFn, RestrictionStanding } from '#repositories/Professional';
 import type { SQL } from 'drizzle-orm';
 
 /** One statement the fake transaction was asked for: which table, what it sets, and its `WHERE` as Postgres would read it. */
@@ -39,13 +42,21 @@ const inserted: { readonly table: unknown; readonly values: Record<string, unkno
 /** The `WHERE` the last `SELECT` inside the transaction was given. */
 let selectWhere: SQL | undefined;
 
+/** What a read of the `professionals` row inside the transaction answers: the practitioner's agreement, or no row. */
+let practiceRow: { agreementVersion: string | null } | undefined;
+
 function select() {
+  let table: unknown;
   const chain = {
-    from: () => chain,
+    from: (from: unknown) => {
+      table = from;
+
+      return chain;
+    },
     innerJoin: () => chain,
     // Awaited as it is, or held `FOR UPDATE` first: the same rows either way.
     limit: () => {
-      const rows = openLink ? [openLink] : [];
+      const rows = table === professionals ? (practiceRow ? [practiceRow] : []) : openLink ? [openLink] : [];
 
       return Object.assign(Promise.resolve(rows), { for: () => Promise.resolve(rows) });
     },
@@ -110,7 +121,14 @@ const badgeOf = vi.fn<(userId: string, now: Date) => Promise<object | null>>();
 /** The practitioner's badge lock, as `ProfessionalBadgeRepository.lock` takes it: whose. */
 const badgeLock = vi.fn<(userId: string) => Promise<void>>();
 
-vi.mock('#repositories/Professional', () => ({
+/** What stands against the practitioner (`PracticeRestrictionRepository.standing`, project 025 phase 6): nothing, unless a case says. */
+const standing = vi.fn<(userId: string, db?: unknown) => Promise<RestrictionStanding>>();
+
+vi.mock('#repositories/Professional', async () => ({
+  // The real rule: what a restriction refuses is decided in one place.
+  blocksPractice: (await vi.importActual<{ blocksPractice: typeof blocksPracticeFn }>('../Professional/PracticeRestrictionRepository'))
+    .blocksPractice,
+  PracticeRestrictionRepository: { standing: (userId: string, db?: unknown) => standing(userId, db) },
   ProfessionalBadgeRepository: {
     badgeOf: (userId: string, now: Date) => badgeOf(userId, now),
     lock: (_tx: unknown, userId: string) => badgeLock(userId)
@@ -139,6 +157,10 @@ describe('CareRepository.end — the targets become the client’s own', () => {
   beforeEach(() => {
     statements.length = 0;
     ended = { clientId: 'usr-client', professionalId: 'usr-pro' };
+    practiceRow = { agreementVersion: PROFESSIONAL_AGREEMENT_VERSION };
+    standing.mockReset();
+    standing.mockResolvedValue({ closing: null, suspended: null });
+    badgeLock.mockReset();
   });
 
   it.each(['client', 'professional'] as const)('clears the mark in the same transaction when the %s ends it, and writes no number', async side => {
@@ -168,6 +190,105 @@ describe('CareRepository.end — the targets become the client’s own', () => {
     ended = undefined;
 
     await expect(CareRepository.end('usr-stranger', 'professional', LINK, NOW)).resolves.toBe(false);
+    expect(statements.map(statement => statement.table)).toEqual([careLinks]);
+  });
+});
+
+/*
+ * Project 025 phase 6, from the end-to-end run: a practitioner who does not practise now — no current
+ * agreement, a suspension standing, a close whose day has come — ends nothing through `DELETE /care/links/:id`.
+ * Decided inside the ending's transaction, under the badge lock the owner's acts take too.
+ */
+describe('CareRepository.end — the practitioner’s side only while they practise', () => {
+  beforeEach(() => {
+    statements.length = 0;
+    ended = { clientId: 'usr-client', professionalId: 'usr-pro' };
+    practiceRow = { agreementVersion: PROFESSIONAL_AGREEMENT_VERSION };
+    standing.mockReset();
+    standing.mockResolvedValue({ closing: null, suspended: null });
+    badgeLock.mockReset();
+  });
+
+  it('takes the practitioner’s badge lock, then reads what stands on the ending’s own transaction', async () => {
+    await expect(CareRepository.end('usr-pro', 'professional', LINK, NOW)).resolves.toBe(true);
+    expect(badgeLock).toHaveBeenCalledExactlyOnceWith('usr-pro');
+    // Read on the ending's transaction (the mock's `tx` writes with `update`), never a connection of its own.
+    expect(standing).toHaveBeenCalledOnce();
+    expect(standing.mock.calls[0]?.[0]).toBe('usr-pro');
+    expect(standing.mock.calls[0]?.[1]).toHaveProperty('update');
+    expect(badgeLock.mock.invocationCallOrder[0]).toBeLessThan(standing.mock.invocationCallOrder[0] ?? 0);
+  });
+
+  it.each([
+    ['suspended', { closing: null, suspended: { actedAt: NOW, reason: null } }],
+    ['on a close’s day, before the sweep', { closing: { id: 'c', actedAt: NOW, actedBy: null, effectiveAt: NOW, reason: null }, suspended: null }]
+  ])('is false and writes nothing for a practitioner %s', async (_case, stands) => {
+    standing.mockResolvedValue(stands);
+
+    await expect(CareRepository.end('usr-pro', 'professional', LINK, NOW)).resolves.toBe(false);
+    expect(statements).toEqual([]);
+  });
+
+  it.each([
+    ['an agreement at an older version', { agreementVersion: '0.9.0' }],
+    ['no agreement accepted', { agreementVersion: null }],
+    ['no practice at all', undefined]
+  ])('is false and writes nothing with %s', async (_case, row) => {
+    practiceRow = row;
+
+    await expect(CareRepository.end('usr-pro', 'professional', LINK, NOW)).resolves.toBe(false);
+    expect(statements).toEqual([]);
+  });
+
+  it('still ends before a close’s day: the practice works until then', async () => {
+    standing.mockResolvedValue({
+      closing: { id: 'c', actedAt: NOW, actedBy: null, effectiveAt: new Date(NOW.getTime() + 60_000), reason: null },
+      suspended: null
+    });
+
+    await expect(CareRepository.end('usr-pro', 'professional', LINK, NOW)).resolves.toBe(true);
+  });
+
+  it('asks the client none of it: their own ending takes no lock and reads no restriction, whatever stands', async () => {
+    standing.mockResolvedValue({ closing: null, suspended: { actedAt: NOW, reason: null } });
+    practiceRow = undefined;
+
+    await expect(CareRepository.end('usr-client', 'client', LINK, NOW)).resolves.toBe(true);
+    expect(badgeLock).not.toHaveBeenCalled();
+    expect(standing).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * PLAN 025 phase 6 (the lead's change to decision 7): a practice closed on its day
+ * ends every open link of its practitioner — active or paused — through the one way
+ * a link ends, as the practitioner ending it. `ended` is not an open status, so the
+ * partial unique index `care_links_one_open_per_client` lets each client accept
+ * another practitioner afterwards (the end-to-end suite proves it on Postgres).
+ */
+describe('CareRepository.endLinksOf — a practice closed ends its links as its practitioner would', () => {
+  beforeEach(() => {
+    statements.length = 0;
+    ended = { clientId: 'usr-client', professionalId: 'usr-pro' };
+  });
+
+  it('ends every open link of that practitioner, `ended_by = professional`, and clears the targets’ mark', async () => {
+    await expect(CareRepository.endLinksOf('usr-pro', NOW, { update } as never)).resolves.toBe(1);
+
+    const [link, targets] = statements;
+
+    expect(link?.table).toBe(careLinks);
+    expect(link?.set).toEqual({ endedAt: NOW, endedBy: 'professional', status: 'ended', updatedAt: NOW });
+    expect(link?.sql).toBe('("care_links"."professional_id" = $1 and "care_links"."status" in ($2, $3))');
+    expect(link?.params).toEqual(['usr-pro', 'active', 'paused']);
+    expect(targets?.table).toBe(targetOverrides);
+    expect(targets?.set).toEqual({ setByProfessionalId: null, updatedAt: NOW });
+  });
+
+  it('answers none, and touches no targets, for a practice with no open link', async () => {
+    ended = undefined;
+
+    await expect(CareRepository.endLinksOf('usr-pro', NOW, { update } as never)).resolves.toBe(0);
     expect(statements.map(statement => statement.table)).toEqual([careLinks]);
   });
 });
@@ -363,6 +484,8 @@ describe('CareRepository.activeLink — the scope the link opens now', () => {
 
   beforeEach(() => {
     badgeOf.mockReset();
+    standing.mockReset();
+    standing.mockResolvedValue({ closing: null, suspended: null });
   });
 
   it.each([
@@ -383,6 +506,30 @@ describe('CareRepository.activeLink — the scope the link opens now', () => {
 
     await expect(CareRepository.activeLink('usr-pro', LINK, NOW)).resolves.toBeNull();
     expect(badgeOf).not.toHaveBeenCalled();
+  });
+
+  /* PRD 025 criterion 24: a suspension, or a close whose day has come, is the same null — read on every call, for the session's practitioner. */
+  it.each([
+    ['suspended', { closing: null, suspended: { actedAt: NOW, reason: null } }],
+    ['whose close has come', { closing: { id: 'c', actedAt: NOW, actedBy: null, effectiveAt: NOW, reason: null }, suspended: null }]
+  ])('is the same null for a practitioner %s, and reads no badge', async (_case, stands) => {
+    trail = [stored('full')];
+    standing.mockResolvedValue(stands);
+
+    await expect(CareRepository.activeLink('usr-pro', LINK, NOW)).resolves.toBeNull();
+    expect(standing).toHaveBeenCalledWith('usr-pro', undefined);
+    expect(badgeOf).not.toHaveBeenCalled();
+  });
+
+  it('opens for a close whose day has not come: the practice works until then', async () => {
+    trail = [stored('full')];
+    badgeOf.mockResolvedValue({ number: '28-1234' });
+    standing.mockResolvedValue({
+      closing: { id: 'c', actedAt: NOW, actedBy: null, effectiveAt: new Date(NOW.getTime() + 60_000), reason: null },
+      suspended: null
+    });
+
+    await expect(CareRepository.activeLink('usr-pro', LINK, NOW)).resolves.toMatchObject({ scope: 'full' });
   });
 
   it('fails like any read when the badge cannot be read — never a scope guessed', async () => {

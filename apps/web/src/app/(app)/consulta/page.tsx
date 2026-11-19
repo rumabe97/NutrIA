@@ -40,9 +40,10 @@ function daysUntil(iso: string): number {
  *
  * Shown only to a professional: `GET /care/practice` answers everybody else
  * 404, and so does this page, as `/admin` does — the route does not confirm
- * itself to anyone who guesses it. With the practice closed it shows only the
- * plan card: the client routes are closed until it is paid for, so there is
- * no list to read and nobody to invite.
+ * itself to anyone who guesses it. A practice works whether or not anybody pays
+ * (PRD 025: a free one has its free seats), so the list and the invite form are
+ * drawn whenever the API answers `/care/clients`; under a suspension it answers
+ * 404, and the page then shows the plan card alone.
  *
  * Before either of those, `practice.agreementRequired` shows `PracticeAgreement`
  * in place of the whole workspace — the professional's agreement and the
@@ -85,7 +86,7 @@ export default async function PracticePage({ searchParams }: Readonly<{ searchPa
   }
 
   const t = dictionary.practice;
-  const roster = practice.open ? await serverApi<CareClientsView>('/care/clients') : null;
+  const roster = await serverApi<CareClientsView>('/care/clients');
   const subscription = practice.billing.available ? practice.billing.subscription : null;
   const trialDaysLeft = subscription?.status === 'trialing' && subscription.currentPeriodEnd ? daysUntil(subscription.currentPeriodEnd) : null;
   const shortDate = (iso: string) => formatInstant(Date.parse(iso), locale, { day: 'numeric', month: 'long', year: 'numeric' });
@@ -161,7 +162,7 @@ export default async function PracticePage({ searchParams }: Readonly<{ searchPa
 
         {roster ? (
           <div className={styles.side}>
-            <CareInviteForm />
+            <CareInviteForm paid={practice.open} />
           </div>
         ) : null}
 

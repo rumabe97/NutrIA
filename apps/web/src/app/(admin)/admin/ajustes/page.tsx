@@ -51,13 +51,14 @@ export default async function AdminSettingsPage() {
   const { flags } = settings;
   // Every limit, in the order the console reads them rather than the registry's:
   // what people use most first, then the ones that cannot be moved lightly — the
-  // structural one and the ones that spend money — last, where their warnings
+  // structural ones (fixed meals, a free practice's seats) and the ones that spend money — last, where their warnings
   // are the last things read before any of them is moved.
   const rows = [
     { cost: limits.costSwaps, label: limits.labelSwaps, name: 'mealSwapsPerPlan', why: limits.whySwaps },
     { cost: limits.costEvents, label: limits.labelEvents, name: 'eventsPerPlan', why: limits.whyEvents },
     { cost: limits.costMidPlan, label: limits.labelMidPlan, name: 'midPlanEventsPerPlan', why: limits.whyMidPlan },
     { cost: limits.costFixedMeals, label: limits.labelFixedMeals, name: 'fixedMeals', why: limits.whyFixedMeals },
+    { cost: limits.costPracticeClients, label: limits.labelPracticeClients, name: 'practiceClients', why: limits.whyPracticeClients },
     { cost: limits.costDishRequests, label: limits.labelDishRequests, name: 'dishRequestsPerMonth', why: limits.whyDishRequests },
     { cost: limits.costAssistant, label: limits.labelAssistant, name: 'assistantMessagesPerFortnight', why: limits.whyAssistant },
     {

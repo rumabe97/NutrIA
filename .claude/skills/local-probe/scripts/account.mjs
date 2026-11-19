@@ -276,7 +276,6 @@ if (action === 'link') {
   const { ProfessionalController } = await load('core/controllers/Professional');
   const { CareController } = await load('core/controllers/Care');
   const { CARE_CONSENT_VERSION } = await load('core/entities/Care');
-  const { database } = await load('database');
   const me = async file => (await call('GET', '/users/me', undefined, readFileSync(file, 'utf8'))).json();
   const pro = await me(cookieFile);
   const client = await me(clientCookieFile);
@@ -293,30 +292,29 @@ if (action === 'link') {
     console.log('[probe] the professional switch was off: on until this professional is deleted');
   }
 
-  if (unbadged) {
-    // A practitioner with no badge check at all (project 025). Until phase 6 gives anyone a
-    // route to open a practice, the row is written the way `care-badge.e2e-spec.ts` and
-    // `care-scope.e2e-spec.ts` write it; when that route exists, call it here instead.
-    await database().$client`insert into professionals (user_id) values (${pro.id}) on conflict (user_id) do nothing`;
-  } else {
-    // The owner's grant, as POST /admin/accounts/:id/professional makes it. The probe has no
-    // owner session, so the professional is named as its own granter.
-    await ProfessionalController.grant(pro.id, { collegiateNumber: 'PROBE-001' }, pro.id, UNAUDITED);
-  }
+  // The account opens its own practice, as `POST /care/practice` does (project 025 phase 6):
+  // free, ten seats, nothing set by anybody but the account. `create` gave it a confirmed
+  // address, an activation and a birth date, which is all the route asks for.
+  await ProfessionalController.open(pro.id, {});
 
-  // The professional accepts the agreement at the current version, through the route a
-  // professional uses. Without it the practice reads as closed and every invitation is a
-  // 404 (`CareRepository.invite`: an agreement that is not `PROFESSIONAL_AGREEMENT_VERSION`
-  // closes the practice) — which is how `link` failed from project 024 phase 0 to phase 3.
+  // The agreement at the current version, through the route a professional uses: without it
+  // no client route opens and every invitation is a 404.
   const { PROFESSIONAL_AGREEMENT_VERSION } = await load('core/entities/Professional');
 
   await call('POST', '/care/practice/agreement', { version: PROFESSIONAL_AGREEMENT_VERSION }, readFileSync(cookieFile, 'utf8'));
 
-  const opened = await database().$client`
-    update professionals set practice_open = true, included_clients = 30 where user_id = ${pro.id} returning user_id`;
+  if (!unbadged) {
+    // The badge, by the four steps the routes take: the practitioner applies, the owner
+    // issues a code, the practitioner enters it, the owner confirms. The probe has no owner
+    // session, so the practitioner is named as its own checker.
+    const { ProfessionalBadgeController } = await load('core/controllers/Professional');
 
-  if (opened.length !== 1) {
-    throw new Error('the practice did not open');
+    await ProfessionalBadgeController.apply(pro.id, { number: 'PROBE-001', register: 'Registro del probe' });
+
+    const { code } = await ProfessionalBadgeController.issueCode(pro.id, pro.id, { channel: 'phone' });
+
+    await ProfessionalBadgeController.enterCode(pro.id, { code });
+    await ProfessionalBadgeController.confirm(pro.id, pro.id);
   }
 
   const { token } = await CareController.invite({ email: pro.email, id: pro.id }, { email: client.email });
@@ -348,7 +346,7 @@ if (action === 'link') {
     process.exit(1);
   }
   console.log(
-    `[probe] linked: ${client.email} is ${pro.email}'s client (practice open, 30 included, ${unbadged ? 'no badge: plan only' : 'health shared'})`
+    `[probe] linked: ${client.email} is ${pro.email}'s client (a free practice, ten seats, ${unbadged ? 'no badge: plan only' : 'badged, health shared'})`
   );
   process.exit(0);
 }

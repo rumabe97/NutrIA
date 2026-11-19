@@ -17,7 +17,7 @@ import {
   ProfileConsentRequiredError,
   QuotaExceededError
 } from 'core/entities/Error';
-import { ProfessionalBadgeController, ProfessionalController } from 'core/controllers/Professional';
+import { ProfessionalBadgeController, ProfessionalController, ProfessionalProfileController } from 'core/controllers/Professional';
 import { ProfileController } from 'core/controllers/Profile';
 import { UserController } from 'core/controllers/User';
 
@@ -28,6 +28,7 @@ import { CareClientsController } from './CareClients.controller.js';
 import { CareInvitationsController } from './CareInvitations.controller.js';
 import { BillingService } from '../../billing/services/index.js';
 import { CareLinksController } from './CareLinks.controller.js';
+import { CareOpenPracticeController } from './CareOpenPractice.controller.js';
 import { CarePracticeController } from './CarePractice.controller.js';
 import { CareService } from '../services/index.js';
 import { EmailService } from '../../email/services/index.js';
@@ -145,7 +146,14 @@ describe('care routes', () => {
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
-      controllers: [CareAnswersController, CareClientsController, CareInvitationsController, CareLinksController, CarePracticeController],
+      controllers: [
+        CareAnswersController,
+        CareClientsController,
+        CareInvitationsController,
+        CareLinksController,
+        CareOpenPracticeController,
+        CarePracticeController
+      ],
       providers: [
         BackgroundTaskService,
         CareService,
@@ -191,7 +199,9 @@ describe('care routes', () => {
         collegiateNumber: '28/1',
         grantedAt: '2026-09-01T00:00:00.000Z',
         includedClients: 30,
-        practiceOpen: true
+        practiceOpen: true,
+        restricted: false,
+        restriction: null
       });
   });
 
@@ -219,7 +229,11 @@ describe('care routes', () => {
       jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
       const invite = jest
         .spyOn(CareController, 'invite')
-        .mockResolvedValue({ invitation: { email: 'cliente@example.invalid', expiresAt: '2026-10-07T10:00:00.000Z' }, token: TOKEN });
+        .mockResolvedValue({
+          invitation: { email: 'cliente@example.invalid', expiresAt: '2026-10-07T10:00:00.000Z' },
+          inviterName: 'Ana Pérez',
+          token: TOKEN
+        });
 
       const response = await request(server())
         .post(`/${PREFIX}/care/invitations`)
@@ -238,9 +252,9 @@ describe('care routes', () => {
 
       expect(mail?.to).toBe('cliente@example.invalid');
       expect(mail?.text).toContain(`https://nutria.example/en/invitacion/${TOKEN}`);
-      expect(mail?.subject).toBe('Ana Dietista has invited you to NutrIA');
+      expect(mail?.subject).toBe('Ana Pérez has invited you to NutrIA');
       // RGPD art. 14 (`docs/legal/textos/06` § A): who gave the address, and where the rights are, in the inviter's language.
-      expect(mail?.text).toContain('We are writing because Ana Dietista gave us your address');
+      expect(mail?.text).toContain('We are writing because Ana Pérez gave us your address');
       expect(mail?.text).toContain('https://nutria.example/en/privacidad');
     });
 
@@ -850,7 +864,9 @@ describe('care routes', () => {
           collegiateNumber: '28/1',
           grantedAt: '2026-09-01T00:00:00.000Z',
           includedClients: 30,
-          practiceOpen: false
+          practiceOpen: false,
+          restricted: false,
+          restriction: null
         });
     }
 
@@ -866,7 +882,9 @@ describe('care routes', () => {
           agreementVersion: PROFESSIONAL_AGREEMENT_VERSION,
           includedClients: 30,
           open: false,
-          pendingInvitations: 0
+          pendingInvitations: 0,
+          restriction: null,
+          seats: 30
         });
 
       const response = await request(server()).get(`/${PREFIX}/care/practice`).expect(200);
@@ -881,6 +899,8 @@ describe('care routes', () => {
         includedClients: 30,
         open: false,
         pendingInvitations: 0,
+        restriction: null,
+        seats: 30,
         secondFactorRequired: false
       });
     });
@@ -899,7 +919,9 @@ describe('care routes', () => {
           agreementVersion: PROFESSIONAL_AGREEMENT_VERSION,
           includedClients: 30,
           open: true,
-          pendingInvitations: 0
+          pendingInvitations: 0,
+          restriction: null,
+          seats: 30
         });
 
       const response = await request(server()).get(`/${PREFIX}/care/practice`).expect(200);
@@ -930,18 +952,52 @@ describe('care routes', () => {
       await request(server()).get(`/${PREFIX}/care/practice`).expect(404);
     });
 
+    /* PRD 025 scope 2 (project 025 phase 6): `practiceOpen` left the door — a practice nobody pays for reaches its clients. */
+    it('lets a practice nobody pays for reach its clients and invite', async () => {
+      lapsed();
+      const clients = jest.spyOn(CareController, 'clients').mockResolvedValue({ clients: [], invitations: [] });
+      const invite = jest
+        .spyOn(CareController, 'invite')
+        .mockResolvedValue({
+          invitation: { email: 'cliente@example.invalid', expiresAt: '2026-10-07T10:00:00.000Z' },
+          inviterName: 'Ana Pérez',
+          token: TOKEN
+        });
+
+      await request(server()).get(`/${PREFIX}/care/clients`).expect(200);
+      await request(server()).post(`/${PREFIX}/care/invitations`).send({ email: 'cliente@example.invalid' }).expect(201);
+      expect(clients).toHaveBeenCalled();
+      expect(invite).toHaveBeenCalled();
+    });
+
+    /* PRD 025 criterion 24: a suspension, or a close whose day has come, closes every client route — the same 404. */
     it.each([
       ['get', '/care/clients'],
       ['get', `/care/clients/${LINK_ID}`],
-      ['post', '/care/invitations']
-    ] as const)('closes %s %s while the practice is not paid for, with the same 404', async (method, path) => {
-      lapsed();
-      const clients = jest.spyOn(CareController, 'clients');
-      const invite = jest.spyOn(CareController, 'invite');
+      ['post', '/care/invitations'],
+      ['patch', `/care/clients/${LINK_ID}/targets`]
+    ] as const)('closes %s %s to a suspended practitioner, with the same 404, and calls nothing', async (method, path) => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      jest
+        .spyOn(ProfessionalController, 'find')
+        .mockResolvedValue({
+          agreementRequired: false,
+          collegiateNumber: '28/1',
+          grantedAt: '2026-09-01T00:00:00.000Z',
+          includedClients: 0,
+          practiceOpen: false,
+          restricted: true,
+          restriction: { closing: null, suspended: { since: '2026-11-19T09:00:00.000Z', statement: null } }
+        });
+      const calls = [jest.spyOn(CareController, 'clients'), jest.spyOn(CareController, 'overview'), jest.spyOn(CareController, 'invite')];
 
-      await request(server())[method](`/${PREFIX}${path}`).send({ email: 'cliente@example.invalid' }).expect(404);
-      expect(clients).not.toHaveBeenCalled();
-      expect(invite).not.toHaveBeenCalled();
+      const response = await request(server())[method](`/${PREFIX}${path}`).send({ email: 'cliente@example.invalid', kcal: 1750 }).expect(404);
+
+      expect(response.body).toEqual({ code: 'NOT_FOUND', message: 'Not Found', statusCode: 404 });
+
+      for (const call of calls) {
+        expect(call).not.toHaveBeenCalled();
+      }
     });
 
     it('answers a full practice with 409 PRACTICE_FULL, the number, and the ways up — and sends no mail', async () => {
@@ -953,7 +1009,7 @@ describe('care routes', () => {
 
       expect(response.body).toEqual({
         code: 'PRACTICE_FULL',
-        message: 'Tu consulta ya tiene todos los pacientes que incluye tu plan.',
+        message: 'Tu consulta ya tiene todas sus plazas ocupadas.',
         practice: { includedClients: 30, waysUp: ['larger_plan', 'end_link'] },
         statusCode: 409
       });
@@ -964,7 +1020,11 @@ describe('care routes', () => {
       jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
       const invite = jest
         .spyOn(CareController, 'invite')
-        .mockResolvedValue({ invitation: { email: 'cliente@example.invalid', expiresAt: '2026-10-07T10:00:00.000Z' }, token: TOKEN });
+        .mockResolvedValue({
+          invitation: { email: 'cliente@example.invalid', expiresAt: '2026-10-07T10:00:00.000Z' },
+          inviterName: 'Ana Pérez',
+          token: TOKEN
+        });
 
       await request(server())
         .post(`/${PREFIX}/care/invitations`)
@@ -1089,7 +1149,9 @@ describe('care routes', () => {
           collegiateNumber: '28/1',
           grantedAt: '2026-09-01T00:00:00.000Z',
           includedClients: 30,
-          practiceOpen: true
+          practiceOpen: true,
+          restricted: false,
+          restriction: null
         });
     }
 
@@ -1121,7 +1183,9 @@ describe('care routes', () => {
           agreementVersion: PROFESSIONAL_AGREEMENT_VERSION,
           includedClients: 30,
           open: true,
-          pendingInvitations: 0
+          pendingInvitations: 0,
+          restriction: null,
+          seats: 30
         });
 
       expect((await request(server()).get(`/${PREFIX}/care/practice`).expect(200)).body).toMatchObject({ agreementRequired: true });
@@ -1136,7 +1200,9 @@ describe('care routes', () => {
           collegiateNumber: '28/1',
           grantedAt: '2026-09-01T00:00:00.000Z',
           includedClients: 30,
-          practiceOpen: true
+          practiceOpen: true,
+          restricted: false,
+          restriction: null
         });
 
       await request(server())
@@ -1195,7 +1261,9 @@ describe('care routes', () => {
           collegiateNumber: null,
           grantedAt: '2026-09-01T00:00:00.000Z',
           includedClients: 0,
-          practiceOpen: false
+          practiceOpen: false,
+          restricted: false,
+          restriction: null
         });
     }
 
@@ -1294,6 +1362,157 @@ describe('care routes', () => {
 
       expect(enter).toHaveBeenCalledWith(SESSION.id, { code: '' });
       expect(response.body).toEqual(unseen.body);
+    });
+  });
+
+  /**
+   * Anyone can open a practice (project 025 phase 6, PRD 025 scope 1, criteria
+   * 1, 2 and 24): the session's account, behind the switch alone, with nothing
+   * from the body but a birth date; every refusal the same 404.
+   */
+  describe('POST /care/practice', () => {
+    const STANDING = {
+      activeClients: 0,
+      agreementAcceptedAt: null,
+      agreementRequired: true,
+      agreementVersion: PROFESSIONAL_AGREEMENT_VERSION,
+      includedClients: 0,
+      open: false,
+      pendingInvitations: 0,
+      restriction: null,
+      seats: 10
+    };
+
+    beforeEach(() => {
+      jest.spyOn(ProfessionalController, 'isOpen').mockResolvedValue(true);
+      practiceOffer.mockResolvedValue({ available: false });
+      jest.spyOn(CareController, 'practice').mockResolvedValue(STANDING);
+    });
+
+    it('opens the session’s own practice from the birth date alone — no badge, no `practiceOpen`, no seats, no user from the body', async () => {
+      const open = jest.spyOn(ProfessionalController, 'open').mockResolvedValue();
+
+      const response = await request(server())
+        .post(`/${PREFIX}/care/practice`)
+        .set('Accept-Language', 'en-GB')
+        .send({ badge: true, birthDate: '1990-04-02', includedClients: 999, practiceOpen: true, userId: 'usr-other' })
+        .expect(200);
+
+      // The request's language goes with it, for a profile the opening creates: never from the body.
+      expect(open).toHaveBeenCalledWith(SESSION.id, { birthDate: '1990-04-02' }, 'en-GB');
+      expect(response.body).toMatchObject({ open: false, seats: 10 });
+    });
+
+    it('needs no practice to reach it: an account with none is who opens one', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
+      const open = jest.spyOn(ProfessionalController, 'open').mockResolvedValue();
+
+      await request(server()).post(`/${PREFIX}/care/practice`).send({}).expect(200);
+      expect(open).toHaveBeenCalledWith(SESSION.id, {}, null);
+    });
+
+    it('is the guard’s 404 while the switch is off, before the body is read', async () => {
+      jest.spyOn(ProfessionalController, 'isOpen').mockResolvedValue(false);
+      const open = jest.spyOn(ProfessionalController, 'open');
+
+      const response = await request(server()).post(`/${PREFIX}/care/practice`).send({ birthDate: 'nonsense' }).expect(404);
+
+      expect(response.body).toEqual({ code: 'NOT_FOUND', message: 'Not Found', statusCode: 404 });
+      expect(open).not.toHaveBeenCalled();
+    });
+
+    it('answers every refusal of the core with the same 404 body as the switch off', async () => {
+      jest.spyOn(ProfessionalController, 'open').mockRejectedValue(new NotFoundError('Not Found'));
+
+      const response = await request(server()).post(`/${PREFIX}/care/practice`).send({ birthDate: '2012-01-01' }).expect(404);
+
+      expect(response.body).toEqual({ code: 'NOT_FOUND', message: 'Not Found', statusCode: 404 });
+    });
+
+    it('refuses a malformed birth date as 422, and writes nothing', async () => {
+      const open = jest.spyOn(ProfessionalController, 'open');
+
+      await request(server()).post(`/${PREFIX}/care/practice`).send({ birthDate: 'yesterday' }).expect(422);
+      expect(open).not.toHaveBeenCalled();
+    });
+  });
+
+  /** The practitioner's profile (PRD 025 scope 4): the session's own, in the before-practice lane, its words judged server-side. */
+  describe('the profile', () => {
+    const PROFILE = {
+      displayName: 'Ana · asesora nutricional',
+      hidden: null,
+      hours: null,
+      priceCents: null,
+      priceUnit: null,
+      review: 'queued' as const,
+      studies: null,
+      updatedAt: '2026-11-19T09:00:00.000Z',
+      withheld: []
+    };
+
+    function practising(restricted = false): void {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      jest
+        .spyOn(ProfessionalController, 'find')
+        .mockResolvedValue({
+          agreementRequired: true,
+          collegiateNumber: null,
+          grantedAt: '2026-09-01T00:00:00.000Z',
+          includedClients: 0,
+          practiceOpen: false,
+          restricted,
+          restriction: restricted ? { closing: null, suspended: { since: '2026-11-19T09:00:00.000Z', statement: null } } : null
+        });
+    }
+
+    it.each([false, true])('reads the session’s own profile, before the agreement — suspended: %s', async restricted => {
+      practising(restricted);
+      const mine = jest.spyOn(ProfessionalProfileController, 'mine').mockResolvedValue(PROFILE);
+
+      expect((await request(server()).get(`/${PREFIX}/care/practice/profile`).expect(200)).body).toEqual(PROFILE);
+      expect(mine).toHaveBeenCalledWith(SESSION.id);
+    });
+
+    it('saves the whole profile for the session’s account, and nothing that is not the profile', async () => {
+      practising();
+      const save = jest.spyOn(ProfessionalProfileController, 'save').mockResolvedValue(PROFILE);
+
+      await request(server())
+        .put(`/${PREFIX}/care/practice/profile`)
+        .send({ displayName: 'Ana · asesora nutricional', queuedAt: null, seenAt: '2026-11-19', userId: 'usr-other' })
+        .expect(200);
+
+      expect(save).toHaveBeenCalledWith(SESSION.id, {
+        displayName: 'Ana · asesora nutricional',
+        hours: null,
+        priceCents: null,
+        priceUnit: null,
+        studies: null
+      });
+    });
+
+    it('answers a refused word as 422 naming the field, the list and the word', async () => {
+      practising();
+      jest
+        .spyOn(ProfessionalProfileController, 'save')
+        .mockRejectedValue(new InputParseError('A word the profile may not carry', { displayName: ['badge_only:nutricionista'] }));
+
+      const response = await request(server()).put(`/${PREFIX}/care/practice/profile`).send({ displayName: 'Ana, nutricionista' }).expect(422);
+
+      expect(response.body).toMatchObject({ code: 'INVALID_INPUT', fieldErrors: { displayName: ['badge_only:nutricionista'] } });
+    });
+
+    it('is a 404 for an account that is not a practitioner, before the body is read', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
+      const calls = [jest.spyOn(ProfessionalProfileController, 'mine'), jest.spyOn(ProfessionalProfileController, 'save')];
+
+      await request(server()).get(`/${PREFIX}/care/practice/profile`).expect(404);
+      await request(server()).put(`/${PREFIX}/care/practice/profile`).send({}).expect(404);
+
+      for (const call of calls) {
+        expect(call).not.toHaveBeenCalled();
+      }
     });
   });
 });

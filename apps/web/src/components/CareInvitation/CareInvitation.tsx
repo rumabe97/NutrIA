@@ -127,16 +127,18 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
   }
 
   if (existing) {
+    const existingSince = formatInstant(Date.parse(existing.since), locale, { day: 'numeric', month: 'long', year: 'numeric' });
+
     return (
       <Card as="section" className={`${styles.card} motion-list`} padding="lg">
         <h1 className={styles.title} ref={existingHeadingRef} tabIndex={-1}>
           {t.invitationLinkExistsTitle}
         </h1>
         <Text tone="secondary">
-          {interpolate(t.invitationLinkExistsBody, {
-            professional: existing.professionalName,
-            since: formatInstant(Date.parse(existing.since), locale, { day: 'numeric', month: 'long', year: 'numeric' })
-          })}
+          {/* A name that may not be shown comes as null (PRD 025): legal's own sentence, never a blank. */}
+          {existing.professionalName
+            ? interpolate(t.invitationLinkExistsBody, { professional: existing.professionalName, since: existingSince })
+            : interpolate(t.invitationLinkExistsBodyNoName, { since: existingSince })}
         </Text>
         <div className={styles.actions}>
           <CtaLink href="/perfil" size="lg">

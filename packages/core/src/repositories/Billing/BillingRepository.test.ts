@@ -71,18 +71,22 @@ describe('BillingRepository.recordSubscription — a practice', () => {
     professional = { practiceOpen: false };
   });
 
-  /* PRD 004 criterion 13: a lapse pauses, deletes nothing, and keeps the professional's mark on the targets. */
-  it('pauses the professional’s active links on a lapse — status alone, no end, and nothing of the client’s touched', async () => {
+  /*
+   * PRD 025 scope 2 (invariant review of phase 6, P1-1) — inverts PRD 004 criterion
+   * 13's pause: a practice nobody pays for works, so a lapse touches no link.
+   */
+  it('pauses nothing on a lapse: the practice falls back to its free seats, every link as it was', async () => {
     await write({ practice: { includedClients: 30, open: false }, tier: 'free' });
 
     expect(inserted).toEqual([subscriptions]);
-    expect(updates.map(statement => statement.table)).toEqual([user, professionals, careLinks]);
+    expect(updates.map(statement => statement.table)).toEqual([user, professionals]);
+  });
 
-    const links = updates[2];
+  it('a practitioner’s own premium subscription leaves their free practice’s links active', async () => {
+    await write({ practice: { includedClients: null, open: false }, tier: 'premium' });
 
-    expect(links?.set).toEqual({ status: 'paused', updatedAt: expect.any(Date) as Date });
-    expect(links?.sql).toBe('("care_links"."professional_id" = $1 and "care_links"."status" = $2)');
-    expect(links?.params).toEqual(['usr-pro', 'active']);
+    expect(updates.map(statement => statement.table)).toEqual([user, professionals]);
+    expect(updates.some(statement => statement.table === careLinks)).toBe(false);
   });
 
   it('makes the paused links active again when the practice pays again', async () => {
@@ -102,13 +106,12 @@ describe('BillingRepository.recordSubscription — a practice', () => {
     expect(updates[0]?.set).toMatchObject({ tier: 'premium' });
   });
 
-  /* No professional row: nothing is open, whatever was paid for, and only this account's links are named. */
-  it('keeps an account that is not a professional closed', async () => {
+  /* No professional row: nothing is open, whatever was paid for, and no link is touched. */
+  it('touches no link of an account that is not a professional', async () => {
     professional = undefined;
 
     await write({ practice: { includedClients: 30, open: true }, tier: 'free' });
 
-    expect(updates[2]?.set).toMatchObject({ status: 'paused' });
-    expect(updates[2]?.params).toEqual(['usr-pro', 'active']);
+    expect(updates.some(statement => statement.table === careLinks)).toBe(false);
   });
 });

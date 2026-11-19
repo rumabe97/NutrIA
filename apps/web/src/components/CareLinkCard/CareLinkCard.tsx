@@ -15,6 +15,7 @@ import { CareHealthSwitch } from 'components/CareHealthSwitch';
 
 import { api, messageFor } from 'lib/api';
 import { formatInstant, interpolate } from 'lib/format';
+import { professionalLabel, withProfessional } from 'lib/professionalName';
 
 import type { CareLinkView } from 'core/controllers/Care';
 
@@ -85,7 +86,7 @@ export function CareLinkCard({ link }: CareLinkCardProps) {
     <Card as="section" className={styles.card}>
       <h3 className={styles.title}>{t.linkTitle}</h3>
 
-      <Text weight="medium">{link.professionalName}</Text>
+      <Text weight="medium">{professionalLabel(link.professionalName, t.professionalUnnamed)}</Text>
       <Text size="sm" tone="secondary">
         {interpolate(t.linkSince, { date: formatInstant(Date.parse(link.since), locale, { day: 'numeric', month: 'long', year: 'numeric' }) })}
       </Text>
@@ -108,7 +109,7 @@ export function CareLinkCard({ link }: CareLinkCardProps) {
       {confirming ? (
         <div className={styles.confirm}>
           <Text ref={confirmHeadingRef} size="sm" tabIndex={-1} tone="secondary">
-            {interpolate(t.endConfirmTitle, { professional: link.professionalName })}
+            {withProfessional(t.endConfirmTitle, link.professionalName, t.professionalUnnamed)}
           </Text>
           <Text size="sm" tone="tertiary">
             {t.endConfirmBody}

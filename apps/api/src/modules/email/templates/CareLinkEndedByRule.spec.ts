@@ -73,4 +73,20 @@ describe('careLinkEndedByRuleEmail', () => {
     expect(mail.subject).not.toMatch(/[\r\n]/);
     expect(mail.html).not.toContain('<b>');
   });
+
+  /* Invariant review of phase 6, round two: a name that may not be shown is not mailed — § Y's no-name variant, byte for byte. */
+  it('sends the no-name variant when the name may not be shown', () => {
+    const es = careLinkEndedByRuleEmail({ locale: 'es-ES', professionalName: null, url: URL });
+    const en = careLinkEndedByRuleEmail({ locale: 'en-GB', professionalName: null, url: URL });
+
+    expect(es.subject).toBe('Tu enlace con tu profesional en NutrIA ha terminado');
+    expect(es.text.split('\n')[0]).toBe(
+      'Tu enlace con tu profesional ha terminado hoy. Tu plan, tus objetivos y tu historial se quedan contigo. Entra en NutrIA para ver por qué: te lo explicamos en tu perfil.'
+    );
+    expect(en.subject).toBe('Your link with your professional on NutrIA has ended');
+    expect(en.text.split('\n')[0]).toBe(
+      'Your link with your professional ended today. Your plan, your targets and your history stay with you. Sign in to NutrIA to see why: we explain it on your profile.'
+    );
+    expect(es.html).toContain(URL);
+  });
 });

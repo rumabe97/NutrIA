@@ -1,4 +1,4 @@
-import type { BadgeView } from 'core/controllers/Professional';
+import type { BadgeView, ProfessionalProfileView } from 'core/controllers/Professional';
 import type { JobView } from 'core/controllers/Plan';
 import type {
   CareAccessPageView,
@@ -78,8 +78,15 @@ export type CareClientJobDto = JobView;
 /** A meal of the plan under review after the professional swapped it; without `status` under a `plan` scope. */
 export type CareClientMealDto = CareClientMealView;
 
-/** The workspace's own page (`0061`): whether the practice is paid for, its seats, and the way to pay. */
+/**
+ * The workspace's own page (`0061`, PRD 025): whether a practice plan is paid
+ * for, the seats in force (`seats`: the paid plan's, or the free practice's),
+ * what the owner has standing against it, and the way to pay.
+ */
 export type CarePracticeDto = CarePracticeView;
+
+/** The practitioner's own profile (PRD 025 scope 4), or null before one is written: the review state, never «approved». */
+export type CareProfessionalProfileDto = ProfessionalProfileView | null;
 
 /** The practitioner's own badge (project 025): its state and dates, the register; the number only once checked, never the code. */
 export type CareBadgeDto = BadgeView;

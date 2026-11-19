@@ -8,10 +8,14 @@ import type { CareEndedLinkView, CareLinkView } from 'core/controllers/Care';
  *
  * Null with no link, with a verified practitioner, and when the care read
  * failed (`serverApi` answers null): the screen works without it, and only a
- * `false` the API said out loud draws the warning.
+ * `false` the API said out loud draws the warning. The practitioner is an
+ * object, not the name, because the name itself may be null (PRD 025: an
+ * account name that may not be shown) while the warning still stands.
  */
-export function unverifiedProfessional(link: Pick<CareLinkView, 'professionalName' | 'professionalVerified'> | null | undefined): string | null {
-  return link && link.professionalVerified === false ? link.professionalName : null;
+export function unverifiedProfessional(
+  link: { readonly professionalName: string | null; readonly professionalVerified: CareLinkView['professionalVerified'] } | null | undefined
+): { readonly name: string | null } | null {
+  return link && link.professionalVerified === false ? { name: link.professionalName } : null;
 }
 
 /**

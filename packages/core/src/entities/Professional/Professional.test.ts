@@ -5,7 +5,10 @@ import {
   acceptAgreementSchema,
   BADGE_CHANNELS,
   BADGE_CHECK_KINDS,
-  grantProfessionalSchema,
+  hideProfessionalProfileSchema,
+  liftRestrictionSchema,
+  openPracticeSchema,
+  PRACTICE_CLOSE_NOTICE_DAYS,
   PRACTICE_RESTRICTION_KINDS,
   practiceRestrictionSchema,
   PRICE_UNITS,
@@ -15,42 +18,141 @@ import {
   professionalHoursSchema,
   professionalProfileSchema,
   professionalSchema,
-  PROFILE_STUDIES_MAX
+  PROFILE_DISPLAY_NAME_MAX,
+  PROFILE_STUDIES_MAX,
+  restrictPracticeSchema,
+  saveProfessionalProfileSchema
 } from './Professional';
 
 /*
- * Not a restatement of the schema: this body is the one thing that can make an
- * account a professional (`0059`), so what it refuses is a rule worth pinning —
- * and what it strips is the acceptance criterion that no other field rides in.
+ * PRD 025 criterion 2 — PRD 004 criterion 1 inverted on purpose. The body that
+ * opens a practice is the only one an account sends to become a practitioner,
+ * and it carries a birth date and nothing else: no badge, no date or checker of
+ * one, no `practiceOpen`, no `includedClients`, no number, no user. What it
+ * strips is the criterion. (Replaces `grantProfessionalSchema`'s "strips
+ * anything else the body carries", retired with the 004 grant.)
  */
-describe('grantProfessionalSchema', () => {
-  it.each(['MAD00123', 'CV-0456', '12/3456', 'abc', 'A'.repeat(20)])('accepts %s', value => {
-    expect(grantProfessionalSchema.parse({ collegiateNumber: value })).toEqual({ collegiateNumber: value });
+describe('openPracticeSchema — no body sets the badge, `practiceOpen` or `includedClients`', () => {
+  it('keeps a birth date, and nothing else', () => {
+    const parsed = openPracticeSchema.parse({
+      badge: true,
+      badgeCheckedAt: '2026-11-19T00:00:00.000Z',
+      birthDate: '1990-04-02',
+      checkedBy: 'usr-owner',
+      collegiateNumber: 'MAD00123',
+      includedClients: 99,
+      practiceOpen: true,
+      role: 'admin',
+      userId: 'usr-somebody-else'
+    });
+
+    expect(parsed).toEqual({ birthDate: '1990-04-02' });
   });
 
-  it('trims before it measures', () => {
-    expect(grantProfessionalSchema.parse({ collegiateNumber: '  MAD00123  ' })).toEqual({ collegiateNumber: 'MAD00123' });
+  it('takes an empty body: a birth date is asked only of an account with none on record', () => {
+    expect(openPracticeSchema.parse({})).toEqual({});
   });
 
   it.each([
-    ['too short', 'ab'],
-    ['too long', 'A'.repeat(21)],
-    ['a space inside', 'MAD 00123'],
-    ['punctuation the registers do not use', 'MAD.00123'],
-    ['only spaces', '      '],
-    ['empty', '']
-  ])('refuses %s', (_label, value) => {
-    expect(grantProfessionalSchema.safeParse({ collegiateNumber: value }).success).toBe(false);
+    ['not a date', 'yesterday'],
+    ['a date and a time', '1990-04-02T00:00:00Z'],
+    ['an impossible day', '1990-02-30']
+  ])('refuses a birth date that is %s', (_label, birthDate) => {
+    expect(openPracticeSchema.safeParse({ birthDate }).success).toBe(false);
+  });
+});
+
+describe('saveProfessionalProfileSchema', () => {
+  const body = { displayName: 'Ana · asesora de alimentación' };
+
+  it('fills what was left out as nothing, and an empty studies box as none', () => {
+    expect(saveProfessionalProfileSchema.parse({ ...body, studies: '   ' })).toEqual({
+      displayName: 'Ana · asesora de alimentación',
+      hours: null,
+      priceCents: null,
+      priceUnit: null,
+      studies: null
+    });
   });
 
-  it('refuses a body with no number: the grant is never a declaration', () => {
-    expect(grantProfessionalSchema.safeParse({}).success).toBe(false);
+  it('wants a price with its unit, or neither', () => {
+    expect(saveProfessionalProfileSchema.safeParse({ ...body, priceCents: 4500 }).success).toBe(false);
+    expect(saveProfessionalProfileSchema.safeParse({ ...body, priceUnit: 'month' }).success).toBe(false);
+    expect(saveProfessionalProfileSchema.safeParse({ ...body, priceCents: 4500, priceUnit: 'month' }).success).toBe(true);
   });
 
-  it('strips anything else the body carries — a role, a practice, a client count', () => {
-    const parsed = grantProfessionalSchema.parse({ collegiateNumber: 'MAD00123', includedClients: 99, practiceOpen: true, role: 'admin' });
+  it.each([
+    ['empty', ''],
+    ['two lines', 'Ana\nPérez'],
+    ['markup', '<b>Ana</b>'],
+    ['too long', 'A'.repeat(PROFILE_DISPLAY_NAME_MAX + 1)]
+  ])('refuses a name that is %s', (_label, displayName) => {
+    expect(saveProfessionalProfileSchema.safeParse({ displayName }).success).toBe(false);
+  });
 
-    expect(parsed).toEqual({ collegiateNumber: 'MAD00123' });
+  it('drops anything that is not the profile — a queue date, a seen mark, a hidden flag, an account', () => {
+    const parsed = saveProfessionalProfileSchema.parse({ ...body, hiddenAt: null, queuedAt: null, seenAt: '2026-11-19', userId: 'usr-x' });
+
+    expect(Object.keys(parsed).sort()).toEqual(['displayName', 'hours', 'priceCents', 'priceUnit', 'studies']);
+  });
+});
+
+describe('hideProfessionalProfileSchema (textos/06 § X)', () => {
+  it('takes one or several reasons, the word quoted, the facts and the notice', () => {
+    expect(hideProfessionalProfileSchema.parse({ reasons: ['badge_word', 'promises'], word: 'nutricionista' })).toEqual({
+      afterNotice: false,
+      reasons: ['badge_word', 'promises'],
+      word: 'nutricionista'
+    });
+  });
+
+  it('takes the facts alone', () => {
+    expect(hideProfessionalProfileSchema.safeParse({ facts: 'Anuncia un curso de otra web.' }).success).toBe(true);
+  });
+
+  it.each([
+    ['nothing said', {}],
+    ['a word reason without its word', { reasons: ['unchecked_title'] }],
+    ['a reason twice', { reasons: ['promises', 'promises'] }],
+    ['a reason the statement does not have', { reasons: ['ugly'] }],
+    ['markup in the facts', { facts: '<a href="x">x</a>' }]
+  ])('refuses %s', (_label, input) => {
+    expect(hideProfessionalProfileSchema.safeParse(input).success).toBe(false);
+  });
+});
+
+describe('restrictPracticeSchema (textos/06 § W bis.1)', () => {
+  it('takes the facts, a clause and a source', () => {
+    expect(restrictPracticeSchema.parse({ clause: 2, facts: 'Se presenta como médico.', source: 'own_review' })).toEqual({
+      clause: 2,
+      facts: 'Se presenta como médico.',
+      source: 'own_review'
+    });
+  });
+
+  it('names an authority exactly when one is the source', () => {
+    expect(restrictPracticeSchema.safeParse({ authority: 'La AEPD', facts: 'x', source: 'authority' }).success).toBe(true);
+    expect(restrictPracticeSchema.safeParse({ facts: 'x', source: 'authority' }).success).toBe(false);
+    expect(restrictPracticeSchema.safeParse({ authority: 'La AEPD', facts: 'x', source: 'notice' }).success).toBe(false);
+  });
+
+  it.each([
+    ['no facts', { source: 'own_review' }],
+    ['a clause the agreement does not have', { clause: 15, facts: 'x', source: 'own_review' }],
+    ['a date of its own: a close always runs its 30 days', { effectiveAt: '2026-11-20', facts: 'x', source: 'own_review' }]
+  ])('refuses or ignores %s', (_label, input) => {
+    const parsed = restrictPracticeSchema.safeParse(input);
+
+    expect(parsed.success && 'effectiveAt' in parsed.data).toBe(false);
+  });
+
+  it('a lift takes the facts found, or nothing', () => {
+    expect(liftRestrictionSchema.parse({})).toEqual({});
+    expect(liftRestrictionSchema.parse({ facts: 'los hechos no se confirmaron' })).toEqual({ facts: 'los hechos no se confirmaron' });
+  });
+
+  it('gives a close thirty days', () => {
+    expect(PRACTICE_CLOSE_NOTICE_DAYS).toBe(30);
   });
 });
 

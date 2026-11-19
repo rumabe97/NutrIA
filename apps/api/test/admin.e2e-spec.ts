@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
+import { ProfessionalController } from 'core/controllers/Professional';
 import { SettingsController } from 'core/controllers/Settings';
 import { PRODUCT_EVENTS } from 'core/entities/Analytics';
 import { TERMS_VERSION } from 'core/entities/User';
@@ -10,6 +11,7 @@ import { database } from 'database';
 import {
   auditCount,
   auditRowsAboutSubject,
+  closePracticeNow,
   completeOnboarding,
   createApp,
   deleteAccountByEmail,
@@ -17,6 +19,7 @@ import {
   enableTotp,
   generateAndWait,
   httpServer,
+  makePractitioner,
   POOL,
   PREFIX,
   register,
@@ -228,7 +231,7 @@ function expectedWeeks(period: number, lastDay: string): string[] {
  * Removes every product event of one account this suite made, so it reads as
  * an account with no recorded activity — which is what an account from before
  * the counting (`0033`) is. Sign-up signs a person in, so no route can make
- * one: written on the table, like `openPractice` in the harness, and only for
+ * one: written on the table, like `markLegacyOnboarding` in the harness, and only for
  * an `@e2e.invalid` address.
  */
 async function forgetActivity(email: string): Promise<void> {
@@ -828,7 +831,7 @@ describe('admin', () => {
    * The people tables (`0068`, project 007 phase 5): accounts and the inbox
    * searched, filtered, sorted and paged in SQL, and the weekly sign-ups and
    * messages behind them. The professionals table's search and sort are in
-   * `professionals.e2e-spec.ts`, beside its grants.
+   * `professionals.e2e-spec.ts`, beside its practices.
    *
    * Every account here carries one token in its address, so each assertion is
    * scoped with `q` to what this block made and no other suite's accounts can
@@ -841,9 +844,9 @@ describe('admin', () => {
     const address = (suffix: string) => `admin-${token}-${suffix}@e2e.invalid`;
     /** Registered, both locks open, nothing else. */
     let plain: Account;
-    /** Every milestone: signed in, onboarded, one plan, and granted professional. */
+    /** Every milestone: signed in, onboarded, one plan, and a practice of its own. */
     let busy: Account;
-    /** Granted professional by the owner. */
+    /** A practice of its own, opened by the account (project 025 phase 6). */
     let pro: Account;
     /** An administrator. */
     let admin: Account;
@@ -905,12 +908,22 @@ describe('admin', () => {
       await completeOnboarding(app, busy);
       expect((await generateAndWait(app, busy)).status).toBe('succeeded');
 
-      for (const who of [busy, pro]) {
+      // Each opens its own practice (the owner's grant is retired, project 025 phase 6) — behind the switch, which is
+      // put back where it was: the column below is about the practice, whatever the switch says.
+      const switchWas = await ProfessionalController.isOpen();
+
+      await request(server).patch(`/${PREFIX}/admin/settings`).set('Cookie', owner.cookie).send({ enabled: true, flag: 'professional' }).expect(200);
+
+      try {
+        for (const who of [busy, pro]) {
+          await makePractitioner(app, who);
+        }
+      } finally {
         await request(server)
-          .post(`/${PREFIX}/admin/accounts/${who.id}/professional`)
+          .patch(`/${PREFIX}/admin/settings`)
           .set('Cookie', owner.cookie)
-          .send({ collegiateNumber: `28/${token.slice(-6)}` })
-          .expect(201);
+          .send({ enabled: switchWas, flag: 'professional' })
+          .expect(200);
       }
 
       await UserController.grantAdmin(admin.email);
@@ -1040,11 +1053,12 @@ describe('admin', () => {
     });
 
     /*
-     * `professional` is the owner's grant, not the switch (`0059`): the table
-     * is about the grant its row actions change. A revoke takes it off on the
-     * next read, and the filter agrees with the column every time.
+     * `professional` is the practice, not the switch (`0059`): the account opened
+     * its own (project 025 phase 6). A close carried out by the daily sweep —
+     * what replaced the 004 revoke — takes it off on the next read, and the
+     * filter agrees with the column every time.
      */
-    it('say professional while the grant stands, whatever the switch, and not after a revoke', async () => {
+    it('say professional while the practice stands, whatever the switch, and not after a close is carried out', async () => {
       const server = httpServer(app);
       const setSwitch = (enabled: boolean) =>
         request(server).patch(`/${PREFIX}/admin/settings`).set('Cookie', owner.cookie).send({ enabled, flag: 'professional' }).expect(200);
@@ -1072,7 +1086,7 @@ describe('admin', () => {
         await setSwitch(false);
       }
 
-      await request(server).delete(`/${PREFIX}/admin/accounts/${pro.id}/professional`).set('Cookie', owner.cookie).expect(204);
+      await closePracticeNow(app, owner, pro.id);
       await expectProfessional(pro.email, false);
       await expectProfessional(busy.email, true);
     });

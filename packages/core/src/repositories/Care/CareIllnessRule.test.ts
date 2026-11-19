@@ -10,6 +10,7 @@ import { CARE_CONSENT_VERSION } from 'core/entities/Care';
 import { CareRepository } from './CareRepository';
 
 import type { AcceptInvitation } from 'core/entities/Care';
+import type { blocksPractice as blocksPracticeFn, RestrictionStanding } from '#repositories/Professional';
 import type { SQL } from 'drizzle-orm';
 import type * as HealthRepositoryModule from '../Health/HealthRepository';
 
@@ -106,7 +107,13 @@ const badgeOf = vi.fn<(userId: string, now: Date, db?: unknown) => Promise<objec
 const badgesOf = vi.fn<(userIds: readonly string[], now: Date, db?: unknown) => Promise<ReadonlyMap<string, object>>>();
 const hasRecord = vi.fn<(userId: string, db: unknown) => Promise<boolean>>();
 
-vi.mock('#repositories/Professional', () => ({
+const standing = vi.fn<(userId: string, db?: unknown) => Promise<RestrictionStanding>>();
+
+vi.mock('#repositories/Professional', async () => ({
+  // The real rule (project 025 phase 6): what a restriction refuses is decided in one place.
+  blocksPractice: (await vi.importActual<{ blocksPractice: typeof blocksPracticeFn }>('../Professional/PracticeRestrictionRepository'))
+    .blocksPractice,
+  PracticeRestrictionRepository: { standing: (userId: string, db?: unknown) => standing(userId, db) },
   ProfessionalBadgeRepository: {
     badgeOf: (userId: string, now: Date, db?: unknown) => badgeOf(userId, now, db),
     badgesOf: (userIds: readonly string[], now: Date, db?: unknown) => badgesOf(userIds, now, db),
@@ -125,6 +132,9 @@ vi.mock('#repositories/Health', async () => ({
 const NOW = new Date('2026-11-19T10:00:00.000Z');
 const LINK = '0b8e7f4a-3c2d-4e1f-9a8b-7c6d5e4f3a2b';
 const BADGE = { number: '28-1234' };
+
+/** The controller's judge of the inviter's name (`protectedWordIn`); every name may be shown unless a case says. */
+const shown = vi.fn((_name: string, _badged: boolean) => true);
 
 function storedLink(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -158,6 +168,8 @@ beforeEach(() => {
   badgeOf.mockReset();
   badgesOf.mockReset();
   hasRecord.mockReset();
+  standing.mockReset();
+  standing.mockResolvedValue({ closing: null, suspended: null });
 });
 
 describe('CareRepository.accept — the scope recorded, and the illness rule', () => {
@@ -184,7 +196,7 @@ describe('CareRepository.accept — the scope recorded, and the illness rule', (
     badgeOf.mockResolvedValue(null);
     hasRecord.mockResolvedValue(true);
 
-    await expect(CareRepository.accept('usr-client', 'c@example.com', 'h'.repeat(64), answer(), NOW)).resolves.toEqual({ kind: 'refused' });
+    await expect(CareRepository.accept('usr-client', 'c@example.com', 'h'.repeat(64), answer(), NOW, shown)).resolves.toEqual({ kind: 'refused' });
 
     // The practitioner's badge lock first, before the practice's row; the client's row before the record is read.
     expect(calls.map(call => call.lock ?? call.op)).toEqual(['select', 'badge lock', 'share', 'update', 'no key update']);
@@ -200,10 +212,35 @@ describe('CareRepository.accept — the scope recorded, and the illness rule', (
     expect(calls.filter(call => call.op !== 'select' && call.op !== 'badge lock')).toEqual([]);
   });
 
+  /*
+   * PRD 025 criterion 24: an invitation from a practitioner suspended, or whose close has
+   * come, is `gone` — exactly as one from an account no longer practising — read on the
+   * acceptance's own connection; it answers again once the owner lifts it.
+   */
+  /* Invariant review of phase 6, P1-2: nobody accepts a link under a name that may not be shown now. */
+  it('is gone, and writes nothing, when the inviter’s name may not be shown with the badge read now', async () => {
+    invited();
+    badgeOf.mockResolvedValue(null);
+    shown.mockReturnValueOnce(false);
+
+    await expect(CareRepository.accept('usr-client', 'c@example.com', 'h'.repeat(64), answer(), NOW, shown)).resolves.toEqual({ kind: 'gone' });
+    expect(shown).toHaveBeenCalledWith('Ana', false);
+    expect(calls.filter(call => call.op === 'insert' || call.op === 'delete')).toEqual([]);
+  });
+
+  it('is gone, and writes nothing, when the inviter is suspended', async () => {
+    invited();
+    standing.mockResolvedValue({ closing: null, suspended: { actedAt: NOW, reason: null } });
+
+    await expect(CareRepository.accept('usr-client', 'c@example.com', 'h'.repeat(64), answer(), NOW, shown)).resolves.toEqual({ kind: 'gone' });
+    expect(standing).toHaveBeenCalledExactlyOnceWith('usr-pro', db);
+    expect(calls.filter(call => call.op === 'insert' || call.op === 'delete' || call.op === 'update')).toEqual([]);
+  });
+
   it('is gone, and writes nothing, when the invitation it locked for names another sender', async () => {
     script = [[{ professionalId: 'usr-pro' }], [{ open: true }], [{ id: 'inv-1', professionalId: 'usr-other', professionalName: 'Otra' }]];
 
-    await expect(CareRepository.accept('usr-client', 'c@example.com', 'h'.repeat(64), answer(), NOW)).resolves.toEqual({ kind: 'gone' });
+    await expect(CareRepository.accept('usr-client', 'c@example.com', 'h'.repeat(64), answer(), NOW, shown)).resolves.toEqual({ kind: 'gone' });
     expect(calls.filter(call => call.op === 'insert' || call.op === 'delete')).toEqual([]);
   });
 
@@ -217,7 +254,7 @@ describe('CareRepository.accept — the scope recorded, and the illness rule', (
     badgeOf.mockResolvedValue(badged ? BADGE : null);
     hasRecord.mockResolvedValue(false);
 
-    await expect(CareRepository.accept('usr-client', 'c@example.com', 'h'.repeat(64), answer({ consentScope }), NOW)).resolves.toMatchObject({
+    await expect(CareRepository.accept('usr-client', 'c@example.com', 'h'.repeat(64), answer({ consentScope }), NOW, shown)).resolves.toMatchObject({
       kind: 'created'
     });
 

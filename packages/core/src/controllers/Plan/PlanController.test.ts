@@ -758,6 +758,20 @@ describe('PlanController.tierOf — a client of a practice', () => {
     await expect(PlanController.tierOf('usr-client')).resolves.toBe('premium');
   });
 
+  /*
+   * PRD 025 scope 3, criterion 8: a client of a practice nobody pays for keeps
+   * the tier of their own account. `tierOf` is untouched; the repository answers
+   * false for a free practice (`CareInvite.test.ts` pins its `practice_open` join).
+   */
+  it('keeps a client of a free practice on their own tier — no premium by link', async () => {
+    flags.mockResolvedValue({ premium: true, professional: true });
+    coveredByOpenPractice.mockResolvedValue(false);
+    columnTier.mockResolvedValue('free');
+
+    await expect(PlanController.tierOf('usr-client')).resolves.toBe('free');
+    expect(coveredByOpenPractice).toHaveBeenCalledWith('usr-client');
+  });
+
   it('asks nothing about a link while the professional switch is off', async () => {
     flags.mockResolvedValue({ premium: false, professional: false });
     coveredByOpenPractice.mockResolvedValue(true);

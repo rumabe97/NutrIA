@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
-import { ProfessionalBadgeController, ProfessionalController } from 'core/controllers/Professional';
+import { ProfessionalBadgeController, ProfessionalController, ProfessionalProfileController } from 'core/controllers/Professional';
 import { webUrl } from 'core/domain/WebUrl';
 
 import { BackgroundTaskService } from '../../../shared/services/index.js';
@@ -8,13 +8,43 @@ import { EmailService, recipientLocale } from '../../email/services/index.js';
 import { ENV } from '../../../config/index.js';
 import { professionalBadgeCodeEmail } from '../../email/templates/ProfessionalBadgeCode.js';
 import { professionalBadgeRemovedEmail } from '../../email/templates/ProfessionalBadgeRemoved.js';
-import { professionalGrantedEmail } from '../../email/templates/ProfessionalGranted.js';
+import { professionalClosingEmail } from '../../email/templates/ProfessionalClosing.js';
+import { professionalCloseWithdrawnEmail } from '../../email/templates/ProfessionalCloseWithdrawn.js';
+import { professionalProfileHiddenEmail } from '../../email/templates/ProfessionalProfileHidden.js';
+import { professionalSuspendedEmail } from '../../email/templates/ProfessionalSuspended.js';
+import { professionalSuspensionLiftedEmail } from '../../email/templates/ProfessionalSuspensionLifted.js';
 
 import type { Env } from '../../../config/index.js';
-import type { BadgeRemoval } from 'core/controllers/Professional';
-import type { GrantProfessionalDto, IssueBadgeCodeDto, ProfessionalsQueryDto, RemoveBadgeDto } from '../dto/in/index.js';
-import type { BadgeCodeIssuedDto, BadgeQueueDto, BadgeRecordDto, ProfessionalAccountDto, ProfessionalsDto } from '../dto/out/index.js';
+import type { BadgeRemoval, PracticeRestrictionAct, ProfileHiding } from 'core/controllers/Professional';
+import type { RenderedEmail } from '../../email/templates/Layout.js';
+import type {
+  HideProfessionalProfileDto,
+  IssueBadgeCodeDto,
+  LiftRestrictionDto,
+  ProfessionalsQueryDto,
+  RemoveBadgeDto,
+  RestrictPracticeDto
+} from '../dto/in/index.js';
+import type {
+  BadgeCodeIssuedDto,
+  BadgeQueueDto,
+  BadgeRecordDto,
+  PracticeRestrictionAnswerDto,
+  ProfessionalsDto,
+  ProfileQueueDto,
+  QueuedProfileDto
+} from '../dto/out/index.js';
 
+/**
+ * The owner's acts on practitioners (`0059`, project 025): the badge, the
+ * profile's first look, and the restrictions. Every rule is in core; this is
+ * the seam, and the one place their mails are queued.
+ *
+ * **A mail never undoes an act** (PLAN 025 phase 6 step 7): each statement of
+ * reasons goes in the background, after the act committed; one that fails is
+ * logged by its kind alone — never an address, a name or the owner's words —
+ * and the statement stays readable on the practitioner's own page.
+ */
 @Injectable()
 export class AdminProfessionalsService {
   private readonly logger = new Logger(AdminProfessionalsService.name);
@@ -25,26 +55,6 @@ export class AdminProfessionalsService {
     private readonly email: EmailService
   ) {}
 
-  /**
-   * The owner's act (`0059`). `id` names the account being granted; `grantedBy`
-   * is the session's user — the owner — and is what the row remembers.
-   *
-   * A first grant tells the professional (`docs/legal/textos/06` § B), in the
-   * background so the owner's answer does not wait on a mailbox; granting again
-   * — a corrected number — does not.
-   */
-  async grant(id: string, body: GrantProfessionalDto, grantedBy: string): Promise<ProfessionalAccountDto> {
-    const first = (await ProfessionalController.find(id)) === null;
-    const account = await ProfessionalController.grant(id, body, grantedBy);
-
-    if (first) {
-      // The number just granted — the `pass` this grant wrote (project 025 phase 3, step 7), so a checked number.
-      this.background.run('professional-granted-mail', async () => this.mail(account.userId, account.email, body.collegiateNumber));
-    }
-
-    return account;
-  }
-
   async badge(userId: string): Promise<BadgeRecordDto> {
     return ProfessionalBadgeController.record(userId);
   }
@@ -53,8 +63,29 @@ export class AdminProfessionalsService {
     return ProfessionalBadgeController.queue();
   }
 
+  /**
+   * The owner closes a practice with 30 days' notice (`textos/06` § W bis.3):
+   * the notice, with its reasons and the day, is mailed at once.
+   */
+  async close(userId: string, body: RestrictPracticeDto, ownerId: string): Promise<PracticeRestrictionAnswerDto> {
+    const act = await ProfessionalController.close(userId, ownerId, body);
+
+    this.background.run('practice-closing-mail', async () => this.restrictionMail(act));
+
+    return act.answer;
+  }
+
   async confirmBadge(userId: string, ownerId: string): Promise<BadgeRecordDto> {
     return ProfessionalBadgeController.confirm(userId, ownerId);
+  }
+
+  /** The owner hides a profile — refusing is the same act — and the statement of reasons is mailed (`textos/06` § X). */
+  async hideProfile(userId: string, body: HideProfessionalProfileDto, ownerId: string): Promise<QueuedProfileDto> {
+    const hiding = await ProfessionalProfileController.hide(userId, ownerId, body);
+
+    this.background.run('profile-hidden-mail', async () => this.hidingMail(hiding));
+
+    return hiding.profile;
   }
 
   /**
@@ -69,8 +100,8 @@ export class AdminProfessionalsService {
    * not be the account that applied (finding F2), so the account's language
    * says nothing about theirs.
    */
-  async issueBadgeCode(userId: string, body: IssueBadgeCodeDto): Promise<BadgeCodeIssuedDto> {
-    const issued = await ProfessionalBadgeController.issueCode(userId, body);
+  async issueBadgeCode(userId: string, body: IssueBadgeCodeDto, ownerId: string): Promise<BadgeCodeIssuedDto> {
+    const issued = await ProfessionalBadgeController.issueCode(userId, ownerId, body);
     const expiresAt = issued.expiresAt.toISOString();
 
     if (body.channel !== 'register_email') {
@@ -98,6 +129,34 @@ export class AdminProfessionalsService {
   }
 
   /**
+   * The owner lifts what stands. One mail, by what it lifted: a close —
+   * carried out or not, with a suspension lifted beside it or not — is § W
+   * bis.4 (`ProfessionalCloseWithdrawn`); a suspension alone is § W bis.2.
+   */
+  async lift(userId: string, body: LiftRestrictionDto, ownerId: string): Promise<PracticeRestrictionAnswerDto> {
+    const act = await ProfessionalController.lift(userId, ownerId, body);
+
+    if (act.withdrawnClose || act.wasSuspended) {
+      this.background.run('practice-lifted-mail', async () => this.restrictionMail(act));
+    }
+
+    return act.answer;
+  }
+
+  async list(query: ProfessionalsQueryDto): Promise<ProfessionalsDto> {
+    return ProfessionalController.list(query);
+  }
+
+  /** The owner has looked at a queued profile and found nothing to hide. Nothing is mailed: «seen» is not an approval. */
+  async markProfileSeen(userId: string, ownerId: string): Promise<QueuedProfileDto> {
+    return ProfessionalProfileController.markSeen(userId, ownerId);
+  }
+
+  async profiles(): Promise<ProfileQueueDto> {
+    return ProfessionalProfileController.queue();
+  }
+
+  /**
    * A `fail` or `withdrawn` with its statement of reasons, mailed in the
    * background to the account's own address in its own language (`textos/06`
    * § W). The answer is the record as it now stands.
@@ -110,12 +169,67 @@ export class AdminProfessionalsService {
     return removal.record;
   }
 
-  async list(query: ProfessionalsQueryDto): Promise<ProfessionalsDto> {
-    return ProfessionalController.list(query);
+  /** The owner suspends an account as a practitioner, at once (`textos/06` § W bis.1); the statement is mailed. */
+  async suspend(userId: string, body: RestrictPracticeDto, ownerId: string): Promise<PracticeRestrictionAnswerDto> {
+    const act = await ProfessionalController.suspend(userId, ownerId, body);
+
+    this.background.run('practice-suspended-mail', async () => this.restrictionMail(act));
+
+    return act.answer;
   }
 
-  async revoke(id: string, actorId: string): Promise<void> {
-    await ProfessionalController.revoke(id, actorId);
+  /** § X, in the practitioner's own language, to their own address. */
+  private async hidingMail(hiding: ProfileHiding): Promise<void> {
+    const locale = await recipientLocale(hiding.userId);
+    const { afterNotice, facts, reasons, word } = hiding.statement;
+
+    await this.deliver(professionalProfileHiddenEmail({ afterNotice, facts, locale, reasons, word }), hiding.to);
+  }
+
+  /** § W bis's three mails, in the practitioner's own language, to their own address. */
+  private async restrictionMail(act: PracticeRestrictionAct): Promise<void> {
+    const locale = await recipientLocale(act.userId);
+    const { authority, clause, facts, source } = act.statement;
+
+    switch (act.kind) {
+      case 'suspended':
+        if (facts !== null && source !== null) {
+          await this.deliver(professionalSuspendedEmail({ locale, statement: { authority, clause, facts, source } }), act.to);
+        }
+
+        return;
+      case 'closing':
+        if (facts !== null && source !== null && act.closesAt !== null) {
+          await this.deliver(
+            professionalClosingEmail({ closesAt: act.closesAt, locale, statement: { authority, clause, facts, source }, suspended: act.suspended }),
+            act.to
+          );
+        }
+
+        return;
+      case 'lifted':
+        await this.deliver(
+          act.withdrawnClose
+            ? professionalCloseWithdrawnEmail({
+                carriedOut: act.withdrawnClose.carriedOut,
+                closesAt: act.withdrawnClose.closesAt,
+                facts,
+                liftedSuspension: act.wasSuspended,
+                locale
+              })
+            : professionalSuspensionLiftedEmail({ facts, locale }),
+          act.to
+        );
+
+        return;
+    }
+  }
+
+  /** Sends one statement. Never logs the address or the owner's words: a failure says only which kind did not go. */
+  private async deliver(mail: RenderedEmail, to: string): Promise<void> {
+    if (!(await this.email.send({ ...mail, to }))) {
+      this.logger.warn(`${mail.kind} mail not sent`);
+    }
   }
 
   /** The statement of reasons. Never logs the address, the number or the reason: a failure says only that it did not go. */
@@ -137,17 +251,6 @@ export class AdminProfessionalsService {
 
     if (!sent) {
       this.logger.warn('badge statement of reasons not sent');
-    }
-  }
-
-  /** In the professional's own language. Never logs the address or the number: a failure says only that the mail did not go. */
-  private async mail(userId: string, to: string, collegiateNumber: string): Promise<void> {
-    const locale = await recipientLocale(userId);
-    const url = webUrl(this.env.APP_URL, '/consulta', locale);
-    const sent = await this.email.send({ ...professionalGrantedEmail({ collegiateNumber, locale, url }), to });
-
-    if (!sent) {
-      this.logger.warn('professional granted mail not sent');
     }
   }
 }

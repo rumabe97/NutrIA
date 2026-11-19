@@ -22,6 +22,7 @@ import { HEALTH_CONSENT_VERSION } from 'core/entities/Health';
 
 import { api, messageFor } from 'lib/api';
 import { formatNumber, interpolate } from 'lib/format';
+import { withProfessional } from 'lib/professionalName';
 
 import type { ConditionKey, SupplementKind } from 'core/entities/Health';
 import type { HealthSavedView, HealthView } from 'core/controllers/Health';
@@ -62,7 +63,7 @@ interface HealthPanelProps {
    * link (`0111` § 8), so the form says so above its button first
    * (`docs/legal/textos/05` § G.1).
    */
-  unverifiedProfessional: string | null;
+  unverifiedProfessional: { readonly name: string | null } | null;
 }
 
 /**
@@ -87,7 +88,8 @@ export function HealthPanel({ health, unverifiedProfessional }: HealthPanelProps
   const [error, setError] = useState<string>();
   // The practitioner whose link the last save ended under the illness rule (§ G.3). Component
   // state, so it outlives `router.refresh()` — after which the link card is gone from the page.
-  const [linkEnded, setLinkEnded] = useState<string | null>(null);
+  // The ended link, not its practitioner's name: the name may be null (PRD 025) while the notice still stands.
+  const [linkEnded, setLinkEnded] = useState<{ name: string | null } | null>(null);
   const endedRef = useRef<HTMLDivElement>(null);
   const [consented, setConsented] = useState(health.consentIsCurrent);
   const [conditionKeys, setConditionKeys] = useState<readonly string[]>(() =>
@@ -135,7 +137,7 @@ export function HealthPanel({ health, unverifiedProfessional }: HealthPanelProps
         },
         method: 'PUT'
       });
-      setLinkEnded(saved.linkEnded?.professionalName ?? null);
+      setLinkEnded(saved.linkEnded ? { name: saved.linkEnded.professionalName } : null);
       setOpen(false);
       router.refresh();
     } catch (caught) {
@@ -193,11 +195,14 @@ export function HealthPanel({ health, unverifiedProfessional }: HealthPanelProps
         <Note
           ref={endedRef}
           tabIndex={-1}
-          title={interpolate(dictionary.care.illnessEndedTitle, { professional: linkEnded })}
+          title={withProfessional(dictionary.care.illnessEndedTitle, linkEnded.name, dictionary.care.professionalUnnamed)}
           tone="info"
           toneLabel={dictionary.common.noteTone.info}
         >
-          <MailtoText email={LEGAL_IDENTITY.email} text={interpolate(dictionary.care.illnessEndedBody, { professional: linkEnded })} />
+          <MailtoText
+            email={LEGAL_IDENTITY.email}
+            text={withProfessional(dictionary.care.illnessEndedBody, linkEnded.name, dictionary.care.professionalUnnamed)}
+          />
         </Note>
       ) : null}
 
@@ -375,7 +380,7 @@ export function HealthPanel({ health, unverifiedProfessional }: HealthPanelProps
               open, not only once a box is ticked: read before deciding, never missed below the fold. */}
           {unverifiedProfessional ? (
             <Note tone="warning" toneLabel={dictionary.common.noteTone.warning}>
-              {interpolate(t.illnessLinkWarning, { professional: unverifiedProfessional })}
+              {withProfessional(t.illnessLinkWarning, unverifiedProfessional.name, dictionary.care.professionalUnnamed)}
             </Note>
           ) : null}
 

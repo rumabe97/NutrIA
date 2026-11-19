@@ -313,7 +313,8 @@ export class OnboardingIncompleteError extends Error {
  * the client's own `GET /care/links/me` already shows them, and nothing more.
  */
 export class CareLinkExistsError extends Error {
-  constructor(public readonly link: { readonly professionalName: string; readonly since: string; readonly status: 'active' | 'paused' }) {
+  // `professionalName` is null when the name may not be shown now (`shownName`, invariant review of phase 6, round two).
+  constructor(public readonly link: { readonly professionalName: string | null; readonly since: string; readonly status: 'active' | 'paused' }) {
     super('Care link exists');
     this.name = 'CareLinkExistsError';
   }

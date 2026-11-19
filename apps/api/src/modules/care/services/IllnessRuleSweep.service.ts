@@ -56,7 +56,7 @@ export class IllnessRuleSweepService {
   }
 
   /** The client's mail; false when it could not go. Never throws: the ending stands either way. */
-  private async notify(link: { readonly clientId: string; readonly professionalName: string; readonly to: string | null }): Promise<boolean> {
+  private async notify(link: { readonly clientId: string; readonly professionalName: string | null; readonly to: string | null }): Promise<boolean> {
     if (!link.to) {
       return false;
     }

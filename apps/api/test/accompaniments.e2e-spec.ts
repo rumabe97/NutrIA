@@ -9,7 +9,6 @@ import { UserController } from 'core/controllers/User';
 import { database } from 'database';
 
 import {
-  acceptAgreement,
   completeOnboarding,
   createApp,
   deleteAccounts,
@@ -17,7 +16,7 @@ import {
   enableTotp,
   generateAndWait,
   httpServer,
-  openPractice,
+  makePractitioner,
   POOL,
   PREFIX,
   register,
@@ -650,13 +649,8 @@ describe('accompaniments, end to end', () => {
     it('keeps the sides through a professional’s review: swap while waiting, publish, and the client lives the same plan', async () => {
       await setFlag('professional', true);
       await UserController.setTier(pro.id, 'free', UNAUDITED);
-      await request(server())
-        .post(`/${PREFIX}/admin/accounts/${pro.id}/professional`)
-        .set('Cookie', owner.cookie)
-        .send({ collegiateNumber: `28/${String(stamp).slice(-6)}` })
-        .expect(201);
-      await acceptAgreement(app, pro);
-      await openPractice(pro.id);
+      // Opens their own practice and earns the badge (the retired grant wrote a `pass`); a free practice's seats are enough.
+      await makePractitioner(app, pro, { badgedBy: owner });
       pro = await enableTotp(app, pro);
       made.push(pro.cookie);
 

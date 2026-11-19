@@ -315,20 +315,29 @@ function firstOf(readings: readonly (readonly string[])[], words: readonly strin
  *
  * Order: a promised result, then the words nobody may use, then the badge's own
  * — so the answer names the reason that would survive a badge.
+ *
+ * `judged` says what is being judged (invariant review of phase 6, round two):
+ * a profile's text (`'text'`, the default) answers to all three lists; a
+ * practitioner's **name** (`'name'`) to the titles alone — `never` and
+ * `badge_only` — because a promised result is a rule for what a profile says,
+ * and real surnames («Asegurado», «Garantizada») would hit it.
  */
-export function protectedWordIn(text: string, badged: boolean): ProtectedWordHit | null {
-  const visible = prepared(text);
-  const raw = RAW_RESULTS.find(({ pattern }) => pattern.test(visible));
-
-  if (raw) {
-    return { list: 'result', word: raw.word };
-  }
-
+export function protectedWordIn(text: string, badged: boolean, judged: 'name' | 'text' = 'text'): ProtectedWordHit | null {
   const tokens = readingsOf(text);
-  const result = firstOf(tokens, RESULT_WORDS);
 
-  if (result !== undefined) {
-    return { list: 'result', word: result };
+  if (judged === 'text') {
+    const visible = prepared(text);
+    const raw = RAW_RESULTS.find(({ pattern }) => pattern.test(visible));
+
+    if (raw) {
+      return { list: 'result', word: raw.word };
+    }
+
+    const result = firstOf(tokens, RESULT_WORDS);
+
+    if (result !== undefined) {
+      return { list: 'result', word: result };
+    }
   }
 
   const never = firstOf(tokens, NEVER_WORDS);
@@ -337,7 +346,69 @@ export function protectedWordIn(text: string, badged: boolean): ProtectedWordHit
     return { list: 'never', word: never };
   }
 
-  const badgeOnly = badged ? undefined : firstOf(tokens, BADGE_ONLY_WORDS);
+  const badgeOnly = badged ? undefined : (firstOf(tokens, BADGE_ONLY_WORDS) ?? titleStemIn(tokens));
 
   return badgeOnly === undefined ? null : { list: 'badge_only', word: badgeOnly };
+}
+
+/**
+ * The protected **titles**, as a stem and the endings it takes, and the listed
+ * word each stands for (invariant review of phase 6, P2-3). The token rule alone
+ * let a title through when it was glued to another word or cut in pieces:
+ * «dietistanutricionista», «dietistaNutricionista», a soft hyphen between the
+ * two, «dieti sta», «diet ista», «die-tista», «nutricio nista».
+ *
+ * Two readings, both over every reading of the text:
+ *
+ * - **inside one token**, anywhere: no honest Spanish or English word holds one
+ *   of these titles («dietética», «dieta», «nutrición», «nutricional» hold
+ *   none), so a title glued to anything is the title;
+ * - **across two to six adjacent tokens joined**, but only when the title **ends
+ *   the run**: so «nu tri cio nis ta» is caught, and «Nutrición; istmo» —
+ *   «nutricionistmo» — is not.
+ *
+ * § 6.3 of the words table passes untouched. Badge-only, like the titles.
+ */
+const TITLES: readonly { readonly pattern: RegExp; readonly tail: RegExp; readonly word: string }[] = [
+  { endings: 'as|a', stem: 'dietist', word: 'dietista' },
+  { endings: 'as|a', stem: 'nutricionist', word: 'nutricionista' },
+  { endings: 's|', stem: 'dietitian', word: 'dietitian' },
+  { endings: 's|', stem: 'dietician', word: 'dietician' },
+  { endings: 's|', stem: 'nutritionist', word: 'nutritionist' },
+  { endings: 'os|as|o|a', stem: 'nutriolog', word: 'nutriologo' }
+].map(({ endings, stem, word }) => ({ pattern: new RegExp(`${stem}(?:${endings})`), tail: new RegExp(`${stem}(?:${endings})$`), word }));
+
+/** The most adjacent tokens a title cut in pieces is looked for across. */
+const TITLE_WINDOW = 6;
+
+/** The listed title one token holds, or a run of adjacent tokens ends with — in any reading — or undefined. */
+function titleStemIn(readings: readonly (readonly string[])[]): string | undefined {
+  for (const tokens of readings) {
+    for (let start = 0; start < tokens.length; start += 1) {
+      for (let size = 1; size <= TITLE_WINDOW && start + size <= tokens.length; size += 1) {
+        const joined = tokens.slice(start, start + size).join('');
+        const hit = TITLES.find(title => (size === 1 ? title.pattern : title.tail).test(joined));
+
+        if (hit) {
+          return hit.word;
+        }
+      }
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * **The one judge of a practitioner's name shown to a client** (invariant
+ * review of phase 6, round two): the name as it may be shown, or null when it
+ * carries a title the account may not use now — `protectedWordIn` on the name,
+ * titles only (`'name'`), with `badged` read as the caller reads it. Null is
+ * rendered by the screens as the approved neutral «tu profesional» / "your
+ * professional", and by a mail as its no-name variant. Used at the invitation,
+ * the acceptance, the decline, the client's link and its endings — never on the
+ * client's access trail, which keeps the name as it was when they were looked at.
+ */
+export function shownName(name: string, badged: boolean): string | null {
+  return protectedWordIn(name, badged, 'name') === null ? name : null;
 }

@@ -834,21 +834,36 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     80 % of it (`TEXT_SWEEP_STOP_SHARE`) claims nothing and returns `heldBy: 'cap'`; `/cron/rewrite-steps`
     records that `cron_run` with `skipped: 'cap'` (a string in the place of the recipes-skipped count).
     A plan or a swap is never held back here.
-- **Professionals** (`0059`): an account is a professional because a `professionals` row
-  says so, and only `POST /admin/accounts/:id/professional` (the collegiate number, nothing
-  else) writes one; `DELETE` of the same takes it back and `GET /admin/professionals` lists
-  them with link *counts*, never a client. `user.role` is untouched. `ProfessionalGuard`
+- **Professionals** (`0059`, project 025 phase 6): an account is a practitioner because a
+  `professionals` row says so, and **the account opens it itself**: `POST /care/practice`
+  (`CareOpenPracticeController`, behind `ProfessionalSwitchGuard` alone and `@AllowUnverified()`
+  so an unconfirmed address gets the same 404 as every other refusal), with nothing from the body
+  but a birth date. The owner's grant (`POST /admin/accounts/:id/professional`) and revoke
+  (`DELETE`) are **retired**: no route, the owner's included, makes a practitioner, and what the
+  owner gives is the badge. `GET /admin/professionals` lists them with link *counts* and what
+  stands against each, never a client. `user.role` is untouched. `ProfessionalGuard`
   (`shared/guards`) is the door to the workspace — the `professional` switch on **and** the
   row, both read per request, anything else 404 — and it is **not global**: every workspace
   controller carries `@UseGuards(ProfessionalGuard)` on its class, and never
   `@RequiresOnboarding()` (its 409 would answer a non-professional before the guard's 404).
-  Only an account with a confirmed address can be granted. A first grant mails the professional
-  (`professional-granted`, `docs/legal/textos/06` § B); a re-grant does not.
+  It does **not** ask `practiceOpen` (a free practice works); it refuses every client route to a
+  suspended practitioner or a practice whose close has come (`ProfessionalView.restricted`).
+- **The owner's restrictions and first look** (PRD 025 scope 16, criterion 18), under
+  `/admin/professionals/:userId`: `suspension` (ends nothing), `close` (30 days' notice; the daily
+  `/cron/reminders` closes it on its day, `PracticeCloseSweepService`, first in the run, ending
+  every open link as the practitioner ending it, so each client may accept somebody else) and
+  `lift`; `GET /admin/professionals/queue`, `profile/seen`, `profile/hide`. Each statement of
+  reasons is mailed in the background (`ProfessionalSuspended`, `ProfessionalSuspensionLifted`,
+  `ProfessionalClosing`, `ProfessionalProfileHidden`, `docs/legal/textos/06` §§ W bis and X): a
+  mail that fails never undoes the act, and its log names the kind alone. None of these acts
+  writes an audit row yet: `AUDIT_ACTIONS` keys a web dictionary type, so they come with their
+  words in PLAN 025 phase 9; the restriction rows carry the owner and the date meanwhile.
 - **The professional's agreement** (`docs/legal/textos/01`, `04`): `PROFESSIONAL_AGREEMENT_VERSION`
   in `core/entities/Professional`, stored as `professionals.agreementVersion` / `agreementAcceptedAt`,
-  null on a new grant. `POST /care/practice/agreement { version }` (`z.literal`) accepts it.
-  `ProfessionalGuard` refuses every route without the current version, like a practice not paid for,
-  except those marked `@BeforePractice()` (the workspace's page and accepting); `CareRepository`'s
+  null on a practice just opened. `POST /care/practice/agreement { version }` (`z.literal`) accepts it.
+  `ProfessionalGuard` refuses every route without the current version, like a suspended practice,
+  except those marked `@BeforePractice()` (the workspace's page, accepting, the badge and the
+  profile); `CareRepository`'s
   `practising` join and `CareController.practises` are the second line. Practice checkout is a 404
   until it is accepted (`BillingService.agreed`). `GET /care/practice` says `agreementRequired`.
 - **The link** (`0059`): `modules/care`. `POST /care/invitations` is the professional's
@@ -857,7 +872,9 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   on the class, so the switch is asked before any pipe); `GET /care/links/me` and
   `DELETE /care/links/:linkId` are `CareLinksController`, with no guard — a client sees and
   ends their own link whatever the switch says (a link stays revocable), and ending is also
-  the professional's, which needs the switch and the grant, checked in `CareController.end`.
+  the professional's, which needs the switch and a practice that practises now — the current
+  agreement, no suspension, no close whose day has come — decided inside the ending's own
+  transaction (`CareRepository.end`); a restricted practitioner gets the same 404.
   Every other care route 404s while the `professional` switch is off. An invitation stores only the SHA-256 of its token; the token travels in one
   mail, queued with `BackgroundTaskService` so the answer is the same whether or not the
   address has an account, and nothing reads `user` by that address. It is read and answered

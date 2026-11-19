@@ -91,7 +91,7 @@ describe('careInvitationEmail', () => {
 
   it('says the exact list comes before accepting', () => {
     expect(careInvitationEmail({ inviterName: 'Ana', locale: 'es-ES', privacyUrl: PRIVACY, url: URL }).text).toContain(
-      'Antes de aceptar verás la lista exacta.'
+      'antes de aceptar verás la lista exacta.'
     );
   });
 });

@@ -11,7 +11,6 @@ import { ownerDigestEmail } from './OwnerDigest.js';
 import { passkeyAddedEmail } from './PasskeyAdded.js';
 import { passwordChangedEmail } from './PasswordChanged.js';
 import { passwordResetEmail } from './PasswordReset.js';
-import { professionalGrantedEmail } from './ProfessionalGranted.js';
 import { twoFactorChangedEmail } from './TwoFactorChanged.js';
 import { twoFactorRemovalEmail } from './TwoFactorRemoval.js';
 import { verifyEmail } from './VerifyEmail.js';
@@ -129,7 +128,6 @@ function cases(): readonly (readonly [string, RenderedEmail])[] {
       passwordChangedEmail({ at: AT, device: IPHONE, locale, passkeysRemoved: 3, recoverUrl: RECOVER })
     ] as const,
     [`passwordReset ${locale}`, passwordResetEmail({ locale, url: LINK })] as const,
-    [`professionalGranted ${locale}`, professionalGrantedEmail({ collegiateNumber: 'MAD00123', locale, url: LINK })] as const,
     ...TWO_FACTOR.map(
       event =>
         [

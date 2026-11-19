@@ -41,9 +41,13 @@ function money(price: PriceView, locale: Locale): string {
 /**
  * The practice's own plan (`0061`): how many of its places are taken, where the
  * subscription stands, and the one thing to do about it — choose a plan while
- * the practice is closed, or manage it on Stripe's portal once there is one.
- * The larger plan is chosen there too, so a full practice is sent to the same
- * button.
+ * none is paid for, or manage it on Stripe's portal once there is one.
+ *
+ * The places are `seats`, the number the API enforces: the paid plan's, or the
+ * free practice's (PRD 025: a practice nobody pays for works, with its free
+ * seats), so they are drawn whether or not anybody pays. A free practice with no
+ * subscription gets no standing sentence: what this card used to say there
+ * («choose a plan to invite») stopped being true. Its own words are phase 8's.
  */
 export function PracticePlanCard({ justPaid, practice, trialDaysLeft }: PracticePlanCardProps) {
   const dictionary = useDictionary();
@@ -87,7 +91,7 @@ export function PracticePlanCard({ justPaid, practice, trialDaysLeft }: Practice
   } else if (justPaid) {
     standing = t.planJustPaid;
   } else {
-    standing = subscription ? t.planLapsed : t.planClosed;
+    standing = subscription ? t.planLapsed : '';
   }
 
   const choose = billing.available && !practice.open && !paying && !justPaid;
@@ -98,30 +102,25 @@ export function PracticePlanCard({ justPaid, practice, trialDaysLeft }: Practice
         {t.planTitle}
       </h2>
 
-      {practice.open ? (
-        <div className={styles.seats}>
-          {/* The seats taken as a ring beside the sentence that says them: the sentence is the
+      <div className={styles.seats}>
+        {/* The seats taken as a ring beside the sentence that says them: the sentence is the
               text, the ring only its picture (as Progreso's meals done). */}
-          <Rings
-            className={styles.ring}
-            decorative={true}
-            items={[{ label: t.planTitle, max: Math.max(practice.includedClients, 1), tone: 1, value: practice.activeClients }]}
-            label={t.planTitle}
-            size="sm"
-          />
-          <Text className={styles.count} weight="semibold">
-            {interpolate(t.planSeats, {
-              active: formatNumber(practice.activeClients, locale),
-              included: formatNumber(practice.includedClients, locale)
-            })}
+        <Rings
+          className={styles.ring}
+          decorative={true}
+          items={[{ label: t.planTitle, max: Math.max(practice.seats, 1), tone: 1, value: practice.activeClients }]}
+          label={t.planTitle}
+          size="sm"
+        />
+        <Text className={styles.count} weight="semibold">
+          {interpolate(t.planSeats, { active: formatNumber(practice.activeClients, locale), included: formatNumber(practice.seats, locale) })}
+        </Text>
+        {practice.pendingInvitations > 0 ? (
+          <Text size="sm" tone="secondary">
+            {interpolate(t.planSeatsPending, { count: formatNumber(practice.pendingInvitations, locale) })}
           </Text>
-          {practice.pendingInvitations > 0 ? (
-            <Text size="sm" tone="secondary">
-              {interpolate(t.planSeatsPending, { count: formatNumber(practice.pendingInvitations, locale) })}
-            </Text>
-          ) : null}
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       {billing.available ? (
         standing ? (

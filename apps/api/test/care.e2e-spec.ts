@@ -11,13 +11,13 @@ import { UNAUDITED } from 'core/entities/Audit';
 import { database } from 'database';
 
 import {
-  acceptAgreement,
+  closePracticeNow,
   completeOnboarding,
   createApp,
   enableTotp,
   generateAndWait,
   httpServer,
-  openPractice,
+  makePractitioner,
   POOL,
   PREFIX,
   register,
@@ -165,17 +165,13 @@ describe('care', () => {
     await request(server()).patch(`/${PREFIX}/admin/settings`).set('Cookie', owner.cookie).send({ enabled, flag: 'professional' }).expect(200);
   }
 
-  /** Grants, accepts, opens — and turns TOTP on (PLAN 011 phase 6), which rotates the session: use the account it answers. */
+  /**
+   * The account opens its own practice — free, ten seats — accepts the agreement and earns the badge by its four
+   * steps (project 025 phase 6: the owner's grant, which wrote a `pass`, is retired); then TOTP on (PLAN 011 phase
+   * 6), which rotates the session: use the account it answers. Nothing is paid for: a free practice reaches its clients.
+   */
   async function grant(who: Account): Promise<Account> {
-    await request(server())
-      .post(`/${PREFIX}/admin/accounts/${who.id}/professional`)
-      .set('Cookie', owner.cookie)
-      .send({ collegiateNumber: `28/${String(stamp).slice(-6)}` })
-      .expect(201);
-    // Every route below but `GET /care/practice` stays shut until this (P1-1); this suite is about the workspace, not the agreement gate itself — `professionals.e2e-spec.ts` is.
-    await acceptAgreement(app, who);
-    // The client routes need a paid practice from Phase 7 on (`0061`); this suite is about the workspace, not paying for it.
-    await openPractice(who.id);
+    await makePractitioner(app, who, { badgedBy: owner, number: `28/${String(stamp).slice(-6)}` });
 
     const enabled = await enableTotp(app, who);
 
@@ -205,28 +201,6 @@ describe('care', () => {
     }
 
     throw new Error('No invitation mail arrived');
-  }
-
-  /** The newest mail of `kind` to `to`, waiting for the background task that sends it (`AdminProfessionalsService.grant`). */
-  async function mailOfKind(to: string, kind: OutgoingEmail['kind'], after: number): Promise<OutgoingEmail> {
-    const deadline = Date.now() + 10_000;
-
-    while (Date.now() < deadline) {
-      const mail = sent
-        .slice(after)
-        .filter(message => message.to === to.toLowerCase() && message.kind === kind)
-        .at(-1);
-
-      if (mail) {
-        return mail;
-      }
-
-      await new Promise(resolve => {
-        setTimeout(resolve, 50);
-      });
-    }
-
-    throw new Error(`No ${kind} mail arrived for ${to}`);
   }
 
   /** Invites through the route, as the professional's screen does, and reads the token from the mail. */
@@ -315,33 +289,34 @@ describe('care', () => {
     }
   });
 
-  /**
-   * The owner's grant mails the account (`docs/legal/textos/06-correos.md`
-   * § B, P1-2): today it says nothing, which is the gap that section closes.
-   * Sent in the background (`AdminProfessionalsService.grant`), so `pro`'s
-   * from `beforeAll`'s `grant(pro)` is waited for the way an invitation's
-   * token is; a re-grant of the same account sends nothing more.
+  /*
+   * Replaced in project 025 phase 6: the owner's grant, and its mail
+   * (`textos/06` § B, `professional-granted`), are retired. The account opens
+   * its own practice (`beforeAll`'s `grant(pro)`), and nothing is mailed for
+   * it; the old route is a 404 to the owner that writes and mails nothing.
    */
-  describe('the professional’s grant', () => {
-    it('mails the account, naming the collegiate number and that an agreement comes before any client’s data — once, not again on a second grant', async () => {
-      const number = `28/${String(stamp).slice(-6)}`;
-      const mail = await mailOfKind(pro.email, 'professional-granted', 0);
-
-      expect(mail.text).toContain(number);
-      expect(mail.text.toLowerCase()).toContain('acuerdo');
-
-      // A correction to the number is still the same account, already granted: nothing more is queued.
-      const before = sent.length;
-
-      await request(server())
-        .post(`/${PREFIX}/admin/accounts/${pro.id}/professional`)
-        .set('Cookie', owner.cookie)
-        .send({ collegiateNumber: number })
-        .expect(201);
+  describe('the professional’s practice, opened by the account', () => {
+    it('mails the account nothing for opening it, and the retired grant route is the owner’s 404, writing and mailing nothing', async () => {
       await new Promise(resolve => {
         setTimeout(resolve, 300);
       });
-      expect(sent.slice(before).filter(message => message.kind === 'professional-granted')).toEqual([]);
+      expect(sent.filter(message => message.to === pro.email.toLowerCase() && message.kind.startsWith('professional-'))).toEqual([]);
+
+      const before = sent.length;
+      const plain = await account('grant-retired');
+
+      await request(server())
+        .post(`/${PREFIX}/admin/accounts/${plain.id}/professional`)
+        .set('Cookie', owner.cookie)
+        .send({ collegiateNumber: `28/${String(stamp).slice(-6)}` })
+        .expect(404);
+      await request(server()).delete(`/${PREFIX}/admin/accounts/${pro.id}/professional`).set('Cookie', owner.cookie).expect(404);
+      await new Promise(resolve => {
+        setTimeout(resolve, 300);
+      });
+      expect(sent.slice(before).filter(message => message.kind.startsWith('professional-'))).toEqual([]);
+      await expect(tables()`select id from professionals where user_id = ${plain.id}`).resolves.toEqual([]);
+      expect(await professionalRow(pro)).toMatchObject({ practising: true });
     });
   });
 
@@ -639,7 +614,7 @@ describe('care', () => {
       expect(refused.body).toMatchObject({
         code: 'CARE_LINK_EXISTS',
         link: { professionalName: nameOf(pro), status: 'active' },
-        message: 'Ya tienes un dietista vinculado.',
+        message: 'Ya estás vinculado con un profesional.',
         statusCode: 409
       });
       expect(await linkRows(client.id)).toHaveLength(1);
@@ -737,8 +712,14 @@ describe('care', () => {
     });
   });
 
-  describe('a grant taken back', () => {
-    it('closes the invitations it sent and its side of the link; the client keeps theirs', async () => {
+  /*
+   * Inverted in project 025 phase 6: the 004 revoke kept the client's side of
+   * the link open. The owner's close that replaced it, carried out by the daily
+   * sweep, **ends** every open link as the practitioner ending it — so the
+   * client is free to accept somebody else — and deletes the invitations.
+   */
+  describe('a practice closed by the owner', () => {
+    it('closes the invitations it sent and ends the link as the practitioner ending it; the client is free', async () => {
       let revoked = await account('pro-revoked');
       const theirs = await account('client-c');
 
@@ -750,16 +731,23 @@ describe('care', () => {
       const link = accepted.body as CareLinkView;
       const open = await invite(revoked, stranger.email);
 
-      await request(server()).delete(`/${PREFIX}/admin/accounts/${revoked.id}/professional`).set('Cookie', owner.cookie).expect(204);
+      await closePracticeNow(app, owner, revoked.id);
 
       await expect(invitationsFrom(revoked.id)).resolves.toEqual([]);
       await request(server()).get(`/${PREFIX}/care/invitations/${open.token}`).set('Cookie', stranger.cookie).expect(404);
       expect((await accept(stranger, open.token)).status).toBe(404);
       await request(server()).delete(`/${PREFIX}/care/links/${link.id}`).set('Cookie', revoked.cookie).expect(404);
-      await expect(myLink(theirs)).resolves.toMatchObject({ id: link.id, status: 'active' });
-
-      await request(server()).delete(`/${PREFIX}/care/links/${link.id}`).set('Cookie', theirs.cookie).expect(204);
       await expect(myLink(theirs)).resolves.toBeNull();
+      expect((await linkRows(theirs.id)).map(row => ({ id: row.id, endedBy: row.endedBy, status: row.status }))).toEqual([
+        { id: link.id, endedBy: 'professional', status: 'ended' }
+      ]);
+      // Nothing left for the client to end; and another practitioner's invitation is theirs to accept.
+      await request(server()).delete(`/${PREFIX}/care/links/${link.id}`).set('Cookie', theirs.cookie).expect(404);
+      expect((await accept(theirs, (await invite(otherPro, theirs.email)).token)).status).toBe(200);
+      await request(server())
+        .delete(`/${PREFIX}/care/links/${(await myLink(theirs))?.id ?? ''}`)
+        .set('Cookie', theirs.cookie)
+        .expect(204);
     });
   });
 
@@ -990,7 +978,7 @@ describe('care', () => {
     const NO_CLIENT = { code: 'NOT_FOUND', message: 'Client not found', statusCode: 404 };
     /**
      * The 404 of the door itself (`ProfessionalGuard`): what an account that was
-     * never a professional gets, and so what a revoked one and a switched-off
+     * never a professional gets, and so what a closed one and a switched-off
      * one must get too.
      */
     const NO_DOOR = { code: 'NOT_FOUND', message: 'Not Found', statusCode: 404 };
@@ -1507,7 +1495,8 @@ describe('care', () => {
         expect(await counts([awaiting])).toEqual(before);
       });
 
-      it('closes when the grant is taken back while the link is active', async () => {
+      // The close carried out (it replaced the 004 revoke, project 025 phase 6): the door shuts, and the link ends with it.
+      it('closes when the practice is closed while the link is active', async () => {
         let revoked = await account('reader-revoked');
         const client = await account('reader-revoked-client');
 
@@ -1517,7 +1506,7 @@ describe('care', () => {
         await overview(revoked, linkId).expect(200);
         const rows = (await trail(client.id)).length;
 
-        await request(server()).delete(`/${PREFIX}/admin/accounts/${revoked.id}/professional`).set('Cookie', owner.cookie).expect(204);
+        await closePracticeNow(app, owner, revoked.id);
 
         const refused = await overview(revoked, linkId);
 
@@ -1533,8 +1522,9 @@ describe('care', () => {
         await expect(CareController.withClient(revoked.id, linkId, 'overview', 'read', reached)).rejects.toThrow(NotFoundError);
         expect(reached).not.toHaveBeenCalled();
         expect(await trail(client.id)).toHaveLength(rows);
-        // The link itself is still the client's.
-        await expect(myLink(client)).resolves.toMatchObject({ id: linkId, status: 'active' });
+        // Inverted in phase 6: the 004 revoke left the link active; the close ends it as the practitioner ending it.
+        await expect(myLink(client)).resolves.toBeNull();
+        expect((await linkRows(client.id)).map(row => [row.id, row.status, row.endedBy])).toEqual([[linkId, 'ended', 'professional']]);
       });
 
       /**
@@ -1681,7 +1671,8 @@ describe('care', () => {
         await expect(CareController.activeProfessional(alone.id)).resolves.toBeNull();
       });
 
-      it('is null once the professional’s grant is revoked, even though the link row stays active', async () => {
+      // Inverted in project 025 phase 6: the close that replaced the revoke ends the link too, so nothing is left active.
+      it('is null once the practice is closed, and the link ends with it', async () => {
         let revokedPro = await account('checkin-pro-revoked');
         const revokedClient = await account('checkin-pro-revoked-client');
 
@@ -1690,11 +1681,11 @@ describe('care', () => {
 
         await expect(CareController.activeProfessional(revokedClient.id)).resolves.toEqual({ id: revokedPro.id, email: revokedPro.email });
 
-        await request(server()).delete(`/${PREFIX}/admin/accounts/${revokedPro.id}/professional`).set('Cookie', owner.cookie).expect(204);
+        await closePracticeNow(app, owner, revokedPro.id);
 
-        // At the door, as `access that closes` proves for the HTTP route — the link row is untouched.
         await expect(CareController.activeProfessional(revokedClient.id)).resolves.toBeNull();
-        await expect(myLink(revokedClient)).resolves.toMatchObject({ id: linkId, status: 'active' });
+        await expect(myLink(revokedClient)).resolves.toBeNull();
+        expect((await linkRows(revokedClient.id)).map(row => [row.id, row.status, row.endedBy])).toEqual([[linkId, 'ended', 'professional']]);
       });
 
       /** cf87d75 (invariant-reviewer, legal-b): `withClient`'s own two conditions, asked here too. */
@@ -1713,16 +1704,28 @@ describe('care', () => {
         await expect(myLink(staleClient)).resolves.toMatchObject({ id: linkId, status: 'active' });
       });
 
-      it('is null once the practice is no longer open, even though the link row stays active', async () => {
+      /*
+       * Inverted in project 025 phase 6 (PRD 025 criterion 7): a practice nobody
+       * pays for works, so its practitioner is the client's — before any plan was
+       * ever paid, and after a paid one lapses (`practice_open` back to false, on
+       * the table: no route lapses a plan without Stripe).
+       */
+      it('is the professional’s on a practice nobody pays for, and stays so after a paid one lapses', async () => {
         let lapsedPro = await account('checkin-pro-lapsed');
         const lapsedClient = await account('checkin-pro-lapsed-client');
 
         lapsedPro = await grant(lapsedPro);
         const linkId = await link(lapsedPro, lapsedClient);
 
+        await expect(tables()<{ open: boolean }>`select practice_open as open from professionals where user_id = ${lapsedPro.id}`).resolves.toEqual([
+          { open: false }
+        ]);
+        await expect(CareController.activeProfessional(lapsedClient.id)).resolves.toEqual({ id: lapsedPro.id, email: lapsedPro.email });
+
+        await tables()`update professionals set practice_open = true, included_clients = 30 where user_id = ${lapsedPro.id}`;
         await tables()`update professionals set practice_open = false where user_id = ${lapsedPro.id}`;
 
-        await expect(CareController.activeProfessional(lapsedClient.id)).resolves.toBeNull();
+        await expect(CareController.activeProfessional(lapsedClient.id)).resolves.toEqual({ id: lapsedPro.id, email: lapsedPro.email });
         await expect(myLink(lapsedClient)).resolves.toMatchObject({ id: linkId, status: 'active' });
       });
     });

@@ -4,13 +4,14 @@ import { CareRepository, linkScope } from '#repositories/Care';
 import { HealthController } from 'core/controllers/Health';
 import { isCheckInDue, nudgedKcal } from 'core/controllers/CheckIn';
 import { PlanController, planOnly, planOnlyJob, planOnlyMealDetail, planOnlySummary, withoutPantry } from 'core/controllers/Plan';
-import { ProfessionalBadgeRepository, ProfessionalRepository } from '#repositories/Professional';
+import { blocksPractice, PracticeRestrictionRepository, ProfessionalBadgeRepository, ProfessionalRepository } from '#repositories/Professional';
 import { ProfileController } from 'core/controllers/Profile';
 import { ProgressController } from 'core/controllers/Progress';
 import { SettingsRepository } from '#repositories/Settings';
 import { UserRepository } from '#repositories/User';
 import { FLAGS } from 'core/domain/Flag';
 import { personDayKey } from 'core/domain/Period';
+import { protectedWordIn, shownName } from 'core/domain/ProtectedWords';
 import {
   CARE_CONSENT_VERSION,
   CARE_HEALTH_SHARED,
@@ -30,7 +31,10 @@ import {
 } from 'core/entities/Error';
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 
+import { presentRestriction } from 'core/controllers/Professional';
+
 import type { LinkWithProfessional, OpenInvitation, RecordAccess, RosterLink } from '#repositories/Care';
+import type { PracticeRestrictionView } from 'core/controllers/Professional';
 import type {
   AcceptInvitation,
   CareAccessAction,
@@ -188,7 +192,12 @@ export interface CareLinkView {
   /** Which list the client consented to: `full`, the badged one, or `plan`. */
   consentScope: CareConsentScope;
   consentVersion: string;
-  professionalName: string;
+  /**
+   * The practitioner's account name as it may be shown now (`shownName`), or
+   * null when it carries a title the account may not use — the screen then says
+   * «tu profesional» (invariant review of phase 6, round two).
+   */
+  professionalName: string | null;
   /**
    * Whether the practitioner holds NutrIA's badge now. False is when the health
    * screen warns before a condition or a medication is saved
@@ -224,7 +233,8 @@ export interface CareLinkView {
  */
 export interface CareEndedLinkView {
   endedAt: string;
-  professionalName: string;
+  /** As `CareLinkView.professionalName`: null when the name may not be shown now. */
+  professionalName: string | null;
   reason: CareRuleEnding;
 }
 
@@ -354,9 +364,20 @@ export interface CarePracticeStandingView {
   agreementRequired: boolean;
   /** The version to accept: today's `PROFESSIONAL_AGREEMENT_VERSION`. */
   agreementVersion: string;
+  /** What a paid practice plan includes (`0061`); zero on a practice nobody pays for. Not the limit: `seats` is. */
   includedClients: number;
+  /** Whether a practice plan is paid for. Not whether the practice works: a free one does (PRD 025 scope 2). */
   open: boolean;
   pendingInvitations: number;
+  /** What the owner has standing against the practice (PRD 025 scope 16), or null. */
+  restriction: PracticeRestrictionView | null;
+  /**
+   * **The limit**: active clients plus live invitations may not reach it — the
+   * paid plan's `includedClients`, or the free practice's `practiceClients`
+   * (`0111` § 6), resolved as `invite` resolves it, so the number shown is the
+   * number enforced.
+   */
+  seats: number;
 }
 
 /**
@@ -515,7 +536,8 @@ function presentLink({ link, professionalName }: LinkWithProfessional, badged: b
     consentIsCurrent: link.consentVersion === CARE_CONSENT_VERSION,
     consentScope: link.consentScope,
     consentVersion: link.consentVersion,
-    professionalName,
+    // Judged at every read, with the badge read for this answer: null when it may not be shown now (round two).
+    professionalName: shownName(professionalName, badged),
     professionalVerified: badged,
     reconsentOffered: link.consentScope === 'plan' && badged && link.status !== 'ended',
     scope,
@@ -578,26 +600,44 @@ function answerer(session: CareSession, token: string): { readonly email: string
 }
 
 /**
- * Whether this account may act as a professional today — the switch is on and
- * the grant stands: the question `ProfessionalGuard` asks through
- * `ProfessionalController.hasAccess`, asked here for the one route both sides
- * share.
+ * Whether this account may work with clients today: the switch on, a
+ * professional who has accepted the current agreement
+ * (`docs/legal/textos/01`) and is neither suspended nor closed (PRD 025
+ * criterion 24, `PracticeRestrictionRepository.standing`) — the question
+ * `ProfessionalGuard` asks for every client route, asked again here as the
+ * second line. **Whether anybody pays is not asked** (PRD 025 scope 2): a free
+ * practice works, with its free seats.
  */
-async function isProfessional(userId: string): Promise<boolean> {
-  return (await switchedOn()) && (await ProfessionalRepository.find(userId)) !== null;
+async function practises(userId: string, now: Date = new Date()): Promise<boolean> {
+  const row = (await switchedOn()) ? await ProfessionalRepository.find(userId) : null;
+
+  if (row?.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION) {
+    return false;
+  }
+
+  return !blocksPractice(await PracticeRestrictionRepository.standing(userId), now);
 }
 
 /**
- * Whether this account may work with clients today: a professional, as
- * `isProfessional`, whose practice is paid for (`0061`) and who has accepted
- * the current agreement (`docs/legal/textos/01`) — the question
- * `ProfessionalGuard` asks for every client route, asked again here as the
- * second line.
+ * Whether a practitioner's account name may be shown to a client now
+ * (invariant review of phase 6, P1-2 and round two): `shownName`, the one judge
+ * — titles only, with the badge as it stands. The invitation and its mail, the
+ * acceptance and the decline refuse under a name that fails it; the client's
+ * link and its endings show null in its place.
  */
-async function practises(userId: string): Promise<boolean> {
-  const row = (await switchedOn()) ? await ProfessionalRepository.find(userId) : null;
+function nameShown(name: string, badged: boolean): boolean {
+  return shownName(name, badged) !== null;
+}
 
-  return row?.practiceOpen === true && row.agreementVersion === PROFESSIONAL_AGREEMENT_VERSION;
+/**
+ * The free practice's seats for this practitioner (`0111` § 6): the
+ * `practiceClients` allowance of their own account's tier, resolved from what
+ * the console stored (`0097`). Handed to `CareRepository.invite`, which asks it
+ * inside the invitation's transaction, and read by the practice's page, so the
+ * number a screen shows is the number enforced.
+ */
+async function freeSeats(professionalId: string): Promise<number> {
+  return (await PlanController.limitsOf(professionalId)).practiceClients;
 }
 
 // --- Controller ---------------------------------------------------------------
@@ -634,7 +674,7 @@ export const CareController = {
   async accept(session: CareSession, token: string, answer: AcceptInvitation, now: Date = new Date()): Promise<CareLinkView> {
     await assertOpen();
     const { email, tokenHash } = answerer(session, token);
-    const outcome = await CareRepository.accept(session.id, email, tokenHash, answer, now);
+    const outcome = await CareRepository.accept(session.id, email, tokenHash, answer, now, nameShown);
 
     if (outcome.kind === 'gone') {
       throw new NotFoundError('Invitation not found');
@@ -645,8 +685,11 @@ export const CareController = {
     }
 
     if (outcome.kind === 'exists') {
+      // The client's existing practitioner, named as their link names them: judged with that practitioner's badge now.
+      const badged = (await ProfessionalBadgeRepository.badgeOf(outcome.link.professionalId, now)) !== null;
+
       throw new CareLinkExistsError({
-        professionalName: outcome.professionalName,
+        professionalName: shownName(outcome.professionalName, badged),
         since: outcome.link.consentedAt.toISOString(),
         status: outcome.link.status === 'paused' ? 'paused' : 'active'
       });
@@ -701,13 +744,15 @@ export const CareController = {
       return null;
     }
 
-    // Practising, as `withClient` asks it: a lapsed practice or an agreement not accepted is not told either.
-    const [grant, badge] = await Promise.all([
+    // Practising, as `withClient` asks it: an agreement not accepted, a suspension or a close come is not told either.
+    // Whether anybody pays is not asked (PRD 025 scope 2).
+    const [grant, badge, standing] = await Promise.all([
       ProfessionalRepository.find(link.link.professionalId),
-      ProfessionalBadgeRepository.badgeOf(link.link.professionalId, now)
+      ProfessionalBadgeRepository.badgeOf(link.link.professionalId, now),
+      PracticeRestrictionRepository.standing(link.link.professionalId)
     ]);
 
-    if (!grant?.practiceOpen || grant.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION) {
+    if (grant?.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION || blocksPractice(standing, now)) {
       return null;
     }
 
@@ -734,12 +779,12 @@ export const CareController = {
    * out of it; the link id each row carries is the only way on, and every way
    * on is `withClient`.
    *
-   * The switch, the grant and a practice paid for are asked here too, as
-   * `withClient` asks them: the guard is the first line, this the second for
-   * any caller that is not a route.
+   * The switch, the practice, its agreement and any restriction are asked here
+   * too, as `withClient` asks them: the guard is the first line, this the second
+   * for any caller that is not a route.
    */
   async clients(professional: Pick<CareSession, 'id'>, now: Date = new Date()): Promise<CareClientsView> {
-    if (!(await practises(professional.id))) {
+    if (!(await practises(professional.id, now))) {
       throw new NotFoundError('Client not found');
     }
 
@@ -753,7 +798,21 @@ export const CareController = {
     await assertOpen();
     const { email, tokenHash } = answerer(session, token);
 
-    if (!(await CareRepository.decline(session.id, email, tokenHash, now))) {
+    const declined = await CareRepository.decline(session.id, email, tokenHash, now);
+
+    if (!declined) {
+      throw new NotFoundError('Invitation not found');
+    }
+
+    // Invariant review of phase 6, P3: the client may decline an invitation from an inviter suspended, closed or
+    // under a name that may not be shown — the invitation and its address are deleted all the same — but the answer
+    // is the 404 the page and the acceptance give for that same invitation, so declining teaches nothing they did not.
+    const [reachable, badge] = await Promise.all([
+      CareRepository.reachable(declined.professionalId, now),
+      ProfessionalBadgeRepository.badgeOf(declined.professionalId, now)
+    ]);
+
+    if (!reachable || !nameShown(declined.professionalName, badge !== null)) {
       throw new NotFoundError('Invitation not found');
     }
   },
@@ -764,14 +823,17 @@ export const CareController = {
    * The client first, whatever the switch says — consent is revocable, and a
    * client must be able to take theirs back even while the workspace is off: a
    * link whose `clientId` is the session's. Otherwise the professional, and
-   * only while this account is one (the switch is on and the grant stands): a
+   * only while this account practises — the switch on, the current agreement
+   * accepted, no suspension nor a close whose day has come (project 025 phase
+   * 6), decided inside the ending's transaction (`CareRepository.end`): a
    * link whose `professionalId` is the session's. Anything else — a
    * stranger's link, an ended one, an id that is nobody's, something that is
    * not an id at all — is the same 404. What ending does to access is Phase
    * 3's: every professional read resolves the link as `active`, so it closes
-   * on the next request. A professional whose practice has lapsed may still
-   * end a link: ending one is a way up from a full practice, and a lapse must
-   * not trap a link either side wants gone.
+   * on the next request. A professional whose practice has lapsed — unpaid —
+   * may still end a link: ending one is a way up from a full practice, and the
+   * client can always end it from their side. A restricted one may not: what
+   * the owner stopped is stopped, and a carried-out close ends the links itself.
    *
    * The targets the professional set stay, and become the client's own, in
    * the same transaction (owner's decision, 2026-09-24; `CareRepository.end`).
@@ -785,7 +847,8 @@ export const CareController = {
       return;
     }
 
-    if ((await isProfessional(session.id)) && (await CareRepository.end(session.id, 'professional', linkId, now))) {
+    // The practitioner's side: only while they practise, decided in the ending's own transaction (`CareRepository.end`).
+    if ((await switchedOn()) && (await CareRepository.end(session.id, 'professional', linkId, now))) {
       return;
     }
 
@@ -803,7 +866,14 @@ export const CareController = {
   async endedLink(session: Pick<CareSession, 'id'>): Promise<CareEndedLinkView | null> {
     const row = await CareRepository.lastEndedByRule(session.id);
 
-    return row ? { endedAt: row.endedAt.toISOString(), professionalName: row.professionalName, reason: row.reason } : null;
+    if (!row) {
+      return null;
+    }
+
+    // Judged now, with that practitioner's badge read as `decline` reads it (round two).
+    const badged = (await ProfessionalBadgeRepository.badgeOf(row.professionalId, new Date())) !== null;
+
+    return { endedAt: row.endedAt.toISOString(), professionalName: shownName(row.professionalName, badged), reason: row.reason };
   },
 
   /**
@@ -867,7 +937,8 @@ export const CareController = {
     const { email, tokenHash } = answerer(session, token);
     const row = await CareRepository.openInvitation(session.id, email, tokenHash, now);
 
-    if (!row) {
+    // A name that may not be shown now reads as no invitation at all (invariant review of phase 6, P1-2), as `accept` answers it.
+    if (!row || !nameShown(row.professionalName, row.badge !== null)) {
       throw new NotFoundError('Invitation not found');
     }
 
@@ -886,17 +957,19 @@ export const CareController = {
    * The professional's own address is refused: a link to oneself is not a
    * link, and the answer reveals nothing the caller does not know.
    *
-   * The practice's number is the limit (`0061`, PRD 004 criterion 17): with
-   * active links plus live invitations at `includedClients`, a
-   * `PracticeFullError` naming the number — 409 `PRACTICE_FULL`, whose ways
-   * up are the larger plan or ending a link. A practice not paid for is a 404,
-   * as the guard answers it; this is the second line.
+   * The practice's seats are the limit (`0061`, `0111` § 6, PRD 025 criterion
+   * 7): with active links plus live invitations at the paid plan's
+   * `includedClients` — or, for a practice nobody pays for, at the free
+   * `practiceClients`, resolved inside the invitation's transaction — a
+   * `PracticeFullError` naming the number, 409 `PRACTICE_FULL`. A practice
+   * suspended, closed or without the current agreement is a 404, as the guard
+   * answers it; this is the second line.
    */
   async invite(
     professional: Pick<CareSession, 'email' | 'id'>,
     input: InviteClient,
     now: Date = new Date()
-  ): Promise<{ readonly invitation: CareInvitationView; readonly token: string }> {
+  ): Promise<{ readonly invitation: CareInvitationView; readonly inviterName: string; readonly token: string }> {
     const email = normalised(input.email);
 
     if (email === normalised(professional.email)) {
@@ -905,17 +978,30 @@ export const CareController = {
 
     const token = randomBytes(TOKEN_BYTES).toString('base64url');
     const expiresAt = new Date(now.getTime() + CARE_INVITATION_TTL_DAYS * DAY_MS);
-    const outcome = await CareRepository.invite(professional.id, email, hashOf(token), expiresAt, now);
+    const outcome = await CareRepository.invite(
+      professional.id,
+      email,
+      hashOf(token),
+      expiresAt,
+      now,
+      () => freeSeats(professional.id),
+      (name, badged) => protectedWordIn(name, badged, 'name')
+    );
 
     if (outcome.kind === 'closed') {
       throw new NotFoundError('Not found');
+    }
+
+    // The account's name, which the mail, the client's page, link and trail all show: judged as the profile's words are.
+    if (outcome.kind === 'name_refused') {
+      throw new InputParseError('A word the name may not carry', { name: [`${outcome.refusal.list}:${outcome.refusal.word}`] });
     }
 
     if (outcome.kind === 'full') {
       throw new PracticeFullError(outcome.includedClients);
     }
 
-    return { invitation: presentInvitation(outcome.invitation), token };
+    return { invitation: presentInvitation(outcome.invitation), inviterName: outcome.inviterName, token };
   },
 
   /**
@@ -1037,7 +1123,13 @@ export const CareController = {
    * Where the professional's own practice stands (`0061`) — for the workspace
    * page, which opens whether or not it is paid for, because it is where the
    * way to pay is shown. Counts only: no client is read, and no trail row is
-   * written. A 404 unless the switch is on and the grant stands.
+   * written. A 404 unless the switch is on and the account has a practice.
+   *
+   * `seats` is the number `invite` enforces, resolved the same way (`freeSeats`,
+   * `0097`): the paid plan's `includedClients`, or the free `practiceClients`.
+   * `restriction` is what the owner has standing against the practice, so the
+   * page can say it — a suspended practitioner still reaches this page, never a
+   * client.
    */
   async practice(professional: Pick<CareSession, 'id'>, now: Date = new Date()): Promise<CarePracticeStandingView> {
     const row = (await switchedOn()) ? await ProfessionalRepository.find(professional.id) : null;
@@ -1046,7 +1138,11 @@ export const CareController = {
       throw new NotFoundError('Not found');
     }
 
-    const use = await CareRepository.practiceUse(professional.id, now);
+    const [use, seats, standing] = await Promise.all([
+      CareRepository.practiceUse(professional.id, now),
+      row.practiceOpen ? Promise.resolve(row.includedClients) : freeSeats(professional.id),
+      PracticeRestrictionRepository.standing(professional.id)
+    ]);
 
     return {
       ...use,
@@ -1054,7 +1150,9 @@ export const CareController = {
       agreementRequired: row.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION,
       agreementVersion: PROFESSIONAL_AGREEMENT_VERSION,
       includedClients: row.includedClients,
-      open: row.practiceOpen
+      open: row.practiceOpen,
+      restriction: presentRestriction(standing, now),
+      seats
     };
   },
 
@@ -1203,7 +1301,7 @@ export const CareController = {
   async sweepBadgeLoss(
     now: Date = new Date()
   ): Promise<{
-    readonly ended: readonly { readonly clientId: string; readonly professionalName: string; readonly to: string | null }[];
+    readonly ended: readonly { readonly clientId: string; readonly professionalName: string | null; readonly to: string | null }[];
     readonly narrowed: number;
   }> {
     const { ended, narrowed } = await CareRepository.sweepBadgeLoss(now);
@@ -1212,7 +1310,8 @@ export const CareController = {
       ended: await Promise.all(
         ended.map(async row => ({
           clientId: row.clientId,
-          professionalName: row.professionalName,
+          // The badge has just gone: the name is judged without it (round two), so a title it allowed is not mailed.
+          professionalName: shownName(row.professionalName, false),
           to: (await UserRepository.findById(row.clientId))?.email ?? null
         }))
       ),

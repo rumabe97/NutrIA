@@ -7,7 +7,7 @@ import { badgeCodeHash, newBadgeCode, ProfessionalBadgeController } from './Prof
 
 import type * as Repositories from '#repositories/Professional';
 import type { Badge, BadgeQueueRow, BadgeRecord, DueBadge, IssuedCheck, LapsedBadge, RemovedCheck } from '#repositories/Professional';
-import type { BadgeChannel, ProfessionalBadgeCheck, ProfessionalBadgeCode } from 'core/entities/Professional';
+import type { BadgeChannel, ProfessionalBadgeCheck, ProfessionalBadgeCode, ProfessionalProfile } from 'core/entities/Professional';
 import type { User } from 'core/entities/User';
 
 const NOW = new Date('2026-11-18T09:00:00.000Z');
@@ -16,7 +16,11 @@ const DAY = 24 * 60 * 60 * 1000;
 const record = vi.fn<(userId: string) => Promise<BadgeRecord>>();
 const apply = vi.fn<(userId: string, input: unknown, now: Date) => Promise<boolean>>();
 const enterCode = vi.fn<(userId: string, hash: string, now: Date) => Promise<boolean>>();
-const issueCode = vi.fn<(userId: string, channel: BadgeChannel, hash: string, now: Date) => Promise<IssuedCheck | null>>();
+const issueCode =
+  vi.fn<
+    (userId: string, channel: BadgeChannel, hash: string, now: Date, record?: (tx: unknown) => Promise<unknown>) => Promise<IssuedCheck | null>
+  >();
+const auditRecord = vi.fn<(entry: unknown, tx?: unknown) => Promise<void>>();
 const confirm = vi.fn<(userId: string, by: string, now: Date, beforeRegained?: (tx: unknown) => Promise<unknown>) => Promise<Badge | null>>();
 const remove =
   vi.fn<
@@ -30,8 +34,9 @@ const remove =
     ) => Promise<RemovedCheck | null>
   >();
 const narrowLinksOf = vi.fn<(professionalId: string, now: Date, tx: unknown) => Promise<number>>();
+const requeueIf = vi.fn<(tx: unknown, userId: string, now: Date, carries: (profile: ProfessionalProfile) => boolean) => Promise<boolean>>();
 const queue = vi.fn<() => Promise<readonly BadgeQueueRow[]>>();
-const lapseOverdue = vi.fn<(now: Date) => Promise<readonly LapsedBadge[]>>();
+const lapseOverdue = vi.fn<(now: Date, whenLapsed?: (tx: unknown, userId: string) => Promise<unknown>) => Promise<readonly LapsedBadge[]>>();
 const dueWithin = vi.fn<(since: Date, now: Date) => Promise<readonly DueBadge[]>>();
 const dueCounts = vi.fn<(now: Date, soonDays: number) => Promise<{ due: number; soon: number }>>();
 const findById = vi.fn<(id: string) => Promise<User | undefined>>();
@@ -49,8 +54,9 @@ vi.mock('#repositories/Professional', async importOriginal => {
       dueCounts: (now: Date, soonDays: number) => dueCounts(now, soonDays),
       dueWithin: (since: Date, now: Date) => dueWithin(since, now),
       enterCode: (userId: string, hash: string, now: Date) => enterCode(userId, hash, now),
-      issueCode: (userId: string, channel: BadgeChannel, hash: string, now: Date) => issueCode(userId, channel, hash, now),
-      lapseOverdue: (now: Date) => lapseOverdue(now),
+      issueCode: (userId: string, channel: BadgeChannel, hash: string, now: Date, record?: (tx: unknown) => Promise<unknown>) =>
+        issueCode(userId, channel, hash, now, record),
+      lapseOverdue: (now: Date, whenLapsed?: (tx: unknown, userId: string) => Promise<unknown>) => lapseOverdue(now, whenLapsed),
       queue: () => queue(),
       record: (userId: string) => record(userId),
       remove: (
@@ -61,6 +67,9 @@ vi.mock('#repositories/Professional', async importOriginal => {
         now: Date,
         whenWithdrawn?: (tx: unknown) => Promise<unknown>
       ) => remove(userId, by, kind, reason, now, whenWithdrawn)
+    },
+    ProfessionalProfileRepository: {
+      requeueIf: (tx: unknown, userId: string, now: Date, carries: (profile: ProfessionalProfile) => boolean) => requeueIf(tx, userId, now, carries)
     }
   };
 });
@@ -68,6 +77,7 @@ vi.mock('#repositories/Care', () => ({
   CareRepository: { narrowLinksOf: (professionalId: string, now: Date, tx: unknown) => narrowLinksOf(professionalId, now, tx) }
 }));
 vi.mock('#repositories/User', () => ({ UserRepository: { findById: (id: string) => findById(id) } }));
+vi.mock('#repositories/Audit', () => ({ AuditRepository: { record: (entry: unknown, tx?: unknown) => auditRecord(entry, tx) } }));
 const lastOwnerAlert = vi.fn<(kind: string) => Promise<Date | null>>();
 const claimOwnerAlert = vi.fn<(kind: string, since: Date, at?: Date) => Promise<string | null>>();
 
@@ -130,6 +140,8 @@ beforeEach(() => {
     confirm,
     remove,
     narrowLinksOf,
+    requeueIf,
+    auditRecord,
     queue,
     lapseOverdue,
     dueWithin,
@@ -317,24 +329,49 @@ describe('ProfessionalBadgeController.issueCode', () => {
   it('stores a hash and hands the code back once, with what it proves', async () => {
     issueCode.mockResolvedValue({ expiresAt: new Date(NOW.getTime() + 30 * DAY), number: 'MAD00123', register: 'Colegio de Madrid' });
 
-    const issued = await ProfessionalBadgeController.issueCode('usr-pro', { channel: 'post' }, NOW);
+    const issued = await ProfessionalBadgeController.issueCode('usr-pro', 'usr-owner', { channel: 'post' }, NOW);
 
     expect(issued).toMatchObject({ channel: 'post', number: 'MAD00123', register: 'Colegio de Madrid', userId: 'usr-pro' });
-    expect(issueCode).toHaveBeenCalledWith('usr-pro', 'post', badgeCodeHash(issued.code), NOW);
+    expect(issueCode).toHaveBeenCalledWith('usr-pro', 'post', badgeCodeHash(issued.code), NOW, expect.any(Function));
     expect(issueCode.mock.calls[0]?.[2]).not.toBe(issued.code);
   });
 
   it('is a 404 for an account that does not exist, and stores nothing', async () => {
     findById.mockResolvedValue(undefined);
 
-    await expect(ProfessionalBadgeController.issueCode('usr-nobody', { channel: 'phone' }, NOW)).rejects.toThrow(NotFoundError);
+    await expect(ProfessionalBadgeController.issueCode('usr-nobody', 'usr-owner', { channel: 'phone' }, NOW)).rejects.toThrow(NotFoundError);
     expect(issueCode).not.toHaveBeenCalled();
   });
 
   it('is a 404 when there is nothing to prove', async () => {
     issueCode.mockResolvedValue(null);
 
-    await expect(ProfessionalBadgeController.issueCode('usr-pro', { channel: 'phone' }, NOW)).rejects.toThrow(NotFoundError);
+    await expect(ProfessionalBadgeController.issueCode('usr-pro', 'usr-owner', { channel: 'phone' }, NOW)).rejects.toThrow(NotFoundError);
+  });
+
+  /* Invariant review of phase 6, P2-1 (ADR `0071`): the owner's act leaves its audit row, in its own transaction — the channel, never the code. */
+  it('records the owner’s act in the code’s transaction: the channel, and nothing of the code or the contact', async () => {
+    const TX = { name: 'the code’s transaction' };
+
+    issueCode.mockImplementation(async (_userId, _channel, _hash, now, record) => {
+      await record?.(TX);
+
+      return { expiresAt: now, number: 'MAD00123', register: 'Colegio de Madrid' };
+    });
+
+    const issued = await ProfessionalBadgeController.issueCode('usr-pro', 'usr-owner', { channel: 'post' }, NOW);
+
+    expect(auditRecord).toHaveBeenCalledExactlyOnceWith(
+      {
+        action: 'professional.badge_code_issued',
+        actorId: 'usr-owner',
+        entity: 'professional',
+        metadata: { channel: 'post' },
+        subjectUserId: 'usr-pro'
+      },
+      TX
+    );
+    expect(JSON.stringify(auditRecord.mock.calls)).not.toContain(issued.code);
   });
 });
 
@@ -426,6 +463,31 @@ describe('ProfessionalBadgeController.confirm, remove and record', () => {
 
     // The practitioner whose badge went — never anybody the caller names — and nobody is mailed for it.
     expect(narrowLinksOf).toHaveBeenCalledExactlyOnceWith('usr-pro', NOW, TX);
+    // And, since phase 6, the profile goes back to the owner's queue if it carries a badge-only word (`0111` § 7).
+    expect(requeueIf).toHaveBeenCalledExactlyOnceWith(TX, 'usr-pro', NOW, expect.any(Function));
+
+    const carries = requeueIf.mock.calls[0]?.[3];
+
+    expect(carries?.({ displayName: 'Ana, dietista-nutricionista', studies: null } as ProfessionalProfile)).toBe(true);
+    expect(carries?.({ displayName: 'Ana, asesora nutricional', studies: 'Curso de cocina' } as ProfessionalProfile)).toBe(false);
+  });
+
+  it('hands the sweep’s lapse the profile’s requeue, for each badge it lapses, in its transaction', async () => {
+    const TX = { name: 'the lapse’s transaction' };
+
+    isEnabled.mockResolvedValue(true);
+    lapseOverdue.mockImplementation(async (_now, whenLapsed) => {
+      await whenLapsed?.(TX, 'usr-lapsed');
+
+      return [];
+    });
+    lastOwnerAlert.mockResolvedValue(null);
+    claimOwnerAlert.mockResolvedValue(null);
+    dueCounts.mockResolvedValue({ due: 0, soon: 0 });
+
+    await ProfessionalBadgeController.sweep(NOW);
+
+    expect(requeueIf).toHaveBeenCalledExactlyOnceWith(TX, 'usr-lapsed', NOW, expect.any(Function));
   });
 
   it('is a 404 when there is nothing of that kind to decide', async () => {

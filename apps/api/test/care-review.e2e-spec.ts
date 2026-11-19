@@ -10,7 +10,7 @@ import { UserController } from 'core/controllers/User';
 import { database } from 'database';
 
 import {
-  acceptAgreement,
+  closePracticeNow,
   completeOnboarding,
   createApp,
   dish,
@@ -18,6 +18,7 @@ import {
   generateAndWait,
   giveProfileConsent,
   httpServer,
+  makePractitioner,
   openPractice,
   POOL,
   PREFIX,
@@ -119,7 +120,7 @@ describe('care review', () => {
   let theirs: Account;
   /** Linked before finishing onboarding. */
   let unready: Account;
-  /** Sent the link whose grant is taken back under a waiting plan. */
+  /** Sent the link whose practice the owner closes under a waiting plan. */
   let proE: Account;
   const links: Record<string, string> = {};
   /** Every session this suite opened, so `afterAll` can delete each account it made. */
@@ -150,16 +151,16 @@ describe('care review', () => {
     await request(server()).patch(`/${PREFIX}/admin/settings`).set('Cookie', owner.cookie).send({ enabled, flag: 'professional' }).expect(200);
   }
 
-  /** Grants, accepts, opens — and turns TOTP on (PLAN 011 phase 6), which rotates the session: use the account it answers. */
+  /**
+   * The account opens its own practice, accepts the agreement and earns the badge by its four steps (project 025
+   * phase 6: the owner's grant is retired, and its `pass` badged) — then the practice is **paid for**, and TOTP turned
+   * on (PLAN 011 phase 6), which rotates the session: use the account it answers.
+   */
   async function grant(who: Account): Promise<Account> {
-    await request(server())
-      .post(`/${PREFIX}/admin/accounts/${who.id}/professional`)
-      .set('Cookie', owner.cookie)
-      .send({ collegiateNumber: `28/${String(stamp).slice(-6)}` })
-      .expect(201);
-    // Every route below but `GET /care/practice` stays shut until this (P1-1); `professionals.e2e-spec.ts` is where the gate itself is proved.
-    await acceptAgreement(app, who);
-    // The client routes need a paid practice from Phase 7 on (`0061`); this suite is about the workspace, not paying for it.
+    await makePractitioner(app, who, { badgedBy: owner, number: `28/${String(stamp).slice(-6)}` });
+    // Paid, on the table: a free practice works since phase 6, but this suite's clients have the paid allowances through
+    // a paid practice (`coveredByOpenPractice`, unchanged) and its redo counts (three a fortnight) rely on them. No route
+    // pays for a practice without Stripe; `care-practice.e2e-spec.ts` proves that path.
     await openPractice(who.id);
 
     const enabled = await enableTotp(app, who);
@@ -939,7 +940,8 @@ describe('care review', () => {
 
   /*
    * A waiting plan whose review can no longer happen (owner, 2026-09-24): the
-   * link ended, paused, or the professional's grant taken back. It stops
+   * link ended, paused, or the practice closed by the owner (the close carried
+   * out by the daily sweep, which replaced the 004 revoke). It stops
    * counting against the client — their next generation is neither refused nor
    * charged for it, and replaces it. On the free tier a charged redo would be
    * the second of one, a 429, so a success is the proof.
@@ -947,7 +949,7 @@ describe('care review', () => {
   describe('a waiting plan stranded', () => {
     type Stranded = { readonly client: Account; readonly first: string; readonly waiting: string; readonly waitingJob: string };
 
-    const cases: Record<'ended' | 'paused' | 'revoked', Stranded | undefined> = { ended: undefined, paused: undefined, revoked: undefined };
+    const cases: Record<'closed' | 'ended' | 'paused', Stranded | undefined> = { closed: undefined, ended: undefined, paused: undefined };
 
     /** A client living a plan who asks for the next one, which waits for `professional`. */
     async function waitingFor(professional: Account, name: string): Promise<Stranded & { readonly linkId: string }> {
@@ -973,18 +975,19 @@ describe('care review', () => {
     beforeAll(async () => {
       const ended = await waitingFor(proD, 'stranded-ended');
       const paused = await waitingFor(proD, 'stranded-paused');
-      const revoked = await waitingFor(proE, 'stranded-revoked');
+      const closed = await waitingFor(proE, 'stranded-closed');
 
       await request(server()).delete(`/${PREFIX}/care/links/${ended.linkId}`).set('Cookie', ended.client.cookie).expect(204);
+      // No route pauses a link since project 025 phase 6; links paused before it stay so: written on the table.
       await tables()`update care_links set status = 'paused' where id = ${paused.linkId}`;
-      await request(server()).delete(`/${PREFIX}/admin/accounts/${proE.id}/professional`).set('Cookie', owner.cookie).expect(204);
+      await closePracticeNow(app, owner, proE.id);
 
       cases.ended = ended;
       cases.paused = paused;
-      cases.revoked = revoked;
+      cases.closed = closed;
     });
 
-    it.each(['ended', 'paused', 'revoked'] as const)('with the link %s, costs the client nothing and is replaced by their next plan', async name => {
+    it.each(['ended', 'paused', 'closed'] as const)('with the link %s, costs the client nothing and is replaced by their next plan', async name => {
       const stranded = cases[name] as Stranded;
 
       // No longer counted: the fortnight's redo is there again.

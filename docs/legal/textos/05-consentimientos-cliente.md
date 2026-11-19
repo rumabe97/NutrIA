@@ -302,6 +302,30 @@ la pantalla no la ofrece.
 - El chat no se nombra: no existe en el proyecto 025 (C1). Cuando llegue, `care.sharesPlan` gana `lo que le escribas en el chat` y la versión vuelve a subir.
 - `Acepto y consiento`: C4 — el botón es la declaración explícita (CEPD Directrices 05/2020, § 4, «consentimiento explícito»: una declaración expresa del interesado; los apartados no se han vuelto a leer para esta nota). -->
 
+### F.3 bis. Ya vinculado: el mensaje con y sin nombre (2026-11-19)
+
+**Dónde**: la página de la invitación, cuando la persona ya tiene un enlace y el servidor responde
+409 `CareLinkExistsError`, que lleva `professionalName`, `since` y `status`
+(`packages/core/src/entities/Error/Error.ts:315`; lo pinta
+`apps/web/src/components/CareInvitation/CareInvitation.tsx:136` con `care.invitationLinkExistsBody`).
+**Sí hay una frase con el nombre**: la de hoy, «Ya tienes un dietista vinculado: {professional}, desde
+el {since}.», que el § 7 del documento del proyecto ya sustituye por una neutra (aprobado el
+2026-11-18). La clave `errors.careLinkExists` (`apps/web/src/lib/api.ts:75`) no lleva nombre, y su
+sustitución ya aprobada tampoco: «Ya estás vinculado con un profesional.».
+
+| Clave | es-ES | en-GB | Estado |
+| --- | --- | --- | --- |
+| `care.invitationLinkExistsBody` | `Ya estás vinculado con {professional}, desde el {since}.` | `You are already linked with {professional}, since {since}.` | aprobado el 2026-11-18 (§ 7) |
+| `care.invitationLinkExistsBodyNoName` (nueva) | `Ya estás vinculado con tu profesional desde el {since}.` | `You are already linked with your professional since {since}.` | **nueva, sin aprobar** |
+
+Se usa la variante sin nombre cuando el nombre de la cuenta del profesional de **ese enlace ya
+existente** no se puede mostrar (`nameShown`, `CareController.ts:631`, con la insignia de ese
+profesional). **Para `backend`**: hoy el error lleva el nombre tal cual (`CareController.ts:691-695`).
+La decisión de ocultarlo tiene que tomarla el servidor, con un `professionalName` nulo, y no la
+pantalla, para que el nombre no viaje en la respuesta.
+
+<!-- Fuente: las mismas que 06 § Y, «Sin el nombre». El título y el botón («Ya tienes un enlace activo», «Ver mi perfil») no llevan nombre y no cambian. -->
+
 ### F.4 La insignia llega con el enlace ya abierto: volver a consentir
 
 **Dónde**: la tarjeta del enlace en el perfil del cliente (`CareLinkCard`), solo mientras el

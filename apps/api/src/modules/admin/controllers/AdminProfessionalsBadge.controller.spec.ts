@@ -175,7 +175,7 @@ describe('AdminProfessionalsController — the badge', () => {
         .expect(201);
       await settle();
 
-      expect(issue.mock.calls[0]).toEqual(['usr-pro', { channel }]);
+      expect(issue.mock.calls[0]).toEqual(['usr-pro', 'usr-owner', { channel }]);
       expect(response.body).toEqual({ channel, code: CODE, expiresAt: EXPIRES.toISOString(), mailed: null });
       expect(send).not.toHaveBeenCalled();
     });

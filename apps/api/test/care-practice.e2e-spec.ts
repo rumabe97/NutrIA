@@ -11,7 +11,17 @@ import { SettingsController } from 'core/controllers/Settings';
 import { UNAUDITED } from 'core/entities/Audit';
 import { UserController } from 'core/controllers/User';
 
-import { acceptAgreement, completeOnboarding, deleteAccounts, enableTotp, httpServer, PREFIX, register } from './harness.js';
+import {
+  completeOnboarding,
+  deleteAccounts,
+  earnBadge,
+  enableTotp,
+  httpServer,
+  makePractitioner,
+  openOwnPractice,
+  PREFIX,
+  register
+} from './harness.js';
 import { createApp as assemble } from '../src/config/CreateApp.js';
 import { validateEnv } from '../src/config/Env.validation.js';
 import { EmailService } from '../src/modules/email/services/index.js';
@@ -28,13 +38,19 @@ import type { Response } from 'supertest';
  * The practice is paid for (`0061`, project 004 Phase 7; PRD criteria 13, 14
  * and 17), over real HTTP and on the real tables.
  *
- * A professional's own subscription, at a practice price, is what opens the
- * workspace's client routes and sets how many clients it includes — through the
- * signed webhook alone, never a request body. A lapse pauses every active link
- * and returns the clients to the free allowances without deleting anything;
- * paying again reactivates them. A client with an active link to an open
- * practice has the paid allowances. When a link ends, the targets the
- * professional set stay and become the client's own; a pause keeps the mark.
+ * A professional's own subscription, at a practice price, sets how many
+ * clients the practice includes — through the signed webhook alone, never a
+ * request body. **Since project 025 phase 6 it no longer opens the door**: an
+ * account opens its own practice, free, and reaches its clients with the free
+ * `practiceClients` seats (ten); every open link — `paused` ones too — and every
+ * live invitation takes a seat. A lapse pauses nothing and deletes nothing: the
+ * links stay active and the clients return to their own tier; paying again
+ * makes active only the links a 004 lapse had paused (written on the table: no
+ * route pauses one now). A client with an active link to a practice **paid
+ * for** has the paid allowances; a client of a free practice keeps their own.
+ * Checkout for a practice is a 404 while a suspension or a close stands. When a
+ * link ends, the targets the professional set stay and become the client's
+ * own; a pause keeps the mark.
  *
  * The application is the product's own assembly (`CreateApp`), as in
  * `billing.e2e-spec.ts`, and Stripe's client is replaced at the same seam
@@ -250,30 +266,35 @@ describe('care-practice', () => {
   }
 
   /**
-   * A granted professional with no practice yet, TOTP on: the grant alone
-   * opens nothing. `agree` defaults true — almost everything below needs the
-   * agreement accepted (P1-1) to reach the routes it is about; the one test
-   * of the gate itself passes `agree: false`.
+   * An account that opened its own practice — free, nothing paid — and earned
+   * the badge by its four steps (project 025 phase 6: the owner's grant, which
+   * badged, is retired), TOTP on. `agree` defaults true — almost everything
+   * below needs the agreement accepted (P1-1) to reach the routes it is about;
+   * the one test of the gate itself passes `agree: false`.
    */
   async function professional(label: string, agree = true): Promise<Account> {
     const who = await account(label);
 
-    await request(server())
-      .post(`/${PREFIX}/admin/accounts/${who.id}/professional`)
-      .set('Cookie', owner.cookie)
-      .send({ collegiateNumber: `28/${String(stamp).slice(-6)}` })
-      .expect(201);
+    if (agree) {
+      await makePractitioner(on.app, who, { badgedBy: owner, number: `28/${String(stamp).slice(-6)}` });
+    } else {
+      await openOwnPractice(on.app, who);
+      await earnBadge(on.app, who, owner, `28/${String(stamp).slice(-6)}`);
+    }
 
     // A password account reaches no client route without TOTP on (PLAN 011 phase 6); the confirmation rotates the session.
     const enabled = await enableTotp(on.app, who);
 
     made.push(enabled.cookie);
 
-    if (agree) {
-      await acceptAgreement(on.app, enabled);
-    }
-
     return enabled;
+  }
+
+  function restrict(who: Account, act: 'close' | 'lift' | 'suspension') {
+    return request(server())
+      .post(`/${PREFIX}/admin/professionals/${who.id}/${act}`)
+      .set('Cookie', owner.cookie)
+      .send(act === 'lift' ? {} : { facts: 'Revisión de la consulta.', source: 'own_review' });
   }
 
   async function practiceOf(who: Account): Promise<Practice | undefined> {
@@ -401,10 +422,10 @@ describe('care-practice', () => {
       .expect(200);
   }
 
-  /** Active links and unexpired invitations: what a practice's number counts. */
+  /** Open links — `paused` ones too, since project 025 phase 6 — and unexpired invitations: what a practice's number counts. */
   async function seatsTaken(pro: Account): Promise<number> {
     const [row] = await tables()<{ count: number }>`
-      select (select count(*) from care_links where professional_id = ${pro.id} and status = 'active')::int
+      select (select count(*) from care_links where professional_id = ${pro.id} and status in ('active', 'paused'))::int
            + (select count(*) from care_invitations where professional_id = ${pro.id} and expires_at > now())::int as count`;
 
     return row?.count ?? 0;
@@ -633,6 +654,23 @@ describe('care-practice', () => {
       await checkout(pro, { plan: 'practice', price: THIRTY }).expect(200);
       expect(on.stripe.bought).toHaveLength(before + 1);
     });
+
+    // Project 025 phase 6 (invariant review, P2-4): nothing is sold to a practice the owner has suspended or is closing.
+    it('refuses the practice checkout while a suspension or a close stands, and sells it once lifted', async () => {
+      const pro = await professional('checkout-restricted');
+      await UserController.grantAdmin(pro.email);
+      const before = on.stripe.bought.length;
+
+      for (const act of ['suspension', 'close'] as const) {
+        await restrict(pro, act).expect(200);
+        await checkout(pro, { plan: 'practice', price: THIRTY }).expect(404);
+        await restrict(pro, 'lift').expect(200);
+      }
+
+      expect(on.stripe.bought).toHaveLength(before);
+      await checkout(pro, { plan: 'practice', price: THIRTY }).expect(200);
+      expect(on.stripe.bought).toHaveLength(before + 1);
+    });
   });
 
   describe('webhook: the price decides what is granted', () => {
@@ -731,7 +769,7 @@ describe('care-practice', () => {
     });
   });
 
-  describe('the door: a practice paid for', () => {
+  describe('the door: a practice of one’s own, paid for or not', () => {
     function practicePage(who: Account) {
       return request(server()).get(`/${PREFIX}/care/practice`).set('Cookie', who.cookie);
     }
@@ -742,44 +780,29 @@ describe('care-practice', () => {
       return row?.count ?? 0;
     }
 
-    it('keeps the client routes and invitations shut to a granted professional with no practice, and opens them once Stripe says so', async () => {
+    // Inverted in project 025 phase 6 (PRD 025 criterion 7): no plan paid for, and the door is open; paying moves the seats.
+    it('opens the client routes and invitations to a practice nobody pays for, and paying changes the seats, not the door', async () => {
       const pro = await professional('door');
       const client = await account('door-client');
-      const before = sent.length;
 
-      // Granted, never paid: no invitation, no list, and no mail queued.
-      await inviting(pro, client.email).expect(404);
-      await request(server()).get(`/${PREFIX}/care/clients`).set('Cookie', pro.cookie).expect(404);
-      await new Promise(resolve => {
-        setTimeout(resolve, 300);
-      });
-      expect(sent.slice(before)).toEqual([]);
-
-      // A link from before the practice closed — made with it open on the table, then closed the same way.
-      await tables()`update professionals set practice_open = true, included_clients = 1 where user_id = ${pro.id}`;
+      expect(await practiceOf(pro)).toEqual({ includedClients: 0, practiceOpen: false });
 
       const linkId = await link(pro, client);
 
-      await tables()`update professionals set practice_open = false where user_id = ${pro.id}`;
-
-      const rows = await trailRows(client);
-
-      await overview(pro, linkId).expect(404);
-      await setTargets(pro, linkId, { kcal: 2000 }).expect(404);
-      await request(server()).get(`/${PREFIX}/care/clients/${linkId}/plan/pending`).set('Cookie', pro.cookie).expect(404);
-      await request(server()).get(`/${PREFIX}/care/clients`).set('Cookie', pro.cookie).expect(404);
-      // Every refusal writes nothing in the client's trail.
-      expect(await trailRows(client)).toBe(rows);
+      expect(await linkRow(linkId)).toMatchObject({ status: 'active' });
+      await overview(pro, linkId).expect(200);
+      await request(server()).get(`/${PREFIX}/care/clients`).set('Cookie', pro.cookie).expect(200);
+      expect((await practicePage(pro).expect(200)).body).toMatchObject({ activeClients: 1, includedClients: 0, open: false, seats: 10 });
 
       const customer = `cus_${stamp}_door`;
 
       await BillingController.customerFor(pro.id, () => Promise.resolve(customer));
       await stripeSays(customer, `sub_${stamp}_door`, 'active', THIRTY);
       await overview(pro, linkId).expect(200);
-      await request(server()).get(`/${PREFIX}/care/clients`).set('Cookie', pro.cookie).expect(200);
+      expect((await practicePage(pro).expect(200)).body).toMatchObject({ activeClients: 1, includedClients: 30, open: true, seats: 30 });
     });
 
-    it('still shows the workspace the way to pay while the practice is closed, and only to a professional', async () => {
+    it('shows the workspace the way to pay while no plan is paid for, with the free seats, and only to a professional', async () => {
       const pro = await professional('door-page');
       const ordinary = await account('door-page-ordinary');
 
@@ -804,6 +827,8 @@ describe('care-practice', () => {
         includedClients: 0,
         open: false,
         pendingInvitations: 0,
+        restriction: null,
+        seats: 10,
         secondFactorRequired: false
       });
       await practicePage(ordinary).expect(404);
@@ -827,7 +852,14 @@ describe('care-practice', () => {
       const rows = await trailRows(client);
       const page: Response = await practicePage(pro).expect(200);
 
-      expect(page.body).toMatchObject({ activeClients: 1, billing: { available: false }, includedClients: 30, open: true, pendingInvitations: 1 });
+      expect(page.body).toMatchObject({
+        activeClients: 1,
+        billing: { available: false },
+        includedClients: 30,
+        open: true,
+        pendingInvitations: 1,
+        seats: 30
+      });
       // Reading it is not a read of any client.
       expect(await trailRows(client)).toBe(rows);
     });
@@ -888,14 +920,20 @@ describe('care-practice', () => {
       await inviting(pro, address('two-after-end')).expect(201);
     });
 
-    it('does not count a paused link', async () => {
+    // Inverted in project 025 phase 6 (invariant review, P1-1): a paused link keeps its seat; ending it frees one.
+    it('counts a paused link too, until it ends', async () => {
       const { pro } = await paying('paused-seat', TWO);
-      const { linkId } = await clientOf(pro, 'paused-seat-a');
+      const { client, linkId } = await clientOf(pro, 'paused-seat-a');
 
       await clientOf(pro, 'paused-seat-b');
       await inviting(pro, address('paused-seat-full')).expect(409);
 
+      // No route pauses a link since phase 6; one paused by a 004 lapse is written on the table.
       await tables()`update care_links set status = 'paused' where id = ${linkId}`;
+      await inviting(pro, address('paused-seat-still-full')).expect(409);
+      expect(await seatsTaken(pro)).toBe(2);
+
+      await endLink(client, linkId).expect(204);
       await inviting(pro, address('paused-seat-room')).expect(201);
     });
 
@@ -953,6 +991,15 @@ describe('care-practice', () => {
   });
 
   describe('a linked client’s allowances', () => {
+    // Project 025 phase 6 (PRD 025 criterion 8): a free practice grants no premium; the client keeps their own tier.
+    it('are the client’s own while the practice is not paid for', async () => {
+      const pro = await professional('tier-free');
+      const { client } = await clientOf(pro, 'tier-free-client');
+
+      expect(await tierOf(client)).toBe('free');
+      await overview(pro, (await linksOf(pro.id))[0]?.id ?? '').expect(200);
+    });
+
     it('are premium while the link is active and the practice open, behind the professional switch, and free after', async () => {
       const { customer, pro, subscription } = await paying('tier');
       const { client, linkId } = await clientOf(pro, 'tier-client');
@@ -988,7 +1035,13 @@ describe('care-practice', () => {
     });
   });
 
-  describe('a lapse pauses, paying again resumes', () => {
+  /*
+   * Inverted in project 025 phase 6 (PRD 025 scope 2, invariant review P1-1): a
+   * lapse pauses nothing — a practice nobody pays for works — and only returns
+   * the clients to their own tier. Paying again makes active the links a 004
+   * lapse left paused, which are written on the table here: no route pauses one.
+   */
+  describe('a lapse pauses nothing; paying again resumes what 004 had paused', () => {
     let pro: Account;
     let customer: string;
     let subscription: string;
@@ -1019,32 +1072,31 @@ describe('care-practice', () => {
       expect(supervisedTargets?.setByProfessionalId).toBe(pro.id);
     });
 
-    it('pauses every active link and nothing else, and deletes nothing', async () => {
+    it('pauses nothing and deletes nothing on a lapse: the practitioner still reaches the clients, who return to their own tier', async () => {
       const endedBefore = await linkRow(links.ended);
 
       await stripeSays(customer, subscription, 'canceled', THIRTY);
 
       expect(await practiceOf(pro)).toMatchObject({ practiceOpen: false });
-      expect(await linkRow(links.active)).toEqual({ id: links.active, endedAt: null, endedBy: null, status: 'paused' });
-      expect(await linkRow(links.targets)).toEqual({ id: links.targets, endedAt: null, endedBy: null, status: 'paused' });
+      expect(await linkRow(links.active)).toEqual({ id: links.active, endedAt: null, endedBy: null, status: 'active' });
+      expect(await linkRow(links.targets)).toEqual({ id: links.targets, endedAt: null, endedBy: null, status: 'active' });
       expect(await linkRow(links.ended)).toEqual(endedBefore);
       expect(await linkRow(links.other)).toMatchObject({ status: 'active' });
 
-      // The professional's routes answer 404 for those clients; the clients keep their account and see the pause.
-      await overview(pro, links.active).expect(404);
-      await request(server()).get(`/${PREFIX}/care/clients`).set('Cookie', pro.cookie).expect(404);
+      await overview(pro, links.active).expect(200);
+      await request(server()).get(`/${PREFIX}/care/clients`).set('Cookie', pro.cookie).expect(200);
 
       const mine: Response = await request(server())
         .get(`/${PREFIX}/care/links/me`)
         .set('Cookie', (clients.active as Account).cookie)
         .expect(200);
 
-      expect(mine.body).toMatchObject({ id: links.active, status: 'paused' });
+      expect(mine.body).toMatchObject({ id: links.active, status: 'active' });
       expect(await tierOf(clients.active as Account)).toBe('free');
       expect(await tierOf(clients.other as Account)).toBe('premium');
     });
 
-    it('keeps the targets’ mark and their numbers while the link is paused', async () => {
+    it('keeps the targets’ mark and their numbers through the lapse', async () => {
       expect(await overrideRow(clients.targets as Account)).toEqual(supervisedTargets);
       expect((await ownTargets(clients.targets as Account)).setBy).toEqual({ kind: 'professional', name: nameOf(pro) });
     });
@@ -1052,6 +1104,8 @@ describe('care-practice', () => {
     it('reactivates the paused links when a new subscription pays, and only those', async () => {
       const again = `sub_${stamp}_lapse_again`;
 
+      // Paused by a 004 lapse, before phase 6: no route pauses a link now.
+      await tables()`update care_links set status = 'paused' where id in (${links.active}, ${links.targets})`;
       await stripeSays(customer, again, 'active', THIRTY);
 
       expect(await practiceOf(pro)).toEqual({ includedClients: 30, practiceOpen: true });
@@ -1063,11 +1117,12 @@ describe('care-practice', () => {
       expect(await overrideRow(clients.targets as Account)).toEqual(supervisedTargets);
     });
 
-    it('pauses on a status that stops paying and resumes on the same subscription paying again', async () => {
+    it('pauses nothing on a status that stops paying, and stays as it is when the same subscription pays again', async () => {
       const again = `sub_${stamp}_lapse_again`;
 
       await stripeSays(customer, again, 'unpaid', THIRTY);
-      expect((await linksOf(pro.id)).map(row => row.status).sort()).toEqual(['ended', 'paused', 'paused']);
+      expect((await linksOf(pro.id)).map(row => row.status).sort()).toEqual(['active', 'active', 'ended']);
+      expect(await tierOf(clients.active as Account)).toBe('free');
 
       await stripeSays(customer, again, 'active', THIRTY);
       expect((await linksOf(pro.id)).map(row => row.status).sort()).toEqual(['active', 'active', 'ended']);
@@ -1100,8 +1155,9 @@ describe('care-practice', () => {
     });
   });
 
+  // Inverted in project 025 phase 6: an acceptance always makes the link `active`; the lapse only takes the premium away.
   describe('an invitation accepted while the practice is lapsed', () => {
-    it('makes the link paused, not premium, until paying again makes it active', async () => {
+    it('makes the link active, the client on their own tier, until paying again makes them premium', async () => {
       const { customer, pro, subscription } = await paying('accept-lapsed');
       const client = await account('accept-lapsed-client');
 
@@ -1114,13 +1170,13 @@ describe('care-practice', () => {
       const accepted: Response = await accepting(client, token).expect(200);
       const linkId = (accepted.body as CareLinkView).id;
 
-      expect(await linkRow(linkId)).toEqual({ id: linkId, endedAt: null, endedBy: null, status: 'paused' });
+      expect(await linkRow(linkId)).toEqual({ id: linkId, endedAt: null, endedBy: null, status: 'active' });
 
       const mine: Response = await request(server()).get(`/${PREFIX}/care/links/me`).set('Cookie', client.cookie).expect(200);
 
-      expect(mine.body).toMatchObject({ id: linkId, status: 'paused' });
+      expect(mine.body).toMatchObject({ id: linkId, status: 'active' });
       expect(await tierOf(client)).toBe('free');
-      await overview(pro, linkId).expect(404);
+      await overview(pro, linkId).expect(200);
 
       await stripeSays(customer, `sub_${stamp}_accept_lapsed_again`, 'active', THIRTY);
       expect(await linkRow(linkId)).toMatchObject({ status: 'active' });
@@ -1163,7 +1219,8 @@ describe('care-practice', () => {
 
       await setTargets(pro, linkId, { kcal: 2020 }).expect(200);
       await stripeSays(customer, subscription, 'unpaid', THIRTY);
-      expect(await linkRow(linkId)).toMatchObject({ status: 'paused' });
+      // Inverted in project 025 phase 6: a lapse leaves the link active.
+      expect(await linkRow(linkId)).toMatchObject({ status: 'active' });
 
       const before = await overrideRow(client);
 
@@ -1171,7 +1228,7 @@ describe('care-practice', () => {
       expect(await linkRow(linkId)).toMatchObject({ endedBy: 'professional', status: 'ended' });
       expect(await overrideRow(client)).toEqual({ ...before, setByProfessionalId: null });
 
-      // Paying again brings back what was paused, not what was ended.
+      // Paying again brings back nothing that was ended.
       await stripeSays(customer, subscription, 'active', THIRTY);
       expect(await linkRow(linkId)).toMatchObject({ status: 'ended' });
     });

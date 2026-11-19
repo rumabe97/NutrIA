@@ -375,6 +375,16 @@ is in place today.
 - **M16** (bounds on any target) now covers every practitioner's plan, and an un-badged one
   sets no targets.
 
+**Added 2026-11-19 (phase 6; findings F9 and F10 of the project note, § 12).**
+
+- `care_links.ended_by` = `declared` or `badge_lost` reveals a health record by inference. It is
+  shown to the client only. To the practitioner it is `client` everywhere, their own access copy
+  included (art. 15.4). The console counts by status only. This is a measure of R-P2, and the
+  residual is unchanged.
+- A link narrowed after a lost badge turns the client's health line off without their act. A
+  trail row is recommended for phase 10 (art. 5.1.a). It is transparency, not a confidentiality
+  risk, so no row is re-scored.
+
 **Approval in this file's § 7** covers § 9. The `professional` switch stays off until it is
 signed (PRD criterion 21).
 

@@ -9,6 +9,7 @@ import { CronSecretGuard } from '../../../shared/guards/index.js';
 import { DuePlansService } from '../../meal-plans/services/DuePlans.service.js';
 import { ExpiredInvitationsService } from '../../care/services/ExpiredInvitations.service.js';
 import { IllnessRuleSweepService } from '../../care/services/IllnessRuleSweep.service.js';
+import { PracticeCloseSweepService } from '../../care/services/PracticeCloseSweep.service.js';
 import { ExpiredVerificationsService } from '../../auth/services/ExpiredVerifications.service.js';
 import { BadgeSweepService, OwnerAlertsService } from '../../owner-alerts/index.js';
 import { PictureCandidatesService, RecipeRewriter } from '../../ai/index.js';
@@ -46,6 +47,13 @@ const BADGE_BUDGET_MS = 20_000;
 const ILLNESS_RULE_BUDGET_MS = 15_000;
 
 /**
+ * The most the close of practices whose day has come may take before the badge's pass (project 025
+ * phase 6): one short transaction per practice, no mail. Cut short, it goes on behind; tomorrow's
+ * finds whatever it did not reach.
+ */
+const CLOSE_BUDGET_MS = 5_000;
+
+/**
  * What one sweep fetches: as many as three lanes can finish inside its time
  * (`RewriteLimits`) — nine cooked mains at about seventy seconds each, a few
  * more when the batch holds quicker dishes. What is not reached is left for
@@ -75,6 +83,7 @@ export class CronController {
     private readonly badges: BadgeSweepService,
     private readonly authRetention: AuthRetentionService,
     private readonly candidates: PictureCandidatesService,
+    private readonly closes: PracticeCloseSweepService,
     private readonly duePlans: DuePlansService,
     private readonly illnessRule: IllnessRuleSweepService,
     private readonly invitations: ExpiredInvitationsService,
@@ -102,6 +111,9 @@ export class CronController {
       this.alerts.pictureFailures().catch(() => undefined),
       new Promise<void>(resolve => setTimeout(resolve, WATCH_BUDGET_MS).unref())
     ]);
+    // The practices whose close has come (project 025 phase 6): first, so the badge it withdraws and the links it
+    // narrows are already gone when the passes below look. Whatever the switch says; it never throws, and mails nobody.
+    await Promise.race([this.closes.run().catch(() => undefined), new Promise<void>(resolve => setTimeout(resolve, CLOSE_BUDGET_MS).unref())]);
     // The badge's daily pass (project 025): only while the `professional` switch is on, and it never throws.
     await Promise.race([this.badges.run().catch(() => undefined), new Promise<void>(resolve => setTimeout(resolve, BADGE_BUDGET_MS).unref())]);
     // The illness rule's daily part (`0111` § 8): after the badge's pass, so a badge it just lapsed is already gone.

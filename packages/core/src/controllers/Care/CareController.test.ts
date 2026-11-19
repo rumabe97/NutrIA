@@ -8,6 +8,7 @@ import { CareIllnessRuleError, CareLinkExistsError, InputParseError, NotFoundErr
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 
 import { CareController } from './CareController';
+import { PlanController } from 'core/controllers/Plan';
 
 import type {
   AcceptOutcome,
@@ -15,20 +16,37 @@ import type {
   InviteOutcome,
   linkScope as linkScopeFn,
   LinkWithProfessional,
+  NameRefusal,
   OpenInvitation,
   PracticeUse,
   RuleEnding
 } from '#repositories/Care';
 import type { AcceptInvitation, CareLink } from 'core/entities/Care';
+import type { Allowances } from 'core/domain/Allowance';
+import type { blocksPractice as blocksPracticeFn, RestrictionStanding } from '#repositories/Professional';
 import type { Professional } from 'core/entities/Professional';
 import type { User } from 'core/entities/User';
 
 const accept = vi.fn<(clientId: string, email: string, tokenHash: string, answer: AcceptInvitation, now: Date) => Promise<AcceptOutcome>>();
 const clientLink = vi.fn<(clientId: string) => Promise<LinkWithProfessional | null>>();
-const decline = vi.fn<(clientId: string, email: string, tokenHash: string, now: Date) => Promise<boolean>>();
+const decline =
+  vi.fn<(clientId: string, email: string, tokenHash: string, now: Date) => Promise<{ professionalId: string; professionalName: string } | null>>();
+const reachable = vi.fn<(professionalId: string, now: Date) => Promise<boolean>>();
 const end = vi.fn<(userId: string, side: 'client' | 'professional', linkId: string, now: Date) => Promise<boolean>>();
 const forgetAddress = vi.fn<(email: string) => Promise<void>>();
-const invite = vi.fn<(professionalId: string, email: string, tokenHash: string, expiresAt: Date, now: Date) => Promise<InviteOutcome>>();
+const invite =
+  vi.fn<
+    (
+      professionalId: string,
+      email: string,
+      tokenHash: string,
+      expiresAt: Date,
+      now: Date,
+      freeSeats: () => Promise<number>,
+      judgeName: (name: string, badged: boolean) => NameRefusal | null
+    ) => Promise<InviteOutcome>
+  >();
+const standing = vi.fn<(userId: string) => Promise<RestrictionStanding>>();
 const setSharesHealth = vi.fn<(clientId: string, sharesHealth: boolean, now: Date) => Promise<LinkWithProfessional | null>>();
 const forgetExpired = vi.fn<(now: Date) => Promise<number>>();
 const practiceUse = vi.fn<(professionalId: string, now: Date) => Promise<PracticeUse>>();
@@ -54,6 +72,7 @@ vi.mock('#repositories/Care', async () => ({
     lastEndedByRule: (clientId: string) => lastEndedByRule(clientId),
     openInvitation: (...args: Parameters<typeof openInvitation>) => openInvitation(...args),
     practiceUse: (...args: Parameters<typeof practiceUse>) => practiceUse(...args),
+    reachable: (professionalId: string, now: Date) => reachable(professionalId, now),
     reconsent: (...args: Parameters<typeof reconsent>) => reconsent(...args),
     setSharesHealth: (...args: Parameters<typeof setSharesHealth>) => setSharesHealth(...args),
     sweepBadgeLoss: (now: Date) => sweepBadgeLoss(now)
@@ -61,7 +80,12 @@ vi.mock('#repositories/Care', async () => ({
   // The real rule, not a stub: which scope a link opens is what these cases are about.
   linkScope: (await vi.importActual<{ linkScope: typeof linkScopeFn }>('../../repositories/Care/CareScope')).linkScope
 }));
-vi.mock('#repositories/Professional', () => ({
+vi.mock('#repositories/Professional', async () => ({
+  // The real rule (project 025 phase 6): what a restriction refuses is decided in one place.
+  blocksPractice: (
+    await vi.importActual<{ blocksPractice: typeof blocksPracticeFn }>('../../repositories/Professional/PracticeRestrictionRepository')
+  ).blocksPractice,
+  PracticeRestrictionRepository: { standing: (userId: string) => standing(userId) },
   ProfessionalBadgeRepository: { badgeOf: (userId: string, now: Date) => badgeOf(userId, now) },
   ProfessionalRepository: { find: (userId: string) => find(userId) }
 }));
@@ -120,12 +144,19 @@ beforeEach(() => {
   isEnabled.mockResolvedValue(true);
   // Badged unless a case says otherwise: every existing practitioner stands as one (project 025, phase 2's backfill).
   badgeOf.mockResolvedValue({ number: '28-1234' });
+  standing.mockReset();
+  standing.mockResolvedValue({ closing: null, suspended: null });
+  // The free practice's seats as the console would resolve them (`0097`): ten, unless a case moves them.
+  vi.spyOn(PlanController, 'limitsOf')
+    .mockClear()
+    .mockResolvedValue({ practiceClients: 10 } as Allowances);
 });
 
 describe('CareController.invite', () => {
   it('stores only the hash of a fresh token, lowercased address, fourteen days out — and hands the token back for the mail alone', async () => {
     invite.mockImplementation(async (professionalId, email, tokenHash, expiresAt) => ({
       invitation: { id: '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f', createdAt: NOW, email, expiresAt, professionalId, tokenHash, updatedAt: NOW },
+      inviterName: 'Ana Pérez',
       kind: 'invited'
     }));
 
@@ -146,6 +177,7 @@ describe('CareController.invite', () => {
   it('makes a different token every time', async () => {
     invite.mockImplementation(async (professionalId, email, tokenHash, expiresAt) => ({
       invitation: { id: '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f', createdAt: NOW, email, expiresAt, professionalId, tokenHash, updatedAt: NOW },
+      inviterName: 'Ana Pérez',
       kind: 'invited'
     }));
 
@@ -153,6 +185,50 @@ describe('CareController.invite', () => {
     const second = await CareController.invite(PRO, { email: 'a@example.com' }, NOW);
 
     expect(first.token).not.toBe(second.token);
+  });
+
+  /*
+   * Invariant review of phase 6, P1-2: the account's name the invitation carries — and the page, the link and the
+   * trail show — is judged as the profile's words are, with the badge the repository read; a refused name is a 422 on
+   * the field the practitioner can change, naming the word, and nothing is sent.
+   */
+  it('refuses a name the practitioner may not show, naming the word, before anything is written', async () => {
+    invite.mockImplementation(async (_id, _email, _hash, _expiresAt, _now, _seats, judgeName) => {
+      const refusal = judgeName('Ana Pérez, nutricionista', false);
+
+      return refusal ? { kind: 'name_refused', refusal } : { kind: 'closed' };
+    });
+
+    const refusal = await CareController.invite(PRO, { email: 'nueva@example.com' }, NOW).catch((error: unknown) => error);
+
+    expect(refusal).toBeInstanceOf(InputParseError);
+    expect((refusal as InputParseError).fieldErrors).toEqual({ name: ['badge_only:nutricionista'] });
+  });
+
+  /* Round two: a name answers to the titles alone — a surname the results list would catch may invite. */
+  it('judges the name for titles only: «José Asegurado» may invite, «Dra. Lucía Pérez» may not', async () => {
+    let judge: ((name: string, badged: boolean) => NameRefusal | null) | undefined;
+
+    invite.mockImplementation(async (_id, _email, _hash, _expiresAt, _now, _seats, judgeName) => {
+      judge = judgeName;
+
+      return { kind: 'closed' };
+    });
+
+    await CareController.invite(PRO, { email: 'nueva@example.com' }, NOW).catch(() => undefined);
+
+    expect(judge?.('José Asegurado', false)).toBeNull();
+    expect(judge?.('Dra. Lucía Pérez', true)).toEqual({ list: 'never', word: 'dra' });
+  });
+
+  it('answers the name the repository judged, for the mail', async () => {
+    invite.mockImplementation(async (professionalId, email, tokenHash, expiresAt, _now, _seats, judgeName) => ({
+      invitation: { id: '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f', createdAt: NOW, email, expiresAt, professionalId, tokenHash, updatedAt: NOW },
+      inviterName: judgeName('Ana, dietista', true) === null ? 'Ana, dietista' : 'refused',
+      kind: 'invited'
+    }));
+
+    await expect(CareController.invite(PRO, { email: 'nueva@example.com' }, NOW)).resolves.toMatchObject({ inviterName: 'Ana, dietista' });
   });
 
   /* `0061`, PRD 004 criterion 17: the refusal names the number, which the repository counted under the practice's lock. */
@@ -163,7 +239,29 @@ describe('CareController.invite', () => {
     await expect(CareController.invite(PRO, { email: 'n31@example.com' }, NOW)).rejects.toMatchObject({ includedClients: 30 });
   });
 
-  it('is a 404 when the practice is not paid for — the second line behind the guard', async () => {
+  /* PRD 025 criterion 7, `0111` § 6: a free practice's seats are the practitioner's `practiceClients`, resolved when the repository asks. */
+  it('hands the repository the free seats, resolved for the practitioner’s own account, to ask inside its transaction', async () => {
+    const limitsOf = vi.spyOn(PlanController, 'limitsOf').mockResolvedValue({ practiceClients: 4 } as Allowances);
+
+    invite.mockImplementation(async (_professionalId, _email, _hash, _expiresAt, _now, freeSeats) => ({
+      includedClients: await freeSeats(),
+      kind: 'full'
+    }));
+
+    await expect(CareController.invite(PRO, { email: 'n11@example.com' }, NOW)).rejects.toEqual(new PracticeFullError(4));
+    expect(limitsOf).toHaveBeenCalledWith(PRO.id);
+  });
+
+  it('asks nothing of the allowances when the repository does not need them — a paid practice', async () => {
+    const limitsOf = vi.spyOn(PlanController, 'limitsOf');
+
+    invite.mockResolvedValue({ includedClients: 30, kind: 'full' });
+
+    await expect(CareController.invite(PRO, { email: 'n31@example.com' }, NOW)).rejects.toBeInstanceOf(PracticeFullError);
+    expect(limitsOf).not.toHaveBeenCalled();
+  });
+
+  it('is a 404 when the practice is closed to clients — suspended, closed, or the agreement not accepted', async () => {
     invite.mockResolvedValue({ kind: 'closed' });
 
     await expect(CareController.invite(PRO, { email: 'nueva@example.com' }, NOW)).rejects.toBeInstanceOf(NotFoundError);
@@ -176,8 +274,8 @@ describe('CareController.invite', () => {
 });
 
 describe('CareController.practice', () => {
-  it('says whether the practice is paid for, its number and the seats in use — counts only', async () => {
-    find.mockResolvedValue(makeProfessional({ includedClients: 30, practiceOpen: false }));
+  it('says whether a plan is paid for, the free seats in force and the seats in use — counts only', async () => {
+    find.mockResolvedValue(makeProfessional({ includedClients: 0, practiceOpen: false }));
     practiceUse.mockResolvedValue({ activeClients: 0, pendingInvitations: 2 });
 
     await expect(CareController.practice(PRO, NOW)).resolves.toEqual({
@@ -185,12 +283,34 @@ describe('CareController.practice', () => {
       agreementAcceptedAt: null,
       agreementRequired: true,
       agreementVersion: PROFESSIONAL_AGREEMENT_VERSION,
-      includedClients: 30,
+      includedClients: 0,
       open: false,
-      pendingInvitations: 2
+      pendingInvitations: 2,
+      restriction: null,
+      // PRD 025 criterion 7: the free practice's ten, resolved as `invite` resolves them.
+      seats: 10
     });
     expect(find).toHaveBeenCalledWith(PRO.id);
     expect(practiceUse).toHaveBeenCalledWith(PRO.id, NOW);
+    expect(PlanController.limitsOf).toHaveBeenCalledWith(PRO.id);
+  });
+
+  it('a paid practice’s seats are its plan’s, and the allowances are not asked', async () => {
+    find.mockResolvedValue(makeProfessional({ includedClients: 30, practiceOpen: true }));
+    practiceUse.mockResolvedValue({ activeClients: 3, pendingInvitations: 0 });
+
+    await expect(CareController.practice(PRO, NOW)).resolves.toMatchObject({ includedClients: 30, open: true, seats: 30 });
+    expect(PlanController.limitsOf).not.toHaveBeenCalled();
+  });
+
+  it('carries what the owner has standing against the practice, so its own page can say it', async () => {
+    find.mockResolvedValue(makeProfessional());
+    practiceUse.mockResolvedValue({ activeClients: 0, pendingInvitations: 0 });
+    standing.mockResolvedValue({ closing: null, suspended: { actedAt: NOW, reason: null } });
+
+    await expect(CareController.practice(PRO, NOW)).resolves.toMatchObject({
+      restriction: { closing: null, suspended: { since: NOW.toISOString(), statement: null } }
+    });
   });
 
   it.each([
@@ -229,7 +349,7 @@ describe('CareController.invitation', () => {
       badge,
       expiresAt: new Date('2026-10-07T10:00:00.000Z'),
       professionalId: PRO.id,
-      professionalName: 'Ana Dietista'
+      professionalName: 'Ana Pérez'
     });
 
     const view = await CareController.invitation(CLIENT, TOKEN, NOW);
@@ -242,7 +362,7 @@ describe('CareController.invitation', () => {
       consentVersion: CARE_CONSENT_VERSION,
       expiresAt: '2026-10-07T10:00:00.000Z',
       healthShares: CARE_HEALTH_SHARED,
-      professionalName: 'Ana Dietista',
+      professionalName: 'Ana Pérez',
       scope: 'full',
       shares: CARE_SHARED,
       sharesPlan: []
@@ -258,7 +378,7 @@ describe('CareController.invitation', () => {
       badge: null,
       expiresAt: new Date('2026-10-07T10:00:00.000Z'),
       professionalId: PRO.id,
-      professionalName: 'Ana Dietista'
+      professionalName: 'Ana Pérez'
     });
 
     await expect(CareController.invitation(CLIENT, TOKEN, NOW)).resolves.toEqual({
@@ -267,7 +387,7 @@ describe('CareController.invitation', () => {
       consentVersion: CARE_CONSENT_VERSION,
       expiresAt: '2026-10-07T10:00:00.000Z',
       healthShares: [],
-      professionalName: 'Ana Dietista',
+      professionalName: 'Ana Pérez',
       scope: 'plan',
       shares: [],
       sharesPlan: CARE_SHARED_PLAN
@@ -276,6 +396,13 @@ describe('CareController.invitation', () => {
 
   it('is a 404 when nothing matches — used, expired, foreign or unknown alike', async () => {
     openInvitation.mockResolvedValue(null);
+
+    await expect(CareController.invitation(CLIENT, TOKEN, NOW)).rejects.toThrow(NotFoundError);
+  });
+
+  /* Invariant review of phase 6, P1-2: the page shows the name the invitation was judged by, or nothing at all. */
+  it('is the same 404 when the inviter’s name may not be shown now — a badge-only word without the badge', async () => {
+    openInvitation.mockResolvedValue({ badge: null, expiresAt: NOW, professionalId: PRO.id, professionalName: 'Ana, nutricionista' });
 
     await expect(CareController.invitation(CLIENT, TOKEN, NOW)).rejects.toThrow(NotFoundError);
   });
@@ -306,17 +433,17 @@ describe('CareController.accept', () => {
   const answer: AcceptInvitation = { consentScope: 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false };
 
   it('makes the link and answers it, without the health items unless that line was accepted', async () => {
-    accept.mockResolvedValue({ kind: 'created', link: makeLink(), professionalName: 'Ana Dietista' });
+    accept.mockResolvedValue({ kind: 'created', link: makeLink(), professionalName: 'Ana Pérez' });
 
     const view = await CareController.accept(CLIENT, TOKEN, answer, NOW);
 
-    expect(accept).toHaveBeenCalledWith(CLIENT.id, 'cliente@example.com', TOKEN_HASH, answer, NOW);
+    expect(accept).toHaveBeenCalledWith(CLIENT.id, 'cliente@example.com', TOKEN_HASH, answer, NOW, expect.any(Function));
     expect(view).toEqual({
       id: '0b8e7f4a-3c2d-4e1f-9a8b-7c6d5e4f3a2b',
       consentIsCurrent: true,
       consentScope: 'full',
       consentVersion: CARE_CONSENT_VERSION,
-      professionalName: 'Ana Dietista',
+      professionalName: 'Ana Pérez',
       professionalVerified: true,
       reconsentOffered: false,
       scope: 'full',
@@ -329,7 +456,7 @@ describe('CareController.accept', () => {
   });
 
   it('answers the plan-only list for a link consented to `plan`', async () => {
-    accept.mockResolvedValue({ kind: 'created', link: makeLink({ consentScope: 'plan' }), professionalName: 'Ana Dietista' });
+    accept.mockResolvedValue({ kind: 'created', link: makeLink({ consentScope: 'plan' }), professionalName: 'Ana Pérez' });
     badgeOf.mockResolvedValue(null);
 
     await expect(CareController.accept(CLIENT, TOKEN, { ...answer, consentScope: 'plan' }, NOW)).resolves.toMatchObject({
@@ -354,7 +481,7 @@ describe('CareController.accept', () => {
   });
 
   it('lists the health items when the client shared them', async () => {
-    accept.mockResolvedValue({ kind: 'created', link: makeLink({ sharesHealth: true }), professionalName: 'Ana Dietista' });
+    accept.mockResolvedValue({ kind: 'created', link: makeLink({ sharesHealth: true }), professionalName: 'Ana Pérez' });
 
     const view = await CareController.accept(CLIENT, TOKEN, { ...answer, sharesHealth: true }, NOW);
 
@@ -362,16 +489,23 @@ describe('CareController.accept', () => {
   });
 
   it('names the link in the way, as a state the client can act on', async () => {
-    accept.mockResolvedValue({
-      kind: 'exists',
-      link: makeLink({ professionalId: 'usr-other', status: 'paused' }),
-      professionalName: 'Otra Dietista'
-    });
+    accept.mockResolvedValue({ kind: 'exists', link: makeLink({ professionalId: 'usr-other', status: 'paused' }), professionalName: 'Otra Persona' });
 
     const refusal = await CareController.accept(CLIENT, TOKEN, answer, NOW).catch((error: unknown) => error);
 
     expect(refusal).toBeInstanceOf(CareLinkExistsError);
-    expect((refusal as CareLinkExistsError).link).toEqual({ professionalName: 'Otra Dietista', since: NOW.toISOString(), status: 'paused' });
+    expect((refusal as CareLinkExistsError).link).toEqual({ professionalName: 'Otra Persona', since: NOW.toISOString(), status: 'paused' });
+  });
+
+  /* Round two: the 409 names the client's EXISTING practitioner as their own link names them — judged with that one's badge. */
+  it('names the existing practitioner only when the name may be shown, read with that practitioner’s badge', async () => {
+    accept.mockResolvedValue({ kind: 'exists', link: makeLink({ professionalId: 'usr-other-pro' }), professionalName: 'Otra, nutricionista' });
+    badgeOf.mockResolvedValue(null);
+
+    const refusal = await CareController.accept(CLIENT, TOKEN, answer, NOW).catch((error: unknown) => error);
+
+    expect((refusal as CareLinkExistsError).link.professionalName).toBeNull();
+    expect(badgeOf).toHaveBeenCalledWith('usr-other-pro', NOW);
   });
 
   it('is a 404 when there is nothing to accept', async () => {
@@ -395,14 +529,32 @@ describe('CareController.accept', () => {
 
 describe('CareController.decline', () => {
   it('spends the invitation for the address it was sent to', async () => {
-    decline.mockResolvedValue(true);
+    decline.mockResolvedValue({ professionalId: PRO.id, professionalName: 'Ana Pérez' });
+    reachable.mockResolvedValue(true);
 
     await expect(CareController.decline(CLIENT, TOKEN, NOW)).resolves.toBeUndefined();
     expect(decline).toHaveBeenCalledWith(CLIENT.id, 'cliente@example.com', TOKEN_HASH, NOW);
   });
 
+  /*
+   * Invariant review of phase 6, P3: an invitation from an inviter suspended, closed, or under a name that may not
+   * be shown is declined all the same — its row and address go — but answered with the 404 its page and its
+   * acceptance give, so declining teaches the client nothing.
+   */
+  it.each([
+    ['suspended or closed', false, 'Ana Pérez'],
+    ['under a name that may not be shown', true, 'Ana, nutricionista']
+  ])('declines an invitation from an inviter %s, answering the page’s 404', async (_case, canReach, professionalName) => {
+    decline.mockResolvedValue({ professionalId: PRO.id, professionalName });
+    reachable.mockResolvedValue(canReach);
+    badgeOf.mockResolvedValue(null);
+
+    await expect(CareController.decline(CLIENT, TOKEN, NOW)).rejects.toThrow(NotFoundError);
+    expect(decline).toHaveBeenCalledOnce();
+  });
+
   it('is a 404 when there is nothing to decline', async () => {
-    decline.mockResolvedValue(false);
+    decline.mockResolvedValue(null);
 
     await expect(CareController.decline(CLIENT, TOKEN, NOW)).rejects.toThrow(NotFoundError);
   });
@@ -427,23 +579,22 @@ describe('CareController.end', () => {
     expect(end).toHaveBeenCalledWith(CLIENT.id, 'client', LINK, NOW);
   });
 
-  it('ends a professional’s link, as the professional, only while they are one', async () => {
+  it('ends a professional’s link, as the professional — whether they practise is the repository’s, in the ending’s transaction', async () => {
     end.mockImplementation(async (_userId, side) => side === 'professional');
-    find.mockResolvedValue(makeProfessional({ userId: PRO.id }));
 
     await CareController.end({ ...PRO, emailVerified: true }, LINK, NOW);
 
-    expect(find).toHaveBeenCalledWith(PRO.id);
     expect(end).toHaveBeenLastCalledWith(PRO.id, 'professional', LINK, NOW);
   });
 
-  it('is a 404 for an account that is on neither side, and never tries the professional’s side for a non-professional', async () => {
+  /* Project 025 phase 6, from the end-to-end run: a restricted practitioner's ending is refused in the repository — the same 404. */
+  it('is the same 404 when neither side ended anything — a stranger, or a practitioner who does not practise now', async () => {
     end.mockResolvedValue(false);
-    find.mockResolvedValue(null);
 
-    await expect(CareController.end(CLIENT, LINK, NOW)).rejects.toThrow(NotFoundError);
-    expect(end).toHaveBeenCalledTimes(1);
-    expect(end).toHaveBeenCalledWith(CLIENT.id, 'client', LINK, NOW);
+    await expect(CareController.end(CLIENT, LINK, NOW)).rejects.toThrow(new NotFoundError('Link not found'));
+    expect(end).toHaveBeenCalledTimes(2);
+    expect(end).toHaveBeenNthCalledWith(1, CLIENT.id, 'client', LINK, NOW);
+    expect(end).toHaveBeenNthCalledWith(2, CLIENT.id, 'professional', LINK, NOW);
   });
 
   it('lets the client end their link while the switch is off — consent stays revocable (PRD 004, criterion 4)', async () => {
@@ -488,18 +639,27 @@ describe('CareController.forgetAddress', () => {
 
 describe('CareController.myLink', () => {
   it('answers the client’s own link, or null', async () => {
-    clientLink.mockResolvedValueOnce({ link: makeLink(), professionalName: 'Ana Dietista' }).mockResolvedValueOnce(null);
+    clientLink.mockResolvedValueOnce({ link: makeLink(), professionalName: 'Ana Pérez' }).mockResolvedValueOnce(null);
 
-    await expect(CareController.myLink(CLIENT)).resolves.toMatchObject({ professionalName: 'Ana Dietista', status: 'active' });
+    await expect(CareController.myLink(CLIENT)).resolves.toMatchObject({ professionalName: 'Ana Pérez', status: 'active' });
     await expect(CareController.myLink(CLIENT)).resolves.toBeNull();
     expect(clientLink).toHaveBeenCalledWith(CLIENT.id);
   });
 
+  /* Invariant review of phase 6, round two: the name judged at every read, with the badge read for that answer. */
+  it('shows no name when the practitioner’s name carries a title the badge, read now, does not allow', async () => {
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana, dietista' });
+    badgeOf.mockResolvedValueOnce(null).mockResolvedValueOnce({ number: '28-1234' });
+
+    await expect(CareController.myLink(CLIENT)).resolves.toMatchObject({ professionalName: null, professionalVerified: false });
+    await expect(CareController.myLink(CLIENT)).resolves.toMatchObject({ professionalName: 'Ana, dietista', professionalVerified: true });
+  });
+
   it('answers the client whatever the switch says — what they consented to stays visible (PRD 004, criterion 4)', async () => {
     isEnabled.mockResolvedValue(false);
-    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Pérez' });
 
-    await expect(CareController.myLink(CLIENT)).resolves.toMatchObject({ professionalName: 'Ana Dietista' });
+    await expect(CareController.myLink(CLIENT)).resolves.toMatchObject({ professionalName: 'Ana Pérez' });
     expect(isEnabled).not.toHaveBeenCalled();
   });
 });
@@ -508,7 +668,7 @@ describe('CareController.activeProfessional', () => {
   const PRACTISING = makeProfessional({ agreementVersion: PROFESSIONAL_AGREEMENT_VERSION, practiceOpen: true, userId: PRO.id });
 
   it('answers the client’s active professional, by id and address (PRD 004, criterion 10)', async () => {
-    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Pérez' });
     find.mockResolvedValue(PRACTISING);
     findUserById.mockResolvedValue(makeUser({ id: PRO.id, email: 'dietista@example.com' }));
 
@@ -522,25 +682,46 @@ describe('CareController.activeProfessional', () => {
 
     await expect(CareController.activeProfessional(CLIENT.id)).resolves.toBeNull();
 
-    clientLink.mockResolvedValue({ link: makeLink({ status: 'paused' }), professionalName: 'Ana Dietista' });
+    clientLink.mockResolvedValue({ link: makeLink({ status: 'paused' }), professionalName: 'Ana Pérez' });
     await expect(CareController.activeProfessional(CLIENT.id)).resolves.toBeNull();
     expect(find).not.toHaveBeenCalled();
   });
 
   it('is null once the grant is gone, even with the link still active — a former professional is not told', async () => {
-    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Pérez' });
     find.mockResolvedValue(null);
 
     await expect(CareController.activeProfessional(CLIENT.id)).resolves.toBeNull();
     expect(findUserById).not.toHaveBeenCalled();
   });
 
+  /* PRD 025 scope 2: a practice nobody pays for is told, as `withClient` lets it through. */
+  it('answers for a practice nobody pays for', async () => {
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Pérez' });
+    find.mockResolvedValue({ ...PRACTISING, practiceOpen: false });
+    findUserById.mockResolvedValue(makeUser({ id: PRO.id, email: 'dietista@example.com' }));
+
+    await expect(CareController.activeProfessional(CLIENT.id)).resolves.toEqual({ id: PRO.id, email: 'dietista@example.com' });
+  });
+
+  /* PRD 025 criterion 24: a suspended practitioner is told nothing — the client's check-in is not theirs to hear of. */
   it.each([
-    ['whose practice has lapsed', { practiceOpen: false }],
+    ['suspended', { closing: null, suspended: { actedAt: NOW, reason: null } }],
+    ['whose close has come', { closing: { id: 'c', actedAt: NOW, actedBy: null, effectiveAt: NOW, reason: null }, suspended: null }]
+  ])('is null for a practitioner %s', async (_case, stands) => {
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Pérez' });
+    find.mockResolvedValue(PRACTISING);
+    standing.mockResolvedValue(stands);
+
+    await expect(CareController.activeProfessional(CLIENT.id, NOW)).resolves.toBeNull();
+    expect(findUserById).not.toHaveBeenCalled();
+  });
+
+  it.each([
     ['who never accepted the agreement', { agreementVersion: null }],
     ['who has not accepted the current agreement', { agreementVersion: '0.9.0' }]
   ])('is null for a professional %s — `withClient` would refuse them too', async (_case, overrides) => {
-    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Pérez' });
     find.mockResolvedValue({ ...PRACTISING, ...overrides });
 
     await expect(CareController.activeProfessional(CLIENT.id)).resolves.toBeNull();
@@ -549,7 +730,7 @@ describe('CareController.activeProfessional', () => {
 
   it('answers whatever the switch says — the link itself decides, as `myLink` does', async () => {
     isEnabled.mockResolvedValue(false);
-    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Pérez' });
     find.mockResolvedValue(PRACTISING);
     findUserById.mockResolvedValue(makeUser({ id: PRO.id, email: 'dietista@example.com' }));
 
@@ -563,7 +744,7 @@ describe('CareController.activeProfessional', () => {
    * the notice goes nowhere else, by mail or by push.
    */
   it('reads the practitioner’s badge now, for the practitioner on the link — never anybody the caller names', async () => {
-    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Pérez' });
     find.mockResolvedValue(PRACTISING);
     findUserById.mockResolvedValue(makeUser({ id: PRO.id, email: 'dietista@example.com' }));
 
@@ -573,7 +754,7 @@ describe('CareController.activeProfessional', () => {
   });
 
   it('is null when the practitioner holds no badge — never told of a check-in they may not read', async () => {
-    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Pérez' });
     find.mockResolvedValue(PRACTISING);
     badgeOf.mockResolvedValue(null);
 
@@ -582,7 +763,7 @@ describe('CareController.activeProfessional', () => {
   });
 
   it('is null on a link consented to the plan list, even with the badge — a badge gained mid-link widens nothing', async () => {
-    clientLink.mockResolvedValue({ link: makeLink({ consentScope: 'plan' }), professionalName: 'Ana Dietista' });
+    clientLink.mockResolvedValue({ link: makeLink({ consentScope: 'plan' }), professionalName: 'Ana Pérez' });
     find.mockResolvedValue(PRACTISING);
 
     await expect(CareController.activeProfessional(CLIENT.id)).resolves.toBeNull();
@@ -592,14 +773,14 @@ describe('CareController.activeProfessional', () => {
 
 describe('CareController.setSharesHealth', () => {
   it('changes the session’s own link and answers it, the health items listed only while shared', async () => {
-    setSharesHealth.mockResolvedValue({ link: makeLink({ sharesHealth: true }), professionalName: 'Ana Dietista' });
+    setSharesHealth.mockResolvedValue({ link: makeLink({ sharesHealth: true }), professionalName: 'Ana Pérez' });
 
     const view = await CareController.setSharesHealth({ id: CLIENT.id }, { sharesHealth: true }, NOW);
 
     expect(setSharesHealth).toHaveBeenCalledExactlyOnceWith(CLIENT.id, true, NOW);
     expect(view).toMatchObject({ shares: [...CARE_SHARED, ...CARE_HEALTH_SHARED], sharesHealth: true, status: 'active' });
 
-    setSharesHealth.mockResolvedValue({ link: makeLink({ sharesHealth: false, status: 'paused' }), professionalName: 'Ana Dietista' });
+    setSharesHealth.mockResolvedValue({ link: makeLink({ sharesHealth: false, status: 'paused' }), professionalName: 'Ana Pérez' });
 
     await expect(CareController.setSharesHealth({ id: CLIENT.id }, { sharesHealth: false }, NOW)).resolves.toMatchObject({
       shares: CARE_SHARED,
@@ -616,7 +797,7 @@ describe('CareController.setSharesHealth', () => {
 
   it('works with the switch off: consent stays the client’s to change, and the switch is not asked', async () => {
     isEnabled.mockResolvedValue(false);
-    setSharesHealth.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
+    setSharesHealth.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Pérez' });
 
     await expect(CareController.setSharesHealth({ id: CLIENT.id }, { sharesHealth: false }, NOW)).resolves.toMatchObject({ sharesHealth: false });
     expect(isEnabled).not.toHaveBeenCalled();
@@ -625,8 +806,8 @@ describe('CareController.setSharesHealth', () => {
 
 describe('CareController.myLink — the consent version', () => {
   it('says whether the link was accepted at today’s consent version', async () => {
-    clientLink.mockResolvedValueOnce({ link: makeLink(), professionalName: 'Ana Dietista' });
-    clientLink.mockResolvedValueOnce({ link: makeLink({ consentVersion: '1.0.0' }), professionalName: 'Ana Dietista' });
+    clientLink.mockResolvedValueOnce({ link: makeLink(), professionalName: 'Ana Pérez' });
+    clientLink.mockResolvedValueOnce({ link: makeLink({ consentVersion: '1.0.0' }), professionalName: 'Ana Pérez' });
 
     await expect(CareController.myLink({ id: CLIENT.id })).resolves.toMatchObject({ consentIsCurrent: true });
     await expect(CareController.myLink({ id: CLIENT.id })).resolves.toMatchObject({ consentIsCurrent: false, consentVersion: '1.0.0' });
@@ -654,7 +835,7 @@ describe('CareController.myLink — what the link opens now', () => {
     ['plan', true, 'plan', true],
     ['plan', false, 'plan', false]
   ] as const)('consented to `%s`, badged: %s — opens `%s`, re-consent on offer: %s', async (consentScope, badged, scope, offered) => {
-    clientLink.mockResolvedValue({ link: makeLink({ consentScope, sharesHealth: true }), professionalName: 'Ana Dietista' });
+    clientLink.mockResolvedValue({ link: makeLink({ consentScope, sharesHealth: true }), professionalName: 'Ana Pérez' });
     badgeOf.mockResolvedValue(badged ? { number: '28-1234' } : null);
 
     const view = await CareController.myLink({ id: CLIENT.id }, NOW);
@@ -669,7 +850,7 @@ describe('CareController.myLink — what the link opens now', () => {
 
 describe('CareController.reconsent — the client widens their own link (`textos/05` § F.4)', () => {
   it('widens the session’s link, at the version read, and answers it opening `full`', async () => {
-    reconsent.mockResolvedValue({ link: makeLink({ consentScope: 'full' }), professionalName: 'Ana Dietista' });
+    reconsent.mockResolvedValue({ link: makeLink({ consentScope: 'full' }), professionalName: 'Ana Pérez' });
 
     await expect(CareController.reconsent({ id: CLIENT.id }, { consentVersion: CARE_CONSENT_VERSION }, NOW)).resolves.toMatchObject({
       consentScope: 'full',
@@ -711,16 +892,30 @@ describe('CareController.endedLink — the client’s own notice (`textos/05` §
   it.each(['badge_lost', 'declared'] as const)(
     'answers the name, the day and which ending (%s) of a link the rule ended, for the session alone',
     async reason => {
-      lastEndedByRule.mockResolvedValue({ endedAt: NOW, professionalName: 'Ana Dietista', reason });
+      lastEndedByRule.mockResolvedValue({ endedAt: NOW, professionalId: PRO.id, professionalName: 'Ana Pérez', reason });
 
       await expect(CareController.endedLink({ id: CLIENT.id })).resolves.toEqual({
         endedAt: NOW.toISOString(),
-        professionalName: 'Ana Dietista',
+        professionalName: 'Ana Pérez',
         reason
       });
       expect(lastEndedByRule).toHaveBeenCalledExactlyOnceWith(CLIENT.id);
     }
   );
+
+  /* Invariant review of phase 6, round two: the name judged now, with that practitioner's badge — titles only. */
+  it.each([
+    ['a badge-only title, without the badge', 'Ana, dietista', null, null],
+    ['a badge-only title, with the badge', 'Ana, dietista', { number: '28-1234' }, 'Ana, dietista'],
+    ['a title nobody may use', 'Dra. Lucía Pérez', { number: '28-1234' }, null],
+    ['a surname the results list would have caught', 'José Asegurado', null, 'José Asegurado']
+  ])('names the practitioner only when the name may be shown now: %s', async (_case, name, badge, shown) => {
+    lastEndedByRule.mockResolvedValue({ endedAt: NOW, professionalId: PRO.id, professionalName: name, reason: 'badge_lost' });
+    badgeOf.mockResolvedValue(badge);
+
+    await expect(CareController.endedLink({ id: CLIENT.id })).resolves.toMatchObject({ professionalName: shown });
+    expect(badgeOf).toHaveBeenCalledWith(PRO.id, expect.any(Date));
+  });
 
   it('is null otherwise, whatever the switch says', async () => {
     isEnabled.mockResolvedValue(false);
@@ -733,23 +928,31 @@ describe('CareController.endedLink — the client’s own notice (`textos/05` §
 
 describe('CareController.sweepBadgeLoss — a badge gone, in the daily sweep (`0111` §§ 4 and 8)', () => {
   it('answers each ended link’s client and their address — never the practitioner’s — and how many narrowed', async () => {
-    sweepBadgeLoss.mockResolvedValue({ ended: [{ clientId: CLIENT.id, linkId: 'l', professionalName: 'Ana Dietista' }], narrowed: 2 });
+    sweepBadgeLoss.mockResolvedValue({ ended: [{ clientId: CLIENT.id, linkId: 'l', professionalName: 'Ana Pérez' }], narrowed: 2 });
     findUserById.mockResolvedValue(makeUser({ id: CLIENT.id, email: 'cliente@example.com' }));
 
     await expect(CareController.sweepBadgeLoss(NOW)).resolves.toEqual({
-      ended: [{ clientId: CLIENT.id, professionalName: 'Ana Dietista', to: 'cliente@example.com' }],
+      ended: [{ clientId: CLIENT.id, professionalName: 'Ana Pérez', to: 'cliente@example.com' }],
       narrowed: 2
     });
     expect(sweepBadgeLoss).toHaveBeenCalledExactlyOnceWith(NOW);
     expect(findUserById).toHaveBeenCalledExactlyOnceWith(CLIENT.id);
   });
 
+  /* Round two: the badge has just gone — a title it allowed in the name is not mailed; the § Y no-name variant goes instead. */
+  it('answers no name for a practitioner whose name carries a title the badge allowed', async () => {
+    sweepBadgeLoss.mockResolvedValue({ ended: [{ clientId: CLIENT.id, linkId: 'l', professionalName: 'Ana, nutricionista' }], narrowed: 0 });
+    findUserById.mockResolvedValue(makeUser({ id: CLIENT.id, email: 'cliente@example.com' }));
+
+    await expect(CareController.sweepBadgeLoss(NOW)).resolves.toMatchObject({ ended: [{ professionalName: null }] });
+  });
+
   it('answers no address for a client whose account is gone, and reads no account for a narrowing', async () => {
-    sweepBadgeLoss.mockResolvedValue({ ended: [{ clientId: CLIENT.id, linkId: 'l', professionalName: 'Ana Dietista' }], narrowed: 0 });
+    sweepBadgeLoss.mockResolvedValue({ ended: [{ clientId: CLIENT.id, linkId: 'l', professionalName: 'Ana Pérez' }], narrowed: 0 });
     findUserById.mockResolvedValue(undefined);
 
     await expect(CareController.sweepBadgeLoss(NOW)).resolves.toEqual({
-      ended: [{ clientId: CLIENT.id, professionalName: 'Ana Dietista', to: null }],
+      ended: [{ clientId: CLIENT.id, professionalName: 'Ana Pérez', to: null }],
       narrowed: 0
     });
 

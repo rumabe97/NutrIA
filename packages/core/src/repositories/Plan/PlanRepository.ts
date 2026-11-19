@@ -12,6 +12,8 @@ import { shoppingListItems, shoppingLists } from 'database/schema/shopping';
 import { ConflictError, DatabaseOperationError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
 import { carriedBought } from 'core/domain/ShoppingList';
 import { FALLBACK_LOCALE } from '#repositories/Recipe';
+import { blocksPractice, PracticeRestrictionRepository } from '#repositories/Professional';
+import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import type {
   Macros,
   MealAccompanimentDraft,
@@ -843,8 +845,10 @@ export const PlanRepository = {
 
   /**
    * Whether a plan waiting for this user's review could still be published
-   * (`0060`): an `active` link whose professional's grant stands. What the
-   * allowance asks before it counts a pending plan; the switch is the caller's.
+   * (`0060`): an `active` link to a practitioner who practises now — the
+   * current agreement, no suspension or close come (`publishingLink`). What the
+   * allowance asks before it counts a pending plan, so a plan the owner's act
+   * stranded costs the client nothing; the switch is the caller's.
    */
   async isPublishable(userId: string): Promise<boolean> {
     try {
@@ -1523,27 +1527,51 @@ async function replaceGeneratedItems(tx: Transaction, planId: string, shoppingIt
 
 /**
  * The link a plan under review could be published through (`0060`): `active`,
- * with the professional's grant still standing — a professional who can no
- * longer publish must not be able to hold a plan back. Undefined otherwise.
- * `reviewBeforePublish` says whether the next plan waits for them.
+ * to a practitioner who **practises now** — the practice there, its current
+ * agreement accepted (`CareRepository`'s `practising`), and no suspension or
+ * close come standing against it (`blocksPractice`, PRD 025 criterion 24, read
+ * on `db`, the caller's transaction when it holds one). A practitioner who can
+ * no longer publish must not be able to hold a plan back: the client's plan then
+ * publishes to them directly, as with no link, stamped with nothing, and a plan
+ * already waiting is stranded — not the fortnight under way, counted toward no
+ * allowance, replaced at no charge. Undefined otherwise. `reviewBeforePublish`
+ * says whether the next plan waits for them.
+ *
+ * Not the second factor (PLAN 025 phase 6, the lead): a practitioner without
+ * one still holds the plan, as in 004 — it is theirs to turn on in a minute,
+ * not the owner's act.
  */
 async function publishingLink(
   db: ReturnType<typeof database> | Transaction,
   userId: string
 ): Promise<{ readonly id: string; readonly createdAt: Date; readonly reviewBeforePublish: boolean } | undefined> {
   const [row] = await db
-    .select({ id: careLinks.id, createdAt: careLinks.createdAt, reviewBeforePublish: careLinks.reviewBeforePublish })
+    .select({
+      id: careLinks.id,
+      createdAt: careLinks.createdAt,
+      professionalId: careLinks.professionalId,
+      reviewBeforePublish: careLinks.reviewBeforePublish
+    })
     .from(careLinks)
     .where(
       and(
         eq(careLinks.clientId, userId),
         eq(careLinks.status, 'active'),
-        exists(db.select({ userId: professionals.userId }).from(professionals).where(eq(professionals.userId, careLinks.professionalId)))
+        exists(
+          db
+            .select({ userId: professionals.userId })
+            .from(professionals)
+            .where(and(eq(professionals.userId, careLinks.professionalId), eq(professionals.agreementVersion, PROFESSIONAL_AGREEMENT_VERSION)))
+        )
       )
     )
     .limit(1);
 
-  return row;
+  if (!row || blocksPractice(await PracticeRestrictionRepository.standing(row.professionalId, db), new Date())) {
+    return undefined;
+  }
+
+  return { id: row.id, createdAt: row.createdAt, reviewBeforePublish: row.reviewBeforePublish };
 }
 
 /**

@@ -9,13 +9,17 @@ import { z } from 'zod';
 export const COLLEGIATE_NUMBER_PATTERN = /^[A-Za-z0-9/-]{3,20}$/;
 
 /**
- * The owner's act (`0059`): the one body that can make an account a
- * professional, and it carries only the collegiate number. Required, never a
- * declaration — the owner types it from the register before granting.
+ * An account opens its own practice (PRD 025 scope 1, criterion 1): the birth
+ * date, for an account that has none on record, and **nothing else**. Every
+ * other key a body carries — a badge, `practiceOpen`, `includedClients`, a
+ * number, a user id — is dropped here, and the row is written from the
+ * session's account alone (PRD 025 criterion 2, the 004 grant's criterion 1
+ * inverted). The date's bounds are the profile's: under 18 is the route's 404,
+ * decided by `assertOldEnough` where the row is written.
  */
-export const grantProfessionalSchema = z.object({ collegiateNumber: z.string().trim().regex(COLLEGIATE_NUMBER_PATTERN) });
+export const openPracticeSchema = z.object({ birthDate: z.iso.date().optional() });
 
-export type GrantProfessional = z.infer<typeof grantProfessionalSchema>;
+export type OpenPractice = z.infer<typeof openPracticeSchema>;
 
 /**
  * The professional's agreement and the practice plan's terms, accepted together
@@ -219,6 +223,9 @@ export type PriceUnit = (typeof PRICE_UNITS)[number];
 /** The longest `studies` a profile stores (PRD 025 scope 4); the database refuses longer. */
 export const PROFILE_STUDIES_MAX = 2000;
 
+/** The most opening ranges one day of a profile's hours holds. */
+export const PROFILE_HOURS_RANGES_MAX = 6;
+
 /** A time of day as a profile's hours write it, `HH:MM` on a 24-hour clock. */
 const HOUR_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 
@@ -228,11 +235,14 @@ const HOUR_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
  */
 export const professionalHoursSchema = z
   .array(
-    z.array(
-      z
-        .object({ from: z.string().regex(HOUR_PATTERN), to: z.string().regex(HOUR_PATTERN) })
-        .refine(range => range.from < range.to, { message: 'A range ends after it starts' })
-    )
+    z
+      .array(
+        z
+          .object({ from: z.string().regex(HOUR_PATTERN), to: z.string().regex(HOUR_PATTERN) })
+          .refine(range => range.from < range.to, { message: 'A range ends after it starts' })
+      )
+      // Bounded (invariant review of phase 6, P3): a day is a few opening ranges, never a payload.
+      .max(PROFILE_HOURS_RANGES_MAX)
   )
   .length(7);
 
@@ -262,10 +272,151 @@ export const professionalProfileSchema = z.object({
 
 export type ProfessionalProfile = z.infer<typeof professionalProfileSchema>;
 
+/** The longest name a profile shows (PRD 025 scope 4). */
+export const PROFILE_DISPLAY_NAME_MAX = 80;
+
+/** The highest price a profile states, in cents: ten thousand euros, past which it is a typo. */
+export const PROFILE_PRICE_MAX_CENTS = 1_000_000;
+
+/** One line of text somebody typed: no line break, no control character, no markup. */
+function oneLine(max: number) {
+  return (
+    z
+      .string()
+      .trim()
+      .min(1)
+      .max(max)
+      // eslint-disable-next-line no-control-regex -- control characters are exactly what is refused
+      .refine(text => !/[\u0000-\u001f\u007f<>]/.test(text), { message: 'One line of plain text' })
+  );
+}
+
+/**
+ * The practitioner's profile as they save it (`PUT /care/practice/profile`, PRD
+ * 025 scope 4): the whole profile, every time. The shape only — **the words**
+ * are judged where the badge can be read (`protectedWordIn`, `0111` § 7), in
+ * every free-text field: `displayName` and `studies`.
+ *
+ * A price is final, taxes included, with its unit, or neither. Nothing here
+ * names an account: the profile is the session's.
+ */
+export const saveProfessionalProfileSchema = z
+  .object({
+    displayName: oneLine(PROFILE_DISPLAY_NAME_MAX),
+    hours: professionalHoursSchema.nullable().default(null),
+    priceCents: z.number().int().min(0).max(PROFILE_PRICE_MAX_CENTS).nullable().default(null),
+    priceUnit: z.enum(PRICE_UNITS).nullable().default(null),
+    // An empty box is no studies at all, not an empty string kept.
+    studies: z
+      .string()
+      .trim()
+      .max(PROFILE_STUDIES_MAX)
+      // Plain text, as the name is (invariant review of phase 6, P3) — line breaks and tabs kept: it is a paragraph.
+      // eslint-disable-next-line no-control-regex -- control characters are exactly what is refused
+      .refine(text => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f<>]/.test(text), { message: 'Plain text' })
+      .nullable()
+      .default(null)
+      .transform(text => (text === null || text.length === 0 ? null : text))
+  })
+  .refine(body => (body.priceCents === null) === (body.priceUnit === null), { message: 'A price says what it is for', path: ['priceUnit'] });
+
+export type SaveProfessionalProfile = z.infer<typeof saveProfessionalProfileSchema>;
+
+/** The free-text fields of a profile: the ones whose words are judged, and whose change returns it to the owner's queue. */
+export const PROFILE_TEXT_FIELDS = ['displayName', 'studies'] as const;
+
+export type ProfileTextField = (typeof PROFILE_TEXT_FIELDS)[number];
+
+/**
+ * Why the owner hides a profile (`docs/legal/textos/06` § X): a word the
+ * agreement allows only with the badge, a service offered for a disease,
+ * promised results, a title NutrIA does not check, or advertising unrelated to
+ * the practice. One or several; the owner may add the facts.
+ */
+export const PROFILE_HIDE_REASONS = ['badge_word', 'disease', 'promises', 'unchecked_title', 'advertising'] as const;
+
+export type ProfileHideReason = (typeof PROFILE_HIDE_REASONS)[number];
+
+/** The two reasons whose sentence quotes the word the owner saw. */
+const WORD_REASONS: readonly ProfileHideReason[] = ['badge_word', 'unchecked_title'];
+
+/** The owner's own words in a statement of reasons: plain text, one paragraph, bounded. */
+const ownerFacts = z
+  .string()
+  .trim()
+  .min(1)
+  .max(1000)
+  // eslint-disable-next-line no-control-regex -- a statement is one plain paragraph
+  .refine(text => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f<>]/.test(text), { message: 'Plain text' });
+
+/**
+ * The owner hides a profile (PRD 025 criterion 18): **refusing and hiding are
+ * one act** (legal F6), with one statement of reasons. `afterNotice` says the
+ * owner looked because somebody told them (DSA art. 17.3.b); the notifier is
+ * never named. At least one reason, or the facts written out.
+ */
+export const hideProfessionalProfileSchema = z
+  .object({
+    afterNotice: z.boolean().default(false),
+    facts: ownerFacts.optional(),
+    reasons: z.array(z.enum(PROFILE_HIDE_REASONS)).max(PROFILE_HIDE_REASONS.length).default([]),
+    word: oneLine(60).optional()
+  })
+  .refine(body => body.reasons.length > 0 || body.facts !== undefined, { message: 'Say why', path: ['reasons'] })
+  .refine(body => new Set(body.reasons).size === body.reasons.length, { message: 'Each reason once', path: ['reasons'] })
+  .refine(body => !body.reasons.some(reason => WORD_REASONS.includes(reason)) || body.word !== undefined, {
+    message: 'Name the word',
+    path: ['word']
+  });
+
+export type HideProfessionalProfile = z.infer<typeof hideProfessionalProfileSchema>;
+
+/** How many days a close's notice runs before the practice closes (PRD 025 scope 16, `textos/06` § W bis.3). */
+export const PRACTICE_CLOSE_NOTICE_DAYS = 30;
+
+/**
+ * Where the owner's decision to suspend or close came from (`textos/06` § W
+ * bis.1 `source`): their own review, a notice they received, or an authority
+ * that requires it — named, because the practitioner is told who.
+ */
+export const RESTRICTION_SOURCES = ['own_review', 'notice', 'authority'] as const;
+
+export type RestrictionSource = (typeof RESTRICTION_SOURCES)[number];
+
+/** The highest section of the professional's agreement a statement may cite beside its § 13. */
+const AGREEMENT_SECTIONS = 14;
+
+/**
+ * The owner's statement of reasons for a suspension or a close (`textos/06` §
+ * W bis.1, P2B art. 4.5): the facts — what, when, where — the section of the
+ * agreement read with § 13, if any, and the source. An authority is named when
+ * it is the source, and only then.
+ */
+export const restrictPracticeSchema = z
+  .object({
+    authority: oneLine(160).optional(),
+    clause: z.number().int().min(1).max(AGREEMENT_SECTIONS).optional(),
+    facts: ownerFacts,
+    source: z.enum(RESTRICTION_SOURCES)
+  })
+  .refine(body => (body.source === 'authority') === (body.authority !== undefined), {
+    message: 'An authority is named when it is the source',
+    path: ['authority']
+  });
+
+export type RestrictPractice = z.infer<typeof restrictPracticeSchema>;
+
+/** The owner lifts what stands (`textos/06` § W bis.2): with what they found, or without. */
+export const liftRestrictionSchema = z.object({ facts: ownerFacts.optional() });
+
+export type LiftRestriction = z.infer<typeof liftRestrictionSchema>;
+
 /**
  * The owner's acts on an account as a practitioner (PRD 025 scope 16):
- * suspended at once, closing with 30 days' notice, or lifted. What stands is the
- * latest row. Repeated as `practice_restriction_kind` in the database.
+ * suspended at once, closing with 30 days' notice, or lifted. What stands is
+ * folded from the rows by `restrictionFrom` (`#repositories/Professional`): a
+ * suspension and a close can stand together, and a lift ends both. Repeated as
+ * `practice_restriction_kind` in the database.
  */
 export const PRACTICE_RESTRICTION_KINDS = ['suspended', 'closing', 'lifted'] as const;
 

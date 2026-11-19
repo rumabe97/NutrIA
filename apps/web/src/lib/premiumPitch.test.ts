@@ -15,7 +15,8 @@ const ALLOWANCES: PitchAllowances = {
     fixedMeals: 1,
     mealSwapsPerPlan: 5,
     midPlanEventsPerPlan: 0,
-    planRedosPerFortnight: 1
+    planRedosPerFortnight: 1,
+    practiceClients: 10
   },
   premium: {
     assistantMessagesPerFortnight: 100,
@@ -25,7 +26,8 @@ const ALLOWANCES: PitchAllowances = {
     fixedMeals: 3,
     mealSwapsPerPlan: 20,
     midPlanEventsPerPlan: 3,
-    planRedosPerFortnight: 3
+    planRedosPerFortnight: 3,
+    practiceClients: 10
   }
 };
 
@@ -81,6 +83,18 @@ describe('the premium pitch', () => {
 
     expect(premiumPitch(esES.profile.premiumPitch, moved)).toContain('28');
     expect(premiumPitch(esES.profile.premiumPitch, moved)).not.toContain('20 cambios');
+  });
+
+  /*
+   * A practice's free seats (PRD 025, `0110` decision 13) are the same on both
+   * tiers: a client of a practice does not make anybody premium, and premium
+   * buys no seats. A pitch that named them would sell what free already has.
+   */
+  it.each(PITCHES)('never pitches the free practice’s seats, in %s', (_locale, template) => {
+    const seats: PitchAllowances = { free: { ...ALLOWANCES.free, practiceClients: 97 }, premium: { ...ALLOWANCES.premium, practiceClients: 97 } };
+
+    expect(Object.values(pitchValues(seats))).not.toContain(97);
+    expect(premiumPitch(template, seats)).not.toContain('97');
   });
 
   /* Both languages say the same thing about the same numbers, or one of them is lying. */

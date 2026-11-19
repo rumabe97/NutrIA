@@ -34,12 +34,6 @@
   }
 }
 
-/* The collegiate number, in its dialog: the field, what went wrong, then the two buttons. */
-.grant {
-  display: grid;
-  gap: var(--gap-block);
-}
-
 .error {
   color: var(--color-error-text);
   max-inline-size: 18rem;

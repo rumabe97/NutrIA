@@ -15,11 +15,11 @@
       "lang": "es",
       "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>", "https://nutria.example/es/acceder?next=/plan&x=<1>"],
       "title": "Ana <b>Dietista</b> te ha invitado a NutrIA",
-      "words": "NutrIA\nAna <b>Dietista</b> te ha invitado a llevar tu plan de comidas juntos en NutrIA, como tu dietista.\nSi aceptas, verá tu plan y cómo lo llevas, y podrá ajustarlo contigo. Antes de aceptar verás la lista exacta.\nVer la invitación\nAntes de compartir nada verás exactamente qué podrá ver, y podrás decir que sí o que no. Cualquiera de los dos puede terminarlo cuando quiera. Si todavía no tienes cuenta en NutrIA, créala con esta dirección.\nLa invitación funciona durante 14 días.\nSi no sabes quién es, ignora este mensaje: no se comparte nada si no aceptas.\nTe escribimos porque Ana <b>Dietista</b> nos ha dado tu dirección para invitarte, y no la usamos para nada más. Si aceptas o rechazas, borramos la invitación en ese momento; si no respondes, caduca a los 14 días y la borramos, con tu dirección, como muy tarde al día siguiente. Quién es el responsable y tus derechos: https://nutria.example/es/privacidad\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
+      "words": "NutrIA\nAna <b>Dietista</b> te ha invitado a que te haga el plan de comidas en NutrIA.\nSi aceptas, podrá hacerte el plan y ajustarlo contigo. Qué más podrá ver depende de lo que aceptes, y antes de aceptar verás la lista exacta.\nVer la invitación\nAntes de compartir nada verás exactamente qué podrá ver, y podrás decir que sí o que no. Cualquiera de los dos puede terminarlo cuando quiera. Si todavía no tienes cuenta en NutrIA, créala con esta dirección.\nLa invitación funciona durante 14 días.\nSi no sabes quién es, ignora este mensaje: no se comparte nada si no aceptas.\nTe escribimos porque Ana <b>Dietista</b> nos ha dado tu dirección para invitarte, y no la usamos para nada más. Si aceptas o rechazas, borramos la invitación en ese momento; si no respondes, caduca a los 14 días y la borramos, con tu dirección, como muy tarde al día siguiente. Quién es el responsable y tus derechos: https://nutria.example/es/privacidad\nSi el botón no funciona, copia esta dirección en tu navegador:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
     },
     "kind": "care-invitation",
     "subject": "Ana <b>Dietista</b> te ha invitado a NutrIA",
-    "text": "Ana <b>Dietista</b> te ha invitado a llevar tu plan de comidas juntos en NutrIA, como tu dietista.\nSi aceptas, verá tu plan y cómo lo llevas, y podrá ajustarlo contigo. Antes de aceptar verás la lista exacta.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nAntes de compartir nada verás exactamente qué podrá ver, y podrás decir que sí o que no. Cualquiera de los dos puede terminarlo cuando quiera. Si todavía no tienes cuenta en NutrIA, créala con esta dirección.\nLa invitación funciona durante 14 días.\nSi no sabes quién es, ignora este mensaje: no se comparte nada si no aceptas.\n\nTe escribimos porque Ana <b>Dietista</b> nos ha dado tu dirección para invitarte, y no la usamos para nada más. Si aceptas o rechazas, borramos la invitación en ese momento; si no respondes, caduca a los 14 días y la borramos, con tu dirección, como muy tarde al día siguiente. Quién es el responsable y tus derechos: https://nutria.example/es/privacidad"
+    "text": "Ana <b>Dietista</b> te ha invitado a que te haga el plan de comidas en NutrIA.\nSi aceptas, podrá hacerte el plan y ajustarlo contigo. Qué más podrá ver depende de lo que aceptes, y antes de aceptar verás la lista exacta.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nAntes de compartir nada verás exactamente qué podrá ver, y podrás decir que sí o que no. Cualquiera de los dos puede terminarlo cuando quiera. Si todavía no tienes cuenta en NutrIA, créala con esta dirección.\nLa invitación funciona durante 14 días.\nSi no sabes quién es, ignora este mensaje: no se comparte nada si no aceptas.\n\nTe escribimos porque Ana <b>Dietista</b> nos ha dado tu dirección para invitarte, y no la usamos para nada más. Si aceptas o rechazas, borramos la invitación en ese momento; si no respondes, caduca a los 14 días y la borramos, con tu dirección, como muy tarde al día siguiente. Quién es el responsable y tus derechos: https://nutria.example/es/privacidad"
   },
   "checkInReminder es-ES": {
     "html": {
@@ -134,17 +134,6 @@
     "kind": "password-reset",
     "subject": "Restablece tu contraseña de NutrIA",
     "text": "Alguien ha pedido restablecer la contraseña de la cuenta de NutrIA con esta dirección. Si has sido tú, elige una nueva aquí:\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nEl enlace funciona durante una hora.\nSi no has sido tú, ignora este mensaje: tu contraseña no ha cambiado."
-  },
-  "professionalGranted es-ES": {
-    "html": {
-      "lang": "es",
-      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>"],
-      "title": "Tu consulta en NutrIA está lista",
-      "words": "NutrIA\nTe hemos dado acceso a la consulta de NutrIA como dietista-nutricionista, con el número de colegiado MAD00123.\nAntes de ver datos de ningún paciente te pediremos que aceptes el acuerdo del profesional: secreto, quién responde de los datos y qué no puedes hacer. Léelo con calma; es corto.\nAbrir mi consulta\nSi no has pedido esto, respóndenos y lo retiramos.\nNutrIA"
-    },
-    "kind": "professional-granted",
-    "subject": "Tu consulta en NutrIA está lista",
-    "text": "Te hemos dado acceso a la consulta de NutrIA como dietista-nutricionista, con el número de colegiado MAD00123.\n\nAntes de ver datos de ningún paciente te pediremos que aceptes el acuerdo del profesional: secreto, quién responde de los datos y qué no puedes hacer. Léelo con calma; es corto.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nSi no has pedido esto, respóndenos y lo retiramos."
   },
   "twoFactorChanged {\"kind\":\"enabled\",\"otherSessionsClosed\":true} es-ES": {
     "html": {
@@ -283,11 +272,11 @@
       "lang": "en",
       "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>", "https://nutria.example/es/acceder?next=/plan&x=<1>"],
       "title": "Ana <b>Dietista</b> has invited you to NutrIA",
-      "words": "NutrIA\nAna <b>Dietista</b> has invited you to follow your meal plan together on NutrIA, as your dietitian.\nIf you accept, they will see your plan and how it is going, and can adjust it with you. Before accepting you will see the exact list.\nSee the invitation\nBefore anything is shared you will see exactly what they will be able to see, and you can say yes or no. Either of you can end it at any time. If you do not have a NutrIA account yet, create one with this address.\nThe invitation works for 14 days.\nIf you do not know who this is, ignore this message: nothing is shared unless you accept.\nWe are writing because Ana <b>Dietista</b> gave us your address to invite you, and we use it for nothing else. If you accept or decline, we delete the invitation there and then; if you do not answer, it expires after 14 days and we delete it, with your address, by the following day at the latest. Who is responsible and your rights: https://nutria.example/es/privacidad\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
+      "words": "NutrIA\nAna <b>Dietista</b> has invited you to let them make your meal plan on NutrIA.\nIf you accept, they can make your plan and adjust it with you. What else they can see depends on what you accept, and before accepting you will see the exact list.\nSee the invitation\nBefore anything is shared you will see exactly what they will be able to see, and you can say yes or no. Either of you can end it at any time. If you do not have a NutrIA account yet, create one with this address.\nThe invitation works for 14 days.\nIf you do not know who this is, ignore this message: nothing is shared unless you accept.\nWe are writing because Ana <b>Dietista</b> gave us your address to invite you, and we use it for nothing else. If you accept or decline, we delete the invitation there and then; if you do not answer, it expires after 14 days and we delete it, with your address, by the following day at the latest. Who is responsible and your rights: https://nutria.example/es/privacidad\nIf the button does not work, copy this address into your browser:\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\nNutrIA"
     },
     "kind": "care-invitation",
     "subject": "Ana <b>Dietista</b> has invited you to NutrIA",
-    "text": "Ana <b>Dietista</b> has invited you to follow your meal plan together on NutrIA, as your dietitian.\nIf you accept, they will see your plan and how it is going, and can adjust it with you. Before accepting you will see the exact list.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nBefore anything is shared you will see exactly what they will be able to see, and you can say yes or no. Either of you can end it at any time. If you do not have a NutrIA account yet, create one with this address.\nThe invitation works for 14 days.\nIf you do not know who this is, ignore this message: nothing is shared unless you accept.\n\nWe are writing because Ana <b>Dietista</b> gave us your address to invite you, and we use it for nothing else. If you accept or decline, we delete the invitation there and then; if you do not answer, it expires after 14 days and we delete it, with your address, by the following day at the latest. Who is responsible and your rights: https://nutria.example/es/privacidad"
+    "text": "Ana <b>Dietista</b> has invited you to let them make your meal plan on NutrIA.\nIf you accept, they can make your plan and adjust it with you. What else they can see depends on what you accept, and before accepting you will see the exact list.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nBefore anything is shared you will see exactly what they will be able to see, and you can say yes or no. Either of you can end it at any time. If you do not have a NutrIA account yet, create one with this address.\nThe invitation works for 14 days.\nIf you do not know who this is, ignore this message: nothing is shared unless you accept.\n\nWe are writing because Ana <b>Dietista</b> gave us your address to invite you, and we use it for nothing else. If you accept or decline, we delete the invitation there and then; if you do not answer, it expires after 14 days and we delete it, with your address, by the following day at the latest. Who is responsible and your rights: https://nutria.example/es/privacidad"
   },
   "checkInReminder en-GB": {
     "html": {
@@ -402,17 +391,6 @@
     "kind": "password-reset",
     "subject": "Reset your NutrIA password",
     "text": "Someone asked to reset the password of the NutrIA account for this address. If it was you, choose a new one here:\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nThe link works for one hour.\nIf you did not ask for this, ignore this message: your password has not changed."
-  },
-  "professionalGranted en-GB": {
-    "html": {
-      "lang": "en",
-      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>"],
-      "title": "Your NutrIA practice is ready",
-      "words": "NutrIA\nWe have given you access to the NutrIA practice as a dietitian-nutritionist, with registration number MAD00123.\nBefore you see any client’s data we will ask you to accept the professional’s agreement: secrecy, who is responsible for the data and what you may not do. Take your time reading it; it is short.\nOpen my practice\nIf you did not ask for this, reply and we will revoke it.\nNutrIA"
-    },
-    "kind": "professional-granted",
-    "subject": "Your NutrIA practice is ready",
-    "text": "We have given you access to the NutrIA practice as a dietitian-nutritionist, with registration number MAD00123.\n\nBefore you see any client’s data we will ask you to accept the professional’s agreement: secrecy, who is responsible for the data and what you may not do. Take your time reading it; it is short.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nIf you did not ask for this, reply and we will revoke it."
   },
   "twoFactorChanged {\"kind\":\"enabled\",\"otherSessionsClosed\":true} en-GB": {
     "html": {

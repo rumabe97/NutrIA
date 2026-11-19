@@ -230,19 +230,39 @@ write leaves no row, and a write that returns without having recorded fails. So:
   for good**: `consent_scope = 'plan'` and the health line off (`narrowLinks`, which stamps
   `narrowed_at` on the rows it changes and never clears it; no trail row) — in the owner's
   removal transaction (`narrowLinksOf`), in the daily sweep for a badge lapsed by the clock
-  (`sweepBadgeLoss`), and in both writers of a `pass` (`ProfessionalBadgeRepository.confirm`,
-  `ProfessionalRepository.grant`) when no badge stood just before it, through a hook the
-  controller hands down — so a badge that comes back widens nothing by itself; `linkScope` still
+  (`sweepBadgeLoss`), and in the one writer of a `pass` (`ProfessionalBadgeRepository.confirm`;
+  the 004 `grant` was the second until PLAN 025 phase 6 retired it) when no badge stood just before
+  it, through a hook the controller hands down — so a badge that comes back widens nothing by itself; `linkScope` still
   reads the badge on every request and never trusts the stored value alone. The health line
   cannot be turned on outside `full`. Every insert into `care_links` names its `consent_scope`.
   A badge read inside a transaction passes that transaction to `badgeOf`/`badgesOf`: never a
   second pool connection while locks are held. **Every write that can store `full` or turn the
   health line on (`accept`, `reconsent`, `setSharesHealth(true)`) takes the practitioner's badge
   lock (`ProfessionalBadgeRepository.lock`, one key: `badgeLockKey`) before it reads the badge**,
-  the same lock `apply`/`confirm`/`issueCode`/`remove` (`underLock`) and the 004 `grant` hold —
-  and always before any `professionals` or `care_links` row of that practitioner, because the
-  removal holds the lock and then narrows those rows. `reconsent` and `setSharesHealth` find the
+  the same lock `apply`/`confirm`/`issueCode`/`remove` (`underLock`), the opening and the close of
+  a practice (`ProfessionalRepository.open`/`close`), the owner's restrictions
+  (`PracticeRestrictionRepository.act`) and the profile's save hold — and always before any
+  `professionals`, `care_links`, `practice_restrictions` or `professional_profiles` row of that
+  practitioner, because the removal holds the lock and then narrows those rows and requeues the
+  profile. `reconsent` and `setSharesHealth` find the
   practitioner without locking the link, take the badge lock, then hold the link `FOR UPDATE`.
+- **Who practises, and what stands against them** (PLAN 025 phase 6). An account opens its own
+  practice (`ProfessionalController.open`, `POST /care/practice`): the `professionals` row from the
+  session's account and nothing in a body but a birth date; every refusal one 404. **`practiceOpen`
+  is not access**: the guard, `practises`, `activeProfessional` and the `practising` join ask the
+  current agreement and the restriction, never whether anybody pays; it stays the condition of
+  `coveredByOpenPractice` (no premium by link to a free practice) and of the seats — a paid
+  practice's `includedClients`, else the `practiceClients` allowance resolved inside the
+  invitation's transaction (`CareRepository.invite`'s `freeSeats`). **What stands is
+  `PracticeRestrictionRepository.standing` and nothing else** (`restrictionFrom`: a suspension and a
+  close can both stand, a `lifted` row ends both): `blocksPractice` (a suspension, or a close whose
+  day has come) refuses every client route, `activeLink`, invitations sent and answered;
+  `barsOpening` (anything standing, a closed practice included) refuses `open`. The daily sweep
+  closes a practice on its day (`ProfessionalController.closeDue`), in one transaction: every open
+  link **ends** as the practitioner ending it (`CareRepository.endLinksOf`, recorded
+  `ended_by = 'professional'` through `endLinks`, so each client may accept somebody else), a
+  standing badge is withdrawn with the close's facts and the profile requeued, then the row and its
+  invitations are deleted; the `closing` row is kept. A suspension ends nothing.
 - **The illness rule** (`0111` § 8, PRD 025 criterion 22) has three enforcement points and no
   fourth: `CareRepository.accept` (refused in its transaction, the invitation kept),
   `CareRepository.endOnDeclaration` (run by `HealthController.replace` inside the health

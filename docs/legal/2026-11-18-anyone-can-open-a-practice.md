@@ -413,6 +413,12 @@ colegiada/o»** with **«Comprobado por NutrIA el {date}»** / **"Registered die
 with **"Checked by NutrIA on {date}"** (the owner's design of 2026-11-18). The number appears only
 beside it.
 
+**Names versus profile text (2026-11-19).** An account's name (the one a client sees) is judged
+for **titles only**: the lists of §§ 6.1 and 6.2. **The promised-results pass of § 6.4 applies to
+profile text, never to a person's name.** A name like «Ana 100 %» is odd, but it is not an offer.
+Refusing it would bar a person from the practice for their own name, with no ground in LCD art. 5
+or in RD 1907/1996.
+
 ### 6.4 What no word list can catch — the owner's first look
 
 A function cannot judge these two. The first look does (PRD scope 11), and `06` § X words its
@@ -546,6 +552,7 @@ All three are false after 025. Proposed replacement for its first and last sente
 | M15 | Does sending a code to the contact a college's register lists, about a person who may not have applied, rest on art. 6.1.f with the art. 14 notice of `06` §§ R–T? And is keeping the `fail` record (that person's number, against the impostor's account) for the life of that account proportionate? | F2. | 2 |
 | M16 | May an un-badged practitioner keep, after the link ends, what they copied of a client's plans? The agreement 2.0.0 tells them to delete it (art. 7.3 withdrawal; no 9.2.h). | `01` 2.0.0 § 7. | 1 |
 | M17 | Does P2B (Reg. 2019/1150) apply to a practice tool where the professional brings their own clients and NutrIA introduces nobody (art. 2.2), before any directory exists? | F8. The agreement applies it anyway. The answer decides only whether a breach of its 15 or 30 days would be void (art. 3.3). | 1 |
+| M18 | When a close is reversed, does P2B art. 4.3 ("reincorporará… incluso en lo que respecta al acceso a los datos… generados por su uso") oblige NutrIA to restore the links that ended with the close, or does art. 1.5 ("sin perjuicio del… Derecho de la Unión… [en] la protección de datos") let each client decide again? | `06` § W bis.4 assumes the clients decide again | 1 |
 
 
 ## 11. The owner's decisions (2026-11-18)
@@ -553,6 +560,7 @@ All three are false after 025. Proposed replacement for its first and last sente
 Relayed by the lead the same day. The owner's own words are not quoted here; what is recorded is
 the option he tapped and the two answers.
 
+0. **2026-11-19:** see § 12.1 for the approvals of that day (W bis.1–4, A bis, `practice.profilePromiseRefused`, the agreement §§ 11 and 13).
 1. **Every phase-1 text is approved**, with choices **C1–C11 as written** (tapped option
    «Aprobados», 2026-11-18). This covers the agreement 2.0.0 and the practitioner's screens
    (`textos/01`), the consent 3.0.0, the re-consent, the illness-rule screens and the health
@@ -577,6 +585,100 @@ the option he tapped and the two answers.
    - the record (row 11);
    - the checklist § 1 bis, which now carries an end-to-end box: a suspended account's
      `POST /care/practice` answers 404.
+
+
+## 12. Phase 6 additions and two findings recorded (2026-11-19)
+
+**New words, not yet approved by the owner** (the lead asks him):
+
+- `textos/06` § A bis: the invitation mail with one neutral sentence for both tiers (`intro`,
+  `meaning`). The principle is C3, already approved; the sentences are new.
+- `textos/06` § W bis.4: a close taken back, before or after its date (P2B art. 4.3, read with
+  art. 1.5).
+- `textos/01` § Pantallas, P4: `practice.profilePromiseRefused`.
+
+**F9 (P2). `care_links.ended_by` can now read `declared` or `badge_lost`, and each value is health
+data by inference.** Since phase 5 (`packages/database/src/schemas/_enums.ts:103`), a link row
+records that it ended under the illness rule. Either value says the client has a condition or a
+medication on record (art. 9.1; CJEU C-184/20 reads "data concerning health" to include what can
+be deduced). The rule for it:
+
+- **The client may see it.** It is their own data, and their screens (`textos/05` § G.3) say it in
+  words.
+- **The practitioner never sees it**, by any route. `endedByForPractitioner` presents both values
+  as `client` (F4).
+- **Where else it could leak, and must not:**
+  - **A practitioner's own subject-access copy** (art. 15) or export. The link row is also *their*
+    data, but art. 15.4 bars a copy that "afecte negativamente a los derechos y libertades de
+    otros". Their copy presents both values as `client`, the same as their screens.
+  - **The owner's console.** It reads no client (`0028`, `0068`). A per-practitioner count of
+    `declared` or `badge_lost` endings would be a count of health records behind a named person,
+    so the console counts links by status only, as `adminProfessionals` does today.
+  - **Logs, error reports and mail.** None carries the value. `textos/06` § Y's client mail
+    names no reason.
+- **Retention**: with the client's account, like every `care_links` row (record row 5). When the
+  practitioner's account goes, `professionalId` is set null and the value stays with the client.
+
+Record of processing row 5 and DPIA R-P2 carry this. **No text changes:** the consent already
+tells the client that the practitioner sees only that the link ended (`05` § F.2, F.3, G.3).
+
+**F10 (P2). Narrowing a link after a lost badge leaves no trace the client can see.**
+`CareRepository.narrowLinksOf` and `sweepBadgeLoss` (`packages/core/src/repositories/Care/CareRepository.ts`,
+the comments at ~721 and ~1020) set `consent_scope = 'plan'` and turn the health line off,
+"narrowing mails nobody". No row reaches the client's trail, because the client did not act;
+`care_links.narrowed_at` is the only evidence.
+
+- **What breaks without it.** The client's health toggle reads *off* although they never touched
+  it. Nothing tells them why, and the re-consent card (`05` § F.4) appears only once a badge
+  stands again.
+- **Is a row legally required? Not strictly.** The trail's promise is about the professional's
+  acts («cada vez que mire o cambie algo»), and narrowing discloses less, not more. The
+  policy already states the rule in general (`/privacidad` P-3 ¶ 5: «si la pierde, desde ese
+  momento ve solo…»).
+- **But art. 5.1.a and 12.1 ask that a change to what is shared about a person be intelligible
+  to them.** A consent they gave (the health line) has been switched off by the controller.
+  Saying so is the minimum, and it costs one row.
+- **Recommendation for phase 10 (P2): a trail row with NutrIA as the actor**, written in the same
+  transaction as the narrowing, dated `narrowed_at`. Its words name no condition and give the
+  reason, which the client is entitled to know (it is the practitioner's status, not the
+  client's health).
+
+| Key (proposed) | es-ES | en-GB |
+| --- | --- | --- |
+| `care.accessLogNarrowed` | `{professional} ya no tiene la verificación de NutrIA: desde entonces ve solo los planes que te hace` | `{professional} is no longer verified by NutrIA: since then they only see the plans they make for you` |
+| `care.accessLogNarrowedHealth` (when the health line was on) | `{professional} ya no tiene la verificación de NutrIA: desde entonces ve solo los planes que te hace, y dejó de ver tu salud` | `{professional} is no longer verified by NutrIA: since then they only see the plans they make for you, and stopped seeing your health` |
+
+These two strings are **new and unapproved**. If the owner prefers no row, the alternative is a
+line on the link card, built from `narrowed_at` (same words). Either one closes F10. Doing
+nothing leaves the toggle unexplained.
+
+<!-- Fuente: RGPD arts. 5.1.a, 12.1, 9.1 (inferencia: TJUE C-184/20 y C-21/23, como en analysis.md § 1.2), 15.3-15.4; 0059 (el rastro es del cliente); PRD 025 criterio 12. -->
+
+
+### 12.1 Approvals of 2026-11-19 (relayed by the lead; tapped options)
+
+- **Earlier that day:** `textos/06` §§ W bis.1–3 (suspension, lifting, close with 30 days and its
+  immediate variant) and the agreement 2.0.0 §§ 11 and 13.
+- **Later that day:**
+  - (a) `textos/06` § A bis, the invitation mail's neutral `intro` and `meaning`;
+  - (b) `textos/06` § W bis.4, both variants, with the corrected "after" body (the badge is
+    withdrawn by the close, `ProfessionalRepository.close`);
+  - (c) `practice.profilePromiseRefused`.
+- **Amended the same day, as a fact rather than a choice:** W bis.4 picks its variant by whether
+  the close **was carried out**, not by whether `{closeDate}` has come. Until the sweep runs, the
+  links are intact.
+- **Still unapproved** (the lead asks the owner): the no-name variants in `textos/06` § Y and
+  `textos/05` § F.3 bis, and the two trail strings of § 12 (F10).
+
+### 12.2 For phase 8 (recorded, no text yet)
+
+- **A practitioner refused at an invitation because of their account's name** needs two things:
+  a way to change that name, and one sentence telling them where. Today the name is the account's,
+  set at sign-up or by Google or Apple. The sentence is phase 8's. It should name the screen
+  where the name is edited, and it may quote the refused word, because it goes only to the
+  practitioner, who wrote it.
+- **The name is judged for titles only** (§ 6, «Names versus profile text»): `badge_only` and
+  `never`, not the results list.
 
 ---
 

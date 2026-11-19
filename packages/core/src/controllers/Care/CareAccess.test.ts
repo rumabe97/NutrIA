@@ -7,6 +7,7 @@ import { DatabaseOperationError, InputParseError, NotFoundError } from 'core/ent
 import { CareController } from './CareController';
 
 import type { ActiveLink, linkScope as linkScopeFn, Roster, RosterLink } from '#repositories/Care';
+import type { blocksPractice as blocksPracticeFn, RestrictionStanding } from '#repositories/Professional';
 import type { CareAccessAction, CareAccessEntry, CareAccessKind, CareConsentScope, CareLink } from 'core/entities/Care';
 import type { CareClientOverviewView, CareClientPageView } from './CareController';
 import type {
@@ -63,6 +64,7 @@ const logAccess = vi.fn<(clientId: string, entry: LogEntry, tx?: unknown) => Pro
 const roster = vi.fn<(professionalId: string, now: Date) => Promise<Roster>>();
 const accessLog = vi.fn<(clientId: string, limit: number, beforeId: string | null) => Promise<readonly CareAccessEntry[]>>();
 const findProfessional = vi.fn<(userId: string) => Promise<object | null>>();
+const standing = vi.fn<(userId: string) => Promise<RestrictionStanding>>();
 const isEnabled = vi.fn<(key: string, fallback: boolean) => Promise<boolean>>();
 const getActivePlan = vi.fn<(userId: string, locale: string | null, throughLink?: string) => Promise<PlanView | null>>();
 const listPlans =
@@ -91,7 +93,12 @@ vi.mock('#repositories/Care', async () => ({
   // The real rule: `activeProfessional` and the roster's stage are what some of these cases are about.
   linkScope: (await vi.importActual<{ linkScope: typeof linkScopeFn }>('../../repositories/Care/CareScope')).linkScope
 }));
-vi.mock('#repositories/Professional', () => ({
+vi.mock('#repositories/Professional', async () => ({
+  // The real rule (project 025 phase 6): what a restriction refuses is decided in one place.
+  blocksPractice: (
+    await vi.importActual<{ blocksPractice: typeof blocksPracticeFn }>('../../repositories/Professional/PracticeRestrictionRepository')
+  ).blocksPractice,
+  PracticeRestrictionRepository: { standing: (userId: string) => standing(userId) },
   // `withClient` never reads the badge itself: `activeLink` answers the scope. Any call here is a second definition.
   ProfessionalBadgeRepository: { badgeOf: () => Promise.reject(new Error('the badge is read by the repository, not here')) },
   ProfessionalRepository: { find: (userId: string) => findProfessional(userId) }
@@ -226,7 +233,10 @@ beforeEach(() => {
   }
 
   isEnabled.mockResolvedValue(true);
-  findProfessional.mockResolvedValue({ agreementVersion: PROFESSIONAL_AGREEMENT_VERSION, practiceOpen: true, userId: PRO.id });
+  // A free practice (PRD 025 scope 2): nobody pays, and it works.
+  findProfessional.mockResolvedValue({ agreementVersion: PROFESSIONAL_AGREEMENT_VERSION, practiceOpen: false, userId: PRO.id });
+  standing.mockReset();
+  standing.mockResolvedValue({ closing: null, suspended: null });
   logAccess.mockResolvedValue(undefined);
   getActivePlan.mockResolvedValue(null);
   listPlans.mockResolvedValue([]);
@@ -617,21 +627,35 @@ describe('CareController.clients', () => {
 
   it.each([
     ['the switch is off', () => isEnabled.mockResolvedValue(false)],
-    ['the grant is gone', () => findProfessional.mockResolvedValue(null)],
-    [
-      'the practice is not paid for',
-      () => findProfessional.mockResolvedValue({ agreementVersion: PROFESSIONAL_AGREEMENT_VERSION, practiceOpen: false, userId: PRO.id })
-    ],
+    ['the practice is gone', () => findProfessional.mockResolvedValue(null)],
     ['the agreement was never accepted', () => findProfessional.mockResolvedValue({ agreementVersion: null, practiceOpen: true, userId: PRO.id })],
     [
       'the agreement accepted is not the current one',
       () => findProfessional.mockResolvedValue({ agreementVersion: '0.9.0', practiceOpen: true, userId: PRO.id })
+    ],
+    // PRD 025 criterion 24: the one reader, asked on every call.
+    ['the practitioner is suspended', () => standing.mockResolvedValue({ closing: null, suspended: { actedAt: NOW, reason: 'facts' } })],
+    [
+      'the practice’s close has come',
+      () => standing.mockResolvedValue({ closing: { id: 'close', actedAt: NOW, actedBy: null, effectiveAt: NOW, reason: 'facts' }, suspended: null })
     ]
   ])('is a 404 that reads nothing when %s — the second line behind the guard', async (_case, arrange) => {
     arrange();
 
     await expect(CareController.clients(PRO, NOW)).rejects.toBeInstanceOf(NotFoundError);
     expect(roster).not.toHaveBeenCalled();
+  });
+
+  /* PRD 025 scope 2: `practiceOpen` left the access check. */
+  it('lists the clients of a practice nobody pays for, and of a close not yet come', async () => {
+    findProfessional.mockResolvedValue({ agreementVersion: PROFESSIONAL_AGREEMENT_VERSION, practiceOpen: false, userId: PRO.id });
+    standing.mockResolvedValue({
+      closing: { id: 'close', actedAt: NOW, actedBy: null, effectiveAt: new Date(NOW.getTime() + 24 * 60 * 60 * 1000), reason: 'facts' },
+      suspended: null
+    });
+    roster.mockResolvedValue({ invitations: [], links: [] });
+
+    await expect(CareController.clients(PRO, NOW)).resolves.toEqual({ clients: [], invitations: [] });
   });
 });
 

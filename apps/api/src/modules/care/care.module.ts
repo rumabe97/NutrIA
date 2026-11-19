@@ -7,6 +7,7 @@ import {
   CareClientsController,
   CareInvitationsController,
   CareLinksController,
+  CareOpenPracticeController,
   CarePracticeController
 } from './controllers/index.js';
 import { CareService } from './services/index.js';
@@ -22,12 +23,21 @@ import { envProvider } from '../../config/index.js';
  * (`ProfessionalSwitchGuard`); seeing a link that exists, its trail, and
  * ending it have no switch, because consent stays revocable and visible — and
  * ending is also the professional's, which `CareController.end` checks for
- * itself. Every professional route also needs a practice paid for (`0061`),
- * except the workspace's own page (`CarePracticeController`), where the way to
- * pay is shown.
+ * itself. Every client route also needs the current agreement and no
+ * suspension or close standing, except the workspace's own page and its
+ * before-practice lane (`CarePracticeController`). Opening a practice is the
+ * account's own act, behind the switch alone (`CareOpenPracticeController`,
+ * PRD 025 scope 1) — no practice is paid for to work (scope 2).
  */
 @Module({
-  controllers: [CareAnswersController, CareClientsController, CareInvitationsController, CareLinksController, CarePracticeController],
+  controllers: [
+    CareAnswersController,
+    CareClientsController,
+    CareInvitationsController,
+    CareLinksController,
+    CareOpenPracticeController,
+    CarePracticeController
+  ],
   imports: [BillingModule, EmailModule, MealPlansModule],
   providers: [BackgroundTaskService, CareService, envProvider]
 })

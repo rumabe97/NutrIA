@@ -179,16 +179,22 @@ type Transaction = Parameters<Parameters<ReturnType<typeof database>['transactio
  * price says one. An account that is not a professional has no row, and its
  * practice is closed whatever it pays for.
  *
- * Then the links follow, both ways, by state rather than by change, so a
- * delivery repeated writes nothing new: a closed practice pauses every
- * `active` link — `endedBy` untouched, nothing deleted, the client keeps
- * everything (PRD 004, criterion 13) — and an open one makes every `paused`
- * link `active` again. Only a lapse pauses a link, so every paused link is one
- * this makes active. The target mark a professional left stays through a pause
- * (owner's decision, 2026-09-24): nothing here touches the client's targets.
+ * Then the links, **one way only** (PRD 025 scope 2, invariant review of phase
+ * 6, P1-1): a practice plan paid for makes every `paused` link `active` again —
+ * by state rather than by change, so a delivery repeated writes nothing new.
+ * A practice that is not paid for **pauses nothing**: since project 025 a
+ * practice nobody pays for works, with its free seats, so a plan that lapses —
+ * or a practitioner's own premium subscription, which grants no practice —
+ * leaves every link as it is. A practice holding more clients than its free
+ * `practiceClients` after a lapse keeps them all, and simply cannot invite
+ * until it is under the number again (`CareRepository.invite` counts every
+ * open link, `paused` ones from before project 025 included). The paused links
+ * left by 004's lapses are the only ones there are, and paying again is what
+ * makes them active. The target mark a professional left is never touched here
+ * (owner's decision, 2026-09-24).
  *
  * For an account with no professional row and no links — every premium
- * subscriber — both statements match nothing.
+ * subscriber — the statement matches nothing.
  */
 async function writePractice(tx: Transaction, userId: string, practice: Grants['practice']): Promise<void> {
   const now = new Date();
@@ -197,12 +203,15 @@ async function writePractice(tx: Transaction, userId: string, practice: Grants['
     .set({ practiceOpen: practice.open, updatedAt: now, ...(practice.includedClients === null ? {} : { includedClients: practice.includedClients }) })
     .where(eq(professionals.userId, userId))
     .returning({ practiceOpen: professionals.practiceOpen });
-  const open = professional?.practiceOpen ?? false;
+
+  if (professional?.practiceOpen !== true) {
+    return;
+  }
 
   await tx
     .update(careLinks)
-    .set({ status: open ? 'active' : 'paused', updatedAt: now })
-    .where(and(eq(careLinks.professionalId, userId), eq(careLinks.status, open ? 'paused' : 'active')));
+    .set({ status: 'active', updatedAt: now })
+    .where(and(eq(careLinks.professionalId, userId), eq(careLinks.status, 'paused')));
 }
 
 /** What a callback (`decide`, `create`) threw is its own failure, not the database's: it goes out as it came, after the rollback. */

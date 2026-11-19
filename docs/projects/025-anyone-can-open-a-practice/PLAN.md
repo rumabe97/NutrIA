@@ -325,7 +325,7 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
 
 ### Phase 6 — Anyone can open a practice
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 025 phase 6` — `quality-max`: the guard is
   authorisation. Reviewed by `invariant-reviewer`.
 - **Goal**: an adult account opens its own practice, free, with ten seats, a profile and a
@@ -376,6 +376,35 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
     (`docs/legal/textos/06` § W bis) and the agreement 2.0.0's §§ 11 and 13 were drafted by the
     `legal` agent on 2026-11-18, after the owner decided the suspension; he approved the
     decision, not yet these words. He approves them before this phase starts.
+    **Met 2026-11-19**: approved by tapped option («Aprobada»), and the 30 days before a close
+    stay his to respect («Como está»).
+  8. **Amended 2026-11-19, during the phase** (the invariant review, two rounds; the texts
+     approved by the owner the same day):
+     - **a close that is carried out ends the practitioner's open links** as the practitioner's
+       own ending (`ended_by = 'professional'`), so each client is free to accept somebody
+       else; a suspension ends nothing;
+     - **a client never waits on a practitioner who cannot review**: `publishingLink` asks the
+       current agreement and no blocking restriction, so the plan publishes directly, and a
+       plan left waiting is replaced at no cost;
+     - **billing no longer pauses anybody**: it only reactivates a paused link when a practice
+       plan is paid; paused links take seats;
+     - **the practitioner's name is judged** for titles (the `badge_only` and `never` lists,
+       never the results list) when they invite and every time a client is shown it — a name
+       that may not be shown reads «tu profesional» (`professionalName: null`); the client's
+       access trail is not judged;
+     - the invitation mail names no title (`textos/06` § A bis); a close taken back has its own
+       mail (§ W bis.4); a profile promising results has its sentence
+       (`practice.profilePromiseRefused`); the § Y mail and the "already linked" sentence have
+       a no-name variant;
+     - every owner act leaves an `audit_logs` row in its own transaction (nine actions, the
+       badge's included, which phase 3 had left for phase 9), with their labels in the console;
+     - the owner's list keeps an account whose practice was closed, so it can be lifted;
+       checkout for a practice plan is refused under a restriction;
+     - `ProtectedWords` reads title stems joined or split;
+     - the close has no immediate variant (the owner's immediate tool is the suspension);
+     - web, beyond the allowance row: `/consulta` works for a free practice (seats, list,
+       invite form), the console loses the grant and the revoke buttons (their successors are
+       phase 9's) and shows each practice's state.
 - **Acceptance criteria**: PRD 1, 2, 6 (server side), 7, 8, 14, 15, 16 (the profile inside
   both boundary specs), 18 (API), 24.
 - **Verification**:

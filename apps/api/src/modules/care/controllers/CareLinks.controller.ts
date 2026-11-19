@@ -86,7 +86,10 @@ export class CareLinksController {
     return this.care.accessLog(user, before ?? null);
   }
 
-  @ApiNoContentResponse({ description: 'Ended. 404 for a link the account is not on, one already ended, or anything that is not a link id.' })
+  @ApiNoContentResponse({
+    description:
+      'Ended. 404 for a link the account is not on, one already ended, anything that is not a link id, or — on the practitioner’s side — a practitioner who does not practise now (no current agreement, a suspension, a close whose day has come).'
+  })
   @ApiOperation({ summary: 'End a link, from either side' })
   @Delete('links/:linkId')
   @HttpCode(HttpStatus.NO_CONTENT)

@@ -12,16 +12,17 @@ import { UserController } from 'core/controllers/User';
 import { database } from 'database';
 
 import {
-  acceptAgreement,
   completeOnboarding,
   createApp,
   deleteAccountByEmail,
   deleteAccounts,
   dish,
+  earnBadge,
   enableTotp,
   endFortnight,
   generateAndWait,
   httpServer,
+  makePractitioner,
   openPractice,
   POOL,
   PREFIX,
@@ -48,8 +49,8 @@ import type { Response } from 'supertest';
  * nothing else, by any route. Three practitioners walk every route under the
  * care module that takes a link id, plus the roster:
  *
- * - **U**, un-badged from the start (a `professionals` row written on the
- *   table, as `care-badge.e2e-spec.ts` makes one), whose client asked for
+ * - **U**, un-badged from the start (the account opened its own practice,
+ *   project 025 phase 6, and never applied for the badge), whose client asked for
  *   `full` and the health line when accepting — stored `plan`, the line off,
  *   because no badge stood (phase 5); since phase 5 a client with a condition
  *   or a medication cannot link to U at all (the illness rule,
@@ -314,31 +315,29 @@ describe('care scope: the narrower view (project 025 phase 4)', () => {
     return enabled;
   }
 
-  /** May practise, practice open, agreement accepted — and no badge check at all. */
+  /** Its own practice, free, agreement accepted — and no badge check at all. */
   async function unbadgedPractitioner(label: string): Promise<Account> {
     const who = await account(label);
 
-    await sql()`insert into professionals (user_id) values (${who.id})`;
-    await acceptAgreement(app, who);
+    await makePractitioner(app, who);
+    // Paid, on the table: a free practice grants its clients no premium since phase 6 (criterion 8), and the walk's
+    // generations through the link spend the paid practice's redo allowance (three a fortnight). No route pays without
+    // Stripe; `care-practice.e2e-spec.ts` proves that path.
     await openPractice(who.id);
 
     return withTotp(who);
   }
 
-  /** The owner's grant route, which writes a `pass` (phase 3, step 7): badged. */
+  /** The badge by its real path — apply, a code by phone, enter it, the owner confirms (the owner's grant is retired). */
   async function grantBadge(who: Account): Promise<void> {
-    await request(server())
-      .post(`/${PREFIX}/admin/accounts/${who.id}/professional`)
-      .set('Cookie', owner.cookie)
-      .send({ collegiateNumber: `28/${String(stamp).slice(-5)}` })
-      .expect(201);
+    await earnBadge(app, who, owner, `28/${String(stamp).slice(-5)}`);
   }
 
   async function badgedPractitioner(label: string): Promise<Account> {
     const who = await account(label);
 
-    await grantBadge(who);
-    await acceptAgreement(app, who);
+    await makePractitioner(app, who, { badgedBy: owner, number: `28/${String(stamp).slice(-5)}` });
+    // Paid, on the table, for the reason `unbadgedPractitioner` gives.
     await openPractice(who.id);
 
     return withTotp(who);
@@ -979,7 +978,7 @@ describe('care scope: the narrower view (project 025 phase 4)', () => {
     it('a badge gained widens nothing; the client’s own consent to the badged list is what widens it', async () => {
       await grantBadge(unbadged);
 
-      // The grant found the link already `plan` with the line off: nothing to narrow, so no mark either.
+      // The badge found the link already `plan` with the line off: nothing to narrow, so no mark either.
       expect(await storedLink(walk.linkId)).toEqual({ consentScope: 'plan', narrowed: false, scopeConsented: false, sharesHealth: false });
 
       const narrow = await call(unbadged, 'get', `/care/clients/${walk.linkId}`, undefined, walk.answers);

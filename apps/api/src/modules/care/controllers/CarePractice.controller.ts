@@ -1,26 +1,32 @@
-import { Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import { AcceptAgreementDto, ApplyForBadgeDto, EnterBadgeCodeDto } from '../dto/in/index.js';
+import { AcceptAgreementDto, ApplyForBadgeDto, EnterBadgeCodeDto, SaveProfessionalProfileDto } from '../dto/in/index.js';
 import { BeforePractice, CurrentUser, ZodBody } from '../../../shared/index.js';
 import { CareService } from '../services/index.js';
 import { ProfessionalGuard } from '../../../shared/guards/Professional.guard.js';
 
-import type { CareBadgeDto, CarePracticeDto } from '../dto/out/index.js';
+import type { CareBadgeDto, CarePracticeDto, CareProfessionalProfileDto } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 
 /**
- * The workspace's own page (`0061`): whether the practice is paid for, how
- * many clients it includes and how many seats are taken, the plans to pay
- * with — and whether the professional's agreement is still to be accepted
- * (`docs/legal/textos/01`), which is accepted here too.
+ * The workspace's own page (`0061`, PRD 025): whether a practice plan is paid
+ * for, the seats in force and how many are taken, the plans to pay with, what
+ * the owner has standing against the practice — and whether the professional's
+ * agreement is still to be accepted (`docs/legal/textos/01`), which is accepted
+ * here too.
  *
- * `ProfessionalGuard` — the switch and the grant, anything else a 404 — but
- * `@BeforePractice()`: a professional whose practice is not paid for, or who
- * has not accepted the agreement, must still reach the page that shows both
- * and the route that accepts it. Counts and prices only;
- * nothing here names a client, so it writes no row in anybody's trail. Never
- * `@RequiresOnboarding()`, as the rest of the workspace.
+ * `ProfessionalGuard` — the switch and a practice, anything else a 404 — but
+ * `@BeforePractice()`: a practitioner who has not accepted the agreement, or is
+ * suspended, must still reach the page that says so and the route that accepts
+ * it. Counts and prices only; nothing here names a client, so it writes no row
+ * in anybody's trail. Never `@RequiresOnboarding()`, as the rest of the
+ * workspace. Opening a practice is `CareOpenPracticeController`: an account
+ * with none cannot pass this guard.
+ *
+ * **The profile** (project 025 phase 6): the practitioner's own, read and saved
+ * by the session's account, in the same before-practice lane. Its words are
+ * judged with the badge, server-side.
  *
  * **The badge** (project 025 phase 3): the practitioner's own badge, their
  * application and the code they were sent, in the same before-practice lane —
@@ -79,5 +85,30 @@ export class CarePracticeController {
   @Post('practice/badge/code')
   async enterBadgeCode(@CurrentUser() professional: SessionUser, @ZodBody(EnterBadgeCodeDto) body: EnterBadgeCodeDto): Promise<void> {
     await this.care.enterBadgeCode(professional, body);
+  }
+
+  @ApiOkResponse({
+    description:
+      'The practitioner’s own profile, or null before one is written: the review state (`queued` or `seen`, never approved), the owner’s statement while hidden, and the fields withheld for a word the badge alone allows.'
+  })
+  @ApiOperation({ summary: 'The practitioner’s profile (project 025)' })
+  @BeforePractice()
+  @Get('practice/profile')
+  async profile(@CurrentUser() professional: SessionUser): Promise<CareProfessionalProfileDto> {
+    return this.care.profile(professional);
+  }
+
+  @ApiOkResponse({
+    description:
+      'Saved, and back on the owner’s queue when it is new or a text changed. 422 INVALID_INPUT for a malformed body, or for a word the profile may not carry — `fieldErrors: { <field>: ["<badge_only|never|result>:<word>"] }` — and then nothing is written.'
+  })
+  @ApiOperation({ summary: 'Save the practitioner’s profile, its words judged with the badge' })
+  @BeforePractice()
+  @Put('practice/profile')
+  async saveProfile(
+    @CurrentUser() professional: SessionUser,
+    @ZodBody(SaveProfessionalProfileDto) body: SaveProfessionalProfileDto
+  ): Promise<NonNullable<CareProfessionalProfileDto>> {
+    return this.care.saveProfile(professional, body);
   }
 }
