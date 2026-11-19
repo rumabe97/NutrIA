@@ -14,7 +14,18 @@ import { database } from 'database';
 import { BadgeSweepService } from '../src/modules/owner-alerts/index.js';
 import { EmailService } from '../src/modules/email/services/Email.service.js';
 import { ENV, validateEnv } from '../src/config/index.js';
-import { createApp, deleteAccountByEmail, deleteAccounts, enableTotp, httpServer, PREFIX, register, ScriptedAiClient } from './harness.js';
+import {
+  createApp,
+  deleteAccountByEmail,
+  deleteAccounts,
+  earnBadge,
+  enableTotp,
+  httpServer,
+  openOwnPractice,
+  PREFIX,
+  register,
+  ScriptedAiClient
+} from './harness.js';
 
 import type { Account } from './harness.js';
 import type { BadgeCodeIssuedView, BadgeQueueView, BadgeRecordView, BadgeView } from 'core/controllers/Professional';
@@ -47,10 +58,12 @@ import type { Response } from 'supertest';
  * reminders and the nightly rewrite; that the cron calls the service is
  * `Cron.controller.spec.ts`'s.
  *
- * **A practitioner with no badge** is a `professionals` row with no check,
- * written on the table: the grant route writes a `pass` since this phase
- * (step 7), and the self-service opening that would make one by route is
- * phase 6's. The grant route is used where a badge is wanted to begin with.
+ * **A practitioner with no badge** opened their own practice
+ * (`POST /care/practice`, project 025 phase 6) and has no check. **A badged one**
+ * earned it by the real four steps on top (`earnBadge`: apply, a code by phone,
+ * enter it, the owner confirms) — the owner's grant, which wrote a bare `pass`,
+ * is retired. So a badged fixture also carries its `applied` row and a used
+ * code, older than the `pass`.
  *
  * The reminder watermark (`badge-reminders`) and the owner's `badges-due` claim
  * are rows of `analytics_events`. Those already there are shelved sixty days
@@ -71,14 +84,7 @@ type CheckRow = { channel: string | null; dueAt: string | null; kind: string; nu
 
 const OWNER = `badge-owner-alert-${randomBytes(3).toString('hex')}@example.invalid`;
 const SHELVED_KINDS = ['badge-reminders', 'badges-due'];
-const MAIL_KINDS = [
-  'professional-badge-code',
-  'professional-badge-removed',
-  'professional-badge-lapsed',
-  'professional-badge-due',
-  'professional-granted',
-  'owner-alert'
-];
+const MAIL_KINDS = ['professional-badge-code', 'professional-badge-removed', 'professional-badge-lapsed', 'professional-badge-due', 'owner-alert'];
 /** The guard's 404 and every refusal of the badge's: one body, one status. */
 const NOT_FOUND_TEXT = JSON.stringify({ code: 'NOT_FOUND', message: 'Not Found', statusCode: 404 });
 const CODE_SHAPE = /\b[A-HJ-NP-Z2-9]{5}-[A-HJ-NP-Z2-9]{5}\b/;
@@ -172,31 +178,38 @@ describe('the badge (project 025 phase 3)', () => {
     return row;
   }
 
-  /** May practise, no badge: the `professionals` row alone (see the file's comment). */
+  /** May practise, no badge: the account opened its own practice and nothing else (see the file's comment). */
   async function practitioner(label: string, name?: string): Promise<Account> {
     const who = await register(app, `badge-e2e-${label}-${String(stamp)}@e2e.invalid`, name);
 
     made.push(who.cookie);
-    await sql()`insert into professionals (user_id) values (${who.id})`;
+    await openOwnPractice(app, who);
 
     return who;
   }
 
-  /** Badged through the owner's old grant route, which writes its `pass` (step 7). */
+  /** Badged by the real path (`earnBadge`), on a practice of its own — what the retired grant's `pass` stood for. */
   async function granted(label: string): Promise<Account> {
     const who = await register(app, `badge-e2e-${label}-${String(stamp)}@e2e.invalid`);
 
     made.push(who.cookie);
-
-    const grant = await call('post', `/admin/accounts/${who.id}/professional`, owner.cookie, { collegiateNumber: `28/${String(stamp).slice(-5)}` });
-
-    expect(grant.status).toBe(201);
+    await openOwnPractice(app, who);
+    await earnBadge(app, who, owner, `28/${String(stamp).slice(-5)}`);
 
     return who;
   }
 
-  /** Moves this account's latest `pass` back: checked `days + 365` ago, due `days` ago. */
+  /**
+   * Moves this account's latest `pass` back: checked `days + 365` ago, due `days` ago — and the `applied` rows the
+   * real path wrote before it, a day further back, so the application stays older than the pass it led to (otherwise
+   * it reads as a new application waiting).
+   */
   async function backdatePass(userId: string, dueDaysAgo: number): Promise<void> {
+    await sql()`
+      update professional_badge_checks
+      set checked_at = now() - make_interval(days => ${dueDaysAgo + 366}), created_at = now() - make_interval(days => ${dueDaysAgo + 366})
+      where user_id = ${userId} and kind = 'applied'`;
+
     const moved = await sql()<{ id: string }>`
       update professional_badge_checks
       set checked_at = now() - make_interval(days => ${dueDaysAgo + 365}), due_at = now() - make_interval(days => ${dueDaysAgo}),
@@ -225,9 +238,9 @@ describe('the badge (project 025 phase 3)', () => {
 
   /**
    * The badge's mails to one account. With SMTP set for the whole application, signing up sends the address's
-   * confirmation and the old grant route its welcome, both through the same outbox; neither is the badge's.
+   * confirmation through the same outbox; it is not the badge's.
    */
-  const NOT_THE_BADGE = ['Confirma tu correo en NutrIA', 'Tu consulta en NutrIA está lista'];
+  const NOT_THE_BADGE = ['Confirma tu correo en NutrIA'];
   const badgeMailsTo = (who: Account) => mailsTo(who).filter(mail => !NOT_THE_BADGE.includes(mail.subject));
 
   /** The owner's `badges-due` claim this run made, released, so each sweep below may send its alert afresh. */
@@ -728,14 +741,24 @@ describe('the badge (project 025 phase 3)', () => {
       await until(() => badgeMailsTo(who).some(mail => mail.text.includes(facts)), 'the withdrawal’s statement with its facts');
     });
 
-    it('still writes a `pass` through the owner’s old grant route', async () => {
+    // Replaced in project 025 phase 6: the owner's grant route, which wrote a bare `pass`, is retired. A badge comes
+    // only by the real path — its `pass` after the `applied` row — and the old route is the owner's 404, writing nothing.
+    it('writes a `pass` only by the real path; the retired grant route is a 404 to the owner and writes no check', async () => {
       const who = await granted('grant');
-      const [pass, ...rest] = await checksOf(who.id);
+      const [pass, applied, ...rest] = await checksOf(who.id);
 
       expect(rest).toEqual([]);
-      expect(pass).toMatchObject({ kind: 'pass', number: `28/${String(stamp).slice(-5)}` });
+      expect(applied).toMatchObject({ kind: 'applied', number: `28/${String(stamp).slice(-5)}` });
+      expect(pass).toMatchObject({ channel: 'phone', kind: 'pass', number: `28/${String(stamp).slice(-5)}` });
       expect(Date.parse(pass?.dueAt ?? '') - Date.now()).toBeGreaterThan(360 * 86_400_000);
       expect(await badgeOf(who)).toMatchObject({ number: `28/${String(stamp).slice(-5)}`, state: 'badged' });
+
+      const bare = await practitioner('grant-retired');
+      const retired = await call('post', `/admin/accounts/${bare.id}/professional`, owner.cookie, { collegiateNumber: '28/55555' });
+
+      expect(retired.status).toBe(404);
+      expect(await checksOf(bare.id)).toEqual([]);
+      expect((await badgeOf(bare)).state).toBe('none');
     });
   });
 
@@ -792,7 +815,8 @@ describe('the badge (project 025 phase 3)', () => {
 
       await sweep();
 
-      expect((await checksOf(who.id)).map(check => check.kind)).toEqual(['applied', 'lapsed', 'pass']);
+      // The last `applied` is the badge's own application by the real path (phase 6), moved back with its pass.
+      expect((await checksOf(who.id)).map(check => check.kind)).toEqual(['applied', 'lapsed', 'pass', 'applied']);
       expect(await badgeOf(who)).toMatchObject({ state: 'code_sent' });
       // The code issued for the application survived the sweep, and the badge follows from it.
       expect((await enter(who, { code })).status).toBe(204);
@@ -842,7 +866,8 @@ describe('the badge (project 025 phase 3)', () => {
       await sweep();
       await new Promise(resolve => setTimeout(resolve, 500));
       expect(badgeMailsTo(who)).toHaveLength(1);
-      expect((await checksOf(who.id)).map(check => check.kind)).toEqual(['pass']);
+      // No lapse, no reminder row: the pass, and the application it answered (phase 6's real path).
+      expect((await checksOf(who.id)).map(check => check.kind)).toEqual(['pass', 'applied']);
     });
   });
 
@@ -851,8 +876,9 @@ describe('the badge (project 025 phase 3)', () => {
       select c.code_hash as hash, c.user_id as "userId" from professional_badge_codes c join "user" u on u.id = c.user_id
       where u.email like ${`badge-e2e-%-${String(stamp)}@e2e.invalid`}`;
 
-    // Every code this suite issued: three in the flows, five in the refusals, one unentered, two bound, the victim's, the lapse's.
-    expect(hashes).toHaveLength(13);
+    // Every code this suite issued: three in the flows, five in the refusals, one unentered, two bound, the victim's, the lapse's —
+    // and, since phase 6, one for each of the six badges earned by the real path in `granted()`.
+    expect(hashes).toHaveLength(19);
     // Sanity: the store's hash is the code's, so searching for it is searching for the right thing.
     expect(hashes.map(row => row.hash)).toContain(
       createHash('sha256')

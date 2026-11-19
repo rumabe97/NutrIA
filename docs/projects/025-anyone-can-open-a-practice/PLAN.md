@@ -325,7 +325,7 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
 
 ### Phase 6 — Anyone can open a practice
 
-- [ ] in progress
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 025 phase 6` — `quality-max`: the guard is
   authorisation. Reviewed by `invariant-reviewer`.
 - **Goal**: an adult account opens its own practice, free, with ten seats, a profile and a

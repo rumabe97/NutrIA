@@ -8,13 +8,16 @@ import { database } from 'database';
 
 import {
   activate,
+  ADULT_BIRTH_DATE,
   auditCount,
+  closePracticeNow,
   completeOnboarding,
   createApp,
   deleteAccounts,
   enableTotp,
   httpServer,
-  openPractice,
+  makePractitioner,
+  openOwnPractice,
   PREFIX,
   register,
   ScriptedAiClient,
@@ -28,8 +31,13 @@ import type { INestApplication } from '@nestjs/common';
 import type { Response } from 'supertest';
 
 /**
- * Who is a professional (`0059`, PRD criterion 1): an account the owner
- * granted on `/admin`, with a collegiate number — and nothing else.
+ * Who is a professional (`0059`; PRD 025 criteria 1, 2 and 24): since project
+ * 025 phase 6, **an account that opened its own practice** (`POST /care/practice`)
+ * — and nothing else. The owner's grant (`POST`/`DELETE
+ * /admin/accounts/:id/professional`) is retired, and PRD 004's criterion 1 is
+ * inverted on purpose: no body — the opening's own included — can set a badge,
+ * `practiceOpen` or `includedClients`, or make another account one. The owner's
+ * close, carried out by the daily sweep, is what takes a practice away now.
  *
  * The suite is mostly about the doors that must stay shut. A professional will
  * reach other people's data through a link (Phase 3), so an account that could
@@ -40,7 +48,7 @@ import type { Response } from 'supertest';
  *
  * `GET /users/me`'s own `professional` field (`UsersService.me`) is the same
  * question asked once more, for the menu: on for an ordinary account never,
- * on for a grant only while the switch is too, off again on the very next
+ * on for a practice only while the switch is too, off again on the very next
  * request once either is taken away. Forging it is tried the same way as the
  * rest — and checked the same way: nothing behind it moves.
  *
@@ -154,6 +162,7 @@ describe('professionals', () => {
 
   it('cannot be reached without a session', async () => {
     await request(httpServer(app)).post(`/${PREFIX}/admin/accounts/${ordinary.id}/professional`).send({ collegiateNumber: NUMBER }).expect(404);
+    await request(httpServer(app)).post(`/${PREFIX}/care/practice`).send({ birthDate: ADULT_BIRTH_DATE }).expect(404);
   });
 
   /*
@@ -220,59 +229,78 @@ describe('professionals', () => {
     await expectOrdinary(ordinary);
   });
 
-  it('refuses a collegiate number that is not one', async () => {
+  // Replaced in project 025 phase 6: the grant route is retired — a 404 to the owner, whatever the body, granting nothing.
+  it('is not the owner’s to grant: the retired route is a 404 whatever the body, and makes nobody one', async () => {
     const server = httpServer(app);
 
-    for (const collegiateNumber of ['ab', 'x'.repeat(21), '28 12345', '28.12345', '', '   ']) {
-      await request(server)
-        .post(`/${PREFIX}/admin/accounts/${granted.id}/professional`)
-        .set('Cookie', owner.cookie)
-        .send({ collegiateNumber })
-        .expect(422);
+    for (const body of [{ collegiateNumber: NUMBER }, { collegiateNumber: NUMBER, includedClients: 500, practiceOpen: true }, {}]) {
+      await request(server).post(`/${PREFIX}/admin/accounts/${granted.id}/professional`).set('Cookie', owner.cookie).send(body).expect(404);
     }
 
-    await request(server).post(`/${PREFIX}/admin/accounts/${granted.id}/professional`).set('Cookie', owner.cookie).send({}).expect(422);
+    await request(server).delete(`/${PREFIX}/admin/accounts/${granted.id}/professional`).set('Cookie', owner.cookie).expect(404);
 
     await expectOrdinary(granted);
   });
 
-  it('answers 404 when the account does not exist', async () => {
-    await request(httpServer(app))
-      .post(`/${PREFIX}/admin/accounts/usr-nobody/professional`)
-      .set('Cookie', owner.cookie)
-      .send({ collegiateNumber: NUMBER })
-      .expect(404);
+  it('answers 404 to the owner’s acts on an account that does not exist', async () => {
+    for (const act of ['suspension', 'close']) {
+      await request(httpServer(app))
+        .post(`/${PREFIX}/admin/professionals/usr-nobody/${act}`)
+        .set('Cookie', owner.cookie)
+        .send({ facts: 'Nadie.', source: 'own_review' })
+        .expect(404);
+    }
   });
 
-  it('is the owner’s act, and the list says who and never whom', async () => {
+  /*
+   * PRD 004 criterion 1 inverted on purpose (PRD 025 criterion 2): the account's
+   * own act, and its body carries a birth date and nothing else — a badge, a
+   * number, `practiceOpen`, `includedClients` or another account's id are
+   * dropped, and the row is the session's.
+   */
+  it('is the account’s own act — no body sets a badge, a number, the paid practice or another account — and the list says who and never whom', async () => {
     const server = httpServer(app);
+    const smuggled = {
+      badge: true,
+      birthDate: ADULT_BIRTH_DATE,
+      collegiateNumber: NUMBER,
+      includedClients: 500,
+      practiceOpen: true,
+      professionalVerified: true,
+      userId: ordinary.id,
+      verified: true
+    };
 
-    const made: Response = await request(server)
-      .post(`/${PREFIX}/admin/accounts/${granted.id}/professional`)
-      .set('Cookie', owner.cookie)
-      // Trimmed before it is measured or stored.
-      .send({ collegiateNumber: `  ${NUMBER}  `, includedClients: 500, practiceOpen: true })
-      .expect(201);
+    const opened: Response = await request(server).post(`/${PREFIX}/care/practice`).set('Cookie', granted.cookie).send(smuggled).expect(200);
 
-    expect(made.body).toMatchObject({ collegiateNumber: NUMBER, email: granted.email, userId: granted.id });
+    expect(opened.body).toMatchObject({ includedClients: 0, open: false, seats: 10 });
+    // Opening again is answered the same and writes nothing.
+    const grantedAt = (await ProfessionalController.find(granted.id))?.grantedAt;
+
+    await request(server).post(`/${PREFIX}/care/practice`).set('Cookie', granted.cookie).send(smuggled).expect(200);
+    expect((await ProfessionalController.find(granted.id))?.grantedAt).toBe(grantedAt);
+    // Nobody else was made one by naming them.
+    await expectOrdinary(ordinary);
+    // No badge: no check of any kind, and the badge page says none.
+    await expect(tables()`select id from professional_badge_checks where user_id = ${granted.id}`).resolves.toEqual([]);
+    expect((await request(server).get(`/${PREFIX}/care/practice/badge`).set('Cookie', granted.cookie).expect(200)).body).toMatchObject({
+      number: null,
+      state: 'none'
+    });
 
     const row = (await professionals()).find(listed => listed.userId === granted.id);
 
-    // Address, number, date and link counts. Never a client (`0028`) — the
+    // Address, number, date, link counts and what stands. Never a client (`0028`) — the
     // assertion is exhaustive so adding a field is a decision.
-    expect(Object.keys(row ?? {}).sort()).toEqual(['collegiateNumber', 'email', 'grantedAt', 'links', 'userId']);
-    expect(row?.links).toEqual({ active: 0, ended: 0, paused: 0 });
+    expect(Object.keys(row ?? {}).sort()).toEqual(['collegiateNumber', 'email', 'grantedAt', 'links', 'practising', 'restriction', 'userId']);
+    expect(row).toMatchObject({ collegiateNumber: null, links: { active: 0, ended: 0, paused: 0 }, practising: true, restriction: null });
 
-    // The body could not open the practice: that is billing's (Phase 7).
-    await expect(ProfessionalController.find(granted.id)).resolves.toMatchObject({
-      collegiateNumber: NUMBER,
-      includedClients: 0,
-      practiceOpen: false
-    });
+    // The body could not open a paid practice or give a number: that is billing's and the badge's.
+    await expect(ProfessionalController.find(granted.id)).resolves.toMatchObject({ collegiateNumber: null, includedClients: 0, practiceOpen: false });
     await expect(ProfessionalController.hasAccess(granted.id)).resolves.toBe(true);
     // A professional is not an admin.
     expect(await accountRow(granted.id)).toMatchObject({ role: 'user' });
-    // The switch is on for the whole suite: granted, and the switch on, is `true`.
+    // The switch is on for the whole suite: a practice, and the switch on, is `true`.
     expect(await meBody(granted)).toMatchObject({ professional: true });
   });
 
@@ -283,7 +311,7 @@ describe('professionals', () => {
     await expect(ProfessionalController.hasAccess(granted.id)).resolves.toBe(false);
     expect(await meBody(granted)).toMatchObject({ professional: false });
     // The guard asks ProfessionalController.hasAccess, never a client's own claim about itself —
-    // a real grant, switch off, with the request itself insisting it is a professional.
+    // a real practice, switch off, with the request itself insisting it is a professional.
     await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', granted.cookie).send({ professional: true }).expect(404);
     await request(server).post(`/${PREFIX}/care/invitations`).set('Cookie', granted.cookie).send({ professional: true }).expect(404);
 
@@ -370,7 +398,7 @@ describe('professionals', () => {
       await expectOrdinary(tamperer);
     });
 
-    it('cannot grant itself through the owner’s own route', async () => {
+    it('cannot make itself one through the owner’s retired route', async () => {
       await request(httpServer(app))
         .post(`/${PREFIX}/admin/accounts/${tamperer.id}/professional`)
         .set('Cookie', tamperer.cookie)
@@ -427,14 +455,9 @@ describe('professionals', () => {
     beforeAll(async () => {
       unaccepted = await register(app, `pro-unaccepted-${Date.now()}@e2e.invalid`);
       made.push(unaccepted.cookie);
-      await request(httpServer(app))
-        .post(`/${PREFIX}/admin/accounts/${unaccepted.id}/professional`)
-        .set('Cookie', owner.cookie)
-        .send({ collegiateNumber: `28/${String(Date.now()).slice(-6)}` })
-        .expect(201);
-      // Open from the start, and TOTP on, so every 404 below is about the agreement alone — ProfessionalGuard needs all
-      // three, and this test is about the one `care-practice.e2e-spec.ts` and the second factor's below are not.
-      await openPractice(unaccepted.id);
+      // Its own practice, free (project 025 phase 6), and TOTP on, so every 404 below is about the agreement alone —
+      // ProfessionalGuard needs both, and this test is about the one the second factor's below is not.
+      await openOwnPractice(app, unaccepted);
       unaccepted = await enableTotp(app, unaccepted);
       made.push(unaccepted.cookie);
     });
@@ -519,22 +542,12 @@ describe('professionals', () => {
       ['post', '/care/invitations']
     ];
 
-    /** Granted, agreement accepted, practice open: everything but the second factor. */
+    /** Its own practice, free, agreement accepted: everything but the second factor. */
     async function practising(label: string): Promise<Account> {
       const who = await register(app, `pro-2fa-${label}-${Date.now()}@e2e.invalid`);
 
       made.push(who.cookie);
-      await request(httpServer(app))
-        .post(`/${PREFIX}/admin/accounts/${who.id}/professional`)
-        .set('Cookie', owner.cookie)
-        .send({ collegiateNumber: `28/${String(Date.now()).slice(-6)}` })
-        .expect(201);
-      await openPractice(who.id);
-      await request(httpServer(app))
-        .post(`/${PREFIX}/care/practice/agreement`)
-        .set('Cookie', who.cookie)
-        .send({ version: PROFESSIONAL_AGREEMENT_VERSION })
-        .expect(204);
+      await makePractitioner(app, who);
 
       return who;
     }
@@ -556,7 +569,8 @@ describe('professionals', () => {
 
       const page: Response = await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', pro.cookie).expect(200);
 
-      expect(page.body).toMatchObject({ agreementRequired: false, open: true, secondFactorRequired: true });
+      // `open` is whether a plan is paid for, false here: a free practice works (project 025 phase 6).
+      expect(page.body).toMatchObject({ agreementRequired: false, open: false, seats: 10, secondFactorRequired: true });
       // Being told is all the page does: the professional is still one, on their own `/users/me`.
       expect(await meBody(pro)).toMatchObject({ professional: true });
     });
@@ -634,21 +648,40 @@ describe('professionals', () => {
     });
   });
 
-  it('is taken back by the owner, and access goes with it', async () => {
+  /*
+   * Replaced in project 025 phase 6: the 004 revoke is the owner's close, carried
+   * out by the daily sweep. Access goes with it; the account stays on the owner's
+   * list, `practising: false`, because the close still stands — the owner must
+   * find it to lift it — and the account cannot open a practice again.
+   */
+  it('is closed by the owner, and access goes with it; the close stands, and the account cannot reopen', async () => {
     const server = httpServer(app);
 
-    await request(server).delete(`/${PREFIX}/admin/accounts/${granted.id}/professional`).set('Cookie', owner.cookie).expect(204);
+    await closePracticeNow(app, owner, granted.id);
 
-    await expectOrdinary(granted);
+    await expect(ProfessionalController.find(granted.id)).resolves.toBeNull();
+    await expect(ProfessionalController.hasAccess(granted.id)).resolves.toBe(false);
+    expect(await meBody(granted)).toMatchObject({ professional: false, role: 'user' });
     // /care is shut on the very next request too, not eventually.
     await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', granted.cookie).expect(404);
+    await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', granted.cookie).expect(404);
+    expect((await professionals()).find(row => row.userId === granted.id)).toMatchObject({
+      grantedAt: null,
+      practising: false,
+      restriction: { closing: { closed: true }, suspended: null }
+    });
 
-    // Taking back what is not there is the same 404 as every other denial, and writes no row (`0071`).
-    const beforeRevoked = await auditCount('professional.revoked');
+    // Closing what is already closed is the same 404 as every other denial, and writes no row (`0071`); so is reopening.
+    const beforeClosing = await auditCount('professional.closing');
 
-    await request(server).delete(`/${PREFIX}/admin/accounts/${granted.id}/professional`).set('Cookie', owner.cookie).expect(404);
-
-    await expect(auditCount('professional.revoked')).resolves.toBe(beforeRevoked);
+    await request(server)
+      .post(`/${PREFIX}/admin/professionals/${granted.id}/close`)
+      .set('Cookie', owner.cookie)
+      .send({ facts: 'Otra vez.', source: 'own_review' })
+      .expect(404);
+    await expect(auditCount('professional.closing')).resolves.toBe(beforeClosing);
+    await request(server).post(`/${PREFIX}/care/practice`).set('Cookie', granted.cookie).send({ birthDate: ADULT_BIRTH_DATE }).expect(404);
+    await expect(ProfessionalController.find(granted.id)).resolves.toBeNull();
   });
 
   /*
@@ -672,13 +705,9 @@ describe('professionals', () => {
       beta = await register(app, `pro-${token}-beta@e2e.invalid`);
       made.push(beta.cookie);
 
-      // Granted in this order, so `grantedAt` puts alpha first going up.
+      // Opened in this order, so `grantedAt` puts alpha first going up.
       for (const who of [alpha, beta]) {
-        await request(httpServer(app))
-          .post(`/${PREFIX}/admin/accounts/${who.id}/professional`)
-          .set('Cookie', owner.cookie)
-          .send({ collegiateNumber: NUMBER })
-          .expect(201);
+        await makePractitioner(app, who);
       }
     });
 
@@ -724,9 +753,9 @@ describe('professionals', () => {
       }
     });
 
-    it('carries the same five keys on every row', async () => {
+    it('carries the same seven keys on every row', async () => {
       for (const row of await list('')) {
-        expect(Object.keys(row).sort()).toEqual(['collegiateNumber', 'email', 'grantedAt', 'links', 'userId']);
+        expect(Object.keys(row).sort()).toEqual(['collegiateNumber', 'email', 'grantedAt', 'links', 'practising', 'restriction', 'userId']);
       }
     });
 

@@ -14,9 +14,11 @@ import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
 import { dayKeyIn } from 'core/domain/Period';
 import { PLAN_TOLERANCE } from 'core/domain/PlanValidation';
 import { shapeFor } from 'core/domain/MealShape';
+import { shownName } from 'core/domain/ProtectedWords';
 
 import { AiClient } from '../src/modules/ai/clients/AiClient.js';
 import { AppModule } from '../src/app.module.js';
+import { PracticeCloseSweepService } from '../src/modules/care/services/PracticeCloseSweep.service.js';
 
 import type { AuditAction } from 'core/entities/Audit';
 import type { AiRequest, AiResponse } from '../src/modules/ai/clients/AiClient.js';
@@ -637,12 +639,14 @@ export async function enableTotp(app: INestApplication, account: Account, passwo
 }
 
 /**
- * Opens a granted professional's practice with this many included clients, as
- * a paid practice subscription does (`0061`) — without Stripe, for the suites
- * that are about the workspace and not about paying for it. From Phase 7 of
- * project 004 the client routes need an open practice and every invitation
- * counts against the number, so a suite that grants a professional and then
- * works with clients opens the practice straight after the grant.
+ * A practice **paid for**, with this many included clients, as a practice
+ * subscription leaves it (`0061`) — without Stripe.
+ *
+ * Since project 025 phase 6 a practice works unpaid, with the free
+ * `practiceClients` seats (ten), so this is no longer how a suite makes a
+ * practitioner: `makePractitioner` is. It survives only for a suite whose one
+ * practitioner holds more open links plus live invitations than the free seats
+ * allow, and each caller says why beside the call.
  *
  * Written on the table, because no route may write it: only the signed webhook
  * does, and `care-practice.e2e-spec.ts` proves that path.
@@ -695,6 +699,134 @@ export async function markLegacyOnboarding(userId: string, currentStep = 10): Pr
  */
 export async function acceptAgreement(app: INestApplication, professional: Account, version: string = PROFESSIONAL_AGREEMENT_VERSION): Promise<void> {
   await request(httpServer(app)).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', professional.cookie).send({ version }).expect(204);
+}
+
+/** The register every suite's badge application names: any two-to-160-character line passes the schema. */
+export const BADGE_REGISTER = 'Colegio Oficial de Dietistas-Nutricionistas de la Comunidad de Madrid';
+
+/** A birth date of an adult, for an account that opens its practice with none on record (`register` writes no profile). */
+export const ADULT_BIRTH_DATE = '1988-05-14';
+
+/**
+ * The account opens its own practice (PRD 025 scope 1, `POST /care/practice`),
+ * the one way an account comes to practise since project 025 phase 6 — the
+ * owner's grant is retired. The birth date goes in the body: `register` leaves
+ * no profile, and a body's date is used only when none is on record.
+ */
+export async function openOwnPractice(app: INestApplication, who: Account, birthDate: string = ADULT_BIRTH_DATE): Promise<void> {
+  await request(httpServer(app)).post(`/${PREFIX}/care/practice`).set('Cookie', who.cookie).send({ birthDate }).expect(200);
+}
+
+/**
+ * The badge by its real path (PRD 025 criterion 3), four requests: the
+ * practitioner applies, the owner sends a code by phone (answered to the owner
+ * once), the practitioner enters it, the owner confirms. `owner` is an admin
+ * with TOTP on. Every request is the session's or the owner's: nothing here is
+ * written on a table.
+ */
+export async function earnBadge(app: INestApplication, who: Account, owner: Account, number = '28/12345'): Promise<void> {
+  const server = httpServer(app);
+
+  await request(server).post(`/${PREFIX}/care/practice/badge`).set('Cookie', who.cookie).send({ number, register: BADGE_REGISTER }).expect(201);
+
+  const issued: Response = await request(server)
+    .post(`/${PREFIX}/admin/professionals/${who.id}/badge/code`)
+    .set('Cookie', owner.cookie)
+    .send({ channel: 'phone' })
+    .expect(201);
+  const code = (issued.body as { code: string | null }).code;
+
+  if (!code) {
+    throw new Error(`No code answered for ${who.email}'s badge`);
+  }
+
+  await request(server).post(`/${PREFIX}/care/practice/badge/code`).set('Cookie', who.cookie).send({ code }).expect(204);
+  await request(server).post(`/${PREFIX}/admin/professionals/${who.id}/badge/confirm`).set('Cookie', owner.cookie).send({}).expect(200);
+}
+
+/**
+ * **A practitioner, the way an account becomes one** (project 025 phase 6):
+ * the account opens its own practice, accepts the agreement, and — when
+ * `badgedBy` names the owner — earns the badge by its four real steps. A free
+ * practice: ten seats (`practiceClients`), nothing paid.
+ *
+ * Throws before writing anything when the account's name would make the
+ * fixture lie: an un-badged practitioner whose name carries a title
+ * (`shownName` → null) cannot invite at all (422 `fieldErrors.name`), and a
+ * suite that did not mean to test that would fail somewhere far from here.
+ *
+ * Not the second factor: `enableTotp` rotates the session, so the caller turns
+ * it on last and keeps the cookie it answers (`made` needs both).
+ */
+export async function makePractitioner(
+  app: INestApplication,
+  who: Account,
+  options: { readonly badgedBy?: Account; readonly birthDate?: string; readonly number?: string } = {}
+): Promise<void> {
+  const [row] = await sqlClient()<{ name: string }>`select name from "user" where id = ${who.id}`;
+  const name = row?.name ?? '';
+
+  if (options.badgedBy === undefined && shownName(name, false) === null) {
+    throw new Error(`${who.email}: the name «${name}» carries a title an un-badged practitioner may not show — give the fixture another name`);
+  }
+
+  await openOwnPractice(app, who, options.birthDate);
+  await acceptAgreement(app, who);
+
+  if (options.badgedBy) {
+    await earnBadge(app, who, options.badgedBy, options.number);
+  }
+}
+
+/**
+ * **Closes a practice now, by the owner's act and the daily sweep** — what the
+ * retired 004 revoke did at once (PRD 025 scope 16): the close through its
+ * route, its `effective_at` moved into the past on the table (no route takes a
+ * clock; the notice is thirty days), then the sweep the cron runs
+ * (`PracticeCloseSweepService.run`).
+ *
+ * Asserts the `professionals` row is gone afterwards, and that is the point:
+ * the sweep never throws, and a close whose day has come already refuses every
+ * client route before the sweep runs, so a caller asserting a 404 would pass
+ * whether or not the close was carried out.
+ *
+ * The sweep is global on this database: any other due close is carried out
+ * with this one.
+ */
+export async function closePracticeNow(
+  app: INestApplication,
+  owner: Account,
+  userId: string,
+  facts = 'Cierre de la consulta para la prueba.'
+): Promise<void> {
+  await request(httpServer(app))
+    .post(`/${PREFIX}/admin/professionals/${userId}/close`)
+    .set('Cookie', owner.cookie)
+    .send({ facts, source: 'own_review' })
+    .expect(200);
+  await moveCloseDue(userId);
+  await app.get(PracticeCloseSweepService, { strict: false }).run();
+
+  const left = await sqlClient()<{ n: number }>`select count(*)::int as n from professionals where user_id = ${userId}`;
+
+  if (left[0]?.n !== 0) {
+    throw new Error(`The close sweep did not close ${userId}'s practice`);
+  }
+}
+
+/**
+ * Moves the account's `closing` rows' day into the past — one second ago — so
+ * the close has come. On the table: no route takes a clock, and the notice is
+ * thirty days. `acted_at` is left alone: the fold orders by it, and moving it
+ * could reorder the close against a later lift.
+ */
+export async function moveCloseDue(userId: string): Promise<void> {
+  const moved = await sqlClient()<{ id: string }>`
+    update practice_restrictions set effective_at = now() - interval '1 second' where user_id = ${userId} and kind = 'closing' returning id::text as id`;
+
+  if (moved.length === 0) {
+    throw new Error(`No closing row to move for ${userId}`);
+  }
 }
 
 /** Sets the account's language. Everything server-side reads it from the profile. */

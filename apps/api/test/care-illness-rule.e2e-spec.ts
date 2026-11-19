@@ -13,14 +13,13 @@ import { UserController } from 'core/controllers/User';
 import { database } from 'database';
 
 import {
-  acceptAgreement,
   completeOnboarding,
   createApp,
   deleteAccountByEmail,
   deleteAccounts,
   enableTotp,
   httpServer,
-  openPractice,
+  makePractitioner,
   PREFIX,
   register,
   ScriptedAiClient
@@ -171,32 +170,29 @@ describe('the illness rule and consent per tier (project 025 phase 5)', () => {
     return enabled;
   }
 
-  async function grant(who: Account): Promise<void> {
-    await request(server())
-      .post(`/${PREFIX}/admin/accounts/${who.id}/professional`)
-      .set('Cookie', owner.cookie)
-      .send({ collegiateNumber: `28/${String(stamp).slice(-5)}` })
-      .expect(201);
+  /**
+   * The badge regained by the real path — apply, a code by phone, enter it, the owner confirms — where the retired
+   * grant route used to write a fresh `pass` (project 025 phase 6).
+   */
+  async function regainBadge(who: Account): Promise<void> {
+    await applyWithCode(who);
+    expect((await confirm(who)).status).toBe(200);
   }
 
-  /** May practise, practice open, agreement accepted, no badge check at all (as `care-badge.e2e-spec.ts` makes one). */
+  /** Its own practice, free, agreement accepted, no badge check at all (as `care-badge.e2e-spec.ts` makes one). */
   async function unbadgedPractitioner(label: string): Promise<Account> {
     const who = await account(label);
 
-    await sql()`insert into professionals (user_id) values (${who.id})`;
-    await acceptAgreement(app, who);
-    await openPractice(who.id, 100);
+    await makePractitioner(app, who);
 
     return withTotp(who);
   }
 
-  /** Badged through the owner's grant route, which writes a `pass`. */
+  /** Its own practice, free, agreement accepted, and the badge earned by its four real steps. */
   async function badgedPractitioner(label: string): Promise<Account> {
     const who = await account(label);
 
-    await grant(who);
-    await acceptAgreement(app, who);
-    await openPractice(who.id, 100);
+    await makePractitioner(app, who, { badgedBy: owner, number: `28/${String(stamp).slice(-5)}` });
 
     return withTotp(who);
   }
@@ -207,8 +203,17 @@ describe('the illness rule and consent per tier (project 025 phase 5)', () => {
       .set('Cookie', owner.cookie)
       .send({ facts: 'La consulta del registro no lo encuentra.', kind: 'withdrawn', reason: 'other', source: 'own_check' });
 
-  /** Moves the latest `pass` back: checked `days + 365` ago, due `days` ago — past thirty days of grace, lapsed by the clock with no row. */
+  /**
+   * Moves the latest `pass` back: checked `days + 365` ago, due `days` ago — past thirty days of grace, lapsed by the
+   * clock with no row. The `applied` rows the real path wrote before it go a day further back, so none reads as a new
+   * application waiting after the pass.
+   */
   async function backdatePass(userId: string, dueDaysAgo: number): Promise<void> {
+    await sql()`
+      update professional_badge_checks
+      set checked_at = now() - make_interval(days => ${dueDaysAgo + 366}), created_at = now() - make_interval(days => ${dueDaysAgo + 366})
+      where user_id = ${userId} and kind = 'applied' and checked_at > now() - make_interval(days => ${dueDaysAgo + 366})`;
+
     const moved = await sql()<{ id: string }>`
       update professional_badge_checks
       set checked_at = now() - make_interval(days => ${dueDaysAgo + 365}), due_at = now() - make_interval(days => ${dueDaysAgo}),
@@ -753,7 +758,8 @@ describe('the illness rule and consent per tier (project 025 phase 5)', () => {
       const paused = await account('b-paused');
       const linkId = await link(pro, paused, 'plan', false);
 
-      // A practice not paid for leaves its links paused (`0061`): written on the table, as `care.e2e-spec.ts` does.
+      // No route makes a link `paused` since project 025 phase 6 (a free practice works; a lapse pauses nothing), but
+      // links paused before it stay so: written on the table, as `care.e2e-spec.ts` does.
       await sql()`update care_links set status = 'paused' where id = ${linkId}`;
 
       const saved = await declare(paused, { medications: [{ name: MEDICATION }] }).expect(200);
@@ -824,7 +830,7 @@ describe('the illness rule and consent per tier (project 025 phase 5)', () => {
       // A link already `plan` with the line off is not touched, and gets no mark.
       expect(await stored(planLink)).toMatchObject({ consentScope: 'plan', narrowedAt: null });
 
-      await grant(pro);
+      await regainBadge(pro);
       expect(await stored(linkId)).toEqual(narrowed);
       expect((await confirm(pro)).status).toBe(200);
       expect(await stored(linkId)).toEqual(narrowed);
@@ -856,7 +862,8 @@ describe('the illness rule and consent per tier (project 025 phase 5)', () => {
       expect(await stored(linkId)).toMatchObject({ consentScope: 'full', narrowedAt: null, sharesHealth: true });
     });
 
-    for (const route of ['confirm', 'grant', 'fail-then-confirm'] as const) {
+    // `grant` — the retired owner's route writing a `pass` — left this list in project 025 phase 6: the real path is `confirm`.
+    for (const route of ['confirm', 'fail-then-confirm'] as const) {
       it(`narrows before a pass recorded while no badge stood — lapsed by the clock, no sweep, then ${route}`, async () => {
         const pro = await badgedPractitioner(`d-pro-${route}`);
         const client = await account(`d-client-${route}`);
@@ -881,12 +888,8 @@ describe('the illness rule and consent per tier (project 025 phase 5)', () => {
         // Up to the pass, the stored consent is still the one given under the badge: what narrows it below is the pass.
         expect(await stored(linkId)).toMatchObject({ consentScope: 'full', narrowedAt: null, sharesHealth: true });
 
-        if (route === 'grant') {
-          await grant(pro);
-        } else {
-          await applyWithCode(pro);
-          expect((await confirm(pro)).status).toBe(200);
-        }
+        await applyWithCode(pro);
+        expect((await confirm(pro)).status).toBe(200);
 
         expect(await badgeState(pro)).toBe('badged');
 
@@ -1103,7 +1106,7 @@ describe('the illness rule and consent per tier (project 025 phase 5)', () => {
 
       for (let round = 0; round < ROUNDS; round++) {
         if ((await badgeState(pro)) !== 'badged') {
-          await grant(pro);
+          await regainBadge(pro);
         }
 
         const token = await invite(pro, client);
@@ -1139,7 +1142,7 @@ describe('the illness rule and consent per tier (project 025 phase 5)', () => {
 
       for (let round = 0; round < ROUNDS; round++) {
         if ((await badgeState(pro)) !== 'badged') {
-          await grant(pro);
+          await regainBadge(pro);
         }
 
         expect(await stored(linkId)).toMatchObject({ consentScope: 'plan' });
@@ -1265,7 +1268,7 @@ describe('the illness rule and consent per tier (project 025 phase 5)', () => {
 
       for (let round = 0; round < ROUNDS; round++) {
         if ((await badgeState(pro)) !== 'badged') {
-          await grant(pro);
+          await regainBadge(pro);
         }
 
         const recordedLink = await link(pro, recorded, 'full', true);
@@ -1331,7 +1334,7 @@ describe('the illness rule and consent per tier (project 025 phase 5)', () => {
 
       for (let round = 0; round < ROUNDS; round++) {
         if ((await badgeState(pro)) !== 'badged') {
-          await grant(pro);
+          await regainBadge(pro);
         }
 
         if ((await stored(sharingLink)).consentScope !== 'full') {

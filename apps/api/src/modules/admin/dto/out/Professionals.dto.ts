@@ -9,13 +9,11 @@ import type {
 } from 'core/controllers/Professional';
 
 /**
- * One practitioner as the owner sees them: the account, the checked number,
- * the date the practice opened, their links counted per status, and what stands
- * against them — never a client's identity (`0028`).
+ * Every practitioner, most recently opened first, each as the owner sees them:
+ * the account, the checked number, the date the practice opened, their links
+ * counted per status, and what stands against them — never a client's identity
+ * (`0028`).
  */
-export type ProfessionalAccountDto = ProfessionalAccountView;
-
-/** Every practitioner, most recently opened first. */
 export type ProfessionalsDto = readonly ProfessionalAccountView[];
 
 /**

@@ -1,6 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
 import request from 'supertest';
 
+import { ProfessionalController } from 'core/controllers/Professional';
+import { SettingsController } from 'core/controllers/Settings';
+import { UNAUDITED } from 'core/entities/Audit';
 import { UserController } from 'core/controllers/User';
 
 import {
@@ -8,12 +11,14 @@ import {
   auditRowById,
   auditRowsAboutSubject,
   auditRowsWithIpHash,
+  closePracticeNow,
   createApp,
   deleteAccountByEmail,
   deleteAccounts,
   enableTotp,
   httpServer,
   latestAuditRow,
+  makePractitioner,
   PREFIX,
   register,
   ScriptedAiClient
@@ -204,48 +209,58 @@ describe('audit: one row per admin mutation, and the trail that reads them back'
     });
   });
 
-  it('writes professional.granted and professional.revoked, each naming the owner and the account', async () => {
+  /*
+   * Replaced in project 025 phase 6: the owner's grant and revoke are retired, and
+   * `professional.granted`/`.revoked` are no longer written. The account opens its
+   * own practice — **no row**: it is not an admin act — and the owner's close, its
+   * replacement, writes `professional.closing` with the closed word for where the
+   * decision came from, in its own transaction; the daily sweep that carries it out
+   * writes `professional.closed` with no actor. Read by subject with exact metadata:
+   * the sweep is global, so a count of the action could be anybody's.
+   */
+  it('writes no row when an account opens its practice, professional.closing for the close, professional.closed with no actor for the sweep', async () => {
     const target = await register(app, `audit-pro-${stamp}@e2e.invalid`);
 
     made.push(target.cookie);
 
-    const beforeGrant = await auditCount('professional.granted');
+    const switchWas = await ProfessionalController.isOpen();
 
-    await request(httpServer(app))
-      .post(`/${PREFIX}/admin/accounts/${target.id}/professional`)
-      .set('Cookie', owner.cookie)
-      .send({ collegiateNumber: `28/${stamp.toString().slice(-6)}` })
-      .expect(201);
+    await SettingsController.setFlag('professional', true, UNAUDITED);
 
-    await expect(auditCount('professional.granted')).resolves.toBe(beforeGrant + 1);
+    try {
+      const beforeGranted = await auditCount('professional.granted');
 
-    const granted = await latestAuditRow('professional.granted');
+      await makePractitioner(app, target);
 
-    expect(granted).toMatchObject({
-      actorId: owner.id,
-      entity: 'professional',
-      entityId: null,
-      ipHash: null,
-      metadata: {},
-      subjectUserId: target.id
-    });
+      await expect(auditRowsAboutSubject(target.id)).resolves.toEqual([]);
+      await expect(auditCount('professional.granted')).resolves.toBe(beforeGranted);
 
-    const beforeRevoke = await auditCount('professional.revoked');
+      await closePracticeNow(app, owner, target.id);
 
-    await request(httpServer(app)).delete(`/${PREFIX}/admin/accounts/${target.id}/professional`).set('Cookie', owner.cookie).expect(204);
+      const rows = await auditRowsAboutSubject(target.id);
+      const shape = (row: (typeof rows)[number]) => ({
+        action: row.action,
+        actorId: row.actorId,
+        entity: row.entity,
+        entityId: row.entityId,
+        ipHash: row.ipHash,
+        metadata: row.metadata
+      });
 
-    await expect(auditCount('professional.revoked')).resolves.toBe(beforeRevoke + 1);
-
-    const revoked = await latestAuditRow('professional.revoked');
-
-    expect(revoked).toMatchObject({
-      actorId: owner.id,
-      entity: 'professional',
-      entityId: null,
-      ipHash: null,
-      metadata: {},
-      subjectUserId: target.id
-    });
+      expect(rows.map(shape).sort((a, b) => a.action.localeCompare(b.action))).toEqual([
+        { action: 'professional.closed', actorId: null, entity: 'professional', entityId: null, ipHash: null, metadata: {} },
+        {
+          action: 'professional.closing',
+          actorId: owner.id,
+          entity: 'professional',
+          entityId: null,
+          ipHash: null,
+          metadata: { source: 'own_review' }
+        }
+      ]);
+    } finally {
+      await SettingsController.setFlag('professional', switchWas, UNAUDITED);
+    }
   });
 
   it('writes feedback.handled and feedback.reopened, naming the message and no subject', async () => {
@@ -335,7 +350,7 @@ describe('audit: one row per admin mutation, and the trail that reads them back'
     await expect(auditCount('push.test_sent')).resolves.toBe(before);
   });
 
-  it('a refused mutation writes no row: an unknown account, and taking back a grant nobody holds', async () => {
+  it('a refused mutation writes no row: an unknown account, and closing a practice nobody holds', async () => {
     const beforeActivated = await auditCount('account.activated');
 
     await request(httpServer(app)).post(`/${PREFIX}/admin/accounts/not-an-account/activate`).set('Cookie', owner.cookie).expect(404);
@@ -345,11 +360,18 @@ describe('audit: one row per admin mutation, and the trail that reads them back'
 
     made.push(target.cookie);
 
-    const beforeRevoked = await auditCount('professional.revoked');
+    const beforeClosing = await auditCount('professional.closing');
 
-    // Never granted, so nothing to take back.
+    // No practice, so nothing to close (the close replaced the 004 revoke, project 025 phase 6); nothing written either.
+    await request(httpServer(app))
+      .post(`/${PREFIX}/admin/professionals/${target.id}/close`)
+      .set('Cookie', owner.cookie)
+      .send({ facts: 'Nada que cerrar.', source: 'own_review' })
+      .expect(404);
+    await expect(auditCount('professional.closing')).resolves.toBe(beforeClosing);
+    await expect(auditRowsAboutSubject(target.id)).resolves.toEqual([]);
+    // The retired routes are gone for the owner too.
     await request(httpServer(app)).delete(`/${PREFIX}/admin/accounts/${target.id}/professional`).set('Cookie', owner.cookie).expect(404);
-    await expect(auditCount('professional.revoked')).resolves.toBe(beforeRevoked);
   });
 
   it('leaves its rows behind, with the account no longer named, once the account is deleted', async () => {

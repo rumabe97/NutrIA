@@ -476,7 +476,9 @@ describe('billing', () => {
               fixedMeals: 1,
               mealSwapsPerPlan: 5,
               midPlanEventsPerPlan: 0,
-              planRedosPerFortnight: 1
+              planRedosPerFortnight: 1,
+              // Project 025 phase 6: the free practice's seats, structural, the same on both tiers.
+              practiceClients: 10
             },
             premium: {
               assistantMessagesPerFortnight: 100,
@@ -486,7 +488,8 @@ describe('billing', () => {
               fixedMeals: 3,
               mealSwapsPerPlan: 20,
               midPlanEventsPerPlan: 3,
-              planRedosPerFortnight: 3
+              planRedosPerFortnight: 3,
+              practiceClients: 10
             }
           },
           available: true,
@@ -496,6 +499,16 @@ describe('billing', () => {
           tier: 'free',
           trialDays: 7
         });
+
+        // The ninth allowance's bounds, hard-coded as its numbers are (`0097`, project 025 phase 6): structural, so its
+        // ceiling is the number shipped and the console may only lower it.
+        const settings = await SettingsController.allowances();
+
+        expect(Object.keys(settings.bounds).sort()).toHaveLength(9);
+        expect(settings.bounds.practiceClients).toMatchObject({ ceiling: 10, floor: 0, kind: 'structural' });
+        expect({ free: settings.shipped.free.practiceClients, premium: settings.shipped.premium.practiceClients }).toEqual({ free: 10, premium: 10 });
+        await expect(SettingsController.setAllowance({ name: 'practiceClients', tier: 'premium', value: 11 }, UNAUDITED)).rejects.toThrow();
+        expect((await SettingsController.allowances()).effective.premium.practiceClients).toBe(10);
 
         const hidden: Response = await status(test, ordinary).expect(200);
 

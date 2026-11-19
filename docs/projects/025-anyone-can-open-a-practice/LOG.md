@@ -287,3 +287,94 @@
   it then. Phase 8 builds the re-consent button (`reconsentOffered`) and the § F.4 words. The
   release after this one drops `care_links.consent_scope`'s default.
 
+## Phase 6 — Anyone can open a practice (2026-11-19)
+
+- **Executor**: `backend-high` (opus @ high) and `frontend` (opus), each in its own worktree;
+  `invariant-reviewer` (opus), two rounds; `legal` (opus) for three texts; the end-to-end
+  suites by the `tests` agent (opus). No migration.
+- **Result**: done. Dark behind the `professional` switch, which the owner confirmed is off in
+  production (2026-11-19) and which phase 10 throws after the change notice. The two sweeps
+  (a close's day, the badge's loss) run whatever the switch says and find nothing there.
+- **Evidence**:
+  - Core 5171 passed; api 2015; database 69; web 458; `pnpm ts:check` 9/9; `pnpm lint` 7/7;
+    `check-migrations --drift` agrees (75, none added); both boundary specs extended, not
+    weakened.
+  - End-to-end on local Postgres, one at a time: `care-practice-open` (new) 32,
+    `care-restriction` (new) 33, `care` 72, `care-practice` 38, `care-review` 34, `care-scope`
+    44, `care-badge` 19, `care-illness-rule` 29, `plan-scheduled-care` 1, `professionals` 26,
+    `audit` 14, `admin` 86, `billing` 62, `accompaniments` 14, `owner-alerts` 9, `health-data`
+    3 — all passed. No suite makes a practitioner by writing a `professionals` row any more:
+    the harness opens a practice, accepts the agreement and earns the badge by its four real
+    steps (`makePractitioner`, `earnBadge`, `closePracticeNow`).
+  - **A defect only the end-to-end run showed**: a suspended practitioner could still end a
+    client's link (`DELETE /care/links/:id` sits outside the guard because the client uses it
+    too). Fixed: the practitioner's side is decided inside the ending's transaction, under the
+    badge lock, by the same predicate as `practises`; the client's own ending is untouched.
+    Race, 15 rounds: no link ended by a practitioner who was suspended first.
+  - Other races, 15 rounds each: suspension vs acceptance, re-consent and the health line (the
+    practitioner reaches nothing afterwards, every round); the close's sweep vs a lift (the
+    lift's mail says what really happened, every round) and vs an acceptance (refused: a close
+    whose day has come blocks before the sweep); opening vs suspension; two invitations at
+    the last seat (one always loses).
+  - `invariant-reviewer`, round one: no P0; three P1 — billing still paused a free practice's
+    links, the invitation mail called every practitioner «tu dietista» under a name nobody
+    checked, and the close's sweep could carry out a close just lifted — and five P2, all
+    fixed. Round two: the fixes hold; the name judged at read came from it. Nothing open at
+    P0 or P1.
+  - Web: `/consulta` for a free practice, `/admin/ajustes` (the new allowance row),
+    `/admin/profesionales` (state column) and `/admin/ajustes/registro` (nine actions in plain
+    words) seen at 320, 390 and 1280, light and dark, es and en, nothing overflowing;
+    `apple-web-design` review PASS, no P0 or P1.
+- **Replaced tests** (plan step 6): in `AdminProfessionals.controller.spec.ts`, «lets nothing
+  but the number through the body — a role or a practice in it is dropped» (PRD 004
+  criterion 1) is now its inversion, «has no route that makes an account a practitioner, or
+  sets a badge, `practiceOpen` or `includedClients`»; in `Professional.test.ts` the
+  `grantProfessionalSchema` block became `openPracticeSchema — no body sets the badge,
+  practiceOpen or includedClients`; the grant's two regain cases in
+  `ProfessionalBadgeRegain.test.ts` became the close's; `care-illness-rule` lost its `grant`
+  variant of the narrowing case (the route is gone; `confirm` covers the path).
+- **Approved by the owner on 2026-11-19, by tapped option**: `textos/06` § W bis.1–3 and the
+  agreement's §§ 11 and 13; the 30 days before a close stay his to respect; § A bis (the
+  invitation mail), § W bis.4 (a close taken back), `practice.profilePromiseRefused`; the
+  switch is off in production. **Drafted, not yet approved** when this entry was written: the
+  no-name variants (§ Y's mail, `care.invitationLinkExistsBodyNoName`) — asked with the merge.
+- **Deviations from plan**: the plan's step 8 lists them. Beyond it:
+  - The close has no immediate variant, though § W bis.3 words one: the body cannot set a
+    date; the owner's immediate tool is the suspension.
+  - § X's wording does not vary by whether the profile had been marked seen (the approved text
+    varies only by «after a notice»); the core returns `hadBeenSeen`, unused.
+  - An unconfirmed account at an admin route gets the global 409 `EMAIL_NOT_VERIFIED`, not a
+    404: the guard order, as before this phase.
+  - `care-scope` and `care-review` keep a paid practice written on the table: a free
+    practice's client keeps their own tier, and those suites count paid redos.
+- **Accepted, and open**:
+  - **Until phase 9 the console cannot act**: the grant and revoke buttons are gone with their
+    routes; suspend, close, lift and the profile queue exist as routes only. The list shows
+    each practice's state. Nobody practises in production.
+  - A practitioner refused at invite because of their account name has **no screen to change
+    it** (phase 8), and the form shows the generic validation sentence.
+  - A practitioner with no second factor still holds a reviewing client's plan, as in 004:
+    theirs to fix in a minute, not the owner's act.
+  - A paid practice suspended still covers its clients' premium (`coveredByOpenPractice`); a
+    paid plan with fewer than ten seats would give fewer than a free one; a restriction dies
+    with a deleted account. For the payments project and project 4.
+  - When the agreement's version moves (phase 8), `publishingLink` publishes every reviewing
+    practitioner's clients' plans directly until the practitioner re-accepts: as designed, to
+    be said in phase 8's entry.
+  - `care_access_log.professional_name` is not judged: it is the client's record of who looked.
+  - Words still untrue for a free practice or an un-badged practitioner, left for phase 8:
+    `practice.planLapsed`, «Tu dietista» as a title, `care.invitationLinkExistsBody`'s
+    «dietista», the console switch's two hints (phase 9), «pacientes» across the practice
+    screens.
+  - For the lawyer (legal's M18): whether reinstating a practitioner after a close could
+    restore links (they rested on each client's consent; they do not come back).
+- **Decisions**: none new; `0111` unchanged in this phase.
+- **Notes for the next phase**: phase 7 is the walk — `care-practice-open` and
+  `care-restriction` already hold most of the refusals; the harness has the helpers. Phase 8
+  owes: the opening form, the profile form (three refusal sentences incl.
+  `profilePromiseRefused`), a rename, the re-consent button, the suspension shown on the
+  practice page (`restriction`), «tu profesional» as the title, the 422 on `name`. Phase 9
+  owes: suspend / close / lift / queue / hide in the console, on rows that already show
+  state; the audit labels exist. The local probe builds a practitioner by the real steps
+  (`account.mjs link`, the practitioner created `--two-factor`).
+

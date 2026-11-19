@@ -7,14 +7,13 @@ import { UNAUDITED } from 'core/entities/Audit';
 import { UserController } from 'core/controllers/User';
 
 import {
-  acceptAgreement,
   completeOnboarding,
   createApp,
   deleteAccounts,
   enableTotp,
   generateAndWait,
   httpServer,
-  openPractice,
+  makePractitioner,
   planRow,
   POOL,
   PREFIX,
@@ -104,13 +103,8 @@ describe('a professional publishes over a scheduled plan', () => {
     owner = await enableTotp(app, owner);
     made.push(owner.cookie);
     await SettingsController.setFlag('professional', true, UNAUDITED);
-    await request(server())
-      .post(`/${PREFIX}/admin/accounts/${professional.id}/professional`)
-      .set('Cookie', owner.cookie)
-      .send({ collegiateNumber: `28/${String(stamp).slice(-6)}` })
-      .expect(201);
-    await acceptAgreement(app, professional);
-    await openPractice(professional.id);
+    // Opens their own practice and earns the badge by its four steps, as the retired grant's `pass` had it badged.
+    await makePractitioner(app, professional, { badgedBy: owner });
     professional = await enableTotp(app, professional);
     made.push(professional.cookie);
     await completeOnboarding(app, client);
