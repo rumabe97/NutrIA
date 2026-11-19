@@ -250,7 +250,7 @@ const TABLE: Readonly<Record<string, Row>> = {
   'GET /check-ins/status': { expect: own(200) },
   'GET /events': { expect: own(200) },
   'GET /fixed-meals': { expect: own(200) },
-  // With its query: without one the route answers 500, not 422 (reported; not this walk's subject).
+  // With its query: without one, or with a malformed one, it is a 422 (`FixedMeals.controller.spec.ts`); not this walk's subject.
   'GET /fixed-meals/fixable': { expect: own(), query: '?weekday=1&slot=lunch' },
   'GET /fixed-meals/honourability': { expect: own() },
   'GET /health-data': { expect: own(200) },

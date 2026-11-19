@@ -17,6 +17,7 @@ import type {
   NotOfferedDishDto
 } from '../dto/out/index.js';
 import type { MealSlot } from 'core/entities/Plan';
+import type { Weekday } from 'core/entities/FixedMeal';
 import type { SessionUser } from '../../../shared/index.js';
 
 /**
@@ -78,7 +79,7 @@ export class FixedMealsController {
     @Query('weekday') weekday: string,
     @Query('slot') slot: string
   ): Promise<readonly FixableDishDto[]> {
-    return this.fixedMeals.fixable(user.id, weekdaySchema.parse(Number(weekday)), parsedSlot(slot));
+    return this.fixedMeals.fixable(user.id, parsedWeekday(weekday), parsedSlot(slot));
   }
 
   @ApiOkResponse({
@@ -149,6 +150,21 @@ export class FixedMealsController {
   async standing(@CurrentUser() user: SessionUser): Promise<FixedMealsDto> {
     return this.fixedMeals.standing(user.id);
   }
+}
+
+/**
+ * A query string is text, and may be missing: the weekday has to be 0–6 before
+ * it reaches the domain. Refused as the person's input (422), like the slot —
+ * a schema's own error thrown from here would reach the filter as a 500.
+ */
+function parsedWeekday(weekday: string | undefined): Weekday {
+  const parsed = weekdaySchema.safeParse(weekday === undefined || weekday.trim() === '' ? Number.NaN : Number(weekday));
+
+  if (!parsed.success) {
+    throw new InputParseError('That is not a day of the week', { weekday: ['must be a whole number from 0 (Monday) to 6'] });
+  }
+
+  return parsed.data;
 }
 
 /** A query string is text; the slot has to be one of the six before it reaches the domain. */
