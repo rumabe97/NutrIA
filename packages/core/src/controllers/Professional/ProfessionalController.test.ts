@@ -339,6 +339,68 @@ describe('ProfessionalController.hasAccess', () => {
   });
 });
 
+describe('ProfessionalController.openingFor', () => {
+  it('offers nothing while the switch is off — and reads nothing else', async () => {
+    isEnabled.mockResolvedValue(false);
+    find.mockResolvedValue(null);
+
+    await expect(ProfessionalController.openingFor('usr-plain')).resolves.toEqual({ canOpenPractice: false, professional: false });
+    expect(find).not.toHaveBeenCalled();
+    expect(standing).not.toHaveBeenCalled();
+  });
+
+  it('is a practitioner and offers no opening for an account with a practice — without reading the restrictions', async () => {
+    isEnabled.mockResolvedValue(true);
+    find.mockResolvedValue(makeProfessional());
+
+    await expect(ProfessionalController.openingFor('usr-dietitian')).resolves.toEqual({ canOpenPractice: false, professional: true });
+    expect(find).toHaveBeenCalledWith('usr-dietitian');
+    expect(standing).not.toHaveBeenCalled();
+  });
+
+  it('offers the opening to an account with no practice and nothing standing against it', async () => {
+    isEnabled.mockResolvedValue(true);
+    find.mockResolvedValue(null);
+
+    await expect(ProfessionalController.openingFor('usr-plain')).resolves.toEqual({ canOpenPractice: true, professional: false });
+    expect(standing).toHaveBeenCalledWith('usr-plain', undefined);
+  });
+
+  it.each([
+    ['a suspension', suspended()],
+    ['a close announced, its day not yet come', closing(new Date(NOW.getTime() + 10 * DAY))],
+    ['a closed practice', closing(new Date(NOW.getTime() - DAY))]
+  ])('offers no opening while %s stands — the same `barsOpening` as `open`', async (_, stands) => {
+    isEnabled.mockResolvedValue(true);
+    find.mockResolvedValue(null);
+    standing.mockResolvedValue(stands);
+
+    await expect(ProfessionalController.openingFor('usr-plain')).resolves.toEqual({ canOpenPractice: false, professional: false });
+  });
+
+  it.each([
+    ['the switch off, a practice', false, makeProfessional()],
+    ['the switch on, a practice', true, makeProfessional()],
+    ['the switch on, no practice', true, null]
+  ])('answers `professional` exactly as `hasAccess` does — %s', async (_, on, row) => {
+    isEnabled.mockResolvedValue(on);
+    find.mockResolvedValue(row);
+
+    const access = await ProfessionalController.hasAccess('usr-pro');
+
+    await expect(ProfessionalController.openingFor('usr-pro')).resolves.toMatchObject({ professional: access });
+  });
+
+  it('asks nothing about the address, the activation or the age — those are `open`’s to refuse', async () => {
+    isEnabled.mockResolvedValue(true);
+    find.mockResolvedValue(null);
+
+    await expect(ProfessionalController.openingFor('usr-plain')).resolves.toMatchObject({ canOpenPractice: true });
+    expect(findById).not.toHaveBeenCalled();
+    expect(findByUserId).not.toHaveBeenCalled();
+  });
+});
+
 describe('ProfessionalController.isOpen', () => {
   it('is the switch alone, failing off, and asks about no account', async () => {
     isEnabled.mockResolvedValueOnce(false).mockResolvedValueOnce(true);

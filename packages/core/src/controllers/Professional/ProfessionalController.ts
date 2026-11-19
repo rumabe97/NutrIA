@@ -104,6 +104,16 @@ export interface LinkCounts {
   paused: number;
 }
 
+/**
+ * The session's own account as a practitioner, for `GET /users/me`
+ * (`ProfessionalController.openingFor`): whether it practises today, and
+ * whether the opening form is worth offering. Display only.
+ */
+export interface PracticeOpening {
+  canOpenPractice: boolean;
+  professional: boolean;
+}
+
 /** One professional on the owner's list: the account, its practice, and its links counted. */
 export interface ProfessionalAccountView {
   /** The number of the badge that stands, from its `pass` check; null without one (PRD 025 criterion 5). */
@@ -578,6 +588,32 @@ export const ProfessionalController = {
     if (outcome === 'barred') {
       throw new NotFoundError(NOT_FOUND);
     }
+  },
+
+  /**
+   * What the session's own account is, and may become, as a practitioner — what
+   * `GET /users/me` shows, display only: every route asks its guard again.
+   *
+   * `professional` is `hasAccess`'s answer. `canOpenPractice` is true exactly
+   * when the switch is on, the account has no practice, and nothing stands
+   * against it that bars opening — the half of `open`'s refusals that is about
+   * the practice, through the same `barsOpening`. It does **not** ask the
+   * confirmed address, the owner's activation or the age: those are `open`'s to
+   * refuse with its 404, and this is not a second definition of who may open.
+   *
+   * Cost: the switch alone while it is off; with it on, the practice row, and
+   * the restrictions only for an account that has none.
+   */
+  async openingFor(userId: string): Promise<PracticeOpening> {
+    if (!(await ProfessionalController.isOpen())) {
+      return { canOpenPractice: false, professional: false };
+    }
+
+    if ((await ProfessionalRepository.find(userId)) !== null) {
+      return { canOpenPractice: false, professional: true };
+    }
+
+    return { canOpenPractice: !barsOpening(await PracticeRestrictionRepository.standing(userId)), professional: false };
   },
 
   /**
