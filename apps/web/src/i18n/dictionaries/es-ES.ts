@@ -2789,8 +2789,8 @@ export const esES = {
       lapsed: 'Tu insignia ha caducado. Te hemos escrito con el motivo. Puedes volver a pedirla.',
       none: 'Sin insignia.',
       refused: 'No te damos la insignia «Dietista-nutricionista colegiada/o». Tu consulta sigue abierta como hasta ahora.',
-      withdrawn:
-        'Te retiramos la insignia «Dietista-nutricionista colegiada/o» desde hoy. Tu consulta sigue abierta, y desde tu siguiente petición ves de cada cliente lo que el § 3 del acuerdo del profesional describe «sin la insignia». Lo demás que cambia está en su § 4. Las palabras de tu perfil que solo permite la insignia ya no se muestran.'
+      withdrawnScreen:
+        'Te retiramos la insignia «Dietista-nutricionista colegiada/o» el {date}. Tu consulta sigue abierta, y de cada cliente ves lo que el § 3 del acuerdo del profesional describe «sin la insignia». Lo demás que cambia está en su § 4. Las palabras de tu perfil que solo permite la insignia no se muestran.'
     },
     badgeSteps: { apply: 'Solicitud', badge: 'Insignia', code: 'Código' },
     badgeTitle: 'Insignia de dietista-nutricionista',
@@ -2808,7 +2808,8 @@ export const esES = {
     dayTitle: 'Día {index} · {date}',
     dayTotals: '{kcal} kcal · {protein} g de proteína',
     end: 'Terminar vínculo',
-    endConfirmBody: 'Dejarás de ver sus datos desde ahora y se libera una plaza. Sus objetivos se quedan como están y pasan a ser suyos.',
+    endConfirmBody:
+      'Dejarás de ver sus datos desde ahora y se libera una plaza. Los objetivos que le fijaste se quedan en su cuenta y pasan a ser suyos.',
     endConfirmCta: 'Sí, terminar',
     endConfirmTitle: '¿Terminar el vínculo con {name}?',
     endHint: 'Tu cliente conserva su cuenta, su historial y su último plan publicado.',
@@ -2842,7 +2843,14 @@ export const esES = {
     inviteFullUp: 'Pasar a un plan mayor',
     inviteHint: 'Le llegará un correo con el enlace. Las invitaciones sin responder ocupan plaza hasta que caducan.',
     inviteInvalid: 'Escribe un correo válido, como nombre@ejemplo.com.',
-    inviteNameRefused: 'Cambia el nombre de tu cuenta para poder invitar.',
+    inviteNameRefused: {
+      badgeOnly:
+        'El nombre de tu cuenta lleva «{word}», y sin la insignia no puedes usarlo: tus clientes lo leerían como un título que NutrIA no ha comprobado. Cámbialo en «El nombre de tu cuenta» para poder invitar.',
+      never:
+        'El nombre de tu cuenta lleva «{word}», un título que nadie puede usar en NutrIA porque no lo comprobamos. Cámbialo en «El nombre de tu cuenta» para poder invitar.',
+      plain:
+        'El nombre de tu cuenta lleva una palabra que el § 2 del acuerdo del profesional no te permite usar. Cámbialo en «El nombre de tu cuenta» para poder invitar.'
+    },
     invitePending: 'Enviando…',
     inviteSent: 'Invitación enviada a {email}. Caduca el {date}.',
     inviteTitle: 'Invitar a un cliente',
@@ -2858,8 +2866,9 @@ export const esES = {
     openBirthDate: 'Tu fecha de nacimiento',
     openBirthDateHint: 'Para comprobar que eres mayor de edad. Se guarda en tu cuenta.',
     openCta: 'Abrir mi consulta',
-    openIntro: 'Es gratis, con hasta 10 clientes. Antes de ver nada de nadie te pediremos que aceptes el acuerdo del profesional.',
-    openRefused: 'No hemos podido abrir tu consulta.',
+    openIntro: 'Es gratis, con hasta {limit} clientes. Antes de ver nada de nadie te pediremos que aceptes el acuerdo del profesional.',
+    openRefused:
+      'No se ha podido abrir tu consulta. Para abrirla hace falta tener el correo confirmado y ser mayor de edad. Si lo cumples y sigue sin abrirse, escríbenos a {email}.',
     openTitle: 'Abre tu consulta',
     overallLine: '{eaten} comidas hechas de {marked} marcadas',
     overallNone: 'Aún no ha marcado ninguna comida.',
@@ -2918,16 +2927,18 @@ export const esES = {
     regenerate: 'Generar otro',
     regenerateHint: 'Sustituye este borrador por uno nuevo y cuenta como una generación de tu cliente.',
     restrictionClause: ', en relación con su § {n}',
-    restrictionClosed: 'Tu consulta se cerró el {date}.',
+    restrictionClosed:
+      'Tu consulta se cerró definitivamente el {date}. Te escribimos con los motivos. Mientras no revoquemos el cierre, no puedes abrir otra; para pedir que lo revisemos, escríbenos a {email}.',
     restrictionClosing:
       'El {closeDate} cerraremos definitivamente tu consulta: perderás el acceso a tus clientes y tus invitaciones pendientes se anularán. Hasta esa fecha sigue como está{suspendedSuffix}. Tu cuenta personal de NutrIA no cambia.',
+    restrictionRedress: 'Para aclarar los hechos o pedir que lo revisemos, escríbenos a {email}: lo revisa una persona y te contesta.',
     restrictionSources: {
       authority: 'Nos lo exige {authority}.',
       notice: 'Lo hemos revisado tras un aviso que nos llegó.',
       own_review: 'Lo hemos decidido nosotros, por nuestra propia revisión.'
     },
-    restrictionSuspended:
-      'Desde hoy tu cuenta está suspendida como profesional: no ves los datos de ningún cliente, no puedes invitar a nadie y no puedes abrir una consulta hasta que levantemos la suspensión. Tu cuenta personal de NutrIA sigue como estaba.',
+    restrictionSuspendedScreen:
+      'Tu cuenta está suspendida como profesional desde el {date}: no ves los datos de ningún cliente, no puedes invitar a nadie y no puedes abrir una consulta hasta que levantemos la suspensión. Tu cuenta personal de NutrIA sigue como estaba.',
     restrictionSuspendedSuffix: ', es decir, suspendida',
     restrictionWhy: 'Por qué: {reason} Es lo que dice el § 13 del acuerdo del profesional que aceptaste{clause}. {source}',
     reviewLabel: 'Revisar cada plan antes de que lo vea',
@@ -3090,7 +3101,7 @@ export const esES = {
       {
         heading: 'Lo que cuesta',
         list: [
-          'Abrir tu consulta y usarla es gratis, con hasta 10 clientes activos. Las invitaciones sin responder también ocupan plaza hasta que caducan.',
+          'Abrir tu consulta y usarla es gratis, con hasta {limit} clientes activos. Las invitaciones sin responder también ocupan plaza hasta que caducan.',
           'Vincularse contigo no le da Premium a tu cliente ni le cambia los límites de su cuenta.',
           'Si algún día NutrIA ofrece planes de pago para profesionales, tendrán sus propias condiciones, que aceptarías aparte antes de pagar nada.'
         ],

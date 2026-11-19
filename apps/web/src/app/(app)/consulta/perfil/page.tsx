@@ -54,6 +54,8 @@ export default async function PracticeProfilePage() {
   const t = dictionary.practice;
   const hidden = profile?.hidden ?? null;
   const review = profile ? (hidden ? t.profileReviewState.hidden : t.profileReviewState[profile.review]) : null;
+  // Edited since it was hidden: back on the owner's queue (`textos/06` § X), and still hidden until the owner looks.
+  const backInReview = hidden !== null && profile?.review === 'queued' && Date.parse(profile.updatedAt) > Date.parse(hidden.at);
   const reasons = hidden
     ? [
         ...hidden.reasons.map(reason => interpolate(t.profileHiddenReasons[reason], { word: hidden.word ?? '' })),
@@ -69,7 +71,12 @@ export default async function PracticeProfilePage() {
 
       <div className={`${styles.head} motion-enter`}>
         <h1 className={styles.title}>{t.profileTitle}</h1>
-        {review ? <span className={styles.tag}>{review}</span> : null}
+        {review ? (
+          <span className={styles.tags}>
+            <span className={styles.tag}>{review}</span>
+            {backInReview ? <span className={styles.tag}>{t.profileReviewState.queued}</span> : null}
+          </span>
+        ) : null}
         <Text className={styles.intro} size="sm" tone="secondary">
           {t.profileReviewNote}
         </Text>

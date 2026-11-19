@@ -37,6 +37,7 @@ import { MEAL_SLOTS } from 'core/entities/Plan';
 import { formatNumber, interpolate } from 'lib/format';
 import { illnessEndedBody, unverifiedProfessional } from 'lib/illnessRule';
 import { mealCount, mealSizeKey } from 'lib/mealSize';
+import { practiceOpening } from 'lib/practiceOpening';
 import { premiumPitch } from 'lib/premiumPitch';
 import { redirectIfOnboardingIncomplete, redirectIfProfileConsentMissing } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
@@ -170,6 +171,8 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
       serverApi<CareAccessPageView>('/care/access-log'),
       searchParams
     ]);
+  // Only while the account may open a practice: the places it would open with, which the card names.
+  const openingSeats = await practiceOpening(user);
   const t = dictionary.profile;
   const kg = (value: number) => `${formatNumber(value, locale)} ${dictionary.units.kilogram}`;
   const person = profile?.profile;
@@ -295,16 +298,16 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
         {/* The way to open one's own practice (PRD 025 scope 1), drawn only while the API says
             the door exists — the switch on and no practice yet: never a control behind a switch
             that is off. The form itself, and every refusal, are `/consulta`'s. */}
-        {user?.canOpenPractice ? (
+        {openingSeats === null ? null : (
           <section className={styles.section}>
             <Card as={Link} className={styles.practiceDoor} href="/consulta">
               <span className={styles.practiceDoorTitle}>{dictionary.practice.openTitle}</span>
               <Text as="span" size="sm" tone="secondary">
-                {dictionary.practice.openIntro}
+                {interpolate(dictionary.practice.openIntro, { limit: formatNumber(openingSeats, locale) })}
               </Text>
             </Card>
           </section>
-        ) : null}
+        )}
 
         {/* What was answered at the start, each block with its way back to the step that owns it. */}
         <section className={styles.section}>

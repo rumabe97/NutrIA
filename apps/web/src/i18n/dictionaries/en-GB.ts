@@ -2655,8 +2655,8 @@ export const enGB: Dictionary = {
       lapsed: 'Your badge has lapsed. We have written to you with the reason. You can apply again.',
       none: 'No badge.',
       refused: 'We are not giving you the "Registered dietitian-nutritionist" badge. Your practice stays open as before.',
-      withdrawn:
-        'We are removing the "Registered dietitian-nutritionist" badge from today. Your practice stays open, and from your next request you see of each client what section 3 of the professional\'s agreement describes "without the badge". The rest of what changes is in its section 4. The words in your profile that only the badge allows are no longer shown.'
+      withdrawnScreen:
+        'We removed the "Registered dietitian-nutritionist" badge on {date}. Your practice stays open, and of each client you see what section 3 of the professional\'s agreement describes "without the badge". The rest of what changes is in its section 4. The words in your profile that only the badge allows are not shown.'
     },
     badgeSteps: { apply: 'Application', badge: 'Badge', code: 'Code' },
     badgeTitle: 'Dietitian-nutritionist badge',
@@ -2674,7 +2674,8 @@ export const enGB: Dictionary = {
     dayTitle: 'Day {index} · {date}',
     dayTotals: '{kcal} kcal · {protein} g protein',
     end: 'End the link',
-    endConfirmBody: 'You will stop seeing their data from now on, and a place frees up. Their targets stay as they are and become their own.',
+    endConfirmBody:
+      'You will stop seeing their data from now on, and a place frees up. Any targets you set for them stay in their account and become their own.',
     endConfirmCta: 'Yes, end it',
     endConfirmTitle: 'End the link with {name}?',
     endHint: 'Your client keeps their account, their history and their last published plan.',
@@ -2708,7 +2709,14 @@ export const enGB: Dictionary = {
     inviteFullUp: 'Move to a larger plan',
     inviteHint: 'They will get an email with the link. Unanswered invitations take a place until they expire.',
     inviteInvalid: 'Enter a valid email, like name@example.com.',
-    inviteNameRefused: 'Change your account name to be able to invite.',
+    inviteNameRefused: {
+      badgeOnly:
+        'Your account name contains "{word}", and without the badge you cannot use it: your clients would read it as a title NutrIA has not checked. Change it under "Your account name" to be able to invite.',
+      never:
+        'Your account name contains "{word}", a title nobody can use on NutrIA because we do not check it. Change it under "Your account name" to be able to invite.',
+      plain:
+        'Your account name contains a word that section 2 of the professional\'s agreement does not allow you to use. Change it under "Your account name" to be able to invite.'
+    },
     invitePending: 'Sending…',
     inviteSent: 'Invitation sent to {email}. It expires on {date}.',
     inviteTitle: 'Invite a client',
@@ -2724,8 +2732,9 @@ export const enGB: Dictionary = {
     openBirthDate: 'Your date of birth',
     openBirthDateHint: 'To check that you are an adult. It is kept in your account.',
     openCta: 'Open my practice',
-    openIntro: "It is free, for up to 10 clients. Before you see anything of anyone we will ask you to accept the professional's agreement.",
-    openRefused: 'We could not open your practice.',
+    openIntro: "It is free, for up to {limit} clients. Before you see anything of anyone we will ask you to accept the professional's agreement.",
+    openRefused:
+      'Your practice could not be opened. To open one you need a confirmed email address and to be an adult. If you meet both and it still does not open, write to us at {email}.',
     openTitle: 'Open your practice',
     overallLine: '{eaten} meals eaten of {marked} marked',
     overallNone: 'No meal marked yet.',
@@ -2784,16 +2793,18 @@ export const enGB: Dictionary = {
     regenerate: 'Generate another',
     regenerateHint: 'Replaces this draft with a new one and counts as one of your client’s generations.',
     restrictionClause: ', read with its section {n}',
-    restrictionClosed: 'Your practice closed on {date}.',
+    restrictionClosed:
+      'Your practice was closed for good on {date}. We wrote to you with the reasons. Until we reverse the close, you cannot open another; to ask us to look again, write to us at {email}.',
     restrictionClosing:
       'On {closeDate} we will close your practice for good: you will lose access to your clients and your pending invitations will be cancelled. Until then it stays as it is{suspendedSuffix}. Your personal NutrIA account does not change.',
+    restrictionRedress: 'To clarify the facts or ask us to look again, write to us at {email}: a person reviews it and answers you.',
     restrictionSources: {
       authority: '{authority} requires it of us.',
       notice: 'We looked into it after a notice we received.',
       own_review: 'We decided it ourselves, from our own review.'
     },
-    restrictionSuspended:
-      "From today your account is suspended as a professional: you see no client's data, you cannot invite anyone and you cannot open a practice until we lift the suspension. Your personal NutrIA account carries on as it was.",
+    restrictionSuspendedScreen:
+      "Your account has been suspended as a professional since {date}: you see no client's data, you cannot invite anyone and you cannot open a practice until we lift the suspension. Your personal NutrIA account carries on as it was.",
     restrictionSuspendedSuffix: ', that is, suspended',
     restrictionWhy: "Why: {reason} That is what section 13 of the professional's agreement you accepted says{clause}. {source}",
     reviewLabel: 'Review each plan before they see it',
@@ -2956,7 +2967,7 @@ export const enGB: Dictionary = {
       {
         heading: 'What it costs',
         list: [
-          'Opening and using your practice is free, for up to 10 active clients. Unanswered invitations also take a place until they expire.',
+          'Opening and using your practice is free, for up to {limit} active clients. Unanswered invitations also take a place until they expire.',
           "Linking with you does not give your client Premium or change their account's limits.",
           'If NutrIA ever offers paid plans for professionals, they will have their own terms, which you would accept separately before paying anything.'
         ],

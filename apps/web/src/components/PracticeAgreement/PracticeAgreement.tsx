@@ -12,15 +12,18 @@ import { interpolate } from 'i18n/interpolate';
 import { LEGAL_IDENTITY } from 'i18n/legalIdentity';
 import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
-import { useDictionary } from 'i18n/LocaleProvider';
+import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { Card } from 'components/Card';
 import { PracticeAgreementSection } from 'components/PracticeAgreementSection';
 
 import { api, messageFor } from 'lib/api';
+import { formatNumber } from 'lib/format';
 import { takePracticeOpened } from 'lib/practiceOpened';
 
 interface PracticeAgreementProps {
+  /** The free practice's places in force (`CarePracticeView.seats`), for § 10. */
+  seats: number;
   /** The version `professionals.agreementVersion` must equal before the practice opens. */
   version: string;
 }
@@ -39,9 +42,10 @@ function fill(text: string): string {
  * bought here. Nothing else on the page renders until
  * `POST /care/practice/agreement` succeeds and the page is read again.
  */
-export function PracticeAgreement({ version }: PracticeAgreementProps) {
+export function PracticeAgreement({ seats, version }: PracticeAgreementProps) {
   const router = useRouter();
   const dictionary = useDictionary();
+  const locale = useLocale();
   const t = dictionary.practiceAgreement;
   const [checked, setChecked] = useState(false);
   const [pending, setPending] = useState(false);
@@ -82,7 +86,7 @@ export function PracticeAgreement({ version }: PracticeAgreementProps) {
 
       <div className={styles.sections}>
         {t.sections.map(section => (
-          <PracticeAgreementSection key={section.heading} section={section} />
+          <PracticeAgreementSection key={section.heading} limit={formatNumber(seats, locale)} section={section} />
         ))}
       </div>
 

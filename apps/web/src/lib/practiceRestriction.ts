@@ -21,9 +21,14 @@ function why(statement: RestrictionStatementView, t: Dictionary['practice']): st
  * What the owner has standing against a practice (PRD 025 scope 16), as the
  * practice's own page says it: the close and the suspension in the approved
  * words of their statements (`docs/legal/textos/06` § W bis.3 and § W bis.1),
- * each followed by its reasons. A close whose day has come says only the day:
- * the notice's future tense would no longer be true, and a suspension under it
- * no longer matters.
+ * each followed by its reasons and the way to ask for a review
+ * (`practice.restrictionRedress`, `textos/01` § P5). The suspension is the
+ * screen's own variant, dated, because the mail's «desde hoy» is true only the day
+ * it arrives. A close whose day has come says only that, with its way back: the
+ * notice's future tense would no longer be true, and a suspension under it no
+ * longer matters.
+ *
+ * Sentences that name the address keep `{email}` for `MailtoText` to draw as a link.
  */
 export function restrictionParagraphs(restriction: PracticeRestrictionView, t: Dictionary['practice'], day: Day): string[] {
   const { closing, suspended } = restriction;
@@ -40,15 +45,15 @@ export function restrictionParagraphs(restriction: PracticeRestrictionView, t: D
     );
 
     if (closing.statement) {
-      paragraphs.push(why(closing.statement, t));
+      paragraphs.push(why(closing.statement, t), t.restrictionRedress);
     }
   }
 
   if (suspended) {
-    paragraphs.push(t.restrictionSuspended);
+    paragraphs.push(interpolate(t.restrictionSuspendedScreen, { date: day(suspended.since) }));
 
     if (suspended.statement) {
-      paragraphs.push(why(suspended.statement, t));
+      paragraphs.push(why(suspended.statement, t), t.restrictionRedress);
     }
   }
 

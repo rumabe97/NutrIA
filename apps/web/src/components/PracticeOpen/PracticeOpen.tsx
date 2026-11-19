@@ -8,20 +8,25 @@ import styles from './PracticeOpen.module.css';
 import { ageInYears } from 'core/domain/Nutrition';
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
+import { LEGAL_IDENTITY } from 'i18n/legalIdentity';
 import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
-import { useDictionary } from 'i18n/LocaleProvider';
+import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { Card } from 'components/Card';
+import { MailtoText } from 'components/MailtoText';
 
 import { AGE_YEARS } from 'core/entities/Profile';
 
 import { api, ApiError, messageFor } from 'lib/api';
+import { formatNumber, interpolate } from 'lib/format';
 import { markPracticeOpened } from 'lib/practiceOpened';
 
 interface PracticeOpenProps {
   /** No birth date on record (`GET /profile`): the form asks for one, which the opening stores. */
   askBirthDate: boolean;
+  /** The places a free practice opens with, as the API resolves them (`GET /care/practice/opening`), for `practice.openIntro`'s `{limit}`. */
+  limit: number;
 }
 
 /**
@@ -39,16 +44,20 @@ interface PracticeOpenProps {
  * On success the page is read again and shows the agreement in place of this
  * form; `markPracticeOpened` lets the agreement take focus when it arrives.
  */
-export function PracticeOpen({ askBirthDate }: PracticeOpenProps) {
+export function PracticeOpen({ askBirthDate, limit }: PracticeOpenProps) {
   const router = useRouter();
   const dictionary = useDictionary();
+  const locale = useLocale();
   const t = dictionary.practice;
   const [pending, setPending] = useState(false);
   const [fieldError, setFieldError] = useState<string>();
   const [error, setError] = useState<string>();
+  // The route's one refusal: its own sentence, with the address as a link (`textos/01` § P5).
+  const [refused, setRefused] = useState(false);
 
   async function open(birthDate: string | null) {
     setError(undefined);
+    setRefused(false);
     setFieldError(undefined);
 
     if (askBirthDate) {
@@ -73,7 +82,7 @@ export function PracticeOpen({ askBirthDate }: PracticeOpenProps) {
       router.refresh();
     } catch (caught) {
       if (caught instanceof ApiError && caught.code === 'NOT_FOUND') {
-        setError(t.openRefused);
+        setRefused(true);
       } else if (caught instanceof ApiError && caught.code === 'INVALID_INPUT') {
         setFieldError(dictionary.errors.invalidInput);
       } else {
@@ -107,6 +116,12 @@ export function PracticeOpen({ askBirthDate }: PracticeOpenProps) {
         />
       ) : null}
 
+      {refused ? (
+        <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
+          <MailtoText email={LEGAL_IDENTITY.email} text={t.openRefused} />
+        </Note>
+      ) : null}
+
       {error ? (
         <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
           {error}
@@ -126,7 +141,7 @@ export function PracticeOpen({ askBirthDate }: PracticeOpenProps) {
       <div>
         <h1 className={styles.title}>{t.openTitle}</h1>
         <Text className={styles.intro} tone="secondary">
-          {t.openIntro}
+          {interpolate(t.openIntro, { limit: formatNumber(limit, locale) })}
         </Text>
       </div>
 

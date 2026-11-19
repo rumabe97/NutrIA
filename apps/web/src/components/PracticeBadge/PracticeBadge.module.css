@@ -1,4 +1,5 @@
 .root {
+  overflow-wrap: anywhere;
   display: grid;
   gap: var(--gap-region);
   grid-template-columns: minmax(0, 1fr);
@@ -10,8 +11,7 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
-.cardTitle,
-.status {
+.cardTitle {
   font-size: var(--font-size-04);
   font-weight: var(--font-weight-semibold);
   letter-spacing: var(--tracking-title);
@@ -20,29 +20,41 @@
   overflow-wrap: break-word;
 }
 
-/* The status is a sentence, so it reads as one: the body's own weight, a little larger. */
-.status {
-  font-family: var(--main-font);
-  font-weight: var(--font-weight-medium);
+/* The badge line: a statement in the body face, a step up from the text under it. */
+.badgeLine {
+  font-size: var(--font-size-04);
+  overflow-wrap: break-word;
 }
 
-/* Three steps in a row (sheet «Distintivo»): done, now, next — each with its number, the
-   current one also carrying `aria-current="step"` and a bolder label. */
+/* The steps as the sheet draws them (sheet «Distintivo»): one under the other, each its number
+   and its name; the current one carries `aria-current="step"`, a filled marker and a bolder
+   name, and holds what is happening now. */
 .steps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-02) var(--space-04);
+  display: grid;
+  gap: var(--space-04);
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
 .step {
-  align-items: center;
+  align-items: start;
   color: var(--foreground-02);
-  display: inline-flex;
-  font-size: var(--font-size-03);
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.stepBody {
+  display: grid;
   gap: var(--space-02);
+  min-inline-size: 0;
+  padding-block-start: var(--space-01);
+}
+
+.stepLabel {
+  font-size: var(--font-size-04);
+  overflow-wrap: break-word;
 }
 
 .marker {
@@ -67,6 +79,9 @@
 
 .step[data-state='now'] {
   color: var(--foreground-01);
+}
+
+.step[data-state='now'] .stepLabel {
   font-weight: var(--font-weight-semibold);
 }
 

@@ -36,7 +36,8 @@ export function badgeSentence(badge: BadgeView, t: Dictionary['practice'], day: 
     case 'refused':
       return states.refused;
     case 'withdrawn':
-      return states.withdrawn;
+      // The screen's own variant (`textos/01` § P5): the mail's «desde hoy» is true only the day it arrives.
+      return interpolate(states.withdrawnScreen, { date: badge.decision ? day(badge.decision.at) : '' });
     default:
       return states.none;
   }

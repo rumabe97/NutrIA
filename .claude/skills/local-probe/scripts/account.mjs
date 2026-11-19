@@ -390,7 +390,14 @@ if (action === 'owner-act') {
   if (act === 'suspend') {
     await ProfessionalController.suspend(pro.id, pro.id, statement);
   } else if (act === 'close' || act === 'close-due') {
-    await ProfessionalController.close(pro.id, pro.id, statement);
+    try {
+      await ProfessionalController.close(pro.id, pro.id, statement);
+    } catch (error) {
+      // A close already stands (the route answers the same 404): `close-due` then only moves its day.
+      if (act === 'close' || error?.name !== 'NotFoundError') {
+        throw error;
+      }
+    }
 
     if (act === 'close-due') {
       // No route takes a clock: the close's day moved into the past, as the e2e harness does

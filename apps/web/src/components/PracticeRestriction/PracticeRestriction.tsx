@@ -1,8 +1,11 @@
 import styles from './PracticeRestriction.module.css';
 
 import { activeLocale, getDictionary } from 'i18n/server';
+import { LEGAL_IDENTITY } from 'i18n/legalIdentity';
 import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
+
+import { MailtoText } from 'components/MailtoText';
 
 import { formatInstant } from 'lib/format';
 import { restrictionParagraphs } from 'lib/practiceRestriction';
@@ -32,7 +35,7 @@ export async function PracticeRestriction({ restriction }: PracticeRestrictionPr
     <Note as="section" className={styles.note} tone="warning" toneLabel={dictionary.common.noteTone.warning}>
       {paragraphs.map(paragraph => (
         <Text key={paragraph} size="sm">
-          {paragraph}
+          <MailtoText email={LEGAL_IDENTITY.email} text={paragraph} />
         </Text>
       ))}
     </Note>

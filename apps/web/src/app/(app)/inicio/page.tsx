@@ -28,6 +28,7 @@ import { serverApi } from 'lib/server-api';
 
 import { appMetadata } from '../../_shared/metadata';
 
+import type { CareLinkView } from 'core/controllers/Care';
 import type { CheckInStatusView } from 'core/controllers/CheckIn';
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { FullProfileView } from 'core/controllers/Profile';
@@ -76,7 +77,7 @@ export default async function DashboardPage() {
   await redirectIfOnboardingIncomplete();
   await redirectIfProfileConsentMissing();
 
-  const [dictionary, locale, user, profile, plan, scheduled, shopping, weight, checkIn, trips] = await Promise.all([
+  const [dictionary, locale, user, profile, plan, scheduled, shopping, weight, checkIn, trips, careLink] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<UserView>('/users/me'),
@@ -89,7 +90,9 @@ export default async function DashboardPage() {
     serverApi<ShoppingListView>('/shopping-lists/active'),
     serverApi<WeightView>('/progress/weight'),
     serverApi<CheckInStatusView>('/check-ins/status'),
-    serverApi<readonly VacationView[]>('/vacations')
+    serverApi<readonly VacationView[]>('/vacations'),
+    // Who reviews a plan waiting for review, by the name the API judged (null: «tu profesional»).
+    serverApi<CareLinkView | null>('/care/links/me')
   ]);
 
   const t = dictionary.dashboard;
@@ -162,7 +165,12 @@ export default async function DashboardPage() {
       {/* What the screen wants from the person before anything it offers. Each is
           absent when it has nothing to say, and so is the region (`:empty`). */}
       <div className={`${styles.notices} motion-enter`}>
-        <PlanPendingNotice body={t.pendingReviewBody} currentPlanId={plan?.id ?? null} title={t.pendingReviewTitle} />
+        <PlanPendingNotice
+          body={t.pendingReviewBody}
+          currentPlanId={plan?.id ?? null}
+          professionalName={careLink?.professionalName ?? null}
+          title={t.pendingReviewTitle}
+        />
 
         {away ? (
           <EmptyState

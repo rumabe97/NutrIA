@@ -74,7 +74,8 @@ describe('PracticeBadge — every state of the badge (textos/01 §§ P2–P3)', 
     const decision = { at: '2026-11-10T00:00:00Z', facts: null, kind: 'withdrawn', reason: 'not_me' } as const;
 
     const withdrawn = page({ ...NONE, decision, state: 'withdrawn' });
-    expect(withdrawn).toContain(t.badgeState.withdrawn);
+    expect(withdrawn).toContain(t.badgeState.withdrawnScreen.split('{date}')[0]);
+    expect(withdrawn).not.toContain('desde hoy');
     expect(withdrawn).toContain(t.badgeReasons.not_me);
     expect(withdrawn).toContain(t.badgeApplyCta);
 

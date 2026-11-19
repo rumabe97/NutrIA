@@ -10,16 +10,19 @@ import type { Dictionary } from 'i18n/dictionaries/es-ES';
 type AgreementSection = Dictionary['practiceAgreement']['sections'][number];
 
 interface PracticeAgreementSectionProps {
+  /** The free practice's places in force (`CarePracticeView.seats`): § 10's number, never a typed one. */
+  limit: string;
   section: AgreementSection;
 }
 
 // The documents say `{name}` and `{email}`; who that is lives in one file — same as `LegalScreen`.
-function fill(text: string): string {
-  return interpolate(text, LEGAL_IDENTITY);
+// `{limit}` is the number of places in force.
+function filler(limit: string): (text: string) => string {
+  return text => interpolate(text, { ...LEGAL_IDENTITY, limit });
 }
 
 /** One list of the section's items: the section's own, or a group's. */
-function listOf(items: readonly string[]) {
+function listOf(items: readonly string[], fill: (text: string) => string) {
   return (
     <ul className={styles.list}>
       {items.map(item => (
@@ -39,7 +42,9 @@ function listOf(items: readonly string[]) {
  * insignia», «Con la insignia», «En los dos casos») and § 13 what follows a
  * breach.
  */
-export function PracticeAgreementSection({ section }: PracticeAgreementSectionProps) {
+export function PracticeAgreementSection({ limit, section }: PracticeAgreementSectionProps) {
+  const fill = filler(limit);
+
   return (
     <section className={styles.section}>
       <Heading level="2" size="xs">
@@ -52,7 +57,7 @@ export function PracticeAgreementSection({ section }: PracticeAgreementSectionPr
         </Text>
       ))}
 
-      {'list' in section && section.list ? listOf(section.list) : null}
+      {'list' in section && section.list ? listOf(section.list, fill) : null}
 
       {'groups' in section && section.groups
         ? section.groups.map(group => (
@@ -60,7 +65,7 @@ export function PracticeAgreementSection({ section }: PracticeAgreementSectionPr
               <Text className={styles.paragraph} weight="semibold">
                 {fill(group.lead)}
               </Text>
-              {listOf(group.list)}
+              {listOf(group.list, fill)}
             </div>
           ))
         : null}

@@ -20,6 +20,7 @@ import { SecondFactorRequired } from 'components/SecondFactorRequired';
 
 import { badgeSentence, badgeStands } from 'lib/badgeState';
 import { formatInstant, interpolate } from 'lib/format';
+import { practiceOpening } from 'lib/practiceOpening';
 import { serverApi } from 'lib/server-api';
 
 import { appMetadata } from '../../_shared/metadata';
@@ -76,14 +77,18 @@ export default async function PracticePage({ searchParams }: Readonly<{ searchPa
   if (!practice) {
     const user = await serverApi<UserView>('/users/me');
 
-    if (!user?.canOpenPractice) {
+    // The places it would open with name themselves in the form's intro: without them (the door
+    // closed, or the read failed) the form is not drawn at all, rather than drawn with a hole.
+    const seats = await practiceOpening(user);
+
+    if (seats === null) {
       notFound();
     }
 
     // The birth date is asked only when none is on record (PRD 025 criterion 1).
     const profile = await serverApi<FullProfileView>('/profile');
 
-    return <PracticeOpen askBirthDate={!profile?.profile?.birthDate} />;
+    return <PracticeOpen askBirthDate={!profile?.profile?.birthDate} limit={seats} />;
   }
 
   // A password account with no second factor reaches no client (PLAN 011 phase 6): the API
@@ -99,7 +104,7 @@ export default async function PracticePage({ searchParams }: Readonly<{ searchPa
     return (
       <Fragment>
         {practice.restriction ? <PracticeRestriction restriction={practice.restriction} /> : null}
-        <PracticeAgreement version={practice.agreementVersion} />
+        <PracticeAgreement seats={practice.seats} version={practice.agreementVersion} />
       </Fragment>
     );
   }

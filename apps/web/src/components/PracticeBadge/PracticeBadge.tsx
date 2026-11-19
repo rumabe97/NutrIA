@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -53,7 +53,7 @@ export function PracticeBadge({ badge }: PracticeBadgeProps) {
   const [error, setError] = useState<string>();
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<'code' | 'number' | 'register', string>>>({});
   const [moved, setMoved] = useState(false);
-  const statusRef = useRef<HTMLHeadingElement>(null);
+  const root = useRef<HTMLDivElement>(null);
   const day = (iso: string) => formatInstant(Date.parse(iso), locale, { day: 'numeric', month: 'long', year: 'numeric' });
   const stands = badgeStands(badge);
   const step = badge.state === 'code_sent' && badge.codeEntered ? 2 : STEP_OF[badge.state];
@@ -64,7 +64,7 @@ export function PracticeBadge({ badge }: PracticeBadgeProps) {
   // After an application or a code the page is read again in place: the status says what changed.
   useEffect(() => {
     if (moved) {
-      statusRef.current?.focus();
+      root.current?.querySelector<HTMLElement>('[data-status]')?.focus();
     }
   }, [badge.state, badge.codeEntered, moved]);
 
@@ -121,12 +121,13 @@ export function PracticeBadge({ badge }: PracticeBadgeProps) {
   ) : null;
 
   return (
-    <div className={styles.root}>
+    <div className={styles.root} ref={root}>
       {stands ? (
-        <Card aria-labelledby="badge-status" as="section" className={styles.card}>
-          <h2 className={styles.cardTitle} id="badge-status" ref={statusRef} tabIndex={-1}>
+        <Card className={styles.card}>
+          {/* The badge line is a statement, not a heading: the page's own title already names it. */}
+          <Text className={styles.badgeLine} data-status="" tabIndex={-1} weight="semibold">
             {interpolate(t.badgeState.badged, { date: badge.checkedAt ? day(badge.checkedAt) : '' })}
-          </h2>
+          </Text>
           {badge.state === 'due' ? <Text size="sm">{badgeSentence(badge, t, day)}</Text> : null}
           {badge.checkedAt && badge.register && badge.number ? (
             <Text size="sm" tone="secondary">
@@ -137,7 +138,9 @@ export function PracticeBadge({ badge }: PracticeBadgeProps) {
       ) : null}
 
       {!stands && !canApply ? (
-        <Card aria-labelledby="badge-status" as="section" className={styles.card}>
+        <Card className={styles.card}>
+          {/* The sheet's vertical list: each step its number and name; the current one holds the
+              sentence for where things stand and, while a code is out, the field to type it. */}
           <ol className={styles.steps}>
             {[t.badgeSteps.apply, t.badgeSteps.code, t.badgeSteps.badge].map((label, index) => (
               <li
@@ -149,40 +152,45 @@ export function PracticeBadge({ badge }: PracticeBadgeProps) {
                 <span aria-hidden="true" className={styles.marker}>
                   {index + 1}
                 </span>
-                <span>{label}</span>
+                <div className={styles.stepBody}>
+                  <span className={styles.stepLabel}>{label}</span>
+                  {index === step ? (
+                    <Fragment>
+                      <Text data-status="" size="sm" tabIndex={-1} tone="secondary">
+                        {badgeSentence(badge, t, day)}
+                      </Text>
+                      {askCode ? (
+                        <form
+                          className={styles.form}
+                          noValidate={true}
+                          onSubmit={event => {
+                            event.preventDefault();
+                            void enter(String(new FormData(event.currentTarget).get('code') ?? '').trim());
+                          }}
+                        >
+                          <Input
+                            autoComplete="one-time-code"
+                            className={styles.code}
+                            error={fieldErrors.code}
+                            label={t.badgeCode}
+                            name="code"
+                            required={true}
+                            spellCheck={false}
+                          />
+                          {errorNote}
+                          <div className={styles.actions}>
+                            <Button loading={pending === 'code'} type="submit">
+                              {t.badgeCodeCta}
+                            </Button>
+                          </div>
+                        </form>
+                      ) : null}
+                    </Fragment>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ol>
-          <h2 className={styles.status} id="badge-status" ref={statusRef} tabIndex={-1}>
-            {badgeSentence(badge, t, day)}
-          </h2>
-
-          {askCode ? (
-            <form
-              className={styles.form}
-              noValidate={true}
-              onSubmit={event => {
-                event.preventDefault();
-                void enter(String(new FormData(event.currentTarget).get('code') ?? '').trim());
-              }}
-            >
-              <Input
-                autoComplete="one-time-code"
-                className={styles.code}
-                error={fieldErrors.code}
-                label={t.badgeCode}
-                name="code"
-                required={true}
-                spellCheck={false}
-              />
-              {errorNote}
-              <div className={styles.actions}>
-                <Button loading={pending === 'code'} type="submit">
-                  {t.badgeCodeCta}
-                </Button>
-              </div>
-            </form>
-          ) : null}
         </Card>
       ) : null}
 
@@ -197,7 +205,7 @@ export function PracticeBadge({ badge }: PracticeBadgeProps) {
             </Note>
           )}
 
-          <h2 className={styles.cardTitle} id="badge-apply" ref={statusRef} tabIndex={-1}>
+          <h2 className={styles.cardTitle} data-status="" id="badge-apply" tabIndex={-1}>
             {t.badgeApplyTitle}
           </h2>
           <form

@@ -16,7 +16,6 @@ import { Card } from 'components/Card';
 
 import { api, ApiError, messageFor } from 'lib/api';
 import { formatInstant, formatNumber, interpolate } from 'lib/format';
-import { wordRefusal } from 'lib/protectedWord';
 
 import type { CareInvitationView } from 'core/controllers/Care';
 
@@ -28,10 +27,28 @@ interface CareInviteFormProps {
 }
 
 type Outcome =
-  | { email: string; expiresAt: string; kind: 'sent' }
-  | { kind: 'failed'; message: string }
-  | { kind: 'full' }
-  | { kind: 'name'; sentence: string | null };
+  { email: string; expiresAt: string; kind: 'sent' } | { kind: 'failed'; message: string } | { kind: 'full' } | { kind: 'name'; sentence: string };
+
+/**
+ * Why the account's name stops an invitation (`textos/01` § P5): by the list the API names
+ * — a word only the badge allows, or a title nobody may claim — with the word, or the plain
+ * sentence when the API gives none. Names are judged for titles only, never for results.
+ */
+function nameRefusal(code: string | undefined, sentences: { badgeOnly: string; never: string; plain: string }): string {
+  const colon = code ? code.indexOf(':') : -1;
+  const list = code && colon > 0 ? code.slice(0, colon) : '';
+  const word = code && colon > 0 ? code.slice(colon + 1) : '';
+
+  if (word && list === 'badge_only') {
+    return interpolate(sentences.badgeOnly, { word });
+  }
+
+  if (word && list === 'never') {
+    return interpolate(sentences.never, { word });
+  }
+
+  return sentences.plain;
+}
 
 /**
  * An address, and nothing else: who the professional invites (`0059`). The
@@ -74,7 +91,7 @@ export function CareInviteForm({ paid, seats }: CareInviteFormProps) {
       } else if (caught instanceof ApiError && caught.code === 'INVALID_INPUT' && caught.fieldErrors.name) {
         // The practitioner's own account name carries a word a practice may not show (PRD 025):
         // the address is not blamed. The word in its approved sentence, and the way to change it.
-        setOutcome({ kind: 'name', sentence: wordRefusal(caught.fieldErrors.name[0], t) });
+        setOutcome({ kind: 'name', sentence: nameRefusal(caught.fieldErrors.name[0], t.inviteNameRefused) });
       } else if (caught instanceof ApiError && caught.code === 'INVALID_INPUT') {
         setFieldError(t.inviteInvalid);
       } else {
@@ -148,13 +165,10 @@ export function CareInviteForm({ paid, seats }: CareInviteFormProps) {
 
       {outcome?.kind === 'name' ? (
         <Note className="motion-drop-in" role="alert" tone="warning" toneLabel={dictionary.common.noteTone.warning}>
-          {outcome.sentence ? (
-            <Text size="sm" weight="medium">
-              {outcome.sentence}
-            </Text>
-          ) : null}
+          <Text size="sm" weight="medium">
+            {outcome.sentence}
+          </Text>
           <Text size="sm">
-            {t.inviteNameRefused}{' '}
             <Link href="/consulta/perfil#nombre" inline={true}>
               {t.nameCta}
             </Link>

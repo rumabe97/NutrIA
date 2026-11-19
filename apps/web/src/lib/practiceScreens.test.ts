@@ -104,9 +104,15 @@ describe('a restriction on the practice page (textos/06 § W bis)', () => {
   const statement = { authority: null, clause: 2, facts: 'Uso del título sin la insignia.', source: 'own_review' } as const;
 
   it('says a suspension with its reasons', () => {
-    const [what, reasons] = restrictionParagraphs({ closing: null, suspended: { since: '2026-11-10T00:00:00Z', statement } }, esES.practice, day);
+    const [what, reasons, redress] = restrictionParagraphs(
+      { closing: null, suspended: { since: '2026-11-10T00:00:00Z', statement } },
+      esES.practice,
+      day
+    );
 
-    expect(what).toBe(esES.practice.restrictionSuspended);
+    // The screen's own, dated variant (textos/01 § P5), never the mail's «desde hoy».
+    expect(what).toBe(esES.practice.restrictionSuspendedScreen.replace('{date}', '2026-11-10'));
+    expect(redress).toBe(esES.practice.restrictionRedress);
     expect(reasons).toBe(
       'Por qué: Uso del título sin la insignia. Es lo que dice el § 13 del acuerdo del profesional que aceptaste, en relación con su § 2. Lo hemos decidido nosotros, por nuestra propia revisión.'
     );
@@ -133,7 +139,7 @@ describe('a restriction on the practice page (textos/06 § W bis)', () => {
         esES.practice,
         day
       )
-    ).toEqual(['Tu consulta se cerró el 2026-12-10.']);
+    ).toEqual([esES.practice.restrictionClosed.replace('{date}', '2026-12-10')]);
   });
 
   it('names the authority when one required it', () => {
