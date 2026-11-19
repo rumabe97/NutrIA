@@ -38,6 +38,7 @@ import { mealCount, mealSizeKey } from 'lib/mealSize';
 import { premiumPitch } from 'lib/premiumPitch';
 import { redirectIfOnboardingIncomplete, redirectIfProfileConsentMissing } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
+import { withProfessional } from 'lib/professionalName';
 
 import { appMetadata } from '../../_shared/metadata';
 
@@ -269,14 +270,18 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
             {endedLink ? (
               <Note
                 as="section"
-                title={interpolate(dictionary.care.illnessEndedTitle, { professional: endedLink.professionalName })}
+                title={withProfessional(dictionary.care.illnessEndedTitle, endedLink.professionalName, dictionary.care.professionalUnnamed)}
                 titleAs="h3"
                 tone="info"
                 toneLabel={dictionary.common.noteTone.info}
               >
                 <MailtoText
                   email={LEGAL_IDENTITY.email}
-                  text={interpolate(dictionary.care[illnessEndedBody(endedLink)], { professional: endedLink.professionalName })}
+                  text={withProfessional(
+                    dictionary.care[illnessEndedBody(endedLink)],
+                    endedLink.professionalName,
+                    dictionary.care.professionalUnnamed
+                  )}
                 />
               </Note>
             ) : null}

@@ -15,7 +15,12 @@ describe('illnessEndedBody', () => {
 
 describe('unverifiedProfessional', () => {
   it('names the practitioner of a link without the badge', () => {
-    expect(unverifiedProfessional({ professionalName: 'Ana Pérez', professionalVerified: false })).toBe('Ana Pérez');
+    expect(unverifiedProfessional({ professionalName: 'Ana Pérez', professionalVerified: false })).toEqual({ name: 'Ana Pérez' });
+  });
+
+  /* PRD 025: a name that may not be shown comes as null, and the warning stands without it. */
+  it('still warns when the practitioner’s name may not be shown', () => {
+    expect(unverifiedProfessional({ professionalName: null, professionalVerified: false })).toEqual({ name: null });
   });
 
   it('warns about nobody under a verified practitioner', () => {

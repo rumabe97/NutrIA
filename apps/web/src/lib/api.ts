@@ -53,7 +53,8 @@ export class ApiError extends Error {
     /** ISO date a spent allowance renews, when the API said so. */
     public readonly retryAt: string | null = null,
     /** The link `CARE_LINK_EXISTS` names — the professional, since when, its status. Null for every other code. */
-    public readonly link: { professionalName: string; since: string; status: 'active' | 'paused' } | null = null,
+    /** `professionalName` is null when the practitioner's account name may not be shown (PRD 025). */
+    public readonly link: { professionalName: string | null; since: string; status: 'active' | 'paused' } | null = null,
     /** The number `PRACTICE_FULL` names — how many clients the practice's plan includes. Null for every other code. */
     public readonly practice: { includedClients: number } | null = null
   ) {
@@ -163,7 +164,7 @@ export async function api<T>(path: string, { body, headers, ...options }: Option
     const { code, fieldErrors, link, message, practice, retryAt } = payload as {
       code?: ApiErrorCode;
       fieldErrors?: Record<string, string[]>;
-      link?: { professionalName: string; since: string; status: 'active' | 'paused' };
+      link?: { professionalName: string | null; since: string; status: 'active' | 'paused' };
       message?: string;
       practice?: { includedClients: number };
       retryAt?: string;

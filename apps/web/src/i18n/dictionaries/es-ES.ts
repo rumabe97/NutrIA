@@ -289,8 +289,17 @@ export const esES = {
       'picture.discarded': 'Imagen rechazada de un plato descartada a mano',
       'picture.removed': 'Imagen publicada de un plato, retirada',
       'picture.retried': 'Imagen de un plato reintentada a mano',
+      'professional.badge_code_issued': 'Código de insignia enviado',
+      'professional.badge_confirmed': 'Insignia confirmada',
+      'professional.badge_removed': 'Insignia denegada o retirada',
+      'professional.closed': 'Consulta cerrada',
+      'professional.closing': 'Cierre de consulta anunciado',
       'professional.granted': 'Perfil profesional concedido',
+      'professional.profile_hidden': 'Perfil ocultado',
+      'professional.profile_seen': 'Perfil revisado',
+      'professional.restriction_lifted': 'Suspensión o cierre levantado',
       'professional.revoked': 'Perfil profesional revocado',
+      'professional.suspended': 'Profesional suspendido',
       'push.test_sent': 'Aviso de prueba enviado',
       'setting.allowance_changed': 'Límite de suscripción cambiado',
       'setting.changed': 'Ajuste cambiado'
@@ -302,6 +311,18 @@ export const esES = {
     allowanceChange: '{name}, {tier}: de {from} a {value}',
     allowanceUnset: '{name}, {tier}: de {from} a {value}, el valor que trae el código',
     backupCodesLeft: 'Le quedan {remaining}',
+    /** `professional.badge_code_issued`: how the code was sent — never the code or the contact. */
+    badgeChannel: { phone: 'Por teléfono', post: 'Por carta', register_email: 'Al correo que da el registro' },
+    /** `professional.badge_removed`: refused or withdrawn, the closed reason, and where the decision came from. */
+    badgeRemoved: '{kind}: {reason} ({source})',
+    badgeRemovedKind: { fail: 'Denegada', withdrawn: 'Retirada' },
+    badgeRemovedReason: {
+      code_expired: 'el código caducó sin usarse',
+      not_me: 'quien figura en el registro dice que no era',
+      not_on_register: 'no está en el registro',
+      other: 'otros hechos'
+    },
+    badgeRemovedSource: { notice: 'por un aviso', own_check: 'por revisión propia' },
     caption: 'Acciones',
     columns: { account: 'Cuenta', action: 'Acción', actor: 'Quién', date: 'Fecha', detail: 'Detalle' },
     empty: 'El registro empieza el día en que esto se despliega: no hay ninguna fila anterior.',
@@ -314,10 +335,23 @@ export const esES = {
     noMatch: 'Ninguna acción coincide con el filtro.',
     /** `auth.password_changed`: how the person changed it. */
     passwordVia: { change: 'Desde su perfil', reset: 'Con el enlace de recuperación' },
+    /** `professional.profile_hidden`: the closed reasons, and whether a notice set it off. Never the word or the facts. */
+    profileHiddenAfterNotice: '{reasons}, tras un aviso',
+    profileHiddenReason: {
+      advertising: 'publicidad ajena a la consulta',
+      badge_word: 'palabra que exige la insignia',
+      disease: 'servicio para una enfermedad',
+      promises: 'promete resultados',
+      unchecked_title: 'título que no comprobamos'
+    },
     /** `auth.2fa_removal_cancelled`: who stopped it. */
     removalCancelledBy: { account: 'La persona, al entrar con su código', owner: 'Desde la consola' },
     /** `picture.removed`: who had accepted the picture the owner took back. A row written before this was kept says nothing. */
     removedAcceptedBy: { judge: 'La había aceptado el revisor', owner: 'La habías aceptado a mano, contra el revisor' },
+    /** `professional.restriction_lifted`: which of the two it lifted. */
+    restrictionLifted: { both: 'Suspensión y cierre', close: 'Cierre', suspension: 'Suspensión' },
+    /** `professional.suspended` and `.closing`: where the decision came from. Never the facts. */
+    restrictionSource: { authority: 'Lo exige una autoridad', notice: 'Por un aviso recibido', own_review: 'Por revisión propia' },
     /** `auth.sessions_revoked`: which of the person's sessions were closed. */
     sessionsScope: { all: 'Todas', one: 'Una', others: 'Todas menos la suya' },
     settingChange: '{key}: {state}',
@@ -931,13 +965,15 @@ export const esES = {
   /* `/admin/profesionales`: who has the practice (`0059`), with their links counted — never a client named. */
   adminProfessionals: {
     caption: 'Profesionales',
-    columns: { collegiate: 'Nº de colegiado', email: 'Correo', granted: 'Desde', links: 'Vínculos' },
+    columns: { collegiate: 'Nº de colegiado', email: 'Correo', granted: 'Desde', links: 'Vínculos', state: 'Estado' },
     empty: 'Todavía no hay ningún profesional.',
     intro: 'Cada profesional con sus vínculos contados. Aquí no aparece ningún paciente.',
     links: '{active} activos · {paused} en pausa · {ended} terminados',
     noMatch: 'Ningún profesional coincide con la búsqueda.',
     search: 'Buscar por correo',
     sortBy: { email: 'correo', grantedAt: 'fecha de apertura', links: 'número de vínculos' },
+    /** What stands on the practice, until phase 9 gives the acts. */
+    state: { closed: 'Cerrada', closing: 'Se cierra el {date}', open: 'Abierta', suspended: 'Suspendida' },
     title: 'Profesionales'
   },
 
@@ -1210,6 +1246,7 @@ export const esES = {
       'professional-badge-due': 'Insignia por renovar',
       'professional-badge-lapsed': 'Insignia caducada',
       'professional-badge-removed': 'Insignia retirada',
+      'professional-close-withdrawn': 'Cierre de consulta retirado',
       'professional-closing': 'Aviso de cierre de consulta',
       'professional-granted': 'Perfil profesional concedido',
       'professional-profile-hidden': 'Perfil profesional ocultado',
@@ -1462,6 +1499,8 @@ export const esES = {
       '{professional}, dietista-nutricionista con número de colegiado {collegiateNumber}, te invita a llevar tu plan con su ayuda en NutrIA.',
     invitationIntroPlan: '{professional} te invita a que te haga el plan de comidas en NutrIA.',
     invitationLinkExistsBody: 'Ya tienes un dietista vinculado: {professional}, desde el {since}.',
+    /** When the practitioner's name may not be shown (`professionalName: null`, `textos/05` § F.3 bis). */
+    invitationLinkExistsBodyNoName: 'Ya estás vinculado con tu profesional desde el {since}.',
     invitationLinkExistsCta: 'Ver mi perfil',
     invitationLinkExistsTitle: 'Ya tienes un enlace activo',
     invitationNotShared: 'No verá tus alergias, tus intolerancias ni tu correo.',
@@ -1473,6 +1512,8 @@ export const esES = {
     invitationTrail: 'Cada vez que mire o cambie algo, lo verás en tu perfil.',
     linkSince: 'Desde el {date}',
     linkTitle: 'Tu dietista',
+    /** In place of the practitioner's name when it may not be shown (PRD 025, `professionalName: null`): the approved neutral words. */
+    professionalUnnamed: 'tu profesional',
     shares: {
       checkIns: 'tus respuestas a los check-ins (no tus comentarios escritos)',
       mealPlans: 'tu plan de comidas y los anteriores',
@@ -1678,7 +1719,7 @@ export const esES = {
     pictureNotRetryable: 'Esa imagen no se puede reintentar: ya no está fallida.',
     pictureUnavailable: 'Las imágenes no están disponibles ahora mismo: falta la clave o el servicio del proveedor.',
     planPaused: 'Tu plan está en pausa mientras estás de vacaciones.',
-    practiceFull: 'Tu consulta ya tiene todos los pacientes que incluye tu plan.',
+    practiceFull: 'Tu consulta ya tiene todas sus plazas ocupadas.',
     profileConsentRequired: 'Nos falta tu consentimiento para tratar tus datos de salud.',
     quotaExceeded: 'Has agotado lo que permite tu plan esta quincena.',
     reauthenticationRequired: 'Por seguridad, cierra sesión, vuelve a entrar e inténtalo de nuevo.',
@@ -2741,7 +2782,7 @@ export const esES = {
     invitationsTitle: 'Invitaciones sin responder',
     inviteCta: 'Enviar la invitación',
     inviteEmail: 'Correo de tu paciente',
-    inviteFull: 'Tu consulta ya tiene los {count} pacientes que incluye tu plan.',
+    inviteFull: 'Tu consulta ya tiene sus {count} plazas ocupadas.',
     inviteFullEnd: 'También puedes terminar el vínculo con un paciente al que ya no atiendas.',
     inviteFullUp: 'Pasar a un plan mayor',
     inviteHint: 'Le llegará un correo con el enlace. Las invitaciones sin responder ocupan plaza hasta que caducan.',

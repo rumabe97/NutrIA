@@ -60,7 +60,10 @@ export function CareInviteForm({ paid }: CareInviteFormProps) {
     } catch (caught) {
       if (caught instanceof ApiError && caught.code === 'PRACTICE_FULL') {
         setOutcome({ included: caught.practice?.includedClients ?? 0, kind: 'full' });
-      } else if (caught instanceof ApiError && caught.code === 'INVALID_INPUT') {
+      } else if (caught instanceof ApiError && caught.code === 'INVALID_INPUT' && !caught.fieldErrors.name) {
+        // Only the address is ever wrong here — unless `fieldErrors.name` says the practitioner's
+        // own account name carries a word a practice may not use (PRD 025). Then the address is
+        // not blamed: the generic refusal below, until phase 8 has approved words for it.
         setFieldError(t.inviteInvalid);
       } else {
         setOutcome({ kind: 'failed', message: messageFor(caught, dictionary) });

@@ -105,7 +105,7 @@ the owner's word.
 ### A professional and a linked client (project 004's screens)
 
 ```bash
-node $S/account.mjs create "$PROBE_DIR/pro.txt"
+node $S/account.mjs create "$PROBE_DIR/pro.txt" --two-factor   # a practice asks its owner for a second factor
 node $S/account.mjs create "$PROBE_DIR/client.txt"
 node $S/account.mjs link "$PROBE_DIR/pro.txt" "$PROBE_DIR/client.txt"
 node $S/probe.mjs --paths /consulta --cookie-file "$PROBE_DIR/pro.txt" --dismiss

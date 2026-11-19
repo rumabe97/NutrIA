@@ -18,6 +18,7 @@ import { formatInstant, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../../consoleMetadata';
+import { isKey } from './isKey';
 import { overriddenAllergens } from './overriddenAllergens';
 import { removedAcceptedBy } from './removedAcceptedBy';
 
@@ -138,6 +139,43 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
 
     if (row.action === 'auth.sessions_revoked' && (data.scope === 'one' || data.scope === 'others' || data.scope === 'all')) {
       return t.sessionsScope[data.scope];
+    }
+
+    // The owner's acts on a practitioner (PRD 025): closed words only, each read through its own
+    // map — never the facts, the code, the contact or the word the owner saw (`Audit.ts`).
+    if ((row.action === 'professional.suspended' || row.action === 'professional.closing') && isKey(data.source, t.restrictionSource)) {
+      return t.restrictionSource[data.source];
+    }
+
+    if (row.action === 'professional.restriction_lifted' && (data.close === true || data.suspension === true)) {
+      return t.restrictionLifted[data.close === true && data.suspension === true ? 'both' : data.close === true ? 'close' : 'suspension'];
+    }
+
+    if (row.action === 'professional.badge_code_issued' && isKey(data.channel, t.badgeChannel)) {
+      return t.badgeChannel[data.channel];
+    }
+
+    if (
+      row.action === 'professional.badge_removed' &&
+      isKey(data.kind, t.badgeRemovedKind) &&
+      isKey(data.reason, t.badgeRemovedReason) &&
+      isKey(data.source, t.badgeRemovedSource)
+    ) {
+      return interpolate(t.badgeRemoved, {
+        kind: t.badgeRemovedKind[data.kind],
+        reason: t.badgeRemovedReason[data.reason],
+        source: t.badgeRemovedSource[data.source]
+      });
+    }
+
+    if (row.action === 'professional.profile_hidden' && Array.isArray(data.reasons)) {
+      const reasons = data.reasons.filter((reason): reason is keyof typeof t.profileHiddenReason => isKey(reason, t.profileHiddenReason));
+
+      if (reasons.length > 0) {
+        const words = reasons.map(reason => t.profileHiddenReason[reason]).join(', ');
+
+        return data.afterNotice === true ? interpolate(t.profileHiddenAfterNotice, { reasons: words }) : words;
+      }
     }
 
     // With no actor, the actor column already says how (`actor` below); say it once.

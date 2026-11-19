@@ -13,6 +13,7 @@ import { formatDate, formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../consoleMetadata';
+import { practiceState } from './practiceState';
 
 import type { AdminTableColumn } from 'components/AdminTable';
 import type { Metadata } from 'next';
@@ -33,7 +34,8 @@ const PATHNAME = '/admin/profesionales';
  * status — counts, never a client named (`0028`). Searches by address and sorts;
  * unpaged, because there are few. Since PRD 025 an account opens its own practice, so
  * nothing is granted here, and the owner's acts on one (suspend, close, lift) arrive
- * with phase 9.
+ * with phase 9. Until then the row says in a word what stands on it (`practiceState`);
+ * an account whose practice was closed stays listed, with no date, so it can be found.
  */
 export default async function AdminProfessionalsPage({ searchParams }: { searchParams: Promise<PageQuery> }) {
   const query = await searchParams;
@@ -51,12 +53,14 @@ export default async function AdminProfessionalsPage({ searchParams }: { searchP
   const common = dictionary.adminConsole;
   const t = dictionary.adminProfessionals;
   const number = (value: number) => formatNumber(value, locale);
+  const day = (iso: string) => formatDate(iso.slice(0, 10), locale, { day: 'numeric', month: 'short', year: 'numeric' });
 
   const columns: AdminTableColumn[] = [
     { header: t.columns.email, key: 'email', sort: { first: 'asc', phrase: t.sortBy.email, value: 'email' } },
     { header: t.columns.collegiate, key: 'collegiate' },
     { header: t.columns.granted, key: 'granted', sort: { first: 'desc', phrase: t.sortBy.grantedAt, value: 'grantedAt' } },
-    { header: t.columns.links, key: 'links', sort: { first: 'desc', phrase: t.sortBy.links, value: 'links' } }
+    { header: t.columns.links, key: 'links', sort: { first: 'desc', phrase: t.sortBy.links, value: 'links' } },
+    { header: t.columns.state, key: 'state' }
   ];
 
   const rows = professionals.map(professional => ({
@@ -64,12 +68,15 @@ export default async function AdminProfessionalsPage({ searchParams }: { searchP
     cells: {
       collegiate: professional.collegiateNumber ?? '—',
       email: <span className={styles.email}>{professional.email}</span>,
-      granted: formatDate(professional.grantedAt.slice(0, 10), locale, { day: 'numeric', month: 'short', year: 'numeric' }),
+      granted: professional.grantedAt ? day(professional.grantedAt) : '—',
       links: interpolate(t.links, {
         active: number(professional.links.active),
         ended: number(professional.links.ended),
         paused: number(professional.links.paused)
-      })
+      }),
+      state: practiceState(professional)
+        .map(word => (word.kind === 'closing' ? interpolate(t.state.closing, { date: day(word.closesAt) }) : t.state[word.kind]))
+        .join(' · ')
     }
   }));
 
