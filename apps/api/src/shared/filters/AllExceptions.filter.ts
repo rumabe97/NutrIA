@@ -42,7 +42,8 @@ type ErrorBody = {
   /** What is behind premium, named when that is what refused the read (`0021` § *Amended*). */
   readonly kind?: 'past_plan';
   /** The client's own open link, named when it is what stands in the way of accepting another (`0059`). */
-  readonly link?: { readonly professionalName: string; readonly since: string; readonly status: 'active' | 'paused' };
+  /** `professionalName` is null when the name may not be shown now: the screen says «tu profesional». */
+  readonly link?: { readonly professionalName: string | null; readonly since: string; readonly status: 'active' | 'paused' };
   readonly message: string;
   /** A full practice's number, and the ways up from it (`0061`, PRD 004 criterion 17). */
   readonly practice?: { readonly includedClients: number; readonly waysUp: readonly ('end_link' | 'larger_plan')[] };

@@ -14,9 +14,9 @@ type Copy = {
 };
 
 /**
- * `docs/legal/textos/06` § W bis.4, as drafted on 2026-11-19 (**not yet
- * approved by the owner**). Each sentence lives in one key, so a change of words
- * is one edit, and the text is copied from the file byte for byte.
+ * `docs/legal/textos/06` § W bis.4, approved by the owner on 2026-11-19. Each
+ * sentence lives in one key, so a change of words is one edit, and the text is
+ * copied from the file byte for byte.
  */
 const COPY: Record<EmailLocale, Copy> = {
   'en-GB': {

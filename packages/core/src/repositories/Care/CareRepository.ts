@@ -143,7 +143,12 @@ export type AcceptOutcome =
 export type RuleEnding = { readonly clientId: string; readonly linkId: string; readonly professionalName: string };
 
 /** The client's latest link, when the illness rule ended it: the name, when, and which of its two endings (`CARE_RULE_ENDINGS`). */
-export type EndedByRule = { readonly endedAt: Date; readonly professionalName: string; readonly reason: CareRuleEnding };
+export type EndedByRule = {
+  readonly endedAt: Date;
+  readonly professionalId: string;
+  readonly professionalName: string;
+  readonly reason: CareRuleEnding;
+};
 
 /**
  * What inviting came to (`0061`): the invitation, or the practice's reason
@@ -727,7 +732,7 @@ export const CareRepository = {
   async lastEndedByRule(clientId: string): Promise<EndedByRule | null> {
     try {
       const [row] = await database()
-        .select({ endedAt: careLinks.endedAt, endedBy: careLinks.endedBy, professionalName: user.name })
+        .select({ endedAt: careLinks.endedAt, endedBy: careLinks.endedBy, professionalId: careLinks.professionalId, professionalName: user.name })
         .from(careLinks)
         .innerJoin(user, eq(user.id, careLinks.professionalId))
         .where(eq(careLinks.clientId, clientId))
@@ -736,7 +741,9 @@ export const CareRepository = {
 
       const reason = CARE_RULE_ENDINGS.find(ending => ending === row?.endedBy);
 
-      return reason && row?.endedAt ? { endedAt: row.endedAt, professionalName: row.professionalName, reason } : null;
+      return reason && row?.endedAt
+        ? { endedAt: row.endedAt, professionalId: row.professionalId, professionalName: row.professionalName, reason }
+        : null;
     } catch (error: unknown) {
       throw wrap(error);
     }

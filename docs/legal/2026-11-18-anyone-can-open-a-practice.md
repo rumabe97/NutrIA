@@ -413,6 +413,12 @@ colegiada/o»** with **«Comprobado por NutrIA el {date}»** / **"Registered die
 with **"Checked by NutrIA on {date}"** (the owner's design of 2026-11-18). The number appears only
 beside it.
 
+**Names versus profile text (2026-11-19).** An account's name (the one a client sees) is judged
+for **titles only**: the lists of §§ 6.1 and 6.2. **The promised-results pass of § 6.4 applies to
+profile text, never to a person's name.** A name like «Ana 100 %» is odd, but it is not an offer.
+Refusing it would bar a person from the practice for their own name, with no ground in LCD art. 5
+or in RD 1907/1996.
+
 ### 6.4 What no word list can catch — the owner's first look
 
 A function cannot judge these two. The first look does (PRD scope 11), and `06` § X words its
@@ -554,6 +560,7 @@ All three are false after 025. Proposed replacement for its first and last sente
 Relayed by the lead the same day. The owner's own words are not quoted here; what is recorded is
 the option he tapped and the two answers.
 
+0. **2026-11-19:** see § 12.1 for the approvals of that day (W bis.1–4, A bis, `practice.profilePromiseRefused`, the agreement §§ 11 and 13).
 1. **Every phase-1 text is approved**, with choices **C1–C11 as written** (tapped option
    «Aprobados», 2026-11-18). This covers the agreement 2.0.0 and the practitioner's screens
    (`textos/01`), the consent 3.0.0, the re-consent, the illness-rule screens and the health
@@ -646,6 +653,32 @@ line on the link card, built from `narrowed_at` (same words). Either one closes 
 nothing leaves the toggle unexplained.
 
 <!-- Fuente: RGPD arts. 5.1.a, 12.1, 9.1 (inferencia: TJUE C-184/20 y C-21/23, como en analysis.md § 1.2), 15.3-15.4; 0059 (el rastro es del cliente); PRD 025 criterio 12. -->
+
+
+### 12.1 Approvals of 2026-11-19 (relayed by the lead; tapped options)
+
+- **Earlier that day:** `textos/06` §§ W bis.1–3 (suspension, lifting, close with 30 days and its
+  immediate variant) and the agreement 2.0.0 §§ 11 and 13.
+- **Later that day:**
+  - (a) `textos/06` § A bis, the invitation mail's neutral `intro` and `meaning`;
+  - (b) `textos/06` § W bis.4, both variants, with the corrected "after" body (the badge is
+    withdrawn by the close, `ProfessionalRepository.close`);
+  - (c) `practice.profilePromiseRefused`.
+- **Amended the same day, as a fact rather than a choice:** W bis.4 picks its variant by whether
+  the close **was carried out**, not by whether `{closeDate}` has come. Until the sweep runs, the
+  links are intact.
+- **Still unapproved** (the lead asks the owner): the no-name variants in `textos/06` § Y and
+  `textos/05` § F.3 bis, and the two trail strings of § 12 (F10).
+
+### 12.2 For phase 8 (recorded, no text yet)
+
+- **A practitioner refused at an invitation because of their account's name** needs two things:
+  a way to change that name, and one sentence telling them where. Today the name is the account's,
+  set at sign-up or by Google or Apple. The sentence is phase 8's. It should name the screen
+  where the name is edited, and it may quote the refused word, because it goes only to the
+  practitioner, who wrote it.
+- **The name is judged for titles only** (§ 6, «Names versus profile text»): `badge_only` and
+  `never`, not the results list.
 
 ---
 

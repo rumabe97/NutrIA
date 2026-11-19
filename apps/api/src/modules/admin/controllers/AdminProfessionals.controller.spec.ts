@@ -396,7 +396,7 @@ describe('AdminProfessionalsController', () => {
         expect(send).not.toHaveBeenCalled();
       });
 
-      /* `textos/06` § W bis.4 (drafted, not yet approved): a lift that ended a close says which close, before or after its day. */
+      /* `textos/06` § W bis.4 (approved 2026-11-19): a lift that ended a close says which close, before or after its day. */
       it.each([
         [
           'not yet carried out',

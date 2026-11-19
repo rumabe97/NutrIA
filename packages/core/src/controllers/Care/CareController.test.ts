@@ -205,6 +205,22 @@ describe('CareController.invite', () => {
     expect((refusal as InputParseError).fieldErrors).toEqual({ name: ['badge_only:nutricionista'] });
   });
 
+  /* Round two: a name answers to the titles alone — a surname the results list would catch may invite. */
+  it('judges the name for titles only: «José Asegurado» may invite, «Dra. Lucía Pérez» may not', async () => {
+    let judge: ((name: string, badged: boolean) => NameRefusal | null) | undefined;
+
+    invite.mockImplementation(async (_id, _email, _hash, _expiresAt, _now, _seats, judgeName) => {
+      judge = judgeName;
+
+      return { kind: 'closed' };
+    });
+
+    await CareController.invite(PRO, { email: 'nueva@example.com' }, NOW).catch(() => undefined);
+
+    expect(judge?.('José Asegurado', false)).toBeNull();
+    expect(judge?.('Dra. Lucía Pérez', true)).toEqual({ list: 'never', word: 'dra' });
+  });
+
   it('answers the name the repository judged, for the mail', async () => {
     invite.mockImplementation(async (professionalId, email, tokenHash, expiresAt, _now, _seats, judgeName) => ({
       invitation: { id: '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f', createdAt: NOW, email, expiresAt, professionalId, tokenHash, updatedAt: NOW },
@@ -481,6 +497,17 @@ describe('CareController.accept', () => {
     expect((refusal as CareLinkExistsError).link).toEqual({ professionalName: 'Otra Persona', since: NOW.toISOString(), status: 'paused' });
   });
 
+  /* Round two: the 409 names the client's EXISTING practitioner as their own link names them — judged with that one's badge. */
+  it('names the existing practitioner only when the name may be shown, read with that practitioner’s badge', async () => {
+    accept.mockResolvedValue({ kind: 'exists', link: makeLink({ professionalId: 'usr-other-pro' }), professionalName: 'Otra, nutricionista' });
+    badgeOf.mockResolvedValue(null);
+
+    const refusal = await CareController.accept(CLIENT, TOKEN, answer, NOW).catch((error: unknown) => error);
+
+    expect((refusal as CareLinkExistsError).link.professionalName).toBeNull();
+    expect(badgeOf).toHaveBeenCalledWith('usr-other-pro', NOW);
+  });
+
   it('is a 404 when there is nothing to accept', async () => {
     accept.mockResolvedValue({ kind: 'gone' });
 
@@ -618,6 +645,15 @@ describe('CareController.myLink', () => {
     await expect(CareController.myLink(CLIENT)).resolves.toMatchObject({ professionalName: 'Ana Pérez', status: 'active' });
     await expect(CareController.myLink(CLIENT)).resolves.toBeNull();
     expect(clientLink).toHaveBeenCalledWith(CLIENT.id);
+  });
+
+  /* Invariant review of phase 6, round two: the name judged at every read, with the badge read for that answer. */
+  it('shows no name when the practitioner’s name carries a title the badge, read now, does not allow', async () => {
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana, dietista' });
+    badgeOf.mockResolvedValueOnce(null).mockResolvedValueOnce({ number: '28-1234' });
+
+    await expect(CareController.myLink(CLIENT)).resolves.toMatchObject({ professionalName: null, professionalVerified: false });
+    await expect(CareController.myLink(CLIENT)).resolves.toMatchObject({ professionalName: 'Ana, dietista', professionalVerified: true });
   });
 
   it('answers the client whatever the switch says — what they consented to stays visible (PRD 004, criterion 4)', async () => {
@@ -857,7 +893,7 @@ describe('CareController.endedLink — the client’s own notice (`textos/05` §
   it.each(['badge_lost', 'declared'] as const)(
     'answers the name, the day and which ending (%s) of a link the rule ended, for the session alone',
     async reason => {
-      lastEndedByRule.mockResolvedValue({ endedAt: NOW, professionalName: 'Ana Pérez', reason });
+      lastEndedByRule.mockResolvedValue({ endedAt: NOW, professionalId: PRO.id, professionalName: 'Ana Pérez', reason });
 
       await expect(CareController.endedLink({ id: CLIENT.id })).resolves.toEqual({
         endedAt: NOW.toISOString(),
@@ -867,6 +903,20 @@ describe('CareController.endedLink — the client’s own notice (`textos/05` §
       expect(lastEndedByRule).toHaveBeenCalledExactlyOnceWith(CLIENT.id);
     }
   );
+
+  /* Invariant review of phase 6, round two: the name judged now, with that practitioner's badge — titles only. */
+  it.each([
+    ['a badge-only title, without the badge', 'Ana, dietista', null, null],
+    ['a badge-only title, with the badge', 'Ana, dietista', { number: '28-1234' }, 'Ana, dietista'],
+    ['a title nobody may use', 'Dra. Lucía Pérez', { number: '28-1234' }, null],
+    ['a surname the results list would have caught', 'José Asegurado', null, 'José Asegurado']
+  ])('names the practitioner only when the name may be shown now: %s', async (_case, name, badge, shown) => {
+    lastEndedByRule.mockResolvedValue({ endedAt: NOW, professionalId: PRO.id, professionalName: name, reason: 'badge_lost' });
+    badgeOf.mockResolvedValue(badge);
+
+    await expect(CareController.endedLink({ id: CLIENT.id })).resolves.toMatchObject({ professionalName: shown });
+    expect(badgeOf).toHaveBeenCalledWith(PRO.id, expect.any(Date));
+  });
 
   it('is null otherwise, whatever the switch says', async () => {
     isEnabled.mockResolvedValue(false);
@@ -888,6 +938,14 @@ describe('CareController.sweepBadgeLoss — a badge gone, in the daily sweep (`0
     });
     expect(sweepBadgeLoss).toHaveBeenCalledExactlyOnceWith(NOW);
     expect(findUserById).toHaveBeenCalledExactlyOnceWith(CLIENT.id);
+  });
+
+  /* Round two: the badge has just gone — a title it allowed in the name is not mailed; the § Y no-name variant goes instead. */
+  it('answers no name for a practitioner whose name carries a title the badge allowed', async () => {
+    sweepBadgeLoss.mockResolvedValue({ ended: [{ clientId: CLIENT.id, linkId: 'l', professionalName: 'Ana, nutricionista' }], narrowed: 0 });
+    findUserById.mockResolvedValue(makeUser({ id: CLIENT.id, email: 'cliente@example.com' }));
+
+    await expect(CareController.sweepBadgeLoss(NOW)).resolves.toMatchObject({ ended: [{ professionalName: null }] });
   });
 
   it('answers no address for a client whose account is gone, and reads no account for a narrowing', async () => {

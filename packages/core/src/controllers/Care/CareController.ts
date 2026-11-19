@@ -11,7 +11,7 @@ import { SettingsRepository } from '#repositories/Settings';
 import { UserRepository } from '#repositories/User';
 import { FLAGS } from 'core/domain/Flag';
 import { personDayKey } from 'core/domain/Period';
-import { protectedWordIn } from 'core/domain/ProtectedWords';
+import { protectedWordIn, shownName } from 'core/domain/ProtectedWords';
 import {
   CARE_CONSENT_VERSION,
   CARE_HEALTH_SHARED,
@@ -192,7 +192,12 @@ export interface CareLinkView {
   /** Which list the client consented to: `full`, the badged one, or `plan`. */
   consentScope: CareConsentScope;
   consentVersion: string;
-  professionalName: string;
+  /**
+   * The practitioner's account name as it may be shown now (`shownName`), or
+   * null when it carries a title the account may not use — the screen then says
+   * «tu profesional» (invariant review of phase 6, round two).
+   */
+  professionalName: string | null;
   /**
    * Whether the practitioner holds NutrIA's badge now. False is when the health
    * screen warns before a condition or a medication is saved
@@ -228,7 +233,8 @@ export interface CareLinkView {
  */
 export interface CareEndedLinkView {
   endedAt: string;
-  professionalName: string;
+  /** As `CareLinkView.professionalName`: null when the name may not be shown now. */
+  professionalName: string | null;
   reason: CareRuleEnding;
 }
 
@@ -530,7 +536,8 @@ function presentLink({ link, professionalName }: LinkWithProfessional, badged: b
     consentIsCurrent: link.consentVersion === CARE_CONSENT_VERSION,
     consentScope: link.consentScope,
     consentVersion: link.consentVersion,
-    professionalName,
+    // Judged at every read, with the badge read for this answer: null when it may not be shown now (round two).
+    professionalName: shownName(professionalName, badged),
     professionalVerified: badged,
     reconsentOffered: link.consentScope === 'plan' && badged && link.status !== 'ended',
     scope,
@@ -623,13 +630,13 @@ async function practises(userId: string, now: Date = new Date()): Promise<boolea
 
 /**
  * Whether a practitioner's account name may be shown to a client now
- * (invariant review of phase 6, P1-2): the words a profile may not carry are
- * the words an invitation may not carry — `protectedWordIn`, with the badge as
- * it stands. The one judge of the name the mail, the invitation page and the
- * acceptance read.
+ * (invariant review of phase 6, P1-2 and round two): `shownName`, the one judge
+ * — titles only, with the badge as it stands. The invitation and its mail, the
+ * acceptance and the decline refuse under a name that fails it; the client's
+ * link and its endings show null in its place.
  */
 function nameShown(name: string, badged: boolean): boolean {
-  return protectedWordIn(name, badged) === null;
+  return shownName(name, badged) !== null;
 }
 
 /**
@@ -688,8 +695,11 @@ export const CareController = {
     }
 
     if (outcome.kind === 'exists') {
+      // The client's existing practitioner, named as their link names them: judged with that practitioner's badge now.
+      const badged = (await ProfessionalBadgeRepository.badgeOf(outcome.link.professionalId, now)) !== null;
+
       throw new CareLinkExistsError({
-        professionalName: outcome.professionalName,
+        professionalName: shownName(outcome.professionalName, badged),
         since: outcome.link.consentedAt.toISOString(),
         status: outcome.link.status === 'paused' ? 'paused' : 'active'
       });
@@ -862,7 +872,14 @@ export const CareController = {
   async endedLink(session: Pick<CareSession, 'id'>): Promise<CareEndedLinkView | null> {
     const row = await CareRepository.lastEndedByRule(session.id);
 
-    return row ? { endedAt: row.endedAt.toISOString(), professionalName: row.professionalName, reason: row.reason } : null;
+    if (!row) {
+      return null;
+    }
+
+    // Judged now, with that practitioner's badge read as `decline` reads it (round two).
+    const badged = (await ProfessionalBadgeRepository.badgeOf(row.professionalId, new Date())) !== null;
+
+    return { endedAt: row.endedAt.toISOString(), professionalName: shownName(row.professionalName, badged), reason: row.reason };
   },
 
   /**
@@ -974,7 +991,7 @@ export const CareController = {
       expiresAt,
       now,
       () => freeSeats(professional.id),
-      (name, badged) => protectedWordIn(name, badged)
+      (name, badged) => protectedWordIn(name, badged, 'name')
     );
 
     if (outcome.kind === 'closed') {
@@ -1290,7 +1307,7 @@ export const CareController = {
   async sweepBadgeLoss(
     now: Date = new Date()
   ): Promise<{
-    readonly ended: readonly { readonly clientId: string; readonly professionalName: string; readonly to: string | null }[];
+    readonly ended: readonly { readonly clientId: string; readonly professionalName: string | null; readonly to: string | null }[];
     readonly narrowed: number;
   }> {
     const { ended, narrowed } = await CareRepository.sweepBadgeLoss(now);
@@ -1299,7 +1316,8 @@ export const CareController = {
       ended: await Promise.all(
         ended.map(async row => ({
           clientId: row.clientId,
-          professionalName: row.professionalName,
+          // The badge has just gone: the name is judged without it (round two), so a title it allowed is not mailed.
+          professionalName: shownName(row.professionalName, false),
           to: (await UserRepository.findById(row.clientId))?.email ?? null
         }))
       ),

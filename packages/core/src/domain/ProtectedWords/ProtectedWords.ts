@@ -315,20 +315,29 @@ function firstOf(readings: readonly (readonly string[])[], words: readonly strin
  *
  * Order: a promised result, then the words nobody may use, then the badge's own
  * — so the answer names the reason that would survive a badge.
+ *
+ * `judged` says what is being judged (invariant review of phase 6, round two):
+ * a profile's text (`'text'`, the default) answers to all three lists; a
+ * practitioner's **name** (`'name'`) to the titles alone — `never` and
+ * `badge_only` — because a promised result is a rule for what a profile says,
+ * and real surnames («Asegurado», «Garantizada») would hit it.
  */
-export function protectedWordIn(text: string, badged: boolean): ProtectedWordHit | null {
-  const visible = prepared(text);
-  const raw = RAW_RESULTS.find(({ pattern }) => pattern.test(visible));
-
-  if (raw) {
-    return { list: 'result', word: raw.word };
-  }
-
+export function protectedWordIn(text: string, badged: boolean, judged: 'name' | 'text' = 'text'): ProtectedWordHit | null {
   const tokens = readingsOf(text);
-  const result = firstOf(tokens, RESULT_WORDS);
 
-  if (result !== undefined) {
-    return { list: 'result', word: result };
+  if (judged === 'text') {
+    const visible = prepared(text);
+    const raw = RAW_RESULTS.find(({ pattern }) => pattern.test(visible));
+
+    if (raw) {
+      return { list: 'result', word: raw.word };
+    }
+
+    const result = firstOf(tokens, RESULT_WORDS);
+
+    if (result !== undefined) {
+      return { list: 'result', word: result };
+    }
   }
 
   const never = firstOf(tokens, NEVER_WORDS);
@@ -388,4 +397,18 @@ function titleStemIn(readings: readonly (readonly string[])[]): string | undefin
   }
 
   return undefined;
+}
+
+/**
+ * **The one judge of a practitioner's name shown to a client** (invariant
+ * review of phase 6, round two): the name as it may be shown, or null when it
+ * carries a title the account may not use now — `protectedWordIn` on the name,
+ * titles only (`'name'`), with `badged` read as the caller reads it. Null is
+ * rendered by the screens as the approved neutral «tu profesional» / "your
+ * professional", and by a mail as its no-name variant. Used at the invitation,
+ * the acceptance, the decline, the client's link and its endings — never on the
+ * client's access trail, which keeps the name as it was when they were looked at.
+ */
+export function shownName(name: string, badged: boolean): string | null {
+  return protectedWordIn(name, badged, 'name') === null ? name : null;
 }

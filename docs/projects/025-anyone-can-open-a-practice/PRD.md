@@ -339,7 +339,10 @@ traces to.
     mailed to every account before the switch opens in production, and LOG.md records the
     date.
 24. **Suspension and close** (the owner, 2026-11-18). A suspended account reaches no client
-    route and no practice route from the next request; a closing practice works for 30 days
+    route from the next request — its own practice page, agreement, badge and profile stay
+    (*amended 2026-11-19, phase 6's review: they name no client, and the page is where the
+    account reads its restriction; the agreement's § 11 says the same*) — and cannot open a
+    practice; a closing practice works for 30 days
     after its notice and is then closed by the daily sweep; both carry a statement of reasons;
     a suspended, closing or closed account's request to open a practice is a 404 and writes
     nothing.

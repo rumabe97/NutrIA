@@ -48,7 +48,7 @@ campos no cambian, salvo `meaning`, que se alinea con la página (§ B1 de `05`)
 
 <!-- Fuente: RGPD art. 14.1.a-e (identidad, fines, base, destinatarios), 14.2.a (plazo), 14.2.f (fuente: el profesional), 14.3.b (al primer contacto); care.schema.ts:9-54 (aceptar o rechazar borra la fila; las caducadas las borra el barrido diario de las 08:00, backend cf87d75, así que una invitación puede vivir casi un día más que sus 14: por eso «como muy tarde al día siguiente» y no «14 días como máximo»). Recomendación AEPD, Guía para el cumplimiento del deber de informar: primera capa básica + enlace. -->
 
-### A bis. La invitación cuando cualquiera puede abrir una consulta (proyecto 025, fase 6 — **palabras nuevas, sin aprobar**)
+### A bis. La invitación cuando cualquiera puede abrir una consulta (proyecto 025, fase 6 — **aprobado por el propietario el 2026-11-19**, por opción marcada)
 
 **Plantilla**: `apps/api/src/modules/email/templates/CareInvitation.ts`, objeto `COPY`. **Cuándo
 se publica**: en el mismo cambio que deja abrir una consulta sin insignia (fase 6), no después.
@@ -696,7 +696,7 @@ avisos al propietario. **Elección C8**: lleva números y un enlace, ninguna dir
 
 ---
 
-## W bis. Suspender la cuenta como profesional, levantar la suspensión y cerrar la consulta (fase 6; decidido por el propietario el 2026-11-18)
+## W bis. Suspender la cuenta como profesional, levantar la suspensión y cerrar la consulta (fase 6; decidido por el propietario el 2026-11-18; **W bis.1–3 aprobados el 2026-11-19**, por opción marcada)
 
 **El propietario tiene tres actos sobre una cuenta que practica**, además de ocultar un perfil (§ X)
 y retirar una insignia (§ W), que son inmediatos:
@@ -740,13 +740,17 @@ y retirar una insignia (§ W), que son inmediatos:
 | `redress` | `Hasta el {closeDate} puedes aclarar los hechos o pedirnos que lo revisemos respondiendo a este correo: lo revisa una persona y te contesta. También puedes acudir a los tribunales.` | `Until {closeDate} you can clarify the facts or ask us to look again by replying to this email: a person reviews it and answers you. You can also go to the courts.` |
 | `immediate` (sustituye a `subject` y a la primera frase de `what` cuando no hay plazo) | `Hemos cerrado tu consulta en NutrIA` · `Desde hoy hemos cerrado definitivamente tu consulta, sin el plazo de 30 días, porque {exception}: …` con `{exception}` = `la ley nos obliga a hacerlo ({law})` o `has incumplido el acuerdo de forma repetida: {facts}` | `We have closed your NutrIA practice` · `From today we have closed your practice for good, without the 30-day period, because {exception}: …` |
 
-### W bis.4 El cierre se anula, antes o después de su fecha (**palabras nuevas, sin aprobar**, 2026-11-19)
+### W bis.4 El cierre se anula, antes o después de ejecutarse (**aprobado por el propietario el 2026-11-19**, por opción marcada, las dos variantes con el cuerpo «después» corregido)
 
 **Cuándo**: el propietario levanta en la consola un cierre que había anunciado. El mismo acto,
 `lifted`, quita también una suspensión si la había
 (`packages/core/src/repositories/Professional/PracticeRestrictionRepository.ts`:
-`restrictionFrom`). **Plantilla nueva**: `ProfessionalCloseWithdrawn.ts`. Dos variantes, según
-haya llegado o no `{closeDate}`. Sin palabra de salud y sin el nombre de ningún cliente.
+`restrictionFrom`). **Plantilla nueva**: `ProfessionalCloseWithdrawn.ts`. Dos variantes, **según se haya ejecutado o no el cierre**,
+no según haya llegado `{closeDate}`: entre esa fecha y el barrido diario que lo ejecuta (hasta un
+día) los enlaces siguen intactos, la fila `professionals` sigue ahí y la insignia no se ha
+retirado, así que la variante verdadera es la de «antes». Las etiquetas «antes de la fecha» y
+«después de la fecha» de la tabla se leen como «antes de ejecutarse» y «después de ejecutarse»
+(`ProfessionalRepository.close` es lo que lo ejecuta). Sin palabra de salud y sin el nombre de ningún cliente.
 
 | Campo | es-ES | en-GB |
 | --- | --- | --- |
@@ -803,6 +807,20 @@ palabra de salud**. **Plantilla nueva**: `CareLinkEndedByRule.ts`.
 | `button` | `Abrir mi perfil` | `Open my profile` |
 
 <!-- Fuente: 0111 § 8; PRD 025 scope 10 y criterio 22; RGPD arts. 5.1.f y 32 (un buzón y una pantalla de bloqueo no llevan salud: criterio de este fichero desde CareInvitation.ts, 0059); art. 13.2.f y 22.3 (el porqué y la revisión humana están en la pantalla, 05 § G.3). -->
+
+**Sin el nombre** (2026-11-19, **palabras nuevas, sin aprobar**): cuando el nombre de la cuenta del
+profesional no se puede mostrar a un cliente, porque lleva un título que la insignia ya no respalda
+o uno que nunca se permite (`nameShown`, `packages/core/src/controllers/Care/CareController.ts:631`),
+la plantilla `CareLinkEndedByRule.ts` usa estas variantes, sin `{professional}`:
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subjectNoName` | `Tu enlace con tu profesional en NutrIA ha terminado` | `Your link with your professional on NutrIA has ended` |
+| `bodyNoName` | `Tu enlace con tu profesional ha terminado hoy. Tu plan, tus objetivos y tu historial se quedan contigo. Entra en NutrIA para ver por qué: te lo explicamos en tu perfil.` | `Your link with your professional ended today. Your plan, your targets and your history stay with you. Sign in to NutrIA to see why: we explain it on your profile.` |
+
+`button` y `linkFallback` no llevan nombre y no cambian.
+
+<!-- Fuente: PRD 025 scope 5 (el título solo desde la insignia, nunca desde texto escrito) y scope 12; C3 («tu profesional», aprobado el 2026-11-18); LCD arts. 5.1.g y 21.1.c; CP art. 403.2.a (si el nombre lleva «Dietista…», mostrarlo en el correo de NutrIA es NutrIA atribuyéndolo). La persona ya sabe con quién estaba vinculada: su perfil lo dice, y el registro de accesos conserva el nombre. El correo solo deja de repetir el título. -->
 
 ---
 

@@ -2,6 +2,7 @@ import { CONDITION_EXCLUSIONS, CONDITION_SUGGESTIONS, conditionImplications, sup
 import { CareRepository } from '#repositories/Care';
 import { HEALTH_CONSENT_VERSION } from 'core/entities/Health';
 import { HealthRepository } from '#repositories/Health';
+import { shownName } from 'core/domain/ProtectedWords';
 import { SafetyRepository } from '#repositories/Safety';
 import type { Allergen } from 'core/entities/Safety';
 import type { ConditionKey, HealthCondition, Medication, SetHealthData, Supplement } from 'core/entities/Health';
@@ -50,7 +51,7 @@ export interface HealthView {
  * rule (`0111` § 8), or null. The name only: the person knows what they saved.
  */
 export interface HealthSavedView extends HealthView {
-  linkEnded: { professionalName: string } | null;
+  linkEnded: { professionalName: string | null } | null;
 }
 
 /**
@@ -113,7 +114,8 @@ export const HealthController = {
   async replace(userId: string, input: SetHealthData, now: Date = new Date()): Promise<HealthSavedView> {
     const ended = await HealthRepository.replaceAll(userId, input, tx => CareRepository.endOnDeclaration(userId, now, tx));
 
-    return { ...(await HealthController.get(userId)), linkEnded: ended ? { professionalName: ended.professionalName } : null };
+    // The rule ends only a link to a practitioner without the badge: the name is judged without it (`shownName`, round two).
+    return { ...(await HealthController.get(userId)), linkEnded: ended ? { professionalName: shownName(ended.professionalName, false) } : null };
   },
 
   /**

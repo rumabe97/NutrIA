@@ -71,6 +71,13 @@ describe('HealthController.replace — the illness rule', () => {
     expect(view.linkEnded).toEqual({ professionalName: 'Ana' });
     expect(JSON.stringify(view)).not.toContain('link-1');
   });
+
+  /* Invariant review of phase 6, round two: the rule ends only an un-badged practitioner's link, so the name is judged without the badge. */
+  it('answers no name when the practitioner’s name carries a title only the badge allows', async () => {
+    endOnDeclaration.mockResolvedValue({ clientId: 'usr-client', linkId: 'link-1', professionalName: 'Ana, nutricionista' });
+
+    await expect(HealthController.replace('usr-client', INPUT, NOW)).resolves.toMatchObject({ linkEnded: { professionalName: null } });
+  });
 });
 
 describe('the illness rule’s version of the consent (legal F1)', () => {

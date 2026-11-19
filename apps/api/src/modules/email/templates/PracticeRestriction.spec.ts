@@ -127,7 +127,7 @@ describe('the restriction and first-look mails (project 025 phase 6, `docs/legal
     expect(mail.text).toContain('Por qué: Uno b dos /b tres. Es lo que dice');
   });
 
-  /* § W bis.4, as drafted on 2026-11-19 and not yet approved: the close withdrawn, before or after its day. */
+  /* § W bis.4, approved by the owner on 2026-11-19: the close withdrawn, before or after its day. */
   it('§ W bis.4 before the day: it will not happen, the suspension lifted with it when it was', () => {
     const mail = professionalCloseWithdrawnEmail({ carriedOut: false, closesAt: CLOSES, facts: null, liftedSuspension: true, locale: 'es-ES' });
 

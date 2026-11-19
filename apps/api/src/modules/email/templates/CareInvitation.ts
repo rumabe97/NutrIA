@@ -15,7 +15,8 @@ const NAME_LIMIT = 80;
  * either side can end it at any time — that the list is shown before anything
  * is shared, and that the link expires. **It never names a title** («dietista»
  * or any other): one neutral sentence for both tiers (`docs/legal/textos/06` §
- * A bis), because the name before it is the account's and nobody checked it. **It carries no health word**: an inbox is scanned and a lock
+ * A bis, approved by the owner on 2026-11-19), because the name before it is
+ * the account's and nobody checked it. **It carries no health word**: an inbox is scanned and a lock
  * screen is public, and what is shared is read behind a login.
  *
  * The recipient's language is unknown — the address may have no account — so

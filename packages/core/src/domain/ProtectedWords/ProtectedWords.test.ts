@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ALLOWED_WITH_NOTICE, BADGE_ONLY_WORDS, NEVER_WORDS, normalisedTokens, protectedWordIn, RESULT_WORDS } from './ProtectedWords';
+import { ALLOWED_WITH_NOTICE, BADGE_ONLY_WORDS, NEVER_WORDS, normalisedTokens, protectedWordIn, RESULT_WORDS, shownName } from './ProtectedWords';
 
 /**
  * The tests `docs/legal/2026-11-18-anyone-can-open-a-practice.md` § 6.5 sets:
@@ -232,6 +232,33 @@ describe('protectedWordIn — a title glued or cut in pieces', () => {
     'Coach nutricional'
   ])('lets «%s» through: no title stem, alone or joined', text => {
     expect(protectedWordIn(text, false)).toBeNull();
+  });
+});
+
+/*
+ * Invariant review of phase 6, round two: a practitioner's name is judged for
+ * titles only — `never` and `badge_only` — while a profile's text keeps all three
+ * lists. Real surnames hit the results list.
+ */
+describe('protectedWordIn and shownName — a name answers to the titles alone', () => {
+  it.each(['José Asegurado', 'María Garantizada', 'Ana 100 % López'])('lets the name «%s» through, badge or not', name => {
+    expect(protectedWordIn(name, false, 'name')).toBeNull();
+    expect(shownName(name, false)).toBe(name);
+  });
+
+  it('still refuses a promise of results in a profile’s text', () => {
+    expect(protectedWordIn('Resultados garantizados', false)).toEqual({ list: 'result', word: 'garantizados' });
+    expect(protectedWordIn('Resultados garantizados', true, 'text')).toEqual({ list: 'result', word: 'garantizados' });
+  });
+
+  it('refuses a title nobody may use as a name, badge or not', () => {
+    expect(protectedWordIn('Dra. Lucía Pérez', true, 'name')).toEqual({ list: 'never', word: 'dra' });
+    expect(shownName('Dra. Lucía Pérez', true)).toBeNull();
+  });
+
+  it('refuses a badge-only title as a name without the badge, and shows it with one', () => {
+    expect(shownName('Ana, dietista-nutricionista', false)).toBeNull();
+    expect(shownName('Ana, dietista-nutricionista', true)).toBe('Ana, dietista-nutricionista');
   });
 });
 
