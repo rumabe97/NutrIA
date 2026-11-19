@@ -3,6 +3,7 @@ import { createHash, randomInt } from 'node:crypto';
 import { badgeFrom, codeIsLive, lapseDate, newestFirst, pendingApplication, ProfessionalBadgeRepository } from '#repositories/Professional';
 import { BADGE_LAPSE_DETAILS, BADGE_REMOVAL_REASONS } from 'core/entities/Professional';
 import { AnalyticsRepository } from '#repositories/Analytics';
+import { CareRepository } from '#repositories/Care';
 import { SettingsRepository } from '#repositories/Settings';
 import { FLAGS } from 'core/domain/Flag';
 import { NotFoundError } from 'core/entities/Error';
@@ -446,10 +447,18 @@ export const ProfessionalBadgeController = {
    * (`withdrawn`), with the reason the statement carries. A 404 when there is
    * no application, or no badge, to decide. The badge closes on the
    * practitioner's next request: `badgeOf` reads this row.
+   *
+   * A badge withdrawn narrows every open link of that practitioner in the same
+   * transaction (`CareRepository.narrowLinksOf`, project 025 phase 5): the
+   * client's consent to the badged list does not outlive the badge, so a badge
+   * granted again widens nothing until the client consents afresh. Nothing is
+   * sent to any client.
    */
   async remove(userId: string, ownerId: string, input: RemoveBadge, now: Date = new Date()): Promise<BadgeRemoval> {
     const account = await accountOf(userId);
-    const removed = await ProfessionalBadgeRepository.remove(userId, ownerId, input.kind, storedReason(input), now);
+    const removed = await ProfessionalBadgeRepository.remove(userId, ownerId, input.kind, storedReason(input), now, tx =>
+      CareRepository.narrowLinksOf(userId, now, tx)
+    );
 
     if (!removed) {
       throw new NotFoundError(NOT_FOUND);

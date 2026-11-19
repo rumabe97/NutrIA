@@ -7,6 +7,7 @@ import {
   CARE_CONSENT_VERSION,
   CARE_HEALTH_SHARED,
   CARE_LINK_ENDED_BY,
+  CARE_RULE_ENDINGS,
   CARE_SHARED,
   CARE_SHARED_PLAN,
   endedByForPractitioner,
@@ -49,8 +50,9 @@ describe('inviteClientSchema', () => {
 });
 
 describe('acceptInvitationSchema', () => {
-  it('takes the current version and a yes or no to the health line', () => {
-    expect(acceptInvitationSchema.parse({ consentVersion: CARE_CONSENT_VERSION, sharesHealth: true })).toEqual({
+  it('takes the list read, the current version and a yes or no to the health line', () => {
+    expect(acceptInvitationSchema.parse({ consentScope: 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: true })).toEqual({
+      consentScope: 'full',
       consentVersion: CARE_CONSENT_VERSION,
       sharesHealth: true
     });
@@ -85,13 +87,13 @@ describe('what a link consented to (project 025)', () => {
     expect(CARE_SHARED_PLAN).toEqual(['profile', 'plans', 'status']);
   });
 
-  it('takes the list the client read, optionally, and nothing but the two lists', () => {
+  it('requires the list the client read — nothing is presumed from its absence — and takes nothing but the two lists', () => {
     expect(acceptInvitationSchema.parse({ consentScope: 'plan', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })).toEqual({
       consentScope: 'plan',
       consentVersion: CARE_CONSENT_VERSION,
       sharesHealth: false
     });
-    expect(acceptInvitationSchema.parse({ consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })).not.toHaveProperty('consentScope');
+    expect(acceptInvitationSchema.safeParse({ consentVersion: CARE_CONSENT_VERSION, sharesHealth: false }).success).toBe(false);
     expect(acceptInvitationSchema.safeParse({ consentScope: 'everything', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false }).success).toBe(
       false
     );
@@ -113,9 +115,10 @@ describe('what a link consented to (project 025)', () => {
  * distinct label would tell them which client has something on record.
  */
 describe('who ended a link, as a practitioner may read it', () => {
-  it('names every value the database holds, `badge_lost` appended last', () => {
+  it('names every value the database holds, the illness rule’s two appended last', () => {
     expect(careLinkEndedBy.enumValues).toEqual([...CARE_LINK_ENDED_BY]);
-    expect(CARE_LINK_ENDED_BY.at(-1)).toBe('badge_lost');
+    expect(CARE_LINK_ENDED_BY.slice(-2)).toEqual(['badge_lost', 'declared']);
+    expect(CARE_RULE_ENDINGS).toEqual(['badge_lost', 'declared']);
   });
 
   it.each(CARE_LINK_ENDED_BY.map(value => [value, value === 'professional' ? 'professional' : 'client'] as const))(

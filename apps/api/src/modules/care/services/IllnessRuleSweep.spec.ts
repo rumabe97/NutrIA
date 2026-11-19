@@ -43,10 +43,13 @@ describe('IllnessRuleSweepService', () => {
   });
 
   it('mails each client whose link it ended, in their language, at their own address — and no one else', async () => {
-    const sweep = jest.spyOn(CareController, 'endUnderBadgeLoss').mockResolvedValue([
-      { clientId: 'usr-a', professionalName: 'Ana Pérez', to: 'a@example.invalid' },
-      { clientId: 'usr-b', professionalName: 'Luis Gil', to: 'b@example.invalid' }
-    ]);
+    const sweep = jest.spyOn(CareController, 'sweepBadgeLoss').mockResolvedValue({
+      ended: [
+        { clientId: 'usr-a', professionalName: 'Ana Pérez', to: 'a@example.invalid' },
+        { clientId: 'usr-b', professionalName: 'Luis Gil', to: 'b@example.invalid' }
+      ],
+      narrowed: 0
+    });
 
     await service.run(NOW);
 
@@ -61,8 +64,17 @@ describe('IllnessRuleSweepService', () => {
     expect(send.mock.calls[0]?.[0].text).toContain('https://nutria.example/en/perfil');
   });
 
-  it('sends nothing, and logs nothing, when no link ended', async () => {
-    jest.spyOn(CareController, 'endUnderBadgeLoss').mockResolvedValue([]);
+  it('mails nobody for a narrowing, and logs only the count', async () => {
+    jest.spyOn(CareController, 'sweepBadgeLoss').mockResolvedValue({ ended: [], narrowed: 4 });
+
+    await service.run(NOW);
+
+    expect(send).not.toHaveBeenCalled();
+    expect(lines).toEqual(['badge loss sweep: ended 0, narrowed 4, not mailed 0']);
+  });
+
+  it('sends nothing, and logs nothing, when nothing changed', async () => {
+    jest.spyOn(CareController, 'sweepBadgeLoss').mockResolvedValue({ ended: [], narrowed: 0 });
 
     await service.run(NOW);
 
@@ -71,21 +83,24 @@ describe('IllnessRuleSweepService', () => {
   });
 
   it('counts a mail that could not go — a refused send, or no address — and keeps going', async () => {
-    jest.spyOn(CareController, 'endUnderBadgeLoss').mockResolvedValue([
-      { clientId: 'usr-a', professionalName: 'Ana', to: null },
-      { clientId: 'usr-b', professionalName: 'Luis', to: 'b@example.invalid' },
-      { clientId: 'usr-c', professionalName: 'Eva', to: 'c@example.invalid' }
-    ]);
+    jest.spyOn(CareController, 'sweepBadgeLoss').mockResolvedValue({
+      ended: [
+        { clientId: 'usr-a', professionalName: 'Ana', to: null },
+        { clientId: 'usr-b', professionalName: 'Luis', to: 'b@example.invalid' },
+        { clientId: 'usr-c', professionalName: 'Eva', to: 'c@example.invalid' }
+      ],
+      narrowed: 1
+    });
     send.mockResolvedValueOnce(false).mockRejectedValueOnce(new Error('smtp'));
 
     await service.run(NOW);
 
     expect(send).toHaveBeenCalledTimes(2);
-    expect(lines).toEqual(['illness rule sweep: ended 3, not mailed 3']);
+    expect(lines).toEqual(['badge loss sweep: ended 3, narrowed 1, not mailed 3']);
   });
 
   it('never throws, and logs no person, when the sweep fails', async () => {
-    jest.spyOn(CareController, 'endUnderBadgeLoss').mockRejectedValue(new Error('usr-a a@example.invalid Ana'));
+    jest.spyOn(CareController, 'sweepBadgeLoss').mockRejectedValue(new Error('usr-a a@example.invalid Ana'));
 
     await expect(service.run(NOW)).resolves.toBeUndefined();
     expect(lines).toEqual(['The illness rule sweep failed: Error']);

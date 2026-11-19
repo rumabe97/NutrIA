@@ -519,6 +519,13 @@
       "when": 1795048658323,
       "tag": "0073_a_link_can_end_because_a_badge_was_lost",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1795051144794,
+      "tag": "0074_a_widened_consent_and_a_declaration_leave_their_mark",
+      "breakpoints": true
     }
   ]
 }

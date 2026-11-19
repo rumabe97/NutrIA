@@ -165,6 +165,8 @@ function makeLink(overrides?: Partial<CareLink>): CareLink {
     endedBy: null,
     professionalId: PRO.id,
     reviewBeforePublish: true,
+    scopeConsentedAt: null,
+    scopeConsentVersion: null,
     sharesHealth: false,
     status: 'active',
     updatedAt: NOW,

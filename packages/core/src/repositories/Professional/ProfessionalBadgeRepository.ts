@@ -29,6 +29,9 @@ const DECISIVE: readonly ProfessionalBadgeCheck['kind'][] = ['pass', 'fail', 'wi
  * when, with nobody re-checking, it lapses. `checkedBy` is not here — it is the
  * owner's account and no reader of a badge needs it.
  */
+/** Where a badge is read from: the pool, or a transaction the caller holds. */
+export type BadgeReader = ReturnType<typeof database> | Tx;
+
 export interface Badge {
   readonly channel: BadgeChannel | null;
   readonly checkedAt: Date;
@@ -269,10 +272,15 @@ export const ProfessionalBadgeRepository = {
   /**
    * The practitioner's badge now, or null. The only per-account reader of the
    * badge: one indexed read of the latest decisive check, judged by `badgeFrom`.
+   *
+   * `db` is the caller's transaction when it holds one (project 025 phase 5,
+   * `CareRepository`'s illness rule and consent writes): the read then runs on the
+   * connection the transaction already holds, never queuing for a second one
+   * while its locks are held.
    */
-  async badgeOf(userId: string, now: Date): Promise<Badge | null> {
+  async badgeOf(userId: string, now: Date, db: BadgeReader = database()): Promise<Badge | null> {
     try {
-      const [row] = await database()
+      const [row] = await db
         .select()
         .from(professionalBadgeChecks)
         .where(and(eq(professionalBadgeChecks.userId, userId), inArray(professionalBadgeChecks.kind, [...DECISIVE])))
@@ -285,14 +293,17 @@ export const ProfessionalBadgeRepository = {
     }
   },
 
-  /** The badge of each account named, by `badgeFrom`; an account without one is absent from the map. */
-  async badgesOf(userIds: readonly string[], now: Date): Promise<ReadonlyMap<string, Badge>> {
+  /**
+   * The badge of each account named, by `badgeFrom`; an account without one is
+   * absent from the map. `db` as for `badgeOf`.
+   */
+  async badgesOf(userIds: readonly string[], now: Date, db: BadgeReader = database()): Promise<ReadonlyMap<string, Badge>> {
     if (userIds.length === 0) {
       return new Map();
     }
 
     try {
-      const rows = await database()
+      const rows = await db
         .select()
         .from(professionalBadgeChecks)
         .where(and(inArray(professionalBadgeChecks.userId, [...userIds]), inArray(professionalBadgeChecks.kind, [...DECISIVE])));
@@ -625,7 +636,17 @@ export const ProfessionalBadgeRepository = {
    * standing badge taken back), with `reason` as the statement of reasons. Null
    * when there is nothing of that kind to decide. Codes not entered expire.
    */
-  async remove(userId: string, checkedBy: string, kind: 'fail' | 'withdrawn', reason: string, now: Date): Promise<RemovedCheck | null> {
+  async remove(
+    userId: string,
+    checkedBy: string,
+    kind: 'fail' | 'withdrawn',
+    reason: string,
+    now: Date,
+    // Run inside this transaction after a badge is withdrawn (project 025 phase 5): the
+    // practitioner's links narrow at the same moment (`CareRepository.narrowLinksOf`). The
+    // controller builds it; this repository does not know what it does.
+    whenWithdrawn?: (tx: Tx) => Promise<unknown>
+  ): Promise<RemovedCheck | null> {
     try {
       return await underLock(userId, async tx => {
         const checks = await checksOf(tx, userId);
@@ -640,6 +661,10 @@ export const ProfessionalBadgeRepository = {
         await tx
           .insert(professionalBadgeChecks)
           .values({ checkedAt: now, checkedBy, kind, number: target.number, reason, register: target.register, userId });
+
+        if (kind === 'withdrawn' && whenWithdrawn) {
+          await whenWithdrawn(tx);
+        }
 
         return { checkedAt: now, kind, number: target.number, register: target.register };
       });

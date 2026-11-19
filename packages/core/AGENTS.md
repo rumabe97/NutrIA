@@ -222,21 +222,30 @@ write leaves no row, and a write that returns without having recorded fails. So:
   check-in notice is sent. A new field on a plan, a job or the client page is added to the
   full view only, unless it is the plan's own content; a new care route decides its `plan`
   outcome and has a case in `apps/api/test/care-scope.e2e-spec.ts`. **The consent half is
-  written once, at acceptance** (`CareRepository.accept`, PLAN 025 phase 5): `full` only with
-  the badge standing then **and** the client not saying they read the plan-only list
-  (`acceptInvitationSchema.consentScope` can only narrow); a badge gained later widens nothing
-  until the client's own `reconsent`, and the health line cannot be turned on outside `full`.
-  Every insert into `care_links` names its `consent_scope`.
+  written at acceptance** (`CareRepository.accept`, PLAN 025 phase 5): `full` only when the
+  client says they read the badged list (`acceptInvitationSchema.consentScope`, required)
+  **and** the badge stands then; `plan` otherwise. A badge gained later widens nothing until the
+  client's own `reconsent`, which writes `scope_consented_at`/`scope_consent_version` and never
+  rewrites `consentedAt`/`consentVersion` (what was accepted, and when). **A badge gone narrows
+  for good**: `consent_scope = 'plan'` and the health line off (`narrowLinks`) — in the owner's
+  removal transaction (`narrowLinksOf`) and in the daily sweep for a badge lapsed by the clock
+  (`sweepBadgeLoss`) — so a badge that comes back widens nothing by itself; `linkScope` still
+  reads the badge on every request and never trusts the stored value alone. The health line
+  cannot be turned on outside `full`. Every insert into `care_links` names its `consent_scope`.
+  A badge read inside a transaction passes that transaction to `badgeOf`/`badgesOf`: never a
+  second pool connection while locks are held.
 - **The illness rule** (`0111` § 8, PRD 025 criterion 22) has three enforcement points and no
   fourth: `CareRepository.accept` (refused in its transaction, the invitation kept),
   `CareRepository.endOnDeclaration` (run by `HealthController.replace` inside the health
   section's own transaction, through `HealthRepository.replaceAll`'s `within`), and
-  `CareRepository.endUnderBadgeLoss` (the daily `/cron/reminders` sweep, state-based). "On
+  `CareRepository.sweepBadgeLoss` (the daily `/cron/reminders` sweep, state-based, the badge
+  read again inside its write). "On
   record" is `HealthRepository`'s `onRecord` and nothing else: any `health_conditions` row,
   free text and pregnancy included, or any medication — never a supplement. The first two hold
   the client's `user` row `FOR NO KEY UPDATE` before they read, so they queue. Every ending goes
   through `endLinks` (the targets' mark comes off, as on any end); a declaration's is stored
-  `client`, the sweep's `badge_lost`. **A practitioner never reads how a link ended**: no view of
+  `declared`, the sweep's `badge_lost` (`CARE_RULE_ENDINGS`, which `lastEndedByRule` answers to
+  the client alone). **A practitioner never reads how a link ended**: no view of
   theirs carries `endedBy`, and one that ever does maps it through `endedByForPractitioner`
   (legal F4). Nothing is queued to the practitioner by any of the three.
 

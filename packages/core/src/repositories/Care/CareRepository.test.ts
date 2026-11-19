@@ -183,6 +183,8 @@ describe('CareRepository.setSharesHealth', () => {
       endedBy: null,
       professionalId: PRO_ID,
       reviewBeforePublish: true,
+      scopeConsentedAt: null,
+      scopeConsentVersion: null,
       sharesHealth,
       status: 'active',
       updatedAt: NOW
@@ -316,6 +318,8 @@ describe('CareRepository.activeLink — the scope the link opens now', () => {
       endedBy: null,
       professionalId: 'usr-pro',
       reviewBeforePublish: false,
+      scopeConsentedAt: null,
+      scopeConsentVersion: null,
       sharesHealth: true,
       status: 'active',
       updatedAt: NOW

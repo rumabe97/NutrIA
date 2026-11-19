@@ -39,7 +39,7 @@ const findUserById = vi.fn<(id: string) => Promise<User | undefined>>();
 const badgeOf = vi.fn<(userId: string, now: Date) => Promise<object | null>>();
 const reconsent = vi.fn<(clientId: string, consentVersion: string, now: Date) => Promise<LinkWithProfessional | null>>();
 const lastEndedByRule = vi.fn<(clientId: string) => Promise<EndedByRule | null>>();
-const endUnderBadgeLoss = vi.fn<(now: Date) => Promise<readonly RuleEnding[]>>();
+const sweepBadgeLoss = vi.fn<(now: Date) => Promise<{ readonly ended: readonly RuleEnding[]; readonly narrowed: number }>>();
 
 vi.mock('#repositories/User', () => ({ UserRepository: { findById: (id: string) => findUserById(id) } }));
 vi.mock('#repositories/Care', async () => ({
@@ -48,7 +48,6 @@ vi.mock('#repositories/Care', async () => ({
     clientLink: (clientId: string) => clientLink(clientId),
     decline: (...args: Parameters<typeof decline>) => decline(...args),
     end: (...args: Parameters<typeof end>) => end(...args),
-    endUnderBadgeLoss: (now: Date) => endUnderBadgeLoss(now),
     forgetAddress: (email: string) => forgetAddress(email),
     forgetExpired: (now: Date) => forgetExpired(now),
     invite: (...args: Parameters<typeof invite>) => invite(...args),
@@ -56,7 +55,8 @@ vi.mock('#repositories/Care', async () => ({
     openInvitation: (...args: Parameters<typeof openInvitation>) => openInvitation(...args),
     practiceUse: (...args: Parameters<typeof practiceUse>) => practiceUse(...args),
     reconsent: (...args: Parameters<typeof reconsent>) => reconsent(...args),
-    setSharesHealth: (...args: Parameters<typeof setSharesHealth>) => setSharesHealth(...args)
+    setSharesHealth: (...args: Parameters<typeof setSharesHealth>) => setSharesHealth(...args),
+    sweepBadgeLoss: (now: Date) => sweepBadgeLoss(now)
   },
   // The real rule, not a stub: which scope a link opens is what these cases are about.
   linkScope: (await vi.importActual<{ linkScope: typeof linkScopeFn }>('../../repositories/Care/CareScope')).linkScope
@@ -85,6 +85,8 @@ function makeLink(overrides?: Partial<CareLink>): CareLink {
     endedBy: null,
     professionalId: PRO.id,
     reviewBeforePublish: true,
+    scopeConsentedAt: null,
+    scopeConsentVersion: null,
     sharesHealth: false,
     status: 'active',
     updatedAt: NOW,
@@ -109,7 +111,7 @@ beforeEach(() => {
     badgeOf,
     reconsent,
     lastEndedByRule,
-    endUnderBadgeLoss
+    sweepBadgeLoss
   ]) {
     mock.mockReset();
   }
@@ -300,7 +302,7 @@ describe('CareController.invitation', () => {
 });
 
 describe('CareController.accept', () => {
-  const answer: AcceptInvitation = { consentVersion: CARE_CONSENT_VERSION, sharesHealth: false };
+  const answer: AcceptInvitation = { consentScope: 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false };
 
   it('makes the link and answers it, without the health items unless that line was accepted', async () => {
     accept.mockResolvedValue({ kind: 'created', link: makeLink(), professionalName: 'Ana Dietista' });
@@ -705,12 +707,19 @@ describe('CareController.setSharesHealth — refused outside `full` (PRD 025 cri
 });
 
 describe('CareController.endedLink — the client’s own notice (`textos/05` § G.3)', () => {
-  it('answers the name and the day of a link the sweep ended, for the session alone', async () => {
-    lastEndedByRule.mockResolvedValue({ endedAt: NOW, professionalName: 'Ana Dietista' });
+  it.each(['badge_lost', 'declared'] as const)(
+    'answers the name, the day and which ending (%s) of a link the rule ended, for the session alone',
+    async reason => {
+      lastEndedByRule.mockResolvedValue({ endedAt: NOW, professionalName: 'Ana Dietista', reason });
 
-    await expect(CareController.endedLink({ id: CLIENT.id })).resolves.toEqual({ endedAt: NOW.toISOString(), professionalName: 'Ana Dietista' });
-    expect(lastEndedByRule).toHaveBeenCalledExactlyOnceWith(CLIENT.id);
-  });
+      await expect(CareController.endedLink({ id: CLIENT.id })).resolves.toEqual({
+        endedAt: NOW.toISOString(),
+        professionalName: 'Ana Dietista',
+        reason
+      });
+      expect(lastEndedByRule).toHaveBeenCalledExactlyOnceWith(CLIENT.id);
+    }
+  );
 
   it('is null otherwise, whatever the switch says', async () => {
     isEnabled.mockResolvedValue(false);
@@ -721,22 +730,31 @@ describe('CareController.endedLink — the client’s own notice (`textos/05` §
   });
 });
 
-describe('CareController.endUnderBadgeLoss — the sweep’s part of the illness rule (`0111` § 8)', () => {
-  it('answers each ended link’s client and their address — never the practitioner’s', async () => {
-    endUnderBadgeLoss.mockResolvedValue([{ clientId: CLIENT.id, linkId: 'l', professionalName: 'Ana Dietista' }]);
+describe('CareController.sweepBadgeLoss — a badge gone, in the daily sweep (`0111` §§ 4 and 8)', () => {
+  it('answers each ended link’s client and their address — never the practitioner’s — and how many narrowed', async () => {
+    sweepBadgeLoss.mockResolvedValue({ ended: [{ clientId: CLIENT.id, linkId: 'l', professionalName: 'Ana Dietista' }], narrowed: 2 });
     findUserById.mockResolvedValue(makeUser({ id: CLIENT.id, email: 'cliente@example.com' }));
 
-    await expect(CareController.endUnderBadgeLoss(NOW)).resolves.toEqual([
-      { clientId: CLIENT.id, professionalName: 'Ana Dietista', to: 'cliente@example.com' }
-    ]);
-    expect(endUnderBadgeLoss).toHaveBeenCalledExactlyOnceWith(NOW);
+    await expect(CareController.sweepBadgeLoss(NOW)).resolves.toEqual({
+      ended: [{ clientId: CLIENT.id, professionalName: 'Ana Dietista', to: 'cliente@example.com' }],
+      narrowed: 2
+    });
+    expect(sweepBadgeLoss).toHaveBeenCalledExactlyOnceWith(NOW);
     expect(findUserById).toHaveBeenCalledExactlyOnceWith(CLIENT.id);
   });
 
-  it('answers no address for a client whose account is gone', async () => {
-    endUnderBadgeLoss.mockResolvedValue([{ clientId: CLIENT.id, linkId: 'l', professionalName: 'Ana Dietista' }]);
+  it('answers no address for a client whose account is gone, and reads no account for a narrowing', async () => {
+    sweepBadgeLoss.mockResolvedValue({ ended: [{ clientId: CLIENT.id, linkId: 'l', professionalName: 'Ana Dietista' }], narrowed: 0 });
     findUserById.mockResolvedValue(undefined);
 
-    await expect(CareController.endUnderBadgeLoss(NOW)).resolves.toEqual([{ clientId: CLIENT.id, professionalName: 'Ana Dietista', to: null }]);
+    await expect(CareController.sweepBadgeLoss(NOW)).resolves.toEqual({
+      ended: [{ clientId: CLIENT.id, professionalName: 'Ana Dietista', to: null }],
+      narrowed: 0
+    });
+
+    sweepBadgeLoss.mockResolvedValue({ ended: [], narrowed: 3 });
+    findUserById.mockClear();
+    await CareController.sweepBadgeLoss(NOW);
+    expect(findUserById).not.toHaveBeenCalled();
   });
 });

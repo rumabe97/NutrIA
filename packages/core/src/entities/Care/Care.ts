@@ -82,14 +82,14 @@ export type InviteClient = z.infer<typeof inviteClientSchema>;
  * line is its own yes or no, never implied by the rest.
  *
  * `consentScope` names the list the client read (`0111` § 4, PLAN 025 phase 5
- * step 2): it can only narrow. The link is stored `full` only when the badge
- * stands at the moment of accepting **and** this says `full` or is absent; `plan`
- * here always records `plan`, and `full` with no badge records `plan` too — so a
- * badge that lands between reading the plan-only list and accepting it never
- * widens what the client agreed to.
+ * step 2), and is required: nothing is presumed from its absence. The link is
+ * stored `full` only when this says `full` **and** the badge stands at the moment
+ * of accepting; `plan` here always records `plan`, and `full` with no badge
+ * records `plan` too, with no error — so a badge that lands between reading the
+ * plan-only list and accepting it never widens what the client agreed to.
  */
 export const acceptInvitationSchema = z.object({
-  consentScope: z.enum(['full', 'plan']).optional(),
+  consentScope: z.enum(['full', 'plan']),
   consentVersion: z.literal(CARE_CONSENT_VERSION),
   sharesHealth: z.boolean()
 });
@@ -136,16 +136,22 @@ export const CARE_LINK_STATUSES = ['active', 'paused', 'ended'] as const;
 export type CareLinkStatus = (typeof CARE_LINK_STATUSES)[number];
 
 /**
- * Who or what ended a link, as `care_link_ended_by` holds it. `badge_lost` is
- * the illness rule's daily sweep (`0111` § 8): the practitioner lost the badge
- * while the client had a condition or a medication on record. An ending on a
- * declaration is the client's own act and is stored `client`. **A practitioner
- * never reads any value but `professional` and `client`**
- * (`endedByForPractitioner`, legal F4): a distinct label would be the disclosure.
+ * Who or what ended a link, as `care_link_ended_by` holds it. The illness rule
+ * (`0111` § 8) has two of its own: `badge_lost`, the daily sweep — the
+ * practitioner lost the badge while the client had a condition or a medication
+ * on record — and `declared`, the client saved one while linked to a
+ * practitioner without it. **A practitioner never reads any value but
+ * `professional` and `client`** (`endedByForPractitioner`, legal F4): a distinct
+ * label would be the disclosure.
  */
-export const CARE_LINK_ENDED_BY = ['professional', 'client', 'lapse', 'account', 'badge_lost'] as const;
+export const CARE_LINK_ENDED_BY = ['professional', 'client', 'lapse', 'account', 'badge_lost', 'declared'] as const;
 
 export type CareLinkEndedBy = (typeof CARE_LINK_ENDED_BY)[number];
+
+/** The illness rule's two endings, as the client's own screen tells them apart (`docs/legal/textos/05` § G.3). */
+export const CARE_RULE_ENDINGS = ['badge_lost', 'declared'] as const satisfies readonly CareLinkEndedBy[];
+
+export type CareRuleEnding = (typeof CARE_RULE_ENDINGS)[number];
 
 /**
  * How a practitioner may ever be told a link ended (legal F4, PRD 025 criterion
@@ -179,6 +185,9 @@ export const careLinkSchema = z.object({
   endedBy: z.enum(CARE_LINK_ENDED_BY).nullable(),
   professionalId: z.string().min(1),
   reviewBeforePublish: z.boolean(),
+  /** When and under which version the client widened the link to the badged list; null when never. */
+  scopeConsentedAt: z.date().nullable(),
+  scopeConsentVersion: z.string().min(1).nullable(),
   sharesHealth: z.boolean(),
   status: z.enum(CARE_LINK_STATUSES),
   updatedAt: z.date()

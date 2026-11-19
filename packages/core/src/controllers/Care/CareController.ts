@@ -41,6 +41,7 @@ import type {
   CareLink,
   CareLinkStatus,
   CareProfessionalAction,
+  CareRuleEnding,
   CareShared,
   CareSharedPlan,
   InviteClient,
@@ -213,15 +214,18 @@ export interface CareLinkView {
 }
 
 /**
- * The client's latest link, when the illness rule's daily sweep ended it
- * (`0111` § 8): the practitioner lost NutrIA's badge while the client had a
- * condition or a medication on record. What the client's own screen needs to
- * say so plainly (`docs/legal/textos/05` § G.3, `care.illnessEndedBadgeBody`),
- * and nothing about the record itself.
+ * The client's latest link, when the illness rule ended it (`0111` § 8). What
+ * the client's own screen needs to say so plainly (`docs/legal/textos/05` §
+ * G.3), and nothing about the record itself: `reason` picks the approved
+ * sentence — `badge_lost`, the practitioner lost NutrIA's badge while the client
+ * had a condition or a medication on record (`care.illnessEndedBadgeBody`);
+ * `declared`, the client saved one while linked to a practitioner without it
+ * (`care.illnessEndedBody`).
  */
 export interface CareEndedLinkView {
   endedAt: string;
   professionalName: string;
+  reason: CareRuleEnding;
 }
 
 /**
@@ -789,39 +793,17 @@ export const CareController = {
   },
 
   /**
-   * The client's latest link, when the illness rule's daily sweep ended it
-   * (`0111` § 8), or null — what their profile explains (`docs/legal/textos/05`
-   * § G.3), as the mail of `textos/06` § Y promises. The session's own links and
-   * nobody else's. Not behind the switch, like `myLink`: what happened to a link
-   * is the client's to read whatever it says.
+   * The client's latest link, when the illness rule ended it (`0111` § 8) — the
+   * sweep (`badge_lost`) or their own declaration (`declared`) — with which, or
+   * null: what their profile explains (`docs/legal/textos/05` § G.3), as the mail
+   * of `textos/06` § Y promises, and even when the answer to a save was lost. The
+   * session's own links and nobody else's. Not behind the switch, like `myLink`:
+   * what happened to a link is the client's to read whatever it says.
    */
   async endedLink(session: Pick<CareSession, 'id'>): Promise<CareEndedLinkView | null> {
     const row = await CareRepository.lastEndedByRule(session.id);
 
-    return row ? { endedAt: row.endedAt.toISOString(), professionalName: row.professionalName } : null;
-  },
-
-  /**
-   * The illness rule's daily part (`0111` § 8, `/cron/reminders`): every open
-   * link whose practitioner's badge does not stand now, while the client has a
-   * condition or a medication on record, ends (`CareRepository.endUnderBadgeLoss`).
-   * Answers, for each, the **client's** account and address and the
-   * practitioner's name — for the client's mail (`docs/legal/textos/06` § Y) and
-   * nothing else. Nothing goes to the practitioner (legal F4): to them it is a
-   * link the client ended.
-   */
-  async endUnderBadgeLoss(
-    now: Date = new Date()
-  ): Promise<readonly { readonly clientId: string; readonly professionalName: string; readonly to: string | null }[]> {
-    const ended = await CareRepository.endUnderBadgeLoss(now);
-
-    return Promise.all(
-      ended.map(async row => ({
-        clientId: row.clientId,
-        professionalName: row.professionalName,
-        to: (await UserRepository.findById(row.clientId))?.email ?? null
-      }))
-    );
+    return row ? { endedAt: row.endedAt.toISOString(), professionalName: row.professionalName, reason: row.reason } : null;
   },
 
   /**
@@ -1206,6 +1188,36 @@ export const CareController = {
 
       return planOnlyMealDetail(await swap(clientId, record));
     });
+  },
+
+  /**
+   * The daily part of a badge gone (`0111` §§ 4 and 8, `/cron/reminders`): every
+   * open link whose practitioner's badge does not stand now ends when the client
+   * has a condition or a medication on record, and narrows to the plan-only list
+   * otherwise (`CareRepository.sweepBadgeLoss`). Answers, for each ending, the
+   * **client's** account and address and the practitioner's name — for the
+   * client's mail (`docs/legal/textos/06` § Y) and nothing else — and how many
+   * narrowed. Nothing goes to the practitioner (legal F4): to them it is a link
+   * the client ended; and nothing to anybody for a narrowing.
+   */
+  async sweepBadgeLoss(
+    now: Date = new Date()
+  ): Promise<{
+    readonly ended: readonly { readonly clientId: string; readonly professionalName: string; readonly to: string | null }[];
+    readonly narrowed: number;
+  }> {
+    const { ended, narrowed } = await CareRepository.sweepBadgeLoss(now);
+
+    return {
+      ended: await Promise.all(
+        ended.map(async row => ({
+          clientId: row.clientId,
+          professionalName: row.professionalName,
+          to: (await UserRepository.findById(row.clientId))?.email ?? null
+        }))
+      ),
+      narrowed
+    };
   },
 
   /**

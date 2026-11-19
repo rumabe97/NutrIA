@@ -718,7 +718,7 @@ describe('care routes', () => {
       const read = await request(server()).get(`/${PREFIX}/care/invitations/${TOKEN}`).expect(404);
       const accepted = await request(server())
         .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
-        .send({ consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
+        .send({ consentScope: 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
         .expect(404);
       const declined = await request(server()).post(`/${PREFIX}/care/invitations/${TOKEN}/decline`).expect(404);
 
@@ -730,16 +730,23 @@ describe('care routes', () => {
     it('accept only the current consent version, with an explicit health answer', async () => {
       const accept = jest.spyOn(CareController, 'accept').mockResolvedValue(LINK);
 
-      await request(server()).post(`/${PREFIX}/care/invitations/${TOKEN}/accept`).send({ consentVersion: '0.0.1', sharesHealth: false }).expect(422);
-      await request(server()).post(`/${PREFIX}/care/invitations/${TOKEN}/accept`).send({ consentVersion: CARE_CONSENT_VERSION }).expect(422);
+      await request(server())
+        .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
+        .send({ consentScope: 'full', consentVersion: '0.0.1', sharesHealth: false })
+        .expect(422);
+      await request(server())
+        .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
+        .send({ consentScope: 'full', consentVersion: CARE_CONSENT_VERSION })
+        .expect(422);
       expect(accept).not.toHaveBeenCalled();
 
       const response = await request(server())
         .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
-        .send({ clientId: 'usr-other', consentVersion: CARE_CONSENT_VERSION, sharesHealth: true })
+        .send({ clientId: 'usr-other', consentScope: 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: true })
         .expect(200);
 
       expect(accept).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), TOKEN, {
+        consentScope: 'full',
         consentVersion: CARE_CONSENT_VERSION,
         sharesHealth: true
       });
@@ -753,7 +760,7 @@ describe('care routes', () => {
 
       const response = await request(server())
         .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
-        .send({ consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
+        .send({ consentScope: 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
         .expect(409);
 
       expect(response.body).toMatchObject({
@@ -762,9 +769,14 @@ describe('care routes', () => {
       });
     });
 
-    it('pass the list the client read to the controller, and refuse a list that is neither', async () => {
+    it('pass the list the client read to the controller, and refuse a body without one, or a list that is neither', async () => {
       const accept = jest.spyOn(CareController, 'accept').mockResolvedValue(LINK);
 
+      // Required: nothing is presumed from its absence (review round one, P1-1).
+      await request(server())
+        .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
+        .send({ consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
+        .expect(422);
       await request(server())
         .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
         .send({ consentScope: 'everything', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
@@ -788,7 +800,7 @@ describe('care routes', () => {
 
       const response = await request(server())
         .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
-        .send({ consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
+        .send({ consentScope: 'plan', consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
         .expect(409);
 
       expect(response.body).toEqual({ code: 'CARE_ILLNESS_RULE', message: 'No puedes aceptar esta invitación.', statusCode: 409 });
@@ -1042,12 +1054,13 @@ describe('care routes', () => {
     it('answers the session’s own, or null', async () => {
       const endedLink = jest
         .spyOn(CareController, 'endedLink')
-        .mockResolvedValueOnce({ endedAt: '2026-11-19T06:00:00.000Z', professionalName: 'Ana Dietista' })
+        .mockResolvedValueOnce({ endedAt: '2026-11-19T06:00:00.000Z', professionalName: 'Ana Dietista', reason: 'declared' })
         .mockResolvedValueOnce(null);
 
       expect((await request(server()).get(`/${PREFIX}/care/links/me/ended`).expect(200)).body).toEqual({
         endedAt: '2026-11-19T06:00:00.000Z',
-        professionalName: 'Ana Dietista'
+        professionalName: 'Ana Dietista',
+        reason: 'declared'
       });
       await request(server()).get(`/${PREFIX}/care/links/me/ended`).expect(200);
       expect(endedLink).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }));
