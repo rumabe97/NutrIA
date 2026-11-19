@@ -442,7 +442,9 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
 
 ### Phase 8 — The practitioner's and the client's screens
 
-- [ ] in progress
+- [x] done — human-verify deferred by the owner (2026-11-19, «En la fase 10») to the day the
+  switch is thrown: he opens a practice and accepts an invitation on his iPhone then, before the
+  project is closed
 - **Dispatch**: opus @ medium — `/execute-project 025 phase 8` — the `frontend` agent with
   `accessibility`; `apple-web-design` mandatory. — human-verify: the owner opens a practice and
   accepts an invitation on his iPhone.

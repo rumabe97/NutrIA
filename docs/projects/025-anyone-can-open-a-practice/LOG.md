@@ -432,3 +432,89 @@
 - **Notes for the next phase**: phase 8's new routes, if any, need a row in `care-walk`'s
   table or the suite fails — that is its purpose.
 
+## Phase 8 — The practitioner's and the client's screens (2026-11-19)
+
+- **Executor**: the `frontend` agent (opus), five passes in its own worktree; `accessibility`
+  (opus); `legal` (opus) for the screen wording; a `backend` agent (opus) for four small
+  contract changes; the end-to-end side by the `tests` agent (opus).
+- **Result**: done, with its human-verify gate **deferred by the owner** (tapped option «En la
+  fase 10», 2026-11-19): the `professional` switch is off in production and is not thrown
+  before the change notice, so he opens a practice and accepts an invitation on his iPhone on
+  the day phase 10 throws it. Until then the screens are reachable only with the switch on.
+- **The versions moved, with their words**: `PROFESSIONAL_AGREEMENT_VERSION` 2.0.0 and
+  `CARE_CONSENT_VERSION` 3.0.0. `legal` compared every approved string with the dictionaries
+  by script, both languages: no difference, nothing of the old versions left. **Every
+  practitioner must accept the agreement again**, and until one does, their reviewing clients'
+  plans publish directly (`publishingLink`, as phase 6 recorded). There is none in production.
+- **Evidence**:
+  - Core 5194 passed; api 2037; web 494; ui 538; `pnpm ts:check` 9/9; `pnpm lint` 7/7; knip
+    clean; contrast 450 pairs across five themes, two of them new (a link inside a warning or
+    an error note).
+  - End-to-end on local Postgres, one at a time: `care-walk` 11 (it failed first on the new
+    route by name, as it is meant to, then got its row), `care-practice-open` 37, `care-badge`
+    20, `care` 72, `care-practice` 38, `care-review` 34, `care-scope` 44, `care-illness-rule`
+    29, `care-restriction` 33, `professionals` 26, `plan-scheduled-care` 1, `access` 13 — all
+    passed; no backend defect. The previous real versions (agreement 1.1.0, consent 2.0.0) are
+    now refused as stale.
+  - **The final probe**: a production build against the local API, every screen and state
+    below at 320, 390 and 1280 px, light and dark, es and en, one path at a time — nothing
+    overflowing or clipped; 200 % text at 320 and 390; focus after every action measured in
+    the browser. `apple-web-design` review **PASS**: no P0, P1 or P2 open.
+  - `accessibility`: no P0; one P1 (accepting the wider list left focus on the body and
+    announced nothing) and eleven P2 (loading buttons dropping focus, the hours editor's
+    names, focus and errors, generic field errors, the badge steps not saying "done", the
+    owner's Spanish facts unmarked inside English pages, a lone link's target), all fixed.
+- **Screens, each compared with its sheet** (the owner's approved design of 2026-11-18):
+  - *AbrirConsulta* → `/consulta` with no practice, drawn only while `canOpenPractice` holds
+    and the seats can be read; its entry is a card on `/perfil` under the same condition.
+  - *Clientes* → `/consulta`: seats «x de 10 clientes», the roster as rows, the profile and
+    badge rows, the restriction notice.
+  - *EditarPerfil* → `/consulta/perfil`: name, studies, one price with its unit, hours, the
+    server's word refusals on their own fields, review state, a hidden profile's statement;
+    the account rename below.
+  - *Distintivo* → `/consulta/insignia`: a vertical list of three steps, the application with
+    its art. 13 notice, the code, every state with its reason.
+  - *Cliente* → `/consulta/[linkId]`: under `plan` scope the plans, review, generate and end —
+    no empty health, progress or targets card.
+  - *TuProfesional* (the part that exists) → the link card on `/perfil` and the invitation per
+    tier: «tu profesional» for every tier, the fixed notice while no badge stands, «Acepto y
+    consiento» on the un-badged button, the re-consent card.
+- **Departures from the sheets** — everything else is as drawn:
+  - Not built, because it belongs to a later project and has no approved words, and leaving no
+    dead control or orphan heading: the «Cómo funciona» steps, search and requests (the
+    Pendientes tab), the chat, ratings, «Ver su perfil», «Poner un plato de la biblioteca».
+  - Not built, because the API has no such thing: «Ciudad» and «Sobre ti» on the profile, a
+    second price, a list of colleges (the college is a text field), the fourth badge step
+    («Registro consultado» is the owner's act).
+  - Different on purpose: no age-and-agreement checkbox on the opening form (the agreement is
+    the next screen); each roster row's second line is its stage; unanswered invitations are
+    their own section; a paid practice keeps its plan card; the link card's heading is the
+    practitioner's name under the section's «Tu profesional»; the re-consent card stands
+    where the sheet has «Gestionar lo que comparto», its list split into «verá también» and
+    «Y podrá» (`textos/05` § F.4, amended).
+- **Approved by the owner on 2026-11-19, by tapped option** (`textos/01` § Pantallas P5): the
+  suspension's screen sentence and its redress line; the closed practice and the withdrawn
+  badge on screen; the three forms of the refused account name; the refused opening; the
+  end-of-link confirmation. Plain labels and field instructions needed no approval (`legal`).
+- **Deviations from plan**: the plan's step 4 lists them — three reads and one contract
+  change in the API, two sub-routes, the paid practice's card kept.
+- **Not seen in a browser** (render tests cover them): the opening form asking for a birth
+  date (the probe's accounts always have one), a lapsed badge, the pending-review notice on
+  `/inicio` and `/plan` with a name (the stub model makes no plan), the agreement at 200 %.
+- **Accepted, and open**:
+  - No visible mark on required fields: the app has no convention for one anywhere.
+  - The screen does not say where a badge decision came from (own check or a notice): the mail
+    does; the check row does not store it.
+  - `/consulta`'s own h1 breaks «Consult/a» at 200 % text; the wide layout's reading order
+    zig-zags between columns; `SettingSwitch` does not tie its hint — all older than this phase.
+  - The owner's register name sits unmarked in English sentences (only his facts are
+    `lang="es"`); a hidden profile's note repeats its tag.
+  - VoiceOver on an iPhone is the owner's to try.
+- **Notes for the next phase**: phase 9 builds suspend / close / lift, the profile queue and
+  hide, and the badge check on rows that already show state; the switch's two hints
+  (`admin.professionalHint`, `professionalOffHint`), `adminProfessionals.intro` and
+  `adminConsents.howCounted` still speak of the grant. Phase 10: `lib/practicePrivacy.ts` is
+  the one line that points to `/privacidad#tu-dietista` and moves with the policy's new
+  section; the two trail sentences for a narrowing (legal F10) wait for approval; then the
+  notice, the switch, and the owner's iPhone.
+
