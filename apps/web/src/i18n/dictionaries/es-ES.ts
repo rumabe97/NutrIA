@@ -1525,7 +1525,6 @@ export const esES = {
     invitationTitle: 'Invitación de {professional}',
     invitationTrail: 'Cada vez que mire o cambie algo, lo verás en tu perfil.',
     linkSince: 'Desde el {date}',
-    linkTitle: 'Tu profesional',
     /** In place of the practitioner's name when it may not be shown (PRD 025, `professionalName: null`): the approved neutral words. */
     professionalUnnamed: 'tu profesional',
     reconsentAccept: 'Sí, compartir esto también',
@@ -2769,6 +2768,7 @@ export const esES = {
     badgeCodeCta: 'Comprobar',
     badgeCodeDone: 'Código recibido. En cuanto lo confirmemos, verás tu insignia.',
     badgeCodeWrong: 'Ese código no vale. Revisa que lo has copiado bien; si ha caducado, vuelve a pedir la insignia.',
+    badgeLapseWhy: 'la comprobación anual vencía el {dueDate} y, 30 días después, no la habíamos completado.',
     badgeMeaning:
       'Qué significa: el {date} comprobamos en el registro de {register} que figuras como dietista-nutricionista colegiada/o y habilitada/o, con el número {number}, y que esta cuenta es tuya. No es una valoración de tu trabajo. Lo comprobamos de nuevo cada año.',
     badgeNumber: 'Tu número de colegiada/o',
@@ -2792,6 +2792,7 @@ export const esES = {
       withdrawnScreen:
         'Te retiramos la insignia «Dietista-nutricionista colegiada/o» el {date}. Tu consulta sigue abierta, y de cada cliente ves lo que el § 3 del acuerdo del profesional describe «sin la insignia». Lo demás que cambia está en su § 4. Las palabras de tu perfil que solo permite la insignia no se muestran.'
     },
+    badgeStepDone: 'hecho',
     badgeSteps: { apply: 'Solicitud', badge: 'Insignia', code: 'Código' },
     badgeTitle: 'Insignia de dietista-nutricionista',
     checkInDifficulty: { easy: 'Fácil de seguir', hard: 'Difícil de seguir', ok: 'Se pudo seguir' },
@@ -2813,6 +2814,17 @@ export const esES = {
     endConfirmCta: 'Sí, terminar',
     endConfirmTitle: '¿Terminar el vínculo con {name}?',
     endHint: 'Tu cliente conserva su cuenta, su historial y su último plan publicado.',
+    fieldError: {
+      birthDate: 'Escribe tu fecha de nacimiento completa: día, mes y año.',
+      code: 'Escribe el código que te hemos enviado.',
+      displayName: 'Escribe el nombre que quieres mostrar, en una sola línea y sin «<» ni «>».',
+      hours: 'Revisa el horario del {day}: cada tramo tiene que terminar después de empezar.',
+      name: 'Escribe el nombre de tu cuenta, de 1 a 100 caracteres.',
+      number: 'Escribe tu número de colegiada/o: de 3 a 20 letras, cifras, «/» o «-».',
+      price: 'Escribe el precio en euros, por ejemplo 30 o 30,50.',
+      register: 'Escribe el nombre de tu colegio, como figura en su registro.',
+      studies: 'Escribe tus estudios en texto normal, sin «<» ni «>», hasta {max} caracteres.'
+    },
     fortnightRange: '{from} – {to}',
     fortnightsEmpty: 'Todavía no ha vivido ninguna quincena.',
     fortnightsTitle: 'Quincenas y check-ins',
@@ -2905,7 +2917,9 @@ export const esES = {
     profileHoursAdd: 'Añadir un horario el {day}',
     profileHoursClosed: 'Cerrado',
     profileHoursFrom: 'Desde',
+    profileHoursFull: 'Como mucho {max} horarios por día.',
     profileHoursNote: 'Solo informativo: en NutrIA no se reserva nada.',
+    profileHoursRangeOf: '{day}, horario {n}',
     profileHoursRemove: 'Quitar este horario',
     profileHoursTo: 'Hasta',
     profileName: 'El nombre que muestras',
@@ -2947,6 +2961,7 @@ export const esES = {
     reviewTitle: 'Revisión',
     seats: '{active} de {limit} clientes',
     seatsPending: 'Y {count} invitaciones sin responder, que también ocupan plaza.',
+    seatsPendingOne: 'Y 1 invitación sin responder, que también ocupa plaza.',
     seatsTitle: 'Plazas',
     sharesHealth: 'Comparte su salud',
     stages: {

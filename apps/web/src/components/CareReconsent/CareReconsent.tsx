@@ -15,6 +15,7 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { CARE_CONSENT_VERSION } from 'core/entities/Care';
 
 import { api, messageFor } from 'lib/api';
+import { markFocusAfterRefresh } from 'lib/focusAfterRefresh';
 import { practicePrivacyHref } from 'lib/practicePrivacy';
 import { withProfessional } from 'lib/professionalName';
 
@@ -73,6 +74,9 @@ export function CareReconsent({ professionalName }: CareReconsentProps) {
         await api<CareLinkView>('/care/links/me', { body: { sharesHealth: true }, method: 'PATCH' });
       }
 
+      // The card goes with the refresh: the link card's heading takes focus, so the card with its
+      // new list is what is read next — no sentence of ours says what is now shared.
+      markFocusAfterRefresh('link-widened');
       router.refresh();
     } catch (caught) {
       setError(messageFor(caught, dictionary));
@@ -135,7 +139,7 @@ export function CareReconsent({ professionalName }: CareReconsentProps) {
       ) : null}
 
       <div className={`${styles.actions} button-row`}>
-        <Button loading={pending} onClick={() => void accept()} type="button">
+        <Button aria-disabled={pending || undefined} loading={pending} onClick={() => void accept()} type="button">
           {t.reconsentAccept}
         </Button>
         <Button disabled={pending} onClick={() => setLater(true)} type="button" variant="secondary">

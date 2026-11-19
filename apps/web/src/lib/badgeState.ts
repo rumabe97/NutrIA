@@ -1,7 +1,9 @@
+import { aroundFacts } from './ownerFacts';
 import { interpolate } from './format';
 
 import type { BadgeView } from 'core/controllers/Professional';
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
+import type { WithFacts } from './ownerFacts';
 
 /**
  * Where a practitioner's badge stands, in the approved words of
@@ -45,11 +47,13 @@ export function badgeSentence(badge: BadgeView, t: Dictionary['practice'], day: 
 
 /**
  * The reason for the owner's latest decision, or null with none to give: each
- * closed code in its statement's sentence, then the owner's own facts. The
- * register's sentence needs the register and the number it names; without
- * either, only the facts are said.
+ * closed code in its statement's sentence (`textos/06` § W `reason`, § V `why` and
+ * `detail`), named from what the decided check recorded (`decision.register`,
+ * `decision.number`, `decision.dueAt`), then the owner's own facts, kept apart to be
+ * marked with their language. Where the decision came from (own review, a notice)
+ * stays in the mail.
  */
-export function badgeReason(badge: BadgeView, t: Dictionary['practice'], day: Day): string | null {
+export function badgeReason(badge: BadgeView, t: Dictionary['practice'], day: Day): WithFacts | null {
   const { decision } = badge;
 
   if (!decision) {
@@ -62,24 +66,34 @@ export function badgeReason(badge: BadgeView, t: Dictionary['practice'], day: Da
   switch (decision.reason) {
     case 'not_on_register':
       sentence =
-        badge.register && badge.number
-          ? interpolate(reasons.not_on_register, { checkedOn: day(decision.at), number: badge.number, register: badge.register })
+        decision.register && decision.number
+          ? interpolate(reasons.not_on_register, { checkedOn: day(decision.at), number: decision.number, register: decision.register })
           : '';
       break;
     case 'not_me':
     case 'code_expired':
-    case 'code_not_entered':
-    case 'our_delay':
       sentence = reasons[decision.reason];
       break;
+    case 'code_not_entered':
+    case 'our_delay':
     case null:
-      sentence = decision.kind === 'lapsed' ? reasons.unconfirmed : '';
+      sentence = decision.kind === 'lapsed' ? lapse(decision, t, day) : '';
       break;
     default:
       sentence = '';
   }
 
-  const reason = [sentence, decision.facts ?? ''].filter(Boolean).join(' ');
+  if (!sentence && !decision.facts) {
+    return null;
+  }
 
-  return reason ? interpolate(t.why, { reason }) : null;
+  return aroundFacts(t.why.replace('{reason}', [sentence, '{facts}'].filter(Boolean).join(' ')), {}, decision.facts);
+}
+
+/** § V: the check that was due, then which of its three details. */
+function lapse(decision: NonNullable<BadgeView['decision']>, t: Dictionary['practice'], day: Day): string {
+  const detail =
+    decision.reason === 'code_not_entered' || decision.reason === 'our_delay' ? t.badgeReasons[decision.reason] : t.badgeReasons.unconfirmed;
+
+  return decision.dueAt ? `${interpolate(t.badgeLapseWhy, { dueDate: day(decision.dueAt) })} ${detail}` : detail;
 }

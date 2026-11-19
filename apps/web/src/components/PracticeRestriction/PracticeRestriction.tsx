@@ -6,8 +6,10 @@ import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 
 import { MailtoText } from 'components/MailtoText';
+import { OwnerFacts } from 'components/OwnerFacts';
 
 import { formatInstant } from 'lib/format';
+import { plainText } from 'lib/ownerFacts';
 import { restrictionParagraphs } from 'lib/practiceRestriction';
 
 import type { PracticeRestrictionView } from 'core/controllers/Professional';
@@ -33,11 +35,17 @@ export async function PracticeRestriction({ restriction }: PracticeRestrictionPr
 
   return (
     <Note as="section" className={styles.note} tone="warning" toneLabel={dictionary.common.noteTone.warning}>
-      {paragraphs.map(paragraph => (
-        <Text key={paragraph} size="sm">
-          <MailtoText email={LEGAL_IDENTITY.email} text={paragraph} />
-        </Text>
-      ))}
+      {paragraphs.map(paragraph =>
+        typeof paragraph === 'string' ? (
+          <Text key={paragraph} size="sm">
+            <MailtoText email={LEGAL_IDENTITY.email} text={paragraph} />
+          </Text>
+        ) : (
+          <Text key={plainText(paragraph)} size="sm">
+            <OwnerFacts value={paragraph} />
+          </Text>
+        )
+      )}
     </Note>
   );
 }

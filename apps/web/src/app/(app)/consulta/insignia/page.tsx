@@ -8,6 +8,7 @@ import styles from '../subpage.module.css';
 import { getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
+import { BackLabel } from 'components/BackLabel';
 import { PracticeBadge } from 'components/PracticeBadge';
 
 import { serverApi } from 'lib/server-api';
@@ -41,7 +42,7 @@ export default async function PracticeBadgePage() {
   return (
     <Fragment>
       <Link className={styles.back} href="/consulta">
-        {t.back}
+        <BackLabel text={t.back} />
       </Link>
 
       <div className={`${styles.head} motion-enter`}>

@@ -11,6 +11,7 @@ import { Note } from 'ui/components/Note';
 import { Rings } from 'ui/components/Rings';
 import { Text } from 'ui/components/Text';
 
+import { BackLabel } from 'components/BackLabel';
 import { Card } from 'components/Card';
 import { CareEndLink } from 'components/CareEndLink';
 import { CareFortnightList } from 'components/CareFortnightList';
@@ -89,7 +90,7 @@ export default async function ClientPage({ params }: Readonly<{ params: Promise<
   return (
     <Fragment>
       <Link className={styles.back} href="/consulta">
-        {t.back}
+        <BackLabel text={t.back} />
       </Link>
 
       <div className="motion-enter">

@@ -13,13 +13,16 @@ import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
 import { Card } from 'components/Card';
+import { PracticeHoursEditor } from 'components/PracticeHoursEditor';
 
-import { PRICE_UNITS, PROFILE_HOURS_RANGES_MAX } from 'core/entities/Professional';
+import { PRICE_UNITS, PROFILE_STUDIES_MAX } from 'core/entities/Professional';
 
 import { api, ApiError, messageFor } from 'lib/api';
 import { interpolate } from 'lib/format';
+import { profileRefusals } from 'lib/profileRefusals';
 import { wordRefusal } from 'lib/protectedWord';
 
+import type { HoursRange } from 'components/PracticeHoursEditor';
 import type { PriceUnit, ProfessionalHours } from 'core/entities/Professional';
 import type { ProfessionalProfileView } from 'core/controllers/Professional';
 
@@ -28,12 +31,10 @@ interface PracticeProfileFormProps {
   profile: ProfessionalProfileView | null;
 }
 
-type Range = { from: string; to: string };
-
 const DAYS = 7;
 const CENTS = 100;
 
-function emptyWeek(): Range[][] {
+function emptyWeek(): HoursRange[][] {
   return Array.from({ length: DAYS }, () => []);
 }
 
@@ -72,8 +73,9 @@ function priceText(cents: number | null): string {
  * withholds now (a badge-only word after the badge went) carries the same
  * sentence until it is edited.
  *
- * The hours are display only (`0110` decision 9): up to six ranges a day, a day
- * with none is closed.
+ * The hours are `PracticeHoursEditor`. A refusal that is not a word gets the plain
+ * instruction for its field (`practice.fieldError`), and the first refused field
+ * takes focus.
  */
 export function PracticeProfileForm({ profile }: PracticeProfileFormProps) {
   const router = useRouter();
@@ -81,9 +83,12 @@ export function PracticeProfileForm({ profile }: PracticeProfileFormProps) {
   const t = dictionary.practice;
   const id = useId();
   const withheld = Object.fromEntries((profile?.withheld ?? []).map(word => [word.field, wordRefusal(`${word.list}:${word.word}`, t) ?? undefined]));
-  const [hours, setHours] = useState<Range[][]>(() => (profile?.hours ? profile.hours.map(day => day.map(range => ({ ...range }))) : emptyWeek()));
+  const [hours, setHours] = useState<HoursRange[][]>(() =>
+    profile?.hours ? profile.hours.map(day => day.map(range => ({ ...range }))) : emptyWeek()
+  );
   const [unit, setUnit] = useState<PriceUnit>(profile?.priceUnit ?? 'consultation');
-  const [errors, setErrors] = useState<Partial<Record<'displayName' | 'hours' | 'price' | 'studies', string>>>(withheld);
+  const [errors, setErrors] = useState<Partial<Record<'displayName' | 'price' | 'studies', string>>>(withheld);
+  const [hoursError, setHoursError] = useState<{ day: number; text: string } | null>(null);
   const [summary, setSummary] = useState<string>();
   const [saved, setSaved] = useState(false);
   const [pending, setPending] = useState(false);
@@ -97,28 +102,32 @@ export function PracticeProfileForm({ profile }: PracticeProfileFormProps) {
     }
   }, [refusals]);
 
-  function changeRange(day: number, index: number, edge: keyof Range, value: string) {
-    setHours(week => week.map((ranges, d) => (d === day ? ranges.map((range, i) => (i === index ? { ...range, [edge]: value } : range)) : ranges)));
+  /** The first day with a range: where a refusal of the hours that names no day is shown. */
+  function firstOpenDay(): number {
+    return Math.max(
+      hours.findIndex(day => day.length > 0),
+      0
+    );
   }
 
-  function addRange(day: number) {
-    setHours(week => week.map((ranges, d) => (d === day ? [...ranges, { from: '09:00', to: '14:00' }] : ranges)));
-  }
+  function hoursRefusal(day: number) {
+    const name = dictionary.fixedMeals.weekdaysInSentence[day] ?? '';
 
-  function removeRange(day: number, index: number) {
-    setHours(week => week.map((ranges, d) => (d === day ? ranges.filter((_range, i) => i !== index) : ranges)));
+    return { day, text: interpolate(t.fieldError.hours, { day: name }) };
   }
 
   async function save(form: FormData) {
     setSaved(false);
     setSummary(undefined);
+    setHoursError(null);
 
     const priceCents = centsOf(String(form.get('price') ?? ''));
     const studies = String(form.get('studies') ?? '').trim();
+    const badRange = hours.findIndex(day => day.some(range => !range.from || !range.to || range.from >= range.to));
 
-    if (Number.isNaN(priceCents)) {
-      setErrors({ price: dictionary.errors.invalidInput });
-      setSummary(dictionary.errors.invalidInput);
+    if (Number.isNaN(priceCents) || badRange >= 0) {
+      setErrors(Number.isNaN(priceCents) ? { price: t.fieldError.price } : {});
+      setHoursError(badRange >= 0 ? hoursRefusal(badRange) : null);
       setRefusals(count => count + 1);
 
       return;
@@ -144,30 +153,15 @@ export function PracticeProfileForm({ profile }: PracticeProfileFormProps) {
       router.refresh();
     } catch (caught) {
       if (caught instanceof ApiError && caught.code === 'INVALID_INPUT') {
-        const field = (name: string) => caught.fieldErrors[name]?.[0];
-        const next: typeof errors = {};
+        // Every refused field on its own field (`lib/profileRefusals`); the first takes focus.
+        const { hoursDay, ...next } = profileRefusals(caught.fieldErrors, t, PROFILE_STUDIES_MAX);
 
-        for (const name of ['displayName', 'studies'] as const) {
-          const code = field(name);
-
-          if (code) {
-            next[name] = wordRefusal(code, t) ?? dictionary.errors.invalidInput;
-          }
-        }
-
-        if (field('priceCents') || field('priceUnit')) {
-          next.price = dictionary.errors.invalidInput;
-        }
-
-        if (Object.keys(caught.fieldErrors).some(key => key.startsWith('hours'))) {
-          next.hours = dictionary.errors.invalidInput;
-        }
-
+        setHoursError(hoursDay === undefined ? null : hoursRefusal(hoursDay ?? firstOpenDay()));
         setErrors(next);
         setRefusals(count => count + 1);
+      } else {
+        setSummary(messageFor(caught, dictionary));
       }
-
-      setSummary(messageFor(caught, dictionary));
     } finally {
       setPending(false);
     }
@@ -175,7 +169,8 @@ export function PracticeProfileForm({ profile }: PracticeProfileFormProps) {
 
   const studiesHint = `${id}-studies-hint`;
   const studiesError = `${id}-studies-error`;
-  const hoursTitle = `${id}-hours`;
+  const priceNote = `${id}-price-note`;
+  const unitLabel = `${id}-unit`;
 
   return (
     <form
@@ -224,12 +219,19 @@ export function PracticeProfileForm({ profile }: PracticeProfileFormProps) {
 
       <Card as="section" className={styles.card}>
         <div className={styles.price}>
-          <Input defaultValue={priceText(profile?.priceCents ?? null)} error={errors.price} inputMode="decimal" label={t.profilePrice} name="price" />
+          <Input
+            defaultValue={priceText(profile?.priceCents ?? null)}
+            describedBy={priceNote}
+            error={errors.price}
+            inputMode="decimal"
+            label={t.profilePrice}
+            name="price"
+          />
           <div className={styles.field}>
-            <span className={styles.label} id={`${id}-unit`}>
+            <span className={styles.label} id={unitLabel}>
               {t.profilePriceUnitLabel}
             </span>
-            <Select aria-labelledby={`${id}-unit`} onValueChange={value => setUnit(value as PriceUnit)} value={unit}>
+            <Select aria-describedby={priceNote} aria-labelledby={unitLabel} onValueChange={value => setUnit(value as PriceUnit)} value={unit}>
               {PRICE_UNITS.map(option => (
                 <SelectOption indicator="✓" key={option} value={option}>
                   {t.profilePriceUnit[option]}
@@ -238,90 +240,29 @@ export function PracticeProfileForm({ profile }: PracticeProfileFormProps) {
             </Select>
           </div>
         </div>
-        <Text size="xs" tone="tertiary">
+        <Text id={priceNote} size="xs" tone="tertiary">
           {t.profilePriceNote}
         </Text>
       </Card>
 
-      <Card aria-labelledby={hoursTitle} as="section" className={styles.card}>
-        <h2 className={styles.cardTitle} id={hoursTitle}>
-          {t.profileHours}
-        </h2>
-        <ul className={styles.days}>
-          {hours.map((ranges, day) => {
-            const name = dictionary.fixedMeals.weekdays[day] ?? '';
-
-            return (
-              <li className={styles.day} key={name}>
-                <div className={styles.dayHead}>
-                  <span className={styles.dayName}>{name}</span>
-                  {ranges.length === 0 ? (
-                    <Text as="span" className={styles.closed} size="sm" tone="secondary">
-                      {t.profileHoursClosed}
-                    </Text>
-                  ) : null}
-                  {ranges.length < PROFILE_HOURS_RANGES_MAX ? (
-                    <Button
-                      aria-label={interpolate(t.profileHoursAdd, { day: dictionary.fixedMeals.weekdaysInSentence[day] ?? name })}
-                      className={styles.add}
-                      onClick={() => addRange(day)}
-                      size="sm"
-                      type="button"
-                      variant="secondary"
-                    >
-                      {dictionary.common.add}
-                    </Button>
-                  ) : null}
-                </div>
-                {ranges.map((range, index) => (
-                  // The index is the range's place in a list only this form reorders.
-                  // eslint-disable-next-line react/no-array-index-key
-                  <fieldset className={styles.range} key={index}>
-                    <legend className="visually-hidden">{name}</legend>
-                    <Input
-                      label={t.profileHoursFrom}
-                      onChange={event => changeRange(day, index, 'from', event.target.value)}
-                      type="time"
-                      value={range.from}
-                    />
-                    <Input
-                      label={t.profileHoursTo}
-                      onChange={event => changeRange(day, index, 'to', event.target.value)}
-                      type="time"
-                      value={range.to}
-                    />
-                    <Button className={styles.remove} onClick={() => removeRange(day, index)} size="sm" type="button" variant="tertiary">
-                      {t.profileHoursRemove}
-                    </Button>
-                  </fieldset>
-                ))}
-              </li>
-            );
-          })}
-        </ul>
-        {errors.hours ? (
-          <Text className={styles.error} size="xs">
-            {errors.hours}
-          </Text>
-        ) : null}
-        <Text size="xs" tone="tertiary">
-          {t.profileHoursNote}
-        </Text>
-      </Card>
+      <PracticeHoursEditor error={hoursError?.text} errorDay={hoursError?.day ?? null} hours={hours} onChange={setHours} />
 
       {summary ? (
         <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
           {summary}
         </Note>
       ) : null}
-      {saved ? (
-        <Note as="p" className="motion-drop-in" role="status" tone="success" toneLabel={dictionary.common.noteTone.success}>
-          {t.profileSaved}
-        </Note>
-      ) : null}
+      {/* Mounted from the start and filled after a save, so the status is announced. */}
+      <div role="status">
+        {saved ? (
+          <Note as="p" className="motion-drop-in" tone="success" toneLabel={dictionary.common.noteTone.success}>
+            {t.profileSaved}
+          </Note>
+        ) : null}
+      </div>
 
       <div className={styles.actions}>
-        <Button loading={pending} size="lg" type="submit">
+        <Button aria-disabled={pending || undefined} loading={pending} size="lg" type="submit">
           {dictionary.common.save}
         </Button>
       </div>

@@ -301,7 +301,7 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
         {openingSeats === null ? null : (
           <section className={styles.section}>
             <Card as={Link} className={styles.practiceDoor} href="/consulta">
-              <span className={styles.practiceDoorTitle}>{dictionary.practice.openTitle}</span>
+              <h2 className={styles.practiceDoorTitle}>{dictionary.practice.openTitle}</h2>
               <Text as="span" size="sm" tone="secondary">
                 {interpolate(dictionary.practice.openIntro, { limit: formatNumber(openingSeats, locale) })}
               </Text>

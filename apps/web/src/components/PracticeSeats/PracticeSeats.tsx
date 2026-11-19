@@ -48,7 +48,7 @@ export async function PracticeSeats({ activeClients, pendingInvitations, seats }
 
       {pendingInvitations > 0 ? (
         <Text size="sm" tone="secondary">
-          {interpolate(t.seatsPending, { count: formatNumber(pendingInvitations, locale) })}
+          {pendingInvitations === 1 ? t.seatsPendingOne : interpolate(t.seatsPending, { count: formatNumber(pendingInvitations, locale) })}
         </Text>
       ) : null}
     </Card>

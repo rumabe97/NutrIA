@@ -9,9 +9,12 @@ import { activeLocale, getDictionary } from 'i18n/server';
 import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 
+import { BackLabel } from 'components/BackLabel';
+import { OwnerFacts } from 'components/OwnerFacts';
 import { PracticeNameForm } from 'components/PracticeNameForm';
 import { PracticeProfileForm } from 'components/PracticeProfileForm';
 
+import { aroundFacts } from 'lib/ownerFacts';
 import { formatInstant, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
@@ -56,17 +59,17 @@ export default async function PracticeProfilePage() {
   const review = profile ? (hidden ? t.profileReviewState.hidden : t.profileReviewState[profile.review]) : null;
   // Edited since it was hidden: back on the owner's queue (`textos/06` § X), and still hidden until the owner looks.
   const backInReview = hidden !== null && profile?.review === 'queued' && Date.parse(profile.updatedAt) > Date.parse(hidden.at);
-  const reasons = hidden
-    ? [
-        ...hidden.reasons.map(reason => interpolate(t.profileHiddenReasons[reason], { word: hidden.word ?? '' })),
-        ...(hidden.facts ? [hidden.facts] : [])
-      ]
-    : [];
+  // Our closed reasons in the page's language; the owner's own facts kept apart, in Spanish (`OwnerFacts`).
+  const ourReasons = hidden ? hidden.reasons.map(reason => interpolate(t.profileHiddenReasons[reason], { word: hidden.word ?? '' })) : [];
+  const why =
+    hidden && (ourReasons.length > 0 || hidden.facts)
+      ? aroundFacts(t.why.replace('{reason}', [...ourReasons, '{facts}'].join(' ')), {}, hidden.facts)
+      : null;
 
   return (
     <Fragment>
       <Link className={styles.back} href="/consulta">
-        {t.back}
+        <BackLabel text={t.back} />
       </Link>
 
       <div className={`${styles.head} motion-enter`}>
@@ -90,7 +93,11 @@ export default async function PracticeProfilePage() {
               {' · '}
               {formatInstant(Date.parse(hidden.at), locale, { day: 'numeric', month: 'long', year: 'numeric' })}
             </Text>
-            {reasons.length > 0 ? <Text size="sm">{interpolate(t.why, { reason: reasons.join(' ') })}</Text> : null}
+            {why ? (
+              <Text size="sm">
+                <OwnerFacts value={why} />
+              </Text>
+            ) : null}
             <Text size="sm">{t.profileHiddenRedress}</Text>
           </Note>
         ) : null}

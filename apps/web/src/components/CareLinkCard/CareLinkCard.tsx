@@ -17,6 +17,7 @@ import { CareReconsent } from 'components/CareReconsent';
 import { api, messageFor } from 'lib/api';
 import { formatInstant, interpolate } from 'lib/format';
 import { professionalLabel, withProfessional } from 'lib/professionalName';
+import { takeFocusAfterRefresh } from 'lib/focusAfterRefresh';
 
 import type { CareLinkView } from 'core/controllers/Care';
 
@@ -45,6 +46,15 @@ export function CareLinkCard({ link }: CareLinkCardProps) {
   const confirmHeadingRef = useRef<HTMLParagraphElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const mounted = useRef(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // Arrived from the re-consent card, in place: the card with its new list is what is read next.
+  // The card stays mounted across the refresh, so this runs when the list it shows changes.
+  useEffect(() => {
+    if (takeFocusAfterRefresh('link-widened')) {
+      headingRef.current?.focus();
+    }
+  }, [link.consentScope]);
 
   // `shares` is `CareShared | CareHealthShared`, two disjoint key sets that
   // together name every label the professional may see under this link.
@@ -90,9 +100,10 @@ export function CareLinkCard({ link }: CareLinkCardProps) {
 
   return (
     <Card as="section" className={styles.card}>
-      <h3 className={styles.title}>{t.linkTitle}</h3>
-
-      <Text weight="medium">{professionalLabel(link.professionalName, t.professionalUnnamed)}</Text>
+      {/* The section's own h2 already says «Tu profesional»: the card is named by who it is. */}
+      <h3 className={styles.title} ref={headingRef} tabIndex={-1}>
+        {professionalLabel(link.professionalName, t.professionalUnnamed)}
+      </h3>
       {link.professionalVerified ? null : <span className={styles.notice}>{t.invitationNotice}</span>}
       <Text size="sm" tone="secondary">
         {interpolate(t.linkSince, { date: formatInstant(Date.parse(link.since), locale, { day: 'numeric', month: 'long', year: 'numeric' }) })}

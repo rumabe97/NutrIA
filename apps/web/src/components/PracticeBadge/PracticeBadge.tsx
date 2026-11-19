@@ -13,6 +13,9 @@ import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { Card } from 'components/Card';
+import { OwnerFacts } from 'components/OwnerFacts';
+
+import { COLLEGIATE_NUMBER_PATTERN } from 'core/entities/Professional';
 
 import { api, ApiError, messageFor } from 'lib/api';
 import { badgeReason, badgeSentence, badgeStands } from 'lib/badgeState';
@@ -27,6 +30,10 @@ interface PracticeBadgeProps {
 
 /** Where each state stands on the way to the badge: the application, the code, the badge. */
 const STEP_OF: Record<BadgeView['state'], number> = { applied: 0, badged: 3, code_sent: 1, due: 3, lapsed: 0, none: 0, refused: 0, withdrawn: 0 };
+
+/** The register's bounds, as `applyForBadgeSchema` states them. */
+const REGISTER_MIN = 2;
+const REGISTER_MAX = 160;
 
 /** The one placeholder `practice.badgeApplyPrivacy` carries, and where it points. */
 const PRIVACY_PLACEHOLDER = '{privacy}';
@@ -53,6 +60,8 @@ export function PracticeBadge({ badge }: PracticeBadgeProps) {
   const [error, setError] = useState<string>();
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<'code' | 'number' | 'register', string>>>({});
   const [moved, setMoved] = useState(false);
+  // Bumped by each refusal: the first field it marks takes focus (accessibility review, phase 8).
+  const [refusals, setRefusals] = useState(0);
   const root = useRef<HTMLDivElement>(null);
   const day = (iso: string) => formatInstant(Date.parse(iso), locale, { day: 'numeric', month: 'long', year: 'numeric' });
   const stands = badgeStands(badge);
@@ -68,27 +77,51 @@ export function PracticeBadge({ badge }: PracticeBadgeProps) {
     }
   }, [badge.state, badge.codeEntered, moved]);
 
+  useEffect(() => {
+    if (refusals > 0) {
+      root.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+    }
+  }, [refusals]);
+
+  /** The register and the number, checked here first so a refusal names the field and how to fill it. */
+  function shapeErrors(register: string, number: string) {
+    return {
+      number: COLLEGIATE_NUMBER_PATTERN.test(number) ? undefined : t.fieldError.number,
+      register: register.length >= REGISTER_MIN && register.length <= REGISTER_MAX ? undefined : t.fieldError.register
+    };
+  }
+
   async function apply(form: FormData) {
     setError(undefined);
+
+    const number = String(form.get('number') ?? '').trim();
+    const register = String(form.get('register') ?? '').trim();
+    const shape = shapeErrors(register, number);
+
+    if (shape.number || shape.register) {
+      setFieldErrors(shape);
+      setRefusals(count => count + 1);
+
+      return;
+    }
+
     setFieldErrors({});
     setPending('apply');
 
     try {
-      await api('/care/practice/badge', {
-        body: { number: String(form.get('number') ?? '').trim(), register: String(form.get('register') ?? '').trim() },
-        method: 'POST'
-      });
+      await api('/care/practice/badge', { body: { number, register }, method: 'POST' });
       setMoved(true);
       router.refresh();
     } catch (caught) {
       if (caught instanceof ApiError && caught.code === 'INVALID_INPUT') {
         setFieldErrors({
-          number: caught.fieldErrors.number ? dictionary.errors.invalidInput : undefined,
-          register: caught.fieldErrors.register ? dictionary.errors.invalidInput : undefined
+          number: caught.fieldErrors.number ? t.fieldError.number : undefined,
+          register: caught.fieldErrors.register ? t.fieldError.register : undefined
         });
+        setRefusals(count => count + 1);
+      } else {
+        setError(messageFor(caught, dictionary));
       }
-
-      setError(messageFor(caught, dictionary));
     } finally {
       setPending(undefined);
     }
@@ -96,6 +129,14 @@ export function PracticeBadge({ badge }: PracticeBadgeProps) {
 
   async function enter(code: string) {
     setError(undefined);
+
+    if (code === '') {
+      setFieldErrors({ code: t.fieldError.code });
+      setRefusals(count => count + 1);
+
+      return;
+    }
+
     setFieldErrors({});
     setPending('code');
 
@@ -106,6 +147,7 @@ export function PracticeBadge({ badge }: PracticeBadgeProps) {
     } catch (caught) {
       if (caught instanceof ApiError && caught.code === 'NOT_FOUND') {
         setFieldErrors({ code: t.badgeCodeWrong });
+        setRefusals(count => count + 1);
       } else {
         setError(messageFor(caught, dictionary));
       }
@@ -153,7 +195,11 @@ export function PracticeBadge({ badge }: PracticeBadgeProps) {
                   {index + 1}
                 </span>
                 <div className={styles.stepBody}>
-                  <span className={styles.stepLabel}>{label}</span>
+                  <span className={styles.stepLabel}>
+                    {label}
+                    {/* Done is said in words too, not only by the filled marker. */}
+                    {index < step ? <span className="visually-hidden">{`, ${t.badgeStepDone}`}</span> : null}
+                  </span>
                   {index === step ? (
                     <Fragment>
                       <Text data-status="" size="sm" tabIndex={-1} tone="secondary">
@@ -179,7 +225,7 @@ export function PracticeBadge({ badge }: PracticeBadgeProps) {
                           />
                           {errorNote}
                           <div className={styles.actions}>
-                            <Button loading={pending === 'code'} type="submit">
+                            <Button aria-disabled={pending === 'code' || undefined} loading={pending === 'code'} type="submit">
                               {t.badgeCodeCta}
                             </Button>
                           </div>
@@ -201,7 +247,11 @@ export function PracticeBadge({ badge }: PracticeBadgeProps) {
               <Text size="sm" weight="medium">
                 {badgeSentence(badge, t, day)}
               </Text>
-              {reason ? <Text size="sm">{reason}</Text> : null}
+              {reason ? (
+                <Text size="sm">
+                  <OwnerFacts value={reason} />
+                </Text>
+              ) : null}
             </Note>
           )}
 
@@ -232,7 +282,7 @@ export function PracticeBadge({ badge }: PracticeBadgeProps) {
             </Text>
             {errorNote}
             <div className={styles.actions}>
-              <Button loading={pending === 'apply'} type="submit">
+              <Button aria-disabled={pending === 'apply' || undefined} loading={pending === 'apply'} type="submit">
                 {t.badgeApplyCta}
               </Button>
             </div>

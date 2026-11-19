@@ -20,7 +20,7 @@ import { AGE_YEARS } from 'core/entities/Profile';
 
 import { api, ApiError, messageFor } from 'lib/api';
 import { formatNumber, interpolate } from 'lib/format';
-import { markPracticeOpened } from 'lib/practiceOpened';
+import { markFocusAfterRefresh } from 'lib/focusAfterRefresh';
 
 interface PracticeOpenProps {
   /** No birth date on record (`GET /profile`): the form asks for one, which the opening stores. */
@@ -42,7 +42,7 @@ interface PracticeOpenProps {
  * caught first, with the onboarding's own sentence, as `OnboardingFlow` does.
  *
  * On success the page is read again and shows the agreement in place of this
- * form; `markPracticeOpened` lets the agreement take focus when it arrives.
+ * form; `markFocusAfterRefresh` lets the agreement take focus when it arrives.
  */
 export function PracticeOpen({ askBirthDate, limit }: PracticeOpenProps) {
   const router = useRouter();
@@ -62,7 +62,7 @@ export function PracticeOpen({ askBirthDate, limit }: PracticeOpenProps) {
 
     if (askBirthDate) {
       if (!birthDate) {
-        setFieldError(dictionary.errors.invalidInput);
+        setFieldError(t.fieldError.birthDate);
 
         return;
       }
@@ -78,13 +78,13 @@ export function PracticeOpen({ askBirthDate, limit }: PracticeOpenProps) {
 
     try {
       await api('/care/practice', { body: askBirthDate ? { birthDate } : {}, method: 'POST' });
-      markPracticeOpened();
+      markFocusAfterRefresh('practice-opened');
       router.refresh();
     } catch (caught) {
       if (caught instanceof ApiError && caught.code === 'NOT_FOUND') {
         setRefused(true);
       } else if (caught instanceof ApiError && caught.code === 'INVALID_INPUT') {
-        setFieldError(dictionary.errors.invalidInput);
+        setFieldError(t.fieldError.birthDate);
       } else {
         setError(messageFor(caught, dictionary));
       }
@@ -129,7 +129,7 @@ export function PracticeOpen({ askBirthDate, limit }: PracticeOpenProps) {
       ) : null}
 
       <div className={styles.actions}>
-        <Button loading={pending} size="lg" type="submit">
+        <Button aria-disabled={pending || undefined} loading={pending} size="lg" type="submit">
           {t.openCta}
         </Button>
       </div>

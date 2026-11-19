@@ -11,6 +11,7 @@ import { Text } from 'ui/components/Text';
 
 import { Card } from 'components/Card';
 import { CareInviteForm } from 'components/CareInviteForm';
+import { FocusOnArrival } from 'components/FocusOnArrival';
 import { PracticeAgreement } from 'components/PracticeAgreement';
 import { PracticeOpen } from 'components/PracticeOpen';
 import { PracticePlanCard } from 'components/PracticePlanCard';
@@ -129,7 +130,11 @@ export default async function PracticePage({ searchParams }: Readonly<{ searchPa
   return (
     <Fragment>
       <div className="motion-enter">
-        <h1 className={styles.title}>{t.title}</h1>
+        <h1 className={styles.title} id="practice-title" tabIndex={-1}>
+          {t.title}
+        </h1>
+        {/* Arrived from the agreement, at the same address: the workspace's title takes focus. */}
+        <FocusOnArrival targetId="practice-title" what="agreement-accepted" />
         <Text className={styles.intro} tone="secondary">
           {t.intro}
         </Text>

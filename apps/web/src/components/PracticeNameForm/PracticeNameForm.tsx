@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -13,6 +13,9 @@ import { useDictionary } from 'i18n/LocaleProvider';
 import { Card } from 'components/Card';
 
 import { authClient } from 'lib/auth-client';
+
+/** The longest account name (`core/entities/User`'s `userSchema.name`). */
+const NAME_MAX = 100;
 
 interface PracticeNameFormProps {
   /** The account's name as `GET /users/me` gives it. */
@@ -38,14 +41,22 @@ export function PracticeNameForm({ name }: PracticeNameFormProps) {
   const [fieldError, setFieldError] = useState<string>();
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+
+  // Arrived by the invitation form's «Cambiar el nombre» (`#nombre`): the field, not the card, takes focus.
+  useEffect(() => {
+    if (window.location.hash === '#nombre') {
+      input.current?.focus();
+    }
+  }, []);
 
   async function rename(next: string) {
     setSaved(false);
     setError(undefined);
     setFieldError(undefined);
 
-    if (next.length === 0) {
-      setFieldError(dictionary.errors.invalidInput);
+    if (next.length === 0 || next.length > NAME_MAX) {
+      setFieldError(t.fieldError.name);
 
       return;
     }
@@ -77,19 +88,22 @@ export function PracticeNameForm({ name }: PracticeNameFormProps) {
           void rename(String(new FormData(event.currentTarget).get('name') ?? '').trim());
         }}
       >
-        <Input autoComplete="name" defaultValue={name} error={fieldError} label={t.nameTitle} name="name" required={true} />
+        <Input autoComplete="name" defaultValue={name} error={fieldError} label={t.nameTitle} name="name" ref={input} required={true} />
         {error ? (
           <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
             {error}
           </Note>
         ) : null}
-        {saved ? (
-          <Note as="p" className="motion-drop-in" role="status" tone="success" toneLabel={dictionary.common.noteTone.success}>
-            {t.nameSaved}
-          </Note>
-        ) : null}
+        {/* Mounted from the start and filled after a change, so the status is announced. */}
+        <div role="status">
+          {saved ? (
+            <Note as="p" className="motion-drop-in" tone="success" toneLabel={dictionary.common.noteTone.success}>
+              {t.nameSaved}
+            </Note>
+          ) : null}
+        </div>
         <div className={styles.actions}>
-          <Button loading={pending} type="submit" variant="secondary">
+          <Button aria-disabled={pending || undefined} loading={pending} type="submit" variant="secondary">
             {t.nameCta}
           </Button>
         </div>

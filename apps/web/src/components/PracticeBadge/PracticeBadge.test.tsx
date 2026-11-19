@@ -58,6 +58,8 @@ describe('PracticeBadge — every state of the badge (textos/01 §§ P2–P3)', 
     const sent = { ...NONE, codeExpiresAt: '2026-12-01T00:00:00Z', state: 'code_sent' } as const;
 
     expect(page(sent)).toContain(t.badgeCodeCta);
+    // The application step is done, in words as well as by its filled marker.
+    expect(page(sent)).toContain(`<span class="visually-hidden">, ${t.badgeStepDone}</span>`);
     expect(page({ ...sent, codeEntered: true })).toContain(t.badgeCodeDone);
     expect(page({ ...sent, codeEntered: true })).not.toContain(t.badgeCodeCta);
   });
@@ -71,13 +73,25 @@ describe('PracticeBadge — every state of the badge (textos/01 §§ P2–P3)', 
   });
 
   it('says a refusal, a withdrawal and a lapse with their reasons, and lets them apply again', () => {
-    const decision = { at: '2026-11-10T00:00:00Z', facts: null, kind: 'withdrawn', reason: 'not_me' } as const;
+    const decision = {
+      at: '2026-11-10T00:00:00Z',
+      dueAt: null,
+      facts: null,
+      kind: 'withdrawn',
+      number: null,
+      reason: 'not_me',
+      register: null
+    } as const;
 
     const withdrawn = page({ ...NONE, decision, state: 'withdrawn' });
     expect(withdrawn).toContain(t.badgeState.withdrawnScreen.split('{date}')[0]);
     expect(withdrawn).not.toContain('desde hoy');
     expect(withdrawn).toContain(t.badgeReasons.not_me);
     expect(withdrawn).toContain(t.badgeApplyCta);
+    // The owner's facts in their own language.
+    expect(page({ ...NONE, decision: { ...decision, facts: 'Baja en el registro.' }, state: 'withdrawn' })).toContain(
+      '<span lang="es">Baja en el registro.</span>'
+    );
 
     expect(page({ ...NONE, decision: { ...decision, kind: 'fail', reason: 'code_expired' }, state: 'refused' })).toContain(
       t.badgeReasons.code_expired

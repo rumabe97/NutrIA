@@ -1,20 +1,28 @@
+import { aroundFacts } from './ownerFacts';
 import { interpolate } from './format';
 
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { PracticeRestrictionView, RestrictionStatementView } from 'core/controllers/Professional';
+import type { WithFacts } from './ownerFacts';
 
 type Day = (iso: string) => string;
 
-/** The statement of reasons, in the words of its mail (`textos/06` § W bis.1 `why`), from what the API stored. */
-function why(statement: RestrictionStatementView, t: Dictionary['practice']): string {
-  return interpolate(t.restrictionWhy, {
-    clause: statement.clause === null ? '' : interpolate(t.restrictionClause, { n: statement.clause }),
-    reason: statement.facts,
-    source:
-      statement.source === 'authority'
-        ? interpolate(t.restrictionSources.authority, { authority: statement.authority ?? '' })
-        : t.restrictionSources[statement.source]
-  });
+/**
+ * The statement of reasons, in the words of its mail (`textos/06` § W bis.1 `why`), from what
+ * the API stored — the owner's facts kept apart, to be marked with their language (`WithFacts`).
+ */
+function why(statement: RestrictionStatementView, t: Dictionary['practice']): WithFacts {
+  return aroundFacts(
+    t.restrictionWhy.replace('{reason}', '{facts}'),
+    {
+      clause: statement.clause === null ? '' : interpolate(t.restrictionClause, { n: statement.clause }),
+      source:
+        statement.source === 'authority'
+          ? interpolate(t.restrictionSources.authority, { authority: statement.authority ?? '' })
+          : t.restrictionSources[statement.source]
+    },
+    statement.facts
+  );
 }
 
 /**
@@ -30,14 +38,14 @@ function why(statement: RestrictionStatementView, t: Dictionary['practice']): st
  *
  * Sentences that name the address keep `{email}` for `MailtoText` to draw as a link.
  */
-export function restrictionParagraphs(restriction: PracticeRestrictionView, t: Dictionary['practice'], day: Day): string[] {
+export function restrictionParagraphs(restriction: PracticeRestrictionView, t: Dictionary['practice'], day: Day): (string | WithFacts)[] {
   const { closing, suspended } = restriction;
 
   if (closing?.closed) {
     return [interpolate(t.restrictionClosed, { date: day(closing.closesAt) })];
   }
 
-  const paragraphs: string[] = [];
+  const paragraphs: (string | WithFacts)[] = [];
 
   if (closing) {
     paragraphs.push(

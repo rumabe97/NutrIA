@@ -3,6 +3,8 @@ import { enGB } from 'i18n/dictionaries/en-GB';
 import { esES } from 'i18n/dictionaries/es-ES';
 
 import { badgeReason, badgeSentence, badgeStands } from './badgeState';
+import { plainText } from './ownerFacts';
+import { profileRefusals } from './profileRefusals';
 import { restrictionParagraphs } from './practiceRestriction';
 import { wordRefusal } from './protectedWord';
 
@@ -73,29 +75,56 @@ describe('the badge, in the words of textos/01 § P3', () => {
     expect(badgeSentence(states[3], esES.practice, day)).toBe(esES.practice.badgeCodeDone);
   });
 
-  it('gives a decision its statement’s reason, then the owner’s facts', () => {
+  it('gives a decision its statement’s reason from what the decided check named, the owner’s facts apart', () => {
+    const decided = { dueAt: null, number: null, register: null } as const;
     const withdrawn: BadgeView = {
       ...NONE,
-      decision: { at: '2026-11-10T00:00:00Z', facts: 'Baja en el registro.', kind: 'withdrawn', reason: 'not_me' },
+      decision: { ...decided, at: '2026-11-10T00:00:00Z', facts: 'Baja en el registro.', kind: 'withdrawn', reason: 'not_me' },
       state: 'withdrawn'
     };
+    const reason = badgeReason(withdrawn, esES.practice, day);
 
-    expect(badgeReason(withdrawn, esES.practice, day)).toBe(`Por qué: ${esES.practice.badgeReasons.not_me} Baja en el registro.`);
-    expect(
-      badgeReason(
-        { ...NONE, decision: { at: '2026-11-10T00:00:00Z', facts: null, kind: 'lapsed', reason: null }, state: 'lapsed' },
-        enGB.practice,
-        day
-      )
-    ).toBe(`Why: ${enGB.practice.badgeReasons.unconfirmed}`);
-    // The register's sentence needs what it names: without it, only the facts.
-    expect(
-      badgeReason(
-        { ...NONE, decision: { at: '2026-11-10T00:00:00Z', facts: null, kind: 'fail', reason: 'not_on_register' }, state: 'refused' },
-        esES.practice,
-        day
-      )
-    ).toBeNull();
+    // The facts are the owner's Spanish, handed back apart to be marked with their language.
+    expect(reason?.facts).toBe('Baja en el registro.');
+    expect(reason ? plainText(reason) : null).toBe(`Por qué: ${esES.practice.badgeReasons.not_me} Baja en el registro.`);
+
+    // § V: the date that was due, then the detail.
+    const lapsed = badgeReason(
+      {
+        ...NONE,
+        decision: { ...decided, at: '2026-11-10T00:00:00Z', dueAt: '2026-10-01T00:00:00Z', facts: null, kind: 'lapsed', reason: null },
+        state: 'lapsed'
+      },
+      enGB.practice,
+      day
+    );
+
+    expect(lapsed ? plainText(lapsed) : null).toBe(
+      `Why: ${enGB.practice.badgeLapseWhy.replace('{dueDate}', '2026-10-01')} ${enGB.practice.badgeReasons.unconfirmed}`
+    );
+
+    // The register's sentence from the decision's own register and number, not the badge's (null after a refusal).
+    const refused = badgeReason(
+      {
+        ...NONE,
+        decision: {
+          ...decided,
+          at: '2026-11-10T00:00:00Z',
+          facts: null,
+          kind: 'fail',
+          number: 'AND-1',
+          reason: 'not_on_register',
+          register: 'CODINAN'
+        },
+        state: 'refused'
+      },
+      esES.practice,
+      day
+    );
+
+    expect(refused ? plainText(refused) : null).toBe(
+      `Por qué: ${esES.practice.badgeReasons.not_on_register.replace('{register}', 'CODINAN').replace('{number}', 'AND-1').replace('{checkedOn}', '2026-11-10')}`
+    );
     expect(badgeReason(NONE, esES.practice, day)).toBeNull();
   });
 });
@@ -113,7 +142,9 @@ describe('a restriction on the practice page (textos/06 § W bis)', () => {
     // The screen's own, dated variant (textos/01 § P5), never the mail's «desde hoy».
     expect(what).toBe(esES.practice.restrictionSuspendedScreen.replace('{date}', '2026-11-10'));
     expect(redress).toBe(esES.practice.restrictionRedress);
-    expect(reasons).toBe(
+    // The owner's facts come back apart (marked lang="es" on screen), inside our sentence.
+    expect(typeof reasons === 'object' && reasons.facts).toBe('Uso del título sin la insignia.');
+    expect(typeof reasons === 'object' ? plainText(reasons) : reasons).toBe(
       'Por qué: Uso del título sin la insignia. Es lo que dice el § 13 del acuerdo del profesional que aceptaste, en relación con su § 2. Lo hemos decidido nosotros, por nuestra propia revisión.'
     );
   });
@@ -152,8 +183,30 @@ describe('a restriction on the practice page (textos/06 § W bis)', () => {
       day
     );
 
-    expect(reasons).toBe(
+    expect(typeof reasons === 'object' ? plainText(reasons) : reasons).toBe(
       'Por qué: Uso del título sin la insignia. Es lo que dice el § 13 del acuerdo del profesional que aceptaste. Nos lo exige la AEPD.'
     );
+  });
+});
+
+describe('a refused profile save, field by field', () => {
+  it('names every refused field on its own, each in its sentence', () => {
+    const refusals = profileRefusals({ displayName: ['never:doctora'], studies: ['badge_only:nutricionista'] }, esES.practice, 2000);
+
+    expect(refusals.displayName).toBe(esES.practice.profileWordNever.replace('{word}', 'doctora'));
+    expect(refusals.studies).toBe(esES.practice.profileWordRefused.replace('{word}', 'nutricionista'));
+    expect(refusals.hoursDay).toBeUndefined();
+  });
+
+  it('says how to fix what is not a word, and which day of the hours', () => {
+    const refusals = profileRefusals(
+      { 'hours.2.0': ['A range ends after it starts'], priceCents: ['Too big'], studies: ['Plain text'] },
+      enGB.practice,
+      2000
+    );
+
+    expect(refusals.price).toBe(enGB.practice.fieldError.price);
+    expect(refusals.studies).toBe(enGB.practice.fieldError.studies.replace('{max}', '2000'));
+    expect(refusals.hoursDay).toBe(2);
   });
 });

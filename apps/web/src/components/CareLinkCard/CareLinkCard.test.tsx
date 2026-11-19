@@ -62,7 +62,8 @@ describe('CareLinkCard in the words of consent 3.0.0 (textos/05 §§ F.1, F.4)',
   it('is «Tu profesional» whatever the tier, never «dietista»', () => {
     const markup = card({ ...PLAN, reconsentOffered: false });
 
-    expect(markup).toContain(esES.care.linkTitle);
+    // The section's h2 says «Tu profesional» (`profile.sectionCare`); the card is named by who it is.
+    expect(markup).toMatch(/<h3[^>]*>Ana Pérez<\/h3>/);
     expect(markup.toLowerCase()).not.toContain('dietista');
   });
 

@@ -19,7 +19,7 @@ import { PracticeAgreementSection } from 'components/PracticeAgreementSection';
 
 import { api, messageFor } from 'lib/api';
 import { formatNumber } from 'lib/format';
-import { takePracticeOpened } from 'lib/practiceOpened';
+import { markFocusAfterRefresh, takeFocusAfterRefresh } from 'lib/focusAfterRefresh';
 
 interface PracticeAgreementProps {
   /** The free practice's places in force (`CarePracticeView.seats`), for § 10. */
@@ -54,7 +54,7 @@ export function PracticeAgreement({ seats, version }: PracticeAgreementProps) {
 
   // Arrived from the opening form, in place: the new view says where the reader is.
   useEffect(() => {
-    if (takePracticeOpened()) {
+    if (takeFocusAfterRefresh('practice-opened')) {
       heading.current?.focus();
     }
   }, []);
@@ -65,6 +65,8 @@ export function PracticeAgreement({ seats, version }: PracticeAgreementProps) {
 
     try {
       await api('/care/practice/agreement', { body: { version }, method: 'POST' });
+      // The workspace replaces this view at the same address: its title takes focus when it arrives.
+      markFocusAfterRefresh('agreement-accepted');
       router.refresh();
     } catch (caught) {
       setError(messageFor(caught, dictionary));
@@ -104,7 +106,7 @@ export function PracticeAgreement({ seats, version }: PracticeAgreementProps) {
       ) : null}
 
       <div className={styles.actions}>
-        <Button disabled={!checked} loading={pending} onClick={() => void accept()} size="lg" type="button">
+        <Button aria-disabled={pending || undefined} disabled={!checked} loading={pending} onClick={() => void accept()} size="lg" type="button">
           {t.accept}
         </Button>
       </div>

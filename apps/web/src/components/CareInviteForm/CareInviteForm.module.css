@@ -38,3 +38,12 @@
 .full .actions {
   margin-block-start: var(--space-01);
 }
+
+/* The way to the rename stands alone in its line: a finger's height on a phone. */
+@media (pointer: coarse) {
+  .rename {
+    align-items: center;
+    display: inline-flex;
+    min-block-size: var(--target-min);
+  }
+}

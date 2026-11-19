@@ -1479,7 +1479,6 @@ export const enGB: Dictionary = {
     invitationTitle: 'Invitation from {professional}',
     invitationTrail: 'Every time they look at or change something, you will see it on your profile.',
     linkSince: 'Since {date}',
-    linkTitle: 'Your professional',
     professionalUnnamed: 'your professional',
     reconsentAccept: 'Yes, share this too',
     reconsentBody:
@@ -2634,6 +2633,7 @@ export const enGB: Dictionary = {
     badgeCodeCta: 'Check',
     badgeCodeDone: 'Code received. As soon as we confirm it, you will see your badge.',
     badgeCodeWrong: 'That code is not valid. Check you copied it correctly; if it has expired, apply for the badge again.',
+    badgeLapseWhy: 'the yearly check was due on {dueDate} and, 30 days later, we had not completed it.',
     badgeMeaning:
       "What it means: on {date} we checked on {register}'s register that you are listed as a registered dietitian-nutritionist entitled to practise, under number {number}, and that this account is yours. It is not an assessment of your work. We check again every year.",
     badgeNumber: 'Your registration number',
@@ -2658,6 +2658,7 @@ export const enGB: Dictionary = {
       withdrawnScreen:
         'We removed the "Registered dietitian-nutritionist" badge on {date}. Your practice stays open, and of each client you see what section 3 of the professional\'s agreement describes "without the badge". The rest of what changes is in its section 4. The words in your profile that only the badge allows are not shown.'
     },
+    badgeStepDone: 'done',
     badgeSteps: { apply: 'Application', badge: 'Badge', code: 'Code' },
     badgeTitle: 'Dietitian-nutritionist badge',
     checkInDifficulty: { easy: 'Easy to follow', hard: 'Hard to follow', ok: 'Manageable' },
@@ -2679,6 +2680,17 @@ export const enGB: Dictionary = {
     endConfirmCta: 'Yes, end it',
     endConfirmTitle: 'End the link with {name}?',
     endHint: 'Your client keeps their account, their history and their last published plan.',
+    fieldError: {
+      birthDate: 'Enter your full date of birth: day, month and year.',
+      code: 'Enter the code we sent you.',
+      displayName: 'Write the name you want to show, on a single line and without "<" or ">".',
+      hours: 'Check the hours on {day}: each range has to end after it starts.',
+      name: 'Write your account name, 1 to 100 characters.',
+      number: 'Write your registration number: 3 to 20 letters, digits, "/" or "-".',
+      price: 'Write the price in euros, for example 30 or 30.50.',
+      register: "Write your college's name as it appears on its register.",
+      studies: 'Write your studies as plain text, without "<" or ">", up to {max} characters.'
+    },
     fortnightRange: '{from} – {to}',
     fortnightsEmpty: 'No fortnight lived yet.',
     fortnightsTitle: 'Fortnights and check-ins',
@@ -2771,7 +2783,9 @@ export const enGB: Dictionary = {
     profileHoursAdd: 'Add hours on {day}',
     profileHoursClosed: 'Closed',
     profileHoursFrom: 'From',
+    profileHoursFull: 'At most {max} ranges a day.',
     profileHoursNote: 'For information only: nothing is booked on NutrIA.',
+    profileHoursRangeOf: '{day}, hours {n}',
     profileHoursRemove: 'Remove these hours',
     profileHoursTo: 'To',
     profileName: 'The name you show',
@@ -2813,6 +2827,7 @@ export const enGB: Dictionary = {
     reviewTitle: 'Review',
     seats: '{active} of {limit} clients',
     seatsPending: 'And {count} unanswered invitations, which also take a place.',
+    seatsPendingOne: 'And 1 unanswered invitation, which also takes a place.',
     seatsTitle: 'Places',
     sharesHealth: 'Shares their health',
     stages: {

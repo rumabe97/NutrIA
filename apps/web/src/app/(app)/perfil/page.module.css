@@ -102,5 +102,7 @@ a.practiceDoor:active {
 .practiceDoorTitle {
   font-size: var(--font-size-04);
   font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-04);
+  margin: 0;
   overflow-wrap: break-word;
 }

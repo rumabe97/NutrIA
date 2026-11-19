@@ -169,7 +169,7 @@ export function CareInviteForm({ paid, seats }: CareInviteFormProps) {
             {outcome.sentence}
           </Text>
           <Text size="sm">
-            <Link href="/consulta/perfil#nombre" inline={true}>
+            <Link className={styles.rename} href="/consulta/perfil#nombre" inline={true}>
               {t.nameCta}
             </Link>
           </Text>
