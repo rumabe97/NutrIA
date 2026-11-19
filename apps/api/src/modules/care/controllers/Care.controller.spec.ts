@@ -1550,6 +1550,25 @@ describe('care routes', () => {
       expect(response.body).toMatchObject({ code: 'INVALID_INPUT', fieldErrors: { displayName: ['badge_only:nutricionista'] } });
     });
 
+    it('answers every refused field in one 422 — the name and the studies together', async () => {
+      practising();
+      jest
+        .spyOn(ProfessionalProfileController, 'save')
+        .mockRejectedValue(
+          new InputParseError('A word the profile may not carry', { displayName: ['badge_only:dietista'], studies: ['badge_only:consulta'] })
+        );
+
+      const response = await request(server())
+        .put(`/${PREFIX}/care/practice/profile`)
+        .send({ displayName: 'Ana Dietista', studies: 'Consulta clínica para pacientes' })
+        .expect(422);
+
+      expect((response.body as { fieldErrors: unknown }).fieldErrors).toEqual({
+        displayName: ['badge_only:dietista'],
+        studies: ['badge_only:consulta']
+      });
+    });
+
     it('is a 404 for an account that is not a practitioner, before the body is read', async () => {
       jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
       const calls = [jest.spyOn(ProfessionalProfileController, 'mine'), jest.spyOn(ProfessionalProfileController, 'save')];
