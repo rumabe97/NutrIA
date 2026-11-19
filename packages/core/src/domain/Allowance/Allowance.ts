@@ -113,6 +113,18 @@ export type Allowances = {
   readonly mealSwapsPerPlan: number;
   readonly midPlanEventsPerPlan: number;
   readonly planRedosPerFortnight: number;
+  /**
+   * Active clients a practice nobody pays for may hold, live invitations
+   * counted with them (`0110` decision 13, `0111` § 6, PRD 025 scope 2) — read
+   * for the **practitioner's** account. A practice with `practiceOpen` keeps
+   * its subscription's `includedClients` instead; this is the free one.
+   *
+   * Ten on both tiers: a client of a practice does not make anybody premium
+   * (`tierOf` is untouched), and the practitioner's own tier says nothing about
+   * how many people they may work with. `structural`, so the console may only
+   * lower it: a raise is the owner's decision and a deploy, not a click.
+   */
+  readonly practiceClients: number;
 };
 
 const BY_TIER: Readonly<Record<Tier, Allowances>> = {
@@ -124,7 +136,8 @@ const BY_TIER: Readonly<Record<Tier, Allowances>> = {
     fixedMeals: 1,
     mealSwapsPerPlan: 5,
     midPlanEventsPerPlan: 0,
-    planRedosPerFortnight: 1
+    planRedosPerFortnight: 1,
+    practiceClients: 10
   },
   // Seven events and not ten: the eighth was never possible. A load is one to
   // three days and two events may not share one, so a fortnight admits seven —
@@ -147,7 +160,8 @@ const BY_TIER: Readonly<Record<Tier, Allowances>> = {
     fixedMeals: 3,
     mealSwapsPerPlan: 20,
     midPlanEventsPerPlan: 3,
-    planRedosPerFortnight: 3
+    planRedosPerFortnight: 3,
+    practiceClients: 10
   }
 };
 
@@ -161,7 +175,8 @@ export const ALLOWANCE_NAMES = [
   'fixedMeals',
   'mealSwapsPerPlan',
   'midPlanEventsPerPlan',
-  'planRedosPerFortnight'
+  'planRedosPerFortnight',
+  'practiceClients'
 ] as const satisfies readonly AllowanceName[];
 
 /**
@@ -254,6 +269,12 @@ export const ALLOWANCE_BOUNDS: Readonly<Record<AllowanceName, AllowanceLimits>> 
     floor: 0,
     kind: 'financial',
     why: 'Six a fortnight is twelve a month: about 3–6 $ of pictures for one account, against a 10 $ month shared by everybody.'
+  },
+  practiceClients: {
+    ceiling: 10,
+    floor: 0,
+    kind: 'structural',
+    why: 'Ten is the free practice the owner decided (`0110` decision 13), so ten is the ceiling: a free practice that grows past it is the paid one’s job, and raising it is his decision and a deploy, never a click. Zero stops every free practice inviting anybody.'
   }
 };
 
@@ -319,7 +340,8 @@ export function resolveAllowances(stored: readonly StoredAllowance[] = []): Read
     fixedMeals: of('free', 'fixedMeals'),
     mealSwapsPerPlan: of('free', 'mealSwapsPerPlan'),
     midPlanEventsPerPlan: of('free', 'midPlanEventsPerPlan'),
-    planRedosPerFortnight: of('free', 'planRedosPerFortnight')
+    planRedosPerFortnight: of('free', 'planRedosPerFortnight'),
+    practiceClients: of('free', 'practiceClients')
   };
   // 3, for free
   const freeFinal: Allowances = { ...free, midPlanEventsPerPlan: Math.min(free.midPlanEventsPerPlan, free.eventsPerPlan) };
@@ -332,7 +354,8 @@ export function resolveAllowances(stored: readonly StoredAllowance[] = []): Read
     fixedMeals: Math.max(of('premium', 'fixedMeals'), freeFinal.fixedMeals),
     mealSwapsPerPlan: Math.max(of('premium', 'mealSwapsPerPlan'), freeFinal.mealSwapsPerPlan),
     midPlanEventsPerPlan: Math.max(of('premium', 'midPlanEventsPerPlan'), freeFinal.midPlanEventsPerPlan),
-    planRedosPerFortnight: Math.max(of('premium', 'planRedosPerFortnight'), freeFinal.planRedosPerFortnight)
+    planRedosPerFortnight: Math.max(of('premium', 'planRedosPerFortnight'), freeFinal.planRedosPerFortnight),
+    practiceClients: Math.max(of('premium', 'practiceClients'), freeFinal.practiceClients)
   };
 
   // 3, for premium. It cannot drop below free's: premium's events are already at

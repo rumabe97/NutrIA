@@ -46,6 +46,13 @@ describe('the assistant module’s wall', () => {
     'ProfessionalBadge',
     'database/schema/professional',
     'core/domain/ProtectedWords',
+    // Phase 6: the practitioner's profile, its queue and its mail, and the owner's restrictions and their mails.
+    'ProfessionalProfile',
+    'professionalProfiles',
+    'PracticeRestriction',
+    'practiceRestrictions',
+    'ProfessionalSuspen',
+    'ProfessionalClosing',
     'core/controllers/Pantry',
     'core/entities/Pantry',
     '#repositories/Pantry',

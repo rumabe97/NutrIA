@@ -106,7 +106,9 @@ function harness(
             collegiateNumber: '28/1',
             grantedAt: '2026-09-01T00:00:00.000Z',
             includedClients: 0,
-            practiceOpen: false
+            practiceOpen: false,
+            restricted: false,
+            restriction: null
           }
         : null
     );

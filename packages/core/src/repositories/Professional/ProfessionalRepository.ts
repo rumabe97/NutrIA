@@ -3,11 +3,12 @@ import { ZodError } from 'zod';
 
 import { database } from 'database';
 import { careInvitations, careLinks } from 'database/schema/care';
-import { professionalBadgeChecks, professionals } from 'database/schema/professional';
+import { professionals } from 'database/schema/professional';
+import { profiles } from 'database/schema/profile';
 import { user } from 'database/schema/auth';
 
 import { contains, ordered } from '#repositories/Search';
-import { dueDate, ProfessionalBadgeRepository } from './ProfessionalBadgeRepository';
+import { ProfessionalBadgeRepository } from './ProfessionalBadgeRepository';
 import { DatabaseOperationError } from 'core/entities/Error';
 import { professionalSchema } from 'core/entities/Professional';
 
@@ -95,6 +96,66 @@ export const ProfessionalRepository = {
   },
 
   /**
+   * **The close of a practice, on its day** (PRD 025 scope 16; the 004 revoke,
+   * reshaped by phase 6), in one transaction, in this order:
+   *
+   * 1. **Every open link of the practitioner ends** (`endLinks`, handed down by
+   *    the controller: `CareRepository.endLinksOf`), recorded as the
+   *    practitioner's side ending it — so to each client it is exactly a link
+   *    their practitioner ended, and they are free to accept somebody else (one
+   *    open link per client). The agreement's § 11: the practitioner «loses
+   *    access to their clients». A lift after a close reopens an empty practice.
+   * 2. **A badge that stands is withdrawn** (PLAN phase 6 step 0): the badge
+   *    record hangs off the account, not off this row, so without the
+   *    `withdrawn` an old `pass` would survive into a practice opened again after
+   *    the owner lifts the close. `withdrawal` is that row's checker and reason;
+   *    `whenWithdrawn` runs right after it — the profile's requeue. There is no
+   *    link left to narrow.
+   * 3. The `professionals` row is deleted, and the unanswered invitations with
+   *    it — nobody can answer them any more, and each holds an address somebody
+   *    typed.
+   *
+   * Under the practitioner's badge lock, the first lock taken on the account, as
+   * every writer of the badge and of the practitioner's rows takes it, then the
+   * `professionals` row. False when there was no row to delete: nothing is
+   * written.
+   */
+  async close(
+    userId: string,
+    now: Date,
+    withdrawal: { readonly checkedBy: string | null; readonly reason: string },
+    hooks: {
+      readonly endLinks: (tx: Parameters<RecordAudit>[0]) => Promise<unknown>;
+      readonly whenWithdrawn?: (tx: Parameters<RecordAudit>[0]) => Promise<unknown>;
+    }
+  ): Promise<boolean> {
+    try {
+      return await database().transaction(async tx => {
+        await ProfessionalBadgeRepository.lock(tx, userId);
+
+        const [practice] = await tx.select({ id: professionals.id }).from(professionals).where(eq(professionals.userId, userId)).for('update');
+
+        if (!practice) {
+          return false;
+        }
+
+        await hooks.endLinks(tx);
+
+        if ((await ProfessionalBadgeRepository.withdrawHeld(tx, userId, withdrawal.checkedBy, withdrawal.reason, now)) && hooks.whenWithdrawn) {
+          await hooks.whenWithdrawn(tx);
+        }
+
+        await tx.delete(professionals).where(eq(professionals.userId, userId));
+        await tx.delete(careInvitations).where(eq(careInvitations.professionalId, userId));
+
+        return true;
+      });
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
    * The professional's own row, by the session's id.
    *
    * `userId` is the ownership boundary as everywhere else — here it is also
@@ -105,76 +166,6 @@ export const ProfessionalRepository = {
       const [row] = await database().select().from(professionals).where(eq(professionals.userId, userId)).limit(1);
 
       return row ? professionalSchema.parse(row) : null;
-    } catch (error: unknown) {
-      throw wrap(error);
-    }
-  },
-
-  /**
-   * The owner's act (`0059`): makes an account a professional, or records the
-   * act again on one that already is.
-   *
-   * An upsert on `user_id` rather than a read-then-insert, so two clicks fired
-   * together cannot both land — the UNIQUE constraint is the check. Granting
-   * again rewrites the number and the date: the row records the owner's latest
-   * act, and correcting a mistyped number should not need a revocation first.
-   * `practiceOpen` and `includedClients` are deliberately not touched — they
-   * are billing's to write (`0061`), and a re-grant must not close a practice.
-   *
-   * **Transitional, until project 025 phase 6 retires this route** (PLAN phase
-   * 3, step 7): the grant is the owner's own look at the register, so it also
-   * writes a `pass` check in the same transaction — due twelve months on, with
-   * the number granted and no channel — and the care suites' professionals stay
-   * badged through phases 4–5. A re-grant writes another; the latest decides.
-   *
-   * `beforeRegained`, when given, runs inside this transaction before the pass
-   * is written, and only when no badge stood just before it (project 025 phase
-   * 5, as `ProfessionalBadgeRepository.confirm`): the controller hands down the
-   * narrowing of the practitioner's links, so a re-grant never finds a `full`
-   * link the client has not consented to afresh.
-   */
-  async grant(
-    userId: string,
-    collegiateNumber: string,
-    grantedBy: string,
-    record?: RecordAudit,
-    beforeRegained?: (tx: Parameters<RecordAudit>[0]) => Promise<unknown>
-  ): Promise<Professional> {
-    try {
-      return await database().transaction(async tx => {
-        // The badge lock first, before the `professionals` row: the grant writes a pass and may narrow
-        // `care_links`, so it queues with `confirm`/`remove` and with every consent write (`ProfessionalBadgeRepository.lock`).
-        await ProfessionalBadgeRepository.lock(tx, userId);
-
-        const grantedAt = new Date();
-        const [row] = await tx
-          .insert(professionals)
-          .values({ collegiateNumber, grantedAt, grantedBy, userId })
-          .onConflictDoUpdate({ set: { collegiateNumber, grantedAt, grantedBy, updatedAt: grantedAt }, target: professionals.userId })
-          .returning();
-
-        if (beforeRegained && (await ProfessionalBadgeRepository.badgeOf(userId, grantedAt, tx)) === null) {
-          await beforeRegained(tx);
-        }
-
-        await tx
-          .insert(professionalBadgeChecks)
-          .values({
-            checkedAt: grantedAt,
-            checkedBy: grantedBy,
-            dueAt: dueDate(grantedAt),
-            kind: 'pass',
-            number: collegiateNumber,
-            reason: 'project 004 grant',
-            userId
-          });
-
-        if (record) {
-          await record(tx);
-        }
-
-        return professionalSchema.parse(row);
-      });
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -233,19 +224,60 @@ export const ProfessionalRepository = {
     }
   },
 
-  /** Takes the grant back. Returns false when the account was not a professional. */
-  async revoke(userId: string, record?: RecordAudit): Promise<boolean> {
-    try {
-      // Their unanswered invitations go with the grant: nobody can answer them any more, and each holds an address somebody typed.
-      return await database().transaction(async tx => {
-        const rows = await tx.delete(professionals).where(eq(professionals.userId, userId)).returning({ id: professionals.id });
-        await tx.delete(careInvitations).where(eq(careInvitations.professionalId, userId));
+  /**
+   * **An account opens its own practice** (PRD 025 scope 1, criterion 1): the
+   * `professionals` row, written from the session's account and from nothing in
+   * a body but `birthDate` — which is written to the account's profile only when
+   * none is on record, and only with the row (the caller has checked it is 18 or
+   * more, `assertOldEnough`). `practiceOpen` and `includedClients` keep their
+   * defaults, which pay for nothing; `collegiateNumber` and `grantedBy` stay
+   * null: nobody granted this. No badge: that is the owner's check alone.
+   *
+   * `barred` is asked inside the transaction, after the practitioner's badge
+   * lock — the lock the owner's suspend and close take before they read
+   * whether a practice exists — so a restriction written at the same moment is
+   * either seen here or sees this row. `barred` → nothing written.
+   *
+   * An account that already practises (`exists`) writes nothing either, the
+   * birth date included: two clicks open one practice. `locale` is the
+   * request's language, kept only on a profile this creates — an account that
+   * never onboarded has none, and its mails would otherwise be in Spanish.
+   */
+  async open(
+    userId: string,
+    birth: { readonly birthDate: string | null; readonly locale: string | null },
+    now: Date,
+    barred: (tx: Parameters<RecordAudit>[0]) => Promise<boolean>
+  ): Promise<'barred' | 'exists' | 'opened'> {
+    const { birthDate, locale } = birth;
 
-        if (rows.length > 0 && record) {
-          await record(tx);
+    try {
+      return await database().transaction(async tx => {
+        await ProfessionalBadgeRepository.lock(tx, userId);
+
+        if (await barred(tx)) {
+          return 'barred';
         }
 
-        return rows.length > 0;
+        const [opened] = await tx
+          .insert(professionals)
+          .values({ grantedAt: now, userId })
+          .onConflictDoNothing({ target: professionals.userId })
+          .returning({ id: professionals.id });
+
+        if (!opened) {
+          return 'exists';
+        }
+
+        if (birthDate !== null) {
+          // On record from here on (`practice.openBirthDateHint`: «Se guarda en tu cuenta»), and never over one already there.
+          await tx
+            .insert(profiles)
+            .values({ birthDate, userId, ...(locale === null ? {} : { locale }) })
+            .onConflictDoUpdate({ set: { birthDate, updatedAt: now }, setWhere: isNull(profiles.birthDate), target: profiles.userId });
+        }
+
+        return 'opened';
       });
     } catch (error: unknown) {
       throw wrap(error);

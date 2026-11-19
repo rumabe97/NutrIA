@@ -7,7 +7,7 @@ import { badgeCodeHash, newBadgeCode, ProfessionalBadgeController } from './Prof
 
 import type * as Repositories from '#repositories/Professional';
 import type { Badge, BadgeQueueRow, BadgeRecord, DueBadge, IssuedCheck, LapsedBadge, RemovedCheck } from '#repositories/Professional';
-import type { BadgeChannel, ProfessionalBadgeCheck, ProfessionalBadgeCode } from 'core/entities/Professional';
+import type { BadgeChannel, ProfessionalBadgeCheck, ProfessionalBadgeCode, ProfessionalProfile } from 'core/entities/Professional';
 import type { User } from 'core/entities/User';
 
 const NOW = new Date('2026-11-18T09:00:00.000Z');
@@ -30,8 +30,9 @@ const remove =
     ) => Promise<RemovedCheck | null>
   >();
 const narrowLinksOf = vi.fn<(professionalId: string, now: Date, tx: unknown) => Promise<number>>();
+const requeueIf = vi.fn<(tx: unknown, userId: string, now: Date, carries: (profile: ProfessionalProfile) => boolean) => Promise<boolean>>();
 const queue = vi.fn<() => Promise<readonly BadgeQueueRow[]>>();
-const lapseOverdue = vi.fn<(now: Date) => Promise<readonly LapsedBadge[]>>();
+const lapseOverdue = vi.fn<(now: Date, whenLapsed?: (tx: unknown, userId: string) => Promise<unknown>) => Promise<readonly LapsedBadge[]>>();
 const dueWithin = vi.fn<(since: Date, now: Date) => Promise<readonly DueBadge[]>>();
 const dueCounts = vi.fn<(now: Date, soonDays: number) => Promise<{ due: number; soon: number }>>();
 const findById = vi.fn<(id: string) => Promise<User | undefined>>();
@@ -50,7 +51,7 @@ vi.mock('#repositories/Professional', async importOriginal => {
       dueWithin: (since: Date, now: Date) => dueWithin(since, now),
       enterCode: (userId: string, hash: string, now: Date) => enterCode(userId, hash, now),
       issueCode: (userId: string, channel: BadgeChannel, hash: string, now: Date) => issueCode(userId, channel, hash, now),
-      lapseOverdue: (now: Date) => lapseOverdue(now),
+      lapseOverdue: (now: Date, whenLapsed?: (tx: unknown, userId: string) => Promise<unknown>) => lapseOverdue(now, whenLapsed),
       queue: () => queue(),
       record: (userId: string) => record(userId),
       remove: (
@@ -61,6 +62,9 @@ vi.mock('#repositories/Professional', async importOriginal => {
         now: Date,
         whenWithdrawn?: (tx: unknown) => Promise<unknown>
       ) => remove(userId, by, kind, reason, now, whenWithdrawn)
+    },
+    ProfessionalProfileRepository: {
+      requeueIf: (tx: unknown, userId: string, now: Date, carries: (profile: ProfessionalProfile) => boolean) => requeueIf(tx, userId, now, carries)
     }
   };
 });
@@ -130,6 +134,7 @@ beforeEach(() => {
     confirm,
     remove,
     narrowLinksOf,
+    requeueIf,
     queue,
     lapseOverdue,
     dueWithin,
@@ -426,6 +431,31 @@ describe('ProfessionalBadgeController.confirm, remove and record', () => {
 
     // The practitioner whose badge went — never anybody the caller names — and nobody is mailed for it.
     expect(narrowLinksOf).toHaveBeenCalledExactlyOnceWith('usr-pro', NOW, TX);
+    // And, since phase 6, the profile goes back to the owner's queue if it carries a badge-only word (`0111` § 7).
+    expect(requeueIf).toHaveBeenCalledExactlyOnceWith(TX, 'usr-pro', NOW, expect.any(Function));
+
+    const carries = requeueIf.mock.calls[0]?.[3];
+
+    expect(carries?.({ displayName: 'Ana, dietista-nutricionista', studies: null } as ProfessionalProfile)).toBe(true);
+    expect(carries?.({ displayName: 'Ana, asesora nutricional', studies: 'Curso de cocina' } as ProfessionalProfile)).toBe(false);
+  });
+
+  it('hands the sweep’s lapse the profile’s requeue, for each badge it lapses, in its transaction', async () => {
+    const TX = { name: 'the lapse’s transaction' };
+
+    isEnabled.mockResolvedValue(true);
+    lapseOverdue.mockImplementation(async (_now, whenLapsed) => {
+      await whenLapsed?.(TX, 'usr-lapsed');
+
+      return [];
+    });
+    lastOwnerAlert.mockResolvedValue(null);
+    claimOwnerAlert.mockResolvedValue(null);
+    dueCounts.mockResolvedValue({ due: 0, soon: 0 });
+
+    await ProfessionalBadgeController.sweep(NOW);
+
+    expect(requeueIf).toHaveBeenCalledExactlyOnceWith(TX, 'usr-lapsed', NOW, expect.any(Function));
   });
 
   it('is a 404 when there is nothing of that kind to decide', async () => {

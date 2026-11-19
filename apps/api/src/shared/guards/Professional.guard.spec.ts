@@ -9,16 +9,27 @@ import { BeforePractice } from '../decorators/BeforePractice.decorator.js';
 import { ProfessionalGuard } from './Professional.guard.js';
 
 import type { ExecutionContext } from '@nestjs/common';
+import type { ProfessionalView } from 'core/controllers/Professional';
 
-const PRACTISING = {
+/** A free practice (PRD 025 scope 2): nobody pays, and its client routes open. */
+const PRACTISING: ProfessionalView = {
   agreementRequired: false,
   collegiateNumber: '28/12345',
   grantedAt: '2026-09-01T00:00:00.000Z',
-  includedClients: 30,
-  practiceOpen: true
+  includedClients: 0,
+  practiceOpen: false,
+  restricted: false,
+  restriction: null
 };
 
-/** A workspace page marked to open before the practice is paid for. */
+/** What a suspension looks like from `find` (PRD 025 criterion 24). */
+const SUSPENDED: ProfessionalView = {
+  ...PRACTISING,
+  restricted: true,
+  restriction: { closing: null, suspended: { since: '2026-11-19T09:00:00.000Z', statement: null } }
+};
+
+/** A workspace page marked to open before the client routes: the practice's own page, the agreement, the badge, the profile. */
 @BeforePractice()
 class WorkspacePage {}
 
@@ -75,23 +86,32 @@ describe('ProfessionalGuard', () => {
     expect(hasAccess).not.toHaveBeenCalled();
   });
 
-  /* `0061`: every client route needs a practice paid for; the workspace's own page does not. */
-  it('denies a professional whose practice is not paid for, with the same 404', async () => {
+  /* PRD 025 scope 2: `practiceOpen` left the door. A practice nobody pays for reaches its clients. */
+  it('lets a practice nobody pays for through to its client routes', async () => {
     jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
-    jest.spyOn(ProfessionalController, 'find').mockResolvedValue({ ...PRACTISING, practiceOpen: false });
 
-    await expect(new ProfessionalGuard(new Reflector()).canActivate(makeContext({ id: 'usr-lapsed' }))).rejects.toThrow(NotFoundException);
+    await expect(new ProfessionalGuard(new Reflector()).canActivate(makeContext({ id: 'usr-free' }))).resolves.toBe(true);
   });
 
-  it('lets that professional reach a page marked to open before the practice is paid for', async () => {
+  /* PRD 025 criterion 24: a suspension, or a close whose day has come, refuses every client route — the same 404. */
+  it('denies a suspended practitioner every client route, with the same 404, even with everything else in order', async () => {
     jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
-    jest.spyOn(ProfessionalController, 'find').mockResolvedValue({ ...PRACTISING, practiceOpen: false });
+    jest.spyOn(ProfessionalController, 'find').mockResolvedValue(SUSPENDED);
 
-    await expect(new ProfessionalGuard(new Reflector()).canActivate(makeContext({ id: 'usr-lapsed' }, WorkspacePage))).resolves.toBe(true);
+    await expect(new ProfessionalGuard(new Reflector()).canActivate(makeContext({ id: 'usr-suspended' }))).rejects.toThrow(
+      expect.objectContaining({ status: 404 }) as unknown as Error
+    );
+  });
+
+  it('lets a suspended practitioner reach the practice’s own page, which names no client and says what stands', async () => {
+    jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+    jest.spyOn(ProfessionalController, 'find').mockResolvedValue(SUSPENDED);
+
+    await expect(new ProfessionalGuard(new Reflector()).canActivate(makeContext({ id: 'usr-suspended' }, WorkspacePage))).resolves.toBe(true);
   });
 
   /* `docs/legal/textos/01`: no client route before the current agreement is accepted. */
-  it('denies a professional who has not accepted the agreement, with the same 404, even with the practice paid for', async () => {
+  it('denies a professional who has not accepted the agreement, with the same 404', async () => {
     jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
     jest.spyOn(ProfessionalController, 'find').mockResolvedValue({ ...PRACTISING, agreementRequired: true });
 

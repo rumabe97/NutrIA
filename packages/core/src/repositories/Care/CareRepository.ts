@@ -12,7 +12,7 @@ import { user } from 'database/schema/auth';
 
 import { DatabaseOperationError } from 'core/entities/Error';
 import { HealthRepository, onRecord } from '#repositories/Health';
-import { ProfessionalBadgeRepository } from '#repositories/Professional';
+import { blocksPractice, PracticeRestrictionRepository, ProfessionalBadgeRepository } from '#repositories/Professional';
 import {
   CARE_ACCESS_ACTIONS,
   CARE_ACCESS_KINDS,
@@ -47,11 +47,19 @@ const OPEN_STATUSES = ['active', 'paused'] as const;
 const widerThanPlan = or(eq(careLinks.consentScope, 'full'), eq(careLinks.sharesHealth, true));
 
 /**
- * A professional who may work with clients today (`0061`, `docs/legal/textos/01`):
- * the practice paid for and the current agreement accepted. The condition of the
- * join on `professionals` wherever a client is reached.
+ * A professional who may work with clients today (`docs/legal/textos/01`): the
+ * current agreement accepted. The condition of the join on `professionals`
+ * wherever a client is reached. **Not `practiceOpen`** (PRD 025 scope 2): a
+ * practice nobody pays for works, with its free seats. A suspension, or a close
+ * whose day has come, is the other half, read beside the join from
+ * `PracticeRestrictionRepository.standing` (`blocksPractice`).
  */
-const practising = and(eq(professionals.practiceOpen, true), eq(professionals.agreementVersion, PROFESSIONAL_AGREEMENT_VERSION));
+const practising = eq(professionals.agreementVersion, PROFESSIONAL_AGREEMENT_VERSION);
+
+/** Whether a restriction refuses this practitioner's client routes now: the one reader, on the caller's connection. */
+async function restricted(professionalId: string, now: Date, db?: Transaction): Promise<boolean> {
+  return blocksPractice(await PracticeRestrictionRepository.standing(professionalId, db), now);
+}
 
 /**
  * Only trail rows whose action and kind this code knows. A value a later release
@@ -139,8 +147,9 @@ export type EndedByRule = { readonly endedAt: Date; readonly professionalName: s
 
 /**
  * What inviting came to (`0061`): the invitation, or the practice's reason
- * there is none — `closed` (no practice paid for, or no longer a
- * professional), `full` (the plan's number is reached, and which number).
+ * there is none — `closed` (no longer a professional, the agreement not
+ * accepted, suspended or closed), `full` (the seats are taken, and how many
+ * there are: the paid plan's `includedClients`, or the free `practiceClients`).
  */
 export type InviteOutcome =
   | { readonly includedClients: number; readonly kind: 'full' }
@@ -187,9 +196,11 @@ export const CareRepository = {
    * The practice's row is held `FOR SHARE` before the invitation, in the order
    * `invite` takes them (`0061`): an acceptance cannot commit between the two
    * counts `invite` makes, so the number is never overshot, and taking the
-   * rows in one order means the two never deadlock. A practice not paid for
-   * gets the link `paused`, as a lapse leaves the others, and paying again
-   * reactivates it with them.
+   * rows in one order means the two never deadlock. The link is `active`
+   * whether or not the practice is paid for (PRD 025 scope 2: a free practice
+   * works). An inviter suspended, or whose close has come, is `gone` — as an
+   * inviter who is no longer a professional is — and the invitation answers
+   * again once the owner lifts it, if it has not expired.
    *
    * **The consent's scope is recorded here** (`0111` § 4, PLAN 025 phase 5 step
    * 2), from the practitioner's badge read at this moment: `full` only when the
@@ -225,7 +236,7 @@ export const CareRepository = {
         await ProfessionalBadgeRepository.lock(tx, addressed.professionalId);
 
         const [practice] = await tx
-          .select({ open: professionals.practiceOpen })
+          .select({ id: professionals.id })
           .from(professionals)
           .where(eq(professionals.userId, addressed.professionalId))
           .for('share');
@@ -239,8 +250,13 @@ export const CareRepository = {
           .limit(1)
           .for('update', { of: careInvitations });
 
-        // The same invitation the lock was taken for: its token names one row and one sender.
-        if (!invitation || !practice || invitation.professionalId !== addressed.professionalId) {
+        // The same invitation the lock was taken for: its token names one row and one sender — who can be reached.
+        if (
+          !invitation ||
+          !practice ||
+          invitation.professionalId !== addressed.professionalId ||
+          (await restricted(invitation.professionalId, now, tx))
+        ) {
           return { kind: 'gone' };
         }
 
@@ -265,7 +281,7 @@ export const CareRepository = {
             consentVersion: answer.consentVersion,
             professionalId: invitation.professionalId,
             sharesHealth: consentScope === 'full' && answer.sharesHealth,
-            status: practice.open ? 'active' : 'paused'
+            status: 'active'
           })
           .onConflictDoNothing()
           .returning();
@@ -322,14 +338,15 @@ export const CareRepository = {
 
   /**
    * The one question `CareController.withClient` asks (`0059`): is this link
-   * the professional's, active, and are they still a professional with a
-   * practice paid for and the current agreement accepted? All of it is the
-   * `WHERE` and the joins — the link id, `professionalId` (the session's),
+   * the professional's, active, and are they still a professional with the
+   * current agreement accepted, neither suspended nor closed? The `WHERE` and
+   * the joins — the link id, `professionalId` (the session's),
    * `status = 'active'`, and an inner join on `professionals` that is
-   * `practising` (`0061`, `docs/legal/textos/01`), so a grant taken back, a
-   * practice lapsed or a new agreement not yet accepted closes the door on the
-   * next request. Every reason for
-   * "no" is the same empty result.
+   * `practising` (`docs/legal/textos/01`) — then the restriction that stands
+   * (`PracticeRestrictionRepository.standing`, PRD 025 criterion 24), so a
+   * practice closed, a suspension or a new agreement not yet accepted closes
+   * the door on the next request. Every reason for "no" is the same empty
+   * result. A practice nobody pays for is open (PRD 025 scope 2).
    *
    * **The only query that turns a professional's session into another
    * account's id**: the client's id leaves this method inside the link, and
@@ -351,7 +368,8 @@ export const CareRepository = {
         .where(and(eq(careLinks.id, linkId), eq(careLinks.professionalId, professionalId), eq(careLinks.status, 'active')))
         .limit(1);
 
-      if (!row) {
+      // A suspension, or a close whose day has come (PRD 025 criterion 24): the same empty answer, read on every call.
+      if (!row || (await restricted(professionalId, now))) {
         return null;
       }
 
@@ -456,6 +474,25 @@ export const CareRepository = {
   },
 
   /**
+   * **A practice closed on its day** (PRD 025 scope 16, PLAN phase 6): every
+   * open link of that practitioner — `active` or `paused` — ends inside the
+   * close's transaction (`ProfessionalRepository.close`, handed down by
+   * `ProfessionalController.closeDue`), through `endLinks`, the one way a link
+   * ends, recorded `ended_by = 'professional'`: to each client it is exactly a
+   * link their practitioner ended — the same view, the same trail, no notice (as
+   * `end` sends none) — the targets' mark comes off, and a plan waiting for that
+   * practitioner's review is stranded and replaced at no charge, as on any
+   * ending (`PlanRepository.publishingLink`). Answers how many ended.
+   */
+  async endLinksOf(professionalId: string, now: Date, tx: Transaction): Promise<number> {
+    try {
+      return (await endLinks(tx, eq(careLinks.professionalId, professionalId), 'professional', now)).length;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
    * **The illness rule, on a declaration** (`0111` § 8, PRD 025 criterion 22):
    * run by `HealthController.replace` inside the transaction that writes the
    * health section (`tx`), after it is written. With a condition or a medication
@@ -550,17 +587,28 @@ export const CareRepository = {
    * question this method can ask, which is what makes the route's answer the
    * same either way.
    *
-   * **The practice's number is spent here** (`0061`): active links plus live
-   * invitations may not reach `includedClients`. The professional's row is
-   * held `FOR UPDATE` first — the row the allowance belongs to — so two
-   * invitations sent at once count one after the other, and the count and the
-   * insert are one decision. The invitation this one replaces (the same
-   * address) is not counted: it is about to be the same seat. A practice not
-   * paid for, an agreement not accepted at its current version, or an account
-   * no longer a professional, is `closed`. Nothing is written unless the
-   * invitation is.
+   * **The practice's number is spent here** (`0061`, `0111` § 6): active links
+   * plus live invitations may not reach its seats — `includedClients` for a
+   * practice paid for, and otherwise the free practice's `practiceClients`,
+   * which `freeSeats` resolves (`0097`: read, never assumed) **inside this
+   * transaction**, after the row is held, so the number enforced is the one in
+   * force when the count is made. The professional's row is held `FOR UPDATE`
+   * first — the row the allowance belongs to — so two invitations sent at once
+   * count one after the other, and the count and the insert are one decision.
+   * The invitation this one replaces (the same address) is not counted: it is
+   * about to be the same seat. An agreement not accepted at its current
+   * version, a suspension or a close whose day has come (PRD 025 criterion 24),
+   * or an account no longer a professional, is `closed`. Nothing is written
+   * unless the invitation is.
    */
-  async invite(professionalId: string, email: string, tokenHash: string, expiresAt: Date, now: Date): Promise<InviteOutcome> {
+  async invite(
+    professionalId: string,
+    email: string,
+    tokenHash: string,
+    expiresAt: Date,
+    now: Date,
+    freeSeats: () => Promise<number>
+  ): Promise<InviteOutcome> {
     try {
       return await database().transaction(async (tx): Promise<InviteOutcome> => {
         const [practice] = await tx
@@ -573,9 +621,11 @@ export const CareRepository = {
           .where(eq(professionals.userId, professionalId))
           .for('update');
 
-        if (!practice?.open || practice.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION) {
+        if (!practice || practice.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION || (await restricted(professionalId, now, tx))) {
           return { kind: 'closed' };
         }
+
+        const seats = practice.open ? practice.includedClients : await freeSeats();
 
         const [links, invitations] = await Promise.all([
           tx
@@ -588,8 +638,8 @@ export const CareRepository = {
             .where(and(eq(careInvitations.professionalId, professionalId), gt(careInvitations.expiresAt, now), ne(careInvitations.email, email)))
         ]);
 
-        if ((links[0]?.total ?? 0) + (invitations[0]?.total ?? 0) >= practice.includedClients) {
-          return { includedClients: practice.includedClients, kind: 'full' };
+        if ((links[0]?.total ?? 0) + (invitations[0]?.total ?? 0) >= seats) {
+          return { includedClients: seats, kind: 'full' };
         }
 
         await tx
@@ -688,7 +738,8 @@ export const CareRepository = {
 
   /**
    * The invitation behind a token, for the account it was sent to — or null
-   * for every other case, alike. The inviter must still be a professional.
+   * for every other case, alike. The inviter must still be a professional, and
+   * one who can be reached: neither suspended nor closed (as `accept` asks).
    */
   async openInvitation(clientId: string, email: string, tokenHash: string, now: Date): Promise<OpenInvitation | null> {
     try {
@@ -700,7 +751,7 @@ export const CareRepository = {
         .where(answerable(tokenHash, email, clientId, now))
         .limit(1);
 
-      if (!row) {
+      if (!row || (await restricted(row.professionalId, now))) {
         return null;
       }
 

@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { CareController } from 'core/controllers/Care';
-import { ProfessionalBadgeController, ProfessionalController } from 'core/controllers/Professional';
+import { ProfessionalBadgeController, ProfessionalController, ProfessionalProfileController } from 'core/controllers/Professional';
 import { UserController } from 'core/controllers/User';
 import { webUrl } from 'core/domain/WebUrl';
 
@@ -18,7 +18,9 @@ import type {
   ApplyForBadgeDto,
   EnterBadgeCodeDto,
   InviteClientDto,
+  OpenPracticeDto,
   ReconsentLinkDto,
+  SaveProfessionalProfileDto,
   SetClientReviewDto,
   SetClientTargetsDto,
   SetLinkHealthDto,
@@ -38,7 +40,8 @@ import type {
   CareInvitationDetailDto,
   CareInvitationDto,
   CareLinkDto,
-  CarePracticeDto
+  CarePracticeDto,
+  CareProfessionalProfileDto
 } from '../dto/out/index.js';
 import type { Env } from '../../../config/index.js';
 import type { SessionUser } from '../../../shared/index.js';
@@ -62,6 +65,25 @@ export class CareService {
 
   async acceptAgreement(professional: SessionUser, body: AcceptAgreementDto): Promise<void> {
     await ProfessionalController.acceptAgreement(professional.id, body);
+  }
+
+  /**
+   * The account opens its own practice (PRD 025 scope 1), and is answered with
+   * the practice's page as it now stands — the same answer an account that
+   * already practises gets. Every refusal is the core's 404.
+   */
+  async openPractice(user: SessionUser, body: OpenPracticeDto, locale: string | null): Promise<CarePracticeDto> {
+    await ProfessionalController.open(user.id, body, locale);
+
+    return this.practice(user);
+  }
+
+  async profile(professional: SessionUser): Promise<CareProfessionalProfileDto> {
+    return ProfessionalProfileController.mine(professional.id);
+  }
+
+  async saveProfile(professional: SessionUser, body: SaveProfessionalProfileDto): Promise<NonNullable<CareProfessionalProfileDto>> {
+    return ProfessionalProfileController.save(professional.id, body);
   }
 
   async accept(user: SessionUser, token: string, body: AcceptInvitationDto): Promise<CareLinkDto> {

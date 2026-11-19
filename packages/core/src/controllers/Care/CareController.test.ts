@@ -8,6 +8,7 @@ import { CareIllnessRuleError, CareLinkExistsError, InputParseError, NotFoundErr
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 
 import { CareController } from './CareController';
+import { PlanController } from 'core/controllers/Plan';
 
 import type {
   AcceptOutcome,
@@ -20,6 +21,8 @@ import type {
   RuleEnding
 } from '#repositories/Care';
 import type { AcceptInvitation, CareLink } from 'core/entities/Care';
+import type { Allowances } from 'core/domain/Allowance';
+import type { blocksPractice as blocksPracticeFn, RestrictionStanding } from '#repositories/Professional';
 import type { Professional } from 'core/entities/Professional';
 import type { User } from 'core/entities/User';
 
@@ -28,7 +31,11 @@ const clientLink = vi.fn<(clientId: string) => Promise<LinkWithProfessional | nu
 const decline = vi.fn<(clientId: string, email: string, tokenHash: string, now: Date) => Promise<boolean>>();
 const end = vi.fn<(userId: string, side: 'client' | 'professional', linkId: string, now: Date) => Promise<boolean>>();
 const forgetAddress = vi.fn<(email: string) => Promise<void>>();
-const invite = vi.fn<(professionalId: string, email: string, tokenHash: string, expiresAt: Date, now: Date) => Promise<InviteOutcome>>();
+const invite =
+  vi.fn<
+    (professionalId: string, email: string, tokenHash: string, expiresAt: Date, now: Date, freeSeats: () => Promise<number>) => Promise<InviteOutcome>
+  >();
+const standing = vi.fn<(userId: string) => Promise<RestrictionStanding>>();
 const setSharesHealth = vi.fn<(clientId: string, sharesHealth: boolean, now: Date) => Promise<LinkWithProfessional | null>>();
 const forgetExpired = vi.fn<(now: Date) => Promise<number>>();
 const practiceUse = vi.fn<(professionalId: string, now: Date) => Promise<PracticeUse>>();
@@ -61,7 +68,12 @@ vi.mock('#repositories/Care', async () => ({
   // The real rule, not a stub: which scope a link opens is what these cases are about.
   linkScope: (await vi.importActual<{ linkScope: typeof linkScopeFn }>('../../repositories/Care/CareScope')).linkScope
 }));
-vi.mock('#repositories/Professional', () => ({
+vi.mock('#repositories/Professional', async () => ({
+  // The real rule (project 025 phase 6): what a restriction refuses is decided in one place.
+  blocksPractice: (
+    await vi.importActual<{ blocksPractice: typeof blocksPracticeFn }>('../../repositories/Professional/PracticeRestrictionRepository')
+  ).blocksPractice,
+  PracticeRestrictionRepository: { standing: (userId: string) => standing(userId) },
   ProfessionalBadgeRepository: { badgeOf: (userId: string, now: Date) => badgeOf(userId, now) },
   ProfessionalRepository: { find: (userId: string) => find(userId) }
 }));
@@ -120,6 +132,12 @@ beforeEach(() => {
   isEnabled.mockResolvedValue(true);
   // Badged unless a case says otherwise: every existing practitioner stands as one (project 025, phase 2's backfill).
   badgeOf.mockResolvedValue({ number: '28-1234' });
+  standing.mockReset();
+  standing.mockResolvedValue({ closing: null, suspended: null });
+  // The free practice's seats as the console would resolve them (`0097`): ten, unless a case moves them.
+  vi.spyOn(PlanController, 'limitsOf')
+    .mockClear()
+    .mockResolvedValue({ practiceClients: 10 } as Allowances);
 });
 
 describe('CareController.invite', () => {
@@ -163,7 +181,29 @@ describe('CareController.invite', () => {
     await expect(CareController.invite(PRO, { email: 'n31@example.com' }, NOW)).rejects.toMatchObject({ includedClients: 30 });
   });
 
-  it('is a 404 when the practice is not paid for — the second line behind the guard', async () => {
+  /* PRD 025 criterion 7, `0111` § 6: a free practice's seats are the practitioner's `practiceClients`, resolved when the repository asks. */
+  it('hands the repository the free seats, resolved for the practitioner’s own account, to ask inside its transaction', async () => {
+    const limitsOf = vi.spyOn(PlanController, 'limitsOf').mockResolvedValue({ practiceClients: 4 } as Allowances);
+
+    invite.mockImplementation(async (_professionalId, _email, _hash, _expiresAt, _now, freeSeats) => ({
+      includedClients: await freeSeats(),
+      kind: 'full'
+    }));
+
+    await expect(CareController.invite(PRO, { email: 'n11@example.com' }, NOW)).rejects.toEqual(new PracticeFullError(4));
+    expect(limitsOf).toHaveBeenCalledWith(PRO.id);
+  });
+
+  it('asks nothing of the allowances when the repository does not need them — a paid practice', async () => {
+    const limitsOf = vi.spyOn(PlanController, 'limitsOf');
+
+    invite.mockResolvedValue({ includedClients: 30, kind: 'full' });
+
+    await expect(CareController.invite(PRO, { email: 'n31@example.com' }, NOW)).rejects.toBeInstanceOf(PracticeFullError);
+    expect(limitsOf).not.toHaveBeenCalled();
+  });
+
+  it('is a 404 when the practice is closed to clients — suspended, closed, or the agreement not accepted', async () => {
     invite.mockResolvedValue({ kind: 'closed' });
 
     await expect(CareController.invite(PRO, { email: 'nueva@example.com' }, NOW)).rejects.toBeInstanceOf(NotFoundError);
@@ -176,8 +216,8 @@ describe('CareController.invite', () => {
 });
 
 describe('CareController.practice', () => {
-  it('says whether the practice is paid for, its number and the seats in use — counts only', async () => {
-    find.mockResolvedValue(makeProfessional({ includedClients: 30, practiceOpen: false }));
+  it('says whether a plan is paid for, the free seats in force and the seats in use — counts only', async () => {
+    find.mockResolvedValue(makeProfessional({ includedClients: 0, practiceOpen: false }));
     practiceUse.mockResolvedValue({ activeClients: 0, pendingInvitations: 2 });
 
     await expect(CareController.practice(PRO, NOW)).resolves.toEqual({
@@ -185,12 +225,34 @@ describe('CareController.practice', () => {
       agreementAcceptedAt: null,
       agreementRequired: true,
       agreementVersion: PROFESSIONAL_AGREEMENT_VERSION,
-      includedClients: 30,
+      includedClients: 0,
       open: false,
-      pendingInvitations: 2
+      pendingInvitations: 2,
+      restriction: null,
+      // PRD 025 criterion 7: the free practice's ten, resolved as `invite` resolves them.
+      seats: 10
     });
     expect(find).toHaveBeenCalledWith(PRO.id);
     expect(practiceUse).toHaveBeenCalledWith(PRO.id, NOW);
+    expect(PlanController.limitsOf).toHaveBeenCalledWith(PRO.id);
+  });
+
+  it('a paid practice’s seats are its plan’s, and the allowances are not asked', async () => {
+    find.mockResolvedValue(makeProfessional({ includedClients: 30, practiceOpen: true }));
+    practiceUse.mockResolvedValue({ activeClients: 3, pendingInvitations: 0 });
+
+    await expect(CareController.practice(PRO, NOW)).resolves.toMatchObject({ includedClients: 30, open: true, seats: 30 });
+    expect(PlanController.limitsOf).not.toHaveBeenCalled();
+  });
+
+  it('carries what the owner has standing against the practice, so its own page can say it', async () => {
+    find.mockResolvedValue(makeProfessional());
+    practiceUse.mockResolvedValue({ activeClients: 0, pendingInvitations: 0 });
+    standing.mockResolvedValue({ closing: null, suspended: { actedAt: NOW, reason: null } });
+
+    await expect(CareController.practice(PRO, NOW)).resolves.toMatchObject({
+      restriction: { closing: null, suspended: { since: NOW.toISOString(), statement: null } }
+    });
   });
 
   it.each([
@@ -535,8 +597,29 @@ describe('CareController.activeProfessional', () => {
     expect(findUserById).not.toHaveBeenCalled();
   });
 
+  /* PRD 025 scope 2: a practice nobody pays for is told, as `withClient` lets it through. */
+  it('answers for a practice nobody pays for', async () => {
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
+    find.mockResolvedValue({ ...PRACTISING, practiceOpen: false });
+    findUserById.mockResolvedValue(makeUser({ id: PRO.id, email: 'dietista@example.com' }));
+
+    await expect(CareController.activeProfessional(CLIENT.id)).resolves.toEqual({ id: PRO.id, email: 'dietista@example.com' });
+  });
+
+  /* PRD 025 criterion 24: a suspended practitioner is told nothing — the client's check-in is not theirs to hear of. */
   it.each([
-    ['whose practice has lapsed', { practiceOpen: false }],
+    ['suspended', { closing: null, suspended: { actedAt: NOW, reason: null } }],
+    ['whose close has come', { closing: { id: 'c', actedAt: NOW, actedBy: null, effectiveAt: NOW, reason: null }, suspended: null }]
+  ])('is null for a practitioner %s', async (_case, stands) => {
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
+    find.mockResolvedValue(PRACTISING);
+    standing.mockResolvedValue(stands);
+
+    await expect(CareController.activeProfessional(CLIENT.id, NOW)).resolves.toBeNull();
+    expect(findUserById).not.toHaveBeenCalled();
+  });
+
+  it.each([
     ['who never accepted the agreement', { agreementVersion: null }],
     ['who has not accepted the current agreement', { agreementVersion: '0.9.0' }]
   ])('is null for a professional %s — `withClient` would refuse them too', async (_case, overrides) => {

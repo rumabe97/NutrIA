@@ -281,11 +281,26 @@ describe('ALLOWANCE_BOUNDS', () => {
   it('holds a structural ceiling at the premium number shipped, so the console may only lower it (0097)', () => {
     const structural = Object.entries(ALLOWANCE_BOUNDS).filter(([, bounds]) => bounds.kind === 'structural');
 
-    expect(structural.map(([name]) => name)).toEqual(['fixedMeals']);
+    expect(structural.map(([name]) => name)).toEqual(['fixedMeals', 'practiceClients']);
 
     for (const [name, bounds] of structural) {
       expect(bounds.ceiling, name).toBe(allowancesFor('premium')[name as keyof typeof ALLOWANCES]);
     }
+  });
+
+  /*
+   * A free practice's seats (`0110` decision 13, `0111` § 6): ten on both tiers —
+   * the practitioner's own tier buys no clients — and a stored ten is the
+   * default, so its row would be deleted rather than kept.
+   */
+  it('gives a free practice ten seats on both tiers, and lets the console only lower them', () => {
+    expect(allowancesFor('free').practiceClients).toBe(10);
+    expect(allowancesFor('premium').practiceClients).toBe(10);
+    expect(resolveAllowances([{ name: 'practiceClients', tier: 'free', value: 4 }]).free.practiceClients).toBe(4);
+    // Above the ceiling is not a grant: it reads as what shipped.
+    expect(resolveAllowances([{ name: 'practiceClients', tier: 'premium', value: 11 }]).premium.practiceClients).toBe(10);
+    // Premium is never below free, here as everywhere.
+    expect(resolveAllowances([{ name: 'practiceClients', tier: 'premium', value: 2 }]).premium.practiceClients).toBe(10);
   });
 
   /*

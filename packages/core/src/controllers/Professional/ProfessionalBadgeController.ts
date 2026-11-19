@@ -1,6 +1,16 @@
 import { createHash, randomInt } from 'node:crypto';
 
-import { badgeFrom, codeIsLive, lapseDate, newestFirst, pendingApplication, ProfessionalBadgeRepository } from '#repositories/Professional';
+import {
+  badgeFrom,
+  codeIsLive,
+  lapseDate,
+  newestFirst,
+  pendingApplication,
+  ProfessionalBadgeRepository,
+  ProfessionalProfileRepository
+} from '#repositories/Professional';
+import { badgeGone } from './ProfessionalController';
+import { carriesBadgeWord } from './ProfessionalProfileController';
 import { BADGE_LAPSE_DETAILS, BADGE_REMOVAL_REASONS } from 'core/entities/Professional';
 import { AnalyticsRepository } from '#repositories/Analytics';
 import { CareRepository } from '#repositories/Care';
@@ -465,9 +475,8 @@ export const ProfessionalBadgeController = {
    */
   async remove(userId: string, ownerId: string, input: RemoveBadge, now: Date = new Date()): Promise<BadgeRemoval> {
     const account = await accountOf(userId);
-    const removed = await ProfessionalBadgeRepository.remove(userId, ownerId, input.kind, storedReason(input), now, tx =>
-      CareRepository.narrowLinksOf(userId, now, tx)
-    );
+    // The links narrow and the profile returns to the queue in the withdrawal's own transaction (`badgeGone`).
+    const removed = await ProfessionalBadgeRepository.remove(userId, ownerId, input.kind, storedReason(input), now, badgeGone(userId, now));
 
     if (!removed) {
       throw new NotFoundError(NOT_FOUND);
@@ -506,7 +515,11 @@ export const ProfessionalBadgeController = {
       return null;
     }
 
-    const lapsed = await ProfessionalBadgeRepository.lapseOverdue(now);
+    // A profile carrying a badge-only word returns to the owner's queue with the lapse (`0111` § 7), in its transaction.
+    // The links are the illness rule's sweep's, which runs after this one (`CareRepository.sweepBadgeLoss`).
+    const lapsed = await ProfessionalBadgeRepository.lapseOverdue(now, (tx, userId) =>
+      ProfessionalProfileRepository.requeueIf(tx, userId, now, carriesBadgeWord)
+    );
     const since = await reminderWindow(now);
     const due = since === null ? [] : await ProfessionalBadgeRepository.dueWithin(since, now);
     const counts = await ProfessionalBadgeRepository.dueCounts(now, BADGE_SOON_DAYS);

@@ -1,24 +1,49 @@
-import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
-import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { PROFESSIONAL_SORTS, SORT_DIRECTIONS } from 'core/entities/AdminQuery';
 
 import { AdminProfessionalsService } from '../services/index.js';
 import { CurrentUser, Roles, ZodBody } from '../../../shared/index.js';
-import { GrantProfessionalDto, IssueBadgeCodeDto, ProfessionalsQueryDto, RemoveBadgeDto } from '../dto/in/index.js';
+import {
+  HideProfessionalProfileDto,
+  IssueBadgeCodeDto,
+  LiftRestrictionDto,
+  ProfessionalsQueryDto,
+  RemoveBadgeDto,
+  RestrictPracticeDto
+} from '../dto/in/index.js';
 import { ZodQuery } from './ZodQuery.js';
 
-import type { BadgeCodeIssuedDto, BadgeQueueDto, BadgeRecordDto, ProfessionalAccountDto, ProfessionalsDto } from '../dto/out/index.js';
+import type {
+  BadgeCodeIssuedDto,
+  BadgeQueueDto,
+  BadgeRecordDto,
+  PracticeRestrictionAnswerDto,
+  ProfessionalsDto,
+  ProfileQueueDto,
+  QueuedProfileDto
+} from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 
 /**
- * Who is a professional (`0059`): the owner's act, and the owner's list.
+ * The owner's acts on practitioners (`0059`, project 025), and the owner's list.
  *
- * `@Roles('admin')` on the class so a new route here is guarded by default —
- * this is the only door through which an account becomes a professional, and
- * a sign-up field, a profile body or a `PATCH /users/me` carrying the word
- * changes nothing. The list carries each professional's address, number, date
- * and link *counts*: never a client (`0028`).
+ * `@Roles('admin')` on the class so a new route here is guarded by default.
+ * **No route here makes anybody a practitioner** (PRD 025 criterion 2): an
+ * account opens its own practice (`POST /care/practice`), and the 004 grant
+ * (`POST /admin/accounts/:id/professional`) is retired — what the owner gives
+ * is the badge, by the check below. The list carries each practitioner's
+ * address, number, date, link *counts* and what stands against them: never a
+ * client (`0028`).
+ *
+ * **The first look** (PRD 025 criterion 18): the profiles' queue, seen, or
+ * hidden with a statement of reasons — one act for refusing and hiding.
+ *
+ * **Suspension, close and lift** (PRD 025 scope 16): `practice_restrictions`,
+ * each with its statement of reasons mailed. The close replaces the 004 revoke
+ * (`DELETE /admin/accounts/:id/professional`, retired): it carries 30 days'
+ * notice, and the daily sweep closes the practice on its day.
  *
  * **The badge** (project 025 phase 3, `0111` §§ 2–3): the owner's list of
  * applications and re-checks, one practitioner's record, sending a code
@@ -91,22 +116,77 @@ export class AdminProfessionalsController {
     return this.professionals.removeBadge(userId, body, owner.id);
   }
 
-  @ApiCreatedResponse({ description: 'The account, now a professional.' })
-  @ApiOperation({ summary: 'Make one account a professional, with its collegiate number' })
-  @Post('accounts/:id/professional')
-  async grant(
-    @Param('id') id: string,
-    @ZodBody(GrantProfessionalDto) body: GrantProfessionalDto,
-    @CurrentUser() owner: SessionUser
-  ): Promise<ProfessionalAccountDto> {
-    return this.professionals.grant(id, body, owner.id);
+  @ApiOkResponse({
+    description:
+      'Profiles created or edited since the owner last looked, oldest first: the account, the profile, the badge as it stands and the words it may not show. Never a client.'
+  })
+  @ApiOperation({ summary: 'The profiles’ first-look queue (project 025)' })
+  @Get('professionals/queue')
+  async profileQueue(): Promise<ProfileQueueDto> {
+    return this.professionals.profiles();
   }
 
-  @ApiNoContentResponse({ description: 'The grant is gone; the account is an ordinary one on its next request.' })
-  @ApiOperation({ summary: 'Take the grant back' })
-  @Delete('accounts/:id/professional')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async revoke(@Param('id') id: string, @CurrentUser() owner: SessionUser): Promise<void> {
-    await this.professionals.revoke(id, owner.id);
+  @ApiOkResponse({ description: 'Seen, off the queue, and no longer hidden if it was. 404 unless the profile is on the queue. Nothing is mailed.' })
+  @ApiOperation({ summary: 'Mark a queued profile seen' })
+  @HttpCode(HttpStatus.OK)
+  @Post('professionals/:userId/profile/seen')
+  async markProfileSeen(@Param('userId') userId: string, @CurrentUser() owner: SessionUser): Promise<QueuedProfileDto> {
+    return this.professionals.markProfileSeen(userId, owner.id);
+  }
+
+  @ApiOkResponse({
+    description:
+      'Hidden at once, off the queue, with the statement of reasons mailed — refusing a profile is this same act. 404 for an account with no profile.'
+  })
+  @ApiOperation({ summary: 'Hide a profile, with a reason' })
+  @HttpCode(HttpStatus.OK)
+  @Post('professionals/:userId/profile/hide')
+  async hideProfile(
+    @Param('userId') userId: string,
+    @ZodBody(HideProfessionalProfileDto) body: HideProfessionalProfileDto
+  ): Promise<QueuedProfileDto> {
+    return this.professionals.hideProfile(userId, body);
+  }
+
+  @ApiOkResponse({
+    description:
+      'Suspended at once: from the next request no client route, invitation or new practice. The statement of reasons is mailed. 404 for an account with no practice, or one already suspended.'
+  })
+  @ApiOperation({ summary: 'Suspend an account as a practitioner, with a statement of reasons' })
+  @HttpCode(HttpStatus.OK)
+  @Post('professionals/:userId/suspension')
+  async suspend(
+    @Param('userId') userId: string,
+    @ZodBody(RestrictPracticeDto) body: RestrictPracticeDto,
+    @CurrentUser() owner: SessionUser
+  ): Promise<PracticeRestrictionAnswerDto> {
+    return this.professionals.suspend(userId, body, owner.id);
+  }
+
+  @ApiOkResponse({
+    description:
+      'A close in 30 days, its notice and reasons mailed now. The practice works until then; on the day the daily sweep closes it, and the account cannot open one again until lifted. 404 for an account with no practice, or one already closing.'
+  })
+  @ApiOperation({ summary: 'Close a practice for good, with 30 days’ notice (replaces the 004 revoke)' })
+  @HttpCode(HttpStatus.OK)
+  @Post('professionals/:userId/close')
+  async close(
+    @Param('userId') userId: string,
+    @ZodBody(RestrictPracticeDto) body: RestrictPracticeDto,
+    @CurrentUser() owner: SessionUser
+  ): Promise<PracticeRestrictionAnswerDto> {
+    return this.professionals.close(userId, body, owner.id);
+  }
+
+  @ApiOkResponse({ description: 'Whatever stood — a suspension, a close — is lifted; a suspension lifted is mailed. 404 when nothing stands.' })
+  @ApiOperation({ summary: 'Lift a suspension or a close' })
+  @HttpCode(HttpStatus.OK)
+  @Post('professionals/:userId/lift')
+  async lift(
+    @Param('userId') userId: string,
+    @ZodBody(LiftRestrictionDto) body: LiftRestrictionDto,
+    @CurrentUser() owner: SessionUser
+  ): Promise<PracticeRestrictionAnswerDto> {
+    return this.professionals.lift(userId, body, owner.id);
   }
 }

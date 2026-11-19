@@ -135,17 +135,6 @@
     "subject": "Restablece tu contraseña de NutrIA",
     "text": "Alguien ha pedido restablecer la contraseña de la cuenta de NutrIA con esta dirección. Si has sido tú, elige una nueva aquí:\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nEl enlace funciona durante una hora.\nSi no has sido tú, ignora este mensaje: tu contraseña no ha cambiado."
   },
-  "professionalGranted es-ES": {
-    "html": {
-      "lang": "es",
-      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>"],
-      "title": "Tu consulta en NutrIA está lista",
-      "words": "NutrIA\nTe hemos dado acceso a la consulta de NutrIA como dietista-nutricionista, con el número de colegiado MAD00123.\nAntes de ver datos de ningún paciente te pediremos que aceptes el acuerdo del profesional: secreto, quién responde de los datos y qué no puedes hacer. Léelo con calma; es corto.\nAbrir mi consulta\nSi no has pedido esto, respóndenos y lo retiramos.\nNutrIA"
-    },
-    "kind": "professional-granted",
-    "subject": "Tu consulta en NutrIA está lista",
-    "text": "Te hemos dado acceso a la consulta de NutrIA como dietista-nutricionista, con el número de colegiado MAD00123.\n\nAntes de ver datos de ningún paciente te pediremos que aceptes el acuerdo del profesional: secreto, quién responde de los datos y qué no puedes hacer. Léelo con calma; es corto.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nSi no has pedido esto, respóndenos y lo retiramos."
-  },
   "twoFactorChanged {\"kind\":\"enabled\",\"otherSessionsClosed\":true} es-ES": {
     "html": {
       "lang": "es",
@@ -402,17 +391,6 @@
     "kind": "password-reset",
     "subject": "Reset your NutrIA password",
     "text": "Someone asked to reset the password of the NutrIA account for this address. If it was you, choose a new one here:\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nThe link works for one hour.\nIf you did not ask for this, ignore this message: your password has not changed."
-  },
-  "professionalGranted en-GB": {
-    "html": {
-      "lang": "en",
-      "links": ["https://nutria.example/es/acceder?next=/plan&x=<1>"],
-      "title": "Your NutrIA practice is ready",
-      "words": "NutrIA\nWe have given you access to the NutrIA practice as a dietitian-nutritionist, with registration number MAD00123.\nBefore you see any client’s data we will ask you to accept the professional’s agreement: secrecy, who is responsible for the data and what you may not do. Take your time reading it; it is short.\nOpen my practice\nIf you did not ask for this, reply and we will revoke it.\nNutrIA"
-    },
-    "kind": "professional-granted",
-    "subject": "Your NutrIA practice is ready",
-    "text": "We have given you access to the NutrIA practice as a dietitian-nutritionist, with registration number MAD00123.\n\nBefore you see any client’s data we will ask you to accept the professional’s agreement: secrecy, who is responsible for the data and what you may not do. Take your time reading it; it is short.\n\nhttps://nutria.example/es/acceder?next=/plan&x=<1>\n\nIf you did not ask for this, reply and we will revoke it."
   },
   "twoFactorChanged {\"kind\":\"enabled\",\"otherSessionsClosed\":true} en-GB": {
     "html": {

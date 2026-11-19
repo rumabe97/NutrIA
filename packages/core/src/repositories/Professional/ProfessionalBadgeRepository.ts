@@ -178,11 +178,16 @@ type Tx = Parameters<Parameters<ReturnType<typeof database>['transaction']>[0]>[
  * **The practitioner's badge lock — its one definition** (project 025 phase 5):
  * a transaction-scoped advisory lock keyed on the account. Every write that
  * changes the badge record (`apply`, `confirm`, `issueCode`,
- * `remove`, `ProfessionalRepository.grant`) holds it, and so does every write
+ * `remove`, `ProfessionalRepository.close`) holds it, and so does every write
  * that stores a consent only a standing badge allows (`CareRepository.accept`,
  * `reconsent`, `setSharesHealth(true)`), so the two never decide on a badge the
- * other is about to change. Always the first lock its transaction takes on that
- * practitioner, before any row of `professionals` or `care_links`.
+ * other is about to change. Since project 025 phase 6 it is also the
+ * practitioner's lock for opening a practice (`ProfessionalRepository.open`),
+ * the owner's restrictions (`PracticeRestrictionRepository.act`) and the
+ * profile's save (`ProfessionalProfileRepository.save`). Always the first lock
+ * its transaction takes on that practitioner, before any row of
+ * `professionals`, `care_links`, `practice_restrictions` or
+ * `professional_profiles`.
  */
 function badgeLockKey(userId: string): SQL {
   return sql`hashtext('professional_badge'), hashtext(${userId})`;
@@ -547,9 +552,10 @@ export const ProfessionalBadgeRepository = {
    *
    * The badge itself had already gone at that instant — `badgeFrom` reads the
    * date — so this row records the lapse and dates the statement; it closes
-   * nothing that was still open.
+   * nothing that was still open. `whenLapsed` runs inside this transaction for
+   * each badge lapsed, after its row (the profile's requeue, project 025 phase 6).
    */
-  async lapseOverdue(now: Date): Promise<readonly LapsedBadge[]> {
+  async lapseOverdue(now: Date, whenLapsed?: (tx: Tx, userId: string) => Promise<unknown>): Promise<readonly LapsedBadge[]> {
     try {
       return await database().transaction(async tx => {
         const [lock] = await tx.execute<{ held: boolean }>(sql`select pg_try_advisory_xact_lock(hashtext('professional_badge_lapse')) as held`);
@@ -581,6 +587,13 @@ export const ProfessionalBadgeRepository = {
           await tx
             .insert(professionalBadgeChecks)
             .values({ checkedAt: lapsedAt, kind: 'lapsed', number: pass.number, reason: detail, register: pass.register, userId: pass.userId });
+
+          // The profile's requeue (`0111` § 7). No badge lock: the badge went at its date, which every profile write
+          // reads, so nothing saved since can carry a badge-only word; what this finds was saved while the badge stood.
+          if (whenLapsed) {
+            await whenLapsed(tx, pass.userId);
+          }
+
           lapsed.push({ detail, dueAt: pass.dueAt ?? now, userId: pass.userId });
         }
 
@@ -684,36 +697,67 @@ export const ProfessionalBadgeRepository = {
     reason: string,
     now: Date,
     // Run inside this transaction after a badge is withdrawn (project 025 phase 5): the
-    // practitioner's links narrow at the same moment (`CareRepository.narrowLinksOf`). The
+    // practitioner's links narrow at the same moment (`CareRepository.narrowLinksOf`), and
+    // since phase 6 a profile carrying a badge-only word returns to the owner's queue. The
     // controller builds it; this repository does not know what it does.
     whenWithdrawn?: (tx: Tx) => Promise<unknown>
   ): Promise<RemovedCheck | null> {
     try {
       return await underLock(userId, async tx => {
-        const checks = await checksOf(tx, userId);
-        const badge = kind === 'withdrawn' ? badgeFrom(checks, now) : null;
-        const target = kind === 'fail' ? pendingApplication(checks) : badge ? checks.find(check => check.id === badge.checkId) : undefined;
+        const removed = await removeWithin(tx, userId, checkedBy, kind, reason, now);
 
-        if (!target) {
-          return null;
-        }
-
-        await expireUnusedCodes(tx, userId, now);
-        await tx
-          .insert(professionalBadgeChecks)
-          .values({ checkedAt: now, checkedBy, kind, number: target.number, reason, register: target.register, userId });
-
-        if (kind === 'withdrawn' && whenWithdrawn) {
+        if (removed && kind === 'withdrawn' && whenWithdrawn) {
           await whenWithdrawn(tx);
         }
 
-        return { checkedAt: now, kind, number: target.number, register: target.register };
+        return removed;
       });
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * A `withdrawn`, for a caller that already holds this practitioner's badge
+   * lock in `tx` (`lock`) — the close of a practice (`ProfessionalRepository.close`,
+   * project 025 phase 6 step 0), which withdraws and deletes in one transaction.
+   * Null when no badge stands: nothing to withdraw, nothing written. Codes not
+   * entered expire with it. `checkedBy` may be null: the owner who decided the
+   * close may no longer have an account when its day comes.
+   */
+  async withdrawHeld(tx: Tx, userId: string, checkedBy: string | null, reason: string, now: Date): Promise<RemovedCheck | null> {
+    try {
+      return await removeWithin(tx, userId, checkedBy, 'withdrawn', reason, now);
     } catch (error: unknown) {
       throw wrap(error);
     }
   }
 };
+
+/** `remove`'s decision and its write, inside a transaction that holds the practitioner's badge lock. */
+async function removeWithin(
+  tx: Tx,
+  userId: string,
+  checkedBy: string | null,
+  kind: 'fail' | 'withdrawn',
+  reason: string,
+  now: Date
+): Promise<RemovedCheck | null> {
+  const checks = await checksOf(tx, userId);
+  const badge = kind === 'withdrawn' ? badgeFrom(checks, now) : null;
+  const target = kind === 'fail' ? pendingApplication(checks) : badge ? checks.find(check => check.id === badge.checkId) : undefined;
+
+  if (!target) {
+    return null;
+  }
+
+  await expireUnusedCodes(tx, userId, now);
+  await tx
+    .insert(professionalBadgeChecks)
+    .values({ checkedAt: now, checkedBy, kind, number: target.number, reason, register: target.register, userId });
+
+  return { checkedAt: now, kind, number: target.number, register: target.register };
+}
 
 /** Each account's latest decisive check, one per account: what every bulk reader judges with `badgeFrom`. */
 async function latestDecisive(db: ReturnType<typeof database> | Tx): Promise<readonly ProfessionalBadgeCheck[]> {

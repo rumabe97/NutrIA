@@ -4,7 +4,7 @@ import { CareRepository, linkScope } from '#repositories/Care';
 import { HealthController } from 'core/controllers/Health';
 import { isCheckInDue, nudgedKcal } from 'core/controllers/CheckIn';
 import { PlanController, planOnly, planOnlyJob, planOnlyMealDetail, planOnlySummary, withoutPantry } from 'core/controllers/Plan';
-import { ProfessionalBadgeRepository, ProfessionalRepository } from '#repositories/Professional';
+import { blocksPractice, PracticeRestrictionRepository, ProfessionalBadgeRepository, ProfessionalRepository } from '#repositories/Professional';
 import { ProfileController } from 'core/controllers/Profile';
 import { ProgressController } from 'core/controllers/Progress';
 import { SettingsRepository } from '#repositories/Settings';
@@ -30,7 +30,10 @@ import {
 } from 'core/entities/Error';
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 
+import { presentRestriction } from 'core/controllers/Professional';
+
 import type { LinkWithProfessional, OpenInvitation, RecordAccess, RosterLink } from '#repositories/Care';
+import type { PracticeRestrictionView } from 'core/controllers/Professional';
 import type {
   AcceptInvitation,
   CareAccessAction,
@@ -354,9 +357,20 @@ export interface CarePracticeStandingView {
   agreementRequired: boolean;
   /** The version to accept: today's `PROFESSIONAL_AGREEMENT_VERSION`. */
   agreementVersion: string;
+  /** What a paid practice plan includes (`0061`); zero on a practice nobody pays for. Not the limit: `seats` is. */
   includedClients: number;
+  /** Whether a practice plan is paid for. Not whether the practice works: a free one does (PRD 025 scope 2). */
   open: boolean;
   pendingInvitations: number;
+  /** What the owner has standing against the practice (PRD 025 scope 16), or null. */
+  restriction: PracticeRestrictionView | null;
+  /**
+   * **The limit**: active clients plus live invitations may not reach it — the
+   * paid plan's `includedClients`, or the free practice's `practiceClients`
+   * (`0111` § 6), resolved as `invite` resolves it, so the number shown is the
+   * number enforced.
+   */
+  seats: number;
 }
 
 /**
@@ -589,15 +603,32 @@ async function isProfessional(userId: string): Promise<boolean> {
 
 /**
  * Whether this account may work with clients today: a professional, as
- * `isProfessional`, whose practice is paid for (`0061`) and who has accepted
- * the current agreement (`docs/legal/textos/01`) — the question
+ * `isProfessional`, who has accepted the current agreement
+ * (`docs/legal/textos/01`) and is neither suspended nor closed (PRD 025
+ * criterion 24, `PracticeRestrictionRepository.standing`) — the question
  * `ProfessionalGuard` asks for every client route, asked again here as the
- * second line.
+ * second line. **Whether anybody pays is not asked** (PRD 025 scope 2): a free
+ * practice works, with its free seats.
  */
-async function practises(userId: string): Promise<boolean> {
+async function practises(userId: string, now: Date = new Date()): Promise<boolean> {
   const row = (await switchedOn()) ? await ProfessionalRepository.find(userId) : null;
 
-  return row?.practiceOpen === true && row.agreementVersion === PROFESSIONAL_AGREEMENT_VERSION;
+  if (row?.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION) {
+    return false;
+  }
+
+  return !blocksPractice(await PracticeRestrictionRepository.standing(userId), now);
+}
+
+/**
+ * The free practice's seats for this practitioner (`0111` § 6): the
+ * `practiceClients` allowance of their own account's tier, resolved from what
+ * the console stored (`0097`). Handed to `CareRepository.invite`, which asks it
+ * inside the invitation's transaction, and read by the practice's page, so the
+ * number a screen shows is the number enforced.
+ */
+async function freeSeats(professionalId: string): Promise<number> {
+  return (await PlanController.limitsOf(professionalId)).practiceClients;
 }
 
 // --- Controller ---------------------------------------------------------------
@@ -701,13 +732,15 @@ export const CareController = {
       return null;
     }
 
-    // Practising, as `withClient` asks it: a lapsed practice or an agreement not accepted is not told either.
-    const [grant, badge] = await Promise.all([
+    // Practising, as `withClient` asks it: an agreement not accepted, a suspension or a close come is not told either.
+    // Whether anybody pays is not asked (PRD 025 scope 2).
+    const [grant, badge, standing] = await Promise.all([
       ProfessionalRepository.find(link.link.professionalId),
-      ProfessionalBadgeRepository.badgeOf(link.link.professionalId, now)
+      ProfessionalBadgeRepository.badgeOf(link.link.professionalId, now),
+      PracticeRestrictionRepository.standing(link.link.professionalId)
     ]);
 
-    if (!grant?.practiceOpen || grant.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION) {
+    if (grant?.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION || blocksPractice(standing, now)) {
       return null;
     }
 
@@ -734,12 +767,12 @@ export const CareController = {
    * out of it; the link id each row carries is the only way on, and every way
    * on is `withClient`.
    *
-   * The switch, the grant and a practice paid for are asked here too, as
-   * `withClient` asks them: the guard is the first line, this the second for
-   * any caller that is not a route.
+   * The switch, the practice, its agreement and any restriction are asked here
+   * too, as `withClient` asks them: the guard is the first line, this the second
+   * for any caller that is not a route.
    */
   async clients(professional: Pick<CareSession, 'id'>, now: Date = new Date()): Promise<CareClientsView> {
-    if (!(await practises(professional.id))) {
+    if (!(await practises(professional.id, now))) {
       throw new NotFoundError('Client not found');
     }
 
@@ -886,11 +919,13 @@ export const CareController = {
    * The professional's own address is refused: a link to oneself is not a
    * link, and the answer reveals nothing the caller does not know.
    *
-   * The practice's number is the limit (`0061`, PRD 004 criterion 17): with
-   * active links plus live invitations at `includedClients`, a
-   * `PracticeFullError` naming the number — 409 `PRACTICE_FULL`, whose ways
-   * up are the larger plan or ending a link. A practice not paid for is a 404,
-   * as the guard answers it; this is the second line.
+   * The practice's seats are the limit (`0061`, `0111` § 6, PRD 025 criterion
+   * 7): with active links plus live invitations at the paid plan's
+   * `includedClients` — or, for a practice nobody pays for, at the free
+   * `practiceClients`, resolved inside the invitation's transaction — a
+   * `PracticeFullError` naming the number, 409 `PRACTICE_FULL`. A practice
+   * suspended, closed or without the current agreement is a 404, as the guard
+   * answers it; this is the second line.
    */
   async invite(
     professional: Pick<CareSession, 'email' | 'id'>,
@@ -905,7 +940,7 @@ export const CareController = {
 
     const token = randomBytes(TOKEN_BYTES).toString('base64url');
     const expiresAt = new Date(now.getTime() + CARE_INVITATION_TTL_DAYS * DAY_MS);
-    const outcome = await CareRepository.invite(professional.id, email, hashOf(token), expiresAt, now);
+    const outcome = await CareRepository.invite(professional.id, email, hashOf(token), expiresAt, now, () => freeSeats(professional.id));
 
     if (outcome.kind === 'closed') {
       throw new NotFoundError('Not found');
@@ -1037,7 +1072,13 @@ export const CareController = {
    * Where the professional's own practice stands (`0061`) — for the workspace
    * page, which opens whether or not it is paid for, because it is where the
    * way to pay is shown. Counts only: no client is read, and no trail row is
-   * written. A 404 unless the switch is on and the grant stands.
+   * written. A 404 unless the switch is on and the account has a practice.
+   *
+   * `seats` is the number `invite` enforces, resolved the same way (`freeSeats`,
+   * `0097`): the paid plan's `includedClients`, or the free `practiceClients`.
+   * `restriction` is what the owner has standing against the practice, so the
+   * page can say it — a suspended practitioner still reaches this page, never a
+   * client.
    */
   async practice(professional: Pick<CareSession, 'id'>, now: Date = new Date()): Promise<CarePracticeStandingView> {
     const row = (await switchedOn()) ? await ProfessionalRepository.find(professional.id) : null;
@@ -1046,7 +1087,11 @@ export const CareController = {
       throw new NotFoundError('Not found');
     }
 
-    const use = await CareRepository.practiceUse(professional.id, now);
+    const [use, seats, standing] = await Promise.all([
+      CareRepository.practiceUse(professional.id, now),
+      row.practiceOpen ? Promise.resolve(row.includedClients) : freeSeats(professional.id),
+      PracticeRestrictionRepository.standing(professional.id)
+    ]);
 
     return {
       ...use,
@@ -1054,7 +1099,9 @@ export const CareController = {
       agreementRequired: row.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION,
       agreementVersion: PROFESSIONAL_AGREEMENT_VERSION,
       includedClients: row.includedClients,
-      open: row.practiceOpen
+      open: row.practiceOpen,
+      restriction: presentRestriction(standing, now),
+      seats
     };
   },
 

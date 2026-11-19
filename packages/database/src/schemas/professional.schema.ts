@@ -10,8 +10,9 @@ import { userOwned, userOwnedSingleton } from './_utils';
  *
  * The row *is* "may practise": an account is a practitioner while it has one
  * and stops being one when it is deleted. Until project 025 phase 6 only the
- * owner's act on `/admin` writes it; from then on the account opens its own
- * practice, and the body still sets nothing but a birth date. `user.role` is
+ * owner's act on `/admin` wrote it; since then the account opens its own
+ * practice (`POST /care/practice`), whose body sets nothing but a birth date,
+ * and the owner's close deletes it on its day. `user.role` is
  * untouched, so the owner may be both an admin and a professional and the
  * admin guard keeps meaning one thing.
  *
@@ -153,7 +154,9 @@ export const professionalProfiles = userOwnedSingleton(
 
 /**
  * The owner's acts on an account as a practitioner (PRD 025 scope 16),
- * **append-only**: what stands is the latest row, and nothing else stores it.
+ * **append-only**: what stands is folded from the rows in order — a suspension
+ * and a close can stand together, a `lifted` row ends both — by one function
+ * in `packages/core` (`restrictionFrom`), and nothing else stores it.
  *
  * Owned by the **account** (`user_id`, cascading) and deliberately not by the
  * `professionals` row: the owner's revoke deletes that row, and a restriction
