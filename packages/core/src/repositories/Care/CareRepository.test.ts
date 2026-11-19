@@ -43,7 +43,12 @@ function select() {
   const chain = {
     from: () => chain,
     innerJoin: () => chain,
-    limit: () => Promise.resolve(openLink ? [openLink] : []),
+    // Awaited as it is, or held `FOR UPDATE` first: the same rows either way.
+    limit: () => {
+      const rows = openLink ? [openLink] : [];
+
+      return Object.assign(Promise.resolve(rows), { for: () => Promise.resolve(rows) });
+    },
     where: (where: SQL) => {
       selectWhere = where;
 
@@ -188,6 +193,31 @@ describe('CareRepository.setSharesHealth', () => {
   beforeEach(() => {
     statements.length = 0;
     inserted.length = 0;
+    badgeOf.mockReset();
+    badgeOf.mockResolvedValue({ number: '28-1234' });
+  });
+
+  it.each([
+    ['without the badge', 'full', false],
+    ['on a link consented to the plan-only list', 'plan', true]
+  ] as const)('refuses to turn it on %s — null, as no link is, and nothing written (PRD 025 criterion 11)', async (_case, consentScope, badged) => {
+    ended = { clientId: 'usr-client', professionalId: PRO_ID };
+    openLink = { ...stored(false), link: { ...stored(false).link, consentScope } };
+    badgeOf.mockResolvedValue(badged ? { number: '28-1234' } : null);
+
+    await expect(CareRepository.setSharesHealth('usr-client', true, NOW)).resolves.toBeNull();
+    expect(statements).toEqual([]);
+    expect(inserted).toEqual([]);
+  });
+
+  it('turns it off whatever the scope — a consent is as easy to take back as to give', async () => {
+    ended = { clientId: 'usr-client', professionalId: PRO_ID };
+    openLink = { ...stored(true), link: { ...stored(true).link, consentScope: 'plan' } };
+    badgeOf.mockResolvedValue(null);
+
+    await expect(CareRepository.setSharesHealth('usr-client', false, NOW)).resolves.toMatchObject({ link: { sharesHealth: false } });
+    expect(badgeOf).not.toHaveBeenCalled();
+    expect(inserted).toHaveLength(1);
   });
 
   it.each([

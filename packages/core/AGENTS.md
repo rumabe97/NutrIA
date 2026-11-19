@@ -221,7 +221,24 @@ write leaves no row, and a write that returns without having recorded fails. So:
   `sharesHealth` reads false, the roster's stage is read from that link's plans alone, and no
   check-in notice is sent. A new field on a plan, a job or the client page is added to the
   full view only, unless it is the plan's own content; a new care route decides its `plan`
-  outcome and has a case in `apps/api/test/care-scope.e2e-spec.ts`.
+  outcome and has a case in `apps/api/test/care-scope.e2e-spec.ts`. **The consent half is
+  written once, at acceptance** (`CareRepository.accept`, PLAN 025 phase 5): `full` only with
+  the badge standing then **and** the client not saying they read the plan-only list
+  (`acceptInvitationSchema.consentScope` can only narrow); a badge gained later widens nothing
+  until the client's own `reconsent`, and the health line cannot be turned on outside `full`.
+  Every insert into `care_links` names its `consent_scope`.
+- **The illness rule** (`0111` § 8, PRD 025 criterion 22) has three enforcement points and no
+  fourth: `CareRepository.accept` (refused in its transaction, the invitation kept),
+  `CareRepository.endOnDeclaration` (run by `HealthController.replace` inside the health
+  section's own transaction, through `HealthRepository.replaceAll`'s `within`), and
+  `CareRepository.endUnderBadgeLoss` (the daily `/cron/reminders` sweep, state-based). "On
+  record" is `HealthRepository`'s `onRecord` and nothing else: any `health_conditions` row,
+  free text and pregnancy included, or any medication — never a supplement. The first two hold
+  the client's `user` row `FOR NO KEY UPDATE` before they read, so they queue. Every ending goes
+  through `endLinks` (the targets' mark comes off, as on any end); a declaration's is stored
+  `client`, the sweep's `badge_lost`. **A practitioner never reads how a link ended**: no view of
+  theirs carries `endedBy`, and one that ever does maps it through `endedByForPractitioner`
+  (legal F4). Nothing is queued to the practitioner by any of the three.
 
 Five related rules:
 

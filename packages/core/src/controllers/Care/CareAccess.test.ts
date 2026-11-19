@@ -593,6 +593,25 @@ describe('CareController.clients', () => {
     expect(Object.keys(view.clients[0] ?? {}).sort()).toEqual(['linkId', 'name', 'reviewBeforePublish', 'sharesHealth', 'since', 'stage', 'status']);
   });
 
+  /*
+   * Legal F4 (PRD 025 criterion 22, PLAN phase 5 step 5): how a link ended never
+   * reaches its practitioner. The list holds open links only, so an ended one —
+   * whoever or whatever ended it, the illness rule included — simply leaves it,
+   * the same way; and no row of it carries who ended anything.
+   */
+  it('carries no word of how a link ended, and lists no ended link — whoever ended it', async () => {
+    roster.mockResolvedValue({ invitations: [], links: [rosterLink(), rosterLink({ link: { ...rosterLink().link, status: 'paused' } })] });
+
+    const view = await CareController.clients(PRO, NOW);
+    const text = JSON.stringify(view);
+
+    for (const word of ['endedBy', 'endedAt', 'ended', 'badge_lost', 'lapse']) {
+      expect(text).not.toContain(word);
+    }
+
+    expect(view.clients.map(client => client.status)).toEqual(['active', 'paused']);
+  });
+
   it.each([
     ['the switch is off', () => isEnabled.mockResolvedValue(false)],
     ['the grant is gone', () => findProfessional.mockResolvedValue(null)],

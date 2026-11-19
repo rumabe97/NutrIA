@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { HealthController } from 'core/controllers/Health';
 
-import type { HealthDto } from '../dto/out/index.js';
+import type { HealthDto, HealthSavedDto } from '../dto/out/index.js';
 import type { SetHealthDataDto } from '../dto/in/index.js';
 
 @Injectable()
@@ -11,7 +11,7 @@ export class HealthDataService {
     return HealthController.get(userId);
   }
 
-  async replace(userId: string, body: SetHealthDataDto): Promise<HealthDto> {
+  async replace(userId: string, body: SetHealthDataDto): Promise<HealthSavedDto> {
     return HealthController.replace(userId, body);
   }
 

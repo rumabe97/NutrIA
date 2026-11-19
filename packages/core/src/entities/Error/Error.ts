@@ -320,6 +320,25 @@ export class CareLinkExistsError extends Error {
 }
 
 /**
+ * A client with a condition or a medication on record accepting an un-badged
+ * practitioner's invitation (`0111` § 8, PRD 025 criterion 22): refused in the
+ * acceptance's own transaction, and the invitation stays open to expire like any
+ * unanswered one.
+ *
+ * A state, not a denial — the invitation and the health record are both the
+ * caller's own, and the screen explains it (`docs/legal/textos/05` § G.2). 409,
+ * like the other states a screen explains. It carries nothing: not the
+ * condition, not which of the two is on record. Nothing reaches the
+ * practitioner (legal F4): to them the invitation goes unanswered.
+ */
+export class CareIllnessRuleError extends Error {
+  constructor() {
+    super('Care link refused under the illness rule');
+    this.name = 'CareIllnessRuleError';
+  }
+}
+
+/**
  * A professional inviting one client more than their practice includes
  * (`0061`, PRD 004 criterion 17): active links plus live invitations have
  * reached the plan's number.

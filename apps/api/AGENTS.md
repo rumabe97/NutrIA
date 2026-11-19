@@ -865,6 +865,15 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   ownership boundary there — and every other case is one 404. `shared/logging` rewrites the
   token out of the logged URL and `referer`. Every expired invitation is deleted on the daily `/cron/reminders` run (`ExpiredInvitationsService`), so an address nobody answered is gone by the day after its 14 days, as the mail promises — which holds only while that cron runs daily. One open link per client is a partial unique
   index; accepting into it is 409 `CARE_LINK_EXISTS`, naming the link in the way.
+  Accepting records the list consented to (`consentScope`, optional in the body, can only narrow;
+  PLAN 025 phase 5) and, for an un-badged inviter and a client with a condition or a medication on
+  record, is 409 `CARE_ILLNESS_RULE` — naming nothing, the invitation kept, nothing sent to the
+  practitioner (`0111` § 8). `POST /care/links/me/consent { consentVersion }` widens the client's own
+  `plan` link while the badge stands (404 otherwise, behind the switch inside core);
+  `GET /care/links/me/ended` answers the client's last link when the illness rule's sweep ended it.
+  `PUT /health-data` answers `linkEnded` when the save ended such a link. The sweep is
+  `IllnessRuleSweepService`, after the badge's pass in `/cron/reminders`; it mails the **client**
+  only (`care-link-ended-by-rule`, `textos/06` § Y, no word of health) and never throws.
 - **Delegated reading** (`0059`): `GET /care/clients` and `GET /care/clients/:linkId` are
   `CareClientsController` (`ProfessionalGuard` on the class). A professional route takes a
   link id and hands it to a core method built on `CareController.withClient` — the only path

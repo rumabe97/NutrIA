@@ -4,6 +4,7 @@ import { isAPIError } from 'better-auth/api';
 import {
   AccountNotActivatedError,
   AssistantUnavailableError,
+  CareIllnessRuleError,
   CareLinkExistsError,
   ConflictError,
   DatabaseOperationError,
@@ -186,6 +187,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message: 'Ya tienes un dietista vinculado.',
         statusCode: HttpStatus.CONFLICT
       };
+    }
+
+    if (exception instanceof CareIllnessRuleError) {
+      // A state the client's own screen explains (`docs/legal/textos/05` § G.2): a condition or a
+      // medication on record, and a practitioner without NutrIA's badge (`0111` § 8). It names
+      // nothing — not the condition, not which of the two — and the invitation stays open.
+      return { code: 'CARE_ILLNESS_RULE', message: 'No puedes aceptar esta invitación.', statusCode: HttpStatus.CONFLICT };
     }
 
     if (exception instanceof PracticeFullError) {

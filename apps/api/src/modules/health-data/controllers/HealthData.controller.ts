@@ -5,7 +5,7 @@ import { CurrentUser, ZodBody } from '../../../shared/index.js';
 import { HealthDataService } from '../services/index.js';
 import { SetHealthDataDto } from '../dto/in/index.js';
 
-import type { HealthDto } from '../dto/out/index.js';
+import type { HealthDto, HealthSavedDto } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 
 /**
@@ -29,10 +29,13 @@ export class HealthDataController {
     return this.health.read(user.id);
   }
 
-  @ApiOkResponse({ description: 'The section as it now stands.' })
+  @ApiOkResponse({
+    description:
+      'The section as it now stands, and `linkEnded`: the practitioner whose link this save ended — a condition or a medication now on record, and no NutrIA badge on their side (`0111` § 8) — by name, or null.'
+  })
   @ApiOperation({ summary: 'Replace the whole health section. The body must carry the current consent version.' })
   @Put()
-  async replace(@CurrentUser() user: SessionUser, @ZodBody(SetHealthDataDto) body: SetHealthDataDto): Promise<HealthDto> {
+  async replace(@CurrentUser() user: SessionUser, @ZodBody(SetHealthDataDto) body: SetHealthDataDto): Promise<HealthSavedDto> {
     // PUT, not PATCH: the client sends the complete set, so removing a
     // medication is expressible. A partial update could never delete one.
     return this.health.replace(user.id, body);

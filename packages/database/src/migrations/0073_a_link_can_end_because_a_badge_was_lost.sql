@@ -1,0 +1,1 @@
+ALTER TYPE "public"."care_link_ended_by" ADD VALUE 'badge_lost';

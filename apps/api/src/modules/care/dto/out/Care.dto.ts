@@ -7,6 +7,7 @@ import type {
   CareClientPageView,
   CareClientPlanView,
   CareClientsView,
+  CareEndedLinkView,
   CareInvitationDetailView,
   CareInvitationView,
   CareLinkView,
@@ -20,11 +21,18 @@ import type { ResolvedTargets } from 'core/domain/Nutrition';
  */
 export type CareInvitationDto = CareInvitationView;
 
-/** What the invited client reads before answering: who, the version, what is shared. */
+/**
+ * What the invited client reads before answering: who, the version, what is
+ * shared — the badged list with its health line and the checked number, or the
+ * plan-only list with neither, by the inviter's badge now (`0111` § 4).
+ */
 export type CareInvitationDetailDto = CareInvitationDetailView;
 
-/** The client's own link. */
+/** The client's own link: what it opens now, whether the practitioner is verified, and whether widening is on offer. */
 export type CareLinkDto = CareLinkView;
+
+/** The client's latest link, when the illness rule's daily sweep ended it (`0111` § 8): the name and the day, nothing else. */
+export type CareEndedLinkDto = CareEndedLinkView;
 
 /** The professional's list: open links with where each client is, and the invitations unanswered. */
 export type CareClientsDto = CareClientsView;

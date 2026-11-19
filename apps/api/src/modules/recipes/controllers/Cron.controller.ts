@@ -8,6 +8,7 @@ import { AuthRetentionService } from '../../auth/services/AuthRetention.service.
 import { CronSecretGuard } from '../../../shared/guards/index.js';
 import { DuePlansService } from '../../meal-plans/services/DuePlans.service.js';
 import { ExpiredInvitationsService } from '../../care/services/ExpiredInvitations.service.js';
+import { IllnessRuleSweepService } from '../../care/services/IllnessRuleSweep.service.js';
 import { ExpiredVerificationsService } from '../../auth/services/ExpiredVerifications.service.js';
 import { BadgeSweepService, OwnerAlertsService } from '../../owner-alerts/index.js';
 import { PictureCandidatesService, RecipeRewriter } from '../../ai/index.js';
@@ -36,6 +37,13 @@ const CLEANUP_BUDGET_MS = 8_000;
  * timeouts. A sweep cut short goes on behind the reminders; tomorrow's finds what it did not reach.
  */
 const BADGE_BUDGET_MS = 20_000;
+
+/**
+ * The most the illness rule's sweep may take before the reminders start (project 025 phase 5): its
+ * endings, one transaction, and a mail to each client whose link ended. Cut short, it goes on behind
+ * the reminders; tomorrow's finds whatever it did not reach.
+ */
+const ILLNESS_RULE_BUDGET_MS = 15_000;
 
 /**
  * What one sweep fetches: as many as three lanes can finish inside its time
@@ -68,6 +76,7 @@ export class CronController {
     private readonly authRetention: AuthRetentionService,
     private readonly candidates: PictureCandidatesService,
     private readonly duePlans: DuePlansService,
+    private readonly illnessRule: IllnessRuleSweepService,
     private readonly invitations: ExpiredInvitationsService,
     private readonly reminders: CheckInReminderService,
     private readonly rewriter: RecipeRewriter,
@@ -95,6 +104,12 @@ export class CronController {
     ]);
     // The badge's daily pass (project 025): only while the `professional` switch is on, and it never throws.
     await Promise.race([this.badges.run().catch(() => undefined), new Promise<void>(resolve => setTimeout(resolve, BADGE_BUDGET_MS).unref())]);
+    // The illness rule's daily part (`0111` § 8): after the badge's pass, so a badge it just lapsed is already gone.
+    // State-based and whatever the switch says; it never throws, and only the clients are mailed.
+    await Promise.race([
+      this.illnessRule.run().catch(() => undefined),
+      new Promise<void>(resolve => setTimeout(resolve, ILLNESS_RULE_BUDGET_MS).unref())
+    ]);
 
     const run = await this.reminders.sweep();
 
