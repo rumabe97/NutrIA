@@ -323,12 +323,15 @@ if (action === 'link') {
     // session, so the practitioner is named as its own checker.
     const { ProfessionalBadgeController } = await load('core/controllers/Professional');
 
-    await ProfessionalBadgeController.apply(pro.id, { number: 'PROBE-001', register: 'Registro del probe' });
+    // A practitioner linked before already holds it: a second client needs no second badge.
+    if ((await ProfessionalBadgeController.state(pro.id)).state !== 'badged') {
+      await ProfessionalBadgeController.apply(pro.id, { number: 'PROBE-001', register: 'Registro del probe' });
 
-    const { code } = await ProfessionalBadgeController.issueCode(pro.id, pro.id, { channel: 'phone' });
+      const { code } = await ProfessionalBadgeController.issueCode(pro.id, pro.id, { channel: 'phone' });
 
-    await ProfessionalBadgeController.enterCode(pro.id, { code });
-    await ProfessionalBadgeController.confirm(pro.id, pro.id);
+      await ProfessionalBadgeController.enterCode(pro.id, { code });
+      await ProfessionalBadgeController.confirm(pro.id, pro.id);
+    }
   }
 
   const { token } = await CareController.invite({ email: pro.email, id: pro.id }, { email: client.email });
