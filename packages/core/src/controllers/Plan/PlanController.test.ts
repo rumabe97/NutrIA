@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   ConflictError,
@@ -28,11 +28,12 @@ const timezone = vi.fn<(userId: string) => Promise<{ timezone: string } | undefi
 const admit = vi.fn<(jobId: string, record: unknown) => Promise<void>>();
 const isPublishable = vi.fn<(userId: string) => Promise<boolean>>();
 const flags = vi.fn<() => Promise<{ premium: boolean; professional: boolean }>>();
-const findJob = vi.fn<(userId: string, jobId: string) => Promise<(Job & { planStatus: string | null }) | undefined>>();
+const findJob =
+  vi.fn<(userId: string, jobId: string) => Promise<(Job & { planCareLinkId?: string | null; planStatus: string | null }) | undefined>>();
 const findActive = vi.fn<(userId: string) => Promise<MetadataRow | undefined>>();
 const findPending = vi.fn<(userId: string) => Promise<ChainRow | undefined>>();
 const findChain = vi.fn<(userId: string, withPending?: boolean) => Promise<readonly ChainRow[]>>();
-const findHistory = vi.fn<(userId: string, limit: number, offset: number) => Promise<readonly Row[]>>();
+const findHistory = vi.fn<(userId: string, limit: number, offset: number, careLinkId?: string) => Promise<readonly Row[]>>();
 const release = vi.fn<(jobId: string) => Promise<void>>();
 const requireProfileConsent = vi.fn<(userId: string) => Promise<void>>(async () => undefined);
 const mealSize = vi.fn<(userId: string) => Promise<MealSizeView | null>>(async () => null);
@@ -72,7 +73,7 @@ vi.mock('#repositories/Plan', () => ({
     findById: (...args: Parameters<typeof findById>) => findById(...args),
     findChain: (...args: Parameters<typeof findChain>) => findChain(...args),
     findDaysWithMeals: (...args: Parameters<typeof findDaysWithMeals>) => findDaysWithMeals(...args),
-    findHistory: (u: string, l: number, o: number) => findHistory(u, l, o),
+    findHistory: (...args: Parameters<typeof findHistory>) => findHistory(...args),
     findPending: (u: string) => findPending(u),
     findScheduled: (u: string) => findScheduled(u),
     findScheduledDue: (latest: string) => findScheduledDue(latest),
@@ -145,6 +146,90 @@ describe('PlanController.listPlans — the history', () => {
     const plans = await PlanController.listPlans('usr-1');
 
     expect(plans[1]?.replaced).toBe(false);
+  });
+});
+
+/*
+ * Project 025 phase 4 (`0111` § 5): a `plan` scope reads only the plans made
+ * through its link — asked of the stored `care_link_id`, never of the request.
+ */
+describe('PlanController — a plan scope reads the plans made through its link', () => {
+  const LINK = '0b8e7f4a-3c2d-4e1f-9a8b-7c6d5e4f3a2b';
+  const OTHER = '9f9f9f9f-3c2d-4e1f-9a8b-7c6d5e4f3a2b';
+  /** The link as `withClient` resolved it: its id, and since when it stands. */
+  const SINCE = new Date('2026-11-10T09:00:00.000Z');
+  const THROUGH = { id: LINK, since: SINCE };
+  const job = (planId: string | null, planCareLinkId: string | null, createdAt: Date = new Date('2026-11-18T09:00:00.000Z')) =>
+    ({
+      id: 'job-1',
+      createdAt,
+      error: null,
+      errorDetail: null,
+      planCareLinkId,
+      planId,
+      planStatus: planId ? 'active' : null,
+      status: 'succeeded',
+      step: null
+    }) as never;
+
+  // Left as found: the suites below read these without arranging them.
+  afterEach(() => {
+    for (const mock of [findHistory, findJob, findActive, findPending]) {
+      mock.mockReset();
+    }
+  });
+
+  beforeEach(() => {
+    flags.mockResolvedValue({ premium: true, professional: true });
+    columnTier.mockResolvedValue('premium');
+    coveredByOpenPractice.mockResolvedValue(false);
+  });
+
+  it('lists only that link’s plans, asked in the query', async () => {
+    findHistory.mockResolvedValue([]);
+
+    await PlanController.listPlans('usr-1', 20, 0, 'professional', LINK);
+
+    expect(findHistory).toHaveBeenCalledWith('usr-1', 20, 0, LINK);
+  });
+
+  it('opens a job only when its plan was made through that link', async () => {
+    findJob.mockResolvedValue(job('plan-1', LINK));
+    await expect(PlanController.getJob('usr-1', 'job-1', 'professional', THROUGH)).resolves.toMatchObject({ planId: 'plan-1' });
+
+    for (const stamp of [OTHER, null]) {
+      findJob.mockResolvedValue(job('plan-1', stamp));
+      await expect(PlanController.getJob('usr-1', 'job-1', 'professional', THROUGH)).rejects.toBeInstanceOf(NotFoundError);
+    }
+  });
+
+  it('opens a job with no plan only if it began while the link stood — bounded by the link, not by the client', async () => {
+    findJob.mockResolvedValue(job(null, null, SINCE));
+    await expect(PlanController.getJob('usr-1', 'job-1', 'professional', THROUGH)).resolves.toMatchObject({ planId: null });
+
+    findJob.mockResolvedValue(job(null, null, new Date(SINCE.getTime() - 1)));
+    await expect(PlanController.getJob('usr-1', 'job-1', 'professional', THROUGH)).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('answers the plan under way and the pending one only when made through that link — null otherwise, as no plan', async () => {
+    const plan = (careLinkId: string | null) =>
+      ({ id: 'plan-1', careLinkId, endDate: '2026-12-01', startDate: '2026-11-18', status: 'active', version: 2 }) as never;
+
+    for (const [stamp, opens] of [
+      [LINK, true],
+      [OTHER, false],
+      [null, false]
+    ] as const) {
+      findActive.mockResolvedValue(plan(stamp));
+      findPending.mockResolvedValue(plan(stamp));
+
+      expect((await PlanController.getActivePlan('usr-1', null, LINK)) !== null).toBe(opens);
+      expect((await PlanController.getPendingPlan('usr-1', null, LINK)) !== null).toBe(opens);
+      await expect(PlanController.pendingThrough('usr-1', LINK)).resolves.toBe(opens);
+    }
+
+    findPending.mockResolvedValue(undefined);
+    await expect(PlanController.pendingThrough('usr-1', LINK)).resolves.toBe(false);
   });
 });
 

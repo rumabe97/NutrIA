@@ -193,11 +193,14 @@ export const PlanJobRepository = {
     }
   },
 
-  /** Owner-scoped. `planStatus` is the status of the plan it made, so a plan under review can be kept from its client (`0060`). */
+  /**
+   * Owner-scoped. `planStatus` is the status of the plan it made, so a plan under review can be kept from its client (`0060`);
+   * `planCareLinkId` the link that plan was made through, so a `plan` scope opens only its own (`0111` § 5).
+   */
   async findById(userId: string, jobId: string) {
     try {
       const [row] = await database()
-        .select({ ...getTableColumns(planGenerationJobs), planStatus: mealPlans.status })
+        .select({ ...getTableColumns(planGenerationJobs), planCareLinkId: mealPlans.careLinkId, planStatus: mealPlans.status })
         .from(planGenerationJobs)
         .leftJoin(mealPlans, eq(mealPlans.id, planGenerationJobs.planId))
         .where(and(eq(planGenerationJobs.id, jobId), eq(planGenerationJobs.userId, userId)))

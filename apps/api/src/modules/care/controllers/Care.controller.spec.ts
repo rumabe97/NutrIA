@@ -7,7 +7,15 @@ import { Test } from '@nestjs/testing';
 import { CARE_CONSENT_VERSION, CARE_HEALTH_SHARED, CARE_SHARED } from 'core/entities/Care';
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { CareController } from 'core/controllers/Care';
-import { CareLinkExistsError, InputParseError, NotFoundError, PracticeFullError } from 'core/entities/Error';
+import {
+  CareLinkExistsError,
+  ConflictError,
+  InputParseError,
+  NotFoundError,
+  PracticeFullError,
+  ProfileConsentRequiredError,
+  QuotaExceededError
+} from 'core/entities/Error';
 import { ProfessionalBadgeController, ProfessionalController } from 'core/controllers/Professional';
 import { ProfileController } from 'core/controllers/Profile';
 import { UserController } from 'core/controllers/User';
@@ -576,6 +584,86 @@ describe('care routes', () => {
       const response = await request(server()).post(`/${PREFIX}/care/clients/not-a-link/plan/publish`).expect(404);
 
       expect(response.body).toEqual({ code: 'NOT_FOUND', message: 'Client not found', statusCode: 404 });
+    });
+  });
+
+  /*
+   * Project 025 phase 4, step 6 (PRD 025 criterion 13, `0013` § 5.3): every
+   * refusal a practitioner can receive from generate, swap or publish names no
+   * allergen, intolerance or condition of the client. One case per refusal the
+   * runner, the swap service and core raise on those routes, each with the
+   * error exactly as its source throws it, through the real filter: the answer
+   * is a code and a fixed sentence, and nothing of the client is in it.
+   */
+  describe('under a `plan` scope, every refusal of generate, swap and publish names nothing of the client (project 025)', () => {
+    const MEAL_ID = '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f';
+    const record = jest.fn<Parameters<ForClient<unknown>>[1]>();
+    /** What a client may have declared, any word of which in an answer would be a leak. */
+    const DECLARED = /cacahuete|gluten|lactosa|marisco|celiac|celíac|diabet|embaraz|metformina|allerg|alerg|intoler|condition|condici/i;
+
+    function assertNamesNothing(body: unknown): void {
+      expect(Object.keys(body as object).sort()).toEqual(expect.arrayContaining(['code', 'message', 'statusCode']));
+      expect(JSON.stringify(body)).not.toMatch(DECLARED);
+    }
+
+    beforeEach(() => {
+      start.mockReset();
+      swap.mockReset();
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      // One case per refusal is more calls than the routes' hourly limit: the limit is its own suite's.
+      jest.spyOn(RateLimitGuard.prototype, 'canActivate').mockReturnValue(true);
+    });
+
+    it.each([
+      ['a fortnight under way, or a link not open to them', new NotFoundError('Client not found'), 404],
+      ['a generation already running', new ConflictError('A plan is already being generated'), 409],
+      ['the client’s redo spent', new QuotaExceededError('plan_redo'), 429],
+      ['the client’s profile consent not given', new ProfileConsentRequiredError(), undefined]
+    ])('generate: %s', async (_case, error, status) => {
+      start.mockRejectedValue(error);
+      jest
+        .spyOn(CareController, 'generatePlan')
+        .mockImplementation(async (_professional, _link, starter: ForClient<JobView>) => starter('usr-client', record));
+
+      const response = await request(server()).post(`/${PREFIX}/care/clients/${LINK_ID}/plan/generate`);
+
+      if (status !== undefined) {
+        expect(response.status).toBe(status);
+      }
+
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      assertNamesNothing(response.body);
+    });
+
+    it.each([
+      ['a meal not in the plan under review, or a plan not made through this link', new NotFoundError('Meal not found'), 404],
+      ['the meal is not part of its plan', new ConflictError('Meal is not part of its plan'), 409],
+      ['no dish fits — the allergen gate refused every one', new ConflictError('No dish fits this meal right now'), 409],
+      ['the plan’s swaps spent', new QuotaExceededError('meal_swap'), 429],
+      ['the client’s profile consent not given', new ProfileConsentRequiredError(), undefined]
+    ])('swap: %s', async (_case, error, status) => {
+      swap.mockRejectedValue(error);
+      jest
+        .spyOn(CareController, 'swapPendingMeal')
+        .mockImplementation(async (_professional, _link, _meal, swapper: ForClient<MealDetailView>) => swapper('usr-client', record));
+
+      const response = await request(server()).post(`/${PREFIX}/care/clients/${LINK_ID}/plan/meals/${MEAL_ID}/swap`).send({});
+
+      if (status !== undefined) {
+        expect(response.status).toBe(status);
+      }
+
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      assertNamesNothing(response.body);
+    });
+
+    it('publish: nothing made through this link is pending', async () => {
+      jest.spyOn(CareController, 'publishPlan').mockRejectedValue(new NotFoundError('Plan not found'));
+
+      const response = await request(server()).post(`/${PREFIX}/care/clients/${LINK_ID}/plan/publish`).expect(404);
+
+      expect(response.body).toEqual({ code: 'NOT_FOUND', message: 'Plan not found', statusCode: 404 });
+      assertNamesNothing(response.body);
     });
   });
 

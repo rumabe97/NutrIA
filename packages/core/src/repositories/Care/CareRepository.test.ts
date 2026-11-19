@@ -4,7 +4,8 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 import { careAccessLog, careInvitations, careLinks } from 'database/schema/care';
 import { targetOverrides } from 'database/schema/profile';
 
-import { CareRepository } from './CareRepository';
+import { CareRepository, rosterPlansSeen } from './CareRepository';
+import { linkScope } from './CareScope';
 
 import type { SQL } from 'drizzle-orm';
 
@@ -72,6 +73,7 @@ let trailWhere: SQL | undefined;
 function selectTrail() {
   const chain = {
     from: () => chain,
+    innerJoin: () => chain,
     limit: () => Promise.resolve(trail),
     orderBy: () => chain,
     where: (where: SQL) => {
@@ -96,6 +98,11 @@ function deleteRows(table: unknown) {
     }
   };
 }
+
+/** The badge, as `ProfessionalBadgeRepository.badgeOf` answers it — its own suite proves what it reads. */
+const badgeOf = vi.fn<(userId: string, now: Date) => Promise<object | null>>();
+
+vi.mock('#repositories/Professional', () => ({ ProfessionalBadgeRepository: { badgeOf: (userId: string, now: Date) => badgeOf(userId, now) } }));
 
 vi.mock('database', () => ({
   database: () => ({
@@ -256,5 +263,86 @@ describe('CareRepository.forgetExpired', () => {
     expect(deleted?.table).toBe(careInvitations);
     expect(sql).toBe('"care_invitations"."expires_at" <= $1');
     expect(params).toEqual([NOW.toISOString()]);
+  });
+});
+
+/*
+ * Project 025 phase 4 (`0111` § 4): the link answers its scope, from the
+ * badge of the practitioner on it — read for the session's id, on every call —
+ * and the link's own consent. What is pinned here is the scope it hands
+ * `withClient`; the `WHERE` is the end-to-end suite's.
+ */
+describe('CareRepository.activeLink — the scope the link opens now', () => {
+  const stored = (consentScope: 'full' | 'plan') => ({
+    clientName: 'Lucía',
+    link: {
+      id: LINK,
+      clientId: 'usr-client',
+      consentedAt: NOW,
+      consentScope,
+      consentVersion: '2.0.0',
+      createdAt: NOW,
+      endedAt: null,
+      endedBy: null,
+      professionalId: 'usr-pro',
+      reviewBeforePublish: false,
+      sharesHealth: true,
+      status: 'active',
+      updatedAt: NOW
+    },
+    professionalName: 'Dra. Pérez'
+  });
+
+  beforeEach(() => {
+    badgeOf.mockReset();
+  });
+
+  it.each([
+    ['full', true, 'full'],
+    ['full', false, 'plan'],
+    ['plan', true, 'plan'],
+    ['plan', false, 'plan']
+  ] as const)('a link consented to `%s`, the badge standing: %s — opens `%s`', async (consentScope, badged, scope) => {
+    trail = [stored(consentScope)];
+    badgeOf.mockResolvedValue(badged ? { number: '28-1234' } : null);
+
+    await expect(CareRepository.activeLink('usr-pro', LINK, NOW)).resolves.toMatchObject({ clientName: 'Lucía', scope });
+    expect(badgeOf).toHaveBeenCalledExactlyOnceWith('usr-pro', NOW);
+  });
+
+  it('reads no badge for a link that is not there — the same null as before', async () => {
+    trail = [];
+
+    await expect(CareRepository.activeLink('usr-pro', LINK, NOW)).resolves.toBeNull();
+    expect(badgeOf).not.toHaveBeenCalled();
+  });
+
+  it('fails like any read when the badge cannot be read — never a scope guessed', async () => {
+    trail = [stored('full')];
+    badgeOf.mockRejectedValue(new Error('down'));
+
+    await expect(CareRepository.activeLink('usr-pro', LINK, NOW)).rejects.toThrow();
+  });
+});
+
+describe('rosterPlansSeen — the list’s stage reads only what the page would show (`0111` § 5)', () => {
+  it('without the badge: only plans made through the link, whatever the consent', () => {
+    expect(dialect.sqlToQuery(rosterPlansSeen(false) as SQL).sql).toBe('"meal_plans"."care_link_id" = "care_links"."id"');
+  });
+
+  it('with the badge: every plan on a `full` link, only the link’s own on a `plan` one', () => {
+    const { params, sql } = dialect.sqlToQuery(rosterPlansSeen(true) as SQL);
+
+    expect(sql).toBe('("care_links"."consent_scope" = $1 or "meal_plans"."care_link_id" = "care_links"."id")');
+    expect(params).toEqual(['full']);
+  });
+});
+
+describe('linkScope — the one rule (`0111` § 4)', () => {
+  it('is `full` only with the badge and the badged list both', () => {
+    expect(linkScope('full', true)).toBe('full');
+    expect(linkScope('full', false)).toBe('plan');
+    expect(linkScope('plan', true)).toBe('plan');
+    expect(linkScope('plan', false)).toBe('plan');
   });
 });

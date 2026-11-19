@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { boughtAsk, PlanRepository, refusesProfessionalSave, saveShape } from './PlanRepository';
+import { boughtAsk, isAskingLink, madeThrough, PlanRepository, refusesProfessionalSave, saveShape } from './PlanRepository';
 
 /** What each `select … for update` answers, in order, and every write the transaction made. */
 const selects: unknown[][] = [];
 const writes: Record<string, unknown>[] = [];
+
+/** The link a publish goes through (`0111` § 5), as `withClient` resolved it. */
+const LINK = '0b8e7f4a-3c2d-4e1f-9a8b-7c6d5e4f3a2b';
+const THROUGH = { id: LINK, only: false } as const;
 
 function chain() {
   const answer = () => Promise.resolve(selects.shift() ?? []);
@@ -159,7 +163,7 @@ describe('PlanRepository.publish — the professional’s plan prevails over a s
     selects.push([{ id: 'plan-p', version: 4 }], [{ version: 2 }], [{ id: 'plan-s' }]);
     const record = vi.fn(async () => undefined);
 
-    await expect(PlanRepository.publish('usr-1', record, '2026-10-02')).resolves.toBe('plan-p');
+    await expect(PlanRepository.publish('usr-1', record, '2026-10-02', THROUGH)).resolves.toBe('plan-p');
     expect(writes).toEqual([
       { planId: null },
       { deleted: true },
@@ -177,10 +181,97 @@ describe('PlanRepository.publish — the professional’s plan prevails over a s
       PlanRepository.publish(
         'usr-1',
         vi.fn(async () => undefined),
-        '2026-10-02'
+        '2026-10-02',
+        THROUGH
       )
     ).resolves.toBe('plan-p');
     expect(writes).toHaveLength(2);
+  });
+});
+
+describe('madeThrough — which saved plan carries the link (`0111` § 5)', () => {
+  const link = { id: LINK };
+
+  it('stamps a professional’s generation, whether it goes active or waits for review', () => {
+    expect(madeThrough({ byProfessional: true, link, status: 'active' })).toBe(LINK);
+    expect(madeThrough({ byProfessional: true, link, status: 'pending_review' })).toBe(LINK);
+  });
+
+  it('stamps the client’s own plan only when it lands under review for that link', () => {
+    expect(madeThrough({ byProfessional: false, link, status: 'pending_review' })).toBe(LINK);
+    expect(madeThrough({ byProfessional: false, link, status: 'active' })).toBeNull();
+    expect(madeThrough({ byProfessional: false, link, status: 'scheduled' })).toBeNull();
+  });
+
+  it('stamps nothing without a publishing link — the switch off, or no link whose grant stands', () => {
+    expect(madeThrough({ byProfessional: true, link: undefined, status: 'active' })).toBeNull();
+    expect(madeThrough({ byProfessional: false, link: undefined, status: 'pending_review' })).toBeNull();
+  });
+});
+
+describe('isAskingLink — a generation belongs to the link it was asked through (`0111` § 5)', () => {
+  const JOB_AT = new Date('2026-11-18T09:00:00.000Z');
+
+  it('is the link that stood when the job was claimed — made before it', () => {
+    expect(isAskingLink({ createdAt: new Date('2026-11-01T09:00:00.000Z') }, JOB_AT)).toBe(true);
+    expect(isAskingLink({ createdAt: JOB_AT }, JOB_AT)).toBe(true);
+  });
+
+  it('is not a link made after the job began: the asking one ended, and the plan carries no link', () => {
+    expect(isAskingLink({ createdAt: new Date(JOB_AT.getTime() + 1) }, JOB_AT)).toBe(false);
+  });
+
+  it('is not a link when there is no job to read', () => {
+    expect(isAskingLink({ createdAt: new Date('2026-11-01T09:00:00.000Z') }, undefined)).toBe(false);
+  });
+
+  it('so a mismatch saves no stamp', () => {
+    const asked = isAskingLink({ createdAt: new Date(JOB_AT.getTime() + 1) }, JOB_AT);
+
+    expect(madeThrough({ byProfessional: true, link: asked ? { id: LINK } : undefined, status: 'active' })).toBeNull();
+  });
+});
+
+describe('PlanRepository.publish — the plan carries the link it is published through (`0111` § 5)', () => {
+  it('stamps the link on the plan as it goes active, whatever the scope', async () => {
+    writes.length = 0;
+    selects.push([{ id: 'plan-p', careLinkId: null, version: 4 }], [{ version: 2 }], []);
+
+    await expect(
+      PlanRepository.publish(
+        'usr-1',
+        vi.fn(async () => undefined),
+        '2026-10-02',
+        THROUGH
+      )
+    ).resolves.toBe('plan-p');
+    expect(writes.at(-1)).toMatchObject({ careLinkId: LINK, status: 'active' });
+  });
+
+  it('publishes, under a `plan` scope, a plan made through that link', async () => {
+    writes.length = 0;
+    selects.push([{ id: 'plan-p', careLinkId: LINK, version: 4 }], [{ version: 2 }], []);
+    const record = vi.fn(async () => undefined);
+
+    await expect(PlanRepository.publish('usr-1', record, '2026-10-02', { id: LINK, only: true })).resolves.toBe('plan-p');
+    expect(writes.at(-1)).toMatchObject({ careLinkId: LINK, status: 'active' });
+    expect(record).toHaveBeenCalledOnce();
+  });
+
+  it('refuses, under a `plan` scope, a pending plan made through another link or none — nothing written, no row', async () => {
+    for (const careLinkId of [null, '9f9f9f9f-3c2d-4e1f-9a8b-7c6d5e4f3a2b']) {
+      writes.length = 0;
+      selects.length = 0;
+      selects.push([{ id: 'plan-p', careLinkId, version: 4 }], [{ version: 2 }], []);
+      const record = vi.fn(async () => undefined);
+
+      await expect(PlanRepository.publish('usr-1', record, '2026-10-02', { id: LINK, only: true })).resolves.toBeUndefined();
+      expect(writes).toEqual([]);
+      expect(record).not.toHaveBeenCalled();
+    }
+
+    // The refusal read only the held row: the two answers queued after it are not the next suite's.
+    selects.length = 0;
   });
 });
 

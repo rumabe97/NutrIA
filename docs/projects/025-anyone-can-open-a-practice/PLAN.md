@@ -214,7 +214,7 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
 
 ### Phase 4 — The narrower view, in core
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 025 phase 4` — `quality-max`: the delegated
   path and allergen naming. Reviewed by `invariant-reviewer`; a P0 that survives two rounds
   stops the project for redesign (`0013` § 9, stop signal).

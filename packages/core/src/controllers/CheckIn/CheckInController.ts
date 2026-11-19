@@ -1,4 +1,5 @@
-import { CareRepository } from '#repositories/Care';
+import { CareRepository, linkScope } from '#repositories/Care';
+import { ProfessionalBadgeRepository } from '#repositories/Professional';
 import { CheckInRepository } from '#repositories/CheckIn';
 import { ConflictError, NotFoundError } from 'core/entities/Error';
 import { PlanRepository } from '#repositories/Plan';
@@ -81,11 +82,23 @@ export function nudgedKcal(hunger: HungerAnswer, targets: Pick<ResolvedTargets, 
  * override with every numeric field null resolves as "no override at all"
  * (`resolveTargets`), which would read as `self` even though the column names
  * a professional.
+ *
+ * **And only under a `full` scope** (project 025, `0111` § 4): under `plan`
+ * nobody else reads the check-in or may set targets, so nobody else will give
+ * the nudge — the client's own runs, whether the link was un-badged from the
+ * start or narrowed by a lost badge. The badge is read now, as `withClient`
+ * reads it.
  */
 async function supervisedElsewhere(userId: string): Promise<boolean> {
   const [link, setterId] = await Promise.all([CareRepository.clientLink(userId), ProfileRepository.findTargetSetterId(userId)]);
 
-  return link?.link.status === 'active' && setterId !== null;
+  if (link?.link.status !== 'active' || setterId === null) {
+    return false;
+  }
+
+  const badge = await ProfessionalBadgeRepository.badgeOf(link.link.professionalId, new Date());
+
+  return linkScope(link.link.consentScope, badge !== null) === 'full';
 }
 
 export const CheckInController = {

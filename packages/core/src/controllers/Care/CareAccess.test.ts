@@ -6,9 +6,20 @@ import { DatabaseOperationError, InputParseError, NotFoundError } from 'core/ent
 
 import { CareController } from './CareController';
 
-import type { ActiveLink, Roster, RosterLink } from '#repositories/Care';
-import type { CareAccessAction, CareAccessEntry, CareAccessKind, CareLink } from 'core/entities/Care';
-import type { JobView, PlanView, withoutPantry as withoutPantryFn } from 'core/controllers/Plan';
+import type { ActiveLink, linkScope as linkScopeFn, Roster, RosterLink } from '#repositories/Care';
+import type { CareAccessAction, CareAccessEntry, CareAccessKind, CareConsentScope, CareLink } from 'core/entities/Care';
+import type { CareClientOverviewView, CareClientPageView } from './CareController';
+import type {
+  JobView,
+  MealDetailView,
+  planOnly,
+  planOnlyJob,
+  planOnlyMealDetail,
+  planOnlySummary,
+  PlanSummaryView,
+  PlanView,
+  withoutPantry
+} from 'core/controllers/Plan';
 import type { ProgressSummaryView } from 'core/controllers/Progress';
 import type { RecordAccess } from '#repositories/Care';
 import type { ResolvedTargets } from 'core/domain/Nutrition';
@@ -30,6 +41,15 @@ import type { ProfessionalSetter } from '#repositories/Profile';
  * written in `roster`'s own snapshot).
  */
 
+/** The plan presenters taken from the real module. */
+type PlanPresenters = {
+  readonly planOnly: typeof planOnly;
+  readonly planOnlyJob: typeof planOnlyJob;
+  readonly planOnlyMealDetail: typeof planOnlyMealDetail;
+  readonly planOnlySummary: typeof planOnlySummary;
+  readonly withoutPantry: typeof withoutPantry;
+};
+
 type LogEntry = {
   readonly action: CareAccessAction;
   readonly kind: CareAccessKind;
@@ -44,42 +64,62 @@ const roster = vi.fn<(professionalId: string, now: Date) => Promise<Roster>>();
 const accessLog = vi.fn<(clientId: string, limit: number, beforeId: string | null) => Promise<readonly CareAccessEntry[]>>();
 const findProfessional = vi.fn<(userId: string) => Promise<object | null>>();
 const isEnabled = vi.fn<(key: string, fallback: boolean) => Promise<boolean>>();
-const getActivePlan = vi.fn<(userId: string, locale: string | null) => Promise<PlanView | null>>();
-const listPlans = vi.fn<(userId: string) => Promise<readonly []>>();
+const getActivePlan = vi.fn<(userId: string, locale: string | null, throughLink?: string) => Promise<PlanView | null>>();
+const listPlans =
+  vi.fn<(userId: string, limit?: number, offset?: number, reader?: string, throughLink?: string) => Promise<readonly PlanSummaryView[]>>();
 const summary = vi.fn<(userId: string) => Promise<ProgressSummaryView>>();
 const targets = vi.fn<(userId: string) => Promise<ResolvedTargets | null>>();
 const updateTargets = vi.fn<(userId: string, patch: UpdateTargetOverride, setter?: ProfessionalSetter | null) => Promise<ResolvedTargets>>();
 const shared = vi.fn<(userId: string) => Promise<SharedHealthView>>();
 const setReview = vi.fn<(professionalId: string, linkId: string, value: boolean, record: RecordAccess) => Promise<CareLink | null>>();
-const getPendingPlan = vi.fn<(userId: string, locale: string | null) => Promise<PlanView | null>>();
-const getJob = vi.fn<(userId: string, jobId: string, reader: string) => Promise<JobView>>();
-const publish = vi.fn<(userId: string, record: RecordAccess, locale: string | null) => Promise<PlanView>>();
+const getPendingPlan = vi.fn<(userId: string, locale: string | null, throughLink?: string) => Promise<PlanView | null>>();
+const getJob =
+  vi.fn<(userId: string, jobId: string, reader: string, throughLink?: { readonly id: string; readonly since: Date }) => Promise<JobView>>();
+const publish =
+  vi.fn<(userId: string, record: RecordAccess, link: { readonly id: string; readonly only: boolean }, locale: string | null) => Promise<PlanView>>();
 const professionalMayGenerate = vi.fn<(userId: string) => Promise<boolean>>();
+const pendingThrough = vi.fn<(userId: string, linkId: string) => Promise<boolean>>();
 
-vi.mock('#repositories/Care', () => ({
+vi.mock('#repositories/Care', async () => ({
   CareRepository: {
     accessLog: (...args: Parameters<typeof accessLog>) => accessLog(...args),
     activeLink: (...args: Parameters<typeof activeLink>) => activeLink(...args),
     logAccess: (...args: Parameters<typeof logAccess>) => logAccess(...args),
     roster: (...args: Parameters<typeof roster>) => roster(...args),
     setReview: (...args: Parameters<typeof setReview>) => setReview(...args)
-  }
-}));
-vi.mock('#repositories/Professional', () => ({ ProfessionalRepository: { find: (userId: string) => findProfessional(userId) } }));
-vi.mock('#repositories/Settings', () => ({ SettingsRepository: { isEnabled: (key: string, fallback: boolean) => isEnabled(key, fallback) } }));
-vi.mock('core/controllers/Plan', async () => ({
-  PlanController: {
-    getActivePlan: (...args: Parameters<typeof getActivePlan>) => getActivePlan(...args),
-    getJob: (...args: Parameters<typeof getJob>) => getJob(...args),
-    getPendingPlan: (...args: Parameters<typeof getPendingPlan>) => getPendingPlan(...args),
-    listPlans: (userId: string) => listPlans(userId),
-    professionalMayGenerate: (userId: string) => professionalMayGenerate(userId),
-    publish: (...args: Parameters<typeof publish>) => publish(...args)
   },
-  // The real one, not a stub: whether the cupboard's counts cross to a
-  // professional is a thing these cases are about (`legal` P2-9).
-  withoutPantry: (await vi.importActual<{ withoutPantry: typeof withoutPantryFn }>('../Plan/PlanController')).withoutPantry
+  // The real rule: `activeProfessional` and the roster's stage are what some of these cases are about.
+  linkScope: (await vi.importActual<{ linkScope: typeof linkScopeFn }>('../../repositories/Care/CareScope')).linkScope
 }));
+vi.mock('#repositories/Professional', () => ({
+  // `withClient` never reads the badge itself: `activeLink` answers the scope. Any call here is a second definition.
+  ProfessionalBadgeRepository: { badgeOf: () => Promise.reject(new Error('the badge is read by the repository, not here')) },
+  ProfessionalRepository: { find: (userId: string) => findProfessional(userId) }
+}));
+vi.mock('#repositories/Settings', () => ({ SettingsRepository: { isEnabled: (key: string, fallback: boolean) => isEnabled(key, fallback) } }));
+vi.mock('core/controllers/Plan', async () => {
+  const actual = await vi.importActual<PlanPresenters>('../Plan/PlanController');
+
+  return {
+    PlanController: {
+      getActivePlan: (...args: Parameters<typeof getActivePlan>) => getActivePlan(...args),
+      getJob: (...args: Parameters<typeof getJob>) => getJob(...args),
+      getPendingPlan: (...args: Parameters<typeof getPendingPlan>) => getPendingPlan(...args),
+      listPlans: (...args: Parameters<typeof listPlans>) => listPlans(...args),
+      pendingThrough: (...args: Parameters<typeof pendingThrough>) => pendingThrough(...args),
+      professionalMayGenerate: (userId: string) => professionalMayGenerate(userId),
+      publish: (...args: Parameters<typeof publish>) => publish(...args)
+    },
+    // The real presenters, not stubs: what crosses to a professional — the
+    // cupboard's counts (`legal` P2-9), and under a `plan` scope the client's
+    // numbers (`0111` § 4) — is what these cases are about.
+    planOnly: actual.planOnly,
+    planOnlyJob: actual.planOnlyJob,
+    planOnlyMealDetail: actual.planOnlyMealDetail,
+    planOnlySummary: actual.planOnlySummary,
+    withoutPantry: actual.withoutPantry
+  };
+});
 vi.mock('core/controllers/Progress', () => ({ ProgressController: { summary: (userId: string) => summary(userId) } }));
 vi.mock('core/controllers/Profile', () => ({
   ProfileController: {
@@ -132,8 +172,17 @@ function makeLink(overrides?: Partial<CareLink>): CareLink {
   };
 }
 
-function access(overrides?: Partial<CareLink>): ActiveLink {
-  return { clientName: 'Lucía', link: makeLink(overrides), professionalName: 'Dra. Pérez' };
+function access(overrides?: Partial<CareLink>, scope: CareConsentScope = 'full'): ActiveLink {
+  return { clientName: 'Lucía', link: makeLink(overrides), professionalName: 'Dra. Pérez', scope };
+}
+
+/** The full page, narrowed: a `full` scope's answer carries `progress`. */
+function full(page: CareClientPageView): CareClientOverviewView {
+  if (!('progress' in page)) {
+    throw new Error('expected the full page');
+  }
+
+  return page;
 }
 
 function rosterLink(overrides?: Partial<RosterLink>): RosterLink {
@@ -144,6 +193,7 @@ function rosterLink(overrides?: Partial<RosterLink>): RosterLink {
     onboarded: true,
     planActive: false,
     planPendingReview: false,
+    scope: 'full',
     ...overrides
   };
 }
@@ -166,7 +216,8 @@ beforeEach(() => {
     getPendingPlan,
     getJob,
     publish,
-    professionalMayGenerate
+    professionalMayGenerate,
+    pendingThrough
   ]) {
     mock.mockReset();
   }
@@ -273,7 +324,7 @@ describe('CareController.overview', () => {
 
     expect(logAccess).toHaveBeenCalledExactlyOnceWith(CLIENT_ID, expect.objectContaining({ action: 'read', kind: 'overview' }));
     expect(getActivePlan).toHaveBeenCalledWith(CLIENT_ID, 'en-GB');
-    expect(listPlans).toHaveBeenCalledWith(CLIENT_ID);
+    expect(listPlans).toHaveBeenCalledWith(CLIENT_ID, undefined, undefined, 'professional');
     expect(summary).toHaveBeenCalledWith(CLIENT_ID);
     expect(targets).toHaveBeenCalledWith(CLIENT_ID);
     expect(shared).not.toHaveBeenCalled();
@@ -299,7 +350,9 @@ describe('CareController.overview', () => {
       [CLIENT_ID, 'health', 'read']
     ]);
     expect(shared).toHaveBeenCalledExactlyOnceWith(CLIENT_ID);
-    expect(page.health).toEqual(HEALTH);
+    expect(full(page).health).toEqual(HEALTH);
+    // A `full` scope reads the health line as it is: nothing masked there.
+    expect(page.client.sharesHealth).toBe(true);
   });
 
   it('leaves health out, with no health row, when the link ends between the two reads', async () => {
@@ -372,7 +425,7 @@ describe('CareController.overview', () => {
       ]
     });
 
-    const page = await CareController.overview(PRO, LINK_ID);
+    const page = full(await CareController.overview(PRO, LINK_ID));
 
     expect(page.progress.fortnights[0]?.checkIn?.suggestedKcal).toBe(2100);
     expect(page.progress.fortnights[1]?.checkIn?.suggestedKcal).toBeNull();
@@ -400,7 +453,7 @@ describe('CareController.overview', () => {
       ]
     });
 
-    const page = await CareController.overview(PRO, LINK_ID);
+    const page = full(await CareController.overview(PRO, LINK_ID));
 
     expect(page.progress.fortnights[0]?.checkIn?.suggestedKcal).toBeNull();
   });
@@ -692,7 +745,7 @@ describe('review before publishing (0060)', () => {
     // The counts are off it here too: publishing is the same boundary read from
     // the other side.
     await expect(CareController.publishPlan(PRO, LINK_ID)).resolves.toEqual(SHARED);
-    expect(publish).toHaveBeenCalledWith(CLIENT_ID, expect.any(Function), null);
+    expect(publish).toHaveBeenCalledWith(CLIENT_ID, expect.any(Function), { id: LINK_ID, only: false }, null);
     expect(logAccess).toHaveBeenCalledExactlyOnceWith(CLIENT_ID, reviewRow('write'), TX);
 
     logAccess.mockClear();
@@ -803,5 +856,427 @@ describe('what the client’s plan carries across the care boundary (legal P2-9)
 
     expect(page.plan).toEqual({ id: 'plan-3', status: 'active' });
     expect(JSON.stringify(page)).not.toContain('coveredRows');
+  });
+});
+
+/*
+ * Project 025 phase 4 (`0111` §§ 4–5, PRD 025 criteria 9–15): a link whose
+ * practitioner holds no badge, or whose client consented to the plan list
+ * only, opens `plan` — the plans made through the link and nothing else, by
+ * any route, with every other kind the 404 of every denial.
+ */
+describe('a `plan` scope — the narrower view, in core (project 025)', () => {
+  const MEAL = {
+    id: 'meal-1',
+    accompaniments: [],
+    carbsG: 60,
+    cookMinutes: 20,
+    difficulty: 'easy',
+    fatG: 15,
+    fiberG: 8,
+    illustrationPath: null,
+    ingredients: [{ grams: 120, name: 'Garbanzos' }],
+    kcal: 520,
+    name: 'Garbanzos con espinacas',
+    prepMinutes: 10,
+    proteinG: 25,
+    recipeId: 'recipe-1',
+    servings: 1,
+    slot: 'lunch',
+    status: 'eaten'
+  } as const;
+  /** The same meal as a `plan` scope reads it: everything but whether it was eaten. */
+  const { status: _eaten, ...MEAL_ONLY } = MEAL;
+  const TARGETS = { carbsG: 200, fatG: 60, fiberG: 28, kcal: 2000, proteinG: 120 };
+  const FULL_PLAN: PlanView = {
+    id: 'plan-9',
+    days: [
+      {
+        date: '2026-11-18',
+        dayIndex: 0,
+        // The client's own words for an event: never the practitioner's to read.
+        loadedFor: 'Revisión de la diabetes',
+        meals: [MEAL],
+        targets: TARGETS,
+        totals: { carbsG: 60, fatG: 15, fiberG: 8, kcal: 520, proteinG: 25 }
+      }
+    ],
+    endDate: '2026-12-01',
+    pantry: null,
+    startDate: '2026-11-18',
+    status: 'active',
+    strategy: TARGETS,
+    version: 3
+  };
+  const MEAL_DETAIL = {
+    id: 'meal-1',
+    accompaniments: [],
+    carbsG: 60,
+    cookMinutes: 20,
+    cuisine: null,
+    date: '2026-11-18',
+    dayIndex: 0,
+    difficulty: 'easy',
+    equipment: [],
+    fatG: 15,
+    fiberG: 8,
+    illustrationPath: null,
+    ingredients: [],
+    kcal: 520,
+    name: 'Garbanzos con espinacas',
+    pictureStatus: 'none',
+    planEndDate: '2026-12-01',
+    planId: 'plan-9',
+    planStatus: 'pending_review',
+    prepMinutes: 10,
+    proteinG: 25,
+    recipeId: 'recipe-1',
+    servings: 1,
+    slot: 'lunch',
+    status: 'planned',
+    steps: [],
+    verdict: 'disliked'
+  } as const satisfies MealDetailView;
+  /** A line of the history as stored for the client: `version` 14 says thirteen plans came first. */
+  const SUMMARY: PlanSummaryView = {
+    id: 'plan-9',
+    endDate: '2026-12-01',
+    locked: false,
+    replaced: false,
+    startDate: '2026-11-18',
+    status: 'active',
+    version: 14
+  };
+  const JOB_ID = '2d3e4f5a-6b7c-4d8e-9f0a-1b2c3d4e5f6a';
+  const MEAL_ID = '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f';
+  /** What a `plan` scope may never be handed, at any depth of any answer (PRD 025 criterion 9). */
+  const NEVER = ['adherence', 'checkIn', 'health', 'loadedFor', 'progress', 'strategy', 'suggestedKcal', 'targets', 'verdict', 'version', 'weight'];
+
+  /** Every key at every depth, with the meal keys apart: a meal's `status` is adherence, a plan's is not. */
+  function keysOf(value: unknown, into: Set<string> = new Set(), inMeals = false): Set<string> {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        keysOf(item, into, inMeals);
+      }
+    } else if (value !== null && typeof value === 'object') {
+      for (const [key, child] of Object.entries(value)) {
+        into.add(inMeals ? `meal.${key}` : key);
+        keysOf(child, into, key === 'meals');
+      }
+    }
+
+    return into;
+  }
+
+  function assertPlanOnly(answer: unknown): void {
+    const keys = keysOf(answer);
+
+    for (const key of NEVER) {
+      expect(keys.has(key)).toBe(false);
+    }
+
+    expect(keys.has('meal.status')).toBe(false);
+    expect(JSON.stringify(answer)).not.toContain(CLIENT_ID);
+  }
+
+  const start = (job: JobView) =>
+    vi.fn(async (_clientId: string, record: RecordAccess) => {
+      await record({} as never);
+
+      return job;
+    });
+
+  describe('withClient, one case per `CARE_ACCESS_KINDS` value', () => {
+    it.each([
+      ['overview', 'read'],
+      ['plan', 'read'],
+      ['review', 'read'],
+      ['review', 'write']
+    ] as const)('lets `%s` (%s) through, with its row, and hands the callback the scope', async (kind, action) => {
+      activeLink.mockResolvedValue(access({}, 'plan'));
+      const fn = vi.fn(async (_clientId: string, resolved: { readonly scope: CareConsentScope }, record: RecordAccess) => {
+        if (action === 'write') {
+          await record({} as never);
+        }
+
+        return resolved.scope;
+      });
+
+      await expect(CareController.withClient(PRO.id, LINK_ID, kind, action, fn)).resolves.toBe('plan');
+      expect(logAccess).toHaveBeenCalledExactlyOnceWith(CLIENT_ID, expect.objectContaining({ action, kind }), ...(action === 'write' ? [{}] : []));
+    });
+
+    it.each([
+      ['progress', 'read'],
+      ['progress', 'write'],
+      ['targets', 'read'],
+      ['targets', 'write'],
+      ['health', 'read'],
+      ['health', 'write']
+    ] as const)('refuses `%s` (%s) with the 404 of every denial, nothing written and nothing read', async (kind, action) => {
+      // The health line said yes: under `plan` it still opens nothing.
+      activeLink.mockResolvedValue(access({ sharesHealth: true }, 'plan'));
+      const fn = vi.fn(async () => 'read');
+
+      const refused = CareController.withClient(PRO.id, LINK_ID, kind, action, fn);
+
+      await expect(refused).rejects.toBeInstanceOf(NotFoundError);
+      await expect(refused).rejects.toThrow('Client not found');
+      expect(fn).not.toHaveBeenCalled();
+      expect(logAccess).not.toHaveBeenCalled();
+    });
+
+    it('`list` is the roster’s alone, and under a `plan` scope it never says a check-in is due', async () => {
+      roster.mockResolvedValue({
+        invitations: [],
+        links: [
+          // A repository that forgot to drop `latestPlan` still yields no check-in stage.
+          rosterLink({
+            latestPlan: { answered: false, endDate: '2026-09-24', timeZone: 'Europe/Madrid' },
+            link: { id: LINK_ID, consentedAt: NOW, reviewBeforePublish: true, sharesHealth: true, status: 'active' },
+            planActive: true,
+            scope: 'plan'
+          }),
+          rosterLink({ latestPlan: null, planActive: true, scope: 'plan' }),
+          rosterLink({ latestPlan: { answered: false, endDate: '2026-09-24', timeZone: 'Europe/Madrid' }, planActive: true })
+        ]
+      });
+
+      const view = await CareController.clients(PRO, NOW);
+
+      expect(view.clients.map(client => client.stage)).toEqual(['plan_under_way', 'plan_under_way', 'check_in_due']);
+      // A health line said yes in a badged time reads `false` to a `plan` scope.
+      expect(view.clients[0]?.sharesHealth).toBe(false);
+      expect(Object.keys(view.clients[0] ?? {}).sort()).toEqual([
+        'linkId',
+        'name',
+        'reviewBeforePublish',
+        'sharesHealth',
+        'since',
+        'stage',
+        'status'
+      ]);
+    });
+
+    it('asks the scope of the link afresh on every call: a badge lost narrows the very next request', async () => {
+      activeLink.mockResolvedValueOnce(access()).mockResolvedValueOnce(access({}, 'plan'));
+
+      await expect(CareController.withClient(PRO.id, LINK_ID, 'targets', 'read', async () => 'read')).resolves.toBe('read');
+      await expect(CareController.withClient(PRO.id, LINK_ID, 'targets', 'read', async () => 'read')).rejects.toBeInstanceOf(NotFoundError);
+      expect(activeLink).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('the client’s page', () => {
+    it('is the plans made through this link, plan-only — no progress, targets or health key, and none of them read', async () => {
+      activeLink.mockResolvedValue(access({ sharesHealth: true }, 'plan'));
+      getActivePlan.mockResolvedValue(FULL_PLAN);
+      listPlans.mockResolvedValue([SUMMARY]);
+
+      const page = await CareController.overview(PRO, LINK_ID, 'en-GB');
+
+      expect(Object.keys(page).sort()).toEqual(['client', 'plan', 'plans']);
+      expect(getActivePlan).toHaveBeenCalledWith(CLIENT_ID, 'en-GB', LINK_ID);
+      expect(listPlans).toHaveBeenCalledWith(CLIENT_ID, undefined, undefined, 'professional', LINK_ID);
+      expect(summary).not.toHaveBeenCalled();
+      expect(targets).not.toHaveBeenCalled();
+      expect(shared).not.toHaveBeenCalled();
+      expect(logAccess).toHaveBeenCalledExactlyOnceWith(CLIENT_ID, expect.objectContaining({ action: 'read', kind: 'overview' }));
+      expect(page.plan).toEqual({
+        id: 'plan-9',
+        days: [{ date: '2026-11-18', dayIndex: 0, meals: [MEAL_ONLY], totals: { carbsG: 60, fatG: 15, fiberG: 8, kcal: 520, proteinG: 25 } }],
+        endDate: '2026-12-01',
+        startDate: '2026-11-18',
+        status: 'active'
+      });
+      expect(page.plans).toEqual([
+        { id: 'plan-9', endDate: '2026-12-01', locked: false, replaced: false, startDate: '2026-11-18', status: 'active' }
+      ]);
+      expect(page.client.sharesHealth).toBe(false);
+      expect(JSON.stringify(page)).not.toContain('diabetes');
+      assertPlanOnly(page);
+    });
+
+    it('has no plan when the one under way was not made through this link', async () => {
+      activeLink.mockResolvedValue(access({}, 'plan'));
+      getActivePlan.mockResolvedValue(null);
+
+      await expect(CareController.overview(PRO, LINK_ID)).resolves.toMatchObject({ plan: null, plans: [] });
+    });
+  });
+
+  describe('the review routes', () => {
+    it('reads only a pending plan made through this link, plan-only', async () => {
+      activeLink.mockResolvedValue(access({}, 'plan'));
+      getPendingPlan.mockResolvedValue({ ...FULL_PLAN, status: 'pending_review' });
+
+      const plan = await CareController.pendingPlan(PRO, LINK_ID, 'en-GB');
+
+      expect(getPendingPlan).toHaveBeenCalledWith(CLIENT_ID, 'en-GB', LINK_ID);
+      expect(plan).toMatchObject({ id: 'plan-9', status: 'pending_review' });
+      assertPlanOnly(plan);
+    });
+
+    it('follows a job through this link only, and never with its detail — a rejected plan’s detail quotes the targets', async () => {
+      activeLink.mockResolvedValue(access({}, 'plan'));
+      getJob.mockResolvedValue({
+        id: 'job-1',
+        error: 'GENERATION_INVALID_PLAN',
+        errorDetail: 'kcal_out_of_band (3 días, p. ej. 2300 frente a 2000)',
+        pendingReview: false,
+        planId: null,
+        status: 'failed',
+        step: null
+      });
+
+      await expect(CareController.planJob(PRO, LINK_ID, JOB_ID)).resolves.toEqual({
+        id: 'job-1',
+        error: 'GENERATION_INVALID_PLAN',
+        errorDetail: null,
+        pendingReview: false,
+        planId: null,
+        status: 'failed',
+        step: null
+      });
+      // Bounded by the link: its id, and since when it stands (a job from before it is not found).
+      expect(getJob).toHaveBeenCalledWith(CLIENT_ID, JOB_ID, 'professional', { id: LINK_ID, since: NOW });
+    });
+
+    it('generates, and hands back the job without its detail', async () => {
+      activeLink.mockResolvedValue(access({}, 'plan'));
+      const generation = start({
+        id: 'job-1',
+        error: null,
+        errorDetail: 'provider says',
+        pendingReview: false,
+        planId: null,
+        status: 'queued',
+        step: null
+      });
+
+      await expect(CareController.generatePlan(PRO, LINK_ID, generation)).resolves.toMatchObject({ errorDetail: null, status: 'queued' });
+      expect(generation).toHaveBeenCalledWith(CLIENT_ID, expect.any(Function));
+      expect(logAccess).toHaveBeenCalledExactlyOnceWith(CLIENT_ID, expect.objectContaining({ action: 'write', kind: 'review' }), {});
+    });
+
+    it('publishes only a plan made through this link, and answers it plan-only', async () => {
+      activeLink.mockResolvedValue(access({}, 'plan'));
+      publish.mockImplementation(async (_clientId, record) => {
+        await record({} as never);
+
+        return FULL_PLAN;
+      });
+
+      const published = await CareController.publishPlan(PRO, LINK_ID, 'en-GB');
+
+      expect(publish).toHaveBeenCalledWith(CLIENT_ID, expect.any(Function), { id: LINK_ID, only: true }, 'en-GB');
+      assertPlanOnly(published);
+    });
+
+    it('swaps only in a pending plan made through this link, and answers the meal without its status', async () => {
+      activeLink.mockResolvedValue(access({}, 'plan'));
+      pendingThrough.mockResolvedValue(true);
+      const swap = vi.fn(async (_clientId: string, record: RecordAccess) => {
+        await record({} as never);
+
+        return MEAL_DETAIL;
+      });
+
+      const meal = await CareController.swapPendingMeal(PRO, LINK_ID, MEAL_ID, swap);
+
+      expect(pendingThrough).toHaveBeenCalledWith(CLIENT_ID, LINK_ID);
+      expect(meal).not.toHaveProperty('status');
+      expect(meal).not.toHaveProperty('verdict');
+      expect(meal).toMatchObject({ id: 'meal-1', planStatus: 'pending_review' });
+      assertPlanOnly(meal);
+    });
+
+    it('turns review on or off, and answers the link with the health line masked', async () => {
+      activeLink.mockResolvedValue(access({ sharesHealth: true }, 'plan'));
+      setReview.mockImplementation(async (_pro, _link, value, record) => {
+        await record({} as never);
+
+        return makeLink({ reviewBeforePublish: value, sharesHealth: true });
+      });
+
+      await expect(CareController.setReview(PRO, LINK_ID, { reviewBeforePublish: false })).resolves.toMatchObject({
+        reviewBeforePublish: false,
+        sharesHealth: false
+      });
+    });
+  });
+
+  /*
+   * PRD 025 criterion 13 (`0013` § 5.3): no answer to a `plan` scope names an
+   * allergen, an intolerance or a condition. Every refusal core gives on the
+   * three acting routes is one fixed sentence, the same as for a stranger.
+   */
+  describe('every refusal names nothing of the client', () => {
+    const NEUTRAL = new Set(['Client not found', 'Meal not found', 'Plan not found', 'Job not found']);
+
+    async function refusal(promise: Promise<unknown>): Promise<string> {
+      const error = await promise.then(
+        () => {
+          throw new Error('expected a refusal');
+        },
+        (caught: unknown) => caught
+      );
+
+      expect(error).toBeInstanceOf(NotFoundError);
+
+      return (error as Error).message;
+    }
+
+    beforeEach(() => {
+      activeLink.mockResolvedValue(access({}, 'plan'));
+    });
+
+    it('generate: a fortnight under way', async () => {
+      professionalMayGenerate.mockResolvedValue(false);
+
+      expect(NEUTRAL.has(await refusal(CareController.generatePlan(PRO, LINK_ID, vi.fn())))).toBe(true);
+    });
+
+    it('generate, swap and publish: a link that is not open to this practitioner', async () => {
+      activeLink.mockResolvedValue(null);
+
+      for (const attempt of [
+        CareController.generatePlan(PRO, LINK_ID, vi.fn()),
+        CareController.swapPendingMeal(PRO, LINK_ID, MEAL_ID, vi.fn()),
+        CareController.publishPlan(PRO, LINK_ID)
+      ]) {
+        expect(NEUTRAL.has(await refusal(attempt))).toBe(true);
+      }
+    });
+
+    it('swap: a pending plan not made through this link — nothing swapped, no row', async () => {
+      pendingThrough.mockResolvedValue(false);
+      const swap = vi.fn();
+
+      expect(NEUTRAL.has(await refusal(CareController.swapPendingMeal(PRO, LINK_ID, MEAL_ID, swap)))).toBe(true);
+      expect(swap).not.toHaveBeenCalled();
+      expect(logAccess).not.toHaveBeenCalled();
+    });
+
+    it('swap: a meal id that is not one', async () => {
+      expect(NEUTRAL.has(await refusal(CareController.swapPendingMeal(PRO, LINK_ID, 'not-a-meal', vi.fn())))).toBe(true);
+    });
+
+    it('publish: nothing pending through this link', async () => {
+      publish.mockRejectedValue(new NotFoundError('Plan not found'));
+
+      expect(NEUTRAL.has(await refusal(CareController.publishPlan(PRO, LINK_ID)))).toBe(true);
+    });
+
+    it('a job whose plan was not made through this link', async () => {
+      getJob.mockRejectedValue(new NotFoundError('Job not found'));
+
+      expect(NEUTRAL.has(await refusal(CareController.planJob(PRO, LINK_ID, JOB_ID)))).toBe(true);
+    });
+
+    it('targets, read or written: the 404 of an unknown client', async () => {
+      expect(await refusal(CareController.setTargets(PRO, LINK_ID, { kcal: 1800 } as UpdateTargetOverride))).toBe('Client not found');
+      expect(updateTargets).not.toHaveBeenCalled();
+    });
   });
 });

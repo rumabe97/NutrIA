@@ -154,3 +154,57 @@
   is phase 6). The frontend owes `BadgeView.decision` and the two new states (phase 8).
   `CareRepository.openInvitation` still prints «colegiado {number}»: phase 5.
 
+## Phase 4 — The narrower view, in core (2026-11-19)
+
+- **Executor**: the `backend-high` agent on opus @ high, in its own worktree; reviewed twice by
+  `invariant-reviewer` (opus); the end-to-end suite by the `tests` agent (opus).
+- **Result**: done. Nothing changes for anybody yet: every link in production reads `full`
+  (there are none, by the owner's word), and no route writes `consent_scope = 'plan'` before
+  phase 5.
+- **Evidence**:
+  - Core 4920 passed, with a test per `CARE_ACCESS_KINDS` value for the `plan`-scope outcome
+    and key absence on every response type; api 1948 passed; `pnpm ts:check` 9/9; `pnpm lint`
+    7/7.
+  - End-to-end on local Postgres, one at a time: `care-scope` (new) 44, `care` 72,
+    `care-review` 34, `plan-scheduled-care` 1, `care-practice` 36, `care-badge` 19 — all
+    passed. The new suite found no backend defect.
+  - `care-scope` walks three practitioners over every route that takes a link id and the
+    roster — un-badged on a `full`-consent link, badged on a `plan` link, badged and `full`
+    then withdrawn by the owner (narrow on the very next request) — with the exact key set of
+    every answer, every denial compared byte for byte with the same route's answer for a link
+    that does not exist, the client's event, condition and medication searched in every
+    answer, no check-in notice by mail or push, and the race (a generation held at its save
+    while the client changes practitioner: the plan carries no link and the new practitioner
+    cannot see it).
+  - `invariant-reviewer`, round one: three P1 and five P2, all fixed — the roster leaked a
+    stage read from plans of other links; a plan could be stamped with a link that was not the
+    one asking (`PlanRepository.isAskingLink`); the `plan`-scope presenter still carried
+    `loadedFor`, `verdict` and `version`; `sharesHealth` read true on a narrowed link; a job
+    from before the link was readable; `supervisedElsewhere` held the client's own nudge under
+    a narrowed link. Round two: no P0, no P1; three P3 left as they are (below).
+- **Deviations from plan**:
+  - `packages/core/src/controllers/CheckIn/**` is outside the phase's scope: the client's own
+    nudge is gated on the link's scope there (round one, P2), because a practitioner who
+    cannot see targets cannot be the reason the client's are not suggested.
+  - A new file, `repositories/Care/CareScope.ts` (`linkScope`), so the rule has one home.
+  - The job answer in `plan` scope keeps the key `errorDetail`, always `null`, rather than
+    dropping it: one job shape for the web, and the value names nothing.
+  - The client page's answer is a union, `CareClientPageView` (the full page or
+    `{client, plan, plans}`), rather than one type with optional keys.
+  - An allergen's word may appear in a `plan`-scope answer inside a dish's own name or step
+    («Espaguetis sin gluten»): that is the shared library's dish, which the practitioner is
+    entitled to read, not the client's declaration. The suite searches allergen names outside
+    `name`, `text` and `cue`, and the client's own words everywhere.
+  - Three P3 accepted: a plan saved in the same millisecond as the link's creation is read as
+    made before it; the client's own jobs, begun under the link, are readable by id through
+    it (they name no health data in `plan` scope); a generation the client began before the
+    link and that finishes after it is stamped with it when it lands `pending_review`.
+- **Decisions**: none new.
+- **Notes for the next phase**: phase 5 writes `consent_scope` at acceptance — today `accept`
+  relies on the column's `full` default, so a link accepted for an un-badged practitioner
+  widens by itself the day a badge arrives (the suite's "badge gained" case shows it): name
+  the scope on every insert, then drop the default. `setSharesHealth(true)` must be refused
+  on a `plan` link. The invitation view still prints «colegiado {number}». The suite sets
+  `consent_scope` on the table; phase 5 replaces that with the real consent. Phase 6: the
+  owner's revoke must write a `withdrawn` check. Phase 8: the web's client page must narrow
+  `CareClientPageView`.

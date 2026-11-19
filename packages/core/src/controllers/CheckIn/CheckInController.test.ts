@@ -5,7 +5,7 @@ import { ConflictError, NotFoundError, ProfileConsentRequiredError } from 'core/
 import { CheckInController, nudgedKcal } from './CheckInController';
 
 import type { CheckInRow, PlanStats } from '#repositories/CheckIn';
-import type { LinkWithProfessional } from '#repositories/Care';
+import type { linkScope as linkScopeFn, LinkWithProfessional } from '#repositories/Care';
 import type { ResolvedTargets } from 'core/domain/Nutrition';
 
 type PlanLite = { readonly id: string; readonly endDate: string };
@@ -18,6 +18,7 @@ const findLatest = vi.fn<(userId: string) => Promise<CheckInRow | undefined>>();
 const upsertWeight = vi.fn<(userId: string, date: string, weightKg: number) => Promise<void>>();
 const clientLink = vi.fn<(clientId: string) => Promise<LinkWithProfessional | null>>();
 const findTargetSetterId = vi.fn<(userId: string) => Promise<string | null>>();
+const badgeOf = vi.fn<(userId: string, now: Date) => Promise<object | null>>();
 const getFullProfile = vi.fn<(userId: string) => Promise<{ targets: ResolvedTargets | null }>>();
 const requireProfileConsent = vi.fn<(userId: string) => Promise<void>>(async () => undefined);
 const updateTargets = vi.fn<(userId: string, patch: unknown) => Promise<ResolvedTargets>>();
@@ -34,7 +35,12 @@ vi.mock('#repositories/CheckIn', () => ({
 vi.mock('#repositories/Progress', () => ({
   ProgressRepository: { upsertWeight: (...args: Parameters<typeof upsertWeight>) => upsertWeight(...args) }
 }));
-vi.mock('#repositories/Care', () => ({ CareRepository: { clientLink: (clientId: string) => clientLink(clientId) } }));
+vi.mock('#repositories/Care', async () => ({
+  CareRepository: { clientLink: (clientId: string) => clientLink(clientId) },
+  // The real rule: which scope a link opens is what the nudge cases below turn on.
+  linkScope: (await vi.importActual<{ linkScope: typeof linkScopeFn }>('../../repositories/Care/CareScope')).linkScope
+}));
+vi.mock('#repositories/Professional', () => ({ ProfessionalBadgeRepository: { badgeOf: (userId: string, now: Date) => badgeOf(userId, now) } }));
 vi.mock('#repositories/Profile', () => ({ ProfileRepository: { findTargetSetterId: (userId: string) => findTargetSetterId(userId) } }));
 vi.mock('core/controllers/Profile', () => ({
   personToday: async () => Promise.resolve('2026-09-24'),
@@ -96,6 +102,7 @@ beforeEach(() => {
     upsertWeight,
     clientLink,
     findTargetSetterId,
+    badgeOf,
     getFullProfile,
     updateTargets
   ]) {
@@ -106,6 +113,8 @@ beforeEach(() => {
   create.mockResolvedValue(checkInRow());
   clientLink.mockResolvedValue(null);
   findTargetSetterId.mockResolvedValue(null);
+  // Badged unless a case says otherwise.
+  badgeOf.mockResolvedValue({ number: '28-1234' });
   getFullProfile.mockResolvedValue({ targets: targets() });
   updateTargets.mockResolvedValue(targets());
 });
@@ -177,7 +186,10 @@ describe('CheckInController.submit', () => {
   });
 
   it('nudges kcal for a linked client whose targets are their own', async () => {
-    clientLink.mockResolvedValue({ link: { professionalId: 'usr-pro', status: 'active' } as never, professionalName: 'Dra. Pérez' });
+    clientLink.mockResolvedValue({
+      link: { consentScope: 'full', professionalId: 'usr-pro', status: 'active' } as never,
+      professionalName: 'Dra. Pérez'
+    });
     findTargetSetterId.mockResolvedValue(null);
 
     const result = await CheckInController.submit(USER, { difficulty: 'ok', hunger: 'hungry', planId: PLAN.id, satisfaction: 3 });
@@ -187,7 +199,10 @@ describe('CheckInController.submit', () => {
   });
 
   it('skips the nudge for a client with an active link whose override is a professional’s — the mark and the numbers stay', async () => {
-    clientLink.mockResolvedValue({ link: { professionalId: 'usr-pro', status: 'active' } as never, professionalName: 'Dra. Pérez' });
+    clientLink.mockResolvedValue({
+      link: { consentScope: 'full', professionalId: 'usr-pro', status: 'active' } as never,
+      professionalName: 'Dra. Pérez'
+    });
     findTargetSetterId.mockResolvedValue('usr-pro');
 
     const result = await CheckInController.submit(USER, { difficulty: 'ok', hunger: 'hungry', planId: PLAN.id, satisfaction: 3 });
@@ -199,8 +214,44 @@ describe('CheckInController.submit', () => {
     expect(create).toHaveBeenCalledOnce();
   });
 
+  /*
+   * Project 025 (`0111` § 4): under a `plan` scope nobody else reads the
+   * check-in or sets targets, so the client is not supervised elsewhere and
+   * their own nudge runs — the targets a badged time set included.
+   */
+  it('nudges for a link consented to the plan list only, though the override names the practitioner', async () => {
+    clientLink.mockResolvedValue({
+      link: { consentScope: 'plan', professionalId: 'usr-pro', status: 'active' } as never,
+      professionalName: 'Dra. Pérez'
+    });
+    findTargetSetterId.mockResolvedValue('usr-pro');
+
+    const result = await CheckInController.submit(USER, { difficulty: 'ok', hunger: 'hungry', planId: PLAN.id, satisfaction: 3 });
+
+    expect(updateTargets).toHaveBeenCalledWith(USER, { kcal: 2100 });
+    expect(result.targets).toEqual({ fromKcal: 2000, toKcal: 2100 });
+  });
+
+  it('nudges once the practitioner’s badge is lost, on a link that was `full` — reading the badge of the practitioner on the link', async () => {
+    clientLink.mockResolvedValue({
+      link: { consentScope: 'full', professionalId: 'usr-pro', status: 'active' } as never,
+      professionalName: 'Dra. Pérez'
+    });
+    findTargetSetterId.mockResolvedValue('usr-pro');
+    badgeOf.mockResolvedValue(null);
+
+    const result = await CheckInController.submit(USER, { difficulty: 'ok', hunger: 'hungry', planId: PLAN.id, satisfaction: 3 });
+
+    expect(badgeOf).toHaveBeenCalledWith('usr-pro', expect.any(Date));
+    expect(updateTargets).toHaveBeenCalledWith(USER, { kcal: 2100 });
+    expect(result.targets).not.toBeNull();
+  });
+
   it('nudges as normal for a paused link — only "active" is supervised', async () => {
-    clientLink.mockResolvedValue({ link: { professionalId: 'usr-pro', status: 'paused' } as never, professionalName: 'Dra. Pérez' });
+    clientLink.mockResolvedValue({
+      link: { consentScope: 'full', professionalId: 'usr-pro', status: 'paused' } as never,
+      professionalName: 'Dra. Pérez'
+    });
     findTargetSetterId.mockResolvedValue('usr-pro');
 
     const result = await CheckInController.submit(USER, { difficulty: 'ok', hunger: 'hungry', planId: PLAN.id, satisfaction: 3 });
@@ -210,7 +261,10 @@ describe('CheckInController.submit', () => {
   });
 
   it('logs weight and skips the nudge on "right", whatever the link says', async () => {
-    clientLink.mockResolvedValue({ link: { professionalId: 'usr-pro', status: 'active' } as never, professionalName: 'Dra. Pérez' });
+    clientLink.mockResolvedValue({
+      link: { consentScope: 'full', professionalId: 'usr-pro', status: 'active' } as never,
+      professionalName: 'Dra. Pérez'
+    });
     findTargetSetterId.mockResolvedValue('usr-pro');
 
     const result = await CheckInController.submit(USER, { difficulty: 'ok', hunger: 'right', planId: PLAN.id, satisfaction: 3, weightKg: 70 });
