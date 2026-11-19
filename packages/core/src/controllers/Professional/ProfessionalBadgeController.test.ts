@@ -17,7 +17,7 @@ const record = vi.fn<(userId: string) => Promise<BadgeRecord>>();
 const apply = vi.fn<(userId: string, input: unknown, now: Date) => Promise<boolean>>();
 const enterCode = vi.fn<(userId: string, hash: string, now: Date) => Promise<boolean>>();
 const issueCode = vi.fn<(userId: string, channel: BadgeChannel, hash: string, now: Date) => Promise<IssuedCheck | null>>();
-const confirm = vi.fn<(userId: string, by: string, now: Date) => Promise<Badge | null>>();
+const confirm = vi.fn<(userId: string, by: string, now: Date, beforeRegained?: (tx: unknown) => Promise<unknown>) => Promise<Badge | null>>();
 const remove =
   vi.fn<
     (
@@ -44,7 +44,8 @@ vi.mock('#repositories/Professional', async importOriginal => {
     ...actual,
     ProfessionalBadgeRepository: {
       apply: (userId: string, input: unknown, now: Date) => apply(userId, input, now),
-      confirm: (userId: string, by: string, now: Date) => confirm(userId, by, now),
+      confirm: (userId: string, by: string, now: Date, beforeRegained?: (tx: unknown) => Promise<unknown>) =>
+        confirm(userId, by, now, beforeRegained),
       dueCounts: (now: Date, soonDays: number) => dueCounts(now, soonDays),
       dueWithin: (since: Date, now: Date) => dueWithin(since, now),
       enterCode: (userId: string, hash: string, now: Date) => enterCode(userId, hash, now),
@@ -354,7 +355,7 @@ describe('ProfessionalBadgeController.confirm, remove and record', () => {
 
     const view = await ProfessionalBadgeController.confirm('usr-pro', 'usr-owner', NOW);
 
-    expect(confirm).toHaveBeenCalledWith('usr-pro', 'usr-owner', NOW);
+    expect(confirm).toHaveBeenCalledWith('usr-pro', 'usr-owner', NOW, expect.any(Function));
     expect(view).toMatchObject({ application: null, email: 'pro@example.invalid', name: 'Ana Pérez', state: 'badged', userId: 'usr-pro' });
     expect(Object.keys(view.checks[0] ?? {}).sort()).toEqual(['channel', 'checkedAt', 'dueAt', 'kind', 'number', 'reason', 'register']);
     expect(JSON.stringify(view)).not.toContain('secret-hash');
@@ -394,6 +395,22 @@ describe('ProfessionalBadgeController.confirm, remove and record', () => {
    * practitioner's links in the owner's own transaction, so a badge granted again
    * widens nothing until each client consents afresh.
    */
+  it('hands the confirmation a narrowing of that practitioner’s links, for a badge that comes back', async () => {
+    const TX = { name: 'the confirmation’s transaction' };
+
+    confirm.mockImplementation(async (_userId, _by, now, beforeRegained) => {
+      await beforeRegained?.(TX);
+
+      return { channel: null, checkedAt: now, checkId: 'c', dueAt: now, lapsesAt: now, number: 'MAD00123', register: 'Colegio de Madrid' };
+    });
+    narrowLinksOf.mockResolvedValue(1);
+    record.mockResolvedValue({ checks: [check('pass', 0)], code: null });
+
+    await ProfessionalBadgeController.confirm('usr-pro', 'usr-owner', NOW);
+
+    expect(narrowLinksOf).toHaveBeenCalledExactlyOnceWith('usr-pro', NOW, TX);
+  });
+
   it('hands the removal a narrowing of that practitioner’s links, to run in its own transaction', async () => {
     const TX = { name: 'the removal’s transaction' };
 

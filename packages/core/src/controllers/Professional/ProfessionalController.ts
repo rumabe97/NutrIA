@@ -1,4 +1,5 @@
 import { AuditRepository } from '#repositories/Audit';
+import { CareRepository } from '#repositories/Care';
 import { ProfessionalBadgeRepository, ProfessionalRepository } from '#repositories/Professional';
 import { SettingsRepository } from '#repositories/Settings';
 import { UNAUDITED } from 'core/entities/Audit';
@@ -162,7 +163,9 @@ export const ProfessionalController = {
               { action: 'professional.granted', actorId: actor, entity: 'professional', metadata: {}, subjectUserId: userId },
               tx
             );
-          }
+          },
+      // A grant that brings a badge back narrows the links first (project 025 phase 5), as the owner's confirmation does.
+      tx => CareRepository.narrowLinksOf(userId, new Date(), tx)
     );
     // A grant made again — a corrected number — may be on an account with links already.
     const [links, badge] = await Promise.all([ProfessionalRepository.linkCounts(userId), ProfessionalBadgeRepository.badgeOf(userId, new Date())]);

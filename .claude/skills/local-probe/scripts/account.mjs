@@ -332,11 +332,21 @@ if (action === 'link') {
   // Through the same function the route calls, so the rules decide: an un-badged practitioner
   // gets a `plan` link with the health line off, and a client with a condition or a
   // medication on record is refused (`0111` § 8) — which this reports instead of forcing.
-  await CareController.accept(
-    { email: client.email, emailVerified: true, id: client.id },
-    token,
-    { consentScope: unbadged ? 'plan' : 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: !unbadged }
-  );
+  try {
+    await CareController.accept(
+      { email: client.email, emailVerified: true, id: client.id },
+      token,
+      { consentScope: unbadged ? 'plan' : 'full', consentVersion: CARE_CONSENT_VERSION, sharesHealth: !unbadged }
+    );
+  } catch (error) {
+    if (error?.name !== 'CareIllnessRuleError' && error?.constructor?.name !== 'CareIllnessRuleError') {
+      throw error;
+    }
+
+    console.error(`[probe] refused by the illness rule: ${client.email} has a condition or a medication on record and ${pro.email} has no badge`);
+    console.error(`[probe] the invitation stays open: /invitacion/${token}`);
+    process.exit(1);
+  }
   console.log(
     `[probe] linked: ${client.email} is ${pro.email}'s client (practice open, 30 included, ${unbadged ? 'no badge: plan only' : 'health shared'})`
   );
@@ -349,6 +359,11 @@ if (action === 'lose-badge') {
   // linked client with a condition or a medication on record loses the link (`badge_lost`);
   // any other link narrows to `plan`. The sweep is the real one: it ends every link on this
   // local database that the rule ends, not the probe's alone. No mail is sent from here.
+  if (!isLocalPg()) {
+    // The sweep is global: on any shared database it would end or narrow other people's links.
+    throw new Error('lose-badge runs the whole badge-loss sweep: local Postgres only (NUTRIA_LOCAL_PG=1)');
+  }
+
   const { ProfessionalBadgeController } = await load('core/controllers/Professional');
   const { CareController } = await load('core/controllers/Care');
   const pro = await (await call('GET', '/users/me', undefined, readFileSync(cookieFile, 'utf8'))).json();

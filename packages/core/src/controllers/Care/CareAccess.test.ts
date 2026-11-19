@@ -163,6 +163,7 @@ function makeLink(overrides?: Partial<CareLink>): CareLink {
     createdAt: NOW,
     endedAt: null,
     endedBy: null,
+    narrowedAt: null,
     professionalId: PRO.id,
     reviewBeforePublish: true,
     scopeConsentedAt: null,

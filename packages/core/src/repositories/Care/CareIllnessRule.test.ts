@@ -132,6 +132,7 @@ function storedLink(overrides: Record<string, unknown> = {}): Record<string, unk
     createdAt: NOW,
     endedAt: null,
     endedBy: null,
+    narrowedAt: null,
     professionalId: 'usr-pro',
     reviewBeforePublish: true,
     scopeConsentedAt: null,
@@ -318,7 +319,7 @@ describe('CareRepository.sweepBadgeLoss — a badge gone, in the daily sweep', (
 
     // The rest narrow for good: the plan-only list, the health line off — the acceptance and re-consent columns stay.
     expect(narrowing?.table).toBe(careLinks);
-    expect(narrowing?.set).toEqual({ consentScope: 'plan', sharesHealth: false, updatedAt: NOW });
+    expect(narrowing?.set).toEqual({ consentScope: 'plan', narrowedAt: NOW, sharesHealth: false, updatedAt: NOW });
 
     const narrowed = where(narrowing);
 
@@ -361,7 +362,7 @@ describe('CareRepository.narrowLinksOf — a badge the owner took back', () => {
     const [narrowing] = calls;
 
     expect(narrowing).toMatchObject({ op: 'update', table: careLinks });
-    expect(narrowing?.set).toEqual({ consentScope: 'plan', sharesHealth: false, updatedAt: NOW });
+    expect(narrowing?.set).toEqual({ consentScope: 'plan', narrowedAt: NOW, sharesHealth: false, updatedAt: NOW });
 
     const { params, sql } = where(narrowing);
 

@@ -379,11 +379,20 @@ export const ProfessionalBadgeController = {
     return ProfessionalBadgeController.state(userId, now);
   },
 
-  /** The owner confirms: a `pass` due twelve months on. A 404 unless there is a code entered for an application, or a badge to renew. */
+  /**
+   * The owner confirms: a `pass` due twelve months on. A 404 unless there is a
+   * code entered for an application, or a badge to renew.
+   *
+   * When no badge stood just before (lapsed by the clock, or lost to a `fail`,
+   * and not yet swept), the practitioner's open links narrow first, in the same
+   * transaction (`CareRepository.narrowLinksOf`, project 025 phase 5): a badge
+   * that comes back widens nothing until each client consents afresh. A renewal
+   * under a standing badge narrows nothing.
+   */
   async confirm(userId: string, ownerId: string, now: Date = new Date()): Promise<BadgeRecordView> {
     const account = await accountOf(userId);
 
-    if (!(await ProfessionalBadgeRepository.confirm(userId, ownerId, now))) {
+    if (!(await ProfessionalBadgeRepository.confirm(userId, ownerId, now, tx => CareRepository.narrowLinksOf(userId, now, tx)))) {
       throw new NotFoundError(NOT_FOUND);
     }
 

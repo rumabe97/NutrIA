@@ -337,8 +337,16 @@ export const ProfessionalBadgeRepository = {
    *   it, if the owner sent one.
    *
    * Null otherwise. Codes not entered expire.
+   *
+   * `beforeRegained`, when given, runs inside this transaction **before** the
+   * pass is written, and only when no badge stood just before it (project 025
+   * phase 5): a badge lapsed by the clock or lost to a `fail`, not yet swept.
+   * The controller hands down the narrowing of the practitioner's links
+   * (`CareRepository.narrowLinksOf`), so a badge that comes back never finds a
+   * `full` link the client has not consented to afresh. A renewal under a
+   * standing badge never calls it.
    */
-  async confirm(userId: string, checkedBy: string, now: Date): Promise<Badge | null> {
+  async confirm(userId: string, checkedBy: string, now: Date, beforeRegained?: (tx: Tx) => Promise<unknown>): Promise<Badge | null> {
     try {
       return await underLock(userId, async tx => {
         const checks = await checksOf(tx, userId);
@@ -368,6 +376,12 @@ export const ProfessionalBadgeRepository = {
         }
 
         await expireUnusedCodes(tx, userId, now);
+
+        // Judged on every check, not on `standing` (which a pending application nulls): did a badge stand just before?
+        if (beforeRegained && badgeFrom(checks, now) === null) {
+          await beforeRegained(tx);
+        }
+
         const [row] = await tx
           .insert(professionalBadgeChecks)
           .values({

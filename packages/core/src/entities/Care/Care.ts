@@ -183,6 +183,8 @@ export const careLinkSchema = z.object({
   createdAt: z.date(),
   endedAt: z.date().nullable(),
   endedBy: z.enum(CARE_LINK_ENDED_BY).nullable(),
+  /** When a badge gone narrowed this link to the plan-only list; null when it never did. Never cleared. */
+  narrowedAt: z.date().nullable(),
   professionalId: z.string().min(1),
   reviewBeforePublish: z.boolean(),
   /** When and under which version the client widened the link to the badged list; null when never. */

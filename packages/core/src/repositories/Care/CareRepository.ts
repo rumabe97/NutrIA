@@ -1160,13 +1160,17 @@ async function endLinks(
  * answers how many. A badge gone is what calls it (`sweepBadgeLoss`,
  * `narrowLinksOf`): what the client consented to under that badge does not
  * outlive it, so a badge that comes back widens nothing until the client's own
- * `reconsent`. The acceptance's `consentedAt`/`consentVersion` and the
- * re-consent's columns stay: they say what was agreed, and when.
+ * `reconsent`. It leaves its own mark, `narrowed_at` — only on a row it
+ * actually changes (a link already `plan` with the line off is not touched and
+ * gets no date) — and never clears one; the acceptance's
+ * `consentedAt`/`consentVersion` and the re-consent's columns stay, so the row
+ * reads "accepted then, narrowed then, widened again then". No trail row is
+ * written for the health line going off: the client did not do it.
  */
 async function narrowLinks(tx: Transaction, where: SQL | undefined, now: Date): Promise<number> {
   const narrowed = await tx
     .update(careLinks)
-    .set({ consentScope: 'plan', sharesHealth: false, updatedAt: now })
+    .set({ consentScope: 'plan', narrowedAt: now, sharesHealth: false, updatedAt: now })
     .where(and(where, inArray(careLinks.status, [...OPEN_STATUSES]), widerThanPlan))
     .returning({ id: careLinks.id });
 

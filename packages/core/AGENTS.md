@@ -227,9 +227,12 @@ write leaves no row, and a write that returns without having recorded fails. So:
   **and** the badge stands then; `plan` otherwise. A badge gained later widens nothing until the
   client's own `reconsent`, which writes `scope_consented_at`/`scope_consent_version` and never
   rewrites `consentedAt`/`consentVersion` (what was accepted, and when). **A badge gone narrows
-  for good**: `consent_scope = 'plan'` and the health line off (`narrowLinks`) — in the owner's
-  removal transaction (`narrowLinksOf`) and in the daily sweep for a badge lapsed by the clock
-  (`sweepBadgeLoss`) — so a badge that comes back widens nothing by itself; `linkScope` still
+  for good**: `consent_scope = 'plan'` and the health line off (`narrowLinks`, which stamps
+  `narrowed_at` on the rows it changes and never clears it; no trail row) — in the owner's
+  removal transaction (`narrowLinksOf`), in the daily sweep for a badge lapsed by the clock
+  (`sweepBadgeLoss`), and in both writers of a `pass` (`ProfessionalBadgeRepository.confirm`,
+  `ProfessionalRepository.grant`) when no badge stood just before it, through a hook the
+  controller hands down — so a badge that comes back widens nothing by itself; `linkScope` still
   reads the badge on every request and never trusts the stored value alone. The health line
   cannot be turned on outside `full`. Every insert into `care_links` names its `consent_scope`.
   A badge read inside a transaction passes that transaction to `badgeOf`/`badgesOf`: never a

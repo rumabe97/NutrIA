@@ -1,5 +1,5 @@
 {
-  "id": "eac9ab74-dc2c-404b-8b25-667d79b7ef36",
+  "id": "d6971f53-c3bf-4d58-b9fd-49c537f5f5f4",
   "prevId": "dd8cb5f2-1133-4ed0-a30e-cc37aa05992e",
   "version": "7",
   "dialect": "postgresql",
@@ -1328,6 +1328,12 @@
           "name": "ended_by",
           "type": "care_link_ended_by",
           "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "narrowed_at": {
+          "name": "narrowed_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },

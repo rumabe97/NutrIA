@@ -1164,6 +1164,7 @@ export const enGB: Dictionary = {
       'backup-code-used': 'Backup code used',
       'backup-codes-regenerated': 'New backup codes',
       'care-invitation': 'Link invitation',
+      'care-link-ended-by-rule': 'Link ended by the health rule',
       'check-in-reminder': 'Check-in reminder',
       'checkin-submitted': 'Check-in submitted',
       'existing-account-sign-up': 'Sign-up with an address that has an account',
@@ -1406,10 +1407,19 @@ export const enGB: Dictionary = {
     healthShareOnHint: 'Your dietitian can see them.',
     healthShares: { conditions: 'your health conditions', medications: 'your medications', supplements: 'your supplements' },
     healthShareToggle: 'Share my health conditions, medications and supplements',
+    illnessEndedBadgeBody:
+      '{professional} is no longer verified by NutrIA, and you have a health condition or a medication on record: on NutrIA, only a verified dietitian-nutritionist can work with someone who has one. Your plan, your targets and your history stay with you. {professional} only sees that the link has ended. If you think this is a mistake, write to us at {email}.',
+    illnessEndedBody:
+      'You have recorded a health condition or a medication, and on NutrIA only a verified dietitian-nutritionist can work with someone who has one. Your plan, your targets and your history stay with you, and the record of their access stays on your profile. {professional} only sees that the link has ended. If you think this is a mistake, write to us at {email}.',
+    illnessEndedTitle: 'Your link with {professional} has ended',
+    illnessRefusedBody:
+      'You have a health condition or a medication on record in your profile, and on NutrIA only a verified dietitian-nutritionist can work with someone who has one. {professional} is not one. They will not know why: on their side, the invitation stays unanswered until it expires. If you think this is a mistake, write to us at {email} and a person will look at it.',
+    illnessRefusedTitle: 'You cannot accept this invitation',
     invitationAccept: 'Accept the invitation',
     invitationCanDoIntro: 'And they will be able to:',
     invitationIntro:
       '{professional}, a registered dietitian-nutritionist (registration number {collegiateNumber}), invites you to follow your plan with their help on NutrIA.',
+    invitationIntroPlan: '{professional} invites you to let them make your meal plan on NutrIA.',
     invitationLinkExistsBody: 'You already have a dietitian linked: {professional}, since {since}.',
     invitationLinkExistsCta: 'See my profile',
     invitationLinkExistsTitle: 'You already have an active link',
@@ -1417,6 +1427,7 @@ export const enGB: Dictionary = {
     invitationPrivacy:
       'NutrIA discloses this data to {professional} because you ask it to. Your dietitian uses it to care for you, under professional secrecy, and is responsible for what they do with it in their practice. You can end the link at any time. More in the {privacy}.',
     invitationShareIntro: 'If you accept, {professional} will see:',
+    invitationShareIntroPlan: 'If you accept, {professional} will see only:',
     invitationTitle: 'Invitation from {professional}',
     invitationTrail: 'Every time they look at or change something, you will see it on your profile.',
     linkSince: 'Since {date}',
@@ -1427,6 +1438,13 @@ export const enGB: Dictionary = {
       profile: 'your name',
       progress: 'how much of each fortnight you follow and your weight over time',
       targets: 'your daily targets and how they were worked out'
+    },
+    sharesPlan: {
+      plans:
+        "the plans they make for you through this link — the ones they generate, review or publish — with their dishes, amounts and each day's totals",
+      profile: 'your name',
+      status:
+        'where things stand: since when you have been linked, whether you have finished your profile, whether you have a plan under way or waiting for review, and whether you have plan generations left this fortnight'
     },
     whatIsShared: 'Shares: {list}'
   },
@@ -1880,8 +1898,10 @@ export const enGB: Dictionary = {
     conditionsOtherHint: 'Separate with commas. We do not interpret what you write here.',
     consentLabel: 'Store this health data to personalise my plans',
     consentNote:
-      'They are kept in your account, never appear in server logs and are deleted with your account. They are never sent to any AI model: only their effect is, such as the ingredients we remove for coeliac disease. If you work with a dietitian, they only see them if you allow it separately. You can delete them separately with the button below.',
+      "They are kept in your account, never appear in server logs and are deleted with your account. They are never sent to any AI model: only their effect is, such as the ingredients we remove for coeliac disease. A professional only sees them if they hold NutrIA's verified dietitian-nutritionist badge and you allow it separately. While you have any condition or medication on record, you can only link with a professional who holds that badge; if you are linked with one who does not, the link will end when you save it. You can delete them separately with the button below.",
     consentStale: 'We have updated how we explain the use of this data. Review it and save again to keep it.',
+    illnessLinkWarning:
+      'If you save a health condition or a medication, your link with {professional} will end: on NutrIA, only a verified dietitian-nutritionist can work with someone who has one on record. Your plan, your targets and your history stay with you. {professional} will only see that the link has ended.',
     intro: 'Optional. None of this is required to use NutrIA, and you can delete all of it whenever you like.',
     medications: 'Medication',
     medicationsHint: 'The name only. We do not ask for a dose because we do nothing with it.',

@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useId, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -9,6 +9,7 @@ import styles from './HealthPanel.module.css';
 import { Button } from 'ui/components/Button';
 import { Checkbox } from 'ui/components/Checkbox';
 import { Input } from 'ui/components/Input';
+import { LEGAL_IDENTITY } from 'i18n/legalIdentity';
 import { Note } from 'ui/components/Note';
 import { Select, SelectOption } from 'ui/components/Select';
 import { Text } from 'ui/components/Text';
@@ -22,7 +23,7 @@ import { api, messageFor } from 'lib/api';
 import { formatNumber, interpolate } from 'lib/format';
 
 import type { ConditionKey, SupplementKind } from 'core/entities/Health';
-import type { HealthView } from 'core/controllers/Health';
+import type { HealthSavedView, HealthView } from 'core/controllers/Health';
 
 /**
  * The keys, in the order they are offered. The labels come from the dictionary —
@@ -52,6 +53,17 @@ const SUPPLEMENT_KINDS: readonly SupplementKind[] = ['protein', 'creatine', 'vit
 /** `key` is a stable client-side row identity — new rows have no server id yet, and an array index changes the moment one is removed. */
 type SupplementRow = { key: string; kind: SupplementKind; name: string; proteinGPerServing: string; servingsPerDay: string };
 
+interface HealthPanelProps {
+  health: HealthView;
+  /**
+   * The practitioner of the person's open link when they hold no NutrIA badge
+   * (`lib/illnessRule`), else null: saving a condition or a medication ends that
+   * link (`0111` § 8), so the form says so above its button first
+   * (`docs/legal/textos/05` § G.1).
+   */
+  unverifiedProfessional: string | null;
+}
+
 /**
  * Conditions, medications and supplements — collected as health data or not at all.
  *
@@ -62,7 +74,7 @@ type SupplementRow = { key: string; kind: SupplementKind; name: string; proteinG
  * produces the same thing: a recommendation to have the plan looked at by
  * someone qualified, which is the honest limit of what a meal planner can say.
  */
-export function HealthPanel({ health }: { health: HealthView }) {
+export function HealthPanel({ health, unverifiedProfessional }: HealthPanelProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -72,6 +84,10 @@ export function HealthPanel({ health }: { health: HealthView }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
+  // The practitioner whose link the last save ended under the illness rule (§ G.3). Component
+  // state, so it outlives `router.refresh()` — after which the link card is gone from the page.
+  const [linkEnded, setLinkEnded] = useState<string | null>(null);
+  const endedRef = useRef<HTMLDivElement>(null);
   const [consented, setConsented] = useState(health.consentIsCurrent);
   const [conditionKeys, setConditionKeys] = useState<readonly string[]>(() =>
     health.conditions.flatMap(condition => (condition.conditionKey === null ? [] : [condition.conditionKey as string]))
@@ -98,7 +114,7 @@ export function HealthPanel({ health }: { health: HealthView }) {
     setPending(true);
 
     try {
-      await api<HealthView>('/health-data', {
+      const saved = await api<HealthSavedView>('/health-data', {
         body: {
           conditions: [
             ...conditionKeys.map(key => ({ conditionKey: key, label: dictionary.conditions[key as ConditionKey] ?? key })),
@@ -118,6 +134,7 @@ export function HealthPanel({ health }: { health: HealthView }) {
         },
         method: 'PUT'
       });
+      setLinkEnded(saved.linkEnded?.professionalName ?? null);
       setOpen(false);
       router.refresh();
     } catch (caught) {
@@ -147,6 +164,14 @@ export function HealthPanel({ health }: { health: HealthView }) {
     }
   }
 
+  // The save button the person pressed is gone once the form closes: take them to what the save
+  // did to their link, or a keyboard and a screen reader are left at <body>.
+  useEffect(() => {
+    if (linkEnded) {
+      endedRef.current?.focus();
+    }
+  }, [linkEnded]);
+
   const recorded = health.conditions.length + health.medications.length + health.supplements.length;
 
   return (
@@ -161,6 +186,19 @@ export function HealthPanel({ health }: { health: HealthView }) {
       <Text size="sm" tone="secondary">
         {t.intro}
       </Text>
+
+      {/* Not a toast: what ended, and why, stays on the panel the person saved from (§ G.3). */}
+      {linkEnded ? (
+        <Note
+          ref={endedRef}
+          tabIndex={-1}
+          title={interpolate(dictionary.care.illnessEndedTitle, { professional: linkEnded })}
+          tone="info"
+          toneLabel={dictionary.common.noteTone.info}
+        >
+          {interpolate(dictionary.care.illnessEndedBody, { email: LEGAL_IDENTITY.email, professional: linkEnded })}
+        </Note>
+      ) : null}
 
       {recorded > 0 ? (
         <dl className={styles.summary}>
@@ -331,6 +369,14 @@ export function HealthPanel({ health }: { health: HealthView }) {
               {t.consentNote}
             </Text>
           </div>
+
+          {/* Above the button, before the server ends the link (§ G.1). Shown whenever the form is
+              open, not only once a box is ticked: read before deciding, never missed below the fold. */}
+          {unverifiedProfessional ? (
+            <Note tone="warning" toneLabel={dictionary.common.noteTone.warning}>
+              {interpolate(t.illnessLinkWarning, { professional: unverifiedProfessional })}
+            </Note>
+          ) : null}
 
           {error ? (
             <p className={styles.error} role="alert">

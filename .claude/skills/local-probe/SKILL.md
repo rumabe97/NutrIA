@@ -128,7 +128,8 @@ node $S/account.mjs lose-badge "$PROBE_DIR/pro.txt"                             
 record cannot be linked to an un-badged practitioner (`0111` § 8): `link` reports the
 refusal rather than forcing it — declare it through the health screen **after** linking to
 see the link end, or leave the invitation open to see the refusal. `lose-badge` runs the
-real sweep, which ends every link on the local database that the rule ends.
+real sweep, which ends or narrows every link on the database that the rule touches — so it
+refuses to run anywhere but the local Postgres.
 
 **Never write a link, a grant, an invitation or a trail row by hand** — no SQL, no
 `psql`, no repository call around the rules. If `link` cannot build the state you need,

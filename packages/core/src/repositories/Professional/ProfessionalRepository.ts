@@ -7,7 +7,7 @@ import { professionalBadgeChecks, professionals } from 'database/schema/professi
 import { user } from 'database/schema/auth';
 
 import { contains, ordered } from '#repositories/Search';
-import { dueDate } from './ProfessionalBadgeRepository';
+import { dueDate, ProfessionalBadgeRepository } from './ProfessionalBadgeRepository';
 import { DatabaseOperationError } from 'core/entities/Error';
 import { professionalSchema } from 'core/entities/Professional';
 
@@ -126,8 +126,20 @@ export const ProfessionalRepository = {
    * writes a `pass` check in the same transaction — due twelve months on, with
    * the number granted and no channel — and the care suites' professionals stay
    * badged through phases 4–5. A re-grant writes another; the latest decides.
+   *
+   * `beforeRegained`, when given, runs inside this transaction before the pass
+   * is written, and only when no badge stood just before it (project 025 phase
+   * 5, as `ProfessionalBadgeRepository.confirm`): the controller hands down the
+   * narrowing of the practitioner's links, so a re-grant never finds a `full`
+   * link the client has not consented to afresh.
    */
-  async grant(userId: string, collegiateNumber: string, grantedBy: string, record?: RecordAudit): Promise<Professional> {
+  async grant(
+    userId: string,
+    collegiateNumber: string,
+    grantedBy: string,
+    record?: RecordAudit,
+    beforeRegained?: (tx: Parameters<RecordAudit>[0]) => Promise<unknown>
+  ): Promise<Professional> {
     try {
       return await database().transaction(async tx => {
         const grantedAt = new Date();
@@ -136,6 +148,10 @@ export const ProfessionalRepository = {
           .values({ collegiateNumber, grantedAt, grantedBy, userId })
           .onConflictDoUpdate({ set: { collegiateNumber, grantedAt, grantedBy, updatedAt: grantedAt }, target: professionals.userId })
           .returning();
+
+        if (beforeRegained && (await ProfessionalBadgeRepository.badgeOf(userId, grantedAt, tx)) === null) {
+          await beforeRegained(tx);
+        }
 
         await tx
           .insert(professionalBadgeChecks)
