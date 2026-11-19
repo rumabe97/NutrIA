@@ -1,0 +1,1 @@
+export { BadgeRemovalForm } from './BadgeRemovalForm';

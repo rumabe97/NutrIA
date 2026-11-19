@@ -1,0 +1,46 @@
+.card {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+.head {
+  align-items: center;
+  display: flex;
+  gap: var(--space-03);
+  min-inline-size: 0;
+}
+
+.title {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-04);
+  margin: 0;
+  min-inline-size: 0;
+  overflow-wrap: break-word;
+}
+
+/* The sheet's circle: the foreground on the page's ground, so it reads in every theme. */
+.marker {
+  align-items: center;
+  background-color: var(--foreground-01);
+  block-size: 1.75rem;
+  border-radius: var(--radius-full);
+  color: var(--background-01);
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: var(--font-size-02);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
+  inline-size: 1.75rem;
+  justify-content: center;
+}
+
+@media (forced-colors: active) {
+  .marker {
+    border: 1px solid CanvasText;
+    forced-color-adjust: none;
+  }
+}

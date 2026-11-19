@@ -1,0 +1,87 @@
+/* What Profesionales' sub-pages share: the page's grid, the way back over the title, and a link that is a target on touch. */
+.page {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--gap-region);
+  /* One column that may shrink below its widest child (reflow at 200 % text). */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The way back sits close over the title it belongs to: the region gap, taken back to a block's. */
+.back {
+  font-size: var(--font-size-03);
+  margin: 0 0 calc(var(--gap-block) - var(--gap-region));
+}
+
+.link {
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-medium);
+  text-decoration: underline;
+}
+
+@media (pointer: coarse) {
+  .link {
+    align-items: center;
+    display: inline-flex;
+    min-block-size: var(--target-min);
+  }
+}
+
+/* The two columns of a page that has a main thing and a side one, from the room the page has beside the sidebar. */
+.columns {
+  display: grid;
+  gap: var(--gap-region);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container (inline-size >= 52rem) {
+  .columns {
+    align-items: start;
+    column-gap: var(--gap-block);
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+
+/* Label over value, one pair under the other. `dl.facts` so the reset wins over the card whatever order the sheets land in. */
+dl.facts {
+  display: grid;
+  gap: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+}
+
+.facts dt {
+  color: var(--foreground-02);
+  font-size: var(--font-size-01);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  margin-block-end: var(--space-01);
+  text-transform: uppercase;
+}
+
+.facts dd {
+  font-size: var(--font-size-03);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* What sits in the main column: facts, then what stands, one region under the other. */
+.stack {
+  display: grid;
+  gap: var(--gap-region);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+/* A person in a table: the name, and the address under it in the secondary voice. */
+.person {
+  display: grid;
+  gap: var(--space-01);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.email {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+}

@@ -1,0 +1,61 @@
+.card {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+  list-style: none;
+  min-inline-size: 0;
+}
+
+/* The name and when it was saved: a long name wraps, and the time keeps its own line when there is no room beside it. */
+.head {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-01) var(--space-03);
+  justify-content: space-between;
+  min-inline-size: 0;
+}
+
+.name {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-04);
+  margin: 0;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.when {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+}
+
+.meta {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* What the person wrote, set apart as theirs: a quotation in a sunken block, never in our voice. */
+.quote {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-control);
+  font-size: var(--font-size-03);
+  margin: 0;
+  overflow-wrap: anywhere;
+  padding: var(--space-03);
+  white-space: pre-wrap;
+}
+
+.none {
+  color: var(--foreground-02);
+  font-style: normal;
+}
+
+/* The pair: both buttons the same height and side by side, the labels wrapping inside them. */
+.decide > button {
+  flex: 1 1 0;
+}

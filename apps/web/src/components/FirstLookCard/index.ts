@@ -1,0 +1,1 @@
+export { FirstLookCard } from './FirstLookCard';

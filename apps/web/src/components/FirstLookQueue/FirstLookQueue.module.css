@@ -1,0 +1,29 @@
+.queue {
+  display: grid;
+  gap: var(--gap-region);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+/* The region takes focus when the list is empty: no ring around a block of nothing. */
+.status {
+  min-inline-size: 0;
+}
+
+.status:focus-visible {
+  outline-offset: var(--space-01);
+}
+
+.list {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Empty, it takes no room: the gap above the next block is taken back (the region stays in the page, so a result is still announced). */
+.status:empty {
+  margin-block-end: calc(-1 * var(--gap-region));
+}

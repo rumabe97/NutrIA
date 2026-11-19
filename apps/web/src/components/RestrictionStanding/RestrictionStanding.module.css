@@ -1,0 +1,34 @@
+.standing {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+.entry {
+  color: var(--foreground-01);
+  display: grid;
+  gap: var(--space-02);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+.entry p {
+  margin: 0;
+  max-inline-size: var(--prose-max);
+  overflow-wrap: anywhere;
+}
+
+.headline {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+}
+
+.when {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+}
+
+.reason {
+  font-size: var(--font-size-03);
+}

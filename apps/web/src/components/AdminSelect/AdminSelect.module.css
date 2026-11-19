@@ -1,0 +1,51 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-01);
+  min-inline-size: 0;
+}
+
+.label {
+  color: var(--foreground-01);
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+}
+
+.field {
+  display: block;
+  position: relative;
+}
+
+.control {
+  --select-floor: var(--height-l);
+
+  appearance: none;
+  background-color: var(--background-01);
+  border: var(--border-width-interactive) solid var(--border-interactive);
+  border-radius: var(--radius-control);
+  color: var(--foreground-01);
+  font: inherit;
+  font-size: var(--font-size-03);
+  inline-size: 100%;
+  min-block-size: var(--select-floor);
+  padding-block: var(--space-02);
+  padding-inline: var(--space-03) var(--space-07);
+  text-overflow: ellipsis;
+}
+
+@media (pointer: coarse) {
+  .control {
+    --select-floor: var(--target-min);
+  }
+}
+
+.chevron {
+  block-size: 1.125rem;
+  color: var(--foreground-02);
+  inline-size: 1.125rem;
+  inset-block-start: 50%;
+  inset-inline-end: var(--space-03);
+  pointer-events: none;
+  position: absolute;
+  transform: translateY(-50%);
+}

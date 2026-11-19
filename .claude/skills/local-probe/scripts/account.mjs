@@ -79,13 +79,16 @@ const OWNER_ACTS = [
   'suspend',
   'close',
   'close-due',
+  'close-carry',
   'lift',
   'hide-profile',
   'see-profile',
   'badge-apply',
   'badge-code',
   'badge-earn',
-  'badge-refuse'
+  'badge-refuse',
+  'badge-due',
+  'badge-lapse'
 ];
 
 if (
@@ -392,7 +395,7 @@ if (action === 'owner-act') {
 
   if (act === 'suspend') {
     await ProfessionalController.suspend(pro.id, pro.id, statement);
-  } else if (act === 'close' || act === 'close-due') {
+  } else if (act === 'close' || act === 'close-due' || act === 'close-carry') {
     try {
       await ProfessionalController.close(pro.id, pro.id, statement);
     } catch (error) {
@@ -402,13 +405,20 @@ if (action === 'owner-act') {
       }
     }
 
-    if (act === 'close-due') {
+    if (act === 'close-due' || act === 'close-carry') {
       // No route takes a clock: the close's day moved into the past, as the e2e harness does
       // (`moveCloseDue`). The practice is then shut before the daily sweep has carried it out.
       const { database } = await load('database');
 
       await database().$client`
         update practice_restrictions set effective_at = now() - interval '1 second' where user_id = ${pro.id} and kind = 'closing'`;
+    }
+    if (act === 'close-carry') {
+      // The daily sweep's part, once: the close carried out — links ended, the badge withdrawn,
+      // the practice gone, the restriction left. It carries out every close due on this database.
+      const run = await ProfessionalController.closeDue();
+
+      console.log(`[probe] close sweep: ${run.closed.length} closed, ${run.failed.length} failed`);
     }
   } else if (act === 'lift') {
     await ProfessionalController.lift(pro.id, pro.id, {});
@@ -434,6 +444,32 @@ if (action === 'owner-act') {
 
     await ProfessionalBadgeController.enterCode(pro.id, { code });
     await ProfessionalBadgeController.confirm(pro.id, pro.id);
+  } else if (act === 'badge-due' || act === 'badge-lapse') {
+    // No route takes a clock: the standing pass moved back on the table, as the e2e suites do
+    // — due yesterday (the yearly re-check waiting, the badge still standing in its thirty
+    // days), or due thirty-one days ago, then the badge's own sweep, which writes the lapse.
+    const { database } = await load('database');
+    const days = act === 'badge-due' ? 1 : 31;
+
+    await database().$client`
+      update professional_badge_checks
+      set checked_at = now() - make_interval(days => ${days + 366}), created_at = now() - make_interval(days => ${days + 366})
+      where user_id = ${pro.id} and kind = 'applied'`;
+
+    const moved = await database().$client`
+      update professional_badge_checks
+      set checked_at = now() - make_interval(days => ${days + 365}), created_at = now() - make_interval(days => ${days + 365}),
+          due_at = now() - make_interval(days => ${days})
+      where id = (select id from professional_badge_checks where user_id = ${pro.id} and kind = 'pass' order by checked_at desc limit 1)
+      returning id`;
+
+    if (moved.length !== 1) {
+      throw new Error('no standing badge to age: run badge-earn or link first');
+    }
+
+    if (act === 'badge-lapse') {
+      await ProfessionalBadgeController.sweep();
+    }
   } else if (act === 'badge-refuse') {
     await ProfessionalBadgeController.remove(pro.id, pro.id, { kind: 'fail', reason: 'not_on_register', source: 'own_check' });
   }

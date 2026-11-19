@@ -13,4 +13,6 @@
 .email {
   /* On a phone the address is the card's title and wraps inside it; in the table its cell keeps it on one line. */
   overflow-wrap: anywhere;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
