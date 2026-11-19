@@ -125,6 +125,18 @@ node $S/account.mjs link "$PROBE_DIR/pro.txt" "$PROBE_DIR/client.txt" --invite-o
 node $S/account.mjs lose-badge "$PROBE_DIR/pro.txt"                                   # withdraws the badge, runs the illness sweep once
 ```
 
+The owner's acts and the badge's steps, one at a time, for the states `link` cannot build:
+
+```bash
+node $S/account.mjs owner-act "$PROBE_DIR/pro.txt" suspend        # also: close, close-due, lift
+node $S/account.mjs owner-act "$PROBE_DIR/pro.txt" hide-profile   # after the practitioner saved a profile; see-profile marks it seen
+node $S/account.mjs owner-act "$PROBE_DIR/pro.txt" badge-apply    # then badge-code (prints the code to type), or badge-refuse
+node $S/account.mjs owner-act "$PROBE_DIR/pro.txt" badge-earn     # the four steps at once: after `link --unbadged`, the client's re-consent card
+```
+
+Each is the core function its route calls, on a `@probe.invalid` account, on the local
+Postgres only. No mail is sent: the statements of reasons are the API's services' to queue.
+
 `--unbadged` and `--invite-only` combine. A client with a condition or a medication on
 record cannot be linked to an un-badged practitioner (`0111` § 8): `link` reports the
 refusal rather than forcing it — declare it through the health screen **after** linking to

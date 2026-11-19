@@ -16,6 +16,39 @@
   text-wrap: balance;
 }
 
+/* Who invites: the name, what they ask, and the line that says what NutrIA checked of them. */
+.who {
+  display: grid;
+  gap: var(--space-02);
+  justify-items: start;
+}
+
+/*
+ * The badge line (`textos/05` § F.1), drawn from the owner's check, and the fixed notice for
+ * a practitioner without it: a pill of words, never colour alone; the badge on the brand's
+ * pale ground, the notice on the warning's — each with its own words in full.
+ */
+.badge,
+.notice {
+  border-radius: var(--radius-control);
+  display: inline-block;
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-03);
+  overflow-wrap: break-word;
+  padding: var(--space-01) var(--space-03);
+}
+
+.badge {
+  background-color: var(--surface-sunken);
+  color: var(--color-brand-11);
+}
+
+.notice {
+  background-color: var(--color-warning-surface);
+  color: var(--color-warning-text);
+}
+
 /*
  * What is shared, what the professional may do, and the separate health question: each a
  * group of its own set into the card (the sunken ground), its lists as grouped rows on
@@ -121,5 +154,12 @@
 
   .list > li::before {
     background-color: CanvasText;
+  }
+}
+
+@media (forced-colors: active) {
+  .badge,
+  .notice {
+    border: 1px solid CanvasText;
   }
 }

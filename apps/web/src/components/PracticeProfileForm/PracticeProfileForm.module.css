@@ -1,0 +1,71 @@
+.form {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.card {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+.cardTitle {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-04);
+  margin: 0;
+}
+
+.field {
+  display: grid;
+  gap: var(--space-01);
+  min-inline-size: 0;
+}
+
+.label {
+  color: var(--foreground-01);
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+}
+
+.textarea {
+  background: var(--background-01);
+  border: var(--border-width-interactive) solid var(--border-interactive);
+  border-radius: var(--radius-control);
+  color: inherit;
+  font: inherit;
+  inline-size: 100%;
+  padding: var(--space-03);
+  resize: vertical;
+}
+
+.invalid {
+  border-color: var(--color-error);
+}
+
+.error {
+  color: var(--color-error-text);
+}
+
+/* The amount and its unit side by side while both fit, one under the other when they do not. */
+.price {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+}
+
+@media (width < 48rem) {
+  :global(html):has(.form input:focus, .form textarea:focus) {
+    --app-bar-clearance: 0rem;
+    --app-foot-space: var(--space-02);
+  }
+}

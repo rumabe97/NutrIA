@@ -1,0 +1,77 @@
+/* The practitioner's own sub-pages (`/consulta/perfil`, `/consulta/insignia`): one column of
+   prose width, the way back, the title and what stands under it. */
+
+.back {
+  align-items: center;
+  color: var(--foreground-02);
+  display: inline-flex;
+  font-size: var(--font-size-03);
+  margin-bottom: var(--gap-block);
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--foreground-01);
+}
+
+@media (pointer: coarse) {
+  .back {
+    min-block-size: var(--target-min);
+  }
+}
+
+.head {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: start;
+  max-inline-size: var(--prose-max);
+  /* «dietista-nutricionista» is one long word: at large text it breaks rather than runs past the screen. */
+  overflow-wrap: anywhere;
+}
+
+.title {
+  font-size: var(--font-size-09);
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  hyphens: auto;
+  margin: 0;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+}
+
+.intro {
+  text-wrap: pretty;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02);
+}
+
+.tag {
+  align-items: center;
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-full);
+  color: var(--foreground-02);
+  display: inline-flex;
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-semibold);
+  padding: var(--space-01) var(--space-03);
+}
+
+.regions {
+  display: grid;
+  gap: var(--gap-region);
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: var(--gap-region);
+  max-inline-size: var(--prose-max);
+}
+
+@media (forced-colors: active) {
+  .tag {
+    border: 1px solid CanvasText;
+  }
+}

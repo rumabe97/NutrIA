@@ -512,6 +512,8 @@ describe('care', () => {
       expect((await accept(client, token, { consentScope: 'full', consentVersion: '0.0.1', sharesHealth: false })).status).toBe(422);
       // The version this door took before `CARE_CONSENT_VERSION` became `2.0.0` (P1-3) is stale too, not merely a made-up one.
       expect((await accept(client, token, { consentScope: 'full', consentVersion: '1.0.0', sharesHealth: false })).status).toBe(422);
+      // And the one in force before 3.0.0 (project 025 phase 8).
+      expect((await accept(client, token, { consentScope: 'full', consentVersion: '2.0.0', sharesHealth: false })).status).toBe(422);
       expect((await accept(client, token, { consentScope: 'full', consentVersion: CARE_CONSENT_VERSION })).status).toBe(422);
       // Which list was read is required too (PLAN 025 phase 5 step 2): nothing is presumed from its absence.
       expect((await accept(client, token, { consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })).status).toBe(422);

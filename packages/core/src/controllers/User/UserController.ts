@@ -37,6 +37,14 @@ export interface UserView {
   id: string;
   /** The owner opened this account. What every gate in the product asks (`0030`). */
   activated: boolean;
+  /**
+   * Whether to offer this account the form that opens its own practice (PRD 025
+   * scope 1): the `professional` switch on, no practice, and no suspension or
+   * close standing against it — `ProfessionalController.openingFor`. Display
+   * only: it does not ask the address, the activation or the age, which
+   * `POST /care/practice` refuses with its own 404. False for a practitioner.
+   */
+  canOpenPractice: boolean;
   createdAt: string;
   email: string;
   emailVerified: boolean;
@@ -81,11 +89,12 @@ export interface UserView {
 }
 
 /**
- * The account as its row has it. `professional` is another domain's answer, so
- * the API adds it (`ProfessionalController.hasAccess`) rather than this
- * controller calling that one.
+ * The account as its row has it. `professional` and `canOpenPractice` are
+ * another domain's answer, so the API adds them
+ * (`ProfessionalController.openingFor`) rather than this controller calling
+ * that one.
  */
-export type StoredUserView = Omit<UserView, 'professional'>;
+export type StoredUserView = Omit<UserView, 'canOpenPractice' | 'professional'>;
 
 function presentUser(user: User, hasPassword: boolean): StoredUserView {
   return {

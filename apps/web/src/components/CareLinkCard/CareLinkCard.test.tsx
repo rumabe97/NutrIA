@@ -50,4 +50,70 @@ describe('CareLinkCard under a plan scope', () => {
   it('keeps the switch while the line is on, so it can always be turned off', () => {
     expect(card({ ...PLAN, sharesHealth: true })).toContain(esES.care.healthShareToggle);
   });
+
+  it('says nobody sees a line left on under a plan-only link', () => {
+    const markup = card({ ...PLAN, sharesHealth: true });
+
+    expect(markup).not.toContain(esES.care.healthShareOnHint.replace('{professional}', 'Ana Pérez'));
+  });
+});
+
+describe('CareLinkCard in the words of consent 3.0.0 (textos/05 §§ F.1, F.4)', () => {
+  it('is «Tu profesional» whatever the tier, never «dietista»', () => {
+    const markup = card({ ...PLAN, reconsentOffered: false });
+
+    // The section's h2 says «Tu profesional» (`profile.sectionCare`); the card is named by who it is.
+    expect(markup).toMatch(/<h3[^>]*>Ana Pérez<\/h3>/);
+    expect(markup.toLowerCase()).not.toContain('dietista');
+  });
+
+  it('offers the badged list while a badge stands on a plan-only link', () => {
+    const markup = card(PLAN);
+
+    expect(markup).toContain(esES.care.reconsentTitle.replace('{professional}', 'Ana Pérez'));
+    expect(markup).toContain(esES.care.reconsentAccept);
+    expect(markup).toContain(esES.care.reconsentLater);
+    expect(markup).toContain(esES.care.shares.targets);
+    expect(markup).toContain(esES.care.healthQuestion);
+  });
+
+  it('says what they will see apart from what they will be able to do (textos/05 § F.4)', () => {
+    const markup = card(PLAN);
+    const seeList = markup.slice(markup.indexOf(esES.care.reconsentBody), markup.indexOf(esES.care.invitationCanDoIntro));
+    const doList = markup.slice(markup.indexOf(esES.care.invitationCanDoIntro), markup.indexOf(esES.care.healthQuestion));
+
+    for (const share of ['targets', 'mealPlans', 'progress', 'checkIns'] as const) {
+      expect(seeList).toContain(esES.care.shares[share]);
+    }
+
+    expect(seeList).not.toContain(esES.care.canDo.targets);
+    expect(doList).toContain(`<li>${esES.care.canDo.targets}</li>`);
+  });
+
+  it('draws no offer once it is not on offer', () => {
+    expect(card({ ...PLAN, reconsentOffered: false })).not.toContain(esES.care.reconsentAccept);
+  });
+
+  it('shows the fixed notice under the name of a practitioner without the badge', () => {
+    expect(card({ ...PLAN, professionalVerified: false, reconsentOffered: false })).toContain(esES.care.invitationNotice);
+    expect(card(PLAN)).not.toContain(esES.care.invitationNotice);
+  });
+
+  it('says «tu profesional» when the name may not be shown', () => {
+    expect(card({ ...PLAN, professionalName: null })).toContain('Tu profesional ahora tiene la verificación de NutrIA');
+  });
+
+  it('names the practitioner in the health hints of a full link', () => {
+    const markup = card({
+      ...PLAN,
+      consentScope: 'full',
+      reconsentOffered: false,
+      scope: 'full',
+      shares: ['profile'],
+      sharesHealth: true,
+      sharesPlan: []
+    });
+
+    expect(markup).toContain(esES.care.healthShareOnHint.replace('{professional}', 'Ana Pérez'));
+  });
 });

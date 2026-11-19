@@ -4,6 +4,7 @@ import { professionalProfiles } from 'database/schema/professional';
 
 import { ProfessionalProfileRepository } from './ProfessionalProfileRepository';
 
+import type { ProfileWordRefusal } from './ProfessionalProfileRepository';
 import type { ProfessionalBadgeCheck, ProfessionalProfile, SaveProfessionalProfile } from 'core/entities/Professional';
 
 /*
@@ -117,7 +118,7 @@ describe('ProfessionalProfileRepository.save', () => {
   it('takes the badge lock first, then judges with the badge read on its own transaction', async () => {
     // The practice, the badge's latest decisive check, the stored profile, the update's RETURNING.
     script = [[{ id: 'pro-row' }], [pass()], [stored()], [stored()]];
-    const judge = vi.fn(() => null);
+    const judge = vi.fn((): readonly ProfileWordRefusal[] => []);
 
     await ProfessionalProfileRepository.save('usr-pro', INPUT, NOW, judge);
 
@@ -125,12 +126,14 @@ describe('ProfessionalProfileRepository.save', () => {
     expect(judge).toHaveBeenCalledWith(true);
   });
 
-  it('writes nothing when the words refuse', async () => {
+  it('writes nothing when the words refuse, and hands back every refused field at once', async () => {
     script = [[{ id: 'pro-row' }], []];
+    const refusals: readonly ProfileWordRefusal[] = [
+      { field: 'displayName', list: 'badge_only', word: 'dietista' },
+      { field: 'studies', list: 'badge_only', word: 'pacientes' }
+    ];
 
-    await expect(
-      ProfessionalProfileRepository.save('usr-pro', INPUT, NOW, () => ({ field: 'displayName', list: 'badge_only', word: 'dietista' }))
-    ).resolves.toEqual({ kind: 'refused', refusal: { field: 'displayName', list: 'badge_only', word: 'dietista' } });
+    await expect(ProfessionalProfileRepository.save('usr-pro', INPUT, NOW, () => refusals)).resolves.toEqual({ kind: 'refused', refusals });
     expect(events).not.toContain('update profile');
     expect(events).not.toContain('insert profile');
   });
@@ -138,13 +141,13 @@ describe('ProfessionalProfileRepository.save', () => {
   it('is `none` without a practice: a profile is the practice’s', async () => {
     script = [[]];
 
-    await expect(ProfessionalProfileRepository.save('usr-pro', INPUT, NOW, () => null)).resolves.toEqual({ kind: 'none' });
+    await expect(ProfessionalProfileRepository.save('usr-pro', INPUT, NOW, () => [])).resolves.toEqual({ kind: 'none' });
   });
 
   it('queues a new profile', async () => {
     script = [[{ id: 'pro-row' }], [], [], [stored({ queuedAt: NOW })]];
 
-    await ProfessionalProfileRepository.save('usr-pro', INPUT, NOW, () => null);
+    await ProfessionalProfileRepository.save('usr-pro', INPUT, NOW, () => []);
 
     expect(events).toContain('insert profile');
     expect(written.at(-1)).toMatchObject({ queuedAt: NOW, userId: 'usr-pro' });
@@ -153,7 +156,7 @@ describe('ProfessionalProfileRepository.save', () => {
   it('queues again on a change to a free-text field', async () => {
     script = [[{ id: 'pro-row' }], [], [stored()], [stored()]];
 
-    await ProfessionalProfileRepository.save('usr-pro', { ...INPUT, studies: 'Grado en Biología y un máster' }, NOW, () => null);
+    await ProfessionalProfileRepository.save('usr-pro', { ...INPUT, studies: 'Grado en Biología y un máster' }, NOW, () => []);
 
     expect(written.at(-1)).toMatchObject({ queuedAt: NOW });
   });
@@ -161,7 +164,7 @@ describe('ProfessionalProfileRepository.save', () => {
   it('leaves the queue alone on a change to the price or the hours', async () => {
     script = [[{ id: 'pro-row' }], [], [stored()], [stored()]];
 
-    await ProfessionalProfileRepository.save('usr-pro', { ...INPUT, priceCents: 6000, priceUnit: 'month' }, NOW, () => null);
+    await ProfessionalProfileRepository.save('usr-pro', { ...INPUT, priceCents: 6000, priceUnit: 'month' }, NOW, () => []);
 
     expect(written.at(-1)).toMatchObject({ queuedAt: null });
   });

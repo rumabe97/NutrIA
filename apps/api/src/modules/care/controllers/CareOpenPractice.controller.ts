@@ -1,4 +1,4 @@
-import { Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { AllowUnverified, CurrentUser, Locale, ZodBody } from '../../../shared/index.js';
@@ -6,7 +6,7 @@ import { CareService } from '../services/index.js';
 import { OpenPracticeDto } from '../dto/in/index.js';
 import { ProfessionalSwitchGuard } from '../../../shared/guards/ProfessionalSwitch.guard.js';
 
-import type { CarePracticeDto } from '../dto/out/index.js';
+import type { CarePracticeDto, CarePracticeOpeningDto } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 
 /**
@@ -24,12 +24,30 @@ import type { SessionUser } from '../../../shared/index.js';
  * written: no birth date on record and none given, under 18, a suspension or a
  * close standing (criterion 24). An account that already practises is answered
  * with its practice, and nothing is written.
+ *
+ * `GET /care/practice/opening` is what the opening form names: the seats a free
+ * practice would hold, for the session's account, wherever `/users/me` says
+ * `canOpenPractice` — and the same 404 body everywhere else (switch off, a
+ * practice already, a suspension or a close standing). `@AllowUnverified()` for
+ * the same reason as the POST, and because the flag does not ask the address or
+ * the activation: an unconfirmed account told it may open is answered here too.
  */
 @ApiTags('care')
 @Controller('care')
 @UseGuards(ProfessionalSwitchGuard)
 export class CareOpenPracticeController {
   constructor(private readonly care: CareService) {}
+
+  @ApiOkResponse({
+    description:
+      'The seats a free practice would hold for the session’s account, as the owner has the number today. 404 — the POST’s body — with the switch off, a practice already, or a suspension or close standing.'
+  })
+  @ApiOperation({ summary: 'What the practice-opening form names (project 025)' })
+  @AllowUnverified()
+  @Get('practice/opening')
+  async opening(@CurrentUser() user: SessionUser): Promise<CarePracticeOpeningDto> {
+    return this.care.practiceOpening(user);
+  }
 
   @ApiOkResponse({
     description:

@@ -21,10 +21,13 @@ export interface ProfileWordRefusal {
   readonly word: string;
 }
 
-/** What saving came to: the profile as stored, a word refused (nothing written), or no practice to own one. */
+/**
+ * What saving came to: the profile as stored, words refused (nothing written) —
+ * one per refused field, never empty — or no practice to own one.
+ */
 export type ProfileSave =
   | { readonly kind: 'none' }
-  | { readonly kind: 'refused'; readonly refusal: ProfileWordRefusal }
+  | { readonly kind: 'refused'; readonly refusals: readonly [ProfileWordRefusal, ...ProfileWordRefusal[]] }
   | { readonly kind: 'saved'; readonly profile: ProfessionalProfile };
 
 /** One profile on the owner's queue: the profile, and the account it belongs to — never a client. */
@@ -187,15 +190,20 @@ export const ProfessionalProfileRepository = {
    * on this transaction — is the one that stands when the row is written: a
    * withdrawal either commits before (and this save is judged without the badge)
    * or after (and its requeue finds what this saved). `judge` is the words'
-   * verdict on every free-text field (`protectedWordIn`); a refusal writes
-   * nothing.
+   * verdict on every free-text field (`protectedWordIn`), every refused field at
+   * once; any refusal writes nothing.
    *
    * A profile is the practice's: no `professionals` row, `none`. A create, or a
    * change to a free-text field, puts it on the owner's queue (`queued_at`, PRD
    * 025 criterion 18); a change to the price or the hours alone does not. The
    * queue gates nothing.
    */
-  async save(userId: string, input: SaveProfessionalProfile, now: Date, judge: (badged: boolean) => ProfileWordRefusal | null): Promise<ProfileSave> {
+  async save(
+    userId: string,
+    input: SaveProfessionalProfile,
+    now: Date,
+    judge: (badged: boolean) => readonly ProfileWordRefusal[]
+  ): Promise<ProfileSave> {
     try {
       return await database().transaction(async (tx): Promise<ProfileSave> => {
         await ProfessionalBadgeRepository.lock(tx, userId);
@@ -206,10 +214,10 @@ export const ProfessionalProfileRepository = {
           return { kind: 'none' };
         }
 
-        const refusal = judge((await ProfessionalBadgeRepository.badgeOf(userId, now, tx)) !== null);
+        const [first, ...rest] = judge((await ProfessionalBadgeRepository.badgeOf(userId, now, tx)) !== null);
 
-        if (refusal) {
-          return { kind: 'refused', refusal };
+        if (first) {
+          return { kind: 'refused', refusals: [first, ...rest] };
         }
 
         const [stored] = await tx.select().from(professionalProfiles).where(eq(professionalProfiles.userId, userId)).for('update');

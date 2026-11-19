@@ -27,11 +27,12 @@ const ACCOUNT: StoredUserView = {
 
 /*
  * `professional` on `/users/me` is what the menu reads to show the way into the
- * workspace. It must be the guard's own answer — `hasAccess`, switch and grant —
- * for the session's account, asked again on every request, and present as
- * `false` for everybody else so its absence says nothing.
+ * workspace, and `canOpenPractice` whether to offer the form that opens one. Both
+ * are `ProfessionalController.openingFor`'s answer for the session's account —
+ * `professional` the guard's own question, switch and practice — asked again on
+ * every request, and present as `false` for everybody else so absence says nothing.
  */
-describe('UsersService.me — professional', () => {
+describe('UsersService.me — professional and canOpenPractice', () => {
   afterEach(() => {
     jest.restoreAllMocks();
   });
@@ -42,45 +43,56 @@ describe('UsersService.me — professional', () => {
     return new UsersService({} as Auth);
   }
 
-  // That the switch wins over a standing grant is `hasAccess`'s own test in core, where the grant can be mocked.
-  it('is false while the switch is off, without asking about a grant', async () => {
+  // What each answer is made of is `openingFor`'s own test in core, where the practice and the restrictions can be mocked.
+  it('is false for both while the switch is off — the switch is all that is read', async () => {
     const service = harness();
     jest.spyOn(ProfessionalController, 'isOpen').mockResolvedValue(false);
 
-    await expect(service.me('usr-1')).resolves.toEqual({ ...ACCOUNT, professional: false });
+    await expect(service.me('usr-1')).resolves.toEqual({ ...ACCOUNT, canOpenPractice: false, professional: false });
   });
 
-  it('is true for a granted account with the switch on — the guard’s question, for the session’s account', async () => {
+  it('is professional for an account with a practice and the switch on — asked for the session’s account', async () => {
     const service = harness();
-    const hasAccess = jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+    const openingFor = jest.spyOn(ProfessionalController, 'openingFor').mockResolvedValue({ canOpenPractice: false, professional: true });
 
-    await expect(service.me('usr-1')).resolves.toEqual({ ...ACCOUNT, professional: true });
-    expect(hasAccess).toHaveBeenCalledWith('usr-1');
+    await expect(service.me('usr-1')).resolves.toEqual({ ...ACCOUNT, canOpenPractice: false, professional: true });
+    expect(openingFor).toHaveBeenCalledWith('usr-1');
   });
 
-  it('is false on the next request once the grant is revoked — never cached', async () => {
+  it('offers the opening form when the controller says it may be offered', async () => {
     const service = harness();
-    const hasAccess = jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    jest.spyOn(ProfessionalController, 'openingFor').mockResolvedValue({ canOpenPractice: true, professional: false });
 
-    await expect(service.me('usr-1')).resolves.toMatchObject({ professional: true });
-    await expect(service.me('usr-1')).resolves.toMatchObject({ professional: false });
-    expect(hasAccess).toHaveBeenCalledTimes(2);
+    await expect(service.me('usr-1')).resolves.toEqual({ ...ACCOUNT, canOpenPractice: true, professional: false });
   });
 
-  it('is present and false for an ordinary account', async () => {
+  it('is asked again on the next request — never cached', async () => {
     const service = harness();
-    jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
+    const openingFor = jest
+      .spyOn(ProfessionalController, 'openingFor')
+      .mockResolvedValueOnce({ canOpenPractice: true, professional: false })
+      .mockResolvedValueOnce({ canOpenPractice: false, professional: false });
+
+    await expect(service.me('usr-1')).resolves.toMatchObject({ canOpenPractice: true });
+    await expect(service.me('usr-1')).resolves.toMatchObject({ canOpenPractice: false });
+    expect(openingFor).toHaveBeenCalledTimes(2);
+  });
+
+  it('is present and false for an account that may not open one', async () => {
+    const service = harness();
+    jest.spyOn(ProfessionalController, 'openingFor').mockResolvedValue({ canOpenPractice: false, professional: false });
 
     const me = await service.me('usr-1');
 
     expect(me).toHaveProperty('professional', false);
+    expect(me).toHaveProperty('canOpenPractice', false);
   });
 
-  it('is false, and the account still answers, when the question cannot be asked', async () => {
+  it('is false for both, and the account still answers, when the question cannot be asked', async () => {
     const service = harness();
-    jest.spyOn(ProfessionalController, 'hasAccess').mockRejectedValue(new Error('settings unreachable'));
+    jest.spyOn(ProfessionalController, 'openingFor').mockRejectedValue(new Error('settings unreachable'));
 
-    await expect(service.me('usr-1')).resolves.toEqual({ ...ACCOUNT, professional: false });
+    await expect(service.me('usr-1')).resolves.toEqual({ ...ACCOUNT, canOpenPractice: false, professional: false });
   });
 });
 

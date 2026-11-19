@@ -442,7 +442,9 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
 
 ### Phase 8 — The practitioner's and the client's screens
 
-- [ ] pending
+- [x] done — human-verify deferred by the owner (2026-11-19, «En la fase 10») to the day the
+  switch is thrown: he opens a practice and accepts an invitation on his iPhone then, before the
+  project is closed
 - **Dispatch**: opus @ medium — `/execute-project 025 phase 8` — the `frontend` agent with
   `accessibility`; `apple-web-design` mandatory. — human-verify: the owner opens a practice and
   accepts an invitation on his iPhone.
@@ -462,6 +464,22 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
      un-badged accept button (C4); the re-consent card; the illness refusal, plain.
   3. `PROFESSIONAL_AGREEMENT_VERSION` → 2.0.0 and `CARE_CONSENT_VERSION` → 3.0.0 in this phase,
      with their words.
+  4. **Amended 2026-11-19, during the phase**:
+     - three small backend changes the screens could not do without: `canOpenPractice` on the
+       session's view (the web could not tell "switch off" from "no practice yet", so any
+       entry point would have been a dead control); `GET /care/practice/opening` for the free
+       seats the opening form's approved sentence names (its own read: on the session's view
+       it cost four or five queries a page); `BadgeView.decision` carrying the register, the
+       number and the due date its statement of reasons needs; and a refused profile naming
+       every refused field at once. `apps/api/src` and `packages/core/src/controllers` join
+       the scope for these, `apps/api/test` for their cases, `scripts/check-contrast.mjs` for
+       two pairs;
+     - sub-routes `/consulta/perfil` and `/consulta/insignia`, as the sheets draw them;
+     - the paid practice's plan card is kept for `practice.open` (payments are deferred, not
+       cancelled); a free practice sees its seats and nothing about plans;
+     - the screen words the texts did not have, written by `legal` and approved by the owner
+       the same day (`textos/01` § Pantallas P5); the re-consent card's list split in two
+       (§ F.4 amended).
 - **Acceptance criteria**: PRD 12 (screen), 19, 20 (the agreement and consent), 22 (screen).
 - **Verification**: `pnpm --filter web test`, `pnpm ts:check && pnpm lint`, `/local-probe` at
   320, 390 and 1280 px, light and dark, both tiers (nothing overflows), and the owner's

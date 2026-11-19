@@ -1,0 +1,1 @@
+export { PracticeSeats } from './PracticeSeats';

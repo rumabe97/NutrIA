@@ -336,7 +336,9 @@ enlace es `plan` y la insignia del profesional sigue en pie. Una ruta del client
 | --- | --- | --- |
 | `care.reconsentTitle` | `{professional} ahora tiene la verificación de NutrIA` | `{professional} is now verified by NutrIA` |
 | `care.reconsentBody` | `Hemos comprobado que es dietista-nutricionista colegiada/o. Mientras no digas que sí, sigue viendo solo los planes que te hace. Si aceptas, verá también:` | `We have checked that they are a registered dietitian-nutritionist. Until you say yes, they keep seeing only the plans they make for you. If you accept, they will also see:` |
-| (la lista) | `care.shares.targets`, `care.shares.mealPlans`, `care.shares.progress`, `care.shares.checkIns`, y `care.canDo.targets`, como en B1; la línea de salud aparte, sin marcar, como en B2; `care.inferenceAllergy` y `care.inferenceBadgeLoss`; `care.invitationPrivacy` con insignia | the same keys |
+| (la lista, en dos bloques como en B1) | 1) bajo `care.reconsentBody` («…verá también:»): `care.shares.targets`, `care.shares.mealPlans`, `care.shares.progress`, `care.shares.checkIns`; 2) `care.invitationCanDoIntro` («Y podrá:») y debajo `care.canDo.targets`; después, la línea de salud aparte, sin marcar, como en B2; `care.inferenceAllergy` y `care.inferenceBadgeLoss`; `care.invitationPrivacy` con insignia | the same keys, the same two blocks |
+
+<!-- Aclarado el 2026-11-19 (revisión de accesibilidad de la fase 8): «como en B1» quería decir la misma estructura que la invitación — lo que verá bajo «verá también:» y lo que podrá hacer bajo su propio «Y podrá:». Fijar objetivos es un acto, no un dato que se ve; ponerlo bajo «verá» describiría mal lo que se consiente (RGPD arts. 4.11 y 7.2: informado y en lenguaje claro). Sin palabras nuevas: `care.invitationCanDoIntro` ya está aprobado. -->
 | `care.reconsentAccept` | `Sí, compartir esto también` | `Yes, share this too` |
 | `care.reconsentLater` | `Ahora no` | `Not now` |
 | `care.reconsentLaterHint` | `Puedes decidirlo más adelante aquí mismo. El enlace sigue como está.` | `You can decide later, right here. The link stays as it is.` |

@@ -1,3 +1,4 @@
+import { PlanController } from 'core/controllers/Plan';
 import { assertOldEnough } from 'core/controllers/Profile';
 import { CareRepository } from '#repositories/Care';
 import {
@@ -102,6 +103,24 @@ export interface LinkCounts {
   active: number;
   ended: number;
   paused: number;
+}
+
+/**
+ * The session's own account as a practitioner, for `GET /users/me`
+ * (`ProfessionalController.openingFor`): whether it practises today, and
+ * whether the opening form is worth offering. Display only.
+ */
+export interface PracticeOpening {
+  canOpenPractice: boolean;
+  professional: boolean;
+}
+
+/**
+ * What the opening form names (`GET /care/practice/opening`): how many clients
+ * the free practice would hold once opened, as the owner has it today.
+ */
+export interface PracticeOpeningView {
+  seats: number;
 }
 
 /** One professional on the owner's list: the account, its practice, and its links counted. */
@@ -578,6 +597,56 @@ export const ProfessionalController = {
     if (outcome === 'barred') {
       throw new NotFoundError(NOT_FOUND);
     }
+  },
+
+  /**
+   * What the session's own account is, and may become, as a practitioner — what
+   * `GET /users/me` shows, display only: every route asks its guard again.
+   *
+   * `professional` is `hasAccess`'s answer. `canOpenPractice` is true exactly
+   * when the switch is on, the account has no practice, and nothing stands
+   * against it that bars opening — the half of `open`'s refusals that is about
+   * the practice, through the same `barsOpening`. It does **not** ask the
+   * confirmed address, the owner's activation or the age: those are `open`'s to
+   * refuse with its 404, and this is not a second definition of who may open.
+   *
+   * Cost: the switch alone while it is off; with it on, the practice row, and
+   * the restrictions only for an account that has none.
+   */
+  async openingFor(userId: string): Promise<PracticeOpening> {
+    if (!(await ProfessionalController.isOpen())) {
+      return { canOpenPractice: false, professional: false };
+    }
+
+    if ((await ProfessionalRepository.find(userId)) !== null) {
+      return { canOpenPractice: false, professional: true };
+    }
+
+    return { canOpenPractice: !barsOpening(await PracticeRestrictionRepository.standing(userId)), professional: false };
+  },
+
+  /**
+   * **What the opening form names** (`GET /care/practice/opening`, PRD 025
+   * phase 8): how many clients the practice would hold free once opened — the
+   * account's `practiceClients` allowance from `PlanController.limitsOf`, the
+   * number `CareController` counts an invitation against — so the sentence says
+   * the number in force, never a literal.
+   *
+   * Asked only where `openingFor` offers the form: anything else — the switch
+   * off, a practice already, a suspension or a close standing — is the same 404
+   * as `open`'s refusals, and the allowances are not read. Like `openingFor`,
+   * it does not ask the address, the activation or the age.
+   *
+   * Cost: `openingFor`'s reads, then `limitsOf` (the flags and the allowances
+   * table in parallel, the open-practice cover, the tier column when premium is
+   * on).
+   */
+  async openingSeats(userId: string): Promise<PracticeOpeningView> {
+    if (!(await ProfessionalController.openingFor(userId)).canOpenPractice) {
+      throw new NotFoundError(NOT_FOUND);
+    }
+
+    return { seats: (await PlanController.limitsOf(userId)).practiceClients };
   },
 
   /**

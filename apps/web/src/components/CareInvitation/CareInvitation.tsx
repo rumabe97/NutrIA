@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useId, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -12,7 +12,6 @@ import { Link } from 'ui/components/Link';
 import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
-import { withLocale } from 'i18n/routes';
 
 import { Card } from 'components/Card';
 import { CtaLink } from 'components/CtaLink';
@@ -20,6 +19,7 @@ import { MailtoText } from 'components/MailtoText';
 
 import { api, ApiError, messageFor } from 'lib/api';
 import { formatInstant, interpolate } from 'lib/format';
+import { practicePrivacyHref } from 'lib/practicePrivacy';
 
 import type { CareInvitationDetailView, CareLinkView } from 'core/controllers/Care';
 
@@ -57,9 +57,12 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
   const healthNoteId = useId();
   const existingHeadingRef = useRef<HTMLHeadingElement>(null);
   // Without the badge the invitation carries the plan-only list, no number and no health line
-  // (`0111` § 4). The tiered page with its own words is phase 8; until then nothing is drawn
-  // empty: no number, the plan-only list, and no health question with nothing under it.
+  // (`0111` § 4), in the words of `textos/05` § F.3, with its fixed notice and «Acepto y
+  // consiento» on the button (C4). With it, § F.1–F.2: the badge line, the badged list, the
+  // health line apart, and what a refused dish or a lost badge lets the practitioner work out.
   const planOnly = invitation.scope === 'plan';
+  const professional = invitation.professionalName;
+  const day = (iso: string) => formatInstant(Date.parse(iso), locale, { day: 'numeric', month: 'long', year: 'numeric' });
   const offersHealth = invitation.healthShares.length > 0;
 
   // The `existing` branch below swaps the whole card in place with no route
@@ -151,17 +154,21 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
 
   return (
     <Card as="section" className={`${styles.card} motion-list`} padding="lg">
-      <h1 className={styles.title}>{interpolate(t.invitationTitle, { professional: invitation.professionalName })}</h1>
-      <Text tone="secondary">
-        {planOnly
-          ? interpolate(t.invitationIntroPlan, { professional: invitation.professionalName })
-          : interpolate(t.invitationIntro, { collegiateNumber: invitation.collegiateNumber, professional: invitation.professionalName })}
-      </Text>
+      <div className={styles.who}>
+        <h1 className={styles.title}>{interpolate(t.invitationTitle, { professional })}</h1>
+        <Text tone="secondary">{interpolate(planOnly ? t.invitationIntroPlan : t.invitationIntro, { professional })}</Text>
+        {/* The title only from the owner's `pass` check, never from text; without it, the fixed notice. */}
+        {planOnly ? (
+          <span className={styles.notice}>{t.invitationNotice}</span>
+        ) : invitation.badge?.collegiateNumber ? (
+          <span className={styles.badge}>
+            {interpolate(t.invitationBadge, { checkedOn: day(invitation.badge.checkedAt), collegiateNumber: invitation.badge.collegiateNumber })}
+          </span>
+        ) : null}
+      </div>
 
       <div className={styles.block}>
-        <Text weight="medium">
-          {interpolate(planOnly ? t.invitationShareIntroPlan : t.invitationShareIntro, { professional: invitation.professionalName })}
-        </Text>
+        <Text weight="medium">{interpolate(planOnly ? t.invitationShareIntroPlan : t.invitationShareIntro, { professional })}</Text>
         <ul className={styles.list}>
           {planOnly
             ? invitation.sharesPlan.map(share => <li key={share}>{t.sharesPlan[share]}</li>)
@@ -174,8 +181,27 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
           ))}
         </ul>
         <Text size="sm" tone="secondary">
-          {t.invitationNotShared}
+          {planOnly ? t.invitationNotSharedPlan : t.invitationNotShared}
         </Text>
+        {planOnly ? (
+          <Fragment>
+            <Text size="sm" tone="secondary">
+              {t.inferencePlan}
+            </Text>
+            <Text size="sm" tone="secondary">
+              {interpolate(t.illnessRulePlan, { professional })}
+            </Text>
+          </Fragment>
+        ) : (
+          <Fragment>
+            <Text size="sm" tone="secondary">
+              {t.inferenceAllergy}
+            </Text>
+            <Text size="sm" tone="secondary">
+              {t.inferenceBadgeLoss}
+            </Text>
+          </Fragment>
+        )}
         <Text size="sm" tone="secondary">
           {t.invitationTrail}
         </Text>
@@ -209,11 +235,11 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
       ) : null}
 
       <Text size="xs" tone="tertiary">
-        {interpolate(t.invitationPrivacy, { professional: invitation.professionalName })
+        {interpolate(planOnly ? t.invitationPrivacyPlan : t.invitationPrivacy, { professional })
           .split(/(\{privacy\})/)
           .map(part =>
             part === PRIVACY_PLACEHOLDER ? (
-              <Link href={withLocale('/privacidad#tu-dietista', locale)} inline={true} key={part}>
+              <Link href={practicePrivacyHref(locale)} inline={true} key={part}>
                 {dictionary.auth.legalPrivacy}
               </Link>
             ) : (
@@ -230,7 +256,7 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
 
       <div className={styles.actions}>
         <Button disabled={pending === 'decline'} loading={pending === 'accept'} onClick={() => void accept()} size="lg" type="button">
-          {t.invitationAccept}
+          {planOnly ? t.invitationAcceptPlan : t.invitationAccept}
         </Button>
         <Button
           disabled={pending === 'accept'}

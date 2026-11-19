@@ -1,0 +1,43 @@
+/* The offer, set into the link card on the sunken ground, as the invitation sets its lists. */
+.offer {
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-control);
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
+  margin-block: var(--space-02);
+  overflow-wrap: break-word;
+  padding: var(--space-04) min(var(--space-04), var(--gutter-card));
+}
+
+.title {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-04);
+  margin: 0;
+}
+
+.list {
+  display: grid;
+  font-size: var(--font-size-03);
+  gap: var(--space-02);
+  margin: 0;
+  padding-inline-start: var(--space-05);
+}
+
+.health {
+  border-top: 1px solid var(--border-01);
+  display: grid;
+  gap: var(--space-01);
+  padding-top: var(--space-03);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+}
+
+.later {
+  padding-block: var(--space-02);
+}

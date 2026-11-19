@@ -14,7 +14,9 @@ import { database } from 'database';
 import { BadgeSweepService } from '../src/modules/owner-alerts/index.js';
 import { EmailService } from '../src/modules/email/services/Email.service.js';
 import { ENV, validateEnv } from '../src/config/index.js';
+import { CARE_CONSENT_VERSION } from 'core/entities/Care';
 import {
+  acceptAgreement,
   createApp,
   deleteAccountByEmail,
   deleteAccounts,
@@ -696,7 +698,14 @@ describe('the badge (project 025 phase 3)', () => {
       expect(failed.status).toBe(200);
       expect(failed.body).toMatchObject({ application: null, badge: null, state: 'refused' });
       expect((await checksOf(who.id))[0]).toMatchObject({ kind: 'fail', reason: 'not_me' });
-      expect(await badgeOf(who)).toMatchObject({ decision: { facts: null, kind: 'fail', reason: 'not_me' }, number: null, state: 'refused' });
+      // The decision names what the refused check named: the application's declared register and number (phase 8); the
+      // top-level number and register stay the standing badge's, and none stands.
+      expect(await badgeOf(who)).toMatchObject({
+        decision: { dueAt: null, facts: null, kind: 'fail', number: '28/12121', reason: 'not_me', register: REGISTER },
+        number: null,
+        register: null,
+        state: 'refused'
+      });
 
       await until(() => badgeMailsTo(who).length > 0, 'the statement of reasons');
       expect(badgeMailsTo(who)).toHaveLength(1);
@@ -731,9 +740,11 @@ describe('the badge (project 025 phase 3)', () => {
       expect((await checksOf(who.id))[0]).toMatchObject({ kind: 'withdrawn', reason: `other: ${facts}` });
       expect(await badgeOf(who)).toMatchObject({
         checkedAt: null,
-        decision: { facts, kind: 'withdrawn', reason: 'other' },
+        // The withdrawn badge's own register and number on the decision (phase 8); none at the top level.
+        decision: { dueAt: null, facts, kind: 'withdrawn', number: `28/${String(stamp).slice(-5)}`, reason: 'other', register: REGISTER },
         dueAt: null,
         number: null,
+        register: null,
         state: 'withdrawn'
       });
       expect((await recordOf(who)).badge).toBeNull();
@@ -762,6 +773,71 @@ describe('the badge (project 025 phase 3)', () => {
     });
   });
 
+  it('shows a client none of a decision: the register, the numbers and the dates stay on the practitioner’s own page', async () => {
+    const who = await granted('client-view');
+
+    await acceptAgreement(app, who);
+
+    const pro = await enableTotp(app, who);
+
+    made.push(pro.cookie);
+
+    const client = await register(app, `badge-e2e-client-view-client-${String(stamp)}@e2e.invalid`);
+    const later = await register(app, `badge-e2e-client-view-later-${String(stamp)}@e2e.invalid`);
+
+    made.push(client.cookie, later.cookie);
+
+    const tokenFor = async (to: Account): Promise<string> => {
+      const before = outbox.length;
+
+      expect((await call('post', '/care/invitations', pro.cookie, { email: to.email })).status).toBe(201);
+      await until(
+        () => outbox.slice(before).some(mail => mail.to === to.email && /\/invitacion\/[A-Za-z0-9_-]{43}/.test(mail.text)),
+        'the invitation'
+      );
+
+      return outbox
+        .slice(before)
+        .filter(mail => mail.to === to.email)
+        .at(-1)
+        ?.text.match(/\/invitacion\/([A-Za-z0-9_-]{43})/)?.[1] as string;
+    };
+
+    const token = await tokenFor(client);
+    const accepted = await call('post', `/care/invitations/${token}/accept`, client.cookie, {
+      consentScope: 'plan',
+      consentVersion: CARE_CONSENT_VERSION,
+      sharesHealth: false
+    });
+
+    expect(accepted.status).toBe(200);
+
+    // The badge withdrawn, then a new application under another number refused: two decisions, each naming its check.
+    const facts = 'El colegio confirma la baja de la prueba';
+
+    expect((await removal(who, { facts, kind: 'withdrawn', reason: 'other', source: 'own_check' })).status).toBe(200);
+    expect((await apply(pro, '28/90909', 'Colegio de la decisión')).status).toBe(201);
+    expect((await removal(who, { kind: 'fail', reason: 'not_on_register', source: 'own_check' })).status).toBe(200);
+
+    // The second factor rotated the session: `pro` is the practitioner's live cookie.
+    const own = await badgeOf(pro);
+
+    expect(own).toMatchObject({ decision: { kind: 'fail', number: '28/90909', register: 'Colegio de la decisión' }, state: 'refused' });
+
+    // What a client reads: their link, and a fresh invitation's detail.
+    const answers = [
+      (await call('get', '/care/links/me', client.cookie)).text,
+      (await call('get', '/care/links/me/ended', client.cookie)).text,
+      (await call('get', `/care/invitations/${await tokenFor(later)}`, later.cookie)).text
+    ];
+
+    for (const text of answers) {
+      for (const needle of ['28/90909', 'Colegio de la decisión', `28/${String(stamp).slice(-5)}`, REGISTER, facts, '"decision"', '"dueAt"']) {
+        expect({ hit: text.includes(needle), needle }).toEqual({ hit: false, needle });
+      }
+    }
+  });
+
   describe('the lapse and the daily sweep', () => {
     const lapsedRows = async (who: Account) => (await checksOf(who.id)).filter(check => check.kind === 'lapsed');
 
@@ -770,8 +846,12 @@ describe('the badge (project 025 phase 3)', () => {
 
       await backdatePass(who.id, 31);
 
+      const passDue = (await checksOf(who.id)).find(check => check.kind === 'pass')?.dueAt ?? '';
+      // The decision of a lapse names the yearly check that fell due, and the badge's own register and number (phase 8).
+      const lapseNamed = { dueAt: new Date(passDue).toISOString(), kind: 'lapsed', number: `28/${String(stamp).slice(-5)}`, register: REGISTER };
+
       // Lapsed on the very next request, before any sweep has run.
-      expect(await badgeOf(who)).toMatchObject({ decision: { kind: 'lapsed' }, number: null, state: 'lapsed' });
+      expect(await badgeOf(who)).toMatchObject({ decision: lapseNamed, number: null, register: null, state: 'lapsed' });
       expect((await recordOf(who)).state).toBe('lapsed');
       expect(await lapsedRows(who)).toEqual([]);
 
@@ -796,7 +876,7 @@ describe('the badge (project 025 phase 3)', () => {
       expect(lapsed).toMatchObject({ kind: 'lapsed', reason: 'our_delay' });
       await until(() => badgeMailsTo(who).length > 0, 'the lapse’s statement');
       expect(badgeMailsTo(who)).toHaveLength(1);
-      expect(await badgeOf(who)).toMatchObject({ decision: { kind: 'lapsed', reason: 'our_delay' }, state: 'lapsed' });
+      expect(await badgeOf(who)).toMatchObject({ decision: { ...lapseNamed, reason: 'our_delay' }, number: null, register: null, state: 'lapsed' });
 
       // A second pass finds nothing to lapse.
       await sweep();
@@ -877,8 +957,8 @@ describe('the badge (project 025 phase 3)', () => {
       where u.email like ${`badge-e2e-%-${String(stamp)}@e2e.invalid`}`;
 
     // Every code this suite issued: three in the flows, five in the refusals, one unentered, two bound, the victim's, the lapse's —
-    // and, since phase 6, one for each of the six badges earned by the real path in `granted()`.
-    expect(hashes).toHaveLength(19);
+    // and, since phase 6, one for each of the seven badges earned by the real path in `granted()`.
+    expect(hashes).toHaveLength(20);
     // Sanity: the store's hash is the code's, so searching for it is searching for the right thing.
     expect(hashes.map(row => row.hash)).toContain(
       createHash('sha256')

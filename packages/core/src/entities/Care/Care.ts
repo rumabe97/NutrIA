@@ -14,8 +14,13 @@ import { z } from 'zod';
  * the health line can be switched on and off later without ending the link. A
  * link accepted at `1.0.0` stays a link, shown with `consentIsCurrent: false`;
  * none may be a real one when the `professional` switch goes on.
+ *
+ * `3.0.0` (project 025 phase 8, `docs/legal/textos/05` § F): the list is the
+ * tier's — the badged list with what a refused dish and a lost badge let the
+ * practitioner work out, or the plan-only list with its fixed notice — and the
+ * re-consent of § F.4 widens a `plan` link to the badged one at this version.
  */
-export const CARE_CONSENT_VERSION = '2.0.0';
+export const CARE_CONSENT_VERSION = '3.0.0';
 
 /**
  * What a link lets the professional see and do, in the order the client reads

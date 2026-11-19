@@ -1,0 +1,131 @@
+.root {
+  overflow-wrap: anywhere;
+  display: grid;
+  gap: var(--gap-region);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.card {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.cardTitle {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-04);
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+/* The badge line: a statement in the body face, a step up from the text under it. */
+.badgeLine {
+  font-size: var(--font-size-04);
+  overflow-wrap: break-word;
+}
+
+/* The steps as the sheet draws them (sheet «Distintivo»): one under the other, each its number
+   and its name; the current one carries `aria-current="step"`, a filled marker and a bolder
+   name, and holds what is happening now. */
+.steps {
+  display: grid;
+  gap: var(--space-04);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.step {
+  align-items: start;
+  color: var(--foreground-02);
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.stepBody {
+  display: grid;
+  gap: var(--space-02);
+  min-inline-size: 0;
+  padding-block-start: var(--space-01);
+}
+
+.stepLabel {
+  font-size: var(--font-size-04);
+  overflow-wrap: break-word;
+}
+
+.marker {
+  align-items: center;
+  block-size: 1.75rem;
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: var(--font-size-02);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
+  inline-size: 1.75rem;
+  justify-content: center;
+}
+
+.step[data-state='done'] .marker {
+  background-image: var(--gradient-brand-fill);
+  border-color: transparent;
+  color: var(--color-on-brand-fill);
+}
+
+.step[data-state='now'] {
+  color: var(--foreground-01);
+}
+
+.step[data-state='now'] .stepLabel {
+  font-weight: var(--font-weight-semibold);
+}
+
+.step[data-state='now'] .marker {
+  background-color: var(--foreground-01);
+  border-color: var(--foreground-01);
+  color: var(--background-01);
+}
+
+.form {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.code input {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2em;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+}
+
+@media (width < 48rem) {
+  :global(html):has(.form input:focus) {
+    --app-bar-clearance: 0rem;
+    --app-foot-space: var(--space-02);
+  }
+}
+
+@media (forced-colors: active) {
+  /* Done is filled with the system highlight, now is a thick ring, next a thin one: three
+     different shapes, whatever colours the system forces. */
+  .step[data-state='done'] .marker {
+    background: Highlight;
+    border: 1px solid Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .step[data-state='now'] .marker {
+    border: 3px solid CanvasText;
+  }
+}

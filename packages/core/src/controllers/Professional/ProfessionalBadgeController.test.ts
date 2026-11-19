@@ -177,14 +177,77 @@ describe('ProfessionalBadgeController.state — the six states', () => {
     record.mockResolvedValueOnce({ checks: [check('pass', 30), withdrawn], code: null });
 
     await expect(ProfessionalBadgeController.state('usr-pro', NOW)).resolves.toMatchObject({
-      decision: { at: fail.checkedAt.toISOString(), facts: 'Lo dijo por teléfono.', kind: 'fail', reason: 'not_me' },
+      decision: { at: fail.checkedAt.toISOString(), dueAt: null, facts: 'Lo dijo por teléfono.', kind: 'fail', reason: 'not_me' },
       state: 'refused'
     });
     await expect(ProfessionalBadgeController.state('usr-pro', NOW)).resolves.toMatchObject({
-      decision: { at: withdrawn.checkedAt.toISOString(), facts: null, kind: 'withdrawn', reason: 'not_on_register' },
+      decision: { at: withdrawn.checkedAt.toISOString(), dueAt: null, facts: null, kind: 'withdrawn', reason: 'not_on_register' },
       number: null,
       state: 'withdrawn'
     });
+  });
+
+  /*
+   * `textos/06` § W: «El registro de {register} no te muestra … con el número
+   * {number}, consultado el {checkedOn}». The decision carries the register and
+   * number the decided row names — the application's for a refusal, the badge's
+   * for a withdrawal — and its date, while the top-level fields stay the
+   * standing badge's (none).
+   */
+  it.each([
+    [
+      'a refusal names the application’s register and number',
+      'fail' as const,
+      [check('applied', 5, { number: 'MAD-DECLARED', register: 'Colegio de Asturias' })]
+    ],
+    [
+      'a withdrawal names the badge’s register and number',
+      'withdrawn' as const,
+      [check('pass', 30, { number: 'MAD-DECLARED', register: 'Colegio de Asturias' })]
+    ]
+  ])('%s, and the day of the check, for the statement of reasons', async (_, kind, before) => {
+    const decided = check(kind, 1, { number: 'MAD-DECLARED', reason: 'not_on_register', register: 'Colegio de Asturias' });
+
+    record.mockResolvedValue({ checks: [...before, decided], code: null });
+
+    await expect(ProfessionalBadgeController.state('usr-pro', NOW)).resolves.toMatchObject({
+      decision: {
+        at: decided.checkedAt.toISOString(),
+        dueAt: null,
+        kind,
+        number: 'MAD-DECLARED',
+        reason: 'not_on_register',
+        register: 'Colegio de Asturias'
+      },
+      number: null,
+      register: null
+    });
+  });
+
+  it('gives a lapse the sweep wrote the due date it missed, and the badge’s register and number (§ V)', async () => {
+    const pass = check('pass', 400, { number: 'MAD-PASS', register: 'Colegio de Asturias' });
+    const lapsed = check('lapsed', 1, { number: 'MAD-PASS', reason: 'code_not_entered', register: 'Colegio de Asturias' });
+
+    record.mockResolvedValue({ checks: [check('pass', 800, { number: 'OLD' }), pass, lapsed], code: null });
+
+    await expect(ProfessionalBadgeController.state('usr-pro', NOW)).resolves.toMatchObject({
+      decision: {
+        at: lapsed.checkedAt.toISOString(),
+        dueAt: (pass.dueAt as Date).toISOString(),
+        kind: 'lapsed',
+        number: 'MAD-PASS',
+        reason: 'code_not_entered',
+        register: 'Colegio de Asturias'
+      },
+      number: null,
+      register: null
+    });
+  });
+
+  it('gives a lapse with no pass before it no due date rather than a wrong one', async () => {
+    record.mockResolvedValue({ checks: [check('lapsed', 1)], code: null });
+
+    await expect(ProfessionalBadgeController.state('usr-pro', NOW)).resolves.toMatchObject({ decision: { dueAt: null, kind: 'lapsed' } });
   });
 
   it('keeps an unknown stored reason out of the closed field', async () => {
@@ -252,7 +315,14 @@ describe('ProfessionalBadgeController.state — the six states', () => {
     });
     // Past the grace, with no `lapsed` row yet: the badge is derived, so it is gone already, and reads as the lapse it is.
     await expect(ProfessionalBadgeController.state('usr-pro', new Date((pass.dueAt as Date).getTime() + 31 * DAY))).resolves.toMatchObject({
-      decision: { at: new Date((pass.dueAt as Date).getTime() + 30 * DAY).toISOString(), kind: 'lapsed', reason: null },
+      decision: {
+        at: new Date((pass.dueAt as Date).getTime() + 30 * DAY).toISOString(),
+        dueAt: (pass.dueAt as Date).toISOString(),
+        kind: 'lapsed',
+        number: 'MAD00123',
+        reason: null,
+        register: 'Colegio de Madrid'
+      },
       number: null,
       state: 'lapsed'
     });

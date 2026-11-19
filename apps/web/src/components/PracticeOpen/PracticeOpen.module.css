@@ -1,0 +1,55 @@
+.root {
+  display: grid;
+  gap: var(--gap-region);
+  grid-template-columns: minmax(0, 1fr);
+  margin-inline: auto;
+  max-inline-size: var(--prose-max);
+}
+
+.title {
+  font-size: var(--font-size-09);
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  margin: 0 0 var(--gap-heading);
+  overflow-wrap: break-word;
+}
+
+.intro {
+  text-wrap: pretty;
+}
+
+.card {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.cardTitle {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-04);
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+.form {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* With the date field focused on a phone the bar steps aside (§ Forms on a phone). */
+@media (width < 48rem) {
+  :global(html):has(.form input:focus) {
+    --app-bar-clearance: 0rem;
+    --app-foot-space: var(--space-02);
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+}

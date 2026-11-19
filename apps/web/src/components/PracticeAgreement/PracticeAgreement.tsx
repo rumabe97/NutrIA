@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -7,20 +7,23 @@ import styles from './PracticeAgreement.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Checkbox } from 'ui/components/Checkbox';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from 'ui/components/Collapsible';
 import { Heading } from 'ui/components/Heading';
 import { interpolate } from 'i18n/interpolate';
 import { LEGAL_IDENTITY } from 'i18n/legalIdentity';
 import { Note } from 'ui/components/Note';
 import { Text } from 'ui/components/Text';
-import { useDictionary } from 'i18n/LocaleProvider';
+import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { Card } from 'components/Card';
 import { PracticeAgreementSection } from 'components/PracticeAgreementSection';
 
 import { api, messageFor } from 'lib/api';
+import { formatNumber } from 'lib/format';
+import { markFocusAfterRefresh, takeFocusAfterRefresh } from 'lib/focusAfterRefresh';
 
 interface PracticeAgreementProps {
+  /** The free practice's places in force (`CarePracticeView.seats`), for § 10. */
+  seats: number;
   /** The version `professionals.agreementVersion` must equal before the practice opens. */
   version: string;
 }
@@ -33,18 +36,28 @@ function fill(text: string): string {
 /**
  * The gate `/consulta` shows in place of the workspace while
  * `professionals.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION`
- * (`docs/legal/textos/01-acuerdo-profesional.md`): the professional's own
- * agreement, the practice plan's conditions as a second, foldable block, and
- * one checkbox that accepts both. Nothing else on the page renders until
+ * (`docs/legal/textos/01-acuerdo-profesional.md`, version 2.0.0): the
+ * professional's agreement and one checkbox that accepts it. The practice
+ * plan's terms left this screen with 2.0.0 (legal choice C10): no plan is
+ * bought here. Nothing else on the page renders until
  * `POST /care/practice/agreement` succeeds and the page is read again.
  */
-export function PracticeAgreement({ version }: PracticeAgreementProps) {
+export function PracticeAgreement({ seats, version }: PracticeAgreementProps) {
   const router = useRouter();
   const dictionary = useDictionary();
+  const locale = useLocale();
   const t = dictionary.practiceAgreement;
   const [checked, setChecked] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
+  const heading = useRef<HTMLHeadingElement>(null);
+
+  // Arrived from the opening form, in place: the new view says where the reader is.
+  useEffect(() => {
+    if (takeFocusAfterRefresh('practice-opened')) {
+      heading.current?.focus();
+    }
+  }, []);
 
   async function accept() {
     setError(undefined);
@@ -52,6 +65,8 @@ export function PracticeAgreement({ version }: PracticeAgreementProps) {
 
     try {
       await api('/care/practice/agreement', { body: { version }, method: 'POST' });
+      // The workspace replaces this view at the same address: its title takes focus when it arrives.
+      markFocusAfterRefresh('agreement-accepted');
       router.refresh();
     } catch (caught) {
       setError(messageFor(caught, dictionary));
@@ -61,7 +76,7 @@ export function PracticeAgreement({ version }: PracticeAgreementProps) {
 
   return (
     <Card as="section" className={styles.card} padding="lg">
-      <Heading level="1" size="lg">
+      <Heading level="1" ref={heading} size="lg" tabIndex={-1}>
         {t.title}
       </Heading>
 
@@ -73,25 +88,9 @@ export function PracticeAgreement({ version }: PracticeAgreementProps) {
 
       <div className={styles.sections}>
         {t.sections.map(section => (
-          <PracticeAgreementSection key={section.heading} level="2" section={section} />
+          <PracticeAgreementSection key={section.heading} limit={formatNumber(seats, locale)} section={section} />
         ))}
       </div>
-
-      <Collapsible className={styles.terms}>
-        <Heading level="2" size="xs">
-          <CollapsibleTrigger className={styles.termsTrigger}>
-            {t.terms.title}
-            <span aria-hidden="true" className={styles.chevron} />
-          </CollapsibleTrigger>
-        </Heading>
-        <CollapsibleContent>
-          <div className={styles.sections}>
-            {t.terms.sections.map(section => (
-              <PracticeAgreementSection key={section.heading} level="3" section={section} />
-            ))}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
 
       <div className={styles.accept}>
         <Checkbox checked={checked} label={t.checkbox} onCheckedChange={value => setChecked(value === true)} />
@@ -107,7 +106,7 @@ export function PracticeAgreement({ version }: PracticeAgreementProps) {
       ) : null}
 
       <div className={styles.actions}>
-        <Button disabled={!checked} loading={pending} onClick={() => void accept()} size="lg" type="button">
+        <Button aria-disabled={pending || undefined} disabled={!checked} loading={pending} onClick={() => void accept()} size="lg" type="button">
           {t.accept}
         </Button>
       </div>

@@ -13,7 +13,9 @@ import type { User } from 'core/entities/User';
 const NOW = new Date('2026-11-19T09:00:00.000Z');
 
 const save =
-  vi.fn<(userId: string, input: SaveProfessionalProfile, now: Date, judge: (badged: boolean) => ProfileWordRefusal | null) => Promise<ProfileSave>>();
+  vi.fn<
+    (userId: string, input: SaveProfessionalProfile, now: Date, judge: (badged: boolean) => readonly ProfileWordRefusal[]) => Promise<ProfileSave>
+  >();
 const find = vi.fn<(userId: string) => Promise<ProfessionalProfile | null>>();
 type Hook = (tx: unknown) => Promise<unknown>;
 
@@ -35,7 +37,7 @@ vi.mock('#repositories/Professional', () => ({
     hide: (userId: string, reason: string, now: Date, record?: Hook) => hide(userId, reason, now, record),
     markSeen: (userId: string, ownerId: string, now: Date, record?: Hook) => markSeen(userId, ownerId, now, record),
     queue: () => queue(),
-    save: (userId: string, input: SaveProfessionalProfile, now: Date, judge: (badged: boolean) => ProfileWordRefusal | null) =>
+    save: (userId: string, input: SaveProfessionalProfile, now: Date, judge: (badged: boolean) => readonly ProfileWordRefusal[]) =>
       save(userId, input, now, judge)
   }
 }));
@@ -88,9 +90,9 @@ describe('ProfessionalProfileController.save — the words', () => {
   /** Runs the repository's judge with `badged`, as the repository does under the lock. */
   function judging(badged: boolean): void {
     save.mockImplementation(async (_userId, input, _now, judge) => {
-      const refusal = judge(badged);
+      const [first, ...rest] = judge(badged);
 
-      return refusal ? { kind: 'refused', refusal } : { kind: 'saved', profile: profile({ ...input }) };
+      return first ? { kind: 'refused', refusals: [first, ...rest] } : { kind: 'saved', profile: profile({ ...input }) };
     });
   }
 
@@ -106,6 +108,30 @@ describe('ProfessionalProfileController.save — the words', () => {
 
     expect(refusal).toBeInstanceOf(InputParseError);
     expect((refusal as InputParseError).fieldErrors).toEqual({ [field]: [code] });
+  });
+
+  it('names every refused field on one save — the name and the studies — each with its first refused word', async () => {
+    judging(false);
+
+    const refusal = await ProfessionalProfileController.save(
+      'usr-pro',
+      body({ displayName: 'Ana Dietista', studies: 'Consulta clínica para pacientes' }),
+      NOW
+    ).catch((error: unknown) => error);
+
+    expect(refusal).toBeInstanceOf(InputParseError);
+    expect((refusal as InputParseError).fieldErrors).toEqual({ displayName: ['badge_only:dietista'], studies: ['badge_only:consulta'] });
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it('names a field refused on another list beside one the badge would allow', async () => {
+    judging(true);
+
+    const refusal = await ProfessionalProfileController.save('usr-pro', body({ displayName: 'Dra. Ana', studies: 'Pierde 10 kg' }), NOW).catch(
+      (error: unknown) => error
+    );
+
+    expect((refusal as InputParseError).fieldErrors).toEqual({ displayName: ['never:dra'], studies: ['result:kg'] });
   });
 
   it('lets a badge-only word through with the badge', async () => {

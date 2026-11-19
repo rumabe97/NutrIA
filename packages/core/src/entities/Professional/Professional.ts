@@ -29,7 +29,9 @@ export type OpenPractice = z.infer<typeof openPracticeSchema>;
  * not this one asks again, and accepting an older one is refused at the door.
  */
 // 1.1.0 (PLAN 011 phase 6): § 8 makes two-step verification mandatory for a password account.
-export const PROFESSIONAL_AGREEMENT_VERSION = '1.1.0';
+// 2.0.0 (project 025 phase 8, `docs/legal/textos/01` § «Versión 2.0.0»): two tiers, the badge, the
+// words, the first look, suspension and close; the practice plan's terms leave the screen (C10).
+export const PROFESSIONAL_AGREEMENT_VERSION = '2.0.0';
 
 /** The professional's acceptance: the current version, and nothing else. */
 export const acceptAgreementSchema = z.object({ version: z.literal(PROFESSIONAL_AGREEMENT_VERSION) });

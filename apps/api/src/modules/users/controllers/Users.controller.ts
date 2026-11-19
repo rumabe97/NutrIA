@@ -24,7 +24,9 @@ export class UsersController {
 
   @AllowPasswordChangePending()
   @AllowUnverified()
-  @ApiOkResponse({ description: 'The account, with the state of both locks and whether it is a professional today.' })
+  @ApiOkResponse({
+    description: 'The account, with the state of both locks and whether it is a professional today or may be offered to open a practice.'
+  })
   @ApiOperation({ summary: "The signed-in user's account" })
   @Get('me')
   async me(@CurrentUser() user: SessionUser): Promise<UserDto> {

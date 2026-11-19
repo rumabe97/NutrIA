@@ -15,6 +15,7 @@ import { serverApi } from 'lib/server-api';
 import { appMetadata } from '../../_shared/metadata';
 
 import type { AllowancesView, PlanView } from 'core/controllers/Plan';
+import type { CareLinkView } from 'core/controllers/Care';
 import type { EventView } from 'core/controllers/Event';
 import type { Metadata } from 'next';
 import type { VacationView } from 'core/controllers/Vacation';
@@ -30,7 +31,7 @@ export default async function PlanPage() {
 
   // `active` returns null rather than 404 when there is no plan — having none is a
   // normal state, so the empty state is an ordinary render, not an error path.
-  const [dictionary, locale, plan, scheduled, allowances, events, trips] = await Promise.all([
+  const [dictionary, locale, plan, scheduled, allowances, events, trips, careLink] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<PlanView | null>('/meal-plans/active'),
@@ -39,7 +40,9 @@ export default async function PlanPage() {
     serverApi<AllowancesView>('/meal-plans/allowances'),
     serverApi<readonly EventView[]>('/events'),
     // Whether the plan is paused, as the dish's page asks it: a paused plan offers no swap.
-    serverApi<readonly VacationView[]>('/vacations')
+    serverApi<readonly VacationView[]>('/vacations'),
+    // Who reviews a plan waiting for review, by the name the API judged (null: «tu profesional»).
+    serverApi<CareLinkView | null>('/care/links/me')
   ]);
 
   const notice = (
@@ -47,6 +50,7 @@ export default async function PlanPage() {
       body={dictionary.plan.pendingReviewBody}
       currentPlanId={plan?.id ?? null}
       heading={false}
+      professionalName={careLink?.professionalName ?? null}
       title={dictionary.plan.pendingReviewTitle}
     />
   );

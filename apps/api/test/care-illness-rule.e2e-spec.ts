@@ -565,6 +565,8 @@ describe('the illness rule and consent per tier (project 025 phase 5)', () => {
       expect(await Promise.all([fullLink, unbadgedLink, planLink].map(stored))).toEqual(before);
       // An old version is refused before anything is read.
       expect((await reconsent(planClient, '0.0.1')).status).toBe(422);
+      // The previous real version too, before 3.0.0 (project 025 phase 8).
+      expect((await reconsent(planClient, '2.0.0')).status).toBe(422);
       // The same plan link, switch on: it widens — so the switch alone refused it above.
       expect((await reconsent(planClient)).status).toBe(200);
     });

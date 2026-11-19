@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { makeProfessional, makeProfile, makeUser } from '#test/fixtures';
+import { ALLOWANCES } from 'core/domain/Allowance';
 import { NotFoundError } from 'core/entities/Error';
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 
@@ -12,6 +13,7 @@ import type { PracticeRestrictionKind, Professional, ProfessionalProfile } from 
 import type { Profile } from 'core/entities/Profile';
 import type { ProfessionalQuery } from 'core/entities/AdminQuery';
 import type { User } from 'core/entities/User';
+import type { Allowances } from 'core/domain/Allowance';
 
 type CloseHooks = {
   readonly endLinks: (tx: unknown) => Promise<unknown>;
@@ -52,6 +54,7 @@ const findById = vi.fn<(id: string) => Promise<User | undefined>>();
 const findByUserId = vi.fn<(id: string) => Promise<Profile | undefined>>();
 const isEnabled = vi.fn<(key: string, fallback: boolean) => Promise<boolean>>();
 const badgeOf = vi.fn<(userId: string, now: Date) => Promise<Badge | null>>();
+const limitsOf = vi.fn<(userId: string) => Promise<Allowances>>();
 const badgesOf = vi.fn<(userIds: readonly string[], now: Date) => Promise<ReadonlyMap<string, Badge>>>();
 
 const NOW = new Date('2026-11-19T09:00:00.000Z');
@@ -121,6 +124,7 @@ vi.mock('#repositories/Care', () => ({
 vi.mock('#repositories/Audit', () => ({ AuditRepository: { record: (entry: unknown, tx?: unknown) => auditRecord(entry, tx) } }));
 vi.mock('#repositories/Profile', () => ({ ProfileRepository: { findByUserId: (id: string) => findByUserId(id) } }));
 vi.mock('#repositories/User', () => ({ UserRepository: { findById: (id: string) => findById(id) } }));
+vi.mock('core/controllers/Plan', () => ({ PlanController: { limitsOf: (userId: string) => limitsOf(userId) } }));
 vi.mock('#repositories/Settings', () => ({ SettingsRepository: { isEnabled: (key: string, fallback: boolean) => isEnabled(key, fallback) } }));
 
 beforeEach(() => {
@@ -148,6 +152,8 @@ beforeEach(() => {
   badgeOf.mockResolvedValue(null);
   badgesOf.mockReset();
   badgesOf.mockResolvedValue(new Map());
+  limitsOf.mockReset();
+  limitsOf.mockResolvedValue(ALLOWANCES);
 });
 
 /*
@@ -336,6 +342,115 @@ describe('ProfessionalController.hasAccess', () => {
     await expect(ProfessionalController.hasAccess('usr-dietitian')).resolves.toBe(true);
     await expect(ProfessionalController.hasAccess('usr-dietitian')).resolves.toBe(false);
     expect(find).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('ProfessionalController.openingFor', () => {
+  it('offers nothing while the switch is off — and reads nothing else', async () => {
+    isEnabled.mockResolvedValue(false);
+    find.mockResolvedValue(null);
+
+    await expect(ProfessionalController.openingFor('usr-plain')).resolves.toEqual({ canOpenPractice: false, professional: false });
+    expect(find).not.toHaveBeenCalled();
+    expect(standing).not.toHaveBeenCalled();
+  });
+
+  it('is a practitioner and offers no opening for an account with a practice — without reading the restrictions', async () => {
+    isEnabled.mockResolvedValue(true);
+    find.mockResolvedValue(makeProfessional());
+
+    await expect(ProfessionalController.openingFor('usr-dietitian')).resolves.toEqual({ canOpenPractice: false, professional: true });
+    expect(find).toHaveBeenCalledWith('usr-dietitian');
+    expect(standing).not.toHaveBeenCalled();
+  });
+
+  it('offers the opening to an account with no practice and nothing standing against it', async () => {
+    isEnabled.mockResolvedValue(true);
+    find.mockResolvedValue(null);
+
+    await expect(ProfessionalController.openingFor('usr-plain')).resolves.toEqual({ canOpenPractice: true, professional: false });
+    expect(standing).toHaveBeenCalledWith('usr-plain', undefined);
+    // The allowances are the seats read's, never this one's: `/users/me` asks this on every page.
+    expect(limitsOf).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a suspension', suspended()],
+    ['a close announced, its day not yet come', closing(new Date(NOW.getTime() + 10 * DAY))],
+    ['a closed practice', closing(new Date(NOW.getTime() - DAY))]
+  ])('offers no opening while %s stands — the same `barsOpening` as `open`', async (_, stands) => {
+    isEnabled.mockResolvedValue(true);
+    find.mockResolvedValue(null);
+    standing.mockResolvedValue(stands);
+
+    await expect(ProfessionalController.openingFor('usr-plain')).resolves.toEqual({ canOpenPractice: false, professional: false });
+  });
+
+  it.each([
+    ['the switch off, a practice', false, makeProfessional()],
+    ['the switch on, a practice', true, makeProfessional()],
+    ['the switch on, no practice', true, null]
+  ])('answers `professional` exactly as `hasAccess` does — %s', async (_, on, row) => {
+    isEnabled.mockResolvedValue(on);
+    find.mockResolvedValue(row);
+
+    const access = await ProfessionalController.hasAccess('usr-pro');
+
+    await expect(ProfessionalController.openingFor('usr-pro')).resolves.toMatchObject({ professional: access });
+  });
+
+  it('asks nothing about the address, the activation or the age — those are `open`’s to refuse', async () => {
+    isEnabled.mockResolvedValue(true);
+    find.mockResolvedValue(null);
+
+    await expect(ProfessionalController.openingFor('usr-plain')).resolves.toMatchObject({ canOpenPractice: true });
+    expect(findById).not.toHaveBeenCalled();
+    expect(findByUserId).not.toHaveBeenCalled();
+  });
+});
+
+describe('ProfessionalController.openingSeats', () => {
+  it('names the seats in force for the session’s account — the allowance `limitsOf` resolves, not a literal', async () => {
+    find.mockResolvedValue(null);
+    limitsOf.mockResolvedValue({ ...ALLOWANCES, practiceClients: 7 });
+
+    await expect(ProfessionalController.openingSeats('usr-plain')).resolves.toEqual({ seats: 7 });
+    expect(limitsOf).toHaveBeenCalledWith('usr-plain');
+  });
+
+  it('is the 404 `open` answers while the switch is off — the allowances unread', async () => {
+    isEnabled.mockResolvedValue(false);
+
+    await expect(ProfessionalController.openingSeats('usr-plain')).rejects.toEqual(new NotFoundError('Not Found'));
+    expect(find).not.toHaveBeenCalled();
+    expect(limitsOf).not.toHaveBeenCalled();
+  });
+
+  it('is the 404 for an account that already practises — the allowances unread', async () => {
+    find.mockResolvedValue(makeProfessional());
+
+    await expect(ProfessionalController.openingSeats('usr-dietitian')).rejects.toBeInstanceOf(NotFoundError);
+    expect(limitsOf).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a suspension', suspended()],
+    ['a close announced, its day not yet come', closing(new Date(NOW.getTime() + 10 * DAY))],
+    ['a closed practice', closing(new Date(NOW.getTime() - DAY))]
+  ])('is the 404 while %s stands — the allowances unread', async (_, stands) => {
+    find.mockResolvedValue(null);
+    standing.mockResolvedValue(stands);
+
+    await expect(ProfessionalController.openingSeats('usr-plain')).rejects.toBeInstanceOf(NotFoundError);
+    expect(limitsOf).not.toHaveBeenCalled();
+  });
+
+  it('asks nothing about the address, the activation or the age, as `openingFor` does not', async () => {
+    find.mockResolvedValue(null);
+
+    await expect(ProfessionalController.openingSeats('usr-plain')).resolves.toEqual({ seats: ALLOWANCES.practiceClients });
+    expect(findById).not.toHaveBeenCalled();
+    expect(findByUserId).not.toHaveBeenCalled();
   });
 });
 

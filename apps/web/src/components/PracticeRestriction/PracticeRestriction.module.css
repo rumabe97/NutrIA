@@ -1,0 +1,4 @@
+.note {
+  margin-block-start: var(--gap-region);
+  overflow-wrap: break-word;
+}

@@ -41,6 +41,7 @@ import type {
   CareInvitationDto,
   CareLinkDto,
   CarePracticeDto,
+  CarePracticeOpeningDto,
   CareProfessionalProfileDto
 } from '../dto/out/index.js';
 import type { Env } from '../../../config/index.js';
@@ -76,6 +77,11 @@ export class CareService {
     await ProfessionalController.open(user.id, body, locale);
 
     return this.practice(user);
+  }
+
+  /** The seats the opening form names, for the session's own account; the core's 404 wherever the form is not offered. */
+  async practiceOpening(user: SessionUser): Promise<CarePracticeOpeningDto> {
+    return ProfessionalController.openingSeats(user.id);
   }
 
   async profile(professional: SessionUser): Promise<CareProfessionalProfileDto> {

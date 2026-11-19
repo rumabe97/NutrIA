@@ -169,9 +169,9 @@ function presentQueued(row: QueuedProfile, badged: boolean): QueuedProfileView {
   };
 }
 
-/** The first refused word of a profile about to be saved, or null: every free-text field, with the badge as context. */
-function refusalOf(input: SaveProfessionalProfile, badged: boolean): ProfileWordRefusal | null {
-  return wordsOf(input, badged)[0] ?? null;
+/** Every refused field of a profile about to be saved, each with its first refused word; empty when none. With the badge as context. */
+function refusalsOf(input: SaveProfessionalProfile, badged: boolean): readonly ProfileWordRefusal[] {
+  return wordsOf(input, badged);
 }
 
 /** The owner's view of one account's profile now; a 404 when there is none. */
@@ -288,25 +288,27 @@ export const ProfessionalProfileController = {
    * The author saves their profile. **The words** (PRD 025 scope 5, criterion
    * 6): every free-text field goes through `protectedWordIn` with the badge read
    * under the practitioner's badge lock as it is written
-   * (`ProfessionalProfileRepository.save`); the first word refused is a 422
-   * naming the field, the list and the word — `fieldErrors: { [field]:
-   * ['<list>:<word>'] }`, with `list` one of `badge_only`, `never`, `result` —
-   * and nothing is written. A create or a change to a free-text field puts the
+   * (`ProfessionalProfileRepository.save`); any word refused is a 422 naming
+   * **every** refused field at once, each with its first refused word and the
+   * list — `fieldErrors: { [field]: ['<list>:<word>'] }`, one key per refused
+   * field (`displayName`, `studies`), with `list` one of `badge_only`, `never`,
+   * `result` — so the form shows them all on one save; nothing is written. A create or a change to a free-text field puts the
    * profile on the owner's queue; the queue gates nothing.
    *
    * A 404 when the account has no practice: a profile is the practice's.
    */
   async save(userId: string, input: SaveProfessionalProfile, now: Date = new Date()): Promise<ProfessionalProfileView> {
-    const outcome = await ProfessionalProfileRepository.save(userId, input, now, badged => refusalOf(input, badged));
+    const outcome = await ProfessionalProfileRepository.save(userId, input, now, badged => refusalsOf(input, badged));
 
     if (outcome.kind === 'none') {
       throw new NotFoundError(NOT_FOUND);
     }
 
     if (outcome.kind === 'refused') {
-      const { field, list, word } = outcome.refusal;
-
-      throw new InputParseError('A word the profile may not carry', { [field]: [`${list}:${word}`] });
+      throw new InputParseError(
+        'A word the profile may not carry',
+        Object.fromEntries(outcome.refusals.map(({ field, list, word }) => [field, [`${list}:${word}`]]))
+      );
     }
 
     return presentProfile(outcome.profile, (await ProfessionalBadgeRepository.badgeOf(userId, now)) !== null);

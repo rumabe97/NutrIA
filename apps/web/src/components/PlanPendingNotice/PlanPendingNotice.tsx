@@ -8,6 +8,7 @@ import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
 import { isPendingReview } from 'lib/pendingReview';
+import { withProfessional } from 'lib/professionalName';
 
 interface PlanPendingNoticeProps {
   body: string;
@@ -22,6 +23,8 @@ interface PlanPendingNoticeProps {
    * either way; it does not need to be a heading to be read out.
    */
   heading?: boolean;
+  /** The linked practitioner's name as the API may show it (`CareLinkView.professionalName`); null or absent: «tu profesional». */
+  professionalName?: string | null;
   title: string;
 }
 
@@ -42,7 +45,7 @@ function alwaysAbsent(): boolean {
  * matches the server's and nothing server-rendered claims a wait the API
  * never confirmed.
  */
-export function PlanPendingNotice({ body, currentPlanId, heading = true, title }: PlanPendingNoticeProps) {
+export function PlanPendingNotice({ body, currentPlanId, heading = true, professionalName = null, title }: PlanPendingNoticeProps) {
   const dictionary = useDictionary();
   const pending = useSyncExternalStore(noSubscription, () => isPendingReview(currentPlanId), alwaysAbsent);
 
@@ -50,17 +53,21 @@ export function PlanPendingNotice({ body, currentPlanId, heading = true, title }
     return null;
   }
 
+  // The practitioner by the name the API judged, or «tu profesional» when it may not be shown
+  // (PRD 025 criterion 19) — never «tu dietista», whatever the tier.
+  const named = (text: string) => withProfessional(text, professionalName, dictionary.care.professionalUnnamed);
+
   return (
     <Note as="section" role="status" toneLabel={dictionary.common.noteTone.info}>
       {heading ? (
-        <h2 className={styles.title}>{title}</h2>
+        <h2 className={styles.title}>{named(title)}</h2>
       ) : (
         <Text as="strong" className={styles.title} weight="bold">
-          {title}
+          {named(title)}
         </Text>
       )}
       <Text size="sm" tone="secondary">
-        {body}
+        {named(body)}
       </Text>
     </Note>
   );

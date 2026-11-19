@@ -12,10 +12,12 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { Card } from 'components/Card';
 import { CareHealthSwitch } from 'components/CareHealthSwitch';
+import { CareReconsent } from 'components/CareReconsent';
 
 import { api, messageFor } from 'lib/api';
 import { formatInstant, interpolate } from 'lib/format';
 import { professionalLabel, withProfessional } from 'lib/professionalName';
+import { takeFocusAfterRefresh } from 'lib/focusAfterRefresh';
 
 import type { CareLinkView } from 'core/controllers/Care';
 
@@ -27,6 +29,11 @@ interface CareLinkCardProps {
  * The client's own link (PRD 004, criterion 4): who, what is shared, since
  * when, and the one way to end it — from this side, whatever the `professional`
  * switch says, because consent is revocable.
+ *
+ * «Tu profesional» whatever the tier (PRD 025 criterion 19, legal C3), with the
+ * fixed notice under the name while the practitioner holds no badge
+ * (`textos/05` § F.1), and the offer to widen the link while a badge stands on a
+ * plan-only link (`reconsentOffered`, § F.4).
  */
 export function CareLinkCard({ link }: CareLinkCardProps) {
   const router = useRouter();
@@ -39,6 +46,15 @@ export function CareLinkCard({ link }: CareLinkCardProps) {
   const confirmHeadingRef = useRef<HTMLParagraphElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const mounted = useRef(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // Arrived from the re-consent card, in place: the card with its new list is what is read next.
+  // The card stays mounted across the refresh, so this runs when the list it shows changes.
+  useEffect(() => {
+    if (takeFocusAfterRefresh('link-widened')) {
+      headingRef.current?.focus();
+    }
+  }, [link.consentScope]);
 
   // `shares` is `CareShared | CareHealthShared`, two disjoint key sets that
   // together name every label the professional may see under this link.
@@ -84,9 +100,11 @@ export function CareLinkCard({ link }: CareLinkCardProps) {
 
   return (
     <Card as="section" className={styles.card}>
-      <h3 className={styles.title}>{t.linkTitle}</h3>
-
-      <Text weight="medium">{professionalLabel(link.professionalName, t.professionalUnnamed)}</Text>
+      {/* The section's own h2 already says «Tu profesional»: the card is named by who it is. */}
+      <h3 className={styles.title} ref={headingRef} tabIndex={-1}>
+        {professionalLabel(link.professionalName, t.professionalUnnamed)}
+      </h3>
+      {link.professionalVerified ? null : <span className={styles.notice}>{t.invitationNotice}</span>}
       <Text size="sm" tone="secondary">
         {interpolate(t.linkSince, { date: formatInstant(Date.parse(link.since), locale, { day: 'numeric', month: 'long', year: 'numeric' }) })}
       </Text>
@@ -96,9 +114,11 @@ export function CareLinkCard({ link }: CareLinkCardProps) {
 
       {offersHealth ? (
         <div className={styles.healthShare}>
-          <CareHealthSwitch sharesHealth={link.sharesHealth} />
+          <CareHealthSwitch professionalName={link.professionalName} sharesHealth={link.sharesHealth} visible={link.scope === 'full'} />
         </div>
       ) : null}
+
+      {link.reconsentOffered ? <CareReconsent professionalName={link.professionalName} /> : null}
 
       {error ? (
         <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
@@ -112,7 +132,7 @@ export function CareLinkCard({ link }: CareLinkCardProps) {
             {withProfessional(t.endConfirmTitle, link.professionalName, t.professionalUnnamed)}
           </Text>
           <Text size="sm" tone="tertiary">
-            {t.endConfirmBody}
+            {withProfessional(t.endConfirmBody, link.professionalName, t.professionalUnnamed)}
           </Text>
           <div className={`${styles.actions} button-row`}>
             <Button loading={pending} onClick={() => void end()} type="button" variant="destructive">

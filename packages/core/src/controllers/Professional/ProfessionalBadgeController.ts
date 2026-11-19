@@ -71,12 +71,29 @@ export interface BadgeView {
   state: BadgeState;
 }
 
-/** A refusal, a withdrawal or a lapse, as the practitioner reads it. `reason` is a closed code; `facts` the owner's own words. */
+/**
+ * A refusal, a withdrawal or a lapse, as the practitioner reads it: what its
+ * statement of reasons needs (`textos/06` §§ V and W), the same values the
+ * decision's mail was given. `reason` is a closed code; `facts` the owner's own
+ * words.
+ */
 export interface BadgeDecisionView {
+  /** When it was decided — for a refusal or a withdrawal, the day of the check § W's `{checkedOn}` names; for a lapse, the day the badge went. */
   at: string;
+  /** For a lapse, the yearly check that fell due (§ V's `{dueDate}`); null for a refusal or a withdrawal. */
+  dueAt: string | null;
   facts: string | null;
   kind: 'fail' | 'lapsed' | 'withdrawn';
+  /**
+   * The number the decided check named (§ W's `{number}`): the one the
+   * application declared, for a refusal; the badge's own, for a withdrawal or a
+   * lapse. The practitioner's own data, shown to them alone; the top-level
+   * `number` stays the standing badge's.
+   */
+  number: string | null;
   reason: BadgeLapseDetail | BadgeRemovalReason | null;
+  /** The register the decided check named (§ W's `{register}`), as `number`. */
+  register: string | null;
 }
 
 /** One step of a badge record, as the owner's console shows it. Never who checked: that is the owner's own id. */
@@ -247,15 +264,34 @@ function decisionOf(record: BadgeRecord, now: Date): BadgeDecisionView | null {
     return null;
   }
 
+  // Register and number from the decided row itself: `fail`, `withdrawn` and `lapsed` copy them from the check they
+  // decided, which is where the decision's mail takes them from — no second source.
+  const named = { number: latest.number, register: latest.register };
+
   if (latest.kind === 'pass') {
-    return latest.dueAt === null ? null : { at: lapseDate(latest.dueAt).toISOString(), facts: null, kind: 'lapsed', reason: null };
+    return latest.dueAt === null
+      ? null
+      : { at: lapseDate(latest.dueAt).toISOString(), dueAt: latest.dueAt.toISOString(), facts: null, kind: 'lapsed', reason: null, ...named };
   }
 
   if (latest.kind === 'applied') {
     return null;
   }
 
-  return { at: latest.checkedAt.toISOString(), kind: latest.kind, ...readReason(latest.reason) };
+  return {
+    at: latest.checkedAt.toISOString(),
+    dueAt: latest.kind === 'lapsed' ? lapsedDue(record, latest) : null,
+    kind: latest.kind,
+    ...named,
+    ...readReason(latest.reason)
+  };
+}
+
+/** The due date of the `pass` a `lapsed` row ended: the newest pass written before it, as the sweep lapsed it. */
+function lapsedDue(record: BadgeRecord, lapsed: ProfessionalBadgeCheck): string | null {
+  const pass = newestFirst(record.checks).find(check => check.kind === 'pass' && check.checkedAt.getTime() <= lapsed.checkedAt.getTime());
+
+  return iso(pass?.dueAt ?? null);
 }
 
 function stateOf(record: BadgeRecord, now: Date): BadgeState {

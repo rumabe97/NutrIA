@@ -23,25 +23,30 @@ export class UsersService {
 
   /**
    * `professional` is the question `ProfessionalGuard` asks, asked the same way:
-   * on every request, never cached, so a revoked grant or the switch thrown
-   * shows on the next one. It only decides what the menu shows — nothing reads
-   * it back, and every `/care` route asks the guard itself.
+   * on every request, never cached, so a closed practice or the switch thrown
+   * shows on the next one. `canOpenPractice` is whether to offer the opening
+   * form (PRD 025 phase 8). Both come from one `ProfessionalController.openingFor`
+   * and only decide what the app shows — nothing reads them back, every `/care`
+   * route asks the guard itself, and `POST /care/practice` refuses on its own.
    *
-   * A failed read answers false rather than failing the route: every screen of
-   * the app is gated on this one, and the workspace's tables must not take it
-   * down for everybody. False is the closed answer, and the guard still asks.
+   * Cost on top of the account: the switch alone while it is off; with it on,
+   * the practice row, and the restrictions only for an account without one.
+   *
+   * A failed read answers false for both rather than failing the route: every
+   * screen of the app is gated on this one, and the workspace's tables must not
+   * take it down for everybody. False is the closed answer, and the guard still asks.
    */
   async me(userId: string): Promise<UserDto> {
-    const [user, professional] = await Promise.all([
+    const [user, opening] = await Promise.all([
       UserController.getUser({ id: userId }),
-      ProfessionalController.hasAccess(userId).catch((error: unknown) => {
+      ProfessionalController.openingFor(userId).catch((error: unknown) => {
         this.logger.warn(`Could not tell whether ${userId} is a professional: ${String(error)}`);
 
-        return false;
+        return { canOpenPractice: false, professional: false };
       })
     ]);
 
-    return { ...user, professional };
+    return { ...user, canOpenPractice: opening.canOpenPractice, professional: opening.professional };
   }
 
   /**

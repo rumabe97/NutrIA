@@ -66,6 +66,10 @@ const PAIRS = [
   ...['--foreground-01', '--foreground-02'].flatMap(fg =>
     ['--color-warning-surface', '--color-error-surface'].map(bg => ({ bg, fg, kind: 'text' }))
   ),
+  // A link inside a note (project 025 phase 8: the address to write to under a suspension, a
+  // close or an ended link; the rename under a refused invitation) — the accent's text step on
+  // the warning's and the error's own ground.
+  ...['--color-warning-surface', '--color-error-surface'].map(bg => ({ bg, fg: '--color-brand-11', kind: 'text' })),
   // The chosen segment of a segmented control (ui/Tabs): the page's colour on the text colour.
   // Also the person's words in the assistant (project 024 phase 5), and the chosen segment of
   // the shopping list's range, the plan switch and the check-in's questions.

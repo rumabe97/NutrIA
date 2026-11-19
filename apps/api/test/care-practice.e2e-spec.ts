@@ -643,6 +643,8 @@ describe('care-practice', () => {
       expect(refused.status).toBe(404);
 
       await request(server()).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', pro.cookie).send({ version: '0.9.0' }).expect(422);
+      // The version in force before 2.0.0 (project 025 phase 8) is stale too, not merely a made-up one.
+      await request(server()).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', pro.cookie).send({ version: '1.1.0' }).expect(422);
       expect((await checkout(pro, { plan: 'practice', price: THIRTY })).status).toBe(404);
       expect(on.stripe.bought).toHaveLength(before);
 

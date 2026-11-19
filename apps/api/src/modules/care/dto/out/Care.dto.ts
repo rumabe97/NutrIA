@@ -1,4 +1,4 @@
-import type { BadgeView, ProfessionalProfileView } from 'core/controllers/Professional';
+import type { BadgeView, PracticeOpeningView, ProfessionalProfileView } from 'core/controllers/Professional';
 import type { JobView } from 'core/controllers/Plan';
 import type {
   CareAccessPageView,
@@ -84,6 +84,12 @@ export type CareClientMealDto = CareClientMealView;
  * what the owner has standing against it, and the way to pay.
  */
 export type CarePracticeDto = CarePracticeView;
+
+/**
+ * What the opening form names (PRD 025 phase 8): the clients a free practice
+ * would hold for the session's account, as the owner has the number today.
+ */
+export type CarePracticeOpeningDto = PracticeOpeningView;
 
 /** The practitioner's own profile (PRD 025 scope 4), or null before one is written: the review state, never «approved». */
 export type CareProfessionalProfileDto = ProfessionalProfileView | null;
