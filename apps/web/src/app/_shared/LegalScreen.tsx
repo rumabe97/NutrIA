@@ -6,10 +6,13 @@ import { dictionaryFor } from 'i18n/server';
 import { Heading } from 'ui/components/Heading';
 import { interpolate } from 'i18n/interpolate';
 import { LEGAL_IDENTITY } from 'i18n/legalIdentity';
+import { LEGAL_TEXTS_UPDATED, PRACTICES_OPEN_ON, practicesOpenAhead } from 'i18n/legalDates';
 import { Text } from 'ui/components/Text';
 
 import { SiteFooter } from 'components/SiteFooter';
 import { SiteHeader } from 'components/SiteHeader';
+
+import { formatDate } from 'lib/format';
 
 import { MAIN_ID } from './mainId';
 
@@ -35,6 +38,10 @@ export function LegalScreen({ document, locale }: Readonly<{ document: LegalDocu
   const t = dictionary[document];
   // The documents say `{name}` and `{email}`; who that is lives in one file.
   const fill = (text: string): string => interpolate(text, LEGAL_IDENTITY);
+  const day = (isoDate: string): string => formatDate(isoDate, locale, { day: 'numeric', month: 'long', year: 'numeric' });
+  // Until practices open, the section about them opens with the day they do (legal P-0 / T-0).
+  // Decided when the page is built: the page stays static, and the line stops at the first build on or after that day.
+  const openOn = practicesOpenAhead(PRACTICES_OPEN_ON, new Date());
 
   return (
     <Fragment>
@@ -46,7 +53,7 @@ export function LegalScreen({ document, locale }: Readonly<{ document: LegalDocu
             {t.title}
           </Heading>
           <Text className={styles.updated} size="sm" tone="secondary">
-            {t.updated}
+            {interpolate(t.updated, { date: day(LEGAL_TEXTS_UPDATED) })}
           </Text>
 
           {t.intro.map(paragraph => (
@@ -57,9 +64,17 @@ export function LegalScreen({ document, locale }: Readonly<{ document: LegalDocu
 
           {t.sections.map(section => (
             <section className={styles.section} id={'id' in section ? section.id : undefined} key={section.heading}>
+              {/* A renamed section keeps its old anchor, so a link already sent in a mail or bookmarked still lands here. */}
+              {('formerIds' in section ? (section.formerIds ?? []) : []).map(formerId => (
+                <span aria-hidden="true" className={styles.formerAnchor} id={formerId} key={formerId} />
+              ))}
               <Heading className={styles.heading} level="2" size="md">
                 {section.heading}
               </Heading>
+
+              {openOn !== null && 'untilOpen' in section && section.untilOpen ? (
+                <Text className={styles.paragraph}>{interpolate(section.untilOpen, { date: day(openOn) })}</Text>
+              ) : null}
 
               {section.paragraphs.map(paragraph => (
                 <Text className={styles.paragraph} key={paragraph}>

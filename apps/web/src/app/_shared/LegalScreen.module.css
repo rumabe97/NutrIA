@@ -54,6 +54,16 @@ p.paragraph {
   scroll-margin-block-start: var(--space-11);
 }
 
+/*
+ * A renamed section's old anchor (`#tu-dietista` → `#tu-profesional`): an empty box at the
+ * section's top, inside its padding, so it lands where the section's own anchor lands —
+ * the section's margin plus the padding the box sits below.
+ */
+.formerAnchor {
+  display: block;
+  scroll-margin-block-start: calc(var(--space-11) + var(--space-07));
+}
+
 .list {
   display: grid;
   gap: var(--space-03);
