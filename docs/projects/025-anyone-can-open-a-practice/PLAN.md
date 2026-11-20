@@ -519,7 +519,9 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
 
 ### Phase 10 — The texts, the notice, then the switch
 
-- [ ] pending
+- [ ] in progress — the texts, the notice's page and its send are built and merged dark; what
+  remains is the owner's: send the notice on or before 2026-11-26, and on 2026-11-27 redeploy
+  the web, throw the switch and try it on his iPhone (which also closes phase 8's gate)
 - **Dispatch**: opus @ medium, the `frontend` agent with the `legal` agent reviewing —
   `/execute-project 025 phase 10` — owner-gated: the owner sends the change notice to every
   account, then throws the `professional` switch in `/admin`. — human-verify: the switch on,
@@ -545,6 +547,18 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
   5. The owner sends the change notice (`docs/legal/textos/06`) to every account and LOG.md
      records the date; then, once the DPIA addendum is merged, he throws the switch;
      `docs/decisions/LOG.md` gains the dated line.
+  6. **Amended 2026-11-20, during the phase**:
+     - the notice is **sent by the product**, by the owner's choice («Botón en la consola»):
+       `/admin/ajustes/aviso` — a preview that sends nothing, batches of twenty-five, each
+       account in its language, a row per account told (`account_notices`, migration 0075), a
+       daily cap, a date between tomorrow and sixty days on, one campaign one date. Scope grows
+       by `packages/core` (`Notice`), `packages/database` (0075, `migration-reviewer`),
+       `apps/api/src/modules/{admin,email}`, the console page and `apps/api/test`;
+     - the pages carry **a dated line** while the practices are not yet open
+       (`PRACTICES_OPEN_ON`, set to 2026-11-27 by the owner), decided at build time: the web is
+       redeployed on the day of the switch (go-live checklist § 1 bis);
+     - `LEGAL_TEXTS_UPDATED` is the day of publication, one value for both documents;
+     - the old anchors (`#tu-dietista`, `#dietista`) keep resolving to the renamed sections.
 - **Acceptance criteria**: the PRD's scope item 13; PRD 20, 21, 23.
 - **Verification**: `pnpm --filter web test`, `pnpm check:leaks`, `node scripts/check-static-pages.mjs`,
   `node scripts/smoke.mjs` after the deploy, and the owner's confirmation in LOG.md.
