@@ -750,6 +750,10 @@ describe('the badge (project 025 phase 3)', () => {
       expect((await recordOf(who)).badge).toBeNull();
 
       await until(() => badgeMailsTo(who).some(mail => mail.text.includes(facts)), 'the withdrawal’s statement with its facts');
+      // Typed with no final stop, the facts are closed as a sentence of their own — one stop — and the next sentence starts after it (phase 9).
+      expect(badgeMailsTo(who).find(mail => mail.text.includes(facts))?.text).toContain(
+        `Por qué: ${facts}. Es lo que dice el § 4 del acuerdo del profesional que aceptaste.`
+      );
     });
 
     // Replaced in project 025 phase 6: the owner's grant route, which wrote a bare `pass`, is retired. A badge comes
@@ -817,7 +821,13 @@ describe('the badge (project 025 phase 3)', () => {
 
     expect((await removal(who, { facts, kind: 'withdrawn', reason: 'other', source: 'own_check' })).status).toBe(200);
     expect((await apply(pro, '28/90909', 'Colegio de la decisión')).status).toBe(201);
-    expect((await removal(who, { kind: 'fail', reason: 'not_on_register', source: 'own_check' })).status).toBe(200);
+    const asked = '¿Seguro que es su número?';
+    const mailsBefore = badgeMailsTo(who).length;
+
+    expect((await removal(who, { facts: asked, kind: 'fail', reason: 'not_on_register', source: 'own_check' })).status).toBe(200);
+    // Facts that already end a sentence («?») are left as typed: no stop added after them (phase 9).
+    await until(() => badgeMailsTo(who).length > mailsBefore, 'the refusal’s statement');
+    expect(badgeMailsTo(who).at(-1)?.text).toContain(`${asked} Es lo que dice el § 4`);
 
     // The second factor rotated the session: `pro` is the practitioner's live cookie.
     const own = await badgeOf(pro);

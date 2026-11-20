@@ -487,7 +487,7 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
 
 ### Phase 9 — The owner's console
 
-- [ ] pending
+- [x] done
 - **Dispatch**: sonnet @ medium — `/execute-project 025 phase 9` — the `frontend` agent with
   `accessibility`, from the complete API of phases 3 and 6.
 - **Goal**: the owner checks badges and looks at profiles without reading anybody's client.
@@ -502,6 +502,16 @@ C1–C4 (wording, phase 8), a real **suspension** of a practitioner (phases 2, 6
   3. Suspend, close (its 30 days shown) and lift, each asking for a reason; the standing
      restriction shown on the row.
   4. The switch's strings stop saying «Consulta para dietistas».
+  5. **Amended 2026-11-20, during the phase** (the review of the console):
+     - pages beyond the one the plan names: `/admin/profesionales/perfiles` (the first-look
+       queue), `/insignias` (applications and yearly checks), `/[userId]` (suspend, close,
+       lift) and `/[userId]/insignia` (the check);
+     - the owner's free text has **one rule**, in core (`domain/OwnerText`): the mails and
+       every screen that shows it close it the same way, so a preview is what is mailed;
+     - the § X reasons have one order, the approved table's (`inHideOrder`), in the mail, the
+       stored statement, the answers, the audit row and the console;
+     - scope grows by `packages/core` and `apps/api/src/modules/email` for those two, by
+       `packages/ui` for a 44 px floor on a radio row, and by `apps/api/test`.
 - **Acceptance criteria**: PRD 3, 4, 5 (console), 18 (screen), 19 (console words), 24
   (console).
 - **Verification**: `pnpm --filter web test`, `pnpm ts:check && pnpm lint`, `/local-probe` on

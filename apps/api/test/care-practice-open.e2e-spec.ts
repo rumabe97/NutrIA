@@ -982,17 +982,20 @@ describe('anyone can open a practice (project 025 phase 6)', () => {
 
       expect(hidden.status).toBe(200);
       expect(hidden.body).toMatchObject({
-        hidden: { afterNotice: true, facts, reasons: ['promises', 'badge_word'], word: 'dietista' },
+        // Clicked out of order on purpose: the answer keeps the approved table's order (phase 9, `PROFILE_HIDE_REASONS`).
+        hidden: { afterNotice: true, facts, reasons: ['badge_word', 'promises'], word: 'dietista' },
         userId: plain.id
       });
       expect(await queuedIds()).not.toContain(plain.id);
-      expect((await readProfile(plain).expect(200)).body).toMatchObject({ hidden: { afterNotice: true, word: 'dietista' } });
+      expect((await readProfile(plain).expect(200)).body).toMatchObject({
+        hidden: { afterNotice: true, reasons: ['badge_word', 'promises'], word: 'dietista' }
+      });
 
       const rows = (await auditRowsAboutSubject(plain.id)).filter(row => row.action === 'professional.profile_hidden');
 
       // The closed words alone: never the quoted word or the owner's facts.
       expect(rows.map(row => ({ actorId: row.actorId, metadata: row.metadata }))).toEqual([
-        { actorId: owner.id, metadata: { afterNotice: true, reasons: ['promises', 'badge_word'] } }
+        { actorId: owner.id, metadata: { afterNotice: true, reasons: ['badge_word', 'promises'] } }
       ]);
 
       await settle();
@@ -1033,6 +1036,36 @@ describe('anyone can open a practice (project 025 phase 6)', () => {
 
       expect(edited.body).toMatchObject({ hidden: { word: 'dietista' }, review: 'queued' });
       expect((await admin('post', `/professionals/${plain.id}/profile/seen`, {})).body).toMatchObject({ hidden: null, review: 'seen' });
+    });
+
+    it('keeps the table’s order of the five reasons, clicked in reverse, in the answer, the practitioner’s view, the audit row and the mail', async () => {
+      const who = await practitioner('profile-five');
+
+      await saveProfile(who, profileBody({ displayName: 'Eva Prieto', studies: 'Curso de cocina.' })).expect(200);
+
+      const ORDER = ['badge_word', 'disease', 'promises', 'unchecked_title', 'advertising'];
+      const mails = sent.length;
+      const hidden = await admin('post', `/professionals/${who.id}/profile/hide`, { reasons: [...ORDER].reverse(), word: 'nutricionista' });
+
+      expect(hidden.status).toBe(200);
+      expect((hidden.body as { hidden: { reasons: string[] } }).hidden.reasons).toEqual(ORDER);
+      expect(((await readProfile(who).expect(200)).body as { hidden: { reasons: string[] } }).hidden.reasons).toEqual(ORDER);
+      expect((await auditRowsAboutSubject(who.id)).filter(row => row.action === 'professional.profile_hidden').map(row => row.metadata)).toEqual([
+        { afterNotice: false, reasons: ORDER }
+      ]);
+      await settle();
+
+      const mail = sent.slice(mails).find(message => message.to === who.email.toLowerCase());
+      const sentences = [
+        'Usa una palabra que el acuerdo no permite sin la insignia: «nutricionista».',
+        'Ofrece un servicio para una enfermedad.',
+        'Promete resultados.',
+        'Se presenta con un título que NutrIA no comprueba: «nutricionista».',
+        'Es publicidad que no tiene que ver con tus servicios.'
+      ];
+
+      // Each sentence once, in the table's order.
+      expect(mail?.text).toContain(sentences.join(' '));
     });
 
     it('names no client in any answer the owner received, and the profile routes are 404 to an account with no practice', async () => {
