@@ -384,6 +384,8 @@ DPIA addendum ([`dpia.md`](./dpia.md) § 9).
    - [ ] The dated line (P-0, T-0) is live, keyed off one constant equal to § Z's `{date}`. The
          switch is thrown **no earlier** than that day; if it slips, the constant moves the same
          day.
+   - [ ] **On the day of the switch, the owner redeploys the web**: the pages are static and
+         the dated line goes only with a build on or after its day.
 2. [ ] The mail of [`textos/06`](./textos/06-correos.md) § Z has gone to every account, and the
        LOG records the date. The agreement 2.0.0 has been notified 15 days ahead to any
        professional who already exists (today, only the owner's account).

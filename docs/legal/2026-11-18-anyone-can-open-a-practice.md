@@ -252,7 +252,7 @@ NutrIA: tu número de colegiado y cuándo te dimos acceso…».
 | Hoy | es-ES nuevo | en-GB nuevo |
 | --- | --- | --- |
 | `… Y lo que compartes con tu dietista, con el consentimiento que das al aceptar su invitación. …` | `… Y lo que compartes con tu profesional, con el consentimiento explícito que das al aceptar su invitación, que nombra a esa persona y lo que verá. …` | `… And what you share with your professional, with the explicit consent you give when you accept their invitation, which names that person and what they will see. …` |
-| `Por nuestro interés legítimo: registrar el uso del producto … los avisos de seguridad que te enviamos. Puedes oponerte escribiéndonos.` | `Por nuestro interés legítimo: registrar el uso del producto y los errores técnicos para que funcione, sin datos de salud, y proteger las cuentas: el registro de seguridad, los frenos contra el abuso y los avisos de seguridad que te enviamos, y comprobar, cuando alguien pide la insignia, que es quien dice ser en el registro de su colegio. Puedes oponerte escribiéndonos.` | `Our legitimate interest: recording product use and technical errors to keep it working, with no health data, and protecting accounts: the security record, the brakes against abuse and the security notices we send you, and to check, when somebody applies for the badge, that they are who they say they are on their college's register. You can object by writing to us.` |
+| `Por nuestro interés legítimo: registrar el uso del producto … los avisos de seguridad que te enviamos. Puedes oponerte escribiéndonos.` | `Por nuestro interés legítimo: registrar el uso del producto y los errores técnicos para que funcione, sin datos de salud, y proteger las cuentas: el registro de seguridad, los frenos contra el abuso y los avisos de seguridad que te enviamos, y comprobar, cuando alguien pide la insignia, que es quien dice ser en el registro de su colegio. Puedes oponerte escribiéndonos.` | `Our legitimate interest: recording product use and technical errors to keep it working, with no health data, and protecting accounts: the security record, the brakes against abuse and the security notices we send you, and checking, when somebody applies for the badge, that they are who they say they are on their college's register. You can object by writing to us.` |
 | `Para darte el servicio que pides (contrato): tu cuenta, tu perfil, tus planes, tus conversaciones con el asistente, tus pagos y los correos del servicio.` | `Para darte el servicio que pides (contrato): tu cuenta, tu perfil, tus planes, tus conversaciones con el asistente, tus pagos y los correos del servicio y, si abres una consulta, tu consulta y tu perfil.` | `To provide the service you ask for (contract): your account, profile, plans, conversations with the assistant, payments and service emails and, if you open a practice, your practice and your profile.` |
 
 <!-- Fuente: RGPD art. 6.1.b (la consulta y el perfil los pide el profesional: legal 2026-11-18 § 3.h), 6.1.f y 13.1.d (la comprobación: legal § 3.a, «Data protection of the person looked up»), 9.2.a (el consentimiento que nombra a la persona: legal § 3.e; M12). -->
@@ -303,7 +303,7 @@ criterion 16). No sentence there turns false.
 
 | es-ES | en-GB |
 | --- | --- |
-| `El profesional con el que te vinculas, si aceptas su invitación: lo que dice la lista que aceptaste, como se explica en «Tu profesional en NutrIA». No vendemos ni cedemos tus datos a ningún otro profesional.` | `The professional you link with, if you accept their invitation: what the list you accepted says, as explained under "Your professional on NutrIA". We do not sell or pass your data to any other professional.` |
+| `El profesional con el que te vinculas, si aceptas su invitación: lo que dice la lista que aceptaste, como se explica en «Tu profesional en NutrIA». Ningún otro profesional recibe nada tuyo.` | `The professional you link with, if you accept their invitation: what the list you accepted says, as explained under "Your professional on NutrIA". No other professional receives anything of yours.` |
 
 <!-- Fuente: RGPD art. 13.1.e — el destinatario faltaba en la lista ya con 004 (se decía solo en su sección). -->
 
@@ -356,8 +356,11 @@ The English follows the same positions.
 | `/condiciones`, first paragraph of «Si trabajas con un profesional» (`terms.sections[profesional]`, the same condition) | `Esta sección se aplica desde el {date}. Hasta ese día, nadie puede abrir una consulta en NutrIA.` | `This section applies from {date}. Until that day, nobody can open a practice on NutrIA.` |
 
 **How it goes away.** One constant, for example `PRACTICES_OPEN_ON` beside `LEGAL_TEXTS_UPDATED`
-in `apps/web/src/i18n/legalDates.ts`, holds the switch day (= § Z's `{date}`). The line renders
-while the reader's day is before it, and stops rendering on that day with no redeploy.
+in `apps/web/src/i18n/legalDates.ts`, holds the switch day (= § Z's `{date}`). The pages are
+static, so the line is decided **at build time**. It stops at the first deploy on or after that
+day, which is why the owner redeploys the web on the day of the switch (go-live § 1 bis). If a
+deploy comes late, the line lingers. It is not false while it does: «Hasta ese día…» names a day
+already past, and says nothing about after it (amended 2026-11-20).
 
 **Two conditions, because the switch is a separate act.**
 
@@ -893,6 +896,37 @@ and nothing in them has to change except the pointers, updated on 2026-11-20.
     (`health.consentStale`).
   - If a practitioner exists on the day of the send, their 15 days apply to the agreement 2.0.0,
     and the switch waits for them.
+
+
+### 12.5 Three rulings on the rendered pages (2026-11-20)
+
+1. **The dated line is decided at build time.** P-0 is amended. The owner redeploys the web on the
+   day of the switch, and the go-live checklist says so. A line that lingers after a late deploy
+   is stale, not false.
+2. **Two «No vendemos» in a row** in «Con quién compartimos tus datos». The section's paragraph
+   («No vendemos tus datos. No hay anuncios ni cookies publicitarias.») is drawn above the list,
+   and P-6 ended «No vendemos ni cedemos tus datos a ningún otro profesional.»
+   - **Not by moving paragraphs below lists.** Two sections of `/condiciones` use the paragraph as
+     the list's lead-in: «Uso aceptable» ends «…alguna de estas cosas:», and «El plan gratuito y
+     Premium» is the same. A component-wide move would break them.
+   - **P-6's last sentence is reworded** to the same meaning:
+     - es: «Ningún otro profesional recibe nada tuyo.»
+     - en: "No other professional receives anything of yours."
+   - **It needs the owner's tap**: it replaces approved published words, light as the change is.
+3. **English P-2 "and to check" → "and checking"**, matching the gerunds before it. It is a
+   grammar correction with the same meaning, the Spanish is untouched, and it needs **no tap**.
+   Recorded here.
+
+**The phase 10 grep's dispositions are as § 7 says.** Every remaining hit in both dictionaries is
+one of three kinds:
+
+- an approved badge, consent or agreement text;
+- the badge form's own words, read only by the applicant;
+- a sentence about the profession in general: the assistant's declines, the footer disclaimer,
+  the landing FAQ, the policy and terms intros, and the profile's supervision notice.
+
+Nothing is left to replace on the client's or the practitioner's screens. The console's strings
+were phase 9's.
 
 ---
 
