@@ -849,6 +849,56 @@ describe('suspension, close and lift (project 025 phase 6)', () => {
     });
   });
 
+  describe('the owner’s list across closes (phase 9)', () => {
+    async function listed(who: Account): Promise<Json | undefined> {
+      const list = await request(server())
+        .get(`/${PREFIX}/admin/professionals?q=${encodeURIComponent(who.email)}`)
+        .set('Cookie', owner.cookie)
+        .expect(200);
+      const rows = Array.isArray(list.body) ? (list.body as Json[]) : ((list.body as { professionals: Json[] }).professionals ?? []);
+
+      return rows.find(row => row.userId === who.id);
+    }
+
+    it('lists a close whose day has come but the sweep has not reached as still practising, closed', async () => {
+      const pro = await practitioner('list-due-pro');
+
+      await close(pro).expect(200);
+      await moveCloseDue(pro.id);
+      expect(await practises(pro.id)).toBe(true);
+      expect(await listed(pro)).toMatchObject({
+        grantedAt: expect.any(String),
+        practising: true,
+        restriction: { closing: { closed: true }, suspended: null }
+      });
+
+      // Out of the way of the sweeps the next cases run: lifted before it is carried out.
+      await lift(pro).expect(200);
+    });
+
+    it('keeps listing an account closed a second time after an earlier close was lifted, and lets it be lifted again', async () => {
+      const pro = await practitioner('list-twice-pro');
+
+      // First close, carried out, lifted; the account opens again.
+      await closePracticeNow(app, owner, pro.id);
+      await lift(pro).expect(200);
+      await openOwnPractice(app, pro);
+      await acceptAgreement(app, pro);
+      expect(await listed(pro)).toMatchObject({ practising: true, restriction: null });
+
+      // Second close, carried out.
+      await closePracticeNow(app, owner, pro.id);
+      expect(await restrictions(pro.id)).toEqual(['closing', 'lifted', 'closing']);
+      expect(await listed(pro)).toMatchObject({ grantedAt: null, practising: false, restriction: { closing: { closed: true }, suspended: null } });
+
+      // And the owner can lift it from there: the account may open once more.
+      expect((await lift(pro)).body).toEqual({ restriction: null, userId: pro.id });
+      expect(await listed(pro)).toBeUndefined();
+      await openOwnPractice(app, pro);
+      expect(await listed(pro)).toMatchObject({ practising: true, restriction: null });
+    });
+  });
+
   describe('a close the owner takes back', () => {
     it('suspended and closing at once: the notice says so, and one lift ends both with § W bis.4 «before» and its suffix', async () => {
       const pro = await practitioner('both-pro');

@@ -27,7 +27,13 @@ describe('practiceState', () => {
     ]);
   });
 
-  it('is closed once the close is carried out, or when the account has no practice left', () => {
+  it('says a close due but not carried out as due, not closed: the practice still exists until the sweep', () => {
+    expect(practiceState({ practising: true, restriction: { closing: closing(true), suspended: null } })).toEqual([
+      { closesAt: CLOSES, kind: 'closeDue' }
+    ]);
+  });
+
+  it('is closed only when the account has no practice left', () => {
     expect(practiceState({ practising: false, restriction: { closing: closing(true), suspended: null } })).toEqual([{ kind: 'closed' }]);
     expect(practiceState({ practising: false, restriction: null })).toEqual([{ kind: 'closed' }]);
   });

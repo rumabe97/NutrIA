@@ -13,10 +13,12 @@ import {
   auditRowsAboutSubject,
   closePracticeNow,
   completeOnboarding,
+  copyDishScaled,
   createApp,
   deleteAccountByEmail,
   deleteAccounts,
   enableTotp,
+  forgetRecipes,
   generateAndWait,
   httpServer,
   makePractitioner,
@@ -2199,45 +2201,57 @@ describe('admin', () => {
     });
 
     it('never name who made a dish: no created_by, no person’s id, not the maker’s id anywhere', async () => {
-      // The premise: this block's generation asked the model, so the catalogue holds model-made dishes with a maker.
-      // Any of them will do: since the per-food plate ceiling (016 phase 5) a generation keeps only the dishes its
-      // plates could hold, so which person's dishes were kept depends on the shared library, not on `log`.
-      expect(asked).toBeGreaterThan(0);
+      // The premise, written here rather than hoped for: a model-made dish whose maker is a live account of this
+      // suite. Whether a generation keeps a dish of its own depends on the shared library (016 phase 5's plate
+      // ceiling), and a maker's `created_by` is nulled when their account goes, so a dish found by luck made this
+      // case pass on one run and fail on the next (project 025 phase 9). A copy of a library dish, its source `ai`
+      // and its maker `log` — the one thing that differs from the original is what this case is about.
+      const [original] = await sql()<{ slug: string }>`
+        select r.slug from recipes r where exists (select 1 from recipe_ingredients i where i.recipe_id = r.id) order by r.slug limit 1`;
+      const mark = `Mk${Array.from({ length: 6 }, () => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join('')}`;
+      const copy = await copyDishScaled(original?.slug ?? '', 1, mark);
 
-      const [dish] = await sql()<{ locale: string; name: string }>`
-        select r.name, r.locale from recipes r where r.source = 'ai' and r.created_by is not null order by r.name limit 1`;
+      try {
+        await sql()`update recipes set source = 'ai', created_by = ${log.id} where slug = ${copy.slug}`;
 
-      expect(dish).toBeDefined();
+        const [dish] = await sql()<{ createdBy: string | null; locale: string; name: string; source: string }>`
+          select r.name, r.locale, r.source::text as source, r.created_by as "createdBy" from recipes r where r.slug = ${copy.slug}`;
 
-      const found = await recipes(`q=${encodeURIComponent(dish?.name ?? '')}&locale=${dish?.locale ?? ''}`);
+        // The premise holds before anything depends on it.
+        expect(dish).toMatchObject({ createdBy: log.id, name: copy.name, source: 'ai' });
 
-      expect(found.rows.map(row => row.name)).toContain(dish?.name);
-      expect(found.rows.find(row => row.name === dish?.name)?.source).toBe('ai');
+        const found = await recipes(`q=${encodeURIComponent(dish?.name ?? '')}&locale=${dish?.locale ?? ''}`);
 
-      // The same dish read on its own (`0072`): its row and its ingredients, and still nobody's.
-      const alone: Response = await get(`catalogue/recipes/${found.rows.find(row => row.name === dish?.name)?.id ?? ''}`, owner.cookie).expect(200);
+        expect(found.rows.map(row => row.name)).toContain(dish?.name);
+        expect(found.rows.find(row => row.name === dish?.name)?.source).toBe('ai');
 
-      expect(Object.keys(alone.body as Record<string, unknown>).sort()).toEqual([...RECIPE_KEYS, 'ingredients', 'pictureUrl'].sort());
+        // The same dish read on its own (`0072`): its row and its ingredients, and still nobody's.
+        const alone: Response = await get(`catalogue/recipes/${found.rows.find(row => row.name === dish?.name)?.id ?? ''}`, owner.cookie).expect(200);
 
-      const bodies: [string, unknown, ReadonlySet<string>][] = [
-        ['the maker’s dish', found, RECIPE_BODY_KEYS],
-        ['the maker’s dish, alone', alone.body, RECIPE_ONE_KEYS],
-        ['source=ai', await recipes('source=ai&size=100'), RECIPE_BODY_KEYS],
-        ['every slot, by kcal', await recipes('sort=kcal&size=100'), RECIPE_BODY_KEYS],
-        ['ingredients', await ingredients('size=100'), INGREDIENT_BODY_KEYS]
-      ];
+        expect(Object.keys(alone.body as Record<string, unknown>).sort()).toEqual([...RECIPE_KEYS, 'ingredients', 'pictureUrl'].sort());
 
-      for (const [label, body, allowed] of bodies) {
-        const keys = new Set<string>();
+        const bodies: [string, unknown, ReadonlySet<string>][] = [
+          ['the maker’s dish', found, RECIPE_BODY_KEYS],
+          ['the maker’s dish, alone', alone.body, RECIPE_ONE_KEYS],
+          ['source=ai', await recipes('source=ai&size=100'), RECIPE_BODY_KEYS],
+          ['every slot, by kcal', await recipes('sort=kcal&size=100'), RECIPE_BODY_KEYS],
+          ['ingredients', await ingredients('size=100'), INGREDIENT_BODY_KEYS]
+        ];
 
-        walk(body, keys, new Set());
+        for (const [label, body, allowed] of bodies) {
+          const keys = new Set<string>();
 
-        // A recipe row carries its own `id` (the retry route takes it): a dish's id names nobody, and
-        // `expectNobody` below still refuses every account's id as a value. Ingredients carry none.
-        const person = allowed === INGREDIENT_BODY_KEYS ? PERSON_KEYS : PERSON_KEYS.filter(key => key !== 'id');
+          walk(body, keys, new Set());
 
-        expect({ label, person: [...keys].filter(key => person.includes(key)) }).toEqual({ label, person: [] });
-        expectNobody(label, body, allowed);
+          // A recipe row carries its own `id` (the retry route takes it): a dish's id names nobody, and
+          // `expectNobody` below still refuses every account's id as a value. Ingredients carry none.
+          const person = allowed === INGREDIENT_BODY_KEYS ? PERSON_KEYS : PERSON_KEYS.filter(key => key !== 'id');
+
+          expect({ label, person: [...keys].filter(key => person.includes(key)) }).toEqual({ label, person: [] });
+          expectNobody(label, body, allowed);
+        }
+      } finally {
+        await forgetRecipes([copy.slug]);
       }
     });
 

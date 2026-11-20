@@ -1,0 +1,15 @@
+.decide {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+/* The sheet's pair, side by side from 320px: both buttons share the row and their labels wrap inside them. */
+.pair > button {
+  flex: 1 1 0;
+}
+
+.pair > button:only-child {
+  flex: 0 1 auto;
+}

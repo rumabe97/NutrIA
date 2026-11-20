@@ -1,0 +1,1 @@
+export { BadgeDecision } from './BadgeDecision';

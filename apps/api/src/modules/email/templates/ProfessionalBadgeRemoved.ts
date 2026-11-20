@@ -1,5 +1,6 @@
 import { layout, paragraph } from './Layout.js';
 import { badgeDay, fill, oneLine } from './ProfessionalBadgeCode.js';
+import { asSentence } from 'core/domain/OwnerText';
 
 import type { BadgeRemovalReason, BadgeRemovalSource } from 'core/entities/Professional';
 import type { EmailLocale, RenderedEmail } from './Layout.js';
@@ -61,9 +62,6 @@ const COPY: Record<EmailLocale, Copy> = {
   }
 };
 
-/** The longest facts the owner's words carry into a mail; the schema already bounds them. */
-const FACTS_LIMIT = 1000;
-
 export function professionalBadgeRemovedEmail({
   checkedOn,
   facts,
@@ -84,7 +82,8 @@ export function professionalBadgeRemovedEmail({
   source: BadgeRemovalSource;
 }): RenderedEmail {
   const copy = COPY[locale];
-  const written = facts === null ? null : facts.trim().slice(0, FACTS_LIMIT);
+  // A sentence of their own, as §§ W bis and X close them: a stop when the owner typed none, so the next sentence does not run on.
+  const written = facts === null ? null : asSentence(facts);
   const closed =
     reason === 'other'
       ? null

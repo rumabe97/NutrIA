@@ -1,0 +1,38 @@
+.root {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+.shown {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+/* The code, large and in one piece: it is read aloud or copied by eye, and it must not break across lines. */
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: var(--font-size-06);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.12em;
+  margin: 0;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.how {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+.title {
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}

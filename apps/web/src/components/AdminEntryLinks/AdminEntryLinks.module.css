@@ -1,0 +1,58 @@
+.card {
+  min-inline-size: 0;
+  padding-block: var(--space-02);
+}
+
+.list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.list li + li {
+  border-block-start: 1px solid var(--border-01);
+}
+
+/* The whole row is the target: a finger's height at least, the words wrapping beside the chevron. */
+.link {
+  align-items: center;
+  color: var(--foreground-01);
+  display: flex;
+  gap: var(--space-03);
+  justify-content: space-between;
+  min-block-size: var(--target-min);
+  padding-block: var(--space-03);
+  text-decoration: none;
+}
+
+.words {
+  display: grid;
+  gap: var(--space-01);
+  min-inline-size: 0;
+}
+
+.title {
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.summary {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  overflow-wrap: anywhere;
+}
+
+.chevron {
+  block-size: 1.25rem;
+  color: var(--foreground-02);
+  flex-shrink: 0;
+  inline-size: 1.25rem;
+}
+
+/* The row's own title is the link's name and it is underlined on hover and focus, where a pointer or a keyboard needs to see it is one. */
+.link:hover .title,
+.link:focus-visible .title {
+  text-decoration: underline;
+}

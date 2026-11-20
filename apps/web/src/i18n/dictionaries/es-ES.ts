@@ -49,9 +49,9 @@ export const esES = {
     premiumHint: 'Premium está activo: las cuentas a las que se lo hayas dado tienen tres replanificaciones por quincena y veinte cambios por plan.',
     premiumLabel: 'Nivel de pago',
     premiumOffHint: 'Premium está apagado: todo el mundo usa los límites gratuitos, incluido quien ya lo tenga concedido. Encenderlo se lo devuelve.',
-    professionalHint: 'Encendido: los profesionales que concedas pueden abrir su consulta y vincular pacientes.',
-    professionalLabel: 'Consulta para dietistas',
-    professionalOffHint: 'Apagado: nadie ve la consulta, tampoco quien ya tenga la concesión. Sus pacientes siguen como cuentas normales.',
+    professionalHint: 'Encendido: cualquier cuenta mayor de edad puede abrir su consulta e invitar a sus clientes.',
+    professionalLabel: 'Consultas de profesionales',
+    professionalOffHint: 'Apagado: nadie ve la consulta. Los clientes siguen como cuentas normales.',
     pushTest: 'Enviarme un aviso de prueba',
     pushTestNoDevice: 'No tienes avisos activados en ningún dispositivo. Actívalos en tu perfil, desde el móvil, y vuelve a probar.',
     pushTestRefused:
@@ -363,6 +363,185 @@ export const esES = {
     via: { automatic: 'Automático', console: 'Consola', mail_link: 'Enlace del correo' }
   },
 
+  /* `/admin/profesionales/[id]/insignia` (project 025 phase 9; sheet «ConsolaDistintivo»): one badge, checked in three steps. The sentences the owner picks from, as the practitioner will read them, are `adminStatements` and `practice.*`. */
+  adminBadge: {
+    back: 'Volver a las insignias',
+    channelWords: { phone: 'llamada', post: 'carta', register_email: 'correo' },
+    decide: {
+      confirm: 'Dar la insignia',
+      confirmed: 'Insignia dada. Su próxima revisión es el {date}.',
+      renew: 'Confirmar la revisión',
+      renewed: 'Revisión confirmada. La próxima es el {date}.',
+      title: 'Decide',
+      waiting: 'Todavía no puedes darla: falta que la persona introduzca el código del paso 2.',
+      what: 'Queda anotado quién comprobó, cuándo y por qué canal. Se vuelve a comprobar dentro de un año; si pasan {days} días del plazo sin hacerlo, la insignia caduca y la persona recibe el motivo.',
+      withdraw: 'Retirar la insignia'
+    },
+    facts: {
+      applied: 'Solicitada el',
+      checked: 'Comprobada el',
+      checkedNumber: 'Número comprobado',
+      declaredNumber: 'Número declarado',
+      due: 'Revisión anual el',
+      email: 'Cuenta',
+      lapses: 'Caduca el',
+      register: 'Colegio'
+    },
+    letter: {
+      body: [
+        'Para {registerName}',
+        'Te escribimos desde NutrIA, una aplicación de planes de comidas. Una cuenta de NutrIA ha pedido nuestra insignia de dietista-nutricionista colegiada/o con tu nombre y tu número de colegiado, {number}, de {register}.',
+        'Si has sido tú, entra en NutrIA, ve a tu consulta e introduce este código antes del {expires}:',
+        '{code}',
+        'Si no has sido tú, no hagas nada con el código y escríbenos a {email}: alguien ha usado tu nombre y tu número. No daremos la insignia.',
+        'Hemos sacado esta dirección del registro público de colegiados de {register}, que la publica para que cualquiera pueda comprobar una colegiación. La usamos solo para enviarte este código, para comprobar que quien pide la insignia eres tú, por nuestro interés legítimo y el de quienes usan NutrIA: que nadie se haga pasar por dietista-nutricionista. No la guardamos en NutrIA; lo que guardamos es el registro consultado, la fecha, el número, el resultado y que el código fue por carta. Quién es el responsable, tus derechos y cómo reclamar ante la Agencia Española de Protección de Datos: {privacyUrl}.',
+        '{name}, NutrIA'
+      ],
+      head: 'NutrIA — {name} — {email}',
+      how: 'Imprime esta carta y envíala a la dirección profesional que publica el registro. Si apuntas la dirección para el sobre, destruye la nota al enviarla: no te quedes copia.',
+      title: 'La carta'
+    },
+    record: {
+      channel: 'Por {channel}',
+      empty: 'Todavía no hay nada anotado.',
+      kinds: { applied: 'Solicitud', fail: 'Insignia no dada', lapsed: 'Insignia caducada', pass: 'Insignia dada', withdrawn: 'Insignia retirada' },
+      number: 'Número: {number}',
+      numberChecked: 'Número comprobado: {number}',
+      numberDeclared: 'Número declarado: {number}',
+      register: 'Colegio: {register}',
+      renewal: 'Revisión anual el {date}',
+      title: 'Registro de esta cuenta'
+    },
+    removal: {
+      consequenceFail: 'La persona recibe este correo ahora. Su consulta sigue abierta y puede volver a pedir la insignia.',
+      /** The agreement 2.0.0 § 4 sentence, copied as it stands (the sweep ends these links). */
+      consequenceLinksEnd: 'Los enlaces con clientes que tengan anotada una condición de salud o una medicación terminan.',
+      consequenceWithdrawn:
+        'La persona recibe este correo ahora. Desde su siguiente petición ve de cada cliente solo lo que el acuerdo describe «sin la insignia»: los vínculos se estrechan al momento, y si su perfil lleva palabras que solo permite la insignia, vuelve a la cola.',
+      factsHint: 'Se añaden al motivo tal como los escribas. Si eliges «Otro motivo», son el motivo entero.',
+      factsLabel: 'Hechos',
+      factsPlain: 'Escribe los hechos en texto llano: sin < ni >.',
+      factsRequired: 'Escribe los hechos: sin ellos no hay motivo.',
+      legendReason: 'Motivo',
+      legendSource: 'De dónde viene la decisión',
+      other: 'Otro motivo: lo escribo yo',
+      preview: 'Lo que leerá la persona',
+      previewNote: 'La recibe en su idioma; aquí lo lees en el tuyo.',
+      reasonRequired: 'Elige un motivo.',
+      refusedDone: 'La insignia no se da. La persona recibe los motivos por correo.',
+      sourceRequired: 'Di de dónde viene la decisión.',
+      submitFail: 'No dar la insignia',
+      submitWithdrawn: 'Retirar la insignia',
+      titleFail: 'No dar la insignia',
+      titleWithdrawn: 'Retirar la insignia',
+      withdrawnDone: 'La insignia está retirada. La persona recibe los motivos por correo.'
+    },
+    script: {
+      how: 'Llama solo al teléfono que publica el registro. Este es el guion; el código no se deja a nadie más.',
+      no: 'No: «Entonces alguien ha usado tu nombre y tu número. No daremos la insignia.» No leas el código. Al colgar, usa «No dar la insignia» con el motivo «La persona que figura en el registro con ese número nos ha dicho que no ha pedido la insignia.»',
+      steps: [
+        'Llama solo al teléfono que publica el registro de {register}. Nunca a uno que te haya dado quien pidió la insignia.',
+        '«Hola, llamo de NutrIA, una aplicación de planes de comidas. ¿Hablo con {registerName}?» Si no es esa persona, pregunta cuándo puedes encontrarla, sin decir el motivo a nadie más, y cuelga. No dejes el código en un contestador ni a otra persona.',
+        'A {registerName}: «Una cuenta de NutrIA ha pedido nuestra insignia de dietista-nutricionista colegiada/o con tu nombre y tu número. ¿La has pedido tú?»',
+        'En los dos casos: «Tu teléfono lo hemos sacado del registro público de tu colegio y no lo guardamos. Guardamos solo el registro consultado, la fecha, el resultado y que la comprobación fue por teléfono. Todo lo demás, y tus derechos, en nuestra política de privacidad: nutria, barra, privacidad.» (Di la dirección real de la web).',
+        'Después: borra la llamada del registro de llamadas del teléfono con el que llamaste, y no apuntes el número en ningún sitio.'
+      ],
+      title: 'El guion de la llamada',
+      yes: 'Sí: «Te leo un código para que lo introduzcas en tu consulta de NutrIA antes del {expires}.» Léelo dos veces. No preguntes nada más.'
+    },
+    stale: 'Esto ya había cambiado: la persona o otra pestaña se adelantaron. Se vuelve a leer para que lo veas como está.',
+    states: {
+      applied: 'Ha pedido la insignia y espera tu comprobación. Todavía no le has enviado ningún código.',
+      badged: 'Tiene la insignia. Su revisión anual vence el {date}.',
+      codeEntered: 'Ha introducido el código: ya puedes decidir.',
+      codeSent: 'Le has enviado un código; puede introducirlo hasta el {date}.',
+      due: 'Su revisión anual venció el {dueDate}. Si no se completa antes del {lapseDate}, la insignia caduca.',
+      lapsed: 'La insignia caducó y no hay una solicitud nueva.',
+      none: 'No tiene ninguna solicitud ni insignia: no hay nada que decidir.',
+      refused: 'Se le denegó la insignia y no ha vuelto a pedirla.',
+      withdrawn: 'Se le retiró la insignia y no ha vuelto a pedirla.'
+    },
+    stateWord: {
+      applied: 'Solicitud esperando',
+      badged: 'Con insignia',
+      code_sent: 'Código enviado',
+      due: 'Revisión anual vencida',
+      lapsed: 'Caducada',
+      none: 'Sin insignia',
+      refused: 'No dada',
+      withdrawn: 'Retirada'
+    },
+    step1: {
+      body: 'Busca a esta persona en el registro público de {register} y compara: que el nombre y el número {number} coinciden y que figura como habilitada/o. Aquí no escribes nada: lo que encuentres lo usas en los pasos siguientes.',
+      bodyStanding:
+        'Busca a esta persona en el registro público de {register} y compara: que sigue figurando con el número {number} y como habilitada/o. Aquí no escribes nada.',
+      title: 'Mira el registro'
+    },
+    step2: {
+      channel: 'Canal',
+      channels: {
+        phone: 'Una llamada al teléfono que figura en el registro',
+        post: 'Una carta a la dirección profesional que figura en el registro',
+        register_email: 'Un correo que figura en el registro'
+      },
+      codeEntered: 'Último código: por {channel}. La persona lo ha introducido.',
+      codeExpired: 'Último código: por {channel}. Caducó el {date} sin introducirse.',
+      codeGone: 'Ese código solo se mostró una vez y ya no se puede ver. Si generas otro, el anterior deja de valer.',
+      codeLabel: 'Código',
+      codeNone: 'Todavía no has enviado ningún código.',
+      codeOnce:
+        'Este código solo se muestra ahora. No se guarda en ninguna parte y no podrás volver a verlo: si lo pierdes, genera otro, y este deja de valer.',
+      codeOut: 'Último código: por {channel}. Caduca el {date}.',
+      codeValid: 'Válido hasta el {date}.',
+      done: 'Listo: ya he usado el código',
+      email: 'Correo que figura en el registro',
+      emailError: 'Escribe una dirección de correo válida.',
+      emailHint: 'Se usa una vez, para este correo, y no se guarda.',
+      fieldError: 'Escríbelo tal como lo muestra el registro: una línea, sin enlaces ni direcciones.',
+      handed: 'Código entregado. Cuando la persona lo introduzca, aquí podrás decidir.',
+      leaveConfirm:
+        'El código no se podrá volver a ver. ¿Salir de todos modos? Si después lo necesitas, tendrás que generar otro, y este dejará de valer.',
+      mailed: 'Correo enviado a la dirección que escribiste. Caduca el {date}. NutrIA no guarda esa dirección.',
+      notMailed: 'El correo no ha salido y nadie tiene ese código. Envía otro: el nuevo sustituye al anterior.',
+      only: 'Solo a un contacto que aparezca en el registro público, nunca a uno que te dé la persona que pidió la insignia. NutrIA no guarda la dirección ni el teléfono.',
+      optional: 'En la revisión anual el código es opcional: la identidad se comprobó la primera vez y ahora se trata de mirar el registro otra vez.',
+      register: 'Colegio, como lo muestra el registro',
+      registerName: 'Nombre, como lo muestra el registro',
+      registerNameHint: 'Se usa en el correo, la carta o el guion, y no se guarda.',
+      registerNameLocal: 'Nombre, como lo muestra el registro',
+      registerNameLocalHint: 'Solo completa la carta o el guion en esta pantalla. No se envía ni se guarda.',
+      send: { phone: 'Generar el código', post: 'Generar el código', register_email: 'Enviar el código' },
+      title: 'Envía el código'
+    },
+    title: 'Comprobar a {name}',
+    titleNothing: 'Insignia: {name}',
+    titleRenewal: 'Revisión anual de {name}'
+  },
+
+  /* `/admin/profesionales/insignias` (project 025 phase 9): applications waiting and badges due for their yearly check. */
+  adminBadges: {
+    applications: {
+      caption: 'Solicitudes de insignia',
+      columns: { action: 'Comprobar', number: 'Número declarado', person: 'Persona', register: 'Colegio', since: 'Solicitada el', state: 'Estado' },
+      empty: 'No hay ninguna solicitud esperando.',
+      note: 'Las más antiguas primero.',
+      states: { applied: 'Sin código enviado', codeEntered: 'Código introducido', codeSent: 'Código enviado' },
+      title: 'Solicitudes'
+    },
+    back: 'Volver a Profesionales',
+    check: 'Comprobar',
+    checkFor: 'Comprobar a {name} ({email})',
+    due: {
+      caption: 'Revisiones anuales pendientes',
+      columns: { action: 'Comprobar', due: 'Venció el', lapses: 'Caduca el', number: 'Número comprobado', person: 'Persona', register: 'Colegio' },
+      empty: 'Ninguna insignia pide revisión ahora.',
+      note: 'La que caduca antes, primero.',
+      title: 'Revisiones anuales'
+    },
+    intro: 'Las solicitudes que esperan tu comprobación y las revisiones anuales que vencen.',
+    title: 'Insignias por comprobar'
+  },
+
   /* `/admin/consentimientos` (`0071`): each versioned consent, its version in force and who holds it. Numbers only. */
   adminConsents: {
     caption: 'Consentimientos por versión',
@@ -383,7 +562,7 @@ export const esES = {
     empty: 'Ninguna cuenta ha aceptado todavía.',
     howCounted: [
       'Cuenta cuentas: cada cuenta cuenta una vez por consentimiento, con la versión que aceptó.',
-      'Con una anterior son las cuentas a las que se volverá a preguntar. Sin aceptar es una concesión que todavía no ha aceptado el acuerdo (solo el del profesional). Sin registro son las cuentas creadas antes de que se guardara la versión de las condiciones: no se sabe cuál vieron, y no se les vuelve a preguntar.',
+      'Con una anterior son las cuentas a las que se volverá a preguntar. Sin aceptar es una consulta abierta que todavía no ha aceptado el acuerdo (solo el del profesional). Sin registro son las cuentas creadas antes de que se guardara la versión de las condiciones: no se sabe cuál vieron, y no se les vuelve a preguntar.',
       'Un vínculo abierto es un consentimiento aceptado.',
       'Sin fechas: esta página no dice cuándo aceptó nadie. La política de privacidad no es un consentimiento y no aparece aquí.'
     ],
@@ -938,6 +1117,80 @@ export const esES = {
     title: 'Planes'
   },
 
+  /* `/admin/profesionales/[id]` (project 025 phase 9): one practitioner, what stands against the practice, and the owner's three acts. */
+  adminPractice: {
+    acts: {
+      authority: 'Quién lo exige',
+      authorityHint: 'Se le dice a la persona quién lo exige.',
+      authorityRequired: 'Escribe quién lo exige.',
+      clause: 'Sección del acuerdo (opcional)',
+      clauseHint: 'Se cita junto a su § 13.',
+      clauseNone: 'Ninguna',
+      clauseOption: 'Sección {n}',
+      facts: 'Hechos',
+      factsHint: 'Qué, cuándo y dónde. La persona los lee tal como los escribas.',
+      factsPlain: 'Escribe los hechos en texto llano: sin < ni >.',
+      factsRequired: 'Escribe los hechos: sin ellos no hay motivo.',
+      legendSource: 'De dónde viene la decisión',
+      preview: 'Lo que leerá la persona',
+      previewNote: 'La recibe en su idioma; aquí lo lees en el tuyo. Termina con cómo pedir que se revise.',
+      sourceRequired: 'Di de dónde viene la decisión.',
+      stale: 'Esto ya había cambiado: la persona o otra pestaña se adelantaron. Se vuelve a leer para que lo veas como está.'
+    },
+    back: 'Volver a Profesionales',
+    close: {
+      consequence:
+        'El {date} la persona pierde el acceso a sus clientes y sus invitaciones pendientes se anulan. Los vínculos terminan para siempre: no vuelven aunque levantes el cierre, porque cada cliente tendría que consentir de nuevo. Su insignia se retira con el cierre. Hasta entonces la consulta sigue como está, y su cuenta personal no cambia.',
+      date: 'Se cerrará el {date}: hoy más 30 días.',
+      done: 'Cierre anunciado: la consulta se cierra el {date}. La persona recibe los motivos por correo.',
+      respect: 'Los 30 días son tuyos de respetar: la consola no los acorta. Si hay que actuar ya, suspende.',
+      submit: 'Anunciar el cierre',
+      title: 'Cerrar la consulta'
+    },
+    facts: {
+      badge: 'Insignia',
+      badgeLink: 'Abrir la comprobación',
+      collegiate: 'Número comprobado',
+      email: 'Correo',
+      links: 'Vínculos',
+      opened: 'Consulta abierta el',
+      state: 'Estado'
+    },
+    lift: {
+      consequenceClosed:
+        'Los vínculos que terminaron con el cierre no vuelven y la insignia que se retiró se pide de nuevo. La persona podrá abrir otra consulta y aceptar de nuevo el acuerdo. Recibe un correo.',
+      consequenceClosing: 'El cierre no se producirá y la consulta sigue abierta. Si además estaba suspendida, deja de estarlo. Recibe un correo.',
+      consequenceSuspended: 'La persona podrá volver a abrir su consulta y ve otra vez a sus clientes. Recibe un correo.',
+      done: 'Levantado: ya no consta ninguna restricción. La persona recibe un correo.',
+      doneClosed:
+        'Levantado el cierre de {email}. Ya no aparece en esta lista porque no tiene consulta: puede abrir otra. La persona recibe un correo.',
+      facts: 'Qué has encontrado (opcional)',
+      factsHint: 'Continúa la frase «Lo hemos revisado y…». Déjalo vacío si no hay nada que decir.',
+      lead: 'Levantar quita todo lo que consta a la vez: la suspensión y el cierre.',
+      submit: 'Levantar',
+      title: 'Levantar'
+    },
+    none: 'No consta ninguna restricción: la consulta está abierta.',
+    standing: {
+      closed: 'Cerrada el {date}.',
+      closeDue: 'El cierre venció el {date} y lo ejecuta el próximo barrido diario: hasta entonces la consulta sigue existiendo.',
+      closing: 'Se cierra el {date}. Hasta entonces la consulta sigue como está.',
+      decided: 'Decidido el {date}.',
+      noStatement: 'No quedaron motivos guardados.',
+      suspended: 'Suspendida desde el {date}.',
+      title: 'Lo que consta'
+    },
+    suspend: {
+      consequence:
+        'Desde su siguiente petición la persona no ve los datos de ningún cliente, no invita a nadie y no puede abrir una consulta. Su cuenta personal, su página de consulta, el acuerdo, la insignia y el perfil siguen. Sus clientes siguen vinculados, pero nadie lee sus datos hasta que lo levantes.',
+      done: 'Suspendida. La persona recibe los motivos por correo.',
+      lead: 'Surte efecto ahora.',
+      submit: 'Suspender',
+      title: 'Suspender'
+    },
+    title: 'Profesional: {name}'
+  },
+
   /* `/admin/producto`: how far people get, and what they do each day. */
   adminProduct: {
     activeChart: 'Personas activas por día',
@@ -965,16 +1218,85 @@ export const esES = {
   /* `/admin/profesionales`: who has the practice (`0059`), with their links counted — never a client named. */
   adminProfessionals: {
     caption: 'Profesionales',
-    columns: { collegiate: 'Nº de colegiado', email: 'Correo', granted: 'Desde', links: 'Vínculos', state: 'Estado' },
+    columns: { collegiate: 'Nº comprobado', email: 'Correo', granted: 'Desde', links: 'Vínculos', state: 'Estado' },
     empty: 'Todavía no hay ningún profesional.',
-    intro: 'Cada profesional con sus vínculos contados. Aquí no aparece ningún paciente.',
-    links: '{active} activos · {paused} en pausa · {ended} terminados',
+    entries: {
+      badges: { none: 'Nada por comprobar', summary: 'Nuevas: {applications} · Revisiones anuales: {due}', title: 'Insignias por comprobar' },
+      label: 'Lo que espera tu mirada',
+      profiles: { none: 'Ninguno por mirar', summary: 'Por mirar: {count}', title: 'Perfiles por mirar' },
+      unavailable: 'No se ha podido leer'
+    },
+    intro: 'Cada profesional con sus vínculos contados. Aquí no aparece ningún cliente.',
+    links: {
+      active: { one: '{count} activo', other: '{count} activos' },
+      ended: { one: '{count} terminado', other: '{count} terminados' },
+      paused: { one: '{count} en pausa', other: '{count} en pausa' }
+    },
     noMatch: 'Ningún profesional coincide con la búsqueda.',
     search: 'Buscar por correo',
     sortBy: { email: 'correo', grantedAt: 'fecha de apertura', links: 'número de vínculos' },
-    /** What stands on the practice, until phase 9 gives the acts. */
-    state: { closed: 'Cerrada', closing: 'Se cierra el {date}', open: 'Abierta', suspended: 'Suspendida' },
+    /** What stands on the practice. */
+    state: {
+      closed: 'Cerrada',
+      closeDue: 'Cierre vencido el {date}: pendiente del próximo barrido',
+      closing: 'Se cierra el {date}',
+      open: 'Abierta',
+      suspended: 'Suspendida'
+    },
     title: 'Profesionales'
+  },
+
+  /* `/admin/profesionales/perfiles` (project 025 phase 9; sheet «ConsolaPerfiles»): the first look at each new profile. */
+  adminProfiles: {
+    back: 'Volver a Profesionales',
+    card: {
+      account: 'Cuenta: {email}',
+      badged: 'con insignia',
+      hidden: 'Oculto desde el {date}: {reasons}.',
+      noStudies: 'No ha escrito estudios.',
+      noWords:
+        'El filtro no encuentra palabras reservadas en ningún campo. No ve una enfermedad ofrecida como servicio ni resultados prometidos: eso lo miras tú.',
+      queued: 'Guardado el {date}',
+      unbadged: 'sin insignia',
+      words: 'La insignia ya no está y estas palabras no se muestran hasta que la persona las cambie: {words}.',
+      wordsField: { displayName: 'en el nombre', studies: 'en los estudios' },
+      wordsForm: 'Se muestran como las busca el filtro: en minúsculas y sin tildes.'
+    },
+    decide: {
+      hide: 'No publicar',
+      note: 'Hoy ningún perfil se muestra fuera de su consulta: publicar solo deja el perfil como visto, y no es un aval de NutrIA. Al no publicar se te pide un motivo, que recibe la persona.',
+      publish: 'Publicar',
+      published: '{name}: visto. Sale de la cola.',
+      publishHidden: 'Estaba oculto: al publicarlo deja de estarlo.',
+      stale: 'Ese perfil ya no estaba en la cola: lo miró otra pestaña o la persona lo cambió. Se ha quitado de aquí.'
+    },
+    empty: { body: 'Cuando alguien guarde un perfil o cambie sus palabras, aparecerá aquí.', title: 'No hay perfiles por mirar' },
+    hide: {
+      afterNotice: 'Lo he mirado tras un aviso que nos llegó',
+      cancel: 'Cancelar',
+      consequence:
+        'Se oculta ahora y la persona recibe el correo de abajo. No hay botón para deshacerlo: el perfil vuelve a la cola cuando ella lo edite.',
+      done: '{name}: perfil oculto. Los motivos se le envían por correo.',
+      factsHint: 'Se añaden después de los motivos, tal como los escribas.',
+      factsLabel: 'Hechos',
+      factsPlain: 'Escribe los hechos en texto llano: sin < ni >.',
+      factsRequired: 'Elige al menos un motivo o escribe los hechos.',
+      legendReasons: 'Motivos',
+      noticeSuffix: ', después de un aviso que nos llegó',
+      preview: 'Lo que leerá la persona',
+      previewNote: 'La recibe en su idioma; aquí lo lees en el tuyo.',
+      submit: 'Ocultar el perfil',
+      title: 'Ocultar el perfil de {name}',
+      what: 'Hemos ocultado tu perfil. Hoy ningún perfil se muestra a nadie fuera de tu consulta, así que en la práctica no cambia nada; pero mientras siga oculto no aparecerá en ningún sitio donde NutrIA muestre perfiles. Tu consulta y tus clientes siguen como estaban.',
+      why: 'Por qué: {reason} Es lo que dicen los §§ 2 y 5 del acuerdo del profesional que aceptaste. Lo ha visto una persona, no un programa, en la revisión que hacemos de cada perfil{noticeSuffix}.',
+      word: 'La palabra citada',
+      wordHint: 'Tal como aparece en el perfil. Va entre comillas en el motivo.',
+      wordRequired: 'Escribe la palabra que citas, en una línea y sin < ni >.'
+    },
+    intro:
+      'Un vistazo a cada perfil nuevo y a cada cambio: que no haya publicidad engañosa ni spam, ni palabras que la persona no puede usar. No compruebas estudios.',
+    status: 'Resultado de tu última decisión',
+    title: 'Perfiles por mirar'
   },
 
   /* `/admin/catalogo/calidad` (`0071`): what the catalogue should satisfy and does not, and the step rewrite's state. */
@@ -1133,6 +1455,31 @@ export const esES = {
     notifications: 'Notificaciones',
     product: 'Producto',
     title: 'Interruptores'
+  },
+
+  /* The statements of reasons the owner picks from (project 025 phase 9): `docs/legal/textos/06` §§ W, W bis and X, word for word. The mails go in the person's own language; the console shows them in the owner's. Some sentences are `practice.*` (`restrictionWhy`, `restrictionSources`, `restrictionClause`, `restrictionClosing`, `badgeReasons`, `profileHiddenReasons`): the same approved text, one home. */
+  adminStatements: {
+    badge: {
+      sources: { notice: 'Lo hemos revisado tras un aviso que nos llegó.', own_check: 'Lo hemos decidido nosotros, por nuestra comprobación.' },
+      what: {
+        fail: 'No te damos la insignia «Dietista-nutricionista colegiada/o». Tu consulta sigue abierta como hasta ahora.',
+        withdrawn:
+          'Te retiramos la insignia «Dietista-nutricionista colegiada/o» desde hoy. Tu consulta sigue abierta, y desde tu siguiente petición ves de cada cliente lo que el § 3 del acuerdo del profesional describe «sin la insignia». Lo demás que cambia está en su § 4. Las palabras de tu perfil que solo permite la insignia ya no se muestran.'
+      },
+      why: 'Por qué: {reason} Es lo que dice el § 4 del acuerdo del profesional que aceptaste. {source}'
+    },
+    lift: {
+      closeAfter:
+        'Hemos revocado el cierre de tu consulta del {closeDate}. Desde hoy puedes volver a abrirla en NutrIA; al hacerlo te pediremos aceptar de nuevo el acuerdo del profesional. Tu perfil sigue ahí. Si tenías la insignia, se retiró con el cierre: puedes volver a pedirla desde tu consulta y, mientras tanto, las palabras de tu perfil que solo permite la insignia no se muestran y, si las lleva, tu perfil ha vuelto a revisión. Los enlaces con tus clientes terminaron con el cierre y no vuelven solos: para retomarlos, invita de nuevo a cada persona, que verá otra vez la lista y decidirá. {why}',
+      closeBefore:
+        'Hemos anulado el cierre de tu consulta que te anunciamos para el {closeDate}: no se va a producir. Tu consulta sigue abierta{liftedSuffix}. {why}',
+      liftedSuffix: ', y también hemos levantado la suspensión',
+      suspension: 'Desde hoy puedes volver a abrir tu consulta en NutrIA. {why}',
+      why: 'Lo hemos revisado y {facts}.'
+    },
+    suspend: {
+      what: 'Desde hoy tu cuenta está suspendida como profesional: no ves los datos de ningún cliente, no puedes invitar a nadie y no puedes abrir una consulta hasta que levantemos la suspensión. Tu cuenta personal de NutrIA sigue como estaba.'
+    }
   },
 
   /* `/admin`: the period's headline figures, two trends, and what needs the owner now. */
@@ -2580,6 +2927,10 @@ export const esES = {
     '/admin/producto/planes': { title: 'Planes' },
     '/admin/producto/planes/calidad': { title: 'Calidad de los planes' },
     '/admin/profesionales': { title: 'Profesionales' },
+    '/admin/profesionales/[userId]': { title: 'Profesional' },
+    '/admin/profesionales/[userId]/insignia': { title: 'Insignia de un profesional' },
+    '/admin/profesionales/insignias': { title: 'Insignias por comprobar' },
+    '/admin/profesionales/perfiles': { title: 'Perfiles por mirar' },
     '/asistente': { title: 'Asistente' },
     '/cambiar-contrasena': { title: 'Cambia tu contraseña' },
     '/check-in': { title: 'Check-in de la quincena' },

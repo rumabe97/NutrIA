@@ -1,0 +1,30 @@
+/* A letter on a sheet: the sunken block holds it apart from the console's own words. */
+.letter {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-control);
+  display: grid;
+  font-size: var(--font-size-03);
+  gap: var(--space-03);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  padding: var(--space-04);
+}
+
+.letter p {
+  margin: 0;
+  max-inline-size: var(--prose-max);
+}
+
+.head {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+}
+
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: var(--font-size-05);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.12em;
+}

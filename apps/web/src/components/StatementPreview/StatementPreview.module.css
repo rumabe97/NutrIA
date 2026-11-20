@@ -1,0 +1,33 @@
+.preview {
+  display: grid;
+  gap: var(--space-02);
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.title {
+  color: var(--foreground-02);
+  font-size: var(--font-size-01);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.quote {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-control);
+  color: var(--foreground-01);
+  display: grid;
+  font-size: var(--font-size-03);
+  gap: var(--space-02);
+  margin: 0;
+  overflow-wrap: anywhere;
+  padding: var(--space-03);
+}
+
+.quote p {
+  margin: 0;
+  max-inline-size: var(--prose-max);
+}

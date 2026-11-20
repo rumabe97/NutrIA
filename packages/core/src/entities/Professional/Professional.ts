@@ -339,6 +339,16 @@ export const PROFILE_HIDE_REASONS = ['badge_word', 'disease', 'promises', 'unche
 
 export type ProfileHideReason = (typeof PROFILE_HIDE_REASONS)[number];
 
+/**
+ * Hide reasons in the approved table's order (`textos/06` § X, `PROFILE_HIDE_REASONS`),
+ * once each and only known ones — never the owner's click order nor an
+ * alphabetical one. Every place that stores, mails or presents a hiding says
+ * them in this order.
+ */
+export function inHideOrder(reasons: readonly unknown[]): ProfileHideReason[] {
+  return PROFILE_HIDE_REASONS.filter(reason => reasons.includes(reason));
+}
+
 /** The two reasons whose sentence quotes the word the owner saw. */
 const WORD_REASONS: readonly ProfileHideReason[] = ['badge_word', 'unchecked_title'];
 

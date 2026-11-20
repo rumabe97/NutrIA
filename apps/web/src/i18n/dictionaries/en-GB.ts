@@ -43,9 +43,9 @@ export const enGB: Dictionary = {
     premiumHint: 'Premium is on: accounts you have granted it get three redos a fortnight and twenty swaps a plan.',
     premiumLabel: 'Paid tier',
     premiumOffHint: 'Premium is off: everybody is on the free limits, including anyone already granted it. Turning it on gives it back.',
-    professionalHint: 'On: the professionals you grant can open their practice and link clients.',
-    professionalLabel: 'Practice for dietitians',
-    professionalOffHint: 'Off: nobody sees the practice, not even those already granted. Their clients carry on as ordinary accounts.',
+    professionalHint: 'On: any adult account can open its practice and invite its clients.',
+    professionalLabel: "Professionals' practices",
+    professionalOffHint: 'Off: nobody sees the practice. Clients carry on as ordinary accounts.',
     pushTest: 'Send me a test notification',
     pushTestNoDevice: 'No device of yours has notifications on. Turn them on in your profile, from your phone, and try again.',
     pushTestRefused:
@@ -342,6 +342,188 @@ export const enGB: Dictionary = {
     via: { automatic: 'Automatic', console: 'Console', mail_link: 'Email link' }
   },
 
+  /* `/admin/profesionales/[id]/insignia` (project 025 phase 9; sheet «ConsolaDistintivo»): one badge, checked in three steps. The sentences the owner picks from, as the practitioner will read them, are `adminStatements` and `practice.*`. */
+  adminBadge: {
+    back: 'Back to the badges',
+    channelWords: { phone: 'call', post: 'letter', register_email: 'email' },
+    decide: {
+      confirm: 'Give the badge',
+      confirmed: 'Badge given. Their next check is on {date}.',
+      renew: 'Confirm the check',
+      renewed: 'Check confirmed. The next one is on {date}.',
+      title: 'Decide',
+      waiting: 'You cannot give it yet: the person has not entered the code from step 2.',
+      what: 'It is recorded who checked, when and by which channel. It is checked again in a year; if {days} days pass after the deadline without it, the badge lapses and the person is sent the reason.',
+      withdraw: 'Withdraw the badge'
+    },
+    facts: {
+      applied: 'Applied on',
+      checked: 'Checked on',
+      checkedNumber: 'Checked number',
+      declaredNumber: 'Declared number',
+      due: 'Yearly check on',
+      email: 'Account',
+      lapses: 'Lapses on',
+      register: 'College'
+    },
+    letter: {
+      // The letter is sent to a Spanish register: its approved text (`textos/06` § S) exists in Spanish only.
+      body: [
+        'Para {registerName}',
+        'Te escribimos desde NutrIA, una aplicación de planes de comidas. Una cuenta de NutrIA ha pedido nuestra insignia de dietista-nutricionista colegiada/o con tu nombre y tu número de colegiado, {number}, de {register}.',
+        'Si has sido tú, entra en NutrIA, ve a tu consulta e introduce este código antes del {expires}:',
+        '{code}',
+        'Si no has sido tú, no hagas nada con el código y escríbenos a {email}: alguien ha usado tu nombre y tu número. No daremos la insignia.',
+        'Hemos sacado esta dirección del registro público de colegiados de {register}, que la publica para que cualquiera pueda comprobar una colegiación. La usamos solo para enviarte este código, para comprobar que quien pide la insignia eres tú, por nuestro interés legítimo y el de quienes usan NutrIA: que nadie se haga pasar por dietista-nutricionista. No la guardamos en NutrIA; lo que guardamos es el registro consultado, la fecha, el número, el resultado y que el código fue por carta. Quién es el responsable, tus derechos y cómo reclamar ante la Agencia Española de Protección de Datos: {privacyUrl}.',
+        '{name}, NutrIA'
+      ],
+      head: 'NutrIA — {name} — {email}',
+      how: 'Print this letter and send it to the professional address the register publishes. If you note the address down for the envelope, destroy the note when you post it: keep no copy.',
+      title: 'The letter (Spanish: it goes to a Spanish register)'
+    },
+    record: {
+      channel: 'By {channel}',
+      empty: 'Nothing recorded yet.',
+      kinds: { applied: 'Application', fail: 'Badge not given', lapsed: 'Badge lapsed', pass: 'Badge given', withdrawn: 'Badge withdrawn' },
+      number: 'Number: {number}',
+      numberChecked: 'Checked number: {number}',
+      numberDeclared: 'Declared number: {number}',
+      register: 'College: {register}',
+      renewal: 'Yearly check on {date}',
+      title: "This account's record"
+    },
+    removal: {
+      consequenceFail: 'The person is sent this email now. Their practice stays open and they can apply for the badge again.',
+      /** The agreement 2.0.0 § 4 sentence, copied as it stands (the sweep ends these links). */
+      consequenceLinksEnd: 'Links with clients who have a health condition or a medication on record end.',
+      consequenceWithdrawn:
+        'The person is sent this email now. From their next request they see of each client only what the agreement describes "without the badge": their links narrow at once, and if their profile carries words only the badge allows, it goes back to the queue.',
+      factsHint: 'They are added to the reason as you write them. With "Another reason" they are the whole reason.',
+      factsLabel: 'Facts',
+      factsPlain: 'Write the facts as plain text: no < or >.',
+      factsRequired: 'Write the facts: without them there is no reason.',
+      legendReason: 'Reason',
+      legendSource: 'Where the decision comes from',
+      other: 'Another reason: I write it',
+      preview: 'What the person will read',
+      previewNote: 'They receive it in their own language; here you read it in yours.',
+      reasonRequired: 'Choose a reason.',
+      refusedDone: 'The badge is not given. The person is sent the reasons by email.',
+      sourceRequired: 'Say where the decision comes from.',
+      submitFail: 'Do not give the badge',
+      submitWithdrawn: 'Withdraw the badge',
+      titleFail: 'Do not give the badge',
+      titleWithdrawn: 'Withdraw the badge',
+      withdrawnDone: 'The badge is withdrawn. The person is sent the reasons by email.'
+    },
+    script: {
+      how: 'Call only the phone number the register publishes. This is the script; the code is never left with anybody else.',
+      // `textos/06` § T exists in Spanish only: the owner reads it aloud in Spanish.
+      no: 'No: «Entonces alguien ha usado tu nombre y tu número. No daremos la insignia.» No leas el código. Al colgar, usa «No dar la insignia» con el motivo «La persona que figura en el registro con ese número nos ha dicho que no ha pedido la insignia.»',
+      steps: [
+        'Llama solo al teléfono que publica el registro de {register}. Nunca a uno que te haya dado quien pidió la insignia.',
+        '«Hola, llamo de NutrIA, una aplicación de planes de comidas. ¿Hablo con {registerName}?» Si no es esa persona, pregunta cuándo puedes encontrarla, sin decir el motivo a nadie más, y cuelga. No dejes el código en un contestador ni a otra persona.',
+        'A {registerName}: «Una cuenta de NutrIA ha pedido nuestra insignia de dietista-nutricionista colegiada/o con tu nombre y tu número. ¿La has pedido tú?»',
+        'En los dos casos: «Tu teléfono lo hemos sacado del registro público de tu colegio y no lo guardamos. Guardamos solo el registro consultado, la fecha, el resultado y que la comprobación fue por teléfono. Todo lo demás, y tus derechos, en nuestra política de privacidad: nutria, barra, privacidad.» (Di la dirección real de la web).',
+        'Después: borra la llamada del registro de llamadas del teléfono con el que llamaste, y no apuntes el número en ningún sitio.'
+      ],
+      title: 'The call script (Spanish)',
+      yes: 'Sí: «Te leo un código para que lo introduzcas en tu consulta de NutrIA antes del {expires}.» Léelo dos veces. No preguntes nada más.'
+    },
+    stale: 'This had already changed: the person or another tab got there first. It is read again so you see it as it is.',
+    states: {
+      applied: 'They have applied for the badge and are waiting for your check. You have not sent them a code yet.',
+      badged: 'They have the badge. Their yearly check is due on {date}.',
+      codeEntered: 'They have entered the code: you can decide now.',
+      codeSent: 'You have sent them a code; they can enter it until {date}.',
+      due: 'Their yearly check was due on {dueDate}. If it is not completed before {lapseDate}, the badge lapses.',
+      lapsed: 'The badge lapsed and there is no new application.',
+      none: 'They have no application and no badge: there is nothing to decide.',
+      refused: 'The badge was refused and they have not applied again.',
+      withdrawn: 'The badge was withdrawn and they have not applied again.'
+    },
+    stateWord: {
+      applied: 'Application waiting',
+      badged: 'Has the badge',
+      code_sent: 'Code sent',
+      due: 'Yearly check overdue',
+      lapsed: 'Lapsed',
+      none: 'No badge',
+      refused: 'Not given',
+      withdrawn: 'Withdrawn'
+    },
+    step1: {
+      body: 'Look this person up in the public register of {register} and compare: that the name and the number {number} match and that they are listed as entitled to practise. You type nothing here: what you find, you use in the next steps.',
+      bodyStanding:
+        'Look this person up in the public register of {register} and compare: that they are still listed under number {number} and as entitled to practise. You type nothing here.',
+      title: 'Look at the register'
+    },
+    step2: {
+      channel: 'Channel',
+      channels: {
+        phone: 'A call to a phone number the register lists',
+        post: 'A letter to the professional address the register lists',
+        register_email: 'An email the register lists'
+      },
+      codeEntered: 'Last code: by {channel}. The person has entered it.',
+      codeExpired: 'Last code: by {channel}. It expired on {date} without being entered.',
+      codeGone: 'That code was shown only once and can no longer be seen. If you generate another, the previous one stops working.',
+      codeLabel: 'Code',
+      codeNone: 'You have not sent any code yet.',
+      codeOnce:
+        'This code is shown only now. It is kept nowhere and you will not be able to see it again: if you lose it, generate another, and this one stops working.',
+      codeOut: 'Last code: by {channel}. It expires on {date}.',
+      codeValid: 'Valid until {date}.',
+      done: 'Done: I have used the code',
+      email: 'Email the register lists',
+      emailError: 'Write a valid email address.',
+      emailHint: 'Used once, for this email, and not kept.',
+      fieldError: 'Write it as the register shows it: one line, no links or addresses.',
+      handed: 'Code handed over. When the person enters it, you can decide here.',
+      leaveConfirm:
+        'The code cannot be seen again. Leave anyway? If you need it later, you will have to generate another, and this one will stop working.',
+      mailed: 'Email sent to the address you typed. It expires on {date}. NutrIA does not keep that address.',
+      notMailed: 'The email did not go out and nobody has that code. Send another: the new one replaces the old.',
+      only: 'Only to a contact that appears in the public register, never to one the person who applied gives you. NutrIA does not keep the address or the phone number.',
+      optional:
+        'In the yearly check the code is optional: identity was checked the first time and now it is a matter of looking at the register again.',
+      register: 'College, as the register shows it',
+      registerName: 'Name, as the register shows it',
+      registerNameHint: 'Used in the email, the letter or the script, and not kept.',
+      registerNameLocal: 'Name, as the register shows it',
+      registerNameLocalHint: 'It only completes the letter or the script on this screen. It is neither sent nor kept.',
+      send: { phone: 'Generate the code', post: 'Generate the code', register_email: 'Send the code' },
+      title: 'Send the code'
+    },
+    title: 'Check {name}',
+    titleNothing: 'Badge: {name}',
+    titleRenewal: 'Yearly check of {name}'
+  },
+
+  /* `/admin/profesionales/insignias` (project 025 phase 9): applications waiting and badges due for their yearly check. */
+  adminBadges: {
+    applications: {
+      caption: 'Badge applications',
+      columns: { action: 'Check', number: 'Declared number', person: 'Person', register: 'College', since: 'Applied on', state: 'State' },
+      empty: 'No application is waiting.',
+      note: 'The oldest first.',
+      states: { applied: 'No code sent', codeEntered: 'Code entered', codeSent: 'Code sent' },
+      title: 'Applications'
+    },
+    back: 'Back to Professionals',
+    check: 'Check',
+    checkFor: 'Check {name} ({email})',
+    due: {
+      caption: 'Yearly checks due',
+      columns: { action: 'Check', due: 'Was due on', lapses: 'Lapses on', number: 'Checked number', person: 'Person', register: 'College' },
+      empty: 'No badge needs a check now.',
+      note: 'The one that lapses first, first.',
+      title: 'Yearly checks'
+    },
+    intro: 'The applications waiting for your check and the yearly checks falling due.',
+    title: 'Badges to check'
+  },
+
   /* `/admin/consentimientos` (`0071`): each versioned consent, its version in force and who holds it. Numbers only. */
   adminConsents: {
     caption: 'Consents by version',
@@ -362,7 +544,7 @@ export const enGB: Dictionary = {
     empty: 'No account has accepted yet.',
     howCounted: [
       'It counts accounts: each account counts once per consent, on the version it accepted.',
-      'On an older one are the accounts that will be asked again. Not accepted is a grant that has not accepted the agreement yet (the professional’s only). No record are the accounts created before the terms’ version was kept: which one they saw is unknown, and they are not asked again.',
+      'On an older one are the accounts that will be asked again. Not accepted is an open practice that has not accepted the agreement yet (the professional’s only). No record are the accounts created before the terms’ version was kept: which one they saw is unknown, and they are not asked again.',
       'An open link is one accepted consent.',
       'No dates: this page does not say when anybody accepted. The privacy policy is not a consent and is not here.'
     ],
@@ -897,6 +1079,80 @@ export const enGB: Dictionary = {
     title: 'Plans'
   },
 
+  /* `/admin/profesionales/[id]` (project 025 phase 9): one practitioner, what stands against the practice, and the owner's three acts. */
+  adminPractice: {
+    acts: {
+      authority: 'Who requires it',
+      authorityHint: 'The person is told who requires it.',
+      authorityRequired: 'Write who requires it.',
+      clause: 'Section of the agreement (optional)',
+      clauseHint: 'It is cited beside its section 13.',
+      clauseNone: 'None',
+      clauseOption: 'Section {n}',
+      facts: 'Facts',
+      factsHint: 'What, when and where. The person reads them as you write them.',
+      factsPlain: 'Write the facts as plain text: no < or >.',
+      factsRequired: 'Write the facts: without them there is no reason.',
+      legendSource: 'Where the decision comes from',
+      preview: 'What the person will read',
+      previewNote: 'They receive it in their own language; here you read it in yours. It ends with how to ask for a review.',
+      sourceRequired: 'Say where the decision comes from.',
+      stale: 'This had already changed: the person or another tab got there first. It is read again so you see it as it is.'
+    },
+    back: 'Back to Professionals',
+    close: {
+      consequence:
+        'On {date} the person loses access to their clients and their pending invitations are cancelled. The links end for good: they do not come back even if you lift the close, because each client would have to consent again. Their badge is withdrawn with the close. Until then the practice stays as it is, and their personal account does not change.',
+      date: 'It will close on {date}: today plus 30 days.',
+      done: 'Close announced: the practice closes on {date}. The person is sent the reasons by email.',
+      respect: 'The 30 days are yours to respect: the console does not shorten them. If you must act now, suspend.',
+      submit: 'Announce the close',
+      title: 'Close the practice'
+    },
+    facts: {
+      badge: 'Badge',
+      badgeLink: 'Open the check',
+      collegiate: 'Checked number',
+      email: 'Email',
+      links: 'Links',
+      opened: 'Practice opened on',
+      state: 'State'
+    },
+    lift: {
+      consequenceClosed:
+        'The links that ended with the close do not come back, and the badge that was withdrawn is applied for again. The person will be able to open another practice and accept the agreement again. They are sent an email.',
+      consequenceClosing: 'The close will not happen and the practice stays open. If it was also suspended, it no longer is. They are sent an email.',
+      consequenceSuspended: 'The person will be able to open their practice again and sees their clients again. They are sent an email.',
+      done: 'Lifted: nothing stands against the practice any more. The person is sent an email.',
+      doneClosed:
+        'Lifted the close of {email}. It is no longer on this list because it has no practice: they can open another. The person is sent an email.',
+      facts: 'What you found (optional)',
+      factsHint: 'It continues the sentence "We have looked into it and…". Leave it empty if there is nothing to say.',
+      lead: 'Lifting removes everything that stands at once: the suspension and the close.',
+      submit: 'Lift',
+      title: 'Lift'
+    },
+    none: 'Nothing stands against the practice: it is open.',
+    standing: {
+      closed: 'Closed on {date}.',
+      closeDue: 'The close fell due on {date} and the next daily sweep carries it out: until then the practice still exists.',
+      closing: 'It closes on {date}. Until then the practice stays as it is.',
+      decided: 'Decided on {date}.',
+      noStatement: 'No reasons were kept.',
+      suspended: 'Suspended since {date}.',
+      title: 'What stands'
+    },
+    suspend: {
+      consequence:
+        "From their next request the person sees no client's data, invites nobody and cannot open a practice. Their personal account, their practice page, the agreement, the badge and the profile stay. Their clients stay linked, but nobody reads their data until you lift it.",
+      done: 'Suspended. The person is sent the reasons by email.',
+      lead: 'It takes effect now.',
+      submit: 'Suspend',
+      title: 'Suspend'
+    },
+    title: 'Professional: {name}'
+  },
+
   /* `/admin/producto`: how far people get, and what they do each day. */
   adminProduct: {
     activeChart: 'Active people per day',
@@ -924,15 +1180,84 @@ export const enGB: Dictionary = {
   /* `/admin/profesionales`: who has the practice (`0059`), with their links counted — never a client named. */
   adminProfessionals: {
     caption: 'Professionals',
-    columns: { collegiate: 'Collegiate no.', email: 'Email', granted: 'Since', links: 'Links', state: 'State' },
+    columns: { collegiate: 'Checked no.', email: 'Email', granted: 'Since', links: 'Links', state: 'State' },
     empty: 'No professionals yet.',
+    entries: {
+      badges: { none: 'Nothing to check', summary: 'New: {applications} · Yearly checks: {due}', title: 'Badges to check' },
+      label: 'What waits for your look',
+      profiles: { none: 'None to look at', summary: 'To look at: {count}', title: 'Profiles to look at' },
+      unavailable: 'Could not be read'
+    },
     intro: 'Each professional with their links counted. No client appears here.',
-    links: '{active} active · {paused} paused · {ended} ended',
+    links: {
+      active: { one: '{count} active', other: '{count} active' },
+      ended: { one: '{count} ended', other: '{count} ended' },
+      paused: { one: '{count} paused', other: '{count} paused' }
+    },
     noMatch: 'No professional matches the search.',
     search: 'Search by email',
     sortBy: { email: 'email', grantedAt: 'opening date', links: 'number of links' },
-    state: { closed: 'Closed', closing: 'Closes on {date}', open: 'Open', suspended: 'Suspended' },
+    state: {
+      closed: 'Closed',
+      closeDue: 'Close due on {date}: waiting for the next sweep',
+      closing: 'Closes on {date}',
+      open: 'Open',
+      suspended: 'Suspended'
+    },
     title: 'Professionals'
+  },
+
+  /* `/admin/profesionales/perfiles` (project 025 phase 9; sheet «ConsolaPerfiles»): the first look at each new profile. */
+  adminProfiles: {
+    back: 'Back to Professionals',
+    card: {
+      account: 'Account: {email}',
+      badged: 'with badge',
+      hidden: 'Hidden since {date}: {reasons}.',
+      noStudies: 'They have not written any studies.',
+      noWords:
+        'The filter finds no reserved words in any field. It does not see a disease offered as a service or promised results: you judge those.',
+      queued: 'Saved on {date}',
+      unbadged: 'no badge',
+      words: 'The badge is gone and these words are not shown until the person changes them: {words}.',
+      wordsField: { displayName: 'in the name', studies: 'in the studies' },
+      wordsForm: 'They are shown as the filter looks for them: in lower case and without accents.'
+    },
+    decide: {
+      hide: 'Do not publish',
+      note: 'Today no profile is shown outside its practice: publishing only leaves the profile marked as seen, and it is not an endorsement by NutrIA. If you do not publish you are asked for a reason, which the person receives.',
+      publish: 'Publish',
+      published: '{name}: seen. It leaves the queue.',
+      publishHidden: 'It was hidden: publishing it stops hiding it.',
+      stale: 'That profile was no longer in the queue: another tab looked at it or the person changed it. It has been taken off here.'
+    },
+    empty: { body: 'When someone saves a profile or changes its words, it will appear here.', title: 'No profiles to look at' },
+    hide: {
+      afterNotice: 'I looked after a notice we received',
+      cancel: 'Cancel',
+      consequence:
+        'It is hidden now and the person is sent the email below. There is no button to undo it: the profile goes back to the queue when they edit it.',
+      done: '{name}: profile hidden. The reasons are sent to them by email.',
+      factsHint: 'They are added after the reasons, as you write them.',
+      factsLabel: 'Facts',
+      factsPlain: 'Write the facts as plain text: no < or >.',
+      factsRequired: 'Choose at least one reason or write the facts.',
+      legendReasons: 'Reasons',
+      noticeSuffix: ', after a notice we received',
+      preview: 'What the person will read',
+      previewNote: 'They receive it in their own language; here you read it in yours.',
+      submit: 'Hide the profile',
+      title: "Hide {name}'s profile",
+      what: 'We have hidden your profile. Today no profile is shown to anyone outside your practice, so in practice nothing changes; but while it stays hidden it will not appear anywhere NutrIA shows profiles. Your practice and your clients carry on as they were.',
+      why: "Why: {reason} That is what sections 2 and 5 of the professional's agreement you accepted say. A person saw it, not a program, in the review we make of every profile{noticeSuffix}.",
+      word: 'The word quoted',
+      wordHint: 'As it appears in the profile. It goes between quotation marks in the reason.',
+      wordRequired: 'Write the word you quote, on one line and with no < or >.'
+    },
+    intro:
+      'A look at each new profile and each change: that there is no misleading advertising or spam, and no words the person may not use. You do not check studies.',
+    status: 'Result of your last decision',
+    title: 'Profiles to look at'
   },
 
   /* `/admin/catalogo/calidad` (`0071`): what the catalogue should satisfy and does not, and the step rewrite's state. */
@@ -1089,6 +1414,31 @@ export const enGB: Dictionary = {
     notifications: 'Notifications',
     product: 'Product',
     title: 'Switches'
+  },
+
+  /* The statements of reasons the owner picks from (project 025 phase 9): `docs/legal/textos/06` §§ W, W bis and X, word for word. The mails go in the person's own language; the console shows them in the owner's. Some sentences are `practice.*` (`restrictionWhy`, `restrictionSources`, `restrictionClause`, `restrictionClosing`, `badgeReasons`, `profileHiddenReasons`): the same approved text, one home. */
+  adminStatements: {
+    badge: {
+      sources: { notice: 'We looked into it after a notice we received.', own_check: 'We decided it ourselves, from our own check.' },
+      what: {
+        fail: 'We are not giving you the "Registered dietitian-nutritionist" badge. Your practice stays open as before.',
+        withdrawn:
+          'We are removing the "Registered dietitian-nutritionist" badge from today. Your practice stays open, and from your next request you see of each client what section 3 of the professional\'s agreement describes "without the badge". The rest of what changes is in its section 4. The words in your profile that only the badge allows are no longer shown.'
+      },
+      why: "Why: {reason} That is what section 4 of the professional's agreement you accepted says. {source}"
+    },
+    lift: {
+      closeAfter:
+        "We have reversed the close of your practice of {closeDate}. From today you can open it again on NutrIA; when you do, we will ask you to accept the professional's agreement again. Your profile is still there. If you held the badge, it was withdrawn with the close: you can apply for it again from your practice and, until then, the words in your profile that only the badge allows are not shown and, if it carries any, your profile has gone back for review. The links with your clients ended with the close and do not come back by themselves: to pick them up again, invite each person again, and they will see the list again and decide. {why}",
+      closeBefore:
+        'We have cancelled the close of your practice we announced for {closeDate}: it will not happen. Your practice stays open{liftedSuffix}. {why}',
+      liftedSuffix: ', and we have also lifted the suspension',
+      suspension: 'From today you can open your practice on NutrIA again. {why}',
+      why: 'We have looked into it and {facts}.'
+    },
+    suspend: {
+      what: "From today your account is suspended as a professional: you see no client's data, you cannot invite anyone and you cannot open a practice until we lift the suspension. Your personal NutrIA account carries on as it was."
+    }
   },
 
   /* `/admin`: the period's headline figures, two trends, and what needs the owner now. */
@@ -2470,6 +2820,10 @@ export const enGB: Dictionary = {
     '/admin/producto/planes': { title: 'Plans' },
     '/admin/producto/planes/calidad': { title: 'Plan quality' },
     '/admin/profesionales': { title: 'Professionals' },
+    '/admin/profesionales/[userId]': { title: 'Professional' },
+    '/admin/profesionales/[userId]/insignia': { title: "A professional's badge" },
+    '/admin/profesionales/insignias': { title: 'Badges to check' },
+    '/admin/profesionales/perfiles': { title: 'Profiles to look at' },
     '/asistente': { title: 'Assistant' },
     '/cambiar-contrasena': { title: 'Change your password' },
     '/check-in': { title: "The fortnight's check-in" },

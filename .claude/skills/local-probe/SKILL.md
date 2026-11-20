@@ -128,7 +128,8 @@ node $S/account.mjs lose-badge "$PROBE_DIR/pro.txt"                             
 The owner's acts and the badge's steps, one at a time, for the states `link` cannot build:
 
 ```bash
-node $S/account.mjs owner-act "$PROBE_DIR/pro.txt" suspend        # also: close, close-due, lift
+node $S/account.mjs owner-act "$PROBE_DIR/pro.txt" suspend        # also: close, close-due, close-carry (the sweep carries it out), lift
+node $S/account.mjs owner-act "$PROBE_DIR/pro.txt" badge-due      # a standing badge's yearly re-check waiting; badge-lapse writes the lapse
 node $S/account.mjs owner-act "$PROBE_DIR/pro.txt" hide-profile   # after the practitioner saved a profile; see-profile marks it seen
 node $S/account.mjs owner-act "$PROBE_DIR/pro.txt" badge-apply    # then badge-code (prints the code to type), or badge-refuse
 node $S/account.mjs owner-act "$PROBE_DIR/pro.txt" badge-earn     # the four steps at once: after `link --unbadged`, the client's re-consent card

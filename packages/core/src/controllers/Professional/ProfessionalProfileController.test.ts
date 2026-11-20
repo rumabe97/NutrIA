@@ -204,6 +204,19 @@ describe('ProfessionalProfileController.mine', () => {
     });
   });
 
+  it('reads the reasons back in the table’s order, whatever order a stored row has', async () => {
+    find.mockResolvedValue(
+      profile({
+        hiddenAt: NOW,
+        hiddenReason: JSON.stringify({ afterNotice: false, facts: null, reasons: ['advertising', 'promises', 'badge_word', 'invented'], word: 'x' })
+      })
+    );
+
+    await expect(ProfessionalProfileController.mine('usr-pro', NOW)).resolves.toMatchObject({
+      hidden: { reasons: ['badge_word', 'promises', 'advertising'] }
+    });
+  });
+
   it('shows a reason written by hand as the owner’s facts', async () => {
     find.mockResolvedValue(profile({ hiddenAt: NOW, hiddenReason: 'spam' }));
 
@@ -281,6 +294,26 @@ describe('the owner’s queue', () => {
       to: 'pro@example.com',
       userId: 'usr-pro'
     });
+  });
+
+  it('stores, answers and audits the reasons in the table’s order, not the owner’s click order', async () => {
+    hide.mockImplementation(async (_userId, reason, now, record) => {
+      await record?.({});
+
+      return { hadBeenSeen: false, profile: profile({ hiddenAt: now, hiddenReason: reason }) };
+    });
+
+    const hiding = await ProfessionalProfileController.hide(
+      'usr-pro',
+      'usr-owner',
+      { afterNotice: false, reasons: ['advertising', 'disease', 'badge_word'], word: 'nutricionista' },
+      NOW
+    );
+    const order = ['badge_word', 'disease', 'advertising'];
+
+    expect((JSON.parse(hide.mock.calls[0]?.[1] ?? '') as { reasons: string[] }).reasons).toEqual(order);
+    expect(hiding.statement.reasons).toEqual(order);
+    expect(auditRecord).toHaveBeenCalledWith(expect.objectContaining({ metadata: { afterNotice: false, reasons: order } }), {});
   });
 
   it('is a 404 to hide an account with no profile', async () => {

@@ -1,0 +1,14 @@
+.card {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+.title {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-04);
+  margin: 0;
+}

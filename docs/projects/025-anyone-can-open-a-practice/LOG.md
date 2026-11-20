@@ -518,3 +518,86 @@
   section; the two trail sentences for a narrowing (legal F10) wait for approval; then the
   notice, the switch, and the owner's iPhone.
 
+## Phase 9 — The owner's console (2026-11-20)
+
+- **Executor**: the `frontend` agent on sonnet @ medium, as the plan dispatches, for the build;
+  `accessibility` (opus) for a review asked to be the hard one; the `frontend` agent on opus
+  for the fix pass; a `backend` agent (opus) for two small changes; the end-to-end side by
+  the `tests` agent (opus).
+- **Result**: done. The console's pages answer the owner alone (admin with a second factor;
+  a 404 for anybody else, checked on all five). The acts they send have existed since phases
+  3 and 6; nothing here opens the feature, and the `professional` switch stays off.
+- **Evidence**:
+  - Core 5216 passed; api 2043; web 514; ui 538; `pnpm ts:check` 9/9; `pnpm lint` 7/7; knip
+    clean for web and ui.
+  - End-to-end on local Postgres, one at a time: `care-practice-open` 38, `care-badge` 20,
+    `care-restriction` 35, `care-walk` 11 (no new route), `audit` 14, `professionals` 26,
+    `admin` 86 three runs in a row — all passed; no backend defect.
+  - **Every act done through the screens as the admin**, on a production build against the
+    local API: a code by phone (shown once), confirm, refuse, withdraw, a yearly re-check due,
+    a lapsed badge, mark a profile seen, hide one, suspend, announce a close, lift a close due
+    but not carried out, lift one carried out, lift a suspension — focus measured after each.
+    The eight console pages at 320, 390 and 1280 px, light and dark, es and en: nothing
+    overflowing; 200 % text at 320 and 390 looked at. `apple-web-design` review **PASS**.
+  - The review found **two P1** — lifting a close whose day had come but which the sweep had
+    not carried out told the owner the wrong consequence and previewed the wrong mail (the
+    console decided by the date, the API by whether the practice still exists); and lifting a
+    close that had been carried out ended on the console's 404 with the result never shown —
+    and six P2 (a withdrawal not saying that links over a health record end; a preview that
+    differed from the mail by a full stop; the code shown once lost silently on a reload; a
+    19 px row link on a phone; focus going to the first card; the § X reasons in alphabetical
+    order). All fixed, and each seen again in the browser.
+  - It also checked what a console of irreversible acts must hold, and found it sound: each
+    act is one request under a triple Enter or a double click; a network failure keeps the
+    form filled; the code is in no storage, history state or URL and leaves the DOM; the
+    previews equal `textos/06` §§ W, W bis and X word for word; no page names or counts a
+    client beyond link counts.
+- **Screens, each compared with its sheet**:
+  - *ConsolaPerfiles* → `/admin/profesionales/perfiles`: one card per profile, the
+    practitioner's words, what the filter says, the pair «No publicar» / «Publicar», the hide
+    form with § X's reasons and the statement as it will be mailed.
+  - *ConsolaDistintivo* → `/admin/profesionales/[userId]/insignia`: three numbered steps
+    (look at the register, send the code, decide), the letter of § S or the script of § T
+    filled in, the record of every check.
+  - No sheet: `/insignias` (the two lists) and `/[userId]` (facts, what stands, suspend, close
+    with its date thirty days on, lift), built in the console's own patterns.
+- **Departures from the sheets**:
+  - By the owner's later decisions: the college's own e-mail domain is not a channel (three
+    channels); «Denuncias» is a later project and is not drawn.
+  - Because the API has no such thing: no link to the register's search and no checkbox in
+    step 1 (a reminder of what to compare); no city on a profile card; a time as a date.
+  - Words: «insignia» where the sheets say «distintivo» (the approved texts' word); «Dar la
+    insignia» / «No dar la insignia» for «Conceder» / «No conceder»; the queue's closing note
+    says that publishing only marks a profile seen — the sheet's «estudios declarados, no
+    comprobados» line waits for a public profile to exist.
+  - Layout: the entry rows to the queue and the badges sit on the list page; the badge page
+    has the account's record beside the steps.
+- **Found on the way**:
+  - The § W badge mail ran the owner's facts into the next sentence when typed without a
+    stop; fixed with the shared rule.
+  - A scare, not a defect: an account "fell off" the owner's list in the reviewer's run. The
+    probe script had swallowed a refused close; the backend proved at unit level, and the
+    suite now proves on Postgres, that an account whose close stands is always listed,
+    whatever came before. The script now moves only the close that stands.
+  - A flaky case in `admin.e2e-spec.ts` («never name who made a dish») relied on a model-made
+    dish existing by luck; it now writes its own premise.
+- **Accepted, and open**:
+  - **«Publicar» publishes nothing yet** — it marks a profile seen; no public profile exists
+    before project 4. The word is the sheet's; the note under the queue says what it does.
+    Put to the owner with the merge.
+  - The letter (§ S) and the phone script (§ T) exist in Spanish only and are shown so, marked
+    `lang="es"`, on the English console.
+  - The close has no immediate variant in the console (phase 6); the owner's immediate tool
+    is the suspension.
+  - The letter and the mails link to `/privacidad#tu-profesional`, an anchor the policy gets
+    in phase 10.
+  - Not checked: the mails as sent (the local API sends none), a real screen reader,
+    `forced-colors` emulation.
+- **Decisions**: none new.
+- **Notes for the next phase**: phase 10 is `legal`'s pages and the switch — `/privacidad` and
+  `/condiciones` with the new sections and the `#tu-profesional` anchor
+  (`lib/practicePrivacy.ts` follows), the change notice mailed to every account (`textos/06`
+  § Z) and its date recorded here, the two trail sentences for a narrowing (legal F10) if the
+  owner approves them, the terms' version, then the switch — the owner's act on `/admin` —
+  and his iPhone: open a practice, accept an invitation (phase 8's deferred gate).
+

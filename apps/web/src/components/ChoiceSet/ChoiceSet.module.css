@@ -1,0 +1,41 @@
+/* A fieldset's own default is `min-content` wide and will not shrink: stated, so a long sentence wraps. */
+.set {
+  border: 0;
+  display: grid;
+  gap: var(--space-02);
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+  min-inline-size: 0;
+  padding: 0;
+}
+
+.legend {
+  color: var(--foreground-01);
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+  padding: 0;
+}
+
+.items {
+  display: grid;
+  gap: var(--space-01);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Each choice is a sentence that may run to several lines: the box stays at its first line, and the whole row is the target. */
+.items label {
+  align-items: start;
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.items label > span:last-child {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.error {
+  color: var(--color-error-text);
+  font-size: var(--font-size-02);
+  margin: 0;
+}

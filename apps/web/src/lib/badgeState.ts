@@ -1,3 +1,5 @@
+import { asSentence } from 'core/domain/OwnerText';
+
 import { aroundFacts } from './ownerFacts';
 import { interpolate } from './format';
 
@@ -87,7 +89,12 @@ export function badgeReason(badge: BadgeView, t: Dictionary['practice'], day: Da
     return null;
   }
 
-  return aroundFacts(t.why.replace('{reason}', [sentence, '{facts}'].filter(Boolean).join(' ')), {}, decision.facts);
+  // The owner's facts closed as a sentence, by the one rule the mail uses (`core/domain/OwnerText`).
+  return aroundFacts(
+    t.why.replace('{reason}', [sentence, '{facts}'].filter(Boolean).join(' ')),
+    {},
+    decision.facts ? asSentence(decision.facts) : null
+  );
 }
 
 /** § V: the check that was due, then which of its three details. */

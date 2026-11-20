@@ -1,0 +1,1 @@
+export { PracticeActs } from './PracticeActs';

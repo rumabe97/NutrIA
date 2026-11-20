@@ -1,0 +1,1 @@
+export { RestrictionForm } from './RestrictionForm';

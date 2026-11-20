@@ -1,5 +1,6 @@
 import { layout, paragraph } from './Layout.js';
 import { fill, oneLine } from './ProfessionalBadgeCode.js';
+import { asSentence, plainFacts } from 'core/domain/OwnerText';
 
 import type { RestrictionSource } from 'core/entities/Professional';
 import type { EmailLocale, RenderedEmail } from './Layout.js';
@@ -16,38 +17,6 @@ export type PracticeStatement = {
   readonly facts: string;
   readonly source: RestrictionSource;
 };
-
-/** The longest facts the owner's words carry into a mail; the schema already bounds them. */
-const FACTS_LIMIT = 1000;
-
-/**
- * The owner's words as plain text, whatever was typed: control characters and
- * markup removed, whitespace folded to single spaces, bounded. The HTML part
- * escapes them again (`paragraph`); this is what keeps the text part one plain
- * paragraph too.
- */
-export function plainFacts(text: string): string {
-  return (
-    text
-      // eslint-disable-next-line no-control-regex -- the owner's words are one plain paragraph
-      .replace(/[\u0000-\u001f\u007f<>]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, FACTS_LIMIT)
-  );
-}
-
-/** The facts as a sentence of their own: closed with a full stop when the owner did not close it. */
-export function asSentence(text: string): string {
-  const plain = plainFacts(text);
-
-  return plain === '' || /[.!?…»"”)]$/.test(plain) ? plain : `${plain}.`;
-}
-
-/** The facts as the end of somebody else's sentence (§ W bis.2 «Lo hemos revisado y {facts}.»): no closing stop of their own. */
-export function asClause(text: string): string {
-  return plainFacts(text).replace(/[.\s]+$/, '');
-}
 
 const WHY: Record<EmailLocale, { readonly clause: string; readonly source: Readonly<Record<RestrictionSource, string>>; readonly why: string }> = {
   'en-GB': {

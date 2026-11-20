@@ -6,6 +6,7 @@ import {
   BADGE_CHANNELS,
   BADGE_CHECK_KINDS,
   hideProfessionalProfileSchema,
+  inHideOrder,
   liftRestrictionSchema,
   openPracticeSchema,
   PRACTICE_CLOSE_NOTICE_DAYS,
@@ -323,5 +324,19 @@ describe('practiceRestrictionSchema', () => {
     });
 
     expect(row.effectiveAt).toEqual(effectiveAt);
+  });
+});
+
+describe('inHideOrder (textos/06 § X)', () => {
+  it('says the reasons in the approved table’s order, each once, known ones only', () => {
+    expect(inHideOrder(['advertising', 'unchecked_title', 'promises', 'disease', 'badge_word'])).toEqual([
+      'badge_word',
+      'disease',
+      'promises',
+      'unchecked_title',
+      'advertising'
+    ]);
+    expect(inHideOrder(['promises', 'promises', 'nonsense', 7])).toEqual(['promises']);
+    expect(inHideOrder([])).toEqual([]);
   });
 });

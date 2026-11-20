@@ -1,0 +1,24 @@
+.script {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-control);
+  display: grid;
+  font-size: var(--font-size-03);
+  gap: var(--space-03);
+  margin: 0;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  padding: var(--space-04) var(--space-04) var(--space-04) calc(var(--space-04) + 1.25rem);
+}
+
+.script li {
+  max-inline-size: var(--prose-max);
+  padding-inline-start: var(--space-01);
+}
+
+.branches {
+  display: grid;
+  gap: var(--space-02);
+  margin: var(--space-02) 0 0;
+  padding-inline-start: var(--space-04);
+}

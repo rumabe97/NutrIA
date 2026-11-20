@@ -1,6 +1,7 @@
 import { layout, paragraph } from './Layout.js';
 import { fill, oneLine } from './ProfessionalBadgeCode.js';
-import { asSentence, plainFacts } from './ProfessionalSuspended.js';
+import { asSentence, plainFacts } from 'core/domain/OwnerText';
+import { inHideOrder } from 'core/entities/Professional';
 
 import type { ProfileHideReason } from 'core/entities/Professional';
 import type { EmailLocale, RenderedEmail } from './Layout.js';
@@ -74,8 +75,8 @@ export function professionalProfileHiddenEmail({
 }): RenderedEmail {
   const copy = COPY[locale];
   const quoted = word === null ? '' : oneLine(plainFacts(word));
-  const order = Object.keys(copy.reason) as ProfileHideReason[];
-  const closed = order.filter(reason => reasons.includes(reason)).map(reason => fill(copy.reason[reason], { word: quoted }));
+  // The approved table's order (`PROFILE_HIDE_REASONS`), never the keys' alphabetical one nor the owner's click order.
+  const closed = inHideOrder(reasons).map(reason => fill(copy.reason[reason], { word: quoted }));
   const said = [...closed, ...(facts === null ? [] : [asSentence(facts)])].filter(part => part !== '').join(' ');
   const why = fill(copy.why, { noticeSuffix: afterNotice ? copy.noticeSuffix : '', reason: said });
   const html = layout({ body: [paragraph(copy.what), paragraph(why), paragraph(copy.redress, 'muted')].join('\n'), locale, title: copy.subject });
