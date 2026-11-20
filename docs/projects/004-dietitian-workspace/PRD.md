@@ -7,6 +7,12 @@
 > Write repo-relative: no absolute paths, no references to other private repos.
 
 - **Status**: approved — by the owner, 2026-09-23
+- **Superseded in part, 2026-11-18** — the owner decided that anyone may offer their services
+  and that a checked badge, not his grant, is what opens health data
+  ([`0110`](../../decisions/0110-anyone-may-offer-their-services-and-a-checked-badge-is-what-opens-health-data.md)).
+  Project [`025`](../025-anyone-can-open-a-practice/PRD.md) replaces this PRD's criterion 1
+  (the owner's grant) by self-service opening, and narrows what a practitioner without the
+  badge sees. What is not named there stands.
 - **Roadmap item**: [`ROADMAP.md`](../../ROADMAP.md) § 9, *"A professional can run their
   practice on it"*.
 

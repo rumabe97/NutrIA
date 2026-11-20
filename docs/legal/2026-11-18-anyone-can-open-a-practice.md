@@ -299,7 +299,7 @@ criterion 16). No sentence there turns false.
 | --- | --- | --- |
 | `… no las ve tu dietista si tienes uno …` | `… no las ve tu profesional si tienes uno …` | `… your professional, if you have one, does not see them …` |
 
-### P-6. «Con quién compartimos tus datos» — one bullet added, first in the list
+### P-6. «Con quién compartimos tus datos» — one bullet added, first in the list (last sentence reworded and **approved by the owner on 2026-11-20**, «Aprobadas», § 12.5)
 
 | es-ES | en-GB |
 | --- | --- |
@@ -331,7 +331,7 @@ P-2. Their positions as wired are confirmed:
 
 The English follows the same positions.
 
-### P-0. Until the switch: one dated line (2026-11-20 — **new words, not approved**)
+### P-0. Until the switch: one dated line (2026-11-20 — **approved by the owner on 2026-11-20**, «Aprobadas»; the date is Friday 27 November 2026, § 12.6)
 
 **Ruling.**
 
@@ -409,7 +409,7 @@ already past, and says nothing about after it (amended 2026-11-20).
 
 <!-- Fuente: TRLGDCU art. 86.2 (no excluir la propia responsabilidad por daños a la persona) y 147; legal § 3.g y M10. «La insignia» se nombra porque es una afirmación propia (LCD art. 5.1.g): de ella responde NutrIA, no el profesional. -->
 
-### T-0. Until the switch
+### T-0. Until the switch (**approved by the owner on 2026-11-20**, «Aprobadas»)
 
 The dated line of P-0 opens «Si trabajas con un profesional» (`06` § Z's `{date}`, the same
 constant). `TERMS_VERSION` → `2.4.0` and the date of «Última actualización» move on the day of
@@ -912,7 +912,7 @@ and nothing in them has to change except the pointers, updated on 2026-11-20.
    - **P-6's last sentence is reworded** to the same meaning:
      - es: «Ningún otro profesional recibe nada tuyo.»
      - en: "No other professional receives anything of yours."
-   - **It needs the owner's tap**: it replaces approved published words, light as the change is.
+   - **Approved by the owner on 2026-11-20** («Aprobadas»).
 3. **English P-2 "and to check" → "and checking"**, matching the gerunds before it. It is a
    grammar correction with the same meaning, the Spanish is untouched, and it needs **no tap**.
    Recorded here.
@@ -927,6 +927,33 @@ one of three kinds:
 
 Nothing is left to replace on the client's or the practitioner's screens. The console's strings
 were phase 9's.
+
+
+### 12.6 The owner's answers of 2026-11-20 (tapped options, relayed by the lead)
+
+1. **Approved** («Aprobadas»): the two dated lines P-0 and T-0, and P-6's reworded last sentence
+   («Ningún otro profesional recibe nada tuyo.» / "No other professional receives anything of
+   yours.").
+2. **The switch day is Friday 27 November 2026.** It is three things at once: § Z's `{date}`,
+   `PRACTICES_OPEN_ON` on the pages, and the day of his iPhone test. The notice of `06` § Z
+   goes **on or before 26 November**, which keeps "at least the day after the send" (§ 12.4 d).
+3. **Confirmed: the address the product mails from (`EMAIL_FROM`) is the same mailbox the legal
+   pages name as the contact (`{email}`).** So a reply to the badge code, to a statement of
+   reasons or to the notice reaches the contact point that DSA arts. 11–12 and RGPD 13.1.a name.
+   The "responde a este correo" routes in `06` §§ R, V, W, W bis and X are true.
+4. **§ Z is sent from the console**, with the template `TermsChangeNotice` and the per-account
+   record `account_notices` (record of processing row 11 bis), as amended on 2026-11-20.
+5. **The first-look queue keeps «Publicar» / «No publicar»** in the owner's console. He knows
+   that «Publicar» only marks a profile seen until a public profile exists.
+   - Legally sound **because they are the owner's own buttons**: no practitioner or client
+     reads them.
+   - What the practitioner reads stays «Revisado» and the statements of § X (LCD art. 21.1.c:
+     nothing presents the look as an approval).
+   - The day project 4 or 6 makes «Publicar» actually publish, the button's meaning changes. The
+     practitioner's words («Revisado», `profileReviewNote`) are re-read then.
+
+`LEGAL_TEXTS_UPDATED` = **2026-11-20**, the day of publication, and it moves with the deploy if
+that slips a day (§ 12.4).
 
 ---
 

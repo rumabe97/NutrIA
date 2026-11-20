@@ -13,7 +13,7 @@ import { madridDay } from '../lib/madridDay';
  * written. One value for both, because they move together; if one ever changes alone,
  * split it here. Nothing else reads it.
  */
-export const LEGAL_TEXTS_UPDATED = '2026-11-17';
+export const LEGAL_TEXTS_UPDATED = '2026-11-20';
 
 /**
  * The day anyone can open a practice: the day the owner throws the `professional` switch,
@@ -28,7 +28,7 @@ export const LEGAL_TEXTS_UPDATED = '2026-11-17';
  * Two rules come with it (go-live checklist § 1 bis): the switch is thrown no earlier than
  * this day, and if the switch slips, this moves the same day.
  */
-export const PRACTICES_OPEN_ON: string | null = null;
+export const PRACTICES_OPEN_ON: string | null = '2026-11-27';
 
 /**
  * The day practices open, while it is still ahead (in Spain's calendar): the dated line
