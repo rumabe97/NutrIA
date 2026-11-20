@@ -2,7 +2,7 @@ import { AuditRepository } from '#repositories/Audit';
 import { ProfessionalBadgeRepository, ProfessionalProfileRepository } from '#repositories/Professional';
 import { protectedWordIn } from 'core/domain/ProtectedWords';
 import { InputParseError, NotFoundError } from 'core/entities/Error';
-import { PROFILE_HIDE_REASONS, PROFILE_TEXT_FIELDS } from 'core/entities/Professional';
+import { inHideOrder, PROFILE_TEXT_FIELDS } from 'core/entities/Professional';
 import { UserRepository } from '#repositories/User';
 
 import type { ProfileWordRefusal, QueuedProfile } from '#repositories/Professional';
@@ -113,7 +113,12 @@ export function carriesBadgeWord(profile: Pick<ProfessionalProfile, ProfileTextF
 
 /** The statement as `hidden_reason` keeps it: JSON, so it can be read back on both pages. */
 function storedHiding(input: HideProfessionalProfile): string {
-  return JSON.stringify({ afterNotice: input.afterNotice, facts: input.facts ?? null, reasons: input.reasons, word: input.word ?? null });
+  return JSON.stringify({
+    afterNotice: input.afterNotice,
+    facts: input.facts ?? null,
+    reasons: inHideOrder(input.reasons),
+    word: input.word ?? null
+  });
 }
 
 function readHiding(profile: ProfessionalProfile): ProfileHiddenView | null {
@@ -125,9 +130,8 @@ function readHiding(profile: ProfessionalProfile): ProfileHiddenView | null {
 
   try {
     const parsed = JSON.parse(profile.hiddenReason ?? '') as Partial<Record<keyof ProfileHiddenView, unknown>>;
-    const reasons = Array.isArray(parsed.reasons)
-      ? parsed.reasons.filter((reason): reason is ProfileHideReason => PROFILE_HIDE_REASONS.includes(reason))
-      : [];
+    // The table's order, whatever order a stored row has (rows written before phase 9 kept the owner's click order).
+    const reasons = Array.isArray(parsed.reasons) ? inHideOrder(parsed.reasons) : [];
 
     return {
       afterNotice: parsed.afterNotice === true,
@@ -216,7 +220,7 @@ export const ProfessionalProfileController = {
               action: 'professional.profile_hidden',
               actorId: ownerId,
               entity: 'professional',
-              metadata: { afterNotice: input.afterNotice, reasons: input.reasons },
+              metadata: { afterNotice: input.afterNotice, reasons: inHideOrder(input.reasons) },
               subjectUserId: userId
             },
             tx
@@ -238,7 +242,7 @@ export const ProfessionalProfileController = {
         afterNotice: input.afterNotice,
         at: now.toISOString(),
         facts: input.facts ?? null,
-        reasons: input.reasons,
+        reasons: inHideOrder(input.reasons),
         word: input.word ?? null
       },
       to: account.email,

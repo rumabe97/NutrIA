@@ -120,6 +120,32 @@ describe('the restriction and first-look mails (project 025 phase 6, `docs/legal
     expect(mail.text).toContain('Edita tu perfil y volverá a la revisión');
   });
 
+  /*
+   * Phase 9 review: the keys' alphabetical order put «Es publicidad…» first. Every
+   * reason, picked in reverse: the mail says them in `PROFILE_HIDE_REASONS`' order
+   * — badge_word, disease, promises, unchecked_title, advertising — in both languages.
+   */
+  it.each([
+    [
+      'es-ES' as const,
+      'Por qué: Usa una palabra que el acuerdo no permite sin la insignia: «dietista». Ofrece un servicio para una enfermedad. Promete resultados. Se presenta con un título que NutrIA no comprueba: «dietista». Es publicidad que no tiene que ver con tus servicios. Es lo que dicen'
+    ],
+    [
+      'en-GB' as const,
+      'Why: It uses a word the agreement does not allow without the badge: "dietista". It offers a service for a disease. It promises results. It presents a title NutrIA does not check: "dietista". It is advertising unrelated to your services. That is what sections 2 and 5'
+    ]
+  ])('§ X: the table’s order, not the alphabet’s nor the click’s, when they differ (%s)', (locale, why) => {
+    const mail = professionalProfileHiddenEmail({
+      afterNotice: false,
+      facts: null,
+      locale,
+      reasons: ['advertising', 'unchecked_title', 'promises', 'disease', 'badge_word'],
+      word: 'dietista'
+    });
+
+    expect(mail.text).toContain(why);
+  });
+
   it('keeps the owner’s words plain: no markup reaches the HTML, no line break or control character the text', () => {
     const mail = professionalSuspendedEmail({ locale: 'es-ES', statement: { ...STATEMENT, facts: 'Uno <b>dos</b>\n\ntres\u0007' } });
 

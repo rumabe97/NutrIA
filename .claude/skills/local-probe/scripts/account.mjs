@@ -406,13 +406,30 @@ if (action === 'owner-act') {
     }
 
     if (act === 'close-due' || act === 'close-carry') {
-      // No route takes a clock: the close's day moved into the past, as the e2e harness does
-      // (`moveCloseDue`). The practice is then shut before the daily sweep has carried it out.
+      // No route takes a clock: the day of the close that STANDS moved into the past, as the
+      // e2e harness does (`moveCloseDue`) — the newest `closing` with no `lifted` after it, and
+      // only that row. With none standing (the practice was closed and lifted, and nothing
+      // reopened it: a close needs a practice) there is nothing to move, and that is an error,
+      // not a success.
       const { database } = await load('database');
+      const moved = await database().$client`
+        update practice_restrictions set effective_at = now() - interval '1 second'
+        where id = (
+          select c.id from practice_restrictions c
+          where c.user_id = ${pro.id} and c.kind = 'closing'
+            and not exists (
+              select 1 from practice_restrictions l
+              where l.user_id = c.user_id and l.kind = 'lifted' and (l.acted_at, l.created_at) > (c.acted_at, c.created_at)
+            )
+          order by c.acted_at desc, c.created_at desc limit 1
+        )
+        returning id`;
 
-      await database().$client`
-        update practice_restrictions set effective_at = now() - interval '1 second' where user_id = ${pro.id} and kind = 'closing'`;
+      if (moved.length !== 1) {
+        throw new Error('no close stands for this account: it needs a practice to close (open one first)');
+      }
     }
+
     if (act === 'close-carry') {
       // The daily sweep's part, once: the close carried out — links ended, the badge withdrawn,
       // the practice gone, the restriction left. It carries out every close due on this database.

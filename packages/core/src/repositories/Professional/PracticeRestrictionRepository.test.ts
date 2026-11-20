@@ -92,7 +92,9 @@ const inserted: Record<string, unknown>[] = [];
 function chain(name: string): PromiseLike<unknown> & Record<string, unknown> {
   const link: PromiseLike<unknown> & Record<string, unknown> = {
     from: () => link,
+    innerJoin: () => link,
     limit: () => link,
+    orderBy: () => link,
     then: (resolve, reject) => {
       events.push(name);
 
@@ -119,7 +121,7 @@ const tx = {
   select: () => chain('select')
 };
 
-vi.mock('database', () => ({ database: () => ({ transaction: <T>(fn: (db: unknown) => Promise<T>) => fn(tx) }) }));
+vi.mock('database', () => ({ database: () => ({ select: () => chain('select'), transaction: <T>(fn: (db: unknown) => Promise<T>) => fn(tx) }) }));
 
 beforeEach(() => {
   events.length = 0;
@@ -159,5 +161,56 @@ describe('PracticeRestrictionRepository.act — one decision on what stands, und
 
     await expect(PracticeRestrictionRepository.act('usr-pro', SUSPEND, (_standing, practising) => practising)).resolves.toBeNull();
     expect(inserted).toEqual([]);
+  });
+});
+
+/*
+ * Phase 9 review: an account closed, lifted, closed again and carried out must
+ * stay on the owner's list. Every reader folds the account's rows by the one
+ * definition, so the close that stands after `closing(A) → lifted → closing(B)`
+ * is B — even when A's day was also moved into the past, as the local probe's
+ * update moves every `closing` row of the account.
+ */
+describe('a close lifted, then a new close: every reader sees the new one', () => {
+  function history(): { readonly a: PracticeRestriction; readonly b: PracticeRestriction; readonly rows: PracticeRestriction[] } {
+    // Both days in the past: A's moved there too, as `update … where kind = 'closing'` does.
+    const a = row('closing', 40, -10);
+    const lifted = row('lifted', 35);
+    const b = row('closing', 5, -1);
+
+    return { a, b, rows: [a, lifted, b] };
+  }
+
+  it('the fold stands on B, whatever order the rows arrive in', () => {
+    const { b, rows } = history();
+
+    expect(restrictionFrom(rows).closing?.id).toBe(b.id);
+    expect(restrictionFrom([...rows].reverse()).closing?.id).toBe(b.id);
+  });
+
+  it('the daily sweep is handed B, never A', async () => {
+    const { b, rows } = history();
+
+    script = [rows.map(own => ({ row: own }))];
+
+    await expect(PracticeRestrictionRepository.dueClosings(NOW)).resolves.toEqual([
+      { closing: { id: b.id, actedAt: b.actedAt, actedBy: b.actedBy, effectiveAt: b.effectiveAt, reason: b.reason }, userId: 'usr-pro' }
+    ]);
+  });
+
+  it('once B is carried out, the owner’s list still finds the account: B stands', async () => {
+    const { b, rows } = history();
+
+    script = [[...rows].reverse()];
+
+    const standings = await PracticeRestrictionRepository.standings(['usr-pro']);
+
+    expect(standings.get('usr-pro')?.closing?.id).toBe(b.id);
+  });
+
+  it('an account whose only close was lifted is not on it: nothing stands to lift', async () => {
+    script = [[row('closing', 40, -10), row('lifted', 35)]];
+
+    await expect(PracticeRestrictionRepository.standings(['usr-pro'])).resolves.toEqual(new Map());
   });
 });
