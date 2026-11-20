@@ -129,6 +129,7 @@ export type EmailKind =
   | 'professional-profile-hidden'
   | 'professional-suspended'
   | 'professional-suspension-lifted'
+  | 'terms-change-notice'
   | 'two-factor-disabled'
   | 'two-factor-enabled'
   | 'two-factor-removal-cancelled'

@@ -247,13 +247,13 @@ NutrIA: tu número de colegiado y cuándo te dimos acceso…».
 
 <!-- Fuente: RGPD art. 13.1.c (fines) y 5.1.c; PLAN fase 2, pasos 2-4 (professional_badge_checks, professional_profiles: display_name, studies, price_cents, price_unit, hours, queued_at, seen_at, seen_by, hidden_at, hidden_reason); fase 6, paso 1 (fecha de nacimiento comprobada por assertOldEnough y no nula). Ya no hay «concesión»: 0111 § 9 retira la ruta. -->
 
-### P-2. «Por qué podemos tratar estos datos» — two sentences change
+### P-2. «Por qué podemos tratar estos datos» — three sentences change (rows rewritten 2026-11-20 as whole sentences: the earlier cells held instructions, and were copied as text — § 12.4)
 
 | Hoy | es-ES nuevo | en-GB nuevo |
 | --- | --- | --- |
 | `… Y lo que compartes con tu dietista, con el consentimiento que das al aceptar su invitación. …` | `… Y lo que compartes con tu profesional, con el consentimiento explícito que das al aceptar su invitación, que nombra a esa persona y lo que verá. …` | `… And what you share with your professional, with the explicit consent you give when you accept their invitation, which names that person and what they will see. …` |
-| `Por nuestro interés legítimo: registrar el uso del producto …` | add at the end of the list, before «Puedes oponerte escribiéndonos.»: `y comprobar, cuando alguien pide la insignia, que es quien dice ser en el registro de su colegio.` | `and to check, when somebody applies for the badge, that they are who they say they are on their college's register.` |
-| (nothing on the profile) | add to the «contrato» bullet, after «los correos del servicio»: `y, si abres una consulta, tu consulta y tu perfil` | `and, if you open a practice, your practice and your profile` |
+| `Por nuestro interés legítimo: registrar el uso del producto … los avisos de seguridad que te enviamos. Puedes oponerte escribiéndonos.` | `Por nuestro interés legítimo: registrar el uso del producto y los errores técnicos para que funcione, sin datos de salud, y proteger las cuentas: el registro de seguridad, los frenos contra el abuso y los avisos de seguridad que te enviamos, y comprobar, cuando alguien pide la insignia, que es quien dice ser en el registro de su colegio. Puedes oponerte escribiéndonos.` | `Our legitimate interest: recording product use and technical errors to keep it working, with no health data, and protecting accounts: the security record, the brakes against abuse and the security notices we send you, and to check, when somebody applies for the badge, that they are who they say they are on their college's register. You can object by writing to us.` |
+| `Para darte el servicio que pides (contrato): tu cuenta, tu perfil, tus planes, tus conversaciones con el asistente, tus pagos y los correos del servicio.` | `Para darte el servicio que pides (contrato): tu cuenta, tu perfil, tus planes, tus conversaciones con el asistente, tus pagos y los correos del servicio y, si abres una consulta, tu consulta y tu perfil.` | `To provide the service you ask for (contract): your account, profile, plans, conversations with the assistant, payments and service emails and, if you open a practice, your practice and your profile.` |
 
 <!-- Fuente: RGPD art. 6.1.b (la consulta y el perfil los pide el profesional: legal 2026-11-18 § 3.h), 6.1.f y 13.1.d (la comprobación: legal § 3.a, «Data protection of the person looked up»), 9.2.a (el consentimiento que nombra a la persona: legal § 3.e; M12). -->
 
@@ -315,6 +315,61 @@ criterion 16). No sentence there turns false.
 
 <!-- Fuente: RGPD art. 13.2.a; PLAN fase 2 (las tres tablas caen en cascada con el profesional; checked_by y seen_by pasan a NULL si se borra la cuenta del titular). -->
 
+### P-8. Where the new text sits, as published in phase 10 (confirmed 2026-11-20)
+
+Three replacements describe sentences the published page never had: P-1, and the two halves of
+P-2. Their positions as wired are confirmed:
+
+- **P-1**: the two bullets close «Qué datos recogemos», after «Lo que nos escribes».
+- **P-2, consent**: the new sentence sits just before «Cada consentimiento se guarda…».
+- **P-2, contract**: it closes the «contrato» sentence: «…tus pagos y los correos del servicio y, si
+  abres una consulta, tu consulta y tu perfil.»
+- **P-2, legitimate interest**: it closes the sentence with a comma: «…los avisos de seguridad que
+  te enviamos, y comprobar, cuando alguien pide la insignia, que es quien dice ser en el registro
+  de su colegio. Puedes oponerte escribiéndonos.»
+- **P-7**: right after «Mientras tu cuenta exista…».
+
+The English follows the same positions.
+
+### P-0. Until the switch: one dated line (2026-11-20 — **new words, not approved**)
+
+**Ruling.**
+
+- **Publishing early is allowed.** Publishing the section before the processing starts is what
+  art. 13.3 asks for: information "con anterioridad" to the further processing. Nothing has to
+  wait until the switch.
+- **But three sentences would be false in the meantime.** They are written in the present tense:
+  - P-3 ¶ 1 «Cualquier persona mayor de edad puede abrir una consulta…»;
+  - P-3 ¶ 2 «Un profesional puede invitarte por correo…»;
+  - T-1 ¶ 1 «Cualquier persona mayor de edad puede abrir una consulta…».
+
+  Until the switch nobody can do either. Art. 5.1.a (lealtad y transparencia) and 12.1 ("de forma
+  concisa, transparente, inteligible") are not met by a policy that says something is happening
+  when it is not yet. And the change clause promises the mail **before** it "applies" (§ Z), so
+  the page has to say from when.
+- **The smallest honest fix is one dated line at the head of each section.** Its date equals § Z's
+  `{date}`. It disappears by itself on that day.
+
+| Where | es-ES | en-GB |
+| --- | --- | --- |
+| `/privacidad`, first paragraph of «Tu profesional en NutrIA» (`privacy.sections[tu-profesional]`, shown while `today < PRACTICES_OPEN_ON`) | `Lo que explica esta sección empieza el {date}. Hasta ese día, nadie puede abrir una consulta en NutrIA ni invitarte a una.` | `What this section describes starts on {date}. Until that day, nobody can open a practice on NutrIA or invite you to one.` |
+| `/condiciones`, first paragraph of «Si trabajas con un profesional» (`terms.sections[profesional]`, the same condition) | `Esta sección se aplica desde el {date}. Hasta ese día, nadie puede abrir una consulta en NutrIA.` | `This section applies from {date}. Until that day, nobody can open a practice on NutrIA.` |
+
+**How it goes away.** One constant, for example `PRACTICES_OPEN_ON` beside `LEGAL_TEXTS_UPDATED`
+in `apps/web/src/i18n/legalDates.ts`, holds the switch day (= § Z's `{date}`). The line renders
+while the reader's day is before it, and stops rendering on that day with no redeploy.
+
+**Two conditions, because the switch is a separate act.**
+
+- **The owner throws the switch no earlier than that day.** Before it, the line would say "nobody
+  can" while somebody could.
+- **If the switch slips, the constant moves the same day.** Otherwise the line vanishes and the
+  three sentences are false again. § Z is not re-sent: it already says "a partir del {date}", and
+  `06` § Z's rule is "si se retrasa, no se reenvía, pero nunca se adelanta". Both conditions are
+  in the go-live checklist § 1 bis.
+
+<!-- Fuente: RGPD arts. 5.1.a, 12.1 y 13.3 (información previa a un tratamiento ulterior); política vigente, «Cambios en esta política» («te avisaremos por correo antes de que se aplique»); TRLGDCU art. 85.3. Una línea fechada en lugar de reescribir las tres frases en futuro: las frases aprobadas quedan intactas y verdaderas desde el día, y la línea es lo único temporal. -->
+
 ## 5. `/condiciones`: the replacements
 
 **Where**: `terms.sections` in both dictionaries. **Version**: `TERMS_VERSION` `2.3.0` → `2.4.0`,
@@ -350,6 +405,12 @@ criterion 16). No sentence there turns false.
 | `Si usas NutrIA con un dietista, lo que te aconseje es responsabilidad suya como profesional; lo que haga NutrIA —cómo calcula, qué comprueba y qué te muestra— es responsabilidad nuestra.` | `Si usas NutrIA con un profesional, lo que te aconseje es responsabilidad suya; lo que haga NutrIA —cómo calcula, qué comprueba, qué te muestra y la insignia— es responsabilidad nuestra.` | `If you use NutrIA with a professional, their advice is their responsibility; what NutrIA does — how it calculates, what it checks, what it shows you and the badge — is ours.` |
 
 <!-- Fuente: TRLGDCU art. 86.2 (no excluir la propia responsabilidad por daños a la persona) y 147; legal § 3.g y M10. «La insignia» se nombra porque es una afirmación propia (LCD art. 5.1.g): de ella responde NutrIA, no el profesional. -->
+
+### T-0. Until the switch
+
+The dated line of P-0 opens «Si trabajas con un profesional» (`06` § Z's `{date}`, the same
+constant). `TERMS_VERSION` → `2.4.0` and the date of «Última actualización» move on the day of
+publication, not on the switch day (§ 12.4).
 
 ## 6. The words table (phase 3, step 5: `core/domain/ProtectedWords`)
 
@@ -756,6 +817,82 @@ noted there: the typed «10».
     is published with `id: 'tu-profesional'`, that anchor changes in the same commit.
   - Until then, the section the link opens still describes 004, so the `professional` switch
     stays off (go-live § 1 bis).
+
+
+### 12.4 Phase 10's pages, and the days before the switch (2026-11-20)
+
+Read in the worktree `agent/025-phase-10/frontend` (uncommitted): the `privacy` and `terms` blocks
+of both dictionaries, `legalDates.ts` and `LegalScreen.tsx`.
+
+**P0 — two Spanish sentences carry this note's instructions instead of the text.** § 4's P-2 table
+put an instruction in the «es-ES nuevo» cell, and it was copied whole. The English is right. In
+`es-ES.ts`, `privacy.sections` «Por qué podemos tratar estos datos»:
+
+- **contract.** It reads «…tus pagos y los correos del servicio add to the «contrato» bullet, after
+  «los correos del servicio»: `y, si abres una consulta, tu consulta y tu perfil`.». It must read:
+  «Para darte el servicio que pides (contrato): tu cuenta, tu perfil, tus planes, tus
+  conversaciones con el asistente, tus pagos y los correos del servicio y, si abres una consulta,
+  tu consulta y tu perfil.»
+- **legitimate interest.** It reads «…que te enviamos, add at the end of the list, before «Puedes
+  oponerte escribiéndonos.»: `y comprobar, … colegio.` Puedes oponerte escribiéndonos.». It must
+  read: «Por nuestro interés legítimo: registrar el uso del producto y los errores técnicos para
+  que funcione, sin datos de salud, y proteger las cuentas: el registro de seguridad, los frenos
+  contra el abuso y los avisos de seguridad que te enviamos, y comprobar, cuando alguien pide la
+  insignia, que es quien dice ser en el registro de su colegio. Puedes oponerte escribiéndonos.»
+
+These are the approved words in their place (P-8). The fault is this note's table layout: a cell
+that holds an instruction is not a sentence. **Nothing else differs.**
+
+**The pages read as one text**, with every other sentence still true. Two P3 notes, with no change
+needed:
+
+- «Nuestro proveedor de correo, para los correos de confirmación…, invitaciones, avisos…» does not
+  list the badge codes and the statements of reasons. The provider is named, which is what art.
+  13.1.e requires. The list of uses is illustrative.
+- The terms' «NutrIA es para tu uso personal» sits beside a practice. The practice is governed by
+  its own agreement (`textos/01`), accepted separately: the special contract governs the special
+  use.
+
+**«Última actualización».** `LEGAL_TEXTS_UPDATED` takes **the day the new pages are published**
+(deployed to production). That is the day the words changed (art. 13.3 and the change clauses).
+It is not the switch day, which P-0's line states, and not the day they were written. The policy
+and the terms may share one value, because they are published together. If one ever changes
+alone, split it.
+
+**`textos/02` and `textos/03`.** They remain the sources they were. Their pointers say that P-1 to
+P-8 and T-0 to T-2 of this note are what is served. Neither file is a copy of the live page,
+and nothing in them has to change except the pointers, updated on 2026-11-20.
+
+**The notice by the product (`06` § Z, amended 2026-11-20).**
+
+- **(a) Unconfirmed addresses are skipped and counted. That meets "everybody was told", and no
+  screen notice is owed.**
+  - An account whose address nobody confirmed cannot sign in with its password
+    (`requireEmailVerification`, `apps/api/src/modules/auth/auth.config.ts:336`). It holds nothing
+    the change touches, and it is swept at 30 days (`0092`).
+  - Mailing it would write to an address that may be a stranger's typo (art. 5.1.d and 5.1.f).
+  - When its owner confirms and signs in, the pages they read are already the new ones.
+  - That is information before any processing of their data under the change (art. 13.3).
+  - TRLGDCU 85.3 is about modifying a contract against somebody using it, and an account that
+    cannot sign in is not using it.
+  - **A screen notice would be a courtesy, not a duty.** The audit row records the skipped
+    count, and the LOG states it.
+- **(b) The record of who was told**: record of processing row 11 bis, added today.
+  - Basis: art. 6.1.f, read with art. 5.2. The interest is demonstrating that the promised notice
+    was given, art. 7.1's logic applied to information.
+  - Retention: with the account, deleted with it. The audit row keeps counts only.
+  - No new sentence in `/privacidad`: it is part of «los correos del servicio».
+- **(c)** `06` § Z describes the template `TermsChangeNotice` and the console send.
+- **(d) The lead.**
+  - The notice's `{date}` is at least the day after the send.
+  - **No longer lead is owed today.** The owner confirmed there is no practitioner in production,
+    so P2B art. 3.2's 15 days binds nobody.
+  - No consumer pays for anything: Premium has no checkout.
+  - The changes reach a user only through acts they choose later: accepting an invitation, whose
+    page carries the full list. The one exception is the health note 1.2.0, which is asked again
+    (`health.consentStale`).
+  - If a practitioner exists on the day of the send, their 15 days apply to the agreement 2.0.0,
+    and the switch waits for them.
 
 ---
 

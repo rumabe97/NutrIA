@@ -526,6 +526,13 @@
       "when": 1795052312909,
       "tag": "0074_a_widened_consent_and_a_declaration_leave_their_mark",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1795177298627,
+      "tag": "0075_a_notice_is_sent_once_per_account",
+      "breakpoints": true
     }
   ]
 }

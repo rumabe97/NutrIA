@@ -840,4 +840,27 @@ interruptor: si se retrasa, no se reenvía, pero nunca se adelanta.
 | `what` | `Solo quien lleve nuestra insignia «Dietista-nutricionista colegiada/o» es alguien a quien hemos comprobado en el registro de su colegio. Un profesional sin ella verá de ti los planes que te haga y en qué punto están, nunca tu peso, tus objetivos, tu salud ni tus alergias, y antes de aceptar su invitación verás exactamente qué verá. Si tienes anotada una condición de salud o una medicación, solo podrás vincularte con un profesional con la insignia. Y estar vinculado a un profesional no da Premium.` | `Only someone with our "Registered dietitian-nutritionist" badge is a person we have checked on their college's register. A professional without it will see of you the plans they make for you and where they stand, never your weight, your targets, your health or your allergies, and before you accept their invitation you will see exactly what they will see. If you have a health condition or a medication on record, you will only be able to link with a professional who holds the badge. And being linked to a professional does not give you Premium.` |
 | `choose` | `Los detalles están en {privacyUrl}, en «Tu profesional en NutrIA», y en {termsUrl}. Si tienes cualquier duda, escríbenos a {email}. Si no estás de acuerdo, puedes borrar tu cuenta desde tu perfil.` | `The details are at {privacyUrl}, under "Your professional on NutrIA", and at {termsUrl}. If you have any question, write to us at {email}. If you do not agree, you can delete your account from your profile.` |
 
-<!-- Fuente: política vigente, «Cambios en esta política» («te avisaremos por correo antes de que se aplique»); condiciones vigentes, «Cambios en estas condiciones»; RGPD arts. 12.1, 13.1.e y 13.3; TRLGDCU art. 85.3; P2B art. 3.2 para los profesionales. Es «importante»: un destinatario nuevo (un profesional que NutrIA no ha comprobado) y un uso nuevo de los datos de salud (la regla). «Tu salud» es una palabra de salud genérica, sin nada de nadie: el criterio de este fichero es no revelar nada de la persona, y aquí no se revela nada (lo mismo hizo § Q). Correo de servicio, no comercial: LSSI art. 21 no aplica. Sin plantilla hoy: si se envía a mano, en copia oculta. {privacyUrl} = /privacidad#tu-profesional. -->
+<!-- Fuente: política vigente, «Cambios en esta política» («te avisaremos por correo antes de que se aplique»); condiciones vigentes, «Cambios en estas condiciones»; RGPD arts. 12.1, 13.1.e y 13.3; TRLGDCU art. 85.3; P2B art. 3.2 para los profesionales. Es «importante»: un destinatario nuevo (un profesional que NutrIA no ha comprobado) y un uso nuevo de los datos de salud (la regla). «Tu salud» es una palabra de salud genérica, sin nada de nadie: el criterio de este fichero es no revelar nada de la persona, y aquí no se revela nada (lo mismo hizo § Q). Correo de servicio, no comercial: LSSI art. 21 no aplica. {privacyUrl} = /privacidad#tu-profesional. -->
+
+**Cómo se envía** (decidido por el propietario; enmendado el 2026-11-20, fase 10):
+- **Plantilla**: `TermsChangeNotice`, con los campos de arriba. **Lo dispara el propietario desde
+  la consola**, una vez. Ya no hay envío a mano ni copia oculta: cada cuenta recibe su propio
+  correo, en el idioma de su cuenta (español si no consta otro).
+- **A quién**: a toda cuenta con la dirección **confirmada**, esté o no activada. Las cuentas
+  con la dirección sin confirmar **se saltan y se cuentan**. No pueden entrar con su contraseña,
+  no guardan nada a lo que afecte el cambio, y la dirección puede ser un error de otra persona.
+  Cuando la confirmen, leerán ya los textos nuevos (`../2026-11-18-anyone-can-open-a-practice.md`
+  § 12.4 a).
+- **Qué queda**:
+  - una fila por cuenta en `account_notices`: la cuenta, el aviso, cuándo y el idioma, sin el
+    texto;
+  - una fila de auditoría con los recuentos (enviados, saltados, fallidos).
+
+  El registro de actividades lo recoge en la fila 11 bis.
+- **`{date}`**: el día en que el propietario encenderá el interruptor. Es la misma constante que
+  la línea fechada de las páginas (P-0 del documento del proyecto) y al menos **el día siguiente
+  al envío**.
+  - Hoy no se debe un plazo mayor a nadie: no hay ningún profesional en producción (confirmado
+    por el propietario), así que el plazo de 15 días del P2B art. 3.2 no alcanza a nadie.
+  - Si el día del envío existiera alguno, su acuerdo 2.0.0 necesitaría esos 15 días, y el
+    interruptor los esperaría.

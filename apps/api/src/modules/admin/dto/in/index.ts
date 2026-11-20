@@ -8,6 +8,7 @@ export * from './HandleFeedback.dto.js';
 export * from './HideProfessionalProfile.dto.js';
 export * from './IngredientCatalogueQuery.dto.js';
 export * from './IssueBadgeCode.dto.js';
+export * from './NoticeDate.dto.js';
 export * from './PeriodQuery.dto.js';
 export * from './ProfessionalsQuery.dto.js';
 export * from './RecipeCatalogueQuery.dto.js';

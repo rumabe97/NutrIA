@@ -7,6 +7,7 @@ import {
   AdminController,
   AdminFeedbackController,
   AdminGenerationsController,
+  AdminNoticesController,
   AdminProfessionalsController,
   AdminPushTestController,
   AdminSettingsController,
@@ -18,6 +19,7 @@ import {
   AdminAuditService,
   AdminCatalogueService,
   AdminFeedbackService,
+  AdminNoticesService,
   AdminProfessionalsService,
   AdminPushTestService,
   AdminService,
@@ -44,6 +46,7 @@ import { OwnerAlertsModule } from '../owner-alerts/index.js';
     AdminCatalogueController,
     AdminFeedbackController,
     AdminGenerationsController,
+    AdminNoticesController,
     AdminProfessionalsController,
     AdminPushTestController,
     AdminSettingsController,
@@ -51,7 +54,7 @@ import { OwnerAlertsModule } from '../owner-alerts/index.js';
     AdminTwoFactorController
   ],
   // `PushService`: the owner's test goes out through the one door every push does; `EmailService`: the grant's mail and
-  // the two-factor removal's;
+  // the two-factor removal's, and the owner's notice to every account (project 025 phase 10);
   // `OwnerAlertsService`: a retried picture that fails again is mailed like any other (project 009).
   imports: [EmailModule, NotificationsModule, OwnerAlertsModule],
   providers: [
@@ -59,6 +62,7 @@ import { OwnerAlertsModule } from '../owner-alerts/index.js';
     AdminAuditService,
     AdminCatalogueService,
     AdminFeedbackService,
+    AdminNoticesService,
     AdminProfessionalsService,
     AdminPushTestService,
     AdminService,

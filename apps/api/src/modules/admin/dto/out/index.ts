@@ -16,6 +16,7 @@ export * from './AdminSystem.dto.js';
 export * from './AiUsage.dto.js';
 export * from './Catalogue.dto.js';
 export * from './FeedbackInbox.dto.js';
+export * from './Notices.dto.js';
 export * from './Professionals.dto.js';
 export * from './PushTest.dto.js';
 export * from './TwoFactorRemoval.dto.js';

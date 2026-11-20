@@ -1,4 +1,4 @@
-import { boolean, index, integer, jsonb, pgTable, primaryKey, text, time, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { boolean, date, index, integer, jsonb, pgTable, primaryKey, text, time, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 
 import { notificationChannel, notificationType } from './_enums';
 import { user, userTier } from './auth.schema';
@@ -185,4 +185,31 @@ export const tierAllowances = pgTable(
     value: integer().notNull()
   },
   table => [primaryKey({ columns: [table.tier, table.key] })]
+);
+
+/**
+ * A notice the owner sent to an account, once (project 025 phase 10, `docs/legal/textos/06`
+ * § Z): one row per account per notice, written only once the mail server accepted that
+ * account's mail. It is what makes the console's send safe to press twice — an account
+ * with a row is never mailed that notice again — and the record that each account was told.
+ *
+ * `notice` is a name from core's closed list (`ACCOUNT_NOTICES`), never free text, so a
+ * typo cannot start a second campaign. `effective_on` is the day the notice announces —
+ * the same for every row of one notice: the first row fixes it, and a later press with
+ * another day is refused. `locale` is the language the account was written in. No address,
+ * no health data, nothing a model reads; it goes with the account (`ON DELETE CASCADE`).
+ * The primary key leads with `user_id`, which is the index the ownership rule asks for.
+ */
+export const accountNotices = pgTable(
+  'account_notices',
+  {
+    effectiveOn: date().notNull(),
+    locale: text().notNull(),
+    notice: text().notNull(),
+    sentAt: timestamp({ withTimezone: true }).notNull(),
+    userId: text()
+      .references(() => user.id, { onDelete: 'cascade', onUpdate: 'cascade' })
+      .notNull()
+  },
+  table => [primaryKey({ columns: [table.userId, table.notice] })]
 );
