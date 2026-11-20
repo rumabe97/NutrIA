@@ -414,9 +414,11 @@ export const esES = {
     },
     removal: {
       consequenceFail: 'La persona recibe este correo ahora. Su consulta sigue abierta y puede volver a pedir la insignia.',
+      /** The agreement 2.0.0 § 4 sentence, copied as it stands (the sweep ends these links). */
+      consequenceLinksEnd: 'Los enlaces con clientes que tengan anotada una condición de salud o una medicación terminan.',
       consequenceWithdrawn:
         'La persona recibe este correo ahora. Desde su siguiente petición ve de cada cliente solo lo que el acuerdo describe «sin la insignia»: los vínculos se estrechan al momento, y si su perfil lleva palabras que solo permite la insignia, vuelve a la cola.',
-      factsHint: 'Se añaden al motivo tal como los escribas: termina con un punto. Si eliges «Otro motivo», son el motivo entero.',
+      factsHint: 'Se añaden al motivo tal como los escribas. Si eliges «Otro motivo», son el motivo entero.',
       factsLabel: 'Hechos',
       factsPlain: 'Escribe los hechos en texto llano: sin < ni >.',
       factsRequired: 'Escribe los hechos: sin ellos no hay motivo.',
@@ -484,6 +486,7 @@ export const esES = {
       },
       codeEntered: 'Último código: por {channel}. La persona lo ha introducido.',
       codeExpired: 'Último código: por {channel}. Caducó el {date} sin introducirse.',
+      codeGone: 'Ese código solo se mostró una vez y ya no se puede ver. Si generas otro, el anterior deja de valer.',
       codeLabel: 'Código',
       codeNone: 'Todavía no has enviado ningún código.',
       codeOnce:
@@ -495,7 +498,9 @@ export const esES = {
       emailError: 'Escribe una dirección de correo válida.',
       emailHint: 'Se usa una vez, para este correo, y no se guarda.',
       fieldError: 'Escríbelo tal como lo muestra el registro: una línea, sin enlaces ni direcciones.',
-      handed: 'Listo. Cuando la persona introduzca el código, aquí podrás decidir.',
+      handed: 'Código entregado. Cuando la persona lo introduzca, aquí podrás decidir.',
+      leaveConfirm:
+        'El código no se podrá volver a ver. ¿Salir de todos modos? Si después lo necesitas, tendrás que generar otro, y este dejará de valer.',
       mailed: 'Correo enviado a la dirección que escribiste. Caduca el {date}. NutrIA no guarda esa dirección.',
       notMailed: 'El correo no ha salido y nadie tiene ese código. Envía otro: el nuevo sustituye al anterior.',
       only: 'Solo a un contacto que aparezca en el registro público, nunca a uno que te dé la persona que pidió la insignia. NutrIA no guarda la dirección ni el teléfono.',
@@ -509,7 +514,7 @@ export const esES = {
       title: 'Envía el código'
     },
     title: 'Comprobar a {name}',
-    titleNothing: '{name}',
+    titleNothing: 'Insignia: {name}',
     titleRenewal: 'Revisión anual de {name}'
   },
 
@@ -525,9 +530,9 @@ export const esES = {
     },
     back: 'Volver a Profesionales',
     check: 'Comprobar',
-    checkFor: 'Comprobar a {name}',
+    checkFor: 'Comprobar a {name} ({email})',
     due: {
-      caption: 'Revisiones anuales',
+      caption: 'Revisiones anuales pendientes',
       columns: { action: 'Comprobar', due: 'Venció el', lapses: 'Caduca el', number: 'Número comprobado', person: 'Persona', register: 'Colegio' },
       empty: 'Ninguna insignia pide revisión ahora.',
       note: 'La que caduca antes, primero.',
@@ -1157,6 +1162,8 @@ export const esES = {
       consequenceClosing: 'El cierre no se producirá y la consulta sigue abierta. Si además estaba suspendida, deja de estarlo. Recibe un correo.',
       consequenceSuspended: 'La persona podrá volver a abrir su consulta y ve otra vez a sus clientes. Recibe un correo.',
       done: 'Levantado: ya no consta ninguna restricción. La persona recibe un correo.',
+      doneClosed:
+        'Levantado el cierre de {email}. Ya no aparece en esta lista porque no tiene consulta: puede abrir otra. La persona recibe un correo.',
       facts: 'Qué has encontrado (opcional)',
       factsHint: 'Continúa la frase «Lo hemos revisado y…». Déjalo vacío si no hay nada que decir.',
       lead: 'Levantar quita todo lo que consta a la vez: la suspensión y el cierre.',
@@ -1166,6 +1173,7 @@ export const esES = {
     none: 'No consta ninguna restricción: la consulta está abierta.',
     standing: {
       closed: 'Cerrada el {date}.',
+      closeDue: 'El cierre venció el {date} y lo ejecuta el próximo barrido diario: hasta entonces la consulta sigue existiendo.',
       closing: 'Se cierra el {date}. Hasta entonces la consulta sigue como está.',
       decided: 'Decidido el {date}.',
       noStatement: 'No quedaron motivos guardados.',
@@ -1180,7 +1188,7 @@ export const esES = {
       submit: 'Suspender',
       title: 'Suspender'
     },
-    title: '{name}'
+    title: 'Profesional: {name}'
   },
 
   /* `/admin/producto`: how far people get, and what they do each day. */
@@ -1219,12 +1227,22 @@ export const esES = {
       unavailable: 'No se ha podido leer'
     },
     intro: 'Cada profesional con sus vínculos contados. Aquí no aparece ningún cliente.',
-    links: '{active} activos · {paused} en pausa · {ended} terminados',
+    links: {
+      active: { one: '{count} activo', other: '{count} activos' },
+      ended: { one: '{count} terminado', other: '{count} terminados' },
+      paused: { one: '{count} en pausa', other: '{count} en pausa' }
+    },
     noMatch: 'Ningún profesional coincide con la búsqueda.',
     search: 'Buscar por correo',
     sortBy: { email: 'correo', grantedAt: 'fecha de apertura', links: 'número de vínculos' },
     /** What stands on the practice. */
-    state: { closed: 'Cerrada', closing: 'Se cierra el {date}', open: 'Abierta', suspended: 'Suspendida' },
+    state: {
+      closed: 'Cerrada',
+      closeDue: 'Cierre vencido el {date}: pendiente del próximo barrido',
+      closing: 'Se cierra el {date}',
+      open: 'Abierta',
+      suspended: 'Suspendida'
+    },
     title: 'Profesionales'
   },
 
@@ -1241,7 +1259,8 @@ export const esES = {
       queued: 'Guardado el {date}',
       unbadged: 'sin insignia',
       words: 'La insignia ya no está y estas palabras no se muestran hasta que la persona las cambie: {words}.',
-      wordsField: { displayName: 'en el nombre', studies: 'en los estudios' }
+      wordsField: { displayName: 'en el nombre', studies: 'en los estudios' },
+      wordsForm: 'Se muestran como las busca el filtro: en minúsculas y sin tildes.'
     },
     decide: {
       hide: 'No publicar',

@@ -10,6 +10,7 @@ import { BadgeCheck } from 'components/BadgeCheck';
 import { BadgeRecord } from 'components/BadgeRecord';
 import { Card } from 'components/Card';
 
+import { badgeActs } from 'lib/badgeActs';
 import { formatInstant, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
@@ -114,7 +115,8 @@ export default async function AdminBadgePage({ params }: { params: Promise<{ use
         ))}
       </Card>
 
-      <div className={styles.columns}>
+      {/* With no step left to take, the record is the page's main thing: one column, not an empty one beside it. */}
+      <div className={badgeActs(record).mode === 'nothing' ? styles.page : styles.columns}>
         <BadgeCheck privacyUrl={absoluteUrl(PRIVACY)} record={record} />
         <BadgeRecord checks={record.checks} dictionary={dictionary} locale={locale} />
       </div>

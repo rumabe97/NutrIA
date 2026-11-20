@@ -5,6 +5,13 @@
   gap: var(--space-02);
 }
 
+/* The whole label is the target: a finger's height on a touch screen, as Checkbox. */
+@media (pointer: coarse) {
+  .wrapper {
+    min-block-size: var(--target-min);
+  }
+}
+
 .wrapper:has(.item[data-disabled]) {
   cursor: not-allowed;
 }

@@ -1,15 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  asClause,
-  asSentence,
-  badgeRemovalStatement,
-  checkReason,
-  hideStatement,
-  liftStatement,
-  parseCheckReason,
-  restrictionStatement
-} from './ownerStatements';
+import { badgeRemovalStatement, checkReason, hideStatement, liftStatement, parseCheckReason, restrictionStatement } from './ownerStatements';
 import { enGB } from '../i18n/dictionaries/en-GB';
 import { esES } from '../i18n/dictionaries/es-ES';
 import { plainText } from './ownerFacts';
@@ -18,15 +9,28 @@ function day(iso: string): string {
   return iso.slice(0, 10);
 }
 
-describe('asSentence and asClause', () => {
-  it('close a sentence the owner left open, and leave a closed one', () => {
-    expect(asSentence('Publicó un anuncio')).toBe('Publicó un anuncio.');
-    expect(asSentence('Publicó un anuncio.')).toBe('Publicó un anuncio.');
-    expect(asSentence('  <b>x</b> \n y ')).toBe('b x /b y.');
+/*
+ * One rule for the owner's facts, in core (`core/domain/OwnerText`), shared with the mails: a
+ * preview must read exactly as the mail. Whatever he types — no stop, a stop, an ellipsis — the
+ * facts end the sentence once.
+ */
+describe('the facts in a preview, as the mail closes them', () => {
+  it.each([
+    ['Llamé dos veces', 'Llamé dos veces.'],
+    ['Llamé dos veces.', 'Llamé dos veces.'],
+    ['Llamé dos veces…', 'Llamé dos veces…']
+  ])('%s', (typed, sent) => {
+    const base = { checkedOn: 'x', kind: 'withdrawn', number: 'n', reason: 'other', register: 'r', source: 'own_check' } as const;
+
+    expect(badgeRemovalStatement(esES, { ...base, facts: typed }).why.facts).toBe(sent);
+    expect(restrictionStatement(esES, { authority: null, clause: null, facts: typed, source: 'own_review' }).facts).toBe(sent);
+    expect(hideStatement(esES, { afterNotice: false, facts: typed, reasons: [], word: '' }).why.facts).toBe(sent);
   });
 
-  it('strip the stop for the end of somebody else’s sentence', () => {
-    expect(asClause('no hay nada más.')).toBe('no hay nada más');
+  it('ends the lift’s own sentence once, whatever stop was typed', () => {
+    for (const typed of ['nada más', 'nada más.', 'nada más. ']) {
+      expect(plainText(liftStatement(esES, { closeDate: '1', facts: typed, kind: 'suspension', suspended: false }))).toMatch(/y nada más\.$/);
+    }
   });
 });
 
@@ -68,9 +72,9 @@ describe('badgeRemovalStatement', () => {
 
     expect(what).toBe(esES.adminStatements.badge.what.fail);
     expect(plainText(why)).toBe(
-      'Por qué: El registro de Comunitat Valenciana no te muestra como colegiada/o habilitada/o con el número CV00412, consultado el 19 de noviembre de 2026. Llamé dos veces Es lo que dice el § 4 del acuerdo del profesional que aceptaste. Lo hemos decidido nosotros, por nuestra comprobación.'
+      'Por qué: El registro de Comunitat Valenciana no te muestra como colegiada/o habilitada/o con el número CV00412, consultado el 19 de noviembre de 2026. Llamé dos veces. Es lo que dice el § 4 del acuerdo del profesional que aceptaste. Lo hemos decidido nosotros, por nuestra comprobación.'
     );
-    expect(why.facts).toBe('Llamé dos veces');
+    expect(why.facts).toBe('Llamé dos veces.');
   });
 
   it('makes “other” the facts alone', () => {
@@ -85,7 +89,7 @@ describe('badgeRemovalStatement', () => {
     });
 
     expect(plainText(why)).toBe(
-      "Why: It is not them That is what section 4 of the professional's agreement you accepted says. We looked into it after a notice we received."
+      "Why: It is not them. That is what section 4 of the professional's agreement you accepted says. We looked into it after a notice we received."
     );
   });
 });
@@ -134,7 +138,7 @@ describe('checkReason', () => {
 
     const reason = checkReason(esES, { checkedAt: '2026-11-19T10:00:00.000Z', number: 'CV1', reason: 'not_me: la llamé', register: 'CV' }, day);
 
-    expect(reason?.facts).toBe('la llamé');
-    expect(plainText(reason!)).toBe(`${esES.practice.badgeReasons.not_me} la llamé`);
+    expect(reason?.facts).toBe('la llamé.');
+    expect(plainText(reason!)).toBe(`${esES.practice.badgeReasons.not_me} la llamé.`);
   });
 });

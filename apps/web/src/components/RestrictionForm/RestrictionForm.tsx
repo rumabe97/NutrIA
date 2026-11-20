@@ -40,7 +40,8 @@ interface RestrictionFormProps {
 const NOTICE_MS = PRACTICE_CLOSE_NOTICE_DAYS * 24 * 60 * 60 * 1000;
 
 /** The sections a statement may cite beside the agreement's § 13: what the API's own schema accepts. */
-const CLAUSES = Array.from({ length: 40 }, (_, index) => index + 1).filter(n => restrictPracticeSchema.shape.clause.safeParse(n).success);
+// § 13 itself is not offered: the statement already cites it («§ 13…, en relación con su § n»).
+const CLAUSES = Array.from({ length: 40 }, (_, index) => index + 1).filter(n => n !== 13 && restrictPracticeSchema.shape.clause.safeParse(n).success);
 
 /**
  * Suspending an account as a practitioner, or announcing the close of its practice
@@ -173,7 +174,6 @@ export function RestrictionForm({ alsoSuspended, kind, onDone, onStale, userId }
 
       <ChoiceSet error={errors.source} legend={acts.legendSource}>
         <RadioGroup
-          aria-label={acts.legendSource}
           onValueChange={value => {
             setSource(value as RestrictionSource);
             setErrors(current => ({ ...current, source: undefined }));
@@ -206,7 +206,10 @@ export function RestrictionForm({ alsoSuspended, kind, onDone, onStale, userId }
         />
       ) : null}
 
-      {source ? <StatementPreview note={acts.previewNote} title={acts.preview} what={what} why={statement} /> : null}
+      {/* Only once it can be read whole: an authority named, not «Nos lo exige ….». */}
+      {source && (source !== 'authority' || authority.trim() !== '') ? (
+        <StatementPreview note={acts.previewNote} title={acts.preview} what={what} why={statement} />
+      ) : null}
 
       {error ? (
         <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>

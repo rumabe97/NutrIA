@@ -394,9 +394,11 @@ export const enGB: Dictionary = {
     },
     removal: {
       consequenceFail: 'The person is sent this email now. Their practice stays open and they can apply for the badge again.',
+      /** The agreement 2.0.0 § 4 sentence, copied as it stands (the sweep ends these links). */
+      consequenceLinksEnd: 'Links with clients who have a health condition or a medication on record end.',
       consequenceWithdrawn:
         'The person is sent this email now. From their next request they see of each client only what the agreement describes "without the badge": their links narrow at once, and if their profile carries words only the badge allows, it goes back to the queue.',
-      factsHint: 'They are added to the reason as you write them: end with a full stop. With "Another reason" they are the whole reason.',
+      factsHint: 'They are added to the reason as you write them. With "Another reason" they are the whole reason.',
       factsLabel: 'Facts',
       factsPlain: 'Write the facts as plain text: no < or >.',
       factsRequired: 'Write the facts: without them there is no reason.',
@@ -465,6 +467,7 @@ export const enGB: Dictionary = {
       },
       codeEntered: 'Last code: by {channel}. The person has entered it.',
       codeExpired: 'Last code: by {channel}. It expired on {date} without being entered.',
+      codeGone: 'That code was shown only once and can no longer be seen. If you generate another, the previous one stops working.',
       codeLabel: 'Code',
       codeNone: 'You have not sent any code yet.',
       codeOnce:
@@ -476,7 +479,9 @@ export const enGB: Dictionary = {
       emailError: 'Write a valid email address.',
       emailHint: 'Used once, for this email, and not kept.',
       fieldError: 'Write it as the register shows it: one line, no links or addresses.',
-      handed: 'Done. When the person enters the code, you can decide here.',
+      handed: 'Code handed over. When the person enters it, you can decide here.',
+      leaveConfirm:
+        'The code cannot be seen again. Leave anyway? If you need it later, you will have to generate another, and this one will stop working.',
       mailed: 'Email sent to the address you typed. It expires on {date}. NutrIA does not keep that address.',
       notMailed: 'The email did not go out and nobody has that code. Send another: the new one replaces the old.',
       only: 'Only to a contact that appears in the public register, never to one the person who applied gives you. NutrIA does not keep the address or the phone number.',
@@ -491,7 +496,7 @@ export const enGB: Dictionary = {
       title: 'Send the code'
     },
     title: 'Check {name}',
-    titleNothing: '{name}',
+    titleNothing: 'Badge: {name}',
     titleRenewal: 'Yearly check of {name}'
   },
 
@@ -507,9 +512,9 @@ export const enGB: Dictionary = {
     },
     back: 'Back to Professionals',
     check: 'Check',
-    checkFor: 'Check {name}',
+    checkFor: 'Check {name} ({email})',
     due: {
-      caption: 'Yearly checks',
+      caption: 'Yearly checks due',
       columns: { action: 'Check', due: 'Was due on', lapses: 'Lapses on', number: 'Checked number', person: 'Person', register: 'College' },
       empty: 'No badge needs a check now.',
       note: 'The one that lapses first, first.',
@@ -1119,6 +1124,8 @@ export const enGB: Dictionary = {
       consequenceClosing: 'The close will not happen and the practice stays open. If it was also suspended, it no longer is. They are sent an email.',
       consequenceSuspended: 'The person will be able to open their practice again and sees their clients again. They are sent an email.',
       done: 'Lifted: nothing stands against the practice any more. The person is sent an email.',
+      doneClosed:
+        'Lifted the close of {email}. It is no longer on this list because it has no practice: they can open another. The person is sent an email.',
       facts: 'What you found (optional)',
       factsHint: 'It continues the sentence "We have looked into it and…". Leave it empty if there is nothing to say.',
       lead: 'Lifting removes everything that stands at once: the suspension and the close.',
@@ -1128,6 +1135,7 @@ export const enGB: Dictionary = {
     none: 'Nothing stands against the practice: it is open.',
     standing: {
       closed: 'Closed on {date}.',
+      closeDue: 'The close fell due on {date} and the next daily sweep carries it out: until then the practice still exists.',
       closing: 'It closes on {date}. Until then the practice stays as it is.',
       decided: 'Decided on {date}.',
       noStatement: 'No reasons were kept.',
@@ -1142,7 +1150,7 @@ export const enGB: Dictionary = {
       submit: 'Suspend',
       title: 'Suspend'
     },
-    title: '{name}'
+    title: 'Professional: {name}'
   },
 
   /* `/admin/producto`: how far people get, and what they do each day. */
@@ -1181,11 +1189,21 @@ export const enGB: Dictionary = {
       unavailable: 'Could not be read'
     },
     intro: 'Each professional with their links counted. No client appears here.',
-    links: '{active} active · {paused} paused · {ended} ended',
+    links: {
+      active: { one: '{count} active', other: '{count} active' },
+      ended: { one: '{count} ended', other: '{count} ended' },
+      paused: { one: '{count} paused', other: '{count} paused' }
+    },
     noMatch: 'No professional matches the search.',
     search: 'Search by email',
     sortBy: { email: 'email', grantedAt: 'opening date', links: 'number of links' },
-    state: { closed: 'Closed', closing: 'Closes on {date}', open: 'Open', suspended: 'Suspended' },
+    state: {
+      closed: 'Closed',
+      closeDue: 'Close due on {date}: waiting for the next sweep',
+      closing: 'Closes on {date}',
+      open: 'Open',
+      suspended: 'Suspended'
+    },
     title: 'Professionals'
   },
 
@@ -1202,7 +1220,8 @@ export const enGB: Dictionary = {
       queued: 'Saved on {date}',
       unbadged: 'no badge',
       words: 'The badge is gone and these words are not shown until the person changes them: {words}.',
-      wordsField: { displayName: 'in the name', studies: 'in the studies' }
+      wordsField: { displayName: 'in the name', studies: 'in the studies' },
+      wordsForm: 'They are shown as the filter looks for them: in lower case and without accents.'
     },
     decide: {
       hide: 'Do not publish',

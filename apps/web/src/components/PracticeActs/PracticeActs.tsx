@@ -12,12 +12,15 @@ import { ActCard } from 'components/ActCard';
 import { LiftForm } from 'components/LiftForm';
 import { RestrictionForm } from 'components/RestrictionForm';
 
+import { carryResult } from 'lib/consoleResult';
 import { formatInstant, interpolate } from 'lib/format';
 
 import type { LiftKind } from 'lib/ownerStatements';
 import type { PracticeRestrictionView } from 'core/controllers/Professional';
 
 interface PracticeActsProps {
+  /** The account's address: what the list says it lifted, once this page is gone. */
+  email: string;
   /** Whether the account has a practice now: a closed one (false) can only be lifted. */
   practising: boolean;
   restriction: PracticeRestrictionView | null;
@@ -36,7 +39,7 @@ interface PracticeActsProps {
  * API finds already done or undone (a 404: another tab, or the daily sweep got there
  * first) says so and reads the page again; the owner never has to guess.
  */
-export function PracticeActs({ practising, restriction, userId }: PracticeActsProps) {
+export function PracticeActs({ email, practising, restriction, userId }: PracticeActsProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -62,7 +65,9 @@ export function PracticeActs({ practising, restriction, userId }: PracticeActsPr
   }
 
   const stale = () => say(t.acts.stale, 'warning');
-  const liftKind: LiftKind = closing ? (closing.closed ? 'closeAfter' : 'closeBefore') : 'suspension';
+  // As the API picks the lift's mail (§ W bis.4, «whether it was carried out»): by whether the
+  // practice still exists, not by whether the close's day has passed.
+  const liftKind: LiftKind = !practising ? 'closeAfter' : closing ? 'closeBefore' : 'suspension';
 
   return (
     <div className={styles.acts}>
@@ -85,7 +90,6 @@ export function PracticeActs({ practising, restriction, userId }: PracticeActsPr
         <ActCard title={t.close.title}>
           <RestrictionForm
             alsoSuspended={suspended !== null}
-
             kind="close"
             onDone={answer => say(interpolate(t.close.done, { date: answer.restriction?.closing ? day(answer.restriction.closing.closesAt) : '' }))}
             onStale={stale}
@@ -99,7 +103,18 @@ export function PracticeActs({ practising, restriction, userId }: PracticeActsPr
           <LiftForm
             closeOn={closing?.closesAt ?? null}
             kind={liftKind}
-            onDone={() => say(t.lift.done)}
+            onDone={() => {
+              if (practising) {
+                say(t.lift.done);
+
+                return;
+              }
+
+              // A close carried out and now lifted: no practice and nothing standing, so the account
+              // leaves the list and this page. The list says what was done (P1-2), never a 404.
+              carryResult(interpolate(t.lift.doneClosed, { email }));
+              router.push('/admin/profesionales');
+            }}
             onStale={stale}
             suspended={suspended !== null}
             userId={userId}

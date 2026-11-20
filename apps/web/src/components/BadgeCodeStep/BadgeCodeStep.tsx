@@ -111,6 +111,16 @@ export function BadgeCodeStep({ onIssued, onMailed, onStale, record }: BadgeCode
     }
   }
 
+  // Entered already: the next step is the owner's confirmation, not another code. The API would
+  // issue one (it expires only codes not used), but it would be a code nobody needs, so it is not offered.
+  if (last?.entered) {
+    return (
+      <Text size="sm" tone="secondary">
+        {interpolate(t.codeEntered, { channel: word(last.channel) })}
+      </Text>
+    );
+  }
+
   const lastLine = !last
     ? t.codeNone
     : last.entered
@@ -202,6 +212,12 @@ export function BadgeCodeStep({ onIssued, onMailed, onStale, record }: BadgeCode
       <Text size="sm" tone="secondary">
         {lastLine}
       </Text>
+      {/* A code for a letter or a call is on screen once: after a reload it cannot be seen again. */}
+      {last?.live && last.channel !== 'register_email' ? (
+        <Text size="sm" tone="secondary">
+          {t.codeGone}
+        </Text>
+      ) : null}
     </form>
   );
 }

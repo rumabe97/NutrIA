@@ -15,7 +15,9 @@ interface ChoiceSetProps {
 /**
  * A group of choices under one question, each choice a whole approved sentence
  * (project 025 phase 9): a `fieldset` with its `legend`, the items one under the
- * other, and the error under them. Radios and checkboxes sit in it alike.
+ * other, and the error under them. Radios and checkboxes sit in it alike. The legend
+ * is the one name: a radio group inside takes none of its own, or a screen reader
+ * would say the question twice.
  */
 export function ChoiceSet({ children, error, legend }: ChoiceSetProps) {
   const errorId = useId();

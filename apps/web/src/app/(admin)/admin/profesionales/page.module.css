@@ -16,3 +16,12 @@
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
+
+/* The row's way in is a finger's height on a phone (accessibility review, P2-6). */
+@media (pointer: coarse) {
+  .email {
+    align-items: center;
+    display: inline-flex;
+    min-block-size: var(--target-min);
+  }
+}

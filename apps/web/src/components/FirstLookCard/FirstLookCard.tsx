@@ -1,5 +1,5 @@
 'use client';
-import { useId, useRef, useState } from 'react';
+import { Fragment, useId, useRef, useState } from 'react';
 
 import styles from './FirstLookCard.module.css';
 
@@ -46,7 +46,8 @@ export function FirstLookCard({ onDone, profile }: FirstLookCardProps) {
     profile.priceCents === null || profile.priceUnit === null
       ? null
       : `${formatNumber(profile.priceCents / 100, locale, { currency: 'EUR', style: 'currency' })} ${dictionary.practice.profilePriceUnit[profile.priceUnit]}`;
-  const words = profile.withheld.map(word => `«${word.word}» ${t.card.wordsField[word.field]}`);
+  // The words in the filter's form (the API sends no other): in Spanish, and said to be the filter's.
+  const [wordsBefore, wordsAfter] = t.card.words.split('{words}');
   const hiddenReasons = profile.hidden?.reasons.map(reason => dictionary.adminAudit.profileHiddenReason[reason]) ?? [];
 
   async function publish() {
@@ -74,9 +75,9 @@ export function FirstLookCard({ onDone, profile }: FirstLookCardProps) {
   return (
     <Card as="li" className={styles.card}>
       <div className={styles.head}>
-        <h3 className={styles.name} data-first-look-heading="" tabIndex={-1}>
+        <h2 className={styles.name} data-first-look-heading="" tabIndex={-1}>
           <span lang="es">{profile.displayName}</span>
-        </h3>
+        </h2>
         {profile.queuedAt ? <span className={styles.when}>{interpolate(t.card.queued, { date: day(profile.queuedAt) })}</span> : null}
       </div>
 
@@ -96,12 +97,20 @@ export function FirstLookCard({ onDone, profile }: FirstLookCardProps) {
         </Note>
       ) : null}
 
-      {words.length > 0 ? (
+      {profile.withheld.length > 0 ? (
         <Note as="p" tone="warning" toneLabel={dictionary.common.noteTone.warning}>
-          {interpolate(t.card.words, { words: formatList(words, locale) })}
+          {wordsBefore}
+          {profile.withheld.map((word, index) => (
+            <Fragment key={`${word.field}-${word.word}`}>
+              {index > 0 ? ', ' : null}
+              <span lang="es">«{word.word}»</span> {t.card.wordsField[word.field]}
+            </Fragment>
+          ))}
+          {wordsAfter} {t.card.wordsForm}
         </Note>
       ) : (
-        <Note as="p" tone="success" toneLabel={dictionary.common.noteTone.success}>
+        // Information about the profile, not a finished act: a note, not «Hecho».
+        <Note as="p" tone="info" toneLabel={dictionary.common.noteTone.info}>
           {t.card.noWords}
         </Note>
       )}

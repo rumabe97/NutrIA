@@ -12,6 +12,7 @@ import { PracticeActs } from 'components/PracticeActs';
 import { RestrictionStanding } from 'components/RestrictionStanding';
 
 import { formatDate, formatNumber, interpolate } from 'lib/format';
+import { linkCounts } from 'lib/linkCounts';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../../consoleMetadata';
@@ -57,8 +58,8 @@ export default async function AdminPractitionerPage({ params }: { params: Promis
   const day = (iso: string) => formatDate(iso.slice(0, 10), locale, { day: 'numeric', month: 'long', year: 'numeric' });
   const state = practiceState(professional)
     .map(word =>
-      word.kind === 'closing'
-        ? interpolate(dictionary.adminProfessionals.state.closing, { date: day(word.closesAt) })
+      'closesAt' in word
+        ? interpolate(dictionary.adminProfessionals.state[word.kind], { date: day(word.closesAt) })
         : dictionary.adminProfessionals.state[word.kind]
     )
     .join(' · ');
@@ -92,13 +93,7 @@ export default async function AdminPractitionerPage({ params }: { params: Promis
             ) : null}
             <div>
               <dt>{t.facts.links}</dt>
-              <dd>
-                {interpolate(dictionary.adminProfessionals.links, {
-                  active: number(professional.links.active),
-                  ended: number(professional.links.ended),
-                  paused: number(professional.links.paused)
-                })}
-              </dd>
+              <dd>{linkCounts(professional.links, dictionary.adminProfessionals, number)}</dd>
             </div>
             {professional.collegiateNumber ? (
               <div>
@@ -118,11 +113,16 @@ export default async function AdminPractitionerPage({ params }: { params: Promis
           </Card>
 
           <AdminSection title={t.standing.title}>
-            <RestrictionStanding dictionary={dictionary} locale={locale} restriction={professional.restriction} />
+            <RestrictionStanding
+              dictionary={dictionary}
+              locale={locale}
+              practising={professional.practising}
+              restriction={professional.restriction}
+            />
           </AdminSection>
         </div>
 
-        <PracticeActs practising={professional.practising} restriction={professional.restriction} userId={userId} />
+        <PracticeActs email={professional.email} practising={professional.practising} restriction={professional.restriction} userId={userId} />
       </div>
     </div>
   );

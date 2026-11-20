@@ -15,17 +15,19 @@ import type { PracticeRestrictionView } from 'core/controllers/Professional';
 interface RestrictionStandingProps {
   dictionary: Dictionary;
   locale: Locale;
+  /** Whether the practice still exists: a close is «closed» only once the sweep carried it out (`practising: false`). */
+  practising: boolean;
   restriction: PracticeRestrictionView | null;
 }
 
 /**
  * What stands against a practice and what it was decided for (PRD 025 scope 16): the
- * suspension, and the close with its day — or its closing, when the sweep has carried
- * it out — each with the statement as the person read it: the owner's facts, the
+ * suspension, and the close with its day — due and waiting for today's sweep once the
+ * day has passed, closed only once the sweep carried it out (`practising: false`) — each with the statement as the person read it: the owner's facts, the
  * section of the agreement, where the decision came from. A restriction decided before
  * its statement was kept says so, plainly. Never who decided it: no view carries that.
  */
-export function RestrictionStanding({ dictionary, locale, restriction }: RestrictionStandingProps) {
+export function RestrictionStanding({ dictionary, locale, practising, restriction }: RestrictionStandingProps) {
   const t = dictionary.adminPractice.standing;
   const day = (iso: string) => formatInstant(Date.parse(iso), locale, { day: 'numeric', month: 'long', timeZone: 'Europe/Madrid', year: 'numeric' });
   const { closing, suspended } = restriction ?? { closing: null, suspended: null };
@@ -40,7 +42,7 @@ export function RestrictionStanding({ dictionary, locale, restriction }: Restric
       : null,
     closing
       ? {
-          headline: interpolate(closing.closed ? t.closed : t.closing, { date: day(closing.closesAt) }),
+          headline: interpolate(!practising ? t.closed : closing.closed ? t.closeDue : t.closing, { date: day(closing.closesAt) }),
           key: 'closing',
           statement: closing.statement,
           when: interpolate(t.decided, { date: day(closing.decidedAt) })

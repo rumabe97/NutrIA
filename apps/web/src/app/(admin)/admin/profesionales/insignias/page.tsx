@@ -51,8 +51,9 @@ export default async function AdminBadgesPage() {
     </span>
   );
   const applications = [...queue.applications].sort((a, b) => (a.application?.appliedAt ?? '').localeCompare(b.application?.appliedAt ?? ''));
-  const link = (userId: string, name: string, label: string) => (
-    <Link aria-label={interpolate(t.checkFor, { name })} className={styles.link} href={badgeHref(userId)}>
+  // The address beside the name, so two practitioners with one name are told apart by ear too.
+  const link = (userId: string, name: string, email: string, label: string) => (
+    <Link aria-label={interpolate(t.checkFor, { email, name })} className={styles.link} href={badgeHref(userId)}>
       {label}
     </Link>
   );
@@ -82,7 +83,7 @@ export default async function AdminBadgesPage() {
           rows={applications.map(row => ({
             id: row.userId,
             cells: {
-              actions: link(row.userId, row.name, t.check),
+              actions: link(row.userId, row.name, row.email, t.check),
               number: row.application?.number ?? '—',
               person: person(row.name, row.email),
               register: row.application?.register ?? '—',
@@ -112,7 +113,7 @@ export default async function AdminBadgesPage() {
           rows={queue.due.map(row => ({
             id: row.userId,
             cells: {
-              actions: link(row.userId, row.name, t.check),
+              actions: link(row.userId, row.name, row.email, t.check),
               due: row.badge ? day(row.badge.dueAt) : '—',
               lapses: row.badge ? day(row.badge.lapsesAt) : '—',
               number: row.badge?.number ?? '—',

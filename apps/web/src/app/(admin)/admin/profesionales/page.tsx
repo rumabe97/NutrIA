@@ -8,10 +8,12 @@ import { activeLocale, getDictionary } from 'i18n/server';
 import { AdminEntryLinks } from 'components/AdminEntryLinks';
 import { AdminPageHeader } from 'components/AdminPageHeader';
 import { AdminTable, apiSearch, readTableQuery } from 'components/AdminTable';
+import { CarriedResult } from 'components/CarriedResult';
 
 import { professionalQuerySchema } from 'core/entities/AdminQuery';
 
 import { formatDate, formatNumber, interpolate } from 'lib/format';
+import { linkCounts } from 'lib/linkCounts';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../consoleMetadata';
@@ -83,13 +85,9 @@ export default async function AdminProfessionalsPage({ searchParams }: { searchP
         </Link>
       ),
       granted: professional.grantedAt ? day(professional.grantedAt) : '—',
-      links: interpolate(t.links, {
-        active: number(professional.links.active),
-        ended: number(professional.links.ended),
-        paused: number(professional.links.paused)
-      }),
+      links: linkCounts(professional.links, t, number),
       state: practiceState(professional)
-        .map(word => (word.kind === 'closing' ? interpolate(t.state.closing, { date: day(word.closesAt) }) : t.state[word.kind]))
+        .map(word => ('closesAt' in word ? interpolate(t.state[word.kind], { date: day(word.closesAt) }) : t.state[word.kind]))
         .join(' · ')
     }
   }));
@@ -97,6 +95,9 @@ export default async function AdminProfessionalsPage({ searchParams }: { searchP
   return (
     <div className={styles.page}>
       <AdminPageHeader intro={t.intro} title={t.title} />
+
+      {/* An act that left its own page says here what it did (a carried-out close, lifted). */}
+      <CarriedResult />
 
       <AdminEntryLinks
         label={t.entries.label}

@@ -23,7 +23,8 @@ interface FirstLookQueueProps {
  * card, oldest first. A card that is done — seen, hidden, or found to be off the
  * queue already — leaves the list at once, and the result is said in one region
  * that stays mounted, so a screen reader hears it and nobody is thrown to the top
- * of the page. Focus goes to the next card's name, or to the region when none is left.
+ * of the page. Focus goes to the card now in the place of the one that left — the next,
+ * or the last when it was the last — or to the region when none is left.
  *
  * Marking one seen is not approval, and the page says so once, under the list.
  */
@@ -34,22 +35,26 @@ export function FirstLookQueue({ profiles }: FirstLookQueueProps) {
   const [message, setMessage] = useState('');
   const root = useRef<HTMLDivElement>(null);
   const status = useRef<HTMLDivElement>(null);
-  const moved = useRef(false);
+  // The place of the card that left: focus goes to the card now at that place (accessibility review, P2-7).
+  const leftAt = useRef<number | null>(null);
   const left = profiles.filter(profile => !gone.has(profile.userId));
 
   useEffect(() => {
-    if (!moved.current) {
+    if (leftAt.current === null) {
       return;
     }
 
-    moved.current = false;
-    (root.current?.querySelector<HTMLElement>('[data-first-look-heading]') ?? status.current)?.focus();
+    const headings = [...(root.current?.querySelectorAll<HTMLElement>('[data-first-look-heading]') ?? [])];
+    const next = headings[Math.min(leftAt.current, headings.length - 1)];
+
+    leftAt.current = null;
+    (next ?? status.current)?.focus();
   }, [gone]);
 
   function done(outcome: 'hidden' | 'seen' | 'stale', profile: QueuedProfileView) {
     const words = { hidden: t.hide.done, seen: t.decide.published, stale: t.decide.stale }[outcome];
 
-    moved.current = true;
+    leftAt.current = left.findIndex(entry => entry.userId === profile.userId);
     setMessage(interpolate(words, { name: profile.displayName }));
     setGone(current => new Set([...current, profile.userId]));
   }

@@ -14,6 +14,11 @@ import { BadgeScript } from 'components/BadgeScript';
 
 import { formatInstant, interpolate } from 'lib/format';
 
+/** The code one character at a time for a screen reader: «A B 1 2 guion C…» reads as the owner will read it out. */
+function spelled(code: string): string {
+  return code.split('').join(' ');
+}
+
 /** A code just made for a letter or a call: held in the page's state only, from this answer until the owner says he is done. */
 export interface IssuedCode {
   channel: 'phone' | 'post';
@@ -54,13 +59,45 @@ export function BadgeIssuedCode({ declared, issued, onDone, privacyUrl }: BadgeI
     root.current?.focus();
   }, []);
 
+  // Seen once (accessibility review, P2-5): while the code is on the page, leaving it asks
+  // first — a reload or a closed tab through the browser's own question, a link of this
+  // console through ours. «Listo» unmounts this and with it both guards.
+  useEffect(() => {
+    function beforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+    }
+
+    function onClick(event: MouseEvent) {
+      const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+
+      if (link && !window.confirm(t.step2.leaveConfirm)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }
+
+    window.addEventListener('beforeunload', beforeUnload);
+    document.addEventListener('click', onClick, true);
+
+    return () => {
+      window.removeEventListener('beforeunload', beforeUnload);
+      document.removeEventListener('click', onClick, true);
+    };
+  }, [t.step2.leaveConfirm]);
+
   return (
     <div className={styles.root}>
       <div aria-label={t.step2.codeLabel} className={styles.shown} ref={root} role="group" tabIndex={-1}>
         <Note as="p" tone="warning" toneLabel={dictionary.common.noteTone.warning}>
           {t.step2.codeOnce}
         </Note>
-        {issued.channel === 'phone' ? <p className={styles.code}>{issued.code}</p> : null}
+        {issued.channel === 'phone' ? (
+          <p className={styles.code}>
+            {/* Read out one character at a time, the way the owner reads it to the person. */}
+            <span aria-hidden="true">{issued.code}</span>
+            <span className="visually-hidden">{spelled(issued.code)}</span>
+          </p>
+        ) : null}
         <Text size="sm">{interpolate(t.step2.codeValid, { date: shown })}</Text>
       </div>
 

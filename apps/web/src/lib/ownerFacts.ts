@@ -7,6 +7,11 @@ import { interpolate } from './format';
  */
 export interface WithFacts {
   after: string;
+  /**
+   * The name of an authority the owner typed (§ W bis.1 «Nos lo exige {authority}.»), in
+   * Spanish too: `after` keeps `{authority}` where it goes, for the page to mark it.
+   */
+  authority?: string;
   before: string;
   facts: string | null;
 }
@@ -32,5 +37,7 @@ export function aroundFacts(template: string, values: Readonly<Record<string, nu
 
 /** The whole sentence as text, facts included: for tests and for keys. */
 export function plainText(value: WithFacts): string {
-  return `${value.before}${value.facts ?? ''}${value.after}`;
+  const named = (text: string) => (value.authority === undefined ? text : text.replace('{authority}', value.authority));
+
+  return `${named(value.before)}${value.facts ?? ''}${named(value.after)}`;
 }

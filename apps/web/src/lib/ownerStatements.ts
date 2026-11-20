@@ -1,3 +1,7 @@
+import { asClause, asSentence, plainFacts } from 'core/domain/OwnerText';
+
+import { inHideOrder } from 'core/entities/Professional';
+
 import { aroundFacts } from './ownerFacts';
 import { interpolate } from './format';
 
@@ -14,32 +18,11 @@ import type { WithFacts } from './ownerFacts';
  * sent. The facts are the owner's own words, kept apart (`WithFacts`) so a page
  * can mark them with their language.
  *
- * Nothing here decides anything: the closed reasons, their order and the full
- * stop after the facts are the mail's, and a test holds the two to each other.
+ * Nothing here decides anything: the closed reasons and their order are the mail's,
+ * and the facts follow the one rule both share (`core/domain/OwnerText`: `asSentence`
+ * where the facts are a sentence, `asClause` where the copy closes it), so what he
+ * reads here is what is sent. A test holds the two to each other.
  */
-
-/** The owner's words as one plain line: control characters and markup out, whitespace folded — what the mail prints. */
-export function plainFacts(text: string): string {
-  return (
-    text
-      // eslint-disable-next-line no-control-regex -- the owner's words are one plain paragraph
-      .replace(/[\u0000-\u001f\u007f<>]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-  );
-}
-
-/** The facts as a sentence of their own: closed with a full stop when the owner did not close it (`asSentence` of the mail). */
-export function asSentence(text: string): string {
-  const plain = plainFacts(text);
-
-  return plain === '' || /[.!?…»"”)]$/.test(plain) ? plain : `${plain}.`;
-}
-
-/** The facts as the end of somebody else's sentence (§ W bis.2 «Lo hemos revisado y {facts}.»): no stop of their own. */
-export function asClause(text: string): string {
-  return plainFacts(text).replace(/[.\s]+$/, '');
-}
 
 /** A closed sentence followed by the owner's facts: the mail joins the parts with one space. */
 function reasonOf(sentences: readonly string[], facts: string | null): { facts: string | null; reason: string } {
@@ -66,8 +49,8 @@ export function badgeRemovalStatement(
     input.reason === 'other'
       ? ''
       : interpolate(reasons[input.reason], { checkedOn: input.checkedOn, number: input.number, register: input.register });
-  // `trim`, not `asSentence`: § W's mail adds the facts as they were written.
-  const facts = input.facts.trim() === '' ? null : input.facts.trim();
+  // The one rule of `core/domain/OwnerText`, as the mail applies it: the facts closed as a sentence.
+  const facts = plainFacts(input.facts) === '' ? null : asSentence(input.facts);
   const { facts: kept, reason } = reasonOf([closed], facts);
   const statement = t.adminStatements.badge;
 
@@ -81,8 +64,8 @@ export function hideStatement(
 ): { what: string; why: WithFacts } {
   const copy = t.adminProfiles.hide;
   const word = plainFacts(input.word);
-  const order = Object.keys(t.practice.profileHiddenReasons) as ProfileHideReason[];
-  const closed = order.filter(reason => input.reasons.includes(reason)).map(reason => interpolate(t.practice.profileHiddenReasons[reason], { word }));
+  // The approved table's order (`inHideOrder`), the one the mail uses — never the dictionary's sorted keys.
+  const closed = inHideOrder(input.reasons).map(reason => interpolate(t.practice.profileHiddenReasons[reason], { word }));
   const facts = plainFacts(input.facts) === '' ? null : asSentence(input.facts);
   const { facts: kept, reason } = reasonOf(closed, facts);
 
@@ -98,15 +81,18 @@ export function restrictionStatement(
   const authority = input.authority === null ? '' : plainFacts(input.authority);
   const facts = plainFacts(input.facts) === '' ? null : asSentence(input.facts);
 
-  return aroundFacts(
+  // The authority's name stays a placeholder in the text, for the page to mark it with its language.
+  const statement = aroundFacts(
     practice.restrictionWhy,
     {
       clause: input.clause === null ? '' : interpolate(practice.restrictionClause, { n: String(input.clause) }),
       reason: facts === null ? '' : '{facts}',
-      source: interpolate(practice.restrictionSources[input.source], { authority })
+      source: practice.restrictionSources[input.source]
     },
     facts
   );
+
+  return input.source === 'authority' ? { ...statement, authority } : statement;
 }
 
 /** What a lift tells the person, by what stood (§ W bis.2 and 4): a suspension, a close not yet carried out, or one that was. */
@@ -174,7 +160,7 @@ export function checkReason(
     return null;
   }
 
-  const { facts: kept, reason } = reasonOf([sentence], facts);
+  const { facts: kept, reason } = reasonOf([sentence], facts === null ? null : asSentence(facts));
 
   return aroundFacts(reason, {}, kept);
 }

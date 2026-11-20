@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import styles from './HideProfileForm.module.css';
 
@@ -36,11 +36,6 @@ interface HideProfileFormProps {
 /** The reasons that quote a word. */
 const WORD_REASONS: readonly ProfileHideReason[] = ['badge_word', 'unchecked_title'];
 
-/** The reasons as the mail lists them: the dictionary's order, which is the mail's. */
-function orderOf(keys: readonly string[]): readonly ProfileHideReason[] {
-  return keys.filter((key): key is ProfileHideReason => (PROFILE_HIDE_REASONS as readonly string[]).includes(key));
-}
-
 /**
  * Hiding a profile from the first look (PRD 025 criterion 18; `docs/legal/textos/06`
  * § X): refusing and hiding are one act, immediate, with one statement of reasons
@@ -66,7 +61,6 @@ export function HideProfileForm({ onCancel, onDone, profile, rootId }: HideProfi
   const root = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const quotesWord = reasons.some(reason => WORD_REASONS.includes(reason));
-  const order = useMemo(() => orderOf(Object.keys(reasonSentences)), [reasonSentences]);
 
   // Opening the form puts the reader at its start: the buttons that opened it are above, and the fields are what he is here for.
   useEffect(() => {
@@ -122,12 +116,13 @@ export function HideProfileForm({ onCancel, onDone, profile, rootId }: HideProfi
 
   return (
     <div aria-labelledby={titleId} className={styles.form} id={rootId} ref={root} role="group">
-      <h4 className={styles.title} id={titleId}>
+      <h3 className={styles.title} id={titleId}>
         {interpolate(t.title, { name: profile.displayName })}
-      </h4>
+      </h3>
 
       <ChoiceSet error={errors.reasons} legend={t.legendReasons}>
-        {order.map(reason => (
+        {/* The approved table's order (`PROFILE_HIDE_REASONS`), as the mail lists them. */}
+        {PROFILE_HIDE_REASONS.map(reason => (
           <Checkbox
             checked={reasons.includes(reason)}
             key={reason}

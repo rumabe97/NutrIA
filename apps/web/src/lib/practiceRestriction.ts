@@ -1,3 +1,5 @@
+import { asSentence, plainFacts } from 'core/domain/OwnerText';
+
 import { aroundFacts } from './ownerFacts';
 import { interpolate } from './format';
 
@@ -12,17 +14,18 @@ type Day = (iso: string) => string;
  * the API stored — the owner's facts kept apart, to be marked with their language (`WithFacts`).
  */
 function why(statement: RestrictionStatementView, t: Dictionary['practice']): WithFacts {
-  return aroundFacts(
+  const filled = aroundFacts(
     t.restrictionWhy.replace('{reason}', '{facts}'),
     {
       clause: statement.clause === null ? '' : interpolate(t.restrictionClause, { n: statement.clause }),
       source:
-        statement.source === 'authority'
-          ? interpolate(t.restrictionSources.authority, { authority: statement.authority ?? '' })
-          : t.restrictionSources[statement.source]
+        // The authority's name stays a placeholder, marked with its language on the page.
+        t.restrictionSources[statement.source]
     },
-    statement.facts
+    asSentence(statement.facts)
   );
+
+  return statement.source === 'authority' ? { ...filled, authority: plainFacts(statement.authority ?? '') } : filled;
 }
 
 /**

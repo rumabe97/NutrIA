@@ -1,0 +1,7 @@
+.region {
+  min-inline-size: 0;
+}
+
+.region:focus-visible {
+  outline-offset: var(--space-01);
+}

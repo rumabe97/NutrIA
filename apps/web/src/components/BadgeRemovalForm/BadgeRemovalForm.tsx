@@ -123,7 +123,6 @@ export function BadgeRemovalForm({ decided, kind, onCancel, onDone, record, root
 
       <ChoiceSet error={errors.reason} legend={t.legendReason}>
         <RadioGroup
-          aria-label={t.legendReason}
           onValueChange={value => {
             setReason(value as BadgeRemovalReason);
             setErrors(current => ({ ...current, facts: undefined, reason: undefined }));
@@ -158,7 +157,6 @@ export function BadgeRemovalForm({ decided, kind, onCancel, onDone, record, root
 
       <ChoiceSet error={errors.source} legend={t.legendSource}>
         <RadioGroup
-          aria-label={t.legendSource}
           onValueChange={value => {
             setSource(value as BadgeRemovalSource);
             setErrors(current => ({ ...current, source: undefined }));
@@ -174,6 +172,8 @@ export function BadgeRemovalForm({ decided, kind, onCancel, onDone, record, root
       {reason && source ? <StatementPreview note={t.previewNote} title={t.preview} what={statement.what} why={statement.why} /> : null}
 
       <Text size="sm">{kind === 'fail' ? t.consequenceFail : t.consequenceWithdrawn}</Text>
+      {/* Beyond narrowing: the daily sweep ends every link whose client has something on record (agreement § 4). */}
+      {kind === 'fail' ? null : <Text size="sm">{t.consequenceLinksEnd}</Text>}
 
       {error ? (
         <Note as="p" layout="inline" role="alert" tone="error" toneLabel={dictionary.common.noteTone.error}>
