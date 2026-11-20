@@ -272,6 +272,7 @@ export const enGB: Dictionary = {
       'auth.unconfirmed_account_swept': 'Unconfirmed account deleted',
       'feedback.handled': 'Message marked seen',
       'feedback.reopened': 'Message reopened',
+      'notice.sent': 'Notice sent to the accounts',
       'picture.accepted': 'Rejected dish picture accepted by hand, against the checker',
       'picture.discarded': 'Rejected dish picture discarded by hand',
       'picture.removed': 'Published dish picture removed',
@@ -317,6 +318,8 @@ export const enGB: Dictionary = {
     ],
     intro: 'Who made each account or setting change, and when.',
     noMatch: 'No action matches the filter.',
+    noticeNames: { 'terms-2.4.0': 'Terms change 2.4.0' },
+    noticeSent: '{notice}, announcing {date}: {sent} sent, {failed} failed, {skipped} unconfirmed, {remaining} still owed',
     /** `auth.password_changed`: how the person changed it. */
     passwordVia: { change: 'From their profile', reset: 'With the recovery link' },
     profileHiddenAfterNotice: '{reasons}, after a notice',
@@ -796,6 +799,7 @@ export const enGB: Dictionary = {
       inbox: 'Inbox',
       ingredients: 'Ingredients',
       log: 'Log',
+      notice: 'Change notice',
       notifications: 'Notifications',
       pictures: 'Pictures',
       planQuality: 'Plan quality',
@@ -810,6 +814,68 @@ export const enGB: Dictionary = {
       system: 'System'
     },
     title: 'Console'
+  },
+
+  /* `/admin/ajustes/aviso` (project 025 phase 10): the change notice to every account, sent from the console. `mail` is `textos/06` § Z, copied. */
+  adminNotice: {
+    alreadySent: 'Already sent',
+    cancel: 'Cancel',
+    caption: 'Accounts it will go to',
+    columns: { email: 'Email', locale: 'Language' },
+    confirm: 'Yes, send now',
+    confirmBody:
+      'The notice for {date} will now go to {count} accounts, one after the other. A sent email cannot be taken back, and each account gets it only once.',
+    confirmTitle: 'Before sending',
+    counts: 'Counts',
+    dateErrors: {
+      campaign_date: 'This notice has already gone out announcing {date}. Use that day: no other day can be announced.',
+      not_after_today: 'It has to be from tomorrow: the notice arrives before the change, never on the day.',
+      required: 'Choose the day.',
+      too_far: 'At most 60 days ahead.'
+    },
+    dateHint: 'The day you will turn on "Professionals\' practices" in Switches. Between tomorrow and 60 days ahead.',
+    dateLabel: 'Day of the change',
+    dateLocked: 'This notice has started going out announcing {date}: it is the same day for every account and cannot change.',
+    dateUnset: '[the day you choose]',
+    done: 'Nobody is left: the notice for {date} has gone to every account with a confirmed address.',
+    failed: '{count} did not go out: {list}. They are still owed and will be tried again on another press.',
+    finished: 'This notice has reached every account with a confirmed address. It announced {date}.',
+    intro:
+      "One email to every account with a confirmed address, once, in each account's language, announcing the change to the privacy policy and the terms. A sent email cannot be taken back.",
+    languages: { 'en-GB': 'English', 'es-ES': 'Spanish' },
+    loadError: 'Could not read where the notice stands.',
+    loading: 'Checking whether the notice has started going out…',
+    mail: {
+      choose:
+        'The details are at {privacyUrl}, under "Your professional on NutrIA", and at {termsUrl}. If you have any question, write to us at {email}. If you do not agree, you can delete your account from your profile.',
+      intro:
+        'From {date}, any adult will be able to open a practice on NutrIA and make the meal plan of whoever invites them to. If you do not work with a professional, nothing changes for you.',
+      subject: "NutrIA's privacy policy and terms are changing",
+      what: 'Only someone with our "Registered dietitian-nutritionist" badge is a person we have checked on their college\'s register. A professional without it will see of you the plans they make for you and where they stand, never your weight, your targets, your health or your allergies, and before you accept their invitation you will see exactly what they will see. If you have a health condition or a medication on record, you will only be able to link with a professional who holds the badge. And being linked to a professional does not give you Premium.'
+    },
+    mailNote: 'This is how each account gets it, in its own language. The date is written in when you press "See who".',
+    mailSubject: 'Subject',
+    nobody: 'There is no account to send it to: the confirmed ones already have it, or there is none confirmed.',
+    past: 'The day it announced, {date}, has come: this notice can no longer be sent.',
+    preview: 'See who',
+    previewFirst: 'Press "See who" with the day chosen: until then nothing can be sent.',
+    previewStale: 'You changed the day: press "See who" again before sending.',
+    remaining: '{count} still owed.',
+    reminder:
+      'Do not turn the switch on before that day. And the privacy and terms pages must already be published with this same day in their "starts on…" line.',
+    resultCap:
+      'Today {cap} notices have already gone out, the most for one day, so as not to use up the email the other accounts need. You can carry on from {day} at {time}.',
+    resultConflict: 'A batch is already being sent, perhaps from another tab. Wait for it to finish and press "See who" again.',
+    retry: 'Try again',
+    send: 'Send to the next {count}',
+    sendLead: 'Each press sends at most 25 emails, one after the other. If more are left, press again.',
+    sent: '{count} sent.',
+    skipped: 'Unconfirmed (not sent)',
+    status: 'Result of the last send',
+    steps: { date: 'The day of the change', mail: 'What the email says', send: 'Send', who: 'Who it goes to' },
+    stoppedEarly: 'It stopped so as not to run out of time: press again.',
+    title: 'Change notice',
+    toSend: 'To send'
   },
 
   /* `/admin/notificaciones` (`0071`): push subscriptions, reminders per week and channel, and who checked in after one. */
@@ -1558,6 +1624,7 @@ export const enGB: Dictionary = {
       'professional-profile-hidden': 'Professional profile hidden',
       'professional-suspended': 'Practice suspended',
       'professional-suspension-lifted': 'Practice suspension lifted',
+      'terms-change-notice': 'Terms change notice',
       'two-factor-disabled': 'Second factor turned off',
       'two-factor-enabled': 'Second factor turned on',
       'two-factor-removal-cancelled': 'Second factor removal cancelled',
@@ -2021,6 +2088,7 @@ export const enGB: Dictionary = {
     notFound: 'We could not find what you were looking for.',
     notFoundHome: 'Go to the home page',
     notFoundTitle: 'Page not found',
+    noticeDailyCap: "Today's notices have reached the day's limit. Carry on tomorrow.",
     onboardingIncomplete: 'Part of your profile is missing. Finish it and try again.',
     passwordChangeRequired: 'You need to change your password before you carry on.',
     pictureAllergensMismatch:
@@ -2801,6 +2869,7 @@ export const enGB: Dictionary = {
     '/acceder/codigo': { title: '2-step verification' },
     '/admin': { title: 'Overview' },
     '/admin/ajustes': { title: 'Switches' },
+    '/admin/ajustes/aviso': { title: 'Change notice' },
     '/admin/ajustes/registro': { title: 'Audit log' },
     '/admin/ajustes/sistema': { title: 'System' },
     '/admin/buzon': { title: 'Inbox' },
@@ -3436,7 +3505,9 @@ export const enGB: Dictionary = {
           'Product use: we record, linked to your account, when you sign in and when you ask to change a dish, and nothing more. To know whether the product works.',
           'What you type to the assistant, if you use it: your questions, their answers and the title of each conversation, which is the first words of your first question. So that you can come back to the conversation. More under "The assistant".',
           'How many messages you send the assistant: when you send each one and whether it was about something other than nutrition, without the text. To apply each fortnight’s message limit.',
-          'What you write to us: messages in the feedback box, so we can read and answer them.'
+          'What you write to us: messages in the feedback box, so we can read and answer them.',
+          'If you work with a professional on NutrIA: what is explained under "Your professional on NutrIA".',
+          'If you open a practice: your date of birth, to check that you are an adult; the version of the professional\'s agreement you accepted and when; your profile (the name you show, your studies, your price and your hours) and our review of it (when we looked and, if we hid it, why); and, if you apply for the badge, what is explained under "Your professional on NutrIA". So that you can work with your clients on NutrIA, and so that nobody presents themselves with a title they do not hold.'
         ],
         paragraphs: []
       },
@@ -3449,23 +3520,30 @@ export const enGB: Dictionary = {
       {
         heading: 'Why we may process this data',
         paragraphs: [
-          'To provide the service you ask for (contract): your account, profile, plans, conversations with the assistant, payments and service emails.',
-          'With your explicit consent: your allergies and intolerances, your body and goal and your way of eating, which you give with a checkbox of its own when you create your profile. Without them we cannot make a safe plan for you, so without that consent we do not generate plans; you can withdraw it at any time by deleting that data from your profile. Your conditions, medications and supplements, under a separate, optional consent. Each consent is stored with its date and the version of the text you accepted.',
-          'Our legitimate interest: recording product use and technical errors to keep it working, with no health data, and protecting accounts: the security record, the brakes against abuse and the security notices we send you. You can object by writing to us.',
+          'To provide the service you ask for (contract): your account, profile, plans, conversations with the assistant, payments and service emails and, if you open a practice, your practice and your profile.',
+          'With your explicit consent: your allergies and intolerances, your body and goal and your way of eating, which you give with a checkbox of its own when you create your profile. Without them we cannot make a safe plan for you, so without that consent we do not generate plans; you can withdraw it at any time by deleting that data from your profile. Your conditions, medications and supplements, under a separate, optional consent. And what you share with your professional, with the explicit consent you give when you accept their invitation, which names that person and what they will see. Each consent is stored with its date and the version of the text you accepted.',
+          "Our legitimate interest: recording product use and technical errors to keep it working, with no health data, and protecting accounts: the security record, the brakes against abuse and the security notices we send you, and checking, when somebody applies for the badge, that they are who they say they are on their college's register. You can object by writing to us.",
           'Legal obligation: keeping what tax law requires about payments (Stripe does this).'
         ]
       },
       {
-        id: 'tu-dietista',
-        heading: 'Your dietitian on NutrIA',
+        id: 'tu-profesional',
+        formerIds: ['tu-dietista'],
+        heading: 'Your professional on NutrIA',
         paragraphs: [
-          'A dietitian-nutritionist can invite you by email to follow your plan with them on NutrIA. Only a professional we have given access to, after checking their registration number, can do so. The invitation lasts 14 days; we use your address only to send it and delete it with the invitation: as soon as you answer or, if you do not, by the day after it expires at the latest.',
-          'Nothing is shared unless you accept. If you do, your dietitian will see your name, your daily targets and how they were worked out, your plans, how much of each fortnight you follow, your weight over time and your check-in answers. They can set your targets, generate and change your plans, and review each new plan before you see it. Your conditions, medications and supplements only if you tick that separate box. They will not see your allergies or intolerances, your email address, your written comments or your conversations with the assistant.',
-          'Every time your dietitian looks at or changes something, it is recorded and you can see it on your profile under "Who has accessed".',
-          'You can end the link from your profile at any time, and from the next request your dietitian stops seeing your data. You can also stop sharing just your health without ending the link. Your targets, your history and your last published plan stay with you.',
-          'Who is responsible for what: NutrIA is responsible for your data on NutrIA and discloses it to your dietitian because you ask it to. Your dietitian is responsible, on their own account and under professional secrecy, for what they do with what they see in their practice, such as what they note in your clinical record; for that, contact them. For everything held on NutrIA, write to us at {email}: we are your contact point.',
-          'If your dietitian deletes their account, the link ends and their name stays in your access record.'
-        ]
+          'Any adult can open a practice on NutrIA and offer their services. Only someone with the badge "Registered dietitian-nutritionist" is a person we have checked, on their college\'s public register, to be listed as a registered dietitian-nutritionist entitled to practise, and to own the account; we check again every year. Nobody else has been checked by us: they are not health professionals verified by NutrIA. Our having reviewed somebody\'s profile does not mean we recommend them.',
+          'A professional can invite you by email to have them make your plan on NutrIA. The invitation lasts 14 days; we use your address only to send it and delete it with the invitation: as soon as you answer or, if you do not, by the day after it expires at the latest.',
+          'Nothing is shared unless you accept. What they will see depends on whether they hold the badge, and before you accept you see the exact list.',
+          "Without the badge, they will see only your name, the plans they make for you through the link — the ones they generate, review or publish — with their dishes, amounts and each day's totals, and where things stand (since when you have been linked, whether you have finished your profile, whether you have a plan under way or waiting for review, and whether you have generations left this fortnight), and they can generate them, change them, review them before you see them and publish them. They will not see your weight, your targets, how much of the plan you follow, your check-ins, your conditions, medication or supplements, your allergies or intolerances, your email address or your plans from before the link. Even so, from each day's totals they can work out roughly how much energy you need and, when a dish cannot be offered to you, we tell them only that it does not suit you, but from that they can work out an allergy or an intolerance. They are not bound by professional secrecy by law: they promise us, by contract, to keep it confidential.",
+          'With the badge, they will also see your daily targets and how they were worked out, your earlier plans, how much of each fortnight you follow, your weight over time and your check-in answers, and they can set your targets within the same safety bounds. Your conditions, medication and supplements only if you tick that separate box. If they gain the badge while you are already linked, they see nothing new until you accept it; if they lose it, from then on they see only what a professional without the badge sees.',
+          'If you have a health condition or a medication on record, you can only link with a professional who holds the badge. If you record one while linked with a professional without it, or if yours loses the badge while you have one on record, the link ends. We tell you; your professional only sees that the link has ended, although they may work out why. Our code applies this rule to what you record in your profile, without anybody looking at it. If you think it got it wrong, write to us at {email} and a person will look at it.',
+          'Every time your professional looks at or changes something, it is recorded and you can see it on your profile under "Who has accessed".',
+          'You can end the link from your profile at any time, and from the next request your professional stops seeing your data. With a professional who holds the badge, you can also stop sharing just your health without ending the link. Your targets, your history and your last published plan stay with you.',
+          'Who is responsible for what: NutrIA is responsible for your data on NutrIA and discloses it to your professional because you ask for it and consent. Your professional is responsible, on their own account, for what they do with what they see: with the badge, under their professional secrecy; without it, under the consent you give them when you accept, which you withdraw by ending the link. For what they do outside NutrIA, contact your professional. For everything held on NutrIA, write to us at {email}: we are your contact point.',
+          'If your professional deletes their account, the link ends and their name stays in your access record.',
+          "If you are a dietitian-nutritionist and somebody applies for the badge with your name and number: we look at your college's public register only when somebody applies, and only at your entry, and we send a code to the professional contact that register publishes (your email, your professional address or your phone). Never to a contact the applicant gives us. We keep which register we looked at, when, the result, the number and which way we sent the code; we do not keep the contact on NutrIA, and we delete the copy of the email or the note of the call when the code expires, after 30 days. We do it in our legitimate interest: that nobody passes themselves off as a dietitian-nutritionist to the people who use NutrIA. That record is deleted with the account that applied. If it was not you who applied, tell us at {email}."
+        ],
+        untilOpen: 'What this section describes starts on {date}. Until that day, nobody can open a practice on NutrIA or invite you to one.'
       },
       {
         heading: 'Artificial intelligence',
@@ -3489,7 +3567,7 @@ export const enGB: Dictionary = {
           'Before answering, the same model reads your question to decide whether it is about nutrition, whether it is one for a health professional, or whether it has nothing to do with what it does. Some health questions — about conditions, doses, medication, pregnancy or breastfeeding, eating disorders or feeding a child — our own code catches first, and those reach no model at all. A question our code or the model judges to be about health is not kept: all that stays in the conversation is a mark that there was one.',
           'Our code checks every sentence of the answer before showing it to you, and stops the answer there if it was about to name something you cannot have according to the allergies and intolerances on your profile, to give you a figure for calories, protein, carbohydrate, fat, fibre or sugar that does not come from your plan, to give you an amount of a supplement that is not ours to give, or to say it has changed your plan. We do that check ourselves: the model is not told your allergies. So if you have an allergy, add it to your profile: if you only write it in the conversation, none of our checks takes it into account.',
           'Where it goes: to Anthropic, which processes it on our behalf. Our contract is with Anthropic Ireland, Limited, in Ireland. The model is Claude Haiku 5.5. Anthropic stores what it receives in the United States and may work out the answer on servers in other countries. Its terms forbid it to train its models on it and, according to its own pages, it deletes the question and the answer from its systems within 30 days at most; if its automated systems flag a conversation as breaking its usage rules, it may keep it for up to 2 years, and the score from that review for up to 7. Deleting a conversation here does not delete that copy.',
-          'Your conversations are kept in your account, each with a title made from the first words of your first question. Nobody else reads them on NutrIA: they do not appear in our admin console, your dietitian does not see them if you have one, and they go into no record. You can delete a message or a whole conversation whenever you like, and it is deleted at once. Otherwise a conversation deletes itself six months after its last message, and all of them are deleted when you delete your account.',
+          'Your conversations are kept in your account, each with a title made from the first words of your first question. Nobody else reads them on NutrIA: they do not appear in our admin console, your professional, if you have one, does not see them, and they go into no record. You can delete a message or a whole conversation whenever you like, and it is deleted at once. Otherwise a conversation deletes itself six months after its last message, and all of them are deleted when you delete your account.',
           'To apply each fortnight’s message limit we keep, for every message you send, when you sent it and whether it was about something other than nutrition, without its text. That count is not deleted when you delete a message — which is why a deleted message still counts — and it deletes itself after 60 days, or when you delete your account.',
           'We process your questions and their answers to provide the service you ask for (contract). The allergies and intolerances on your profile, which we check the answers against, remain under the consent you gave us for them.',
           'We remind you at the start of every conversation: please do not write about conditions, medication or anything else about your health in the assistant. If you do anyway, it is sent and kept like the rest of the conversation, until you delete it or it deletes itself. To ask about a supplement you do not need to say whether you take it or why.'
@@ -3498,6 +3576,7 @@ export const enGB: Dictionary = {
       {
         heading: 'Who we share your data with',
         list: [
+          'The professional you link with, if you accept their invitation: what the list you accepted says, as explained under "Your professional on NutrIA". No other professional receives anything of yours.',
           'OpenRouter, and DeepInfra or CoreWeave, which run the artificial-intelligence model, as explained in "Artificial intelligence". They are in the United States.',
           'Anthropic, which runs the assistant’s model, if you use it, as explained in "The assistant". Our contract is with Anthropic Ireland, Limited, in Ireland; it stores the data in the United States.',
           'Vercel (hosting for the website, the API and the pictures of the dishes, in the European Union) and Neon (database, in the European Union). Both are US companies.',
@@ -3519,6 +3598,7 @@ export const enGB: Dictionary = {
         paragraphs: [
           /* Source: see the Spanish paragraph; arts. 13.2.a, 5.1.e and 17 GDPR. */
           'While your account exists. When you delete it, everything in it is deleted at once: profile, allergies, health, plans, shopping lists, what you told us you already had at home, progress, conversations with the assistant and consents.',
+          'If you open a practice, your profile, our review of it and what we keep about the badge last as long as your account and are deleted with it.',
           'Your conversations with the assistant delete themselves six months after their last message, unless you delete them first, and the count of the messages you send it after 60 days. Anthropic deletes what it received from the assistant within 30 days at most, or up to 2 years later if its systems flag it as breaking its usage rules (more under "The assistant").',
           'What you tell us you already have at home lives until the plan that uses it is generated, which deletes it. If you never generate one — or if a failure prevented that deletion — it stays there until the next plan you generate spends it, until you delete it, or until you delete your account. The plan itself records which foods and amounts it was asked with, and that is deleted with the plan.',
           'If somebody creates an account with an address and nobody confirms it, we delete it thirty days after the sign-up: the name, the email address and the password it was created with are gone. We only delete it if there is nothing else in it: no session, no profile, no plan and no activity recorded in our records. What is left is a single note saying that an unconfirmed account was deleted that day, with no email address, no name and nothing that leads to anybody. Once you confirm your address, your account stays for as long as you want it.',
@@ -3568,7 +3648,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Privacy policy',
-    updated: 'Last updated: 17 November 2026'
+    updated: 'Last updated: {date}'
   },
 
   profile: {
@@ -3977,19 +4057,25 @@ export const enGB: Dictionary = {
         ]
       },
       {
-        id: 'dietista',
-        heading: 'If you work with a dietitian',
+        id: 'profesional',
+        formerIds: ['dietista'],
+        heading: 'If you work with a professional',
         paragraphs: [
-          'A dietitian-nutritionist can invite you to follow your plan with them on NutrIA. If you accept, they can see and adjust your plan as the invitation and the privacy policy explain, and while the link lasts you get Premium’s limits at no cost.',
-          'Your dietitian is an independent professional: their advice and their relationship with you are between the two of you. NutrIA is the tool and is not responsible for their clinical decisions, just as your dietitian is not responsible for how NutrIA works.',
-          'You can end the link whenever you like. When it ends, you keep your account, your history and your last published plan, on the free limits.'
-        ]
+          'Any adult can open a practice on NutrIA. If a professional invites you and you accept, they can make your plan and see what the invitation and the privacy policy explain, which depends on whether they hold our "Registered dietitian-nutritionist" badge.',
+          "The badge only says that, on the date it shows, we checked on their college's public register that they are listed as a registered dietitian-nutritionist entitled to practise, and that the account is theirs. A professional without it is not a health professional verified by NutrIA: whatever they say about their studies is their own statement and we have not checked it. Neither the badge nor our review of a profile means that we recommend anybody or that we have checked their work.",
+          "Your professional is independent: their advice, their price and whatever you agree, payment included, are between the two of you and happen outside NutrIA. NutrIA charges you nothing for them and never receives your money. Being linked to a professional does not give you Premium: you keep your account's limits.",
+          'A plan your professional makes on NutrIA goes through the same checks as any other: your allergies and intolerances and the calorie and protein bounds. NutrIA does not review their advice.',
+          'If you have a health condition or a medication on record, you can only link with a professional who holds the badge, and a link with one who does not ends if you record one or if yours loses it. The privacy policy explains how.',
+          'You can end the link whenever you like. When it ends, you keep your account, your history and your last published plan.',
+          'If somebody presents themselves on NutrIA as something they are not, or misuses your data, write to us at {email} telling us who and what: we look into it, tell you what we did and, if we remove anything, explain it to that person.'
+        ],
+        untilOpen: 'This section applies from {date}. Until that day, nobody can open a practice on NutrIA.'
       },
       {
         heading: 'Liability',
         paragraphs: [
           'We answer for damage we cause deliberately or through gross negligence, and for everything the law does not allow us to exclude. We do not answer for health decisions you take from a plan or from an answer of the assistant without speaking to a professional, nor for the products you buy. None of this limits the rights you have as a consumer.',
-          'If you use NutrIA with a dietitian, their advice is their responsibility as a professional; what NutrIA does — how it calculates, what it checks and what it shows you — is ours.'
+          'If you use NutrIA with a professional, their advice is their responsibility; what NutrIA does — how it calculates, what it checks, what it shows you and the badge — is ours.'
         ]
       },
       {
@@ -4006,7 +4092,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Terms of use',
-    updated: 'Last updated: 17 November 2026'
+    updated: 'Last updated: {date}'
   },
 
   theme: {

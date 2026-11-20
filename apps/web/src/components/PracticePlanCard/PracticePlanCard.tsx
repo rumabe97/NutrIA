@@ -163,7 +163,7 @@ export function PracticePlanCard({ justPaid, practice, trialDaysLeft }: Practice
         <Text size="xs" tone="tertiary">
           {t.planTerms.split(/(\{terms\})/).map(part =>
             part === TERMS_PLACEHOLDER ? (
-              <Link href={withLocale('/condiciones#dietista', locale)} inline={true} key={part}>
+              <Link href={withLocale('/condiciones#profesional', locale)} inline={true} key={part}>
                 {t.planTermsLink}
               </Link>
             ) : (

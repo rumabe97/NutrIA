@@ -377,6 +377,14 @@ found by agents passing through on their way to something else. Phase 5b, which 
   — approved 2026-11-11. A redesign of every screen in the direction the owner chose from three
   proposals, in five themes switchable from any header, with nothing a person could do removed
   and no change to the server. Phases in its `PLAN.md`.
+- [`025-anyone-can-open-a-practice`](./projects/025-anyone-can-open-a-practice/PRD.md)
+  — approved 2026-11-18, the first of six projects that turn the professionals' area into an
+  open marketplace (`0110`, `0111`; the map is `docs/reference/architecture/0013`). Any adult
+  opens a practice, free, with ten clients; a badge NutrIA checked is what opens health data;
+  a practitioner without it sees the plans they made and nothing else. Phases 1–9 merged and
+  dark; phase 10 publishes the legal pages, tells every account, and the owner throws the
+  `professional` switch on 2026-11-27. The other five projects (profiles and search, the
+  chat, requests, ratings, the directory) are not planned yet.
 
 ## Next, in this order
 

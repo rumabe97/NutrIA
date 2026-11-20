@@ -11,6 +11,7 @@ export {
   InputParseError,
   MealInFutureError,
   NotFoundError,
+  NoticeDailyCapError,
   OnboardingIncompleteError,
   PasswordChangeRequiredError,
   PictureRetryRefusedError,

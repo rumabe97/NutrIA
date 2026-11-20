@@ -54,6 +54,11 @@ describe('the assistant module’s wall', () => {
     'ProfessionalSuspen',
     'ProfessionalClosing',
     'ProfessionalCloseWithdrawn',
+    // Phase 10: the owner's notice to every account — who was told, when, in which language — and its mail.
+    'core/controllers/Notice',
+    '#repositories/Notice',
+    'accountNotices',
+    'TermsChangeNotice',
     'core/controllers/Pantry',
     'core/entities/Pantry',
     '#repositories/Pantry',

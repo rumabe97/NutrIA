@@ -601,3 +601,102 @@
   owner approves them, the terms' version, then the switch — the owner's act on `/admin` —
   and his iPhone: open a practice, accept an invitation (phase 8's deferred gate).
 
+## Phase 10 — The texts, the notice, then the switch (2026-11-20, built; the owner's steps pending)
+
+- **Executor**: the `frontend` agent (opus) for the pages and the console page; a `backend`
+  agent (opus) for the terms' version and the notice's send; `legal` (opus) reviewing the
+  wired pages and ruling on the days before the switch; `migration-reviewer` (opus) on 0075;
+  `invariant-reviewer` (opus) on the send; the end-to-end side by the `tests` agent (opus).
+- **Result**: **in progress.** Steps 1–3 are done and merged dark. Steps 4–5 are the owner's:
+  the notice, then the switch on the day he chose. This entry is completed when he has done
+  them.
+- **What is published by this change** (step 1): `/privacidad` and `/condiciones`, both
+  languages, with `docs/legal/2026-11-18-anyone-can-open-a-practice.md` §§ 4–5 — the section
+  «Tu profesional en NutrIA» (`#tu-profesional`; the old `#tu-dietista` still lands on it) and
+  «Si trabajas con un profesional» (`#profesional`; `#dietista` still lands on it).
+  `TERMS_VERSION` 2.4.0: it is recorded when an account is created and counted on the
+  console's consent page; nothing compares it, so nobody is asked or locked out.
+  «Última actualización» reads 20 November 2026.
+- **A P0 caught before publishing**: two es-ES paragraphs of the policy carried the legal
+  table's *instructions* instead of the text — the table's cells were instructions, and a
+  check by substring passed them. `legal` rewrote the rows as sentences; the frontend's check
+  now compares 66 whole paragraphs in place, and the four pages were read top to bottom as
+  rendered.
+- **The days before the switch** (`legal`'s ruling): publishing early is what RGPD 13.3 asks,
+  but three present-tense sentences would be untrue until the switch, so each section opens
+  with one dated line until that day — approved by the owner on 2026-11-20 with the reworded
+  P-6 sentence. The line is decided at build time: the web is redeployed on the day.
+- **The hits of step 2** — `grep -nE 'dietista|nutricionista|colegiad|secreto
+  profesional|paciente'` over `es-ES.ts` (51 hits) and the English grep over `en-GB.ts` (44):
+  **every hit is kept**, none replaced beyond §§ 4–5, each as § 7 disposes it (`legal`
+  confirmed):
+  - *approved texts of this project*: the badge's mails, letter and script
+    (`adminBadge.letter`, `adminBadge.script`, `adminStatements.badge.*`,
+    `practice.badgeReasons.not_on_register`, `practice.badgeState.*`); the client's consents
+    (`care.illness*`, `care.invitationBadge`, `care.invitationPrivacy*`, `care.reconsentBody`,
+    `health.consentNote`, `health.illnessLinkWarning`); the agreement 2.0.0 and the badge
+    screens (`practice.badgeApply*`, `badgeMeaning`, `badgeNumber`, `practiceAgreement.sections`
+    — its own list of forbidden words, «paciente» among them); the page title of
+    `/consulta/insignia`; the new §§ 4–5 texts themselves;
+  - *the badge's own form words*, shown only on its screens: `practice.badgeTitle`,
+    `practice.fieldError.number`;
+  - *sentences about the profession in general, true as they stand*:
+    `assistant.declines.clinical`, `assistant.declines.supplement_amount`,
+    `assistant.notices.supplement`, `assistant.warning`, `footer.disclaimer`, the landing's
+    FAQ, `privacy.intro` and the assistant's first paragraph, `profile.supervision`,
+    `terms.intro` and the AI-content section;
+  - *technical*: the two former anchors.
+  The same greps over `apps/api/src/modules/email/templates/**` hit only the badge's approved
+  mails (`ProfessionalBadgeCode`, `ProfessionalBadgeLapsed`, `ProfessionalBadgeRemoved`) and
+  code comments. No public page, title, description, structured data or sitemap entry says
+  what the product no longer does; the landing's hero was not touched.
+- **The notice** (the owner chose a send from the console over a mail in blind copy):
+  `/admin/ajustes/aviso`, in the console's settings beside the switches. One flow: what it is
+  and the mail's own words in both languages; the day; «Ver a quién» (counts and the paged
+  list, nothing sent); «Enviar a los siguientes 25» behind an explicit second step. Confirmed
+  addresses only, activated or not; each account re-read just before its mail; a row written
+  right after the server accepts it — so the rare failure is a second identical mail, never a
+  notice recorded and not sent; one press at a time; at most 200 mails a day; a press stops
+  starting mails after 150 s. `sent` means accepted by the mail server: a later bounce reaches
+  the owner's inbox, not the product.
+- **Evidence**:
+  - Core 5258 passed; api 2077; web and ui green; `pnpm ts:check` 9/9; `check-migrations
+    --drift` agrees (76); `check-static-pages`: the ten public pages prerendered, with and
+    without the dated line; `pnpm check:leaks` passes.
+  - End-to-end on local Postgres, one at a time: `terms-notice` (new) 17, `terms-record` 4,
+    `admin` 86, `audit` 14, `access` 13, `care-walk` 11 (admin is not walked) — all passed, and
+    `admin`, `care-walk` and `terms-notice` in one process three times, as CI runs them. The
+    suite mails 55 confirmed accounts once each in their language, never the two unconfirmed;
+    a refused address is reported and comes back on a later round; the cap answers 409; two
+    presses at once never mail an account twice (15 rounds). It stops before making anything
+    if a confirmed account it did not make exists, and its mailer refuses any address not its
+    own.
+  - `migration-reviewer`: 0075 safe with conditions (nothing else merges a migration first;
+    CI's migration job; the lock on writes to `user` lasts milliseconds).
+  - `invariant-reviewer`: no P0 or P1 — only the owner reaches either route; no address but a
+    confirmed account's own is mailed; a typo cannot start a second campaign; nothing personal
+    in logs, events, the audit row or an error body. Its two P2 are met: the pages and the
+    send ship in one deploy, and the daily cap exists.
+  - The four legal pages at 320, 390 and 1280 px, light and dark, es and en, with the dated
+    line on: nothing overflowing; both the new and the old anchors land on the section. The
+    notice page: every state through the screen at the three widths, both themes, both
+    languages and 200 % text; design review PASS.
+- **Not seen**: a notice accepted by a real mail server (the local API sends none; the suite's
+  outbox stands for it); the mail as it arrives in a mailbox.
+- **Deviations from plan**: the plan's step 6 lists them. Step 4 (counting the links accepted
+  at consent 2.0.0 and ending the owner's test links): the owner said on 2026-11-18 that no
+  practitioner and no link exists in production; a read-only count from here was refused by
+  the permission classifier in this session, so it rests on his word.
+- **The owner's steps, in order** (`docs/legal/go-live-checklist.md` § 1 bis):
+  1. After this change is deployed: open `/admin/ajustes/aviso`, the day is 27 November, «Ver
+     a quién», then send until nothing remains — **on or before Thursday 26 November**. This
+     entry then records the date and the counts (sent, skipped as unconfirmed).
+  2. **Friday 27 November**: redeploy the web (the dated line goes), throw the `professional`
+     switch in `/admin`, and on his iPhone open a practice and accept an invitation — phase
+     8's gate and this phase's.
+  3. If the day slips: `PRACTICES_OPEN_ON` moves the same day; the notice is not sent again.
+     It never comes forward.
+- **Decisions**: `docs/decisions/LOG.md`, 2026-11-20 (the notice from the console; the day).
+- **Still open for the project**: the two trail sentences for a narrowing (legal F10) are not
+  approved and not built; the lawyer's hour (M1–M18).
+

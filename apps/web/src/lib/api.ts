@@ -22,6 +22,7 @@ export type ApiErrorCode =
   | 'MEAL_IN_FUTURE'
   | 'NETWORK'
   | 'NOT_FOUND'
+  | 'NOTICE_DAILY_CAP'
   | 'ONBOARDING_INCOMPLETE'
   | 'PASSWORD_CHANGE_REQUIRED'
   | 'PICTURE_ALLERGENS_MISMATCH'
@@ -56,7 +57,9 @@ export class ApiError extends Error {
     /** `professionalName` is null when the practitioner's account name may not be shown (PRD 025). */
     public readonly link: { professionalName: string | null; since: string; status: 'active' | 'paused' } | null = null,
     /** The number `PRACTICE_FULL` names — how many clients the practice's plan includes. Null for every other code. */
-    public readonly practice: { includedClients: number } | null = null
+    public readonly practice: { includedClients: number } | null = null,
+    /** The day's cap `NOTICE_DAILY_CAP` names — how many notices a Madrid day allows, and when the next day starts. Null for every other code. */
+    public readonly noticeCap: { cap: number; resetsAt: string } | null = null
   ) {
     super(message);
     this.name = 'ApiError';
@@ -86,6 +89,7 @@ const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
   MEAL_IN_FUTURE: 'mealInFuture',
   NETWORK: 'network',
   NOT_FOUND: 'notFound',
+  NOTICE_DAILY_CAP: 'noticeDailyCap',
   ONBOARDING_INCOMPLETE: 'onboardingIncomplete',
   PASSWORD_CHANGE_REQUIRED: 'passwordChangeRequired',
   PICTURE_ALLERGENS_MISMATCH: 'pictureAllergensMismatch',
@@ -161,11 +165,12 @@ export async function api<T>(path: string, { body, headers, ...options }: Option
   const payload: unknown = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const { code, fieldErrors, link, message, practice, retryAt } = payload as {
+    const { code, fieldErrors, link, message, noticeCap, practice, retryAt } = payload as {
       code?: ApiErrorCode;
       fieldErrors?: Record<string, string[]>;
       link?: { professionalName: string | null; since: string; status: 'active' | 'paused' };
       message?: string;
+      noticeCap?: { cap: number; resetsAt: string };
       practice?: { includedClients: number };
       retryAt?: string;
     };
@@ -185,7 +190,8 @@ export async function api<T>(path: string, { body, headers, ...options }: Option
       fieldErrors ?? {},
       retryAt ?? null,
       link ?? null,
-      practice ?? null
+      practice ?? null,
+      noticeCap ?? null
     );
   }
 

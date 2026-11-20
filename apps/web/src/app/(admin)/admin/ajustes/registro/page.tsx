@@ -14,7 +14,7 @@ import { HowCounted } from 'components/HowCounted';
 
 import { AUDIT_ACTIONS, auditQuerySchema } from 'core/entities/Audit';
 
-import { formatInstant, interpolate } from 'lib/format';
+import { formatDate, formatInstant, formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../../consoleMetadata';
@@ -92,6 +92,8 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
 
   const at = (iso: string) =>
     formatInstant(Date.parse(iso), locale, { day: 'numeric', hour: '2-digit', minute: '2-digit', month: 'short', timeZone: 'Europe/Madrid' });
+
+  const number = (value: number) => formatNumber(value, locale);
 
   function detail(row: AuditLogView): ReactNode {
     const data = row.detail;
@@ -176,6 +178,26 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
 
         return data.afterNotice === true ? interpolate(t.profileHiddenAfterNotice, { reasons: words }) : words;
       }
+    }
+
+    // The change notice's press (project 025 phase 10): its counts and the day it announced — never an address.
+    if (
+      row.action === 'notice.sent' &&
+      isKey(data.notice, t.noticeNames) &&
+      typeof data.date === 'string' &&
+      typeof data.sent === 'number' &&
+      typeof data.failed === 'number' &&
+      typeof data.remaining === 'number' &&
+      typeof data.skippedUnconfirmed === 'number'
+    ) {
+      return interpolate(t.noticeSent, {
+        date: formatDate(data.date, locale, { day: 'numeric', month: 'long', year: 'numeric' }),
+        failed: number(data.failed),
+        notice: t.noticeNames[data.notice],
+        remaining: number(data.remaining),
+        sent: number(data.sent),
+        skipped: number(data.skippedUnconfirmed)
+      });
     }
 
     // With no actor, the actor column already says how (`actor` below); say it once.

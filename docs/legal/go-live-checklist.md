@@ -378,13 +378,26 @@ DPIA addendum ([`dpia.md`](./dpia.md) § 9).
       self-service. An end-to-end test that a suspended account's `POST /care/practice` is a 404.
 
 **The order of switching on**
-1. [ ] The texts of §§ 4 and 5 of the project document are published (phase 10), with the
-       version constants above.
-2. [ ] The mail of [`textos/06`](./textos/06-correos.md) § Z has gone to every account, and the
-       LOG records the date. The agreement 2.0.0 has been notified 15 days ahead to any
-       professional who already exists (today, only the owner's account).
-3. [ ] No earlier than the day after: the owner switches `professional` on in `/admin`, and
-       `docs/decisions/LOG.md` gains the dated line.
+Dates chosen by the owner on 2026-11-20 (project note § 12.6): **publish 2026-11-20 → the notice
+by 26 November → the switch on Friday 27 November 2026.**
+
+1. [ ] **Publish (2026-11-20).** The texts of §§ 4 and 5 of the project document are live, with
+       the version constants above, `LEGAL_TEXTS_UPDATED` = `2026-11-20` (moved if the deploy
+       slips), and the two Spanish P-2 sentences as § 12.4 corrects them.
+   - [ ] The dated line (P-0, T-0) is live, with `PRACTICES_OPEN_ON` = `2026-11-27`, equal to
+         § Z's `{date}`. The switch is thrown **no earlier** than that day; if it slips, the
+         constant moves the same day.
+2. [ ] **The notice, on or before 26 November.** The mail of
+       [`textos/06`](./textos/06-correos.md) § Z (`{date}` = 27 November 2026) has gone from the
+       console to every account with a confirmed address. The skipped and failed counts are in the
+       audit row, and the LOG records the date. No practitioner exists in production (the owner,
+       2026-11-20), so no 15-day notice of the agreement 2.0.0 is owed.
+3. [ ] **On Friday 27 November 2026, in this order:**
+   - [ ] the owner **redeploys the web**: the pages are static, and the dated line goes only with
+         a build on or after its day;
+   - [ ] the owner **switches `professional` on** in `/admin`, and `docs/decisions/LOG.md` gains
+         the dated line;
+   - [ ] **the owner's test on his iPhone**, recorded in the project's LOG.
 
 **For the lawyer**: M14–M17 of the project document, after M1–M13.
 

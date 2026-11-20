@@ -78,7 +78,9 @@ describe('user-scoped tables', () => {
       .filter(
         table =>
           !table.indexes.some(index => index.config.columns.some(column => 'name' in column && isUserId(String(column.name)))) &&
-          !table.uniqueConstraints.some(constraint => constraint.columns.some(column => isUserId(column.name)))
+          !table.uniqueConstraints.some(constraint => constraint.columns.some(column => isUserId(column.name))) &&
+          // A composite primary key that leads with `user_id` is that index (`account_notices`).
+          !table.primaryKeys.some(key => key.columns[0] !== undefined && isUserId(key.columns[0].name))
       )
       .map(table => table.name);
 
@@ -96,6 +98,22 @@ describe('user-scoped tables', () => {
       );
 
     expect(notCascading).toEqual([]);
+  });
+});
+
+describe('a notice sent to an account (project 025 phase 10)', () => {
+  it('holds one row per account per notice — what makes a second press mail nobody twice', () => {
+    const table = config('account_notices');
+
+    expect(table.primaryKeys.map(key => key.columns.map(column => column.name))).toEqual([['userId', 'notice']]);
+  });
+
+  it('holds no address and no free text: the account, the notice’s name, the day it announces, when and in which language', () => {
+    expect(
+      config('account_notices')
+        .columns.map(column => column.name)
+        .sort()
+    ).toEqual(['effectiveOn', 'locale', 'notice', 'sentAt', 'userId']);
   });
 });
 

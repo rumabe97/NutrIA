@@ -35,7 +35,8 @@
 > el 2026-11-18 (PRD 025, scope 13, por opción marcada), y esa decisión, posterior, prevalece
 > sobre la del 2026-10-20 para este cambio. Es el correo de [`06`](./06-correos.md) § Z, y va
 > antes del interruptor. Las secciones F y G de abajo describen el texto de 004 y quedan como
-> constancia.
+> constancia. **Cableado en la fase 10 (2026-11-20)**: lo servido es T-0 a T-2 de ese documento; T-0
+> es la línea fechada que se muestra hasta el día del interruptor.
 
 ---
 

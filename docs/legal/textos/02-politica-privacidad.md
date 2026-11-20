@@ -208,7 +208,7 @@
 >   [`../2026-11-18-anyone-can-open-a-practice.md`](../2026-11-18-anyone-can-open-a-practice.md)
 >   § 4**, que es su fuente hasta que se pasen a este fichero; las secciones de abajo todavía no los
 >   llevan. Se publica en la fase 10, antes del interruptor `professional`, con `privacy.updated` y
->   el correo de [`06`](./06-correos.md) § Z: es un cambio «importante».
+>   el correo de [`06`](./06-correos.md) § Z: es un cambio «importante». **Cableado en la fase 10 (2026-11-20)**: lo servido es P-1 a P-8 de ese documento, con la línea fechada P-0 hasta el día del interruptor; dos celdas en español se copiaron con las instrucciones de la tabla y se corrigen antes de publicar (§ 12.4).
 >
 > **D5 (2026-09-29)**: cuando la fase 7 del proyecto 008 guarde la versión de las
 > condiciones, la línea «Cuenta» de «Qué datos recogemos» la nombra

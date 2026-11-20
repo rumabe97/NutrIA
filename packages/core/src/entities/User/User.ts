@@ -15,7 +15,9 @@ import { z } from 'zod';
  * `docs/legal/assistant-privacy.md` § 2); `2.3.0` is the text of 17 November 2026,
  * which says the assistant answers about food supplements in general and names
  * exactly which figures and amounts stop an answer (`0108`,
- * `docs/legal/assistant-supplements.md` § 6.2). No account is
+ * `docs/legal/assistant-supplements.md` § 6.2); `2.4.0` is the text of project
+ * 025, under which anyone adult may open a practice and the badge is the
+ * owner's dated check (`0110`, `0111`; PLAN 025 phase 10 step 1). No account is
  * backfilled: the eight created under `2.0.0` saw `2.0.0`, and with no email
  * sent this column is the only trace of which text each account was shown.
  *
@@ -27,7 +29,7 @@ import { z } from 'zod';
  * Only `/condiciones` is recorded: the privacy policy is informed, never
  * accepted, and has no version here.
  */
-export const TERMS_VERSION = '2.3.0';
+export const TERMS_VERSION = '2.4.0';
 
 /**
  * The authenticated account. Better Auth owns this row, so the shape mirrors

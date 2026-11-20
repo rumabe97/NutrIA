@@ -408,3 +408,19 @@ export class AssistantUnavailableError extends Error {
     this.name = 'AssistantUnavailableError';
   }
 }
+
+/**
+ * The notice send would pass its daily cap (`NOTICE_DAILY_CAP`, project 025
+ * phase 10): the mailbox the notice shares with every other mail has given the
+ * notice all it may today. 409 with its own code, the cap and the instant it
+ * resets — Madrid's next midnight — so the console can say when to press again.
+ */
+export class NoticeDailyCapError extends Error {
+  constructor(
+    public readonly cap: number,
+    public readonly resetsAt: Date
+  ) {
+    super('The notice has reached its daily cap');
+    this.name = 'NoticeDailyCapError';
+  }
+}

@@ -116,6 +116,16 @@ export function madridMidnight(day: string): Date {
 }
 
 /**
+ * A Madrid calendar day written out in full in a language — «1 de diciembre de
+ * 2026», «1 December 2026» — as a mail says it. One function for the mail and
+ * for the console that shows the owner what the mail will say, so the two cannot
+ * read differently (project 025 phase 10).
+ */
+export function madridLongDay(day: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeZone: 'Europe/Madrid' }).format(madridMidnight(day));
+}
+
+/**
  * The window a period covers at `now`, and the one before it.
  *
  * The current period is today and the `period − 1` days before it, from the

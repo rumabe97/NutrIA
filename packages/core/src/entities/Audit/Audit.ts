@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from 'core/entities/AdminQuery';
+import type { AccountNotice } from 'core/entities/Notice';
 import type { PictureAcceptedBy } from 'core/entities/DishPicture';
 import type { BadgeChannel, BadgeRemovalReason, BadgeRemovalSource, ProfileHideReason, RestrictionSource } from 'core/entities/Professional';
 import type { TwoFactorRemovalCancelledBy } from 'core/entities/TwoFactor';
@@ -16,7 +17,8 @@ import type { TwoFactorRemovalCancelledBy } from 'core/entities/TwoFactor';
  * follow-up); and the owner's acts on a practitioner (project 025 phase 6, ADR
  * `0071`): suspend, close and lift, the close carried out by the daily sweep, a
  * profile's first look (seen, hidden), and the badge's code, confirmation and
- * removal. `professional.granted` and `.revoked` are no longer written — the
+ * removal; and each press of the owner's notice send (project 025 phase 10,
+ * `notice.sent`). `professional.granted` and `.revoked` are no longer written — the
  * 004 grant is retired — and stay so the rows written before still render.
  * Nothing else writes here, and nothing here is a free-form string a caller
  * invents — a new admin mutation is a new name added to this list, reviewed,
@@ -38,6 +40,7 @@ export const AUDIT_ACTIONS = [
   'professional.badge_removed',
   'feedback.handled',
   'feedback.reopened',
+  'notice.sent',
   'setting.allowance_changed',
   'setting.changed',
   'push.test_sent',
@@ -173,6 +176,18 @@ export interface AuditMetadataByAction {
   'auth.unconfirmed_account_swept': Record<string, never>;
   'feedback.handled': Record<string, never>;
   'feedback.reopened': Record<string, never>;
+  /**
+   * One press of the owner's notice send (project 025 phase 10, `textos/06` § Z): which notice, the day it announces,
+   * and the press's four counts. Never an address, never an account: who was told is `account_notices`' to say.
+   */
+  'notice.sent': {
+    readonly date: string;
+    readonly failed: number;
+    readonly notice: AccountNotice;
+    readonly remaining: number;
+    readonly sent: number;
+    readonly skippedUnconfirmed: number;
+  };
   /** The owner published a picture the judge rejected (`0072`): the allergen keys the judge flagged and the owner overrode — catalogue keys, never a path, never a model's words. */
   'picture.accepted': { readonly allergens: readonly string[] };
   'picture.discarded': Record<string, never>;

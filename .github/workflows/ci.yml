@@ -117,11 +117,15 @@ jobs:
   e2e:
     name: end-to-end
     runs-on: ubuntu-latest
-    # Six and a half minutes on a developer's machine, a bit over twenty on a
-    # shared runner. The ceiling is set well above the second figure because a
-    # suite cut off mid-run reports as "cancelled", which reads like somebody
-    # pressed a button rather than like a limit that needs raising.
-    timeout-minutes: 45
+    # Six and a half minutes on a developer's machine once, a bit over twenty on
+    # a shared runner; by project 025 (2026-11-20) the runner took 37 to 43
+    # minutes, and the run that added the notice's suite was cut at 45. The
+    # ceiling is set well above the measured figure because a suite cut off
+    # mid-run reports as "cancelled", which reads like somebody pressed a button
+    # rather than like a limit that needs raising. Raised to 75 by the owner's
+    # decision that day; splitting the suites across two jobs is the next step
+    # if it creeps again.
+    timeout-minutes: 75
 
     # Pull requests only. Once `main` can be reached only through a green pull
     # request (runbook §9), a push run would re-run the suites that had just

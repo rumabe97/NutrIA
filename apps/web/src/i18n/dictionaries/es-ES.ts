@@ -285,6 +285,7 @@ export const esES = {
       'auth.unconfirmed_account_swept': 'Cuenta sin confirmar eliminada',
       'feedback.handled': 'Mensaje marcado como visto',
       'feedback.reopened': 'Mensaje reabierto',
+      'notice.sent': 'Aviso enviado a las cuentas',
       'picture.accepted': 'Imagen rechazada de un plato aceptada a mano, contra el revisor',
       'picture.discarded': 'Imagen rechazada de un plato descartada a mano',
       'picture.removed': 'Imagen publicada de un plato, retirada',
@@ -333,6 +334,8 @@ export const esES = {
     ],
     intro: 'Quién hizo cada cambio de cuenta o de ajuste, y cuándo.',
     noMatch: 'Ninguna acción coincide con el filtro.',
+    noticeNames: { 'terms-2.4.0': 'Cambio de condiciones 2.4.0' },
+    noticeSent: '{notice}, anunciando el {date}: {sent} enviados, {failed} fallidos, {skipped} sin confirmar, {remaining} pendientes',
     /** `auth.password_changed`: how the person changed it. */
     passwordVia: { change: 'Desde su perfil', reset: 'Con el enlace de recuperación' },
     /** `professional.profile_hidden`: the closed reasons, and whether a notice set it off. Never the word or the facts. */
@@ -833,6 +836,7 @@ export const esES = {
       inbox: 'Buzón',
       ingredients: 'Ingredientes',
       log: 'Registro',
+      notice: 'Aviso del cambio',
       notifications: 'Notificaciones',
       pictures: 'Imágenes',
       planQuality: 'Calidad de los planes',
@@ -847,6 +851,68 @@ export const esES = {
       system: 'Sistema'
     },
     title: 'Consola'
+  },
+
+  /* `/admin/ajustes/aviso` (project 025 phase 10): the change notice to every account, sent from the console. `mail` is `textos/06` § Z, copied. */
+  adminNotice: {
+    alreadySent: 'Ya enviados',
+    cancel: 'Cancelar',
+    caption: 'Cuentas a las que se enviará',
+    columns: { email: 'Correo', locale: 'Idioma' },
+    confirm: 'Sí, enviar ahora',
+    confirmBody:
+      'Se enviará ahora el aviso del {date} a {count} cuentas, una detrás de otra. Un correo enviado no se puede anular, y a cada cuenta solo le llega una vez.',
+    confirmTitle: 'Antes de enviar',
+    counts: 'Recuentos',
+    dateErrors: {
+      campaign_date: 'Este aviso ya se envió anunciando el {date}. Usa ese día: no se puede anunciar otro.',
+      not_after_today: 'Tiene que ser a partir de mañana: el aviso llega antes del cambio, nunca el mismo día.',
+      required: 'Elige el día.',
+      too_far: 'Como mucho dentro de 60 días.'
+    },
+    dateHint: 'El día en que encenderás «Consultas de profesionales» en Interruptores. Entre mañana y dentro de 60 días.',
+    dateLabel: 'Día del cambio',
+    dateLocked: 'Este aviso ya empezó a enviarse anunciando el {date}: es el mismo día para todas las cuentas y no se puede cambiar.',
+    dateUnset: '[el día que elijas]',
+    done: 'No queda nadie: el aviso del {date} ha salido a todas las cuentas con la dirección confirmada.',
+    failed: '{count} no salieron: {list}. Siguen pendientes y se volverá a intentar con ellas en otra pulsación.',
+    finished: 'Este aviso ya llegó a todas las cuentas con la dirección confirmada. Anunciaba el {date}.',
+    intro:
+      'Un correo a cada cuenta con la dirección confirmada, una sola vez y en el idioma de cada cuenta, que avisa del cambio de la política de privacidad y de las condiciones. Un correo enviado no se puede anular.',
+    languages: { 'en-GB': 'Inglés', 'es-ES': 'Español' },
+    loadError: 'No se pudo leer en qué punto está el aviso.',
+    loading: 'Mirando si el aviso ya ha empezado a enviarse…',
+    mail: {
+      choose:
+        'Los detalles están en {privacyUrl}, en «Tu profesional en NutrIA», y en {termsUrl}. Si tienes cualquier duda, escríbenos a {email}. Si no estás de acuerdo, puedes borrar tu cuenta desde tu perfil.',
+      intro:
+        'A partir del {date}, cualquier persona mayor de edad podrá abrir una consulta en NutrIA y hacer el plan de comidas de quien la invite a ello. Si no trabajas con ningún profesional, para ti no cambia nada.',
+      subject: 'Cambian la política de privacidad y las condiciones de NutrIA',
+      what: 'Solo quien lleve nuestra insignia «Dietista-nutricionista colegiada/o» es alguien a quien hemos comprobado en el registro de su colegio. Un profesional sin ella verá de ti los planes que te haga y en qué punto están, nunca tu peso, tus objetivos, tu salud ni tus alergias, y antes de aceptar su invitación verás exactamente qué verá. Si tienes anotada una condición de salud o una medicación, solo podrás vincularte con un profesional con la insignia. Y estar vinculado a un profesional no da Premium.'
+    },
+    mailNote: 'Así lo recibe cada cuenta, en su idioma. La fecha se escribe al pulsar «Ver a quién».',
+    mailSubject: 'Asunto',
+    nobody: 'No hay ninguna cuenta a la que enviarlo: las confirmadas ya lo tienen, o no hay ninguna confirmada.',
+    past: 'El día que anunciaba, el {date}, ya ha llegado: este aviso no puede enviarse más.',
+    preview: 'Ver a quién',
+    previewFirst: 'Pulsa «Ver a quién» con el día elegido: hasta entonces no se puede enviar.',
+    previewStale: 'Has cambiado el día: vuelve a pulsar «Ver a quién» antes de enviar.',
+    remaining: '{count} pendientes.',
+    reminder:
+      'No enciendas el interruptor antes de ese día. Y las páginas de privacidad y de condiciones tienen que estar publicadas ya con este mismo día en su línea «empieza el…».',
+    resultCap:
+      'Hoy ya han salido {cap} avisos, el máximo de un día, para no gastar el correo que necesitan las demás cuentas. Podrás seguir a partir del {day} a las {time}.',
+    resultConflict: 'Ya se está enviando un lote, quizá desde otra pestaña. Espera a que termine y vuelve a pulsar «Ver a quién».',
+    retry: 'Reintentar',
+    send: 'Enviar a los siguientes {count}',
+    sendLead: 'Cada pulsación envía como mucho 25 correos, uno detrás de otro. Si quedan más, se vuelve a pulsar.',
+    sent: '{count} enviados.',
+    skipped: 'Sin confirmar (no se les envía)',
+    status: 'Resultado del último envío',
+    steps: { date: 'El día del cambio', mail: 'Lo que dice el correo', send: 'Enviar', who: 'A quién va' },
+    stoppedEarly: 'Se detuvo para no pasarse de tiempo: pulsa otra vez.',
+    title: 'Aviso del cambio',
+    toSend: 'Por enviar'
   },
 
   /* `/admin/notificaciones` (`0071`): push subscriptions, reminders per week and channel, and who checked in after one. */
@@ -1599,6 +1665,7 @@ export const esES = {
       'professional-profile-hidden': 'Perfil profesional ocultado',
       'professional-suspended': 'Consulta suspendida',
       'professional-suspension-lifted': 'Suspensión de consulta levantada',
+      'terms-change-notice': 'Aviso del cambio de condiciones',
       'two-factor-disabled': 'Segundo factor desactivado',
       'two-factor-enabled': 'Segundo factor activado',
       'two-factor-removal-cancelled': 'Retirada del segundo factor cancelada',
@@ -2071,6 +2138,7 @@ export const esES = {
     notFoundHome: 'Ir a la página principal',
     /** The tab's title on a 404 — the same for a wrong address and for a console page shown to somebody else (`0028`). */
     notFoundTitle: 'Página no encontrada',
+    noticeDailyCap: 'Hoy ya han salido todos los avisos que caben en un día. Sigue mañana.',
     onboardingIncomplete: 'Nos falta parte de tu perfil. Termínalo y vuelve a intentarlo.',
     passwordChangeRequired: 'Antes de seguir tienes que cambiar tu contraseña.',
     pictureAllergensMismatch:
@@ -2908,6 +2976,7 @@ export const esES = {
     '/acceder/codigo': { title: 'Verificación en dos pasos' },
     '/admin': { title: 'Resumen' },
     '/admin/ajustes': { title: 'Interruptores' },
+    '/admin/ajustes/aviso': { title: 'Aviso del cambio' },
     '/admin/ajustes/registro': { title: 'Registro de acciones' },
     '/admin/ajustes/sistema': { title: 'Sistema' },
     '/admin/buzon': { title: 'Buzón' },
@@ -3585,7 +3654,9 @@ export const esES = {
           'Uso del producto: registramos, ligado a tu cuenta, cuándo abres sesión y cuándo pides cambiar un plato, sin más detalle. Para saber si el producto funciona.',
           'Lo que escribes al asistente, si lo usas: tus preguntas, sus respuestas y el título de cada conversación, que son las primeras palabras de tu primera pregunta. Para que puedas retomar la conversación. Más en «El asistente».',
           'Cuántos mensajes envías al asistente: cuándo envías cada uno y si era sobre otra cosa que la nutrición, sin el texto. Para aplicar el límite de mensajes de cada quincena.',
-          'Lo que nos escribes: los mensajes del buzón de sugerencias, para leerlos y responderte.'
+          'Lo que nos escribes: los mensajes del buzón de sugerencias, para leerlos y responderte.',
+          'Si trabajas con un profesional en NutrIA: lo que se explica en «Tu profesional en NutrIA».',
+          'Si abres una consulta: tu fecha de nacimiento, para comprobar que eres mayor de edad; la versión del acuerdo del profesional que aceptaste y cuándo; tu perfil (el nombre que muestras, tus estudios, tu precio y tu horario) y nuestra revisión de él (cuándo lo miramos y, si lo ocultamos, por qué); y, si pides la insignia, lo que se explica en «Tu profesional en NutrIA». Para que puedas atender a tus clientes en NutrIA y para que nadie se presente con un título que no tiene.'
         ],
         paragraphs: []
       },
@@ -3598,23 +3669,30 @@ export const esES = {
       {
         heading: 'Por qué podemos tratar estos datos',
         paragraphs: [
-          'Para darte el servicio que pides (contrato): tu cuenta, tu perfil, tus planes, tus conversaciones con el asistente, tus pagos y los correos del servicio.',
-          'Con tu consentimiento explícito: tus alergias e intolerancias, tu cuerpo y tu objetivo y tu forma de comer, que nos das con una casilla propia al crear tu perfil. Sin ellos no podemos hacer un plan seguro para ti, por eso sin ese consentimiento no generamos planes; puedes retirarlo cuando quieras borrando esos datos desde tu perfil. Tus enfermedades, tu medicación y tus suplementos, con un consentimiento aparte, opcional. Cada consentimiento se guarda con su fecha y la versión del texto que aceptaste.',
-          'Por nuestro interés legítimo: registrar el uso del producto y los errores técnicos para que funcione, sin datos de salud, y proteger las cuentas: el registro de seguridad, los frenos contra el abuso y los avisos de seguridad que te enviamos. Puedes oponerte escribiéndonos.',
+          'Para darte el servicio que pides (contrato): tu cuenta, tu perfil, tus planes, tus conversaciones con el asistente, tus pagos y los correos del servicio y, si abres una consulta, tu consulta y tu perfil.',
+          'Con tu consentimiento explícito: tus alergias e intolerancias, tu cuerpo y tu objetivo y tu forma de comer, que nos das con una casilla propia al crear tu perfil. Sin ellos no podemos hacer un plan seguro para ti, por eso sin ese consentimiento no generamos planes; puedes retirarlo cuando quieras borrando esos datos desde tu perfil. Tus enfermedades, tu medicación y tus suplementos, con un consentimiento aparte, opcional. Y lo que compartes con tu profesional, con el consentimiento explícito que das al aceptar su invitación, que nombra a esa persona y lo que verá. Cada consentimiento se guarda con su fecha y la versión del texto que aceptaste.',
+          'Por nuestro interés legítimo: registrar el uso del producto y los errores técnicos para que funcione, sin datos de salud, y proteger las cuentas: el registro de seguridad, los frenos contra el abuso y los avisos de seguridad que te enviamos, y comprobar, cuando alguien pide la insignia, que es quien dice ser en el registro de su colegio. Puedes oponerte escribiéndonos.',
           'Por obligación legal: conservar lo que la ley fiscal exige de los pagos (lo hace Stripe).'
         ]
       },
       {
-        id: 'tu-dietista',
-        heading: 'Tu dietista en NutrIA',
+        id: 'tu-profesional',
+        formerIds: ['tu-dietista'],
+        heading: 'Tu profesional en NutrIA',
         paragraphs: [
-          'Un dietista-nutricionista puede invitarte por correo a llevar tu plan en NutrIA con su ayuda. Solo un profesional al que hemos dado acceso tras comprobar su número de colegiado puede hacerlo. Su invitación dura 14 días; tu dirección la usamos solo para enviártela y la borramos con la invitación: en cuanto respondes o, si no respondes, como muy tarde el día después de que caduque.',
-          'Nada se comparte si no aceptas. Si aceptas, tu dietista verá tu nombre, tus objetivos diarios y cómo se calcularon, tus planes, cuánto sigues cada quincena, tu peso a lo largo del tiempo y tus respuestas a los check-ins. Podrá fijar tus objetivos, generar y cambiar tus planes, y revisar cada plan nuevo antes de que lo veas. Tus enfermedades, tu medicación y tus suplementos solo si marcas esa casilla aparte. No verá tus alergias ni intolerancias, tu correo, tus comentarios escritos ni tus conversaciones con el asistente.',
-          'Cada vez que tu dietista mira o cambia algo, queda anotado y lo ves en tu perfil, en «Quién ha accedido».',
-          'Puedes terminar el enlace cuando quieras desde tu perfil, y desde la siguiente petición tu dietista deja de ver tus datos. También puedes dejar de compartir solo tu salud sin terminar el enlace. Tus objetivos, tu historial y tu último plan publicado se quedan contigo.',
-          'Quién responde de qué: NutrIA es responsable de tus datos en NutrIA y te los comunica a tu dietista porque tú lo pides. Tu dietista es responsable, por su cuenta y bajo su secreto profesional, de lo que haga con lo que ve en su consulta, por ejemplo lo que anote en tu historia clínica; para eso, dirígete a tu dietista. Para todo lo que está en NutrIA, escríbenos a {email}: somos tu punto de contacto.',
-          'Si tu dietista borra su cuenta, el enlace termina y su nombre sigue en tu registro de accesos.'
-        ]
+          'Cualquier persona mayor de edad puede abrir una consulta en NutrIA y ofrecer sus servicios. Solo quien lleva la insignia «Dietista-nutricionista colegiada/o» es alguien de quien hemos comprobado, en el registro público de su colegio, que figura como dietista-nutricionista colegiado y habilitado, y que la cuenta es suya; lo comprobamos de nuevo cada año. A los demás no les hemos comprobado nada: no son profesionales sanitarios verificados por NutrIA. Que hayamos revisado el perfil de alguien no significa que lo recomendemos.',
+          'Un profesional puede invitarte por correo a que te haga el plan en NutrIA. Su invitación dura 14 días; tu dirección la usamos solo para enviártela y la borramos con la invitación: en cuanto respondes o, si no respondes, como muy tarde el día después de que caduque.',
+          'Nada se comparte si no aceptas. Lo que verá depende de si tiene la insignia, y antes de aceptar ves la lista exacta.',
+          'Sin la insignia, verá solo tu nombre, los planes que te haga a través del enlace —los que genere, revise o publique—, con sus platos, cantidades y totales de cada día, y en qué punto estáis (desde cuándo estáis vinculados, si has terminado tu perfil, si tienes un plan en marcha o por revisar y si te quedan generaciones en la quincena), y podrá generarlos, cambiarlos, revisarlos antes de que los veas y publicarlos. No verá tu peso, tus objetivos, cuánto sigues el plan, tus check-ins, tus enfermedades, tu medicación, tus suplementos, tus alergias, tus intolerancias, tu correo ni tus planes de antes del enlace. Aun así, de los totales de cada día puede deducir más o menos cuánta energía necesitas y, cuando un plato no se te puede ofrecer, le decimos solo que no encaja contigo, pero de eso puede deducir alguna alergia o intolerancia. No está obligado por ley al secreto profesional: se compromete con nosotros, por contrato, a guardar la confidencialidad.',
+          'Con la insignia, verá además tus objetivos diarios y cómo se calcularon, tus planes anteriores, cuánto sigues cada quincena, tu peso a lo largo del tiempo y tus respuestas a los check-ins, y podrá fijar tus objetivos dentro de los mismos límites de seguridad. Tus enfermedades, tu medicación y tus suplementos solo si marcas esa casilla aparte. Si consigue la insignia cuando ya estáis vinculados, no ve nada nuevo hasta que tú lo aceptes; si la pierde, desde ese momento ve solo lo que ve un profesional sin insignia.',
+          'Si tienes anotada una condición de salud o una medicación, solo puedes vincularte con un profesional con la insignia. Si la anotas mientras estás vinculado con uno sin ella, o si el tuyo pierde la insignia mientras la tienes anotada, el enlace termina. Te lo decimos a ti; a tu profesional solo le consta que el enlace ha terminado, aunque puede deducir el motivo. Esta regla la aplica nuestro código con lo que anotas en tu perfil, sin que nadie lo mire. Si crees que se ha equivocado, escríbenos a {email} y lo revisa una persona.',
+          'Cada vez que tu profesional mira o cambia algo, queda anotado y lo ves en tu perfil, en «Quién ha accedido».',
+          'Puedes terminar el enlace cuando quieras desde tu perfil, y desde la siguiente petición tu profesional deja de ver tus datos. Con un profesional con la insignia, también puedes dejar de compartir solo tu salud sin terminar el enlace. Tus objetivos, tu historial y tu último plan publicado se quedan contigo.',
+          'Quién responde de qué: NutrIA es responsable de tus datos en NutrIA y se los comunica a tu profesional porque tú lo pides y lo consientes. Tu profesional es responsable, por su cuenta, de lo que haga con lo que ve: si tiene la insignia, bajo su secreto profesional; si no, con el consentimiento que le das al aceptar, que retiras terminando el enlace. Para lo que haga fuera de NutrIA, dirígete a tu profesional. Para todo lo que está en NutrIA, escríbenos a {email}: somos tu punto de contacto.',
+          'Si tu profesional borra su cuenta, el enlace termina y su nombre sigue en tu registro de accesos.',
+          'Si eres dietista-nutricionista y alguien pide la insignia con tu nombre y tu número: consultamos el registro público de colegiados de tu colegio solo cuando alguien la pide, y solo tu fila, y te enviamos un código al contacto profesional que ese registro publica (tu correo, tu dirección profesional o tu teléfono). Nunca a un contacto que nos dé quien la pide. Guardamos qué registro consultamos, cuándo, el resultado, el número y por qué vía enviamos el código; no guardamos en NutrIA el contacto, y la copia del correo o la nota de la llamada la borramos cuando caduca el código, a los 30 días. Lo hacemos por interés legítimo: que nadie se haga pasar por dietista-nutricionista ante quienes usan NutrIA. Ese registro se borra con la cuenta que pidió la insignia. Si no fuiste tú quien la pidió, dínoslo en {email}.'
+        ],
+        untilOpen: 'Lo que explica esta sección empieza el {date}. Hasta ese día, nadie puede abrir una consulta en NutrIA ni invitarte a una.'
       },
       {
         heading: 'La inteligencia artificial',
@@ -3638,7 +3716,7 @@ export const esES = {
           'Antes de contestar, el mismo modelo lee tu pregunta para decidir si es de nutrición, si le corresponde a un profesional sanitario o si no tiene que ver con lo que hace. Algunas preguntas de salud —sobre enfermedades, dosis, medicación, embarazo o lactancia, trastornos de la conducta alimentaria o la alimentación de un niño— las detecta antes nuestro propio código, y esas no llegan a ningún modelo. Una pregunta que nuestro código o el modelo consideran de salud no se guarda: en la conversación queda solo la marca de que la hubo.',
           'Nuestro código revisa cada frase de la respuesta antes de enseñártela, y la para ahí si iba a nombrar algo que no puedes tomar según las alergias e intolerancias de tu perfil, a darte una cifra de calorías, proteína, hidratos, grasa, fibra o azúcar que no sale de tu plan, a darte una cantidad de un suplemento que no nos corresponde dar, o a decir que ha cambiado tu plan. Esa revisión la hacemos nosotros: al modelo no le decimos tus alergias. Por eso, si tienes una alergia, añádela a tu perfil: si solo la escribes en la conversación, ninguna de nuestras comprobaciones la tiene en cuenta.',
           'A quién va: a Anthropic, que la trata por encargo nuestro. Contratamos con Anthropic Ireland, Limited, en Irlanda. El modelo es Claude Haiku 5.5. Anthropic guarda lo que recibe en Estados Unidos y puede calcular la respuesta en servidores de otros países. Sus condiciones le prohíben entrenar sus modelos con ello y, según dice en sus páginas, borra la pregunta y la respuesta de sus sistemas como mucho a los 30 días; si sus sistemas automáticos marcan una conversación como contraria a sus normas de uso, puede guardarla hasta 2 años, y la puntuación de esa revisión hasta 7. Borrar aquí una conversación no borra esa copia.',
-          'Tus conversaciones se guardan en tu cuenta, cada una con un título hecho con las primeras palabras de tu primera pregunta. Nadie más las lee en NutrIA: no aparecen en nuestra consola de administración, no las ve tu dietista si tienes uno y no van a ningún registro. Puedes borrar un mensaje o una conversación entera cuando quieras, y se borra al momento. Si no, una conversación se borra sola seis meses después de su último mensaje, y todas se borran al borrar tu cuenta.',
+          'Tus conversaciones se guardan en tu cuenta, cada una con un título hecho con las primeras palabras de tu primera pregunta. Nadie más las lee en NutrIA: no aparecen en nuestra consola de administración, no las ve tu profesional si tienes uno y no van a ningún registro. Puedes borrar un mensaje o una conversación entera cuando quieras, y se borra al momento. Si no, una conversación se borra sola seis meses después de su último mensaje, y todas se borran al borrar tu cuenta.',
           'Para aplicar el límite de mensajes de cada quincena guardamos, por cada mensaje que envías, cuándo lo enviaste y si era sobre otra cosa que la nutrición, sin su texto. Ese recuento no se borra al borrar un mensaje —por eso un mensaje borrado sigue contando— y se borra solo a los 60 días, o al borrar tu cuenta.',
           'Tratamos tus preguntas y sus respuestas para darte el servicio que pides (contrato). Las alergias e intolerancias de tu perfil, con las que revisamos las respuestas, siguen bajo el consentimiento que nos diste para ellas.',
           'Te lo recordamos al empezar cada conversación: no escribas en el asistente enfermedades, medicación ni otros datos de tu salud. Si aun así lo haces, se envía y se guarda como el resto de la conversación, hasta que lo borres o se borre solo. Para preguntar por un suplemento no hace falta que digas si lo tomas ni por qué.'
@@ -3647,6 +3725,7 @@ export const esES = {
       {
         heading: 'Con quién compartimos tus datos',
         list: [
+          'El profesional con el que te vinculas, si aceptas su invitación: lo que dice la lista que aceptaste, como se explica en «Tu profesional en NutrIA». Ningún otro profesional recibe nada tuyo.',
           'OpenRouter, y DeepInfra o CoreWeave, que ejecutan el modelo de inteligencia artificial, como se explica en «La inteligencia artificial». Están en Estados Unidos.',
           'Anthropic, que ejecuta el modelo del asistente, si lo usas, como se explica en «El asistente». Contratamos con Anthropic Ireland, Limited, en Irlanda; guarda los datos en Estados Unidos.',
           'Vercel (alojamiento de la web, la API y las imágenes de los platos, en la Unión Europea) y Neon (base de datos, en la Unión Europea). Son empresas de Estados Unidos.',
@@ -3676,6 +3755,7 @@ export const esES = {
            * que nadie gasta no tiene fin, así que el plazo se enuncia en vez de inventarse un barrido.
            */
           'Mientras tu cuenta exista. Al borrarla, todo lo que hay en ella se borra al momento: perfil, alergias, salud, planes, listas de la compra, lo que dijiste que tenías en casa, progreso, conversaciones con el asistente y consentimientos.',
+          'Si abres una consulta, tu perfil, nuestra revisión de él y lo que guardamos de la insignia duran mientras exista tu cuenta y se borran con ella.',
           'Tus conversaciones con el asistente se borran solas seis meses después de su último mensaje, si no las borras antes, y el recuento de los mensajes que le envías, a los 60 días. Anthropic borra lo que recibió del asistente como mucho a los 30 días, o hasta 2 años después si sus sistemas lo marcan como contrario a sus normas de uso (más en «El asistente»).',
           'Lo que nos dices que tienes en casa vive hasta que se genera el plan que lo aprovecha, que lo borra. Si no generas ninguno —o si un fallo impidió borrarlo—, se queda ahí hasta que lo gaste el siguiente plan que generes, lo borres tú o borres la cuenta. De ese plan queda anotado con qué alimentos y cantidades se pidió, y eso se borra con el plan.',
           'Si alguien crea una cuenta con una dirección y nadie la confirma, la borramos a los treinta días del alta: el nombre, el correo y la contraseña con los que se creó desaparecen. Solo la borramos si no hay nada más en ella: ninguna sesión, ningún perfil, ningún plan y ninguna actividad anotada en nuestros registros. Después queda solo una anotación de que ese día se borró una cuenta sin confirmar, sin el correo, sin el nombre y sin nada que lleve a nadie. En cuanto confirmas tu dirección, tu cuenta se queda mientras tú quieras.',
@@ -3725,7 +3805,7 @@ export const esES = {
       }
     ],
     title: 'Política de privacidad',
-    updated: 'Última actualización: 17 de noviembre de 2026'
+    updated: 'Última actualización: {date}'
   },
   profile: {
     account: 'Cuenta',
@@ -4128,19 +4208,25 @@ export const esES = {
         ]
       },
       {
-        id: 'dietista',
-        heading: 'Si trabajas con un dietista',
+        id: 'profesional',
+        formerIds: ['dietista'],
+        heading: 'Si trabajas con un profesional',
         paragraphs: [
-          'Un dietista-nutricionista puede invitarte a llevar tu plan en NutrIA con su ayuda. Si aceptas, podrá ver y ajustar tu plan como explica la invitación y la política de privacidad, y mientras el enlace dure tendrás los límites de Premium sin pagar nada.',
-          'Tu dietista es un profesional independiente: su consejo y su relación contigo son cosa suya y tuya. NutrIA es la herramienta y no responde de sus decisiones clínicas, del mismo modo que tu dietista no responde de cómo funciona NutrIA.',
-          'Puedes terminar el enlace cuando quieras. Al terminar, conservas tu cuenta, tu historial y tu último plan publicado, con los límites gratuitos.'
-        ]
+          'Cualquier persona mayor de edad puede abrir una consulta en NutrIA. Si un profesional te invita y aceptas, podrá hacerte el plan y ver lo que explican la invitación y la política de privacidad, que depende de si tiene nuestra insignia «Dietista-nutricionista colegiada/o».',
+          'La insignia solo dice que, en la fecha que muestra, comprobamos en el registro público de su colegio que figura como dietista-nutricionista colegiado y habilitado, y que la cuenta es suya. Un profesional sin ella no es un profesional sanitario verificado por NutrIA: lo que diga de sus estudios lo declara esa persona y no lo hemos comprobado. Ni la insignia ni nuestra revisión de un perfil significan que recomendemos a nadie ni que hayamos comprobado su trabajo.',
+          'Tu profesional es independiente: su consejo, su precio y lo que acordéis, también el pago, son cosa vuestra y se hacen fuera de NutrIA. NutrIA no te cobra nada por él ni recibe tu dinero. Estar vinculado a un profesional no te da Premium: conservas los límites de tu cuenta.',
+          'Un plan que haga tu profesional en NutrIA pasa las mismas comprobaciones que cualquier otro: tus alergias e intolerancias y los límites de calorías y de proteína. NutrIA no revisa su consejo.',
+          'Si tienes anotada una condición de salud o una medicación, solo puedes vincularte con un profesional con la insignia, y un enlace con uno sin ella termina si la anotas o si el tuyo la pierde. Así se explica en la política de privacidad.',
+          'Puedes terminar el enlace cuando quieras. Al terminar, conservas tu cuenta, tu historial y tu último plan publicado.',
+          'Si alguien se presenta en NutrIA como lo que no es, o usa mal tus datos, escríbenos a {email} contándonos quién y qué: lo miramos, te decimos qué hemos hecho y, si retiramos algo, se lo explicamos a esa persona.'
+        ],
+        untilOpen: 'Esta sección se aplica desde el {date}. Hasta ese día, nadie puede abrir una consulta en NutrIA.'
       },
       {
         heading: 'Responsabilidad',
         paragraphs: [
           'Respondemos de los daños que causemos por dolo o negligencia grave, y de todo aquello que la ley no permite excluir. No respondemos de las decisiones de salud que tomes a partir de un plan o de una respuesta del asistente sin consultar a un profesional, ni de los productos que compres. Nada de esto limita los derechos que tienes como consumidor.',
-          'Si usas NutrIA con un dietista, lo que te aconseje es responsabilidad suya como profesional; lo que haga NutrIA —cómo calcula, qué comprueba y qué te muestra— es responsabilidad nuestra.'
+          'Si usas NutrIA con un profesional, lo que te aconseje es responsabilidad suya; lo que haga NutrIA —cómo calcula, qué comprueba, qué te muestra y la insignia— es responsabilidad nuestra.'
         ]
       },
       {
@@ -4157,7 +4243,7 @@ export const esES = {
       }
     ],
     title: 'Condiciones de uso',
-    updated: 'Última actualización: 17 de noviembre de 2026'
+    updated: 'Última actualización: {date}'
   },
 
   theme: {

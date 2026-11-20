@@ -1,0 +1,41 @@
+.recipients {
+  display: grid;
+  gap: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+/* The console pager's three thirds (`AdminPager`): previous, where we are, next — the range never moves. */
+.pager {
+  align-items: center;
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: 1fr auto 1fr;
+}
+
+.range {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.previous {
+  justify-self: start;
+}
+
+.next {
+  justify-self: end;
+}
+
+/* Large text on a small screen: the range goes over the two buttons. */
+@media (width < 17rem) {
+  .pager {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .range {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+}

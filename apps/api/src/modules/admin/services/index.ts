@@ -3,6 +3,7 @@ export * from './AdminAccounts.service.js';
 export * from './AdminAudit.service.js';
 export * from './AdminCatalogue.service.js';
 export * from './AdminFeedback.service.js';
+export * from './AdminNotices.service.js';
 export * from './AdminProfessionals.service.js';
 export * from './AdminPushTest.service.js';
 export * from './AdminSettings.service.js';
