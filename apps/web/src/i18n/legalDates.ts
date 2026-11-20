@@ -1,3 +1,5 @@
+import { madridDay } from '../lib/madridDay';
+
 /**
  * The dates the privacy policy and the terms of use print. Both pages are static: whatever
  * here depends on the day is decided when the page is built.
@@ -27,11 +29,6 @@ export const LEGAL_TEXTS_UPDATED = '2026-11-17';
  * this day, and if the switch slips, this moves the same day.
  */
 export const PRACTICES_OPEN_ON: string | null = null;
-
-/** The day, in Spain, that an instant falls on, as `YYYY-MM-DD`. */
-function madridDay(now: Date): string {
-  return new Intl.DateTimeFormat('en-CA', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Madrid', year: 'numeric' }).format(now);
-}
 
 /**
  * The day practices open, while it is still ahead (in Spain's calendar): the dated line

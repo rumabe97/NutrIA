@@ -272,6 +272,7 @@ export const enGB: Dictionary = {
       'auth.unconfirmed_account_swept': 'Unconfirmed account deleted',
       'feedback.handled': 'Message marked seen',
       'feedback.reopened': 'Message reopened',
+      'notice.sent': 'Notice sent to the accounts',
       'picture.accepted': 'Rejected dish picture accepted by hand, against the checker',
       'picture.discarded': 'Rejected dish picture discarded by hand',
       'picture.removed': 'Published dish picture removed',
@@ -317,6 +318,8 @@ export const enGB: Dictionary = {
     ],
     intro: 'Who made each account or setting change, and when.',
     noMatch: 'No action matches the filter.',
+    noticeNames: { 'terms-2.4.0': 'Terms change 2.4.0' },
+    noticeSent: '{notice}, announcing {date}: {sent} sent, {failed} failed, {skipped} unconfirmed, {remaining} still owed',
     /** `auth.password_changed`: how the person changed it. */
     passwordVia: { change: 'From their profile', reset: 'With the recovery link' },
     profileHiddenAfterNotice: '{reasons}, after a notice',
@@ -796,6 +799,7 @@ export const enGB: Dictionary = {
       inbox: 'Inbox',
       ingredients: 'Ingredients',
       log: 'Log',
+      notice: 'Change notice',
       notifications: 'Notifications',
       pictures: 'Pictures',
       planQuality: 'Plan quality',
@@ -810,6 +814,68 @@ export const enGB: Dictionary = {
       system: 'System'
     },
     title: 'Console'
+  },
+
+  /* `/admin/ajustes/aviso` (project 025 phase 10): the change notice to every account, sent from the console. `mail` is `textos/06` § Z, copied. */
+  adminNotice: {
+    alreadySent: 'Already sent',
+    cancel: 'Cancel',
+    caption: 'Accounts it will go to',
+    columns: { email: 'Email', locale: 'Language' },
+    confirm: 'Yes, send now',
+    confirmBody:
+      'The notice for {date} will now go to {count} accounts, one after the other. A sent email cannot be taken back, and each account gets it only once.',
+    confirmTitle: 'Before sending',
+    counts: 'Counts',
+    dateErrors: {
+      campaign_date: 'This notice has already gone out announcing {date}. Use that day: no other day can be announced.',
+      not_after_today: 'It has to be from tomorrow: the notice arrives before the change, never on the day.',
+      required: 'Choose the day.',
+      too_far: 'At most 60 days ahead.'
+    },
+    dateHint: 'The day you will turn on "Professionals\' practices" in Switches. Between tomorrow and 60 days ahead.',
+    dateLabel: 'Day of the change',
+    dateLocked: 'This notice has started going out announcing {date}: it is the same day for every account and cannot change.',
+    dateUnset: '[the day you choose]',
+    done: 'Nobody is left: the notice for {date} has gone to every account with a confirmed address.',
+    failed: '{count} did not go out: {list}. They are still owed and will be tried again on another press.',
+    finished: 'This notice has reached every account with a confirmed address. It announced {date}.',
+    intro:
+      "One email to every account with a confirmed address, once, in each account's language, announcing the change to the privacy policy and the terms. A sent email cannot be taken back.",
+    languages: { 'en-GB': 'English', 'es-ES': 'Spanish' },
+    loadError: 'Could not read where the notice stands.',
+    loading: 'Checking whether the notice has started going out…',
+    mail: {
+      choose:
+        'The details are at {privacyUrl}, under "Your professional on NutrIA", and at {termsUrl}. If you have any question, write to us at {email}. If you do not agree, you can delete your account from your profile.',
+      intro:
+        'From {date}, any adult will be able to open a practice on NutrIA and make the meal plan of whoever invites them to. If you do not work with a professional, nothing changes for you.',
+      subject: "NutrIA's privacy policy and terms are changing",
+      what: 'Only someone with our "Registered dietitian-nutritionist" badge is a person we have checked on their college\'s register. A professional without it will see of you the plans they make for you and where they stand, never your weight, your targets, your health or your allergies, and before you accept their invitation you will see exactly what they will see. If you have a health condition or a medication on record, you will only be able to link with a professional who holds the badge. And being linked to a professional does not give you Premium.'
+    },
+    mailNote: 'This is how each account gets it, in its own language. The date is written in when you press "See who".',
+    mailSubject: 'Subject',
+    nobody: 'There is no account to send it to: the confirmed ones already have it, or there is none confirmed.',
+    past: 'The day it announced, {date}, has come: this notice can no longer be sent.',
+    preview: 'See who',
+    previewFirst: 'Press "See who" with the day chosen: until then nothing can be sent.',
+    previewStale: 'You changed the day: press "See who" again before sending.',
+    remaining: '{count} still owed.',
+    reminder:
+      'Do not turn the switch on before that day. And the privacy and terms pages must already be published with this same day in their "starts on…" line.',
+    resultCap:
+      'Today {cap} notices have already gone out, the most for one day, so as not to use up the email the other accounts need. You can carry on from {day} at {time}.',
+    resultConflict: 'A batch is already being sent, perhaps from another tab. Wait for it to finish and press "See who" again.',
+    retry: 'Try again',
+    send: 'Send to the next {count}',
+    sendLead: 'Each press sends at most 25 emails, one after the other. If more are left, press again.',
+    sent: '{count} sent.',
+    skipped: 'Unconfirmed (not sent)',
+    status: 'Result of the last send',
+    steps: { date: 'The day of the change', mail: 'What the email says', send: 'Send', who: 'Who it goes to' },
+    stoppedEarly: 'It stopped so as not to run out of time: press again.',
+    title: 'Change notice',
+    toSend: 'To send'
   },
 
   /* `/admin/notificaciones` (`0071`): push subscriptions, reminders per week and channel, and who checked in after one. */
@@ -1558,6 +1624,7 @@ export const enGB: Dictionary = {
       'professional-profile-hidden': 'Professional profile hidden',
       'professional-suspended': 'Practice suspended',
       'professional-suspension-lifted': 'Practice suspension lifted',
+      'terms-change-notice': 'Terms change notice',
       'two-factor-disabled': 'Second factor turned off',
       'two-factor-enabled': 'Second factor turned on',
       'two-factor-removal-cancelled': 'Second factor removal cancelled',
@@ -2021,6 +2088,7 @@ export const enGB: Dictionary = {
     notFound: 'We could not find what you were looking for.',
     notFoundHome: 'Go to the home page',
     notFoundTitle: 'Page not found',
+    noticeDailyCap: "Today's notices have reached the day's limit. Carry on tomorrow.",
     onboardingIncomplete: 'Part of your profile is missing. Finish it and try again.',
     passwordChangeRequired: 'You need to change your password before you carry on.',
     pictureAllergensMismatch:
@@ -2801,6 +2869,7 @@ export const enGB: Dictionary = {
     '/acceder/codigo': { title: '2-step verification' },
     '/admin': { title: 'Overview' },
     '/admin/ajustes': { title: 'Switches' },
+    '/admin/ajustes/aviso': { title: 'Change notice' },
     '/admin/ajustes/registro': { title: 'Audit log' },
     '/admin/ajustes/sistema': { title: 'System' },
     '/admin/buzon': { title: 'Inbox' },
@@ -3453,7 +3522,7 @@ export const enGB: Dictionary = {
         paragraphs: [
           'To provide the service you ask for (contract): your account, profile, plans, conversations with the assistant, payments and service emails and, if you open a practice, your practice and your profile.',
           'With your explicit consent: your allergies and intolerances, your body and goal and your way of eating, which you give with a checkbox of its own when you create your profile. Without them we cannot make a safe plan for you, so without that consent we do not generate plans; you can withdraw it at any time by deleting that data from your profile. Your conditions, medications and supplements, under a separate, optional consent. And what you share with your professional, with the explicit consent you give when you accept their invitation, which names that person and what they will see. Each consent is stored with its date and the version of the text you accepted.',
-          "Our legitimate interest: recording product use and technical errors to keep it working, with no health data, and protecting accounts: the security record, the brakes against abuse and the security notices we send you, and to check, when somebody applies for the badge, that they are who they say they are on their college's register. You can object by writing to us.",
+          "Our legitimate interest: recording product use and technical errors to keep it working, with no health data, and protecting accounts: the security record, the brakes against abuse and the security notices we send you, and checking, when somebody applies for the badge, that they are who they say they are on their college's register. You can object by writing to us.",
           'Legal obligation: keeping what tax law requires about payments (Stripe does this).'
         ]
       },
@@ -3507,7 +3576,7 @@ export const enGB: Dictionary = {
       {
         heading: 'Who we share your data with',
         list: [
-          'The professional you link with, if you accept their invitation: what the list you accepted says, as explained under "Your professional on NutrIA". We do not sell or pass your data to any other professional.',
+          'The professional you link with, if you accept their invitation: what the list you accepted says, as explained under "Your professional on NutrIA". No other professional receives anything of yours.',
           'OpenRouter, and DeepInfra or CoreWeave, which run the artificial-intelligence model, as explained in "Artificial intelligence". They are in the United States.',
           'Anthropic, which runs the assistant’s model, if you use it, as explained in "The assistant". Our contract is with Anthropic Ireland, Limited, in Ireland; it stores the data in the United States.',
           'Vercel (hosting for the website, the API and the pictures of the dishes, in the European Union) and Neon (database, in the European Union). Both are US companies.',

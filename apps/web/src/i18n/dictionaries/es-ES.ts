@@ -285,6 +285,7 @@ export const esES = {
       'auth.unconfirmed_account_swept': 'Cuenta sin confirmar eliminada',
       'feedback.handled': 'Mensaje marcado como visto',
       'feedback.reopened': 'Mensaje reabierto',
+      'notice.sent': 'Aviso enviado a las cuentas',
       'picture.accepted': 'Imagen rechazada de un plato aceptada a mano, contra el revisor',
       'picture.discarded': 'Imagen rechazada de un plato descartada a mano',
       'picture.removed': 'Imagen publicada de un plato, retirada',
@@ -333,6 +334,8 @@ export const esES = {
     ],
     intro: 'Quién hizo cada cambio de cuenta o de ajuste, y cuándo.',
     noMatch: 'Ninguna acción coincide con el filtro.',
+    noticeNames: { 'terms-2.4.0': 'Cambio de condiciones 2.4.0' },
+    noticeSent: '{notice}, anunciando el {date}: {sent} enviados, {failed} fallidos, {skipped} sin confirmar, {remaining} pendientes',
     /** `auth.password_changed`: how the person changed it. */
     passwordVia: { change: 'Desde su perfil', reset: 'Con el enlace de recuperación' },
     /** `professional.profile_hidden`: the closed reasons, and whether a notice set it off. Never the word or the facts. */
@@ -833,6 +836,7 @@ export const esES = {
       inbox: 'Buzón',
       ingredients: 'Ingredientes',
       log: 'Registro',
+      notice: 'Aviso del cambio',
       notifications: 'Notificaciones',
       pictures: 'Imágenes',
       planQuality: 'Calidad de los planes',
@@ -847,6 +851,68 @@ export const esES = {
       system: 'Sistema'
     },
     title: 'Consola'
+  },
+
+  /* `/admin/ajustes/aviso` (project 025 phase 10): the change notice to every account, sent from the console. `mail` is `textos/06` § Z, copied. */
+  adminNotice: {
+    alreadySent: 'Ya enviados',
+    cancel: 'Cancelar',
+    caption: 'Cuentas a las que se enviará',
+    columns: { email: 'Correo', locale: 'Idioma' },
+    confirm: 'Sí, enviar ahora',
+    confirmBody:
+      'Se enviará ahora el aviso del {date} a {count} cuentas, una detrás de otra. Un correo enviado no se puede anular, y a cada cuenta solo le llega una vez.',
+    confirmTitle: 'Antes de enviar',
+    counts: 'Recuentos',
+    dateErrors: {
+      campaign_date: 'Este aviso ya se envió anunciando el {date}. Usa ese día: no se puede anunciar otro.',
+      not_after_today: 'Tiene que ser a partir de mañana: el aviso llega antes del cambio, nunca el mismo día.',
+      required: 'Elige el día.',
+      too_far: 'Como mucho dentro de 60 días.'
+    },
+    dateHint: 'El día en que encenderás «Consultas de profesionales» en Interruptores. Entre mañana y dentro de 60 días.',
+    dateLabel: 'Día del cambio',
+    dateLocked: 'Este aviso ya empezó a enviarse anunciando el {date}: es el mismo día para todas las cuentas y no se puede cambiar.',
+    dateUnset: '[el día que elijas]',
+    done: 'No queda nadie: el aviso del {date} ha salido a todas las cuentas con la dirección confirmada.',
+    failed: '{count} no salieron: {list}. Siguen pendientes y se volverá a intentar con ellas en otra pulsación.',
+    finished: 'Este aviso ya llegó a todas las cuentas con la dirección confirmada. Anunciaba el {date}.',
+    intro:
+      'Un correo a cada cuenta con la dirección confirmada, una sola vez y en el idioma de cada cuenta, que avisa del cambio de la política de privacidad y de las condiciones. Un correo enviado no se puede anular.',
+    languages: { 'en-GB': 'Inglés', 'es-ES': 'Español' },
+    loadError: 'No se pudo leer en qué punto está el aviso.',
+    loading: 'Mirando si el aviso ya ha empezado a enviarse…',
+    mail: {
+      choose:
+        'Los detalles están en {privacyUrl}, en «Tu profesional en NutrIA», y en {termsUrl}. Si tienes cualquier duda, escríbenos a {email}. Si no estás de acuerdo, puedes borrar tu cuenta desde tu perfil.',
+      intro:
+        'A partir del {date}, cualquier persona mayor de edad podrá abrir una consulta en NutrIA y hacer el plan de comidas de quien la invite a ello. Si no trabajas con ningún profesional, para ti no cambia nada.',
+      subject: 'Cambian la política de privacidad y las condiciones de NutrIA',
+      what: 'Solo quien lleve nuestra insignia «Dietista-nutricionista colegiada/o» es alguien a quien hemos comprobado en el registro de su colegio. Un profesional sin ella verá de ti los planes que te haga y en qué punto están, nunca tu peso, tus objetivos, tu salud ni tus alergias, y antes de aceptar su invitación verás exactamente qué verá. Si tienes anotada una condición de salud o una medicación, solo podrás vincularte con un profesional con la insignia. Y estar vinculado a un profesional no da Premium.'
+    },
+    mailNote: 'Así lo recibe cada cuenta, en su idioma. La fecha se escribe al pulsar «Ver a quién».',
+    mailSubject: 'Asunto',
+    nobody: 'No hay ninguna cuenta a la que enviarlo: las confirmadas ya lo tienen, o no hay ninguna confirmada.',
+    past: 'El día que anunciaba, el {date}, ya ha llegado: este aviso no puede enviarse más.',
+    preview: 'Ver a quién',
+    previewFirst: 'Pulsa «Ver a quién» con el día elegido: hasta entonces no se puede enviar.',
+    previewStale: 'Has cambiado el día: vuelve a pulsar «Ver a quién» antes de enviar.',
+    remaining: '{count} pendientes.',
+    reminder:
+      'No enciendas el interruptor antes de ese día. Y las páginas de privacidad y de condiciones tienen que estar publicadas ya con este mismo día en su línea «empieza el…».',
+    resultCap:
+      'Hoy ya han salido {cap} avisos, el máximo de un día, para no gastar el correo que necesitan las demás cuentas. Podrás seguir a partir del {day} a las {time}.',
+    resultConflict: 'Ya se está enviando un lote, quizá desde otra pestaña. Espera a que termine y vuelve a pulsar «Ver a quién».',
+    retry: 'Reintentar',
+    send: 'Enviar a los siguientes {count}',
+    sendLead: 'Cada pulsación envía como mucho 25 correos, uno detrás de otro. Si quedan más, se vuelve a pulsar.',
+    sent: '{count} enviados.',
+    skipped: 'Sin confirmar (no se les envía)',
+    status: 'Resultado del último envío',
+    steps: { date: 'El día del cambio', mail: 'Lo que dice el correo', send: 'Enviar', who: 'A quién va' },
+    stoppedEarly: 'Se detuvo para no pasarse de tiempo: pulsa otra vez.',
+    title: 'Aviso del cambio',
+    toSend: 'Por enviar'
   },
 
   /* `/admin/notificaciones` (`0071`): push subscriptions, reminders per week and channel, and who checked in after one. */
@@ -1599,6 +1665,7 @@ export const esES = {
       'professional-profile-hidden': 'Perfil profesional ocultado',
       'professional-suspended': 'Consulta suspendida',
       'professional-suspension-lifted': 'Suspensión de consulta levantada',
+      'terms-change-notice': 'Aviso del cambio de condiciones',
       'two-factor-disabled': 'Segundo factor desactivado',
       'two-factor-enabled': 'Segundo factor activado',
       'two-factor-removal-cancelled': 'Retirada del segundo factor cancelada',
@@ -2071,6 +2138,7 @@ export const esES = {
     notFoundHome: 'Ir a la página principal',
     /** The tab's title on a 404 — the same for a wrong address and for a console page shown to somebody else (`0028`). */
     notFoundTitle: 'Página no encontrada',
+    noticeDailyCap: 'Hoy ya han salido todos los avisos que caben en un día. Sigue mañana.',
     onboardingIncomplete: 'Nos falta parte de tu perfil. Termínalo y vuelve a intentarlo.',
     passwordChangeRequired: 'Antes de seguir tienes que cambiar tu contraseña.',
     pictureAllergensMismatch:
@@ -2908,6 +2976,7 @@ export const esES = {
     '/acceder/codigo': { title: 'Verificación en dos pasos' },
     '/admin': { title: 'Resumen' },
     '/admin/ajustes': { title: 'Interruptores' },
+    '/admin/ajustes/aviso': { title: 'Aviso del cambio' },
     '/admin/ajustes/registro': { title: 'Registro de acciones' },
     '/admin/ajustes/sistema': { title: 'Sistema' },
     '/admin/buzon': { title: 'Buzón' },
@@ -3656,7 +3725,7 @@ export const esES = {
       {
         heading: 'Con quién compartimos tus datos',
         list: [
-          'El profesional con el que te vinculas, si aceptas su invitación: lo que dice la lista que aceptaste, como se explica en «Tu profesional en NutrIA». No vendemos ni cedemos tus datos a ningún otro profesional.',
+          'El profesional con el que te vinculas, si aceptas su invitación: lo que dice la lista que aceptaste, como se explica en «Tu profesional en NutrIA». Ningún otro profesional recibe nada tuyo.',
           'OpenRouter, y DeepInfra o CoreWeave, que ejecutan el modelo de inteligencia artificial, como se explica en «La inteligencia artificial». Están en Estados Unidos.',
           'Anthropic, que ejecuta el modelo del asistente, si lo usas, como se explica en «El asistente». Contratamos con Anthropic Ireland, Limited, en Irlanda; guarda los datos en Estados Unidos.',
           'Vercel (alojamiento de la web, la API y las imágenes de los platos, en la Unión Europea) y Neon (base de datos, en la Unión Europea). Son empresas de Estados Unidos.',

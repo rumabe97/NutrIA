@@ -1,0 +1,70 @@
+.campaign {
+  display: grid;
+  gap: var(--gap-region);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+/* The two languages of the mail: one under the other on a phone, side by side when there is room. */
+.mails {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container (inline-size >= 44rem) {
+  .mails {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.counts {
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+/* Three counts, the label over its number; they wrap to fewer columns rather than shrink. */
+.tiles {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  margin: 0;
+}
+
+.tiles dt {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+}
+
+.tiles dd {
+  font-size: var(--font-size-06);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}
+
+/* Empty, the result's region takes no room in the step's grid but stays in the tree, so its first message is announced. */
+.status:empty {
+  position: absolute;
+}
+
+/* One sentence of a result per line: sent, failed, stopped, still owed. */
+.line {
+  display: block;
+}
+
+.confirm {
+  border-inline-start: 3px solid var(--color-warning-text);
+  display: grid;
+  gap: var(--space-03);
+  padding-inline-start: var(--space-04);
+}
+
+.confirmTitle {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}
