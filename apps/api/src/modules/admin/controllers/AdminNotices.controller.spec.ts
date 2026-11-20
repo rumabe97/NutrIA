@@ -6,7 +6,7 @@ import { Test } from '@nestjs/testing';
 
 import { NoticeController } from 'core/controllers/Notice';
 import { UserController } from 'core/controllers/User';
-import { ConflictError, InputParseError } from 'core/entities/Error';
+import { ConflictError, InputParseError, NoticeDailyCapError } from 'core/entities/Error';
 
 import { AdminNoticesController } from './AdminNotices.controller.js';
 import { AdminNoticesService } from '../services/index.js';
@@ -88,34 +88,79 @@ describe('AdminNoticesController', () => {
     return app.getHttpServer() as Server;
   }
 
-  it('previews for the owner: who would be mailed and the counts, the day from the body', async () => {
+  it('previews for the owner: the totals, the day as written, and the page the query asks for', async () => {
     const view = {
       alreadySent: 0,
       campaignDate: null,
-      recipients: [{ email: 'ana@example.invalid', locale: 'es-ES' }],
+      dateAsWritten: { 'en-GB': '1 December 2026', 'es-ES': '1 de diciembre de 2026' },
+      recipients: { offset: 100, rows: [{ email: 'ana@example.invalid', locale: 'es-ES' }], size: 50, total: 160 },
       skippedUnconfirmed: 1,
-      toSend: 1
+      toSend: 160
     };
     const preview = jest.spyOn(NoticeController, 'preview').mockResolvedValue(view);
 
-    const response = await request(server()).post(`/${PREFIX}/admin/notices/terms-2.4.0/preview`).send({ date: '2026-12-01' }).expect(200);
+    const response = await request(server())
+      .post(`/${PREFIX}/admin/notices/terms-2.4.0/preview?offset=100&size=50`)
+      .send({ date: '2026-12-01' })
+      .expect(200);
 
     expect(response.body).toEqual(view);
-    expect(preview).toHaveBeenCalledWith('terms-2.4.0', { date: '2026-12-01' }, expect.any(Function));
+    expect(preview).toHaveBeenCalledWith('terms-2.4.0', { date: '2026-12-01' }, { offset: 100, size: 50 }, expect.any(Function));
     expect(send).not.toHaveBeenCalled();
   });
 
-  it('sends a batch as the session’s owner, never an id from the body', async () => {
-    const answer = { failed: 0, remaining: 4, sent: 2, skippedUnconfirmed: 1 };
+  it('pages 25 from the start by default, and refuses a page larger than 100', async () => {
+    const preview = jest
+      .spyOn(NoticeController, 'preview')
+      .mockResolvedValue({
+        alreadySent: 0,
+        campaignDate: null,
+        dateAsWritten: { 'en-GB': '', 'es-ES': '' },
+        recipients: { offset: 0, rows: [], size: 25, total: 0 },
+        skippedUnconfirmed: 0,
+        toSend: 0
+      });
+
+    await request(server()).post(`/${PREFIX}/admin/notices/terms-2.4.0/preview`).send({ date: '2026-12-01' }).expect(200);
+    expect(preview).toHaveBeenCalledWith('terms-2.4.0', { date: '2026-12-01' }, { offset: 0, size: 25 }, expect.any(Function));
+
+    await request(server()).post(`/${PREFIX}/admin/notices/terms-2.4.0/preview?size=101`).send({ date: '2026-12-01' }).expect(422);
+  });
+
+  it('sends a batch as the session’s owner, with the cursor from the body and never an id of anybody', async () => {
+    const answer = {
+      after: 'usr-9',
+      failed: 1,
+      failedRecipients: [{ email: 'bad@example.invalid' }],
+      remaining: 4,
+      sent: 2,
+      skippedUnconfirmed: 1,
+      stoppedEarly: false
+    };
     const sendBatch = jest.spyOn(NoticeController, 'send').mockResolvedValue(answer);
 
     const response = await request(server())
       .post(`/${PREFIX}/admin/notices/terms-2.4.0/send`)
-      .send({ date: '2026-12-01', ownerId: 'usr-other' })
+      .send({ after: 'usr-3', date: '2026-12-01', ownerId: 'usr-other' })
       .expect(200);
 
     expect(response.body).toEqual(answer);
-    expect(sendBatch).toHaveBeenCalledWith('terms-2.4.0', 'usr-owner', { date: '2026-12-01' }, expect.any(Function));
+    expect(sendBatch).toHaveBeenCalledWith('terms-2.4.0', 'usr-owner', { after: 'usr-3', date: '2026-12-01' }, expect.any(Function));
+  });
+
+  it('answers the day’s cap with its own 409: the cap and when it resets', async () => {
+    jest.spyOn(NoticeController, 'send').mockRejectedValue(new NoticeDailyCapError(200, new Date('2026-11-20T23:00:00.000Z')));
+
+    const response = await request(server()).post(`/${PREFIX}/admin/notices/terms-2.4.0/send`).send({ date: '2026-12-01' }).expect(409);
+
+    expect(response.body).toMatchObject({ code: 'NOTICE_DAILY_CAP', noticeCap: { cap: 200, resetsAt: '2026-11-20T23:00:00.000Z' }, statusCode: 409 });
+  });
+
+  it('answers a day more than 60 days ahead with a 422 `too_far` — the real controller decides, nothing is sent', async () => {
+    const response = await request(server()).post(`/${PREFIX}/admin/notices/terms-2.4.0/send`).send({ date: '2099-12-01' }).expect(422);
+
+    expect(response.body).toMatchObject({ fieldErrors: { date: ['too_far'] } });
+    expect(send).not.toHaveBeenCalled();
   });
 
   it.each(['preview', 'send'])('is the 404 for anybody but the owner (%s), before the core is asked', async action => {
@@ -139,7 +184,7 @@ describe('AdminNoticesController', () => {
   });
 
   it('is the 404 for a notice not on core’s list — the real controller decides', async () => {
-    const response = await request(server()).post(`/${PREFIX}/admin/notices/terms-9.9.9/send`).send({ date: '2099-12-01' }).expect(404);
+    const response = await request(server()).post(`/${PREFIX}/admin/notices/terms-9.9.9/send`).send({ date: '2026-12-01' }).expect(404);
 
     expect(response.body).toEqual(NOT_FOUND);
     expect(send).not.toHaveBeenCalled();

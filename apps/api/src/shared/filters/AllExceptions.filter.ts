@@ -14,6 +14,7 @@ import {
   InputParseError,
   MealInFutureError,
   NotFoundError,
+  NoticeDailyCapError,
   OnboardingIncompleteError,
   PasswordChangeRequiredError,
   PictureRetryRefusedError,
@@ -45,6 +46,8 @@ type ErrorBody = {
   /** `professionalName` is null when the name may not be shown now: the screen says «tu profesional». */
   readonly link?: { readonly professionalName: string | null; readonly since: string; readonly status: 'active' | 'paused' };
   readonly message: string;
+  /** The notice send's daily cap, and the instant it resets — Madrid's next midnight, ISO (project 025 phase 10). */
+  readonly noticeCap?: { readonly cap: number; readonly resetsAt: string };
   /** A full practice's number, and the ways up from it (`0061`, PRD 004 criterion 17). */
   readonly practice?: { readonly includedClients: number; readonly waysUp: readonly ('end_link' | 'larger_plan')[] };
   /** ISO date an exhausted allowance renews, when it renews on a date. */
@@ -233,6 +236,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message: 'Hace falta aceptar un aviso para fijar ese plato.',
         statusCode: HttpStatus.CONFLICT,
         warning: exception.why
+      };
+    }
+
+    if (exception instanceof NoticeDailyCapError) {
+      // The owner's notice send has given the shared mailbox all it may today (project 025 phase 10): the console says
+      // how many and when to press again. Nothing of any account is in it.
+      return {
+        code: 'NOTICE_DAILY_CAP',
+        message: 'El aviso ya ha enviado hoy todos los correos que puede.',
+        noticeCap: { cap: exception.cap, resetsAt: exception.resetsAt.toISOString() },
+        statusCode: HttpStatus.CONFLICT
       };
     }
 

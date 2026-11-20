@@ -3,7 +3,8 @@ import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { AdminNoticesService } from '../services/index.js';
 import { CurrentUser, Roles, ZodBody } from '../../../shared/index.js';
-import { NoticeDateDto } from '../dto/in/index.js';
+import { NoticeDateDto, NoticePageDto, NoticeSendBodyDto } from '../dto/in/index.js';
+import { ZodQuery } from './ZodQuery.js';
 
 import type { NoticePreviewDto, NoticeSendDto } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
@@ -26,18 +27,22 @@ export class AdminNoticesController {
 
   @ApiOkResponse({
     description:
-      'Who a send would mail — every account with a confirmed address and no row for this notice, with the language its mail would be in — and the counts. Nothing is sent or written. 422 `date: not_after_today` or `date: campaign_date:<day>`.'
+      "The totals, the announced day as each language's mail writes it, and one page (`?offset=&size=`, size at most 100) of the accounts owed this notice with the language each mail would be in. Nothing is sent or written. 422 `date: not_after_today`, `too_far` or `campaign_date:<day>`."
   })
   @ApiOperation({ summary: 'Preview a notice to every account (project 025 phase 10)' })
   @HttpCode(HttpStatus.OK)
   @Post(':notice/preview')
-  async preview(@Param('notice') notice: string, @ZodBody(NoticeDateDto) body: NoticeDateDto): Promise<NoticePreviewDto> {
-    return this.notices.preview(notice, body);
+  async preview(
+    @Param('notice') notice: string,
+    @ZodBody(NoticeDateDto) body: NoticeDateDto,
+    @ZodQuery(NoticePageDto) page: NoticePageDto
+  ): Promise<NoticePreviewDto> {
+    return this.notices.preview(notice, body, page);
   }
 
   @ApiOkResponse({
     description:
-      'Mails the next batch (at most 25), one by one, each recorded once its mail is accepted, and answers sent, failed, skipped as unconfirmed and still owed. Safe to press again: a told account is never mailed again. 409 while another press of the same notice runs; 422 as the preview.'
+      "Mails the next batch (at most 25, within the day's cap of 200), after the `after` cursor the previous press answered, one by one, each recorded once its mail is accepted; answers sent, failed with the failed addresses, skipped as unconfirmed, still owed, whether it stopped early on its time budget, and the next cursor. Safe to press again: a told account is never mailed again. 409 `CONFLICT` while another press runs, 409 `NOTICE_DAILY_CAP` once the day's cap is spent; 422 as the preview."
   })
   @ApiOperation({ summary: 'Send the next batch of a notice (project 025 phase 10)' })
   @HttpCode(HttpStatus.OK)
@@ -45,7 +50,7 @@ export class AdminNoticesController {
   async send(
     @CurrentUser() owner: SessionUser,
     @Param('notice') notice: string,
-    @ZodBody(NoticeDateDto) body: NoticeDateDto
+    @ZodBody(NoticeSendBodyDto) body: NoticeSendBodyDto
   ): Promise<NoticeSendDto> {
     return this.notices.send(notice, owner.id, body);
   }

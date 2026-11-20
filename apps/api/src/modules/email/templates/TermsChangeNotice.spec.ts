@@ -1,14 +1,12 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { madridMidnight } from 'core/domain/Period';
-
 import { termsChangeNoticeEmail } from './TermsChangeNotice.js';
 import { withoutStylesheet } from './Layout.js';
 
 import type { EmailLocale, RenderedEmail } from './Layout.js';
 
 const LOCALES: readonly EmailLocale[] = ['es-ES', 'en-GB'];
-const DAY = madridMidnight('2026-12-01');
+const DAY = '2026-12-01';
 const LINKS: Record<EmailLocale, { privacyUrl: string; termsUrl: string }> = {
   'en-GB': { privacyUrl: 'https://nutria.example/en/privacidad#tu-profesional', termsUrl: 'https://nutria.example/en/condiciones' },
   'es-ES': { privacyUrl: 'https://nutria.example/privacidad#tu-profesional', termsUrl: 'https://nutria.example/condiciones' }

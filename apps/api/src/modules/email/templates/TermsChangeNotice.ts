@@ -1,5 +1,7 @@
 import { layout, paragraph } from './Layout.js';
-import { badgeDay, fill } from './ProfessionalBadgeCode.js';
+import { madridLongDay } from 'core/domain/Period';
+
+import { fill } from './ProfessionalBadgeCode.js';
 
 import type { EmailLocale, RenderedEmail } from './Layout.js';
 
@@ -40,8 +42,9 @@ const COPY: Record<EmailLocale, Copy> = {
 };
 
 /**
- * `effectiveOn` is the day the change is made, as a Madrid calendar day, written
- * in the reader's language. `privacyUrl` and `termsUrl` are the reader's own
+ * `effectiveOn` is the day the change is made, a Madrid calendar day
+ * (`YYYY-MM-DD`), written in the reader's language by `madridLongDay` — the
+ * function the console's preview uses to show it before anything is sent. `privacyUrl` and `termsUrl` are the reader's own
  * language's pages (`webUrl`), the policy's at `#tu-profesional`; `email` is the
  * address the service answers at.
  */
@@ -52,14 +55,14 @@ export function termsChangeNoticeEmail({
   privacyUrl,
   termsUrl
 }: {
-  effectiveOn: Date;
+  effectiveOn: string;
   email: string;
   locale: EmailLocale;
   privacyUrl: string;
   termsUrl: string;
 }): RenderedEmail {
   const copy = COPY[locale];
-  const intro = fill(copy.intro, { date: badgeDay(effectiveOn, locale) });
+  const intro = fill(copy.intro, { date: madridLongDay(effectiveOn, locale) });
   const choose = fill(copy.choose, { email, privacyUrl, termsUrl });
   const html = layout({ body: [paragraph(intro), paragraph(copy.what), paragraph(choose)].join('\n'), locale, title: copy.subject });
 

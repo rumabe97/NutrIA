@@ -7,6 +7,7 @@ import {
   fillWeeks,
   madridDayKey,
   madridDayKeys,
+  madridLongDay,
   madridMidnight,
   madridWeekKeys,
   parsePeriod,
@@ -249,5 +250,18 @@ describe('fillWeeks', () => {
 
   it('drops a day whose week is not in the keys', () => {
     expect(fillWeeks(weeks, [{ day: '2026-09-13', n: 9 }])).toEqual([0, 0, 0]);
+  });
+});
+
+/* Project 025 phase 10: the notice's day, written as the mail writes it and as the console shows it before sending. */
+describe('madridLongDay', () => {
+  it('writes a Madrid day in full in each language the notice is written in', () => {
+    expect(madridLongDay('2026-12-01', 'es-ES')).toBe('1 de diciembre de 2026');
+    expect(madridLongDay('2026-12-01', 'en-GB')).toBe('1 December 2026');
+  });
+
+  it('keeps the day across a changeover: Madrid’s midnight, not UTC’s', () => {
+    expect(madridLongDay('2026-03-29', 'en-GB')).toBe('29 March 2026');
+    expect(madridLongDay('2026-10-25', 'es-ES')).toBe('25 de octubre de 2026');
   });
 });

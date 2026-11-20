@@ -58,7 +58,9 @@ describe('AccountNoticeRepository.candidates', () => {
   it('owes the notice to a confirmed address with no row for that notice, oldest account first, bounded', async () => {
     state.rows = [[['usr-1', 'someone@example.invalid']]];
 
-    await expect(AccountNoticeRepository.candidates('terms-2.4.0', 25)).resolves.toEqual([{ id: 'usr-1', email: 'someone@example.invalid' }]);
+    await expect(AccountNoticeRepository.candidates('terms-2.4.0', { limit: 25 })).resolves.toEqual([
+      { id: 'usr-1', email: 'someone@example.invalid' }
+    ]);
 
     const [query] = state.sent;
 
@@ -70,10 +72,22 @@ describe('AccountNoticeRepository.candidates', () => {
     expect(query?.params).toEqual([true, 'terms-2.4.0', 25]);
   });
 
-  it('lists every account owed it when no limit is given — the preview', async () => {
-    await AccountNoticeRepository.candidates('terms-2.4.0');
+  it('pages for the preview: a size from an offset', async () => {
+    await AccountNoticeRepository.candidates('terms-2.4.0', { limit: 100, offset: 200 });
 
-    expect(state.sent[0]?.sql).not.toContain('limit');
+    expect(state.sent[0]?.params).toEqual([true, 'terms-2.4.0', 100, 200]);
+  });
+
+  /* Head of line: the next press starts after the accounts the last one tried, in the same order. */
+  it('starts after the cursor’s account, in the (created_at, id) order — an account that is gone matches nothing', async () => {
+    await AccountNoticeRepository.candidates('terms-2.4.0', { after: 'usr-9', limit: 25 });
+
+    const [query] = state.sent;
+
+    expect(query?.sql).toContain(
+      '("user"."created_at", "user"."id") > (select "cursor"."created_at", "cursor"."id" from "user" as "cursor" where "cursor"."id" = $3)'
+    );
+    expect(query?.params).toEqual([true, 'terms-2.4.0', 'usr-9', 25]);
   });
 });
 
@@ -93,6 +107,26 @@ describe('AccountNoticeRepository.counts', () => {
 
   it('reads zero, not a failure, from empty answers', async () => {
     await expect(AccountNoticeRepository.counts('terms-2.4.0')).resolves.toEqual({ alreadySent: 0, toSend: 0, unconfirmed: 0 });
+  });
+});
+
+describe('AccountNoticeRepository.sentBetween', () => {
+  it('counts every notice’s rows written in the window — what the daily cap reads', async () => {
+    state.rows = [[[12]]];
+    const from = new Date('2026-11-19T23:00:00.000Z');
+    const to = new Date('2026-11-20T23:00:00.000Z');
+
+    await expect(AccountNoticeRepository.sentBetween(from, to)).resolves.toBe(12);
+
+    const [query] = state.sent;
+
+    expect(query?.sql).toContain('where ("account_notices"."sent_at" >= $1 and "account_notices"."sent_at" < $2)');
+    expect(query?.sql).not.toContain('"notice" =');
+    expect(query?.params).toEqual([from.toISOString(), to.toISOString()]);
+  });
+
+  it('is zero with no rows', async () => {
+    await expect(AccountNoticeRepository.sentBetween(new Date(), new Date())).resolves.toBe(0);
   });
 });
 
@@ -130,8 +164,8 @@ describe('AccountNoticeRepository.record', () => {
 });
 
 describe('AccountNoticeRepository.exclusively', () => {
-  it('runs the batch under this notice’s try-lock, and the batch writes outside the lock’s transaction', async () => {
-    const value = await AccountNoticeRepository.exclusively('terms-2.4.0', async () => {
+  it('runs the batch under the notices’ one try-lock, and the batch writes outside the lock’s transaction', async () => {
+    const value = await AccountNoticeRepository.exclusively(async () => {
       await AccountNoticeRepository.record('usr-1', 'terms-2.4.0', { effectiveOn: '2026-12-01', locale: 'es-ES', sentAt: new Date() });
 
       return 'done';
@@ -140,11 +174,8 @@ describe('AccountNoticeRepository.exclusively', () => {
     const [lock, write] = state.sent;
 
     expect(value).toBe('done');
-    expect(lock).toMatchObject({
-      params: ['terms-2.4.0'],
-      sql: "select pg_try_advisory_xact_lock(hashtext('account_notice'), hashtext($1)) as locked",
-      tx: true
-    });
+    // One lock for every notice: the daily cap is every notice's together.
+    expect(lock).toMatchObject({ sql: "select pg_try_advisory_xact_lock(hashtext('account_notice'), 0) as locked", tx: true });
     // Its own connection: the row commits at once, and a batch cut short keeps it.
     expect(write?.tx).toBe(false);
   });
@@ -153,19 +184,19 @@ describe('AccountNoticeRepository.exclusively', () => {
     state.locked = false;
     const batch = vi.fn(async () => 'done');
 
-    await expect(AccountNoticeRepository.exclusively('terms-2.4.0', batch)).resolves.toBeNull();
+    await expect(AccountNoticeRepository.exclusively(batch)).resolves.toBeNull();
     expect(batch).not.toHaveBeenCalled();
   });
 
   it('lets what the batch threw through as it was, not as a database failure', async () => {
     const refusal = new Error('the batch’s own refusal');
 
-    await expect(AccountNoticeRepository.exclusively('terms-2.4.0', () => Promise.reject(refusal))).rejects.toBe(refusal);
+    await expect(AccountNoticeRepository.exclusively(() => Promise.reject(refusal))).rejects.toBe(refusal);
   });
 
   it('turns a failure of the lock itself into a database failure', async () => {
     state.failOn = /^select pg_try/;
 
-    await expect(AccountNoticeRepository.exclusively('terms-2.4.0', async () => 'done')).rejects.toBeInstanceOf(DatabaseOperationError);
+    await expect(AccountNoticeRepository.exclusively(async () => 'done')).rejects.toBeInstanceOf(DatabaseOperationError);
   });
 });

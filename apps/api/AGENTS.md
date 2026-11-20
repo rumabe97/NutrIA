@@ -855,17 +855,24 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   It does **not** ask `practiceOpen` (a free practice works); it refuses every client route to a
   suspended practitioner or a practice whose close has come (`ProfessionalView.restricted`).
 - **The owner's notice to every account** (project 025 phase 10, `docs/legal/textos/06` § Z):
-  `POST /admin/notices/:notice/preview` and `/send`, `{ date }`, on `AdminNoticesController`
-  (`@Roles('admin')`, the console's second factor). `:notice` is one of core's `ACCOUNT_NOTICES`
-  (else 404); `date` is the day of the change, after today in Madrid and the same for every press
-  of one notice (else 422 `date: not_after_today` / `campaign_date:<day>`). Who is owed it, the
-  batch of 25, the try-lock (409 for a concurrent press) and the audit row (`notice.sent`, counts
-  only) are `NoticeController`'s; the service renders `TermsChangeNotice` in each account's
-  language and hands `EmailService`'s answer back. Every confirmed address is owed it, whatever
-  its activation; an unconfirmed one is never mailed. **Send, then record**: an
-  `account_notices` row is written right after the server accepted that account's mail, so a
-  row that fails to write leaves the account owed and a later press mails it again — a rare
-  second mail, never a notice recorded that was not sent.
+  `POST /admin/notices/:notice/preview?offset=&size=` (`{ date }`) and `/send` (`{ date, after? }`)
+  on `AdminNoticesController` (`@Roles('admin')`, the console's second factor). `:notice` is one of
+  core's `ACCOUNT_NOTICES` (else 404); `date` is the day of the change, after today in Madrid, at
+  most 60 days ahead, and the same for every press of one notice (else 422 `date:
+  not_after_today` / `too_far` / `campaign_date:<day>`). The preview pages its recipients (max
+  100) and answers `dateAsWritten`, the day as each language's mail writes it (`madridLongDay`,
+  which the template uses too). Who is owed it, the batch of 25, the `after` cursor that keeps
+  refused addresses from starving the rest, the daily cap of 200 notice mails (409
+  `NOTICE_DAILY_CAP` with `noticeCap: { cap, resetsAt }` — the SMTP mailbox is shared with every
+  other mail), the 150-second budget under Neon's 5-minute idle-in-transaction limit, the one
+  try-lock (409 `CONFLICT`) and the audit row (`notice.sent`, counts only) are
+  `NoticeController`'s; the service renders `TermsChangeNotice` in each account's language and
+  hands `EmailService`'s answer back. The failed addresses go back to the console in
+  `failedRecipients` and nowhere else. Every confirmed address is owed it, whatever its
+  activation; an unconfirmed one is never mailed. **Send, then record**: a row is written right
+  after the server accepted that account's mail, so a row that fails to write, or a function cut
+  between the two, leaves the account owed and a later press mails it again — a rare second
+  mail, never a notice recorded that was not sent.
 - **The owner's restrictions and first look** (PRD 025 scope 16, criterion 18), under
   `/admin/professionals/:userId`: `suspension` (ends nothing), `close` (30 days' notice; the daily
   `/cron/reminders` closes it on its day, `PracticeCloseSweepService`, first in the run, ending

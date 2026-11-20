@@ -1,4 +1,4 @@
-import { and, asc, count, eq, notExists, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gte, lt, notExists, sql } from 'drizzle-orm';
 
 import { database } from 'database';
 import { user } from 'database/schema/auth';
@@ -51,19 +51,30 @@ function untold(notice: AccountNotice) {
  */
 export const AccountNoticeRepository = {
   /**
-   * The next accounts owed `notice`: a confirmed address and no row, oldest
-   * account first, at most `limit`. An unconfirmed address is never one — it may
-   * be somebody else's typo — whatever the account's activation.
+   * The accounts owed `notice`: a confirmed address and no row, oldest account
+   * first, `limit` of them from `offset`. An unconfirmed address is never one —
+   * it may be somebody else's typo — whatever the account's activation.
+   *
+   * `after` is an account id: only accounts after it in that order. An `after`
+   * whose account is gone matches nothing, and the caller starts again.
    */
-  async candidates(notice: AccountNotice, limit?: number): Promise<readonly NoticeCandidate[]> {
+  async candidates(
+    notice: AccountNotice,
+    page: { readonly after?: string; readonly limit: number; readonly offset?: number }
+  ): Promise<readonly NoticeCandidate[]> {
     try {
-      const query = database()
+      const after =
+        page.after === undefined
+          ? undefined
+          : sql`(${user.createdAt}, ${user.id}) > (select "cursor"."created_at", "cursor"."id" from "user" as "cursor" where "cursor"."id" = ${page.after})`;
+
+      return await database()
         .select({ id: user.id, email: user.email })
         .from(user)
-        .where(and(eq(user.emailVerified, true), untold(notice)))
-        .orderBy(asc(user.createdAt), asc(user.id));
-
-      return await (limit === undefined ? query : query.limit(limit));
+        .where(and(eq(user.emailVerified, true), untold(notice), after))
+        .orderBy(asc(user.createdAt), asc(user.id))
+        .limit(page.limit)
+        .offset(page.offset ?? 0);
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -106,22 +117,21 @@ export const AccountNoticeRepository = {
   },
 
   /**
-   * Runs `fn` while holding this notice's send lock, or answers null when
-   * another send of it holds the lock: two presses at once would otherwise both
-   * pick the same accounts. The lock is held by a transaction of its own and
+   * Runs `fn` while holding the notices' send lock, or answers null when another
+   * press holds it: two presses at once would otherwise both pick the same
+   * accounts, and both read the daily cap before either wrote. One lock for
+   * every notice, because the cap is every notice's together. The lock is held by a transaction of its own and
    * `fn` writes on other connections, so each account's row commits the moment
    * it is written — a batch cut short keeps every row it wrote, and the lock
    * goes with the cut connection.
    */
-  async exclusively<T>(notice: AccountNotice, fn: () => Promise<T>): Promise<T | null> {
+  async exclusively<T>(fn: () => Promise<T>): Promise<T | null> {
     // A box, not a `let`: the transaction's callback fills it, and the compiler cannot see a closure assign a local.
     const box: { outcome: { readonly error: unknown; readonly ok: false } | { readonly ok: true; readonly value: T } | null } = { outcome: null };
 
     try {
       await database().transaction(async tx => {
-        const [lock] = await tx.execute<{ locked: boolean }>(
-          sql`select pg_try_advisory_xact_lock(hashtext('account_notice'), hashtext(${notice})) as locked`
-        );
+        const [lock] = await tx.execute<{ locked: boolean }>(sql`select pg_try_advisory_xact_lock(hashtext('account_notice'), 0) as locked`);
 
         if (!lock?.locked) {
           return;
@@ -161,6 +171,23 @@ export const AccountNoticeRepository = {
         .insert(accountNotices)
         .values({ effectiveOn: sent.effectiveOn, locale: sent.locale, notice, sentAt: sent.sentAt, userId })
         .onConflictDoNothing();
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * How many notice rows were written in `[from, to)`, every notice together:
+   * what the daily cap counts.
+   */
+  async sentBetween(from: Date, to: Date): Promise<number> {
+    try {
+      const [row] = await database()
+        .select({ n: count() })
+        .from(accountNotices)
+        .where(and(gte(accountNotices.sentAt, from), lt(accountNotices.sentAt, to)));
+
+      return row?.n ?? 0;
     } catch (error: unknown) {
       throw wrap(error);
     }

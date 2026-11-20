@@ -30,7 +30,7 @@ describe('AdminNoticesService — one account’s mail', () => {
     jest.spyOn(NoticeController, 'send').mockImplementation(async (_notice, _owner, _input, given) => {
       deliver = given;
 
-      return { failed: 0, remaining: 0, sent: 0, skippedUnconfirmed: 0 };
+      return { after: null, failed: 0, failedRecipients: [], remaining: 0, sent: 0, skippedUnconfirmed: 0, stoppedEarly: false };
     });
 
     return { deliver: () => deliver as DeliverNotice, send, service };
@@ -79,16 +79,19 @@ describe('AdminNoticesService — one account’s mail', () => {
     const localeOf = jest.spyOn(ProfileController, 'localeOf').mockResolvedValue('en-GB');
     const preview = jest
       .spyOn(NoticeController, 'preview')
-      .mockImplementation(async (_notice, _input, given) => ({
+      .mockImplementation(async (_notice, _input, page, given) => ({
         alreadySent: 0,
         campaignDate: null,
-        recipients: [{ email: 'ana@example.invalid', locale: await given('usr-ana') }],
+        dateAsWritten: { 'en-GB': '1 December 2026', 'es-ES': '1 de diciembre de 2026' },
+        recipients: { ...page, rows: [{ email: 'ana@example.invalid', locale: await given('usr-ana') }], total: 1 },
         skippedUnconfirmed: 0,
         toSend: 1
       }));
     const service = new AdminNoticesService({ APP_URL: 'https://nutria.example' } as Env, { send: async () => true } as unknown as EmailService);
 
-    await expect(service.preview('terms-2.4.0', { date: '2026-12-01' })).resolves.toMatchObject({ recipients: [{ locale: 'en-GB' }] });
+    await expect(service.preview('terms-2.4.0', { date: '2026-12-01' }, { offset: 0, size: 25 })).resolves.toMatchObject({
+      recipients: { rows: [{ locale: 'en-GB' }] }
+    });
     expect(preview).toHaveBeenCalledTimes(1);
     expect(localeOf).toHaveBeenCalledWith('usr-ana');
   });

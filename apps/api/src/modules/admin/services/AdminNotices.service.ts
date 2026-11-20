@@ -1,7 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { NoticeController } from 'core/controllers/Notice';
-import { madridMidnight } from 'core/domain/Period';
 import { webUrl } from 'core/domain/WebUrl';
 
 import { EmailService, recipientLocale } from '../../email/services/index.js';
@@ -10,7 +9,7 @@ import { termsChangeNoticeEmail } from '../../email/templates/TermsChangeNotice.
 
 import type { DeliverNotice } from 'core/controllers/Notice';
 import type { Env } from '../../../config/index.js';
-import type { NoticeDateDto } from '../dto/in/index.js';
+import type { NoticeDateDto, NoticePageDto, NoticeSendBodyDto } from '../dto/in/index.js';
 import type { NoticePreviewDto, NoticeSendDto } from '../dto/out/index.js';
 
 /**
@@ -28,14 +27,14 @@ export class AdminNoticesService {
     private readonly email: EmailService
   ) {}
 
-  async preview(notice: string, body: NoticeDateDto): Promise<NoticePreviewDto> {
-    return NoticeController.preview(notice, body, userId => recipientLocale(userId));
+  async preview(notice: string, body: NoticeDateDto, page: NoticePageDto): Promise<NoticePreviewDto> {
+    return NoticeController.preview(notice, body, page, userId => recipientLocale(userId));
   }
 
-  async send(notice: string, ownerId: string, body: NoticeDateDto): Promise<NoticeSendDto> {
+  async send(notice: string, ownerId: string, body: NoticeSendBodyDto): Promise<NoticeSendDto> {
     const sent = await NoticeController.send(notice, ownerId, body, this.deliver(body.date));
 
-    // Counts only: never an address.
+    // Counts only: never an address — `failedRecipients` goes to the owner's console and nowhere else.
     this.logger.log(`notice ${notice}: ${String(sent.sent)} sent, ${String(sent.failed)} failed, ${String(sent.remaining)} remaining`);
 
     return sent;
@@ -51,7 +50,7 @@ export class AdminNoticesService {
     return async account => {
       const locale = await recipientLocale(account.id);
       const mail = termsChangeNoticeEmail({
-        effectiveOn: madridMidnight(date),
+        effectiveOn: date,
         email: this.env.EMAIL_FROM ?? '',
         locale,
         privacyUrl: webUrl(this.env.APP_URL, '/privacidad#tu-profesional', locale),
