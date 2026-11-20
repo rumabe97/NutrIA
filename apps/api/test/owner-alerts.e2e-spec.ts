@@ -481,6 +481,10 @@ describe('the owner is told by mail (0071, phase 6)', () => {
       await until(async () => (await refused()) === before + 1);
 
       expect(await refused()).toBe(before + 1);
+      // The claim is given back after `send` answers false, and the refused mail's event is written inside `send`: the
+      // event can be read a moment before the release has committed. Waited for, with the suite's deadline — a claim
+      // never given back still fails here, after 15 s.
+      await until(async () => (await alerted('generation-streak')).length === 0);
       expect(await alerted('generation-streak')).toEqual([]);
     }, 120_000);
   });
