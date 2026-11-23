@@ -23,9 +23,9 @@
   },
   "devDependencies": {
     "embedded-postgres": "18.4.0-beta.17",
-    "knip": "^6.45.1",
+    "knip": "^6.46.1",
     "prettier-configuration": "workspace:*",
-    "turbo": "^2.11.11",
+    "turbo": "^2.11.13",
     "typescript": "^6.0.3"
   },
   "engines": {
